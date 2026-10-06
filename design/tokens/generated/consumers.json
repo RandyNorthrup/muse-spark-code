@@ -282,8 +282,12 @@
       },
       "colour.error-surface": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0.67451, 0.090196, 0.129412], "alpha": 1 },
-        "css": "var(--ms-danger)",
+        "value": {
+          "colorSpace": "srgb",
+          "components": [1, 0.9490196078431372, 0.9490196078431372],
+          "alpha": 1
+        },
+        "css": "#fff2f2",
         "variable": "--ms-error-surface"
       },
       "colour.error-border": {
@@ -300,8 +304,12 @@
       },
       "colour.warning-surface": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0.45098, 0.333333, 0], "alpha": 1 },
-        "css": "var(--ms-warning)",
+        "value": {
+          "colorSpace": "srgb",
+          "components": [1, 0.9686274509803922, 0.8392156862745098],
+          "alpha": 1
+        },
+        "css": "#fff7d6",
         "variable": "--ms-warning-surface"
       },
       "colour.warning-text": {
@@ -312,8 +320,8 @@
       },
       "colour.link-hover": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0.039216, 0.360784, 1], "alpha": 1 },
-        "css": "var(--ms-accent)",
+        "value": { "colorSpace": "srgb", "components": [0.035294, 0.356863, 0.745098], "alpha": 1 },
+        "css": "var(--ms-info)",
         "variable": "--ms-link-hover"
       },
       "colour.code-surface": {
@@ -343,7 +351,7 @@
       "colour.progress": {
         "type": "color",
         "value": { "colorSpace": "srgb", "components": [0.039216, 0.360784, 1], "alpha": 1 },
-        "css": "var(--ms-accent)",
+        "css": "var(--ms-focus)",
         "variable": "--ms-progress"
       },
       "colour.chart-danger": {
@@ -1052,10 +1060,10 @@
         "type": "color",
         "value": {
           "colorSpace": "srgb",
-          "components": [1, 0.5725490196078431, 0.5725490196078431],
+          "components": [0.22745098039215686, 0.12549019607843137, 0.1411764705882353],
           "alpha": 1
         },
-        "css": "var(--ms-danger)",
+        "css": "#3a2024",
         "variable": "--ms-error-surface"
       },
       "colour.error-border": {
@@ -1072,8 +1080,12 @@
       },
       "colour.warning-surface": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0.898039, 0.764706, 0.294118], "alpha": 1 },
-        "css": "var(--ms-warning)",
+        "value": {
+          "colorSpace": "srgb",
+          "components": [0.2, 0.17254901960784313, 0.0784313725490196],
+          "alpha": 1
+        },
+        "css": "#332c14",
         "variable": "--ms-warning-surface"
       },
       "colour.warning-text": {
@@ -1084,8 +1096,8 @@
       },
       "colour.link-hover": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0.039216, 0.360784, 1], "alpha": 1 },
-        "css": "var(--ms-accent)",
+        "value": { "colorSpace": "srgb", "components": [0.498039, 0.698039, 1], "alpha": 1 },
+        "css": "var(--ms-info)",
         "variable": "--ms-link-hover"
       },
       "colour.code-surface": {
@@ -1114,8 +1126,8 @@
       },
       "colour.progress": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0.039216, 0.360784, 1], "alpha": 1 },
-        "css": "var(--ms-accent)",
+        "value": { "colorSpace": "srgb", "components": [0.498039, 0.698039, 1], "alpha": 1 },
+        "css": "var(--ms-focus)",
         "variable": "--ms-progress"
       },
       "colour.chart-danger": {
@@ -1826,8 +1838,8 @@
       },
       "colour.error-surface": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0.67451, 0.090196, 0.129412], "alpha": 1 },
-        "css": "var(--ms-danger)",
+        "value": { "colorSpace": "srgb", "components": [1, 1, 1], "alpha": 1 },
+        "css": "#ffffff",
         "variable": "--ms-error-surface"
       },
       "colour.error-border": {
@@ -1844,8 +1856,8 @@
       },
       "colour.warning-surface": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0.45098, 0.333333, 0], "alpha": 1 },
-        "css": "var(--ms-warning)",
+        "value": { "colorSpace": "srgb", "components": [1, 1, 1], "alpha": 1 },
+        "css": "#ffffff",
         "variable": "--ms-warning-surface"
       },
       "colour.warning-text": {
@@ -1856,8 +1868,8 @@
       },
       "colour.link-hover": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 1 },
-        "css": "var(--ms-accent)",
+        "value": { "colorSpace": "srgb", "components": [0.035294, 0.356863, 0.745098], "alpha": 1 },
+        "css": "var(--ms-info)",
         "variable": "--ms-link-hover"
       },
       "colour.code-surface": {
@@ -1887,7 +1899,7 @@
       "colour.progress": {
         "type": "color",
         "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 1 },
-        "css": "var(--ms-accent)",
+        "css": "var(--ms-focus)",
         "variable": "--ms-progress"
       },
       "colour.chart-danger": {
@@ -2566,8 +2578,8 @@
       },
       "colour.error-surface": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [1, 0.701961, 0.701961], "alpha": 1 },
-        "css": "var(--ms-danger)",
+        "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 1 },
+        "css": "#000000",
         "variable": "--ms-error-surface"
       },
       "colour.error-border": {
@@ -2584,8 +2596,8 @@
       },
       "colour.warning-surface": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [1, 1, 0], "alpha": 1 },
-        "css": "var(--ms-warning)",
+        "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 1 },
+        "css": "#000000",
         "variable": "--ms-warning-surface"
       },
       "colour.warning-text": {
@@ -2596,8 +2608,8 @@
       },
       "colour.link-hover": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [1, 1, 1], "alpha": 1 },
-        "css": "var(--ms-accent)",
+        "value": { "colorSpace": "srgb", "components": [0.498039, 1, 1], "alpha": 1 },
+        "css": "var(--ms-info)",
         "variable": "--ms-link-hover"
       },
       "colour.code-surface": {
@@ -2627,7 +2639,7 @@
       "colour.progress": {
         "type": "color",
         "value": { "colorSpace": "srgb", "components": [1, 1, 1], "alpha": 1 },
-        "css": "var(--ms-accent)",
+        "css": "var(--ms-focus)",
         "variable": "--ms-progress"
       },
       "colour.chart-danger": {
@@ -3251,6 +3263,77 @@
       "background": "colour.diff-removed",
       "canvas": "colour.surface",
       "usage": "text"
-    }
+    },
+    { "foreground": "colour.text", "background": "colour.editor-surface", "usage": "text" },
+    { "foreground": "colour.muted", "background": "colour.editor-surface", "usage": "text" },
+    { "foreground": "colour.info", "background": "colour.editor-surface", "usage": "text" },
+    { "foreground": "colour.input-text", "background": "colour.input-surface", "usage": "text" },
+    {
+      "foreground": "colour.input-placeholder",
+      "background": "colour.input-surface",
+      "usage": "text"
+    },
+    {
+      "foreground": "colour.secondary-text",
+      "background": "colour.secondary-surface",
+      "usage": "text"
+    },
+    {
+      "foreground": "colour.secondary-text",
+      "background": "colour.secondary-hover",
+      "usage": "text"
+    },
+    { "foreground": "colour.text", "background": "colour.toolbar-hover", "usage": "text" },
+    { "foreground": "colour.muted", "background": "colour.toolbar-hover", "usage": "text" },
+    { "foreground": "colour.error-text", "background": "colour.error-surface", "usage": "text" },
+    {
+      "foreground": "colour.warning-text",
+      "background": "colour.warning-surface",
+      "usage": "text"
+    },
+    { "foreground": "colour.code-text", "background": "colour.code-surface", "usage": "text" },
+    {
+      "foreground": "colour.syntax-function",
+      "background": "colour.code-surface",
+      "usage": "text"
+    },
+    { "foreground": "colour.syntax-keyword", "background": "colour.code-surface", "usage": "text" },
+    { "foreground": "colour.syntax-number", "background": "colour.code-surface", "usage": "text" },
+    { "foreground": "colour.syntax-string", "background": "colour.code-surface", "usage": "text" },
+    { "foreground": "colour.raised-text", "background": "colour.raised", "usage": "text" },
+    { "foreground": "colour.focus", "background": "colour.editor-surface", "usage": "ui" },
+    { "foreground": "colour.cursor", "background": "colour.editor-surface", "usage": "ui" },
+    { "foreground": "colour.input-border", "background": "colour.input-surface", "usage": "ui" },
+    { "foreground": "colour.checkbox-border", "background": "colour.input-surface", "usage": "ui" },
+    { "foreground": "colour.focus", "background": "colour.input-surface", "usage": "ui" },
+    { "foreground": "colour.focus", "background": "colour.secondary-surface", "usage": "ui" },
+    { "foreground": "colour.focus", "background": "colour.secondary-hover", "usage": "ui" },
+    { "foreground": "colour.focus", "background": "colour.toolbar-hover", "usage": "ui" },
+    { "foreground": "colour.error-border", "background": "colour.error-surface", "usage": "ui" },
+    { "foreground": "colour.focus", "background": "colour.warning-surface", "usage": "ui" },
+    { "foreground": "colour.raised-border", "background": "colour.raised", "usage": "ui" },
+    { "foreground": "colour.widget-border", "background": "colour.raised", "usage": "ui" },
+    { "foreground": "colour.contrast-border", "background": "colour.raised", "usage": "ui" },
+    { "foreground": "colour.progress", "background": "colour.raised", "usage": "ui" },
+    { "foreground": "colour.chart-danger", "background": "colour.raised", "usage": "ui" },
+    { "foreground": "colour.contrast-border", "background": "colour.surface", "usage": "ui" },
+    { "foreground": "colour.progress", "background": "colour.surface", "usage": "ui" },
+    { "foreground": "colour.chart-danger", "background": "colour.surface", "usage": "ui" },
+    { "foreground": "colour.quote-border", "background": "colour.surface", "usage": "ui" },
+    { "foreground": "colour.git-added", "background": "colour.surface", "usage": "text" },
+    { "foreground": "colour.git-added", "background": "colour.raised", "usage": "text" },
+    { "foreground": "colour.git-deleted", "background": "colour.surface", "usage": "text" },
+    { "foreground": "colour.git-deleted", "background": "colour.raised", "usage": "text" },
+    { "foreground": "colour.list-warning", "background": "colour.surface", "usage": "text" },
+    { "foreground": "colour.list-warning", "background": "colour.raised", "usage": "text" },
+    { "foreground": "colour.link-hover", "background": "colour.surface", "usage": "text" },
+    { "foreground": "colour.link-hover", "background": "colour.raised", "usage": "text" },
+    { "foreground": "colour.link-hover", "background": "colour.hover", "usage": "text" },
+    { "foreground": "aliases.fg", "background": "colour.surface", "usage": "text" },
+    { "foreground": "colour.danger-legacy", "background": "colour.surface", "usage": "ui" },
+    { "foreground": "colour.danger-legacy", "background": "colour.raised", "usage": "ui" },
+    { "foreground": "colour.danger-legacy", "background": "colour.hover", "usage": "ui" },
+    { "foreground": "colour.control-border", "background": "colour.surface", "usage": "ui" },
+    { "foreground": "colour.control-border", "background": "colour.raised", "usage": "ui" }
   ]
 }

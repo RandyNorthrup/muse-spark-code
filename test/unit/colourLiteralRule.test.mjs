@@ -36,6 +36,20 @@ describe('D94 raw colour guards', () => {
     ).toHaveLength(1)
   })
 
+  it.each([
+    ' #fff',
+    '1px solid #abcdef',
+    'linear-gradient(rgb(0 0 0), var(--ms-text))',
+    '<path fill="#abcdef" />',
+  ])('rejects raw paint embedded in a TypeScript CSS or SVG string: %s', async (paint) => {
+    expect(
+      await colourErrors(
+        `export const paint = ${JSON.stringify(paint)}`,
+        'src/webview/components/icons.tsx',
+      ),
+    ).toHaveLength(1)
+  })
+
   it('keeps the guard in both syntax-rule blocks and catches templates and JSX SVG paint', async () => {
     for (const file of ['src/core/fs/fileIdentity.ts', 'src/core/agent/agentBackend.ts']) {
       expect(await colourErrors('export const paint = "#123456"', file)).toHaveLength(1)

@@ -107,6 +107,7 @@ const metadata = z
             version: z.literal(1),
             modes: z.array(z.enum(MODES)).length(MODES.length),
             contrastPairs: z.array(pair).min(1),
+            decorativeColours: z.array(z.string()),
           })
           .strict(),
       })
@@ -227,6 +228,13 @@ function webValue(tokens, item, mode, host) {
 }
 
 async function formatOutput(file, content) {
+  const options = {
+    ...(await prettier.resolveConfig(path.join(REPO_ROOT, file))),
+    filepath: file,
+  }
+  // Rules such as rule-empty-line-before depend on multiline layout. Match
+  // the hook's final stylelint/prettier pass after expanding that layout first.
+  content = await prettier.format(content, options)
   if (file.endsWith('.css')) {
     const result = await stylelint.lint({
       code: content,
@@ -240,10 +248,7 @@ async function formatOutput(file, content) {
       )
     content = result.code
   }
-  return await prettier.format(content, {
-    ...(await prettier.resolveConfig(path.join(REPO_ROOT, file))),
-    filepath: file,
-  })
+  return await prettier.format(content, options)
 }
 
 export async function renderTokens(input) {

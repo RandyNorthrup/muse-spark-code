@@ -2,6 +2,9 @@ import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { transform } from 'esbuild'
+import stylelint from 'stylelint'
+import prettier from 'prettier'
+import path from 'node:path'
 import {
   TOKEN_EXTENSION,
   TOKEN_SOURCE,
@@ -87,6 +90,24 @@ describe('D94 one token source', () => {
       expect(resolveToken(tokens, 'aliases.fg', mode)).toEqual(
         resolveToken(tokens, 'colour.text', mode),
       )
+    }
+  })
+
+  it('keeps every generated CSS output unchanged through the real commit formatters', async () => {
+    const outputs = await renderTokens(source())
+    for (const [file, content] of Object.entries(outputs)) {
+      if (!file.endsWith('.css')) continue
+      const linted = await stylelint.lint({
+        code: content,
+        codeFilename: path.resolve(file),
+        fix: true,
+      })
+      expect(linted.errored).toBe(false)
+      const formatted = await prettier.format(linted.code, {
+        ...(await prettier.resolveConfig(file)),
+        filepath: file,
+      })
+      expect(formatted).toBe(content)
     }
   })
 

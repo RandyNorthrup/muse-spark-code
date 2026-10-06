@@ -87,6 +87,21 @@ function emittedColour(value) {
 export function checkContrast(input) {
   const { meta, tokens } = parseTokens(input)
   const problems = []
+  const covered = new Set(
+    meta.contrastPairs.flatMap((pair) => [
+      pair.foreground,
+      pair.background,
+      ...(pair.canvas === undefined ? [] : [pair.canvas]),
+    ]),
+  )
+  for (const name of meta.decorativeColours) {
+    if (tokens[name]?.$type !== 'color') throw new Error(`Unknown decorative colour: ${name}`)
+    covered.add(name)
+  }
+  for (const [name, token] of Object.entries(tokens)) {
+    if (token.$type === 'color' && !covered.has(name))
+      throw new Error(`Unpaired colour token: ${name}`)
+  }
   const colourAt = (name, mode) => {
     if (tokens[name]?.$type !== 'color')
       throw new Error(`Contrast pair requires a colour token: ${name}`)

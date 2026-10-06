@@ -78,6 +78,16 @@ describe('D94 check:tokens', () => {
     expect(() => contrastRatio(colour(0), colour(1), colour(1, 0.5))).toThrow('must be opaque')
   })
 
+  it('requires a contrast use or explicit decorative classification for every colour token', async () => {
+    const input = await source()
+    const meta = input.$extensions['org.muse-spark-code']
+    meta.contrastPairs = meta.contrastPairs.filter((p) => p.foreground !== 'colour.progress')
+    expect(() => checkContrast(input)).toThrow('Unpaired colour token: colour.progress')
+    const invalid = await source()
+    invalid.$extensions['org.muse-spark-code'].decorativeColours.push('colour.absent')
+    expect(() => checkContrast(invalid)).toThrow('Unknown decorative colour')
+  })
+
   it('fails invalid pair names, non-colours and alpha backgrounds without a named canvas', async () => {
     const input = await source()
     input.$extensions['org.muse-spark-code'].contrastPairs[0].foreground = 'radius.md'

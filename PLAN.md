@@ -27244,17 +27244,6 @@ and HELP, quiet hours, the summary and link, the caps, the price and the
 paid ask-once; 18 h, Win11 VM), with the lead's 2 h; it needs M109 and
 M110, and fake providers for every adapter.
 
-- **Lane 0 implementation record (2026-10-06):**
-  [the frozen token contract](design/tokens/README.md) names the DTCG source,
-  generated startup CSS, extended host-role CSS, four-mode palette CSS and
-  resolved TH/TD/native inputs. `check:tokens` checks staleness and declared
-  contrast uses; stylelint and ESLint guard raw colours, including the base's
-  additional SVG paint, OKLCH stops and modal colour mix. The complete current
-  component inventory and golden path contract are in
-  `test/harness/visual-matrix.json`; A owns the grades and S the final goldens.
-  [The lane's certification](docs/certification/m114-0.md) records its red
-  drills, scoped verification, sizes and named integration handoffs.
-
 - **Lane 0's contracts,** frozen before the other lanes start:
   - **`src/shared/reportSchema.ts`:** `report-v1` (header, Needs you,
     sections with typed rows and stable row keys, sources, footer) as zod;
@@ -27669,17 +27658,6 @@ core (below).
 
 Total: about 144 lane-hours.
 
-- **Lane 0 implementation record (2026-10-06):**
-  [the frozen token contract](design/tokens/README.md) names the DTCG source,
-  generated startup CSS, extended host-role CSS, four-mode palette CSS and
-  resolved TH/TD/native inputs. `check:tokens` checks staleness and declared
-  contrast uses; stylelint and ESLint guard raw colours, including the base's
-  additional SVG paint, OKLCH stops and modal colour mix. The complete current
-  component inventory and golden path contract are in
-  `test/harness/visual-matrix.json`; A owns the grades and S the final goldens.
-  [The lane's certification](docs/certification/m114-0.md) records its red
-  drills, scoped verification, sizes and named integration handoffs.
-
 - **Lane 0's contracts,** frozen before the other lanes start:
   - **`scheduleV2.ts`:** the schedule (id, name, trigger, target, delivery,
     `whenClosed`, `catchUp`, mode, grant, paid consent and cap, parallel,
@@ -27973,17 +27951,6 @@ changes.
 
 Total: about 60 lane-hours.
 
-- **Lane 0 implementation record (2026-10-06):**
-  [the frozen token contract](design/tokens/README.md) names the DTCG source,
-  generated startup CSS, extended host-role CSS, four-mode palette CSS and
-  resolved TH/TD/native inputs. `check:tokens` checks staleness and declared
-  contrast uses; stylelint and ESLint guard raw colours, including the base's
-  additional SVG paint, OKLCH stops and modal colour mix. The complete current
-  component inventory and golden path contract are in
-  `test/harness/visual-matrix.json`; A owns the grades and S the final goldens.
-  [The lane's certification](docs/certification/m114-0.md) records its red
-  drills, scoped verification, sizes and named integration handoffs.
-
 - **Lane 0's contracts,** frozen before the other lanes start:
   - **`src/shared/playbook.ts`:** the rule ids; the team settings with
     their reasons; the module key; the round record (module, class, round,
@@ -28137,17 +28104,6 @@ M110f.
 | W Wiring, docs, gates (lead)       | `dist/estimator.js` (lazy), budgets and the split rule (no backend import), `package.json`, the docs, the `/help` rows, registry rows, certification, the full gate                                                                                                                                                                                 | `docs/certification/m117*.md`                                                                                                                                          | `scripts/build.mjs`; the bundle-size and split gates; the host API record; README; PRIVACY; SECURITY; CHANGELOG; `docs/acp.md`; `docs/ide-compatibility/**`; `src/shared/featureCatalog.ts`; PLAN                                                       | last                                                       | Kubuntu  |     5 |
 
 Total: about 107 lane-hours.
-
-- **Lane 0 implementation record (2026-10-06):**
-  [the frozen token contract](design/tokens/README.md) names the DTCG source,
-  generated startup CSS, extended host-role CSS, four-mode palette CSS and
-  resolved TH/TD/native inputs. `check:tokens` checks staleness and declared
-  contrast uses; stylelint and ESLint guard raw colours, including the base's
-  additional SVG paint, OKLCH stops and modal colour mix. The complete current
-  component inventory and golden path contract are in
-  `test/harness/visual-matrix.json`; A owns the grades and S the final goldens.
-  [The lane's certification](docs/certification/m114-0.md) records its red
-  drills, scoped verification, sizes and named integration handoffs.
 
 - **Lane 0's contracts,** frozen before the other lanes start:
   - **`src/shared/estimate.ts`:** the goal and its grammar; the fleet
