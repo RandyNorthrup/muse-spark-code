@@ -1,0 +1,23 @@
+[Unit]
+Description=Muse Spark Code Node (Unofficial)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/var/lib/muse-spark-code-node/state.v1.json
+ConditionPathExists=/usr/lib/muse-node-os/service-binding.mjs
+
+[Service]
+User=muse-node
+Group=muse-node
+UMask=0077
+ExecStart=/usr/lib/nodejs/bin/node /usr/lib/muse-node-os/serve.mjs
+Restart=on-failure
+RestartSec=5s
+KillMode=control-group
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/muse-spark-code-node /run/muse-node
+
+[Install]
+WantedBy=multi-user.target
