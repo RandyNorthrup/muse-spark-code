@@ -1,6 +1,10 @@
+import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import {
   chmodSync,
+  lstatSync,
+  readdirSync,
+  existsSync,
   cpSync,
   mkdtempSync,
   mkdirSync,
@@ -11,6 +15,9 @@ import {
 import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest'
+import { GIT_TIMEOUT_MS } from '../../src/shared/constants'
+import { posixQuoted } from '../../src/core/shellQuote'
+import { expectEnded } from './helpers/processes'
 import { withoutCredentials } from '../../src/core/credentialEnvironment'
 import { OrchestratorPlaybook } from '../../src/core/orchestration/playbook/policy'
 import { moduleStates } from '../../src/core/orchestration/playbook/modules'
@@ -75,6 +82,36 @@ function repository(workspace: string) {
     shell: (command: string) =>
       execFileSync('sh', ['-c', command], { cwd: workspace, env, stdio: 'pipe' }),
   }
+}
+
+/** Real pinned Husky layout in an owned fixture; absent pre-commit body is
+ * intentional in the relocated-wrapper control. No lane Git config changes. */
+function huskyHooks(
+  fixture: ReturnType<typeof repository>,
+  directory: string,
+  preCommitBody: string | undefined,
+): string {
+  const hooks = path.join(fixture.workspace, directory, '_')
+  mkdirSync(hooks, { recursive: true })
+  writeFileSync(path.join(hooks, 'h'), readFileSync(path.resolve('.husky/_/h')))
+  for (const name of ['pre-commit', 'commit-msg', 'pre-push']) {
+    const wrapper = path.join(hooks, name)
+    writeFileSync(wrapper, '#!/usr/bin/env sh\n. "$(dirname "$0")/h"\n')
+    chmodSync(wrapper, 0o755)
+    const body = name === 'pre-commit' ? preCommitBody : 'exit 0\n'
+    if (body !== undefined) writeFileSync(path.join(fixture.workspace, directory, name), body)
+  }
+  fixture.git(['config', 'core.hooksPath', `${directory}/_`])
+  return hooks
+}
+
+function expectFailedCommit(policy: OrchestratorPlaybook, commit: string): void {
+  expect(policy.getRecord()).toContainEqual(
+    expect.objectContaining({
+      kind: 'verification',
+      value: expect.objectContaining({ commit, scope: 'commit', result: 'fail' }),
+    }),
+  )
 }
 
 /** Real Git/hook setup is shared by the outcome and cleanup assertions. The
@@ -144,16 +181,7 @@ for (const [name, command] of BYPASSES)
       const restarted = new OrchestratorPlaybook(fixture.options)
       expect(restarted.beforePush(fixture.work, fixture.rangeValue).kind).toBe('refuse')
       expect(restarted.finishWork(fixture.work).kind).toBe('refuse')
-      expect(fixture.policy.getRecord()).toContainEqual(
-        expect.objectContaining({
-          kind: 'verification',
-          value: expect.objectContaining({
-            commit: fixture.commit,
-            scope: 'commit',
-            result: 'fail',
-          }),
-        }),
-      )
+      expectFailedCommit(fixture.policy, fixture.commit)
       expect(moduleStates(fixture.policy.getRecord()).get(MODULE.id)?.strikes).toBe(1)
     },
   )
@@ -397,12 +425,7 @@ for (const target of ['branch', 'tag', 'notes', 'detached HEAD', 'worktree HEAD'
       expect(fixture.checked.decision.kind).toBe('refuse')
       expect(fixture.checked.output).toContain('unregistered-hook-failure')
       expect(fixture.policy.finishWork(fixture.work).kind).toBe('refuse')
-      expect(fixture.policy.getRecord()).toContainEqual(
-        expect.objectContaining({
-          kind: 'verification',
-          value: expect.objectContaining({ commit: fixture.commit, result: 'fail' }),
-        }),
-      )
+      expectFailedCommit(fixture.policy, fixture.commit)
     },
   )
 
@@ -416,18 +439,7 @@ for (const cause of [
   scenario(
     `fails closed with real Husky wrappers: ${cause}`,
     (fixture) => {
-      const hooks = path.join(fixture.workspace, '.husky', '_')
-      mkdirSync(hooks, { recursive: true })
-      writeFileSync(path.join(hooks, 'h'), readFileSync(path.resolve('.husky/_/h')))
-      for (const name of ['pre-commit', 'commit-msg', 'pre-push']) {
-        writeFileSync(path.join(hooks, name), '#!/usr/bin/env sh\n. "$(dirname "$0")/h"\n')
-        chmodSync(path.join(hooks, name), 0o755)
-        writeFileSync(
-          path.join(fixture.workspace, '.husky', name),
-          name === 'pre-commit' ? 'echo husky-body-failure >&2; exit 1\n' : 'exit 0\n',
-        )
-      }
-      fixture.git(['config', 'core.hooksPath', '.husky/_'])
+      const hooks = huskyHooks(fixture, '.husky', 'echo husky-body-failure >&2; exit 1\n')
       const work = fixture.policy.beginWork(MODULE, ['refs/heads/main'])
       const commit = fixture.git(['commit-tree', 'HEAD^{tree}', '-p', 'HEAD', '-m', 'bypass'])
       fixture.git(['update-ref', 'refs/heads/main', commit])
@@ -550,3 +562,234 @@ for (const target of ['annotated tag', 'deletion', 'mixed deletion and tag'] as 
         })
     },
   )
+
+scenario(
+  'allows a repository with no configured hook set',
+  (fixture) => {
+    for (const name of ['pre-commit', 'commit-msg', 'pre-push'])
+      rmSync(path.join(fixture.workspace, '.git/hooks', name))
+    const work = fixture.policy.beginWork(MODULE, ['refs/heads/main'])
+    fixture.git(['commit', '--allow-empty', '-m', 'no hooks'])
+    return { ...fixture, checked: fixture.policy.verifyWork(work) }
+  },
+  (fixture) => {
+    expect(fixture.checked.decision.kind).toBe('allow')
+  },
+)
+
+for (const hasRunner of [false, true])
+  scenario(
+    `requires Windows job containment before hook dispatch: ${String(hasRunner)}`,
+    (fixture) => {
+      const marker = path.join(fixture.workspace, 'post-checkout.marker')
+      fixture.hook('post-checkout', `echo dispatched > "${marker.replaceAll('\\', '/')}"`)
+      const work = fixture.policy.beginWork(MODULE, ['refs/heads/main'])
+      fixture.git(['commit', '--allow-empty', '-m', 'approved'])
+      const policy = hasRunner
+        ? fixture.policy
+        : new OrchestratorPlaybook({
+            ...fixture.options,
+            hookAdmission: { admit: fixture.options.hookAdmission.admit },
+          })
+      const platform = process.platform
+      try {
+        Object.defineProperty(process, 'platform', { value: 'win32' })
+        vi.stubEnv('HUSKY', '0')
+        vi.stubEnv('HUSKY_SKIP_HOOKS', '1')
+        vi.stubEnv('GIT_CONFIG_COUNT', '1')
+        vi.stubEnv('GIT_CONFIG_KEY_0', 'core.hooksPath')
+        vi.stubEnv('GIT_CONFIG_VALUE_0', path.join(fixture.workspace, 'missing'))
+        const checked = policy.verifyWork(work)
+        const calls = fixture.options.hookAdmission.runContained.mock.calls.map(
+          ([effect, options]) => ({ kind: effect.kind, args: effect.args, env: options.env }),
+        )
+        return {
+          ...fixture,
+          checked,
+          marker,
+          calls,
+          sourceHooks: fixture.git(['rev-parse', '--path-format=absolute', '--git-path', 'hooks']),
+        }
+      } finally {
+        vi.unstubAllEnvs()
+        Object.defineProperty(process, 'platform', { value: platform })
+      }
+    },
+    (fixture) => {
+      expect(fixture.checked.decision.kind).toBe(hasRunner ? 'allow' : 'refuse')
+      expect(existsSync(fixture.marker)).toBe(hasRunner)
+      if (!hasRunner) return
+      expect(
+        fixture.calls.some(
+          (call) =>
+            call.kind === 'hook' &&
+            call.args[0] === '-c' &&
+            call.args[1]?.replaceAll('\\', '/') ===
+              `core.hooksPath=${fixture.sourceHooks.replaceAll('\\', '/')}`,
+        ),
+      ).toBe(true)
+      for (const call of fixture.calls) {
+        expect(call.env).not.toHaveProperty('HUSKY')
+        expect(call.env).not.toHaveProperty('HUSKY_SKIP_HOOKS')
+        expect(call.env).not.toHaveProperty('GIT_CONFIG_COUNT')
+        expect(call.env).not.toHaveProperty('GIT_CONFIG_KEY_0')
+        expect(call.env).not.toHaveProperty('GIT_CONFIG_VALUE_0')
+      }
+    },
+  )
+it(
+  'ends every hook descendant on the production timeout',
+  async () => {
+    const workspace = mkdtempSync(path.join(tmpdir(), 'm116p-hook-timeout-'))
+    ownedDirectories.push(workspace)
+    const fixture = repository(workspace)
+    const marker = path.join(workspace, 'hook-child.pid')
+    const childScript = path.join(workspace, 'hook-child.cjs')
+    const groupMarker = path.join(workspace, 'hook-group.pid')
+    writeFileSync(
+      childScript,
+      `const cp = require('node:child_process'); const fs = require('node:fs'); fs.writeFileSync(${JSON.stringify(groupMarker)}, cp.execFileSync('/bin/ps', ['-o', 'pgid=', '-p', String(process.pid)], {encoding: 'utf8'})); const child = cp.spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], {stdio: 'ignore'}); fs.writeFileSync(${JSON.stringify(marker)}, String(child.pid)); setInterval(() => {}, 1000);`,
+    )
+    // Hook command text is fixture-only and quotes owned paths literally.
+    fixture.hook('pre-commit', `${posixQuoted(process.execPath)} ${posixQuoted(childScript)}`)
+    const policy =
+      process.platform === 'win32'
+        ? new OrchestratorPlaybook({
+            ...fixture.options,
+            hookAdmission: { admit: fixture.options.hookAdmission.admit },
+          })
+        : fixture.policy
+    const work = fixture.policy.beginWork(MODULE, ['refs/heads/main'])
+    fixture.shell('git commit --allow-empty -n -m timeout')
+    let descendant: number | undefined
+    try {
+      const checked = policy.verifyWork(work)
+      expect(checked.decision.kind).toBe('refuse')
+      if (process.platform === 'win32') {
+        expect(existsSync(marker)).toBe(false)
+        return
+      }
+      descendant = Number(readFileSync(marker, 'utf8'))
+      await expectEnded(descendant)
+      expect(fixture.git(['worktree', 'list', '--porcelain']).match(/^worktree /gmu)).toHaveLength(
+        1,
+      )
+    } finally {
+      // The red drill disables group cleanup. This marker owns that exact
+      // group, including the hook parent, so no drill child can be left behind.
+      if (existsSync(groupMarker)) {
+        const group = Number(readFileSync(groupMarker, 'utf8').trim())
+        if (group > 0) {
+          try {
+            process.kill(-group, 'SIGKILL')
+          } catch {
+            /* The owned group has already ended. */
+          }
+        }
+      }
+      if (descendant === undefined && existsSync(marker))
+        descendant = Number(readFileSync(marker, 'utf8'))
+      if (descendant !== undefined) {
+        try {
+          process.kill(descendant, 'SIGKILL')
+        } catch {
+          /* This owned fixture child has already ended. */
+        }
+      }
+    }
+    // This regression deliberately reaches the real 15-second Git deadline.
+  },
+  GIT_TIMEOUT_MS * 2,
+)
+
+scenario(
+  'refuses relocated Husky wrappers whose body can silently disappear',
+  (fixture) => {
+    huskyHooks(fixture, 'custom-hooks', undefined)
+    const work = fixture.policy.beginWork(MODULE, ['refs/heads/main'])
+    fixture.git(['commit', '--allow-empty', '-m', 'silently skipped body'])
+    return { ...fixture, checked: fixture.policy.verifyWork(work) }
+  },
+  (fixture) => {
+    expect(fixture.checked.decision.kind).toBe('refuse')
+  },
+)
+
+scenario(
+  'rejects cached passing receipts from the legacy hook runner',
+  (fixture) => {
+    fixture.hook('pre-commit', 'echo legacy-skipped-body >&2; exit 1')
+    const work = fixture.policy.beginWork(MODULE, ['refs/heads/main'])
+    fixture.shell('git commit --allow-empty -n -m legacy')
+    const commit = fixture.git(['rev-parse', 'HEAD'])
+    // Reconstruct the published pre-v2 digest in this disposable repository.
+    // Its config was empty; traversal order and mode/byte framing were public.
+    const hooks = fixture.git(['rev-parse', '--path-format=absolute', '--git-path', 'hooks'])
+    const hash = createHash('sha256')
+    const entries = [hooks]
+    while (entries.length > 0) {
+      const entry = entries.pop()
+      if (!entry) throw new Error('Missing fixture entry')
+      const stat = lstatSync(entry)
+      hash.update(path.relative(hooks, entry).replaceAll('\\', '/')).update(String(stat.mode))
+      if (stat.isDirectory())
+        entries.push(
+          ...readdirSync(entry)
+            .toSorted((a, b) => b.localeCompare(a))
+            .map((name) => path.join(entry, name)),
+        )
+      else hash.update(readFileSync(entry))
+    }
+    const legacyDigest = hash.digest('hex')
+    fixture.tamper([
+      ...fixture.policy
+        .getRecord()
+        .map((record) =>
+          record.kind === 'work' && record.value.id === work
+            ? { ...record, value: { ...record.value, hookDigest: legacyDigest } }
+            : record,
+        ),
+      {
+        kind: 'verification',
+        value: {
+          workId: work,
+          moduleId: MODULE.id,
+          commit,
+          hookDigest: legacyDigest,
+          scope: 'commit',
+          result: 'pass',
+          at: 100,
+        },
+      },
+    ])
+    const before = fixture.policy.finishWork(work)
+    return { ...fixture, before, checked: fixture.policy.verifyWork(work) }
+  },
+  (fixture) => {
+    expect(fixture.before.kind).toBe('refuse')
+    expect(fixture.checked.decision.kind).toBe('refuse')
+  },
+)
+
+scenario(
+  'refuses a newly added Husky startup script when reusing passing receipts',
+  (fixture) => {
+    huskyHooks(fixture, '.husky', 'exit 0\n')
+    const work = fixture.policy.beginWork(MODULE, ['refs/heads/main'])
+    fixture.git(['commit', '--allow-empty', '-m', 'approved'])
+    const checked = fixture.policy.verifyWork(work)
+    const config = path.join(fixture.workspace, 'profile')
+    mkdirSync(path.join(config, 'husky'), { recursive: true })
+    writeFileSync(path.join(config, 'husky/init.sh'), 'export HUSKY=0\n')
+    try {
+      vi.stubEnv('XDG_CONFIG_HOME', config)
+      return { ...fixture, checked, admission: fixture.policy.finishWork(work) }
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  },
+  (fixture) => {
+    expect(fixture.checked.decision.kind).toBe('allow')
+    expect(fixture.admission.kind).toBe('refuse')
+  },
+)

@@ -12056,6 +12056,10 @@ repository's own working rule (AGENTS.md rule 14).
     outer errors, require explicit renewal/cancellation generations, contain
     hook descendants, clean partial worktree registration, and connect hook
     strikes to patch refusal and independent redesign even without findings.
+    Hook-digest epoch v2 invalidates earlier potentially skipped-body receipts;
+    startup presence is checked on receipt reuse. POSIX executions end their
+    process group; every Windows Git child requires the trusted harness
+    job/tree runner and refuse without it.
     Each review finding receives a named regression and byte-exact red drill
     in `docs/certification/m116-p.md`. No new dependency or relaxed gate.
 
@@ -29612,6 +29616,27 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM116P3-Windows-job-binding (M116 I/W handoff).** The synchronous
+  policy cannot call the existing asynchronous job registry directly. Its
+  trusted `PlaybookHookAdmission.runContained` port requires the prepared
+  job/tree runner, the original effect and scrubbed spawn options, and returns
+  only after the entire tree has ended. No Git child (including ref/index plumbing and worktree cleanup)
+  dispatches on Windows without that port. Safe for now: missing containment
+  refuses verification before dispatch; the policy remains unshipped pending
+  I/U/W binding. Follow-up: bind the real Windows job registry in I/W and run
+  the native parent/grandchild timeout fixture. macmini proves native POSIX
+  group cleanup and the Windows admission/options branches with fixture doubles;
+  it does not certify a native Windows job run.
+- **FIXM116P3-Husky-startup/layout-compatibility.** Standard Husky startup
+  scripts are refused on both verification and receipt reuse; known relocated
+  wrappers are refused because their outside helpers are not in the captured
+  hook directory. Safe for now: neither obtains a passing receipt. Follow-up:
+  support these layouts only with a design proving actual body execution and
+  complete helper identity, without shell interpretation or bypass flags.
+  Hook-digest epoch v2 rejects pre-repair work digests and receipts, retaining
+  their history. Restart fresh trusted work and reverify; push still uses the
+  first retained workspace baseline, so old introduced commits cannot disappear.
 
 - **RVM116P (2026-10-06).** The P1 and all eight P2 findings are repaired;
   none is accepted as residual. Every repair has a named regression and a

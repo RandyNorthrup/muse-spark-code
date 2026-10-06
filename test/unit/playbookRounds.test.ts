@@ -518,19 +518,21 @@ describe('M116 three strikes and durable identity', () => {
       answerAll(fixture.policy)
     }
     const other = new OrchestratorPlaybook({ ...fixture.options, teamId: 'other' })
-    expect(fixture.policy.beforeFixRound(MODULE).kind).toBe('allow')
+    const admission = fixture.policy.beforeFixRound(MODULE)
+    expect(admission.kind).toBe('allow')
+    if (admission.kind !== 'allow' || !admission.lease) throw new Error('Expected lease')
     expect(other.beforeFixRound(MODULE)).toMatchObject({
       kind: 'refuse',
       note: { missing: ['patchReservation'] },
     })
     expect(completeReview(other, MODULE, reviewBlock(), REVIEW_AGENTS).kind).toBe('refuse')
-    expect(other.releasePatch(MODULE).kind).toBe('refuse')
+    expect(other.releasePatch(MODULE, admission.lease).kind).toBe('refuse')
     const board = new FakePlaybookBoard()
     board.merge('0', true)
     const lane = { ...board.readBoard().lanes[0]!, starts: [] }
     expect(other.beforeDispatch(lane, board.readBoard()).kind).toBe('refuse')
     fixture.advance(PLAYBOOK_LAUNDER_WINDOW_MS - 1)
-    expect(fixture.policy.renewPatch(MODULE).kind).toBe('allow')
+    expect(fixture.policy.renewPatch(MODULE, admission.lease).kind).toBe('allow')
     fixture.advance(1)
     expect(new OrchestratorPlaybook(fixture.options).beforeFixRound(MODULE).kind).toBe('refuse')
     expect(completeReview(fixture.policy, MODULE, reviewBlock(), REVIEW_AGENTS).note.code).toBe(
@@ -542,21 +544,19 @@ describe('M116 three strikes and durable identity', () => {
 
   it('releases canceled work, expires a crashed holder, and refuses its stale review', () => {
     const fixture = policyFixture()
-    fixture.policy.beforeFixRound(MODULE)
+    const admission = fixture.policy.beforeFixRound(MODULE)
+    if (admission.kind !== 'allow' || !admission.lease) throw new Error('Expected lease')
     const other = new OrchestratorPlaybook(fixture.options)
     expect(other.beforeFixRound(MODULE).kind).toBe('refuse')
-    expect(fixture.policy.releasePatch(MODULE).kind).toBe('allow')
+    expect(fixture.policy.releasePatch(MODULE, admission.lease).kind).toBe('allow')
     const expiredAdmission = other.beforeFixRound(MODULE)
     expect(expiredAdmission.kind).toBe('allow')
+    if (expiredAdmission.kind !== 'allow' || !expiredAdmission.lease)
+      throw new Error('Expected lease')
     fixture.advance(PLAYBOOK_LAUNDER_WINDOW_MS)
-    expect(other.renewPatch(MODULE).kind).toBe('refuse')
+    expect(other.renewPatch(MODULE, expiredAdmission.lease).kind).toBe('refuse')
     expect(
-      other.afterReview(
-        MODULE,
-        reviewBlock(),
-        REVIEW_AGENTS,
-        expiredAdmission.kind === 'allow' ? expiredAdmission.lease : undefined,
-      ).kind,
+      other.afterReview(MODULE, reviewBlock(), REVIEW_AGENTS, expiredAdmission.lease).kind,
     ).toBe('refuse')
     expect(fixture.policy.beforeFixRound(MODULE).kind).toBe('allow')
     expect(other.beforeFixRound(MODULE).kind).toBe('refuse')

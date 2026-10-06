@@ -3,13 +3,14 @@ import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { PLAYBOOK_LAUNDER_WINDOW_MS } from '../../src/shared/constants'
-import type { PlaybookLease, PlaybookModule } from '../../src/shared/playbook'
+import type { PlaybookLease, PlaybookModule, PlaybookRecord } from '../../src/shared/playbook'
 import { moduleStates } from '../../src/core/orchestration/playbook/modules'
 import { OrchestratorPlaybook } from '../../src/core/orchestration/playbook/policy'
 import { FAKE_PLAYBOOK_MODULE as MODULE, FakePlaybookBoard } from './helpers/playbook/fakes'
 import {
   answerAll,
   completeReview,
+  design,
   policyFixture,
   reviewBlock,
   REVIEW_AGENTS,
@@ -152,6 +153,70 @@ describe('M116 serialized policy model', () => {
       ).kind,
     ).toBe('refuse')
   })
+
+  it.each(['new module', 'clean review'])(
+    'hook strikes block patches and admit independent redesign with %s',
+    (stage) => {
+      const fixture = policyFixture()
+      fixture.policy.declareModule(MODULE)
+      if (stage === 'clean review')
+        completeReview(
+          fixture.policy,
+          MODULE,
+          { findings: [], coverage: reviewBlock().coverage },
+          REVIEW_AGENTS,
+        )
+      const failures: PlaybookRecord[] = Array.from({ length: 3 }, (_, i) => ({
+        kind: 'verification',
+        value: {
+          workId: `failed-work-${String(i)}`,
+          moduleId: MODULE.id,
+          commit: `failed-commit-${String(i)}`,
+          hookDigest: 'a'.repeat(64),
+          scope: 'commit',
+          result: 'fail',
+          at: 100,
+        },
+      }))
+      fixture.tamper([...fixture.policy.getRecord(), ...failures])
+      expect(moduleStates(fixture.policy.getRecord()).get(MODULE.id)?.strikes).toBe(3)
+      expect(fixture.policy.beforeFixRound(MODULE).note.code).toBe('redesignRequired')
+      expect(fixture.policy.recordDesignDecision(design()).kind).toBe('allow')
+      expect(fixture.policy.beforeFixRound(MODULE).note.code).toBe('redesignOpen')
+      expect(
+        completeReview(
+          fixture.policy,
+          MODULE,
+          { findings: [], coverage: reviewBlock().coverage, resolution: [] },
+          REVIEW_AGENTS,
+        ).kind,
+      ).toBe('allow')
+      const restarted = new OrchestratorPlaybook(fixture.options)
+      expect(moduleStates(restarted.getRecord()).get(MODULE.id)?.strikes).toBe(0)
+      expect(restarted.beforeFixRound(MODULE).kind).toBe('allow')
+    },
+  )
+
+  for (const operation of ['renewPatch', 'releasePatch'] as const) {
+    it(`refuses token-free and stale ${operation} after generation replacement`, () => {
+      const fixture = policyFixture()
+      const old = lease(fixture.policy.beforeFixRound(MODULE))
+      fixture.advance(PLAYBOOK_LAUNDER_WINDOW_MS)
+      const current = lease(fixture.policy.beforeFixRound(MODULE))
+      fixture.advance(1)
+      expect(Reflect.apply(fixture.policy[operation], fixture.policy, [MODULE])).toMatchObject({
+        kind: 'refuse',
+      })
+      expect(fixture.policy[operation](MODULE, old).kind).toBe('refuse')
+      const held = moduleStates(fixture.policy.getRecord()).get(MODULE.id)?.leases.get(MODULE.id)
+      expect(held).toMatchObject({
+        generation: current.generation,
+        status: 'held',
+        at: 100 + PLAYBOOK_LAUNDER_WINDOW_MS,
+      })
+      expect(fixture.policy[operation](MODULE, current).kind).toBe('allow')
+    })
+  }
 
   it.each([
     [MODULE, OTHER],

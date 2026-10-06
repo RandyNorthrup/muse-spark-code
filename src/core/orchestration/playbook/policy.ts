@@ -475,22 +475,20 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
   }
 
   /** Renewal retains the generation; cancellation does not validate old reviews. */
-  renewPatch(module: PlaybookModule, token?: PlaybookLease): PlaybookDecision {
+  renewPatch(module: PlaybookModule, token: PlaybookLease): PlaybookDecision {
     this.refresh()
     const state = this.state(module)
     if ('kind' in state) return state
-    const lease = token ?? state.leases.get(module.id)
-    return this.owns(state, lease)
-      ? this.reserve(state, lease?.laneId ?? this.options.laneId)
-      : this.leaseRefusal(state)
+    const lease = token
+    return this.owns(state, lease) ? this.reserve(state, lease.laneId) : this.leaseRefusal(state)
   }
 
-  releasePatch(module: PlaybookModule, token?: PlaybookLease): PlaybookDecision {
+  releasePatch(module: PlaybookModule, token: PlaybookLease): PlaybookDecision {
     this.refresh()
     const state = this.state(module)
     if ('kind' in state) return state
-    const lease = token ?? state.leases.get(module.id)
-    if (!lease || !this.owns(state, lease)) return this.leaseRefusal(state)
+    const lease = token
+    if (!this.owns(state, lease)) return this.leaseRefusal(state)
     this.publish([
       { kind: 'lease', value: { ...lease, status: 'released', at: this.options.now() } },
     ])
@@ -698,7 +696,7 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
     }
     if (
       decision.outcome !== 'pending' ||
-      !state.current?.findings.length ||
+      (!state.current?.findings.length && state.strikes === 0) ||
       this.records.some((record) => record.kind === 'design' && record.value.id === decision.id)
     )
       return this.decide('refuse', 'threeStrikes', 'designRequired', {

@@ -56,7 +56,11 @@ Verification discovers new branches, tags, notes and detached worktree HEADs.
 Hooks run from the source repository's absolute hook directory. Configured
 hook sets must contain every required hook; Husky startup scripts and missing
 dispatch/body files fail closed. Annotated tags verify their target commit;
-ref deletions need no hook receipt.
+ref deletions need no hook receipt. Pre-repair receipts require fresh
+verification. Renewal and cancellation require the requesting lease token;
+hook-failure strikes stop patches even without review findings. POSIX hook
+processes end as a group. Windows verification requires the trusted harness
+job runner and refuses while that integration is unavailable.
 Lane and generation leases fence stale reviews, and edited moves and merges
 inherit review history. Editor/planner integration remains M116 I/U/W work.
 See the [shared policy help reference](docs/reference.md) for its lifecycle.

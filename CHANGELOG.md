@@ -12,7 +12,10 @@ happened, not what was planned; superseded entries are kept.
 - Close playbook verification gaps for skipped Husky bodies, newly created refs
   and detached worktree commits. Run source hooks by absolute path, clean
   partial worktree registrations, scrub outer failures, and handle annotated
-  tags and ref deletions without false hook violations.
+  tags and ref deletions without false hook violations. Reject legacy and
+  startup-invalidated cached receipts; require explicit renewal/cancellation
+  tokens, enforce hook strikes without findings, and contain hook processes
+  with POSIX groups or the mandatory Windows job-runner port.
 - Harden the shared orchestrator playbook's safety history: policy refusals
   block same-effect retries across tools, agents and restart. Disk-journal
   tests create and clean their own OS temporary directories.

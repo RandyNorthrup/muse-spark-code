@@ -1,4 +1,5 @@
 import { onTestFinished, vi } from 'vitest'
+import { spawnSync, type SpawnSyncOptions } from 'node:child_process'
 import { mkdtempSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
@@ -45,7 +46,14 @@ export function policyFixture(inputWorkspace?: string) {
     workspaceFolder,
     teamId: 'panel',
     laneId: 'panel',
-    hookAdmission: { admit: vi.fn((_effect: PlaybookHookEffect) => true) },
+    hookAdmission: {
+      admit: vi.fn((_effect: PlaybookHookEffect) => true),
+      // Containment is a test double for short fixture hooks on Windows;
+      // production adapters must use their prepared job/tree registry.
+      runContained: vi.fn((effect: PlaybookHookEffect, spawnOptions: SpawnSyncOptions) =>
+        spawnSync(effect.command, [...effect.args], { ...spawnOptions, encoding: 'buffer' }),
+      ),
+    },
     now: () => now,
     authorizeOverride: authority,
     drillRequirements: { guards: vi.fn(() => ['rounds']) },
