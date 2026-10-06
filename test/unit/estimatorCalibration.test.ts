@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { build } from 'esbuild'
@@ -517,6 +517,7 @@ describe('M117 calibration determinism', () => {
   let directory: string
   let runner: string
   beforeAll(async () => {
+    await mkdir(path.resolve('temp/m117-c'), { recursive: true })
     directory = await mkdtemp(path.resolve('temp/m117-c/determinism-'))
     runner = path.join(directory, 'runner.mjs')
     const root = path.resolve('.').replaceAll('\\', '/')

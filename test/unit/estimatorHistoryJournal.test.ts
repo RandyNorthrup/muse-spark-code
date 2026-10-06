@@ -13,6 +13,7 @@ describe('M117 durable metadata-only history journal', () => {
   let directory: string
   let journal: EstimateHistoryJournal
   beforeEach(async () => {
+    await fs.mkdir(path.resolve('temp/m117-c'), { recursive: true })
     directory = await fs.mkdtemp(path.resolve('temp/m117-c/journal-'))
     journal = new EstimateHistoryJournal(path.join(directory, 'history'))
   })
@@ -89,22 +90,13 @@ describe('M117 durable metadata-only history journal', () => {
 
   it('canonicalizes dates and module/class order before comparing replays', async () => {
     const record = fakeHistoryRecord()
-    record.review = {
-      status: 'known',
-      rounds: 2,
-      modules: [
-        {
-          familyId: 'z',
-          strikes: 2,
-          classes: [
-            { class: 'docs', strikes: 1 },
-            { class: 'testsGates', strikes: 2 },
-          ],
-        },
-        { familyId: 'a', strikes: 1, classes: [] },
-      ],
-      redesigns: [],
-    }
+    if (record.review.status !== 'known') throw new Error('expected known review')
+    record.review.rounds = 2
+    const family = record.review.modules[0]!
+    family.familyId = 'z'
+    family.strikes = 2
+    family.classes.push({ class: 'testsGates', strikes: 2 })
+    record.review.modules.push({ familyId: 'a', strikes: 1, classes: [] })
     const reversed = structuredClone(record)
     if (reversed.review.status === 'known') {
       reversed.review.modules.reverse()

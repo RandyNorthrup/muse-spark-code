@@ -89,6 +89,12 @@ masking a directory-creation failure. The CI mean now uses a stable online
 mean; cleanup runs only after this writer creates its staging file and
 preserves an earlier failure. Both regressions pass.
 
+The final suites also create their scratch parent in setup. After deleting
+the session's scratch directory, both files pass all 46 tests on fresh
+storage at default timeout; unit typecheck, scoped lint and duplication pass
+again. This removes an accidental dependency on a manually created folder
+that would be absent on a clean CI checkout.
+
 Red-drill receipts and final gates follow below. Every mutation runs the
 entire owning test file, requires a named assertion failure with nonzero
 exit, and restores the original bytes with SHA-256 verification. No skipped
@@ -172,3 +178,53 @@ the repository default timeout each time. No fixture or shared file changed.
 | C29   | reviewRoundRate: continuations / rounds → reviewRoundRate: rounds / continuations                                                                                                                                 | M117 calibration and its honest prior derives its cautious review prior from three distinct repository narratives                            |        2 |
 | C30   | const isReviewFitted = reviews.length >= ESTIMATE_CALIBRATION_MIN_SAMPLES → const isReviewFitted = reviews.length > ESTIMATE_CALIBRATION_MIN_SAMPLES                                                              | M117 calibration and its honest prior fits complete review rounds once per lane rather than summing module strikes                           |        1 |
 | B12   | review === undefined ? { status: 'unknown' } : review → review === undefined ? { status: 'known', rounds: 0, modules: [], redesigns: [] } : review                                                                | M117 board, git, M116 and CI history builders derives git elapsed hours only without a board measurement and keeps missing review/CI unknown |        1 |
+
+## Final scoped verification and W's generated-record handoff
+
+All checks below ran directly on Mac mini. The implementation commit is
+`e21cad76`; lint-staged and staged gitleaks passed with hooks on. All five
+production source files still match the certified hashes after the hook.
+
+| Check                                                                                                    | Result                                                                                                                                                                                                                                      |
+| -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Owned Vitest files (`estimatorCalibration.test.ts`, `estimatorHistoryJournal.test.ts`, `--maxWorkers=3`) | 46 passed, no skips, repository default timeout; includes cross-process TZ/LANG determinism.                                                                                                                                                |
+| Red drills                                                                                               | 62 distinct deliberate mutations, 89 named assertion failures, all exits 1, all restores SHA-256 identical. C04 was repeated successfully after the test-fixture reuse below (63 total drill executions).                                   |
+| `npm run typecheck`                                                                                      | All five projects pass; unit typecheck repeated after the final test-fixture change.                                                                                                                                                        |
+| Scoped ESLint / Prettier / `git diff --check`                                                            | Pass, zero lint warnings.                                                                                                                                                                                                                   |
+| `npm run deadcode`                                                                                       | Pass; existing vendor/axe-core configuration hints only.                                                                                                                                                                                    |
+| `npx jscpd`                                                                                              | Pass: zero clones over 1,194 files. The first run found one duplicated review fixture in the two new test files; the journal test now extends the existing fake record rather than duplicating the literal. No ignore or threshold changed. |
+| `node scripts/check-l10n.mjs`                                                                            | 14 tables, 166 manifest strings, 612 source files; zero problems.                                                                                                                                                                           |
+| `npm run check:reference`                                                                                | Current: 53 features, 44 commands, 59 settings, 26 slash commands, 116 CLI entries.                                                                                                                                                         |
+| `npm run check:host-api`                                                                                 | **One generated-file freshness failure**, detailed below; no VS Code API or capability change.                                                                                                                                              |
+| `npm run build`                                                                                          | Pass: unchanged caps, bundle splits, host globals and third-party notices (83 bundled packages).                                                                                                                                            |
+
+Measured production budgets: activation **439.5/600 KiB**, Model API
+**446.9/475 KiB**, ACP **821.4/850 KiB**, shared English **55.0/125 KiB**,
+webview startup **797.1/900 KiB**, deferred webview code **50.0/50 KiB**.
+No estimator runtime entry ships on this branch yet: W owns its lazy entry
+and measured estimator/panel budgets. No cap increased.
+
+**`M117-W-host-api-record`: required integration action.** W owns
+`docs/ide-compatibility/**`, so C does not edit the generated record outside
+its assigned files. `check:host-api` scans all source imports and reports
+exactly these five count changes from `journal.ts`:
+
+| Existing Node built-in | Recorded imports | Actual imports |
+| ---------------------- | ---------------: | -------------: |
+| `node:buffer`          |               39 |             40 |
+| `node:crypto`          |               46 |             47 |
+| `node:fs`              |               33 |             34 |
+| `node:fs/promises`     |               47 |             48 |
+| `node:path`            |               84 |             85 |
+
+W must run `npm run check:host-api -- --write`, review these counts alongside
+its integrated source changes, and commit the refreshed record before its
+full gate. The actual API set remains **332 VS Code APIs**, **31 files
+importing VS Code**, **25 Node built-ins**, and **61 theme variables**. This
+failure is recorded openly; the freshness guard was not ignored or weakened.
+Aggregate quality and real milestone/editor bindings remain lead-owned under
+the brief. No other lane's file was modified, and no installation was needed.
+
+Scratch drill reports and test directories were removed after preserving the
+named failures and source hashes here. No credential or model/provider data
+was printed, copied or stored.
