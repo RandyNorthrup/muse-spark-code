@@ -1,0 +1,178 @@
+[
+  {
+    "guard": "private-address-scope",
+    "source": "src/core/devices/deviceAddress.ts",
+    "sha256": "3c1f0bc131213faceca6f19fba2d2a1c1accd700c0bedb982ca5826d44b2a7ff",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral 0.0.0.0",
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral ::",
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral 8.8.8.8",
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral 169.254.169.254",
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral 100.100.100.200",
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral 172.32.0.1",
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral ::ffff:127.0.0.1",
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral ::ffff:7f00:1",
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral fe80::1",
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral fd00:ec2::254",
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral FD00:0EC2:0:0:0:0:0:0254",
+      "device address boundary refuses public, metadata, mapped, wildcard or nonliteral fd12::1%eth0",
+      "device address boundary rechecks all DNS answers and pins the checked literal per connection"
+    ],
+    "restoredSha256": "3c1f0bc131213faceca6f19fba2d2a1c1accd700c0bedb982ca5826d44b2a7ff"
+  },
+  {
+    "guard": "chosen-interface-ownership",
+    "source": "src/core/devices/deviceAddress.ts",
+    "sha256": "3c1f0bc131213faceca6f19fba2d2a1c1accd700c0bedb982ca5826d44b2a7ff",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device address boundary requires actual interface ownership and normalizes IPv6"
+    ],
+    "restoredSha256": "3c1f0bc131213faceca6f19fba2d2a1c1accd700c0bedb982ca5826d44b2a7ff"
+  },
+  {
+    "guard": "all-dns-answers",
+    "source": "src/core/devices/deviceAddress.ts",
+    "sha256": "3c1f0bc131213faceca6f19fba2d2a1c1accd700c0bedb982ca5826d44b2a7ff",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device address boundary rechecks all DNS answers and pins the checked literal per connection"
+    ],
+    "restoredSha256": "3c1f0bc131213faceca6f19fba2d2a1c1accd700c0bedb982ca5826d44b2a7ff"
+  },
+  {
+    "guard": "dns-answer-count",
+    "source": "src/core/devices/deviceAddress.ts",
+    "sha256": "3c1f0bc131213faceca6f19fba2d2a1c1accd700c0bedb982ca5826d44b2a7ff",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device address boundary refuses missing/flooded answers, loopback substitution and wrong family"
+    ],
+    "restoredSha256": "3c1f0bc131213faceca6f19fba2d2a1c1accd700c0bedb982ca5826d44b2a7ff"
+  },
+  {
+    "guard": "loopback-substitution",
+    "source": "src/core/devices/deviceAddress.ts",
+    "sha256": "3c1f0bc131213faceca6f19fba2d2a1c1accd700c0bedb982ca5826d44b2a7ff",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device address boundary refuses missing/flooded answers, loopback substitution and wrong family"
+    ],
+    "restoredSha256": "3c1f0bc131213faceca6f19fba2d2a1c1accd700c0bedb982ca5826d44b2a7ff"
+  },
+  {
+    "guard": "duplicate-json-keys",
+    "source": "src/core/devices/deviceFraming.ts",
+    "sha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device pre-parse boundary rejects duplicate keys, unknown versions/fields and malformed JSON: {\"version\":1,\"\\u0076ersion\":1,\"pairId\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"receiverIncarnationId\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"requestId\":\"cccccccccccccccccccccccccccccccc\",\"body\":{\"kind\":\"offers\",\"offers\":[]}}",
+      "device pre-parse boundary rejects duplicate keys, unknown versions/fields and malformed JSON: {\"version\":1,\"pairId\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"receiverIncarnationId\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"requestId\":\"cccccccccccccccccccccccccccccccc\",\"body\":{\"kind\":\"offers\",\"offers\":[],\"offers\":[]}}"
+    ],
+    "restoredSha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b"
+  },
+  {
+    "guard": "escaped-duplicate-json-keys",
+    "source": "src/core/devices/deviceFraming.ts",
+    "sha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device pre-parse boundary rejects duplicate keys, unknown versions/fields and malformed JSON: {\"version\":1,\"\\u0076ersion\":1,\"pairId\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"receiverIncarnationId\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"requestId\":\"cccccccccccccccccccccccccccccccc\",\"body\":{\"kind\":\"offers\",\"offers\":[]}}"
+    ],
+    "restoredSha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b"
+  },
+  {
+    "guard": "pre-parse-nesting",
+    "source": "src/core/devices/deviceFraming.ts",
+    "sha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device pre-parse boundary rejects invalid UTF-8 and excessive nesting before invoking JSON.parse"
+    ],
+    "restoredSha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b"
+  },
+  {
+    "guard": "pre-concatenation-bytes",
+    "source": "src/core/devices/deviceFraming.ts",
+    "sha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device pre-parse boundary rejects oversize bytes before parsing and before concatenating fragments"
+    ],
+    "restoredSha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b"
+  },
+  {
+    "guard": "ready-frame-queue",
+    "source": "src/core/devices/deviceFraming.ts",
+    "sha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device pre-parse boundary rejects floods before parsing beyond available queue capacity"
+    ],
+    "restoredSha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b"
+  },
+  {
+    "guard": "strict-utf8",
+    "source": "src/core/devices/deviceFraming.ts",
+    "sha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device pre-parse boundary rejects invalid UTF-8 and excessive nesting before invoking JSON.parse"
+    ],
+    "restoredSha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b"
+  },
+  {
+    "guard": "outgoing-utf8-byte-count",
+    "source": "src/core/devices/deviceFraming.ts",
+    "sha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device pre-parse boundary counts byte length for multibyte text and outgoing frames"
+    ],
+    "restoredSha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b"
+  },
+  {
+    "guard": "outgoing-schema",
+    "source": "src/core/devices/deviceFraming.ts",
+    "sha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": ["device pre-parse boundary validates outbound data before writing a frame"],
+    "restoredSha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b"
+  },
+  {
+    "guard": "incoming-schema",
+    "source": "src/core/devices/deviceFraming.ts",
+    "sha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device pre-parse boundary rejects duplicate keys, unknown versions/fields and malformed JSON: {\"version\":1,\"pairId\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"receiverIncarnationId\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"requestId\":\"cccccccccccccccccccccccccccccccc\",\"body\":{\"kind\":\"offers\",\"offers\":[]},\"secret\":\"synthetic-sentinel\"}"
+    ],
+    "restoredSha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b"
+  },
+  {
+    "guard": "incompatible-upgrade-reason",
+    "source": "src/core/devices/deviceFraming.ts",
+    "sha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b",
+    "redExit": 1,
+    "test": "test/unit/deviceBoundary.test.ts",
+    "failedTests": [
+      "device pre-parse boundary reports incompatible protocol versions with a fixed upgrade reason"
+    ],
+    "restoredSha256": "db99737e7fee0c71074eb5c7d3ca0ed72f77af872734bcc549ad18e1e507251b"
+  }
+]
