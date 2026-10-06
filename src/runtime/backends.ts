@@ -54,6 +54,9 @@ import type { createRuntimeHooks } from './features/hooks'
 import type { McpPoolSnapshot, McpToolSource } from '../core/backends/modelapi/mcp/pool'
 import type { ScheduleStore } from '../shared/schedule'
 import type { McpPoolFactory } from '../host/backend/modelApiBundle'
+import type { RuntimePaidUse } from './features/paidUse'
+import type { ModelApiClientDeps } from '../core/backends/modelapi/client'
+import type { PaidUsage } from '../core/paid/paidFeatures'
 import {
   type EnvironmentVariable,
   FILE_REFUSAL_MODEL_TEXT,
@@ -123,6 +126,9 @@ export interface RuntimeBackendDeps {
   }
   /** Live interactive trust; the launch flag remains the upper bound for ACP/headless. */
   readonly isWorkspaceTrusted?: (workspaceRoot: string) => boolean
+  readonly interactivePaid?: RuntimePaidUse
+  readonly reservePaidRequest?: NonNullable<ModelApiClientDeps['reservePaidRequest']>
+  readonly paidUsage?: PaidUsage
 }
 
 export interface RuntimeBackend {
@@ -199,6 +205,7 @@ function modelApiManager(
   verify: VerifyHooks | undefined,
 ): ModelApiBackendManager {
   const { options, log, platform } = deps
+  const paidUsage = deps.exec === undefined ? deps.paidUsage : undefined
   const isWorkspaceTrusted = () =>
     options.trustWorkspace && deps.isWorkspaceTrusted?.(storedWorkspaceRoot) !== false
   const dataInput: DataFolderInput = { platform, env: deps.env, homeDir: deps.homeDir }
@@ -328,6 +335,10 @@ function modelApiManager(
     contextIo: fileContextIo,
     webFetch: createWebFetcher(log, pageConverter(path.join(deps.distDir, PAGE_WORKER_FILE), log)),
     fetch: deps.fetch,
+    ...(deps.exec === undefined &&
+      deps.reservePaidRequest !== undefined && {
+        reservePaidRequest: deps.reservePaidRequest,
+      }),
     ...(deps.exec !== undefined && { streamIdleMs: deps.exec.streamIdleMs }),
     newId: () => randomUUID(),
     now: () => Date.now(),
@@ -391,11 +402,19 @@ function modelApiManager(
     allowsPaidUse: (request, requiresAsking, sessionId) =>
       paid.allows(storedWorkspaceRoot, sessionId, request, requiresAsking),
     isPaidUseRemembered: (feature) => paid.isRemembered(storedWorkspaceRoot, feature),
-    noteSubagentUsage: (modelId) => {
-      log.warn(`A subagent's usage on ${modelId} was reported, but the agent runs no subagents`)
+    noteSubagentUsage: (modelId, usage) => {
+      if (paidUsage === undefined) {
+        log.warn(`A subagent's usage on ${modelId} was reported, but the agent runs no subagents`)
+      } else {
+        paidUsage.addSubagentUsage(modelId, usage)
+      }
     },
-    noteReviewerUsage: () => {
-      log.warn('An Auto reviewer reported usage, but the ACP agent runs no Auto reviewer')
+    noteReviewerUsage: (modelId, usage) => {
+      if (paidUsage === undefined) {
+        log.warn('An Auto reviewer reported usage, but the ACP agent runs no Auto reviewer')
+      } else {
+        paidUsage.addReviewerUsage(modelId, usage)
+      }
     },
     memory,
     bundlePath: path.join(deps.distDir, MODEL_API_BUNDLE_FILE),
@@ -466,17 +485,19 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     },
     "the operating system's credential store",
   )
-  const paid = new AcpPaidUse({
-    flagged: deps.options.paidFeatures,
-    canRemember: () => deps.options.trustWorkspace,
-    grants: paidGrantFile({
-      file: paidGrantsFile({ platform: deps.platform, env: deps.env, homeDir: deps.homeDir }),
+  const paid =
+    (deps.exec === undefined ? deps.interactivePaid : undefined) ??
+    new AcpPaidUse({
+      flagged: deps.options.paidFeatures,
+      canRemember: () => deps.options.trustWorkspace,
+      grants: paidGrantFile({
+        file: paidGrantsFile({ platform: deps.platform, env: deps.env, homeDir: deps.homeDir }),
+        log: deps.log,
+        sleep: deps.sleep,
+      }),
       log: deps.log,
-      sleep: deps.sleep,
-    }),
-    log: deps.log,
-    ...(deps.exec !== undefined && { headless: deps.exec.headlessPaid }),
-  })
+      ...(deps.exec !== undefined && { headless: deps.exec.headlessPaid }),
+    })
   const museEnvironment = museCode.childEnvironment()
   const homes: MuseHomes = {
     xdgConfigHome: environmentValue(museEnvironment, deps.platform, 'XDG_CONFIG_HOME'),
@@ -632,6 +653,9 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         const checking = [
           ...Array.from(verifyHosts.values(), (service) => service.dispose()),
           ...Array.from(hookHosts.values(), (service) => service.dispose()),
+          ...(deps.exec === undefined && deps.interactivePaid !== undefined
+            ? [deps.interactivePaid.dispose()]
+            : []),
         ]
         const managers = [
           ...museCodeHosts.values(),

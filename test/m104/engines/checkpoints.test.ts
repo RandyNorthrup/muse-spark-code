@@ -31,22 +31,33 @@ import { memoryContextIo } from '../../unit/helpers/fakeContextIo'
 import { hookResult } from '../../unit/helpers/fakeToolIo'
 import { createFileScheduleStore } from '../../../src/host/backend/fileScheduleStore'
 import { SCHEDULE_MIN_INTERVAL_MS } from '../../../src/shared/constants'
+import { createRuntimePaidBudget } from '../../../src/runtime/features/paidBudget'
+import { runtimePaidRequestAdmission } from '../../../src/runtime/features/paidRequest'
+import { paidHarness } from './paidHarness'
+import { createRuntimeMcp } from '../../../src/runtime/features/mcp'
+import { readMcpServerEntries } from '../../../src/core/backends/musecode/museConfigView'
+import { FAKE_MCP_SERVER, fixtureJobLifecycle } from '../../unit/helpers/mcpFixtures'
 
 const folders: string[] = []
 const runtimes: RuntimeBackend[] = []
 const services: Awaited<ReturnType<typeof createRuntimeCheckpoints>>[] = []
+const paidBudgets: ReturnType<typeof createRuntimePaidBudget>[] = []
 const dist = { folder: '' }
+const jobs = fixtureJobLifecycle()
 beforeAll(async () => {
+  await jobs.setup()
   dist.folder = await mkdtemp(path.join(tmpdir(), 'm104-pb-checkpoint-dist-'))
   await buildModelApiBundle(dist.folder)
 })
 afterEach(async () => {
   vi.restoreAllMocks()
   await Promise.all(runtimes.splice(0).map((runtime) => runtime.close()))
+  await Promise.all(paidBudgets.splice(0).map((budget) => budget.dispose()))
   await Promise.all(services.splice(0).map((service) => service.dispose()))
   await Promise.all(folders.splice(0).map((folder) => rm(folder, { recursive: true, force: true })))
 })
 afterAll(async () => {
+  await jobs.dispose()
   await rm(dist.folder, { recursive: true, force: true })
 })
 
@@ -89,7 +100,16 @@ async function setup() {
     provider: NonNullable<Parameters<typeof createRuntimeBackend>[0]['checkpoints']>,
     extra: Pick<
       RuntimeBackendDeps,
-      'verify' | 'unsavedPaths' | 'hooks' | 'schedules' | 'isWorkspaceTrusted'
+      | 'verify'
+      | 'unsavedPaths'
+      | 'hooks'
+      | 'schedules'
+      | 'isWorkspaceTrusted'
+      | 'interactivePaid'
+      | 'reservePaidRequest'
+      | 'paidUsage'
+      | 'exec'
+      | 'mcp'
     > = {},
   ) => {
     const runtime = createRuntimeBackend({
@@ -166,6 +186,155 @@ async function changeNote(
 }
 
 describe('portable checkpoint backend recording', () => {
+  it('uses the installed pool factory in the actual runtime session and exposes its live snapshot', async () => {
+    const { root, create, backend, api, log } = await setup()
+    const service = await create()
+    const runtime = backend('modelApi', () => Promise.resolve(service), {
+      mcp: (workspaceRoot, newPool) =>
+        createRuntimeMcp(
+          {
+            workspaceRoot,
+            platform: process.platform,
+            clientVersion: 'test',
+            log,
+            jobExecutablePath: jobs.path,
+            readSettings: () =>
+              readMcpServerEntries(
+                JSON.stringify({
+                  mcpServers: { fake: { command: process.execPath, args: [FAKE_MCP_SERVER] } },
+                }),
+              ),
+            env: () => ({ PATH: process.env['PATH'] }),
+            fetch: api.fetch,
+            assertCurrent: () => undefined,
+            isWorkspaceTrusted: () => true,
+            canUseTools: () => true,
+            beforeWorkspaceProcessStart: () => service.port.markNativeBackend(),
+          },
+          newPool,
+        ),
+    })
+    const host = await runtime.backend.hostFor(root)
+    const session = await host.startSession({
+      workspaceRoot: root,
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'allowAll',
+    })
+    const watched = watchSessionTurns(session)
+    api.script(
+      { calls: [{ name: 'mcp__fake__echo', arguments: '{"text":"runtime"}' }] },
+      { text: 'done' },
+    )
+    const done = watched.turnDone()
+    await session.sendTurn([{ type: 'text', text: 'use the fixture MCP tool' }])
+    await done
+    expect(runtime.mcpSnapshotFor?.(root)?.servers).toContainEqual(
+      expect.objectContaining({
+        name: 'fake',
+        state: expect.objectContaining({ status: 'connected' }),
+      }),
+    )
+    expect(watched.events).toContainEqual(
+      expect.objectContaining({
+        type: 'itemCompleted',
+        item: expect.objectContaining({ tool: 'mcp__fake__echo', visibleOutput: 'echo: runtime' }),
+      }),
+    )
+  })
+
+  it('keeps interactive paid, hooks, checkpoints, MCP and schedules out of exec', async () => {
+    const { root, create, backend } = await setup()
+    const { paid } = paidHarness(['imageGeneration'])
+    const checkpointFactory = vi.fn(() => create())
+    const mcp = vi.fn(() => Promise.reject(new Error('exec must not start an interactive pool')))
+    const runtime = backend('modelApi', checkpointFactory, {
+      interactivePaid: paid,
+      mcp,
+      exec: { isEphemeral: true, headlessPaid: () => Promise.resolve(false), streamIdleMs: 1 },
+    })
+    expect(runtime.paid).not.toBe(paid)
+    expect(runtime.paid.isOn('imageGeneration')).toBe(false)
+    expect(runtime.checkpointsFor).toBeUndefined()
+    expect(runtime.hooksFor).toBeUndefined()
+    expect(runtime.mcpSnapshotFor).toBeUndefined()
+    const host = await runtime.backend.hostFor(root)
+    const session = await host.startSession({
+      workspaceRoot: root,
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'allowAll',
+    })
+    expect(session.schedules).toBeUndefined()
+    expect(mcp).not.toHaveBeenCalled()
+    expect(checkpointFactory).not.toHaveBeenCalled()
+    await runtime.close()
+    await paid.dispose()
+  })
+  it('asks before a real runtime image tool, publishes its PNG and settles shared spend', async () => {
+    const { root, create, backend, api, data } = await setup()
+    const service = await create()
+    const { paid, ask, usage } = paidHarness(['imageGeneration'])
+    const budget = createRuntimePaidBudget(
+      {
+        directory: path.join(data, 'paid-daily'),
+        now: Date.now,
+        capUsd: () => 0.5,
+        sleep: () => Promise.resolve(),
+        assertCurrent: () => undefined,
+        isLocalStorage: () => true,
+      },
+      UI_TEXT,
+      'en',
+    )
+    paidBudgets.push(budget)
+    const runtime = backend('modelApi', () => Promise.resolve(service), {
+      interactivePaid: paid,
+      paidUsage: usage,
+      reservePaidRequest: runtimePaidRequestAdmission({
+        budget,
+        isOn: (feature) => paid.isOn(feature),
+        price: () => ({ costUsd: 0.4, isCurrent: () => true }),
+      }),
+    })
+    const host = await runtime.backend.hostFor(root)
+    const session = await host.startSession({
+      workspaceRoot: root,
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'allowAll',
+    })
+    const watched = watchSessionTurns(session)
+    const accepted = Promise.withResolvers<'once'>()
+    ask.mockReturnValue(accepted.promise)
+    api.script(
+      {
+        calls: [
+          {
+            name: 'generate_image',
+            arguments: JSON.stringify({ prompt: 'fixture', path: 'art/image.png' }),
+          },
+        ],
+      },
+      { text: 'done' },
+    )
+    const done = watched.turnDone()
+    await session.sendTurn([{ type: 'text', text: 'make the fixture image' }])
+    await vi.waitFor(() => {
+      expect(ask).toHaveBeenCalledOnce()
+    })
+    expect(api.imageBodies()).toEqual([])
+    accepted.resolve('once')
+    await done
+    expect(api.imageBodies()).toHaveLength(1)
+    expect(await readFile(path.join(root, 'art/image.png'))).toMatchObject({ 0: 0x89, 1: 0x50 })
+    expect(usage.current.images).toBe(1)
+    expect(await budget.latestDay()).toMatchObject({ spentUsd: 0.4 })
+    expect(watched.events).toContainEqual(
+      expect.objectContaining({
+        type: 'itemCompleted',
+        item: expect.objectContaining({ paid: 'imageGeneration' }),
+      }),
+    )
+    expect(watched.events.some((event) => event.type === 'approvalRequested')).toBe(false)
+  })
   it('uses live interactive trust before a model tool can write in Bypass', async () => {
     const { root, create, backend, api } = await setup()
     const service = await create()

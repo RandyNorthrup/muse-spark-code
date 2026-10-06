@@ -169,3 +169,54 @@ and preserve all caps and exact notices/inventory. New standalone exports
 require knip entry integration. Provider catalog/transports are absent from
 this base; deliver typed selected records, verified tariffs and provider
 factories before any model-dependent row is qualified.
+
+### A/C/D/E/F — F32/F39/F40 interactive paid policy and daily accounting
+
+Bind `RuntimePaidUse` from `src/runtime/features/paidUse.ts` to a real
+PaidFeatureGate, PaidUsage, paidGrantFile, live settings/defaults, stored-key and
+selected-model availability, immutable current profile and trusted workspace.
+Supply it as `RuntimeBackendDeps.interactivePaid`; root shutdown aborts/drains
+its unresolved decisions. ACP/exec ignore this injection. Ordinary paid calls
+must pass `requiresAsking: false` to honour workspace Always: A's current
+composition hardcodes true, which repeatedly asks. Keep true for actual hook or
+protected/requiresAsking uses. The underlying native confirm request must also
+be cancelled by A's request owner on profile/panel release.
+
+Attach the real D48 asker once. Generalize the owned shared paid-use price
+contract/question to the selected model's verified catalog tariff and required
+capabilities; an unknown price/capability refuses before consent or dispatch.
+Preserve current Muse prices. Append the existing localized daily-budget line
+with today's hard limit and billed key/provider. Reuse existing rate/Intl keys;
+if a new key is needed, A owns all fourteen translations. C must render paid
+rows, composer badges, usage and workspace-grant revocation from real state.
+No ordinary approval card or Bypass mode grants paid consent.
+
+Bind `createRuntimePaidBudget` from `paidBudget.ts` with one canonical
+machine-wide LOCAL directory shared by standalone editors and VS Code,
+`PAID_DAILY_BUDGET.accountId`, the same unpadded local-day key as the existing
+D78 adapter, live cap, now/sleep/current-owner and native `isLocalStorage()`
+attestation. D's current VS Code profile directory must adopt this namespace
+too; do not certify sharing while paths differ. Refuse network/synced storage.
+Keep Stop's monotonic marker, explicit raise controls and liabilities visible.
+Dispose this shared ledger only AFTER every backend/paid client has stopped and
+settled; late shutdown settlement must not be lost by early ledger release.
+
+Supply `RuntimeBackendDeps.reservePaidRequest` from
+`runtimePaidRequestAdmission` (`paidRequest.ts`). Its `price(...args)` returns
+undefined for unsupported/unpriced/replaced dispatch, otherwise a verified
+worst-case `costUsd` and `isCurrent()` bound to the actual request's provider,
+model, capability and settings. It reserves before dispatch and rechecks after
+key retrieval at the actual transport guard. Keep uncertain attempt liability.
+Supply `paidUsage: new PaidUsage(log, costOf)` with a verified live catalog reader
+returning undefined for unpriced model IDs. The core reader validates units and
+nonnegative finite cost; no non-Meta model falls back to a Meta tier. Account
+views must use this exact tally. Subscription and stored-key boundaries remain.
+
+The fixture exercises an actual Model API image tool in Bypass after priced
+consent, guarded PNG publication, paid event and settlement, plus final model
+replacement before dispatch. Synthetic verified tariff tests for OpenAI,
+Anthropic, Gemini, xAI, OpenRouter, Ollama and custom are INTERNAL catalog tests;
+they do not supply provider wire captures or installed-provider qualification.
+Add these adapters to A's own named lazy entry/knip discovery without increasing
+startup/deferred caps or broadening MODEL_TEXT readers. No build/config or
+shared-schema file was changed by B.

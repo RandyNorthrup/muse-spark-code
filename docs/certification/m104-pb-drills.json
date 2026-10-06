@@ -215,5 +215,89 @@
     "exitCode": 1,
     "sha256Before": "c1ef2eb8f87bb545de9d3961d4c51b271c4f6c705ff9334fcffe33b4b6335eac",
     "sha256Restored": "c1ef2eb8f87bb545de9d3961d4c51b271c4f6c705ff9334fcffe33b4b6335eac"
+  },
+  {
+    "drill": "paid-hard-cap",
+    "file": "src/runtime/features/paidBudget.ts",
+    "exitCode": 1,
+    "sha256Before": "78f75c544de811204b224573b248fd08f86c930ecc223fac257a017d51df511b",
+    "sha256Restored": "78f75c544de811204b224573b248fd08f86c930ecc223fac257a017d51df511b"
+  },
+  {
+    "drill": "paid-origin-day",
+    "file": "src/runtime/features/paidBudget.ts",
+    "exitCode": 1,
+    "sha256Before": "78f75c544de811204b224573b248fd08f86c930ecc223fac257a017d51df511b",
+    "sha256Restored": "78f75c544de811204b224573b248fd08f86c930ecc223fac257a017d51df511b"
+  },
+  {
+    "drill": "paid-local-storage",
+    "file": "src/runtime/features/paidBudget.ts",
+    "exitCode": 1,
+    "sha256Before": "78f75c544de811204b224573b248fd08f86c930ecc223fac257a017d51df511b",
+    "sha256Restored": "78f75c544de811204b224573b248fd08f86c930ecc223fac257a017d51df511b"
+  },
+  {
+    "drill": "paid-current-owner",
+    "file": "src/runtime/features/paidBudget.ts",
+    "exitCode": 1,
+    "sha256Before": "78f75c544de811204b224573b248fd08f86c930ecc223fac257a017d51df511b",
+    "sha256Restored": "78f75c544de811204b224573b248fd08f86c930ecc223fac257a017d51df511b"
+  },
+  {
+    "drill": "paid-nonsent-refund",
+    "file": "src/runtime/features/paidBudget.ts",
+    "exitCode": 1,
+    "sha256Before": "78f75c544de811204b224573b248fd08f86c930ecc223fac257a017d51df511b",
+    "sha256Restored": "78f75c544de811204b224573b248fd08f86c930ecc223fac257a017d51df511b"
+  },
+  {
+    "drill": "paid-monotonic-stop",
+    "file": "src/runtime/features/paidBudget.ts",
+    "exitCode": 1,
+    "sha256Before": "78f75c544de811204b224573b248fd08f86c930ecc223fac257a017d51df511b",
+    "sha256Restored": "78f75c544de811204b224573b248fd08f86c930ecc223fac257a017d51df511b"
+  },
+  {
+    "drill": "paid-invalid-cost",
+    "file": "src/runtime/features/paidBudget.ts",
+    "exitCode": 1,
+    "sha256Before": "78f75c544de811204b224573b248fd08f86c930ecc223fac257a017d51df511b",
+    "sha256Restored": "78f75c544de811204b224573b248fd08f86c930ecc223fac257a017d51df511b"
+  },
+  {
+    "drill": "paid-popup-release",
+    "file": "src/runtime/features/paidUse.ts",
+    "exitCode": 1,
+    "sha256Before": "129f02334e286b62f40ece606ce3680494af5cec71ba9890f3b92300c00e4b00",
+    "sha256Restored": "129f02334e286b62f40ece606ce3680494af5cec71ba9890f3b92300c00e4b00"
+  },
+  {
+    "drill": "paid-popup-owner",
+    "file": "src/runtime/features/paidUse.ts",
+    "exitCode": 1,
+    "sha256Before": "129f02334e286b62f40ece606ce3680494af5cec71ba9890f3b92300c00e4b00",
+    "sha256Restored": "129f02334e286b62f40ece606ce3680494af5cec71ba9890f3b92300c00e4b00"
+  },
+  {
+    "drill": "paid-usage-units",
+    "file": "src/runtime/features/paidUse.ts",
+    "exitCode": 1,
+    "sha256Before": "129f02334e286b62f40ece606ce3680494af5cec71ba9890f3b92300c00e4b00",
+    "sha256Restored": "129f02334e286b62f40ece606ce3680494af5cec71ba9890f3b92300c00e4b00"
+  },
+  {
+    "drill": "paid-final-model-capability",
+    "file": "src/runtime/features/paidRequest.ts",
+    "exitCode": 1,
+    "sha256Before": "a850182023d617cbe4a9b438408b84fc2c55836f32ddd9bdb3c214d080890ac8",
+    "sha256Restored": "a850182023d617cbe4a9b438408b84fc2c55836f32ddd9bdb3c214d080890ac8"
+  },
+  {
+    "drill": "paid-provider-tariff",
+    "file": "src/core/paid/paidFeatures.ts",
+    "exitCode": 1,
+    "sha256Before": "3b072e96daded539cb1983157b2c5310df940ab6d13a471d00e99b08ec3b00d9",
+    "sha256Restored": "3b072e96daded539cb1983157b2c5310df940ab6d13a471d00e99b08ec3b00d9"
   }
 ]
