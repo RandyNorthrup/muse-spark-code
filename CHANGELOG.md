@@ -37,6 +37,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Performance
 
+- Estimator simulation reuses prepared resource data and indexed reservations;
+  forty-lane chain, independent and fan-out regressions enforce the existing
+  two-second budget for 2,000 trials and paired bottleneck comparisons.
+
 - Reference tests share unchanged setup and keyboard analysis, keeping
   catalogue mutation checks within the normal test timeout.
 

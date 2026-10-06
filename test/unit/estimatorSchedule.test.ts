@@ -132,6 +132,8 @@ describe('M117 resource list scheduling', () => {
     expect(result.finishHours).toBe(1)
     expect(result.schedule[0]!.accountIds).toEqual(['account-11'])
     expect(result.unknownLimits).toContain('A:account-selection-approximate')
+    fleet.accounts.at(-1)!.requestsPerMinute = 0
+    expect(() => prepareEstimateSchedule([lane], fleet).run()).toThrow('account-selection-limit:A')
   })
 
   it('splits a multi-slot lane rate across its allocated accounts', () => {
@@ -236,6 +238,32 @@ describe('M117 resource list scheduling', () => {
       roles: ['archive'],
     })
     expect(prepareEstimateSchedule([scheduleLane('A')], single).run().unknownLimits).toEqual([])
+  })
+
+  it('prefers measured headroom when a waiting alternative finishes at the same time', () => {
+    const fleet = fakeFleet()
+    fleet.machines[0]!.disks = [{ status: 'unknown', volumeId: 'primary', roles: ['workspace'] }]
+    const macLane = scheduleLane('A')
+    macLane.affinity.os = ['macos']
+    const lanes = [
+      macLane,
+      scheduleLane('B', { affinity: { ...macLane.affinity, os: ['linux', 'macos'] } }),
+    ]
+    const durations = new Map([
+      ['A', new Map([['macos-arm64-builder', 1]])],
+      [
+        'B',
+        new Map([
+          ['linux-x64-builder', 2],
+          ['macos-arm64-builder', 1],
+        ]),
+      ],
+    ])
+    const result = prepareEstimateSchedule(lanes, fleet).run(durations)
+    expect(result.finishHours).toBe(2)
+    expect(result.schedule[1]!.machineId).toBe('mac')
+    expect(result.schedule[1]!.start).toBe('2026-10-06T13:00:00.000Z')
+    expect(result.unknownLimits).toEqual([])
   })
 
   it('qualifies only selected lanes whose required disk headroom is unknown', () => {
@@ -455,6 +483,31 @@ describe('M117 resource list scheduling', () => {
     ]
     const result = prepareEstimateSchedule([scheduleLane('A'), scheduleLane('B')], fleet).run()
     expect(result.schedule[1]!.start).toBe(expected)
+  })
+
+  it('recomputes quota windows and slot reservations for each sampled run', () => {
+    const fleet = scheduleFleet(1)
+    fleet.accounts[0]!.usageLimits = [
+      {
+        id: 'quota',
+        kind: 'rolling',
+        periodSeconds: 7200,
+        unit: 'requests',
+        remaining: 1,
+        allowance: 1,
+        resetsAt: '2026-10-06T14:00:00.000Z',
+        timeZone: 'UTC',
+      },
+    ]
+    const scheduler = prepareEstimateSchedule([scheduleLane('A')], fleet)
+    const run = (hours: number) =>
+      scheduler.run(new Map([['A', new Map([['linux-x64-builder', hours]])]]))
+    const short = run(0.5)
+    expect(short.finishHours).toBe(0.5)
+    const long = run(2)
+    expect(long.finishHours).toBe(3)
+    expect(long.schedule[0]!.start).toBe('2026-10-06T13:00:00.000Z')
+    expect(run(0.5)).toEqual(short)
   })
 
   it('validates boundaries, sampled durations, floors and date overflow', () => {
