@@ -15722,7 +15722,10 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   All nine review findings are now repaired with regressions and twelve red
   drills; no assigned P1/P2/P3 residual remains. Existing integration
   follow-ups remain named in §9. Final rig verification is recorded in the
-  certification; the combined quality/platform receipt remains lead-owned.
+  certification: 330 tests, all five typechecks, changed-file lint/format,
+  deadcode, duplication, cycles, localization, host API, production size/split/
+  globals/notices and secret scans pass on Kubuntu. The combined full-quality/
+  platform receipt remains lead-owned; no gate or Meta fixture was changed.
 - **Lane P2 — provider pricing, limits and retry** (BYO 5, 6, 10, 12, 14, 15,
   16; item 24's per-model strict schemas and the llama.cpp grammar check).
   Retry classification moves into `FormatQuirks`; price cards read long
@@ -15778,8 +15781,10 @@ rig is shared; the lead runs the combined four-machine quality gate.
 This lane runs focused complete test files (at most three per invocation),
 all project typechecks, changed-file lint/format, deadcode, duplication,
 localization, host API and production build directly on Kubuntu. The final
-receipts and red drills are in `docs/certification/m101-p1.md`. This defers
-only the full-tree/full-platform quality receipt; no gate is weakened.
+receipts and twelve red drills are in `docs/certification/m101-p1.md`: 330
+focused tests and all listed lane checks pass, including the unchanged
+production bundle-split gate. This defers only the full-tree/full-platform
+quality receipt; no gate is weakened.
 
 **M95INT final whole-chain rerun — deferred under the 120-minute rig brief.**
 The final 548-page rerun still returns 1: `dark/models-pick` has one selected
