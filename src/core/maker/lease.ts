@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { chmod, lstat, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { chmod, lstat, mkdir, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import net from 'node:net'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -10,8 +10,9 @@ import {
 import type { SerialIdentity } from './serial/identity'
 
 const recordSchema = z.object({
-  version: z.literal(1),
+  version: z.literal(2),
   id: z.uuid(),
+  generation: z.uuid(),
   resource: z.string().check(z.minLength(1)),
   holder: z.string().check(z.minLength(1)),
   pid: z.int().check(z.positive()),
@@ -83,6 +84,24 @@ async function readRecord(
     if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return undefined
     throw error
   }
+}
+
+function recordPath(directory: string, record: HardwareLeaseRecord): string {
+  // Immutable identity: delayed deletion can address only this holder generation.
+  return path.join(directory, `${record.id}.${record.generation}.json`)
+}
+
+async function readRecords(directory: string, maxBytes: number) {
+  const entries = await readdir(directory)
+  const records: { file: string; record: HardwareLeaseRecord }[] = []
+  for (const entry of entries) {
+    const file = path.join(directory, entry)
+    const record = await readRecord(file, maxBytes)
+    if (record === undefined) continue // A generation's delayed cleanup may finish here.
+    if (file !== recordPath(directory, record)) throw new Error('lease-record-identity-invalid')
+    records.push({ file, record })
+  }
+  return records
 }
 
 function leaseEndpoint(deps: LeaseDependencies, id: string): string {
@@ -232,71 +251,102 @@ export async function claimHardwareLease(
     }
 > {
   await privateDirectory(deps)
-  const file = lockPath(deps, resource)
-  return await deps.exclusive(`${file}.mutex`, async (signal) => {
-    signal.throwIfAborted()
-    const previous = await readRecord(file, deps.maxRecordBytes)
-    signal.throwIfAborted()
-    if (previous !== undefined) {
-      validateEndpoint(previous, deps)
-      if (previous.resource !== resource) throw new Error('lease-resource-mismatch')
-      const isHolderProcessAlive = (deps.isProcessAlive ?? isProcessAlive)(previous.pid)
-      const isSocketAlive = await (deps.isEndpointAlive?.(previous.endpoint) ??
-        isEndpointReachable(previous.endpoint, deps.timeoutMs))
+  const directory = lockPath(deps, resource)
+  await privateDirectory({ ...deps, directory })
+  let opening: Promise<() => Promise<void>> | undefined
+  let writing: Promise<void> | undefined
+  let attempted: HardwareLeaseRecord | undefined
+  try {
+    return await deps.exclusive(`${directory}.mutex`, async (signal) => {
       signal.throwIfAborted()
-      if (isHolderProcessAlive || isSocketAlive) return { status: 'busy', holder: previous }
-      // Both are proven absent, while the OS mutex excludes other claimants.
-      await rm(file)
+      const previousRecords = await readRecords(directory, deps.maxRecordBytes)
       signal.throwIfAborted()
-      if (deps.platform !== 'win32') await rm(previous.endpoint, { force: true })
-    }
-    signal.throwIfAborted()
-    const id = randomUUID()
-    const endpoint = leaseEndpoint(deps, id)
-    const record = recordSchema.parse({
-      version: 1,
-      id,
-      resource,
-      holder,
-      pid: process.pid,
-      endpoint,
-    })
-    let close: () => Promise<void>
-    if (deps.platform === 'win32') {
-      if (deps.listenOwnerPipe === undefined) throw new Error('lease-owner-pipe-unavailable')
-      close = await deps.listenOwnerPipe(endpoint, id, stop)
-    } else {
-      close = await listenOwnerSocket(endpoint, id, stop, deps)
-    }
-    try {
+      for (const { file, record: previous } of previousRecords) {
+        validateEndpoint(previous, deps)
+        if (previous.resource !== resource) throw new Error('lease-resource-mismatch')
+        const isHolderProcessAlive = (deps.isProcessAlive ?? isProcessAlive)(previous.pid)
+        const isSocketAlive = await (deps.isEndpointAlive?.(previous.endpoint) ??
+          isEndpointReachable(previous.endpoint, deps.timeoutMs))
+        signal.throwIfAborted()
+        if (isHolderProcessAlive || isSocketAlive) return { status: 'busy', holder: previous }
+        // Compare-and-delete targets the exact immutable id + generation sampled above.
+        await rm(file, { force: true })
+        signal.throwIfAborted()
+        if (deps.platform !== 'win32') await rm(previous.endpoint, { force: true })
+      }
+      signal.throwIfAborted()
+      const id = randomUUID()
+      const endpoint = leaseEndpoint(deps, id)
+      const record = recordSchema.parse({
+        version: 2,
+        id,
+        generation: randomUUID(),
+        resource,
+        holder,
+        pid: process.pid,
+        endpoint,
+      })
+      attempted = record
+      if (deps.platform === 'win32') {
+        if (deps.listenOwnerPipe === undefined) throw new Error('lease-owner-pipe-unavailable')
+        opening = deps.listenOwnerPipe(endpoint, id, stop)
+      } else {
+        opening = listenOwnerSocket(endpoint, id, stop, deps)
+      }
+      const close = await opening
       signal.throwIfAborted()
       const text = JSON.stringify(record)
       if (Buffer.byteLength(text) > deps.maxRecordBytes) throw new Error('lease-record-oversize')
-      await writeFile(file, text, { flag: 'wx', mode: OWNER_FILE_MODE })
+      const file = recordPath(directory, record)
+      writing = writeFile(file, text, { flag: 'wx', mode: OWNER_FILE_MODE })
+      await writing
       signal.throwIfAborted()
-    } catch (error: unknown) {
-      await close()
-      throw error
+      let isReleased = false
+      return {
+        status: 'acquired',
+        record,
+        release: async () => {
+          await deps.exclusive(`${directory}.mutex`, async (signal) => {
+            signal.throwIfAborted()
+            if (isReleased) return
+            const current = await readRecord(file, deps.maxRecordBytes)
+            signal.throwIfAborted()
+            if (current?.id !== id || current.generation !== record.generation)
+              throw new Error('lease-holder-changed')
+            await close()
+            signal.throwIfAborted()
+            await rm(file)
+            isReleased = true
+          })
+        },
+      }
+    })
+  } catch (error: unknown) {
+    // The native wrapper may reject before its in-flight write settles. Drain it
+    // before cleanup, so rejection never strands this live parent's busy record.
+    try {
+      await writing
+    } catch {
+      // Preserve the original claim failure; inspect any committed record below.
     }
-    let isReleased = false
-    return {
-      status: 'acquired',
-      record,
-      release: async () => {
-        await deps.exclusive(`${file}.mutex`, async (signal) => {
+    try {
+      const close = await opening
+      await close?.()
+    } finally {
+      if (attempted !== undefined && writing !== undefined) {
+        const record = attempted
+        await deps.exclusive(`${directory}.mutex`, async (signal) => {
           signal.throwIfAborted()
-          if (isReleased) return
+          const file = recordPath(directory, record)
           const current = await readRecord(file, deps.maxRecordBytes)
           signal.throwIfAborted()
-          if (current?.id !== id) throw new Error('lease-holder-changed')
-          await close()
-          signal.throwIfAborted()
-          await rm(file)
-          isReleased = true
+          if (current?.id === record.id && current.generation === record.generation)
+            await rm(file, { force: true })
         })
-      },
+      }
     }
-  })
+    throw error
+  }
 }
 
 /** Out-of-band: no approval, mutex or running-turn queue is involved. */
@@ -305,10 +355,37 @@ export async function didStopHardwareLease(
   resource: string,
 ): Promise<boolean> {
   await privateDirectory(deps)
-  const record = await readRecord(lockPath(deps, resource), deps.maxRecordBytes)
-  if (record === undefined) return false
-  validateEndpoint(record, deps)
-  if (record.resource !== resource) throw new Error('lease-resource-mismatch')
+  const directory = lockPath(deps, resource)
+  try {
+    await lstat(directory)
+  } catch (error: unknown) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return false
+    throw error
+  }
+  await privateDirectory({ ...deps, directory })
+  const records = await readRecords(directory, deps.maxRecordBytes)
+  for (const { record } of records) {
+    validateEndpoint(record, deps)
+    if (record.resource !== resource) throw new Error('lease-resource-mismatch')
+  }
+  // A lost claimant's write can briefly coexist with the winner's generation.
+  // Stop reaches each bound endpoint, without waiting for stale probes to fail.
+  try {
+    return await Promise.any(
+      records.map(async ({ record }) => {
+        if (!(await didStopRecord(deps, record))) throw new Error('lease-stop-unavailable')
+        return true
+      }),
+    )
+  } catch {
+    return false
+  }
+}
+
+async function didStopRecord(
+  deps: LeaseDependencies,
+  record: HardwareLeaseRecord,
+): Promise<boolean> {
   return await new Promise<boolean>((resolve) => {
     const socket = net.connect(record.endpoint)
     const finish = (hasStopped: boolean) => {

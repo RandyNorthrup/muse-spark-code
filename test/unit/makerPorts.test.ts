@@ -25,7 +25,7 @@ function runMetadataCommand(file: string, args: readonly string[]): Promise<stri
 function runEmptyCim(_file: string, args: readonly string[]): Promise<string> {
   const command = args
     .at(-1)!
-    .replace('Get-CimInstance Win32_PnPEntity -Filter "PNPClass=\'Ports\'"', '$null')
+    .replace('Get-CimInstance Win32_PnPEntity -Filter "PNPClass=\'Ports\'"', '@()')
   return runMetadataCommand('powershell.exe', [
     '-NoProfile',
     '-NonInteractive',
@@ -35,6 +35,26 @@ function runEmptyCim(_file: string, args: readonly string[]): Promise<string> {
 }
 
 describe('serial metadata parsers', () => {
+  it('uses the actual Windows port property and only a final COM suffix as fallback', () => {
+    const rows = parseCimPorts(
+      JSON.stringify([
+        { Name: 'Bench ESP32 (COM7) (COM8)', PNPDeviceID: String.raw`USB\VID_303A&PID_1001\ESP8` },
+        {
+          Name: 'Bench ESP32 (COM7) (COM8)',
+          PNPDeviceID: String.raw`USB\VID_303A&PID_1001\ESP9`,
+          PortName: 'com9',
+        },
+        { Name: 'Unrelated (COM7) description', PNPDeviceID: String.raw`ACPI\PNP0501` },
+        { Name: 'Misleading (COM7)', PNPDeviceID: String.raw`ACPI\PNP0501`, PortName: 'invalid' },
+      ]),
+      LIMITS.maxBytes,
+    )
+    expect(rows.map(({ port, serialNumber }) => ({ port, serialNumber }))).toEqual([
+      { port: 'COM8', serialNumber: 'ESP8' },
+      { port: 'COM9', serialNumber: 'ESP9' },
+    ])
+  })
+
   it('parses USB CIM rows and excludes Bluetooth and manufactured location serials', () => {
     const rows = parseCimPorts(
       JSON.stringify([
@@ -190,6 +210,30 @@ describe('serial metadata parsers', () => {
           run: runEmptyCim,
         }),
       ).toEqual([])
+    })
+
+  if (process.platform === 'win32')
+    it('projects the registry PortName through the real PowerShell enumeration command', async () => {
+      const ports = await listSerialPorts({
+        ...LIMITS,
+        platform: 'win32',
+        powershell: 'powershell.exe',
+        run: (file, args) =>
+          runMetadataCommand(file, [
+            ...args.slice(0, -1),
+            String.raw`function Get-CimInstance { [pscustomobject]@{ Name = 'Bench ESP32 (COM7) (COM8)'; PNPDeviceID = 'USB\VID_303A&PID_1001\ESP9' } }; function Get-ItemProperty { param($LiteralPath, $Name, $ErrorAction); if ($LiteralPath -ne 'Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Enum\USB\VID_303A&PID_1001\ESP9\Device Parameters' -or $Name -ne 'PortName') { throw 'test-registry-target' }; [pscustomobject]@{ PortName = 'COM9' } }; ` +
+              (args.at(-1) ?? ''),
+          ]),
+      })
+      expect(ports).toEqual([
+        {
+          port: 'COM9',
+          description: 'Bench ESP32 (COM7) (COM8)',
+          vid: '303a',
+          pid: '1001',
+          serialNumber: 'ESP9',
+        },
+      ])
     })
 
   it('bounds the list and refuses unavailable discovery without opening a device', async () => {

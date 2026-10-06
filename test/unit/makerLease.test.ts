@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { chmod, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import { chmod, lstat, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import type * as FsPromises from 'node:fs/promises'
 import net from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -22,6 +23,11 @@ import {
   withNativeLeaseMutex,
 } from '../../src/core/maker/serial/nativeLease'
 
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const fs = await importOriginal<typeof FsPromises>()
+  return { ...fs, rm: vi.fn(fs.rm), writeFile: vi.fn(fs.writeFile) }
+})
+
 const directories: string[] = []
 afterEach(async () => {
   for (const directory of directories.splice(0))
@@ -34,11 +40,220 @@ async function fixture() {
   return await makerLeaseDeps(directory)
 }
 
-function recordFile(directory: string, resource: string) {
-  return path.join(directory, `${createHash('sha256').update(resource).digest('hex')}.lock`)
+async function recordFile(
+  directory: string,
+  resource: string,
+  record?: { readonly id: string; readonly generation: string },
+) {
+  const folder = path.join(directory, `${createHash('sha256').update(resource).digest('hex')}.lock`)
+  await mkdir(folder, { mode: 0o700, recursive: true })
+  const identity = record ?? { id: randomUUID(), generation: randomUUID() }
+  return path.join(folder, `${identity.id}.${identity.generation}.json`)
 }
 
 describe('hardware lease', () => {
+  it('keeps a newer holder when a stale removal submitted before native lock loss finally runs', async () => {
+    const native = await fixture()
+    const deps = {
+      ...native,
+      platform: 'win32' as const,
+      listenOwnerPipe: () => Promise.resolve(() => Promise.resolve()),
+    }
+    const resource = 'port:delayed-removal'
+    const original = await claimHardwareLease(deps, resource, 'stale owner', () =>
+      Promise.resolve(),
+    )
+    if (original.status !== 'acquired') throw new Error('test-claim')
+    const base = path.join(
+      deps.directory,
+      `${createHash('sha256').update(resource).digest('hex')}.lock`,
+    )
+    // Locate via the public claim's output, including the reviewed layout for the red control.
+    const sample = await lstat(base)
+    const oldFile = sample.isFile()
+      ? base
+      : await recordFile(deps.directory, resource, original.record)
+    const actual = await vi.importActual<typeof FsPromises>('node:fs/promises')
+    const entered = Promise.withResolvers<undefined>()
+    const resume = Promise.withResolvers<undefined>()
+    const removed = Promise.withResolvers<undefined>()
+    const drained = Promise.withResolvers<undefined>()
+    let isHeld = false
+    vi.mocked(rm).mockImplementation(async (file, options) => {
+      if (file === oldFile && !isHeld) {
+        isHeld = true
+        entered.resolve(undefined)
+        await resume.promise
+        try {
+          await actual.rm(file, options)
+        } finally {
+          removed.resolve(undefined)
+        }
+      } else await actual.rm(file, options)
+    })
+    const lose = path.join(deps.directory, 'lose-delayed-mutex')
+    const helper = {
+      file: process.execPath,
+      prefix: [
+        '-e',
+        String.raw`
+process.stderr.write('lease-ready\n'); process.stdin.resume();
+process.stdin.on('end', () => process.exit(0));
+setInterval(() => { if (require('node:fs').existsSync(process.argv[1])) process.exit(0); }, 20);`,
+        lose,
+      ],
+      process: makerProcessDeps(),
+    }
+    const absent = { isProcessAlive: () => false, isEndpointAlive: () => Promise.resolve(false) }
+    const stale = claimHardwareLease(
+      {
+        ...deps,
+        exclusive: (file, operation) =>
+          withNativeLeaseMutex(helper, file, async (signal) => {
+            try {
+              return await operation(signal)
+            } finally {
+              drained.resolve(undefined)
+            }
+          }),
+        ...absent,
+      },
+      resource,
+      'failed stale claimant',
+      () => Promise.resolve(),
+    )
+    const rejected = expect(stale).rejects.toThrow('lease-helper-unavailable')
+    try {
+      await entered.promise
+      await writeFile(lose, '')
+      await rejected
+      const winner = await claimHardwareLease({ ...deps, ...absent }, resource, 'new holder', () =>
+        Promise.resolve(),
+      )
+      if (winner.status !== 'acquired') throw new Error('test-claim')
+      resume.resolve(undefined)
+      await removed.promise
+      await drained.promise
+      const third = await claimHardwareLease(deps, resource, 'third claimant', () =>
+        Promise.resolve(),
+      )
+      expect(third.status).toBe('busy')
+      if (third.status === 'busy') expect(third.holder).toEqual(winner.record)
+    } finally {
+      resume.resolve(undefined)
+      vi.mocked(rm).mockImplementation(actual.rm)
+      await rejected
+    }
+  })
+
+  it.each([
+    {
+      name: 'cleans a committed failed claim before rejecting even while its parent stays alive',
+      failsClosing: false,
+    },
+    {
+      name: 'removes a failed claim even when closing its owner endpoint fails',
+      failsClosing: true,
+    },
+  ])('$name', async ({ failsClosing }) => {
+    const native = await fixture()
+    const closed = vi.fn(() => Promise.resolve())
+    if (failsClosing) closed.mockRejectedValueOnce(new Error('test-close-failed'))
+    const deps = {
+      ...native,
+      platform: 'win32' as const,
+      listenOwnerPipe: () => Promise.resolve(closed),
+    }
+    const actual = await vi.importActual<typeof FsPromises>('node:fs/promises')
+    const controller = new AbortController()
+    let isFirstSection = true
+    vi.mocked(writeFile).mockImplementationOnce(async (...args) => {
+      await actual.writeFile(...args)
+      controller.abort(new Error('lease-helper-unavailable'))
+    })
+    await expect(
+      claimHardwareLease(
+        {
+          ...deps,
+          exclusive: (file, operation) => {
+            if (!isFirstSection) return deps.exclusive(file, operation)
+            isFirstSection = false
+            return operation(controller.signal)
+          },
+        },
+        'port:failed-write',
+        'failed claimant',
+        () => Promise.resolve(),
+      ),
+    ).rejects.toThrow(failsClosing ? 'test-close-failed' : 'lease-helper-unavailable')
+    expect(closed).toHaveBeenCalledTimes(1)
+    const retry = await claimHardwareLease(deps, 'port:failed-write', 'retry', () =>
+      Promise.resolve(),
+    )
+    expect(retry.status).toBe('acquired')
+    if (retry.status === 'acquired') await retry.release()
+  })
+
+  it('drains a write already submitted when the native mutex rejects the claim', async () => {
+    const native = await fixture()
+    const closed = vi.fn(() => Promise.resolve())
+    const deps = {
+      ...native,
+      platform: 'win32' as const,
+      listenOwnerPipe: () => Promise.resolve(closed),
+    }
+    const actual = await vi.importActual<typeof FsPromises>('node:fs/promises')
+    const entered = Promise.withResolvers<undefined>()
+    const resume = Promise.withResolvers<undefined>()
+    const lost = Promise.withResolvers<never>()
+    const controller = new AbortController()
+    let isFirstSection = true
+    vi.mocked(writeFile).mockImplementationOnce(async (...args) => {
+      entered.resolve(undefined)
+      await resume.promise
+      await actual.writeFile(...args)
+    })
+    let hasSettled = false
+    const claim = (async () => {
+      try {
+        return await claimHardwareLease(
+          {
+            ...deps,
+            exclusive: (file, operation) => {
+              if (!isFirstSection) return deps.exclusive(file, operation)
+              isFirstSection = false
+              return Promise.race([operation(controller.signal), lost.promise])
+            },
+          },
+          'port:pending-write',
+          'pending claimant',
+          () => Promise.resolve(),
+        )
+      } finally {
+        hasSettled = true
+      }
+    })()
+    const rejected = expect(claim).rejects.toThrow('lease-helper-unavailable')
+    try {
+      await entered.promise
+      const error = new Error('lease-helper-unavailable')
+      controller.abort(error)
+      lost.reject(error)
+      await delay(100)
+      expect(closed).not.toHaveBeenCalled()
+      expect(hasSettled).toBe(false)
+    } finally {
+      resume.resolve(undefined)
+      await rejected
+    }
+    expect(closed).toHaveBeenCalledTimes(1)
+    const retry = await claimHardwareLease(deps, 'port:pending-write', 'retry', () =>
+      Promise.resolve(),
+    )
+    expect(retry.status).toBe('acquired')
+    if (retry.status === 'acquired') await retry.release()
+  })
+
   it('finishes an in-flight Stop acknowledgement before concurrent owner teardown', async () => {
     let deps = await fixture()
     if (process.platform === 'win32') {
@@ -90,8 +305,9 @@ describe('hardware lease', () => {
     const resource = 'port:lost-mutex'
     const id = randomUUID()
     const old = {
-      version: 1,
+      version: 2,
       id,
+      generation: randomUUID(),
       resource,
       holder: 'dead',
       pid: 999_999_999,
@@ -100,10 +316,10 @@ describe('hardware lease', () => {
           ? String.raw`\\.\pipe\MuseSparkSerial-${id}`
           : path.join(deps.directory, `${id}.sock`),
     }
-    const file = recordFile(deps.directory, resource)
+    const file = await recordFile(deps.directory, resource, old)
     await writeFile(file, JSON.stringify(old), { mode: 0o600 })
     const lose = path.join(deps.directory, 'lose-mutex')
-    const entered = new AbortController()
+    const entered = Promise.withResolvers<undefined>()
     const probe = Promise.withResolvers<boolean>()
     const helper = {
       file: process.execPath,
@@ -126,7 +342,7 @@ setInterval(() => { if (require('node:fs').existsSync(process.argv[1])) process.
         listenOwnerPipe: listen,
         isProcessAlive: () => false,
         isEndpointAlive: () => {
-          entered.abort()
+          entered.resolve(undefined)
           return probe.promise
         },
       },
@@ -135,9 +351,7 @@ setInterval(() => { if (require('node:fs').existsSync(process.argv[1])) process.
       () => Promise.resolve(),
     )
     const rejected = expect(stale).rejects.toThrow('lease-helper-unavailable')
-    await vi.waitFor(() => {
-      expect(entered.signal.aborted).toBe(true)
-    })
+    await entered.promise
     await writeFile(lose, '')
     await rejected
     const winner = await claimHardwareLease(
@@ -150,12 +364,14 @@ setInterval(() => { if (require('node:fs').existsSync(process.argv[1])) process.
     try {
       probe.resolve(false)
       await delay(100)
-      expect(JSON.parse(await readFile(file, 'utf8'))).toEqual(winner.record)
+      expect(
+        JSON.parse(
+          await readFile(await recordFile(deps.directory, resource, winner.record), 'utf8'),
+        ),
+      ).toEqual(winner.record)
       expect(listen).not.toHaveBeenCalled()
     } finally {
       probe.resolve(false)
-      // A red drill may erase the record; restore our test holder for cleanup.
-      await writeFile(file, JSON.stringify(winner.record), { mode: 0o600 })
       await winner.release()
     }
   })
@@ -194,6 +410,34 @@ socket.once('end', () => process.exit(0));`,
     }
   })
 
+  it('reaches the active Stop endpoint while a failed generation is awaiting cleanup', async () => {
+    const deps = await fixture()
+    const resource = 'port:transient-records'
+    const stop = vi.fn(() => Promise.resolve())
+    const claimed = await claimHardwareLease(deps, resource, 'active owner', stop)
+    if (claimed.status !== 'acquired') throw new Error('test-claim')
+    const id = randomUUID()
+    const pending = {
+      ...claimed.record,
+      id,
+      generation: randomUUID(),
+      holder: 'failed pending claimant',
+      endpoint:
+        process.platform === 'win32'
+          ? String.raw`\\.\pipe\MuseSparkSerial-${id}`
+          : path.join(deps.directory, `${id}.sock`),
+    }
+    const file = await recordFile(deps.directory, resource, pending)
+    await writeFile(file, JSON.stringify(pending), { mode: 0o600 })
+    try {
+      expect(await didStopHardwareLease(deps, resource)).toBe(true)
+      expect(stop).toHaveBeenCalledTimes(1)
+    } finally {
+      await rm(file)
+      await claimed.release()
+    }
+  })
+
   it('serializes competing claims, reports the holder and releases idempotently', async () => {
     const deps = await fixture()
     const stop = vi.fn().mockResolvedValue(undefined)
@@ -224,14 +468,17 @@ socket.once('end', () => process.exit(0));`,
         ? String.raw`\\.\pipe\MuseSparkSerial-${id}`
         : path.join(deps.directory, `${id}.sock`)
     const old = {
-      version: 1,
+      version: 2,
       id,
+      generation: randomUUID(),
       resource,
       holder: 'dead conversation',
       pid: 999_999_999,
       endpoint,
     }
-    await writeFile(recordFile(deps.directory, resource), JSON.stringify(old), { mode: 0o600 })
+    await writeFile(await recordFile(deps.directory, resource, old), JSON.stringify(old), {
+      mode: 0o600,
+    })
     expect(
       await claimHardwareLease(
         { ...deps, isProcessAlive: () => true, isEndpointAlive: () => Promise.resolve(false) },
@@ -256,7 +503,7 @@ socket.once('end', () => process.exit(0));`,
   it('does not redirect Stop or reclaim malformed records', async () => {
     const deps = await fixture()
     const resource = 'port:test'
-    const file = recordFile(deps.directory, resource)
+    const file = await recordFile(deps.directory, resource)
     await writeFile(file, '{', { mode: 0o600 })
     await expect(
       claimHardwareLease(deps, resource, 'test', () => Promise.resolve()),
@@ -264,8 +511,9 @@ socket.once('end', () => process.exit(0));`,
     await writeFile(
       file,
       JSON.stringify({
-        version: 1,
+        version: 2,
         id: randomUUID(),
+        generation: randomUUID(),
         resource,
         holder: 'other',
         pid: 'invented',
@@ -277,18 +525,47 @@ socket.once('end', () => process.exit(0));`,
     ).rejects.toMatchObject({
       issues: [{ code: 'invalid_type', path: ['pid'], expected: 'number' }],
     })
-    await writeFile(
-      file,
-      JSON.stringify({
-        version: 1,
-        id: randomUUID(),
-        resource,
-        holder: 'other',
-        pid: process.pid,
-        endpoint: path.join(deps.directory, 'foreign.sock'),
-      }),
-    )
+    await rm(file)
+    const foreign = {
+      version: 2,
+      id: randomUUID(),
+      generation: randomUUID(),
+      resource,
+      holder: 'other',
+      pid: process.pid,
+      endpoint: path.join(deps.directory, 'foreign.sock'),
+    }
+    await writeFile(await recordFile(deps.directory, resource, foreign), JSON.stringify(foreign))
     await expect(didStopHardwareLease(deps, resource)).rejects.toThrow('lease-endpoint-invalid')
+  })
+
+  it('refuses a record stored under another holder generation', async () => {
+    const deps = await fixture()
+    const resource = 'port:wrong-generation'
+    const id = randomUUID()
+    const record = {
+      version: 2,
+      id,
+      generation: randomUUID(),
+      resource,
+      holder: 'owner',
+      pid: process.pid,
+      endpoint:
+        process.platform === 'win32'
+          ? String.raw`\\.\pipe\MuseSparkSerial-${id}`
+          : path.join(deps.directory, `${id}.sock`),
+    }
+    await writeFile(
+      await recordFile(deps.directory, resource, { ...record, generation: randomUUID() }),
+      JSON.stringify(record),
+      { mode: 0o600 },
+    )
+    await expect(
+      claimHardwareLease(deps, resource, 'claimant', () => Promise.resolve()),
+    ).rejects.toThrow('lease-record-identity-invalid')
+    await expect(didStopHardwareLease(deps, resource)).rejects.toThrow(
+      'lease-record-identity-invalid',
+    )
   })
 
   it('reports Stop failure and holds separate resources independently', async () => {
@@ -359,9 +636,10 @@ socket.once('end', () => process.exit(0));`,
       ).rejects.toThrow('lease-directory-not-private')
       await chmod(deps.directory, 0o700)
     }
-    await writeFile(recordFile(deps.directory, 'port:test'), 'x'.repeat(8192))
+    const file = await recordFile(deps.directory, 'port:test')
+    await writeFile(file, 'x'.repeat(8192))
     await expect(didStopHardwareLease(deps, 'port:test')).rejects.toThrow('lease-record-invalid')
-    const text = await readFile(recordFile(deps.directory, 'port:test'))
+    const text = await readFile(file)
     expect(text.length).toBe(8192)
   })
 

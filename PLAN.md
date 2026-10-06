@@ -15131,6 +15131,19 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M103 — Makers: boards, firmware and machines (D83)
 
+**FIXM103P2 / RVM103P4 correction scope (2026-10-05).** Fix all three
+confirmed P2 findings before integration: stale deletion addresses an immutable
+record filename containing the holder ID and a fresh claim generation, so a
+submitted removal cannot address a later holder after native lock loss; failed
+claims settle their pending record write and close/remove their own generation
+before rejecting; Windows enumeration projects the device registry's PortName,
+with only a final parenthesized COM suffix as the text-only fallback. The
+resource mutex and process-plus-endpoint stale checks remain mandatory. These
+portable P-core changes cover every editor/runtime through LeaseDependencies
+and listSerialPorts; W's host wiring/package and physical qualification remain
+separate. Each finding gets a whole-file regression and byte-exact red drill in
+`docs/certification/m103-p.md`. No dependency, setting or command is added.
+
 **Q-M103a–h resolved 2026-10-05 (lead, under the owner's standing
 authorization: "any recommendation you come up with you are authorized").**
 (a) Plain HTTP on the LAN only for a machine the user registered by command,
@@ -15602,7 +15615,7 @@ lane A's first step.
 
 ## 7. Gates
 
-**FIXM103P rig deferral (2026-10-05):** the rig/shared brief prohibits the
+**FIXM103P / FIXM103P2 rig deferral (2026-10-05):** the rig/shared brief prohibits the
 full `quality` command in a lane. Focused P suites and the listed local gates
 run instead. The pre-existing stale host API file-count record is W-owned;
 W must regenerate and review it with the maker entry/package, then run full
@@ -16187,7 +16200,7 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
-- **M103P-QUALIFICATION (2026-10-05):** lane P's RVM103P3 corrections
+- **M103P-QUALIFICATION (2026-10-05):** lane P's RVM103P3/RVM103P4 corrections
   are checked on Win11, including a separate process stopping the compiled
   current-user C# pipe. No physical board, reset or flash is claimed. The
   same platform-metadata test runs CIM, ioreg or sysfs on its actual OS;
@@ -16198,6 +16211,14 @@ before a repaired one loads (2026-09-30).
   additional line-control adapter before admitting it. The unchanged stale
   host API record and final maker/helper packaging remain W-owned integration
   gates; the lane does not claim them or full quality passed.
+  RVM103P4 uses version-2 records in per-resource directories, with immutable
+  holder-ID/generation filenames. Old pre-integration fixed-file records
+  fail closed; none of this maker storage has shipped. Follow-up: W selects
+  a fresh versioned per-user namespace before shipping or qualifies an
+  offline migration only after all old holders are absent. Nonempty registry
+  PortName board captures and the new lease interleavings on real POSIX rigs
+  remain part of the same platform qualification. All three RVM103P4 review
+  findings are fixed; no P2/P3 review finding is intentionally deferred.
 
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through

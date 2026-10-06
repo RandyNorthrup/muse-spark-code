@@ -10,17 +10,22 @@ function hex(value: string | undefined): string | undefined {
   return value?.replace(/^0x/i, '').toLowerCase()
 }
 
-const cimRow = z.object({ Name: z.string(), PNPDeviceID: z.string() })
+const cimRow = z.object({
+  Name: z.string(),
+  PNPDeviceID: z.string(),
+  PortName: z.optional(z.nullable(z.string())),
+})
 
-/** Get-CimInstance Win32_PnPEntity -Filter "PNPClass='Ports'" projection. */
+/** CIM metadata plus the device registry's PortName; no serial-device reads. */
 export function parseCimPorts(text: string, maxBytes: number): SerialIdentity[] {
   const raw = json(text, maxBytes)
   const entries = Array.isArray(raw) ? raw : [raw]
   const rows = z.array(cimRow).parse(raw === null ? [] : entries)
   return rows.flatMap((row) => {
     if (/^BTHENUM\\/i.test(row.PNPDeviceID)) return []
-    const port = /\((COM\d+)\)/i.exec(row.Name)?.[1]
+    const port = row.PortName ?? /\((COM\d+)\)\s*$/i.exec(row.Name)?.[1]
     if (port === undefined) return []
+    if (!/^COM\d+$/i.test(port)) return []
     const usb = /VID_([\da-f]{4})&PID_([\da-f]{4})/i.exec(row.PNPDeviceID)
     const instance = row.PNPDeviceID.split('\\').at(-1)
     // Windows synthesises location IDs with '&'; those are not USB serials.

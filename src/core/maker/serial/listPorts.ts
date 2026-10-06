@@ -48,7 +48,7 @@ export async function listSerialPorts(deps: PortListDependencies): Promise<Seria
             '-NoProfile',
             '-NonInteractive',
             '-Command',
-            'ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_PnPEntity -Filter "PNPClass=\'Ports\'" | Select-Object Name,PNPDeviceID)',
+            String.raw`ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_PnPEntity -Filter "PNPClass='Ports'" | ForEach-Object { $portName = (Get-ItemProperty -LiteralPath ('Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Enum\' + $_.PNPDeviceID + '\Device Parameters') -Name PortName -ErrorAction SilentlyContinue).PortName; [pscustomobject]@{ Name = $_.Name; PNPDeviceID = $_.PNPDeviceID; PortName = $portName } })`,
           ]),
           deps.maxBytes,
         )
