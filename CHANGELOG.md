@@ -17,6 +17,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Reopening or closing a Git form now cancels its structured draft repair and
+  fallback requests, and stale form epochs are rejected before settlement.
+  Cancellation before dispatch adds no use; requests already sent remain counted.
 - Structured side-call answer validation now uses the shared Zod mini runtime
   and a named JSON Schema converter, keeping the Model API, reviewer, Git
   and judge bundles within their existing size caps.

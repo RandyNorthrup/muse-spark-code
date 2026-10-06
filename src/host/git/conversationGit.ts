@@ -164,6 +164,7 @@ interface Generation {
         readonly port: GitDraftOutputPort
         readonly formats: SideCallFormats | undefined
         readonly abort: AbortController
+        readonly signal: AbortSignal
       }
     | undefined
   isSettling?: boolean
@@ -280,6 +281,7 @@ export class ConversationGit implements ConversationGitPort {
   private generation: Generation | undefined
   private generationEpoch = 0
   private formEpoch = 0
+  private formAbort = new AbortController()
   private observedSessionId: string | undefined
   private readonly turnsSeen = new Map<string, TurnSeen>()
   /** The pull request form's facts, for the generation prompt. */
@@ -421,8 +423,15 @@ export class ConversationGit implements ConversationGitPort {
     return p.relative(repository.rootUri.fsPath, change.uri.fsPath).replaceAll('\\', '/')
   }
 
-  private async openCommitForm(): Promise<void> {
+  private advanceFormEpoch(): void {
+    const previous = this.formAbort
     this.formEpoch += 1
+    this.formAbort = new AbortController()
+    previous.abort()
+  }
+
+  private async openCommitForm(): Promise<void> {
+    this.advanceFormEpoch()
     this.commitForm = undefined
     const repository = await this.usableRepository()
     if (repository === undefined) {
@@ -621,7 +630,7 @@ export class ConversationGit implements ConversationGitPort {
   }
 
   private async openPullRequestForm(): Promise<void> {
-    this.formEpoch += 1
+    this.advanceFormEpoch()
     this.pullRequestForm = undefined
     this.pullRequestStamp = undefined
     const repository = await this.usableRepository()
@@ -924,6 +933,12 @@ export class ConversationGit implements ConversationGitPort {
     if (generation === undefined || seen?.terminal === undefined) {
       return
     }
+    if (generation.formEpoch !== this.formEpoch) {
+      generation.output?.abort.abort()
+      this.generation = undefined
+      this.turnsSeen.clear()
+      return
+    }
     if (
       generation.output !== undefined &&
       seen.terminal === COMPLETED_TERMINAL &&
@@ -936,7 +951,6 @@ export class ConversationGit implements ConversationGitPort {
     }
     this.generation = undefined
     this.turnsSeen.clear()
-    if (generation.formEpoch !== this.formEpoch) return
     const reply = seen.terminal === COMPLETED_TERMINAL ? seen.text : undefined
     if (generation.kind === 'commitMessage') {
       const message = reply === undefined ? undefined : commitMessageFrom(reply)
@@ -964,7 +978,7 @@ export class ConversationGit implements ConversationGitPort {
         reply,
         output.formats,
         output.port,
-        output.abort.signal,
+        output.signal,
         (text) => {
           if (this.isGenerationCurrent(generation.id)) this.surface.notice('warning', text)
         },
@@ -1110,7 +1124,7 @@ export class ConversationGit implements ConversationGitPort {
       return
     }
     this.window.log.info('Committed through the git extension')
-    this.formEpoch += 1
+    this.advanceFormEpoch()
     this.generation?.output?.abort.abort()
     this.generation = undefined
     this.turnsSeen.clear()
@@ -1246,7 +1260,7 @@ export class ConversationGit implements ConversationGitPort {
     )
     this.pullRequestForm = undefined
     this.pullRequestStamp = undefined
-    this.formEpoch += 1
+    this.advanceFormEpoch()
     this.generation?.output?.abort.abort()
     this.generation = undefined
     this.turnsSeen.clear()
@@ -1294,6 +1308,7 @@ export class ConversationGit implements ConversationGitPort {
       (this.observedSessionId !== undefined && this.observedSessionId !== sessionId)
     ) {
       this.operationEpoch += 1
+      this.advanceFormEpoch()
       this.commitForm = undefined
       this.pullRequestForm = undefined
       this.pullRequestStamp = undefined
@@ -1361,6 +1376,7 @@ export class ConversationGit implements ConversationGitPort {
       }
       case 'cancel': {
         this.operationEpoch += 1
+        this.advanceFormEpoch()
         this.commitForm = undefined
         this.pullRequestForm = undefined
         this.pullRequestStamp = undefined
@@ -1431,12 +1447,20 @@ export class ConversationGit implements ConversationGitPort {
     const port = this.window.draftOutput
     const formats = port?.formats()
     port?.prepare(kind, gitDraftContract(kind, formats))
+    const abort = new AbortController()
     this.generation = {
       id: this.generationEpoch,
       formEpoch: this.formEpoch,
       kind,
       turnId: undefined,
-      ...(port !== undefined && { output: { port, formats, abort: new AbortController() } }),
+      ...(port !== undefined && {
+        output: {
+          port,
+          formats,
+          abort,
+          signal: AbortSignal.any([abort.signal, this.formAbort.signal]),
+        },
+      }),
     }
     this.turnsSeen.clear()
     return this.generationEpoch
@@ -1498,6 +1522,7 @@ export class ConversationGit implements ConversationGitPort {
     this.isDisposed = true
     this.operationEpoch += 1
     this.statusEpoch += 1
+    this.advanceFormEpoch()
     this.generation?.output?.abort.abort()
     this.generation = undefined
     this.turnsSeen.clear()

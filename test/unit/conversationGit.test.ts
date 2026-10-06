@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { ConversationGit } from '../../src/host/git/conversationGit'
 import type { GitDraftOutputPort } from '../../src/core/git/gitText'
+import * as gitText from '../../src/core/git/gitText'
 import type { SideCallAttempt } from '../../src/core/backends/modelapi/structuredOutput'
 import type { GitDraftKind } from '../../src/shared/git'
 import type { GitSurface } from '../../src/host/conversation/conversationController'
@@ -964,7 +965,121 @@ function structuredDraftSetup(
   )
 }
 
+/** Admission and response waits expose the dispatch boundary of the held turn. */
+function pendingDraftSetup(waitingMode: SideCallAttempt['mode'] = 'strict_schema') {
+  const admission = Promise.withResolvers<undefined>()
+  const response = Promise.withResolvers<string>()
+  const sent: SideCallAttempt[] = []
+  const settled: SideCallAttempt[] = []
+  const request = vi.fn(
+    async (_kind: GitDraftKind, attempt: SideCallAttempt, signal: AbortSignal) => {
+      if (attempt.mode !== waitingMode) {
+        sent.push(attempt)
+        settled.push(attempt)
+        return 'invalid repair'
+      }
+      await admission.promise
+      signal.throwIfAborted()
+      sent.push(attempt)
+      const answer = await response.promise
+      settled.push(attempt)
+      return answer
+    },
+  )
+  const repository = aheadRepository()
+  repository.state.indexChanges = [change('first.ts')]
+  const t = setup(
+    { repository },
+    {
+      formats: () => ({ state: 'yes', value: ['strict_schema'] }),
+      prepare: () => undefined,
+      request,
+    },
+  )
+  return { ...t, admission, response, request, sent, settled }
+}
+
 describe('drafts inside the user’s own turn (M71)', () => {
+  describe.each(['openCommit', 'openPullRequest', 'cancel'] as const)(
+    'structured draft invalidation by %s',
+    (action) => {
+      it.each([
+        { mode: 'strict_schema', isSent: false },
+        { mode: 'strict_schema', isSent: true },
+        { mode: 'text', isSent: false },
+        { mode: 'text', isSent: true },
+      ] as const)(
+        'aborts pending $mode without counting unsent use (sent=$isSent)',
+        async ({ mode, isSent }) => {
+          const t = pendingDraftSetup(mode)
+          const calls = mode === 'text' ? 2 : 1
+          const priorModes = mode === 'text' ? ['strict_schema'] : []
+          await t.git.handleAction('openCommit')
+          const old = t.git.generationStarting('commitMessage')
+          t.git.generationSubmitted('old-form', old)
+          for (const event of completed('old-form', 'invalid')) t.git.onEvent(event)
+          await vi.waitFor(() => {
+            expect(t.request).toHaveBeenCalledTimes(calls)
+          })
+          if (isSent) {
+            t.admission.resolve(undefined)
+            await vi.waitFor(() => {
+              expect(t.sent).toHaveLength(calls)
+            })
+          }
+          await t.git.handleAction(action)
+          const wasAborted = t.request.mock.calls.at(-1)?.[2].aborted
+          t.admission.resolve(undefined)
+          t.response.resolve('invalid repair')
+          await Promise.allSettled([t.request.mock.results.at(-1)?.value])
+          await new Promise((resolve) => setTimeout(resolve, 0))
+
+          expect(wasAborted).toBe(true)
+          expect(t.git.isGenerationCurrent(old)).toBe(false)
+          expect(t.request).toHaveBeenCalledTimes(calls)
+          expect(t.sent.map((attempt) => attempt.mode)).toEqual(
+            isSent ? [...priorModes, mode] : priorModes,
+          )
+          expect(t.settled).toEqual(t.sent)
+          expect(t.ofType('gitDraft').filter((message) => message.draft.kind !== 'failed')).toEqual(
+            [],
+          )
+          expect(
+            t.notices.filter(([, text]) => text === UI_TEXT.structuredOutputFallback),
+          ).toHaveLength(mode === 'text' ? 1 : 0)
+
+          const kind = action === 'openPullRequest' ? 'pullRequest' : 'commitMessage'
+          const answer =
+            kind === 'commitMessage'
+              ? { message: 'fresh' }
+              : { title: 'Fresh title', body: 'Fresh description' }
+          t.git.generationStarting(kind)
+          t.git.generationSubmitted('fresh-form')
+          const events = completed('fresh-form', JSON.stringify(answer))
+          for (const event of events) t.git.onEvent(event)
+          await vi.waitFor(() => {
+            expect(t.ofType('gitDraft').at(-1)?.draft).toEqual({ kind, ...answer })
+          })
+        },
+      )
+
+      it('rejects the stale form epoch before entering structured settlement', async () => {
+        const settle = vi.spyOn(gitText, 'structuredGitDraft')
+        try {
+          const t = pendingDraftSetup()
+          const old = t.git.generationStarting('commitMessage')
+          t.git.generationSubmitted('stale-form', old)
+          await t.git.handleAction(action)
+          for (const event of completed('stale-form', 'invalid')) t.git.onEvent(event)
+          expect(settle).not.toHaveBeenCalled()
+          expect(t.request).not.toHaveBeenCalled()
+        } finally {
+          settle.mockRestore()
+        }
+      })
+    },
+  )
+
   it('starts only one repair when a terminal notification repeats', async () => {
     const pending = Promise.withResolvers<string>()
     const request = vi.fn(() => pending.promise)

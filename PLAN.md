@@ -19440,6 +19440,18 @@ restoration and a passing complete build. Measurements and receipts are in
 `docs/certification/m106-o1.md`. No wire shape, dependency or feature scope
 changes; the lead retains the integration handoffs and complete quality gate.
 
+**O1 lifecycle review repair (FIXM106O1B, 2026-10-05).** RVM106O1 found one
+P2: replacing a Git form invalidates its draft without cancelling the
+structured repair and fallback. Each form epoch now has its own abort
+controller, aborted on replacement or closure; stale epochs are rejected
+before structured settlement. Draft replacement still cancels its own
+controller. Regressions prove cancellation before dispatch contributes no
+pending paid use, already dispatched requests remain counted, and stale
+fallbacks or drafts stop. All 118 owning tests and scoped checks pass; all
+three red drills fail and restore the source byte-exactly. Receipts are in
+`docs/certification/m106-o1.md`; the Git-turn accounting binding remains the
+existing lead-owned integration handoff.
+
 - **Goal.** Every guarantee Meta's wire offers the loop is used wherever the
   selected model has it: valid tool arguments, machine-readable side
   answers, bounded hosted tools, live previews, concurrent reads, the full
