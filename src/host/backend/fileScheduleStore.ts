@@ -5,6 +5,7 @@
 // possibly billed request.
 
 import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { nextScheduleFire } from '../../core/backends/modelapi/schedules'
@@ -16,6 +17,7 @@ import {
 } from '../../shared/schedule'
 import type { Logger } from '../logger'
 import { describeStoreError, storeErrorCode } from './storeErrors'
+import type { ScheduleMigrationEntry, ScheduleMigrationSource } from '../../core/schedules/migrate'
 
 export interface FileScheduleStoreDeps {
   readonly directory: string
@@ -28,6 +30,7 @@ const CLAIM_FILE = '.claim'
 const ID = /^[A-Za-z0-9_-]+$/
 const ENOENT = 'ENOENT'
 const EEXIST = 'EEXIST'
+const MIGRATION_FILE = '.migration'
 const receiptSchema = z.object({ admittedAtMs: z.number() })
 
 function assertId(id: string): void {
@@ -51,6 +54,7 @@ export function createFileScheduleStore(deps: FileScheduleStoreDeps): ScheduleSt
   }
   const receiptPath = (id: string, occurrenceMs: number) =>
     path.join(deps.directory, claimName(id, occurrenceMs))
+  const migrationSealed = (id: string) => isMigrationSealed(deps.directory, id)
 
   const readJob = async (id: string): Promise<ScheduledPrompt | undefined> => {
     let raw: unknown
@@ -146,6 +150,7 @@ export function createFileScheduleStore(deps: FileScheduleStoreDeps): ScheduleSt
     const jobs: ScheduledPrompt[] = []
     for (const name of names) {
       if (name.endsWith(CLAIM_FILE)) {
+        if (await migrationSealed(name.split('.', 1)[0] ?? '')) continue
         const file = path.join(deps.directory, name)
         try {
           const fileStat = await stat(file)
@@ -163,9 +168,7 @@ export function createFileScheduleStore(deps: FileScheduleStoreDeps): ScheduleSt
         continue
       }
       const id = name.slice(0, -JOB_FILE.length)
-      if (!ID.test(id)) {
-        continue
-      }
+      if (!ID.test(id) || (await migrationSealed(id))) continue
       const stored = await readJob(id)
       if (stored === undefined) {
         continue
@@ -232,8 +235,125 @@ export function createFileScheduleStore(deps: FileScheduleStoreDeps): ScheduleSt
         stillStored.workspaceRoot === job.workspaceRoot &&
         stillStored.accountId === job.accountId &&
         stillStored.prompt === job.prompt &&
+        !(await migrationSealed(job.id)) &&
         deps.now() < stillStored.expiresAtMs
       )
+    },
+  }
+}
+
+async function isMigrationSealed(directory: string, id: string): Promise<boolean> {
+  assertId(id)
+  try {
+    await stat(path.join(directory, `${id}${JOB_FILE}${MIGRATION_FILE}`))
+    return true
+  } catch (error: unknown) {
+    if (storeErrorCode(error) === ENOENT) return false
+    throw error
+  }
+}
+
+/** M52 stays a readable migration source; a seal prevents its old scheduler
+ * admitting work while the shared store verifies its copy. Seals survive
+ * failures and removal, so a stale v1 object cannot revive an old job. */
+export function createFileScheduleMigrationSource(directory: string): ScheduleMigrationSource {
+  const snapshot = async (id: string): Promise<ScheduleMigrationEntry> => {
+    assertId(id)
+    const original = await readFile(path.join(directory, `${id}${JOB_FILE}`), 'utf8')
+    let raw: unknown
+    try {
+      raw = JSON.parse(original)
+    } catch {
+      throw new Error('scheduleStoredJsonInvalid')
+    }
+    const job = scheduledPromptSchema.parse(raw)
+    if (job.id !== id) throw new Error('scheduleMigrationIdentityMismatch')
+    const receipts: {
+      name: string
+      content: string
+      mtimeMs: number
+      occurrence: number
+      admitted: number
+    }[] = []
+    const names = await readdir(directory)
+    const ordered = names.toSorted((a, b) => a.localeCompare(b))
+    for (const name of ordered) {
+      if (!name.startsWith(`${id}.`) || !name.endsWith(CLAIM_FILE)) continue
+      const occurrence = Number(name.slice(id.length + 1, -CLAIM_FILE.length))
+      if (!Number.isSafeInteger(occurrence) || occurrence < 0)
+        throw new Error('scheduleMigrationReceiptInvalid')
+      const file = path.join(directory, name)
+      const content = await readFile(file, 'utf8')
+      const info = await stat(file)
+      let admitted = info.mtimeMs
+      try {
+        const receipt: unknown = JSON.parse(content)
+        const parsed = receiptSchema.safeParse(receipt)
+        if (parsed.success) admitted = parsed.data.admittedAtMs
+      } catch {
+        /* A crashed receipt is still a permanent admission. */
+      }
+      receipts.push({
+        name,
+        content,
+        mtimeMs: info.mtimeMs,
+        occurrence,
+        admitted: Math.max(occurrence, admitted),
+      })
+    }
+    const fresh = receipts.filter((receipt) => receipt.occurrence >= job.nextFireAtMs)
+    const last = fresh.toSorted((a, b) => b.admitted - a.admitted)[0]
+    const recovered =
+      last === undefined
+        ? job
+        : {
+            ...job,
+            nextFireAtMs:
+              nextScheduleFire(job.cadence, last.admitted, job.expiresAtMs) ?? job.expiresAtMs,
+            fireCount: Math.max(job.fireCount + fresh.length, receipts.length),
+            lastFireAtMs: Math.max(
+              job.lastFireAtMs ?? 0,
+              ...fresh.map((receipt) => receipt.occurrence),
+            ),
+          }
+    return {
+      job: scheduledPromptSchema.parse(recovered),
+      occurrences: receipts.map((receipt) => receipt.occurrence),
+      fingerprint: createHash('sha256')
+        .update(JSON.stringify({ original, receipts }))
+        .digest('hex'),
+    }
+  }
+  return {
+    async freeze() {
+      let names: string[]
+      try {
+        names = await readdir(directory)
+      } catch (error: unknown) {
+        if (storeErrorCode(error) === ENOENT) return []
+        throw error
+      }
+      const entries: ScheduleMigrationEntry[] = []
+      const ordered = names.toSorted((a, b) => a.localeCompare(b))
+      for (const name of ordered) {
+        if (!name.endsWith(JOB_FILE)) continue
+        const id = name.slice(0, -JOB_FILE.length)
+        assertId(id)
+        try {
+          await writeFile(path.join(directory, `${name}${MIGRATION_FILE}`), '', { flag: 'wx' })
+        } catch (error: unknown) {
+          if (storeErrorCode(error) !== EEXIST) throw error
+        }
+        entries.push(await snapshot(id))
+      }
+      return entries
+    },
+    async removeVerified(entry) {
+      const current = await snapshot(entry.job.id)
+      if (current.fingerprint !== entry.fingerprint)
+        throw new Error('scheduleMigrationSourceChanged')
+      await rm(path.join(directory, `${entry.job.id}${JOB_FILE}`))
+      // Receipt bytes and seals stay as a v1 replay fence and forensic evidence.
     },
   }
 }

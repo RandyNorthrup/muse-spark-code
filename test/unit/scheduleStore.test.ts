@@ -1,0 +1,429 @@
+import { readFile, writeFile, readdir, mkdir, symlink } from 'node:fs/promises'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+import { build } from 'esbuild'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { createScheduleStore, scheduleStorageHash } from '../../src/core/schedules/store'
+import {
+  createNodeScheduleFs,
+  createNodeScheduleQueue,
+} from '../../src/runtime/schedules/nodeScheduleFs'
+import { schedulesFolder } from '../../src/runtime/dataFolder'
+import { SCHEDULE_MAX_PER_WORKSPACE } from '../../src/shared/constants'
+import { scheduleFireRecordSchema } from '../../src/shared/scheduleV2'
+import { fakeSchedule } from './helpers/schedules/fixtures'
+import { removeFolder } from './helpers/temporaryFolders'
+
+const exec = promisify(execFile)
+const root = mkdtempSync(path.join(tmpdir(), 'muse-m115-s-'))
+const child = path.join(root, 'worker.cjs')
+beforeAll(async () => {
+  await build({
+    stdin: {
+      contents: String.raw`
+        import { createScheduleStore } from './src/core/schedules/store';
+        import { createNodeScheduleFs, createNodeScheduleQueue } from './src/runtime/schedules/nodeScheduleFs';
+        const [directory, mode, value] = process.argv.slice(2);
+        const store = createScheduleStore(createNodeScheduleFs(directory));
+        (async () => {
+          let result;
+          if (mode === 'claim') result = await store.claim(value);
+          if (mode === 'admit') result = await store.admit(JSON.parse(value));
+          if (mode === 'update') result = await store.update(JSON.parse(value));
+          if (mode === 'queue') {
+            await createNodeScheduleQueue(directory).serialize(value, async () => {
+              const fs = require('node:fs/promises');
+              await fs.appendFile(directory + '/order.txt', 'start\n');
+              await new Promise(resolve => setTimeout(resolve, 50));
+              await fs.appendFile(directory + '/order.txt', 'end\n');
+            });
+            result = true;
+          }
+          process.stdout.write(JSON.stringify(result));
+        })().catch(() => { process.exitCode = 1; });
+      `,
+      resolveDir: process.cwd(),
+      loader: 'ts',
+    },
+    outfile: child,
+    bundle: true,
+    platform: 'node',
+    format: 'cjs',
+    logLevel: 'silent',
+  })
+})
+afterAll(async () => {
+  await removeFolder(root)
+})
+
+async function worker(directory: string, mode: string, value: string): Promise<string> {
+  const result = await exec(process.execPath, [child, directory, mode, value], {
+    // Only the process launcher's OS prerequisite; no inherited credentials.
+    env: { SystemRoot: process.env['SystemRoot'] },
+  })
+  return result.stdout
+}
+
+describe('M115 durable shared store', () => {
+  it('uses the same schedules root on Windows, macOS and Linux', () => {
+    expect(
+      schedulesFolder({ platform: 'win32', homeDir: String.raw`C:\Users\test`, env: {} }),
+    ).toBe(String.raw`C:\Users\test\AppData\Local\Muse Spark Code\schedules\v1`)
+    expect(schedulesFolder({ platform: 'darwin', homeDir: '/home/test', env: {} })).toBe(
+      '/home/test/Library/Application Support/Muse Spark Code/schedules/v1',
+    )
+    expect(
+      schedulesFolder({
+        platform: 'linux',
+        homeDir: '/home/test',
+        env: { XDG_DATA_HOME: '/data' },
+      }),
+    ).toBe('/data/muse-spark-code/schedules/v1')
+  })
+  it('isolates workspaces and never reuses an identifier after removal', async () => {
+    const directory = path.join(root, 'identity')
+    const store = createScheduleStore(createNodeScheduleFs(directory))
+    const job = fakeSchedule()
+    await store.create(job)
+    expect(await store.list('workspace-2')).toEqual([])
+    expect(await store.remove('workspace-2', job.id)).toBe(false)
+    expect(await store.remove(job.workspaceKey, job.id)).toBe(true)
+    await expect(store.create(job)).rejects.toThrow('AlreadyIssued')
+    await expect(store.create({ ...job, workspaceKey: 'workspace-2' })).rejects.toThrow(
+      'AlreadyIssued',
+    )
+    await expect(store.create(fakeSchedule({ id: 'nonzero', revision: 1 }))).rejects.toThrow(
+      'RevisionInvalid',
+    )
+  })
+  it('atomically compares revisions across two real processes and keeps revoked authority', async () => {
+    const directory = path.join(root, 'cas')
+    const store = createScheduleStore(createNodeScheduleFs(directory))
+    const job = fakeSchedule({
+      grant: {
+        rules: [{ id: 'read', kind: 'tool', name: 'read_file' }],
+        destinationIds: [],
+        paidCapUsd: 0,
+      },
+    })
+    await store.create(job)
+    const outcomes = await Promise.all([
+      worker(
+        directory,
+        'update',
+        JSON.stringify({
+          ...job,
+          paused: true,
+          grant: { rules: [], destinationIds: [], paidCapUsd: 0 },
+        }),
+      ),
+      worker(directory, 'update', JSON.stringify({ ...job, name: 'Changed name' })),
+    ])
+    expect(outcomes.toSorted((a, b) => a.localeCompare(b))).toEqual(['false', 'true'])
+    const [current] = await store.list(job.workspaceKey)
+    expect(current?.revision).toBe(1)
+    expect(await store.update(job)).toBe(false)
+    expect(await store.update({ ...job, id: 'missing' })).toBe(false)
+    expect(await store.list(job.workspaceKey)).toEqual([current])
+  })
+  it('claims once across processes, crash, restart and schedule removal', async () => {
+    const directory = path.join(root, 'claims')
+    const runId = 'schedule-1:123'
+    const outcomes = await Promise.all([
+      worker(directory, 'claim', runId),
+      worker(directory, 'claim', runId),
+    ])
+    expect(outcomes.toSorted((a, b) => a.localeCompare(b))).toEqual(['false', 'true'])
+    const store = createScheduleStore(createNodeScheduleFs(directory))
+    await store.create(fakeSchedule())
+    await store.remove('workspace-1', 'schedule-1')
+    expect(await store.claim(runId)).toBe(false)
+    // The winning child ended without sending; a reopened process cannot replay it.
+    expect(await worker(directory, 'claim', runId)).toBe('false')
+    const longId = `schedule-1:github:${'🦜'.repeat(200)}`
+    expect(await store.claim(longId)).toBe(true)
+    expect(await store.claim(longId)).toBe(false)
+    const names = await readdir(path.join(directory, 'claims'))
+    expect(names.every((name) => name.length < 100)).toBe(true)
+  })
+  it('recovers an unpublished creation and ignores incomplete staging files', async () => {
+    const directory = path.join(root, 'staging')
+    const fs = createNodeScheduleFs(directory)
+    const job = fakeSchedule()
+    await fs.publish(`identifiers/${scheduleStorageHash(job.id)}.json`, JSON.stringify(job))
+    await fs.publish('workspace-1/index/0.json.writer.tmp', '{')
+    const store = createScheduleStore(fs)
+    await store.create(job)
+    expect(await store.list(job.workspaceKey)).toEqual([job])
+    await writeFile(path.join(directory, 'workspace-1/index/0.json'), '{', 'utf8')
+    await expect(store.list(job.workspaceKey)).rejects.toThrow()
+  })
+  it('enforces the workspace count even when two clients race the last slot', async () => {
+    const directory = path.join(root, 'limit')
+    const fs = createNodeScheduleFs(directory)
+    const jobs = Array.from({ length: SCHEDULE_MAX_PER_WORKSPACE - 1 }, (_, count) =>
+      fakeSchedule({ id: `job-${String(count)}` }),
+    )
+    await fs.publish(
+      'workspace-1/index/0.json',
+      JSON.stringify({ revision: 0, value: { schedules: jobs, retired: [] } }),
+    )
+    const outcomes = await Promise.allSettled([
+      createScheduleStore(fs).create(fakeSchedule({ id: 'last-a' })),
+      createScheduleStore(createNodeScheduleFs(directory)).create(fakeSchedule({ id: 'last-b' })),
+    ])
+    expect(outcomes.map((result) => result.status).toSorted((a, b) => a.localeCompare(b))).toEqual([
+      'fulfilled',
+      'rejected',
+    ])
+    expect(await createScheduleStore(fs).list('workspace-1')).toHaveLength(
+      SCHEDULE_MAX_PER_WORKSPACE,
+    )
+  })
+  it('serializes target batches in two real processes until their final settlement', async () => {
+    const directory = path.join(root, 'queues')
+    await createNodeScheduleFs(directory).publish('order.txt', '')
+    expect(
+      await Promise.all([
+        worker(directory, 'queue', 'workspace:session'),
+        worker(directory, 'queue', 'workspace:session'),
+      ]),
+    ).toEqual(['true', 'true'])
+    expect(await readFile(path.join(directory, 'order.txt'), 'utf8')).toBe(
+      'start\nend\nstart\nend\n',
+    )
+    const queue = createNodeScheduleQueue(directory)
+    await expect(
+      queue.serialize('workspace:session', () => Promise.reject(new Error('failed'))),
+    ).rejects.toThrow('failed')
+    await queue.serialize('workspace:session', () => Promise.resolve())
+  })
+  it('refuses path traversal and stored workspace mismatches', async () => {
+    const directory = path.join(root, 'boundary')
+    const fs = createNodeScheduleFs(directory)
+    await expect(fs.publish('../escape', '{}')).rejects.toThrow('PathRefused')
+    await expect(fs.read('../escape')).rejects.toThrow('PathRefused')
+    await fs.publish(
+      'workspace-1/index/0.json',
+      JSON.stringify({
+        revision: 0,
+        value: { schedules: [fakeSchedule({ workspaceKey: 'wrong' })], retired: [] },
+      }),
+    )
+    await expect(createScheduleStore(fs).list('workspace-1')).rejects.toThrow('WorkspaceMismatch')
+  })
+  it('rejects a mismatched index envelope and mismatched fire filename', async () => {
+    const directory = path.join(root, 'index-shape')
+    const fs = createNodeScheduleFs(directory)
+    await fs.publish(
+      'workspace-1/index/1.json',
+      JSON.stringify({ revision: 0, value: { schedules: [], retired: [] } }),
+    )
+    const store = createScheduleStore(fs)
+    await expect(store.list('workspace-1')).rejects.toThrow('RevisionMismatch')
+    const job = fakeSchedule()
+    const fire = {
+      runId: 'schedule-1:1',
+      scheduleId: job.id,
+      workspaceKey: job.workspaceKey,
+      occurrenceMs: 1,
+      observedAtMs: 2,
+      target: job.target,
+      delivery: job.delivery,
+      outcome: 'ran',
+      refusedActions: [],
+      cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+    }
+    await fs.publish('workspace-1/fires/abc.json', JSON.stringify(fire))
+    await expect(store.fires('workspace-1')).rejects.toThrow('IdentityMismatch')
+  })
+  it('rejects an ownership swap while a target batch runs', async () => {
+    const directory = path.join(root, 'queue-swap')
+    const fs = createNodeScheduleFs(directory)
+    const key = 'workspace:swap'
+    await expect(
+      createNodeScheduleQueue(directory).serialize(key, async () => {
+        await fs.publish(
+          `queues/${scheduleStorageHash(key)}/1.json`,
+          JSON.stringify({
+            revision: 1,
+            value: { owner: { pid: process.pid, token: 'overtaken' } },
+          }),
+        )
+      }),
+    ).rejects.toThrow('OwnershipLost')
+  })
+  it('refuses storage junctions before creating or reading anything through them', async () => {
+    const directory = path.join(root, 'junctions')
+    const outside = path.join(root, 'junction-target')
+    await mkdir(directory)
+    await mkdir(outside)
+    await symlink(outside, path.join(directory, 'workspace-1'), 'junction')
+    const fs = createNodeScheduleFs(directory)
+    await expect(fs.publish('workspace-1/index/0.json', '{}')).rejects.toThrow('LinkRefused')
+    expect(await readdir(outside)).toEqual([])
+    await expect(fs.names('workspace-1/index')).resolves.toEqual([])
+    await expect(fs.names('workspace-1')).rejects.toThrow('LinkRefused')
+    await writeFile(path.join(outside, 'data'), 'private')
+    await expect(fs.read('workspace-1/data')).rejects.toThrow('LinkRefused')
+  })
+  it('keeps cost, refusal and liability facts intact, refusing conflicting settlement', async () => {
+    const directory = path.join(root, 'settlement')
+    const store = createScheduleStore(createNodeScheduleFs(directory))
+    const job = fakeSchedule()
+    await store.create(job)
+    const fire = scheduleFireRecordSchema.parse({
+      runId: 'schedule-1:1',
+      scheduleId: job.id,
+      workspaceKey: job.workspaceKey,
+      occurrenceMs: 1,
+      observedAtMs: 2,
+      target: job.target,
+      delivery: job.delivery,
+      outcome: 'failed',
+      refusedActions: [{ actionClass: 'shell', tool: 'shell', reason: 'outside grant' }],
+      cost: { usd: 0.2, certainty: 'unknown', retainedLiabilityUsd: 0.8 },
+    })
+    await store.record(fire)
+    await store.record(fire)
+    expect(await store.fires(job.workspaceKey)).toEqual([fire])
+    expect(await store.fires('workspace-2')).toEqual([])
+    await expect(store.record({ ...fire, cost: { ...fire.cost, usd: 0 } })).rejects.toThrow(
+      'SettlementConflict',
+    )
+    const [current] = await store.list(job.workspaceKey)
+    expect(current?.consecutiveFailures).toBe(1)
+    const newer = { ...fire, runId: 'schedule-1:10', occurrenceMs: 10, outcome: 'ran' as const }
+    await store.record(newer)
+    await store.record({ ...fire, runId: 'schedule-1:3', occurrenceMs: 3 })
+    await store.record({ ...fire, runId: 'schedule-1:4', occurrenceMs: 4 })
+    const list = await store.list(job.workspaceKey)
+    expect(list[0]).toMatchObject({ consecutiveFailures: 0, paused: false })
+    await store.remove(job.workspaceKey, job.id)
+    expect(await store.fires(job.workspaceKey)).toHaveLength(4)
+  })
+  it('recovers dead process intents but never steals work from a live owner', async () => {
+    const directory = path.join(root, 'intent')
+    const store = createScheduleStore(createNodeScheduleFs(directory))
+    const job = fakeSchedule()
+    await store.create(job)
+    const intent = {
+      schedule: job,
+      runId: 'schedule-1:123',
+      occurrenceMs: 123,
+      advancesTime: false,
+    }
+    expect(await worker(directory, 'admit', JSON.stringify(intent))).toBe('true')
+    expect(await store.abandoned(job.workspaceKey)).toEqual([intent])
+    const live = { ...intent, runId: 'schedule-1:124' }
+    expect(await store.admit(live)).toBe(true)
+    expect(await store.abandoned(job.workspaceKey)).toEqual([intent])
+    await store.advance(intent)
+    await store.advance(intent)
+    const [current] = await store.list(job.workspaceKey)
+    expect(current?.fireCount).toBe(1)
+    expect(await store.admit(intent)).toBe(false)
+  })
+  it('orders failures by admission even when manual wall time moves backward', async () => {
+    const store = createScheduleStore(createNodeScheduleFs(path.join(root, 'failure-clock')))
+    const job = fakeSchedule()
+    await store.create(job)
+    const earlier = {
+      schedule: job,
+      runId: 'schedule-1:earlier',
+      occurrenceMs: 200,
+      advancesTime: false,
+    }
+    const later = { ...earlier, runId: 'schedule-1:later', occurrenceMs: 100 }
+    for (const intent of [earlier, later]) {
+      await store.admit(intent)
+      await store.advance(intent)
+    }
+    const base = {
+      scheduleId: job.id,
+      workspaceKey: job.workspaceKey,
+      observedAtMs: 300,
+      target: job.target,
+      delivery: job.delivery,
+      refusedActions: [],
+      cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+    }
+    await store.record(
+      scheduleFireRecordSchema.parse({
+        ...base,
+        runId: later.runId,
+        occurrenceMs: later.occurrenceMs,
+        outcome: 'ran',
+      }),
+    )
+    await store.record(
+      scheduleFireRecordSchema.parse({
+        ...base,
+        runId: earlier.runId,
+        occurrenceMs: earlier.occurrenceMs,
+        outcome: 'failed',
+      }),
+    )
+    const jobs = await store.list(job.workspaceKey)
+    expect(jobs[0]).toMatchObject({
+      consecutiveFailures: 0,
+      paused: false,
+    })
+  })
+  it('never regresses a newer time cursor during crash recovery or confuses it with a manual wall time', async () => {
+    const directory = path.join(root, 'cursor')
+    const store = createScheduleStore(createNodeScheduleFs(directory))
+    const job = fakeSchedule()
+    await store.create(job)
+    const newer = {
+      schedule: job,
+      runId: 'schedule-1:200',
+      occurrenceMs: 200,
+      advancesTime: true,
+      nextFireAtMs: 300,
+    }
+    const older = { ...newer, runId: 'schedule-1:100', occurrenceMs: 100, nextFireAtMs: 200 }
+    await store.admit(newer)
+    await store.admit(older)
+    await store.advance(newer)
+    await store.advance(older)
+    let jobs = await store.list(job.workspaceKey)
+    expect(jobs[0]).toMatchObject({ fireCount: 2, nextFireAtMs: 300 })
+    const manual = {
+      ...newer,
+      runId: 'schedule-1:manual',
+      occurrenceMs: 1000,
+      advancesTime: false,
+    }
+    await store.admit(manual)
+    await store.advance(manual)
+    const next = { ...newer, runId: 'schedule-1:300', occurrenceMs: 300, nextFireAtMs: 400 }
+    await store.admit(next)
+    await store.advance(next)
+    jobs = await store.list(job.workspaceKey)
+    expect(jobs[0]).toMatchObject({ fireCount: 4, nextFireAtMs: 400, lastFireAtMs: 1000 })
+  })
+  it('never advances an unclaimed or mismatched run and never quotes private corrupt JSON', async () => {
+    const directory = path.join(root, 'run-boundary')
+    const fs = createNodeScheduleFs(directory)
+    const store = createScheduleStore(fs)
+    const job = fakeSchedule()
+    await store.create(job)
+    const intent = {
+      schedule: job,
+      runId: 'schedule-1:123',
+      occurrenceMs: 123,
+      advancesTime: false,
+    }
+    await expect(store.advance(intent)).rejects.toThrow('NotClaimed')
+    await store.admit(intent)
+    await expect(store.advance({ ...intent, occurrenceMs: 124 })).rejects.toThrow('IntentMismatch')
+    const [current] = await store.list(job.workspaceKey)
+    expect(current?.fireCount).toBe(0)
+    await writeFile(path.join(directory, 'workspace-1/index/0.json'), 'private phrase')
+    await expect(store.list(job.workspaceKey)).rejects.toThrow('scheduleStoredJsonInvalid')
+  })
+})
