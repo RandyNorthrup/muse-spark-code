@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Maker search now uses cancellable elapsed-time slices and linear matching,
+  preserving responsive Stop during long queries on 100,000-line payloads.
+  Reload re-fetches pending approvals from the host, revokes previous review
+  readiness and restores maker controls without saving large payloads.
+
 - Maker canonical review preserves and visibly escapes BOM bytes everywhere,
   with randomized exact-byte round-trip coverage. Every M302 spelling and
   conservative power, protection, soft-limit and firmware-equivalent highlights

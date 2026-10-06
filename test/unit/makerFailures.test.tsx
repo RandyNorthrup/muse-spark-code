@@ -31,7 +31,7 @@ it('a failed optional view preserves Stop and Retry reloads its whole module gra
   )
   expect(post).toHaveBeenLastCalledWith({ v: 1, type: 'makerStop' })
   fireEvent.click(screen.getByRole('button', { name: UI_TEXT.makerRetry }))
-  expect(reload).toHaveBeenCalledExactlyOnceWith([expect.objectContaining({ type: 'makerState' })])
+  expect(reload).toHaveBeenCalledExactlyOnceWith()
   store.dispose()
 })
 

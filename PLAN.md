@@ -20836,6 +20836,13 @@ remain available.
 
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
+FIXM103U5 (2026-10-06, Mac mini) uses the same scoped verification.
+The first production build passed size, split and host-global checks, but the
+notices step failed on the inherited namespaced maker-validation absolute path.
+Its proposed separator/namespace normalization and path deduplication is outside the lane files; scope
+approval is pending. This is M103U-NOTICES-PATH in §9, not a weakened gate
+or a packaging qualification.
+
 REDM103U (2026-10-06, Win11) follows the rig brief's scoped verification and
 hooks-on local commit. That explicit brief forbids the aggregate quality run,
 full test suite, merging and pushing; the release lead owns those integration
@@ -20988,6 +20995,25 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **M103U-WEBKIT-RIG (FIXM103U5, 2026-10-06):** the installed WebKit
+  2311 reports version 26.6, but Playwright 1.63 expects revision 2359.
+  Page creation refuses `Page.overrideSetting: PushAPIEnabled` with an
+  unknown-setting error. The owned probe and children were closed. Safe
+  for now: Chrome simulator receipts qualify only Chrome; no WebKit or
+  installed-editor equivalence is claimed. Follow-up: provision the
+  matching rig browser/client and repeat the complete browser regressions.
+
+- **M103U-NOTICES-PATH (FIXM103U5, 2026-10-06):** the Mac mini production
+  notices step treats `maker-validation:/Users/.../node_modules/zod` as a
+  filesystem directory. The namespace-producing plugin and notices reader
+  are unchanged from the reviewed base. All preceding build gates pass.
+  Safe for now: the build refuses qualification; no release or package is
+  claimed. Follow-up: normalize separators and remove the known namespace
+  in the notices package-directory reader, then prove its regression fires
+  and re-run the complete production build. That reader lies outside the
+  brief's lane files; a concrete patch passes the notices check when executed from a scratch copy;
+  the real reader remains untouched pending scope approval.
+
 - **M103U-STARTUP-SPLIT (RVM103U P3-8, 2026-10-06):** resolved against the
   lead's REDM103U about-zero target. A second lazy review closure carries
   maker English and isolated maker validation, preserving complete boundary
@@ -21008,6 +21034,12 @@ before a repaired one loads (2026-09-30).
   authority. `MakerHost.confirm(request, review)` accepts only completed shared
   approval review through `makerPayloadReviewed`; the engine refuses legacy
   native answers until this callback succeeds against its exact frozen bytes.
+  Round 5 adds reconnect: every new document sends `makerReady` at transport
+  installation. Adapters replay current admission/preview and retain pending
+  requests across reload, calling `MakerApproval.reopen` before replay to
+  revoke prior readiness. Browser storage contains only a maker-open marker.
+  Chrome simulator recovery is qualified; installed V/R/W routing remains
+  the same named adapter qualification residual, with no physical claim.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

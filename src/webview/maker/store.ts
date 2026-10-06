@@ -155,15 +155,6 @@ export function createMakerStore(host: HostBridge<MakerSurfaceMessage>, now = Da
   }
   return {
     getState: () => state,
-    reloadMessages: () => [
-      ...(state.admission === undefined ? [] : [state.admission]),
-      ...(state.preview === undefined ? [] : [state.preview]),
-      ...state.approvals.map((request) => ({
-        v: MAKER_PROTOCOL_VERSION,
-        type: 'makerApproval',
-        request,
-      })),
-    ],
     receive,
     send: didSend,
     answer: didAnswer,

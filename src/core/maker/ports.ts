@@ -2,6 +2,7 @@
 import { performance } from 'node:perf_hooks'
 import { createHash } from 'node:crypto'
 import { Buffer } from 'node:buffer'
+import { MAKER_PROTOCOL_VERSION } from '../../shared/constants'
 import {
   makerApprovalAnswerSchema,
   makerApprovalRequestSchema,
@@ -12,6 +13,7 @@ import {
   type MakerNotice,
   type MakerPreview,
   type MakerTarget,
+  type MakerHostMessage,
 } from '../../shared/makerProtocol'
 import type { SerialIdentity } from './serial/identity'
 import type { SerialProcess } from './serial/process'
@@ -57,6 +59,9 @@ export interface MakerSerialProvider {
   /** A release settles only after the port and its runtime lease are closed. */
   release(): Promise<void>
 }
+/** Approval-panel makerReady replays current admission/preview and pending requests via reopen.
+ * Browser state never supplies payloads or review readiness after document reload.
+ */
 export interface MakerHost<Request extends ApprovalRequest = ApprovalRequest> {
   /** Only completed approval review may call review; a preview receipt is not authority. */
   confirm(request: Request, didReview: (raw: unknown) => boolean): Promise<unknown>
@@ -143,6 +148,15 @@ export class MakerApproval<Request extends ApprovalRequest = ApprovalRequest> {
         ? Buffer.from(payload, 'hex')
         : Buffer.from(payload, 'utf8')
     return createHash('sha256').update(bytes).digest('hex')
+  }
+  /** Host replay revokes the old document's review and keeps the exact frozen request. */
+  reopen(raw: unknown): Extract<MakerHostMessage, { type: 'makerApproval' }> | undefined {
+    const message = makerSurfaceMessageSchema.safeParse(raw)
+    if (!message.success || message.data.type !== 'makerReady') return undefined
+    this.reviewedDigest = undefined
+    return this.didAnswer || !this.isCurrent() || this.request.digest !== this.payloadDigest()
+      ? undefined
+      : { v: MAKER_PROTOCOL_VERSION, type: 'makerApproval', request: this.request }
   }
   /** Host-owned state: native/read-only first paint cannot advance this review. */
   review(raw: unknown): boolean {

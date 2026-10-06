@@ -1,4 +1,4 @@
-import { MAKER_PROTOCOL_VERSION, UI_TEXT } from '../../shared/constants'
+import { MAKER_PROTOCOL_VERSION, MAKER_REVIEW_CANCEL_EVENT, UI_TEXT } from '../../shared/constants'
 import type { MakerMachineSummary, MakerSurfaceMessage } from '../../shared/makerProtocol'
 
 export function StopChip({
@@ -14,6 +14,7 @@ export function StopChip({
         type="button"
         onClick={() => {
           send({ v: MAKER_PROTOCOL_VERSION, type: 'makerStop' })
+          window.dispatchEvent(new Event(MAKER_REVIEW_CANCEL_EVENT))
         }}
       >
         {UI_TEXT.makerStopAll}
@@ -29,6 +30,7 @@ export function StopChip({
                 type: 'makerStop',
                 machineId: machine.id,
               })
+              window.dispatchEvent(new Event(MAKER_REVIEW_CANCEL_EVENT))
             }}
           >
             {`${UI_TEXT.makerStopMachine}: ${machine.name}`}

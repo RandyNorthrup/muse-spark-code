@@ -3,10 +3,11 @@
 import type { MakerSurfaceMessage } from '../shared/makerProtocol'
 import { MAKER_PROTOCOL_MAX_ITEMS, MAKER_PROTOCOL_VERSION, UI_TEXT } from '../shared/constants'
 import type { HostBridge } from './hostBridge'
-import { makerReloadMessages, reloadPanelSurface } from './reloadPanelSurface'
+import { isMakerReloadPending, reloadPanelSurface } from './reloadPanelSurface'
 
 export function listenForMaker(host: HostBridge<MakerSurfaceMessage>): void {
-  const pending: unknown[] = [...makerReloadMessages()].slice(0, MAKER_PROTOCOL_MAX_ITEMS)
+  const shouldReopen = isMakerReloadPending()
+  const pending: unknown[] = []
   let receive: ((raw: unknown) => void) | undefined
   let isLoading = false
   let isDisposed = false
@@ -48,7 +49,6 @@ export function listenForMaker(host: HostBridge<MakerSurfaceMessage>): void {
         for (const message of pending) receive(message)
         pending.length = 0
         fallback?.remove()
-        host.post({ v: MAKER_PROTOCOL_VERSION, type: 'makerReady' })
       })
       .catch(() => {
         isLoading = false
@@ -58,7 +58,7 @@ export function listenForMaker(host: HostBridge<MakerSurfaceMessage>): void {
         const retry = document.createElement('button')
         retry.textContent = UI_TEXT.makerRetry
         retry.addEventListener('click', () => {
-          reloadPanelSurface(pending)
+          reloadPanelSurface()
         })
         const dismiss = document.createElement('button')
         dismiss.textContent = UI_TEXT.usageClose
@@ -88,7 +88,7 @@ export function listenForMaker(host: HostBridge<MakerSurfaceMessage>): void {
     load()
   }
   host.messages.addEventListener('message', listener)
-  if (pending.length > 0) load()
+  if (shouldReopen) load()
   window.addEventListener(
     'pagehide',
     () => {
@@ -100,4 +100,6 @@ export function listenForMaker(host: HostBridge<MakerSurfaceMessage>): void {
     },
     { once: true },
   )
+  // Transport is ready before imports; hosts replay their current state and pending requests.
+  host.post({ v: MAKER_PROTOCOL_VERSION, type: 'makerReady' })
 }

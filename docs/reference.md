@@ -9,8 +9,9 @@ Control pictures make CR (`␍`), LF (`␊`, followed by a line break), TAB (`�
 NUL (`␀`) and ESC (`␛`) visible. Invalid UTF-8 bytes, hidden Unicode controls
 and combining marks, including UTF-8 BOMs at any position, use `\xNN` byte escapes; a literal backslash is doubled.
 The fixed-width rendering wraps to the measured container width and mounts
-only visible rows. Search includes unmounted rows, and Next highlight reaches
-each highlighted construct.
+only visible rows. Search includes unmounted rows, uses elapsed-time slices
+and cancels on Stop, query changes, replacement or disposal. Next highlight
+reaches each highlighted construct.
 CR-only endings also break rows; CRLF remains one line ending. Summary command
 boundaries follow the same rule, and padded numeric command codes are normalized.
 Compound blocks disclose effects the summary cannot fully analyse.
@@ -44,9 +45,14 @@ internally scrolling list. Stop is available during loading, preparation and
 failure, with hardware, trust and attended admission off. It never asks for
 approval. Software Stop does not replace a physical emergency stop.
 
-Retry saves the chat and maker request state, then reloads the panel document
-to refetch its whole module graph, including failed static dependencies.
-Review confirmations and grants are cleared. Close dismisses a failed view
+Retry saves chat UI state and a small maker-open marker, then reloads the panel
+document to refetch its whole module graph, including failed static dependencies.
+Every new approval-panel document posts `makerReady` as soon as its transport listener is ready.
+The host replays current admission and previews, and uses `MakerApproval.reopen`
+for pending approvals: exact payloads stay with the host, and previous review
+readiness is revoked before replay. Payloads, admission, confirmations and grants
+are never restored from browser storage. Stop remains available while the host
+replays a large request, even if browser storage is denied. Close dismisses a failed view
 and restores chat. The maker review, fallback and validation load in a second
 lazy closure; the existing startup and surface budgets remain unchanged.
 

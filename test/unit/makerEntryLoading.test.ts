@@ -9,7 +9,7 @@ const mounting = vi.hoisted(() => ({ mount: vi.fn() }))
 const reload = vi.hoisted(() => vi.fn())
 vi.mock('../../src/webview/reloadPanelSurface', () => ({
   reloadPanelSurface: reload,
-  makerReloadMessages: () => [],
+  isMakerReloadPending: () => false,
 }))
 vi.mock('../../src/webview/maker/MakerSurface', () => ({ mountMaker: mounting.mount }))
 afterEach(() => {
@@ -22,12 +22,13 @@ it('initial load failure preserves Stop, Retry and pending messages', async () =
     throw new Error('unavailable loader')
   })
   listenForMaker(host)
+  expect(post).toHaveBeenCalledExactlyOnceWith({ v: 1, type: 'makerReady' })
   window.dispatchEvent(new MessageEvent('message', { data: MAKER_UI_STATE }))
   await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(UI_TEXT.makerLoadFailed))
   fireEvent.click(screen.getByRole('button', { name: UI_TEXT.makerStopAll }))
   expect(post).toHaveBeenLastCalledWith({ v: 1, type: 'makerStop' })
   fireEvent.click(screen.getByRole('button', { name: UI_TEXT.makerRetry }))
-  expect(reload).toHaveBeenCalledExactlyOnceWith([MAKER_UI_STATE])
+  expect(reload).toHaveBeenCalledExactlyOnceWith()
   expect(mounting.mount).toHaveBeenCalledTimes(1)
   fireEvent.click(screen.getByRole('button', { name: UI_TEXT.usageClose }))
   expect(screen.queryByRole('alert')).not.toBeInTheDocument()

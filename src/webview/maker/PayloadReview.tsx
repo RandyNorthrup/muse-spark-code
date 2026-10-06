@@ -5,7 +5,8 @@ import {
   MAKER_REVIEW_OVERSCAN_ROWS,
   MAKER_REVIEW_ROW_HEIGHT,
   MAKER_REVIEW_SMALL_ROWS,
-  MAKER_REVIEW_YIELD_BYTES,
+  MAKER_REVIEW_BATCH_MS,
+  MAKER_REVIEW_CANCEL_EVENT,
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, formatNumber } from '../../shared/l10n/text'
@@ -68,8 +69,20 @@ export function PayloadReview({
   const [acknowledged, setAcknowledged] = useState(false)
   const [query, setQuery] = useState('')
   const [match, setMatch] = useState(-1)
+  const [isSearching, setSearching] = useState(false)
   const [highlightIndex, setHighlightIndex] = useState(0)
   const searchGeneration = useRef(0)
+  useEffect(() => {
+    const cancel = () => {
+      searchGeneration.current += 1
+      setSearching(false)
+    }
+    window.addEventListener(MAKER_REVIEW_CANCEL_EVENT, cancel)
+    return () => {
+      window.removeEventListener(MAKER_REVIEW_CANCEL_EVENT, cancel)
+      searchGeneration.current += 1
+    }
+  }, [])
   const prepared =
     result?.content === content &&
     result.encoding === encoding &&
@@ -124,6 +137,7 @@ export function PayloadReview({
       const payload = await canonicalPayload(bytes, width, measure, controller.signal)
       const summary = await summarizePayload(bytes, request, limits, controller.signal)
       controller.signal.throwIfAborted()
+      setSearching(false)
       setFailed(false)
       setReachedEnd(false)
       setConfirmed(false)
@@ -138,6 +152,7 @@ export function PayloadReview({
     })
     return () => {
       controller.abort()
+      searchGeneration.current += 1
     }
   }, [content, encoding, width, request, limits])
   useEffect(() => {
@@ -173,23 +188,58 @@ export function PayloadReview({
     if (prepared === undefined || query === '') return
     const current = ++searchGeneration.current
     const rows = prepared.payload.rows
-    let carry = ''
-    let carryRow = 0
-    for (const [index, row] of rows.entries()) {
-      if (current !== searchGeneration.current) return
-      const value = carry + row.text
-      const found = value.indexOf(query)
-      if (found !== -1 && index > match) {
-        setMatch(index)
-        jump(found < carry.length ? carryRow : index)
-        return
-      }
-      carry = query.length > 1 ? value.slice(-(query.length - 1)) : ''
-      carryRow = index
-      if (index % MAKER_REVIEW_YIELD_BYTES === 0)
-        await new Promise<void>((resolve) => setTimeout(resolve, 0))
+    let started = performance.now()
+    const canContinue = async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0))
+      started = performance.now()
+      return current === searchGeneration.current
     }
-    setMatch(-1)
+    setSearching(true)
+    try {
+      if (!(await canContinue())) return
+      // KMP avoids repeatedly copying/scanning a query-sized suffix for every row.
+      const prefix = new Uint32Array(query.length)
+      let matched = 0
+      for (let index = 1; index < query.length; index += 1) {
+        while (matched > 0 && query[index] !== query[matched]) {
+          matched = prefix[matched - 1] ?? 0
+          if (performance.now() - started >= MAKER_REVIEW_BATCH_MS && !(await canContinue())) return
+        }
+        if (query[index] === query[matched]) matched += 1
+        prefix[index] = matched
+        if (performance.now() - started >= MAKER_REVIEW_BATCH_MS && !(await canContinue())) return
+      }
+      matched = 0
+      let offset = 0
+      const rowEnds: { line: number }[] = []
+      for (const [index, row] of rows.entries()) {
+        rowEnds.push({ line: offset + row.text.length })
+        let at = 0
+        while (at < row.text.length) {
+          const character = row.text.charAt(at)
+          at += 1
+          while (matched > 0 && character !== query[matched]) {
+            matched = prefix[matched - 1] ?? 0
+            if (performance.now() - started >= MAKER_REVIEW_BATCH_MS && !(await canContinue()))
+              return
+          }
+          if (character === query[matched]) matched += 1
+          offset += 1
+          if (matched === query.length) {
+            if (index > match) {
+              setMatch(index)
+              jump(lowerBound(rowEnds, offset - query.length + 1))
+              return
+            }
+            matched = prefix[matched - 1] ?? 0
+          }
+          if (performance.now() - started >= MAKER_REVIEW_BATCH_MS && !(await canContinue())) return
+        }
+      }
+      setMatch(-1)
+    } finally {
+      if (current === searchGeneration.current) setSearching(false)
+    }
   }
   const rows = prepared?.payload.rows ?? []
   const summary = prepared?.summary
@@ -214,12 +264,14 @@ export function PayloadReview({
             setQuery(event.currentTarget.value)
             setMatch(-1)
             searchGeneration.current += 1
+            setSearching(false)
           }}
         />
       </label>
       <button
         type="button"
-        disabled={prepared === undefined || query === ''}
+        disabled={prepared === undefined || query === '' || isSearching}
+        aria-busy={isSearching}
         onClick={() => {
           void search()
         }}

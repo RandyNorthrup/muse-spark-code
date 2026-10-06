@@ -8,7 +8,7 @@ export const FEATURE_CATALOG: readonly {
   readonly helpPath: string
 }[] = [
   {
-    // The reference covers reversible bytes and conservative danger acknowledgement.
+    // The reference covers reversible bytes, conservative dangers, cancellable search and host replay.
     id: 'maker-payload-review',
     titleKey: 'makerApprovalTitle',
     helpPath: 'docs/help/maker-payload-review.md',

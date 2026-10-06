@@ -19,7 +19,10 @@ function target(): MakerTarget {
     stablePath: '/dev/serial/by-id/board-one',
   }
 }
-function request(selected: MakerTarget = target(), now = Date.now()): ApprovalRequest {
+function request(
+  selected: MakerTarget = target(),
+  now = Date.now(),
+): Extract<ApprovalRequest, { kind: 'command' }> {
   const payload = 'approved firmware bytes'
   return {
     kind: 'command',
@@ -59,6 +62,33 @@ it('native first-paint receipts cannot make the host approval ready', () => {
   ).toBe(false)
   expect(approval.answer(answer(approval.request))).toBeUndefined()
   expect(approval.start(target())).toBe(false)
+})
+it('host replay preserves exact large bytes and revokes readiness from the previous document', () => {
+  const input = request()
+  const payload = '\0'.repeat(400_000)
+  const approval = reviewedApproval(
+    { ...input, payload, digest: createHash('sha256').update(payload).digest('hex') },
+    () => true,
+  )
+  const replay = approval.reopen({ v: 1, type: 'makerReady' })
+  expect(replay?.request).toBe(approval.request)
+  expect(replay?.request).toMatchObject({
+    payload,
+    digest: createHash('sha256').update(payload).digest('hex'),
+  })
+  expect(approval.answer(answer(approval.request))).toBeUndefined()
+})
+it('host replay requires a validated ready message and a current unanswered approval', () => {
+  const input = request()
+  const approval = reviewedApproval(input, () => true)
+  expect(approval.reopen({ v: 2, type: 'makerReady' })).toBeUndefined()
+  expect(approval.reopen({ v: 1, type: 'makerStop' })).toBeUndefined()
+  expect(approval.answer(answer(input))).toBeDefined()
+  expect(approval.reopen({ v: 1, type: 'makerReady' })).toBeUndefined()
+  const expired = new MakerApproval({ ...input, expiresAt: Date.now() - 1 }, () => true)
+  expect(expired.reopen({ v: 1, type: 'makerReady' })).toBeUndefined()
+  const forged = new MakerApproval({ ...input, digest: 'a'.repeat(64) }, () => true)
+  expect(forged.reopen({ v: 1, type: 'makerReady' })).toBeUndefined()
 })
 it('completed review recomputes outgoing bytes and resets on a mismatched digest', () => {
   const input = request()

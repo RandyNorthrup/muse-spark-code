@@ -418,6 +418,29 @@ it('search reaches an unmounted row in the complete canonical rendering', async 
     ),
   )
 })
+it('Stop cancels search on its own event path before any search work resumes', async () => {
+  const { store, post } = uiBridge()
+  store.receive(MAKER_UI_STATE)
+  store.receive({
+    v: 1,
+    type: 'makerPreview',
+    preview: { kind: 'payload', title: 'Search simulator', content: 'hello\n'.repeat(300) },
+  })
+  render(<MakerSurface store={store} />)
+  await screen.findByLabelText(UI_TEXT.makerConfirmSummaryDigest)
+  fireEvent.change(screen.getByLabelText(UI_TEXT.makerPayloadSearch), {
+    target: { value: 'hello␊'.repeat(100) + 'Z' },
+  })
+  const find = screen.getByRole('button', { name: UI_TEXT.makerFindNext })
+  fireEvent.click(find)
+  expect(find).toHaveAttribute('aria-busy', 'true')
+  fireEvent.click(
+    screen.getAllByRole('button', { name: UI_TEXT.makerStopAll }).at(-1) ?? document.body,
+  )
+  expect(post).toHaveBeenLastCalledWith({ v: 1, type: 'makerStop' })
+  expect(find).toHaveAttribute('aria-busy', 'false')
+  store.dispose()
+})
 it('a changed reviewed digest irrevocably rejects a pending approval', () => {
   const { store, post } = uiBridge()
   store.receive(MAKER_UI_STATE)

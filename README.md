@@ -4170,9 +4170,12 @@ portable host independently rehashes the exact frozen outgoing bytes and
 refuses a mismatch. Read-only/native preview paint cannot authorize a send;
 V/R still own installed-editor routing. Stop all occupies a bounded viewport
 region with an internally scrolling per-machine list, including short panes
-and serial-only sessions. Stop never waits for payload preparation. Retry saves
-panel state and reloads the document, refetching static dependencies too; Close
-restores chat. Review confirmations are never persisted. The review, English
+and serial-only sessions. Stop uses its own event path and cancels search; search yields by elapsed time.
+Retry saves chat UI position and a maker-open marker, then reloads the document,
+refetching static dependencies too; Close restores chat. Every new approval-panel document
+posts `makerReady` when its listener is installed. Hosts replay current admission,
+previews and pending approvals through `MakerApproval.reopen`, which revokes
+previous review readiness. Payloads and consent never live in browser storage. The review, English
 fallback and validation load in their own second maker chunk.
 
 The [maker review Help reference](docs/reference.md) describes summaries,

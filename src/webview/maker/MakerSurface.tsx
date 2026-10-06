@@ -163,7 +163,7 @@ export function MakerSurface({ store }: { readonly store: ReturnType<typeof crea
           if (approval !== undefined) store.answer(approval.id, 'reject_once')
         }}
         onRetry={() => {
-          reloadPanelSurface(store.reloadMessages())
+          reloadPanelSurface()
         }}
       >
         <Suspense

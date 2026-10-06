@@ -9,6 +9,7 @@ import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { compactBrowserEnglish } from '../../scripts/lib/uiTextRegions.mjs'
 import { isolateMakerValidation } from '../../scripts/lib/makerValidation.mjs'
 import { loadL10n } from '../../scripts/lib/l10nSource.mjs'
+import { MakerApproval } from '../../src/core/maker/ports.ts'
 
 const ID = '2b4a9acb-2dc5-4f46-aeb8-40aee71bb875'
 const machine = {
@@ -68,7 +69,7 @@ const requestFor = (payload) => {
 const fixture = (isPreview = false) => `
 import { ${isPreview ? 'wireMakerPreview' : 'listenForMaker'} } from './${isPreview ? 'maker/previewPage' : 'makerEntry'}';
 ${isPreview ? "import './maker/preview.css';" : ''}
-const host = { post(message) { window.sent.push(message) }, savedState() {}, saveState() {}, messages: window };
+const host = { post(message) { window.sent.push(message); if (message.type === 'makerReady') fetch('/maker-ready').then(response => response.json()).then(frames => frames.forEach(window.emit)); }, savedState() {}, saveState() {}, messages: window };
 window.sent = []; window.metrics = {};
 window.emit = data => window.dispatchEvent(new MessageEvent('message', { data }));
 window.addEventListener('muse-panel-reload', () => globalThis.sessionStorage.setItem('chat-receipt', 'saved before reload'));
@@ -83,6 +84,8 @@ const rig = {
   requests: new Map(),
   results: [],
   table: undefined,
+  hostFrames: [],
+  hostApprovals: [],
 }
 
 beforeAll(async () => {
@@ -134,6 +137,19 @@ beforeAll(async () => {
       response.writeHead(404).end()
       return
     }
+    if (pathname === '/maker-ready') {
+      response
+        .writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' })
+        .end(
+          JSON.stringify([
+            ...rig.hostFrames,
+            ...rig.hostApprovals
+              .map((pending) => pending.reopen({ v: 1, type: 'makerReady' }))
+              .filter((frame) => frame !== undefined),
+          ]),
+        )
+      return
+    }
     if (pathname === '/' || pathname === '/preview') {
       const isPreview = pathname === '/preview'
       const stopHtml = Array.from(
@@ -166,6 +182,8 @@ afterEach(async () => {
   await rig.page?.close()
   rig.failed = undefined
   rig.table = undefined
+  rig.hostFrames = []
+  rig.hostApprovals = []
 })
 afterAll(async () => {
   await rig.browser?.close()
@@ -228,6 +246,14 @@ it('Chrome: CR is visible and a clipped initial view completes on outer scrollin
     decision: 'allow_once',
     digest: request.digest,
   })
+})
+it('Chrome: BOMs at the start and middle remain visible in the exact approved payload', async () => {
+  const p = await page()
+  const request = await openApproval(p, '\u{FEFF}M105\u{FEFF}\r\n')
+  expect(await p.locator('.maker-payload').textContent()).toContain(
+    String.raw`\xef\xbb\xbfM105\xef\xbb\xbf␍␊`,
+  )
+  expect(await p.locator('.maker-digest').textContent()).toBe(request.digest)
 })
 it('Chrome: a long unbroken token fits every measured row in a 161 px pane', async () => {
   const p = await page(161)
@@ -337,11 +363,53 @@ it('Chrome: 100,000 lines remain virtual and queued Stop input responds below 10
   expect(facts.stops).toBeGreaterThan(0)
   rig.results.push({ probe: 'large-payload', ...facts })
 })
+it.each([10_000, 20_000])(
+  'Chrome: worst-case search with %s repeated rows keeps Stop below 100 ms',
+  async (count) => {
+    const p = await page()
+    await emit(p, state())
+    await emit(p, {
+      v: 1,
+      type: 'makerPreview',
+      preview: { kind: 'payload', title: 'Search simulator', content: 'G1 X1\n'.repeat(100_000) },
+    })
+    await p.getByLabel('I confirm the summary and this exact payload digest.').waitFor()
+    await p.getByLabel('Search canonical payload').fill('G1 X1␊'.repeat(count) + 'Z')
+    const facts = await p.evaluate(async () => {
+      let previous = globalThis.performance.now()
+      let latency = 0
+      let stops = 0
+      const interval = globalThis.setInterval(() => {
+        const now = globalThis.performance.now()
+        latency = Math.max(latency, now - previous)
+        previous = now
+        globalThis.document.querySelector('.modal .maker-stop > button').click()
+        stops += 1
+      }, 5)
+      const search = [...globalThis.document.querySelectorAll('button')].find(
+        (node) => node.textContent === 'Find next',
+      )
+      search.click()
+      await new Promise((resolve) => globalThis.setTimeout(resolve, 200))
+      globalThis.clearInterval(interval)
+      return {
+        latency,
+        stops,
+        sent: globalThis.sent.filter((frame) => frame.type === 'makerStop').length,
+      }
+    })
+    expect(facts.latency).toBeLessThan(100)
+    expect(facts.stops).toBeGreaterThan(0)
+    expect(facts.sent).toBe(facts.stops)
+    rig.results.push({ probe: 'worst-case-search', queryLength: count * 6 + 1, ...facts })
+  },
+)
 it('Chrome: retry reloads and refetches a failed static dependency, preserving panel state', async () => {
   rig.failed = rig.presentation
   const p = await page()
   const before = rig.requests.get(rig.presentation) ?? 0
   await emit(p, state(10))
+  rig.hostFrames = [state(10)]
   await p.getByRole('button', { name: 'Retry', exact: true }).waitFor()
   await p.getByRole('button', { name: 'Stop all machines', exact: true }).click()
   expect(await p.evaluate(() => globalThis.sent.at(-1))).toEqual({ v: 1, type: 'makerStop' })
@@ -355,6 +423,42 @@ it('Chrome: retry reloads and refetches a failed static dependency, preserving p
   expect(await p.locator('.maker-toolbar .maker-stop-list button').count()).toBe(10)
   rig.results.push({ probe: 'static-dependency-reload', refetches: 2, restoredMachines: 10 })
 })
+it.each([false, true])(
+  'Chrome: reload re-fetches large host payloads (JSON expansion %s) and retains Stop',
+  async (escaped) => {
+    rig.failed = rig.presentation
+    const p = await page()
+    const content = escaped ? '\0'.repeat(400_000) : 'M105\n'.repeat(200_000).padEnd(1_048_576, ' ')
+    const frame = requestFor(content)
+    rig.hostFrames = [
+      state(10),
+      { v: 1, type: 'makerPreview', preview: { kind: 'payload', title: 'Large', content } },
+    ]
+    rig.hostApprovals = [new MakerApproval(frame.request, () => true)]
+    for (const message of [...rig.hostFrames, frame]) await emit(p, message)
+    await p.getByRole('button', { name: 'Retry', exact: true }).waitFor()
+    const before = rig.requests.get('/maker-ready') ?? 0
+    rig.failed = undefined
+    await p.getByRole('button', { name: 'Retry', exact: true }).click()
+    await p.locator('.maker-surface').waitFor({ state: 'attached' })
+    await p.locator('.maker-digest').waitFor()
+    expect((rig.requests.get('/maker-ready') ?? 0) - before).toBeGreaterThan(0)
+    expect(await p.locator('.maker-digest').textContent()).toBe(frame.request.digest)
+    expect(await p.getByRole('button', { name: 'Send once', exact: true }).isDisabled()).toBe(true)
+    await p.locator('.modal .maker-stop > button').click()
+    expect(await p.evaluate(() => globalThis.sent.at(-1))).toEqual({ v: 1, type: 'makerStop' })
+    expect(
+      await p.evaluate(() => globalThis.sessionStorage.getItem('maker-panel-reload')),
+    ).toBeNull()
+    rig.results.push({
+      probe: 'large-host-reload',
+      escaped,
+      chars: content.length,
+      readyRefetch: true,
+      stop: true,
+    })
+  },
+)
 it('Chrome: the lazy English projection preserves the installed German table', async () => {
   rig.table = { locale: 'de', table: rig.german }
   const p = await page()

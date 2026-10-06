@@ -1,16 +1,10 @@
-import {
-  MAKER_PROTOCOL_MAX_TEXT_CHARS,
-  MAKER_RELOAD_STATE_KEY,
-  PANEL_RELOAD_EVENT,
-} from '../shared/constants'
+import { MAKER_RELOAD_STATE_KEY, PANEL_RELOAD_EVENT } from '../shared/constants'
 
 /** A new document has a new module map, including failed static dependencies. */
-export function reloadPanelSurface(messages: readonly unknown[] = []): void {
+export function reloadPanelSurface(): void {
   try {
-    sessionStorage.removeItem(MAKER_RELOAD_STATE_KEY)
-    const state = JSON.stringify(messages)
-    if (state.length <= MAKER_PROTOCOL_MAX_TEXT_CHARS * 2)
-      sessionStorage.setItem(MAKER_RELOAD_STATE_KEY, state)
+    // UI position only. The ready handshake re-fetches payloads and admission from the host.
+    sessionStorage.setItem(MAKER_RELOAD_STATE_KEY, '1')
   } catch {
     // Reload must still recover the module graph when this host denies browser storage.
   }
@@ -18,15 +12,13 @@ export function reloadPanelSurface(messages: readonly unknown[] = []): void {
   window.location.reload()
 }
 
-/** Restored frames remain untrusted until the lazy maker store validates each one. */
-export function makerReloadMessages(): readonly unknown[] {
+/** No payload, admission, review completion or grant lives in browser storage. */
+export function isMakerReloadPending(): boolean {
   try {
     const state = sessionStorage.getItem(MAKER_RELOAD_STATE_KEY)
     sessionStorage.removeItem(MAKER_RELOAD_STATE_KEY)
-    if (state === null || state.length > MAKER_PROTOCOL_MAX_TEXT_CHARS * 2) return []
-    const messages: unknown = JSON.parse(state)
-    return Array.isArray(messages) ? messages : []
+    return state === '1'
   } catch {
-    return []
+    return false
   }
 }

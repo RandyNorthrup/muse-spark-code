@@ -245,6 +245,7 @@ export const MAKER_PROTOCOL_MAX_ID_CHARS = 256
 export const MAKER_PROTOCOL_MAX_ITEMS = 256
 export const MAKER_REVIEW_SMALL_ROWS = 200
 export const MAKER_REVIEW_BATCH_MS = 8
+export const MAKER_REVIEW_CANCEL_EVENT = 'maker-cancel-search'
 export const MAKER_REVIEW_YIELD_BYTES = 2048
 export const MAKER_REVIEW_ROW_HEIGHT = 20
 export const MAKER_REVIEW_OVERSCAN_ROWS = 2
