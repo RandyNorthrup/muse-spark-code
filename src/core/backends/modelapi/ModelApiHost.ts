@@ -872,8 +872,6 @@ interface Pending<T> {
   reject(error: Error): void
 }
 
-/** How the question card settled a prompt (M16), an explanation included (M46). */
-
 /** How an elicitation form settled (M91 lane M): accept, decline or cancel. */
 type ElicitationContent =
   | { readonly kind: 'accepted'; readonly content: Readonly<Record<string, unknown>> }

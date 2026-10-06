@@ -198,3 +198,19 @@ it('does not replace an existing request ID with a new key or a new deadline', a
   expect(await t.register('same-id', 10, false, 'Changed text?')).toEqual(first)
   expect(t.registry.snapshot().questions).toHaveLength(1)
 })
+
+it('reports a deadline storage failure without repeatedly rearming an expired timer', async () => {
+  const t = registryHarness()
+  await t.register()
+  t.store.save.mockRejectedValue(new Error('write refused'))
+  t.clock.advance(60_000)
+  await vi.waitFor(() => {
+    expect(t.port.failed).toHaveBeenCalledTimes(1)
+  })
+  expect(t.clock.pendingTimers).toBe(0)
+  t.clock.advance(0)
+  await t.registry.ready()
+  expect(t.port.failed).toHaveBeenCalledTimes(1)
+  expect(t.session.deferQuestions).not.toHaveBeenCalled()
+  expect(t.registry.snapshot().questions[0]?.state).toBe('waiting')
+})

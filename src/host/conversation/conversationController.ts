@@ -1,3 +1,12 @@
+import { QuestionRegistry } from '../../core/questions/registry'
+import type { QuestionAnswerText } from '../../core/questions/lateAnswer'
+import type {
+  OpenQuestionAnswer,
+  QuestionClock,
+  QuestionDelivery,
+  QuestionDeliveryOutcome,
+  QuestionStore,
+} from '../../shared/questions'
 import { startApprovalJudge } from '../../core/judge/use'
 // One conversation per surface: owns the MSP session for that surface, turns
 // webview requests into backend calls, and streams AgentEvents back. Also the
@@ -132,6 +141,7 @@ import {
   REPORT_UNKNOWN_ERROR_CODE,
   type ReportEventKind,
   UI_TEXT,
+  QUESTION_DEFER_DEFAULT_SECONDS,
   USER_SHELL_ITEM_KIND,
   USER_SHELL_SANDBOX_FAILURE_MARKER,
 } from '../../shared/constants'
@@ -221,7 +231,7 @@ import { uiLocale } from '../../shared/l10n/text'
 import type { BestOfNRun } from '../../shared/bestOfN'
 import type { SubagentUsage } from '../../shared/paid'
 import type { ResponseAttemptGuard } from '../../core/backends/modelapi/client'
-import { type AttentionNotice, attentionNotice } from './turnNotifications'
+import { type AttentionNotice, attentionNotice, notifyOpenQuestions } from './turnNotifications'
 import { importRefusal, messageCount, type SessionExport } from '../../core/export/sessionTransfer'
 import {
   type PickedTransferFile,
@@ -557,6 +567,13 @@ export interface ConversationDeps {
    * names what, the window's `BackgroundNotifier` decides whether it shows.
    */
   readonly notifyAttention: (notice: AttentionNotice) => void
+  /** M112 holding-process binding. Integration supplies global storage and the machine-only reader. */
+  readonly questions?: {
+    readonly store: QuestionStore
+    readonly clock: QuestionClock
+    readonly deferAfterSeconds: () => number
+    readonly formatAnswer: QuestionAnswerText
+  }
   /**
    * The Auto reviewer on Muse Code (M90, PLAN.md D69), one per window: in
    * Auto, an approval Muse Code raised goes to it before the user. Absent
@@ -587,6 +604,7 @@ const AUTO_MODE: PermissionMode = 'auto'
 const FALLBACK_MODE: PermissionMode = 'manual'
 /** Auto approval is safe only while one controller holds the shared session. */
 const sessionSurfaces = new WeakMap<AgentSession, Set<ConversationController>>()
+const sessionQuestions = new WeakMap<AgentSession, QuestionRegistry>()
 const APPROVED_DECISION = 'approved'
 const [IDE_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
 const HISTORY_MODE_NONE = 'none'
@@ -615,6 +633,9 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'exportConversation',
   'decideApproval',
   'answerQuestion',
+  'answerOpenQuestion',
+  'dismissOpenQuestion',
+  'jumpToOpenQuestion',
   'elicitationAnswer',
   'clarifyQuestion',
   'moveToBackground',
@@ -1018,6 +1039,7 @@ export class ConversationController {
   private turnSubmissionsInFlight = 0
   private turnStartEpoch = 0
   private session: AgentSession | undefined
+  private readonly questionApprovals = new Set<string>()
   private unsubscribe: (() => void) | undefined
   private models: readonly ModelOption[] | undefined
   private modelListing: Promise<void> | undefined
@@ -1720,11 +1742,24 @@ export class ConversationController {
       surfaces?.delete(this)
       if (surfaces?.size === 0) {
         sessionSurfaces.delete(session)
+        const questions = sessionQuestions.get(session)
+        sessionQuestions.delete(session)
+        if (questions !== undefined) {
+          void questions
+            .endTurn(this.activeTurnId ?? session.sessionId, false, true)
+            .catch(() => {
+              this.deps.log.warn('Open questions could not be preserved')
+            })
+            .finally(() => {
+              questions.dispose()
+            })
+        }
       }
       // The imported mark (M84) goes with the session: an opening reads it
       // again from the session's record (`adopt`, `resumeAfterRestart`).
       this.importedSessionIds.delete(session.sessionId)
     }
+    this.questionApprovals.clear()
     session?.dispose()
     this.session = undefined
     this.activeTurnId = undefined
@@ -2167,6 +2202,7 @@ export class ConversationController {
     }
     switch (event.type) {
       case 'approvalRequested': {
+        this.questionApprovals.add(event.approvalId)
         if (this.session !== undefined) {
           this.deps.pendingPrompts.track(this.session.sessionId, event.approvalId)
         }
@@ -2196,6 +2232,7 @@ export class ConversationController {
         break
       }
       case 'approvalResolved': {
+        this.questionApprovals.delete(event.approvalId)
         this.judgeCards.get(event.approvalId)?.discard()
         this.judgeCards.delete(event.approvalId)
         this.noteShellApprovalResolved(event)
@@ -2215,14 +2252,69 @@ export class ConversationController {
         break
       }
       case 'questionRequested': {
-        if (this.session !== undefined) {
-          this.deps.pendingPrompts.track(this.session.sessionId, event.userInputId)
+        const session = this.session
+        if (session !== undefined)
+          this.deps.pendingPrompts.track(session.sessionId, event.userInputId)
+        const questions = session === undefined ? undefined : sessionQuestions.get(session)
+        if (questions !== undefined) {
+          const turnId = this.activeTurnId ?? event.itemId
+          void questions
+            .register(
+              {
+                userInputId: event.userInputId,
+                itemId: event.itemId,
+                questions: event.questions,
+                turnId,
+              },
+              this.deps.questions?.deferAfterSeconds() ?? QUESTION_DEFER_DEFAULT_SECONDS,
+            )
+            .then((entry) => {
+              if (this.session !== session || this.isDisposed) return
+              const shown = {
+                ...event,
+                userInputId: entry.userInputId,
+                itemId: entry.itemId,
+                questions: entry.questions,
+              }
+              this.forward(shown)
+              this.track(shown)
+            })
+            .catch(() => {
+              this.say('error', UI_TEXT.questionAnswerFailed)
+            })
+          return
         }
         break
       }
       case 'questionSettled': {
         if (this.session !== undefined) {
           this.deps.pendingPrompts.resolve(this.session.sessionId, event.userInputId)
+          void sessionQuestions
+            .get(this.session)
+            ?.settle(event.userInputId, event.outcome)
+            .catch(() => {
+              this.say('error', UI_TEXT.questionAnswerFailed)
+            })
+        }
+        break
+      }
+      case 'turnCompleted': {
+        const session = this.session
+        const questions = session === undefined ? undefined : sessionQuestions.get(session)
+        if (questions !== undefined && session !== undefined) {
+          void questions
+            .endTurn(
+              event.turnId,
+              event.terminal === CANCELLED_STATUS,
+              this.questionApprovals.size > 0,
+            )
+            .then((reminder) => {
+              if (reminder !== undefined && this.session === session && !this.isDisposed)
+                this.deps.notifyAttention(notifyOpenQuestions(session.sessionId, event.turnId))
+            })
+            .catch(() => {
+              this.say('error', UI_TEXT.questionAnswerFailed)
+            })
         }
         break
       }
@@ -2707,19 +2799,147 @@ export class ConversationController {
     }
   }
 
+  /** One registry per shared session handle, with publication to every attached surface. */
+  private async attachQuestions(session: AgentSession, backend: BackendKind): Promise<void> {
+    const binding = this.deps.questions
+    if (binding === undefined) return
+    let registry = sessionQuestions.get(session)
+    if (registry === undefined) {
+      registry = new QuestionRegistry(session.sessionId, backend, {
+        store: binding.store,
+        now: () => binding.clock.now(),
+        setTimer: (delay, callback) => binding.clock.setTimer(delay, callback),
+        deferQuestions: (id) => session.deferQuestions(id),
+        formatAnswer: binding.formatAnswer,
+        reply: (id, reply) => {
+          if (reply === undefined) return session.cancelQuestions(id)
+          const response =
+            'answers' in reply
+              ? session.answerQuestions(id, reply.answers)
+              : session.clarifyQuestions(id, reply.explanation)
+          return response
+        },
+        deliver: async (message) => {
+          const surface = [...(sessionSurfaces.get(session) ?? [])].find(
+            (controller) => !controller.isDisposed,
+          )
+          return surface === undefined
+            ? 'notTaken'
+            : await surface.deliverQuestion(session, message)
+        },
+        changed: (snapshot) => {
+          const surfaces = sessionSurfaces.get(session) ?? []
+          for (const surface of surfaces) surface.post({ type: 'openQuestions', snapshot })
+        },
+        failed: () => {
+          const surfaces = sessionSurfaces.get(session) ?? []
+          for (const surface of surfaces) surface.say('error', UI_TEXT.questionAnswerUncertain)
+        },
+      })
+      sessionQuestions.set(session, registry)
+    }
+    await registry.ready()
+    if (this.session === session && !this.isDisposed)
+      this.post({ type: 'openQuestions', snapshot: registry.snapshot() })
+  }
+
+  private async answerRegisteredQuestion(
+    registry: QuestionRegistry,
+    userInputId: string,
+    reply: OpenQuestionAnswer,
+  ): Promise<void> {
+    const outcome = await registry.answer(userInputId, reply)
+    if (outcome !== 'taken')
+      this.say(
+        'error',
+        outcome === 'notTaken' ? UI_TEXT.questionAnswerFailed : UI_TEXT.questionAnswerUncertain,
+      )
+  }
+
+  /** The user's own turn in its current mode, using the established steer/refused-steer path. */
+  private async deliverQuestion(
+    session: AgentSession,
+    message: QuestionDelivery,
+  ): Promise<QuestionDeliveryOutcome> {
+    const epoch = this.sendInvalidationEpoch
+    const isCurrent = () =>
+      this.session === session &&
+      !this.isDisposed &&
+      this.sendInvalidationEpoch === epoch &&
+      this.isAuthAdmitted()
+    if (!isCurrent() || this.revertsInFlight > 0 || this.pendingHandoff?.hasSubmittedTurn === true)
+      return 'notTaken'
+    const deliveryState: { outcome: QuestionDeliveryOutcome } = { outcome: 'notTaken' }
+    const localId = this.deps.newAttachmentId()
+    let checkpoint: PendingMark | undefined
+    this.turnSubmissionsInFlight += 1
+    try {
+      if (this.deps.isAutosaveEnabled()) await this.deps.saveAll()
+      if (!isCurrent()) return 'notTaken'
+      if (this.activeTurnId === undefined && !this.isSideChat)
+        checkpoint = await this.checkpoints.beforeTurn(session.sessionId)
+      if (!isCurrent()) return 'notTaken'
+      this.post({
+        type: 'briefSubmitted',
+        localId,
+        text: message.displayText ?? message.text,
+        attachments: [],
+      })
+      const submission = await this.submit(
+        session,
+        [{ type: 'text', text: message.text }],
+        message.displayText,
+        false,
+        isCurrent,
+        (state) => {
+          deliveryState.outcome = state
+        },
+      )
+      this.checkpoints.accepted(
+        checkpoint,
+        submission.turnId,
+        submission.disposition !== QUEUED_DISPOSITION &&
+          submission.disposition !== STEERED_DISPOSITION,
+      )
+      this.acceptSubmission(localId, message.displayText ?? message.text, submission)
+      this.noteReviewMessage(message.displayText ?? message.text)
+      this.noteQueuedMessage(session, localId, submission)
+      return 'taken'
+    } catch {
+      this.post({
+        type: 'sendFailed',
+        localId,
+        reason:
+          deliveryState.outcome === 'notTaken'
+            ? UI_TEXT.questionAnswerFailed
+            : UI_TEXT.questionAnswerUncertain,
+        attachmentsKept: false,
+      })
+      return deliveryState.outcome
+    } finally {
+      this.checkpoints.dropPending(checkpoint)
+      this.turnSubmissionsInFlight -= 1
+    }
+  }
+
   /** The question card's Cancel: the prompt is declined and the model told (M16). */
   private async cancelQuestion(userInputId: string): Promise<void> {
     if (this.session === undefined) {
       return
     }
     try {
-      await this.session.cancelQuestions(userInputId)
+      const registry = sessionQuestions.get(this.session)
+      if (registry === undefined) {
+        await this.session.cancelQuestions(userInputId)
+      } else {
+        await registry.answer(userInputId, undefined)
+      }
     } catch (error: unknown) {
       if (isPromptSettledError(error)) {
         this.promptSettled(error, { userInputId })
         return
       }
-      this.notice('error', `${UI_TEXT.questionCancelFailed}: ${describe(error)}`, undefined, error)
+      this.say('error', `${UI_TEXT.questionCancelFailed}: ${describe(error)}`)
     }
   }
 
@@ -2730,13 +2950,20 @@ export class ConversationController {
       return
     }
     try {
-      await this.session.answerQuestions(message.userInputId, message.answers)
+      const registry = sessionQuestions.get(this.session)
+      if (registry === undefined) {
+        await this.session.answerQuestions(message.userInputId, message.answers)
+      } else {
+        await this.answerRegisteredQuestion(registry, message.userInputId, {
+          answers: [...message.answers],
+        })
+      }
     } catch (error: unknown) {
       if (isPromptSettledError(error)) {
         this.promptSettled(error, { userInputId: message.userInputId })
         return
       }
-      this.notice('error', `${UI_TEXT.answerNotAccepted}: ${describe(error)}`, undefined, error)
+      this.say('error', `${UI_TEXT.answerNotAccepted}: ${describe(error)}`)
     }
   }
 
@@ -2749,14 +2976,19 @@ export class ConversationController {
       return
     }
     try {
-      await this.session.clarifyQuestions(message.userInputId, text)
+      const registry = sessionQuestions.get(this.session)
+      if (registry === undefined) {
+        await this.session.clarifyQuestions(message.userInputId, text)
+      } else {
+        await this.answerRegisteredQuestion(registry, message.userInputId, { explanation: text })
+      }
     } catch (error: unknown) {
       if (isPromptSettledError(error)) {
         this.promptSettled(error, { userInputId: message.userInputId })
         return
       }
       // An error notice unlocks the card, as a refused answer does (M25).
-      this.notice('error', `${UI_TEXT.clarifyNotAccepted}: ${describe(error)}`, undefined, error)
+      this.say('error', `${UI_TEXT.clarifyNotAccepted}: ${describe(error)}`)
     }
   }
 
@@ -3434,6 +3666,14 @@ export class ConversationController {
     const surfaces = sessionSurfaces.get(session) ?? new Set<ConversationController>()
     surfaces.add(this)
     sessionSurfaces.set(session, surfaces)
+    try {
+      await this.attachQuestions(session, host.info.kind)
+    } catch (error: unknown) {
+      if (this.session === session) this.dropSession(false)
+      this.say('error', UI_TEXT.questionAnswerFailed)
+      throw new Error(UI_TEXT.questionAnswerFailed, { cause: error })
+    }
+    if (this.session !== session || this.attachmentGeneration !== generation) return
     this.canEditSessions = host.info.canEditSessions
     const eventGeneration = this.sendInvalidationEpoch
     const stopEvents = session.onEvent((event) => {
@@ -5721,12 +5961,49 @@ export class ConversationController {
     return trimmed === '' ? images : [{ type: 'text', text }, ...images]
   }
 
+  /** A dismissal joins a running steer or the next real message, never its own turn. */
   private async submit(
     session: AgentSession,
     parts: readonly TurnPart[],
     displayText: string | undefined,
     shouldQueueForDisplayText: boolean,
     isCurrent: () => boolean,
+    dispatchState?: (outcome: QuestionDeliveryOutcome) => void,
+    canStartTurn = true,
+  ): Promise<TurnSubmission> {
+    const registry = sessionQuestions.get(session)
+    const notes = registry === undefined ? undefined : await registry.takeDismissals()
+    let outcome: QuestionDeliveryOutcome = 'notTaken'
+    const dispatch = (state: QuestionDeliveryOutcome) => {
+      outcome = state
+      dispatchState?.(state)
+    }
+    try {
+      const submitted = await this.submitParts(
+        session,
+        notes?.text ? [{ type: 'text', text: notes.text }, ...parts] : parts,
+        displayText,
+        shouldQueueForDisplayText,
+        isCurrent,
+        dispatch,
+        canStartTurn,
+      )
+      outcome = 'taken'
+      dispatchState?.(outcome)
+      return submitted
+    } finally {
+      await notes?.finish(outcome)
+    }
+  }
+
+  private async submitParts(
+    session: AgentSession,
+    parts: readonly TurnPart[],
+    displayText: string | undefined,
+    shouldQueueForDisplayText: boolean,
+    isCurrent: () => boolean,
+    dispatchState: (outcome: QuestionDeliveryOutcome) => void,
+    canStartTurn: boolean,
   ): Promise<TurnSubmission> {
     if (!isCurrent()) {
       throw new Error(UI_TEXT.turnStoppedByRestart)
@@ -5737,6 +6014,7 @@ export class ConversationController {
     }
     if (!shouldQueueForDisplayText && this.activeTurnId !== undefined) {
       try {
+        dispatchState('uncertain')
         return await session.steer(this.activeTurnId, parts)
       } catch (error: unknown) {
         if (!isCurrent()) {
@@ -5751,6 +6029,7 @@ export class ConversationController {
           )
           throw error
         }
+        dispatchState('notTaken')
         this.deps.log.info('turn/steer was refused with nothing taken; submitting as a new turn')
       }
     }
@@ -5761,7 +6040,14 @@ export class ConversationController {
     if (this.revertsInFlight > 0) {
       throw new Error(UI_TEXT.restoreTurnRunning)
     }
-    return await session.sendTurn(parts, displayText)
+    if (!canStartTurn) throw new Error(UI_TEXT.questionDismissFailed)
+    dispatchState('uncertain')
+    try {
+      return await session.sendTurn(parts, displayText)
+    } catch (error: unknown) {
+      if (isSessionNotLoadedError(error)) dispatchState('notTaken')
+      throw error
+    }
   }
 
   /**
@@ -8440,6 +8726,48 @@ export class ConversationController {
         await this.decideApproval(message)
         break
       }
+      case 'answerOpenQuestion': {
+        const registry = this.session === undefined ? undefined : sessionQuestions.get(this.session)
+        if (registry === undefined || message.sessionId !== this.session?.sessionId) {
+          this.say('error', UI_TEXT.answerNotAccepted)
+          break
+        }
+        try {
+          await this.answerRegisteredQuestion(registry, message.userInputId, message.reply)
+        } catch {
+          this.say('error', UI_TEXT.answerNotAccepted)
+        }
+        break
+      }
+      case 'dismissOpenQuestion': {
+        const registry = this.session === undefined ? undefined : sessionQuestions.get(this.session)
+        if (registry === undefined || message.sessionId !== this.session?.sessionId) {
+          this.say('error', UI_TEXT.questionDismissFailed)
+          break
+        }
+        try {
+          await registry.dismiss(message.userInputId)
+          const session = this.session
+          if (this.activeTurnId !== undefined) {
+            await this.submit(
+              session,
+              [],
+              undefined,
+              false,
+              () => this.session === session && !this.isDisposed,
+              undefined,
+              false,
+            )
+          }
+        } catch {
+          this.say('error', UI_TEXT.questionDismissFailed)
+        }
+        break
+      }
+      case 'jumpToOpenQuestion': {
+        if (message.sessionId === this.session?.sessionId) this.post(message)
+        break
+      }
       case 'answerQuestion': {
         await this.answerQuestion(message)
         break
@@ -8865,6 +9193,9 @@ export class ConversationController {
     }
     if (this.session !== undefined) {
       this.postSessionInfo(this.session.modelId)
+      const questions = sessionQuestions.get(this.session)
+      if (questions !== undefined)
+        this.post({ type: 'openQuestions', snapshot: questions.snapshot() })
     }
     this.checkpoints.panelReady()
     this.postSkills()

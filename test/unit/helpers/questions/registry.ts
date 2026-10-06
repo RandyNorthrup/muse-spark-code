@@ -10,6 +10,14 @@ import { FakeQuestionStore } from './store'
 import { ScriptedQuestionSession } from './session'
 import { questionFixture } from './fixtures'
 
+export function questionAnswerText(reply: OpenQuestionAnswer): string {
+  return questionResultText(
+    'answers' in reply
+      ? { kind: 'answered', answers: reply.answers }
+      : { kind: 'clarified', text: reply.explanation },
+  )
+}
+
 export function registryHarness(store = new FakeQuestionStore()) {
   const clock = new FakeQuestionClock()
   const session = new ScriptedQuestionSession('session-1', 'muse-spark-1.3')
@@ -20,19 +28,15 @@ export function registryHarness(store = new FakeQuestionStore()) {
     setTimer: (delay, callback) => clock.setTimer(delay, callback),
     deferQuestions: (id) => session.deferQuestions(id),
     deliver: vi.fn(() => Promise.resolve('taken' as const)),
-    formatAnswer: (reply) =>
-      questionResultText(
+    formatAnswer: questionAnswerText,
+    reply: vi.fn((id: string, reply: OpenQuestionAnswer | undefined) => {
+      if (reply === undefined) return session.cancelQuestions(id)
+      const response =
         'answers' in reply
-          ? { kind: 'answered', answers: reply.answers }
-          : { kind: 'clarified', text: reply.explanation },
-      ),
-    reply: vi.fn((id: string, reply: OpenQuestionAnswer | undefined) =>
-      reply === undefined
-        ? session.cancelQuestions(id)
-        : 'answers' in reply
           ? session.answerQuestions(id, reply.answers)
-          : session.clarifyQuestions(id, reply.explanation),
-    ),
+          : session.clarifyQuestions(id, reply.explanation)
+      return response
+    }),
     changed: (snapshot) => {
       snapshots.push(structuredClone(snapshot))
     },

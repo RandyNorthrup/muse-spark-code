@@ -26,6 +26,7 @@ import {
   SESSION_FILE_STALE_TEMPORARY_MS,
   UI_TEXT,
 } from '../../shared/constants'
+import type { QuestionStore } from '../../shared/questions'
 import { writeFileAtomically } from '../fsAtomic'
 import type { Logger } from '../logger'
 import { describeStoreError, storeErrorCode } from './storeErrors'
@@ -34,6 +35,8 @@ import { createSessionBudgetJournal, type SessionBudgetJournalDeps } from './ses
 export interface FileSessionStoreDeps {
   readonly directory: string
   readonly log: Logger
+  /** M112: the same holding-process store, bound by the host/runtime integration owner. */
+  readonly questions?: Pick<QuestionStore, 'remove'>
   /** Days a session may sit idle before it is deleted; 0 keeps it for ever. */
   readonly retentionDays: () => number
   /** Epoch milliseconds. */
@@ -122,12 +125,14 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
       return false
     }
     try {
+      await deps.questions?.remove(session.sessionId)
       await rm(fileFor(session.sessionId), { force: true })
       deps.log.info(`Session ${session.sessionId} idle for more than ${String(days)} days deleted`)
     } catch (error: unknown) {
       deps.log.warn(
         `Expired session ${session.sessionId} not deleted: ${describeStoreError(error)}`,
       )
+      return false
     }
     return true
   }
@@ -214,6 +219,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
     },
     async remove(sessionId) {
       assertSessionId(sessionId)
+      await deps.questions?.remove(sessionId)
       await rm(fileFor(sessionId), { force: true })
     },
   }

@@ -43,11 +43,9 @@ export interface QuestionRequest {
 }
 
 export function questionDeferSeconds(value: number): number {
-  return value === 0
-    ? 0
-    : Number.isSafeInteger(value)
-      ? Math.min(QUESTION_DEFER_MAX_SECONDS, Math.max(QUESTION_DEFER_MIN_SECONDS, value))
-      : QUESTION_DEFER_DEFAULT_SECONDS
+  if (value === 0) return 0
+  const bounded = Math.min(QUESTION_DEFER_MAX_SECONDS, Math.max(QUESTION_DEFER_MIN_SECONDS, value))
+  return Number.isSafeInteger(value) ? bounded : QUESTION_DEFER_DEFAULT_SECONDS
 }
 
 /** One holding process per session. Persistence and marks precede external effects. */
@@ -111,7 +109,9 @@ export class QuestionRegistry {
         for (const [id, entry] of entries) this.entries.set(id, entry)
         for (const [id, request] of requests) this.requests.set(id, request)
         for (const id of this.timers.keys()) this.stopTimer(id)
-        for (const entry of this.entries.values()) this.armTimer(entry)
+        for (const entry of this.entries.values())
+          if (entry.deadlineAt !== undefined && entry.deadlineAt > this.deps.now())
+            this.armTimer(entry)
         throw error
       }
     })()
@@ -194,11 +194,10 @@ export class QuestionRegistry {
         (entry) => entry.key === key && (entry.state === 'waiting' || entry.state === 'open'),
       )
       const duration = questionDeferSeconds(seconds)
-      const deadlineAt = isImmediate
-        ? askedAt
-        : duration === 0
-          ? undefined
-          : askedAt + duration * MILLISECONDS_PER_SECOND
+      const scheduledDeadline = isImmediate ? askedAt : undefined
+      const interactiveDeadline =
+        duration === 0 ? undefined : askedAt + duration * MILLISECONDS_PER_SECOND
+      const deadlineAt = scheduledDeadline ?? interactiveDeadline
       const entry =
         previous?.state === 'waiting'
           ? previous

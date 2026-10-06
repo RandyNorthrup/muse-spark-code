@@ -1,5 +1,11 @@
+import type { ScheduleStore, ScheduledPrompt } from '../../src/shared/schedule'
+import { memorySessionStore } from './helpers/fakeSessionStore'
 import { describe, expect, it, vi } from 'vitest'
-import { ModelApiHost, questionResultText } from '../../src/core/backends/modelapi/ModelApiHost'
+import {
+  ModelApiHost,
+  questionResultText,
+  type ModelApiHostDeps,
+} from '../../src/core/backends/modelapi/ModelApiHost'
 import { QUESTION_MODEL_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
@@ -23,17 +29,18 @@ const call = {
   }),
 }
 
-async function setup() {
+async function setup(overrides: Partial<ModelApiHostDeps> = {}) {
   const api = fakeModelApi()
   const client = fakeModelApiClient(api, new FakeLogOutputChannel())
-  const host = new ModelApiHost(
-    fakeModelApiHostDeps({
+  const host = new ModelApiHost({
+    ...fakeModelApiHostDeps({
       client,
       workspaceRoot: '/ws',
       io: memoryToolIo({}, '/ws'),
       log: new FakeLogOutputChannel(),
     }),
-  )
+    ...overrides,
+  })
   const watched = await startWatchedSession(host, '/ws', 'promptUnmatched')
   api.script({ calls: [call] }, { text: 'Continuing independent work.' })
   return { api, host, ...watched }
@@ -88,4 +95,66 @@ describe('Model API question deferral', () => {
       'The user chose none of the options and explained instead:\nGreen.',
     )
   })
+})
+
+it('scheduled questions defer immediately and do not admit an interactive answer', async () => {
+  const jobs = new Map<string, ScheduledPrompt>()
+  const scheduleStore: ScheduleStore = {
+    create: (job) => {
+      jobs.set(job.id, job)
+      return Promise.resolve()
+    },
+    list: (sessionId) =>
+      Promise.resolve(
+        Array.from(jobs.values(), (job) => ({ ...job })).filter(
+          (job) => job.sessionId === sessionId,
+        ),
+      ),
+    remove: (_sessionId, jobId) => Promise.resolve(jobs.delete(jobId)),
+    claim: () => Promise.resolve(true),
+  }
+  let now = 1_000_000
+  const t = await setup({
+    store: memorySessionStore(),
+    scheduleStore,
+    now: () => now,
+    isPaidFeatureOn: (feature) => feature === 'scheduledPrompts',
+  })
+  try {
+    const schedules = t.session.schedules
+    if (schedules === undefined) throw new Error('missing schedules')
+    const job = await schedules.create({ kind: 'interval', everyMs: 60_000 }, 'go')
+    now = job.nextFireAtMs
+    const refusals: unknown[] = []
+    t.session.onEvent((event) => {
+      if (event.type === 'questionRequested') {
+        void t.session
+          .answerQuestions(event.userInputId, [{ questionId: 'colour', selectedLabel: 'Blue' }])
+          .catch((error: unknown) => {
+            refusals.push(error)
+          })
+      }
+    })
+    const done = t.turnDone()
+    await schedules.run(job.id, job.nextFireAtMs, {
+      sessionId: t.session.sessionId,
+      modelId: t.session.modelId,
+      prompt: job.prompt,
+    })
+    await vi.waitFor(() => {
+      expect(t.events.find((event) => event.type === 'questionSettled')).toMatchObject({
+        outcome: 'deferred',
+      })
+    })
+    await done
+    expect(refusals).toHaveLength(1)
+    expect(t.api.responseBodies()[1]?.['input']).toContainEqual(
+      expect.objectContaining({
+        type: 'function_call_output',
+        output: expect.stringContaining('Continue with work that does not depend on the answer.'),
+      }),
+    )
+  } finally {
+    await t.host.close()
+  }
 })

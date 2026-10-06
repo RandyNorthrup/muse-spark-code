@@ -1,3 +1,4 @@
+import type { QuestionDeliveryOutcome } from '../../src/shared/questions'
 import { describe, expect, it, vi } from 'vitest'
 import { lateAnswer } from '../../src/core/questions/lateAnswer'
 import { LATE_ANSWER_QUESTION_MAX_CHARS, UI_TEXT } from '../../src/shared/constants'
@@ -11,6 +12,22 @@ async function opened() {
   await t.register()
   await t.registry.defer('q-1')
   return t
+}
+
+async function completeHeldAnswer(
+  t: ReturnType<typeof registryHarness>,
+  held: { resolve: (value: undefined) => void },
+  answering: Promise<QuestionDeliveryOutcome>,
+): Promise<void> {
+  await new Promise<undefined>((resolve) => {
+    setImmediate(() => {
+      resolve(undefined)
+    })
+  })
+  expect(t.port.deliver).not.toHaveBeenCalled()
+  held.resolve(undefined)
+  expect(await answering).toBe('taken')
+  expect(t.session.answerQuestions).not.toHaveBeenCalled()
 }
 
 describe('late answers and lazy dismissals', () => {
@@ -91,16 +108,8 @@ describe('late answers and lazy dismissals', () => {
     const repeated = t.registry.defer('q-1')
     const answering = t.registry.answer('q-1', reply)
     await t.registry.ready()
-    await new Promise<undefined>((resolve) => {
-      setImmediate(() => {
-        resolve(undefined)
-      })
-    })
-    expect(t.port.deliver).not.toHaveBeenCalled()
-    held.resolve(undefined)
-    expect(await answering).toBe('taken')
+    await completeHeldAnswer(t, held, answering)
     await repeated
-    expect(t.session.answerQuestions).not.toHaveBeenCalled()
   })
 
   it('keeps idle dismissals durably, never sends them alone, and restores them only on non-admission', async () => {
@@ -207,13 +216,5 @@ it('waits when the deadline wins the same-tick race with a submitted draft', asy
   await vi.waitFor(() => {
     expect(t.session.deferQuestions).toHaveBeenCalledTimes(1)
   })
-  await new Promise<undefined>((resolve) => {
-    setImmediate(() => {
-      resolve(undefined)
-    })
-  })
-  expect(t.port.deliver).not.toHaveBeenCalled()
-  held.resolve(undefined)
-  expect(await answering).toBe('taken')
-  expect(t.session.answerQuestions).not.toHaveBeenCalled()
+  await completeHeldAnswer(t, held, answering)
 })
