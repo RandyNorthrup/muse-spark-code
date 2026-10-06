@@ -526,4 +526,43 @@ describe('machine files and lazy runtime facade', () => {
     expect(text).not.toMatch(/:\s*0%/)
     expect(resourceHistoryText([])).toBe(UI_TEXT.resourceHistory)
   })
+
+  it('shows deferral without inventing a trigger metric and retains every journal metric and work total', async () => {
+    const { host, reading } = await setup()
+    reading.memoryAvailableBytes = 1
+    const status = await host.status()
+    const waiting = resourceNoticeText({ type: 'paused', atMs: 0, kind: 'check' }, status)
+    expect(waiting).toContain(UI_TEXT.resourceWaiting)
+    expect(waiting).not.toContain(UI_TEXT.resourcePauseNotice.split(':', 1)[0])
+    const record = resourceRecordSchema.parse({
+      type: 'resource',
+      atMs: 0,
+      event: null,
+      minute: {
+        cpuPercent: 0,
+        memoryUsedPercent: 40,
+        availableMemory: 'unknown',
+        gpuPercent: 80,
+        diskBusyPercent: 0,
+        level: 'normal',
+        thresholds: { cpuMaxPercent: 85, memoryMaxPercent: 90, memoryMinFreeGiB: 2 },
+      },
+      work: [{ kind: 'check', cpuSeconds: 10, peakMemoryBytes: 1000 }],
+    })
+    const text = resourceHistoryText([record])
+    for (const label of [
+      UI_TEXT.resourceCpu,
+      UI_TEXT.resourceMemory,
+      UI_TEXT.resourceAvailableMemory,
+      UI_TEXT.resourceGpu,
+      UI_TEXT.resourceDisk,
+      UI_TEXT.resourceCpuTime,
+      UI_TEXT.resourcePeakMemory,
+    ])
+      expect(text).toContain(label)
+    expect(text).toContain(UI_TEXT.resourceUnknown)
+    expect(text).toContain('85%')
+    expect(text).toContain('90%')
+    expect(text).toContain('check')
+  })
 })

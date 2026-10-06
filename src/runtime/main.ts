@@ -59,6 +59,8 @@ import { walkFiles } from './fileWalk'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { uiLocale } from '../shared/l10n/text'
+import { lazyRuntimeResources } from './resources/load'
+import type { ResourceSettings } from '../shared/resources'
 
 const EXIT_FAILED = 1
 // The Model API key variable Muse Code reads; the report says only whether it was set.
@@ -233,6 +235,23 @@ function runtimeFor(options: ServeOptions, log: Logger) {
   })
 }
 
+function resourcesFor(log: Logger, overrides?: Partial<ResourceSettings>) {
+  return lazyRuntimeResources({
+    distDir,
+    machineDir: agentDataFolder({
+      platform: process.platform,
+      env: process.env,
+      homeDir: homedir(),
+    }),
+    sleep,
+    log,
+    onError: () => {
+      log.warn(UI_TEXT.resourceUnavailable)
+    },
+    ...(overrides !== undefined && { overrides }),
+  })
+}
+
 /** Explicit trusted Setup runs neither an account probe nor a model request. */
 async function setupHooks(
   options: ServeOptions,
@@ -307,6 +326,7 @@ async function setupHooks(
 
 async function serve(options: ServeOptions, log: Logger): Promise<number> {
   const runtime = runtimeFor(options, log)
+  const resources = resourcesFor(log)
   // A proxy the Model API backend's requests will not use is said at once (Q66).
   const proxyWarning = envProxyWarning({
     backend: options.backend,
@@ -336,6 +356,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
     signIn: signInMethod(options),
     defaultCwd: process.cwd(),
     paid: runtime.paid,
+    resources,
     log,
     reportError: (fact) => {
       // Facts only (a fixed kind and code): it never touches ACP stdout, and
@@ -348,6 +369,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   )
   log.info(`${ACP_AGENT_NAME} ${packageVersion()} serving ACP on stdio (${options.backend})`)
   await connection.closed
+  resources.dispose()
   await runtime.close()
   await journal.shutdown()
   return 0
@@ -457,6 +479,8 @@ async function main(): Promise<number> {
         readFile: readBoundedFile,
         randomHex: (bytes) => randomBytes(bytes).toString('hex'),
         log,
+        resourceOverrides: command.resourceOverrides,
+        createResources: (overrides) => resourcesFor(log, overrides),
       })
       return headlessCode
     } catch (error: unknown) {
@@ -487,6 +511,18 @@ async function main(): Promise<number> {
     log,
   })
   switch (command.command) {
+    case 'resources': {
+      const resources = resourcesFor(log)
+      try {
+        writeLine(process.stdout, await resources.command(command.action, command.json))
+        return 0
+      } catch {
+        writeLine(process.stderr, UI_TEXT.resourceUnavailable)
+        return EXIT_FAILED
+      } finally {
+        resources.dispose()
+      }
+    }
     case 'setup': {
       return await setupHooks(command.options, command.maintenance, log)
     }
@@ -592,6 +628,10 @@ async function main(): Promise<number> {
     }
     case 'help': {
       writeLine(process.stdout, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
+      writeLine(
+        process.stdout,
+        `${ACP_AGENT_NAME} resources [status|history|resume] [--json]\n${ACP_AGENT_NAME} usage resources [--json]\n${ACP_AGENT_NAME} exec --resource-governor on|off --cpu-max <percent> --memory-max <percent>\n${UI_TEXT.resourceGovernorDescription}`,
+      )
       return 0
     }
     case 'invalid': {

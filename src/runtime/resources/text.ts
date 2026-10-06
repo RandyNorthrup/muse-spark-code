@@ -71,8 +71,16 @@ export function resourceNoticeText(event: ResourceEvent, status: ResourceStatus)
   if (event.type === 'override')
     return fill(UI_TEXT.resourceOverrideNotice, { time: formatDateTime(event.untilMs) })
   if (status.level !== 'pause') return resourceStatusText(status)
+  const details = [
+    resourceStatusText(status),
+    `${UI_TEXT.resourceResumeNow}: /resources resume`,
+    UI_TEXT.openSettings,
+    `${UI_TEXT.resourceShow}: /resources`,
+  ]
+  // A deferred/paused event has no trigger metric. Show its level/readings honestly.
+  if (event.type !== 'levelChanged') return [UI_TEXT.resourceWaiting, ...details].join('\n')
   const sample = status.sample
-  const reason = event.type === 'levelChanged' ? event.reason : undefined
+  const reason = event.reason
   const isFree =
     reason === 'memoryFree' ||
     (reason === 'critical' &&
@@ -117,13 +125,7 @@ export function resourceNoticeText(event: ResourceEvent, status: ResourceStatus)
         ? UI_TEXT.resourceUnknown
         : formatBytes(resourceMemoryFloorBytes(status.settings, sample.memoryTotalBytes))
   }
-  return [
-    fill(UI_TEXT.resourcePauseNotice, { metric, reading, threshold }),
-    resourceStatusText(status),
-    `${UI_TEXT.resourceResumeNow}: /resources resume`,
-    UI_TEXT.openSettings,
-    `${UI_TEXT.resourceShow}: /resources`,
-  ].join('\n')
+  return [fill(UI_TEXT.resourcePauseNotice, { metric, reading, threshold }), ...details].join('\n')
 }
 
 export function resourceHistoryText(records: readonly ResourceRecord[]): string {
@@ -134,7 +136,15 @@ export function resourceHistoryText(records: readonly ResourceRecord[]): string 
       const detail =
         record.minute === null
           ? JSON.stringify(record.event)
-          : `${resourceLevelText(record.minute.level)} · ${UI_TEXT.resourceCpu}: ${percentage(record.minute.cpuPercent)} · ${UI_TEXT.resourceMemory}: ${percentage(record.minute.memoryUsedPercent)}`
+          : [
+              resourceLevelText(record.minute.level),
+              `${UI_TEXT.resourceCpu}: ${percentage(record.minute.cpuPercent)} (${formatPercent(record.minute.thresholds.cpuMaxPercent)})`,
+              `${UI_TEXT.resourceMemory}: ${percentage(record.minute.memoryUsedPercent)} (${formatPercent(record.minute.thresholds.memoryMaxPercent)})`,
+              // Journal buckets are technical detail, kept as the shared contract spells them.
+              `${UI_TEXT.resourceAvailableMemory}: ${record.minute.availableMemory === 'unknown' ? UI_TEXT.resourceUnknown : record.minute.availableMemory} (${formatBytes(record.minute.thresholds.memoryMinFreeGiB * RESOURCE_GIB_BYTES)})`,
+              `${UI_TEXT.resourceGpu}: ${percentage(record.minute.gpuPercent)}`,
+              `${UI_TEXT.resourceDisk}: ${percentage(record.minute.diskBusyPercent)}`,
+            ].join(' · ')
       const work = record.work.map(
         (row) =>
           `${row.kind}: ${UI_TEXT.resourceCpuTime}: ${formatUnit(row.cpuSeconds, 'second')}, ${UI_TEXT.resourcePeakMemory}: ${formatBytes(row.peakMemoryBytes)}`,

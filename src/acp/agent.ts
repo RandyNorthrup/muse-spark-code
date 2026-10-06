@@ -72,6 +72,8 @@ import {
   untrustedStartMode,
 } from '../shared/permissionModes'
 import { type AcpPaidUse, paidUseAnswer, paidUseOptions } from './paid'
+import { acpResourceCommand, acpResourceUpdates, resourceCommands } from './resources'
+import type { RuntimeResources } from '../runtime/resources/port'
 import {
   elicitationSchema,
   elicitationText,
@@ -138,6 +140,8 @@ export interface AcpAgentDeps {
   /** The flagged paid features; the agent asks before each use (M63c, M58). */
   readonly paid: AcpPaidUse
   readonly log: CoreLogger
+  /** The process-wide lazy governor; subscriptions do not start it. */
+  readonly resources?: RuntimeResources
   /**
    * Report a problem (M93 lane A, PLAN.md D72): facts-only error observation
    * for the standalone report's journal. The runtime wires this to its local
@@ -222,6 +226,7 @@ function servedEffort(modelId: string, wanted: EffortLevel): EffortLevel {
 class AcpSession {
   private readonly translator: UpdateTranslator
   private readonly unsubscribe: () => void
+  private readonly unsubscribeResources: (() => void) | undefined
   private readonly approvals = new Map<string, ApprovalRequest>()
   private readonly earlyFinishes = new Map<string, TurnCompleted>()
   private outbox: Promise<void> = Promise.resolve()
@@ -255,6 +260,9 @@ class AcpSession {
     this.translator = new UpdateTranslator(cwd, false)
     this.unsubscribe = session.onEvent((event) => {
       this.onEvent(event)
+    })
+    this.unsubscribeResources = deps.resources?.subscribe(this.sessionId, (notice) => {
+      for (const update of acpResourceUpdates(notice)) this.send(update)
     })
   }
 
@@ -314,15 +322,24 @@ class AcpSession {
         `ACP session ${this.sessionId}: skills unavailable: ${failureForLog(error)}`,
       )
       observeError(this.deps, 'skillsUnavailable')
-      return
+      if (this.deps.resources === undefined) return
+      this.skills = []
     }
     this.send({
       sessionUpdate: 'available_commands_update',
-      availableCommands: this.skills.map((skill) => ({
-        name: skill.selector,
-        description: skill.description === '' ? skill.displayName : skill.description,
-        input: skill.argumentHint === undefined ? null : { hint: skill.argumentHint },
-      })),
+      availableCommands: [
+        ...(this.deps.resources === undefined ? [] : resourceCommands()),
+        ...this.skills
+          .filter(
+            (skill) =>
+              this.deps.resources === undefined || !['resources', 'usage'].includes(skill.selector),
+          )
+          .map((skill) => ({
+            name: skill.selector,
+            description: skill.description === '' ? skill.displayName : skill.description,
+            input: skill.argumentHint === undefined ? null : { hint: skill.argumentHint },
+          })),
+      ],
     })
   }
 
@@ -819,6 +836,15 @@ class AcpSession {
 
   public async prompt(blocks: readonly ContentBlock[]): Promise<StopReason> {
     this.ensureHeld()
+    if (this.deps.resources !== undefined) {
+      const update = await acpResourceCommand(blocks, this.deps.resources)
+      this.ensureHeld()
+      if (update !== undefined) {
+        this.send(update)
+        await this.outbox
+        return 'end_turn'
+      }
+    }
     if (this.pending !== undefined || this.preparing !== undefined) {
       throw RequestError.invalidRequest(undefined, UI_TEXT.acpPromptBusy)
     }
@@ -937,6 +963,7 @@ class AcpSession {
     this.pending?.resolve('cancelled')
     this.pending = undefined
     this.unsubscribe()
+    this.unsubscribeResources?.()
     if (wasRunning) {
       // Stopped once its start is answered, even a start that failed: one
       // past its deadline (Muse Code's `turn/start`) may still start.

@@ -36,7 +36,10 @@ import { type ExecOptions, serveOptionsFor } from './execArgs'
 import { createExecClient } from './execClient'
 import { execFetch, type ExecTransport } from './execFetch'
 import { statusForStop, type Lifecycle, type StopCause } from './execLimits'
-import { createExecLogger, createExecSink, type ExecSink } from './execOutput'
+import { createExecLogger, type ExecSink } from './execOutput'
+import { createResourceExecSink } from '../resources/execSink'
+import type { RuntimeResources } from '../resources/port'
+import type { ResourceSettings } from '../../shared/resources'
 import {
   exitCodeFor,
   type ExecDenial,
@@ -71,6 +74,9 @@ export interface ExecDeps {
   readFile: (path: string, maxBytes: number, signal: AbortSignal) => Promise<Uint8Array>
   randomHex: (bytes: number) => string
   log: Logger
+  /** Construction is lazy; W/C1 inject this same host into runtime spawn adapters. */
+  createResources?: (overrides: Partial<ResourceSettings>) => RuntimeResources
+  resourceOverrides?: Partial<ResourceSettings>
 }
 
 function stopMessage(cause: StopCause, maxRequests: number): string {
@@ -197,7 +203,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let cancelSession: (() => void) | undefined
   let latestTokens: Partial<TokenTotals> | undefined
   const emitted = new Set<string>()
-  const sink = createExecSink({
+  const sink = createResourceExecSink({
     format: options.output,
     out: deps.stdout,
     now: deps.now,
@@ -208,6 +214,12 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     onStalled: () => {
       lifecycle.latch({ kind: 'output_stalled' })
     },
+  })
+  const resources = deps.createResources?.({ ...deps.resourceOverrides, relocate: 'off' })
+  const unsubscribeResources = resources?.subscribeEvents((event, _status, text) => {
+    if (isFinishing || isFinished) return
+    sink.resource(event)
+    log.warn(text.replaceAll('\n', ' · '))
   })
   const drain = (target: ExecSink) => {
     const messages = tap?.releasedMessages() ?? []
@@ -455,6 +467,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         },
         defaultCwd: cwd,
         paid: runtime.paid,
+        ...(resources !== undefined && { resources }),
         log,
       })
       const client = createExecClient({
@@ -744,6 +757,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       transport?.close()
       cancelSession?.()
       unsubscribe?.()
+      unsubscribeResources?.()
+      resources?.dispose()
       isFinishing = true
       if (options.backend === 'museCode' && lifecycle.cause !== null)
         tap?.settleResponse({
