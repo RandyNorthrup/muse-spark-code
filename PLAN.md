@@ -17741,6 +17741,17 @@ Implementation starts after the dependency contracts and lane 0's security
 review are accepted. No pairing, listener, discovery or remote execution is
 implemented or certified by this record.
 
+**FIXM100U review repair (2026-10-06).** Repair all five RVM100U P2s and its
+P3 in the shared Devices UI: require a host-owned monotonic snapshot revision
+across observations and action replies; bound every UI wait and recover with
+localized error/Retry while preserving host-owned occupancy/liability; group
+both fingerprint readouts with an accessible heading description; validate
+observation dates and contain render failures; keep equal decision buttons
+in one row at 320 px; distinguish unpaired from revoked. Each repair has a
+regression and byte-exact red/restored drill in `docs/certification/m100-u.md`.
+I retains bundle registration; P/I must issue revisions monotonically for
+the lifetime of the Devices document, including enabled/off snapshots.
+
 **FIXM100L0 review repair (2026-10-06).** RVM100L0 identified three P2s:
 historical durable attempts must reconcile through a new authenticated
 channel incarnation without changing the attempt owner; the TLS probe must
@@ -18992,6 +19003,18 @@ aggregate certification record.
 
 ## 7. Gates
 
+**FIXM100U scoped gate record (2026-10-06).** The rig brief prohibits full
+quality/coverage and reserves integration-owned registrations for I. Run the
+four owning UI/bridge/contract suites with repository-default timeouts,
+scoped static checks and native/axe checks; the lead runs aggregate quality.
+The unchanged production build still refuses the unregistered Devices lazy
+closure: **75.773/50 KiB** deferred JS, of which **26.076 KiB** belongs to
+`src/webview/models/sections/agents/DevicesApp.tsx`; registering that measured
+closure leaves **49.697/50 KiB**. No budget or split guard is widened. I must
+also register lane 0's `DEVICE_MODEL_TEXT` readers and refresh the generated
+host-API CSS source list. These named integration obligations, and final
+scoped results, are recorded in `docs/certification/m100-u.md`.
+
 **CIFIX14T verified local result (2026-10-05).** The five owning suites
 pass 113 tests (six existing Windows-only skips); the exact restored monitor
 file passes 30/30 loaded runs, 210 tests. Removing the wait fails 3/3 loaded
@@ -19604,6 +19627,25 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M100-U-INTEGRATION (FIXM100U).** All five RVM100U P2s and its P3 are
+  repaired; none is silently deferred. The remaining shipment obligations
+  are I's measured Devices browser budget/split registration (exact entry
+  `src/webview/models/sections/agents/DevicesApp.tsx`), lane-0 host model-text
+  registration and generated host-API record, plus P/I's host-owned snapshot
+  counter. Revision 0 is the document's initial unobserved/off UI; the host
+  starts at 1 and increases its counter across complete observations, off
+  states and action replies for that document's lifetime. Never reuse a
+  revision for changed state or reset it on receiver reconnect. A UI timeout
+  or newer observation releases only its local wait, never an attempt owner,
+  occupancy or spending liability. Safe for the present unshipped, explicitly
+  opened UI against injected ports: mount sends no request and ordinary chat
+  stays unchanged. Follow-up: I binds the counter and lazy entry, carries the
+  revised UI behavior into README/CHANGELOG/help reference, refreshes the
+  generated record and runs the joined unchanged gates before shipment;
+  P/T/E retain pairing, transport, durable retirement and installed-host
+  qualification. No new supported-host or real VoiceOver claim follows from
+  shared React/Chrome accessibility-tree receipts.
 
 - **M100-LOCAL-ACCOUNT (FIXM100L0).** The OS, logged-in account, extension
   host and installed extensions/helpers are trusted. Another local user can

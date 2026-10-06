@@ -46,6 +46,11 @@
   cursor: pointer;
 }
 
+.device-decisions > button {
+  flex: 1;
+  min-width: 0;
+}
+
 .devices-view button:disabled {
   cursor: default;
   opacity: 60%;
@@ -132,4 +137,20 @@
 .devices-view ul {
   margin: 0;
   padding-inline-start: 20px;
+}
+
+.device-decisions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+
+.devices-view .device-fingerprint {
+  font-family: monospace;
+  white-space: normal;
+  overflow-wrap: normal;
+}
+
+.device-fingerprint > span > span {
+  white-space: nowrap;
 }

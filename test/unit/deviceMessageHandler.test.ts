@@ -22,7 +22,7 @@ describe('M100 U local host handler', () => {
     expect(port.request).not.toHaveBeenCalled()
     const result = await handleDeviceRequest(request, port)
     expect(port.request).toHaveBeenCalledWith(request)
-    expect(result).toEqual({ ...uiMessage(), setup: { requestId: UI_PAIR_ID } })
+    expect(result).toEqual({ ...uiMessage(), revision: 2, setup: { requestId: UI_PAIR_ID } })
   })
   it('adds the local request id to a validated observation without manufacturing state', async () => {
     const port = { request: vi.fn(() => Promise.resolve(uiMessage())) }

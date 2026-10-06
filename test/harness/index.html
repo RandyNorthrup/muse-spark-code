@@ -375,7 +375,7 @@
       const devicePeerInvitation = {
         ...deviceInvitation,
         invitationId: '6'.repeat(32),
-        fingerprint: '7'.repeat(64),
+        fingerprint: '0123456789abcdef'.repeat(4),
       }
       const deviceCaps = {
         workers: 2,
@@ -416,6 +416,7 @@
           },
         ],
       }
+      let deviceRevision = 0
       const deviceFixture = (name) => {
         const status = name.includes('uncertain')
           ? 'uncertain'
@@ -430,6 +431,7 @@
                   : 'connected'
         return {
           type: 'deviceState',
+          revision: ++deviceRevision,
           state:
             name === 'devices-off'
               ? { enabled: false }
@@ -4582,6 +4584,7 @@
       const deviceScenes = [
         'devices-off',
         'devices-pairing',
+        'devices-pairing-narrow',
         'devices-connected',
         'devices-waiting',
         'devices-uncertain-narrow',
@@ -4602,6 +4605,13 @@
               document.documentElement.scrollWidth > window.innerWidth
             )
               throw new Error('Devices overflow at 320px')
+            for (const row of document.querySelectorAll('.device-decisions')) {
+              const buttons = [...row.querySelectorAll(':scope > button')]
+              if (buttons.length !== 2) throw new Error('Decision row must have two buttons')
+              const [first, second] = buttons.map((button) => button.getBoundingClientRect())
+              if (Math.abs(first.width - second.width) > 1 || first.top !== second.top)
+                throw new Error('Decision buttons must share a row and equal widths')
+            }
             document.querySelector('.devices-view').dataset.devicesReady = 'true'
           }
           if (name === 'devices-off') {
@@ -4609,7 +4619,7 @@
             return
           }
           whenFound('.device-card', () => {
-            if (name === 'devices-pairing') {
+            if (name.startsWith('devices-pairing')) {
               document.querySelector('.device-pairing button').click()
               whenFound('.device-public-text textarea', () => {
                 const form = document.querySelector('.device-pairing form')

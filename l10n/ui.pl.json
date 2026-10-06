@@ -93,7 +93,11 @@
       "known": "Znane zużycie",
       "estimated": "Szacowane zużycie",
       "uncertain": "Niepewne zużycie"
-    }
+    },
+    "retry": "Spróbuj ponownie",
+    "renderUnavailable": "Urządzenia nie mogły wyświetlić ostatniej obserwacji. Przeładuj, aby przywrócić widok.",
+    "unpairedHelp": "To urządzenie nie jest sparowane. Sparuj oba urządzenia przed oferowaniem pracy.",
+    "revokedHelp": "To parowanie zostało cofnięte. Sparuj ponownie; wcześniejsza nierozstrzygnięta praca pozostaje zablokowana."
   },
   "untitledConversation": "Bez tytułu",
   "crashTitle": "W panelu wystąpił błąd",

@@ -90,7 +90,11 @@
       "known": "已知用量",
       "estimated": "估算用量",
       "uncertain": "不确定用量"
-    }
+    },
+    "retry": "重试",
+    "renderUnavailable": "设备无法显示最新观测。请重新加载以恢复。",
+    "unpairedHelp": "此设备尚未配对。提供工作前请将两台设备配对。",
+    "revokedHelp": "此配对已撤销。请重新配对；先前未解决的工作仍被阻止。"
   },
   "untitledConversation": "未命名",
   "crashTitle": "面板出错了",

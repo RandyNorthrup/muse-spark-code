@@ -92,7 +92,11 @@
       "known": "Uso conhecido",
       "estimated": "Uso estimado",
       "uncertain": "Uso incerto"
-    }
+    },
+    "retry": "Tentar novamente",
+    "renderUnavailable": "Dispositivos não pôde exibir a última observação. Recarregue para recuperar.",
+    "unpairedHelp": "Este dispositivo não está pareado. Pareie ambos os dispositivos antes de oferecer trabalho.",
+    "revokedHelp": "Este pareamento foi revogado. Pareie novamente; o trabalho anterior não resolvido permanece bloqueado."
   },
   "untitledConversation": "Sem título",
   "crashTitle": "O painel encontrou um erro",

@@ -91,7 +91,11 @@
       "known": "Bekannte Nutzung",
       "estimated": "Geschätzte Nutzung",
       "uncertain": "Ungewisse Nutzung"
-    }
+    },
+    "retry": "Erneut versuchen",
+    "renderUnavailable": "Geräte konnte die letzte Beobachtung nicht anzeigen. Zum Wiederherstellen neu laden.",
+    "unpairedHelp": "Dieses Gerät ist nicht gekoppelt. Koppeln Sie beide Geräte, bevor Sie Arbeit anbieten.",
+    "revokedHelp": "Diese Kopplung wurde widerrufen. Koppeln Sie erneut; bisherige ungeklärte Arbeit bleibt blockiert."
   },
   "untitledConversation": "Unbenannt",
   "crashTitle": "Im Panel ist ein Fehler aufgetreten",

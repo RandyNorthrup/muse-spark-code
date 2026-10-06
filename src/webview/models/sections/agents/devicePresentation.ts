@@ -1,4 +1,5 @@
-import { UI_TEXT } from '../../../../shared/constants'
+import { DEVICE_LIMITS, UI_TEXT } from '../../../../shared/constants'
+import { formatDateTime } from '../../../../shared/l10n/text'
 import type { DEVICE_FAILURES } from '../../../../shared/devices'
 import type { DEVICE_STATUSES } from '../../../../shared/modelsPanel'
 
@@ -28,9 +29,11 @@ export function deviceFailureText(failure: (typeof DEVICE_FAILURES)[number]): st
     case 'paid-consent-required': {
       return UI_TEXT.devices.localApprovalHelp
     }
-    case 'revoked':
+    case 'revoked': {
+      return UI_TEXT.devices.revokedHelp
+    }
     case 'unpaired': {
-      return UI_TEXT.devices.fingerprintChanged
+      return UI_TEXT.devices.unpairedHelp
     }
     case 'capacity': {
       return UI_TEXT.devices.capacityHelp
@@ -42,5 +45,19 @@ export function deviceFailureText(failure: (typeof DEVICE_FAILURES)[number]): st
     case 'payload-changed': {
       return UI_TEXT.devices.invalidMessage
     }
+  }
+}
+
+export function deviceObservationText(observedAt: number): string {
+  if (
+    !Number.isSafeInteger(observedAt) ||
+    observedAt < 0 ||
+    observedAt > DEVICE_LIMITS.observationMaxMs
+  )
+    return UI_TEXT.devices.unknown
+  try {
+    return formatDateTime(observedAt)
+  } catch {
+    return UI_TEXT.devices.unknown
   }
 }

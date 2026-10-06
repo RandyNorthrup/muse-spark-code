@@ -1,17 +1,11 @@
 import { useId, useRef, useState } from 'react'
 import { DEVICE_LIMITS, UI_TEXT } from '../../../../shared/constants'
 import { deviceCapsSchema, deviceEndpointSchema, type DeviceCaps } from '../../../../shared/devices'
-import {
-  fill,
-  formatBytes,
-  formatDateTime,
-  formatNumber,
-  formatUsd,
-  plural,
-} from '../../../../shared/l10n/text'
+import { fill, formatBytes, formatNumber, formatUsd, plural } from '../../../../shared/l10n/text'
 import type { DeviceHostMessage, DevicesPanelState } from '../../../../shared/modelsPanel'
 import type { DeviceAction } from './DevicePairing'
-import { deviceStatusText } from './devicePresentation'
+import { deviceObservationText, deviceStatusText } from './devicePresentation'
+import { DeviceFingerprint } from './DeviceFingerprint'
 
 type DeviceRow = Extract<DevicesPanelState, { enabled: true }>['devices'][number]
 
@@ -51,12 +45,10 @@ export function DeviceCard({
       <h2 id={titleId}>{device.label}</h2>
       <p role="status">{deviceStatusText(device.status)}</p>
       {device.status === 'incompatible' && <p>{UI_TEXT.devices.protocolMismatch}</p>}
-      <p>
-        {UI_TEXT.devices.fingerprint}: <code>{device.fingerprint}</code>
-      </p>
+      <DeviceFingerprint label={UI_TEXT.devices.fingerprint} fingerprint={device.fingerprint} />
       {device.lastObservedAt !== undefined && (
         <p>
-          {UI_TEXT.devices.lastObservation}: {formatDateTime(device.lastObservedAt)}
+          {UI_TEXT.devices.lastObservation}: {deviceObservationText(device.lastObservedAt)}
         </p>
       )}
       {device.waitingApprovals > 0 && (
@@ -182,24 +174,26 @@ export function DeviceCard({
         >
           <legend>{UI_TEXT.devices.unlink}</legend>
           <p>{UI_TEXT.devices.unlinkHelp}</p>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => {
-              act({ kind: 'unlink', pairId: device.pairId })
-            }}
-          >
-            {UI_TEXT.devices.confirmUnlink}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setUnlinking(false)
-              unlinkButton.current?.focus()
-            }}
-          >
-            {UI_TEXT.devices.cancel}
-          </button>
+          <div className="device-decisions">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                act({ kind: 'unlink', pairId: device.pairId })
+              }}
+            >
+              {UI_TEXT.devices.confirmUnlink}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setUnlinking(false)
+                unlinkButton.current?.focus()
+              }}
+            >
+              {UI_TEXT.devices.cancel}
+            </button>
+          </div>
         </fieldset>
       )}
     </article>

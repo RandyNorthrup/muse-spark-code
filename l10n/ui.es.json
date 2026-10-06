@@ -92,7 +92,11 @@
       "known": "Uso conocido",
       "estimated": "Uso estimado",
       "uncertain": "Uso incierto"
-    }
+    },
+    "retry": "Reintentar",
+    "renderUnavailable": "Dispositivos no pudo mostrar la última observación. Recarga para recuperarte.",
+    "unpairedHelp": "Este dispositivo no está emparejado. Empareja ambos dispositivos antes de ofrecer trabajo.",
+    "revokedHelp": "Este emparejamiento se revocó. Empareja de nuevo; el trabajo anterior sin resolver sigue bloqueado."
   },
   "untitledConversation": "Sin título",
   "crashTitle": "El panel encontró un error",

@@ -34,6 +34,10 @@ export const EN = {
     confirmFingerprint: 'Confirm fingerprint',
     invalidMessage:
       'The device message is invalid or the request failed. Existing work and liability are kept.',
+    retry: 'Retry',
+    renderUnavailable: 'Devices could not display the latest observation. Reload to recover.',
+    unpairedHelp: 'This device is not paired. Pair both devices before offering work.',
+    revokedHelp: 'This pair was revoked. Pair again; previous unresolved work remains blocked.',
     localApprovalHelp:
       'Approvals and paid consent are requested on the executing device. Open that device to answer; pairing grants no approval.',
     capacityHelp:

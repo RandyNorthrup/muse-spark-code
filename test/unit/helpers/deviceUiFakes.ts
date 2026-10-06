@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import { DEVICE_LIMITS } from '../../../src/shared/constants'
 import type {
   DeviceHostMessage,
   DevicesPanelState,
@@ -90,13 +91,45 @@ export const uiDevice: Extract<DevicesPanelState, { enabled: true }>['devices'][
 export function uiMessage(change: Partial<typeof uiDevice> = {}): DeviceHostMessage {
   return {
     type: 'deviceState',
+    revision: 1,
     state: { enabled: true, discoveryEnabled: false, devices: [{ ...uiDevice, ...change }] },
   }
 }
 export function uiPort(response: DeviceHostMessage = uiMessage()) {
+  let revision = response.revision
   return {
     request: vi.fn((request: DeviceWebviewRequest) =>
-      Promise.resolve({ ...response, setup: { ...response.setup, requestId: request.requestId } }),
+      Promise.resolve({
+        ...response,
+        revision: ++revision,
+        setup: { ...response.setup, requestId: request.requestId },
+      }),
     ),
   }
+}
+
+export function uiDeferredPort() {
+  const first = Promise.withResolvers<DeviceHostMessage>()
+  const second = Promise.withResolvers<DeviceHostMessage>()
+  const port = {
+    request: vi
+      .fn((_request: DeviceWebviewRequest) => first.promise)
+      .mockImplementationOnce(() => first.promise)
+      .mockImplementationOnce(() => second.promise),
+  }
+  return { port, first, second }
+}
+
+export async function expireDeviceUiWait(): Promise<void> {
+  await vi.advanceTimersByTimeAsync(DEVICE_LIMITS.uiRequestTimeoutMs)
+}
+
+export async function resolveDeviceUiReply(
+  held: PromiseWithResolvers<DeviceHostMessage>,
+  request: DeviceWebviewRequest | undefined,
+  response: DeviceHostMessage,
+): Promise<void> {
+  if (request === undefined) throw new Error('missing local UI request')
+  held.resolve({ ...response, setup: { ...response.setup, requestId: request.requestId } })
+  await held.promise
 }

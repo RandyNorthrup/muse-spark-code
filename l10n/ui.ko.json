@@ -90,7 +90,11 @@
       "known": "확정 사용량",
       "estimated": "추정 사용량",
       "uncertain": "불확실한 사용량"
-    }
+    },
+    "retry": "다시 시도",
+    "renderUnavailable": "장치의 최신 관측을 표시할 수 없습니다. 복구하려면 다시 로드하세요.",
+    "unpairedHelp": "이 장치는 페어링되지 않았습니다. 작업을 제공하기 전에 두 장치를 페어링하세요.",
+    "revokedHelp": "이 페어링은 철회되었습니다. 다시 페어링하세요. 이전의 미해결 작업은 계속 차단됩니다."
   },
   "untitledConversation": "제목 없음",
   "crashTitle": "패널에서 오류가 발생했습니다",

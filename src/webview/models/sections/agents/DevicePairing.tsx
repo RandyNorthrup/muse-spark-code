@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useId, useRef, useState } from 'react'
 import { DEVICE_LIMITS, UI_TEXT } from '../../../../shared/constants'
 import { devicePairingConfirmationSchema, type DeviceInvitation } from '../../../../shared/devices'
 import { type DeviceHostMessage, type DeviceWebviewRequest } from '../../../../shared/modelsPanel'
+import { DeviceFingerprint } from './DeviceFingerprint'
 
 export type DeviceAction = DeviceWebviewRequest['action']
 
@@ -24,6 +25,7 @@ export function DevicePairing({
   const [error, setError] = useState(false)
   const invitationInputId = useId()
   const peerHeading = useRef<HTMLHeadingElement>(null)
+  const importButton = useRef<HTMLButtonElement>(null)
   const request = (action: DeviceAction) => {
     setError(false)
     void send(action).then((response) => {
@@ -60,9 +62,7 @@ export function DevicePairing({
       </button>
       {local !== undefined && publicText !== undefined && (
         <>
-          <p>
-            {UI_TEXT.devices.fingerprint}: <code>{local.fingerprint}</code>
-          </p>
+          <DeviceFingerprint label={UI_TEXT.devices.fingerprint} fingerprint={local.fingerprint} />
           <PublicText
             label={UI_TEXT.devices.copyInvitation}
             text={publicText}
@@ -87,35 +87,38 @@ export function DevicePairing({
           }}
           required
         />
-        <button type="submit" disabled={busy || text.trim().length === 0}>
-          {UI_TEXT.devices.importInvitation}
-        </button>
-        <button
-          type="button"
-          disabled={busy || text.trim().length === 0}
-          onClick={() => {
-            try {
-              const raw: unknown = JSON.parse(text)
-              const parsed = devicePairingConfirmationSchema.safeParse(raw)
-              if (!parsed.success) {
+        <div className="device-decisions">
+          <button ref={importButton} type="submit" disabled={busy || text.trim().length === 0}>
+            {UI_TEXT.devices.importInvitation}
+          </button>
+          <button
+            type="button"
+            disabled={busy || text.trim().length === 0}
+            onClick={() => {
+              try {
+                const raw: unknown = JSON.parse(text)
+                const parsed = devicePairingConfirmationSchema.safeParse(raw)
+                if (!parsed.success) {
+                  setError(true)
+                  return
+                }
+                request({ kind: 'importConfirmation', confirmation: parsed.data })
+              } catch {
                 setError(true)
-                return
               }
-              request({ kind: 'importConfirmation', confirmation: parsed.data })
-            } catch {
-              setError(true)
-            }
-          }}
-        >
-          {UI_TEXT.devices.importConfirmation}
-        </button>
+            }}
+          >
+            {UI_TEXT.devices.importConfirmation}
+          </button>
+        </div>
       </form>
       {peer !== undefined && (
         <div className="device-comparison">
-          <h3 ref={peerHeading} tabIndex={-1}>
-            {UI_TEXT.devices.peerFingerprint}
-          </h3>
-          <code>{peer.fingerprint}</code>
+          <DeviceFingerprint
+            label={UI_TEXT.devices.peerFingerprint}
+            fingerprint={peer.fingerprint}
+            headingRef={peerHeading}
+          />
           <p>{UI_TEXT.devices.compare}</p>
           <label>
             <input
@@ -127,20 +130,33 @@ export function DevicePairing({
             />
             {UI_TEXT.devices.fingerprintMatches}
           </label>
-          <button
-            type="button"
-            disabled={busy || !isCompared}
-            onClick={() => {
-              if (!isCompared) return
-              request({
-                kind: 'confirmFingerprint',
-                invitationId: peer.invitationId,
-                fingerprint: peer.fingerprint,
-              })
-            }}
-          >
-            {UI_TEXT.devices.confirmFingerprint}
-          </button>
+          <div className="device-decisions">
+            <button
+              type="button"
+              disabled={busy || !isCompared}
+              onClick={() => {
+                if (!isCompared) return
+                request({
+                  kind: 'confirmFingerprint',
+                  invitationId: peer.invitationId,
+                  fingerprint: peer.fingerprint,
+                })
+              }}
+            >
+              {UI_TEXT.devices.confirmFingerprint}
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setPeer(undefined)
+                setCompared(false)
+                importButton.current?.focus()
+              }}
+            >
+              {UI_TEXT.devices.cancel}
+            </button>
+          </div>
         </div>
       )}
       {confirmation !== undefined && (

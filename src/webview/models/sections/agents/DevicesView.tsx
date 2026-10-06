@@ -1,7 +1,7 @@
 // Shared Devices section: VS Code, companion and native web views inject the
 // same port. Nothing here activates a receiver or reads credentials on mount.
-import { type ReactNode, useRef, useState } from 'react'
-import { UI_TEXT } from '../../../../shared/constants'
+import { type ReactNode, useLayoutEffect, useRef, useState } from 'react'
+import { DEVICE_LIMITS, UI_TEXT } from '../../../../shared/constants'
 import { fill, formatUsd } from '../../../../shared/l10n/text'
 import {
   parseDeviceHostMessage,
@@ -34,11 +34,33 @@ export function DevicesView({
   readonly tasks?: readonly DeviceTaskView[]
   readonly paid?: { readonly price: string; readonly budgetUsd: number }
 }) {
-  const activeRequest = useRef<string | undefined>(undefined)
+  const activeRequest = useRef<{ id: string; revision: number; action: DeviceAction } | undefined>(
+    undefined,
+  )
+  const latestRevision = useRef(message.revision)
+  const [snapshot, setSnapshot] = useState(message)
   const [setupTarget, setSetupTarget] = useState<{ requestId: string; pairId: string }>()
+  const [retryAction, setRetryAction] = useState<DeviceAction>()
   const [busy, setBusy] = useState(false)
   const [isInvalid, setInvalid] = useState(false)
-  const parsed = parseDeviceHostMessage(message)
+  const incoming = parseDeviceHostMessage(message)
+  if (incoming.ok && incoming.message.revision > snapshot.revision) setSnapshot(incoming.message)
+  useLayoutEffect(() => {
+    latestRevision.current = snapshot.revision
+    const waiting = activeRequest.current
+    if (waiting === undefined || snapshot.revision <= waiting.revision) return
+    const pairId = 'pairId' in waiting.action ? waiting.action.pairId : undefined
+    if (
+      pairId !== undefined &&
+      (!snapshot.state.enabled ||
+        snapshot.state.devices.every((device) => device.pairId !== pairId))
+    )
+      return
+    activeRequest.current = undefined
+    setBusy(false)
+    setInvalid(true)
+  }, [snapshot])
+  const parsed = parseDeviceHostMessage(snapshot)
   if (!parsed.ok) return <p role="alert">{UI_TEXT.devices.invalidMessage}</p>
   const { state, setup } = parsed.message
   if (
@@ -61,24 +83,43 @@ export function DevicesView({
       setInvalid(true)
       return undefined
     }
-    activeRequest.current = requestId
+    const isCurrentWait = () => activeRequest.current?.id === requestId
+    activeRequest.current = { id: requestId, revision: latestRevision.current, action }
+    setRetryAction(action)
     setBusy(true)
     setInvalid(false)
+    let timeout: number | undefined
     try {
-      const response = parseDeviceHostMessage(await port.request(request.message))
+      const reply = await Promise.race([
+        port.request(request.message),
+        new Promise<never>((_resolve, reject) => {
+          timeout = window.setTimeout(() => {
+            reject(new Error('invalid-device-message'))
+          }, DEVICE_LIMITS.uiRequestTimeoutMs)
+        }),
+      ])
+      if (!isCurrentWait()) return undefined
+      const response = parseDeviceHostMessage(reply)
       if (!response.ok || response.message.setup?.requestId !== requestId) {
         setInvalid(true)
         return undefined
       }
-      setSetupTarget('pairId' in action ? { requestId, pairId: action.pairId } : undefined)
-      onState(response.message)
+      if (response.message.revision > latestRevision.current) {
+        latestRevision.current = response.message.revision
+        setSetupTarget('pairId' in action ? { requestId, pairId: action.pairId } : undefined)
+        setSnapshot(response.message)
+        onState(response.message)
+      }
       return response.message
     } catch {
-      setInvalid(true)
+      if (isCurrentWait()) setInvalid(true)
       return undefined
     } finally {
-      activeRequest.current = undefined
-      setBusy(false)
+      window.clearTimeout(timeout)
+      if (isCurrentWait()) {
+        activeRequest.current = undefined
+        setBusy(false)
+      }
     }
   }
   return (
@@ -95,7 +136,22 @@ export function DevicesView({
         </p>
       )}
       {setup?.failure !== undefined && <p role="alert">{deviceFailureText(setup.failure)}</p>}
-      {isInvalid && <p role="alert">{UI_TEXT.devices.invalidMessage}</p>}
+      {isInvalid && (
+        <div>
+          <p role="alert">{UI_TEXT.devices.invalidMessage}</p>
+          {retryAction !== undefined && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                void send(retryAction)
+              }}
+            >
+              {UI_TEXT.devices.retry}
+            </button>
+          )}
+        </div>
+      )}
       {busy && <p role="status">{UI_TEXT.devices.working}</p>}
       <DevicePairing setup={setup} busy={busy} send={send} renderQr={renderQr} />
       {state.enabled && (

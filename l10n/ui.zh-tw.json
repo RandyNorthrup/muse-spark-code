@@ -90,7 +90,11 @@
       "known": "已知用量",
       "estimated": "估計用量",
       "uncertain": "不確定用量"
-    }
+    },
+    "retry": "重試",
+    "renderUnavailable": "裝置無法顯示最新觀測。請重新載入以復原。",
+    "unpairedHelp": "此裝置尚未配對。提供工作前請將兩台裝置配對。",
+    "revokedHelp": "此配對已撤銷。請重新配對；先前未解決的工作仍被封鎖。"
   },
   "untitledConversation": "未命名",
   "crashTitle": "面板發生錯誤",

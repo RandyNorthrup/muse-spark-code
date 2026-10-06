@@ -93,7 +93,11 @@
       "known": "Známá spotřeba",
       "estimated": "Odhadovaná spotřeba",
       "uncertain": "Nejistá spotřeba"
-    }
+    },
+    "retry": "Zkusit znovu",
+    "renderUnavailable": "Zařízení nemohla zobrazit poslední pozorování. Obnovte stránku pro zotavení.",
+    "unpairedHelp": "Toto zařízení není spárované. Před nabízením práce spárujte obě zařízení.",
+    "revokedHelp": "Toto spárování bylo zrušeno. Spárujte znovu; dřívější nevyřešená práce zůstává blokována."
   },
   "untitledConversation": "Bez názvu",
   "crashTitle": "V panelu došlo k chybě",

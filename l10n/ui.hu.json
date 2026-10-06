@@ -91,7 +91,11 @@
       "known": "Ismert használat",
       "estimated": "Becsült használat",
       "uncertain": "Bizonytalan használat"
-    }
+    },
+    "retry": "Újrapróbálás",
+    "renderUnavailable": "Az Eszközök nem tudta megjeleníteni a legutóbbi megfigyelést. A helyreállításhoz töltse újra.",
+    "unpairedHelp": "Ez az eszköz nincs párosítva. Munka felajánlása előtt párosítsa mindkét eszközt.",
+    "revokedHelp": "Ezt a párosítást visszavonták. Párosítsa újra; a korábbi rendezetlen munka továbbra is blokkolva marad."
   },
   "untitledConversation": "Névtelen",
   "crashTitle": "Hiba történt a panelen",

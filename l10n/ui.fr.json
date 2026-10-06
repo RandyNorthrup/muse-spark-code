@@ -92,7 +92,11 @@
       "known": "Utilisation connue",
       "estimated": "Utilisation estimée",
       "uncertain": "Utilisation incertaine"
-    }
+    },
+    "retry": "Réessayer",
+    "renderUnavailable": "Appareils n’a pas pu afficher la dernière observation. Rechargez pour rétablir l’affichage.",
+    "unpairedHelp": "Cet appareil n’est pas jumelé. Jumelez les deux appareils avant de proposer du travail.",
+    "revokedHelp": "Ce jumelage a été révoqué. Jumelez à nouveau ; le travail antérieur non résolu reste bloqué."
   },
   "untitledConversation": "Sans titre",
   "crashTitle": "Le panneau a rencontré une erreur",

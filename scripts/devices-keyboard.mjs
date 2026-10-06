@@ -50,7 +50,11 @@ try {
       assert.equal(selection.isFocused, true)
       assert.equal(selection.start, 0)
       assert.equal(selection.end, selection.length)
-      const peer = { ...invitation, invitationId: '6'.repeat(32), fingerprint: '7'.repeat(64) }
+      const peer = {
+        ...invitation,
+        invitationId: '6'.repeat(32),
+        fingerprint: '0123456789abcdef'.repeat(4),
+      }
       const input = page.getByLabel('Scan QR or paste text', { exact: true })
       await input.focus()
       await page.keyboard.insertText(JSON.stringify(peer))
@@ -61,6 +65,41 @@ try {
         () =>
           globalThis.document.activeElement ===
           globalThis.document.querySelector('.device-comparison h3'),
+      )
+      const grouped = '0123 4567 89ab cdef '.repeat(4).trim()
+      assert.equal(
+        await page.locator('.device-comparison code').getAttribute('aria-label'),
+        grouped,
+      )
+      const headingObject = await cdp.send('Runtime.evaluate', {
+        expression: "document.querySelector('.device-comparison h3')",
+      })
+      const accessibility = await cdp.send('Accessibility.getPartialAXTree', {
+        objectId: headingObject.result.objectId,
+        fetchRelatives: false,
+      })
+      assert.equal(accessibility.nodes[0].description.value, grouped)
+      assert.deepEqual(await decisionRows(page), [])
+      const groupRects = await page
+        .locator('.device-comparison code > span > span')
+        .evaluateAll((groups) =>
+          groups.map((group) => {
+            const range = globalThis.document.createRange()
+            range.selectNodeContents(group)
+            return {
+              text: group.textContent,
+              lines: range.getClientRects().length,
+              whiteSpace: globalThis.getComputedStyle(group).whiteSpace,
+            }
+          }),
+        )
+      assert.deepEqual(
+        groupRects.map((group) => group.text),
+        grouped.split(' '),
+      )
+      assert.equal(
+        groupRects.every((group) => group.lines === 1 && group.whiteSpace === 'nowrap'),
+        true,
       )
       assert.equal(
         await page.getByRole('button', { name: 'Confirm fingerprint', exact: true }).isDisabled(),
@@ -117,6 +156,7 @@ try {
       await unlink.focus()
       await page.keyboard.press('Enter')
       await page.locator('.device-unlink').waitFor()
+      assert.deepEqual(await decisionRows(page), [])
       await page.keyboard.press('Tab')
       await page.keyboard.press('Tab')
       await page.keyboard.press('Escape')
@@ -152,6 +192,9 @@ try {
         actions: calls,
         textFallbackSelection: true,
         comparisonFocus: true,
+        groupedFingerprintAnnouncement: grouped,
+        fingerprintGroupsUnbroken: true,
+        decisionRowsEqual: true,
         noApprovalGrantRequests: calls.every((kind) =>
           [
             'pair',
@@ -177,12 +220,14 @@ try {
     await readFile(path.join(root, 'dist/meta/webview.json'), 'utf8'),
   ).outputs
   const asset = Object.entries(outputs).find(
-    ([, output]) => output.entryPoint === 'src/webview/models/sections/agents/DevicesApp.tsx',
+    ([, output]) =>
+      output.entryPoint?.replaceAll('\\', '/') ===
+      'src/webview/models/sections/agents/DevicesApp.tsx',
   )?.[0]
   assert.ok(asset, 'Devices lazy asset must exist in the actual build metadata')
   const missing = await browser.newPage()
   try {
-    await missing.route(`**/${asset}`, async (route) => {
+    await missing.route(`**/${asset.replaceAll('\\', '/')}`, async (route) => {
       await route.abort()
     })
     await missing.goto(
@@ -214,4 +259,17 @@ try {
   await browser.close()
   server.close()
   await rm(profile, { recursive: true, force: true })
+}
+
+async function decisionRows(page) {
+  return await page.locator('.device-decisions').evaluateAll((rows) =>
+    rows.flatMap((row) => {
+      const buttons = [...row.querySelectorAll(':scope > button')]
+      if (buttons.length !== 2) return ['missing decision button']
+      const [first, second] = buttons.map((button) => button.getBoundingClientRect())
+      return Math.abs(first.width - second.width) <= 1 && first.top === second.top
+        ? []
+        : ['unequal or stacked decision buttons']
+    }),
+  )
 }

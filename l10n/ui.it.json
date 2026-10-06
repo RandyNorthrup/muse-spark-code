@@ -92,7 +92,11 @@
       "known": "Utilizzo noto",
       "estimated": "Utilizzo stimato",
       "uncertain": "Utilizzo incerto"
-    }
+    },
+    "retry": "Riprova",
+    "renderUnavailable": "Dispositivi non ha potuto mostrare l’ultima osservazione. Ricarica per ripristinare.",
+    "unpairedHelp": "Questo dispositivo non è associato. Associa entrambi i dispositivi prima di offrire lavoro.",
+    "revokedHelp": "Questa associazione è stata revocata. Associa di nuovo; il lavoro precedente irrisolto rimane bloccato."
   },
   "untitledConversation": "Senza titolo",
   "crashTitle": "Si è verificato un errore nel pannello",

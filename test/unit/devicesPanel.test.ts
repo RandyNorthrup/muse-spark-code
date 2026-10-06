@@ -47,6 +47,30 @@ const row = {
 const state: DevicesPanelState = { enabled: true, discoveryEnabled: false, devices: [row] }
 
 describe('M100 Devices panel and shared bridge', () => {
+  it('requires an ordered snapshot revision, including off observations and action replies', () => {
+    const message = { type: 'deviceState', state: { enabled: false } }
+    for (const revision of [undefined, -1, 1.5, Number.MAX_SAFE_INTEGER + 1])
+      expect(parseDeviceHostMessage({ ...message, revision }).ok).toBe(false)
+    for (const revision of [0, 1, 2])
+      expect(parseDeviceHostMessage({ ...message, revision }).ok).toBe(true)
+  })
+  it('rejects MAX_SAFE_INTEGER and out-of-range observation dates at the host boundary', () => {
+    for (const lastObservedAt of [Number.MAX_SAFE_INTEGER, DEVICE_LIMITS.observationMaxMs + 1])
+      expect(
+        parseDeviceHostMessage({
+          type: 'deviceState',
+          revision: 1,
+          state: { ...state, devices: [{ ...row, lastObservedAt }] },
+        }).ok,
+      ).toBe(false)
+    expect(
+      parseDeviceHostMessage({
+        type: 'deviceState',
+        revision: 1,
+        state: { ...state, devices: [{ ...row, lastObservedAt: DEVICE_LIMITS.observationMaxMs }] },
+      }).ok,
+    ).toBe(true)
+  })
   it('supplies exact translated manifest handoffs without registering unused production keys', () => {
     const handoffSchema = z.record(
       z.string(),
@@ -95,12 +119,14 @@ describe('M100 Devices panel and shared bridge', () => {
     expect(
       devicesPanelStateSchema.safeParse({ enabled: false, discoveryEnabled: true }).success,
     ).toBe(false)
-    expect(parseDeviceHostMessage({ type: 'deviceState', state: { enabled: false } }).ok).toBe(true)
+    expect(
+      parseDeviceHostMessage({ type: 'deviceState', revision: 1, state: { enabled: false } }).ok,
+    ).toBe(true)
   })
   it('keeps Devices off the ordinary chat route', () => {
-    expect(parseHostToWebviewMessage({ type: 'deviceState', state: { enabled: false } }).ok).toBe(
-      false,
-    )
+    expect(
+      parseHostToWebviewMessage({ type: 'deviceState', revision: 1, state: { enabled: false } }).ok,
+    ).toBe(false)
     expect(
       parseWebviewToHostMessage({ type: 'deviceRequest', requestId: ID, action: { kind: 'pair' } })
         .ok,
@@ -121,6 +147,7 @@ describe('M100 Devices panel and shared bridge', () => {
     }
     const message: DeviceHostMessage = {
       type: 'deviceState',
+      revision: 1,
       state,
       setup: {
         requestId: ID,
@@ -262,6 +289,7 @@ describe('M100 Devices panel and shared bridge', () => {
         Promise.resolve(
           deviceHostMessageSchema.parse({
             type: 'deviceState',
+            revision: 1,
             state: { enabled: false },
             setup: { requestId: message.requestId, failure: 'unsupported-host' },
           }),

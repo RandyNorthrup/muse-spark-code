@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
 import { EN } from '../../src/shared/l10n/en'
+import { deviceObservationText } from '../../src/webview/models/sections/agents/devicePresentation'
+import * as l10nText from '../../src/shared/l10n/text'
 import { setUiText } from '../../src/shared/l10n/text'
 import { DEVICE_FAILURES, deviceInvitationSchema } from '../../src/shared/devices'
 import {
@@ -10,6 +12,7 @@ import {
   type DevicesPanelState,
   type DeviceHostMessage,
   type DevicesPanelPort,
+  type DeviceWebviewRequest,
 } from '../../src/shared/modelsPanel'
 import { DeviceCard } from '../../src/webview/models/sections/agents/DeviceCard'
 import { DevicePairing } from '../../src/webview/models/sections/agents/DevicePairing'
@@ -19,6 +22,9 @@ import {
   type DeviceTaskView,
 } from '../../src/webview/models/sections/agents/DeviceTaskDetails'
 import {
+  expireDeviceUiWait,
+  resolveDeviceUiReply,
+  uiDeferredPort,
   UI_BOARD_ID,
   UI_PAIR_ID,
   uiDevice,
@@ -47,8 +53,8 @@ const expectedFailures = {
   uncertain: EN.devices.unresolvedHelp,
   'approval-required': EN.devices.localApprovalHelp,
   'paid-consent-required': EN.devices.localApprovalHelp,
-  revoked: EN.devices.fingerprintChanged,
-  unpaired: EN.devices.fingerprintChanged,
+  revoked: EN.devices.revokedHelp,
+  unpaired: EN.devices.unpairedHelp,
   capacity: EN.devices.capacityHelp,
   grant: EN.devices.grantHelp,
   'invalid-frame': EN.devices.invalidMessage,
@@ -84,15 +90,139 @@ function importConfirmationText(text: string): void {
 }
 afterEach(() => {
   setUiText(EN, 'en')
+  vi.useRealTimers()
 })
 
 describe('M100 U shared Devices view', () => {
+  it('does not publish an older correlated action snapshot from an embedded view', async () => {
+    const message = {
+      ...uiMessage({ status: 'uncertain', unresolvedAttempts: 1, retainedLiabilityUsd: 3 }),
+      revision: 3,
+    }
+    const onState = vi.fn()
+    render(<DevicesView message={message} onState={onState} port={uiPort()} explicitSetup />)
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
+    await waitFor(() => expect(screen.getByRole('button', { name: EN.devices.pair })).toBeEnabled())
+    expect(onState).not.toHaveBeenCalled()
+    expect(screen.getByText('Retained spending liability: $3.00')).toBeVisible()
+  })
+  it('orders embedded snapshots and late action replies by revision, preserving Uncertain/$3', async () => {
+    const held = Promise.withResolvers<DeviceHostMessage>()
+    const port = { request: vi.fn((_request: DeviceWebviewRequest) => held.promise) }
+    const props = { port, onState: vi.fn(), explicitSetup: true }
+    const { rerender } = render(<DevicesView {...props} message={uiMessage()} />)
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
+    const requestId = port.request.mock.calls[0]![0].requestId
+    const newer = {
+      ...uiMessage({
+        status: 'uncertain',
+        unresolvedAttempts: 1,
+        retainedLiabilityUsd: 3,
+        lastObservedAt: 2000,
+      }),
+      revision: 3,
+    }
+    rerender(<DevicesView {...props} message={newer} />)
+    await act(async () => {
+      held.resolve({ ...uiMessage({ lastObservedAt: 1000 }), revision: 2, setup: { requestId } })
+      await held.promise
+    })
+    rerender(<DevicesView {...props} message={uiMessage()} />)
+    expect(screen.getByText('Retained spending liability: $3.00')).toBeVisible()
+    expect(screen.getByText(EN.devices.uncertain, { exact: true })).toBeVisible()
+    expect(props.onState).not.toHaveBeenCalled()
+  })
+  it.each(['deadline', 'new observation'])(
+    'keeps a retry busy after %s releases its previous wait',
+    async (trigger) => {
+      if (trigger === 'deadline') vi.useFakeTimers()
+      const { port, first, second } = uiDeferredPort()
+      const initial = uiMessage({
+        status: 'uncertain',
+        unresolvedAttempts: 1,
+        retainedLiabilityUsd: 3,
+      })
+      const props = { port, onState: vi.fn(), explicitSetup: true }
+      const { rerender } = render(<DevicesView {...props} message={initial} />)
+      fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
+      if (trigger === 'deadline') await act(expireDeviceUiWait)
+      else rerender(<DevicesView {...props} message={{ ...initial, revision: 3 }} />)
+      expect(screen.getByRole('button', { name: EN.devices.pair })).toBeEnabled()
+      expect(screen.getByRole('alert')).toHaveTextContent(EN.devices.invalidMessage)
+      fireEvent.click(screen.getByRole('button', { name: EN.devices.retry }))
+      await act(() =>
+        resolveDeviceUiReply(first, port.request.mock.calls[0]?.[0], {
+          ...uiMessage(),
+          revision: 2,
+        }),
+      )
+      expect(screen.getByRole('button', { name: EN.devices.pair })).toBeDisabled()
+      expect(props.onState).not.toHaveBeenCalled()
+      await act(() =>
+        resolveDeviceUiReply(second, port.request.mock.calls[1]?.[0], {
+          ...initial,
+          revision: 4,
+        }),
+      )
+      expect(screen.getByRole('button', { name: EN.devices.pair })).toBeEnabled()
+      expect(screen.getByText('Retained spending liability: $3.00')).toBeVisible()
+    },
+  )
+  it('groups both fingerprints and announces the full peer value on heading focus', async () => {
+    const fingerprint = '0123456789abcdef'.repeat(4)
+    const invitation = { ...uiInvitation, fingerprint }
+    const port = uiPort({ ...uiMessage(), setup: { requestId: UI_PAIR_ID, invitation } })
+    render(<LiveView initial={uiMessage({ offers: [] })} port={port} />)
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
+    await screen.findByLabelText(EN.devices.copyInvitation)
+    fireEvent.change(screen.getByLabelText(EN.devices.scan), {
+      target: { value: JSON.stringify(invitation) },
+    })
+    fireEvent.submit(
+      screen.getByRole('button', { name: EN.devices.importInvitation }).closest('form')!,
+    )
+    const peerHeading = await screen.findByRole('heading', { name: EN.devices.peerFingerprint })
+    const grouped = '0123 4567 89ab cdef '.repeat(4).trim()
+    expect(peerHeading).toHaveAccessibleDescription(grouped)
+    await waitFor(() => {
+      expect(document.activeElement).toBe(peerHeading)
+    })
+    const values = screen.getAllByRole('group', { name: grouped })
+    expect(values).toHaveLength(2)
+    for (const value of values) {
+      expect(value).toHaveClass('device-fingerprint')
+      expect(
+        [...value.querySelectorAll(':scope > span > span')].map((group) => group.textContent),
+      ).toEqual(grouped.split(' '))
+    }
+    const confirm = screen.getByRole('button', { name: EN.devices.confirmFingerprint })
+    const cancel = within(confirm.parentElement!).getByRole('button', { name: EN.devices.cancel })
+    expect(confirm.parentElement).toHaveClass('device-decisions')
+    fireEvent.click(cancel)
+    expect(screen.queryByRole('heading', { name: EN.devices.peerFingerprint })).toBeNull()
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: EN.devices.importInvitation }),
+    )
+  })
+  it('rejects MAX_SAFE_INTEGER observations and keeps formatting safe even outside the schema', () => {
+    render(<LiveView initial={uiMessage({ lastObservedAt: Number.MAX_SAFE_INTEGER })} />)
+    expect(screen.getByRole('alert')).toHaveTextContent(EN.devices.invalidMessage)
+    expect(deviceObservationText(Number.MAX_SAFE_INTEGER)).toBe(EN.devices.unknown)
+    const formatter = vi.spyOn(l10nText, 'formatDateTime').mockImplementation(() => {
+      throw new RangeError('bad date')
+    })
+    try {
+      expect(deviceObservationText(1000)).toBe(EN.devices.unknown)
+    } finally {
+      formatter.mockRestore()
+    }
+  })
   it.each<DevicesPanelState>([
     { enabled: false },
     { enabled: true, discoveryEnabled: false, devices: [] },
   ])('keeps ordinary chat empty without an approved offer: %j', (state) => {
     const port = uiPort()
-    const message: DeviceHostMessage = { type: 'deviceState', state }
+    const message: DeviceHostMessage = { type: 'deviceState', revision: 1, state }
     const { container } = render(<DevicesView message={message} port={port} onState={vi.fn()} />)
     expect(container).toBeEmptyDOMElement()
     expect(port.request).not.toHaveBeenCalled()
@@ -114,8 +244,13 @@ describe('M100 U shared Devices view', () => {
     expect(port.request).not.toHaveBeenCalled()
   })
   it('plainly shows off in explicit setup and does no activity until Pair', async () => {
-    const port = uiPort({ type: 'deviceState', state: { enabled: false } })
-    render(<LiveView initial={{ type: 'deviceState', state: { enabled: false } }} port={port} />)
+    const port = uiPort({ type: 'deviceState', revision: 1, state: { enabled: false } })
+    render(
+      <LiveView
+        initial={{ type: 'deviceState', revision: 1, state: { enabled: false } }}
+        port={port}
+      />,
+    )
     expect(screen.getByText(EN.devices.offHelp)).toBeVisible()
     expect(screen.queryByLabelText(EN.devices.discovery)).toBeNull()
     expect(port.request).not.toHaveBeenCalled()
@@ -128,12 +263,13 @@ describe('M100 U shared Devices view', () => {
   it('pairs by keyboard text, focuses comparison and requires the full explicit fingerprint check', async () => {
     const peer = { ...uiInvitation, invitationId: '6'.repeat(32), fingerprint: '7'.repeat(64) }
     const port = uiPort()
+    let revision = 1
     port.request.mockImplementation((request) => {
       const setup: NonNullable<DeviceHostMessage['setup']> = { requestId: request.requestId }
       if (request.action.kind === 'pair') setup.invitation = uiInvitation
       else if (request.action.kind === 'importInvitation') setup.invitation = peer
       else setup.confirmation = uiConfirmation
-      return Promise.resolve({ ...uiMessage(), setup })
+      return Promise.resolve({ ...uiMessage(), revision: ++revision, setup })
     })
     render(<LiveView port={port} />)
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
@@ -253,6 +389,7 @@ describe('M100 U shared Devices view', () => {
   it('never attributes one pair’s listener or interface facts to another pair', async () => {
     const message: DeviceHostMessage = {
       type: 'deviceState',
+      revision: 1,
       state: {
         enabled: true,
         discoveryEnabled: false,
@@ -309,6 +446,7 @@ describe('M100 U shared Devices view', () => {
         {...props}
         message={{
           ...response,
+          revision: response.revision + 1,
           setup: { requestId: '8'.repeat(32), listenerApplication: 'Foreign listener' },
         }}
       />,

@@ -91,7 +91,11 @@
       "known": "Bilinen kullanım",
       "estimated": "Tahmini kullanım",
       "uncertain": "Belirsiz kullanım"
-    }
+    },
+    "retry": "Yeniden dene",
+    "renderUnavailable": "Cihazlar son gözlemi gösteremedi. Kurtarmak için yeniden yükleyin.",
+    "unpairedHelp": "Bu cihaz eşleştirilmemiş. İş sunmadan önce her iki cihazı eşleştirin.",
+    "revokedHelp": "Bu eşleştirme iptal edildi. Yeniden eşleştirin; önceki çözümlenmemiş işler engellenmeye devam eder."
   },
   "untitledConversation": "Adsız",
   "crashTitle": "Panelde bir hata oluştu",

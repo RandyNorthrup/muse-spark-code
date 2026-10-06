@@ -15,6 +15,7 @@ export const PAGE_TIMEOUT_MS = 120_000
 export const SCENARIOS = [
   'devices-off',
   'devices-pairing',
+  'devices-pairing-narrow',
   'devices-connected',
   'devices-waiting',
   'devices-uncertain-narrow',
@@ -224,6 +225,7 @@ export function serveRepo(repoRoot) {
  * scrollbars headless Chrome otherwise hides, as its check measures one.
  */
 export const SIZED_SCENARIOS = {
+  'devices-pairing-narrow': { width: 320, ready: '[data-devices-ready]' },
   'devices-uncertain-narrow': { width: 320, ready: '[data-devices-ready]' },
   'devices-blocked-narrow': { width: 320, ready: '[data-devices-ready]' },
   'devices-unlink-narrow': { width: 320, ready: '[data-devices-ready]' },
