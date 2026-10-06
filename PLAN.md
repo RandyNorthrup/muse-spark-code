@@ -16181,6 +16181,21 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **M103D-NATIVE-QUALIFICATION (integration pending, 2026-10-05):** RVM103D's
+  three P2 findings are fixed and red-drilled on Kubuntu. Native macOS
+  descriptor-directory access and Windows kernel APIs still need receipts
+  on their own rigs; Linux/macOS adapter schedules and the actual Windows
+  C# guard/read/listing code are covered with deterministic OS fakes here.
+  Missing descriptor support or a failed native helper aborts detection;
+  there is no fallback that reopens a checked mutable pathname. The helper
+  has a hard deadline, bounded validated output and only the system module
+  path in its environment; it inherits no host environment or credentials.
+  Safe pending qualification because failure grants no outside read or
+  hardware authority. Follow-up: lane W/E's native rig and editor checks
+  before claiming the platform detector supported. Full quality, host API
+  record regeneration and M103's pre-existing startup-growth item remain
+  with lane W, as recorded in `docs/certification/m103-d.md`.
+
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through
   the shell-command guard, which scans the command text and does not inspect

@@ -21,6 +21,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Maker detection validates opened file and directory handles against the
+  held workspace root before reading or listing, so an ancestor replacement
+  cannot redirect detection outside the workspace. Windows uses native
+  handle paths and directory queries, including case-sensitive roots.
+
+- CIRCUITPY volume labels and root boot_out.txt retain the board-save notice
+  and generic Python syntax suggestions, including Windows drive roots and
+  differently named Linux mount points.
+
 - Maker Pico SDK and Zephyr build suggestions now use detected application
   CMakeLists.txt directories; toolchain and workspace metadata still select
   skills without offering unusable builds.

@@ -306,6 +306,76 @@ describe('portable maker preset suggestions', () => {
 })
 
 describe('presetsOffered host seam', () => {
+  it.each([
+    { platform: 'win32' as const, root: 'E:\\', label: 'CIRCUITPY' },
+    { platform: 'darwin' as const, root: '/Volumes/CIRCUITPY', label: 'CIRCUITPY' },
+    { platform: 'linux' as const, root: '/media/board', label: 'CIRCUITPY' },
+  ])(
+    'keeps the physical-root notice and generic Python syntax offer at a $platform volume root',
+    async ({ platform, root, label }) => {
+      const host: MakerDetectHost = { isTrusted: () => true, notify: vi.fn() }
+      const io = {
+        ...ioFor({ 'code.py': 'print("hello")', 'boot_out.txt': 'CircuitPython' }),
+        volumeLabel: vi.fn(() => Promise.resolve(label)),
+      }
+      const event = await detectAndOfferMakerPresets({ root, platform, host, io, piIo: noPi })
+      expect(io.volumeLabel).toHaveBeenCalledWith(root, platform)
+      expect(event?.isCircuitPyRoot).toBe(true)
+      expect(event?.kinds).toEqual(['circuitpython'])
+      expect(event?.notices).toContain(UI_TEXT.makerDetectCircuitPy)
+      expect(event?.presets).toMatchObject([
+        { id: 'circuitpython:syntax:code.py', type: 'command' },
+      ])
+      expect(host.notify).toHaveBeenCalledWith(event)
+      const labelOnly = await detectAndOfferMakerPresets({
+        root,
+        platform,
+        host,
+        piIo: noPi,
+        io: { ...ioFor({ 'code.py': 'print("hello")' }), volumeLabel: io.volumeLabel },
+      })
+      expect(labelOnly?.isCircuitPyRoot).toBe(true)
+      expect(labelOnly?.notices).toContain(UI_TEXT.makerDetectCircuitPy)
+      expect(labelOnly?.presets).toMatchObject([{ id: 'circuitpython:syntax:code.py' }])
+    },
+  )
+
+  it('uses root boot_out.txt even with an unavailable label and never promotes a nested boot log', async () => {
+    const host: MakerDetectHost = { isTrusted: () => true, notify: vi.fn() }
+    const input = { root: 'E:\\', platform: 'win32' as const, host, piIo: noPi }
+    const event = await detectAndOfferMakerPresets({
+      ...input,
+      io: ioFor({ 'code.py': 'print("hello")', 'boot_out.txt': '' }),
+    })
+    expect(event?.isCircuitPyRoot).toBe(true)
+    expect(event?.presets).toHaveLength(1)
+    const nested = await detectAndOfferMakerPresets({
+      ...input,
+      io: ioFor({ 'code.py': 'print("hello")', 'docs/boot_out.txt': '' }),
+    })
+    expect(nested?.isCircuitPyRoot).toBe(false)
+    expect(nested?.notices).toEqual([])
+    expect(nested?.presets).toEqual([])
+    const labelled = await detectAndOfferMakerPresets({
+      ...input,
+      io: {
+        ...ioFor({ 'code.py': 'print("hello")' }),
+        volumeLabel: () => Promise.resolve('CIRCUITPY'),
+      },
+    })
+    expect(labelled?.isCircuitPyRoot).toBe(true)
+    expect(labelled?.presets).toHaveLength(1)
+    const failedLabel = await detectAndOfferMakerPresets({
+      ...input,
+      io: {
+        ...ioFor({ 'code.py': 'print("hello")', 'boot_out.txt': '' }),
+        volumeLabel: () => Promise.reject(new Error('unavailable mount metadata')),
+      },
+    })
+    expect(failedLabel?.isCircuitPyRoot).toBe(true)
+    expect(failedLabel?.presets).toHaveLength(1)
+  })
+
   it.each(['panel', 'ACP', 'headless'])(
     'notifies the %s host with the same validated event, without running checks',
     async () => {

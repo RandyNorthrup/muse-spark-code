@@ -19,6 +19,8 @@ export interface ProjectDetectIo {
   files(root: string, maxNames: number): AsyncIterable<string>
   /** At most maxBytes, regular files only, confined to root; never follows a link out. */
   read(root: string, relative: string, maxBytes: number): Promise<Uint8Array | undefined>
+  /** OS mount metadata only, for the volume root; absent/failed probes leave no label. */
+  volumeLabel?(root: string, platform: NodeJS.Platform): Promise<string | undefined>
 }
 
 export interface MakerProjectMarker {
@@ -134,11 +136,17 @@ export async function detectProjectKinds(
   io: ProjectDetectIo = nodeProjectDetectIo,
 ): Promise<MakerProjectDetection> {
   const markers: MakerProjectMarker[] = []
-  const isCircuitPyRoot = pathModule(platform).basename(root).toUpperCase() === 'CIRCUITPY'
+  let isCircuitPyRoot = pathModule(platform).basename(root).toUpperCase() === 'CIRCUITPY'
+  try {
+    const label = await io.volumeLabel?.(root, platform)
+    if (label?.toUpperCase() === 'CIRCUITPY') isCircuitPyRoot = true
+  } catch {
+    // Missing optional OS metadata leaves basename and root boot-log evidence in force.
+  }
+  const pythonFiles: string[] = []
   const add = (kind: MakerProjectKind, name: string) => {
     markers.push({ kind, path: name })
   }
-  if (isCircuitPyRoot) add('circuitpython', '')
   const entries = io.files(root, MAKER_DETECT_MAX_FILES)[Symbol.asyncIterator]()
   try {
     for (let seen = 0; seen < MAKER_DETECT_MAX_FILES; seen += 1) {
@@ -154,7 +162,8 @@ export async function detectProjectKinds(
       )
         continue
       for (const kind of namedKinds(name)) add(kind, name)
-      if (isCircuitPyRoot && name.endsWith('.py')) add('circuitpython', name)
+      if (name.toLowerCase() === 'boot_out.txt') isCircuitPyRoot = true
+      if (name.endsWith('.py')) pythonFiles.push(name)
       if (!requiresSniff(name) || /(?:^|\/)(?:secrets\.ya?ml|settings\.toml)$/i.test(name)) continue
       const bytes = await io.read(root, name, MAKER_DETECT_MAX_BYTES)
       if (bytes === undefined || bytes.length > MAKER_DETECT_MAX_BYTES) continue
@@ -163,6 +172,10 @@ export async function detectProjectKinds(
     }
   } finally {
     await entries.return?.()
+  }
+  if (isCircuitPyRoot) {
+    add('circuitpython', '')
+    for (const name of pythonFiles) add('circuitpython', name)
   }
   const found = new Set(markers.map((marker) => marker.kind))
   const kinds = MAKER_PROJECT_KINDS.filter((kind) => found.has(kind))
