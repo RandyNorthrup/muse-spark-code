@@ -1,0 +1,27 @@
+[Unit]
+Description=Muse Spark Code Node (Unofficial)
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+# Replace both values after verifying the release signature and choosing the
+# LAN interface. Quadlet deliberately refuses this unconfigured image reference.
+Image=ghcr.io/randynorthrup/muse-spark-code-node@sha256:CHOOSE_VERIFIED_DIGEST
+ContainerName=muse-spark-code-node
+PublishPort=CHOOSE_LAN_ADDRESS:8443:8443
+ReadOnly=true
+NoNewPrivileges=true
+DropCapability=all
+AddCapability=chown setuid setgid setpcap
+Volume=muse-node-state.volume:/var/lib/muse-spark-code-node
+Volume=muse-node-workspaces.volume:/workspaces
+Tmpfs=/run:rw,nosuid,nodev,noexec,mode=0755
+Tmpfs=/tmp:rw,nosuid,nodev,mode=1777
+PodmanArgs=--log-driver=k8s-file --log-opt=max-size=10mb
+
+[Service]
+Restart=on-failure
+TimeoutStopSec=30
+
+[Install]
+WantedBy=default.target
