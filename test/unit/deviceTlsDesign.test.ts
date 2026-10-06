@@ -14,12 +14,12 @@ import { describe, expect, it } from 'vitest'
 function der(tag: number, ...parts: Buffer[]): Buffer {
   const value = Buffer.concat(parts)
   const size = value.length
-  const length =
-    size < 128
-      ? Buffer.from([size])
-      : size < 256
-        ? Buffer.from([0x81, size])
-        : Buffer.from([0x82, size >> 8, size & 0xff])
+  let length = Buffer.from([size])
+  if (size >= 128) {
+    const octets = [size & 0xff]
+    if (size >= 256) octets.unshift(size >> 8)
+    length = Buffer.from([0x80 | octets.length, ...octets])
+  }
   return Buffer.concat([Buffer.from([tag]), length, value])
 }
 function sequence(...parts: Buffer[]): Buffer {

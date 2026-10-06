@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { DEVICE_LIMITS } from '../../src/shared/constants'
+import {
+  DEVICE_LIMITS,
+  DEVICE_MODEL_TEXT,
+  DEVICE_MODEL_TEXT_READERS,
+} from '../../src/shared/constants'
 import {
   DEVICE_FAILURES,
   deviceArtifactManifestSchema,
@@ -147,6 +151,12 @@ function frame(body: DeviceFrame['body']): DeviceFrame {
 }
 
 describe('M100 public pairing contracts', () => {
+  it('declares only the explicit lazy device factory as a model-text reader', () => {
+    expect(DEVICE_MODEL_TEXT_READERS).toEqual(['dist/devices.js'])
+    expect(Object.keys(DEVICE_MODEL_TEXT)).toEqual(['deviceTaskContext', 'deviceApprovalWait'])
+    expect(DEVICE_MODEL_TEXT.deviceTaskContext).toContain('untrusted input')
+    expect(DEVICE_MODEL_TEXT.deviceApprovalWait).toContain('same durable attempt')
+  })
   it('keeps public invitations and bilateral confirmations separate from authority', () => {
     expect(deviceInvitationSchema.parse(invitation)).toEqual(invitation)
     expect(devicePairingConfirmationSchema.parse(confirmation)).toEqual(confirmation)

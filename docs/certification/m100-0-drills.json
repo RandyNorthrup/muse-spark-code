@@ -671,5 +671,15 @@
     ],
     "sha256": "44f224564b2cc9372046ea9e99902c6e0ba7ece7445109ebe698a71f332377cb",
     "restored": true
+  },
+  {
+    "guard": "model-text reader contract",
+    "file": "src/shared/constants.ts",
+    "exit": 1,
+    "failed": [
+      "test/unit/devices.test.ts > M100 public pairing contracts > declares only the explicit lazy device factory as a model-text reader"
+    ],
+    "sha256": "6074b276eee539721a0ac99c4d8e3ab0d6335463dac0b753e368665b92d9213c",
+    "restored": true
   }
 ]
