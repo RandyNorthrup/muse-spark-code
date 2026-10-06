@@ -30,9 +30,24 @@ VERSION_KEY=CFBundleShortVersionString
 # plutil reads JSON as well as property lists.
 VERSION="$(plutil -extract version raw -o - "$MANIFEST")"
 PLIST="$(mktemp -t muse-dictate-plist)"
-trap 'rm -f "$PLIST" "${OUTPUT}-arm64" "${OUTPUT}-x86_64"' EXIT
+BUILD_DIR="$(mktemp -d -t muse-dictate-build)"
+trap 'rm -f "$PLIST" "${OUTPUT}-arm64" "${OUTPUT}-x86_64"; rm -rf "$BUILD_DIR"' EXIT
 cp Info.plist "$PLIST"
 plutil -replace "$VERSION_KEY" -string "$VERSION" "$PLIST"
+
+# Swift requires top-level statements in main.swift with multiple sources.
+# Keep the existing dictation source intact; dispatch screen mode after its
+# responsibility relay and before the first speech/microphone request.
+awk '
+  /^let session = isCaptureMode/ { print "ScreenRecord.runIfRequested()"; routes++ }
+  { print }
+  END {
+    if (routes != 1) {
+      print "screen-recording dispatch anchor must appear exactly once" > "/dev/stderr"
+      exit 1
+    }
+  }
+' Dictation.swift > "$BUILD_DIR/main.swift"
 
 for arch in "${ARCHES[@]}"; do
   swiftc -Osize \
@@ -40,7 +55,7 @@ for arch in "${ARCHES[@]}"; do
     -Xlinker -dead_strip \
     -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker "$PLIST" \
     -o "${OUTPUT}-${arch}" \
-    Dictation.swift
+    "$BUILD_DIR/main.swift" ScreenRecord.swift
   strip -x "${OUTPUT}-${arch}"
 done
 

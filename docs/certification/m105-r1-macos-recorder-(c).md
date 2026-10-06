@@ -2,7 +2,8 @@
 
 Mac mini, 2026-10-06; branch `m105/r1`, base `386729cf`.
 Read the rig brief, common rules, AGENTS.md, PLAN D85 and M105 in full,
-media research §2/§6, and lane 0's capture/certification records.
+the media research record (especially §2/§6), and lane 0's
+capture/certification records.
 No network, live, paid or subscription calls; no credentials accessed;
 no privacy settings changed; no dependency added. No merge, rebase or push.
 
@@ -43,7 +44,8 @@ with E1/E2/E3/W, exactly as the lane table assigns them.
   protocol cap to named `SCREEN_RECORDING_*` constants in
   `src/shared/constants.ts`. Tested values: 30,000 ms, 30,000 ms and 4,096
   characters. Add the driver to lazy `dist/screenRecord.js`; keep startup
-  and deferred budgets unchanged. This lane does not edit lane 0/W files.
+  and deferred budgets unchanged. Add the permission-free native test runner
+  to macOS CI. This lane does not edit lane 0/W files.
 - **W generated host record:** `check:host-api` reports exactly the four
   Node import-count changes: node:buffer 39→40, node:fs/promises 47→48,
   node:path 84→85, node:string_decoder 1→2. Refresh the W-owned generated
@@ -52,9 +54,12 @@ with E1/E2/E3/W, exactly as the lane table assigns them.
   generator. List Attach screen recording, explicit sound choices,
   bounded duration, private preview/disposal and permission recovery in
   the integrated registry/reference and README. CHANGELOG should say:
-  “Added a portable macOS screen-recorder driver with bounded lifecycle,
-  private previews and permission recovery.” Do not advertise the command
-  before the entry-point/preview lanes are bound. The editor port is
+  “Added a macOS screen recorder using the operating system's H.264/AAC
+  encoders, with bounded lifecycle, private previews and permission recovery.” Do not advertise the command
+  before the entry-point/preview lanes are bound. Document the successfully
+  run native validation commands: `bash native/darwin/build.sh`,
+  `bash native/darwin/check-disclaim.sh --screen-only`, and
+  `bash test/native/darwin/run-screen-record.sh`. The editor port is
   shared by VS Code-family hosts, native MHP hosts and interactive ACP;
   remote hosts use the planned companion/file path; headless/tools refuse.
 
@@ -67,6 +72,14 @@ with E1/E2/E3/W, exactly as the lane table assigns them.
   after additional edge cases. Changed TypeScript ESLint and Prettier pass.
 - `node scripts/check-l10n.mjs`: 14 tables, 164 manifest strings,
   593 source files, **0 problems**.
+- `npm run deadcode` passes (two pre-existing knip configuration hints).
+  `npx jscpd` passes: 1,168 files, zero clones.
+- `npm run build` passes all size, split, host-global and notice gates:
+  extension 436.7/600 KiB, Model API 446.7/475, ACP 816.8/850,
+  wire 43.1/50, compressed English 49.2/125, checkpoint store 77.0/225;
+  **startup 898.9/900 KiB**, **deferred 49.7/50 KiB**. No cap was raised.
+  The new driver awaits W's lazy-bundle binding; these are the current
+  shipped bundles, not a claim that integrated screenRecord.js is gated.
 - Host API has the single generated-record deferral described above.
 - Full quality/coverage is reserved for the integrating lead by the common
   rig rules. No gate, rule, ignore, threshold, timeout or hook was weakened.
@@ -124,8 +137,167 @@ The later lint-only permission-mapping rewrite was re-drilled for both
 panes; those two runs also exit 1 with their respective recovery test and
 restore the final source SHA, recorded with the native completion below.
 
-## Native completion
+## Native helper delivered
 
-Native implementation and its synthetic tests are still being certified
-in the next local commit. Real Screen Recording/Microphone consent checks
-remain permission-gated; this record will list those checks precisely.
+`native/darwin/ScreenRecord.swift` adds `--record-screen` to the existing
+helper. The build generates a temporary `main.swift` dispatch after the
+existing M28 responsibility relay and before dictation's permission calls;
+it refuses a missing/duplicate insertion anchor. Dictation.swift is intact.
+The `--probe` mode proves dispatch in the disclaimed copy without requesting
+Screen Recording, Microphone or Speech Recognition permission. The usage
+strings describe screen contents, explicit microphone selection and preview.
+
+ScreenCaptureKit on macOS 12.3+ captures the main display. AVAssetWriter
+produces real-time H.264/mp4, with AAC only for the selected sound sources.
+System sound needs macOS 13+. Microphone PCM is retimed from the capture
+session's clock to ScreenCaptureKit's host clock, retaining per-sample timing.
+When both sources are selected, AVFoundation mixes them into one playable
+AAC soundtrack; neither source silently replaces the other. Static frames
+remain visible through the bounded recording duration. The OS indicator's
+Stop is a successful stop only for the exact ScreenCaptureKit domain/code.
+
+On macOS 12.0–12.2, fixed `/usr/sbin/screencapture -v -V … -D 1` captures
+and fixed `/usr/bin/avconvert` produces mp4. `-G` names the default input
+device only for explicitly selected microphone sound. It cannot capture
+system sound; that request refuses before permissions rather than silently
+recording a different source. Finishing capture enters the stopping phase
+before conversion, so a late Stop cannot interrupt avconvert. Child launch
+is injected into native tests; production directly runs the configured
+Foundation Process, with no shell or fake implementation.
+
+Both paths validate options and the owner-only output directory before
+permission requests, reject symlinks/overwrites, use umask 077, bound duration
+and file size, and return fixed protocol words. Screen denial prevents a
+microphone request; an unselected microphone never asks. Cancel, stdin EOF
+and signals discard partial output; the fallback kills and waits for its
+owned active child. The portable adapter's watchdog covers stuck permission,
+start and finalize operations, and its host port must kill the owned process
+tree if the native helper cannot finish.
+
+## Native validation
+
+Direct on macmini, macOS 15.7.4, Apple Swift 6.2.4. No installs or privacy
+changes. The synthetic suite compiles the production Swift file once and
+uses generated 32×32 frames and stereo PCM; all generated files are removed
+by the test runner's trap.
+
+- `bash test/native/darwin/run-screen-record.sh` passes with **111 PASS
+  assertions** (including repeated pixel-allocation checks). It encodes silent,
+  system-only, microphone-only and both-source H.264/AAC mp4; reads actual
+  track codecs/container brands; decodes the mixed AAC and detects both
+  440 Hz and 880 Hz tones; runs the real avconvert against synthetic media;
+  refuses empty/final oversized output; proves private-path/argument and
+  permission order; checks OS Stop classification; verifies microphone
+  sample timing and static-screen duration; exercises actual native duration
+  and size timers with a test-only clock; and covers the late-Stop transition.
+  No screen capture, audio input, transcription or network dispatch occurs.
+- `bash native/darwin/build.sh` passes: universal arm64/x86_64, minimum
+  macOS 12.0, `-Osize`, dead stripping, embedded version **0.14.0** matching
+  package.json. `codesign --verify --strict` passes. Both slices weak-link
+  ScreenCaptureKit (`LC_LOAD_WEAK_DYLIB`), allowing the older-OS fallback.
+  Embedded screen/microphone purpose strings verified. Helper size:
+  **437,280 bytes**, raw ZIP-style Deflate payload **150,532 bytes**; this
+  is a payload measurement, not a complete packaged VSIX certification.
+- `bash native/darwin/check-disclaim.sh --screen-only` passes: exact helper
+  responsibility frame from the disclaimed copy, with no permission request.
+  Calling `--record-screen` with missing options returns only the fixed
+  invalidOptions frame and exit 2 before TCC. No screen is captured.
+- `bash -n` passes for build.sh, check-disclaim.sh and run-screen-record.sh;
+  `plutil -lint native/darwin/Info.plist` passes.
+
+## Native red drills
+
+Each mutation runs the complete native suite (or the named build/probe
+check), sees the named failure, and restores original bytes in finally with
+SHA-256 equality. The first AAC→ALAC mutation kept AAC-only bitrate settings
+and aborted without a named assertion; it is not counted. Repeating with
+valid ALAC settings reaches and fails the actual AAC inspection assertion.
+HEVC alternatives at 32×32 and 128×128 fail at the named encoder append
+stage on this Intel rig (AVFoundation -12902), before codec inspection. The
+first named encoder refusal is counted; the second exploratory attempt is
+not. A negative H.264 codec-inspection assertion is therefore not claimed.
+No test, gate or production encoding requirement was weakened.
+
+| Guard broken                  | Named failing test                                        | Outcome           |
+| ----------------------------- | --------------------------------------------------------- | ----------------- |
+| argument count                | extra flag is refused                                     | 1; SHA restored   |
+| minimum seconds               | duration 0 is refused                                     | 1; SHA restored   |
+| maximum seconds               | duration 601 is refused                                   | 1; SHA restored   |
+| positive bytes                | byte cap 0 is refused                                     | 1; SHA restored   |
+| maximum bytes                 | byte cap 209715201 is refused                             | 1; SHA restored   |
+| explicit booleans             | explicit boolean --microphone                             | 1; SHA restored   |
+| absolute output               | relative output is refused                                | 1; SHA restored   |
+| directory kind                | regular-file output directory is refused                  | 1; SHA restored   |
+| directory owner               | foreign-owned output directory is refused                 | 1; SHA restored   |
+| directory mode                | public output directory is refused                        | 1; SHA restored   |
+| mp4 output extension          | non-mp4 output is refused                                 | 1; SHA restored   |
+| no overwrite or symlink       | dangling output symlink is refused                        | 1; SHA restored   |
+| screen permission             | screen denial has its recovery code                       | 1; SHA restored   |
+| microphone permission         | microphone denial has its recovery code                   | 1; SHA restored   |
+| microphone opt-in             | unselected microphone needs no permission                 | 1; SHA restored   |
+| fallback system audio refusal | fallback system audio is refused                          | 1; SHA restored   |
+| fallback input device         | missing fallback microphone is refused                    | 1; SHA restored   |
+| fallback microphone opt-in    | fallback microphone uses the explicit input device        | 1; SHA restored   |
+| OS stop error domain          | foreign errors do not become OS indicator Stop            | 1; SHA restored   |
+| OS stop error code            | permission denial is not OS indicator Stop                | 1; SHA restored   |
+| live size cap                 | native size cap stops the encoder                         | 1; SHA restored   |
+| native duration deadline      | native maximum stops without discarding                   | 1; SHA restored   |
+| final nonempty file           | native final-empty refuses finished output                | 1; SHA restored   |
+| final size cap                | native final-size refuses finished output                 | 1; SHA restored   |
+| H264 encoder                  | append silent.mp4 (AVFoundation -12902)                   | 132; SHA restored |
+| AAC encoder                   | AAC sound in system.mp4                                   | 1; SHA restored   |
+| mp4 container                 | mp4 rather than QuickTime brand in silent.mp4             | 1; SHA restored   |
+| empty writer refusal          | an empty encoder refuses success                          | 1; SHA restored   |
+| static frame maximum          | static screen duration is capped at the maximum           | 1; SHA restored   |
+| both sound sources mixed      | system sound survives mixing                              | 1; SHA restored   |
+| native fallback late Stop     | fallback completion protects conversion from late Stop    | 1; SHA restored   |
+| build dispatch anchor         | screen-recording dispatch anchor must appear exactly once | 1; SHA restored   |
+| disclaimed screen probe       | screen recording did not run in the disclaimed copy       | 1; SHA restored   |
+
+The 30 original native guards restore SHA-256
+`a16347de8be20ba1d3669a28f83323d0597ba89004d39882027dade2e3edcd39`.
+The late-Stop correction and its final drill restore native source
+`6d5fce1283dbeb62deaadf73748a98039354114c1ed33cf4e48ec6c75ead7e6b`.
+The build-anchor and probe drills restore respectively
+`abd4dc8d0a43dae044c15d2a5daf9f0bf4f8714dfab2e034191f77a43e336e65`
+and `af06f5a46dd57cb1bdcd23a3b9b925cf45eb9183fa1971f7fc614d620dfed8e1`.
+Final portable driver source is
+`0d5e1f68a643f7c15685ea45e2aef4ff8d51ccaa55b96252a9fcbc51e62083d1`.
+There are **70 successful red drill runs**: 35 original driver runs, two
+permission-mapping repeats, 30 original native runs, the late-Stop test and
+the build/probe checks. Non-firing/exploratory attempts are excluded.
+
+## Remaining permission-gated and integration checks
+
+The brief requires listing these without requesting access or changing
+privacy settings. They remain owed, and no live recorder certification is
+claimed:
+
+1. On macOS 13+, real main-display capture with sound off, microphone only,
+   system sound only, and both. Play the results and bind M1's real bounded
+   sniffer to prove each valid mp4, selected soundtrack and duration; verify
+   actual microphone/system synchronization and both-source playback.
+2. During real capture, Stop early, wait for the configured maximum, Stop
+   through the OS indicator, and leave the screen static. Verify the visible
+   countdown, OS indicator and helper process lifetime.
+3. Denied Screen Recording: the translated refusal, user-selected recovery
+   opens the exact pane, permission is granted under the helper's own name,
+   and retry succeeds. Denied Microphone when selected: corresponding
+   recovery and retry; with microphone off, prove no microphone prompt or
+   input capture. Do not use the test rig to revoke existing permissions.
+4. Cancel during real capture/finalization, close stdin and send signals;
+   verify no helper/capture/converter descendants or partial/private output
+   survive. Confirm the host process-tree kill port on a stuck permission
+   or encoder. Fake watchdog tests already pass.
+5. Real screencapture fallback on macOS 12.0–12.2: silent/microphone,
+   early Stop, maximum, valid mp4 after avconvert, cancellation and denied
+   permissions. System sound must refuse. This rig is 15.7.4: older-OS
+   testing is separately owed, not just permission-gated.
+6. The full pre-existing M28 `check-disclaim.sh` speech-permission/signal
+   drill. Only its new `--screen-only` check ran; dictation was not invoked.
+7. E1/E2/E3/W bind the named ports/lazy bundle and real preview Attach /
+   Discard, disposal after upload, between-turn authorization, model gate,
+   no-tool/headless recording refusal and every editor's fake matrix.
+   W owns integration docs, the generated host record and the full quality,
+   coverage, packaged VSIX/ACP budgets and final live receipts. Recording
+   itself is local/free; this lane makes zero model attempts or uploads.

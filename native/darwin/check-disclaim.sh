@@ -18,6 +18,18 @@ EXIT_REFUSED=2
 EXIT_SIGTERM=143
 WAIT_SECONDS=15
 
+# Screen mode shares the same relay. Its probe never asks macOS for access,
+# records nothing and proves the new dispatch precedes dictation permissions.
+SCREEN_PROBE="$(env -u MUSE_DICTATE_DISCLAIMED "$HELPER" --record-screen --probe)"
+if [ "$SCREEN_PROBE" != '{"responsibility":"helper","type":"available"}' ]; then
+  echo "screen recording did not run in the disclaimed copy" >&2
+  exit 1
+fi
+echo "screen-recording probe ran in the disclaimed copy without requesting access"
+if [ "${1:-}" = '--screen-only' ]; then
+  exit 0
+fi
+
 # stdin stays open (the pipe from sleep), so the helper does not quit on EOF.
 # The copy's marker is cleared, so only the helper itself can set it.
 sleep 60 | env -u MUSE_DICTATE_DISCLAIMED "$HELPER" --app-name "the disclaim check" > /dev/null 2> "$ERR" &
