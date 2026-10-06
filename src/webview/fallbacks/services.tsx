@@ -7,9 +7,18 @@ import { Picker } from './Picker'
 import { Input } from './Input'
 import { Toasts } from './Toasts'
 import { StatusStrip } from './StatusStrip'
+import { OpenExternal } from './OpenExternal'
 import './fallbacks.css'
 
-type UiMethod = 'ui/confirm' | 'ui/pick' | 'ui/input' | 'ui/notify' | 'ui/status' | 'ui/progress'
+type UiMethod =
+  | 'ui/confirm'
+  | 'ui/pick'
+  | 'ui/input'
+  | 'ui/notify'
+  | 'ui/status'
+  | 'ui/progress'
+  | 'ui/clipboard'
+  | 'ui/openExternal'
 type Handlers = {
   readonly [M in UiMethod]: (params: MhpParams<M>, signal?: AbortSignal) => Promise<MhpResult<M>>
 }
@@ -82,6 +91,30 @@ export function createFallbackUi(element: Element, onCommand: (id: string) => vo
     })
   }
   const handlers: Handlers = {
+    'ui/clipboard': async (params, signal) => {
+      signal?.throwIfAborted()
+      if (!('clipboard' in navigator)) throw new Error('MHP_UNSUPPORTED_CAPABILITY')
+      await navigator.clipboard.writeText(params.text)
+      return null
+    },
+    'ui/openExternal': async (params, signal) => {
+      const isOpened = await prompt<boolean>(
+        (done) => (
+          <OpenExternal
+            uri={params.uri}
+            onOpened={() => {
+              done(true)
+            }}
+            onCancel={() => {
+              done(null)
+            }}
+          />
+        ),
+        signal,
+      )
+      if (isOpened !== true) throw new Error('MHP_CANCELLED')
+      return null
+    },
     'ui/confirm': (params, signal) =>
       prompt((onResult) => <Confirm params={params} onResult={onResult} />, signal),
     'ui/pick': (params, signal) =>

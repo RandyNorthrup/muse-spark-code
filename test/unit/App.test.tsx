@@ -167,6 +167,19 @@ function textarea() {
   return screen.getByLabelText<HTMLTextAreaElement>('Message Muse')
 }
 
+/** Use a real DOM selection, including both endpoints, as browsers supply it. */
+function selectPassage(passage: Element, text: string): void {
+  const node = document.createTreeWalker(passage, NodeFilter.SHOW_TEXT).nextNode()
+  const selection = window.getSelection()
+  const offset = node?.textContent?.indexOf(text) ?? -1
+  if (node === null || selection === null || offset === -1) throw new Error('PASSAGE_NOT_FOUND')
+  const range = document.createRange()
+  range.setStart(node, offset)
+  range.setEnd(node, offset + text.length)
+  selection.removeAllRanges()
+  selection.addRange(range)
+}
+
 function storeWithSavedConversation(sessionId: string | undefined, title: string, answer: string) {
   const saved = webviewStateOf(
     {
@@ -2192,10 +2205,7 @@ describe('App chat references (M17)', () => {
     const postMessage = renderReady()
     reply('m1', 'Use pnpm because it is fast.')
     const passage = screen.getByText('Use pnpm because it is fast.')
-    vi.spyOn(window, 'getSelection').mockReturnValue({
-      toString: () => ' it is fast ',
-      anchorNode: passage,
-    } as unknown as Selection)
+    selectPassage(passage, 'it is fast')
     fireEvent.contextMenu(passage)
     fireEvent.click(screen.getByRole('menuitem', { name: 'Ask about this' }))
     expect(screen.getByText('Asking about: it is fast')).toBeInTheDocument()
@@ -2207,7 +2217,9 @@ describe('App chat references (M17)', () => {
         reference: { intent: 'question', role: 'assistant', entryId: 'm1', text: 'it is fast' },
       }),
     )
-    fireEvent.contextMenu(passage)
+    const selectedAgain = screen.getByText('Use pnpm because it is fast.')
+    selectPassage(selectedAgain, 'it is fast')
+    fireEvent.contextMenu(selectedAgain)
     fireEvent.click(screen.getByRole('menuitem', { name: 'Comment on this' }))
     fireEvent.click(screen.getByLabelText('Remove: Commenting on: it is fast'))
     expect(screen.queryByText('Commenting on: it is fast')).toBeNull()
@@ -2217,14 +2229,12 @@ describe('App chat references (M17)', () => {
     renderReady()
     reply('m1', 'plain')
     const passage = screen.getByText('plain')
-    const empty = vi
-      .spyOn(window, 'getSelection')
-      .mockReturnValue({ toString: () => '', anchorNode: passage } as unknown as Selection)
+    window.getSelection()?.removeAllRanges()
     expect(fireEvent.contextMenu(passage)).toBe(false)
     expect(screen.getByRole('menuitem', { name: UI_TEXT.copyResponse })).toBeInTheDocument()
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
     expect(screen.queryByRole('menu')).toBeNull()
-    empty.mockReturnValue({ toString: () => 'plain', anchorNode: passage } as unknown as Selection)
+    selectPassage(passage, 'plain')
     expect(fireEvent.contextMenu(passage)).toBe(false)
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
     expect(screen.queryByRole('menu')).toBeNull()
@@ -2242,12 +2252,7 @@ describe('App: a right-click away from the selected text (the review of F2, P1)'
     reply('m1', 'Use pnpm.')
     reply('m2', 'Then run the tests.')
     const passage = screen.getByText('Use pnpm.')
-    vi.spyOn(window, 'getSelection').mockReturnValue({
-      toString: () => 'pnpm',
-      anchorNode: passage,
-      focusNode: passage,
-      isCollapsed: false,
-    } as unknown as Selection)
+    selectPassage(passage, 'pnpm')
     expect(fireEvent.contextMenu(screen.getByText('Then run the tests.'))).toBe(false)
     expect(screen.queryByRole('menu', { name: UI_TEXT.quoteMenuLabel })).toBeNull()
     expect(screen.getByRole('menuitem', { name: UI_TEXT.copyResponse })).toBeInTheDocument()
@@ -2258,12 +2263,7 @@ describe('App: a right-click away from the selected text (the review of F2, P1)'
     reply('m1', 'Use pnpm.')
     send('which one?')
     const passage = screen.getByText('Use pnpm.')
-    vi.spyOn(window, 'getSelection').mockReturnValue({
-      toString: () => 'pnpm',
-      anchorNode: passage,
-      focusNode: passage,
-      isCollapsed: false,
-    } as unknown as Selection)
+    selectPassage(passage, 'pnpm')
     fireEvent.contextMenu(screen.getByText('which one?'))
     expect(screen.queryByRole('menu')).toBeNull()
     // On the row that holds the text, the quote menu still opens (M17).
@@ -2306,10 +2306,7 @@ describe('App webview and UI state (M25)', () => {
     const postMessage = renderReady()
     reply('m1', 'Use pnpm because it is fast.')
     const passage = screen.getByText('Use pnpm because it is fast.')
-    vi.spyOn(window, 'getSelection').mockReturnValue({
-      toString: () => 'it is fast',
-      anchorNode: passage,
-    } as unknown as Selection)
+    selectPassage(passage, 'it is fast')
     fireEvent.contextMenu(passage)
     fireEvent.click(screen.getByRole('menuitem', { name: 'Copy' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'copyText', text: 'it is fast' })
