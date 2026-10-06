@@ -245,3 +245,55 @@ checks pass. The final plain owning-file run after all 65 mutations passes
 83/83 with the repository default timeout. Source SHA-256 matches the final
 drill restoration above. The ordinary early commit follows these checks;
 remaining static/build and hook receipts are appended after execution.
+
+## Final delivery receipts (Kubuntu, Node v24.18.0)
+
+Implementation commit **04df97c2f** ran ordinary serial lint-staged:
+ESLint `--fix`, Prettier and staged redacted gitleaks all passed. Gitleaks
+scanned 60.30 KB with no leaks. Husky's generated launcher and the existing
+`core.hooksPath=.husky/_` were already present; no hook/config changes or
+bypasses. The production source hash remained exactly the final drill hash
+after the hook. The tree was clean after the commit and production build.
+
+| Check                                                                                      | Final result                                                                                                                         |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| All-project typecheck; fresh final unit-project typecheck                                  | Exit 0                                                                                                                               |
+| Final source/test ESLint                                                                   | Exit 0, zero warnings                                                                                                                |
+| Explicit-file Prettier; staged whitespace                                                  | Exit 0                                                                                                                               |
+| Final owning Vitest file                                                                   | Exit 0, 83/83, default timeout, three-worker maximum                                                                                 |
+| Focused R coverage                                                                         | Exit 0, 100% statements/functions/lines, 99.22% branches; thresholds unchanged                                                       |
+| `JITI_FS_CACHE=0 npm run deadcode`                                                         | Exit 0, only existing vendor/axe-core configuration hints; disabling Jiti's filesystem cache avoids writing into shared node_modules |
+| Final `npx jscpd`                                                                          | Exit 0, 1,236 files, zero clones                                                                                                     |
+| `node scripts/check-l10n.mjs`                                                              | Exit 0, 14 tables, 164 manifest strings, 635 source files, zero problems                                                             |
+| `npm run check:host-api`                                                                   | Exit 0, 336 VS Code APIs, 32 vscode importers, 26 Node built-ins, 61 theme variables, zero problems; no generated-record change      |
+| `npm run cycles`                                                                           | Exit 0, 593 dependencies, no cycles                                                                                                  |
+| `npx dpdm --no-warning --no-tree --exit-code circular:1 -T src/core/resources/relocate.ts` | Exit 0, R's seven-module graph, no cycles                                                                                            |
+| `npm run build`                                                                            | Exit 0, every existing cap, bundle/model-text split, host-global check and 83-package notices                                        |
+
+Measured production artifacts:
+
+| Artifact                                 | Measured size / existing cap |
+| ---------------------------------------- | ---------------------------- |
+| Activation                               | 446.2 / 600 KiB              |
+| Model API                                | 449.4 / 475 KiB              |
+| ACP                                      | 837.9 / 850 KiB              |
+| Checkpoint store                         | 77.3 / 225 KiB               |
+| Shared English fallback, compressed      | 48.7 / 125 KiB               |
+| Webview startup including static imports | 894.8 / 900 KiB              |
+| Deferred webview JavaScript              | 49.7 / 50 KiB                |
+
+The existing governor bundle measures 61.0 KiB. Inspect all 39 generated
+Node/webview/ACP build metafiles with path separators normalized: none
+includes R's module. Thus this lane adds zero shipped/startup bytes on this
+base, and these sizes qualify the existing integration tree, not R's future
+joined bundle. W must bind/measure R with M100/C2, retain the lazy boundary
+and every cap, and certify the end-to-end rows and two paired rigs. No new
+UI chunk is required by this pure-policy lane.
+
+Only the owned module, owning tests and this record differ from base.
+No other lane-owned source, shared string/manifest, gate, budget, dependency,
+setting, Git configuration or delivery document is edited. All required
+missing dependency/documentation/help bindings are named above; full quality
+is left to the lead as the explicit rig brief requires. The final receipt
+commit uses the same normal hooks and explicit-path staging. No merge,
+rebase or push occurs.
