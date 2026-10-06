@@ -73,6 +73,7 @@
     // The fake stdio MCP server the M50 tests start as a child process.
     "test/unit/helpers/fakeMcpServer.mjs",
     "test/unit/helpers/fakeLsp.ts",
+    "test/unit/helpers/failingProcessTable.ts",
     "test/unit/helpers/supervisorParent.ts",
     "test/unit/helpers/runtimeLspParent.ts",
     // A bounded orphan-child process drill, launched by path at runtime.

@@ -6780,7 +6780,9 @@ Decisions:
 
 - **Q-M104L-CONTROLLER (2026-10-05).** The required release and C merges
   contain the M94 engine and authenticated companion transport, but no B
-  panel/controller runtime and no `panel` CLI. No local B ref is available.
+  panel/controller runtime and no `panel` CLI. The final audit reads local
+  `m104/b` (`584cd637`): its registry lifecycle step is available, but its
+  certification explicitly leaves runtime/panel composition in progress.
   Which reviewed composition ref supplies review/verify diagnostics and
   the open-panel/Fix/Explain command port? L implements and tests the LSP
   service boundary; production advertises no review provider and refuses
@@ -18920,6 +18922,12 @@ LSP request failures use the standard unknown-method and not-initialized
 codes; missing controller failures name the fixed availability word. The
 client transport preserves only the validated numeric failure code as its
 error cause, never raw peer diagnostic text.
+If the guardian cannot read a fresh process table, it fails without signalling
+an unverified PID/group. A fake process-table failure proves this boundary;
+cleanup during that failure remains explicitly unqualified.
+The independent Stop tolerates an ownership record disappearing between the
+registry listing and open: that owner has already left. Other open failures
+still fail. A deterministic fake proves both sides of this race boundary.
 
 **Lane 0 status: MHP 1.1.0 adds the panel carrier (lead decision; E01).**
 The frozen `mhp/1.0.0` editor-service table, errors and snapshot remain

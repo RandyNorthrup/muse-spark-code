@@ -23,7 +23,7 @@ export const FEATURE_CATALOG = [
   {
     command: 'supervise <runtime arguments>',
     behavior:
-      'Run the installed runtime behind independent authenticated Stop control. POSIX guardian observes detached descendants; Windows uses the existing kill-on-close job launcher.',
+      'Run the installed runtime behind independent authenticated Stop control. POSIX guardian observes detached descendants and refuses unverified signals after a process-table failure; Windows uses the existing kill-on-close job launcher.',
   },
   {
     command: 'stop',

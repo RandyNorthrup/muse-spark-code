@@ -37,6 +37,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The POSIX guardian returns failure when it cannot verify current process
+  identities, without signalling an unverified group. Independent Stop also
+  tolerates an owner record disappearing during cleanup while preserving
+  other file errors.
+
 - Zed companion tasks select a known shell and quote each path and argument;
   ACP registration retains literal argv. Offline shell tests cover paths
   with spaces and metacharacters; native Zed/Windows qualification is pending.

@@ -8,6 +8,7 @@ import * as z from 'zod/mini'
 import { stopWorkspace } from '../../src/runtime/lsp/supervisor'
 import { isProcessAlive } from '../../src/host/checkpoints/windowPresence'
 import { removeFolder } from './helpers/temporaryFolders'
+import { withoutCredentials } from '../../src/runtime/credentialVariables'
 
 const folder = await mkdtemp(path.join(tmpdir(), 'muse-watchdog-'))
 const parentFile = path.join(folder, 'parent.js')
@@ -58,6 +59,52 @@ async function waitExited(pid: number) {
 
 // Windows uses the kill-on-close job instead, exercised by runtimeSupervisor.test.ts.
 describe.skipIf(process.platform === 'win32')('M104L independent POSIX guardian', () => {
+  it('fails without signalling a group when its current identities cannot be read', async () => {
+    const failing = path.join(folder, 'failing-watchdog.js')
+    const source = await readFile('src/runtime/lsp/watchdogEntry.ts', 'utf8')
+    const importSite = "import { execFile } from 'node:child_process'"
+    expect(source.split(importSite)).toHaveLength(2)
+    await build({
+      stdin: {
+        contents: source.replace(
+          importSite,
+          () =>
+            `import { execFile } from ${JSON.stringify(path.resolve('test/unit/helpers/failingProcessTable.ts'))}`,
+        ),
+        resolveDir: path.resolve('src/runtime/lsp'),
+        sourcefile: 'watchdogEntry.ts',
+        loader: 'ts',
+      },
+      outfile: failing,
+      bundle: true,
+      platform: 'node',
+      format: 'cjs',
+      target: 'node22',
+      logLevel: 'silent',
+    })
+    const root = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], {
+      detached: true,
+      stdio: 'ignore',
+      env: withoutCredentials(process.env),
+    })
+    const guard = spawn(process.execPath, [failing, String(process.pid)], {
+      stdio: ['pipe', 'ignore', 'ignore'],
+      env: withoutCredentials(process.env),
+    })
+    try {
+      if (root.pid === undefined) throw new Error('no owned fixture PID')
+      const ended = new Promise<number | null>((resolve) => {
+        guard.once('close', resolve)
+      })
+      guard.stdin.end(`${JSON.stringify({ pid: root.pid })}\n`)
+      expect(await ended).toBe(1)
+      await pause(100)
+      expect(isProcessAlive(root.pid)).toBe(true)
+    } finally {
+      guard.kill('SIGKILL')
+      root.kill('SIGKILL')
+    }
+  })
   it.each(['stop', 'ownerKilled'])(
     'reaps a busy root and detached descendant after %s',
     async (ending) => {

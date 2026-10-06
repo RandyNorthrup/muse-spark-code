@@ -114,7 +114,7 @@ async function stop(): Promise<void> {
     }
   } catch {
     state.isFailed = true
-    if (state.root !== undefined) kill(-state.root)
+    // No fresh identity table: do not signal a potentially recycled PID/group.
   }
   process.exitCode = state.isFailed ? 1 : 0
   process.stdin.destroy()

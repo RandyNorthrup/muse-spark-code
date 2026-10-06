@@ -1,4 +1,5 @@
 import { mkdtemp, readFile, readdir, stat, writeFile } from 'node:fs/promises'
+import * as fs from 'node:fs/promises'
 import { createConnection } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -8,6 +9,8 @@ import { superviseRuntime, stopWorkspace } from '../../src/runtime/lsp/superviso
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { workspaceKey } from '../../src/runtime/dataFolder'
 import { removeFolder } from './helpers/temporaryFolders'
+
+vi.mock('node:fs/promises', async (importOriginal) => ({ ...(await importOriginal<typeof fs>()) }))
 
 const directory = await mkdtemp(path.join(tmpdir(), 'muse-supervisor-test-'))
 afterAll(() => removeFolder(directory))
@@ -53,6 +56,27 @@ function start(cwd: string, source: string, args: readonly string[] = []) {
 }
 
 describe('M104H2 runtime supervision', () => {
+  it('accepts a disappearing owner record but preserves other open failures', async () => {
+    const registry = path.join(directory, 'race-owners')
+    await fs.mkdir(registry)
+    const record = path.join(registry, `${workspaceKey(directory)}-race.json`)
+    await writeFile(record, '{}')
+    const opening = vi.spyOn(fs, 'open')
+    try {
+      opening.mockRejectedValueOnce(
+        Object.assign(new Error('fixture vanished'), { code: 'ENOENT' }),
+      )
+      await expect(stopWorkspace(registry, directory)).resolves.toBeUndefined()
+      expect(opening).toHaveBeenCalledWith(record, 'r')
+      opening.mockRejectedValueOnce(
+        Object.assign(new Error('fixture forbidden'), { code: 'EACCES' }),
+      )
+      await expect(stopWorkspace(registry, directory)).rejects.toThrow('fixture forbidden')
+    } finally {
+      opening.mockRestore()
+      await removeFolder(registry)
+    }
+  })
   it('parses Stop separately and refuses recursive supervisors', () => {
     expect(parseCommandLine(['stop'])).toEqual({ command: 'stop' })
     expect(parseCommandLine(['stop', 'extra'])).toMatchObject({ command: 'invalid' })

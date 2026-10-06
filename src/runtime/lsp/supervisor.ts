@@ -1,7 +1,16 @@
 // Independent process supervision: Stop never enters the model/request queue.
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
-import { chmod, mkdir, mkdtemp, open, readdir, rm, writeFile } from 'node:fs/promises'
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  open,
+  readdir,
+  rm,
+  writeFile,
+  type FileHandle,
+} from 'node:fs/promises'
 import { createConnection, createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -306,7 +315,14 @@ export async function stopWorkspace(registry: string, cwd: string): Promise<void
   for (let offset = 0; offset < owners.length; offset += RUNTIME_STOP.owners) {
     await Promise.all(
       owners.slice(offset, offset + RUNTIME_STOP.owners).map(async (file) => {
-        const handle = await open(path.join(registry, file), 'r')
+        let handle: FileHandle
+        try {
+          handle = await open(path.join(registry, file), 'r')
+        } catch (error: unknown) {
+          // The owner removes its private record when it finishes stopping.
+          if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return
+          throw error
+        }
         let owner: z.infer<typeof ownerSchema>
         try {
           const bytes = Buffer.alloc(RUNTIME_STOP.recordBytes + 1)
