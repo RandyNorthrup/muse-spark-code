@@ -756,14 +756,6 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       maximum: source.EXEC_MAX_TIMEOUT_SECONDS,
       unit: 'seconds',
     },
-    // M112: 0 never defers; 1 to the minimum are read as the minimum.
-    'questions-defer-after': {
-      default: source.QUESTION_DEFER_DEFAULT_SECONDS,
-      minimum: 0,
-      raisedTo: source.QUESTION_DEFER_MIN_SECONDS,
-      maximum: source.QUESTION_DEFER_MAX_SECONDS,
-      unit: 'seconds',
-    },
     'max-budget-usd': {
       exclusiveMinimum: 0,
       maximum: source.EXEC_MAX_BUDGET_USD,
@@ -877,7 +869,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       errors.push('CLI timeout limit mismatch')
   for (const flag of ['--trust-workspace', '--allow-dangerously-skip-permissions', '--web-search'])
     if (exec([flag]).command !== 'invalid') errors.push(`CLI refusal mismatch: ${flag}`)
-  // The serve deadline's contract above is the parser's own normalization.
+  // referenceCliOptions['questions-defer-after'] states the parser's own normalization.
   const deferAfter = (value) =>
     source.parseCommandLine(['--questions-defer-after', String(value)]).options
       ?.questionsDeferAfterSeconds

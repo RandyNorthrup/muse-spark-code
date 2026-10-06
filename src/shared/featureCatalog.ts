@@ -724,5 +724,5 @@ const REFERENCE_DETAILS: Readonly<
   cache: ['referenceCache'],
   'custom-agents': ['referencePaidContexts'],
   'conversation-actions': ['referenceWindowsSessions'],
-  questions: ['referenceQuestionsDeferral', 'acpQuestionsHelp', 'acpAnswerHelp'],
+  questions: ['referenceQuestionsDeferral'],
 }

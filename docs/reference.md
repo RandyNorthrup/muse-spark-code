@@ -228,10 +228,6 @@ Choose and Submit an answer, explain in your own words, or Cancel. Muse receives
 
 In the panel, the attention dock pins each question above the composer, and the transcript keeps its card. After museSpark.questions.deferAfterSeconds (60 seconds by default; 0 waits indefinitely), Muse continues work that does not depend on the answer; the card becomes an open question that you can answer later or dismiss. A late answer is your own message and approves nothing. Next open question and Previous open question move between open cards. Scheduled prompts defer at once, and headless exec declines questions. In ACP, --questions-defer-after sets the form deadline, /questions lists open questions and /answer &lt;n&gt; &lt;text&gt; answers one.
 
-List the open questions in this conversation.
-
-Answer an earlier open question: /answer &lt;n&gt; &lt;text&gt;
-
 ```json
 {
   "actions": ["submit", "explain", "cancel"]
@@ -2610,7 +2606,7 @@ These are defaults; editor customizations take precedence.
 - `serve: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
-- `serve: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"default":60,"minimum":0,"raisedTo":10,"maximum":3600,"unit":"seconds"}`
+- `serve: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false}`
 - `serve: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `login: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
@@ -2623,7 +2619,7 @@ These are defaults; editor customizations take precedence.
 - `login: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
-- `login: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"default":60,"minimum":0,"raisedTo":10,"maximum":3600,"unit":"seconds","purpose":"acceptedUnused"}`
+- `login: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `login: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `login: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `setup: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
@@ -2636,7 +2632,7 @@ These are defaults; editor customizations take precedence.
 - `setup: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
-- `setup: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"default":60,"minimum":0,"raisedTo":10,"maximum":3600,"unit":"seconds","purpose":"acceptedUnused"}`
+- `setup: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `setup: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `setup: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `authSet: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
@@ -2649,7 +2645,7 @@ These are defaults; editor customizations take precedence.
 - `authSet: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `authSet: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"default":60,"minimum":0,"raisedTo":10,"maximum":3600,"unit":"seconds","purpose":"acceptedUnused"}`
+- `authSet: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authSet: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `authSet: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `authStatus: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
@@ -2662,7 +2658,7 @@ These are defaults; editor customizations take precedence.
 - `authStatus: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `authStatus: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"default":60,"minimum":0,"raisedTo":10,"maximum":3600,"unit":"seconds","purpose":"acceptedUnused"}`
+- `authStatus: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authStatus: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `authStatus: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `authClear: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
@@ -2675,7 +2671,7 @@ These are defaults; editor customizations take precedence.
 - `authClear: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `authClear: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"default":60,"minimum":0,"raisedTo":10,"maximum":3600,"unit":"seconds","purpose":"acceptedUnused"}`
+- `authClear: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authClear: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `authClear: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `exec: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"backend"}`

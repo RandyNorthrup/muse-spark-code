@@ -267,11 +267,7 @@
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
-      "details": [
-        { "ui": "referenceQuestionsDeferral" },
-        { "ui": "acpQuestionsHelp" },
-        { "ui": "acpAnswerHelp" }
-      ],
+      "details": [{ "ui": "referenceQuestionsDeferral" }],
       "facts": { "actions": ["submit", "explain", "cancel"] },
       "editors": ["vscode", "acp"]
     },
@@ -3366,15 +3362,7 @@
       "name": "serve: --questions-defer-after <value>",
       "description": "--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600",
       "text": { "cli": "questions-defer-after" },
-      "contract": {
-        "type": "string",
-        "repeatable": false,
-        "default": 60,
-        "minimum": 0,
-        "raisedTo": 10,
-        "maximum": 3600,
-        "unit": "seconds"
-      }
+      "contract": { "type": "string", "repeatable": false }
     },
     {
       "route": "serve",
@@ -3508,16 +3496,7 @@
       "name": "login: --questions-defer-after <value>",
       "description": "--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600",
       "text": { "cli": "questions-defer-after" },
-      "contract": {
-        "type": "string",
-        "repeatable": false,
-        "default": 60,
-        "minimum": 0,
-        "raisedTo": 10,
-        "maximum": 3600,
-        "unit": "seconds",
-        "purpose": "acceptedUnused"
-      }
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
     {
       "route": "login",
@@ -3645,16 +3624,7 @@
       "name": "setup: --questions-defer-after <value>",
       "description": "--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600",
       "text": { "cli": "questions-defer-after" },
-      "contract": {
-        "type": "string",
-        "repeatable": false,
-        "default": 60,
-        "minimum": 0,
-        "raisedTo": 10,
-        "maximum": 3600,
-        "unit": "seconds",
-        "purpose": "acceptedUnused"
-      }
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
     {
       "route": "setup",
@@ -3793,16 +3763,7 @@
       "name": "authSet: --questions-defer-after <value>",
       "description": "--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600",
       "text": { "cli": "questions-defer-after" },
-      "contract": {
-        "type": "string",
-        "repeatable": false,
-        "default": 60,
-        "minimum": 0,
-        "raisedTo": 10,
-        "maximum": 3600,
-        "unit": "seconds",
-        "purpose": "acceptedUnused"
-      }
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
     {
       "route": "authSet",
@@ -3941,16 +3902,7 @@
       "name": "authStatus: --questions-defer-after <value>",
       "description": "--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600",
       "text": { "cli": "questions-defer-after" },
-      "contract": {
-        "type": "string",
-        "repeatable": false,
-        "default": 60,
-        "minimum": 0,
-        "raisedTo": 10,
-        "maximum": 3600,
-        "unit": "seconds",
-        "purpose": "acceptedUnused"
-      }
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
     {
       "route": "authStatus",
@@ -4089,16 +4041,7 @@
       "name": "authClear: --questions-defer-after <value>",
       "description": "--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600",
       "text": { "cli": "questions-defer-after" },
-      "contract": {
-        "type": "string",
-        "repeatable": false,
-        "default": 60,
-        "minimum": 0,
-        "raisedTo": 10,
-        "maximum": 3600,
-        "unit": "seconds",
-        "purpose": "acceptedUnused"
-      }
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
     {
       "route": "authClear",
