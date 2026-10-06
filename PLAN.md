@@ -27908,6 +27908,16 @@ Total: about 100 lane-hours.
 
 ### M116 — The orchestrator playbook (D96)
 
+**U second-review repair (RVM116U2, 2026-10-06).** Fix the one P2:
+a successful rule save reconciles every changed settings field with the
+returned authoritative record, including an unedited round-limit selector.
+Reconcile before rendering enabled controls, retain drafts for fields whose
+durable values did not change, and keep the existing focus/live-result
+behavior. Regress saving Offload after another window changes the durable
+round limit and an unrelated rule. Record a named byte-exact red drill and
+scoped default-timeout checks in `docs/certification/m116-u.md`. No redesign,
+new dependency or widened guard is needed; P/I/W handoffs stay unchanged.
+
 **U review repairs (RVM116U, 2026-10-06).** Fix all three P2 findings in
 U's shared surfaces, with no review residuals: match transport replies on a
 random 128-bit bridge lifetime id, request counter and workspace id; use
@@ -28341,7 +28351,7 @@ anywhere joined it).
 
 ## 7. Gates
 
-**M116-U repair certification (RVM116U).** The rig brief reserves the full
+**M116-U repair certification (RVM116U/RVM116U2).** The rig brief reserves the full
 quality run for the lead and requires scoped local checks with default test
 timeouts. U does not change the inherited failing bundle/knip registration
 gates: W must register the three lazy playbook entries and the two harness
@@ -29560,6 +29570,13 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M116-U review repair (RVM116U2).** The second review's one P2 is fixed:
+  changed durable fields reconcile before enabled controls render, including
+  the round-limit selector after a rule save. No review residual is retained;
+  regression tests and byte-exact red-drill evidence are in
+  `docs/certification/m116-u.md`. Existing P/I/W integration handoffs below
+  remain open; no gate, budget or safety guard was widened.
 
 - **M116-U review repair (RVM116U).** All three P2 findings are fixed; none
   is retained as a review residual. Shared bridges require a caller-supplied

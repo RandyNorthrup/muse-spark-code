@@ -211,6 +211,69 @@ describe('M116 shared playbook surfaces', () => {
     expect(port.snapshot().settings.rules.smallFirst.enabled).toBe(true)
   })
 
+  it('reconciles every changed server field after saving a rule without enabling stale writes', async () => {
+    const port = surfacePort()
+    await openSettings(port)
+    const limit = screen.getByRole('combobox', { name: UI_TEXT.playbookPatchRoundsLabel })
+    const limitForm = limit.closest('form')
+    if (limitForm === null) throw new Error('missing limit form')
+    const limitSave = within(limitForm).getByRole('button')
+    expect(limit).toHaveValue('2')
+    await port.change({ patchRoundsMax: 1 })
+    await port.change({ rule: 'smallFirst', enabled: false, reason: 'concurrent maintenance' })
+    const change = vi.spyOn(port, 'change')
+    const form = offloadForm('maintenance')
+    fireEvent.submit(form)
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent(UI_TEXT.playbookSaved)
+    })
+    expect(limit).toHaveValue('1')
+    expect(limitSave).toHaveAttribute('aria-disabled', 'true')
+    for (const { rule, reason } of [
+      { rule: UI_TEXT.playbookRules.offload, reason: 'maintenance' },
+      { rule: UI_TEXT.playbookRules.smallFirst, reason: 'concurrent maintenance' },
+    ]) {
+      const savedForm = screen.getByRole('form', { name: new RegExp(rule, 'u') })
+      expect(within(savedForm).getByRole('checkbox')).not.toBeChecked()
+      expect(within(savedForm).getByRole('textbox')).toHaveValue(reason)
+      expect(within(savedForm).getByRole('button')).toHaveAttribute('aria-disabled', 'true')
+      fireEvent.submit(savedForm)
+    }
+    fireEvent.click(limitSave)
+    fireEvent.submit(limitForm)
+    expect(change).toHaveBeenCalledExactlyOnceWith({
+      rule: 'offload',
+      enabled: false,
+      reason: 'maintenance',
+    })
+    expect(port.snapshot().settings.patchRoundsMax).toBe(1)
+  })
+
+  it('preserves an edited round-limit draft when a rule save leaves its server value unchanged', async () => {
+    const port = surfacePort()
+    const change = vi.spyOn(port, 'change')
+    await openSettings(port)
+    const limit = screen.getByRole('combobox', { name: UI_TEXT.playbookPatchRoundsLabel })
+    const form = limit.closest('form')
+    if (form === null) throw new Error('missing limit form')
+    fireEvent.change(limit, { target: { value: '1' } })
+    fireEvent.submit(offloadForm('maintenance'))
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent(UI_TEXT.playbookSaved)
+    })
+    expect(port.snapshot().settings.patchRoundsMax).toBe(2)
+    expect(limit).toHaveValue('1')
+    const save = within(form).getByRole('button')
+    expect(save).toHaveAttribute('aria-disabled', 'false')
+    fireEvent.click(save)
+    await waitFor(() => {
+      expect(port.snapshot().settings.patchRoundsMax).toBe(1)
+      expect(save).toHaveAttribute('aria-disabled', 'true')
+    })
+    expect(change).toHaveBeenLastCalledWith({ patchRoundsMax: 1 })
+    expect(change).toHaveBeenCalledTimes(2)
+  })
+
   it('focuses the saved rule heading if the submitting control disappears', async () => {
     const snapshot = surfaceSnapshot()
     snapshot.settings.rules.offload = {

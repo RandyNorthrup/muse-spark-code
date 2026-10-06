@@ -116,6 +116,11 @@ function Settings({
 }) {
   const id = useId()
   const [limit, setLimit] = useState(snapshot.settings.patchRoundsMax)
+  const [savedLimit, setSavedLimit] = useState(snapshot.settings.patchRoundsMax)
+  if (savedLimit !== snapshot.settings.patchRoundsMax) {
+    setSavedLimit(snapshot.settings.patchRoundsMax)
+    setLimit(snapshot.settings.patchRoundsMax)
+  }
   return (
     <section aria-label={UI_TEXT.playbookSettings}>
       <h2>

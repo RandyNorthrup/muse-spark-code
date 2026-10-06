@@ -14,6 +14,8 @@ happened, not what was planned; superseded entries are kept.
 - Show owner failures and unresolved redesigns before warnings and review
   statistics in playbook badges and selected-agent details. Settings saves
   preserve other drafts, restore keyboard focus, and announce success politely.
+- Refresh changed playbook fields from each saved server record, including
+  another window's lowered round limit, so stale controls cannot overwrite it.
 
 ## [0.14.1] - 2026-10-05
 
