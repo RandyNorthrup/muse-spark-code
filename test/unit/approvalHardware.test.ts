@@ -190,6 +190,33 @@ describe('Muse Code guard over the real MSP transport', () => {
     }
   })
 
+  it.each([true, false])(
+    'R3F5: registered Stop sends allow once without any card, unattended=%s',
+    async (isUnattended) => {
+      const h = acpMspHost(() => ({
+        isUnattended,
+        targets: [{ address: 'https://printer.local', stop: '/printer/emergency_stop' }],
+      }))
+      h.server.handle('approval/decide', (params) => ({
+        commandId: params['commandId'],
+        terminal: true,
+      }))
+      try {
+        const { events } = await observeHardware(
+          h,
+          'curl -X POST https://printer.local/printer/emergency_stop',
+        )
+        await vi.waitFor(() => {
+          expect(h.server.requestsFor('approval/decide')).toHaveLength(1)
+        })
+        expect(h.server.requestsFor('approval/decide')[0]?.params?.['choiceId']).toBe('allow_once')
+        expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
+      } finally {
+        await h.host.close()
+      }
+    },
+  )
+
   it.each(['staged shell', 'typed tool'] as const)(
     'R2F7: %s binds every host target, including its second identity',
     async (kind) => {

@@ -8,6 +8,7 @@
 
 import { Buffer } from 'node:buffer'
 import { SessionHardwareGuard } from '../../maker/sessionGuard'
+import { isHardwareStop } from '../../maker/guard/hardwareCommands'
 import { hardwareApprovalMode, prepareHardwareTurn } from '../../maker/guard/shellPolicy'
 import type { HardwareContext } from '../../maker/guard/httpCommands'
 import { type Connection, MspError, ProtocolError } from '@muse-code/sdk'
@@ -941,6 +942,33 @@ export class MuseSession implements AgentSession {
         },
       )
       event = this.hardwareGuard.scrub(event, toolName)
+    }
+    if (
+      (event.type === 'approvalRequested' || event.type === 'approvalUpdated') &&
+      event.subject.kind === 'shell' &&
+      event.subject.command !== undefined &&
+      event.subject.stages === undefined &&
+      isHardwareStop(event.subject.command, 'bash', this.hardwareContext())
+    ) {
+      const stop = this.prompts.admit(event)
+      if (
+        stop !== undefined &&
+        (stop.type === 'approvalRequested' || stop.type === 'approvalUpdated')
+      ) {
+        const choice = stop.availableChoices.find(
+          (offered) => offered.decision === 'approved' && offered.scope === 'once',
+        )
+        if (choice !== undefined) {
+          void this.decideApproval({
+            approvalId: stop.approvalId,
+            requirementId: stop.requirementId,
+            choiceId: choice.choiceId,
+          }).catch(() => {
+            this.log.warn('Canonical Stop approval could not be delivered')
+          })
+        }
+      }
+      return
     }
     const admitted = this.prompts.admit(event)
     if (admitted === undefined) {
