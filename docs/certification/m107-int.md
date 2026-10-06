@@ -149,7 +149,7 @@ suite-failure accounting; this is not a passing/survived mutation. All
 restored complete files pass, including the actual runtime factory load.
 
 H's original terminal fixture set only XDG_DATA_HOME. On Windows that did
-not isolate LOCALAPPDATA, so earlier owning runs could write the numeric
+not isolate LOCALAPPDATA, so earlier owning runs wrote the numeric
 resume marker under the rig's default agent-data folder. The fixture now
 sets LOCALAPPDATA, USERPROFILE, HOME and XDG_DATA_HOME to its private
 temporary folder and checks the expected platform storage path. No outside
@@ -257,3 +257,20 @@ Detailed final command receipts remain in `temp/m107-int-gate-*.log`,
 `m107-int-gates.json`, `m107-int-cli-smoke.json` and the production metadata.
 No full quality, full unit/coverage, external network, live/paid call,
 credential read, dependency install or disk-lane implementation ran.
+
+## Local commit and hook receipt
+
+The three no-fast-forward merge commits are `b96676eb` (T2), `682a9784`
+(U) and `fa759459` (H). T2's five conflict files are CHANGELOG, PLAN,
+MuseSparkJob.cs, trees/linux.ts and trees/registry.ts, resolved as described
+above. U merges cleanly. H's PLAN conflicts retain both sides' M107,
+gate and residual-risk records. No additional branch merge or rebase.
+
+Repair commit `bd83af1c` stages only the explicit 30 paths. Its unchanged
+hook passes staged ESLint/Prettier and redacted gitleaks (62,035 staged
+bytes, zero leaks). The complete merged-file lint/format receipts also
+cover U's clean automatic merge, which uses Git's normal merge-hook path.
+A final redacted scan of `267b04dc2..bd83af1c` passes: ten reachable commits,
+400,728 bytes, zero leaks. All fourteen drill-source hashes still match
+after the hook. The worktree is clean after this repair commit; this final
+receipt is committed separately with the same hooks and co-author trailer.
