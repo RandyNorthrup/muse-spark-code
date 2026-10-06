@@ -7,6 +7,7 @@ import * as vscode from 'vscode'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
 import { loadGitApi, repositoryAt } from '../../src/host/git/gitExtension'
 import { processGitRunner } from '../../src/host/git'
+import { readSettings } from '../../src/host/settings'
 import type { Logger } from '../../src/host/logger'
 import { planMarkdownLoader } from '../../src/host/planMarkdownBundle'
 import type { AgentEvent } from '../../src/shared/agentEvents'
@@ -30,6 +31,17 @@ const FIXTURE_OVERRIDE = 'hideOnboarding'
 const RULES_HEADER = 'Muse Code reads this file as project rules when it runs in this directory.'
 const TAB_POLL_INTERVAL_MS = 50
 
+async function waitForDocument(target: vscode.Uri): Promise<void> {
+  const deadline = Date.now() + TAB_WAIT_TIMEOUT_MS
+  while (
+    vscode.window.activeTextEditor?.document.uri.toString() !== target.toString() &&
+    Date.now() < deadline
+  ) {
+    await new Promise((resolve) => setTimeout(resolve, TAB_POLL_INTERVAL_MS))
+  }
+  assert.equal(vscode.window.activeTextEditor?.document.uri.fsPath, target.fsPath)
+}
+
 // Tab groups update asynchronously after a webview panel is created, so a
 // direct read right after executeCommand races the UI.
 async function waitForTab(isMatch: (tab: vscode.Tab) => boolean): Promise<vscode.Tab> {
@@ -45,11 +57,16 @@ async function waitForTab(isMatch: (tab: vscode.Tab) => boolean): Promise<vscode
   }
   const labels = vscode.window.tabGroups.all.flatMap((group) => group.tabs.map((tab) => tab.label))
   throw new Error(
-    `no matching tab appeared within ${String(TAB_WAIT_TIMEOUT_MS)} ms; open: ${labels.join(', ')}`,
+    `no matching tab appeared within ${String(TAB_WAIT_TIMEOUT_MS)} ms; open: ${labels.join(', ')}; inputs: ${JSON.stringify(vscode.window.tabGroups.all.flatMap((g) => g.tabs.map((t) => ({ label: t.label, input: t.input }))))}`,
   )
 }
 
 suite('activation', () => {
+  let chatPanel: vscode.WebviewPanel | undefined
+  let isChatDisposed = false
+  const isArduino = () =>
+    vscode.extensions.getExtension('dankeboy36.vscode-arduino-api') !== undefined
+
   test('the extension is installed and activates', async () => {
     const extension = vscode.extensions.getExtension(EXTENSION_QUALIFIED_ID)
     assert.ok(extension, `extension ${EXTENSION_QUALIFIED_ID} not found`)
@@ -70,12 +87,24 @@ suite('activation', () => {
     // The fixture workspace overrides one window-scoped setting (next test).
     const defaults = Object.entries(SETTING_DEFAULTS).filter(([key]) => key !== FIXTURE_OVERRIDE)
     for (const [key, value] of defaults) {
-      assert.deepEqual(configuration.get(key), value, `default for ${key}`)
+      assert.deepEqual(configuration.inspect(key)?.defaultValue, value, `default for ${key}`)
     }
   })
 
   test('opens an Untitled chat panel in a new tab', async () => {
-    await vscode.commands.executeCommand(COMMAND_IDS.openInNewTab)
+    chatPanel = await vscode.commands.executeCommand<vscode.WebviewPanel>(COMMAND_IDS.openInNewTab)
+    assert.ok(chatPanel, 'the command returned the created panel')
+    chatPanel.onDidDispose(() => {
+      isChatDisposed = true
+    })
+    if (isArduino()) {
+      // This host omits webviews from tabGroups. Its panel lifecycle is the
+      // native API that can prove creation, visibility and in-place reuse.
+      assert.equal(chatPanel.viewType, CHAT_PANEL_VIEW_TYPE)
+      assert.equal(chatPanel.title, 'Untitled')
+      assert.equal(chatPanel.visible, true)
+      return
+    }
     const tab = await waitForTab(
       (candidate) =>
         candidate.input instanceof vscode.TabInputWebview &&
@@ -95,8 +124,18 @@ suite('activation', () => {
 
   test('a workspace cannot set the machine-scoped settings but sets the others (D15)', () => {
     const configuration = vscode.workspace.getConfiguration(SETTINGS_SECTION)
-    assert.equal(configuration.get('allowDangerouslySkipPermissions'), false)
-    assert.equal(configuration.get('museBinaryPath'), '')
+    const log: Logger = {
+      trace: () => undefined,
+      info: () => undefined,
+      warn: () => undefined,
+      error: () => undefined,
+    }
+    const settings = readSettings(configuration, log)
+    assert.equal(settings.allowDangerouslySkipPermissions, false)
+    assert.equal(
+      settings.museBinaryPath,
+      configuration.inspect('museBinaryPath')?.globalValue ?? '',
+    )
     assert.equal(configuration.inspect(FIXTURE_OVERRIDE)?.workspaceValue, true)
     assert.equal(configuration.get(FIXTURE_OVERRIDE), true)
   })
@@ -110,9 +149,30 @@ suite('activation', () => {
       const text = new TextDecoder().decode(await vscode.workspace.fs.readFile(target))
       assert.ok(text.startsWith('# AGENTS.md'), text.slice(0, 40))
       assert.ok(text.includes(RULES_HEADER), 'header line missing')
-      assert.equal(vscode.window.activeTextEditor?.document.uri.fsPath, target.fsPath)
+      await waitForDocument(target)
     } finally {
-      await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
+      const tabs = vscode.window.tabGroups.all
+        .flatMap((group) => group.tabs)
+        .filter(
+          (tab) =>
+            tab.input instanceof vscode.TabInputText &&
+            tab.input.uri.toString() === target.toString(),
+        )
+      if (tabs.length > 0) {
+        await vscode.window.tabGroups.close(tabs, true)
+      } else {
+        const editor = vscode.window.visibleTextEditors.find(
+          (shown) => shown.document.uri.toString() === target.toString(),
+        )
+        assert.ok(editor, 'the owned AGENTS.md editor is still visible')
+        // eslint-disable-next-line @typescript-eslint/no-deprecated -- Missing tab identities require the same exact-editor close API as the M103A2 production adapter; never close a focused chat panel.
+        editor.hide()
+        const deadline = Date.now() + TAB_WAIT_TIMEOUT_MS
+        while (vscode.window.visibleTextEditors.includes(editor) && Date.now() < deadline) {
+          await new Promise((resolve) => setTimeout(resolve, TAB_POLL_INTERVAL_MS))
+        }
+        assert.equal(vscode.window.visibleTextEditors.includes(editor), false)
+      }
       await vscode.workspace.fs.delete(target)
     }
   })
@@ -122,6 +182,15 @@ suite('activation', () => {
       vscode.window.tabGroups.all
         .flatMap((group) => group.tabs)
         .filter((tab) => tab.input instanceof vscode.TabInputWebview).length
+    if (isArduino()) {
+      assert.ok(chatPanel, 'a chat panel from the earlier test is open')
+      assert.equal(isChatDisposed, false)
+      await vscode.commands.executeCommand(COMMAND_IDS.newConversation)
+      assert.equal(isChatDisposed, false)
+      assert.equal(chatPanel.visible, true)
+      assert.equal(chatPanel.title, 'Untitled')
+      return
+    }
     const before = webviewTabs()
     assert.ok(before > 0, 'a chat panel from the earlier test is open')
     await vscode.commands.executeCommand(COMMAND_IDS.newConversation)

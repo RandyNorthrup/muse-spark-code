@@ -258,6 +258,7 @@ properties, and retain all existing caps. No new artifact or dependency.
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `dist/conversation.js`                | ≤ 250 KiB (ACTDIET: first chat surface, 216.0 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                                                         |
 | `dist/tab.js`                         | ≤ 75 KiB (M94: first request/menu; status/provider registration stays eager)                                                                                                                                                                                                                                                                                                                           |
+| `dist/verifyEditor.js`                | ≤ 25 KiB (M103A3: verification and local JSON diagnostics, first request only)                                                                                                                                                                                                                                                                                                                         |
 | `dist/extension.js`                   | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                                                                                                                                                                                                            |
 | `dist/modelApi.js`                    | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b; M91 brought it to 486.1 KiB, and moving the hook and MCP-form runtime and the imported records' reader out took it to 463.7 KiB, 466.8 KiB on 0.13.0, 2026-10-05: the cap held)                                                                                              |
 | `dist/review.js`                      | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                                                                                                                                                                                                        |
@@ -19023,6 +19024,64 @@ regression run and a byte-exact red drill in `docs/certification/m103-p.md`.
 Run focused gates directly on Win11; W retains the full quality, host-record
 and shipping qualification. No live devices, model calls or new dependencies.
 
+**Arduino host qualification follow-up (M103A2, 2026-10-05).** The real
+IDE 2.3.10 run (API 1.96, Node 20.14) returned 21/34 with 13 failures.
+This lane fixes shared adapters for machine-scoped settings (user/global
+values only even when Theia accepts workspace overrides), document opening,
+walkthroughs and language-provider commands. Native VS Code paths are kept
+where available. Qualification must observe webview panels through their
+actual lifecycle when the host omits them from `tabGroups`, retaining the
+same title, creation and in-place-clear assertions. Language support is
+qualified against the IDE's installed providers; any impossible capability
+requires an explicit host expectation, an actionable visible fallback and
+a recorded reason rather than a skipped test. All 34 cases run in the real
+IDE, followed by VS Code regressions for shared changes, the API-floor
+compiler, both unchanged VSIX budgets and byte-exact red drills. No model,
+credential or physical-device calls; the lead owns the full quality gate.
+Evidence: `docs/certification/m103-a2.md`.
+
+Arduino 2.3.10 ships JSON/C++ services but no TypeScript language definition
+or provider, and no public rename-provider commands. Do not invent semantic
+answers. The TypeScript compiler from the installed VS Code is 17 MiB
+uncompressed and cannot be added within the existing 2.15 MiB VSIX cap;
+a consented language-server acquisition belongs to D84/M104's broker. For
+this host, the same named tests must prove explicit no-service refusals,
+no rename writes and an actionable translated search/file fallback; the
+verify test must prove that an unprovided language remains unchecked,
+while retaining real JSON diagnostics/formatting assertions. Record this
+as a capability limit, not proof of full TypeScript parity. No provider is
+silently installed and no test is skipped. Native VS Code expectations
+remain unchanged.
+
+**JSON diagnostics completion (M103A3, 2026-10-05).** Feature-detect a
+missing diagnostic response for each JSON document at runtime, without host
+names. After the bounded native wait, provide positioned JSON syntax checks
+and the existing Muse permission-setting schemas through a DiagnosticCollection.
+Native reports take precedence; unsupported non-JSON languages remain explicitly
+unchecked. Keep confinement, cancellation, disk-text and cleanup guards. Defer
+the entire verification adapter until its first diagnostics/formatting request
+in `dist/verifyEditor.js`, with a 25 KiB budget under D6's measured-plus-margin
+rule; existing startup and package caps stay unchanged. All editor adapters can
+reuse the pure core parser; ACP/headless's broader language broker remains M104.
+Certify all 34 real Arduino tests and 19 owning native VS Code controls, prove
+native JSON reports do not duplicate, and disable the fallback for a two-failure
+real-IDE red drill followed by byte-exact restoration. No live/paid calls or
+physical-device access. The lane runs scoped checks; the lead retains aggregate
+quality/coverage. Evidence: `docs/certification/m103-a3.md`.
+
+**Review corrections (FIXM103A, 2026-10-05).** Resolve all four RVM103A
+findings within the existing parser, verification adapter and Arduino harness:
+preserve illegal empty JSONC members/elements, keep failed fallback admission
+unchecked despite an earlier empty event, stop active/queued diagnostics when
+the adapter is disposed, and reject empty discovery or incomplete host results.
+Each correction gets a failing-before regression and a deliberate guard-removal
+drill with byte-exact restoration. Repeat the 34-case Arduino and 19-case native
+VS Code packaged controls, both existing package/build gates and the 44-output
+cross-profile JavaScript comparison. No new dependency, host-name guard, model
+call, credential access or device access. Scoped lane gates only; aggregate
+quality/coverage remain with the lead under the rig brief. Record corrections
+and any named residual in `docs/certification/m103-a3.md` and §9.
+
 **Lanes and file ownership.** One integration branch
 (`feature/m103-makers`). Sub-milestone **f** is the maker editors (lanes A
 and T, and the Eclipse and JetBrains qualification rows); the owner has
@@ -19511,6 +19570,33 @@ Stop during real programming. Physical boards, GPIO electrical behavior,
 RF, power, timing, installed-editor paths and full quality remain required.
 The unchanged W-owned host API inventory is stale from P. Individual gates,
 versions, attempted fixes and receipts are in `docs/certification/m103-x.md`.
+
+**M103A3 (2026-10-05, macmini).** The rig brief forbids aggregate quality
+and assigns it to the lead. This lane runs focused files, compiler/lint gates,
+localization, host inventory, dead code, duplication, builds and both unchanged
+VSIX budgets. Real Arduino/native controls and failing fallback/gate controls
+are retained in `docs/certification/m103-a3.md`; no skip or timeout change.
+
+**M103A2 qualification (2026-10-05, macmini).** The lane brief assigns the
+complete quality/coverage gate to the lead; focused owning tests, all typechecks
+including the isolated 1.96 floor, lint, localization, host inventory, builds
+and both unchanged VSIX budgets run here. Arduino's missing TypeScript provider
+has explicit host expectations and translated search/read_file guidance, not
+invented semantic results. Native VS Code's live getCommands capture lists internal
+`_executeDocumentRenameProvider` / `_executePrepareRename` identifiers instead
+of the public API aliases. Availability checks include internal commands and
+recognize both forms, while actual dispatch stays on the public API aliases.
+Arduino's capture lists the same internal identifiers but rejects the public
+prepare alias. Skip only that captured exact missing-command error for the
+optional prepare; an absent execute alias becomes explicit no-service, and
+all genuine provider refusals/errors still propagate.
+JSON diagnostics still fail after document reveal
+and installed-provider activation attempts; stop that path under the brief's
+two-failed-fixes rule. Remove the ineffective activation attempt and retain
+both failing assertions. No timeout, skip or diagnostics expectation is
+relaxed. Qualification stays incomplete. The editor-specific clean temporary
+document close uses the deprecated but present TextEditor.hide only when the
+host omits tab identities; §8 records this bounded exception.
 
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
@@ -20455,6 +20541,24 @@ Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemg
 | `TAB_FILE_MAX_BYTES`, `TAB_SNOOZE_SHORT_MINUTES`, `TAB_SNOOZE_LONG_MINUTES`, `TAB_TRIGGER_MODES`, `TabTrigger`, `TAB_WITH_COPILOT_MODES`, `TabWithCopilot`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | H                                                                 | Remove after provider/status/settings consumers merge and W verifies production use.                                                                                                                                                                                                                      |
 | `TAB_HOOK_TIMEOUT_MS`, `TAB_HOOK_VERDICT_CACHE`, `TAB_EDIT_HOOK_QUEUE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | K                                                                 | Remove after the two Tab hooks merge and W verifies production use. No Knip configuration exception is added.                                                                                                                                                                                             |
 
+M103A3: `src/host/editor/verifyEditorBundle.ts` checks its same-build factory's
+object/function shape; TypeScript signatures are trusted only for this packaged
+module, as with the existing lazy bundle loaders. The collection mock in
+`test/unit/verifyEditor.test.ts` uses an inline-reason double assertion for only
+its called API methods. No product cast or suppression is added.
+
+Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
+
+| M103A2 location                         | Escape hatch                                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                          | Date       |
+| --------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/editor/verifyEditor.ts`       | Two `eslint-disable-next-line @typescript-eslint/no-deprecated` for `TextEditor.hide` | Arduino/Theia omits tab input identities. Its still-available editor-specific hide API closes only our new clean temporary editor, after recording whether its document was already open. Closing the active editor could close the user’s file. Native tabGroups.close remains preferred. Unit controls cover existing and dirty editors; the real IDE qualifies the fallback. | 2026-10-05 |
+| `src/host/editor/verifyEditorBundle.ts` | Same-build function signature trusted after object/function checks                    | The factory comes from the same build/package; failed or malformed modules reject and retry.                                                                                                                                                                                                                                                                                    | 2026-10-05 |
+| `test/unit/verifyEditor.test.ts`        | Inline-reason double assertion for DiagnosticCollection mock                          | Only set/get/delete/dispose operations the adapter calls are supplied; tests use the real API shape and real IDE controls.                                                                                                                                                                                                                                                      | 2026-10-05 |
+
+| M103A3 integration location          | Escape hatch                                                                      | Reason                                                                                                                                                                                                                                                                                   | Date       |
+| ------------------------------------ | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/integration/extension.test.ts` | `eslint-disable-next-line @typescript-eslint/no-deprecated` for `TextEditor.hide` | Arduino omits tab input identities. Cleanup locates the exact AGENTS.md editor this test created, hides only that editor and asserts it is gone; closing the active widget destroyed the chat panel before the reuse assertion in two real runs. Native tabGroups.close stays preferred. | 2026-10-05 |
+
 | M80 lane A location                      | Escape hatch                                   | Reason                                                                                                                                                                                                                                               | Date       |
 | ---------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `scripts/exec-schema.mjs`, `conditional` | `eslint-disable-next-line unicorn/no-thenable` | JSON Schema requires the literal `then` keyword for conditional validation. This object is serialized as data, never consumed as a Promise. Computed keys and `Object.fromEntries` also trigger the rule; the exception is limited to this property. | 2026-10-02 |
@@ -20794,6 +20898,22 @@ before a repaired one loads (2026-09-30).
   and cannot actuate a machine. Follow-up: explicitly defer that part of
   acceptance 24 at M103 integration or certify a separately bounded path;
   this lane does not claim the full item passed.
+
+- **FIXM103A (2026-10-05):** all four RVM103A findings are corrected; no
+  reviewed P2/P3 is deferred. The earlier absent-TypeScript capability limit
+  and lead-owned aggregate/Linux qualification remain as recorded in M103A3;
+  these corrections do not claim a language broker or release certification.
+- **FIXM103A-ARDUINO-RECHECK (qualification pending, 2026-10-05):** the
+  post-correction 34-case IDE run needs an allowed public application/cache
+  location. The only found IDE copy is in another lane's worktree; common.md
+  forbids touching it, and the asset-location/limited-copy question is pending.
+  Safe for review because no fresh Arduino qualification or release approval
+  is claimed: the previous 34/34 receipt is historical, while all correction
+  regressions, five byte-exact drills, 109 focused unit cases, native VS Code
+  19/19, compilers and unchanged artifact gates pass. Follow-up: after an
+  allowed asset location is supplied, run the complete packaged Arduino suite
+  with the private offline profile, require 34/34 and zero pending, retain its
+  receipt, and close this qualification residual.
 
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through

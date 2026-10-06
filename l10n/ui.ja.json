@@ -8,6 +8,10 @@
   "makerDetectCircuitPy": "このワークスペースは CIRCUITPY ドライブ上にあります。コードを保存するとボードが再起動することがあります。",
   "makerDetectMachineConfig": "機器の設定が検出されました。変更を適用する前に、加熱と移動範囲の制限を確認してください。",
   "makerDetectBoardRequired": "Arduino または Zephyr のビルドチェックを追加する前に、対象のボードを選択してください。",
+  "jsonExpectedComma": "カンマが必要です",
+  "jsonInvalidSyntax": "JSON の構文が無効です",
+  "jsonInvalidSetting": "{setting} の値が無効です",
+  "jsonVerificationUnavailable": "エディターの検証を利用できません。",
   "untitledConversation": "無題",
   "crashTitle": "パネルでエラーが発生しました",
   "crashDetail": "再読み込みするとパネルが再構築されます。会話はホストに保持されています。",
@@ -1553,7 +1557,7 @@
   "renameCardMore": {
     "other": "{files} ほか {count} 個のファイル"
   },
-  "codeIntelNoService": "{path} に応答した言語サービスがないか、このファイルがシンボルを宣言していません。",
+  "codeIntelNoService": "{path} に応答した言語サービスがないか、このファイルがシンボルを宣言していません。 代わりに search と read_file を使用してください。",
   "codeIntelTimedOut": "言語サービスが {seconds} 秒以内に応答しませんでした。",
   "repoMapNoService": "ワークスペースのシンボルに応答した言語サービスはありません。",
   "imageBuyTitle": "Muse が画像 {path} の作成を求めています",

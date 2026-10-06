@@ -71,6 +71,12 @@ export const DEFERRED = [
 // The Model API backend keeps its own copy of code intelligence.
 export const ON_FIRST_USE = [
   {
+    output: 'dist/verifyEditor.js',
+    metafile: 'dist/meta/verifyEditor.json',
+    use: 'the first diagnostics or formatting request',
+    files: ['src/host/editor/verifyEditor.ts', 'src/core/verify/jsonDiagnostics.ts'],
+  },
+  {
     output: 'dist/conversation.js',
     metafile: 'dist/meta/conversation.json',
     use: 'the first chat surface',

@@ -9,6 +9,52 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- An Arduino IDE 2.3.x VSIX variant of the same product, targeting VS Code API
+  1.96, Node 20.14 and Chromium 124, with an isolated older-API typecheck,
+  unchanged package and startup budgets, and side-load installation guidance.
+- A validated optional Arduino board-selection reader and an Arduino IDE
+  host job running every integration test. The first real IDE run loaded the
+  extension and passed 21 of 34 tests; 13 host compatibility failures remain
+  recorded, so Arduino qualification is incomplete.
+
+### Fixed
+
+- JSONC verification rejects missing members/elements rather than erasing
+  illegal commas. Stale editor text stays unchecked after an empty diagnostic
+  event, and disposing verification stops active and queued diagnostic reads.
+  Arduino qualification requires discovered tests and a fully passed receipt
+  with zero pending cases.
+
+- JSON verification supplies positioned local diagnostics when the host emits
+  no JSON report, publishes through the editor API, checks existing Muse
+  permission-setting schemas, and prefers native diagnostics without duplicates.
+  Verification and formatting now load on first use in a separate guarded
+  25 KiB bundle; existing startup and VSIX budgets remain unchanged.
+
+- Arduino IDE file reveals tolerate the measured Theia editor-notification
+  race. Temporary clean documents close through their own editor handle when
+  the host omits tab identities. Formatting validates the captured Monaco
+  edit shape and converts its one-based ranges to native Positions.
+- Semantic rename detects missing provider/prepare commands while retaining
+  VS Code providers listed by internal identifiers, with translated
+  search/read_file guidance when no language service answers. The real Arduino
+  follow-up passes 32/34 integration tests with explicit absent-TypeScript
+  expectations; two JSON diagnostics cases remain failing, so qualification
+  is incomplete.
+- Arduino qualification isolates CLI data/downloads and supports a public
+  cached offline run with external requests denied; runner logs survive a
+  slow IDE shutdown.
+
+
+- Hosts without the native walkthrough command get a local getting-started
+  page with sign-in guidance, shortcuts and chat/rules actions. File opening
+  passes the opened document to the editor API.
+
+- Machine-scoped settings are read from user/global configuration even in
+  hosts that accept repository overrides, preventing a workspace from
+  enabling Bypass, replacing the CLI or opting into paid features.
+
+
 - M103 lane D's portable maker project detector and catalogue gate: bounded,
   read-only project markers select relevant bundled maker skills, while
   ordinary workspaces keep the existing catalogue and request text. Optional

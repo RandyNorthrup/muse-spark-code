@@ -147,6 +147,13 @@ export const CONTEXT_KEYS = {
 } as const
 
 // Built-in VS Code commands the extension invokes.
+// Theia 1.57's reveal/visible-editor notification race (M103A2).
+export const EDITOR_REVEAL_MAX_MS = 2000
+export const EDITOR_REVEAL_POLL_MS = 50
+export const THEIA_SHOW_DOCUMENT_FAILURE = 'Failed to show text document '
+// Captured framework failure: M103A2 arduino-commands.json.
+export const UNREGISTERED_HOST_COMMAND = /^Command with id '([^']+)' is not registered\.$/
+
 export const VSCODE_COMMANDS = {
   focusActiveEditorGroup: 'workbench.action.focusActiveEditorGroup',
   setContext: 'setContext',
@@ -171,7 +178,9 @@ export const VSCODE_COMMANDS = {
   provideIncomingCalls: 'vscode.provideIncomingCalls',
   provideOutgoingCalls: 'vscode.provideOutgoingCalls',
   prepareRename: 'vscode.prepareRename',
+  prepareRenameInternal: '_executePrepareRename',
   executeDocumentRenameProvider: 'vscode.executeDocumentRenameProvider',
+  executeDocumentRenameProviderInternal: '_executeDocumentRenameProvider',
 } as const
 
 // Settings (package.json `contributes.configuration`). Keys are relative to
@@ -3702,6 +3711,8 @@ export const WORKSPACE_IDENTITY_ZERO = 0n
 // Measured in VS Code 1.139.1 and 1.125.0 (M68): JSON's first report came at
 // once, a cold TypeScript server's in about 1.6 s, and TypeScript's
 // semantic errors follow its syntax errors.
+export const VERIFY_EDITOR_BUNDLE_FILE = 'verifyEditor.js'
+export const JSON_DIAGNOSTICS_SOURCE = 'muse-spark-json'
 export const DIAGNOSTICS_SETTLE_FIRST_MS = 4000
 export const DIAGNOSTICS_SETTLE_QUIET_MS = 1500
 export const DIAGNOSTICS_SETTLE_MAX_MS = 10_000

@@ -411,6 +411,60 @@ Get it from the
 | **Zed**                                                  | Install the ACP agent (below), then add it to Zed's settings (below)                                                                                                                                                                               |
 | **Neovim, Emacs, JupyterLab**                            | Install the ACP agent (below), then follow [docs/acp.md](docs/acp.md#configure-the-editor) (CodeCompanion, agent-shell, Jupyter AI)                                                                                                                |
 
+#### Arduino IDE 2.3.x
+
+The experimental Arduino package ends in **`-arduino.vsix`**. It is the same Muse
+Spark Code (Unofficial) product, built for Arduino IDE's VS Code API 1.96,
+Node 20.14 and Chromium 124. Arduino supports themes officially; this full
+extension is an unsupported side-load. There is no extension store in the IDE.
+The macOS qualification run passes **34/34 integration tests** with the explicit
+TypeScript capability expectations described below. JSON diagnostics use a positioned local fallback when the host emits no report;
+VS Code's native reports stay preferred. The fallback also checks Muse permission
+settings using the schemas shipped with the extension, without downloading a
+language server. Verification loads only on first use. Arduino has no TypeScript
+language service: semantic tools explain that limitation and direct the model to
+search and read_file; diagnostics with no report stay explicitly unchecked.
+Run your project's check command before relying on diagnostics in this experimental
+host. See [the JSON completion record](docs/certification/m103-a3.md) and
+[the prior qualification record](docs/certification/m103-a2.md), including its
+explicit host expectations. Machine-scoped settings are read from user/global settings
+even when the IDE accepts a workspace override; a repository cannot enable
+Bypass or paid features, or replace the CLI.
+
+Quit Arduino IDE, unzip the asset, and copy its `extension/` directory to
+`~/.arduinoIDE/plugins/muse-spark-code/` (on Windows,
+`%USERPROFILE%\.arduinoIDE\plugins\muse-spark-code\`). Restart the IDE,
+then open **Muse Spark: Open in New Tab** from its command palette. Updating
+means replacing that directory while the IDE is closed; uninstalling means
+removing it. Keep your normal Muse Code sign-in or Model API key setup.
+
+The IDE's optional `vscode-arduino-api` provider supplies the selected sketch,
+FQBN and port. Reading that selection opens no device. Close the IDE's Serial
+Monitor before using another serial tool: it holds the port, and another
+window may hold it too. Hardware actions retain the shared maker approval
+policy when the maker lanes are integrated.
+
+Build the Arduino asset locally with these commands (Node 22 for tooling):
+
+```sh
+node scripts/typecheck-arduino.mjs
+node scripts/build.mjs --production --arduino
+node scripts/package-arduino.mjs
+```
+
+The typecheck installs pinned `@types/vscode` 1.96.0 into `temp/arduino-types/`
+and checks the shared host and integration sources without changing the
+regular project's declarations. Packaging runs the regular bundle-size,
+split, host-global, notices, localization and VSIX-size gates. The regular
+VS Code and ACP builds retain their existing floors. For offline maintainer
+qualification, the existing Arduino host runner accepts
+`MUSE_ARDUINO_OFFLINE_CACHE` pointing to a prior private test directory's
+public CLI cache. It copies only indexes, libraries and tools, isolates the
+new CLI directories, and denies external requests; it never copies account
+or credential files.
+
+#### ACP agent and editors
+
 **The ACP agent** needs Node.js 22 or later. Install it from the release:
 
 ```bash

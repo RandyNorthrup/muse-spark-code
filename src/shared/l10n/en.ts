@@ -28,6 +28,11 @@ export const EN = {
   makerDetectMachineConfig:
     'Machine configuration detected. Review heater and travel limits before deploying changes.',
   makerDetectBoardRequired: 'Choose a board target before adding an Arduino or Zephyr build check.',
+  jsonExpectedComma: 'Expected comma',
+  jsonInvalidSyntax: 'Invalid JSON syntax',
+  jsonInvalidSetting: 'Invalid value for {setting}',
+  jsonVerificationUnavailable: 'Editor verification is unavailable.',
+
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
   paidDailyLedgerUnavailable:
@@ -1234,7 +1239,8 @@ export const EN = {
     other: '{files} and {count} more files',
   }),
   // M67: the code intelligence rows when VS Code's language services cannot answer.
-  codeIntelNoService: 'No language service answered for {path}, or it declares no symbols.',
+  codeIntelNoService:
+    'No language service answered for {path}, or it declares no symbols. Use search and read_file instead.',
   codeIntelTimedOut: 'The language service did not answer within {seconds} seconds.',
   repoMapNoService: 'No language service answered for the workspace’s symbols.',
   // The paid-use popup before an image, on either backend (M34, M44, M58).

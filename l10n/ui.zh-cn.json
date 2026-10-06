@@ -8,6 +8,10 @@
   "makerDetectCircuitPy": "此工作区位于 CIRCUITPY 驱动器上。保存代码可能会重启开发板。",
   "makerDetectMachineConfig": "检测到机器配置。部署更改前，请检查加热和行程限制。",
   "makerDetectBoardRequired": "添加 Arduino 或 Zephyr 构建检查前，请选择目标开发板。",
+  "jsonExpectedComma": "应有逗号",
+  "jsonInvalidSyntax": "JSON 语法无效",
+  "jsonInvalidSetting": "{setting} 的值无效",
+  "jsonVerificationUnavailable": "编辑器验证不可用。",
   "untitledConversation": "未命名",
   "crashTitle": "面板出错了",
   "crashDetail": "重新加载会重建面板；对话由扩展主机保留。",
@@ -1553,7 +1557,7 @@
   "renameCardMore": {
     "other": "{files} 及另外 {count} 个文件"
   },
-  "codeIntelNoService": "没有语言服务对 {path} 作出响应，或者该文件未声明任何符号。",
+  "codeIntelNoService": "没有语言服务对 {path} 作出响应，或者该文件未声明任何符号。 请改用 search 和 read_file。",
   "codeIntelTimedOut": "语言服务未在 {seconds} 秒内响应。",
   "repoMapNoService": "没有语言服务对工作区符号作出响应。",
   "imageBuyTitle": "Muse 想要创建图片 {path}",

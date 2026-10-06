@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { permissionSettingsOf, readSettings, toSettingsSnapshot } from '../../src/host/settings'
-import { SETTING_DEFAULTS } from '../../src/shared/constants'
+import { MACHINE_SCOPED_SETTINGS, SETTING_DEFAULTS } from '../../src/shared/constants'
 import { FakeLogOutputChannel, fakeSettingsSource } from './helpers/fakes'
 
 /** `cleanupPeriodDays` as read from a settings source holding only this value. */
@@ -11,6 +11,29 @@ function retentionOf(value: unknown): number {
 }
 
 describe('readSettings', () => {
+  it('ignores workspace and folder overrides for every machine key on hosts that accept them', () => {
+    const inspected = { globalValue: undefined, defaultValue: undefined }
+    const settings = readSettings(
+      { get: () => 'workspace value', inspect: () => inspected },
+      new FakeLogOutputChannel(),
+    )
+    for (const key of MACHINE_SCOPED_SETTINGS) {
+      expect(settings[key], key).toEqual(SETTING_DEFAULTS[key])
+    }
+    expect(
+      readSettings(
+        { get: () => true, inspect: () => ({ globalValue: false }) },
+        new FakeLogOutputChannel(),
+      ).allowDangerouslySkipPermissions,
+    ).toBe(false)
+    expect(
+      readSettings(
+        { get: () => false, inspect: () => ({ globalValue: true }) },
+        new FakeLogOutputChannel(),
+      ).allowDangerouslySkipPermissions,
+    ).toBe(true)
+  })
+
   it('documents Best-of-N default availability consistently with the manifest and fallback', () => {
     const readme = readFileSync('README.md', 'utf8')
     expect(SETTING_DEFAULTS.modelApiBestOfN).toBe(true)

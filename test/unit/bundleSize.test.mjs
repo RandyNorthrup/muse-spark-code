@@ -69,6 +69,12 @@ describe('bundled What’s New content budget', () => {
       await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
     },
   )
+  it('rejects a verification bundle over its new 25 KiB cap', async () => {
+    statSync.mockImplementation((file) => ({
+      size: file === 'dist/verifyEditor.js' ? 25 * 1024 + 1 : 0,
+    }))
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+  })
 
   it('admits exactly 40 KiB of raw JSON', async () => {
     await import('../../scripts/check-bundle-size.mjs')

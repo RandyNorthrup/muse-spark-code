@@ -33,6 +33,8 @@ export async function stageVsix(root, stage) {
     if (!file.endsWith('.js')) continue
     if (!files.includes(file)) throw new Error(`Webview output excluded from VSIX: ${file}`)
   }
+  if (!files.includes('dist/verifyEditor.js'))
+    throw new Error('Editor verification bundle excluded from VSIX')
   if (!files.includes('dist/validation.js'))
     throw new Error('Shared validation runtime excluded from VSIX')
   rmSync(stage, { recursive: true, force: true })

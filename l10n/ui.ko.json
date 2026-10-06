@@ -8,6 +8,10 @@
   "makerDetectCircuitPy": "이 작업 공간은 CIRCUITPY 드라이브에 있습니다. 코드를 저장하면 보드가 다시 시작될 수 있습니다.",
   "makerDetectMachineConfig": "기계 구성이 감지되었습니다. 변경 사항을 적용하기 전에 가열 및 이동 범위 제한을 확인하세요.",
   "makerDetectBoardRequired": "Arduino 또는 Zephyr 빌드 검사를 추가하기 전에 대상 보드를 선택하세요.",
+  "jsonExpectedComma": "쉼표가 필요합니다",
+  "jsonInvalidSyntax": "잘못된 JSON 구문",
+  "jsonInvalidSetting": "{setting}의 값이 잘못되었습니다",
+  "jsonVerificationUnavailable": "편집기 검증을 사용할 수 없습니다.",
   "untitledConversation": "제목 없음",
   "crashTitle": "패널에서 오류가 발생했습니다",
   "crashDetail": "다시 로드하면 패널이 다시 빌드됩니다. 대화는 호스트에 보존됩니다.",
@@ -1553,7 +1557,7 @@
   "renameCardMore": {
     "other": "{files} 외 파일 {count}개"
   },
-  "codeIntelNoService": "{path}에 응답한 언어 서비스가 없거나 파일에 선언된 기호가 없습니다.",
+  "codeIntelNoService": "{path}에 응답한 언어 서비스가 없거나 파일에 선언된 기호가 없습니다. 대신 search와 read_file을 사용하세요.",
   "codeIntelTimedOut": "언어 서비스가 {seconds}초 안에 응답하지 않았습니다.",
   "repoMapNoService": "작업 영역 기호에 응답한 언어 서비스가 없습니다.",
   "imageBuyTitle": "Muse가 이미지 {path} 생성을 요청합니다",
