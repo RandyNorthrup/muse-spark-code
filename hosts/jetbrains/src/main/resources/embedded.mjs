@@ -1,6 +1,11 @@
 const areEqual = (left, right) => JSON.stringify(left) === JSON.stringify(right)
 const bytes = (value) => new TextEncoder().encode(JSON.stringify(value)).length
 const clone = (value) => structuredClone(value)
+// This compatibility boundary uses JSON wire semantics, including omitted undefined fields.
+const serializeForWire = (value) => {
+  const encoded = JSON.stringify(value)
+  return JSON.parse(encoded)
+}
 const matches = (schema, value, root = schema) => {
   if (typeof schema === 'boolean') return schema
   if (schema.$ref) {
@@ -16,7 +21,9 @@ const matches = (schema, value, root = schema) => {
   if (schema.anyOf && schema.anyOf.every((item) => !matches(item, value, root))) return false
   if (schema.oneOf && schema.oneOf.filter((item) => matches(item, value, root)).length !== 1)
     return false
-  const type = value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value
+  let type = typeof value
+  if (value === null) type = 'null'
+  else if (Array.isArray(value)) type = 'array'
   if (
     schema.type &&
     (schema.type === 'integer' ? !Number.isSafeInteger(value) : schema.type !== type)
@@ -138,6 +145,25 @@ Object.defineProperty(globalThis, 'installMuseHost', {
       },
     })
     Object.defineProperties(globalThis, {
+      __museTheme: {
+        value(css, isDark) {
+          const doc = globalThis.document
+          let style = doc.querySelector('#muse-theme')
+          if (!style) {
+            style = doc.createElement('style')
+            style.id = 'muse-theme'
+            style.nonce = config.nonce
+            doc.head.append(style)
+          }
+          style.textContent = css
+          const applyKind = () => {
+            doc.body.classList.toggle('vscode-dark', isDark)
+            doc.body.classList.toggle('vscode-light', !isDark)
+          }
+          if (doc.body) applyKind()
+          else doc.addEventListener('DOMContentLoaded', applyKind, { once: true })
+        },
+      },
       museHost: { value: api, configurable: false, writable: false },
       __museReceive: {
         value(payload, sequence) {
@@ -150,11 +176,16 @@ Object.defineProperty(globalThis, 'installMuseHost', {
         },
       },
     })
+    if (config.themeCss) globalThis.__museTheme(config.themeCss, config.dark)
     // A real compatibility adapter for the pre-lane-D panel bundle.
     Object.defineProperty(globalThis, 'acquireVsCodeApi', {
       value: () => {
         api.onMessage((data) => globalThis.dispatchEvent(new MessageEvent('message', { data })))
-        return { postMessage: api.postMessage, getState: api.getState, setState: api.setState }
+        return {
+          postMessage: (value) => api.postMessage(serializeForWire(value)),
+          getState: api.getState,
+          setState: (value) => api.setState(serializeForWire(value)),
+        }
       },
     })
   },

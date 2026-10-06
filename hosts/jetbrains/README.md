@@ -15,11 +15,16 @@ node --test hosts/jetbrains/test/embedded.test.mjs
 ```
 
 The ZIP in `hosts/jetbrains/build/distributions/` contains the shared panel,
-the frozen exported schemas, all 15 translated tables and generated chat,
+the frozen exported schemas, all 15 language tables and generated chat,
 Tasks and What's New pages. Install the ZIP through the IDE's plugin installer.
 The right-hand Muse Spark Code tool window starts the runtime in the project's
 directory. When JCEF is unavailable, the plugin requests the runtime's
 companion route instead.
+
+Native surfaces have tool-window, editor-tab and modeless-window placements.
+Native theme values cover every token consumed by the current shared CSS,
+with `--muse-` aliases for the forthcoming shared bridge. Commands, status
+widgets and progress indicators are scoped to the project and disposed with it.
 
 Native document reads use open buffers. Edits require workspace trust, a
 matching document version, a clean writable buffer and non-overlapping UTF-16
@@ -32,7 +37,13 @@ The plugin advertises only implemented native capability groups. Other groups
 use the fallbacks declared in the frozen contract, including runtime settings
 and storage, the React diff and terminal pages, and LSP code intelligence.
 
-This is a development artifact, not a supported Marketplace release. The
+The optional Gradle `privateIdePath` property selects a private copy of the
+pinned IDEA 2025.3.3 SDK, avoiding native test writes in Gradle's immutable
+cache. The `nativeUi=true` property runs the real JCEF and paid-dialog checks
+under Xvfb. The browser readiness check currently fails; see its stop record
+in the certification. Native Tab completions are also pending.
+
+This is a development artifact, not a usable or supported Marketplace release. The
 qualification evidence, F1–F56 coverage and outstanding integration work are
 in [the lane certification](../../docs/certification/m104-e.md). Distribution,
 signing, the all-IDE verifier matrix and end-to-end runtime qualification are

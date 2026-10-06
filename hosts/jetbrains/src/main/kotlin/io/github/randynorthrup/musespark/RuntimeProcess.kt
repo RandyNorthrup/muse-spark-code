@@ -1,5 +1,6 @@
 package io.github.randynorthrup.musespark
 
+import com.intellij.execution.configurations.GeneralCommandLine
 import java.io.Closeable
 import java.nio.file.Files
 import java.nio.file.Path
@@ -62,10 +63,14 @@ class RuntimeProcess private constructor(
     fun executable(
       path: String,
       name: String,
+      windows: Boolean = com.intellij.openapi.util.SystemInfo.isWindows,
     ): Path? =
       path.split(java.io.File.pathSeparatorChar).firstNotNullOfOrNull { directory ->
-        val candidate = Path.of(directory).resolve(name)
-        candidate.takeIf { Files.isRegularFile(it) && Files.isExecutable(it) }?.toAbsolutePath()
+        val names = if (windows) listOf("$name.exe", "$name.cmd", "$name.bat", name) else listOf(name)
+        names.firstNotNullOfOrNull { filename ->
+          val candidate = Path.of(directory).resolve(filename)
+          candidate.takeIf { Files.isRegularFile(it) && (windows || Files.isExecutable(it)) }?.toAbsolutePath()
+        }
       }
 
     fun start(
@@ -74,10 +79,12 @@ class RuntimeProcess private constructor(
       sourceEnvironment: Map<String, String>,
     ): RuntimeProcess {
       require(command.isNotEmpty() && Path.of(command.first()).isAbsolute) { "MHP_RUNTIME_NOT_FOUND" }
-      val builder = ProcessBuilder(command).directory(cwd.toFile())
-      builder.environment().clear()
-      builder.environment().putAll(environment(sourceEnvironment))
-      return RuntimeProcess(builder.start())
+      val builder =
+        GeneralCommandLine(command)
+          .withWorkDirectory(cwd.toFile())
+          .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.NONE)
+          .withEnvironment(environment(sourceEnvironment))
+      return RuntimeProcess(builder.createProcess())
     }
   }
 }

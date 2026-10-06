@@ -141,4 +141,18 @@ class MhpConnectionTest {
     assertEquals(boundary.errorCode("unsupportedCapability"), sent.last().getAsJsonObject("error")["code"].asInt)
     assertThrows(Exception::class.java) { connection.request("documents/list", json()) }
   }
+
+  @Test
+  fun boundsRetainedRequestBytesAndRejectsDuplicateIdsBeforeDispatch() {
+    initialize()
+    val prompt = "x".repeat(JsonBoundary().maximumFrameBytes / 2)
+    val params = json("title" to "Input fixture", "prompt" to prompt)
+    connection.receive(call("ui/input", params, "large-1"))
+    assertThrows(Exception::class.java) { connection.receive(call("ui/input", params, "large-1")) }
+    connection.receive(call("ui/input", params, "large-2"))
+    connection.receive(call("ui/input", params, "large-3"))
+    assertThrows(Exception::class.java) { connection.receive(call("ui/input", params, "large-4")) }
+    assertEquals(0, calls.size)
+    connection.close()
+  }
 }

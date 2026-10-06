@@ -18,6 +18,7 @@ import java.nio.file.Path
 import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import javax.swing.JLabel
@@ -42,8 +43,13 @@ class JetBrainsPanelHost(
   private val log = Logger.getInstance(JetBrainsPanelHost::class.java)
   private val boundary = JsonBoundary()
   private val budget = QueueBudget(boundary)
-  private val panels = mutableMapOf<String, EmbeddedPanel>()
-  private val bindings = mutableMapOf<String, PanelSurface>()
+  private val panels = ConcurrentHashMap<String, EmbeddedPanel>()
+  private val bindings = ConcurrentHashMap<String, PanelSurface>()
+  private val locations = ConcurrentHashMap<String, SurfaceLocation>()
+  private val placements = PanelPlacement(project, toolWindow)
+  private val lifetimeMonitor = Any()
+
+  @Volatile private var disposed = false
   private val locale = locale(Locale.getDefault().toLanguageTag())
   private var runtime: RuntimeProcess? = null
   private var pipe: MhpPipe? = null
@@ -59,7 +65,10 @@ class JetBrainsPanelHost(
         Thread(runnable, "Muse host request").apply { isDaemon = true }
       },
     )
-  private val loading = JPanel(BorderLayout()).apply { add(JLabel(uiText("connecting")), BorderLayout.CENTER) }
+  private val loading =
+    JPanel(BorderLayout()).apply {
+      add(JLabel(localizedText(this@JetBrainsPanelHost.locale, "connecting")), BorderLayout.CENTER)
+    }
 
   fun start() {
     toolWindow.contentManager.addContent(ContentFactory.getInstance().createContent(loading, PRODUCT_NAME, false))
@@ -68,7 +77,13 @@ class JetBrainsPanelHost(
         val environment = System.getenv()
         val executable =
           requireNotNull(
-            RuntimeProcess.executable(environment["PATH"] ?: "", "muse-spark-code-acp"),
+            RuntimeProcess.executable(
+              environment.entries
+                .firstOrNull {
+                  it.key.equals("PATH", ignoreCase = true)
+                }?.value ?: "",
+              "muse-spark-code-acp",
+            ),
           ) { "MHP_RUNTIME_NOT_FOUND" }
         val embedded = JBCefApp.isSupported()
         val cwd = Path.of(requireNotNull(project.basePath) { "MHP_WORKSPACE_NOT_FOUND" })
@@ -78,62 +93,86 @@ class JetBrainsPanelHost(
             cwd,
             environment,
           )
-        runtime = process
-        val services = NativeHostServices(project, ::surfaceRequest)
-        val dispatch =
-          object : EditorServices {
-            override val capabilities =
-              if (embedded) {
-                services.capabilities
-              } else {
-                services.capabilities.filter {
-                  it !=
-                    "surfaces"
-                }
-              }
-
-            override fun request(
-              method: String,
-              params: JsonObject,
-              cancellation: RequestCancellation,
-            ): JsonElement =
-              onEdt {
-                cancellation.check()
-                services.request(method, params, cancellation)
-              }
+        synchronized(lifetimeMonitor) {
+          if (disposed) {
+            process.close()
+            return@execute
           }
-        val mhp =
-          MhpConnection(
-            boundary,
-            dispatch,
-            executor,
-            ::send,
-            ::receivePanel,
-            ConnectionEvents({
-              onEdt {
-                if (embedded) open("chat", project.getService(PanelState::class.java).state.sessionId)
-                installEditorEvents(project, services, requireNotNull(connection), this)
-              }
-            }, ::diagnostic),
-          )
-        connection = mhp
-        pipe =
-          MhpPipe(process.process.inputStream, process.process.outputStream, boundary, mhp::receive, { code ->
-            diagnostic(code)
-            mhp.close()
-            SwingUtilities.invokeLater { failed(code) }
-          }, budget).also(MhpPipe::start)
-        process.drainStderr(::diagnostic)
+          runtime = process
+          attach(process, embedded)
+        }
       } catch (_: Exception) {
+        pipe?.close()
+        connection?.close()
+        runtime?.close()
         diagnostic("MHP_RUNTIME_START_FAILED")
         SwingUtilities.invokeLater { failed("MHP_RUNTIME_START_FAILED") }
       }
     }
   }
 
+  private fun attach(
+    process: RuntimeProcess,
+    embedded: Boolean,
+  ) {
+    val widgets = NativeWidgets(project, boundary) { id -> connection?.notify("commands/execute", json("id" to id)) }
+    Disposer.register(this, widgets)
+    val services = NativeHostServices(project, ::surfaceRequest, widgets)
+    NativeTheme.install(project, this) { if (!disposed) panels.values.forEach(EmbeddedPanel::updateTheme) }
+    val mhp =
+      MhpConnection(
+        boundary,
+        dispatch(services, embedded),
+        executor,
+        ::send,
+        ::receivePanel,
+        ConnectionEvents({
+          SwingUtilities.invokeLater {
+            if (!disposed) {
+              toolWindow.contentManager.contents.firstOrNull { it.component == loading }?.let {
+                toolWindow.contentManager.removeContent(it, true)
+              }
+              if (embedded) open("chat", project.getService(PanelState::class.java).state.sessionId, "side")
+              installEditorEvents(project, services, requireNotNull(connection), this)
+            }
+          }
+        }, ::diagnostic),
+      )
+    connection = mhp
+    pipe =
+      MhpPipe(process.process.inputStream, process.process.outputStream, boundary, mhp::receive, { code ->
+        diagnostic(code)
+        mhp.close()
+        SwingUtilities.invokeLater { if (!disposed) failed(code) }
+      }, budget).also(MhpPipe::start)
+    process.drainStderr(::diagnostic)
+  }
+
+  private fun dispatch(
+    services: NativeHostServices,
+    embedded: Boolean,
+  ): EditorServices =
+    object : EditorServices {
+      override val capabilities = services.capabilities.filter { embedded || it != "surfaces" }
+
+      override fun request(
+        method: String,
+        params: JsonObject,
+        cancellation: RequestCancellation,
+      ): JsonElement =
+        onEdt {
+          check(!disposed) { "MHP_TRANSPORT_CLOSED" }
+          cancellation.check()
+          services.request(method, params, cancellation)
+        }
+    }
+
   private fun failed(code: String) {
+    if (toolWindow.contentManager.contents.none { it.component == loading }) {
+      toolWindow.contentManager.addContent(ContentFactory.getInstance().createContent(loading, PRODUCT_NAME, false))
+    }
     loading.removeAll()
-    loading.add(JLabel(uiText("crashTitle") + ": " + code), BorderLayout.CENTER)
+    loading.add(JLabel(localizedText(locale, "crashTitle") + ": " + code), BorderLayout.CENTER)
     loading.revalidate()
     loading.repaint()
   }
@@ -145,15 +184,10 @@ class JetBrainsPanelHost(
     when (method) {
       "surfaces/open" -> {
         val session = params["sessionId"]?.asString ?: project.getService(PanelState::class.java).state.sessionId
-        json("surfaceId" to open(params["kind"].asString, session))
+        json("surfaceId" to open(params["kind"].asString, session, params["placement"].asString))
       }
       "surfaces/focus" -> {
-        val panel = requireNotNull(panels[params["surfaceId"].asString]) { "MHP_PANEL_UNKNOWN_SURFACE" }
-        toolWindow.contentManager.contents
-          .firstOrNull {
-            it.component == panel.component
-          }?.let(toolWindow.contentManager::setSelectedContent)
-        toolWindow.activate(null)
+        requireNotNull(locations[params["surfaceId"].asString]) { "MHP_PANEL_UNKNOWN_SURFACE" }.focus()
         jsonValue(null)
       }
       "surfaces/state" -> {
@@ -175,7 +209,10 @@ class JetBrainsPanelHost(
   private fun open(
     kind: String,
     session: String,
+    placement: String,
   ): String {
+    check(!disposed) { "MHP_TRANSPORT_CLOSED" }
+    require(panels.size < boundary.maximumQueuedMessages) { "MHP_PANEL_BACKPRESSURE" }
     val id = UUID.randomUUID().toString()
     val surface =
       PanelSurface(
@@ -192,21 +229,29 @@ class JetBrainsPanelHost(
     bindings[id] = surface
     val panel = EmbeddedPanel(surface, boundary, locale, ::diagnostic)
     panels[id] = panel
-    val content = ContentFactory.getInstance().createContent(panel.component, title(kind), false)
-    content.setDisposer {
-      panels.remove(id)
-      bindings.remove(id)
-      Disposer.dispose(panel)
+    panel.component.addHierarchyListener { event ->
+      if ((
+          event.changeFlags and
+            java.awt.event.HierarchyEvent.SHOWING_CHANGED
+              .toLong()
+        ) != 0L &&
+        !panel.component.isShowing
+      ) {
+        runCatching(surface::hidden).onFailure { diagnostic("MHP_PANEL_HIDDEN_REFUSED") }
+      }
     }
-    toolWindow.contentManager.addContent(content)
-    toolWindow.contentManager.setSelectedContent(content)
+    locations[id] =
+      placements.show(panel, surfaceTitle(locale, kind), placement) {
+        locations.remove(id)
+        bindings.remove(id)
+        panels.remove(id)?.let(Disposer::dispose)
+      }
     return id
   }
 
   private fun receivePanel(frame: JsonObject) {
     val id = frame["surface"].asString
-    val surface = synchronized(bindings) { bindings[id] } ?: error("MHP_PANEL_UNKNOWN_SURFACE")
-    runCatching { surface.receive(frame) }.onFailure { failure ->
+    runCatching { requireNotNull(bindings[id]) { "MHP_PANEL_UNKNOWN_SURFACE" }.receive(frame) }.onFailure { failure ->
       val code = failure.message?.takeIf { it in PANEL_ERRORS } ?: "MHP_PANEL_INVALID_PAYLOAD"
       val error =
         json(
@@ -232,25 +277,21 @@ class JetBrainsPanelHost(
     log.warn(code)
   }
 
-  private fun uiText(key: String): String =
-    JsonBoundary.parse(JsonBoundary.resource("/pages/ui.$locale.json")).asJsonObject[key].asString
-
-  private fun title(kind: String): String =
-    when (kind) {
-      "tasks" -> uiText("tasksTabTitle").replace("{conversation}", uiText("untitledConversation"))
-      "whatsNew" -> uiText("whatsNewTitle")
-      else -> PRODUCT_NAME
-    }
-
   override fun dispose() {
-    panels.values.toList().forEach(Disposer::dispose)
-    panels.clear()
-    bindings.clear()
-    connection?.close()
-    pipe?.close()
-    executor.shutdownNow()
-    runtime?.let { process -> AppExecutorUtil.getAppExecutorService().execute { process.close() } }
-    runtime = null
+    synchronized(lifetimeMonitor) {
+      if (disposed) return
+      disposed = true
+      locations.values.toList().forEach { location -> runCatching { Disposer.dispose(location) } }
+      locations.clear()
+      panels.values.toList().forEach(Disposer::dispose)
+      panels.clear()
+      bindings.clear()
+      connection?.close()
+      pipe?.close()
+      executor.shutdownNow()
+      runtime?.let { process -> AppExecutorUtil.getAppExecutorService().execute { process.close() } }
+      runtime = null
+    }
   }
 
   companion object {
@@ -277,8 +318,29 @@ class JetBrainsPanelHost(
     fun <T> onEdt(action: () -> T): T {
       if (ApplicationManager.getApplication().isDispatchThread) return action()
       var result: Result<T>? = null
-      ApplicationManager.getApplication().invokeAndWait({ result = runCatching(action) }, ModalityState.any())
+      ApplicationManager.getApplication().invokeAndWait({
+        result = runCatching(action)
+      }, ModalityState.defaultModalityState())
       return requireNotNull(result).getOrThrow()
     }
   }
 }
+
+private fun localizedText(
+  locale: String,
+  key: String,
+): String = JsonBoundary.parse(JsonBoundary.resource("/pages/ui.$locale.json")).asJsonObject[key].asString
+
+private fun surfaceTitle(
+  locale: String,
+  kind: String,
+): String =
+  when (kind) {
+    "tasks" ->
+      localizedText(
+        locale,
+        "tasksTabTitle",
+      ).replace("{conversation}", localizedText(locale, "untitledConversation"))
+    "whatsNew" -> localizedText(locale, "whatsNewTitle")
+    else -> JetBrainsPanelHost.PRODUCT_NAME
+  }

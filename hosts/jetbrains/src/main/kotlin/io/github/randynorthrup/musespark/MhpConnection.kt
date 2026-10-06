@@ -48,7 +48,14 @@ class MhpConnection(
   )
 
   private val outbound = ConcurrentHashMap<String, Pending>()
-  private val inbound = ConcurrentHashMap<String, RequestCancellation>()
+
+  private data class Incoming(
+    val cancellation: RequestCancellation,
+    val bytes: Int,
+  )
+
+  private val inbound = ConcurrentHashMap<String, Incoming>()
+  private val requestBudget = QueueBudget(boundary)
   private var negotiated = false
   private var closed = false
   private var nextId = 1L
@@ -93,7 +100,7 @@ class MhpConnection(
     require(method == "initialize" || negotiated) { "MHP_INCOMPATIBLE_VERSION" }
     require(definition["direction"].asString != "hostToRuntime") { "MHP_INVALID_REQUEST" }
     when (method) {
-      "$/cancelRequest" -> inbound[frame.getAsJsonObject("params")["id"].toString()]?.cancel()
+      "$/cancelRequest" -> inbound[frame.getAsJsonObject("params")["id"].toString()]?.cancellation?.cancel()
       "initialize" -> initialize(frame)
       else -> dispatch(frame, definition)
     }
@@ -107,7 +114,16 @@ class MhpConnection(
         compareVersion(range["maximumExclusive"].asString, PANEL_VERSION) > 0 &&
         compareVersion(range["maximumExclusive"].asString, MAXIMUM_VERSION) <= 0,
     ) { "MHP_INCOMPATIBLE_VERSION" }
-    reply("initialize", frame["id"], json("protocolVersion" to PANEL_VERSION, "capabilities" to services.capabilities))
+    sendMhpReply(
+      boundary,
+      send,
+      "initialize",
+      frame["id"],
+      json(
+        "protocolVersion" to PANEL_VERSION,
+        "capabilities" to services.capabilities,
+      ),
+    )
     negotiated = true
     events.initialized()
   }
@@ -118,9 +134,12 @@ class MhpConnection(
   ) {
     val method = frame["method"].asString
     val id = frame["id"] ?: error("MHP_INVALID_REQUEST")
-    require(inbound.size < boundary.maximumQueuedMessages) { "MHP_PANEL_BACKPRESSURE" }
+    require(!inbound.containsKey(id.toString())) { "MHP_DUPLICATE_REQUEST" }
+    val bytes = frame.toString().toByteArray(Charsets.UTF_8).size
+    require(bytes <= boundary.maximumFrameBytes) { "MHP_PANEL_TOO_LARGE" }
+    requestBudget.reserve(bytes)
     val cancellation = RequestCancellation()
-    require(inbound.putIfAbsent(id.toString(), cancellation) == null) { "MHP_DUPLICATE_REQUEST" }
+    inbound[id.toString()] = Incoming(cancellation, bytes)
     runCatching {
       executor.execute {
         try {
@@ -134,15 +153,15 @@ class MhpConnection(
                 services.request(method, frame.getAsJsonObject("params"), cancellation)
               }
             cancellation.check()
-            reply(method, id, result)
+            sendMhpReply(boundary, send, method, id, result)
           }.onFailure { sendMhpFailure(boundary, send, events, id, technicalCode(it)) }
         } finally {
-          inbound.remove(id.toString())
+          releaseIncoming(id.toString())
           if (method == "shutdown") close()
         }
       }
     }.onFailure {
-      inbound.remove(id.toString())
+      releaseIncoming(id.toString())
       sendMhpFailure(boundary, send, events, id, "MHP_INTERNAL_ERROR")
     }
   }
@@ -183,21 +202,19 @@ class MhpConnection(
     send(frame, null)
   }
 
-  private fun reply(
-    method: String,
-    id: JsonElement,
-    result: JsonElement,
-  ) {
-    val response = json("jsonrpc" to "2.0", "id" to id, "result" to result)
-    boundary.result(method, response)
-    send(response, null)
+  @Synchronized
+  private fun releaseIncoming(id: String) {
+    inbound.remove(id)?.let { requestBudget.release(it.bytes) }
   }
 
   @Synchronized
   override fun close() {
     if (closed) return
     closed = true
-    inbound.values.forEach(RequestCancellation::cancel)
+    inbound.values.forEach {
+      it.cancellation.cancel()
+      requestBudget.release(it.bytes)
+    }
     inbound.clear()
     outbound.values.forEach { it.future.completeExceptionally(IllegalStateException("MHP_TRANSPORT_CLOSED")) }
     outbound.clear()
@@ -258,4 +275,16 @@ private fun sendMhpFailure(
     )
   boundary.failure(frame)
   runCatching { send(frame, null) }.onFailure { events.diagnostic("MHP_TRANSPORT_WRITE_FAILED") }
+}
+
+private fun sendMhpReply(
+  boundary: JsonBoundary,
+  send: (JsonObject, String?) -> Unit,
+  method: String,
+  id: JsonElement,
+  result: JsonElement,
+) {
+  val response = json("jsonrpc" to "2.0", "id" to id, "result" to result)
+  boundary.result(method, response)
+  send(response, null)
 }

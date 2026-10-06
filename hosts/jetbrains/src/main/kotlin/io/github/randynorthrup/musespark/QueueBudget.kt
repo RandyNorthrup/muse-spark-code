@@ -9,7 +9,7 @@ class QueueBudget(
 
   @Synchronized
   fun reserve(size: Int) {
-    require(size >= 0 && messages < boundary.maximumQueuedMessages && bytes + size <= boundary.maximumQueuedBytes) {
+    require(size >= 0 && messages < boundary.maximumQueuedMessages && size <= boundary.maximumQueuedBytes - bytes) {
       "MHP_PANEL_BACKPRESSURE"
     }
     bytes += size

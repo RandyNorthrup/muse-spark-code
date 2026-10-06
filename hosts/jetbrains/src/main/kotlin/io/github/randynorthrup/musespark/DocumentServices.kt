@@ -39,13 +39,7 @@ class DocumentServices(
         json("document" to snapshot(file, document), "text" to document.text)
       }
       "documents/applyEdits" -> apply(params)
-      "documents/save" -> {
-        val (file, document) = document(params["uri"].asString)
-        require(trusted()) { "MHP_UNTRUSTED_WORKSPACE" }
-        require(document.modificationStamp == params["expectedVersion"].asLong) { "MHP_VERSION_CONFLICT" }
-        documents.saveDocument(document)
-        snapshot(file, document)
-      }
+      "documents/save" -> save(params)
       "documents/saveAll" -> {
         require(trusted()) { "MHP_UNTRUSTED_WORKSPACE" }
         // Do not save another project's buffers.
@@ -54,13 +48,7 @@ class DocumentServices(
         json("saved" to ours.none(documents::isDocumentUnsaved))
       }
       "editor/active" -> active()
-      "editor/open" -> {
-        val (file, document) = document(params["uri"].asString)
-        val start = params["range"]?.asJsonObject?.getAsJsonObject("start")
-        val offset = start?.let { offset(document, it) } ?: 0
-        FileEditorManager.getInstance(project).openTextEditor(OpenFileDescriptor(project, file, offset), true)
-        jsonValue(null)
-      }
+      "editor/open" -> open(params)
       "editor/insertAtCursor", "editor/replaceSelection" -> {
         val range =
           if (params.has("range")) {
@@ -79,6 +67,32 @@ class DocumentServices(
       }
       else -> error("MHP_METHOD_NOT_FOUND")
     }
+
+  private fun save(params: JsonObject): JsonElement {
+    val (file, document) = document(params["uri"].asString)
+    require(trusted()) { "MHP_UNTRUSTED_WORKSPACE" }
+    require(file.isWritable) { "MHP_PERMISSION_DENIED" }
+    require(document.modificationStamp == params["expectedVersion"].asLong) { "MHP_VERSION_CONFLICT" }
+    documents.saveDocument(document)
+    require(!documents.isDocumentUnsaved(document)) { "MHP_SAVE_FAILED" }
+    return snapshot(file, document)
+  }
+
+  private fun open(params: JsonObject): JsonElement {
+    val (file, document) = document(params["uri"].asString)
+    val range = params["range"]?.asJsonObject
+    val start = range?.getAsJsonObject("start")?.let { offset(document, it) } ?: 0
+    val end = range?.getAsJsonObject("end")?.let { offset(document, it) } ?: start
+    require(start <= end) { "MHP_INVALID_RANGE" }
+    val editor =
+      requireNotNull(
+        FileEditorManager.getInstance(project).openTextEditor(OpenFileDescriptor(project, file, start), true),
+      ) {
+        "MHP_EDITOR_UNAVAILABLE"
+      }
+    if (range != null) editor.selectionModel.setSelection(start, end)
+    return jsonValue(null)
+  }
 
   fun active(): JsonElement {
     val active =

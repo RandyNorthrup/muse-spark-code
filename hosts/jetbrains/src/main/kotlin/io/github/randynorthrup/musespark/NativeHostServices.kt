@@ -38,9 +38,20 @@ interface EditorServices {
 class NativeHostServices(
   private val project: Project,
   private val surfaces: (String, JsonObject) -> JsonElement,
+  private val widgets: NativeWidgets,
 ) : EditorServices {
   override val capabilities =
-    listOf("lifecycle", "workspace", "documents", "editor", "diagnostics", "ui", "surfaces", "window")
+    listOf(
+      "lifecycle",
+      "workspace",
+      "documents",
+      "editor",
+      "diagnostics",
+      "ui",
+      "surfaces",
+      "window",
+      "commands",
+    )
   val documents = DocumentServices(project) { TrustedProjects.isProjectTrusted(project) }
 
   override fun request(
@@ -53,9 +64,10 @@ class NativeHostServices(
       method.startsWith("surfaces/") -> surfaces(method, params)
       method.startsWith("workspace/") -> workspace(method, params)
       method.startsWith("ui/") -> ui(method, params, cancellation)
+      method == "commands/register" -> widgets.register(params)
       method == "diagnostics/get" -> diagnostics(params["uri"]?.asString)
       method == "window/state" ->
-        json("focused" to (KeyboardFocusManager.getCurrentKeyboardFocusManager().activeWindow != null))
+        json("focused" to focused())
       method == "window/attention" -> {
         notify(params["message"].asString, "information")
         jsonValue(null)
@@ -69,6 +81,12 @@ class NativeHostServices(
         json("uri" to DocumentServices.uri(it), "name" to it.name)
       },
     )
+
+  private fun focused(): Boolean {
+    val frame = WindowManager.getInstance().getFrame(project) ?: return false
+    val active = KeyboardFocusManager.getCurrentKeyboardFocusManager().activeWindow
+    return generateSequence(active) { it.owner }.any { it == frame }
+  }
 
   private fun workspace(
     method: String,
@@ -168,18 +186,28 @@ class NativeHostServices(
       }
       "ui/confirm" -> {
         val choices = params.getAsJsonArray("choices").map { it.asJsonObject }
-        val titles = choices.map { it["title"].asString }.toTypedArray()
+        val buttons =
+          choices
+            .map {
+              javax.swing.JButton(it["title"].asString).apply { putClientProperty("html.disable", true) }
+            }.toTypedArray()
         val pane =
           JOptionPane(
-            params["message"].asString,
+            plainMessage(params["message"].asString),
             JOptionPane.QUESTION_MESSAGE,
             JOptionPane.DEFAULT_OPTION,
             null,
-            titles,
+            buttons,
             null,
           )
+        buttons.forEachIndexed {
+          index,
+          button,
+          ->
+          button.addActionListener { pane.value = choices[index]["id"].asString }
+        }
         modal(pane, params["title"].asString, cancellation)
-        choices.getOrNull(titles.indexOf(pane.value))?.get("id") ?: jsonValue(null)
+        choices.firstOrNull { it["id"].asString == pane.value }?.get("id") ?: jsonValue(null)
       }
       "ui/pick" -> pick(params, cancellation)
       "ui/input" -> input(params, cancellation)
@@ -193,24 +221,10 @@ class NativeHostServices(
         CopyPasteManager.getInstance().setContents(StringSelection(params["text"].asString))
         jsonValue(null)
       }
-      "ui/status" -> {
-        WindowManager.getInstance().getStatusBar(project)?.info =
-          if (params["visible"].asBoolean) params["text"].asString else ""
-        jsonValue(null)
-      }
-      "ui/progress" -> progress(params)
+      "ui/status" -> widgets.status(params)
+      "ui/progress" -> widgets.progress(params)
       else -> error("MHP_METHOD_NOT_FOUND")
     }
-
-  private fun progress(params: JsonObject): JsonElement {
-    WindowManager.getInstance().getStatusBar(project)?.info =
-      if (params["done"].asBoolean) {
-        ""
-      } else {
-        params["title"].asString + (params["message"]?.asString?.let { ": $it" } ?: "")
-      }
-    return jsonValue(null)
-  }
 
   private fun pick(
     params: JsonObject,
@@ -218,6 +232,7 @@ class NativeHostServices(
   ): JsonElement {
     val items = params.getAsJsonArray("items").map { it.asJsonObject }
     val list = JList(items.map { it["title"].asString }.toTypedArray())
+    list.cellRenderer = javax.swing.DefaultListCellRenderer().apply { putClientProperty("html.disable", true) }
     list.selectionMode =
       if (params["multiple"].asBoolean) {
         ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
@@ -238,7 +253,7 @@ class NativeHostServices(
     cancellation: RequestCancellation,
   ): JsonElement {
     val pane =
-      JOptionPane(params["prompt"].asString, JOptionPane.QUESTION_MESSAGE, JOptionPane.OK_CANCEL_OPTION)
+      JOptionPane(plainMessage(params["prompt"].asString), JOptionPane.QUESTION_MESSAGE, JOptionPane.OK_CANCEL_OPTION)
     pane.wantsInput = true
     pane.initialSelectionValue = params["value"]?.asString ?: ""
     modal(pane, params["title"].asString, cancellation)
@@ -275,8 +290,11 @@ class NativeHostServices(
       .getInstance()
       .getNotificationGroup(
         NOTIFICATION_GROUP,
-      ).createNotification(message, type)
-      .notify(project)
+      ).createNotification(
+        com.intellij.openapi.util.text.StringUtil
+          .escapeXmlEntities(message),
+        type,
+      ).notify(project)
   }
 
   companion object {
@@ -284,3 +302,17 @@ class NativeHostServices(
     private const val MAXIMUM_FIND_FILES = 10_000L
   }
 }
+
+private fun plainMessage(text: String): JScrollPane =
+  JScrollPane(
+    javax.swing.JTextArea(text).apply {
+      isEditable = false
+      lineWrap = true
+      wrapStyleWord = true
+      columns = MODAL_COLUMNS
+      rows = lineCount.coerceAtMost(MODAL_ROWS)
+    },
+  )
+
+private const val MODAL_COLUMNS = 64
+private const val MODAL_ROWS = 12

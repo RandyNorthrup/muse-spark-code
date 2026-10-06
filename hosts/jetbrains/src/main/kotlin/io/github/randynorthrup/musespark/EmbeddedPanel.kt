@@ -33,6 +33,7 @@ class EmbeddedPanel(
   private val browser: JBCefBrowser
   private val query: JBCefJSQuery
   private val nonce = UUID.randomUUID().toString().replace("-", "")
+  private var themeCss = NativeTheme.css()
   private val policy =
     AssetPolicy(surface.id) { path ->
       when (path) {
@@ -57,7 +58,17 @@ class EmbeddedPanel(
             require(request["value"].isJsonNull)
             surface.subscribe()
           }
-          "post" -> surface.post(request["value"])
+          "post" -> {
+            val payload = request["value"]
+            boundary.payload(surface.kind, "toHost", payload)
+            if (payload.asJsonObject["type"]?.asString == "hostAction" &&
+              payload.asJsonObject["action"]?.asString == "reload"
+            ) {
+              reload()
+            } else {
+              surface.post(payload)
+            }
+          }
           "state" -> surface.savedState = request["value"]
           "delivered" -> {
             val value = request["value"]
@@ -83,12 +94,22 @@ class EmbeddedPanel(
     payload: JsonElement,
     sequence: Long,
   ) {
-    browser.cefBrowser.executeJavaScript("window.__museReceive($payload,$sequence)", policy.page, 0)
+    evaluate("window.__museReceive($payload,$sequence)")
   }
 
   fun reload() {
     surface.reload()
     browser.cefBrowser.reload()
+  }
+
+  fun updateTheme() {
+    themeCss = NativeTheme.css()
+    val encoded = jsonValue(themeCss).toString().replace("<", "\\u003c")
+    evaluate("window.__museTheme($encoded,${NativeTheme.dark()})")
+  }
+
+  internal fun evaluate(script: String) {
+    browser.cefBrowser.executeJavaScript(script, policy.page, 0)
   }
 
   private fun html(): String {
@@ -117,6 +138,9 @@ class EmbeddedPanel(
             .getAsJsonObject("embeddedBridge")
             .getAsJsonObject("setState")["state"],
         "limits" to boundary.panel["limits"],
+        "themeCss" to themeCss,
+        "nonce" to nonce,
+        "dark" to NativeTheme.dark(),
       )
     surface.savedState?.let { config.add("state", it) }
     val injection = query.inject("request", "onSuccess", "onFailure")
@@ -132,6 +156,10 @@ class EmbeddedPanel(
         policy.base,
       ).replace("__MUSE_NONCE__", nonce)
       .replace("__MUSE_BRIDGE__", safeScript)
+      .replace("<body", "<body data-host=\"embedded\"")
+      .let { html ->
+        if (html.contains("data-surface=")) html else html.replace("<body", "<body data-surface=\"${surface.kind}\"")
+      }
   }
 
   private fun installGuards() {
@@ -141,7 +169,7 @@ class EmbeddedPanel(
       object : CefRequestHandlerAdapter() {
         override fun onBeforeBrowse(
           browser: CefBrowser,
-          frame: CefFrame,
+          frame: CefFrame?,
           request: CefRequest,
           userGesture: Boolean,
           isRedirect: Boolean,
@@ -149,25 +177,25 @@ class EmbeddedPanel(
 
         override fun onOpenURLFromTab(
           browser: CefBrowser,
-          frame: CefFrame,
+          frame: CefFrame?,
           targetUrl: String,
           userGesture: Boolean,
         ): Boolean = true
 
         override fun getResourceRequestHandler(
           browser: CefBrowser,
-          frame: CefFrame,
+          frame: CefFrame?,
           request: CefRequest,
           isNavigation: Boolean,
           isDownload: Boolean,
-          requestInitiator: String,
+          requestInitiator: String?,
           disableDefaultHandling: BoolRef,
         ): CefResourceRequestHandlerAdapter {
           disableDefaultHandling.set(true)
           return object : CefResourceRequestHandlerAdapter() {
             override fun getResourceHandler(
               browser: CefBrowser,
-              frame: CefFrame,
+              frame: CefFrame?,
               request: CefRequest,
             ): CefResourceHandlerAdapter = Resource(policy.asset(request.url), policy.csp(nonce))
           }
@@ -179,7 +207,7 @@ class EmbeddedPanel(
       object : CefLifeSpanHandlerAdapter() {
         override fun onBeforePopup(
           browser: CefBrowser,
-          frame: CefFrame,
+          frame: CefFrame?,
           targetUrl: String,
           targetFrameName: String,
         ): Boolean = true
@@ -190,7 +218,7 @@ class EmbeddedPanel(
       object : CefContextMenuHandlerAdapter() {
         override fun onBeforeContextMenu(
           browser: CefBrowser,
-          frame: CefFrame,
+          frame: CefFrame?,
           params: org.cef.callback.CefContextMenuParams,
           model: org.cef.callback.CefMenuModel,
         ) {
@@ -229,7 +257,10 @@ class EmbeddedPanel(
       request: CefRequest,
       callback: CefCallback,
     ): Boolean {
-      callback.Continue()
+      // Remote JCEF must finish its resource RPC before the continuation RPC.
+      com.intellij.openapi.application.ApplicationManager
+        .getApplication()
+        .executeOnPooledThread { callback.Continue() }
       return true
     }
 

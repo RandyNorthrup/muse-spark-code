@@ -36,7 +36,7 @@ function setup(kind = 0) {
       sent.push({ request: JSON.parse(request), success, failure })
     },
   )
-  return { api: context.window.museHost, receive: context.window.__museReceive, sent }
+  return { api: context.window.museHost, receive: context.window.__museReceive, sent, context }
 }
 
 test('requires a listener and validates payloads before forwarding', () => {
@@ -106,4 +106,52 @@ test('refuses local backpressure before admitting another query', () => {
   assert.equal(sent.length, contract.panel.limits.maximumQueuedMessages)
   sent[0].success()
   api.postMessage({ type: 'ready' })
+})
+
+test('compatibility serialization omits undefined while the frozen bridge stays strict', () => {
+  const { api, sent, context } = setup()
+  const legacy = context.acquireVsCodeApi()
+  assert.throws(
+    () => api.postMessage({ type: 'ready', attachmentEpoch: undefined }),
+    /MHP_PANEL_INVALID_PAYLOAD/,
+  )
+  legacy.postMessage({ type: 'ready', attachmentEpoch: undefined })
+  legacy.setState({ draft: 'kept', absent: undefined })
+  assert.deepEqual(sent.at(-2).request.value, { type: 'ready' })
+  assert.deepEqual(sent.at(-1).request.value, { draft: 'kept' })
+})
+
+test('bounds original UTF-8 and aggregate query bytes before dispatch', () => {
+  const { api, sent } = setup()
+  api.onMessage(() => null)
+  assert.throws(
+    () => api.setState({ draft: 'é'.repeat(contract.panel.limits.maximumEnvelopeBytes / 2) }),
+    /MHP_PANEL_TOO_LARGE/,
+  )
+  const overLimit = 'é'.repeat(contract.panel.limits.maximumEnvelopeBytes / 2)
+  assert.throws(
+    () =>
+      api.setState({
+        draft: overLimit,
+        illegal() {
+          return 'not JSON'
+        },
+      }),
+    /MHP_PANEL_TOO_LARGE/,
+  )
+  assert.throws(
+    () => api.postMessage({ type: 'ready', overflow: overLimit }),
+    /MHP_PANEL_TOO_LARGE/,
+  )
+  assert.throws(
+    () => api.setState({ draft: 'x'.repeat(contract.panel.limits.maximumEnvelopeBytes - 28) }),
+    /MHP_PANEL_TOO_LARGE/,
+  )
+  const almostFrame = 'x'.repeat(contract.panel.limits.maximumEnvelopeBytes - 100)
+  api.setState({ draft: almostFrame })
+  api.setState({ draft: almostFrame })
+  assert.throws(() => api.setState({ draft: 'x'.repeat(300) }), /MHP_PANEL_BACKPRESSURE/)
+  assert.equal(sent.length, 3)
+  sent[1].success()
+  api.setState({ draft: 'released' })
 })

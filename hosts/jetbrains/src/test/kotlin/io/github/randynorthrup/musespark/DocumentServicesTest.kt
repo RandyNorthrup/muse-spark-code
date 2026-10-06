@@ -47,15 +47,13 @@ class DocumentServicesTest : BasePlatformTestCase() {
     val (services, file) = prepare()
     val document = myFixture.editor.document
     val uri = DocumentServices.uri(file)
-    assertThrows(Exception::class.java) {
-      services.request(
-        "documents/applyEdits",
-        edit(
-          uri,
-          document.modificationStamp + 1,
-        ),
-      )
-    }
+    assertEquals(
+      "MHP_VERSION_CONFLICT",
+      org.junit.Assert
+        .assertThrows(Exception::class.java) {
+          services.request("documents/applyEdits", edit(uri, document.modificationStamp + 1))
+        }.message,
+    )
     WriteCommandAction.runWriteCommandAction(project) { document.insertString(0, "unsaved ") }
     val before = document.text
     assertThrows(
@@ -70,12 +68,20 @@ class DocumentServicesTest : BasePlatformTestCase() {
     val document = myFixture.editor.document
     val uri = DocumentServices.uri(file)
     val original = document.text
-    assertThrows(Exception::class.java) {
-      services.request("documents/applyEdits", edit(uri, document.modificationStamp, 5, 0))
-    }
-    assertThrows(Exception::class.java) {
-      services.request("documents/applyEdits", edit(uri, document.modificationStamp, 0, 100))
-    }
+    assertEquals(
+      "MHP_INVALID_RANGE",
+      org.junit.Assert
+        .assertThrows(Exception::class.java) {
+          services.request("documents/applyEdits", edit(uri, document.modificationStamp, 5, 0))
+        }.message,
+    )
+    assertEquals(
+      "MHP_INVALID_RANGE",
+      org.junit.Assert
+        .assertThrows(Exception::class.java) {
+          services.request("documents/applyEdits", edit(uri, document.modificationStamp, 0, 100))
+        }.message,
+    )
     assertEquals(original, document.text)
     services.request("documents/applyEdits", edit(uri, document.modificationStamp))
     assertEquals("changed\nbeta\n", document.text)
@@ -83,5 +89,122 @@ class DocumentServicesTest : BasePlatformTestCase() {
     assertTrue(UndoManager.getInstance(project).isUndoAvailable(editor))
     UndoManager.getInstance(project).undo(editor)
     assertEquals(original, document.text)
+  }
+
+  fun testRefusesUntrustedOutsideWorkspaceAndOverlappingEdits() {
+    val (services, file) = prepare()
+    val document = myFixture.editor.document
+    val params = edit(DocumentServices.uri(file), document.modificationStamp)
+    val untrusted = DocumentServices(project) { false }
+    assertEquals(
+      "MHP_UNTRUSTED_WORKSPACE",
+      org.junit.Assert
+        .assertThrows(Exception::class.java) {
+          untrusted.request("documents/applyEdits", params)
+        }.message,
+    )
+    val edits = params.getAsJsonArray("edits")
+    edits.add(edits[0].deepCopy())
+    assertEquals(
+      "MHP_OVERLAPPING_EDITS",
+      org.junit.Assert
+        .assertThrows(Exception::class.java) {
+          services.request("documents/applyEdits", params)
+        }.message,
+    )
+    val outside =
+      java.nio.file.Files
+        .createTempFile(
+          java.nio.file.Path
+            .of("build"),
+          "outside-",
+          ".txt",
+        )
+    try {
+      assertEquals(
+        "MHP_PERMISSION_DENIED",
+        org.junit.Assert
+          .assertThrows(Exception::class.java) {
+            services.request("documents/read", json("uri" to outside.toAbsolutePath().toUri().toASCIIString()))
+          }.message,
+      )
+    } finally {
+      java.nio.file.Files
+        .delete(outside)
+    }
+    assertEquals("alpha\nbeta\n", document.text)
+  }
+
+  fun testOpensAndSelectsTheWholeUtf16RangeAndRefusesReversedRanges() {
+    val (services, file) = prepare()
+    val params =
+      json(
+        "uri" to DocumentServices.uri(file),
+        "range" to DocumentServices.range(myFixture.editor.document, 1, 5),
+      )
+    services.request("editor/open", params)
+    assertEquals("lpha", myFixture.editor.selectionModel.selectedText)
+    params.add("range", DocumentServices.range(myFixture.editor.document, 5, 1))
+    assertEquals(
+      "MHP_INVALID_RANGE",
+      org.junit.Assert
+        .assertThrows(Exception::class.java) {
+          services.request("editor/open", params)
+        }.message,
+    )
+  }
+
+  fun testReportsReadOnlyAndVetoedSavesAsFailures() {
+    val (services, file) = prepare()
+    val document = myFixture.editor.document
+    val scope =
+      com.intellij.openapi.util.Disposer
+        .newDisposable()
+    try {
+      WriteCommandAction.runWriteCommandAction(project) { file.isWritable = false }
+      assertEquals(
+        "MHP_PERMISSION_DENIED",
+        org.junit.Assert
+          .assertThrows(Exception::class.java) {
+            services.request(
+              "documents/save",
+              json(
+                "uri" to DocumentServices.uri(file),
+                "expectedVersion" to document.modificationStamp,
+              ),
+            )
+          }.message,
+      )
+      WriteCommandAction.runWriteCommandAction(project) { file.isWritable = true }
+      WriteCommandAction.runWriteCommandAction(project) { document.insertString(0, "pending ") }
+      com.intellij.openapi.fileEditor.FileDocumentSynchronizationVetoer.EP_NAME.point.registerExtension(
+        object : com.intellij.openapi.fileEditor.FileDocumentSynchronizationVetoer() {
+          override fun maySaveDocument(
+            document: com.intellij.openapi.editor.Document,
+            isSaveExplicit: Boolean,
+          ) = false
+        },
+        scope,
+      )
+      assertEquals(
+        "MHP_SAVE_FAILED",
+        org.junit.Assert
+          .assertThrows(Exception::class.java) {
+            services.request(
+              "documents/save",
+              json(
+                "uri" to DocumentServices.uri(file),
+                "expectedVersion" to document.modificationStamp,
+              ),
+            )
+          }.message,
+      )
+      assertEquals("pending alpha\nbeta\n", document.text)
+    } finally {
+      com.intellij.openapi.util.Disposer
+        .dispose(scope)
+      WriteCommandAction.runWriteCommandAction(project) { file.isWritable = true }
+      FileDocumentManager.getInstance().saveDocument(document)
+    }
   }
 }

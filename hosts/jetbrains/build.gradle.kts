@@ -17,9 +17,10 @@ repositories {
 
 dependencies {
   intellijPlatform {
-    intellijIdea("2025.3.3")
+    val privateIdePath = providers.gradleProperty("privateIdePath")
+    if (privateIdePath.isPresent) local(privateIdePath.get()) else intellijIdea("2025.3.3")
     testFramework(TestFrameworkType.Platform)
-    pluginVerifier()
+    pluginVerifier("1.410")
   }
   testImplementation("junit:junit:4.13.2")
 }
@@ -58,6 +59,7 @@ val sharedResources by tasks.registering(Sync::class) {
   from(repositoryRoot.resolve("src/shared/hostApi/mhp-v1.1.schema.json")) { into("mhp") }
   from(repositoryRoot.resolve("src/shared/hostApi/mhp-v1.1.lock.json")) { into("mhp") }
   from(repositoryRoot.resolve("dist/webview")) { into("webview") }
+  from(listOf(repositoryRoot.resolve("LICENSE"), repositoryRoot.resolve("THIRD_PARTY_NOTICES.txt"))) { into("legal") }
   from(repositoryRoot.resolve("l10n")) { into("l10n") }
   from(layout.buildDirectory.dir("generated/pages")) {
     into("pages")
@@ -75,7 +77,9 @@ sourceSets.main { resources.srcDir(sharedResources) }
 tasks.test {
   maxParallelForks = 1
   maxHeapSize = "1024m"
-  systemProperty("java.awt.headless", "true")
+  val nativeUi = providers.gradleProperty("nativeUi").map(String::toBooleanStrict).getOrElse(false)
+  systemProperty("java.awt.headless", (!nativeUi).toString())
+  systemProperty("muse.nativeUi", nativeUi.toString())
   testLogging { events("passed", "failed", "skipped") }
 }
 tasks.check { dependsOn("ktlintCheck", "detekt") }
