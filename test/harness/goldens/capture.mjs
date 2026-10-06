@@ -35,11 +35,11 @@ export async function rasterizationFingerprint(context) {
   }
 }
 
-async function openScene(page, root, port, scene, theme, width, height) {
+async function openScene(page, root, port, scene, theme, width, height, fixtures) {
   let resource = `test/harness/index.html?scenario=${width === 320 ? scene : scene.replace(/-narrow$/, '')}&theme=${theme}`
-  if (fixtureScenes.has(scene)) resource = `temp/m114-s-fixtures/index.html?scene=${scene}`
+  if (fixtureScenes.has(scene)) resource = `${fixtures}/index.html?scene=${scene}`
   if (scene.startsWith('whats-new'))
-    resource = `temp/m114-s-fixtures/${scene === 'whats-new-highlights' ? 'whats-new-highlights' : 'whats-new'}.html`
+    resource = `${fixtures}/${scene === 'whats-new-highlights' ? 'whats-new-highlights' : 'whats-new'}.html`
   await page.setViewportSize({ width, height })
   await page.clock.setFixedTime(FIXED_TIME)
   await page.goto(`http://127.0.0.1:${port}/${resource}`)
@@ -65,6 +65,10 @@ async function openScene(page, root, port, scene, theme, width, height) {
   )
   await page.clock.runFor(6500)
   await page.evaluate(() => globalThis.document.fonts.ready)
+  const hasStyles = await page.evaluate(() =>
+    globalThis.getComputedStyle(globalThis.document.body).fontFamily.includes('Segoe UI'),
+  )
+  if (!hasStyles) throw new Error(`Stylesheet failed to load: ${scene}/${theme}/${width}`)
   if (!fixtureScenes.has(scene))
     await page.waitForFunction(
       () => globalThis.document.querySelector('[data-deferred-loading]') === null,
@@ -174,10 +178,11 @@ export async function captureMatrix(root, audit, matrix, onCapture) {
   const { server, port } = await serveRepo(root)
   let browser
   let profile
+  let fixtures
   let totalBytes = 0
   const captures = []
   try {
-    await makeFixtures(root, port)
+    fixtures = await makeFixtures(root, port)
     profile = await mkdtemp(path.join(root, 'temp/m114-visual-profile-'))
     browser = await chromium.launchPersistentContext(profile, {
       ...CAPTURE_CONTEXT,
@@ -213,7 +218,7 @@ export async function captureMatrix(root, audit, matrix, onCapture) {
       for (const width of matrix.widths)
         for (const scene of audit.scenes) {
           errors.length = 0
-          await openScene(page, root, port, scene, theme, width, matrix.height)
+          await openScene(page, root, port, scene, theme, width, matrix.height, fixtures)
           const rows = audit.components.filter((row) => row.scene === scene)
           const components = await page.evaluate(
             (rows) =>
@@ -265,6 +270,8 @@ export async function captureMatrix(root, audit, matrix, onCapture) {
   } finally {
     await browser?.close()
     server.close()
+    if (fixtures !== undefined)
+      await rm(path.join(root, fixtures), { recursive: true, force: true })
     if (profile !== undefined)
       await rm(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
   }

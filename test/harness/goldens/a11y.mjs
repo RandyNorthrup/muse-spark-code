@@ -25,6 +25,8 @@ await captureMatrix(
       script.textContent = source
       globalThis.document.head.append(script)
     }, axe)
+    // Axe schedules browser timers; let them run after the frozen PNG is taken.
+    await page.clock.resume()
     const rows = audit.components.filter((row) => row.scene === capture.scene)
     const findings = await page.evaluate(async (rows) => {
       const include = rows

@@ -137,3 +137,36 @@ handoff in PLAN §7. That gate remains failing until its owner supplies the
 captured value/unset/provenance; no source value or wire shape is guessed.
 
 All five TypeScript projects passed (`npm run typecheck`, exit 0).
+
+## Capture isolation and stylesheet certification
+
+A concurrent supplementary axe run rewrote the shared What's New fixture's
+CSP origin during the second capture attempt. The candidate manifest was
+removed: its 4,824-image archive is retained outside git but is **not a
+baseline**. Fixtures now have a directory per server port, including in
+source reconstructions, and each run cleans only its own fixture directory.
+The renderer refuses a scene whose Segoe UI stylesheet failed to load. The
+supplementary axe driver resumes browser timers only after its frozen PNG;
+its earlier paused-clock attempt is not a completed accessibility receipt.
+Exceptional component fixture documents now have an actual title. Dynamic
+fixture imports use a file URL so the same driver works on Windows.
+
+The complete owning browser suite now passes **3/3**, with 18 real captures
+shared in beforeAll, at the repository default timeout. Removing the
+stylesheet link failed with `Stylesheet failed to load:
+deferred-modal/light/320`; source restored to SHA-256
+`73e7ab738eed3ab82e40769a7c9ac793f6401896c7a5dc1003e1b2bd60a22e79`.
+Replacing the per-port directory with a shared directory failed the named
+`isolates fixture CSP origins for concurrent capture runs` test; source
+restored to `e7690a4a7d9323ffbac1ac5f9bad4786c1743795d94eefe6d023d3fd587ec163`.
+Final scoped ESLint and all three owning files passed **13/13** with default
+timeouts. `check:visual:a11y` exposes the supplementary six-theme observation
+without replacing or changing the canonical accessibility gate.
+
+The inherited integrated controls passed **158/158** (complete P1/P2 panel
+and conversation suites, default timeouts). Plain knip, jscpd (zero clones)
+and regenerated host API pass. The integrated startup receipt in
+`temp/m114-s-startup.json` counts both production CSS and JavaScript:
+869,689 bytes before, 882,430 after, **12,741 bytes growth**. This exceeds
+the milestone's 4 KiB target while all hard artifact caps stay green; the
+owning lanes/lead retain the explicitly recorded compaction handoff.

@@ -1,6 +1,7 @@
 // Test-only exceptional surfaces; all UI is rendered from the actual components.
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { build } from 'esbuild'
 const fixtureSource = [
   "import React, {lazy} from 'react';",
@@ -29,7 +30,8 @@ export const fixtureScenes = new Set([
 ])
 
 export async function makeFixtures(auditRoot, port) {
-  const directory = path.join(auditRoot, 'temp/m114-s-fixtures')
+  const relative = `temp/m114-s-fixtures-${port}`
+  const directory = path.join(auditRoot, relative)
   await mkdir(directory, { recursive: true })
   await build({
     stdin: { contents: fixtureSource, resolveDir: auditRoot, loader: 'jsx' },
@@ -41,7 +43,7 @@ export async function makeFixtures(auditRoot, port) {
   })
   await writeFile(
     path.join(directory, 'index.html'),
-    `<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="/dist/webview/main.css"></head><body><main id="root"></main><script src="fixtures.js"></script></body></html>`,
+    `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>M114 component fixture</title><link rel="stylesheet" href="/dist/webview/main.css"></head><body><main id="root"></main><script src="fixtures.js"></script></body></html>`,
   )
   await build({
     entryPoints: ['src/host/whatsNew/whatsNewHtml.ts'],
@@ -51,7 +53,9 @@ export async function makeFixtures(auditRoot, port) {
     platform: 'node',
     format: 'esm',
   })
-  const { renderWhatsNewPage } = await import(path.join(directory, 'whatsNew.mjs'))
+  const { renderWhatsNewPage } = await import(
+    pathToFileURL(path.join(directory, 'whatsNew.mjs')).href
+  )
   const content = JSON.parse(await readFile(path.join(auditRoot, 'dist/whatsNew.json'), 'utf8'))
   const releases = Array.isArray(content) ? content : content.releases
   const rendered = renderWhatsNewPage({
@@ -80,4 +84,5 @@ export async function makeFixtures(auditRoot, port) {
     styleUri: '/dist/webview/whatsNew.css',
   })
   await writeFile(path.join(directory, 'whats-new-highlights.html'), highlightPage.html)
+  return relative
 }

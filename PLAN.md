@@ -29062,6 +29062,14 @@ Lane 0 owns those captured fixtures; S stops at that boundary rather than
 inventing a value or dropping a variable. The two strict matrix cases remain
 failing for that single variable until its live capture is supplied.
 
+**M114 integrated startup measurement (S, 2026-10-06).**
+Against P1's recorded pre-polish source `58ed2fc1d`, production eager
+JavaScript grows 952 bytes and eager CSS grows 11,789 bytes: **12,741 bytes**
+combined, above D94/M114's 4 KiB growth target. The existing hard artifact
+caps pass unchanged. P1/P2 own the styles and lane 0 the token outputs;
+the lead retains their named startup compaction handoff. S records both
+JavaScript and CSS rather than excluding a generated sheet or raising a cap.
+
 **M114 P1 forced-colors repair scoped gates (RVM114P12, 2026-10-06).**
 The rig/shared brief forbids full quality/full unit runs and other lanes'
 file edits. P1 runs the five compiler projects, owning regressions and red

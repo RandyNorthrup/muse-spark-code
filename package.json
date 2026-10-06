@@ -1224,7 +1224,8 @@
     "schema:exec": "node scripts/exec-schema.mjs",
     "build:tokens": "node scripts/build-tokens.mjs",
     "check:tokens": "node scripts/check-tokens.mjs",
-    "check:visual": "node scripts/check-visual.mjs"
+    "check:visual": "node scripts/check-visual.mjs",
+    "check:visual:a11y": "node test/harness/goldens/a11y.mjs"
   },
   "lint-staged": {
     "{*.{ts,tsx,mjs},!(vendor)/**/*.{ts,tsx,mjs}}": [
