@@ -24,6 +24,7 @@ export const storedMediaPartSchema = z
     info: mediaInfoSchema,
     sha256: z.string().check(z.regex(MEDIA_SHA256_PATTERN)),
     fps: z.optional(z.number().check(z.gt(0))),
+    isScreenRecording: z.optional(z.boolean()),
     file: z.optional(uploadedMediaRefSchema),
     files: z.optional(z.array(uploadedMediaRefSchema)),
     delivered: z.optional(z.literal(true)),

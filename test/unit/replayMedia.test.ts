@@ -402,6 +402,7 @@ describe('media replay and metadata persistence', () => {
       { ...media, name: 'x'.repeat(257) },
       { ...media, sha256: 'invalid' },
       { ...media, fps: 0 },
+      { ...media, isScreenRecording: 'true' },
       { ...media, sourcePath: String.raw`C:\private\clip.mp4` },
     ])
       expect(storedMediaPartSchema.safeParse(invalid).success).toBe(false)
@@ -474,6 +475,30 @@ describe('media replay and metadata persistence', () => {
     expect(() => {
       restored.restore([{ ...saved[0]!, media: [{ index: 99, media: videoMedia() }] }])
     }).toThrow('index')
+  })
+
+  it('preserves screen-recording classification through persistence and forks for Contributor admission', async () => {
+    const media = { ...videoMedia(), isScreenRecording: true }
+    const rig = replayRig(media)
+    await rig.replay.prepare(rig.input, 'muse-spark-1.3', signal())
+    const saved = rig.replay.snapshot(rig.entries)
+    expect(saved).toMatchObject([{ media: [{ media: { isScreenRecording: true } }] }])
+    const fork = new ReplayMedia('fork', rig.deps)
+    fork.restore(saved)
+    await fork.prepare(
+      saved.map((entry) => entry.item),
+      'muse-spark-1.3',
+      signal(),
+    )
+    expect(rig.authorize).toHaveBeenLastCalledWith(
+      expect.objectContaining({ isScreenRecording: true }),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+    )
+    expect(fork.snapshot(saved)).toMatchObject([
+      { media: [{ media: { isScreenRecording: true } }] },
+    ])
   })
 
   it('does not mutate a saved snapshot when a delivery completes', () => {

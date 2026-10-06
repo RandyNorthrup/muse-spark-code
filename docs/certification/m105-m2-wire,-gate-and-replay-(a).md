@@ -65,12 +65,18 @@ encoder, capability record, source reader, storage adapter or consent grant.
   digest. F's storage-billing admission remains required; U6c is still open.
 - **M2-E1/E2-approved-source:** `attachment` resolves session-bound host-issued
   tokens and legacy image/PDF parts into sniffed metadata plus SHA-256.
+  Ordinary text, named text and skills return `undefined`, preserving their
+  existing text path. E2/W must register validated `read_file`/generated
+  media through the same canonical port; those bindings may not bypass it.
   `source` returns a fresh bounded stream after confinement and approval on
   every open. Source paths, bytes and credentials never enter session files.
   A missing source is an explicit reattach refusal when a new upload is needed.
 - **M2-C/A-admission:** `authorize` binds calibrated capped-session and daily
   budget admission, Contributor choices and the soundtrack action. It is
-  required before any source opens or upload starts. No default grant is
+  required before any source opens or upload starts. E1/E2/E3 must set the
+  durable `isScreenRecording` classification on recording metadata; C/A must
+  use it for the Contributor question on every recording, including restores
+  and forks. No default grant is
   supplied. Apply the owner's on-by-default/first-charge three-choice modal
   ruling with prices and `museSpark.paidDailyBudgetUsd` there.
 - **M2-M101-C1-tail:** bind `compactionTail` to C1's recent complete turns.
@@ -126,7 +132,7 @@ is enabled through an editor-specific branch here.
 Each control changed one guard, ran its entire test file with
 `npx vitest run <file> --maxWorkers=3` and the default test timeout, observed
 exit 1 and a named assertion failure, then restored the original bytes in
-`finally`. SHA-256 matched before/after every control. All 72 controls below
+`finally`. SHA-256 matched before/after every control. All 73 controls below
 fired; scratch logs are in the ignored `temp/m105m2-drill-*.log` files.
 
 Initial non-firing controls were not certified: the first video mutation
@@ -226,7 +232,7 @@ Restoration hashes (each before = after; H2 predates the upload-admission fix):
 | Command/check                                                                                                                          | Result                                                                                                        |
 | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `npx vitest run test/unit/modalityGate.test.ts test/unit/mediaBudget.test.ts test/unit/sessionStore.test.ts --maxWorkers=3`            | 3 complete files, 40 tests passed, default timeout                                                            |
-| `npx vitest run test/unit/replayMedia.test.ts test/unit/modelApiMedia.test.ts test/unit/modelApiGoldenRequests.test.ts --maxWorkers=3` | 3 complete files, 54 tests passed, default timeout                                                            |
+| `npx vitest run test/unit/replayMedia.test.ts test/unit/modelApiMedia.test.ts test/unit/modelApiGoldenRequests.test.ts --maxWorkers=3` | 3 complete files, 55 tests passed, default timeout                                                            |
 | `npx vitest run test/unit/modelApiHost.test.ts --maxWorkers=3`                                                                         | complete file, 615 tests passed, default timeout                                                              |
 | `npm run typecheck`                                                                                                                    | all five projects passed                                                                                      |
 | changed-file ESLint, `--max-warnings=0`                                                                                                | passed after fixing a void-arrow assertion                                                                    |
@@ -242,12 +248,12 @@ Restoration hashes (each before = after; H2 predates the upload-admission fix):
 
 Changed-file Prettier and `git diff --check` also pass.
 
-**709 final positive tests**, seven complete files. No golden fixtures were
+**710 final positive tests**, seven complete files. No golden fixtures were
 regenerated. An additional raw-fetch test compares no-media requests with the
 media port installed/absent byte for byte; capability, admission and upload
 callbacks stay unused.
 
-Production sizes: extension **443.6/600 KiB**, Model API **453.2/475 KiB**,
+Production sizes: extension **443.7/600 KiB**, Model API **453.2/475 KiB**,
 checkpoint store **77.0/225 KiB**, ACP **823.8/850 KiB**, browser startup JS
 **899.2/900 KiB**, deferred JS **51.1/50 KiB**. M2 adds no browser UI and does
 not alter the deferred browser code. W must resolve the inherited size failure
@@ -261,3 +267,21 @@ codec, M95, F/C/A/source/tail/editor bindings remain required before enablement.
 No threshold, timeout, rule level, ignore or hook was weakened. No dependency
 or tool was installed. No owner decision was silently defaulted: paid
 on-by-default/first-charge consent belongs to the required C/A binding.
+
+### Recording classification follow-up
+
+After implementation commit `c764813cd` (enabled ESLint/Prettier and
+gitleaks hooks passed), the default-timeout replay file failed at
+**preserves screen-recording classification through persistence and forks
+for Contributor admission**: the metadata schema did not accept
+`isScreenRecording`. Added the optional boolean already defined by lane 0's
+media-chip contract. It survives snapshot/restore/fork and reaches the
+required C/A admission callback; this lane grants no Contributor consent.
+
+Control 73 changed its boolean parser to `z.unknown()`. The complete
+`replayMedia.test.ts` exited 1 at **rejects metadata bytes, invalid expiry and
+mismatched digest, MIME or size** when the string `true` was accepted. The
+source was restored byte-exact, before/after SHA-256 `b64bf711f94a853e348bb23f3cb7f53bfcb3879471d32682f9f5944b9a48d01e`.
+The prior 72 control hashes remain the exact control-time records.
+
+The recording follow-up also passed all five typecheck projects, the replay/host/golden batch (55 tests), the gate/budget/store batch (40 tests), changed-file ESLint/Prettier, localization, and zero-clone duplication. Production compilation passed with the same deferred-JS blocker and the final sizes above. The earlier complete host regression file contributes the remaining 615 tests; host dispatch code was unchanged by this schema-only follow-up.
