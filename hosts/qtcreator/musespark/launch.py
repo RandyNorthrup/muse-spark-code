@@ -2,6 +2,7 @@
 
 import os
 import re
+import subprocess
 import sys
 
 _FORBIDDEN = frozenset(
@@ -22,9 +23,20 @@ def main(argv):
     for name in list(os.environ):
         if name.upper().endswith("_API_KEY") or name.upper() in _FORBIDDEN:
             del os.environ[name]
-    mode, value = argv
+    if len(argv) == 4 and argv[2] == "--agent-script" and argv[3]:
+        mode, value = argv[:2]
+        prefix = [value, argv[3]]
+        if mode != "panel":
+            raise ValueError("EPANEL_ARGUMENTS")
+    elif len(argv) == 2:
+        mode, value = argv
+        prefix = [value]
+    else:
+        raise ValueError("EPANEL_ARGUMENTS")
+    if not value:
+        raise ValueError("EPANEL_ARGUMENTS")
     if mode == "panel":
-        command = [value, "panel", "--companion"]
+        command = [*prefix, "panel", "--companion"]
     elif mode == "open":
         match = _LAUNCH.fullmatch(value)
         if not match or not 0 < int(match[1]) <= 65535:
@@ -32,6 +44,17 @@ def main(argv):
         if sys.platform == "win32":
             raise ValueError("EPANEL_OPENER_REQUIRED")
         command = ["open" if sys.platform == "darwin" else "xdg-open", value]
+        result = subprocess.run(
+            command,
+            env=dict(os.environ),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise ValueError("EPANEL_LAUNCH")
+        return
     else:
         raise ValueError("EPANEL_ARGUMENTS")
     os.execvpe(command[0], command, dict(os.environ))

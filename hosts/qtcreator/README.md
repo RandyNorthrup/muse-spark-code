@@ -7,7 +7,11 @@ Process, Utils, Project and async modules. Actual Qt Creator 20 GUI
 qualification remains pending; the API tests here use source-checked doubles.
 
 Install Python 3 and `muse-spark-code-acp` separately. `config.lua` names
-those installed executables. No language server or runtime is downloaded.
+those installed executables. For an npm Windows installation whose `.cmd`
+cannot be launched directly, set `agent` to the installed `node.exe` and
+`agentScript` to the absolute installed `dist/acp.js` path. Both remain
+separate argv entries; this is covered by bootstrap tests, with a native
+Windows receipt still pending. No language server or runtime is downloaded.
 Open a project: **Tools → Muse Spark Code (Unofficial): panel** starts
 `panel --companion` in the startup project's directory, using argv rather
 than shell text. **Tools → Muse Spark Code (Unofficial): stop** terminates
@@ -30,9 +34,13 @@ named credential variables before any child, and execs the runtime/browser.
 Stored runtime keys never enter that process. The same user can inspect the
 bootstrap's initial OS environment; removal does not zero it. Browser
 opening via this helper is macOS/Linux only; Windows needs a native opener
-integration and remains unqualified. Runtime launches are still available.
+integration and remains unqualified. The explicit Node/script runtime route
+is implemented; Windows runtime launch qualification remains pending.
 The Lua shim discards process stdout/stderr instead of logging raw paths or
-launch codes. It owns native Process objects for the duration of each launch.
+launch codes. The browser bootstrap discards opener output and reports only
+`EPANEL_LAUNCH` on failure. It owns native Process objects for each launch and
+reserves a runtime before executable lookup yields. Stop cancels pending
+lookups and attempts runtime cleanup even when an independent opener fails.
 
 From the repository root, run the offline Lua API stub and bootstrap tests:
 

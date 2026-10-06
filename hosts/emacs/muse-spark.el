@@ -126,11 +126,18 @@ Without URL, let the installed panel runtime open its own browser."
 (defun muse-spark-stop ()
   "Cancel the active agent-shell turn and terminate this companion."
   (interactive)
-  (when (and muse-spark--owned-shell (derived-mode-p 'agent-shell-mode))
-    (agent-shell-interrupt))
-  (when (process-live-p muse-spark--process)
-    (delete-process muse-spark--process))
-  (setq muse-spark--process nil))
+  (let (failed)
+    (condition-case nil
+        (when (and muse-spark--owned-shell (derived-mode-p 'agent-shell-mode))
+          (agent-shell-interrupt))
+      (error (setq failed t)))
+    (condition-case nil
+        (progn
+          (when (process-live-p muse-spark--process)
+            (delete-process muse-spark--process))
+          (setq muse-spark--process nil))
+      (error (setq failed t)))
+    (when failed (message "EPANEL_STOP"))))
 
 (add-hook 'kill-emacs-hook #'muse-spark-stop)
 (provide 'muse-spark)

@@ -41,11 +41,16 @@ class LauncherTests(unittest.TestCase):
         url = "http://127.0.0.1:41234/#k=test-launch"
         with (
             patch.dict(os.environ, {"M104_API_KEY": "test-sentinel"}),
-            patch.object(launch.os, "execvpe") as execute,
+            patch.object(
+                launch.subprocess,
+                "run",
+                return_value=subprocess.CompletedProcess([], 0),
+            ) as execute,
         ):
             launch.main(["open", url])
-            self.assertEqual(execute.call_args.args[1][1:], [url])
-            self.assertNotIn("M104_API_KEY", execute.call_args.args[2])
+            self.assertEqual(execute.call_args.args[0][1:], [url])
+            self.assertNotIn("M104_API_KEY", execute.call_args.kwargs["env"])
+            self.assertEqual(execute.call_args.kwargs["stderr"], subprocess.DEVNULL)
 
     def test_rejects_unsafe_urls_and_unknown_modes(self):
         with patch.object(launch.os, "execvpe") as execute:
@@ -56,6 +61,9 @@ class LauncherTests(unittest.TestCase):
                 ["unknown", "agent"],
                 ["panel"],
                 ["panel", "agent", "secret"],
+                ["panel", "agent", "--agent-script", ""],
+                ["panel", "agent", "--unknown", "script"],
+                ["open", "url", "--agent-script", "script"],
             ):
                 with self.assertRaises(ValueError):
                     launch.main(args)
@@ -98,6 +106,63 @@ class LauncherTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 launch.main(["open", "http://127.0.0.1:41234/#k=test-launch"])
             execute.assert_not_called()
+
+    def test_node_script_prefix_is_argv_on_windows_and_real_child(self):
+        with (
+            patch.object(launch.sys, "platform", "win32"),
+            patch.object(launch.os, "execvpe") as execute,
+        ):
+            launch.main(
+                ["panel", "C:/Node/node.exe", "--agent-script", "C:/ACP/dist/acp.js"]
+            )
+            self.assertEqual(
+                execute.call_args.args[1],
+                ["C:/Node/node.exe", "C:/ACP/dist/acp.js", "panel", "--companion"],
+            )
+        with tempfile.TemporaryDirectory() as directory:
+            script = Path(directory) / "script with spaces.py"
+            script.write_text(
+                "import sys; assert sys.argv[1:] == ['panel', '--companion']\n"
+            )
+            child = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    launch.__file__,
+                    "panel",
+                    sys.executable,
+                    "--agent-script",
+                    str(script),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(child.returncode, 0, child.stderr)
+
+    def test_browser_nonzero_exit_is_visible_without_private_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            opener = Path(directory) / (
+                "open" if sys.platform == "darwin" else "xdg-open"
+            )
+            opener.write_text("#!/bin/sh\nprintf 'private-launch-detail' >&2\nexit 1\n")
+            opener.chmod(0o700)
+            child = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    launch.__file__,
+                    "open",
+                    "http://127.0.0.1:41234/#k=test-launch",
+                ],
+                env={**os.environ, "PATH": directory},
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertNotEqual(child.returncode, 0)
+            self.assertEqual(child.stderr.strip(), "EPANEL_LAUNCH")
+            self.assertEqual(child.stdout, "")
 
 
 if __name__ == "__main__":

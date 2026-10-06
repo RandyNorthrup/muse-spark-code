@@ -21,7 +21,9 @@ and terminates the companion owned by this shim. An editor shutdown cleans
 it up too. Stopping a supplied `/panel` link's ACP session remains the ACP
 client's or shared panel's responsibility. Duplicate companion starts fail
 explicitly. A failed launch releases its stderr pipe and exposes only a
-technical failure code. Raw CLI output is discarded.
+technical failure code. Stop isolates an agent-shell interruption failure
+from companion termination and retains the child when termination fails,
+so a later Stop can retry. Only `EPANEL_STOP` is shown. Raw CLI output is discarded.
 
 The shim removes `*_API_KEY` and the runtime's six named credential variables
 from child environments, including reconnects created by the ACP client

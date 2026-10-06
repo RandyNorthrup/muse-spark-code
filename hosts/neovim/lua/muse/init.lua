@@ -52,7 +52,15 @@ function M.open_companion(url)
       end
     end
     local args = vim.list_extend(vim.deepcopy(opener), { url })
-    return vim.system(args, { env = environment(), clear_env = true, text = true })
+    return vim.system(
+      args,
+      { env = environment(), clear_env = true, stdout = false, stderr = false },
+      vim.schedule_wrap(function(result)
+        if result.code ~= 0 then
+          vim.notify("EPANEL_LAUNCH", vim.log.levels.ERROR)
+        end
+      end)
+    )
   end
   if process then
     error("EPANEL_ALREADY_RUNNING")
@@ -83,17 +91,27 @@ function M.open_companion(url)
 end
 
 function M.stop()
-  local ok, companion = pcall(require, "codecompanion")
-  if ok then
-    local chat = companion.last_chat()
-    if chat and chat.adapter and chat.adapter.name == "muse_spark" then
-      chat:stop()
+  local cancelled = pcall(function()
+    local ok, companion = pcall(require, "codecompanion")
+    if ok then
+      local chat = companion.last_chat()
+      if chat and chat.adapter and chat.adapter.name == "muse_spark" then
+        chat:stop()
+      end
     end
-  end
+  end)
+  local killed = true
   if process then
     local running = process
-    process = nil
-    running:kill("sigterm")
+    killed = pcall(function()
+      running:kill("sigterm")
+    end)
+    if killed and process == running then
+      process = nil
+    end
+  end
+  if not cancelled or not killed then
+    vim.notify("EPANEL_STOP", vim.log.levels.ERROR)
   end
 end
 
@@ -118,6 +136,15 @@ function M.setup(config)
   options = vim.tbl_extend("force", options, config or {})
   assert(type(options.command) == "table" and #options.command > 0, "EPANEL_COMMAND")
   vim.api.nvim_create_user_command("MusePanel", function(args)
+    -- Interactive Ex history is persisted by ShaDa. Remove only launch commands.
+    if args.args ~= "" then
+      for index = vim.fn.histnr(":"), 1, -1 do
+        local entry = vim.fn.histget(":", index)
+        if entry:match("^%s*MusePanel%s+") then
+          vim.fn.histdel(":", index)
+        end
+      end
+    end
     M.open_companion(args.args)
   end, { nargs = "?" })
   vim.api.nvim_create_user_command("MuseStop", M.stop, {})

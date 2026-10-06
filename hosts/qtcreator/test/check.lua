@@ -3,6 +3,7 @@ package.path = vim.fn.getcwd() .. "/hosts/qtcreator/musespark/?.lua;" .. package
 local actions, children = {}, {}
 local diagnostics = {}
 local executable, start_result, stop_result, project_present = true, true, true, true
+local yield_lookup = false
 local function path(value)
   return {
     nativePath = function()
@@ -12,7 +13,9 @@ local function path(value)
       return path(value .. "/" .. tail)
     end,
     searchInPath = function()
-      return path(value)
+      local found = path(value)
+      found.lookup = true
+      return found
     end,
     isExecutableFile = function()
       return executable
@@ -47,6 +50,9 @@ end
 package.preload["async"] = function()
   return {
     wait = function(value)
+      if yield_lookup and type(value) == "table" and value.lookup then
+        coroutine.yield("lookup")
+      end
       return value
     end,
     sync = function(fn)
@@ -73,10 +79,17 @@ package.preload["Process"] = function()
         return self.alive
       end
       function child:stop()
-        if stop_result then
+        if self.stop_error then
+          error("private stop detail")
+        end
+        local result = self.stop_result
+        if result == nil then
+          result = stop_result
+        end
+        if result then
           self.alive = false
         end
-        return stop_result
+        return result
       end
       children[#children + 1] = child
       return child
@@ -180,4 +193,76 @@ muse.open_companion()
 children[#children].opts.onFinished()
 assert(diagnostics[#diagnostics] == "EPANEL_EXIT", "unexpected exit must be visible")
 print("PASS unexpected exit reports fixed diagnostic")
+muse.open_companion(url)
+children[#children].opts.stderr("EPANEL_LAUNCH\n")
+children[#children].opts.onFinished()
+assert(diagnostics[#diagnostics] == "EPANEL_LAUNCH", "browser failure is visible and redacted")
+print("PASS browser failure is visible and redacted")
+muse.open_companion()
+local runtime = children[#children]
+muse.open_companion(url)
+local opener = children[#children]
+opener.stop_result = false
+refuses(muse.stop, "browser stop failure is explicit")
+assert(not runtime.alive, "browser stop failure still terminates runtime")
+opener.stop_result = true
+muse.stop()
+assert(not opener.alive, "failed opener remains owned for retry")
+print("PASS browser stop failure still terminates runtime")
+muse.open_companion()
+runtime = children[#children]
+muse.open_companion(url)
+opener = children[#children]
+opener.stop_error = true
+refuses(muse.stop, "throwing browser stop is explicit")
+assert(not runtime.alive, "throwing browser stop still terminates runtime")
+opener.stop_error = false
+muse.stop()
+print("PASS throwing browser stop still terminates runtime")
+yield_lookup = true
+local first = coroutine.create(function()
+  muse.open_companion()
+end)
+local ok, phase = coroutine.resume(first)
+assert(ok and phase == "lookup", "lookup must really suspend")
+local second = coroutine.create(function()
+  muse.open_companion()
+end)
+assert(not coroutine.resume(second), "pending lookup refuses concurrent launch")
+assert(coroutine.resume(first), "first reserved launch completes")
+yield_lookup = false
+muse.stop()
+print("PASS pending lookup refuses concurrent launch")
+for _, link in ipairs({ false, url }) do
+  yield_lookup = true
+  local count = #children
+  local pending_launch = coroutine.create(function()
+    muse.open_companion(link or nil)
+  end)
+  assert(coroutine.resume(pending_launch), "lookup suspends before Stop")
+  muse.stop()
+  assert(not coroutine.resume(pending_launch), "Stop cancels pending lookup")
+  assert(#children == count, "stopped lookup must not spawn a child")
+  yield_lookup = false
+end
+muse.open_companion()
+muse.stop()
+print("PASS Stop cancels pending runtime and browser lookups")
+local config = require("config")
+config.agent = "C:/Node/node.exe"
+config.agentScript = "C:/ACP/dist/acp.js"
+muse.open_companion()
+assert(
+  vim.deep_equal(children[#children].opts.arguments, {
+    "-I",
+    "/plugins with spaces/musespark/launch.py",
+    "panel",
+    "C:/Node/node.exe",
+    "--agent-script",
+    "C:/ACP/dist/acp.js",
+  }),
+  "Node script prefix reaches trusted bootstrap"
+)
+muse.stop()
+print("PASS Node script prefix reaches trusted bootstrap")
 vim.cmd("qa!")

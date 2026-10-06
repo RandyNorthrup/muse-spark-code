@@ -25,6 +25,20 @@ launch = module("launch")
 
 
 class ZedTests(unittest.TestCase):
+    def test_upstream_request_draft_has_owner_review_and_required_content(self):
+        draft = (Path(__file__).parents[1] / "upstream-request.md").read_text()
+        for field in (
+            "Title",
+            "Problem",
+            "Reproduction",
+            "Requested API",
+            "Security",
+            "Current equivalent",
+            "Submission",
+        ):
+            self.assertRegex(draft, rf"\*\*{field}:\*\*\s+\S")
+        self.assertIn("No request has been submitted", draft)
+
     def test_custom_agent_and_companion_task(self):
         result = register.configuration("/agent with spaces", "/python with spaces")
         agent = result["settings"]["agent_servers"]["Muse Spark Code (Unofficial)"]
@@ -109,6 +123,8 @@ class ZedTests(unittest.TestCase):
                 ["exec", "agent"],
                 ["panel", "agent", "secret"],
                 ["acp", ""],
+                ["panel", "agent", "--agent-script", ""],
+                ["panel", "agent", "--unknown", "script"],
             ):
                 with self.assertRaises(ValueError):
                     launch.main(args)
@@ -123,6 +139,45 @@ class ZedTests(unittest.TestCase):
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(result.stderr.strip(), "EPANEL_LAUNCH")
+
+    def test_node_script_prefix_registration_and_execution(self):
+        result = register.configuration(
+            "C:/Node/node.exe", sys.executable, "C:/ACP/dist/acp.js"
+        )
+        agent = result["settings"]["agent_servers"]["Muse Spark Code (Unofficial)"]
+        self.assertEqual(
+            agent["args"][2:],
+            ["acp", "C:/Node/node.exe", "--agent-script", "C:/ACP/dist/acp.js"],
+        )
+        self.assertEqual(
+            result["tasks"][0]["args"][2:],
+            ["panel", "C:/Node/node.exe", "--agent-script", "C:/ACP/dist/acp.js"],
+        )
+        with patch.object(launch.os, "execvpe") as execute:
+            launch.main(agent["args"][2:])
+            self.assertEqual(
+                execute.call_args.args[1], ["C:/Node/node.exe", "C:/ACP/dist/acp.js"]
+            )
+        with tempfile.TemporaryDirectory() as directory:
+            script = Path(directory) / "script with spaces.py"
+            script.write_text("import sys; print(sys.stdin.read(), end='')\n")
+            child = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    launch.__file__,
+                    "acp",
+                    sys.executable,
+                    "--agent-script",
+                    str(script),
+                ],
+                input="ACP test frame\n",
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(child.returncode, 0, child.stderr)
+            self.assertEqual(child.stdout, "ACP test frame\n")
 
 
 if __name__ == "__main__":

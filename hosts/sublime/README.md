@@ -31,6 +31,9 @@ kill. A duplicate start in one window is refused; distinct windows are
 independent. Browser and runtime children receive sanitized environments
 and raw stdout/stderr are discarded. Launch failures show `EPANEL_LAUNCH`;
 Stop failures show `EPANEL_STOP`, and unexpected exits show `EPANEL_EXIT`.
+Browser exit failures also show only `EPANEL_LAUNCH`. Package unload attempts
+every window even when one termination fails and retains failed handles for
+retry.
 
 The default opener is `open` on macOS and `xdg-open` on Linux. Set `opener`
 to a browser argv list on Windows. Every spawn uses `shell=False`.

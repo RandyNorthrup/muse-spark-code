@@ -5,6 +5,11 @@ local calls = {}
 local stopped = 0
 local cancelled = 0
 local chat_adapter = "muse_spark"
+local cancel_error, kill_error = false, false
+local notifications = {}
+vim.notify = function(message)
+  notifications[#notifications + 1] = message
+end
 local actual_system = vim.system
 vim.env.M104_API_KEY = "test-sentinel"
 vim.env.OPENAI_KEY = "test-sentinel"
@@ -15,6 +20,9 @@ package.preload["codecompanion"] = function()
       return {
         adapter = { name = chat_adapter },
         stop = function()
+          if cancel_error then
+            error("private cancellation detail")
+          end
           cancelled = cancelled + 1
         end,
       }
@@ -33,6 +41,9 @@ vim.system = function(args, opts, callback)
   calls[#calls + 1] = { args = args, opts = opts, callback = callback }
   return {
     kill = function(_, signal)
+      if kill_error then
+        error("private process detail")
+      end
       assert(signal == "sigterm")
       stopped = stopped + 1
     end,
@@ -117,6 +128,40 @@ assert(
   "browser launch keeps fragment and sanitized environment"
 )
 print("PASS browser launch keeps fragment and sanitized environment")
+calls[3].callback({ code = 1, stderr = url })
+vim.wait(1)
+assert(notifications[#notifications] == "EPANEL_LAUNCH", "browser failure is visible and redacted")
+assert(calls[3].opts.stdout == false and calls[3].opts.stderr == false, "browser output discarded")
+print("PASS browser failure is visible and redacted")
+muse.open_companion()
+cancel_error = true
+assert(pcall(muse.stop), "cancellation failure still terminates runtime")
+assert(stopped == 3, "cancellation failure still terminates runtime")
+assert(notifications[#notifications] == "EPANEL_STOP", "cancellation error is redacted")
+cancel_error = false
+print("PASS cancellation failure still terminates runtime")
+muse.open_companion()
+kill_error = true
+assert(pcall(muse.stop), "failed kill preserves ownership")
+rejects(function()
+  muse.open_companion()
+end, "failed kill preserves ownership")
+kill_error = false
+muse.stop()
+assert(stopped == 4, "failed kill retry reaches owned runtime")
+print("PASS failed kill preserves ownership")
+-- feedkeys executes a real interactive Ex command; only a test sentinel is used.
+vim.fn.histadd(":", "echo 'unrelated'")
+vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(":MusePanel " .. url .. "<CR>", true, false, true), "xt", false)
+assert(vim.fn.histget(":", -1) == "echo 'unrelated'", "interactive launch removed from command history")
+local shada = root .. "/temp/neovim-history.shada"
+vim.cmd("wshada! " .. vim.fn.fnameescape(shada))
+vim.fn.histdel(":")
+vim.cmd("rshada! " .. vim.fn.fnameescape(shada))
+for index = 1, vim.fn.histnr(":") do
+  assert(not vim.fn.histget(":", index):find("#k=", 1, true), "ShaDa contains no launch code")
+end
+print("PASS interactive launch removed from command history and ShaDa")
 local adapter = muse.acp_adapter()
 assert(adapter.env.M104_API_KEY == "" and adapter.env.OPENAI_KEY == "", "CodeCompanion adapter blanks credentials")
 assert(adapter.env.m104_api_key == "")

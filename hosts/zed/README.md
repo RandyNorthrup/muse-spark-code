@@ -4,7 +4,8 @@ Zed's current supported route is custom-agent registration and a native
 task. Its Rust extension API no longer supplies ACP agent registration or
 custom commands; ACP extensions were deprecated in Zed 1.5.0 in favor of
 the ACP Registry. This package deliberately uses those supported routes.
-An upstream request for extension panels/commands belongs to the owner.
+The [upstream feature-request draft](upstream-request.md) is ready for the
+owner to submit; this lane sends no request.
 
 Requires Python 3 and an installed `muse-spark-code-acp`. Generate settings
 and tasks without changing any user settings:
@@ -17,7 +18,12 @@ The output has `settings` and `tasks` sections. Merge `settings.agent_servers`
 into Zed's settings, and append the task to `.zed/tasks.json` or your user
 tasks. Preserve other agents and tasks. Keep this package at the generated
 absolute path; regenerate if you move it. `--agent` and `--python` can name
-installed executables at paths with spaces. The script installs nothing.
+installed executables at paths with spaces. For Windows npm installations
+that need Node instead of the `.cmd` wrapper, use `--agent` for `node.exe`
+and `--agent-script` for the installed absolute `dist/acp.js` path. ACP and
+panel launch preserve that argv prefix. The bootstrap is tested; native Zed
+task execution, including shell quoting, remains unqualified. The script
+installs nothing.
 
 Select **Muse Spark Code (Unofficial)** in Zed's Agent Panel for ACP. Use
 the `Muse Spark Code (Unofficial): panel` task through `task::Spawn` to

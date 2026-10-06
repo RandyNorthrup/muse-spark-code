@@ -2,6 +2,8 @@ local M = {}
 local running
 local openers = {}
 local stopping
+local launching
+local pending = {}
 
 function M.valid_url(url)
   if type(url) ~= "string" then
@@ -21,70 +23,122 @@ function M.open_companion(url)
   if url ~= nil and not M.valid_url(url) then
     error("EPANEL_LAUNCH_URL")
   end
-  if not url and running and running:isRunning() then
+  if not url and (launching or running) then
     error("EPANEL_ALREADY_RUNNING")
   end
   if not url and not project then
     error("EPANEL_WORKSPACE_REQUIRED")
   end
-  local python = a.wait(utils.FilePath.fromUserInput(config.python):searchInPath())
-  if not python or not python:isExecutableFile() then
-    error("EPANEL_PYTHON_REQUIRED")
+  -- Reserve ownership before executable lookup yields; Stop cancels the ticket.
+  local ticket = {}
+  pending[ticket] = true
+  if not url then
+    launching = ticket
   end
-  local launcher = PluginSpec.pluginDirectory:resolvePath("launch.py")
-  local args = url and { "-I", launcher:nativePath(), "open", url }
-    or { "-I", launcher:nativePath(), "panel", config.agent }
-  local child
-  child = process.create({
-    command = python,
-    arguments = args,
-    workingDirectory = project and project.directory or utils.FilePath.currentWorkingPath(),
-    stdout = function() end,
-    stderr = function() end,
-    onFinished = function()
+  local ok, result = pcall(function()
+    local python = a.wait(utils.FilePath.fromUserInput(config.python):searchInPath())
+    if not pending[ticket] then
+      error("EPANEL_STOP")
+    end
+    if not python or not python:isExecutableFile() then
+      error("EPANEL_PYTHON_REQUIRED")
+    end
+    local launcher = PluginSpec.pluginDirectory:resolvePath("launch.py")
+    local args = { "-I", launcher:nativePath() }
+    if url then
+      args[#args + 1] = "open"
+      args[#args + 1] = url
+    else
+      args[#args + 1] = "panel"
+      args[#args + 1] = config.agent
+      if config.agentScript then
+        args[#args + 1] = "--agent-script"
+        args[#args + 1] = config.agentScript
+      end
+    end
+    local child
+    local opener_failed = false
+    child = process.create({
+      command = python,
+      arguments = args,
+      workingDirectory = project and project.directory or utils.FilePath.currentWorkingPath(),
+      stdout = function() end,
+      stderr = function(chunk)
+        -- The trusted opener bootstrap emits only a fixed failure word.
+        if url and chunk ~= "" then
+          opener_failed = true
+        end
+      end,
+      onFinished = function()
+        local opener = openers[child]
+        openers[child] = nil
+        if opener and stopping ~= child and opener_failed then
+          require("MessageManager").writeFlashing("EPANEL_LAUNCH")
+        end
+        if running == child then
+          running = nil
+          if stopping ~= child then
+            require("MessageManager").writeFlashing("EPANEL_EXIT")
+          end
+        end
+      end,
+    })
+    -- Hold the native process while start yields. The launcher execs the runtime.
+    if not url then
+      running = child
+    else
+      openers[child] = true
+    end
+    if not a.wait(child:start()) then
       openers[child] = nil
       if running == child then
         running = nil
-        if stopping ~= child then
-          require("MessageManager").writeFlashing("EPANEL_EXIT")
-        end
       end
-    end,
-  })
-  -- Hold the native process while start yields. The launcher execs the runtime.
-  if not url then
-    running = child
-  else
-    openers[child] = true
-  end
-  if not a.wait(child:start()) then
-    openers[child] = nil
-    if running == child then
-      running = nil
+      error("EPANEL_LAUNCH")
     end
+    return child
+  end)
+  pending[ticket] = nil
+  if launching == ticket then
+    launching = nil
+  end
+  if not ok then
     error("EPANEL_LAUNCH")
   end
-  return child
+  return result
 end
 
 function M.stop()
+  pending = {}
+  launching = nil
+  local failed = false
   for child in pairs(openers) do
-    if child:isRunning() and not require("async").wait(child:stop()) then
-      error("EPANEL_STOP")
+    stopping = child
+    local ok, stopped = pcall(function()
+      return not child:isRunning() or require("async").wait(child:stop())
+    end)
+    stopping = nil
+    if ok and stopped then
+      openers[child] = nil
+    else
+      failed = true
     end
-    openers[child] = nil
   end
   if running then
     local child = running
     stopping = child
-    local stopped = not child:isRunning() or require("async").wait(child:stop())
+    local ok, stopped = pcall(function()
+      return not child:isRunning() or require("async").wait(child:stop())
+    end)
     stopping = nil
-    if not stopped then
-      error("EPANEL_STOP")
-    end
-    if running == child then
+    if ok and stopped and running == child then
       running = nil
+    elseif not ok or not stopped then
+      failed = true
     end
+  end
+  if failed then
+    error("EPANEL_STOP")
   end
 end
 

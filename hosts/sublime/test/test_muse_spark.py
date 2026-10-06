@@ -186,6 +186,32 @@ class ShimTests(unittest.TestCase):
         self.assertTrue(child.stopped)
         self.assertNotIn(1, muse._processes)
 
+    def test_browser_failure_is_visible_and_redacted(self):
+        child = Process()
+        with patch.object(muse.subprocess, "Popen", return_value=child):
+            muse.MusePanelCommand(self.window).run(url=self.url)
+        self.assertEqual(len(scheduled), 1)
+        scheduled[0]()
+        self.assertEqual(errors, ["EPANEL_LAUNCH"])
+        self.assertEqual(muse._processes, {})
+        errors.clear()
+        with patch.object(child, "wait", return_value=0):
+            muse._watch(None, child)
+        self.assertEqual(errors, [])
+
+    def test_unload_failure_does_not_block_other_windows(self):
+        first, second = Process(), Process()
+        muse._processes.update({1: first, 2: second})
+        with patch.object(first, "terminate", side_effect=OSError("private path")):
+            muse.plugin_unloaded()
+        self.assertTrue(second.stopped)
+        self.assertIs(muse._processes[1], first)
+        self.assertNotIn(2, muse._processes)
+        self.assertEqual(errors, ["EPANEL_STOP"])
+        muse.plugin_unloaded()
+        self.assertTrue(first.stopped)
+        self.assertEqual(muse._processes, {})
+
 
 if __name__ == "__main__":
     unittest.main()

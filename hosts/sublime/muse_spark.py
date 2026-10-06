@@ -53,6 +53,10 @@ def _watch(window_id, child):
     code = child.wait()
 
     def finished():
+        if window_id is None:
+            if code != 0:
+                sublime.error_message("EPANEL_LAUNCH")
+            return
         if _processes.get(window_id) is child:
             _processes.pop(window_id)
             if code != 0:
@@ -81,7 +85,8 @@ class MusePanelCommand(sublime_plugin.WindowCommand):
                     or not all(isinstance(arg, str) and arg for arg in opener)
                 ):
                     raise ValueError("EPANEL_OPENER_REQUIRED")
-                _spawn([*opener, url])
+                child = _spawn([*opener, url])
+                sublime.set_timeout_async(lambda: _watch(None, child))
                 return
             running = _processes.get(self.window.id())
             if running is not None and running.poll() is None:
@@ -128,7 +133,12 @@ class MuseLifecycle(sublime_plugin.EventListener):
 
 def plugin_unloaded():
     """Stop owned runtimes on package reload or removal."""
-    for running in list(_processes.values()):
-        if running.poll() is None:
-            running.terminate()
-    _processes.clear()
+    for window_id, running in list(_processes.items()):
+        try:
+            if running.poll() is None:
+                running.terminate()
+            if _processes.get(window_id) is running:
+                _processes.pop(window_id)
+        except OSError:
+            # One failed window must not prevent cleanup of the remaining windows.
+            sublime.error_message("EPANEL_STOP")
