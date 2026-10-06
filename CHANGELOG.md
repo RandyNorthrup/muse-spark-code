@@ -9,11 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
-- Repair M115's unshipped unattended authority: zero paid consent cannot
-  enable unlimited spending, while paused migration records retain no paid
-  authority; confined literal filenames such as Next.js `[slug]` routes
-  match simple path grants without enabling unsupported glob expansions.
-
+- Repair M115's unshipped unattended authority: every paid response and image
+  uses its fire's reservation, zero consent cannot enable unlimited spending,
+  and overlapping scheduled steers get separate turns and audits. Canonical
+  workspace reads, image sources/destinations and attachments pass fire safety.
+  Late native cancellation retains its owner, Stop settles during question
+  persistence, Accept edits permits safe writes, and confined literal filenames
+  such as Next.js `[slug]` routes match simple path grants.
 
 - Correct M115's internal schedule contracts before implementation: stale
   whole-record updates cannot restore revoked grants, crash-receipt migration

@@ -362,7 +362,6 @@ import {
 import {
   type Citation,
   citationsOf,
-  type CreateImageBody,
   type CreateResponseBody,
   type FunctionCallItem,
   type FunctionOutputPart,
@@ -797,6 +796,7 @@ interface ActiveTurn {
 
   readonly turnId: string
   readonly abort: AbortController
+  readonly inputParts: TurnPart[]
   confirmedRequest?: ConfirmedModelRequest
   /** Steered input, appended before the next model call. */
   readonly steered: {
@@ -2124,6 +2124,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   private isDisposed = false
   /** The surfaces holding this session: closing one must not cancel another's turn. */
   private holders = 1
+  private readonly scheduledClient: ModelApiClient
   public readonly schedules?: {
     create: (cadence: ScheduleCadence, prompt: string) => Promise<ScheduledPrompt>
     list: () => Promise<readonly ScheduledPrompt[]>
@@ -2170,6 +2171,7 @@ export class ModelApiSession implements ScheduledAgentSession {
      */
     private readonly extensionHooks: readonly ExtensionHookDefinition[] = [],
   ) {
+    this.scheduledClient = deps.client.withScheduleAuthority(() => this.active?.scheduleRun)
     this.workspaceEdits.add(this.ledger)
     this.modelId = modelId
     this.sessionPermissions = new PermissionEngine(approvalMode)
@@ -2211,6 +2213,10 @@ export class ModelApiSession implements ScheduledAgentSession {
         run: (id, occurrenceMs, confirmed) => this.runSchedule(id, occurrenceMs, confirmed),
       }
     }
+  }
+
+  private get client(): ModelApiClient {
+    return this.active?.scheduleRun === undefined ? this.deps.client : this.scheduledClient
   }
 
   private get permissions(): PermissionEngine {
@@ -2690,18 +2696,43 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** What the code intelligence tools work with (M67); undefined without language services. */
   private codeIntelDeps(): CodeIntelDeps | undefined {
     const { codeIntel } = this.deps
-    return codeIntel === undefined
+    const run = this.active?.scheduleRun
+    const service =
+      codeIntel === undefined || run === undefined
+        ? codeIntel
+        : {
+            ...codeIntel,
+            open: async (path: string) => {
+              const safe = await run.decide(
+                {
+                  id: this.deps.newId(),
+                  class: 'mcp',
+                  tool: MODEL_API_TOOLS.readFile,
+                  paths: [path],
+                  requiresAsking: false,
+                  protectedPath: false,
+                },
+                false,
+              )
+              if (!safe.allowed || this.getScheduledRun() !== run)
+                throw new Error(safe.reason ?? run.modelText.approvalRefused)
+              return await codeIntel.open(path)
+            },
+          }
+    return service === undefined
       ? undefined
       : {
-          service: codeIntel,
+          service,
           workspaceRoot: this.deps.workspaceRoot,
           platform: this.deps.platform,
-          io: this.deps.io,
+          io: this.scheduledIo(this.deps.io),
           now: this.deps.now,
           canReadFile: (file) =>
             !this.isDisposed &&
             !this.isHostClosing() &&
-            !this.policy().files.isDenied([file.relative, file.canonical]),
+            !this.policy().files.isDenied([file.relative, file.canonical]) &&
+            (run === undefined ||
+              (!isProtectedPath(file.relative) && !isProtectedPath(file.canonical))),
         }
   }
 
@@ -3350,7 +3381,7 @@ export class ModelApiSession implements ScheduledAgentSession {
    */
   private isWebSearchOffered(): boolean {
     return (
-      !this.deps.client.hasPaidDailyBudget &&
+      !this.client.hasPaidDailyBudget &&
       this.currentBudgetCap() <= 0 &&
       this.active?.isWebSearchAllowed === true &&
       this.deps.isPaidFeatureOn('webSearch')
@@ -3367,7 +3398,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (this.active?.scheduleRun !== undefined || !this.deps.isPaidFeatureOn('webSearch')) {
       return false
     }
-    if (this.currentBudgetCap() > 0 || this.deps.client.hasPaidDailyBudget) {
+    if (this.currentBudgetCap() > 0 || this.client.hasPaidDailyBudget) {
       this.emit({
         type: 'backendNotice',
         level: 'warning',
@@ -3519,40 +3550,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     else if (this.active?.confirmedRequest !== undefined) paidFeature ??= 'scheduledPrompts'
     let paidEstimatedInputTokens: number | undefined
     if (
-      (this.deps.client.hasPaidDailyBudget || this.active?.scheduleRun !== undefined) &&
+      (this.client.hasPaidDailyBudget || this.active?.scheduleRun !== undefined) &&
       (paidFeature !== undefined || directBudget !== undefined)
     ) {
       paidEstimatedInputTokens = estimateInput(requestParts(body), undefined).inputTokens
     }
-    const run = this.active?.scheduleRun
     return Object.assign(guard, {
-      ...(run !== undefined && {
-        reservePaidRequest: async (
-          body: CreateResponseBody | CreateImageBody,
-          feature: PaidFeature,
-          tokens: number | undefined,
-          signal: AbortSignal = new AbortController().signal,
-        ) => {
-          if (!run.allowsPaid(feature) || run.paid === undefined)
-            throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
-          try {
-            return await run.paid.reserve(body, tokens, signal)
-          } catch (error: unknown) {
-            run.refuse(
-              {
-                id: this.deps.newId(),
-                class: 'paidExtra',
-                tool: feature,
-                paths: [],
-                requiresAsking: false,
-                protectedPath: false,
-              },
-              run.modelText.paidRefused,
-            )
-            throw error
-          }
-        },
-      }),
       ...(paidFeature !== undefined && { paidFeature }),
       ...(paidEstimatedInputTokens !== undefined && { paidEstimatedInputTokens }),
       onRequestStarted: () => {
@@ -4163,7 +4166,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         }
         const attempt = budget.retriesUsed
         budget.retriesUsed += 1
-        const delayMs = this.deps.client.retryDelayMs(attempt)
+        const delayMs = this.client.retryDelayMs(attempt)
         this.emit({
           type: 'turnRetry',
           turnId,
@@ -4175,7 +4178,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.deps.log.warn(
           `Model API stream ended with ${error.code}; sending the request again in ${String(delayMs)} ms`,
         )
-        await this.deps.client.waitBeforeRetry(delayMs, signal)
+        await this.client.waitBeforeRetry(delayMs, signal)
       }
     }
   }
@@ -4190,6 +4193,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     confirmedRequest?: ConfirmedModelRequest,
   ): Promise<StreamedCall> {
     const requestId = this.deps.newId()
+    const run = this.active?.scheduleRun
+    if (run !== undefined) await run.checkParts(this.active?.inputParts ?? [])
     const attempt = budget.retriesUsed + 1
     // A request that cannot fit the session budget left is never sent (M82),
     // nor shown to the hooks; the body sent is reserved afresh below, since
@@ -4217,13 +4222,14 @@ export class ModelApiSession implements ScheduledAgentSession {
       })
     }
     await this.refreshBudgetSpend()
+    if (run !== undefined) await run.checkParts(this.active?.inputParts ?? [])
     const body = this.budgeted(this.body())
     this.lastJudgeBody = body
     const reservation = this.sending(body)
     const requestReplay = [...this.replay]
     let final: ResponseObject | undefined
     const admitAttempt = this.responseAttemptGuard(body)
-    const responseStream = this.deps.client.streamResponse(
+    const responseStream = this.client.streamResponse(
       body,
       signal,
       onRetry,
@@ -4483,7 +4489,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     requiresAsking: boolean,
   ): ScheduleApprovalAction {
     const subject = subjectFor(call, this.deps.platform, query.toolClass === 'mcp')
-    const path = subject.path ?? pick(argumentsOf(call), 'path')
+    const args = argumentsOf(call)
+    const sources = args['images']
+    const path = subject.path ?? pick(args, 'path')
     let actionClass: ScheduleApprovalAction['class'] = 'mcp'
     switch (query.toolClass) {
       case 'shell': {
@@ -4509,7 +4517,12 @@ export class ModelApiSession implements ScheduledAgentSession {
       class: actionClass,
       tool: call.name,
       ...(query.command !== undefined && { command: query.command }),
-      paths: [...(this.scheduledRenamePaths.get(call) ?? (path === undefined ? [] : [path]))],
+      paths: [
+        ...(this.scheduledRenamePaths.get(call) ?? (path === undefined ? [] : [path])),
+        ...(imageKindOf(call.name) === 'edit' && Array.isArray(sources)
+          ? sources.filter((source: unknown): source is string => typeof source === 'string')
+          : []),
+      ],
       requiresAsking,
       protectedPath: query.isProtected === true,
     }
@@ -4759,7 +4772,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     let keyDigest: string
     let budgetScope: OwnedSessionBudgetScope | undefined
     try {
-      keyDigest = await unlessStopped(this.deps.client.currentKeyDigest(), signal)
+      keyDigest = await unlessStopped(this.client.currentKeyDigest(), signal)
       budgetScope = await unlessStopped(this.ownedBudgetScope(), signal)
     } catch {
       if (signal.aborted) throw new AbortedError()
@@ -4951,12 +4964,15 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     const userInputId = this.deps.newId()
     if (this.active?.scheduleRun !== undefined) {
-      const text = await this.active.scheduleRun.defer({
-        type: 'questionRequested',
-        userInputId,
-        itemId,
-        questions: [...questions],
-      })
+      const text = await unlessStopped(
+        this.active.scheduleRun.defer({
+          type: 'questionRequested',
+          userInputId,
+          itemId,
+          questions: [...questions],
+        }),
+        signal,
+      )
       return { output: text, visibleOutput: UI_TEXT.scheduleV2.messages.deferredQuestions }
     }
     let reply: QuestionReply
@@ -5613,7 +5629,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     return await prepareImageCall(kind, argumentsOf(call), {
       workspaceRoot: this.deps.workspaceRoot,
       platform: this.deps.platform,
-      io: this.deps.io,
+      io: this.scheduledIo(this.deps.io),
     })
   }
 
@@ -5631,9 +5647,24 @@ export class ModelApiSession implements ScheduledAgentSession {
     signal: AbortSignal,
     admission: Admission,
   ): Promise<ToolOutcome> {
+    const run = this.active?.scheduleRun
     const touched: TouchedFiles = {
       names: [plan.target, ...plan.sources].flatMap((file) => [file.relative, file.canonical]),
       complete: true,
+    }
+    if (run !== undefined) {
+      const safe = await run.decide(
+        {
+          id: this.deps.newId(),
+          class: 'paidExtra',
+          tool: 'imageGeneration',
+          paths: [plan.target, ...plan.sources].map((file) => file.canonical),
+          requiresAsking: false,
+          protectedPath: false,
+        },
+        false,
+      )
+      if (!safe.allowed) return toolFailure(safe.reason ?? run.modelText.protectedRefused)
     }
     for (const path of [plan.target, ...plan.sources]) {
       const current = await confineWorkspacePath(
@@ -5646,9 +5677,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         return toolFailure(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
       }
     }
-    await this.refreshBudgetSpend()
+    if (run === undefined) await this.refreshBudgetSpend()
     const price = PAID_PRICES_USD.imageGeneration
-    const capUsd = this.currentBudgetCap()
+    const capUsd = run === undefined ? this.currentBudgetCap() : 0
     if (capUsd > 0 && price > capUsd - this.budgetSpentUsd) {
       throw new SessionBudgetExceededError(
         fill(UI_TEXT.sessionBudgetStopped, {
@@ -5660,10 +5691,10 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     const owner = this.budgetOwner()
     const scope = this.deps.budgetScope
-    const accountId = scope?.accountId ?? owner.budgetAccountId
+    const accountId = run?.paid?.accountId ?? scope?.accountId ?? owner.budgetAccountId
     const journal = this.budgetJournal()
     const claim =
-      accountId !== undefined && journal !== undefined
+      run === undefined && accountId !== undefined && journal !== undefined
         ? await journal.reserve(scope?.sessionId ?? owner.sessionId, accountId, price)
         : undefined
     const revision = this.modelRevision
@@ -5678,8 +5709,8 @@ export class ModelApiSession implements ScheduledAgentSession {
         await this.onPersisted('budget')
       }
       const outcome = await runImageCall(plan, {
-        client: this.deps.client,
-        io: this.toolWrites()?.io ?? this.deps.io,
+        client: this.client,
+        io: this.scheduledIo(this.toolWrites()?.io ?? this.deps.io),
         signal,
         isStillOn: () => this.deps.isPaidFeatureOn('imageGeneration'),
         admitAttempt: Object.assign(
@@ -5694,12 +5725,14 @@ export class ModelApiSession implements ScheduledAgentSession {
               revision !== this.modelRevision ||
               goalRevision !== this.goalCommandRevision ||
               isTrusted !== this.deps.isWorkspaceTrusted() ||
+              this.active?.scheduleRun !== run ||
+              run?.isActive() === false ||
               !this.deps.isPaidFeatureOn('imageGeneration') ||
               scope?.isStillAllowed(keyDigest) === false
             ) {
               throw new AbortedError()
             }
-            if (claim === undefined && this.currentBudgetCap() > 0) {
+            if (run === undefined && claim === undefined && this.currentBudgetCap() > 0) {
               throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
             }
             claim?.check(this.currentBudgetCap())
@@ -5739,7 +5772,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       } else if (charged > 0) {
         this.warnUnknownCharge(charged)
       }
-      this.recordBudgetCost(charged, claim)
+      if (run === undefined) this.recordBudgetCost(charged, claim)
       await this.budgetWrites
       if (claim !== undefined && scope === undefined) {
         await this.onPersisted('refund')
@@ -6103,18 +6136,87 @@ export class ModelApiSession implements ScheduledAgentSession {
     }).filter((tool) => HOOK_MODEL_READ_TOOLS.has(tool.name))
   }
 
-  /** One read-only tool call of a hook's agent turn; any other name is refused. */
+  /** Recheck the fire's canonical safety at every workspace I/O entry. */
+  private scheduledIo(io: ToolIo): ToolIo {
+    const run = this.active?.scheduleRun
+    if (run === undefined) return io
+    const check = async (path: string, actionClass: 'edit' | 'mcp') => {
+      if (this.getScheduledRun() !== run) throw new AbortedError()
+      const safe = await run.decide(
+        {
+          id: this.deps.newId(),
+          class: actionClass,
+          tool: actionClass === 'edit' ? MODEL_API_TOOLS.writeFile : MODEL_API_TOOLS.readFile,
+          paths: [path],
+          requiresAsking: false,
+          protectedPath: false,
+        },
+        false,
+      )
+      if (!safe.allowed) throw new Error(safe.reason ?? run.modelText.protectedRefused)
+      if (this.getScheduledRun() !== run) throw new AbortedError()
+    }
+    return {
+      ...io,
+      readFile: async (...args) => {
+        await check(args[0], 'mcp')
+        return await io.readFile(...args)
+      },
+      readBytes: async (...args) => {
+        await check(args[0], 'mcp')
+        return await io.readBytes(...args)
+      },
+      writeFile: async (...args) => {
+        await check(args[0], 'edit')
+        await io.writeFile(...args)
+      },
+      writeFileIfUnchanged: async (...args) => {
+        await check(args[0], 'edit')
+        return await io.writeFileIfUnchanged(...args)
+      },
+      reserveFile: async (...args) => {
+        await check(args[0], 'edit')
+        const reservation = await io.reserveFile(...args)
+        return {
+          release: () => reservation.release(),
+          fill: async (bytes) => {
+            await check(args[0], 'edit')
+            return await reservation.fill(bytes)
+          },
+        }
+      },
+      listFiles: async () => {
+        const files = await io.listFiles()
+        const allowed: string[] = []
+        for (const path of files) {
+          try {
+            await check(path, 'mcp')
+            allowed.push(path)
+          } catch {
+            if (!run.isActive() || this.getScheduledRun() !== run) throw new AbortedError()
+          }
+        }
+        return allowed
+      },
+      searchFiles: async (job) => {
+        for (const file of job.files) await check(file.absolute, 'mcp')
+        return await io.searchFiles(job)
+      },
+    }
+  }
+
   private fileToolContext(signal: AbortSignal) {
     return {
       workspaceRoot: this.deps.workspaceRoot,
       platform: this.deps.platform,
-      io: this.toolWrites()?.io ?? this.deps.io,
+      io: this.scheduledIo(this.toolWrites()?.io ?? this.deps.io),
       signal,
       seen: this.seenFiles,
       files: this.policy().files,
     }
   }
 
+  /** One read-only tool call of a hook's agent turn; any other name is refused. */
   private async executeHookModelTool(
     name: string,
     argsJson: string,
@@ -6170,7 +6272,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.deps.isPaidFeatureOn('hookModels') &&
       this.policy() === policy
     const [keyDigest, budgetScope] = await unlessStopped(
-      Promise.all([this.deps.client.currentKeyDigest(), this.ownedBudgetScope()]),
+      Promise.all([this.client.currentKeyDigest(), this.ownedBudgetScope()]),
       signal,
     )
     if (
@@ -6445,7 +6547,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       undefined,
     )
     if (verdict?.keepWorking !== true || !this.canContinueChild(child, grant)) return false
-    const keyDigest = await this.deps.client.currentKeyDigest()
+    const keyDigest = await this.client.currentKeyDigest()
     if (
       this.childGrantRefusal(grant, keyDigest, child.session.modelId) !== undefined ||
       !this.canContinueChild(child, grant)
@@ -6712,7 +6814,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     return {
       modelId,
       parentModelId,
-      keyDigest: await this.deps.client.currentKeyDigest(),
+      keyDigest: await this.client.currentKeyDigest(),
       goalId,
       remainingAttempts: SUBAGENT_TASK_MAX_REQUESTS,
       isWebSearchAllowed,
@@ -6734,7 +6836,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   ): Promise<ChildAdmission | { readonly refusal: ToolOutcome }> {
     let keyDigest: string | undefined
     try {
-      keyDigest = await this.deps.client.currentKeyDigest()
+      keyDigest = await this.client.currentKeyDigest()
     } catch (error: unknown) {
       if (!(error instanceof MissingApiKeyError)) {
         throw error
@@ -8764,7 +8866,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       const outcome = await applyRename(plan, {
         workspaceRoot: this.deps.workspaceRoot,
         platform: this.deps.platform,
-        io: this.toolWrites()?.io ?? this.deps.io,
+        io: this.scheduledIo(this.toolWrites()?.io ?? this.deps.io),
         seen: this.seenFiles,
         signal,
         beforeAccess: (file) => {
@@ -9866,6 +9968,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         turn.schedulePermissions = new PermissionEngine(mspApprovalMode(scheduleRun.context.mode))
         turn.confirmedRequest = this.scheduledRequest(scheduleRun)
       }
+      turn.inputParts.push(...parts)
       // Admitted user input (M68): the fix loop, rejections and runs start
       // afresh; what the conversation wrote stays until the next message. A
       // subagent's steers come from its parent model, not the user.
@@ -10471,6 +10574,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       }),
       turnId: queued.turnId,
       abort: new AbortController(),
+      inputParts: [...queued.parts],
       steered: [],
       acceptedTextAttachmentBytes: textAttachmentBytes(queued.parts),
       modelFailure: undefined,
@@ -10766,7 +10870,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     let response: ResponseObject | undefined
     const reservation = this.sending(body)
     const admitAttempt = this.responseAttemptGuard(body)
-    const responseStream = this.deps.client.streamResponse(
+    const responseStream = this.client.streamResponse(
       body,
       signal,
       (notice) => {
@@ -10875,7 +10979,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const { stream: _stream, ...countable } = this.body()
     const countRevision = this.modelRevision
     try {
-      const counted = await this.deps.client.countInputTokens(countable)
+      const counted = await this.client.countInputTokens(countable)
       if (countRevision === this.modelRevision) {
         this.noteContext(counted)
       }
@@ -11435,12 +11539,13 @@ export class ModelApiSession implements ScheduledAgentSession {
       : undefined
   }
 
-  public sendScheduledTurn(
+  public async sendScheduledTurn(
     parts: readonly TurnPart[],
     run: UnattendedRun,
     displayText?: string,
   ): Promise<TurnSubmission> {
-    return this.submitTurn(
+    await run.checkParts(parts)
+    return await this.submitTurn(
       run.parts(parts),
       displayText,
       false,
@@ -11450,15 +11555,19 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
   }
 
-  public steerScheduledTurn(
+  public async steerScheduledTurn(
     expectedTurnId: string,
     parts: readonly TurnPart[],
     run: UnattendedRun,
   ): Promise<TurnSubmission> {
-    if (this.active?.scheduleRun !== undefined && this.active.scheduleRun !== run)
-      return Promise.reject(new SteerRefusedError(UI_TEXT.scheduleBusy))
+    await run.checkParts(parts)
     this.scheduledRequest(run)
-    return this.steerTurn(expectedTurnId, run.parts(parts), run)
+    if (this.active?.turnId !== expectedTurnId || this.active.abort.signal.aborted)
+      throw new SteerRefusedError(TURN_NOT_RUNNING)
+    return this.active.scheduleRun !== undefined ||
+      this.active.steered.some((steer) => steer.scheduleRun !== undefined)
+      ? await this.sendScheduledTurn(parts, run)
+      : await this.steerTurn(expectedTurnId, run.parts(parts), run)
   }
 
   public sendTurn(
@@ -12421,7 +12530,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         send: async (body, signal, guard) => {
           if (guard === undefined) throw new Error('Judge dispatch requires admission')
           let final: ResponseObject | undefined
-          const stream = this.deps.client.streamResponse(
+          const stream = this.client.streamResponse(
             body,
             signal,
             undefined,

@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import type { ScheduleRunDeps } from '../../src/core/schedules/unattended'
 import { unattendedRun } from './helpers/schedules/unattended'
 import { fakeRunContext } from './helpers/schedules/fixtures'
 import { FakeScheduleApprovalStream } from './helpers/schedules/approvals'
@@ -119,6 +120,57 @@ describe.each(['modelApi', 'museCode'] as const)('unattended %s', (backend) => {
       { type: 'text', text: 'Scheduled; nobody is watching.' },
     ])
   })
+  it('passes canonical paths to safety before permitting a read that feeds a request', async () => {
+    const safety = vi
+      .fn<ScheduleRunDeps['safety']>()
+      .mockImplementation((action) =>
+        action.paths.includes('assets/in.png') ? 'Canonical source refused.' : undefined,
+      )
+    const { run } = unattendedRun({
+      safety,
+      io: {
+        realPath: (path) =>
+          Promise.resolve(path.endsWith('alias.png') ? '/workspace/assets/in.png' : path),
+      },
+    })
+    const action = new FakeScheduleApprovalStream(backend).request('mcp')
+    const decision = await run.decide({ ...action, paths: ['alias.png'] }, false)
+    expect(decision.allowed).toBe(false)
+    expect(safety).toHaveBeenCalledWith(
+      expect.objectContaining({ paths: ['assets/in.png'] }),
+      `schedule:${run.context.scheduleId}`,
+    )
+  })
+  it('checks named attachments and refuses anonymous bytes before scheduled request admission', async () => {
+    const { run } = unattendedRun()
+    const file = {
+      type: 'textFile',
+      name: '.muse/private.txt',
+      mediaType: 'text/plain',
+      text: 'private bytes',
+      sizeBytes: 13,
+    } as const
+    await expect(run.checkParts([file])).rejects.toThrow('Protected refused.')
+    await expect(
+      run.checkParts([
+        { type: 'image', base64Data: 'AAAA', mediaType: 'image/png', width: 1, height: 1 },
+      ]),
+    ).rejects.toThrow('Person required.')
+    await expect(run.checkParts([{ ...file, name: 'src/read.txt' }])).resolves.toBeUndefined()
+  })
+  it('Accept edits permits plain edits after safety and still refuses physical, protected and person-required actions', async () => {
+    const context = { ...fakeRunContext(), mode: 'acceptEdits' as const }
+    const { run } = unattendedRun({ context })
+    const stream = new FakeScheduleApprovalStream(backend)
+    const edit = await run.decide(stream.request('edit'))
+    const shell = await run.decide(stream.request('shell'))
+    expect(edit.allowed).toBe(true)
+    expect(shell.allowed).toBe(false)
+    for (const kind of ['physical', 'protectedPath', 'requiresAsking'] as const) {
+      const decision = await run.decide(stream.request(kind))
+      expect(decision.allowed).toBe(false)
+    }
+  })
   it('cannot enable paid extras through an ordinary tool grant or a hook requiring a person', () => {
     const { run } = unattendedRun()
     expect(run.allowsPaid('imageGeneration')).toBe(false)
@@ -130,6 +182,7 @@ describe.each(['modelApi', 'museCode'] as const)('unattended %s', (backend) => {
         reserve: () => Promise.reject(new Error('not dispatched')),
       },
     }).run
+    expect(paid.allowsPaid('imageGeneration')).toBe(false)
     expect(paid.allowsPaid('imageGeneration', true)).toBe(false)
   })
   it('fails closed if auditing fails or revocation happens during the audit', async () => {

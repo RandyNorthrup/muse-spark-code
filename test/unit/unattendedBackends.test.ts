@@ -1,11 +1,17 @@
 import { describe, expect, it, vi } from 'vitest'
 import { MuseCodeHost, MuseSession } from '../../src/core/backends/musecode/MuseCodeHost'
 import { ModelApiHost, type ModelApiHostDeps } from '../../src/core/backends/modelapi/ModelApiHost'
+import { ModelApiClient, type ModelApiClientDeps } from '../../src/core/backends/modelapi/client'
 import { MODEL_API_TOOLS } from '../../src/shared/constants'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { fakeMspHost, settle } from './helpers/fakeMsp'
 import { raceRequested, RACE_APPROVAL_ID } from './helpers/stageRaceCapture'
-import { fakeModelApi, fakeModelApiClient, FAKE_MODEL_API_ACCOUNT_ID } from './helpers/fakeModelApi'
+import {
+  fakeModelApi,
+  fakeModelApiClientSettings,
+  FAKE_MODEL_API_ACCOUNT_ID,
+  TINY_PNG_BASE64,
+} from './helpers/fakeModelApi'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { fakeLanguageService, renamed } from './helpers/fakeLanguageService'
 import { memoryToolIo } from './helpers/fakeToolIo'
@@ -16,14 +22,21 @@ import { fakeMcpSource } from './helpers/fakeMcpSource'
 import { unattendedRun } from './helpers/schedules/unattended'
 import { fakeRunContext } from './helpers/schedules/fixtures'
 
-async function modelBackend(overrides: Partial<ModelApiHostDeps> = {}) {
+async function modelBackend(
+  overrides: Partial<ModelApiHostDeps> = {},
+  clientOverrides: Partial<ModelApiClientDeps> = {},
+) {
   const api = fakeModelApi()
   const log = new FakeLogOutputChannel()
   const io = memoryToolIo({ 'src/read.txt': 'inside workspace' }, '/workspace')
   const popup = vi.fn().mockResolvedValue(false)
   const host = new ModelApiHost({
     ...fakeModelApiHostDeps({
-      client: fakeModelApiClient(api, log),
+      client: new ModelApiClient({
+        ...fakeModelApiClientSettings(log),
+        fetch: api.fetch,
+        ...clientOverrides,
+      }),
       workspaceRoot: '/workspace',
       io,
       log,
@@ -45,7 +58,7 @@ async function modelBackend(overrides: Partial<ModelApiHostDeps> = {}) {
   })
   const run = (context = fakeRunContext(), overrides: Partial<ScheduleRunDeps> = {}) =>
     unattendedRun({
-      context,
+      context: { ...context, grant: { ...context.grant, paidCapUsd: 1 } },
       io,
       paid: {
         modelId: 'muse-spark-1.3',
@@ -56,6 +69,44 @@ async function modelBackend(overrides: Partial<ModelApiHostDeps> = {}) {
       ...overrides,
     })
   return { api, io, popup, host, ...watched, run, reserve }
+}
+
+const PROTECTED_ATTACHMENT = {
+  type: 'textFile',
+  name: '.muse/private.txt',
+  mediaType: 'text/plain',
+  text: 'private bytes',
+  sizeBytes: 13,
+} as const
+
+function heldReply() {
+  const entered = Promise.withResolvers<undefined>()
+  const held = Promise.withResolvers<undefined>()
+  return {
+    entered,
+    held,
+    reply: {
+      hold: held.promise,
+      onRequest: () => {
+        entered.resolve(undefined)
+      },
+    },
+  }
+}
+
+function scriptImage(
+  api: ReturnType<typeof fakeModelApi>,
+  name: string,
+  images: readonly string[],
+) {
+  api.script(
+    {
+      calls: [
+        { name, arguments: JSON.stringify({ path: 'assets/out.png', prompt: 'test', images }) },
+      ],
+    },
+    { text: 'done' },
+  )
 }
 
 function commandContext() {
@@ -342,14 +393,10 @@ describe('scheduled Model API dispatch', () => {
     async (kind) => {
       const fixture = await modelBackend()
       await fixture.session.setApprovalMode('allowAll')
-      const entered = Promise.withResolvers<undefined>()
-      const held = Promise.withResolvers<undefined>()
+      const { entered, held, reply } = heldReply()
       fixture.api.script(
         {
-          hold: held.promise,
-          onRequest: () => {
-            entered.resolve(undefined)
-          },
+          ...reply,
           ...(kind === 'steer'
             ? { calls: [{ name: MODEL_API_TOOLS.readFile, arguments: '{"path":"src/read.txt"}' }] }
             : { text: 'ordinary done' }),
@@ -385,6 +432,270 @@ describe('scheduled Model API dispatch', () => {
       await fixture.host.close()
     },
   )
+  it.each(['generate_image', 'edit_image'])(
+    'reserves %s only through the fire and refuses an over-cap image before HTTP',
+    async (tool) => {
+      const interactive = vi.fn().mockRejectedValue(new Error('Interactive ledger reached'))
+      const fixture = await modelBackend({}, { reservePaidRequest: interactive })
+      fixture.io.binaries.set('/workspace/assets/in.png', Buffer.from(TINY_PNG_BASE64, 'base64'))
+      const claim = await fixture.reserve()
+      fixture.reserve.mockClear()
+      fixture.reserve.mockImplementation((body) =>
+        'input' in body ? Promise.resolve(claim) : Promise.reject(new Error('Schedule image cap')),
+      )
+      const { run } = fixture.run(fakeRunContext(), {
+        paid: {
+          modelId: 'muse-spark-1.3',
+          accountId: FAKE_MODEL_API_ACCOUNT_ID,
+          allows: () => true,
+          reserve: fixture.reserve,
+        },
+      })
+      scriptImage(fixture.api, tool, ['assets/in.png'])
+      const done = fixture.turnDone()
+      await fixture.session.sendScheduledTurn([{ type: 'text', text: 'Image' }], run)
+      await done
+      expect(fixture.reserve.mock.calls.filter(([body]) => !('input' in body))).toHaveLength(1)
+      expect(fixture.api.imageBodies()).toHaveLength(0)
+      expect(fixture.api.editBodies()).toHaveLength(0)
+      expect(interactive).not.toHaveBeenCalled()
+      expect(fixture.popup).not.toHaveBeenCalled()
+      expect(run.refusedActions.some((action) => action.actionClass === 'paidExtra')).toBe(true)
+      await fixture.host.close()
+    },
+  )
+  it.each([false, true])(
+    'checks protected or physical image sources before reading or sending them (physical %s)',
+    async (isPhysical) => {
+      const source = isPhysical ? 'assets/private.png' : '.muse/private.png'
+      const fixture = await modelBackend()
+      fixture.io.binaries.set(`/workspace/${source}`, Buffer.from(TINY_PNG_BASE64, 'base64'))
+      const read = vi.spyOn(fixture.io, 'readBytes')
+      const safety = vi
+        .fn<ScheduleRunDeps['safety']>()
+        .mockImplementation((action) =>
+          isPhysical && action.class === 'paidExtra' && action.paths.includes(source)
+            ? 'Physical refused.'
+            : undefined,
+        )
+      const { run } = fixture.run(fakeRunContext(), {
+        safety,
+        paid: {
+          modelId: 'muse-spark-1.3',
+          accountId: FAKE_MODEL_API_ACCOUNT_ID,
+          allows: () => true,
+          reserve: fixture.reserve,
+        },
+      })
+      scriptImage(fixture.api, 'edit_image', [source])
+      const done = fixture.turnDone()
+      await fixture.session.sendScheduledTurn([{ type: 'text', text: 'Image' }], run)
+      await done
+      expect(read).not.toHaveBeenCalled()
+      expect(fixture.api.editBodies()).toHaveLength(0)
+      expect(run.refusedActions).toHaveLength(1)
+      expect(fixture.io.binaries.has('/workspace/assets/out.png')).toBe(false)
+      await fixture.host.close()
+    },
+  )
+  it('rechecks the canonical image destination before filling returned bytes', async () => {
+    const fixture = await modelBackend()
+    const held = Promise.withResolvers<undefined>()
+    let hasChanged = false
+    const realPath = fixture.io.realPath
+    fixture.io.realPath = (path) =>
+      hasChanged && path.endsWith('out.png')
+        ? Promise.resolve('/workspace/.muse/out.png')
+        : realPath(path)
+    const { run } = fixture.run(fakeRunContext(), {
+      paid: {
+        modelId: 'muse-spark-1.3',
+        accountId: FAKE_MODEL_API_ACCOUNT_ID,
+        allows: () => true,
+        reserve: fixture.reserve,
+      },
+    })
+    fixture.api.images.push({ hold: held.promise })
+    fixture.api.script(
+      {
+        calls: [{ name: 'generate_image', arguments: '{"path":"assets/out.png","prompt":"test"}' }],
+      },
+      { text: 'done' },
+    )
+    const done = fixture.turnDone()
+    await fixture.session.sendScheduledTurn([{ type: 'text', text: 'Image' }], run)
+    await vi.waitFor(() => {
+      expect(fixture.api.imageBodies()).toHaveLength(1)
+    })
+    hasChanged = true
+    held.resolve(undefined)
+    await done
+    expect(fixture.io.binaries.has('/workspace/assets/out.png')).toBe(false)
+    expect(fixture.io.binaries.has('/workspace/.muse/out.png')).toBe(false)
+    expect(run.refusedActions).toHaveLength(1)
+    await fixture.host.close()
+  })
+  it('checks actual read paths again after a canonical alias changes before native I/O', async () => {
+    const fixture = await modelBackend()
+    fixture.io.files.set('/workspace/.muse/private.txt', 'protected source bytes')
+    let hasChanged = false
+    const realPath = fixture.io.realPath
+    fixture.io.realPath = (path) =>
+      hasChanged && path.endsWith('alias.txt')
+        ? Promise.resolve('/workspace/.muse/private.txt')
+        : realPath(path)
+    const { run } = fixture.run()
+    const decide = run.decide.bind(run)
+    vi.spyOn(run, 'decide').mockImplementation(async (...args) => {
+      const outcome = await decide(...args)
+      hasChanged = true
+      return outcome
+    })
+    const read = vi.spyOn(fixture.io, 'readFile')
+    fixture.api.script(
+      { calls: [{ name: MODEL_API_TOOLS.readFile, arguments: '{"path":"src/alias.txt"}' }] },
+      { text: 'done' },
+    )
+    const done = fixture.turnDone()
+    await fixture.session.sendScheduledTurn([{ type: 'text', text: 'Read' }], run)
+    await done
+    expect(read).not.toHaveBeenCalled()
+    expect(JSON.stringify(fixture.api.responseBodies())).not.toContain('protected source bytes')
+    expect(run.refusedActions).toHaveLength(1)
+    await fixture.host.close()
+  })
+  it('refuses a protected named attachment before backend request admission', async () => {
+    const fixture = await modelBackend()
+    const { run } = fixture.run()
+    await expect(fixture.session.sendScheduledTurn([PROTECTED_ATTACHMENT], run)).rejects.toThrow()
+    expect(fixture.api.requests).toHaveLength(0)
+    await fixture.host.close()
+  })
+  it.each(['pending', 'active'])(
+    'isolates a second scheduled steer from a %s owner in its own turn, grant and audit',
+    async (owner) => {
+      const fixture = await modelBackend()
+      const { entered, held, reply } = heldReply()
+      const activeReply = heldReply()
+      fixture.api.script(
+        {
+          ...reply,
+          calls: [{ name: MODEL_API_TOOLS.readFile, arguments: '{"path":"src/read.txt"}' }],
+        },
+        {
+          ...(owner === 'active' && activeReply.reply),
+          calls: [{ name: 'bash', arguments: '{"command":"npm test"}' }],
+        },
+        { text: 'A done' },
+        { calls: [{ name: 'bash', arguments: '{"command":"npm test"}' }] },
+        { text: 'B done' },
+      )
+      const ordinary = await fixture.session.sendTurn([{ type: 'text', text: 'Ordinary' }])
+      await entered.promise
+      const a = fixture.run()
+      const context = { ...commandContext(), scheduleId: 'schedule-B', runId: 'run-B' }
+      const b = fixture.run(context)
+      const first = await fixture.session.steerScheduledTurn(
+        ordinary.turnId,
+        [{ type: 'text', text: 'Fire A' }],
+        a.run,
+      )
+      if (owner === 'active') {
+        held.resolve(undefined)
+        await activeReply.entered.promise
+      }
+      const second = await fixture.session.steerScheduledTurn(
+        ordinary.turnId,
+        [{ type: 'text', text: 'Fire B' }],
+        b.run,
+      )
+      held.resolve(undefined)
+      activeReply.held.resolve(undefined)
+      await vi.waitFor(() => {
+        expect(fixture.api.responseBodies().length).toBeGreaterThanOrEqual(2)
+      })
+      const bodies = fixture.api.responseBodies()
+      expect(JSON.stringify(bodies[1]?.['input'])).toContain('Fire A')
+      expect(JSON.stringify(bodies[1]?.['input'])).not.toContain('Fire B')
+      expect(first.disposition).toBe('steered')
+      expect(second.disposition).toBe('queued')
+      expect(second.turnId).not.toBe(first.turnId)
+      await vi.waitFor(() => {
+        expect(fixture.events.filter((event) => event.type === 'turnCompleted')).toHaveLength(2)
+      })
+      expect(fixture.io.shellCalls).toHaveLength(1)
+      expect(a.audit).not.toHaveBeenCalled()
+      expect(a.run.refusedActions).toHaveLength(1)
+      expect(b.audit).toHaveBeenCalledTimes(1)
+      await fixture.host.close()
+    },
+  )
+  it('Stop settles a scheduled turn while deferred-question persistence remains pending', async () => {
+    const fixture = await modelBackend()
+    const held = Promise.withResolvers<undefined>()
+    const entered = Promise.withResolvers<undefined>()
+    const deferQuestions = vi.fn(() => {
+      entered.resolve(undefined)
+      return held.promise
+    })
+    const { run } = fixture.run(fakeRunContext(), { deferQuestions })
+    fixture.api.script(
+      {
+        calls: [
+          {
+            name: MODEL_API_TOOLS.askUser,
+            arguments:
+              '{"questions":[{"id":"colour","header":"Colour","question":"Which colour?","selection":{"mode":"single"},"options":[{"label":"Red"}]}]}',
+          },
+        ],
+      },
+      { text: 'next turn' },
+    )
+    const done = fixture.turnDone()
+    await fixture.session.sendScheduledTurn([{ type: 'text', text: 'Ask' }], run)
+    await entered.promise
+    await fixture.session.cancel()
+    try {
+      await vi.waitFor(() => {
+        expect(fixture.events.some((event) => event.type === 'turnCompleted')).toBe(true)
+      })
+      await done
+      const next = fixture.turnDone()
+      await fixture.session.sendTurn([{ type: 'text', text: 'Next' }])
+      await next
+      expect(deferQuestions).toHaveBeenCalledTimes(1)
+    } finally {
+      held.resolve(undefined)
+      await fixture.host.close()
+    }
+  })
+  it('Accept edits schedules write unprotected files with an empty grant and still refuse protected edits', async () => {
+    const fixture = await modelBackend()
+    const context = { ...fakeRunContext(), mode: 'acceptEdits' as const }
+    const { run } = fixture.run(context)
+    fixture.api.script(
+      {
+        calls: [
+          {
+            name: MODEL_API_TOOLS.writeFile,
+            arguments: '{"path":"src/new.txt","content":"change"}',
+          },
+          {
+            name: MODEL_API_TOOLS.writeFile,
+            arguments: '{"path":".muse/private.txt","content":"protected"}',
+          },
+        ],
+      },
+      { text: 'done' },
+    )
+    const done = fixture.turnDone()
+    await fixture.session.sendScheduledTurn([{ type: 'text', text: 'Edit' }], run)
+    await done
+    expect(fixture.io.files.get('/workspace/src/new.txt')).toBe('change')
+    expect(fixture.io.files.has('/workspace/.muse/private.txt')).toBe(false)
+    expect(run.refusedActions).toHaveLength(1)
+    await fixture.host.close()
+  })
   it('keeps the ordinary instructions/tools byte-identical and puts the fixed note only in user input', async () => {
     const ordinary = await modelBackend()
     const scheduled = await modelBackend()
@@ -440,6 +751,75 @@ describe('scheduled Muse Code dispatch over captured MSP frames', () => {
         { type: 'text', text: run.modelText.unattendedNote },
       ],
     })
+    await fixture.host.close()
+  })
+  it('Accept edits answers only plain unprotected writes with no path grant', async () => {
+    const fixture = await museBackend()
+    const { run } = unattendedRun({ context: { ...fakeRunContext(), mode: 'acceptEdits' } })
+    await fixture.session.sendScheduledTurn([{ type: 'text', text: 'Edit' }], run)
+    for (const [index, path] of ['src/new.txt', '.muse/private.txt'].entries()) {
+      const id = `edit-${String(index)}`
+      fixture.server.notify('approval/requested', {
+        ...raceRequested(fixture.session.sessionId),
+        approvalId: id,
+        currentRequirementId: { approvalId: id, sourceIndex: 0 },
+        toolName: 'write_file',
+        turnId: 'schedule-turn',
+        subject: { kind: 'fileAccess', access: 'write', path },
+      })
+    }
+    await museDecided(fixture, 2)
+    expect(
+      fixture.server
+        .requestsFor('approval/decide')
+        .map((request) => ({
+          id: request.params?.['approvalId'],
+          choice: request.params?.['choiceId'],
+        }))
+        .toSorted((a, b) => String(a.id).localeCompare(String(b.id))),
+    ).toEqual([
+      { id: 'edit-0', choice: 'allow_once' },
+      { id: 'edit-1', choice: 'abort' },
+    ])
+    await fixture.host.close()
+  })
+  it('refuses a protected named attachment before native turn admission', async () => {
+    const fixture = await museBackend()
+    const { run } = unattendedRun()
+    await expect(fixture.session.sendScheduledTurn([PROTECTED_ATTACHMENT], run)).rejects.toThrow()
+    expect(fixture.server.requestsFor('session/setApprovalMode')).toHaveLength(0)
+    expect(fixture.server.requestsFor('turn/start')).toHaveLength(0)
+    await fixture.host.close()
+  })
+  it('rechecks native attachment paths after approval-mode admission before sending bytes', async () => {
+    const fixture = await museBackend()
+    let hasChanged = false
+    fixture.server.handle('session/setApprovalMode', (params) => {
+      hasChanged = true
+      return {
+        ...ack(params),
+        applyOutcome: 'completed',
+        effectiveMode: { mode: params['mode'], source: 'approvalReconfigure' },
+      }
+    })
+    const { run } = unattendedRun({
+      io: {
+        realPath: (path) => Promise.resolve(hasChanged ? '/workspace/.muse/private.txt' : path),
+      },
+    })
+    await expect(
+      fixture.session.sendScheduledTurn([{ ...PROTECTED_ATTACHMENT, name: 'src/alias.txt' }], run),
+    ).rejects.toThrow()
+    expect(hasChanged).toBe(true)
+    expect(fixture.server.requestsFor('turn/start')).toHaveLength(0)
+    await fixture.host.close()
+  })
+  it('checks ordinary steered attachments against the active native fire before wire submission', async () => {
+    const fixture = await museBackend()
+    const { run } = unattendedRun()
+    await fixture.session.sendScheduledTurn([{ type: 'text', text: 'Check' }], run)
+    await expect(fixture.session.steer('schedule-turn', [PROTECTED_ATTACHMENT])).rejects.toThrow()
+    expect(fixture.server.requestsFor('turn/steer')).toHaveLength(0)
     await fixture.host.close()
   })
   it('allows only once for a matched rule and audits the run without command arguments', async () => {
@@ -566,6 +946,57 @@ describe('scheduled Muse Code dispatch over captured MSP frames', () => {
     expect(fixture.server.requestsFor('turn/cancel')).toHaveLength(0)
     const afterFailure = museEvents(fixture.session)
     expect(afterFailure.some((event) => event.type === 'approvalRequested')).toBe(false)
+    await fixture.host.close()
+  })
+  it('rechecks scheduled ownership after a held approval before wire cancellation', async () => {
+    const fixture = await museBackend()
+    fixture.server.silence('approval/decide')
+    const cancel = vi.spyOn(fixture.session, 'cancel')
+    const { run } = unattendedRun({ context: commandContext() })
+    await fixture.session.sendScheduledTurn([{ type: 'text', text: 'Check' }], run)
+    fixture.notifyApproval('powershell', DEFAULT_SUBJECT, 'held-decision')
+    await museDecided(fixture)
+    fixture.notifyApproval('powershell', DEFAULT_SUBJECT, 'failed-decision')
+    await museDecided(fixture, 2)
+    const failed = fixture.server.requestsFor('approval/decide')[1]
+    fixture.server.incoming.push(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: failed?.id,
+        error: {
+          code: -32_000,
+          message: 'Second decision failed',
+          data: { kind: 'commandRejected' },
+        },
+      }) + '\n',
+    )
+    await vi.waitFor(() => {
+      expect(cancel).toHaveBeenCalledTimes(1)
+    })
+    await completeMuseTurn(fixture)
+    fixture.server.handle('turn/start', (params) => ({
+      ...ack(params),
+      turnId: 'ordinary-turn',
+      disposition: 'started',
+      startedNewTurn: true,
+    }))
+    await fixture.session.sendTurn([{ type: 'text', text: 'Ordinary' }])
+    fixture.server.notify('turn/started', {
+      sessionId: fixture.session.sessionId,
+      turnId: 'ordinary-turn',
+      viewCursor: '',
+    })
+    await settle()
+    const held = fixture.server.requestsFor('approval/decide')[0]
+    fixture.server.incoming.push(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: held?.id,
+        result: { commandId: held?.params?.['commandId'], terminal: true, status: 'accepted' },
+      }) + '\n',
+    )
+    await cancel.mock.results[0]?.value
+    expect(fixture.server.requestsFor('turn/cancel')).toHaveLength(0)
     await fixture.host.close()
   })
   it('retains unattended ownership when a start ack fails after a captured approval and stops the turn', async () => {

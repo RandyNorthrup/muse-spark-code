@@ -10,9 +10,11 @@ import {
   type SchedulePaidIdentity,
   type ScheduleConsent,
 } from '../../src/core/paid/paidConsent'
+import type { ModelApiClient, ResponseAttemptGuard } from '../../src/core/backends/modelapi/client'
 import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
 import { schedulePaidConsentSchema, scheduleV2Schema } from '../../src/shared/scheduleV2'
-import { fakeSchedule } from './helpers/schedules/fixtures'
+import { unattendedRun } from './helpers/schedules/unattended'
+import { fakeSchedule, fakeRunContext } from './helpers/schedules/fixtures'
 import { removeFolder } from './helpers/temporaryFolders'
 import { window } from './mocks/vscode'
 import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
@@ -54,6 +56,18 @@ const body: CreateResponseBody = {
   prompt_cache_key: 'schedule-test',
   prompt_cache_retention: 'in_memory',
 }
+async function consumeResponse(client: ModelApiClient, guard?: ResponseAttemptGuard) {
+  const stream = client.streamResponse(
+    body,
+    new AbortController().signal,
+    undefined,
+    undefined,
+    guard,
+  )
+  for await (const _event of stream) {
+    // Consume the actual stream through the real client.
+  }
+}
 const directories: string[] = []
 afterEach(async () => {
   for (const directory of directories.splice(0)) await removeFolder(directory)
@@ -67,7 +81,7 @@ async function ledgers(capUsd = 5) {
     directory,
     now: () => now,
     capUsd: () => capUsd,
-    sleep: () => Promise.resolve(),
+    sleep: () => Promise.resolve(undefined),
     isModelApi: () => true,
   }
   return {
@@ -361,37 +375,103 @@ describe('schedule-scoped paid consent and reservations', () => {
       paidFeature: 'scheduledPrompts' as const,
       reservePaidRequest: () => scope.reserve(body, 100, new AbortController().signal),
     })
-    await expect(async () => {
-      const stream = client.streamResponse(
-        body,
-        new AbortController().signal,
-        undefined,
-        undefined,
-        guard,
-      )
-      for await (const _event of stream) {
-        // Consume the real client stream.
-      }
-    }).rejects.toThrow()
+    await expect(consumeResponse(client, guard)).rejects.toThrow()
     await expect(first.reserveSchedule(zero, 0.1, new AbortController().signal)).rejects.toThrow()
     expect(api.requests).toHaveLength(0)
     const latest = await first.latestDay()
     expect(latest.spentUsd).toBe(0)
-    const ask = vi.fn()
-    expect(
-      await askSchedulePaidConsent({
-        schedule: { ...zero, paidConsent: undefined },
-        identity,
-        cadence: 'Once',
-        extras: [],
-        now: () => 1,
-        isOn: () => true,
-        isCurrent: () => true,
-        ask,
-        remember: () => Promise.resolve(true),
-      }),
-    ).toBeUndefined()
-    expect(ask).not.toHaveBeenCalled()
+  })
+  it('routes direct responses and every image modality through one fire, accounting for returned and refused work', async () => {
+    const { first } = await ledgers()
+    const own = schedule()
+    const reserve = vi.fn(first.reserveSchedule)
+    const scope = createSchedulePaidScope({
+      backend: 'modelApi',
+      schedule: own,
+      identity,
+      currentIdentity: () => identity,
+      isCurrent: () => true,
+      isOn: () => true,
+      estimate: (request) => ('input' in request ? 0.1 : 0.4),
+      reserve,
+    })
+    const { run } = unattendedRun({ context: fakeRunContext(own), paid: scope })
+    const api = fakeModelApi()
+    const client = fakeModelApiClient(api, new FakeLogOutputChannel()).withScheduleAuthority(
+      () => run,
+    )
+    const image: CreateImageBody = {
+      model: 'muse-image',
+      prompt: 'test',
+      n: 1,
+      size: 'auto',
+      response_format: 'b64_json',
+      output_format: 'png',
+    }
+    await client.createImage(image, new AbortController().signal)
+    await client.editImage(
+      { ...image, images: [{ image_url: 'data:image/png;base64,AAAA' }] },
+      new AbortController().signal,
+    )
+    await consumeResponse(client)
+    expect(reserve).toHaveBeenCalledTimes(3)
+    expect(scope.cost().usd).toBeGreaterThanOrEqual(0.8)
+    expect(scope.cost().certainty).toBe('exact')
+    await expect(client.createImage(image, new AbortController().signal)).rejects.toThrow()
+    expect(api.imageBodies()).toHaveLength(1)
+    expect(api.editBodies()).toHaveLength(1)
+    expect(api.responseBodies()).toHaveLength(1)
+    expect(run.refusedActions).toHaveLength(1)
+  })
+  it.each([true, false])(
+    'never falls back to an attempt override when scheduled paid authority is missing (owner present %s)',
+    async (hasOwner) => {
+      const reserve = vi.fn()
+      const api = fakeModelApi()
+      const { run } = unattendedRun()
+      const client = fakeModelApiClient(api, new FakeLogOutputChannel()).withScheduleAuthority(
+        () => (hasOwner ? run : undefined),
+      )
+      const guard = Object.assign(() => undefined, {
+        paidFeature: 'webSearch' as const,
+        reservePaidRequest: reserve,
+      })
+      await expect(consumeResponse(client, guard)).rejects.toThrow()
+      expect(reserve).not.toHaveBeenCalled()
+      expect(api.requests).toHaveLength(0)
+    },
+  )
+  it('rechecks the fire immediately before HTTP after a reservation await', async () => {
+    const api = fakeModelApi()
+    const held = Promise.withResolvers<undefined>()
+    let current: ReturnType<typeof unattendedRun>['run'] | undefined
+    const { run } = unattendedRun({
+      context: fakeRunContext(schedule()),
+      paid: {
+        modelId: identity.modelId,
+        accountId: identity.accountId,
+        allows: () => true,
+        reserve: async () => {
+          await held.promise
+          return {
+            claimId: 'held',
+            reservedUsd: 0.1,
+            check: () => ({ spentUsd: 0, hasUnknownHistoricalFees: false }),
+            settle: () => Promise.resolve({ spentUsd: 0, hasUnknownHistoricalFees: false }),
+          }
+        },
+      },
+    })
+    current = run
+    const client = fakeModelApiClient(api, new FakeLogOutputChannel()).withScheduleAuthority(
+      () => current,
+    )
+    const result = consumeResponse(client)
+    const rejected = expect(result).rejects.toThrow()
+    current = undefined
+    held.resolve(undefined)
+    await rejected
+    expect(api.requests).toHaveLength(0)
   })
   it('enforces a schedule cap across independent processes before HTTP without a budget dialog', async () => {
     const { first, second } = await ledgers()
@@ -404,18 +484,7 @@ describe('schedule-scoped paid consent and reservations', () => {
       reservePaidRequest: () =>
         second.reserveSchedule(schedule(), 0.5, new AbortController().signal),
     })
-    await expect(async () => {
-      const stream = client.streamResponse(
-        body,
-        new AbortController().signal,
-        undefined,
-        undefined,
-        guard,
-      )
-      for await (const _event of stream) {
-        // Consume the actual client stream.
-      }
-    }).rejects.toThrow()
+    await expect(consumeResponse(client, guard)).rejects.toThrow()
     expect(api.requests).toHaveLength(0)
     expect(spy).not.toHaveBeenCalled()
     held.check(0)

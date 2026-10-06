@@ -6,6 +6,7 @@
 // The process boundary (`MspHost`) is injected so unit tests drive the class
 // through a fake in-memory transport.
 
+import { editAutomaticallyChoice } from '../../agent/approvalRules'
 import type { UnattendedRun, ScheduledAgentSession } from '../../schedules/unattended'
 import type { ScheduleApprovalAction } from '../../../shared/scheduleV2'
 import { mspApprovalMode } from '../../../shared/permissionModes'
@@ -699,9 +700,12 @@ export class MuseSession implements ScheduledAgentSession {
         actionClass = 'shell'
         break
       }
-      case 'fileWrite':
-      case 'fileAccess': {
+      case 'fileWrite': {
         actionClass = 'edit'
+        break
+      }
+      case 'fileAccess': {
+        actionClass = subject.access === 'write' ? 'edit' : 'mcp'
         break
       }
       case 'network': {
@@ -722,11 +726,14 @@ export class MuseSession implements ScheduledAgentSession {
     }
     let isAllowed = false
     let reason: string | undefined
+    const pending = this.prompts.pending(event.approvalId)
+    const isAutomatic =
+      pending !== undefined && editAutomaticallyChoice(pending, run.context.mode) !== undefined
     try {
       const decision =
         this.failedAdmissionRun === run
           ? { allowed: false, reason: run.refuse(action, run.modelText.approvalRefused) }
-          : await run.decide(action)
+          : await run.decide(action, !isAutomatic)
       isAllowed = decision.allowed
       reason = decision.reason
     } catch {
@@ -795,7 +802,7 @@ export class MuseSession implements ScheduledAgentSession {
 
   private stopScheduledRun(run: UnattendedRun): void {
     if (this.getScheduledRun() !== run) return
-    void this.cancel().catch(() => {
+    void this.cancel(run).catch(() => {
       this.log.warn('Scheduled turn could not be stopped')
     })
   }
@@ -1188,10 +1195,11 @@ export class MuseSession implements ScheduledAgentSession {
     // turn's mode now would alter the user's currently running turn.
     if (this.currentTurnId !== undefined || this.scheduledTurns.size > 0)
       throw new Error(UI_TEXT.scheduleBusy)
+    await run.checkParts(parts)
     return await this.admitScheduled(run, async () => {
       await this.changeApprovalMode(mspApprovalMode(run.context.mode))
       if (!run.isActive()) throw new Error(UI_TEXT.scheduleBusy)
-      return await this.sendTurn(run.parts(parts), displayText)
+      return await this.sendTurn(run.parts(parts), displayText, run)
     })
   }
 
@@ -1209,10 +1217,11 @@ export class MuseSession implements ScheduledAgentSession {
     const existing = this.scheduledTurns.get(expectedTurnId)
     if (existing !== undefined && existing !== run)
       throw new SteerRefusedError(UI_TEXT.scheduleBusy)
+    await run.checkParts(parts)
     return await this.admitScheduled(run, async () => {
       await this.changeApprovalMode(mspApprovalMode(run.context.mode))
       if (!run.isActive()) throw new SteerRefusedError(UI_TEXT.scheduleBusy)
-      return await this.steer(expectedTurnId, run.parts(parts))
+      return await this.steer(expectedTurnId, run.parts(parts), run)
     })
   }
 
@@ -1222,9 +1231,20 @@ export class MuseSession implements ScheduledAgentSession {
    * prompt (MSP: durable, never model-visible), used when the parts carry
    * more than the user typed (editor context, M5).
    */
-  public async sendTurn(parts: readonly TurnPart[], displayText?: string): Promise<TurnSubmission> {
+  public async sendTurn(
+    parts: readonly TurnPart[],
+    displayText?: string,
+    scheduledOwner?: UnattendedRun,
+  ): Promise<TurnSubmission> {
     await this.restoringScheduleMode
-    if (this.failedAdmissionRun !== undefined) throw new Error(UI_TEXT.scheduleBusy)
+    if (scheduledOwner !== undefined) await scheduledOwner.checkParts(parts)
+    if (
+      (scheduledOwner === undefined && this.admittingScheduleRun !== undefined) ||
+      this.failedAdmissionRun !== undefined ||
+      (scheduledOwner !== undefined &&
+        (!scheduledOwner.isActive() || this.admittingScheduleRun !== scheduledOwner))
+    )
+      throw new Error(UI_TEXT.scheduleBusy)
     let ack: unknown
     try {
       ack = await this.command('turn/start', {
@@ -1245,7 +1265,21 @@ export class MuseSession implements ScheduledAgentSession {
    * after which the caller may send the input as a new turn; a steer with no
    * answer may still reach the turn, and fails in words that say so.
    */
-  public async steer(expectedTurnId: string, parts: readonly TurnPart[]): Promise<TurnSubmission> {
+  public async steer(
+    expectedTurnId: string,
+    parts: readonly TurnPart[],
+    scheduledOwner?: UnattendedRun,
+  ): Promise<TurnSubmission> {
+    const run = scheduledOwner ?? this.getScheduledRun(expectedTurnId)
+    if (run !== undefined) {
+      await run.checkParts(parts)
+      if (
+        !run.isActive() ||
+        (this.admittingScheduleRun !== run && this.getScheduledRun(expectedTurnId) !== run) ||
+        (this.currentTurnId !== undefined && this.currentTurnId !== expectedTurnId)
+      )
+        throw new SteerRefusedError(UI_TEXT.scheduleBusy)
+    }
     const input = mspInput(parts)
     let result: unknown
     try {
@@ -1289,8 +1323,9 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /** Ask the host to stop the running turn gracefully. */
-  public async cancel(): Promise<void> {
+  public async cancel(scheduledOwner?: UnattendedRun): Promise<void> {
     await this.rejectPartlyDecided()
+    if (scheduledOwner !== undefined && this.getScheduledRun() !== scheduledOwner) return
     await this.command('turn/cancel', {})
   }
 

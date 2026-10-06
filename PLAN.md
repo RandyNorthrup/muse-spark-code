@@ -19613,8 +19613,10 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
-- **FIXM115U review repair.** All eight RVM115U findings are in scope; no
-  finding is accepted as residual. Lane U certifies core/backend behavior
+- **FIXM115U review repair.** All eight RVM115U findings are repaired; no
+  finding is accepted as residual. Twenty-five named red drills restore the
+  final source byte-exact; receipts are in
+  `docs/certification/fixm115-u-drills.json`. Lane U certifies core/backend behavior
   with fake-only regressions, not absent scheduler/UI/OS integrations.
   Existing S/D/V/W/X, M112/M103/M109/M107/M95 and HELPREF bindings remain
   named in `docs/certification/m115-u.md`; W/lead owns full quality and

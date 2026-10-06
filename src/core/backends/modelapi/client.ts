@@ -49,6 +49,8 @@ import {
 import { parseSse } from './sse'
 import { estimateCostUsd } from '../../usage/insights'
 
+import type { UnattendedRun } from '../../schedules/unattended'
+
 export interface ModelApiClientDeps {
   /** Interactive VS Code extras only; ACP/headless clients omit this port. */
   readonly reservePaidRequest?: (
@@ -250,7 +252,33 @@ export class ModelApiClient {
   /** Stream event types already logged as ignored (M39). */
   private readonly ignoredEventTypes = new Set<string>()
 
-  public constructor(private readonly deps: ModelApiClientDeps) {}
+  public constructor(
+    private readonly deps: ModelApiClientDeps,
+    private readonly scheduledRun?: () => UnattendedRun | undefined,
+  ) {}
+
+  private async paidReservation(
+    body: CreateResponseBody | CreateImageBody,
+    feature: PaidFeature | undefined,
+    signal: AbortSignal,
+    guard?: ResponseAttemptGuard,
+  ) {
+    const run = this.scheduledRun?.()
+    if (run === undefined && this.scheduledRun !== undefined)
+      throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+    const reserve =
+      run === undefined
+        ? (guard?.reservePaidRequest ?? this.deps.reservePaidRequest)
+        : run.reservePaidRequest
+    feature ??= run === undefined ? undefined : 'scheduledPrompts'
+    const claim =
+      feature === undefined
+        ? undefined
+        : await reserve?.(body, feature, guard?.paidEstimatedInputTokens, signal)
+    if (run !== undefined && claim === undefined)
+      throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+    return claim === undefined ? undefined : { claim, isSent: false, run }
+  }
 
   /** The retry delay, cut short by the turn's Stop. */
   private async pause(ms: number, signal: AbortSignal | undefined): Promise<void> {
@@ -308,6 +336,7 @@ export class ModelApiClient {
       readonly retries?: 'all' | 'rateLimitOnly'
       readonly paid?: {
         readonly claim: SessionBudgetClaim
+        readonly run?: UnattendedRun | undefined
         isSent: boolean
       }
     },
@@ -356,6 +385,14 @@ export class ModelApiClient {
         (credentials.keyDigest !== confirmed.keyDigest || !confirmed.isStillAllowed())
       ) {
         throw new Error(UI_TEXT.scheduleConfirmationExpired)
+      }
+      if (init.method === 'POST' && (path === '/responses' || path.startsWith('/images/'))) {
+        const run = this.scheduledRun?.()
+        if (
+          (run !== init.paid?.run && (run !== undefined || init.paid?.run !== undefined)) ||
+          (run !== undefined && (!run.isActive() || credentials.keyDigest !== run.paid?.accountId))
+        )
+          throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
       }
       // Local consent refusal is outside the transport retry catch: it never
       // becomes another billable attempt.
@@ -444,9 +481,8 @@ export class ModelApiClient {
     admitAttempt?: ResponseAttemptGuard,
   ): Promise<ImagesResponse> {
     const active = AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)])
-    const reservePaid = admitAttempt?.reservePaidRequest ?? this.deps.reservePaidRequest
-    const claim = await reservePaid?.(body, 'imageGeneration', undefined, active)
-    const paid = claim === undefined ? undefined : { claim, isSent: false }
+    const paid = await this.paidReservation(body, 'imageGeneration', active, admitAttempt)
+    const claim = paid?.claim
     try {
       const response = await this.request(
         path,
@@ -469,6 +505,11 @@ export class ModelApiClient {
     } finally {
       if (paid?.isSent === false) await paid.claim.settle(0)
     }
+  }
+
+  /** Each session owns its authority callback, even when hosts share transport. */
+  public withScheduleAuthority(run: () => UnattendedRun | undefined): ModelApiClient {
+    return new ModelApiClient(this.deps, run)
   }
 
   /** Whether interactive extras have a finite daily admission port (D78). */
@@ -577,12 +618,8 @@ export class ModelApiClient {
     if (feature === undefined && confirmed !== undefined) feature = 'scheduledPrompts'
     if (feature === undefined && body.tools.some((tool) => tool.type === 'web_search'))
       feature = 'webSearch'
-    const reservePaid = admitAttempt?.reservePaidRequest ?? this.deps.reservePaidRequest
-    const claim =
-      feature === undefined
-        ? undefined
-        : await reservePaid?.(body, feature, admitAttempt?.paidEstimatedInputTokens, signal)
-    const paid = claim === undefined ? undefined : { claim, isSent: false }
+    const paid = await this.paidReservation(body, feature, signal, admitAttempt)
+    const claim = paid?.claim
     try {
       const response = await within(
         this.request(

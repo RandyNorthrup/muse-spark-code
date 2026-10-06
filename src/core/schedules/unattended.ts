@@ -14,6 +14,7 @@ import { confineWorkspacePath, type RealPathIo } from '../workspacePath'
 import { isProtectedPath } from '../protectedPaths'
 import type { ScheduleGrantAudit } from './grantAudit'
 import type { SessionBudgetClaim } from '../backends/modelapi/sessionBudget'
+import type { ModelApiClientDeps } from '../backends/modelapi/client'
 import type { CreateResponseBody, CreateImageBody } from '../backends/modelapi/schemas'
 
 /** W supplies SCHEDULE_MODEL_TEXT from its declared lazy bundle readers. */
@@ -66,6 +67,35 @@ export class UnattendedRun {
     tool: string
     reason: string
   }[] = []
+  /** The sole paid reservation port for this fire, shared by every modality. */
+  public readonly reservePaidRequest: NonNullable<ModelApiClientDeps['reservePaidRequest']> =
+    async (body, feature, tokens, signal = new AbortController().signal) => {
+      try {
+        if (
+          !this.allowsPaid(feature) ||
+          this.paid === undefined ||
+          ('input' in body &&
+            body.tools.some((tool) => tool.type === 'web_search') &&
+            !this.allowsPaid('webSearch'))
+        )
+          throw new Error(this.modelText.paidRefused)
+        return await this.paid.reserve(body, tokens, signal)
+      } catch (error: unknown) {
+        this.refuse(
+          {
+            id: this.context.scheduleId,
+            class: 'paidExtra',
+            tool: feature,
+            paths: [],
+            requiresAsking: false,
+            protectedPath: false,
+          },
+          this.modelText.paidRefused,
+        )
+        throw error
+      }
+    }
+
   public constructor(private readonly deps: ScheduleRunDeps) {
     this.context = scheduleRunContextSchema.parse(deps.context)
   }
@@ -88,7 +118,7 @@ export class UnattendedRun {
   }
   public async decide(
     action: ScheduleApprovalAction,
-    requiresApproval = true,
+    requiresApproval = !(this.context.mode === 'acceptEdits' && action.class === 'edit'),
   ): Promise<{ allowed: boolean; reason?: string }> {
     action = scheduleApprovalActionSchema.parse(action)
     let reason: string | undefined
@@ -97,9 +127,7 @@ export class UnattendedRun {
       reason = this.modelText.protectedRefused
     else if (action.class === 'requiresAsking' || action.requiresAsking)
       reason = this.modelText.requiresAskingRefused
-    else if (this.isActive())
-      reason = this.deps.safety(action, `schedule:${this.context.scheduleId}`)
-    else reason = this.modelText.approvalRefused
+    else if (!this.isActive()) reason = this.modelText.approvalRefused
     const canonical: string[] = []
     if (reason === undefined) {
       for (const path of action.paths) {
@@ -120,10 +148,11 @@ export class UnattendedRun {
         canonical.push(confined.canonical)
       }
     }
+    const checked = { ...action, paths: canonical }
+    reason ??= this.deps.safety(checked, `schedule:${this.context.scheduleId}`)
     if (reason !== undefined) return { allowed: false, reason: this.refuse(action, reason) }
     if (!requiresApproval) return { allowed: this.isActive() }
     const grant = await this.deps.readGrant()
-    const checked = { ...action, paths: canonical }
     const rule = grant === undefined ? undefined : this.deps.matcher.matches(grant, checked)
     const captured = this.deps.matcher.matches(this.context.grant, checked)
     if (rule === undefined || captured === undefined || !this.isActive()) {
@@ -149,8 +178,33 @@ export class UnattendedRun {
     await this.deps.deferQuestions(event, this.context)
     return this.modelText.questionsDeferred
   }
+  /** Named attachments have a confined source; anonymous bytes cannot prove one. */
+  public async checkParts(parts: readonly TurnPart[]): Promise<void> {
+    for (const part of parts) {
+      if (part.type === 'text') continue
+      const isNamed = part.type === 'file' || part.type === 'textFile'
+      const decision = await this.decide(
+        {
+          id: this.context.scheduleId,
+          class: 'mcp',
+          tool: 'attachment',
+          paths: isNamed ? [part.name] : [],
+          requiresAsking: !isNamed,
+          protectedPath: false,
+        },
+        false,
+      )
+      if (!decision.allowed) throw new Error(decision.reason ?? this.modelText.approvalRefused)
+    }
+  }
+
   public allowsPaid(feature: PaidFeature, requiresAsking = false): boolean {
-    return !requiresAsking && this.isActive() && this.paid?.allows(feature) === true
+    return (
+      !requiresAsking &&
+      this.isActive() &&
+      this.context.grant.paidCapUsd > 0 &&
+      this.paid?.allows(feature) === true
+    )
   }
 }
 
