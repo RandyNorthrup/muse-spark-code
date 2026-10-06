@@ -36,6 +36,7 @@ const snapshotSchema = z.object({
   draft: z.string(),
   reference: z.optional(chatReferenceSchema),
   lastCompletedTurnId: z.optional(z.string()),
+  dismissedPlanTurnId: z.optional(z.string()),
   /** A bounded promoted-steer correction that beat `turnAccepted`. */
   pendingReplayTurns: z.optional(z.record(z.string(), z.string())),
   /** The latest pending send's exact draft (M74), restored only on a handoff refusal. */
@@ -76,6 +77,7 @@ function snapshotOf(state: UiState): UiSnapshot {
     draft: state.draft,
     reference: state.reference,
     lastCompletedTurnId: state.lastCompletedTurnId,
+    dismissedPlanTurnId: state.dismissedPlanTurnId,
     pendingReplayTurns: state.pendingReplayTurns,
     pendingSendDraft: state.pendingSendDraft,
     draftRevision: state.draftRevision,
@@ -156,6 +158,7 @@ export function restoredUiState(raw: unknown): UiState {
       draft: saved.draft,
       reference: saved.reference,
       lastCompletedTurnId: saved.lastCompletedTurnId,
+      dismissedPlanTurnId: saved.dismissedPlanTurnId,
       pendingReplayTurns: saved.pendingReplayTurns ?? {},
       pendingSendDraft: saved.pendingSendDraft,
       draftRevision: saved.draftRevision ?? 0,

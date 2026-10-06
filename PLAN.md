@@ -15127,6 +15127,22 @@ seam contract now lives with the existing pure provider ports. The compiled
 Models bundle's language regression also failed before repair: subscription
 factories install both their local language state and the providers bundle's.
 
+**FIXM95BU review repair (2026-10-05, macmini rig).** Repair all three
+RVM95BU P2 findings within lane U: the production notice port keys browser
+acknowledgement by provider plus a host-supplied SHA-256 account-id hash,
+never email/token, and reads again on account/port replacement while mounted.
+The authored `authState.planAccount` bridge field carries only that provider
+and hash; V/W supply it from the verified account, with missing identity
+showing the notice without a persistent acknowledgement. Keep dismissed
+plan limits by turn id in conversation state and its validated snapshot,
+preserving them through model switches/unmounts and clearing them after a
+successful new turn or conversation replacement. Derive plan billing text
+from the bound qualified model reference before optional catalogue metadata,
+including an empty or inconsistent catalogue. Each finding gets regression
+coverage and byte-exact red drills in `docs/certification/m95b-u.md`.
+No dependencies, new service-wire shapes, paid/live calls or relaxed gates;
+W retains aggregate docs and host identity production.
+
 **FIXM95BS review repair (2026-10-05, Windows 11 rig).** Repair all four
 RVM95BS findings in the owned sign-in core and tests: atomically persist a
 replacement grant as a pending refresh before validation, preserve it in
@@ -15876,6 +15892,17 @@ timers/promises 3→4). Regenerating that shared inventory belongs to the
 integration lane; record BX-HOST-API-INVENTORY rather than expanding this
 repair's file ownership or claiming a green check.
 
+**FIXM95BU gate boundary / M95BU-R-composed-gates (2026-10-05).**
+The rig brief forbids full `quality`, full coverage and merges here; the lead
+runs aggregate acceptance. Scoped tests, five-project typecheck, lint,
+formatting, localization, knip, duplication and production build run here.
+The host API check has its inherited sole count mismatch: the stored inventory
+has 35 `node:crypto` imports, source generates 36. API membership is unchanged;
+this UI repair adds no Node import. W/lead owns the generated inventory and
+must run `npm run check:host-api -- --write`, review it and rerun the unchanged
+gate on integration. No gate is weakened; receipts are in
+`docs/certification/m95b-u.md`.
+
 **M95INT final whole-chain rerun — deferred under the 120-minute rig brief.**
 The final 548-page rerun still returns 1: `dark/models-pick` has one selected
 description at 4.41:1 contrast (4.5:1 required), and `hc-light/models-table`
@@ -16507,6 +16534,35 @@ before a repaired one loads (2026-09-30).
 | `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM95BU (2026-10-05):** all three RVM95BU P2 UI findings are repaired;
+  no numbered finding is deferred. Account acknowledgement is keyed by
+  provider plus SHA-256 account-id hash through the production persistence
+  port and re-read on mounted account/port changes. Limit dismissal is
+  conversation state keyed by turn id, saved through the validated snapshot,
+  and cleared on successful completion or conversation replacement. Plan
+  billing follows the bound reference even with an empty catalogue. Tests,
+  byte-exact drills and gate receipts are in `docs/certification/m95b-u.md`.
+- **M95BU-R-account-producer:** the authored `authState.planAccount` field
+  is `{ providerId, accountIdHash }`, with a valid non-Meta provider id and
+  exactly 64 lower-case hexadecimal SHA-256 characters. V/X/W must produce
+  it from the verified account id and refresh it on account changes, never
+  from email/token or a guessed wire claim. This U branch does not implement
+  another lane's identity extraction. Missing/mismatched identity fails
+  closed: the notice appears and no unscoped acknowledgement is persisted,
+  so another account cannot inherit a dismissal. Follow-up: certify the
+  verified producer in integration before claiming once-per-account sign-in.
+- **M95BU-R-persistence-origin:** default browser persistence is scoped to
+  the webview's origin as well as provider/account; isolated editor origins
+  may repeat the disclosure. It never suppresses another account. Hosts can
+  inject the same keyed port for profile-wide persistence. Follow-up: V/W
+  certify cross-window/profile persistence on the composed editor adapters.
+- **M95BU-R-composed-gates:** full quality/coverage, live/editor receipts,
+  CHANGELOG/README incorporation and the inherited generated host API
+  `node:crypto` count mismatch remain W/lead acceptance. The unchanged
+  900 KiB chat startup cap has very little spare space; composed wiring must
+  re-run the existing caps. This repair makes no aggregate-green claim and
+  performs no paid/live calls.
 
 - **FIXM95BS (2026-10-05):** all three RVM95BS P2 findings and its P3
   endpoint-test finding are repaired; no numbered review finding is deferred.

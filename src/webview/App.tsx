@@ -111,19 +111,11 @@ const HandoffDialog = lazy(async () => {
 })
 const UsageDialog = lazy(async () => {
   const module = await import('./components/UsageDialog')
-  return { default: module.UsageDialog }
+  return { default: module.UsageSurface }
 })
-const PlanSurface = lazy(async () => {
+const PlanUi = lazy(async () => {
   const module = await import('./components/PlanUi')
-  return { default: module.PlanSurface }
-})
-const PlanMark = lazy(async () => {
-  const module = await import('./components/PlanUi')
-  return { default: module.PlanMark }
-})
-const CopilotNote = lazy(async () => {
-  const module = await import('./components/PlanUi')
-  return { default: module.CopilotNote }
+  return { default: module.PlanUi }
 })
 const SetupBanner = lazy(async () => {
   const module = await import('./components/SetupBanner')
@@ -345,7 +337,7 @@ export function App({
   const state = useSyncExternalStore(store.subscribe, store.getState)
   const { dispatch } = store
   const selectedModel = state.models.find((model) => model.modelId === state.model?.modelId)
-  const selectedProvider = selectedModel?.providerId ?? providerOf(state.model?.modelId ?? '')
+  const selectedProvider = providerOf(state.model?.modelId ?? '') ?? selectedModel?.providerId
   const hasPlan =
     state.auth.status === 'signedIn' &&
     (selectedProvider === 'chatgpt' ||
@@ -2020,24 +2012,9 @@ export function App({
   const usageDialog =
     overlay === 'usage' ? (
       <UsageDialog
-        auth={state.auth}
-        onInstallMuseCode={() => {
-          postMessage({ type: 'installMuseCode' })
-        }}
-        onSetupSignIn={(method) => {
-          closeOverlay()
-          onSignIn(method)
-        }}
-        onForgetPaidUse={() => {
-          postMessage({ type: 'forgetPaidUse' })
-        }}
-        report={state.usageReport}
-        usage={state.usage}
-        context={state.context}
-        modelId={state.model?.modelId}
-        modelPricing={selectedModel?.pricing}
-        models={state.models}
-        paid={state.paid}
+        state={state}
+        postMessage={postMessage}
+        onSetupSignIn={onSignIn}
         now={now}
         onOpenExternal={onOpenExternal}
         onClose={closeOverlay}
@@ -2099,12 +2076,14 @@ export function App({
       <DeferredSurface onClose={closeOverlay}>{usageDialog}</DeferredSurface>
       <Suspense fallback={null}>
         {hasPlan ? (
-          <PlanSurface
+          <PlanUi
+            surface="dialog"
             state={state}
             providerId={selectedProvider}
-            isOtherModalOpen={isOtherModalOpen || state.handoff !== undefined}
+            isOtherModalOpen={isOtherModalOpen}
             onModalChange={setPlanModalOpen}
             onChooseModel={onOpenModelPicker}
+            store={store}
             postMessage={postMessage}
             port={planNoticePort}
           />
@@ -2195,7 +2174,7 @@ export function App({
         )}
         {hasPlan && selectedProvider === 'copilot' ? (
           <Suspense fallback={null}>
-            <CopilotNote onOpenExternal={onOpenExternal} />
+            <PlanUi surface="note" onOpenExternal={onOpenExternal} />
           </Suspense>
         ) : null}
         <Composer
@@ -2208,7 +2187,8 @@ export function App({
           planMark={
             hasPlan ? (
               <Suspense fallback={null}>
-                <PlanMark
+                <PlanUi
+                  surface="mark"
                   model={selectedModel}
                   providerId={selectedProvider}
                   onOpenExternal={onOpenExternal}

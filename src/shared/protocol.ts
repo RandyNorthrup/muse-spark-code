@@ -673,6 +673,13 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     hasCli: z.optional(z.boolean()),
     hasCliSession: z.optional(z.boolean()),
     installState: z.optional(z.enum(['running', 'failed'])),
+    /** Host-authored identity for plan notice persistence; no raw account id or credential. */
+    planAccount: z.optional(
+      z.object({
+        providerId: z.string().check(z.regex(/^(?!meta$)[a-z][a-z0-9-]{0,31}$/u)),
+        accountIdHash: z.string().check(z.regex(/^[a-f0-9]{64}$/u)),
+      }),
+    ),
   }),
   // The active session's model (shown in the composer pill) and identity.
   z.object({
