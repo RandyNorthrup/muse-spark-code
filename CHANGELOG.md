@@ -7,6 +7,9 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Restore the legal report's Export button after returning from its native
+  save dialog, so cancellation preserves keyboard and screen-reader focus.
+
 - Keep signed-out `/legal` keyboard navigation free of spurious sign-in
   warnings by requesting authenticated skills only after sign-in.
 

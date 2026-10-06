@@ -13990,6 +13990,12 @@ joined with M57, M58 and PR #49's sign-in
   and prove both the signed-out scan and signed-in skill request in the full
   report test file before rebuilding the installed artifact and repeating
   the keyboard/speech receipt. This adds no new command, string or auth bypass.
+  The installed native Save As cancellation also leaves the open report's
+  focus on the webview document, losing the Export button. Remember that
+  button for the export's window-focus return only; clear the pending return
+  after restoring it, and remove the listener when the report closes. Prove
+  cancellation and ordinary focus retention in the owning report tests, then
+  repeat native cancellation in the rebuilt installed VSIX.
 
 ## 7. Gates
 

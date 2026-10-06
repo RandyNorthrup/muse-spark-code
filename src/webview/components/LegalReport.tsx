@@ -191,6 +191,19 @@ export function LegalReport({
   const [flow, setFlow] = useState<Flow>('select')
   const previewHeading = useRef<HTMLHeadingElement>(null)
   const resultHeading = useRef<HTMLHeadingElement>(null)
+  const exportButton = useRef<HTMLButtonElement>(null)
+  const exportFocusPending = useRef(false)
+  useEffect(() => {
+    const onWindowFocus = () => {
+      if (!exportFocusPending.current) return
+      exportFocusPending.current = false
+      exportButton.current?.focus()
+    }
+    window.addEventListener('focus', onWindowFocus)
+    return () => {
+      window.removeEventListener('focus', onWindowFocus)
+    }
+  }, [])
   const byId = useMemo(
     () => new Map(result.findings.map((finding) => [finding.id, finding])),
     [result],
@@ -493,7 +506,15 @@ export function LegalReport({
             </button>
           )}
           {onExport === undefined ? null : (
-            <button type="button" className="button-secondary" onClick={onExport}>
+            <button
+              ref={exportButton}
+              type="button"
+              className="button-secondary"
+              onClick={() => {
+                exportFocusPending.current = true
+                onExport()
+              }}
+            >
               {UI_TEXT.legalExportMarkdown}
             </button>
           )}

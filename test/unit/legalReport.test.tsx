@@ -162,6 +162,20 @@ function expectSelection(
 }
 
 describe('the legal report (M97 lane W)', () => {
+  it('restores the export button when its native dialog returns focus to the window', () => {
+    const { dialog } = openReport()
+    const button = within(dialog).getByRole('button', { name: UI_TEXT.legalExportMarkdown })
+    button.focus()
+    fireEvent.click(button)
+    button.blur()
+    window.dispatchEvent(new Event('focus'))
+    expect(document.activeElement).toBe(button)
+    const rescan = within(dialog).getByRole('button', { name: UI_TEXT.legalScanAgain })
+    rescan.focus()
+    window.dispatchEvent(new Event('focus'))
+    expect(document.activeElement).toBe(rescan)
+  })
+
   it('opens the signed-out legal slash command without requesting authenticated skills', () => {
     const postMessage = renderReady()
     deliver({ type: 'authState', status: 'signedOut' })
