@@ -1,5 +1,5 @@
-// D95.9: immutable index revisions are an atomic CAS journal. Exclusive
-// publication of revision N+1 is the linearization point, including removal.
+// D95.9: revision filenames are permanent CAS fences. Exclusive publication
+// of N+1 commits; only then may the older snapshot become a tombstone.
 import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
 import {
@@ -19,6 +19,8 @@ export interface ScheduleFsPort {
   names(directory: string): Promise<readonly string[]>
   /** Complete bytes, flushed before atomic exclusive publication. */
   publish(file: string, content: string): Promise<boolean>
+  /** Replace an older snapshot atomically, keeping its permanent CAS filename. */
+  retire(file: string, content: string): Promise<void>
 }
 
 export interface ScheduleQueuePort {
@@ -42,7 +44,11 @@ function parseScheduleStoredJson(content: string | undefined): unknown {
 const identifier = z
   .string()
   .check(z.minLength(1), z.maxLength(SCHEDULE_ID_MAX_CHARS), z.regex(/^[\w-][\w.-]*$/))
-const envelopeSchema = z.strictObject({ revision: z.int().check(z.gte(0)), value: z.unknown() })
+const envelopeSchema = z.strictObject({
+  revision: z.int().check(z.gte(0)),
+  value: z.unknown(),
+  retired: z.optional(z.literal(true)),
+})
 const indexSchema = z.strictObject({
   schedules: z.array(scheduleV2Schema),
   retired: z.array(identifier),
@@ -92,27 +98,44 @@ export function createScheduleJournal<T>(
 ) {
   return {
     async read(): Promise<{ revision: number; value: T }> {
-      const names = await fs.names(directory)
-      const revisions = names.flatMap((name) => {
-        const match = /^(\d+)\.json$/.exec(name)
-        if (match === null) return []
-        const revision = Number(match[1])
-        if (!Number.isSafeInteger(revision)) throw new Error('scheduleIndexRevisionInvalid')
-        return [revision]
-      })
-      let revision = -1
-      for (const value of revisions) revision = Math.max(revision, value)
-      if (revision === -1) return { revision: -1, value: initial }
-      const content = await fs.read(`${directory}/${String(revision)}.json`)
-      if (content === undefined) throw new Error('scheduleIndexMissing')
-      const raw = parseScheduleStoredJson(content)
-      const envelope = envelopeSchema.parse(raw)
-      if (envelope.revision !== revision) throw new Error('scheduleIndexRevisionMismatch')
-      return { revision, value: parse(envelope.value) }
+      let retiredRevision = -1
+      for (;;) {
+        const names = await fs.names(directory)
+        const revisions = names.flatMap((name) => {
+          const match = /^(\d+)\.json$/.exec(name)
+          if (match === null) return []
+          const revision = Number(match[1])
+          if (!Number.isSafeInteger(revision)) throw new Error('scheduleIndexRevisionInvalid')
+          return [revision]
+        })
+        let revision = -1
+        for (const value of revisions) revision = Math.max(revision, value)
+        if (revision === -1) return { revision: -1, value: initial }
+        const content = await fs.read(`${directory}/${String(revision)}.json`)
+        if (content === undefined) throw new Error('scheduleIndexMissing')
+        const raw = parseScheduleStoredJson(content)
+        const envelope = envelopeSchema.parse(raw)
+        if (envelope.revision !== revision) throw new Error('scheduleIndexRevisionMismatch')
+        if (envelope.retired) {
+          if (revision <= retiredRevision) throw new Error('scheduleIndexRetired')
+          retiredRevision = revision
+          continue
+        }
+        return { revision, value: parse(envelope.value) }
+      }
     },
     async replace(revision: number, value: T): Promise<boolean> {
       const next = envelopeSchema.parse({ revision: revision + 1, value: parse(value) })
-      return await fs.publish(`${directory}/${String(next.revision)}.json`, JSON.stringify(next))
+      const isReplaced = await fs.publish(
+        `${directory}/${String(next.revision)}.json`,
+        JSON.stringify(next),
+      )
+      if (isReplaced && revision !== -1)
+        await fs.retire(
+          `${directory}/${String(revision)}.json`,
+          JSON.stringify({ revision, value: null, retired: true }),
+        )
+      return isReplaced
     },
   }
 }
