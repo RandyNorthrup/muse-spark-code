@@ -105,3 +105,35 @@ receipt remain in ignored `temp/m114-s-red-*` / `temp/m114-s-drills.json`.
 | css-path-escape | refuses stylesheet traversal outside the repository | `a7aa377f9c6e0a106e8f9a3bce8bc2288a8d379bd34b4f5a2a4079114c62274d` |
 
 Full integrated baseline, comparison, reconstruction and accessibility receipts follow in the final capture piece.
+
+## Full-matrix repairs and explicit capture handoff
+
+The first update stopped after 40 images: disabling Session board's focused
+search input triggered its real blur-to-close handler. The driver now selects
+an unfocused native control for disabled shots, records the target separately
+for each state, and selects only a visible selected control. The fake clock
+is paused between explicit advances, so pending timers do not change pixels
+while screenshots are taken. This changes test capture only, not product UI.
+
+`visualCapture.test.mjs` shares the actual fixture/browser capture in beforeAll;
+**2/2 passed in 2.79 seconds**, default timeouts. It verifies the real narrow
+palette stays open, its disabled button/selected option, exact PNG dimensions,
+actual reduced-motion emulation and font fingerprint. Removing the focused
+control exclusion reproduced the CSS node-disappearance failure in this named
+suite (exit 1); the source restored byte-exact to SHA-256
+`d65a36ee93f3dee553e32b2b53297d964ba4b717e6c100bd6569d8eceafa7bc1`. No skipped test exists in the finished suite.
+The initial 40-image incomplete archive is retained outside git and is not
+referenced by a golden manifest.
+
+P1's final certification explicitly hands S both source inventories. The
+strict visual-matrix source scan now uses the same imported-CSS traversal,
+with Windows separators normalized. Its **7/9 tests pass**, and its two
+unchanged exact-fixture assertions now fail for **only**
+`--vscode-contrastActiveBorder`: P1 introduced the read, but neither third-party
+capture includes it. This is a real capture gap, not stale import scanning.
+No fixture, provenance, contrast threshold or equality assertion was changed.
+Lane 0 owns the fixtures; S stops that path and records the named live-capture
+handoff in PLAN §7. That gate remains failing until its owner supplies the
+captured value/unset/provenance; no source value or wire shape is guessed.
+
+All five TypeScript projects passed (`npm run typecheck`, exit 0).

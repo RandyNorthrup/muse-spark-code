@@ -29054,9 +29054,13 @@ and normalizes Windows separators. The reviewed record contains 62 theme
 variables with their actual source paths, 332 VS Code APIs, 31 import files
 and 25 Node built-ins (including F's new uses). The read-only gate exits 0;
 the import traversal guard was deliberately disabled and both regressions
-failed, then the source was restored byte-exact. The separate lane-0
-`visualMatrix.test.mjs` source scan still needs its owner's matching imported
-stylesheet binding; S does not change another lane's owned test.
+failed, then the source was restored byte-exact. S also binds the inherited `visualMatrix.test.mjs` imported-source handoff
+named in P1's final receipt, retaining its exact equality/provenance assertions.
+That reveals one genuinely uncaptured new P1 variable,
+`--vscode-contrastActiveBorder`, absent from both third-party fixtures.
+Lane 0 owns those captured fixtures; S stops at that boundary rather than
+inventing a value or dropping a variable. The two strict matrix cases remain
+failing for that single variable until its live capture is supplied.
 
 **M114 P1 forced-colors repair scoped gates (RVM114P12, 2026-10-06).**
 The rig/shared brief forbids full quality/full unit runs and other lanes'
@@ -29706,9 +29710,9 @@ before a repaired one loads (2026-09-30).
   their existing owners. No guard, permission or paid-call scope changes.
 - **M114-P2-HOST-API resolved / integrated certification pending (2026-10-06).**
   S fixed the imported-role scanner and regenerated/reviewed the host-API
-  inventory; the unchanged gate now exits 0. The remaining lane-0 test-source
-  inventory binding, C/N/D surfaces and lead aggregate quality retain their
-  named owners. RVM114P2's header, pressed-state and History-claim findings
+  inventory; the unchanged gate now exits 0. The remaining live capture of `--vscode-contrastActiveBorder` for the
+  two third-party fixtures, C/N/D surfaces and lead aggregate quality retain
+  their named owners. RVM114P2's header, pressed-state and History-claim findings
   are fixed; none is accepted as a residual.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no

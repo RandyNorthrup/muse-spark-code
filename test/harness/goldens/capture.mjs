@@ -92,9 +92,11 @@ async function openScene(page, root, port, scene, theme, width, height) {
     await page.evaluate(() => globalThis.scrollTo(0, globalThis.document.body.scrollHeight))
 }
 
-async function targetFor(page, rows) {
+async function targetFor(page, rows, state) {
   return await page.evaluate(
-    ({ rows, control }) => {
+    ({ rows, control, state }) => {
+      for (const element of globalThis.document.querySelectorAll('[data-visual-target]'))
+        delete element.dataset.visualTarget
       const scopes = rows
         .map((row) => globalThis.document.querySelector(row.captureSelector))
         .filter((element) => element !== null)
@@ -106,6 +108,11 @@ async function targetFor(page, rows) {
           ...scope.querySelectorAll(control),
         ]
         for (const element of elements) {
+          if (
+            state === 'disabled' &&
+            (!('disabled' in element) || element === globalThis.document.activeElement)
+          )
+            continue
           const box = element.getBoundingClientRect()
           if (
             box.width === 0 ||
@@ -120,7 +127,7 @@ async function targetFor(page, rows) {
       }
       return null
     },
-    { rows, control: CONTROL },
+    { rows, control: state === 'selected' ? SELECTED : CONTROL, state },
   )
 }
 
@@ -143,12 +150,7 @@ async function stateShot(page, cdp, state, target) {
       }[state] ?? []
     await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: pseudoClasses })
   }
-  if (state === 'selected')
-    isApplied = await page
-      .locator(SELECTED)
-      .evaluateAll((elements) =>
-        elements.some((element) => element.getBoundingClientRect().width > 0),
-      )
+  if (state === 'selected') isApplied = target !== null
   if (state === 'disabled' && target !== null)
     isApplied = await control.evaluate((element) => {
       if (!('disabled' in element)) return false
@@ -202,6 +204,7 @@ export async function captureMatrix(root, audit, matrix, onCapture) {
       new URL(route.request().url()).hostname === '127.0.0.1' ? route.continue() : route.abort(),
     )
     await page.clock.install({ time: FIXED_TIME })
+    await page.clock.pauseAt(new Date(FIXED_TIME.getTime() + 60_000))
     const cdp = await page.context().newCDPSession(page)
     await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true })
     await cdp.send('DOM.enable')
@@ -227,8 +230,8 @@ export async function captureMatrix(root, audit, matrix, onCapture) {
             rows,
           )
           if (errors.length > 0) throw new Error(`${scene}: ${errors.join('; ')}`)
-          const target = await targetFor(page, rows)
           for (const state of matrix.states) {
+            const target = await targetFor(page, rows, state)
             const { bytes, applied } = await stateShot(page, cdp, state, target)
             totalBytes += bytes.length
             if (totalBytes > ARCHIVE_BUDGET)
