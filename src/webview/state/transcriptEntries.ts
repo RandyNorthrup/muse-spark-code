@@ -205,7 +205,6 @@ const reasoningEntrySchema = z.object({
 const toolEntrySchema = z.object({
   kind: z.literal('tool'),
   id: z.string(),
-  turnId: z.optional(z.string()),
   tool: z.string(),
   args: z.string(),
   argumentPreview: z.optional(toolArgumentPreviewSchema),

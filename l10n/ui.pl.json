@@ -2616,6 +2616,7 @@
   "toolArgumentPreviewLabel": "Podgląd argumentów",
   "toolArgumentPreviewTruncated": "Podgląd został skrócony.",
   "toolArgumentPreviewPending": "Oczekiwanie na kompletne argumenty…",
+  "toolArgumentPreviewPreparing": "Przygotowywanie argumentów…",
   "modelApiContinuing": "Osiągnięto limit wyjścia. Jednorazowa kontynuacja…",
   "modelApiContinuationLimit": "Ponownie osiągnięto limit wyjścia. Wyślij wiadomość, aby kontynuować.",
   "modelApiToolStuck": "Tura została zatrzymana, ponieważ to samo wywołanie narzędzia stale zwracało niezmieniony wynik. Wyślij wiadomość, aby wypróbować inne podejście.",

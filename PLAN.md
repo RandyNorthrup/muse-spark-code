@@ -6775,11 +6775,14 @@ changes nothing (U14).
      search (CAPAUDIT item 6, M95c) reuses the bound.
 
 5. **Loop UX and throughput.**
-   - **Streamed-argument previews** (`tools.streamingArguments`): long
-     write and edit content appears in the tool row as it streams, labelled
-     as a preview and bounded by `TOOL_ARGUMENT_PREVIEW_MAX_CHARS`. Nothing
-     runs, asks or calls a hook before `.done`, and the preview never enters
-     replay.
+   - **Streamed-argument previews** (`tools.streamingArguments`): argument
+     previews are allowlist-only. Each harness tool declares safe top-level
+     string fields; only completed, validated strings are shown, after M84
+     and longest-first registered-literal scrubbing. Other fields and nested
+     values show structure and a running byte count only. Malformed tokens,
+     duplicate keys, non-string allowlisted values and excessive nesting
+     freeze the last safe preview. Nothing runs, asks or calls a hook before
+     `.done`, and the preview never enters replay.
    - **Concurrent read-only calls, in call order.**
      - The set is fixed in code: `read_file`, listing, search, glob, the code
        intelligence queries, the diagnostics read and `recall_output`.
@@ -19412,6 +19415,29 @@ every Model API user in every editor.
 
 ### M106 — Agent-loop wire guarantees (D86)
 
+**REDM106L1 deny-by-default redesign (2026-10-06).** Supersedes the
+sensitive-key tokenizer and unfinished-prefix holdback below. Tool-local
+`previewFields` metadata stays off the wire; MCP and foreign tools have no
+allowlist. Validate incremental JSON grammar, duplicate keys and a named
+depth bound; display only completed allowlisted top-level strings, scrubbed
+with M84 and longest-first registered literals. Hidden fields, nested
+values and incomplete strings contribute structure and byte counts only.
+Any malformed input freezes the last safe display until authoritative
+arguments validate. Keep processing-time coalescing and interruption's final
+flush. Restored previews are ephemeral: reconciliation clears all saved
+previews in the parent and subagent transcripts, including calls in the
+still-running turn; subsequent live updates
+recover active previews by call ID. This avoids claiming per-call freshness
+from a turn ID. Shared React/ACP behavior is identical in every editor;
+headless replay/final answers still exclude previews. Add every reported
+probe, seeded random JSON/UTF-8 splits, positive controls, lifecycle tests
+and named byte-exact drills. This base has no help catalog or generator;
+add the preview entry in `src/shared/featureCatalog.ts`, extract its marked
+README section into `docs/reference.md` with `scripts/gen-reference.mjs`,
+and expose `check:reference` to detect drift. Update CHANGELOG and certification; keep
+startup at or below 895.5 KiB and the substantive UI lazy. Existing live
+capture and capability-binding handoffs remain explicitly open.
+
 **FIXM106L13 round-two repairs (2026-10-06).** Resolve all five
 RVM106L12 findings inside L1's existing files. Sensitive classification is
 inherited through the tokenizer's container stack: an entire sensitive
@@ -20076,6 +20102,16 @@ Each joins when its dependency merges, and none blocks the others.
         full gate green
 
 ## 7. Gates
+
+**REDM106L1 scoped certification (2026-10-06).** The rig lane brief and
+shared rules prohibit aggregate `npm run quality`; the lead owns the full
+integration gate. Run all required scoped typechecks, changed-file lint and
+format, localization, help drift, deadcode, duplication, host API, build and
+owned test files directly on Kubuntu. No threshold, timeout, rule or hook is
+weakened. Startup must additionally stay at or below 895.5 KiB for this
+lane. U9 raw argument frames and the production capability binding remain
+explicit evidence/integration handoffs, not passing certification claims.
+Receipts and byte-exact red drills are in `docs/certification/m106-l1.md`.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct

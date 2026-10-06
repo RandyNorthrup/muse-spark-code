@@ -19,6 +19,9 @@ import {
 export const toolArgumentPreviewSchema = z.object({
   text: z.string().check(z.maxLength(TOOL_ARGUMENT_PREVIEW_MAX_CHARS)),
   truncated: z.boolean(),
+  /** Optional for saved snapshots produced before deny-by-default previews. */
+  bytes: z.optional(z.number().check(z.int(), z.minimum(0))),
+  frozen: z.optional(z.boolean()),
 })
 export type ToolArgumentPreview = z.infer<typeof toolArgumentPreviewSchema>
 

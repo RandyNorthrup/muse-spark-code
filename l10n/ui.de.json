@@ -2428,6 +2428,7 @@
   "toolArgumentPreviewLabel": "Vorschau der Argumente",
   "toolArgumentPreviewTruncated": "Vorschau gekürzt.",
   "toolArgumentPreviewPending": "Warten auf vollständige Argumente…",
+  "toolArgumentPreviewPreparing": "Argumente werden vorbereitet…",
   "modelApiContinuing": "Das Ausgabelimit wurde erreicht. Einmalige Fortsetzung…",
   "modelApiContinuationLimit": "Das Ausgabelimit wurde erneut erreicht. Senden Sie eine Nachricht, um fortzufahren.",
   "modelApiToolStuck": "Der Durchlauf wurde gestoppt, weil derselbe Werkzeugaufruf wiederholt ein unverändertes Ergebnis lieferte. Senden Sie eine Nachricht, um einen anderen Ansatz zu versuchen.",

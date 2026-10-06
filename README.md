@@ -1467,6 +1467,39 @@ also unavailable while a pull request worktree is held.
 - **Restricted Mode.** None of this runs there, and the panel says why:
   git can run programs a repository's configuration names.
 
+<!-- reference: streamed-argument-previews -->
+
+## Streamed argument previews
+
+On the Model API backend, a selected model with verified streamed-argument
+support can show an **Argument preview** in its tool row. The implementation
+is available in the shared panel and ACP; enabling it in production still
+requires the capability binding described in the M106 certification record.
+The preview shows only declared top-level string fields after their closing
+quote validates: file paths, shell commands, search patterns and fetch URLs.
+These values pass through the existing credential scrubber before display.
+File content, edits, nested values and other fields stay hidden. Tools with
+no preview declaration, including MCP and foreign tools, show a received
+byte count only.
+
+An unfinished string never appears. Malformed JSON, duplicate keys,
+non-string values for declared fields or excessive nesting freeze the last
+safe display with **Preparing arguments…** until valid complete arguments
+arrive. Retained input and display text are bounded at 16,000 characters;
+the byte count continues after that bound. Updates coalesce every 100 ms,
+with a final safe flush before interruption. A preview does not execute a
+tool, request approval or run a hook; only the existing completed-response
+path admits execution. Previews never enter model replay.
+
+Completion, promotion and interruption clear a call's preview. Reloading
+the panel clears saved previews even while the same turn continues, because
+a turn ID cannot prove a tool is still pending. A fresh update restores an
+active preview to its original call row. Recognized credential patterns
+and registered literals are scrubbed; arbitrary unregistered secrets in a
+declared field remain outside that scrubber's contract.
+
+<!-- /reference: streamed-argument-previews -->
+
 ## Code intelligence
 
 The agent finds its way around code the way the editor does: from VS Code's
@@ -3856,6 +3889,11 @@ See the [ACP guide](docs/acp.md), the [CI guide](docs/ci.md) and the
 results and what is still open.
 
 ## Development
+
+The generated [feature reference](docs/reference.md) takes its entries from
+`src/shared/featureCatalog.ts` and the marked README sections. Run
+`node scripts/gen-reference.mjs` after updating an entry, and
+`npm run check:reference` to check that it is current.
 
 After every complete four-channel release, the workflow runs
 `scripts/refresh-badges.mjs` to refresh these README badges and purge GitHub's

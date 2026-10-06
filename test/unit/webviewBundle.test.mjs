@@ -115,6 +115,7 @@ describe('the production webview chunks (FIX78W)', () => {
     for (const key of [
       'toolArgumentPreviewLabel',
       'toolArgumentPreviewPending',
+      'toolArgumentPreviewPreparing',
       'toolArgumentPreviewTruncated',
     ]) {
       expect(chunk).toContain(key)
@@ -122,6 +123,7 @@ describe('the production webview chunks (FIX78W)', () => {
     const row = readFileSync('src/webview/components/ToolRow.tsx', 'utf8')
     expect(row).not.toContain('toolArgumentPreviewLabel')
     expect(row).not.toContain('toolArgumentPreviewPending')
+    expect(row).not.toContain('toolArgumentPreviewPreparing')
     expect(row).not.toContain('toolArgumentPreviewTruncated')
   })
 

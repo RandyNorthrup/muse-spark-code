@@ -1051,7 +1051,6 @@ function toolEntry(item: ItemSnapshot): TranscriptEntry {
   return {
     kind: 'tool',
     id: item.itemId,
-    turnId: item.turnId,
     tool: item.tool ?? item.kind,
     args: item.args ?? '',
     argumentPreview: item.argumentPreview,
@@ -1208,7 +1207,6 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
     case 'tool': {
       return {
         ...entry,
-        turnId: item.turnId ?? entry.turnId,
         tool: item.tool ?? entry.tool,
         args: item.args ?? entry.args,
         argumentPreview: item.argumentPreview,
@@ -1364,8 +1362,16 @@ function unlockQuestions(entries: readonly TranscriptEntry[]): readonly Transcri
     : entries
 }
 
-function settleAll(entries: readonly TranscriptEntry[], at: number): readonly TranscriptEntry[] {
-  const settled = entries.map((entry) => settleEntry(entry, at))
+function settleAll(
+  entries: readonly TranscriptEntry[],
+  at: number,
+  isPreviewOnly = false,
+): readonly TranscriptEntry[] {
+  const settled = entries.map((entry) =>
+    isPreviewOnly && (entry.kind !== 'tool' || entry.argumentPreview === undefined)
+      ? entry
+      : settleEntry(entry, at),
+  )
   return settled.every((entry, index) => entry === entries[index]) ? entries : settled
 }
 
@@ -2432,7 +2438,7 @@ function reconcile(
   at: number,
 ): UiState {
   const restore = state.pendingRestore
-  const live: UiState = {
+  let live: UiState = {
     ...state,
     attachmentEpoch: Math.max(state.attachmentEpoch, message.attachmentEpoch ?? 0),
     pendingRestore: undefined,
@@ -2451,19 +2457,11 @@ function reconcile(
   if (restore.isTranscriptOmitted) {
     return withNotice(live, 'info', UI_TEXT.snapshotTooLong)
   }
-  if (message.activeTurnId === undefined) {
-    return { ...live, transcript: settleAll(live.transcript, at) }
+  for (const childId of Object.keys(live.childTranscripts)) {
+    live = mapChildEntries(live, childId, (entries) => settleAll(entries, at, true))
   }
-  const transcript = live.transcript.map((entry) =>
-    entry.kind === 'tool' &&
-    entry.argumentPreview !== undefined &&
-    entry.turnId !== message.activeTurnId
-      ? settleEntry(entry, at)
-      : entry,
-  )
-  return transcript.every((entry, index) => entry === live.transcript[index])
-    ? live
-    : { ...live, transcript }
+  const transcript = settleAll(live.transcript, at, message.activeTurnId !== undefined)
+  return transcript === live.transcript ? live : { ...live, transcript }
 }
 
 function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: number): UiState {

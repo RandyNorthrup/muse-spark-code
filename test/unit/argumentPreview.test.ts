@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { ArgumentPreview } from '../../src/core/backends/modelapi/argumentPreview'
 import { agentEventSchema } from '../../src/shared/agentEvents'
-import { REDACTED_MARK, TOOL_ARGUMENT_PREVIEW_MAX_CHARS } from '../../src/shared/constants'
+import {
+  REDACTED_MARK,
+  TOOL_ARGUMENT_PREVIEW_MAX_CHARS,
+  TOOL_ARGUMENT_PREVIEW_MAX_DEPTH,
+} from '../../src/shared/constants'
 import { toSnapshot, wireItemSchema } from '../../src/core/backends/musecode/sessionRecords'
+import { toolDefinitions } from '../../src/core/backends/modelapi/tools'
 
 function append(preview: ArgumentPreview, delta: string) {
   preview.append(delta)
@@ -14,224 +19,282 @@ function finish(preview: ArgumentPreview, args: string) {
   return preview.snapshot()
 }
 
-describe('display-only argument prefixes', () => {
-  it('streams complete content lines while withholding the unfinished line', () => {
-    const preview = new ArgumentPreview()
-    expect(append(preview, String.raw`{"path":"a.ts","content":"first\nsec`).text).toBe(
-      '{"path":"a.ts","content":"first\n',
-    )
-    expect(append(preview, String.raw`ond\nthird`).text).toContain('first\nsecond\n')
-    expect(
-      finish(preview, String.raw`{"path":"a.ts","content":"first\nsecond\nthird"}`).text,
-    ).toContain('first\nsecond\nthird')
+import { ARGUMENT_PREVIEW_PROBES } from './helpers/argumentPreviewProbes'
+
+describe('allowlist-only argument previews', () => {
+  it('never shows a non-allowlisted field, including content and nested names', () => {
+    const text = finish(
+      new ArgumentPreview(['path']),
+      JSON.stringify({
+        path: 'visible.ts',
+        content: 'dummy-secret',
+        'dummy-key': { path: 'dummy-nested' },
+      }),
+    ).text
+    expect(text).toContain('visible.ts')
+    expect(text).toContain('…')
+    expect(text).not.toContain('dummy')
+    expect(text).not.toContain('content')
   })
 
-  it('scrubs credentials split at every character before emitting any preview', () => {
-    // Public synthetic strings; no actual key is read or retained.
+  it('keeps nested field names structural even when their name is declared', () => {
+    const args = '{"hidden":{"path":"dummy-secret"}}'
+    expect(finish(new ArgumentPreview(['path']), args).text).toBe('…: …')
+  })
+
+  it('shows an allowlisted string only after its closing quote validates', () => {
+    const preview = new ArgumentPreview(['path'])
+    for (const delta of [
+      '{"path":"first',
+      String.raw`\nsecond`,
+      String.raw`\uD83D`,
+      String.raw`\uDE00`,
+    ]) {
+      const text = append(preview, delta).text
+      expect(text).toContain('path')
+      expect(text).not.toContain('first')
+      expect(text).not.toContain('second')
+    }
+    expect(append(preview, '"}').text).toContain(String.raw`first\nsecond😀`)
+  })
+
+  it('scrubs a completed displayed string, including escaped credentials and PEM blocks', () => {
     const secret = `LLM_${'x'.repeat(24)}`
-    const args = JSON.stringify({
-      content: `safe line\n${secret}\nafter\n`,
-      password: 'dummy-value',
-    })
-    const preview = new ArgumentPreview()
+    const boundary = 'PRIVATE KEY'
+    const value = `safe\n${secret}\nBearer\ndummy-token\n-----BEGIN ${boundary}-----\ndummy-body\n-----END ${boundary}-----\nafter`
+    const preview = new ArgumentPreview(['command'])
+    const args = JSON.stringify({ command: value }).replace('LLM_', String.raw`\u004cLM_`)
     for (const character of args) {
       const text = append(preview, character).text
-      expect(text).not.toContain('LLM_')
-      expect(text).not.toContain('dummy-value')
+      expect(text).not.toMatch(/LLM_|dummy-token|dummy-body|PRIVATE KEY/)
     }
-    expect(finish(preview, args).text).toContain(REDACTED_MARK)
+    expect(preview.snapshot().text).toContain(REDACTED_MARK)
     expect(preview.snapshot().text).toContain('after')
   })
 
-  it('decodes escaped Unicode before scrubbing and holds a split bearer introducer', () => {
-    const preview = new ArgumentPreview()
-    expect(append(preview, String.raw`{"content":"safe\nBearer\n`).text).toBe('{"content":"safe\n')
-    expect(append(preview, String.raw`dummy-token\nafter\n`).text).not.toContain('dummy-token')
-    expect(
-      finish(preview, String.raw`{"content":"\u004cLM_` + 'x'.repeat(24) + '"}').text,
-    ).toContain(REDACTED_MARK)
-    expect(preview.snapshot().text).not.toContain('LLM_')
-  })
-
-  it('scrubs multiline named credentials before decoding their JSON escapes', () => {
-    const preview = new ArgumentPreview()
-    const args = JSON.stringify({ password: 'dummy-first\ndummy-second', content: 'safe' })
-    const text = finish(preview, args).text
-    expect(text).not.toContain('dummy-first')
-    expect(text).not.toContain('dummy-second')
-    expect(text).toContain('safe')
-  })
-
-  it.each([
-    [String.raw`{"\u0070assword":"dummy-first\n`, 'dummy-second"}'],
-    [String.raw`{"\u0070ass`, String.raw`word":"dummy-first\ndummy-second"}`],
-    [String.raw`{"password":"dummy-first\"`, String.raw`dummy-second\nend"}`],
-    [String.raw`[{"PASSWORD":"dummy-first\uD83D`, String.raw`\uDE00dummy-second"}]`],
-    ['{"ｐａｓｓｗｏｒｄ":"dummy-first', 'dummy-second"}'],
-    [String.raw`{"nested":[{"api-key":"dummy-first\n`, 'dummy-second"}]}'],
-  ])('withholds whole decoded sensitive strings across frames: %s', (first, second) => {
-    const preview = new ArgumentPreview()
-    for (const frame of [first, second]) {
-      const text = append(preview, frame).text
-      expect(text).not.toContain('dummy-first')
-      expect(text).not.toContain('dummy-second')
+  it('scrubs overlapping registered literals longest first without exposing any suffix', () => {
+    const literal = '9876543210'
+    for (let split = 1; split < literal.length; split += 1) {
+      const preview = new ArgumentPreview(['path'], [literal.slice(0, 4), literal, ''])
+      expect(append(preview, '{"path":"' + literal.slice(0, split)).text).not.toMatch(/\d/)
+      expect(append(preview, literal.slice(split) + '"}').text).toBe(`"path": "${REDACTED_MARK}"`)
     }
-    expect(preview.snapshot().text).toContain(REDACTED_MARK)
+    const numeric = new ArgumentPreview([], [literal.slice(0, 4), literal])
+    const numericArguments = '{"count":' + literal + '}'
+    for (const character of numericArguments) {
+      expect(append(numeric, character).text).not.toMatch(/\d/)
+    }
   })
 
-  it('preserves a surrogate pair split inside Unicode escapes', () => {
-    const preview = new ArgumentPreview()
-    append(preview, String.raw`{"content":"\uD83D`)
-    expect(append(preview, String.raw`\uDE00\nsafe"}`).text).toContain('😀\nsafe')
-  })
-
-  it.each([
-    String.raw`{"password":{"private-name":"dummy-first\ndummy-second"},"content":"visible"}`,
-    String.raw`{"password":["dummy-first\ndummy-second"],"content":"visible"}`,
-    String.raw`{"\u0070assword":{"private-name":{"nested-private":["dummy-first\ndummy-second"]}},"content":"visible"}`,
-    String.raw`{"PASSWORD":[[{"private-name":"dummy-first\ndummy-second"}]],"content":"visible"}`,
-    String.raw`{"outer":[{"api-key":{"private-name":[{"nested-private":"dummy-first\ndummy-second"}]}}],"content":"visible"}`,
-    String.raw`{"ｐａｓｓｗｏｒｄ":{"private-name":["dummy-first\ndummy-second"]},"content":"visible"}`,
-  ])('inherits whole-value sensitivity at every byte boundary: %s', (args) => {
-    const bytes = Buffer.from(args)
-    for (let split = 0; split <= bytes.length; split += 1) {
-      const preview = new ArgumentPreview()
+  it.each(ARGUMENT_PREVIEW_PROBES)(
+    'withholds review probes at every UTF-8 boundary: %s',
+    (args) => {
+      const bytes = Buffer.from(args)
+      for (let split = 0; split <= bytes.length; split += 1) {
+        const preview = new ArgumentPreview(['path'])
+        const decoder = new TextDecoder()
+        const frames = [
+          decoder.decode(bytes.subarray(0, split), { stream: true }),
+          decoder.decode(bytes.subarray(split)),
+        ]
+        for (const frame of frames) {
+          expect(append(preview, frame).text).not.toMatch(/dummy|private-name|9876543210/)
+        }
+        expect(finish(preview, args).text).not.toMatch(/dummy|private-name|9876543210/)
+      }
+      const preview = new ArgumentPreview(['path'])
       const decoder = new TextDecoder()
-      for (const frame of [
-        decoder.decode(bytes.subarray(0, split), { stream: true }),
-        decoder.decode(bytes.subarray(split)),
-      ]) {
-        expect(append(preview, frame).text).not.toMatch(/dummy|private-name|nested-private/)
+      for (const byte of bytes) {
+        expect(
+          append(preview, decoder.decode(Uint8Array.of(byte), { stream: true })).text,
+        ).not.toMatch(/dummy|private-name|9876543210/)
       }
-      const final = finish(preview, args).text
-      expect(final).not.toMatch(/dummy|private-name|nested-private/)
-      expect(final).toContain(REDACTED_MARK)
-      expect(final).toContain('visible')
-    }
-    const preview = new ArgumentPreview()
-    const decoder = new TextDecoder()
-    for (const byte of bytes) {
-      expect(
-        append(preview, decoder.decode(Uint8Array.of(byte), { stream: true })).text,
-      ).not.toMatch(/dummy|private-name|nested-private/)
-    }
-    expect(append(preview, decoder.decode()).text).toContain('visible')
-  })
-
-  it.each(['9876543210', 'true', 'false', 'null'])(
-    'withholds a sensitive scalar from its first byte until close: %s',
-    (value) => {
-      const preview = new ArgumentPreview()
-      append(preview, '{"password":')
-      for (const character of value) {
-        expect(append(preview, character).text).toBe(`{"password":"${REDACTED_MARK}"`)
-      }
-      expect(append(preview, ',"content":"visible"}').text).toContain('visible')
     },
   )
 
-  it('scrubs registered literal values after JSON decoding', () => {
-    const preview = new ArgumentPreview(['dummy-registered'])
-    expect(finish(preview, String.raw`{"content":"dummy-\u0072egistered"}`).text).toContain(
-      REDACTED_MARK,
-    )
-    expect(preview.snapshot().text).not.toContain('dummy-registered')
+  it.each(['1', 'true', 'null', '[]', '{}', String.raw`"bad\q"`, '"bad\n"'])(
+    'freezes an invalid allowlisted value (%s) until valid done arguments',
+    (value) => {
+      const preview = new ArgumentPreview(['path', 'command'])
+      append(preview, '{"command":"safe",')
+      append(preview, '"path":' + value)
+      const frozen = preview.snapshot()
+      expect(frozen.frozen).toBe(true)
+      expect(append(preview, ',"command":"dummy-secret"}').text).toBe(frozen.text)
+      expect(finish(preview, '{"path":"valid.ts"}')).toMatchObject({
+        frozen: false,
+        text: '"path": "valid.ts"',
+      })
+      expect(append(preview, 'ignored')).toEqual(preview.snapshot())
+    },
+  )
+
+  it.each([
+    '{"hidden":[0}',
+    '{"hidden":{"x":0]',
+    '{"hidden":[0]]',
+    '{"hidden" "value"',
+    '{"hidden" "',
+    '{"hidden":[1,]',
+    '{"hidden":{"a":1,}',
+    '{"hidden":01,',
+    '{"hidden":truth,',
+    '{"hidden":1 2,',
+    '{"hidden":false "path"',
+    String.raw`{"hidden":"bad\q`,
+    String.raw`{"hidden":"bad\u00z`,
+    '{"hidden":"bad\n',
+    '[',
+    '1',
+    '{}[',
+  ])('freezes malformed streaming tokens before reading any later field: %s', (prefix) => {
+    const preview = new ArgumentPreview(['path'])
+    const safe = append(preview, prefix)
+    expect(safe.frozen).toBe(true)
+    expect(append(preview, ',"path":"dummy-secret"}').text).toBe(safe.text)
   })
 
-  it('withholds registered multiline values while the string remains open', () => {
-    const preview = new ArgumentPreview(['dummy-first\ndummy-second'])
-    expect(append(preview, String.raw`{"content":"safe\ndummy-first\ndummy-`).text).not.toContain(
-      'dummy-first',
-    )
-    const final = append(preview, 'second"}').text
-    expect(final).toContain(REDACTED_MARK)
-    expect(final).not.toContain('dummy-first')
-    expect(final).not.toContain('dummy-second')
-  })
-
-  it('withholds registered numeric prefixes at every split until redaction', () => {
-    const literal = '9876543210'
-    for (let split = 1; split < literal.length; split += 1) {
-      const preview = new ArgumentPreview([literal, '9876'])
-      expect(append(preview, '{"count":' + literal.slice(0, split)).text).not.toContain('9')
-      const final = append(preview, literal.slice(split) + '}').text
-      expect(final).toBe(`{"count":${REDACTED_MARK}}`)
+  it('freezes on duplicate decoded keys, including nested keys and escaped aliases', () => {
+    for (const args of [
+      String.raw`{"path":"safe","\u0070ath":"dummy-secret"}`,
+      '{"hidden":{"x":1,"x":2},"path":"dummy-secret"}',
+    ]) {
+      const preview = new ArgumentPreview(['path'])
+      const result = finish(preview, args)
+      expect(result.frozen).toBe(true)
+      expect(result.text).not.toContain('dummy-secret')
     }
   })
 
-  it('releases a registered prefix when disambiguated or the value closes', () => {
-    const preview = new ArgumentPreview(['9876543210', '9876', ''])
-    expect(append(preview, '{"count":987').text).toBe('{"count":')
-    expect(append(preview, '0').text).toBe('{"count":9870')
-    const closed = new ArgumentPreview(['9876543210'])
-    expect(append(closed, '{"count":987').text).toBe('{"count":')
-    expect(append(closed, '}').text).toBe('{"count":987}')
-    expect(finish(preview, '{"count":987}').text).toBe('{"count":987}')
-    expect(finish(preview, '987').text).toBe('987')
+  it('freezes past the named nesting bound and after a malformed closer', () => {
+    const preview = new ArgumentPreview(['path'])
+    append(preview, '{"path":"safe","hidden":' + '['.repeat(TOOL_ARGUMENT_PREVIEW_MAX_DEPTH))
+    const frozen = preview.snapshot()
+    expect(frozen.frozen).toBe(true)
+    expect(
+      append(preview, ']'.repeat(TOOL_ARGUMENT_PREVIEW_MAX_DEPTH) + ',"path":"dummy"}').text,
+    ).toBe(frozen.text)
+    const malformed = new ArgumentPreview(['path', 'command'])
+    append(malformed, '{"path":"safe","hidden":[0}')
+    const safe = malformed.snapshot()
+    expect(safe.frozen).toBe(true)
+    expect(append(malformed, ',"command":"dummy"}').text).toBe(safe.text)
   })
 
-  it('holds registered prefixes through incomplete or truncated done values', () => {
-    const literal = '9876543210'
-    expect(finish(new ArgumentPreview([literal]), '{"count":987').text).toBe('{"count":')
-    const lead = '{"padding":"'
-    const field = '","count":'
-    const partial = '987'
-    const prefix =
-      lead +
-      'x'.repeat(TOOL_ARGUMENT_PREVIEW_MAX_CHARS - lead.length - field.length - partial.length) +
-      field
-    const bounded = finish(new ArgumentPreview([literal]), prefix + literal + '}')
-    expect(bounded.truncated).toBe(true)
-    expect(bounded.text).toBe(prefix)
-  })
-
-  it('keeps a PEM block split across lines out of all emitted previews', () => {
-    const preview = new ArgumentPreview()
-    const boundary = 'PRIVATE KEY'
-    const fragments = [
-      String.raw`{"content":"safe\n-----BEGIN ${boundary}-----\n`,
-      String.raw`dummy-body\n`,
-      String.raw`-----END ${boundary}-----\nafter\n"}`,
-    ]
-    for (const fragment of fragments) {
-      const text = append(preview, fragment).text
-      expect(text).not.toContain('dummy-body')
-      expect(text).not.toContain('PRIVATE KEY')
-    }
-    expect(preview.snapshot().text).toContain('after')
-  })
-
-  it('bounds accumulated and final previews without clipping a credential into visible bytes', () => {
-    const preview = new ArgumentPreview()
-    const lead = String.raw`line\n`.repeat(TOOL_ARGUMENT_PREVIEW_MAX_CHARS / 2)
-    const first = append(preview, `{"content":"${lead}`)
-    expect(first.truncated).toBe(true)
-    expect(first.text.length).toBeLessThanOrEqual(TOOL_ARGUMENT_PREVIEW_MAX_CHARS)
-    expect(append(preview, 'tail'.repeat(TOOL_ARGUMENT_PREVIEW_MAX_CHARS))).toEqual(first)
-    const credentialAtCap = JSON.stringify({
-      content: 'a'.repeat(TOOL_ARGUMENT_PREVIEW_MAX_CHARS - 30) + `LLM_${'x'.repeat(100)}`,
+  it('keeps aborted or malformed done strings private and ignores late deltas', () => {
+    const preview = new ArgumentPreview(['path'])
+    const partial = append(preview, '{"path":"dummy-secret')
+    expect(partial.text).not.toContain('dummy')
+    expect(finish(preview, '{"path":"dummy-secret')).toMatchObject({
+      text: partial.text,
+      frozen: true,
     })
-    const final = finish(preview, credentialAtCap)
-    expect(final.truncated).toBe(true)
-    expect(final.text).not.toContain('LLM_')
-    expect(final.text.length).toBeLessThanOrEqual(TOOL_ARGUMENT_PREVIEW_MAX_CHARS)
+    expect(append(preview, '"}').text).toBe(partial.text)
   })
 
-  it('uses done arguments authoritatively and ignores later deltas', () => {
-    const preview = new ArgumentPreview()
-    append(preview, '{"content":"stale')
-    const done = finish(preview, '{"content":"authoritative"}')
-    expect(done).toEqual({ text: '{"content":"authoritative"}', truncated: false })
-    expect(append(preview, 'ignored')).toEqual(done)
+  it('uses the latest validated done payload authoritatively, while ignoring late deltas', () => {
+    const preview = new ArgumentPreview(['path'])
+    append(preview, '{"path":"stale')
+    expect(finish(preview, '{"path":"first.ts"}').text).toContain('first.ts')
+    expect(finish(preview, '{"path":"final.ts"}').text).toBe('"path": "final.ts"')
+    const final = preview.snapshot()
+    expect(append(preview, 'ignored')).toEqual(final)
   })
 
-  it('holds incomplete escapes and refuses malformed strings without throwing', () => {
-    const preview = new ArgumentPreview()
-    expect(append(preview, String.raw`{"content":"one\n\u00`).text).toBe('{"content":"')
-    expect(append(preview, '61\\n\\').text).toContain('one\n')
-    expect(finish(new ArgumentPreview(), String.raw`{"content":"bad\q"}`).text).toBe('{"content":')
-    expect(finish(new ArgumentPreview(), '{"content":"bad\n"}').text).toBe('{"content":')
-    expect(new ArgumentPreview().snapshot()).toEqual({ text: '', truncated: false })
+  it('bounds retention while continuing the byte count, including UTF-8', () => {
+    const preview = new ArgumentPreview(['path'])
+    const prefix = '{"path":"' + 'é'.repeat(TOOL_ARGUMENT_PREVIEW_MAX_CHARS)
+    const first = append(preview, prefix)
+    expect(first.truncated).toBe(true)
+    expect(first.text).not.toContain('é')
+    const next = append(preview, 'tail'.repeat(TOOL_ARGUMENT_PREVIEW_MAX_CHARS))
+    expect(next.text).toBe(first.text)
+    expect(next.bytes).toBe(Buffer.byteLength(prefix) + TOOL_ARGUMENT_PREVIEW_MAX_CHARS * 4)
+    expect(next.text.length).toBeLessThanOrEqual(TOOL_ARGUMENT_PREVIEW_MAX_CHARS)
+  })
+
+  it('declares command/path/pattern/url previews locally; tools without declarations show bytes only', () => {
+    const definitions = toolDefinitions('linux', {
+      hasShell: true,
+      hasSkills: true,
+      hasWebFetch: true,
+    })
+    for (const [name, field] of [
+      ['bash', 'command'],
+      ['write_file', 'path'],
+      ['read_file', 'path'],
+      ['edit_file', 'path'],
+      ['search', 'pattern'],
+      ['web_fetch', 'url'],
+    ]) {
+      const definition = definitions.find((tool) => tool.name === name)
+      expect(definition?.previewFields).toEqual([field])
+      expect(JSON.stringify(definition)).not.toContain('previewFields')
+      expect(
+        finish(
+          new ArgumentPreview(definition?.previewFields),
+          JSON.stringify({ [field!]: 'visible' }),
+        ).text,
+      ).toContain('visible')
+    }
+    expect(definitions.find((tool) => tool.name === 'ask_user')?.previewFields).toBeUndefined()
+    const args = '{"command":"dummy-secret","password":"dummy-hidden"}'
+    expect(finish(new ArgumentPreview(), args)).toMatchObject({
+      text: '',
+      bytes: Buffer.byteLength(args),
+    })
+  })
+
+  it('never discloses secrets in random non-allowlisted JSON positions and byte splits', () => {
+    let seed = 106
+    const random = () => {
+      seed = (seed * 1_664_525 + 1_013_904_223) >>> 0
+      return seed / 2 ** 32
+    }
+    const secret = 'canary-☃-😀-private'
+    const json = (depth: number): unknown => {
+      switch (Math.floor(random() * (depth === 0 ? 4 : 6))) {
+        case 0: {
+          return secret
+        }
+        case 1: {
+          return Math.floor(random() * 100)
+        }
+        case 2: {
+          return random() > 0.5
+        }
+        case 3: {
+          return null
+        }
+        case 4: {
+          return [json(depth - 1), { path: secret }]
+        }
+        default: {
+          return { [secret]: json(depth - 1), path: secret }
+        }
+      }
+    }
+    for (let sample = 0; sample < 100; sample += 1) {
+      const args = JSON.stringify({
+        path: 'safe.ts',
+        [secret]: json(4),
+        content: [secret, json(4)],
+      })
+      const bytes = Buffer.from(args)
+      const decoder = new TextDecoder()
+      const preview = new ArgumentPreview(['path'])
+      let at = 0
+      while (at < bytes.length) {
+        const end = Math.min(bytes.length, at + 1 + Math.floor(random() * 13))
+        const snapshot = append(preview, decoder.decode(bytes.subarray(at, end), { stream: true }))
+        expect(snapshot.text).not.toContain(secret)
+        expect(snapshot.text).not.toContain('private')
+        at = end
+      }
+      append(preview, decoder.decode())
+      expect(preview.snapshot()).toMatchObject({ frozen: false, bytes: bytes.length })
+      expect(preview.snapshot().text).toContain('safe.ts')
+    }
   })
 
   it('validates preview events independently of executable arguments at the shared boundary', () => {
@@ -245,6 +308,14 @@ describe('display-only argument prefixes', () => {
       argumentPreview: { text: 'safe', truncated: false },
     }
     expect(agentEventSchema.safeParse({ type: 'toolArgumentPreview', item }).success).toBe(true)
+    for (const invalid of [{ bytes: -1 }, { bytes: 1.5 }, { bytes: '1' }, { frozen: 'yes' }]) {
+      expect(
+        agentEventSchema.safeParse({
+          type: 'toolArgumentPreview',
+          item: { ...item, argumentPreview: { ...item.argumentPreview, ...invalid } },
+        }).success,
+      ).toBe(false)
+    }
     expect(
       agentEventSchema.safeParse({ type: 'toolArgumentPreview', item: { ...item, args: '{}' } })
         .success,

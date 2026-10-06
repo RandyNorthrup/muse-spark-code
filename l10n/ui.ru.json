@@ -2616,6 +2616,7 @@
   "toolArgumentPreviewLabel": "Предпросмотр аргументов",
   "toolArgumentPreviewTruncated": "Предпросмотр обрезан.",
   "toolArgumentPreviewPending": "Ожидание полных аргументов…",
+  "toolArgumentPreviewPreparing": "Подготовка аргументов…",
   "modelApiContinuing": "Достигнут лимит вывода. Продолжение один раз…",
   "modelApiContinuationLimit": "Лимит вывода достигнут снова. Отправьте сообщение, чтобы продолжить.",
   "modelApiToolStuck": "Ход остановлен, потому что один и тот же вызов инструмента постоянно возвращал неизменный результат. Отправьте сообщение, чтобы попробовать другой подход.",

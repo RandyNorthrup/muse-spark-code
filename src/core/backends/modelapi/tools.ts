@@ -574,11 +574,16 @@ export interface ToolDefinitionOptions {
 
 const DEFAULT_TOOL_OPTIONS: ToolDefinitionOptions = { hasShell: true, hasSkills: false }
 
+interface PreviewToolDefinition extends FunctionToolDefinition {
+  /** Host-only, nonenumerable metadata; never serialized into a request. */
+  readonly previewFields?: readonly string[]
+}
+
 /** The function tools offered to the model (dev.meta.ai/docs/tool-calling). */
 export function toolDefinitions(
   platform: NodeJS.Platform,
   options: ToolDefinitionOptions = DEFAULT_TOOL_OPTIONS,
-): readonly FunctionToolDefinition[] {
+): readonly PreviewToolDefinition[] {
   const shell = shellToolFor(platform)
   // `then_run` needs the shell, so it is offered only with it (M68).
   const thenRun = (options.hasThenRun ?? options.hasShell) ? THEN_RUN_PROPERTY : {}
@@ -589,18 +594,24 @@ export function toolDefinitions(
     description: string,
     properties: Record<string, unknown>,
     required: readonly string[],
-  ): FunctionToolDefinition => ({
-    type: 'function',
-    name,
-    description,
-    parameters: {
-      type: 'object',
-      properties,
-      required: [...required],
-      additionalProperties: false,
-    },
-    strict: false,
-  })
+    previewFields?: readonly string[],
+  ): PreviewToolDefinition =>
+    Object.defineProperty(
+      {
+        type: 'function',
+        name,
+        description,
+        parameters: {
+          type: 'object',
+          properties,
+          required: [...required],
+          additionalProperties: false,
+        },
+        strict: false,
+      },
+      'previewFields',
+      { value: previewFields },
+    )
   return [
     define(
       MODEL_API_TOOLS.readFile,
@@ -610,6 +621,7 @@ export function toolDefinitions(
         offset: { type: 'integer', description: '1-based first line to return' },
         limit: { type: 'integer', description: 'Maximum lines to return' },
       },
+      ['path'],
       ['path'],
     ),
     define(
@@ -622,12 +634,14 @@ export function toolDefinitions(
         ...thenRun,
       },
       ['path', 'find', 'replace'],
+      ['path'],
     ),
     define(
       MODEL_API_TOOLS.writeFile,
       'Create or overwrite a file with the given content.',
       { path: PATH_PROPERTY, content: { type: 'string' }, ...thenRun },
       ['path', 'content'],
+      ['path'],
     ),
     define(
       MODEL_API_TOOLS.search,
@@ -643,6 +657,7 @@ export function toolDefinitions(
         },
         max_results: { type: 'integer' },
       },
+      ['pattern'],
       ['pattern'],
     ),
     define(
@@ -665,6 +680,7 @@ export function toolDefinitions(
               },
             },
             ['command', 'description'],
+            ['command'],
           ),
         ]
       : []),
@@ -773,7 +789,15 @@ export function toolDefinitions(
     // against the session's store, so it is not in `executeTool`.
     ...(options.hasPackedRecall === true ? [RECALL_TOOL_DEFINITION] : []),
     ...(options.hasWebFetch === true
-      ? [define(MODEL_API_TOOLS.webFetch, WEB_FETCH_DESCRIPTION, WEB_FETCH_PARAMETERS, ['url'])]
+      ? [
+          define(
+            MODEL_API_TOOLS.webFetch,
+            WEB_FETCH_DESCRIPTION,
+            WEB_FETCH_PARAMETERS,
+            ['url'],
+            ['url'],
+          ),
+        ]
       : []),
     ...(options.hasBrowserCheck === true
       ? [

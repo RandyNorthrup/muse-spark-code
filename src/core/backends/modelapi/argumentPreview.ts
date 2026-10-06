@@ -1,8 +1,12 @@
-// Display-only argument prefixes. The existing Responses parser owns the
-// wire boundary; this accumulator cannot execute, approve or replay a call.
+// Display-only arguments. The Responses parser owns the wire boundary;
+// this accumulator cannot execute, approve or replay a call.
+import { Buffer } from 'node:buffer'
 import type { ToolArgumentPreview } from '../../../shared/agentEvents'
-import { REDACTED_MARK, TOOL_ARGUMENT_PREVIEW_MAX_CHARS } from '../../../shared/constants'
-import { redactableSlices, redactSecrets } from '../../../shared/redact'
+import {
+  TOOL_ARGUMENT_PREVIEW_MAX_CHARS,
+  TOOL_ARGUMENT_PREVIEW_MAX_DEPTH,
+} from '../../../shared/constants'
+import { redactSecrets } from '../../../shared/redact'
 
 /** Structural projection of M95's ModelCapabilityRecord; lane W binds its resolver. */
 export interface ArgumentPreviewCapabilities {
@@ -12,186 +16,247 @@ export interface ArgumentPreviewCapabilities {
   }
 }
 
+type Expected = 'keyOrEnd' | 'key' | 'colon' | 'valueOrEnd' | 'value' | 'commaOrEnd'
 interface Container {
   readonly kind: 'object' | 'array'
-  readonly withheld: boolean
-  isKey: boolean
-  sensitive: boolean
+  readonly keys: Set<string>
+  expected: Expected
 }
-
 interface OpenString {
   readonly isKey: boolean
-  readonly sensitive: boolean
-  value: string
-  escape: string
+  raw: string
+  escape: number
 }
+const SCALAR = /^(?:true|false|null|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)$/
+const WHITESPACE = /^[\t\n\r ]$/
+const HEX = /^[\da-f]$/i
 
-/** Use M84's field rules on decoded, normalized names without duplicating its list. */
-function isSensitiveKey(key: string): boolean {
-  const probe = `${JSON.stringify(key.normalize('NFKC').toLowerCase())}:"1"`
-  return redactSecrets(probe) !== probe
-}
-
-/** Incremental JSON tokenization; open sensitive values never enter display text. */
+/** Incremental JSON grammar; only declared, completed top-level strings can enter text. */
 export class ArgumentPreview {
   private text = ''
   private readonly containers: Container[] = []
   private string: OpenString | undefined
-  private scalar = false
+  private scalar = ''
+  private field: string | undefined
   private retained = 0
+  private bytes = 0
   private truncated = false
   private done = false
   private invalid = false
+  private started = false
+  private closed = false
+  private highSurrogate = false
 
-  public constructor(private readonly literals: readonly string[] = []) {}
+  public constructor(
+    private readonly previewFields: readonly string[] = [],
+    private readonly literals: readonly string[] = [],
+  ) {}
 
-  private advanceString(string: OpenString, character: string): void {
-    if (string.escape !== '') {
-      string.escape += character
-      // Decode a complete escape only; the Unicode spelling includes its slash.
-      if (string.escape === String.raw`\u`) return
-      if (
-        string.escape.startsWith(String.raw`\u`) &&
-        string.escape.length < String.raw`\u0000`.length
-      )
-        return
+  private valueEnded(): void {
+    const container = this.containers.at(-1)
+    if (container !== undefined) container.expected = 'commaOrEnd'
+  }
+
+  private advanceString(token: OpenString, character: string): void {
+    token.raw += character
+    if (token.escape < 0) {
+      if (!HEX.test(character)) this.invalid = true
+      token.escape += 1
+    } else if (token.escape === 1) {
+      if (character === 'u') token.escape = -'0000'.length
+      else {
+        if (!String.raw`"\/bfnrt`.includes(character)) this.invalid = true
+        token.escape = 0
+      }
+    } else if (character === '\\') {
+      token.escape = 1
+    } else if (character === '"') {
       try {
-        const decoded: unknown = JSON.parse(`"${string.escape}"`)
-        if (typeof decoded !== 'string') {
+        const value: unknown = JSON.parse(token.raw)
+        if (typeof value !== 'string') {
           this.invalid = true
           return
         }
-        if (!string.sensitive) string.value += decoded
-        string.escape = ''
+        const container = this.containers.at(-1)
+        if (container === undefined) {
+          this.invalid = true
+          return
+        }
+        if (token.isKey) {
+          if (container.keys.has(value)) {
+            this.invalid = true
+            return
+          }
+          container.keys.add(value)
+          container.expected = 'colon'
+          if (this.containers.length === 1) {
+            this.field = this.previewFields.includes(value) ? value : undefined
+            if (this.previewFields.length > 0) {
+              this.text += `${this.text === '' ? '' : '\n'}${this.field === undefined ? '…' : JSON.stringify(this.field)}: …`
+            }
+          }
+        } else {
+          if (this.containers.length === 1 && this.field !== undefined) {
+            // Scrub the complete decoded string before formatting or clipping.
+            const safe = redactSecrets(value, this.literals)
+            this.text = this.text.slice(0, -1) + JSON.stringify(safe)
+          }
+          this.valueEnded()
+        }
+        this.string = undefined
       } catch {
         this.invalid = true
       }
-    } else if (character === '\\') {
-      string.escape = character
-    } else if (character === '"') {
-      if (string.isKey && !string.sensitive) {
-        const container = this.containers.at(-1)
-        if (container !== undefined) container.sensitive = isSensitiveKey(string.value)
-      }
-      if (this.containers.at(-1)?.withheld !== true)
-        this.text += `"${string.sensitive ? REDACTED_MARK : string.value}"`
-      this.string = undefined
     } else if (character < ' ') {
       this.invalid = true
-    } else if (!string.sensitive) {
-      string.value += character
     }
+  }
+
+  private advance(character: string): void {
+    if (this.string !== undefined) {
+      this.advanceString(this.string, character)
+      return
+    }
+    if (this.scalar !== '') {
+      if (!WHITESPACE.test(character) && !',}]'.includes(character)) {
+        this.scalar += character
+        return
+      }
+      if (!SCALAR.test(this.scalar)) {
+        this.invalid = true
+        return
+      }
+      this.scalar = ''
+      this.valueEnded()
+    }
+    if (WHITESPACE.test(character)) return
+    if (!this.started) {
+      if (character !== '{') {
+        this.invalid = true
+        return
+      }
+      this.started = true
+      this.containers.push({ kind: 'object', keys: new Set(), expected: 'keyOrEnd' })
+      return
+    }
+    const container = this.containers.at(-1)
+    if (container === undefined) {
+      this.invalid = true
+      return
+    }
+    const expected = container.expected
+    if (character === '}' || character === ']') {
+      const isMatches = character === (container.kind === 'object' ? '}' : ']')
+      if (!isMatches || !['keyOrEnd', 'valueOrEnd', 'commaOrEnd'].includes(expected)) {
+        this.invalid = true
+        return
+      }
+      this.containers.pop()
+      this.closed = this.containers.length === 0
+      this.valueEnded()
+    } else
+      switch (expected) {
+        case 'key':
+        case 'keyOrEnd': {
+          if (character === '"') {
+            this.string = { isKey: true, raw: '"', escape: 0 }
+          } else {
+            this.invalid = true
+          }
+
+          break
+        }
+        case 'colon': {
+          if (character === ':') {
+            container.expected = 'value'
+          } else {
+            this.invalid = true
+          }
+
+          break
+        }
+        case 'commaOrEnd': {
+          if (character === ',') {
+            container.expected = container.kind === 'object' ? 'key' : 'value'
+          } else {
+            this.invalid = true
+          }
+
+          break
+        }
+        default: {
+          if (character !== '"' && this.containers.length === 1 && this.field !== undefined) {
+            this.invalid = true
+          } else if (character === '"') {
+            this.string = { isKey: false, raw: '"', escape: 0 }
+          } else if (character === '{' || character === '[') {
+            if (this.containers.length >= TOOL_ARGUMENT_PREVIEW_MAX_DEPTH) this.invalid = true
+            else
+              this.containers.push({
+                kind: character === '{' ? 'object' : 'array',
+                keys: new Set(),
+                expected: character === '{' ? 'keyOrEnd' : 'valueOrEnd',
+              })
+          } else if (/^[\dtfn-]$/.test(character)) {
+            this.scalar = character
+          } else {
+            this.invalid = true
+          }
+        }
+      }
   }
 
   public append(delta: string): void {
     if (this.done) return
+    // A surrogate pair split between deltas is four UTF-8 bytes, not six.
+    const isJoinsPair = this.highSurrogate && /^[\uDC00-\uDFFF]/.test(delta)
+    this.bytes += Buffer.byteLength(delta) - (isJoinsPair ? 2 : 0)
+    if (delta !== '') this.highSurrogate = /[\uD800-\uDBFF]$/.test(delta)
     const remaining = TOOL_ARGUMENT_PREVIEW_MAX_CHARS - this.retained
     this.truncated ||= delta.length > remaining
     const added = delta.slice(0, remaining)
     this.retained += added.length
     for (const character of added) {
       if (this.invalid) break
-      const string = this.string
-      if (string !== undefined) {
-        this.advanceString(string, character)
-        continue
-      }
-      const container = this.containers.at(-1)
-      const isWithheld = container?.withheld === true
-      const isSensitive = isWithheld || (container?.isKey === false && container.sensitive)
-      if (character === '"') {
-        this.scalar = false
-        this.string = {
-          isKey: container?.isKey === true,
-          sensitive: isSensitive,
-          value: '',
-          escape: '',
-        }
-      } else {
-        if (character === '{' || character === '[') {
-          this.scalar = false
-          if (!isWithheld) this.text += isSensitive ? `"${REDACTED_MARK}"` : character
-          this.containers.push({
-            kind: character === '{' ? 'object' : 'array',
-            withheld: isSensitive,
-            isKey: character === '{',
-            sensitive: false,
-          })
-        } else if (character === '}' || character === ']') {
-          this.scalar = false
-          this.containers.pop()
-          if (!isWithheld) this.text += character
-        } else if (character === ':' && container?.kind === 'object') {
-          container.isKey = false
-          if (!isWithheld) this.text += character
-        } else if (character === ',' && container !== undefined) {
-          this.scalar = false
-          container.isKey = container.kind === 'object'
-          container.sensitive = false
-          if (!isWithheld) this.text += character
-        } else if (!isSensitive) {
-          this.text += character
-        } else if (!isWithheld && !this.scalar && character.trim() !== '') {
-          this.text += `"${REDACTED_MARK}"`
-          this.scalar = true
-        }
-      }
+      this.advance(character)
     }
   }
 
-  /** The done payload is authoritative; it still supplies display data only. */
+  /** Complete arguments are authoritative, but never bypass the allowlist or scrub. */
   public finish(args: string): void {
+    try {
+      const value: unknown = JSON.parse(args)
+      if (value === null || typeof value !== 'object' || Array.isArray(value))
+        throw new TypeError('Expected an argument object')
+    } catch {
+      this.invalid = true
+      this.bytes = Buffer.byteLength(args)
+      this.done = true
+      return
+    }
     this.text = ''
     this.containers.length = 0
     this.string = undefined
-    this.scalar = false
+    this.scalar = ''
+    this.field = undefined
     this.retained = 0
+    this.bytes = 0
     this.truncated = false
     this.invalid = false
+    this.started = false
+    this.closed = false
+    this.highSurrogate = false
     this.done = false
     this.append(args)
     this.done = true
   }
 
   public snapshot(): ToolArgumentPreview {
-    let decoded = this.text
-    const string = this.string
-    if (string !== undefined && !this.invalid && !string.sensitive && !string.isKey) {
-      // Withhold the unfinished line and any incomplete escape. M84's safe
-      // cuts also hold bearer introducers and PEM blocks across line breaks.
-      // A registered literal may cross an otherwise safe line boundary.
-      const slices = this.literals.some((literal) => literal.includes('\n'))
-        ? []
-        : redactableSlices(string.value, 1)
-      decoded += `"${slices.slice(0, -1).join('')}`
-    }
-    // Exact registered values precede M84 patterns, on decoded text only.
-    let text = redactSecrets(decoded, this.literals)
-    if (
-      !this.done ||
-      this.truncated ||
-      this.invalid ||
-      this.containers.length > 0 ||
-      this.string !== undefined
-    ) {
-      // Even outside strings, a trailing prefix may become a registered
-      // literal on the next frame. Keep it private until it is disambiguated.
-      let end = text.length
-      for (const literal of this.literals) {
-        if (literal === '') continue
-        let at = text.indexOf(literal.charAt(0), Math.max(0, text.length - literal.length + 1))
-        while (at !== -1 && at < end) {
-          if (literal.startsWith(text.slice(at))) {
-            end = at
-          }
-          at = text.indexOf(literal.charAt(0), at + 1)
-        }
-      }
-      text = text.slice(0, end)
-    }
     return {
-      text: text.slice(0, TOOL_ARGUMENT_PREVIEW_MAX_CHARS),
-      truncated: this.truncated || text.length > TOOL_ARGUMENT_PREVIEW_MAX_CHARS,
+      text: this.text.slice(0, TOOL_ARGUMENT_PREVIEW_MAX_CHARS),
+      truncated: this.truncated || this.text.length > TOOL_ARGUMENT_PREVIEW_MAX_CHARS,
+      bytes: this.bytes,
+      frozen: this.invalid || (this.done && !this.closed),
     }
   }
 }

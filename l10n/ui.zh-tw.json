@@ -2334,6 +2334,7 @@
   "toolArgumentPreviewLabel": "引數預覽",
   "toolArgumentPreviewTruncated": "預覽已截斷。",
   "toolArgumentPreviewPending": "正在等待完整引數…",
+  "toolArgumentPreviewPreparing": "正在準備引數…",
   "modelApiContinuing": "已達輸出上限。正在繼續一次…",
   "modelApiContinuationLimit": "再次達到輸出上限。請傳送訊息以繼續。",
   "modelApiToolStuck": "同一工具呼叫持續傳回未變更的結果，因此本輪已停止。請傳送訊息以嘗試其他方法。",

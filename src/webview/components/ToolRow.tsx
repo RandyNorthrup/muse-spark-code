@@ -485,12 +485,11 @@ function ToolRowView({
   let body: ReactNode
   switch (presentation.body) {
     case 'preview': {
-      body =
-        entry.argumentPreview === undefined ? null : (
-          <Suspense fallback={null}>
-            <ToolArgumentPreview preview={entry.argumentPreview} />
-          </Suspense>
-        )
+      body = (
+        <Suspense fallback={null}>
+          <ToolArgumentPreview preview={entry.argumentPreview} />
+        </Suspense>
+      )
       break
     }
     case 'shell': {

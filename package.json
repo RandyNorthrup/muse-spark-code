@@ -1176,6 +1176,7 @@
     "readme:shots": "node scripts/readme-shots.mjs",
     "test:a11y": "node scripts/a11y.mjs",
     "check:l10n": "node scripts/check-l10n.mjs",
+    "check:reference": "node scripts/gen-reference.mjs --check",
     "check:host-api": "node scripts/check-host-api.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

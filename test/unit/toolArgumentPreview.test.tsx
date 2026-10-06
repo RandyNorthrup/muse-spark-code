@@ -7,6 +7,7 @@ import { loadUiTable } from '../../src/host/l10n'
 import { UpdateTranslator } from '../../src/acp/translate'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { UI_TEXT } from '../../src/shared/constants'
+import { formatBytes } from '../../src/shared/l10n/text'
 import { initialUiState, uiReducer } from '../../src/webview/state/uiState'
 import { restoredUiState, webviewStateOf } from '../../src/webview/state/snapshot'
 import { renderTranscript, tool } from './helpers/transcriptFixtures'
@@ -172,7 +173,7 @@ describe('argument preview across editor surfaces', () => {
       (['idle', 'live', 'history'] as const).map((route) => ({ status, route })),
     ),
   )(
-    'settles stale restored previews and preserves only the running turn: $route/$status',
+    'clears restored previews without relying on running-turn freshness: $route/$status',
     ({ status, route }) => {
       const current = { ...PREVIEW.item, itemId: 'new-row', turnId: 'new-turn' }
       const state =
@@ -216,13 +217,13 @@ describe('argument preview across editor surfaces', () => {
         argumentPreview: undefined,
       })
       expect(settled.transcript[1]).toMatchObject({
-        status: route === 'idle' ? 'interrupted' : 'inProgress',
-        argumentPreview: route === 'idle' ? undefined : PREVIEW.item.argumentPreview,
+        status: 'interrupted',
+        argumentPreview: undefined,
       })
     },
   )
 
-  it('retains the preview turn when an existing row receives its first preview', () => {
+  it('restores an active preview only from a fresh call update after reconciliation', () => {
     const started = uiReducer(
       { ...initialUiState, sessionId: 's1' },
       action({
@@ -238,10 +239,113 @@ describe('argument preview across editor surfaces', () => {
       at: 2,
     })
     expect(reconciled.transcript[0]).toMatchObject({
-      turnId: 'turn',
+      status: 'interrupted',
+      argumentPreview: undefined,
+    })
+    const fresh = uiReducer(reconciled, action(PREVIEW))
+    expect(fresh.transcript[0]).toMatchObject({
+      id: PREVIEW.item.itemId,
       status: 'inProgress',
       argumentPreview: PREVIEW.item.argumentPreview,
     })
+    expect(fresh.transcript).toHaveLength(1)
+  })
+
+  it('drops a completed call’s restored preview while the same turn continues', () => {
+    const live = uiReducer(
+      { ...initialUiState, sessionId: 's1', activeTurnId: 'turn' },
+      action(PREVIEW),
+    )
+    const saved = webviewStateOf(live, true)
+    const item = { ...PREVIEW.item, args: '{"path":"safe.ts"}', argumentPreview: undefined }
+    const promoted = uiReducer(live, action({ type: 'itemStarted', item }))
+    const completed = uiReducer(
+      promoted,
+      action({ type: 'itemCompleted', item: { ...item, status: 'completed' } }),
+    )
+    expect(completed.transcript[0]).toMatchObject({
+      status: 'completed',
+      argumentPreview: undefined,
+    })
+    const restored = uiReducer(restoredUiState(saved), {
+      type: 'hostMessage',
+      message: { type: 'surfaceState', sessionId: 's1', activeTurnId: 'turn' },
+      at: 2,
+    })
+    expect(restored.activeTurnId).toBe('turn')
+    expect(restored.transcript[0]).toMatchObject({ argumentPreview: undefined })
+    renderTranscript(restored.transcript, { isRunning: true })
+    expect(screen.queryByText(UI_TEXT.toolArgumentPreviewPending)).toBeNull()
+    expect(screen.queryByRole('region', { name: UI_TEXT.toolArgumentPreviewLabel })).toBeNull()
+  })
+
+  it('drops a completed child call’s saved preview while the parent turn continues', () => {
+    const parent = uiReducer(
+      { ...initialUiState, sessionId: 's1', activeTurnId: 'turn' },
+      action({
+        type: 'itemStarted',
+        item: {
+          itemId: 'agent-row',
+          kind: 'subagent',
+          status: 'inProgress',
+          turnId: 'turn',
+          childSessionId: 'child',
+        },
+      }),
+    )
+    const state = uiReducer(
+      parent,
+      action({ ...PREVIEW, item: { ...PREVIEW.item, turnId: 'child' } }),
+    )
+    expect(state.childTranscripts['child']?.entries[0]).toMatchObject({
+      argumentPreview: PREVIEW.item.argumentPreview,
+    })
+    const saved = webviewStateOf(state, true)
+    const completed = uiReducer(
+      state,
+      action({
+        type: 'itemCompleted',
+        item: {
+          ...PREVIEW.item,
+          turnId: 'child',
+          status: 'completed',
+          argumentPreview: undefined,
+        },
+      }),
+    )
+    expect(completed.childTranscripts['child']?.entries[0]).toMatchObject({
+      status: 'completed',
+      argumentPreview: undefined,
+    })
+
+    const reconciled = uiReducer(restoredUiState(saved), {
+      type: 'hostMessage',
+      message: { type: 'surfaceState', sessionId: 's1', activeTurnId: 'turn' },
+      at: 2,
+    })
+    expect(reconciled.childTranscripts['child']?.entries[0]).toMatchObject({
+      status: 'interrupted',
+      argumentPreview: undefined,
+    })
+    expect(reconciled.activeTurnId).toBe('turn')
+  })
+
+  it('shows frozen preparation and a localized running byte count in React and ACP', async () => {
+    const preview = { text: '"path": …', truncated: false, frozen: true, bytes: 1234 }
+    renderTranscript([
+      tool({ tool: 'write_file', args: '', status: 'inProgress', argumentPreview: preview }),
+    ])
+    await screen.findByRole('status')
+    expect(screen.getByRole('status').textContent).toBe(UI_TEXT.toolArgumentPreviewPreparing)
+    const size = formatBytes(preview.bytes)
+    expect(screen.getByText(size)).toBeTruthy()
+    const translator = new UpdateTranslator('/ws', false)
+    const translated = JSON.stringify(
+      translator.updates({ ...PREVIEW, item: { ...PREVIEW.item, argumentPreview: preview } }),
+    )
+    expect(translated).toContain(UI_TEXT.toolArgumentPreviewPreparing)
+    expect(translated).toContain(size)
+    expect(translated).not.toContain(UI_TEXT.toolArgumentPreviewPending)
   })
 
   it('sends the same labeled preview through ACP, pending until the real call begins', () => {

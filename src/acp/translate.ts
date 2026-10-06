@@ -44,7 +44,7 @@ import {
   type PaidFeature,
   UI_TEXT,
 } from '../shared/constants'
-import { fill } from '../shared/l10n/text'
+import { fill, formatBytes } from '../shared/l10n/text'
 import { formatMention } from '../shared/mentions'
 import { paidFeaturePrice } from '../shared/paid'
 
@@ -320,7 +320,10 @@ export class UpdateTranslator {
                 text: [
                   UI_TEXT.toolArgumentPreviewLabel,
                   preview.text,
-                  UI_TEXT.toolArgumentPreviewPending,
+                  preview.frozen === true
+                    ? UI_TEXT.toolArgumentPreviewPreparing
+                    : UI_TEXT.toolArgumentPreviewPending,
+                  ...(preview.bytes === undefined ? [] : [formatBytes(preview.bytes)]),
                   ...(preview.truncated ? [UI_TEXT.toolArgumentPreviewTruncated] : []),
                 ].join(PART_SEPARATOR),
               },

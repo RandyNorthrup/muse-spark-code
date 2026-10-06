@@ -2428,6 +2428,7 @@
   "toolArgumentPreviewLabel": "Bağımsız değişken önizlemesi",
   "toolArgumentPreviewTruncated": "Önizleme kısaltıldı.",
   "toolArgumentPreviewPending": "Tam bağımsız değişkenler bekleniyor…",
+  "toolArgumentPreviewPreparing": "Bağımsız değişkenler hazırlanıyor…",
   "modelApiContinuing": "Çıktı sınırına ulaşıldı. Bir kez devam ediliyor…",
   "modelApiContinuationLimit": "Çıktı sınırına yeniden ulaşıldı. Devam etmek için bir mesaj gönderin.",
   "modelApiToolStuck": "Aynı araç çağrısı sürekli değişmeyen bir sonuç döndürdüğü için tur durduruldu. Başka bir yaklaşım denemek için mesaj gönderin.",

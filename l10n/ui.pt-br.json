@@ -2522,6 +2522,7 @@
   "toolArgumentPreviewLabel": "Prévia dos argumentos",
   "toolArgumentPreviewTruncated": "Prévia truncada.",
   "toolArgumentPreviewPending": "Aguardando os argumentos completos…",
+  "toolArgumentPreviewPreparing": "Preparando argumentos…",
   "modelApiContinuing": "O limite de saída foi atingido. Continuando uma vez…",
   "modelApiContinuationLimit": "O limite de saída foi atingido novamente. Envie uma mensagem para continuar.",
   "modelApiToolStuck": "O turno foi interrompido porque a mesma chamada de ferramenta retornava um resultado sem mudanças. Envie uma mensagem para tentar outra abordagem.",

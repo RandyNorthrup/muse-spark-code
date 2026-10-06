@@ -3921,7 +3921,9 @@ export class ModelApiSession implements AgentSession {
     const previous = this.argumentPreviewRows.get(entry.call.call_id)?.argumentPreview
     if (
       previous?.text === item.argumentPreview.text &&
-      previous.truncated === item.argumentPreview.truncated
+      previous.truncated === item.argumentPreview.truncated &&
+      previous.bytes === item.argumentPreview.bytes &&
+      previous.frozen === item.argumentPreview.frozen
     )
       return
     if (previous === undefined) {
@@ -4062,7 +4064,13 @@ export class ModelApiSession implements AgentSession {
             ourId: this.deps.newId(),
             kind: 'argumentPreview',
             call: item,
-            preview: new ArgumentPreview(),
+            preview: new ArgumentPreview(
+              toolDefinitions(this.deps.platform, {
+                hasShell: true,
+                hasSkills: false,
+                hasWebFetch: true,
+              }).find((tool) => tool.name === item.name)?.previewFields,
+            ),
             text: '',
             summary: [],
             isCompleted: false,

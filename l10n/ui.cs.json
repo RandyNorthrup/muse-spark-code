@@ -2616,6 +2616,7 @@
   "toolArgumentPreviewLabel": "Náhled argumentů",
   "toolArgumentPreviewTruncated": "Náhled byl zkrácen.",
   "toolArgumentPreviewPending": "Čekání na úplné argumenty…",
+  "toolArgumentPreviewPreparing": "Příprava argumentů…",
   "modelApiContinuing": "Byl dosažen limit výstupu. Jednorázové pokračování…",
   "modelApiContinuationLimit": "Limit výstupu byl dosažen znovu. Pro pokračování odešlete zprávu.",
   "modelApiToolStuck": "Tah byl zastaven, protože stejné volání nástroje opakovaně vracelo nezměněný výsledek. Odešlete zprávu a zkuste jiný postup.",
