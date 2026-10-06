@@ -290,6 +290,7 @@ import {
 } from './sessionBudget'
 import { uiLocale } from '../../../shared/l10n/text'
 import { estimateCostUsd, formatUsd } from '../../usage/insights'
+import { Usd, sumUsd, multiplyUsd } from '../../../shared/usd'
 import { toolHookInput, toolHookOutput } from './toolHookPayload'
 import {
   afterAgentThoughtFields,
@@ -2851,7 +2852,7 @@ export class ModelApiSession implements AgentSession {
         : {
             estimatedInputTokens: estimate.inputTokens,
             maxOutputTokens,
-            costUsd:
+            costUsd: sumUsd(
               estimateCostUsd(
                 {
                   inputTokens: estimate.inputTokens,
@@ -2859,14 +2860,20 @@ export class ModelApiSession implements AgentSession {
                   cachedTokens: 0,
                 },
                 body.model,
-              ) +
-              (body.max_tool_calls ?? 0) * (this.deps.client.searchPriceUsd(body.model) ?? 0),
+              ),
+              multiplyUsd(
+                this.deps.client.searchPriceUsd(body.model) ?? 0,
+                body.max_tool_calls ?? 0,
+              ),
+            ),
           }
     this.openReservation = {
       ...reservation,
       searchSpentUsd: 0,
-      searchReservedUsd:
-        (body.max_tool_calls ?? 0) * (this.deps.client.searchPriceUsd(body.model) ?? 0),
+      searchReservedUsd: multiplyUsd(
+        this.deps.client.searchPriceUsd(body.model) ?? 0,
+        body.max_tool_calls ?? 0,
+      ),
       hasTerminalSearchCount: false,
       modelId: body.model,
       modelRevision: this.modelRevision,
@@ -3036,13 +3043,15 @@ export class ModelApiSession implements AgentSession {
     }
     const costUsd =
       reservation.hasAmbiguousAttempt || (reservation.isSent && !reservation.isRefused)
-        ? reservation.costUsd +
-          (reservation.hasTerminalSearchCount
-            ? reservation.searchSpentUsd - reservation.searchReservedUsd
-            : Math.max(0, reservation.searchSpentUsd - reservation.searchReservedUsd))
+        ? sumUsd(
+            reservation.costUsd,
+            reservation.hasTerminalSearchCount
+              ? sumUsd(reservation.searchSpentUsd, -reservation.searchReservedUsd)
+              : Math.max(0, sumUsd(reservation.searchSpentUsd, -reservation.searchReservedUsd)),
+          )
         : 0
     if (costUsd > 0) {
-      this.budgetSpentUsd += costUsd
+      this.budgetSpentUsd = sumUsd(this.budgetSpentUsd, costUsd, -reservation.searchSpentUsd)
       this.warnUnknownCharge(costUsd)
       this.deps.log.warn(
         `Session budget: a response ended without its usage; its remaining reservation of ${String(costUsd)} USD counts as spent`,
@@ -3819,12 +3828,12 @@ export class ModelApiSession implements AgentSession {
     this.usage = nextUsage
     const reservation = this.openReservation
     const claim = reservation?.claim
-    this.budgetSpentUsd += costUsd
+    this.budgetSpentUsd = sumUsd(this.budgetSpentUsd, costUsd)
     if (hasKnownPrice) {
-      this.turnCostUsd += costUsd
+      this.turnCostUsd = sumUsd(this.turnCostUsd, costUsd)
     }
     this.recordBudgetCost(
-      costUsd + (reservation?.searchSpentUsd ?? 0),
+      sumUsd(costUsd, reservation?.searchSpentUsd ?? 0),
       claim,
       !hasKnownPrice || reservation?.hasAmbiguousAttempt === true,
     )
@@ -3982,9 +3991,9 @@ export class ModelApiSession implements AgentSession {
     const price = this.deps.client.searchPriceUsd(this.sendingModelId ?? this.modelId)
     if (price === undefined) throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
     this.deps.notePaidUse('webSearch', units, price)
-    const costUsd = units * price
-    this.budgetSpentUsd += costUsd
-    this.turnCostUsd += costUsd
+    const costUsd = multiplyUsd(price, units)
+    this.budgetSpentUsd = sumUsd(this.budgetSpentUsd, costUsd)
+    this.turnCostUsd = sumUsd(this.turnCostUsd, costUsd)
     this.recordBudgetCost(costUsd, undefined)
   }
 
@@ -3995,19 +4004,21 @@ export class ModelApiSession implements AgentSession {
     if (price === undefined) throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
     const units = count - this.chargedSearchCalls
     this.chargedSearchCalls = count
-    const costUsd = units * price
+    const costUsd = multiplyUsd(price, units)
     this.deps.notePaidUse('webSearch', units, price)
     if (this.openReservation !== undefined) {
-      this.openReservation.searchSpentUsd = count * price
+      this.openReservation.searchSpentUsd = multiplyUsd(price, count)
     }
-    this.budgetSpentUsd += costUsd
-    this.turnCostUsd += costUsd
+    this.budgetSpentUsd = sumUsd(this.budgetSpentUsd, costUsd)
+    this.turnCostUsd = sumUsd(this.turnCostUsd, costUsd)
     const reservation = this.openReservation
     if (reservation === undefined) {
       this.recordBudgetCost(costUsd, undefined)
-    } else if (reservation.searchSpentUsd > reservation.searchReservedUsd) {
+    } else if (
+      Usd.from(reservation.searchSpentUsd).compare(Usd.from(reservation.searchReservedUsd)) > 0
+    ) {
       this.recordBudgetCost(
-        reservation.costUsd + reservation.searchSpentUsd - reservation.searchReservedUsd,
+        sumUsd(reservation.costUsd, reservation.searchSpentUsd, -reservation.searchReservedUsd),
         reservation.claim,
         reservation.hasUnknownCost,
         false,
@@ -5633,7 +5644,10 @@ export class ModelApiSession implements AgentSession {
     await this.refreshBudgetSpend()
     const price = PAID_PRICES_USD.imageGeneration
     const capUsd = this.currentBudgetCap()
-    if (capUsd > 0 && price > capUsd - this.budgetSpentUsd) {
+    if (
+      capUsd > 0 &&
+      Usd.from(price).compare(Usd.from(capUsd).subtract(Usd.from(this.budgetSpentUsd))) > 0
+    ) {
       throw new SessionBudgetExceededError(
         fill(UI_TEXT.sessionBudgetStopped, {
           estimate: formatUsd(price),
@@ -5717,9 +5731,9 @@ export class ModelApiSession implements AgentSession {
     } finally {
       const charged =
         imageState.isBilled || (!hasReturned && !isRefused && imageState.isSent) ? price : 0
-      this.budgetSpentUsd += charged
+      this.budgetSpentUsd = sumUsd(this.budgetSpentUsd, charged)
       if (imageState.isBilled) {
-        this.turnCostUsd += charged
+        this.turnCostUsd = sumUsd(this.turnCostUsd, charged)
       } else if (charged > 0) {
         this.warnUnknownCharge(charged)
       }
@@ -6335,10 +6349,10 @@ export class ModelApiSession implements AgentSession {
         child.usage = { ...latest }
         return
       }
-      this.budgetSpentUsd += costUsd
+      this.budgetSpentUsd = sumUsd(this.budgetSpentUsd, costUsd)
       this.chargeChildGoal(child, inputDelta + outputDelta)
       if (this.active?.turnId === child.parentTurnId) {
-        this.turnCostUsd += costUsd
+        this.turnCostUsd = sumUsd(this.turnCostUsd, costUsd)
       }
       this.usage = nextUsage
       child.usage = { ...latest }
@@ -11925,9 +11939,10 @@ export class ModelApiSession implements AgentSession {
 
   /** Everything a window needs to bring this session back (D14). */
   public snapshot(): StoredSession {
-    const budgetSpentUsd =
-      this.budgetSpentUsd +
-      (this.openReservation?.isReserved === true ? this.openReservation.costUsd : 0)
+    const budgetSpentUsd = sumUsd(
+      this.budgetSpentUsd,
+      this.openReservation?.isReserved === true ? this.openReservation.costUsd : 0,
+    )
     const freshFork: Pick<StoredSession, 'budgetIsFreshFork' | 'budgetSpentUsd'> = this
       .budgetIsFreshFork
       ? { budgetIsFreshFork: true, budgetSpentUsd: 0 }

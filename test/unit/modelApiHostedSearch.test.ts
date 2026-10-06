@@ -152,6 +152,19 @@ async function expectSearchUnavailable(t: Awaited<ReturnType<typeof host>>): Pro
   expect(t.api.responseBodies()[0]).not.toHaveProperty('max_tool_calls')
 }
 
+async function dailyJournal() {
+  const directory = await mkdtemp(path.join(tmpdir(), 'm106-search-'))
+  cleanup.push(() => removeFolder(directory))
+  return () =>
+    createPaidDailyBudget({
+      directory,
+      now: () => new Date(2026, 9, 6, 12).getTime(),
+      capUsd: () => 0.5,
+      isModelApi: () => true,
+      sleep: () => Promise.resolve(),
+    })
+}
+
 describe('M106 hosted-search bounds', () => {
   it('quotes and tallies a verified USD 0.01 per-call provider tariff end to end', async () => {
     const usage = new PaidUsage(new FakeLogOutputChannel())
@@ -496,16 +509,7 @@ describe('M106 hosted-search bounds', () => {
   })
 
   it('uses the real shared daily journal and refuses another window at its cap', async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), 'm106-search-'))
-    cleanup.push(() => removeFolder(directory))
-    const create = () =>
-      createPaidDailyBudget({
-        directory,
-        now: () => new Date(2026, 9, 6, 12).getTime(),
-        capUsd: () => 0.5,
-        isModelApi: () => true,
-        sleep: () => Promise.resolve(),
-      })
+    const create = await dailyJournal()
     const first = create()
     const seed = await first.judgeLedger.reserve(0.49)
     await seed.settle(0.49)
@@ -520,6 +524,33 @@ describe('M106 hosted-search bounds', () => {
     await expect(create().judgeLedger.reserve(0.01)).rejects.toThrow()
   })
 
+  it('dispatches the affordable 200th search at exactly USD 0.50 with zero-priced provider tokens', async () => {
+    const create = await dailyJournal()
+    const daily = create()
+    // The journal suite settles all 200 fees individually. Seed the first 199 here
+    // to test actual dispatch at the cap without repeating its quadratic disk scans.
+    const priorSearches = await daily.judgeLedger.reserve(0.4975)
+    await priorSearches.settle(0.4975)
+    const t = client(
+      (_body, _feature, _input, _signal, amount) => {
+        if (amount === undefined) throw new Error('Missing allowance')
+        return daily.judgeLedger.reserve(amount)
+      },
+      { searchTokenCostUsd: () => 0, webSearchPriceUsd: () => PRICE },
+    )
+    t.api.script({ searches: [{}] })
+    await Array.fromAsync(
+      t.instance.streamResponse(
+        { ...BODY, model: 'zero-token-provider' },
+        new AbortController().signal,
+      ),
+    )
+    expect(t.api.responseBodies()).toHaveLength(1)
+    const finalDay = await create().latestDay()
+    expect(finalDay.spentUsd).toBe(0.5)
+    await expect(create().judgeLedger.reserve(PRICE)).rejects.toThrow()
+  })
+
   it('has no unverified tariff for another provider', () => {
     expect(webSearchPriceUsd('custom-model')).toBeUndefined()
     expect(webSearchPriceUsd(BODY.model)).toBe(PRICE)
@@ -527,56 +558,44 @@ describe('M106 hosted-search bounds', () => {
 
   it('uses another provider through injected verified prices without a Meta model-id gate', async () => {
     const c = claims()
-    const api = fakeModelApi()
-    api.script({ searches: [{}], usage: { input: 100, output: 20 } })
-    const instance = new ModelApiClient({
-      fetch: api.fetch,
-      ...fakeModelApiClientSettings(new FakeLogOutputChannel()),
-      reservePaidRequest: c.reserve,
+    const t = client(c.reserve, {
       webSearchPriceUsd: () => 0.01,
       searchTokenCostUsd: (usage) => (usage.inputTokens + usage.outputTokens) / 1_000_000,
     })
+    t.api.script({ searches: [{}], usage: { input: 100, output: 20 } })
     await Array.fromAsync(
-      instance.streamResponse(
+      t.instance.streamResponse(
         { ...BODY, model: 'other-provider-model' },
         new AbortController().signal,
       ),
     )
     expect(c.settled).toEqual([0.01012])
-    expect(api.responseBodies()[0]?.['model']).toBe('other-provider-model')
+    expect(t.api.responseBodies()[0]?.['model']).toBe('other-provider-model')
   })
 
   it.each([undefined, -1, NaN, Infinity])(
     'refuses an unverified token cost of %s before spending',
     async (cost) => {
       const c = claims()
-      const api = fakeModelApi()
-      const instance = new ModelApiClient({
-        fetch: api.fetch,
-        ...fakeModelApiClientSettings(new FakeLogOutputChannel()),
-        reservePaidRequest: c.reserve,
+      const t = client(c.reserve, {
         searchTokenCostUsd: () => cost,
       })
       await expect(
-        Array.fromAsync(instance.streamResponse(BODY, new AbortController().signal)),
+        Array.fromAsync(t.instance.streamResponse(BODY, new AbortController().signal)),
       ).rejects.toThrow(fill(UI_TEXT.sessionBudgetUnpriced, { model: BODY.model }))
       expect(c.amounts).toEqual([])
-      expect(api.requests).toEqual([])
+      expect(t.api.requests).toEqual([])
     },
   )
 
   it('retains all observed fees if verified token pricing fails during settlement', async () => {
     const c = claims()
-    const api = fakeModelApi()
-    api.script({ searches: [{}, {}, {}], usage: { input: 100, output: 20 } })
-    const instance = new ModelApiClient({
-      fetch: api.fetch,
-      ...fakeModelApiClientSettings(new FakeLogOutputChannel()),
-      reservePaidRequest: c.reserve,
+    const t = client(c.reserve, {
       searchTokenCostUsd: (usage) => (usage.inputTokens === 100 ? undefined : 0.02),
     })
+    t.api.script({ searches: [{}, {}, {}], usage: { input: 100, output: 20 } })
     await expect(
-      Array.fromAsync(instance.streamResponse(BODY, new AbortController().signal)),
+      Array.fromAsync(t.instance.streamResponse(BODY, new AbortController().signal)),
     ).rejects.toThrow(
       fill(UI_TEXT.sessionBudgetUnknownCharge, { amount: formatUsd(0.02 + 3 * PRICE) }),
     )
@@ -585,16 +604,12 @@ describe('M106 hosted-search bounds', () => {
 
   it('shows the retained sub-cent liability of USD 0.0026 when settlement pricing fails', async () => {
     const c = claims()
-    const api = fakeModelApi()
-    api.script({ searches: [{}], usage: { input: 100, output: 20 } })
-    const instance = new ModelApiClient({
-      fetch: api.fetch,
-      ...fakeModelApiClientSettings(new FakeLogOutputChannel()),
-      reservePaidRequest: c.reserve,
+    const t = client(c.reserve, {
       searchTokenCostUsd: (usage) => (usage.inputTokens === 100 ? undefined : 0.0001),
     })
+    t.api.script({ searches: [{}], usage: { input: 100, output: 20 } })
     await expect(
-      Array.fromAsync(instance.streamResponse(BODY, new AbortController().signal)),
+      Array.fromAsync(t.instance.streamResponse(BODY, new AbortController().signal)),
     ).rejects.toThrow(fill(UI_TEXT.sessionBudgetUnknownCharge, { amount: '$0.0026' }))
     expect(c.settled).toEqual([0.0026])
   })
@@ -603,5 +618,20 @@ describe('M106 hosted-search bounds', () => {
     expect(
       parseExec({ backend: 'modelApi', 'web-search': true, 'max-budget-usd': '1' }, ['Find it']),
     ).toEqual({ ok: false, reason: UI_TEXT.execWebSearchUnbounded })
+  })
+
+  it('releases unused terminal search allowance even when token pricing fails at settlement', async () => {
+    const c = claims()
+    const t = client(c.reserve, {
+      searchTokenCostUsd: (usage) => (usage.inputTokens === 100 ? undefined : 0.0001),
+    })
+    t.api.script({ usage: { input: 100, output: 20 } })
+    await expect(
+      Array.fromAsync(
+        t.instance.streamResponse({ ...BODY, max_tool_calls: 5 }, new AbortController().signal),
+      ),
+    ).rejects.toThrow(fill(UI_TEXT.sessionBudgetUnknownCharge, { amount: '$0.0001' }))
+    expect(c.amounts).toEqual([0.0126])
+    expect(c.settled).toEqual([0.0001])
   })
 })

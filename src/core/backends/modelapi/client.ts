@@ -50,6 +50,7 @@ import { parseSse } from './sse'
 import { estimateCostUsd, formatUsd, type BillableUsage } from '../../usage/insights'
 import { webSearchPriceUsd } from '../../paid/paidFeatures'
 import { modelApiPaidTier } from '../../../shared/paid'
+import { sumUsd, multiplyUsd } from '../../../shared/usd'
 
 /** The client needs admission and settlement, not the ledger's internal totals. */
 interface PaidRequestClaim {
@@ -626,11 +627,13 @@ export class ModelApiClient {
       const inputTokens =
         admitAttempt?.paidEstimatedInputTokens ??
         estimateInput(requestParts(body), undefined).inputTokens
-      reservationUsd =
+      reservationUsd = sumUsd(
         this.searchTokenCostUsd(
           { inputTokens, outputTokens: body.max_output_tokens, cachedTokens: 0 },
           body.model,
-        ) + searchAllowanceUsd(body.max_tool_calls, searchPrice)
+        ),
+        searchAllowanceUsd(body.max_tool_calls, searchPrice),
+      )
     }
     const claim =
       feature === undefined
@@ -646,6 +649,7 @@ export class ModelApiClient {
     const searchItems = new Set<string>()
     let returnedSearches = 0
     let hasTerminal = false
+    let hasTerminalSearchCount = false
     const noteSearchAnomaly = () => {
       if (body.max_tool_calls !== undefined && returnedSearches > body.max_tool_calls) {
         this.deps.log.warn(
@@ -723,6 +727,7 @@ export class ModelApiClient {
                 returnedSearches,
                 known.data.response.output.filter((item) => item.type === 'web_search_call').length,
               )
+              hasTerminalSearchCount = true
               noteSearchAnomaly()
               admitAttempt?.onSearchesReturned?.(returnedSearches)
               const usage = known.data.response.usage
@@ -745,20 +750,29 @@ export class ModelApiClient {
                   cachedTokens: cached,
                 }
                 await claim.settle(
-                  (hasSearch
-                    ? this.searchTokenCostUsd(
-                        billable,
-                        body.model,
-                        claim.reservedUsd +
-                          Math.max(0, returnedSearches - (body.max_tool_calls ?? 0)) *
-                            (searchPrice ?? 0),
-                      )
-                    : estimateCostUsd(billable, body.model)) +
-                    returnedSearches * (searchPrice ?? 0),
+                  sumUsd(
+                    hasSearch
+                      ? this.searchTokenCostUsd(
+                          billable,
+                          body.model,
+                          sumUsd(
+                            claim.reservedUsd,
+                            multiplyUsd(
+                              searchPrice ?? 0,
+                              returnedSearches - (body.max_tool_calls ?? 0),
+                            ),
+                          ),
+                        )
+                      : estimateCostUsd(billable, body.model),
+                    multiplyUsd(searchPrice ?? 0, returnedSearches),
+                  ),
                 )
               } else if (claim !== undefined && hasSearch && body.max_tool_calls !== undefined) {
                 await claim.settle(
-                  claim.reservedUsd + (returnedSearches - body.max_tool_calls) * (searchPrice ?? 0),
+                  sumUsd(
+                    claim.reservedUsd,
+                    multiplyUsd(searchPrice ?? 0, returnedSearches - body.max_tool_calls),
+                  ),
                 )
               }
               hasTerminal = true
@@ -793,8 +807,15 @@ export class ModelApiClient {
       if (paid?.isSent === false) await paid.claim.settle(0)
       else if (paid !== undefined && hasSearch && !hasTerminal) {
         await paid.claim.settle(
-          paid.claim.reservedUsd +
-            Math.max(0, returnedSearches - (body.max_tool_calls ?? 0)) * (searchPrice ?? 0),
+          sumUsd(
+            paid.claim.reservedUsd,
+            multiplyUsd(
+              searchPrice ?? 0,
+              hasTerminalSearchCount
+                ? returnedSearches - (body.max_tool_calls ?? 0)
+                : Math.max(0, returnedSearches - (body.max_tool_calls ?? 0)),
+            ),
+          ),
         )
       }
     }

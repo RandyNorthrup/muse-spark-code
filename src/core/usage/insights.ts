@@ -20,6 +20,7 @@ import {
 } from '../../shared/constants'
 import { formatUsd as formatMoney } from '../../shared/l10n/text'
 import type { UsageInsights } from '../../shared/usage'
+import { Usd } from '../../shared/usd'
 
 export interface TraceAttempt {
   readonly atMs: number
@@ -194,10 +195,12 @@ export function estimateCostUsd(usage: BillableUsage, modelId: string): number {
     : MODEL_API_PRICES_PER_MILLION.standard
   const cached = Math.min(usage.cachedTokens, usage.inputTokens)
   const fresh = usage.inputTokens - cached
-  return (
-    (fresh * prices.input + cached * prices.cachedInput + usage.outputTokens * prices.output) /
-    TOKENS_PER_MILLION
-  )
+  return Usd.from(prices.input)
+    .times(fresh)
+    .add(Usd.from(prices.cachedInput).times(cached))
+    .add(Usd.from(prices.output).times(usage.outputTokens))
+    .divide(TOKENS_PER_MILLION)
+    .toNumber()
 }
 
 const CENTS_DECIMALS = 2
@@ -205,5 +208,7 @@ const SMALL_DECIMALS = 4
 
 /** "$0.0123" under a dollar, "$1.23" from there, as the display language writes money. */
 export function formatUsd(amount: number): string {
-  return formatMoney(amount, amount < 1 ? SMALL_DECIMALS : CENTS_DECIMALS)
+  const smallDecimals =
+    amount > 0 ? Math.max(SMALL_DECIMALS, -Math.floor(Math.log10(amount))) : SMALL_DECIMALS
+  return formatMoney(amount, amount < 1 ? smallDecimals : CENTS_DECIMALS)
 }

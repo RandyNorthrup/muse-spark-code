@@ -16,6 +16,7 @@ import {
 } from '../../src/host/backend/fileSessionStore'
 import { createSessionBudgetJournal } from '../../src/host/backend/sessionBudgetJournal'
 import { UI_TEXT } from '../../src/shared/constants'
+import { searchAllowanceUsd } from '../../src/core/backends/modelapi/sessionBudget'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -197,6 +198,49 @@ function paidChild(paid: 'webSearch' | 'imageGeneration'): StoredChild {
 }
 
 describe('the real-disk session budget journal (M82)', () => {
+  it('settles 200 search fees to exactly USD 0.50 and admits the last search at the cap', async () => {
+    const t = await setup()
+    const fee = searchAllowanceUsd(1, 0.0025)
+    for (let search = 0; search < 200; search += 1) {
+      const claim = await t.budget.reserve(SESSION, ACCOUNT, fee)
+      // Only the last admission is the boundary under test; avoid 199 redundant disk scans.
+      if (search === 199) claim.check(0.5)
+      await claim.settle(fee)
+    }
+    const total = await t.otherBudget.read(SESSION, ACCOUNT)
+    expect(total.spentUsd).toBe(0.5)
+    const refused = await t.otherBudget.reserve(SESSION, ACCOUNT, fee)
+    expect(() => refused.check(0.5)).toThrow()
+    await refused.settle(0)
+  })
+
+  it('migrates legacy decimal amounts without losing sub-micro precision or rewriting foreign rows', async () => {
+    const t = await setup()
+    const claim = await t.budget.reserve(SESSION, ACCOUNT, 0.0025)
+    const file = claimFile(t.directory, claim.claimId)
+    const seedFile = path.join(scope(t.directory), 'seed.json')
+    const seed: unknown = JSON.parse(await readFile(seedFile, 'utf8'))
+    const entry: unknown = JSON.parse(await readFile(file, 'utf8'))
+    if (typeof seed !== 'object' || seed === null || typeof entry !== 'object' || entry === null) {
+      throw new Error('Missing fixture rows')
+    }
+    const legacySeed = JSON.stringify({ ...seed, version: 1, spentUsd: 0.000000002 })
+    const legacyClaim = JSON.stringify({ ...entry, version: 1, reservedUsd: 0.0025 })
+    await writeFile(seedFile, legacySeed)
+    await writeFile(file, legacyClaim)
+    const migrated = await t.otherBudget.read(SESSION, ACCOUNT)
+    expect(migrated.spentUsd).toBe(0.002500002)
+    expect(await readFile(file, 'utf8')).toBe(legacyClaim)
+    expect(await readFile(seedFile, 'utf8')).toBe(legacySeed)
+    await claim.settle(0.000000002)
+    expect(JSON.parse(await readFile(file, 'utf8'))).toMatchObject({
+      version: 2,
+      settledUsd: '0.000000002',
+    })
+    const settled = await t.otherBudget.read(SESSION, ACCOUNT)
+    expect(settled.spentUsd).toBe(0.000000004)
+  })
+
   it('retains an over-bound fee on the original row across restart and closes it once', async () => {
     const t = await setup()
     const claim = await t.budget.reserve(SESSION, ACCOUNT, 0.1)
@@ -218,10 +262,10 @@ describe('the real-disk session budget journal (M82)', () => {
     ])
     expect(one.claimId).not.toBe(two.claimId)
     expect(JSON.parse(await readFile(claimFile(t.directory, one.claimId), 'utf8'))).toMatchObject({
-      reservedUsd: 0.6,
+      reservedUsd: '0.6',
     })
     expect(JSON.parse(await readFile(claimFile(t.directory, two.claimId), 'utf8'))).toMatchObject({
-      reservedUsd: 0.6,
+      reservedUsd: '0.6',
     })
     expect(() => one.check(1)).toThrow()
     expect(() => two.check(1)).toThrow()
@@ -243,7 +287,7 @@ describe('the real-disk session budget journal (M82)', () => {
     expect(earlier.check(1).spentUsd).toBeCloseTo(0.6)
     expect(
       JSON.parse(await readFile(claimFile(t.directory, earlier.claimId), 'utf8')),
-    ).toMatchObject({ reservedUsd: 0.6 })
+    ).toMatchObject({ reservedUsd: '0.6' })
     await earlier.settle(0.2)
     await expectSpent(t.otherBudget.read(SESSION, ACCOUNT), 0.2)
   })
@@ -383,7 +427,7 @@ describe('the real-disk session budget journal (M82)', () => {
     ).toMatchObject({
       sessionId: SESSION,
       accountId: ACCOUNT,
-      spentUsd: 0,
+      spentUsd: '0',
     })
     expect(await budgetOf(store).read(SESSION, ACCOUNT)).toEqual({
       spentUsd: 0,

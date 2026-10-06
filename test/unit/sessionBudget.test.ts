@@ -63,6 +63,18 @@ describe('estimateInput', () => {
 })
 
 describe('reserveRequest', () => {
+  it('admits one output token when search and input consume the exact remaining allowance', () => {
+    const reservation = reserveRequest({
+      capUsd: 0.0025055,
+      spentUsd: 0,
+      estimatedInputTokens: 1,
+      modelId: MODEL,
+      maxToolCalls: 1,
+      searchPriceUsd: 0.0025,
+    })
+    expect(reservation.maxOutputTokens).toBe(1)
+    expect(reservation.costUsd).toBe(0.0025055)
+  })
   it('holds the search bound times its price before allocating output tokens', () => {
     const reservation = reserveRequest({
       capUsd: 0.14,

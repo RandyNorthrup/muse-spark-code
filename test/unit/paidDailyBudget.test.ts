@@ -241,7 +241,7 @@ describe('D78 interactive paid daily budget', () => {
         expect(await pending).toMatchObject({ name: 'AbortError' })
         const entries = await claimEntries()
         expect(entries).toHaveLength(2)
-        expect(entries).toContainEqual(expect.objectContaining({ settledUsd: 0 }))
+        expect(entries).toContainEqual(expect.objectContaining({ settledUsd: '0' }))
       } finally {
         abort.abort()
         popup.resolve(raiseTitle)
@@ -417,7 +417,9 @@ describe('D78 interactive paid daily budget', () => {
     await vi.waitFor(() => {
       expect(confirmModal).toHaveBeenCalledOnce()
     })
-    expect(() => a.check(0)).toThrow(UI_TEXT.paidDailyLedgerUnavailable)
+    expect(() => {
+      a.check(0)
+    }).toThrow(UI_TEXT.paidDailyLedgerUnavailable)
     answer.resolve(undefined)
     await expect(pending).rejects.toThrow(UI_TEXT.paidDailyStopped)
   })
@@ -491,7 +493,7 @@ describe('D78 interactive paid daily budget', () => {
       instance.streamResponse(BODY, new AbortController().signal, undefined, undefined, guard),
     )
     expect(JSON.stringify(api.responseBodies()[0])).toBe(JSON.stringify(BODY))
-    expect(await claimEntries()).toEqual([expect.objectContaining({ settledUsd: 0.000155 })])
+    expect(await claimEntries()).toEqual([expect.objectContaining({ settledUsd: '0.000155' })])
   })
 
   it('refunds final nonsends and retains an ambiguous sent image fee', async () => {
@@ -507,8 +509,8 @@ describe('D78 interactive paid daily budget', () => {
     const entries = await claimEntries()
     expect(entries).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ reservedUsd: 0.01, settledUsd: 0 }),
-        expect.objectContaining({ reservedUsd: 0.01 }),
+        expect.objectContaining({ reservedUsd: '0.01', settledUsd: '0' }),
+        expect.objectContaining({ reservedUsd: '0.01' }),
       ]),
     )
     expect(

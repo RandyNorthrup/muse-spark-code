@@ -24,6 +24,10 @@ happened, not what was planned; superseded entries are kept.
   so a crash cannot count an in-bound fee beside its existing reservation.
 - Hosted-search consent and paid tallying use the provider's verified
   tariff, including when a window changes providers.
+- Hosted-search allowances, settlements and shared budget comparisons use
+  exact decimal arithmetic; existing journal amounts migrate without
+  dropping sub-micro-dollar charges. The last affordable search is admitted
+  at the cap, and positive retained token liabilities remain visible.
 
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the

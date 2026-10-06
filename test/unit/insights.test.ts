@@ -139,6 +139,17 @@ describe('cost estimate', () => {
     expect(percentOf(0, 0)).toBe(0)
   })
 
+  it('keeps positive retained token liabilities smaller than four decimal places visible', () => {
+    expect(formatUsd(0.00003375)).toBe('$0.00003')
+    expect(formatUsd(0.000000002)).toBe('$0.000000002')
+    expect(
+      estimateCostUsd(
+        { inputTokens: 1, cachedTokens: 1, outputTokens: 0 },
+        'muse-spark-1.3-contributor',
+      ),
+    ).toBe(0.000000002)
+  })
+
   it('writes dollars as the display language writes money (M40)', () => {
     setUiText(EN, 'de')
     try {

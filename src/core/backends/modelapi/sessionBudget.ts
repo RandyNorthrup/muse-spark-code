@@ -26,9 +26,11 @@ import {
   UI_TEXT,
   WEB_SEARCH_MIN_PER_REQUEST,
   WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
+  USD_DECIMAL_ONE,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { modelApiPaidTier } from '../../../shared/paid'
+import { Usd, multiplyUsd } from '../../../shared/usd'
 import { formatUsd, estimateCostUsd } from '../../usage/insights'
 import type { CreateResponseBody, Usage } from './schemas'
 
@@ -179,25 +181,36 @@ export function reserveRequest(request: {
     )
   }
   const prices = MODEL_API_PRICES_PER_MILLION[tier]
-  const inputCostUsd = (request.estimatedInputTokens * prices.input) / TOKENS_PER_MILLION
-  const leftUsd = request.capUsd - request.spentUsd
-  const affordableOutputTokens = Math.floor(
-    ((leftUsd - inputCostUsd - searchCostUsd) * TOKENS_PER_MILLION) / prices.output,
-  )
-  if (affordableOutputTokens < 1) {
+  const inputCost = Usd.from(prices.input)
+    .times(request.estimatedInputTokens)
+    .divide(TOKENS_PER_MILLION)
+  const outputPrice = Usd.from(prices.output).divide(TOKENS_PER_MILLION)
+  const left = Usd.from(request.capUsd).subtract(Usd.from(request.spentUsd))
+  const affordableOutputTokens = left
+    .subtract(inputCost)
+    .subtract(Usd.from(searchCostUsd))
+    .floorDivide(outputPrice)
+  if (affordableOutputTokens < USD_DECIMAL_ONE) {
     throw new SessionBudgetExceededError(
       fill(UI_TEXT.sessionBudgetStopped, {
-        estimate: formatUsd(inputCostUsd + searchCostUsd),
+        estimate: formatUsd(inputCost.add(Usd.from(searchCostUsd)).toNumber()),
         cap: formatUsd(request.capUsd),
         spent: formatUsd(request.spentUsd),
       }),
     )
   }
-  const maxOutputTokens = Math.min(affordableOutputTokens, MODEL_API_MAX_OUTPUT_TOKENS)
+  const maxOutputTokens = Number(
+    affordableOutputTokens < BigInt(MODEL_API_MAX_OUTPUT_TOKENS)
+      ? affordableOutputTokens
+      : BigInt(MODEL_API_MAX_OUTPUT_TOKENS),
+  )
   return {
     estimatedInputTokens: request.estimatedInputTokens,
     maxOutputTokens,
-    costUsd: inputCostUsd + (maxOutputTokens * prices.output) / TOKENS_PER_MILLION + searchCostUsd,
+    costUsd: inputCost
+      .add(outputPrice.times(maxOutputTokens))
+      .add(Usd.from(searchCostUsd))
+      .toNumber(),
   }
 }
 
@@ -217,7 +230,7 @@ export function searchAllowanceUsd(
   ) {
     throw new SessionBudgetExceededError(UI_TEXT.sessionBudgetSearchUnavailable)
   }
-  return (bound ?? 0) * (priceUsd ?? 0)
+  return multiplyUsd(priceUsd ?? 0, bound ?? 0)
 }
 
 /** A hidden paid request's known charge, or its retained uncertain reservation. */

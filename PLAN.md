@@ -21239,6 +21239,17 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+**FIXM106H review disposition (2026-10-06).** RVM106H's four P2 findings
+and arithmetic P3 are corrected, with no accepted finding residual. The
+existing H-CAPABILITY, H-SETTING, H-PRICES, H-ONCE, H-DAILY-RAISE, H-EDITOR
+and H-DOCS handoffs remain with W/M95, as documented in
+`docs/certification/m106-h.md`; this fix does not certify product wiring or
+another provider's uncaptured capabilities. Unverified routes still refuse.
+The journal retains crash liability on the original request row, preserves
+legacy decimal precision at parse, and never migrates another owner's row
+by writing it. Default-timeout regressions and byte-exact drills cover the
+review findings and terminal settlement-pricing failure.
+
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the
   compaction that exists, the manual one: PreCompact may block it, and

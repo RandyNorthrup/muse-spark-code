@@ -24,6 +24,7 @@ import {
 } from './constants'
 import { fill, formatNumber, formatUsd } from './l10n/text'
 import type { BackendKind } from './protocol'
+import { Usd, multiplyUsd } from './usd'
 
 /** What this window used of each paid feature since it opened. */
 export const paidTallySchema = z.object({
@@ -218,9 +219,17 @@ export function usablePaidFeatures(
 export function paidCostUsd(feature: PaidFeature, tally: PaidTally): number {
   switch (feature) {
     case 'webSearch': {
-      return tally.webSearchCharges === undefined
-        ? (tally.webSearches * PAID_PRICES_USD.webSearchPerThousand) / SEARCHES_PER_PRICE_UNIT
-        : tally.webSearchCharges.reduce((cost, charge) => cost + charge.units * charge.priceUsd, 0)
+      if (tally.webSearchCharges === undefined) {
+        return Usd.from(PAID_PRICES_USD.webSearchPerThousand)
+          .times(tally.webSearches)
+          .divide(SEARCHES_PER_PRICE_UNIT)
+          .toNumber()
+      }
+      let cost = Usd.from(0)
+      for (const charge of tally.webSearchCharges) {
+        cost = cost.add(Usd.from(charge.priceUsd).times(charge.units))
+      }
+      return cost.toNumber()
     }
     case 'imageGeneration': {
       return tally.images * PAID_PRICES_USD.imageGeneration
@@ -392,7 +401,7 @@ export function paidFeaturePrice(feature: PaidFeature, searchPriceUsd?: number):
       if (!Number.isFinite(price) || price < 0)
         throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
       return fill(UI_TEXT.paidWebSearchPrice, {
-        price: formatUsd(price * SEARCHES_PER_PRICE_UNIT, 2),
+        price: formatUsd(multiplyUsd(price, SEARCHES_PER_PRICE_UNIT), 2),
       })
     }
     case 'imageGeneration': {
