@@ -6846,6 +6846,11 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ### FIXM115D — Repair schedule delivery review findings (2026-10-06)
 
+**Complete:** all six RVM115D P2 findings repaired, with 23 additional
+regression cases and 14 successful byte-exact restored red controls.
+704 related tests and the rig's required static/build checks pass; no review
+finding is deferred. Full quality and bound shipping receipts remain W/lead.
+
 Repair every RVM115D P2: admit when-idle fires into the target's own queue
 with Skip surviving unattended admission; share the controller's child-turn
 predicate; treat every non-idle status as busy and interrupt compaction through
@@ -19605,6 +19610,21 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM115D review scope.** All six RVM115D P2 findings are repaired;
+  none is a deferred review residual. When-idle owns a backend queue entry
+  with run-scoped Skip through admission/acknowledgement, child-turn filtering
+  uses the controller's unchanged shared predicate, non-idle statuses remain
+  busy, pooled ownership is current/live and released by identity, events
+  are parsed/frozen before awaits, and parsed settlements use sorted-key
+  equality. The local cancellable queue operation and minimal shared predicate
+  extraction add no provider schema or frozen-contract change. Existing named
+  integration residuals remain: U/M112 owns unattended admission and actual
+  refusal/cost settlement, S owns persistence/claims/collision order, and W/X
+  owns shipping registration, editor surfaces, the integrated bundle budget,
+  full quality and live/platform receipts. These modules remain unshipped on
+  this base; those implementing lanes must certify the bound behavior before
+  release. Evidence is in `docs/certification/m115-d.md`.
 
 - **FIXM115L0 contract scope.** All six RVM115L0 findings are repaired;
   none is deferred. These are unshipped internal schedule contracts, not

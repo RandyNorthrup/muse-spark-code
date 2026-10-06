@@ -15,6 +15,13 @@ import {
 export interface ScheduleDeliverySession extends ScheduleSessionPort {
   /** False if the target closes. Abort only withdraws a scheduler-held fire. */
   waitUntilIdle(signal: AbortSignal): Promise<boolean>
+  /** Atomically enqueue after existing user turns. Undefined proves Skip won
+   * before backend dispatch; the signal also fences asynchronous admission. */
+  queueWhenIdle(
+    prompt: string,
+    context: ScheduleRunContext,
+    signal: AbortSignal,
+  ): Promise<string | undefined>
 }
 
 export interface ScheduleTargetLease {
@@ -81,7 +88,13 @@ function canonicalRecord(record: ScheduleDeliveryResult): string {
 
 /** Shared by editors and runtime. S owns claims, catch-up selection and ordering. */
 export class ScheduleDelivery implements ScheduleHostPort {
-  private readonly held = new Map<string, AbortController>()
+  private readonly held = new Map<
+    string,
+    {
+      readonly abort: AbortController
+      withdrawal?: Promise<boolean | { readonly error: unknown }>
+    }
+  >()
   private readonly queued = new Map<string, { session: ScheduleSessionPort; messageId: string }>()
 
   constructor(private readonly deps: ScheduleDeliveryDeps) {}
@@ -155,7 +168,17 @@ export class ScheduleDelivery implements ScheduleHostPort {
   skip(runId: string): boolean {
     const held = this.held.get(runId)
     if (held === undefined) return false
-    held.abort()
+    held.abort.abort()
+    const queued = this.queued.get(runId)
+    if (queued !== undefined && held.withdrawal === undefined) {
+      held.withdrawal = (async () => {
+        try {
+          return await queued.session.withdraw(queued.messageId)
+        } catch (error: unknown) {
+          return { error }
+        }
+      })()
+    }
     return true
   }
 
@@ -243,6 +266,7 @@ export class ScheduleDelivery implements ScheduleHostPort {
       })
     }
     const { session } = lease
+    const held = schedule.delivery === 'whenIdle' ? { abort: new AbortController() } : undefined
     try {
       if (
         session.backend !== schedule.target.backend ||
@@ -253,17 +277,9 @@ export class ScheduleDelivery implements ScheduleHostPort {
         throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
       }
       if (!session.isOpen()) return this.record(schedule, context, occurrenceMs, event, notSent)
-      if (schedule.delivery === 'whenIdle' && session.isRunning()) {
+      if (held !== undefined) {
         if (this.held.has(context.runId)) throw new Error(UI_TEXT.scheduleAlreadyRun)
-        const held = new AbortController()
         this.held.set(context.runId, held)
-        try {
-          if (!(await session.waitUntilIdle(held.signal)) || held.signal.aborted) {
-            return this.record(schedule, context, occurrenceMs, event, notSent)
-          }
-        } finally {
-          this.held.delete(context.runId)
-        }
       }
       if (!this.holds(schedule.workspaceKey) || !session.isOpen()) {
         return this.record(schedule, context, occurrenceMs, event, notSent)
@@ -307,16 +323,40 @@ export class ScheduleDelivery implements ScheduleHostPort {
             this.queued.set(context.runId, { session, messageId })
             return
           }
-          case 'whenIdle':
+          case 'whenIdle': {
+            const held = this.held.get(context.runId)
+            if (held === undefined) throw new Error(UI_TEXT.scheduleInvalid)
+            if (held.abort.signal.aborted) return
+            const messageId = await session.queueWhenIdle(prompt, context, held.abort.signal)
+            if (messageId === undefined) return
+            this.queued.set(context.runId, { session, messageId })
+            // Skip may have won while the backend's admission ack was pending.
+            if (this.held.get(context.runId)?.abort.signal.aborted === true)
+              this.skip(context.runId)
+            return
+          }
           case 'newConversation': {
             await session.send(prompt, context)
             return
           }
         }
       })
-      return this.record(schedule, context, occurrenceMs, event, settlement)
+      const withdrawal = await this.held.get(context.runId)?.withdrawal
+      if (typeof withdrawal === 'object') throw withdrawal.error
+      return this.record(
+        schedule,
+        context,
+        occurrenceMs,
+        event,
+        held?.abort.signal.aborted === true && !this.queued.has(context.runId)
+          ? { ...settlement, outcome: 'missed', reason: notSent.reason }
+          : settlement,
+      )
     } finally {
-      this.queued.delete(context.runId)
+      if (held === undefined || this.held.get(context.runId) === held) {
+        this.held.delete(context.runId)
+        this.queued.delete(context.runId)
+      }
       await lease.release()
     }
   }

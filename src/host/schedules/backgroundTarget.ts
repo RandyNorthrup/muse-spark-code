@@ -12,7 +12,7 @@ import type {
   ScheduleDeliverySession,
   ScheduleTargetLease,
 } from '../../core/schedules/delivery'
-import type { AgentEvent } from '../../shared/agentEvents'
+import { isChildTurn, type AgentEvent, type ItemSnapshot } from '../../shared/agentEvents'
 import { UI_TEXT } from '../../shared/constants'
 import { fill, formatDateTime } from '../../shared/l10n/text'
 import { mspApprovalMode } from '../../shared/permissionModes'
@@ -46,6 +46,8 @@ export interface ScheduleContextSubmitter {
 export class ScheduleAgentSession implements ScheduleDeliverySession {
   private activeTurnId: string | undefined
   private eventRevision = 0
+  private nonIdleStatus = false
+  private readonly childSessionIds = new Set<string>()
   private isClosed = false
   private readonly idleListeners = new Set<() => void>()
   private readonly queued = new Map<string, QueuedMessageRef>()
@@ -57,16 +59,34 @@ export class ScheduleAgentSession implements ScheduleDeliverySession {
     readonly backend: ScheduleDeliverySession['backend'],
     private readonly contexts: ScheduleContextSubmitter,
     activeTurnId?: string,
+    historyItems: readonly ItemSnapshot[] = [],
+    status = 'idle',
   ) {
     this.sessionId = session.sessionId
     this.activeTurnId = activeTurnId
+    this.nonIdleStatus = status !== 'idle'
+    for (const item of historyItems) this.noteChild(item)
     this.stopListening = session.onEvent((event) => {
       this.observe(event)
     })
   }
 
+  private noteChild(item: ItemSnapshot): void {
+    if (item.kind === 'subagent' && item.childSessionId !== undefined) {
+      this.childSessionIds.add(item.childSessionId)
+    }
+  }
+
   private observe(event: AgentEvent): void {
-    if (event.type === 'turnCompleted' || event.type === 'turnWithdrawn') {
+    if ('item' in event) this.noteChild(event.item)
+    if (
+      'turnId' in event &&
+      typeof event.turnId === 'string' &&
+      isChildTurn(event.turnId, this.childSessionIds)
+    )
+      return
+    if (event.type === 'sessionStatus') this.nonIdleStatus = event.status !== 'idle'
+    else if (event.type === 'turnCompleted' || event.type === 'turnWithdrawn') {
       for (const [id, ref] of this.queued) {
         if (ref.turnId === event.turnId) this.queued.delete(id)
       }
@@ -89,12 +109,19 @@ export class ScheduleAgentSession implements ScheduleDeliverySession {
     }
   }
 
-  private async submit(prompt: string, context: ScheduleRunContext): Promise<TurnSubmission> {
+  private async submit(
+    prompt: string,
+    context: ScheduleRunContext,
+    signal?: AbortSignal,
+  ): Promise<TurnSubmission> {
     if (!this.isOpen()) throw new Error(UI_TEXT.scheduleV2.messages.targetClosed)
     const revision = this.eventRevision
-    const submitted = await this.contexts.submit(this.session, context, () =>
-      this.session.sendTurn([{ type: 'text', text: prompt }], prompt),
-    )
+    const submitted = await this.contexts.submit(this.session, context, () => {
+      // Admission can await consent/governor state; Skip still owns this fire.
+      signal?.throwIfAborted()
+      if (!this.isOpen()) throw new Error(UI_TEXT.scheduleV2.messages.targetClosed)
+      return this.session.sendTurn([{ type: 'text', text: prompt }], prompt)
+    })
     // An entire short turn can finish before its admission ack returns.
     if (revision === this.eventRevision && submitted.disposition === 'started') {
       this.activeTurnId = submitted.turnId
@@ -103,7 +130,7 @@ export class ScheduleAgentSession implements ScheduleDeliverySession {
   }
 
   isRunning(): boolean {
-    return this.activeTurnId !== undefined
+    return this.activeTurnId !== undefined || this.nonIdleStatus
   }
   isOpen(): boolean {
     return !this.isClosed
@@ -140,8 +167,8 @@ export class ScheduleAgentSession implements ScheduleDeliverySession {
     await this.submit(prompt, context)
   }
 
-  async queue(prompt: string, context: ScheduleRunContext): Promise<string> {
-    const submitted = await this.submit(prompt, context)
+  async queue(prompt: string, context: ScheduleRunContext, signal?: AbortSignal): Promise<string> {
+    const submitted = await this.submit(prompt, context, signal)
     if (submitted.disposition === 'queued' || submitted.disposition === 'steered') {
       this.queued.set(context.runId, {
         turnId: submitted.turnId,
@@ -150,6 +177,21 @@ export class ScheduleAgentSession implements ScheduleDeliverySession {
       })
     }
     return context.runId
+  }
+
+  async queueWhenIdle(
+    prompt: string,
+    context: ScheduleRunContext,
+    signal: AbortSignal,
+  ): Promise<string | undefined> {
+    try {
+      signal.throwIfAborted()
+      return await this.queue(prompt, context, signal)
+    } catch (error: unknown) {
+      // Only our exact pre-dispatch abort proves that no input was submitted.
+      if (signal.aborted && error === signal.reason) return undefined
+      throw error
+    }
   }
 
   async withdraw(messageId: string): Promise<boolean> {
@@ -208,7 +250,7 @@ export interface ScheduleBackgroundTargetDeps {
 
 /** No vscode import: runtime/ACP/native editors bind the same host and ports. */
 export class ScheduleBackgroundTargets implements ScheduleConversationTargets {
-  private readonly resumed = new Map<string, Promise<BackgroundEntry>>()
+  private readonly resumed = new Map<string, BackgroundEntry | Promise<BackgroundEntry>>()
   constructor(private readonly deps: ScheduleBackgroundTargetDeps) {}
 
   private key(schedule: ScheduleV2): string {
@@ -230,7 +272,7 @@ export class ScheduleBackgroundTargets implements ScheduleConversationTargets {
           isReleased = true
           entry.leases -= 1
           if (entry.leases === 0) {
-            if (key !== undefined) this.resumed.delete(key)
+            if (key !== undefined && this.resumed.get(key) === entry) this.resumed.delete(key)
             entry.session.dispose()
             entry.detach()
             entry.agent.dispose()
@@ -261,6 +303,8 @@ export class ScheduleBackgroundTargets implements ScheduleConversationTargets {
       backend,
       this.deps.contexts,
       loaded?.activeTurnId,
+      loaded?.history.items,
+      loaded?.record.status,
     )
     const title =
       occurrenceMs === undefined
@@ -302,22 +346,39 @@ export class ScheduleBackgroundTargets implements ScheduleConversationTargets {
   async find(schedule: ScheduleV2): Promise<ScheduleTargetLease | undefined> {
     const live = await this.deps.findLive(schedule)
     if (live !== undefined) return live
-    const pending = this.resumed.get(this.key(schedule))
-    return pending === undefined ? undefined : this.lease(await pending, this.key(schedule))
+    const key = this.key(schedule)
+    const pending = this.resumed.get(key)
+    if (pending === undefined) return undefined
+    const entry = await pending
+    // Check identity and acquire in one synchronous step after the wait.
+    const current = this.resumed.get(key)
+    if ((current !== pending && current !== entry) || !entry.session.isOpen()) return undefined
+    this.resumed.set(key, entry)
+    return this.lease(entry, key)
   }
 
   async open(schedule: ScheduleV2): Promise<ScheduleTargetLease> {
     const key = this.key(schedule)
-    let pending = this.resumed.get(key)
-    if (pending === undefined) {
-      pending = this.load(schedule)
-      this.resumed.set(key, pending)
-    }
-    try {
-      return this.lease(await pending, key)
-    } catch (error: unknown) {
-      if (this.resumed.get(key) === pending) this.resumed.delete(key)
-      throw error
+    for (;;) {
+      let pending = this.resumed.get(key)
+      if (pending === undefined) {
+        pending = this.load(schedule)
+        this.resumed.set(key, pending)
+      }
+      try {
+        const entry = await pending
+        const current = this.resumed.get(key)
+        if (current !== pending && current !== entry) continue
+        if (!entry.session.isOpen()) {
+          if (this.resumed.get(key) === current) this.resumed.delete(key)
+          continue
+        }
+        this.resumed.set(key, entry)
+        return this.lease(entry, key)
+      } catch (error: unknown) {
+        if (this.resumed.get(key) === pending) this.resumed.delete(key)
+        throw error
+      }
     }
   }
 

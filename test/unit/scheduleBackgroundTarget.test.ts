@@ -51,6 +51,17 @@ function setup(backend: 'modelApi' | 'museCode') {
   }
 }
 
+async function assertReplacementReused(
+  rig: ReturnType<typeof setup>,
+  replacement: ScheduleTargetLease,
+): Promise<void> {
+  const next = await rig.targets.open(rig.schedule)
+  expect(next.session).toBe(replacement.session)
+  expect(rig.host.resumeSession).toHaveBeenCalledTimes(2)
+  await next.release()
+  await replacement.release()
+}
+
 describe.each(['museCode', 'modelApi'] as const)('%s background schedule target', (backend) => {
   it('resumes the named target, publishes its history and preserves panel selection', async () => {
     const rig = setup(backend)
@@ -91,6 +102,29 @@ describe.each(['museCode', 'modelApi'] as const)('%s background schedule target'
     await found?.release()
     expect(rig.host.sessions[0]?.dispose).toHaveBeenCalledOnce()
     expect(await rig.targets.find(rig.schedule)).toBeUndefined()
+  })
+
+  it('never leases a retired lookup or evicts its replacement', async () => {
+    const rig = setup(backend)
+    const first = await rig.targets.open(rig.schedule)
+    const pending = rig.targets.find(rig.schedule)
+    // findLive resolves, then the pooled entry is read before its await resumes.
+    await Promise.resolve()
+    await first.release()
+    const replacement = await rig.targets.open(rig.schedule)
+    const found = await pending
+    expect(found?.session.isOpen()).not.toBe(false)
+    await found?.release()
+    await assertReplacementReused(rig, replacement)
+  })
+
+  it('keeps a replacement pooled after the retired host lease releases', async () => {
+    const rig = setup(backend)
+    const retired = await rig.targets.open(rig.schedule)
+    rig.host.exit('Stopped')
+    const replacement = await rig.targets.open(rig.schedule)
+    await retired.release()
+    await assertReplacementReused(rig, replacement)
   })
 
   it('borrows a live session without resuming or disposing it', async () => {
@@ -301,6 +335,28 @@ describe.each(['museCode', 'modelApi'] as const)('%s schedule session adapter', 
     agent.emit({ type: 'turnCompleted', turnId: 'new-turn', terminal: 'completed' })
     expect(await session.withdraw(id)).toBe(false)
     expect(withdrawQueued).toHaveBeenCalledOnce()
+    session.dispose()
+  })
+
+  it('keeps every non-idle status busy until real idle', async () => {
+    const rig = setup(backend)
+    const agent = new FakeAgentSession('session-1', 'chosen-model')
+    const session = new ScheduleAgentSession(agent, backend, rig.contexts)
+    for (const status of ['running', 'compacting', 'waitingForApproval']) {
+      agent.emit({ type: 'sessionStatus', status })
+      expect(session.isRunning()).toBe(true)
+    }
+    let isIdle = false
+    const waiting = (async () => {
+      const isResultIdle = await session.waitUntilIdle(new AbortController().signal)
+      isIdle = isResultIdle
+      return isResultIdle
+    })()
+    agent.emit({ type: 'turnCompleted', turnId: 'unrelated', terminal: 'completed' })
+    await Promise.resolve()
+    expect(isIdle).toBe(false)
+    agent.emit({ type: 'sessionStatus', status: 'idle' })
+    expect(await waiting).toBe(true)
     session.dispose()
   })
 

@@ -6,10 +6,15 @@ import {
   type ScheduleDeliveryRuns,
   type ScheduleRunSettlement,
   type ScheduleTargetLease,
+  type ScheduleExternalDelivery,
 } from '../../src/core/schedules/delivery'
 import { SCHEDULE_EVENT_FIELD_MAX_CHARS, UI_TEXT } from '../../src/shared/constants'
 import type { ScheduleEvent } from '../../src/shared/scheduleEvents'
-import type { ScheduleRunContext, ScheduleV2 } from '../../src/shared/scheduleV2'
+import type {
+  ScheduleDeliveryResult,
+  ScheduleRunContext,
+  ScheduleV2,
+} from '../../src/shared/scheduleV2'
 import { fakeRunContext, fakeSchedule } from './helpers/schedules/fixtures'
 import { FakeScheduleSession } from './helpers/schedules/session'
 
@@ -41,6 +46,13 @@ class DeliverySession extends FakeScheduleSession implements ScheduleDeliverySes
   idleNow(): void {
     this.running = false
     for (const done of this.idle) done(this.open)
+  }
+  queueWhenIdle(
+    prompt: string,
+    context: ScheduleRunContext,
+    signal: AbortSignal,
+  ): Promise<string | undefined> {
+    return signal.aborted ? Promise.resolve(undefined) : this.queue(prompt, context)
   }
   override cancel(): Promise<void> {
     this.calls.push({ kind: 'cancel' })
@@ -119,7 +131,7 @@ function setup(backend: 'museCode' | 'modelApi', overrides: Partial<ScheduleV2> 
 
 function beginHold(rig: ReturnType<typeof setup>) {
   rig.session.running = true
-  const waiting = vi.spyOn(rig.session, 'waitUntilIdle')
+  const waiting = vi.spyOn(rig.session, 'queueWhenIdle')
   const pending = rig.deliver()
   return {
     pending,
@@ -239,48 +251,56 @@ describe.each(['museCode', 'modelApi'] as const)('%s schedule delivery', (backen
     expect(await rig.delivery.withdraw(rig.context.runId)).toBe(false)
   })
 
-  it('when idle holds without a backend queue and sends only after idle', async () => {
+  it('when idle owns a withdrawable queue entry until settlement', async () => {
     const rig = setup(backend)
     const held = beginHold(rig)
     const pending = held.pending
     await held.observed()
-    expect(rig.session.calls).toEqual([])
-    expect(rig.runs.run).not.toHaveBeenCalled()
+    expect(rig.session.calls.map((call) => call.kind)).toEqual(['queue'])
+    expect(rig.runs.run).toHaveBeenCalledOnce()
     rig.session.idleNow()
     await settleStarted(rig, pending)
-    expect(rig.session.calls.map((call) => call.kind)).toEqual(['send'])
+    expect(rig.session.calls.map((call) => call.kind)).toEqual(['queue'])
     expect(rig.delivery.skip(rig.context.runId)).toBe(false)
   })
 
   it('Skip withdraws an idle hold without stopping the user or spending', async () => {
     const rig = setup(backend)
-    rig.session.running = true
-    const waiting = vi.fn()
-    vi.spyOn(rig.session, 'waitUntilIdle').mockImplementation((signal) => {
-      waiting()
-      return new Promise((resolve) => {
-        signal.addEventListener(
-          'abort',
-          () => {
-            resolve(false)
-          },
-          { once: true },
-        )
-      })
-    })
-    const pending = rig.deliver()
-    await vi.waitFor(() => {
-      expect(waiting).toHaveBeenCalledOnce()
-    })
+    const held = beginHold(rig)
+    await held.observed()
     expect(rig.delivery.skip(rig.context.runId)).toBe(true)
-    expect(await pending).toMatchObject({
+    rig.terminal.resolve({
+      outcome: 'missed',
+      refusedActions: [],
+      cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+    })
+    expect(await held.pending).toMatchObject({
       outcome: 'missed',
       cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
     })
-    expect(rig.session.calls).toEqual([])
-    expect(rig.runs.run).not.toHaveBeenCalled()
+    expect(rig.session.calls.map((call) => call.kind)).toEqual(['queue', 'withdraw'])
+    expect(rig.session.running).toBe(true)
     expect(rig.release).toHaveBeenCalledOnce()
   })
+
+  it.each([false, true])(
+    'propagates a skipped queue withdrawal failure after repeated Skip=%s',
+    async (isRepeated) => {
+      const rig = setup(backend)
+      const held = beginHold(rig)
+      await held.observed()
+      const withdrawal = Promise.withResolvers<boolean>()
+      const withdrawing = vi.spyOn(rig.session, 'withdraw').mockResolvedValue(false)
+      withdrawing.mockReturnValueOnce(withdrawal.promise)
+      expect(rig.delivery.skip(rig.context.runId)).toBe(true)
+      if (isRepeated) expect(rig.delivery.skip(rig.context.runId)).toBe(true)
+      rig.terminal.resolve(facts)
+      withdrawal.reject(new Error('Withdrawal failed'))
+      expect(withdrawing).toHaveBeenCalledOnce()
+      await expect(held.pending).rejects.toThrow('Withdrawal failed')
+      expect(rig.release).toHaveBeenCalledOnce()
+    },
+  )
 
   it('creates a fresh session instead of disturbing the target', async () => {
     const rig = setup(backend, { delivery: 'newConversation', parallel: true })
@@ -329,17 +349,26 @@ describe.each(['museCode', 'modelApi'] as const)('%s schedule delivery', (backen
     },
   )
 
-  it('never dispatches after losing the workspace while an idle fire waits', async () => {
+  it('never dispatches after losing the workspace while idle admission waits', async () => {
     const rig = setup(backend)
-    const held = beginHold(rig)
-    const pending = held.pending
-    await held.observed()
-    rig.terminal.resolve(facts)
+    const admitted = Promise.withResolvers<undefined>()
+    rig.runs.run.mockImplementation(async (_session, _schedule, _context, dispatch) => {
+      await admitted.promise
+      try {
+        await dispatch()
+        return facts
+      } catch {
+        return rig.failure
+      }
+    })
+    const pending = rig.deliver()
+    await vi.waitFor(() => {
+      expect(rig.runs.run).toHaveBeenCalledOnce()
+    })
     rig.dropWorkspace()
-    rig.session.idleNow()
-    const result = await pending
-    expect(result.outcome).toBe('missed')
-    expect(rig.runs.run).not.toHaveBeenCalled()
+    admitted.resolve(undefined)
+    expect(await pending).toMatchObject(rig.failure)
+    expect(rig.session.calls).toEqual([])
   })
 
   it('refuses a mismatched run grant before resolving a target', async () => {
@@ -398,8 +427,7 @@ describe.each(['museCode', 'modelApi'] as const)('%s schedule delivery', (backen
   it('refuses a duplicate idle hold without replacing the first run’s skip handle', async () => {
     const rig = setup(backend)
     rig.session.running = true
-    const waiting = vi.spyOn(rig.session, 'waitUntilIdle')
-    rig.terminal.resolve(facts)
+    const waiting = vi.spyOn(rig.session, 'queueWhenIdle')
     const first = rig.deliver()
     void first.catch(() => undefined)
     await vi.waitFor(() => {
@@ -413,9 +441,11 @@ describe.each(['museCode', 'modelApi'] as const)('%s schedule delivery', (backen
       })
       await expect(second).rejects.toThrow(UI_TEXT.scheduleAlreadyRun)
       expect(rig.delivery.skip(rig.context.runId)).toBe(true)
+      rig.terminal.resolve({ ...facts, outcome: 'missed' })
       expect(await first).toMatchObject({ outcome: 'missed' })
     } finally {
       rig.delivery.skip(rig.context.runId)
+      rig.terminal.resolve(facts)
       rig.session.idleNow()
     }
   })
@@ -492,6 +522,38 @@ describe.each(['museCode', 'modelApi'] as const)('%s schedule delivery', (backen
   })
 })
 
+function externalRecord(
+  rig: ReturnType<typeof setup>,
+  overrides: Partial<ScheduleDeliveryResult> = {},
+): ScheduleDeliveryResult {
+  return {
+    ...facts,
+    runId: rig.context.runId,
+    scheduleId: rig.schedule.id,
+    workspaceKey: rig.schedule.workspaceKey,
+    occurrenceMs,
+    observedAtMs: occurrenceMs,
+    target: rig.schedule.target,
+    delivery: rig.schedule.delivery,
+    ...overrides,
+  }
+}
+
+function externalDelivery(
+  rig: ReturnType<typeof setup>,
+  board: ScheduleExternalDelivery,
+): ScheduleDelivery {
+  return new ScheduleDelivery({
+    now: () => occurrenceMs,
+    monotonicNow: () => 1,
+    holds: () => true,
+    targets: rig.targets,
+    runs: rig.runs,
+    prompt: rig.prompt,
+    board,
+  })
+}
+
 describe('board and report bindings', () => {
   it.each(['role', 'team', 'worker', 'node'] as const)(
     'refuses an unavailable %s target explicitly',
@@ -522,28 +584,11 @@ describe('board and report bindings', () => {
       })
       const terminal = Promise.withResolvers<Awaited<ReturnType<ScheduleDelivery['deliver']>>>()
       const board = { deliver: vi.fn(() => terminal.promise) }
-      const delivery = new ScheduleDelivery({
-        now: () => occurrenceMs + 1,
-        monotonicNow: () => 1,
-        holds: () => true,
-        targets: rig.targets,
-        runs: rig.runs,
-        prompt: rig.prompt,
-        board,
-      })
+      const delivery = externalDelivery(rig, board)
       const pending = delivery.deliver(rig.schedule, rig.context, occurrenceMs)
       expect(board.deliver).toHaveBeenCalledWith(rig.schedule, rig.context, occurrenceMs, undefined)
       expect(rig.targets.find).not.toHaveBeenCalled()
-      terminal.resolve({
-        ...facts,
-        runId: rig.context.runId,
-        scheduleId: rig.schedule.id,
-        workspaceKey: rig.schedule.workspaceKey,
-        occurrenceMs,
-        observedAtMs: occurrenceMs,
-        target: rig.schedule.target,
-        delivery: rig.schedule.delivery,
-      })
+      terminal.resolve(externalRecord(rig))
       expect(await pending).toMatchObject({
         cost: facts.cost,
         refusedActions: facts.refusedActions,
@@ -554,28 +599,9 @@ describe('board and report bindings', () => {
   it('rejects another run’s board settlement rather than relabelling its accounting', async () => {
     const rig = setup('modelApi', { target: { kind: 'team', teamId: 'team-1' } })
     const board = {
-      deliver: vi.fn(() =>
-        Promise.resolve({
-          ...facts,
-          runId: 'another-run',
-          scheduleId: rig.schedule.id,
-          workspaceKey: rig.schedule.workspaceKey,
-          occurrenceMs,
-          observedAtMs: occurrenceMs,
-          target: rig.schedule.target,
-          delivery: rig.schedule.delivery,
-        }),
-      ),
+      deliver: vi.fn(() => Promise.resolve(externalRecord(rig, { runId: 'another-run' }))),
     }
-    const delivery = new ScheduleDelivery({
-      now: () => occurrenceMs,
-      monotonicNow: () => 1,
-      holds: () => true,
-      targets: rig.targets,
-      runs: rig.runs,
-      prompt: rig.prompt,
-      board,
-    })
+    const delivery = externalDelivery(rig, board)
     await expect(delivery.deliver(rig.schedule, rig.context, occurrenceMs)).rejects.toThrow(
       UI_TEXT.scheduleInvalid,
     )
@@ -592,28 +618,14 @@ describe('board and report bindings', () => {
     }
     const board = {
       deliver: vi.fn(() =>
-        Promise.resolve({
-          ...facts,
-          runId: rig.context.runId,
-          scheduleId: rig.schedule.id,
-          workspaceKey: rig.schedule.workspaceKey,
-          occurrenceMs,
-          observedAtMs: occurrenceMs,
-          target: rig.schedule.target,
-          delivery: rig.schedule.delivery,
-          event: { ...event, fields: { branch: 'main', status: 'merged' } },
-        }),
+        Promise.resolve(
+          externalRecord(rig, {
+            event: { ...event, fields: { branch: 'main', status: 'merged' } },
+          }),
+        ),
       ),
     }
-    const delivery = new ScheduleDelivery({
-      now: () => occurrenceMs,
-      monotonicNow: () => 1,
-      holds: () => true,
-      targets: rig.targets,
-      runs: rig.runs,
-      prompt: rig.prompt,
-      board,
-    })
+    const delivery = externalDelivery(rig, board)
     expect(await delivery.deliver(rig.schedule, rig.context, occurrenceMs, event)).toMatchObject({
       ...facts,
       event,

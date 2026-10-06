@@ -525,3 +525,11 @@ const agentEventSchema = z.discriminatedUnion('type', [
 export type AgentEvent = z.infer<typeof agentEventSchema>
 
 export { agentEventSchema, itemSnapshotSchema }
+
+/** Known child sessions prefix their forwarded turn ids (M48). */
+export function isChildTurn(turnId: string, childSessionIds: ReadonlySet<string>): boolean {
+  for (const childSessionId of childSessionIds) {
+    if (turnId === childSessionId || turnId.startsWith(`${childSessionId}:`)) return true
+  }
+  return false
+}
