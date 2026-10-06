@@ -232,6 +232,28 @@ def test_wrong_token_is_refused_before_any_device_touch():
     peer.close()
 
 
+def test_round3_unready_provider_never_reads_requests_or_sends_port_control(monkeypatch):
+    peer = Peer()
+    _, _, _, engine = _harness()
+    client = ProviderClient('127.0.0.1', 1, 'synthetic-token', engine)
+    client._sock = peer.plugin_side  # The connection exists but welcome is pending.
+
+    def premature_io(*args):
+        raise AssertionError('provider I/O before validated welcome')
+
+    monkeypatch.setattr(client, '_read_frame', premature_io)
+    monkeypatch.setattr(client, '_send', premature_io)
+    try:
+        with pytest.raises(ConnectionFailed, match='not connected'):
+            client.run()
+        with pytest.raises(ConnectionFailed):
+            client.change_port('acquire', 'COM7')
+        assert not client._port_pending
+    finally:
+        client.close()
+        peer.close()
+
+
 def test_unapproved_frame_gets_error_reply_and_no_device_touch():
     peer = Peer()
     _, runner, _, engine = _harness()
