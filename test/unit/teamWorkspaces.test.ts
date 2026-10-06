@@ -173,11 +173,14 @@ describe('resolveBaseCommit', () => {
     const { root, head } = await teamFixtureRepo(runGit)
     await writeFile(path.join(root, 'shared.txt'), 'one\nWORK\nthree\n')
     const metadataReads: (readonly string[])[] = []
+    let metadataOutput = ''
     const measuredGit: typeof runGit = async (args, cwd, input, env) => {
+      const result = await runGit(args, cwd, input, env)
       if (args[0] === 'rev-parse') {
         metadataReads.push([...args])
+        metadataOutput = TEXT.decode(result)
       }
-      return await runGit(args, cwd, input, env)
+      return result
     }
     const base = await resolveBaseCommit(measuredGit, root)
     expect(metadataReads).toHaveLength(1)
@@ -190,6 +193,18 @@ describe('resolveBaseCommit', () => {
     expect(TEXT.decode(await runGit(['show', `${base}:shared.txt`], root))).toBe(
       'one\nWORK\nthree\n',
     )
+    for (const malformed of [
+      metadataOutput.split('\n', 1)[0] ?? '',
+      metadataOutput + 'extra\n',
+      metadataOutput.replace(/^[^\n]+/u, ''),
+    ]) {
+      const malformedGit: typeof runGit = (args) =>
+        Promise.resolve(new TextEncoder().encode(args.includes('status') ? 'dirty' : malformed))
+      await expect(resolveBaseCommit(malformedGit, root)).rejects.toMatchObject({
+        code: 'workspaceFailed',
+        message: 'The team workspace has no Git metadata',
+      })
+    }
   })
 })
 
@@ -388,15 +403,20 @@ describe('commitTaskBranch', () => {
 })
 
 describe('publishTaskRef', () => {
-  it('refuses a ref the extension did not write last, without overwriting it', async () => {
-    const { root, head, workspace } = await copiedTaskWorkspace('t1')
+  let fixture: TaskWorkspace
+  let taskHead: string
+  beforeAll(async () => {
+    fixture = await copiedTaskWorkspace('t1')
+    const { head, workspace } = fixture
     await writeWorkerFile(workspace.folder, 'shared.txt', 'one\nCHANGED\nthree\n')
-    const { head: taskHead } = await commitWorkerEdit(
-      workspace.folder,
-      'engineering',
-      't1',
-      'entry-a',
-    )
+    taskHead = await teamFixtureCommit(runGit, workspace.folder, head, {
+      'shared.txt': 'one\nCHANGED\nthree\n',
+    })
+    await runGit(['read-tree', '--reset', taskHead], workspace.folder)
+  })
+
+  it('refuses a ref the extension did not write last, without overwriting it', async () => {
+    const { root, head, workspace } = fixture
     // A worker's script pushes into the user's repository by its path: the
     // ref now holds the task head, which the extension never wrote there,
     // and the reflog shows receive-pack wrote it.

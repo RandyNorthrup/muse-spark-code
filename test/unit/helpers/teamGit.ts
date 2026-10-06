@@ -31,8 +31,9 @@ export function copyTeamFixture(source: string, target: string, objectSource = s
   const objects = path.join(source, '.git', 'objects')
   cpSync(source, target, { recursive: true, filter: (file) => file !== objects })
   const copyObjects = (from: string, to: string): void => {
-    mkdirSync(to, { recursive: true })
     const entries = readdirSync(from, { withFileTypes: true })
+    if (entries.length === 0) return
+    mkdirSync(to, { recursive: true })
     for (const entry of entries) {
       const input = path.join(from, entry.name)
       const output = path.join(to, entry.name)
@@ -200,7 +201,7 @@ const preparedCopies = new Map<string, string>()
 export function copyPreparedTeamTask(head: string, folder: string): string | undefined {
   const template = preparedCopies.get(head)
   if (template === undefined) return undefined
-  copyTeamFixture(template, folder)
+  copyTeamFixture(template, folder, seed.objectSource ?? template)
   return folder
 }
 
@@ -254,6 +255,12 @@ export function prepareTeamFixtureCommits(
       preparedCopies.set(head, folder)
     })
   }
+  beforeAll(async () => {
+    seed.value ??= createSeedRepo()
+    const template = await seed.value
+    await teamGitRunner()(['repack', '-a', '-d'], template.root)
+    seed.objectSource = template.root
+  })
 }
 
 /** A repository with one commit (`tracked.txt`, `shared.txt`), branch `main`. */
@@ -281,7 +288,7 @@ async function createSeedRepo(): Promise<TeamFixtureRepo> {
   return { root, head }
 }
 
-const seed: { value?: Promise<TeamFixtureRepo> } = {}
+const seed: { value?: Promise<TeamFixtureRepo>; objectSource?: string } = {}
 
 export async function teamFixtureRepo(
   runGit: TeamGit,

@@ -20965,6 +20965,32 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**REDWINI96 measured redesign (2026-10-05).** Exact merge blobs use one
+binary-safe batch and per-operation reuse; dirty base metadata uses one
+query, and isolated revision lookup avoids a driver-config child. Prepared
+fixtures compact immutable objects once and keep mutable files independent.
+The complete 214-row Windows diagnostic records product children
+**362 → 257**, fixture children **120 → 4** and body product/fixture time
+**19.947/12.461 s → 17.785/4.349 s**, with shared setup shown separately.
+Seven deliberate slow-path/schema/isolation/packing drills fail and restore
+SHA-256-exact.
+
+Four consecutive complete final-source native passes remain **unachieved**.
+An uninstrumented sequence passes three times, then protected refusal times
+out; after measured compaction, the final-source profile is **213/214**,
+with two-writer publication taking **5.027 s**. A complete workspace trace
+times out in publication refusal again (**5.017 s**). common.md's repeated
+failure stop rule prevents another repair/retry on that path. Full quality,
+coverage, hosted certification and Mac integration are explicitly delegated
+to the lead by the rig brief/common.md; no gate or deadline is weakened.
+The measured changes and exact residual actions are in the REDWINI96 section
+of `docs/certification/m96-i.md` and its linked timing table. This closes
+neither **I-default-timeout** nor **I-path-race**.
+All five compiler projects (plus the final unit recheck), changed-file
+ESLint/Prettier, deadcode, zero-clone duplication, localization, host API and
+production size/split/globals/notices gates pass on the Windows rig. No
+dependency, suppression, gate level, deadline or bundle cap changes.
+
 **WINI96C fixture proof (2026-10-05).** Overlap and junction setup use real
 fast-import without unused task copies; docs-base setup preserves the real
 index with read-tree. The overlap test additionally requires its domain
@@ -21656,6 +21682,9 @@ before a repaired one loads (2026-09-30).
   product calls and counting their Git requests and children. Prepare each
   fixture once per owning file and copy it cheaply. Reduce measured product
   spawn cost without caching mutable refs, configuration or path checks.
+  A measured copy-cost follow-up compacts the fully prepared immutable seed
+  once before cases; task copies take their objects from that completed seed,
+  avoiding repeated links and directory creation for many tiny imports.
   Acceptance is four consecutive complete Windows runs at three workers,
   default deadlines, and a byte-exact restored slow-path timeout drill.
   The M96 integration lane re-runs Mac/Linux; full quality remains the

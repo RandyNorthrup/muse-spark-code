@@ -8,6 +8,7 @@ import {
   chmod,
   mkdir,
   readFile,
+  readdir,
   rename,
   rm,
   stat,
@@ -229,6 +230,11 @@ describe('applyTeamMerge', () => {
   it('merges the branch change cleanly', async () => {
     const { root, head: base } = await teamFixtureRepo(runGit)
     const head = await taskBranch(root, base, { 'shared.txt': 'one\nTWO\nthree\n' })
+    for (const folder of [root, path.join(root, '..', 'task-copy')]) {
+      const objects = await readdir(path.join(folder, '.git', 'objects'))
+      expect(objects).toContain('pack')
+      expect(objects.filter((name) => /^[a-f0-9]{2}$/u.test(name))).toEqual([])
+    }
     const reads: (readonly string[])[] = []
     const measuredGit: typeof runGit = async (args, cwd, input, env) => {
       reads.push(args)
