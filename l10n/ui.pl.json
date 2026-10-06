@@ -1556,6 +1556,7 @@
   "permissionModeNotApplied": "Nie można zastosować trybu uprawnień",
   "permissionModeChangeFailed": "Nie można zmienić trybu uprawnień",
   "hostActionFailed": "Akcja {action} nie powiodła się",
+  "backendListenerFailed": "Odbiornik zdarzeń backendu napotkał błąd. Operacja była kontynuowana; szczegóły znajdują się w dzienniku.",
   "contributorResumeFallbackTo": "Wznowiona rozmowa korzystała z modelu z poziomu Contributor; teraz używa {model}.",
   "editRevertedPath": "Przywrócono {path}.",
   "editCreatedRemovedPath": "{path}: przeniesiono do kosza (utworzony przez Muse).",

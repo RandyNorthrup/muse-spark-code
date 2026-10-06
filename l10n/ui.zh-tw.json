@@ -1421,6 +1421,7 @@
   "permissionModeNotApplied": "無法套用權限模式",
   "permissionModeChangeFailed": "無法變更權限模式",
   "hostActionFailed": "{action} 失敗",
+  "backendListenerFailed": "後端事件監聽器發生錯誤。操作已繼續；詳情請查看記錄。",
   "contributorResumeFallbackTo": "恢復的對話原本使用貢獻者層級模型；現在改用 {model}。",
   "editRevertedPath": "已還原 {path}。",
   "editCreatedRemovedPath": "{path}：已移至資源回收筒（該檔案由 Muse 建立）。",

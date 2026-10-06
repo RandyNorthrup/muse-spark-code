@@ -1421,6 +1421,7 @@
   "permissionModeNotApplied": "권한 모드를 적용할 수 없습니다",
   "permissionModeChangeFailed": "권한 모드를 변경할 수 없습니다",
   "hostActionFailed": "{action} 실패",
+  "backendListenerFailed": "백엔드 이벤트 수신기에서 오류가 발생했습니다. 작업은 계속되었습니다. 자세한 내용은 로그를 확인하세요.",
   "contributorResumeFallbackTo": "재개된 대화는 기여자 등급 모델을 사용했습니다. 이제 {model}을(를) 사용합니다.",
   "editRevertedPath": "{path}을(를) 되돌렸습니다.",
   "editCreatedRemovedPath": "{path}: 휴지통으로 이동했습니다(Muse가 만든 파일).",

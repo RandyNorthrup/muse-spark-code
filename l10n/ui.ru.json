@@ -1556,6 +1556,7 @@
   "permissionModeNotApplied": "Не удалось применить режим разрешений",
   "permissionModeChangeFailed": "Не удалось изменить режим разрешений",
   "hostActionFailed": "Не удалось выполнить {action}",
+  "backendListenerFailed": "Обработчик событий бэкенда завершился с ошибкой. Операция продолжилась; подробности см. в журнале.",
   "contributorResumeFallbackTo": "Возобновленная беседа использовала модель уровня Contributor; теперь она использует {model}.",
   "editRevertedPath": "Изменения в {path} отменены.",
   "editCreatedRemovedPath": "{path}: перемещен в корзину (его создал Muse).",

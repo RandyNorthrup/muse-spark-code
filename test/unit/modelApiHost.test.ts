@@ -12873,7 +12873,7 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     expect(JSON.stringify(t.api.responseBodies()[3]?.['input'])).toContain('Separate question')
   })
 
-  it('does not replay steering after Stop when a completed budget reply was buffered', async () => {
+  it('admits accepted steering in a new turn after Stop of a buffered budget reply', async () => {
     const t = setup()
     const { session, events, turnDone } = await startSession(t)
     await beginBudgetGoal(t, session, turnDone)
@@ -12887,16 +12887,33 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     })
     t.api.script(
       { text: 'Budget reply', usage: { input: 90, output: 10 } },
-      { text: 'Must not run' },
+      { text: 'Accepted steering answered' },
     )
     const running = await session.sendTurn([{ type: 'text', text: 'continue' }])
     await streamed.promise
-    await session.steer(running.turnId, [{ type: 'text', text: 'Should be cancelled' }])
+    const steering = await session.steer(running.turnId, [
+      { type: 'text', text: 'Separate question' },
+    ])
     await session.cancel()
     release.resolve(undefined)
     await turnDone()
-    expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(2)
-    expect(t.api.responseBodies()).toHaveLength(3)
+    await session.settled()
+    expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(3)
+    expect(t.api.responseBodies()).toHaveLength(4)
+    expect(JSON.stringify(t.api.responseBodies()[3]?.['input'])).toContain('Separate question')
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: 'userMessageTurnChanged',
+        userMessageId: steering.userMessageId,
+      }),
+    )
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: 'turnCompleted',
+        turnId: running.turnId,
+        terminal: 'cancelled',
+      }),
+    )
   })
 
   it('withdraws a goal wake queued during compaction when the budget is spent', async () => {

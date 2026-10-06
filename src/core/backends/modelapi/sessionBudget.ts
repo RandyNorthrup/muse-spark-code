@@ -172,6 +172,8 @@ export function reserveRequest(request: {
   readonly modelId: string
   readonly maxToolCalls?: number
   readonly searchPriceUsd?: UsdAmount | undefined
+  /** Selected model's output allowance. Omitted callers retain their legacy limit. */
+  readonly maxOutputTokens?: number
 }): BudgetReservation {
   const searchCostUsd = searchAllowanceUsd(request.maxToolCalls, request.searchPriceUsd)
   const tier = modelApiPaidTier(request.modelId)
@@ -199,10 +201,11 @@ export function reserveRequest(request: {
       }),
     )
   }
+  const outputCap = request.maxOutputTokens ?? MODEL_API_MAX_OUTPUT_TOKENS
+  if (!Number.isSafeInteger(outputCap) || outputCap < 1)
+    throw new RangeError('invalid output.maxTokens')
   const maxOutputTokens = Number(
-    affordableOutputTokens < BigInt(MODEL_API_MAX_OUTPUT_TOKENS)
-      ? affordableOutputTokens
-      : BigInt(MODEL_API_MAX_OUTPUT_TOKENS),
+    affordableOutputTokens < BigInt(outputCap) ? affordableOutputTokens : BigInt(outputCap),
   )
   return {
     estimatedInputTokens: request.estimatedInputTokens,

@@ -19,6 +19,7 @@ import { EVENT_LOG_SUBMIT_MESSAGE, eventLogFault } from './helpers/cliRecoveryCa
 import {
   CAPTURED_LAUNCHED_TURN,
   CAPTURED_QUEUED_TURN,
+  LAUNCHED_REPLY_ITEM,
   QUEUED_ACK,
   UNQUEUE_ACK,
   UNQUEUE_ALREADY_APPLIED,
@@ -168,6 +169,74 @@ async function listeningSession(host: MuseCodeHost) {
   })
   return { session, events }
 }
+
+describe('MuseCodeHost: guarded notifications (M106)', () => {
+  it.each([
+    { type: 'turnStarted', method: 'turn/started', params: { turnId: 't' } },
+    {
+      type: 'turnCompleted',
+      method: 'turn/completed',
+      params: { turnId: 't', terminal: 'completed' },
+    },
+    { type: 'itemStarted', method: 'item/started', params: { item: LAUNCHED_REPLY_ITEM } },
+    { type: 'itemCompleted', method: 'item/completed', params: { item: LAUNCHED_REPLY_ITEM } },
+    { type: 'textDelta', method: 'item/delta', params: { itemId: 'i', delta: 'text' } },
+    { type: 'turnWithdrawn', method: 'turn/unqueued', params: UNQUEUED_NOTIFICATION },
+    {
+      type: 'approvalResolved',
+      method: 'approval/resolved',
+      params: {
+        approvalId: 'a1',
+        itemId: 'call-1',
+        decision: 'approved',
+        resolvedBy: 'user',
+      },
+    },
+  ])('delivers $type to later listeners after one throws', async ({ type, method, params }) => {
+    const { host, server, log } = setup()
+    const session = await host.startSession(startOptions)
+    session.onEvent(() => {
+      throw new Error('private callback detail')
+    })
+    const later = vi.fn()
+    session.onEvent(later)
+    if (type === 'approvalResolved')
+      server.notify('approval/requested', approvalParams(session.sessionId))
+    server.notify(method, { ...params, sessionId: session.sessionId })
+    await settle()
+    expect(later).toHaveBeenCalledWith(expect.objectContaining({ type }))
+    expect(later).toHaveBeenCalledWith({
+      type: 'backendNotice',
+      level: 'error',
+      text: UI_TEXT.backendListenerFailed,
+    })
+    expect(log.error).toHaveBeenCalledWith('Backend notification listener failed: museCode.event')
+    expect(log.error).toHaveBeenCalledWith(
+      'Backend notification listener failed: backend.diagnostic',
+    )
+    await host.close()
+  })
+
+  it('guards every early replay and returns the subscription after a listener throws', async () => {
+    const { host, server, log } = setup()
+    const session = await host.startSession(startOptions)
+    server.notify('turn/started', { sessionId: session.sessionId, turnId: 't' })
+    server.notify('turn/completed', {
+      sessionId: session.sessionId,
+      turnId: 't',
+      terminal: 'completed',
+    })
+    await settle()
+    const replay = vi.fn((event: AgentEvent) => {
+      if (event.type === 'turnStarted') throw new Error('private replay detail')
+    })
+    const unsubscribe = session.onEvent(replay)
+    expect(replay).toHaveBeenCalledWith(expect.objectContaining({ type: 'turnCompleted' }))
+    expect(log.error).toHaveBeenCalledWith('Backend notification listener failed: museCode.replay')
+    unsubscribe()
+    await host.close()
+  })
+})
 
 describe('MuseCodeHost', () => {
   it('reads the server identity from the handshake result', () => {
@@ -499,12 +568,16 @@ describe('MuseCodeHost', () => {
     })
   })
 
-  it('reports a crash to listeners, with what the exit code means (D25)', async () => {
+  it('reports a crash to later listeners after one throws, with what the exit code means (D25)', async () => {
     const { host, exit, log } = setup()
     const listener = vi.fn()
+    host.onExit(() => {
+      throw new Error('private exit detail')
+    })
     host.onExit(listener)
     exit(3, null)
     await settle()
+    expect(log.error).toHaveBeenCalledWith('Backend notification listener failed: museCode.exit')
     expect(listener).toHaveBeenCalledWith({
       description:
         'Muse Code refused its configuration; check its settings.json and museSpark.environmentVariables (exit code 3)',
@@ -534,7 +607,8 @@ describe('MuseCodeHost', () => {
     const { host, server } = setup()
     const session = await host.startSession(startOptions)
     let calls = 0
-    session.onEvent(() => {
+    session.onEvent((event) => {
+      if (event.type !== 'sessionStatus') return
       calls += 1
       if (calls === 1) {
         throw new Error('listener bug')
@@ -869,9 +943,12 @@ describe('MuseCodeHost: stored sessions (M6)', () => {
     await expect(fork.session.rename('later')).resolves.toBeUndefined()
   })
 
-  it('delivers list-stream events to their listeners without a session, warning on bad shapes', async () => {
+  it('delivers list-stream events after a listener throws, warning on bad shapes', async () => {
     const { host, server, log } = setup()
     const events: unknown[] = []
+    host.onSessionListEvent(() => {
+      throw new Error('private list detail')
+    })
     const stop = host.onSessionListEvent((event) => {
       events.push(event)
     })
@@ -889,6 +966,7 @@ describe('MuseCodeHost: stored sessions (M6)', () => {
     server.notify('session/closed', { sessionId: 'old', reason: 'idle', viewCursor: 'v' })
     await settle()
     expect(events).toHaveLength(2)
+    expect(log.error).toHaveBeenCalledWith('Backend notification listener failed: museCode.list')
   })
 })
 
@@ -909,9 +987,12 @@ describe('MuseCodeHost: subscription usage (M8)', () => {
     expect(server.requestsFor('usage/read')).toHaveLength(2)
   })
 
-  it('delivers usage/changed to its listeners without a session, warning on bad shapes', async () => {
+  it('delivers usage/changed after a listener throws, warning on bad shapes', async () => {
     const { host, server, log } = setup()
     const seen: unknown[] = []
+    host.onUsageChanged(() => {
+      throw new Error('private usage detail')
+    })
     const stop = host.onUsageChanged((next) => {
       seen.push(next)
     })
@@ -925,6 +1006,7 @@ describe('MuseCodeHost: subscription usage (M8)', () => {
     server.notify('usage/changed', usage)
     await settle()
     expect(seen).toHaveLength(1)
+    expect(log.error).toHaveBeenCalledWith('Backend notification listener failed: museCode.usage')
   })
 })
 
@@ -1287,7 +1369,7 @@ describe('MuseCodeHost: prompts, receipts and resume (D26)', () => {
     server.notify('turn/started', { sessionId: session.sessionId, turnId: 't1' })
     await settle()
     const lines = log.error.mock.calls.map(([line]) => String(line)).join('\n')
-    expect(lines).toContain('could not be handled: Error')
+    expect(lines).toContain('Backend notification listener failed: museCode.event')
     expect(lines).not.toContain('alice@example.test')
     expect(lines).not.toContain('/Users/alice/private-project')
   })
@@ -2078,8 +2160,11 @@ describe('MuseCodeHost: a slow or wedged Muse Code (CLI recovery, 2026-10-03)', 
     expect(failure).not.toMatchObject({ name: 'SteerRefusedError' })
   })
 
-  it('stops sending after three missed deadlines with nothing heard, says so once, and sends again once Muse Code is heard', async () => {
+  it('survives a throwing unresponsive listener, stops sending after three missed deadlines, and recovers when heard', async () => {
     const { host, server, log } = setup({ timeouts: { ...FAST, unresponsiveSilenceMs: 0 } })
+    host.onUnresponsive(() => {
+      throw new Error('private watchdog detail')
+    })
     const told = vi.fn()
     host.onUnresponsive(told)
     server.silence('model/list')
@@ -2100,6 +2185,9 @@ describe('MuseCodeHost: a slow or wedged Muse Code (CLI recovery, 2026-10-03)', 
       sessionId: 'session-for-muse-spark-1.3',
     })
     expect(log.info).toHaveBeenCalledWith('Muse Code answers again; commands are sent again')
+    expect(log.error).toHaveBeenCalledWith(
+      'Backend notification listener failed: museCode.unresponsive',
+    )
   })
 
   it('sends again once Muse Code asks something of its own', async () => {
@@ -2154,10 +2242,13 @@ describe('MuseCodeHost: a slow or wedged Muse Code (CLI recovery, 2026-10-03)', 
     expect(told).toHaveBeenCalledOnce()
   })
 
-  it('tells the conversation when Muse Code answers with its event log failure, and only then', async () => {
+  it('tells later listeners of an event log failure even when the first listener throws', async () => {
     const { host, server, log } = setup()
     const session = await host.startSession(startOptions)
     const damaged = vi.fn()
+    session.onLogDamaged(() => {
+      throw new Error('private log detail')
+    })
     session.onLogDamaged(damaged)
     server.handle('turn/start', replayFault)
     await expect(session.sendTurn(steered)).rejects.toThrow(REPLAY_FAULT_MESSAGE)
@@ -2165,6 +2256,9 @@ describe('MuseCodeHost: a slow or wedged Muse Code (CLI recovery, 2026-10-03)', 
     server.handle('turn/start', eventLogFault)
     await expect(session.sendTurn(steered)).rejects.toThrow(EVENT_LOG_SUBMIT_MESSAGE)
     expect(damaged).toHaveBeenCalledOnce()
+    expect(log.error).toHaveBeenCalledWith(
+      'Backend notification listener failed: museCode.logDamaged',
+    )
     expect(countLogged(log, 'event log failed (internal (MSP error -32603))')).toBe(1)
     // The CLI's own words never reach the log (AGENTS.md rule 8).
     expect(countLogged(log, 'conflicts with an existing event')).toBe(0)

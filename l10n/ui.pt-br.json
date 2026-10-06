@@ -1511,6 +1511,7 @@
   "permissionModeNotApplied": "Não foi possível aplicar o modo de permissão",
   "permissionModeChangeFailed": "Não foi possível alterar o modo de permissão",
   "hostActionFailed": "{action} falhou",
+  "backendListenerFailed": "Um ouvinte de eventos do backend falhou. A operação continuou; consulte o log para obter detalhes.",
   "contributorResumeFallbackTo": "A conversa retomada estava em um modelo do nível colaborador; agora ela usa {model}.",
   "editRevertedPath": "{path} revertido.",
   "editCreatedRemovedPath": "{path}: movido para a lixeira (o Muse o criou).",

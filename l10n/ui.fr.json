@@ -1511,6 +1511,7 @@
   "permissionModeNotApplied": "Impossible d’appliquer le mode d’autorisation",
   "permissionModeChangeFailed": "Impossible de changer le mode d’autorisation",
   "hostActionFailed": "Échec de {action}",
+  "backendListenerFailed": "Un écouteur d’événements du backend a échoué. L’opération a continué ; consultez le journal pour plus de détails.",
   "contributorResumeFallbackTo": "La conversation reprise utilisait un modèle de niveau contributeur ; elle utilise désormais {model}.",
   "editRevertedPath": "{path} rétabli.",
   "editCreatedRemovedPath": "{path} : déplacé dans la corbeille (Muse l’avait créé).",

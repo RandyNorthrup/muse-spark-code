@@ -1421,6 +1421,7 @@
   "permissionModeNotApplied": "无法应用权限模式",
   "permissionModeChangeFailed": "无法更改权限模式",
   "hostActionFailed": "{action} 失败",
+  "backendListenerFailed": "后端事件监听器发生错误。操作已继续；详情请查看日志。",
   "contributorResumeFallbackTo": "恢复的对话原先使用贡献者级模型；现在改用 {model}。",
   "editRevertedPath": "已还原 {path}。",
   "editCreatedRemovedPath": "{path}：已移至回收站（该文件由 Muse 创建）。",

@@ -65,7 +65,10 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly workspaceRoot: string | undefined
   readonly io: ToolIo
   /** Existing file-listing adapter rooted in each actual attempt worktree. */
-  readonly listAttemptFiles: (workspaceRoot: string) => Promise<readonly string[]>
+  readonly listAttemptFiles: (
+    workspaceRoot: string,
+    signal?: AbortSignal,
+  ) => Promise<readonly string[]>
   /** The rules, skills and memory loaders' file access (PLAN.md D27). */
   readonly contextIo: ContextIo
   readonly fetch: typeof fetch
@@ -421,7 +424,7 @@ export class ModelApiBackendManager {
         isRepoMapInPrompt: undefined,
         io: {
           ...this.deps.io,
-          listFiles: () => this.deps.listAttemptFiles(worktreeRoot),
+          listFiles: (signal) => this.deps.listAttemptFiles(worktreeRoot, signal),
           runShell: () => Promise.resolve(unstartedShell(MODEL_TEXT.shellBestOfNAttempt)),
         },
         noteResponseUsage: (modelId, usage) => {

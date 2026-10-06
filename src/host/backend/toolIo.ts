@@ -68,7 +68,7 @@ import { joinStatement, newShellJob } from './shellJob'
 
 export interface ToolIoDeps {
   readonly platform: NodeJS.Platform
-  readonly listFiles: () => Promise<readonly string[]>
+  readonly listFiles: (signal?: AbortSignal) => Promise<readonly string[]>
   readonly systemRoot: string | undefined
   /** The environment for the next command: read per command, so a changed setting applies. */
   readonly env: () => NodeJS.ProcessEnv
@@ -98,12 +98,11 @@ export function searchOnWorker(
   workerPath: string,
   job: SearchJob,
   timeoutMs: number,
+  signal?: AbortSignal,
 ): Promise<SearchOutcome> {
-  return new Promise<SearchOutcome>((resolve) => {
-    const worker = new Worker(workerPath, {
-      workerData: job,
-      env: withoutCredentials(process.env),
-    })
+  signal?.throwIfAborted()
+  return new Promise<SearchOutcome>((resolve, reject) => {
+    const worker = new Worker(workerPath, { workerData: job, env: withoutCredentials(process.env) })
     const hits: SearchHit[] = []
     let isSettled = false
     const settle = (outcome: SearchOutcome) => {
@@ -112,12 +111,22 @@ export function searchOnWorker(
       }
       isSettled = true
       clearTimeout(timer)
+      signal?.removeEventListener('abort', onAbort)
       resolve(outcome)
+    }
+    const onAbort = () => {
+      if (isSettled) return
+      isSettled = true
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', onAbort)
+      void worker.terminate()
+      reject(new DOMException(undefined, 'AbortError'))
     }
     const timer = setTimeout(() => {
       void worker.terminate()
       settle({ ok: true, hits, isPartial: true })
     }, timeoutMs)
+    signal?.addEventListener('abort', onAbort, { once: true })
     worker.on('message', (message: SearchWorkerMessage) => {
       if (message.type === 'hits') {
         hits.push(...message.hits)
@@ -414,34 +423,42 @@ async function readBoundedFile(
   expectedCanonicalPath?: string,
   platform?: NodeJS.Platform,
   pdfMaxBytes?: number,
+  signal?: AbortSignal,
 ): Promise<
   | { readonly ok: true; readonly bytes: Buffer; readonly isPdf: boolean }
   | { readonly ok: false; readonly size: number; readonly isPdf: boolean }
 > {
+  signal?.throwIfAborted()
   const file = await open(absolutePath, 'r')
   try {
+    signal?.throwIfAborted()
     if (expectedCanonicalPath !== undefined && platform !== undefined) {
       await checkedOpenedFile(absolutePath, file, expectedCanonicalPath, platform)
+      signal?.throwIfAborted()
     }
     // An explicit position leaves this handle's sequential read at byte zero.
     const header = pdfMaxBytes === undefined ? undefined : Buffer.alloc(PDF_HEADER_WINDOW_BYTES)
     const headerRead =
       header === undefined ? undefined : await file.read(header, 0, header.length, 0)
+    signal?.throwIfAborted()
     const isPdfFile =
       header !== undefined &&
       headerRead !== undefined &&
       isPdf(header.subarray(0, headerRead.bytesRead))
     const limit = isPdfFile ? (pdfMaxBytes ?? maxBytes) : maxBytes
     const { size } = await file.stat()
+    signal?.throwIfAborted()
     if (size > limit) {
       return { ok: false, size, isPdf: isPdfFile }
     }
     const chunks: Buffer[] = []
     let total = 0
     for (;;) {
+      signal?.throwIfAborted()
       const length = Math.min(BOUNDED_FILE_READ_CHUNK_BYTES, limit + 1 - total)
       const chunk = Buffer.allocUnsafe(length)
       const { bytesRead } = await file.read(chunk, 0, length, null)
+      signal?.throwIfAborted()
       if (bytesRead === 0) {
         return { ok: true, bytes: Buffer.concat(chunks, total), isPdf: isPdfFile }
       }
@@ -510,7 +527,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
   const configuredHookShell = deps.env()['SHELL']
   const hookProgram = hookProgramFor(deps, configuredHookShell)
   return {
-    async readFile(absolutePath, expectedCanonicalPath) {
+    async readFile(absolutePath, expectedCanonicalPath, signal) {
       let bytes: Uint8Array
       try {
         // Refused before it is loaded (M39), including growth after metadata.
@@ -519,6 +536,8 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
           TOOL_FILE_MAX_BYTES,
           expectedCanonicalPath,
           deps.platform,
+          undefined,
+          signal,
         )
         if (!read.ok) {
           const mib = (read.size / BYTES_PER_MIB).toFixed(1)
@@ -535,13 +554,15 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       }
       return decodeText(bytes, absolutePath)
     },
-    async readBytes(absolutePath, maxBytes, expectedCanonicalPath) {
+    async readBytes(absolutePath, maxBytes, expectedCanonicalPath, signal) {
       try {
         const read = await readBoundedFile(
           absolutePath,
           maxBytes,
           expectedCanonicalPath,
           deps.platform,
+          undefined,
+          signal,
         )
         if (!read.ok) {
           throw new Error(
@@ -674,8 +695,14 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
     },
     hasUnsavedChanges,
     unsavedFiles: deps.unsavedFiles,
-    listFiles: deps.listFiles,
-    searchFiles: (job) => searchOnWorker(deps.searchWorkerPath, job, SEARCH_TIMEOUT_MS),
+    async listFiles(signal) {
+      signal?.throwIfAborted()
+      const files = await deps.listFiles(signal)
+      signal?.throwIfAborted()
+      return files
+    },
+    searchFiles: (job, signal) =>
+      searchOnWorker(deps.searchWorkerPath, job, SEARCH_TIMEOUT_MS, signal),
     realPath: canonicalPath,
     async runShell(command, cwd, timeoutMs, signal, limit, assertCanRun, isInteractive = false) {
       if (interpreter === undefined) {

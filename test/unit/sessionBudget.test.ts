@@ -168,6 +168,39 @@ describe('reserveRequest', () => {
     )
   })
 
+  it('clamps the selected model cap to affordable tokens without enlarging smaller caps', () => {
+    for (const maxOutputTokens of [1, 4096, 131_072]) {
+      const reservation = reserveRequest({
+        capUsd: 1,
+        spentUsd: 0,
+        estimatedInputTokens: 0,
+        modelId: MODEL,
+        maxOutputTokens,
+      })
+      expect(reservation.maxOutputTokens).toBe(maxOutputTokens)
+    }
+    expect(
+      reserveRequest({
+        capUsd: 0.01,
+        spentUsd: 0,
+        estimatedInputTokens: 50_000,
+        modelId: CONTRIBUTOR,
+        maxOutputTokens: 131_072,
+      }).maxOutputTokens,
+    ).toBe(25_000)
+    for (const maxOutputTokens of [0, -1, 1.5, Infinity, NaN]) {
+      expect(() =>
+        reserveRequest({
+          capUsd: 1,
+          spentUsd: 0,
+          estimatedInputTokens: 0,
+          modelId: MODEL,
+          maxOutputTokens,
+        }),
+      ).toThrow('invalid output.maxTokens')
+    }
+  })
+
   it('prices a contributor model at its own tier', () => {
     // $0.10/M in: 50k is $0.005; the other $0.005 pays 25,000 at $0.20/M.
     expect(

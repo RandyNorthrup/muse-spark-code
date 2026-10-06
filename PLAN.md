@@ -27714,6 +27714,51 @@ into its lazy component. Preserve existing caps, using a separate measured
 preview chunk budget only if the deferred group cannot fit. Regression
 tests and byte-exact red drills are recorded in `docs/certification/m106-l1.md`.
 No wire shape, dependency, capability default, or execution admission changes.
+**L2 third review repair (FIXM106L23, 2026-10-06).** Close RVM106L23's
+single P2 with synchronous steering ownership transfer before reassignment
+notifications and one shared guarded notification utility for Model API and
+Muse Code hosts/sessions. Every listener gets its own exception boundary;
+fixed-label logs and a localized backend diagnostic report failures without
+interrupting state transitions or later listeners. Diagnostic delivery is
+guarded without recursive reporting. Include the required English key and
+all fourteen translations, fault-injection regressions for reassignment,
+turn start/end, items, steering, settlement, replay and host observers, and
+byte-exact red drills. No request bytes, dependency or gate changes. The
+existing W documentation/split-gate handoffs and bounded rig checks remain.
+
+**L2 second review repair (FIXM106L22, 2026-10-06).** Close both
+RVM106L22 P2 findings by construction. The steering buffer owns each accepted
+message until admission or a definitive refusal recorded against its id;
+process only its head, retaining the unprocessed tail on every throw for
+next-turn promotion. File fingerprints remain in a call-owned provisional
+map from call creation through execution/settlement, and enter the session
+only synchronously with the successful result's transcript/replay commit.
+Cancellation, detachment, refusal and exceptions discard that map. Audit
+every tool proof writer (including edits/rename and hook-agent reads), test
+the exact expansion refusal and two-microtask Stop races with concurrency
+off/on, retain the completed-read/write control and golden request bytes,
+and record byte-exact red drills in `docs/certification/m106-l2.md`.
+The proof-writer audit also requires the existing rename adapter in
+`codeIntelCalls.ts` and mechanical context updates in its
+`codeIntelPolicy.test.ts` and `editReview.test.ts` consumers; no unrelated
+behavior or ownership region changes.
+Both findings must be fixed; no review residual is accepted. Lane ownership,
+default timeouts, no live/paid calls and existing W gate handoffs still apply.
+
+**L2 review repair (FIXM106L2, 2026-10-06).** Repair all four RVM106L2
+P2 findings: preserve accepted steering on every turn exit with normal
+next-turn admission; discard speculative results and seen-file proofs when
+Stop arrives during settlement; serialize any batch with applicable enabled
+PreToolUse/PostToolUse hooks; pass the turn signal through native reads,
+listings and searches and detach stuck read work on Stop. Keep serial replay
+bytes identical, use fake-only regressions and byte-exact red drills, and
+retain the existing gates and a fresh live permission fence when speculative
+publication is deferred across an await. Native I/O signal plumbing is limited to the
+existing tool adapters and listing paths required by the fourth finding.
+The existing host regression that discarded steering on buffered-response
+Stop is updated to the lead's explicit every-exit preservation policy.
+Certification: `docs/certification/m106-l2.md`. No live/paid calls, dependency,
+merge, rebase or push; aggregate quality and wiring remain lane W's work.
 
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §3. Strict tools wait for
@@ -31525,6 +31570,16 @@ weakened. Startup must additionally stay at or below 895.5 KiB for this
 lane. U9 raw argument frames and the production capability binding remain
 explicit evidence/integration handoffs, not passing certification claims.
 Receipts and byte-exact red drills are in `docs/certification/m106-l1.md`.
+**FIXM106L2 / FIXM106L22 / FIXM106L23 bounded review repairs (2026-10-06).** The rig/shared brief
+prohibits aggregate `npm run quality` and requires scoped tests, at most
+three files/three workers per run, with the repository timeout. Run the
+focused regressions, typecheck, changed-file lint/format, localization,
+deadcode, duplication, host API and production build directly on Kubuntu.
+No gate is weakened. Lane W retains aggregate quality, integration and the
+existing split-gate registration of `toolScheduler.ts`/`repeatGuard.ts`;
+its classification omission is a justified integration deferral, not a
+permission to package or publish. Receipts and red drills:
+`docs/certification/m106-l2.md`.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
@@ -33382,6 +33437,19 @@ review findings and terminal settlement-pricing failure.
   Safe for now: there is no new command, setting or public support claim.
   Follow-up: W documents whole-value redaction, processing bounds, final flush and settlement.
   The previous **L1-BUNDLE** registration handoff is resolved in this repair.
+- **FIXM106L2-W-integration (lane L2, 2026-10-06).** All four RVM106L2 P2
+  findings, both RVM106L22 P2 findings and RVM106L23's observer-exception P2
+  are repaired, with fake-only regressions and byte-exact red drills. Steering
+  ownership now transfers before notifications, and shared guarded delivery
+  isolates host/session listeners and diagnostic callbacks. No review finding
+  is left. The original W handoffs remain:
+  capability/settings bindings across hosts, the trusted-witness policy
+  decision, integrated CHANGELOG/README/feature-reference updates, and
+  split-gate classifications for `toolScheduler.ts`/`repeatGuard.ts`.
+  Safe for now: this lane neither packages nor publishes, and no guard,
+  size cap, paid gate or dependency is widened. Follow-up: W integrates
+  these bindings/docs and classifications and runs aggregate quality and
+  the authorized release checks. See `docs/certification/m106-l2.md`.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

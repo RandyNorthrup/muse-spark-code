@@ -1556,6 +1556,7 @@
   "permissionModeNotApplied": "Režim oprávnění se nepodařilo použít",
   "permissionModeChangeFailed": "Režim oprávnění se nepodařilo změnit",
   "hostActionFailed": "Akce {action} selhala",
+  "backendListenerFailed": "Obsluha události backendu selhala. Operace pokračovala; podrobnosti najdete v protokolu.",
   "contributorResumeFallbackTo": "Obnovená konverzace používala model přispěvatelské úrovně; nyní používá {model}.",
   "editRevertedPath": "Vráceno: {path}.",
   "editCreatedRemovedPath": "{path}: Přesunuto do koše (vytvořil ho Muse).",
