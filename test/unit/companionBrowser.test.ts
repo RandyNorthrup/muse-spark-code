@@ -1,8 +1,8 @@
 import { createServer } from 'node:http'
-import { chromium, type Browser, type Page } from 'playwright-core'
+import type { Browser, Page } from 'playwright-core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { UI_TEXT } from '../../src/shared/l10n/text'
-import { call, headers, startPanel, trackedPanels } from './helpers/companion'
+import { call, headers, startBrowserFixture, startPanel, trackedPanels } from './helpers/companion'
 
 const tracked = trackedPanels()
 
@@ -22,7 +22,7 @@ async function postFromPage(isRequest: boolean): Promise<number> {
 
 async function openPage(page: Page, launch: string): Promise<void> {
   await page.goto(launch)
-  await page.waitForLoadState('networkidle')
+  await page.waitForFunction(() => Reflect.get(globalThis.window, 'panelLoaded') === true)
   expect(await page.evaluate(() => Reflect.get(globalThis.window, 'panelLoaded') === true)).toBe(
     true,
   )
@@ -33,11 +33,13 @@ async function openPage(page: Page, launch: string): Promise<void> {
 
 describe('companion browser security', () => {
   let browser: Browser | undefined
+  let fixture: Awaited<ReturnType<typeof startBrowserFixture>> | undefined
   beforeAll(async () => {
-    browser = await chromium.launch({ channel: 'chrome', headless: true })
+    fixture = await startBrowserFixture()
+    browser = fixture.browser
   })
   afterAll(async () => {
-    await browser?.close()
+    await fixture?.close()
   })
   it('exchanges the fragment without leaking it, then refuses a foreign form, fetch, EventSource and WebSocket', async () => {
     if (browser === undefined) throw new Error('browser startup failed')

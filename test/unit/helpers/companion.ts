@@ -1,10 +1,34 @@
 import { Buffer } from 'node:buffer'
 import { request, type IncomingHttpHeaders } from 'node:http'
 import * as z from 'zod/mini'
-import { afterEach, vi } from 'vitest'
+import { chromium } from 'playwright-core'
+import { afterEach, expect, vi } from 'vitest'
 import { startCompanionServer, type CompanionLimits } from '../../../src/runtime/companion/server'
 
 export type Panel = Awaited<ReturnType<typeof startPanel>>
+
+/** Owns only this fixture's Chrome process; graceful shutdown can hang on macOS. */
+export async function startBrowserFixture() {
+  const server = await chromium.launchServer({
+    channel: 'chrome',
+    headless: true,
+    host: '127.0.0.1',
+  })
+  try {
+    const browser = await chromium.connect(server.wsEndpoint())
+    return {
+      browser,
+      close: async () => {
+        await server.kill()
+        const child = server.process()
+        expect(child.exitCode !== null || child.signalCode !== null).toBe(true)
+      },
+    }
+  } catch (error: unknown) {
+    await server.kill()
+    throw error
+  }
+}
 
 /** Each suite owns its starts; real sockets close after every case, including failures. */
 export function trackedPanels() {

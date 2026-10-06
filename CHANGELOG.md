@@ -13,6 +13,9 @@ happened, not what was planned; superseded entries are kept.
 - Runtime engine contributions can own paid policy and accounting, Model API
   budget/edit/attempt-host services, authentication and account facts.
   Missing contribution groups retain the existing explicit refusals.
+- The replacement guide now states that both legacy-named MHP snapshots carry
+  1.2. Companion browser certification uses shared, owned Chrome fixtures,
+  explicit readiness and separate integrity scenarios at default deadlines.
 
 - Portable panels publish live runtime-owned settings, replace backend profiles, report failed profile construction, follow editor trust grants and revocations, and retain separate worktree stores. Selected-model records gate compaction, handoff, vision, PDFs and reasoning when supplied by a provider adapter.
 - Browser session retirement revokes old launch codes and bearers, stops their event streams and closes cancelled HTTP calls.
