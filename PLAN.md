@@ -17752,6 +17752,18 @@ byte-exact red/restored drill per finding. No production listener/store,
 dependency or guard waiver is introduced; P/T/E own runtime isolation and
 journal proofs. PLAN §9 records the trusted-account residual.
 
+**FIXM100T review repair (2026-10-06).** Repair every RVM100T finding in
+T's transport/framing modules and owning tests: settle listener startup on
+listening/error/close/unlink with its own deadline and a named revoked error;
+bind cleanup to the listener generation; check absolute setup deadlines at
+DNS, TLS, initial-offer and readiness transitions against monotonic and wall
+clocks, refusing backwards wall jumps; assemble frames once from bounded
+chunks. The required fragment cap belongs to the existing `DEVICE_LIMITS`
+region. Each repair gets a failing regression and a byte-exact red/restored
+receipt in `docs/certification/m100-t.md`. Loopback only; no new dependency,
+paid/live calls, merge or push. Full quality and the existing I-owned
+host-API/split registration remain joined-tree gates, without any waiver.
+
 - **Goal.** The owner explicitly links his four LAN devices, offers a bounded
   pool from each open extension, delegates independent lanes and checks from
   one board, and receives reviewable Git branches without moving credentials

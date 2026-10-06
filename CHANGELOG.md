@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Harden the unshipped paired-device transport: listener startup settles on
+  unlink, close or its startup deadline, and a stale listener disposer cannot
+  close a replacement listener or its connections.
+
 ## [0.14.1] - 2026-10-05
 
 ### Security

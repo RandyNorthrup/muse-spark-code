@@ -1,5 +1,5 @@
 import { connect as tlsConnect, createServer as tlsServer, type TLSSocket } from 'node:tls'
-import { connect as tcpConnect, createServer as tcpServer } from 'node:net'
+import { connect as tcpConnect, createServer as tcpServer, Server } from 'node:net'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DeviceTransport, type DeviceTransportPair } from '../../src/host/devices/deviceTransport'
 import { DEVICE_LIMITS } from '../../src/shared/constants'
@@ -21,6 +21,7 @@ const peers = new Set<TLSSocket>()
 const pairs = new Set<string>()
 afterEach(() => {
   vi.useRealTimers()
+  vi.restoreAllMocks()
   vi.unstubAllEnvs()
   for (const peer of peers) peer.destroy()
   for (const transport of transports) for (const pair of pairs) transport.revoke(pair)
@@ -75,6 +76,82 @@ async function observedTcpClose(port: number): Promise<number> {
 }
 
 describe('pinned device transport with real loopback TLS', () => {
+  it('RVM100T-P2-1 unlink before bind rejects startup as revoked within its deadline', async () => {
+    const server = manager()
+    const handler = transportHandler()
+    const pair = transportPair(receiver, source)
+    const port = await transportPort()
+    const started = performance.now()
+    const listening = server.listen(pair, '127.0.0.1', port, handler)
+    let failure: string | undefined
+    void listening.catch((error: unknown) => {
+      if (error instanceof Error) failure = error.message
+    })
+    server.revoke(pair.pairId)
+    await vi.waitFor(() => {
+      expect(failure).toBe('revoked')
+    })
+    expect(performance.now() - started).toBeLessThan(DEVICE_LIMITS.handshakeDeadlineMs)
+    expect(handler.connected).not.toHaveBeenCalled()
+    await server.listen(pair, '127.0.0.1', port, handler)
+  })
+  it('RVM100T-P2-1 closes pending startup and bounds a bind that emits no completion', async () => {
+    const port = await transportPort()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const pendingServers: Server[] = []
+    vi.spyOn(Server.prototype, 'listen').mockImplementation(function (this: Server) {
+      pendingServers.push(this)
+      return this
+    })
+    const server = manager()
+    const pair = transportPair(receiver, source)
+    for (const shouldClose of [true, false]) {
+      const waiting = server.listen(pair, '127.0.0.1', port, transportHandler())
+      let failure: string | undefined
+      void waiting.catch((error: unknown) => {
+        if (error instanceof Error) failure = error.message
+      })
+      if (shouldClose) pendingServers.at(-1)?.emit('close')
+      await vi.advanceTimersByTimeAsync(DEVICE_LIMITS.handshakeDeadlineMs)
+      expect(failure).toBe(shouldClose ? 'revoked' : 'blocked-or-unreachable')
+    }
+  })
+  it('RVM100T-P2-2 stale listener cleanup preserves the replacement and its connections', async () => {
+    const server = manager()
+    const pair = transportPair(receiver, source)
+    const port = await transportPort()
+    const stopA = await server.listen(pair, '127.0.0.1', port, transportHandler())
+    stopA()
+    const incoming = transportHandler()
+    await server.listen(pair, '127.0.0.1', port, incoming)
+    const outgoing = transportHandler()
+    const channel = await manager().connect(
+      transportPair(source, receiver),
+      '127.0.0.1',
+      port,
+      '127.0.0.1',
+      outgoing,
+    )
+    stopA()
+    channel.send(deviceTestFrame)
+    await vi.waitFor(() => {
+      expect(incoming.receive).toHaveBeenCalledTimes(1)
+    })
+    expect(outgoing.disconnected).not.toHaveBeenCalled()
+    const replacement = await manager().connect(
+      transportPair(source, receiver),
+      '127.0.0.1',
+      port,
+      '127.0.0.1',
+      transportHandler(),
+    )
+    replacement.send(deviceTestFrame)
+    await vi.waitFor(() => {
+      expect(incoming.receive).toHaveBeenCalledTimes(2)
+    })
+    channel.close()
+    replacement.close()
+  })
   it('ignores proxy environment variables and forwards no proxy request or credential', async () => {
     const intercepted = vi.fn()
     const proxy = tcpServer((socket) => {

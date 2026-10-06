@@ -113,6 +113,10 @@ export class DeviceTransport {
     }
   }
 
+  private revokeListener(pairId: string, server: Server): void {
+    if (this.listeners.get(pairId) === server) this.revoke(pairId)
+  }
+
   async listen(
     pair: DeviceTransportPair,
     address: string,
@@ -142,7 +146,11 @@ export class DeviceTransport {
         handshakeTimeout: DEVICE_LIMITS.handshakeDeadlineMs,
       },
       (socket) => {
-        if (!isAuthenticated(socket, pair) || !pair.isOffered()) {
+        if (
+          this.listeners.get(pair.pairId) !== server ||
+          !isAuthenticated(socket, pair) ||
+          !pair.isOffered()
+        ) {
           socket.destroy()
           return
         }
@@ -166,7 +174,8 @@ export class DeviceTransport {
     })
     server.on('connection', (socket: Socket) => {
       try {
-        if (!pair.isActive() || !pair.isOffered()) throw new Error('revoked')
+        if (this.listeners.get(pair.pairId) !== server || !pair.isActive() || !pair.isOffered())
+          throw new Error('revoked')
         checkedDeviceAddress(socket.remoteAddress ?? '')
         const release = this.acquire(pair.pairId)
         this.sockets.set(socket, pair.pairId)
@@ -178,21 +187,61 @@ export class DeviceTransport {
         socket.destroy()
       }
     })
-    server.on('error', () => {
-      this.revoke(pair.pairId)
-    })
+    let failure = 'blocked-or-unreachable'
     try {
       await new Promise<void>((resolve, reject) => {
-        server.once('error', reject)
-        server.listen({ host: local, port, backlog: DEVICE_LIMITS.connectionsTotal }, resolve)
+        const startedAt = performance.now()
+        const wallStartedAt = Date.now()
+        let isSettled = false
+        const finish = (error?: Error) => {
+          if (isSettled) return
+          isSettled = true
+          clearTimeout(timer)
+          this.pending.delete(cancel)
+          server.off('listening', listening)
+          server.off('error', failed)
+          server.off('close', cancel)
+          if (error === undefined) resolve()
+          else reject(error)
+        }
+        const cancel = () => {
+          failure = 'revoked'
+          finish(new Error(failure))
+        }
+        const failed = () => {
+          finish(new Error('blocked-or-unreachable'))
+        }
+        const listening = () => {
+          const wallNow = Date.now()
+          if (
+            performance.now() - startedAt >= DEVICE_LIMITS.handshakeDeadlineMs ||
+            wallNow - wallStartedAt >= DEVICE_LIMITS.handshakeDeadlineMs ||
+            wallNow < wallStartedAt
+          )
+            failed()
+          else if (!pair.isActive() || !pair.isOffered()) cancel()
+          else finish()
+        }
+        const timer = setTimeout(failed, DEVICE_LIMITS.handshakeDeadlineMs)
+        this.pending.set(cancel, pair.pairId)
+        server.once('error', failed)
+        server.once('close', cancel)
+        server.once('listening', listening)
+        server.on('error', () => {
+          this.revokeListener(pair.pairId, server)
+        })
+        server.listen({ host: local, port, backlog: DEVICE_LIMITS.connectionsTotal })
       })
-      if (!pair.isActive() || !pair.isOffered()) throw new Error('revoked')
+      if (!pair.isActive() || !pair.isOffered()) {
+        failure = 'revoked'
+        throw new Error(failure)
+      }
       return () => {
-        this.revoke(pair.pairId)
+        this.revokeListener(pair.pairId, server)
       }
     } catch {
-      this.revoke(pair.pairId)
-      throw new Error('blocked-or-unreachable')
+      this.revokeListener(pair.pairId, server)
+      throw new Error(failure)
     }
   }
 

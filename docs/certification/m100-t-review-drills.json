@@ -1,0 +1,148 @@
+[
+  {
+    "finding": "P2-1-unlink-startup",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "this.pending.set(cancel, pair.pairId)\n        server.once",
+        "new": "server.once"
+      },
+      {
+        "old": "server.once('close', cancel)",
+        "new": ""
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-1 unlink before bind rejects startup as revoked within its deadline",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-1 closes pending startup and bounds a bind that emits no completion"
+    ],
+    "savedSha256": "94490da412d2be9c25014c15b764b3ee07dedd9e8dc5d9c65f09651eef675577",
+    "restoredSha256": "94490da412d2be9c25014c15b764b3ee07dedd9e8dc5d9c65f09651eef675577"
+  },
+  {
+    "finding": "P2-1-startup-close",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "server.once('close', cancel)",
+        "new": ""
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-1 closes pending startup and bounds a bind that emits no completion"
+    ],
+    "savedSha256": "94490da412d2be9c25014c15b764b3ee07dedd9e8dc5d9c65f09651eef675577",
+    "restoredSha256": "94490da412d2be9c25014c15b764b3ee07dedd9e8dc5d9c65f09651eef675577"
+  },
+  {
+    "finding": "P2-1-startup-deadline",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "const timer = setTimeout(failed, DEVICE_LIMITS.handshakeDeadlineMs)",
+        "new": "const timer = setTimeout(failed, DEVICE_LIMITS.handshakeDeadlineMs * 2)"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-1 closes pending startup and bounds a bind that emits no completion"
+    ],
+    "savedSha256": "94490da412d2be9c25014c15b764b3ee07dedd9e8dc5d9c65f09651eef675577",
+    "restoredSha256": "94490da412d2be9c25014c15b764b3ee07dedd9e8dc5d9c65f09651eef675577"
+  },
+  {
+    "finding": "P2-2-listener-generation",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "if (this.listeners.get(pairId) === server) this.revoke(pairId)",
+        "new": "this.revoke(pairId)"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-2 stale listener cleanup preserves the replacement and its connections"
+    ],
+    "savedSha256": "94490da412d2be9c25014c15b764b3ee07dedd9e8dc5d9c65f09651eef675577",
+    "restoredSha256": "94490da412d2be9c25014c15b764b3ee07dedd9e8dc5d9c65f09651eef675577"
+  },
+  {
+    "finding": "P2-1-unlink-startup",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "this.pending.set(cancel, pair.pairId)\n        server.once",
+        "new": "server.once"
+      },
+      {
+        "old": "server.once('close', cancel)",
+        "new": ""
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-1 unlink before bind rejects startup as revoked within its deadline",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-1 closes pending startup and bounds a bind that emits no completion"
+    ],
+    "savedSha256": "f9acc82058a11e9a8c19c838b24003d3ae85fe4d4f88aa52387b652903c3686f",
+    "restoredSha256": "f9acc82058a11e9a8c19c838b24003d3ae85fe4d4f88aa52387b652903c3686f"
+  },
+  {
+    "finding": "P2-1-startup-close",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "server.once('close', cancel)",
+        "new": ""
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-1 closes pending startup and bounds a bind that emits no completion"
+    ],
+    "savedSha256": "f9acc82058a11e9a8c19c838b24003d3ae85fe4d4f88aa52387b652903c3686f",
+    "restoredSha256": "f9acc82058a11e9a8c19c838b24003d3ae85fe4d4f88aa52387b652903c3686f"
+  },
+  {
+    "finding": "P2-1-startup-deadline",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "const timer = setTimeout(failed, DEVICE_LIMITS.handshakeDeadlineMs)",
+        "new": "const timer = setTimeout(failed, DEVICE_LIMITS.handshakeDeadlineMs * 2)"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-1 closes pending startup and bounds a bind that emits no completion"
+    ],
+    "savedSha256": "f9acc82058a11e9a8c19c838b24003d3ae85fe4d4f88aa52387b652903c3686f",
+    "restoredSha256": "f9acc82058a11e9a8c19c838b24003d3ae85fe4d4f88aa52387b652903c3686f"
+  },
+  {
+    "finding": "P2-2-listener-generation",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "if (this.listeners.get(pairId) === server) this.revoke(pairId)",
+        "new": "this.revoke(pairId)"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-2 stale listener cleanup preserves the replacement and its connections"
+    ],
+    "savedSha256": "f9acc82058a11e9a8c19c838b24003d3ae85fe4d4f88aa52387b652903c3686f",
+    "restoredSha256": "f9acc82058a11e9a8c19c838b24003d3ae85fe4d4f88aa52387b652903c3686f"
+  }
+]
