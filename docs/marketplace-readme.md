@@ -35,7 +35,7 @@ Code” are Meta trademarks. You bring your own credentials.
 - **Fix:** stopped or timed-out commands on macOS and Linux now wait until
   their processes have exited.
 
-## What's new in 0.14.0
+### Earlier in 0.14.0
 
 - **Tab completions** (see [Tab completions](https://github.com/RandyNorthrup/muse-spark-code#tab-completions)). Alt+\ invokes
   ghost text. First-use consent names the model price and the separate

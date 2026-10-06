@@ -9,6 +9,10 @@ import { renderPackageReadme } from '../../scripts/check-badges.mjs'
 import { readArchivedUiTable } from '../../src/shared/l10n/tableArchive'
 import { listFiles } from '@vscode/vsce/out/package.js'
 
+// The staged-bytes check starts three Node children, each loading vsce and
+// jsdom; hosted runners take about five seconds for the three.
+const CHILD_PROCESS_TIMEOUT_MS = 60_000
+
 const ROOT = process.cwd()
 const fixture = { root: '', stage: '', files: [] }
 const excluded = [
@@ -131,38 +135,42 @@ describe('VSIX packaging', () => {
     expect(shipped).not.toContain('{version}')
     expect(shipped).not.toContain('badgen.net/vs-marketplace/v/')
   })
-  it('checks exact staged bytes and rejects a staged README or manifest version mismatch', () => {
-    const readme = path.join(fixture.stage, 'README.md')
-    const manifest = path.join(fixture.stage, 'package.json')
-    const originalReadme = readFileSync(readme)
-    const originalManifest = readFileSync(manifest)
-    const version = JSON.parse(originalManifest).version
-    const check = () =>
-      execFileSync(
-        process.execPath,
-        ['scripts/check-badges.mjs', '--packaged-vsix', fixture.stage],
-        {
-          cwd: ROOT,
-          env: { ...process.env, CI: '', BADGE_CHECK_SKIP_NETWORK: 'fake-only staged fixture' },
-          encoding: 'utf8',
-          stdio: 'pipe',
-        },
-      )
-    expect(check()).toContain('network skipped: fake-only staged fixture')
-    try {
-      writeFileSync(
-        readme,
-        originalReadme.toString().replace(`Marketplace-v${version}`, 'Marketplace-v0.0.0'),
-      )
-      expect(check).toThrow('version mismatch')
-      writeFileSync(readme, originalReadme)
-      writeFileSync(manifest, JSON.stringify({ version: '0.0.0' }))
-      expect(check).toThrow('Staged manifest version mismatch')
-    } finally {
-      writeFileSync(readme, originalReadme)
-      writeFileSync(manifest, originalManifest)
-    }
-  })
+  it(
+    'checks exact staged bytes and rejects a staged README or manifest version mismatch',
+    () => {
+      const readme = path.join(fixture.stage, 'README.md')
+      const manifest = path.join(fixture.stage, 'package.json')
+      const originalReadme = readFileSync(readme)
+      const originalManifest = readFileSync(manifest)
+      const version = JSON.parse(originalManifest).version
+      const check = () =>
+        execFileSync(
+          process.execPath,
+          ['scripts/check-badges.mjs', '--packaged-vsix', fixture.stage],
+          {
+            cwd: ROOT,
+            env: { ...process.env, CI: '', BADGE_CHECK_SKIP_NETWORK: 'fake-only staged fixture' },
+            encoding: 'utf8',
+            stdio: 'pipe',
+          },
+        )
+      expect(check()).toContain('network skipped: fake-only staged fixture')
+      try {
+        writeFileSync(
+          readme,
+          originalReadme.toString().replace(`Marketplace-v${version}`, 'Marketplace-v0.0.0'),
+        )
+        expect(check).toThrow('version mismatch')
+        writeFileSync(readme, originalReadme)
+        writeFileSync(manifest, JSON.stringify({ version: '0.0.0' }))
+        expect(check).toThrow('Staged manifest version mismatch')
+      } finally {
+        writeFileSync(readme, originalReadme)
+        writeFileSync(manifest, originalManifest)
+      }
+    },
+    CHILD_PROCESS_TIMEOUT_MS,
+  )
   it('keeps the quiet GitHub star link in the README Marketplace and Open VSX render', () => {
     expect(readFileSync(path.join(fixture.stage, 'README.md'), 'utf8')).toContain(
       '[Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)',

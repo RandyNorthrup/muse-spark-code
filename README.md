@@ -31,7 +31,7 @@ key to the CLI.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-**Contents:** [What's new](#whats-new-in-0140) ·
+**Contents:** [What's new](#whats-new-in-0141) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) ·
 [Permission modes](#permission-modes) ·
@@ -59,7 +59,7 @@ key to the CLI.
 - **Fix:** stopped or timed-out commands on macOS and Linux now wait until
   their processes have exited.
 
-## What's new in 0.14.0
+### Earlier in 0.14.0
 
 - **Tab completions** (see [Tab completions](#tab-completions)). Alt+\ invokes
   ghost text. First-use consent names the model price and the separate
