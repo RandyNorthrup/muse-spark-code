@@ -421,3 +421,93 @@ mediaAccounting/mediaClient/mediaCost runs pass, 47 tests. No review finding
 is deferred; no threshold, ignore, timer or unsupported provider shape was
 changed. The warning and exact-money ports remain shared core contracts for
 all editor/runtime bindings rather than VS Code-only logic.
+
+## FIXM105C final verification and handoff
+
+Both implementation commits (`5d5dfe3b1`, `a24e2e4c7`) ran the repository's
+hooks: lint-staged ESLint/Prettier and the staged secret scan, all passing.
+No merge, rebase, push, install, credential access or paid/live call occurred.
+All commands ran directly on Kubuntu. No test used a timeout override or a
+name filter; at most three whole files ran per command, with three workers.
+
+| Whole test file                | Passing tests |
+| ------------------------------ | ------------: |
+| `mediaAccounting.test.ts`      |            14 |
+| `mediaClient.test.ts`          |            15 |
+| `mediaCost.test.ts`            |            18 |
+| `AttachmentMediaCost.test.tsx` |             6 |
+| `mediaContracts.test.ts`       |            17 |
+| `usd.test.ts`                  |             3 |
+| `sessionBudget.test.ts`        |            16 |
+| `modelApiClient.test.ts`       |            27 |
+| `Composer.test.tsx`            |            77 |
+| `insights.test.ts`             |             7 |
+| `l10n.test.ts`                 |            26 |
+| **Unique total**               |       **226** |
+
+The four final commands ran files in groups of 32, 41, 120 and 33 passing
+tests. A last fixture-only deduplication and existing usage expectation update
+were verified again with the entire accounting/insights/USD files (24/24).
+
+`insights` exposed an old nearest-rounding expectation: `$0.01234` expected
+`$0.0123`. It now expects the never-under-report ceiling `$0.0124`, identical
+to M106H's expectation at the copied helper commit. A new red drill replaced
+ceiling rounding with nearest rounding and that named dollar-formatting test
+failed (exit 1), restoring `text.ts` SHA-256
+`dd16df17ebd2ffb31375ea6c7ca4e6ff9cfaffb74c91d945080fc93d2c31e440`.
+There are now ten distinct red guards, 18 red mutation runs across successive
+versions, and one initial passed chip-only mutation that prompted stronger
+properties. Every mutation was restored byte-exact.
+
+The duplication gate initially caught nine shared test-fixture lines in the
+two held-ledger scenarios. Factoring that setup into `holdSettlement` fixed
+it; `npx jscpd` then passed with zero clones. No test or gate was removed or
+weakened. All five typecheck projects passed after the final production
+implementation; the unit project passed again after this typed test helper.
+Changed-file ESLint passes across all 13 TS/TSX files. Deadcode passes (only
+its two existing configuration hints). Localization passes: 14 tables, 164
+manifest strings, 596 source files, zero problems. Host API passes: 332 VS
+Code APIs, 31 importing files, 25 Node built-ins, 61 theme variables, zero
+problems; the generated record is unchanged.
+
+Money-arithmetic inventory (`rg` over mediaCost, client and the cost chip):
+all media price multiplication/addition/division/comparison uses `Usd`, and
+both money ports and the serialized estimate carry canonical decimal
+strings. Calibration's remaining numeric division/multiplication estimates
+integer tokens per unit; bytes never price media. The chip's multiplication
+is duration-to-milliseconds only. It formats canonical prices via shared
+ceiling `formatUsd`. The client delegates media bills to exact accounting;
+its legacy numeric `estimateCostUsd` fallback is reachable only without
+media, since no additional paid token claim is created with media. The
+unrelated legacy non-media journal migration remains M106H/M108T's work.
+
+### Production build: release gates still blocked in W's integration
+
+`npm run build` compiled every entry, then exited 1 at the unchanged size
+checks. Every other size gate passed. On those artifacts the split check
+exited 1 for the already-unlisted `AttachmentMediaCost.tsx` surface. Neither
+budget nor registry was changed. The shared money helper adds about 3.8 KiB
+to startup on this pre-diet base; fitting it joins W's already-required diet
+and registration work. No green release/full-quality claim is made.
+
+| Bundle                           | Final size |     Cap | Result   |
+| -------------------------------- | ---------: | ------: | -------- |
+| Extension                        |  439.5 KiB | 600 KiB | pass     |
+| Model API                        |  450.2 KiB | 475 KiB | pass     |
+| ACP                              |  819.6 KiB | 850 KiB | pass     |
+| Shared English fallback          |   49.2 KiB | 125 KiB | pass     |
+| Browser startup + static imports |  903.1 KiB | 900 KiB | **fail** |
+| Deferred webview JS              |   50.6 KiB |  50 KiB | **fail** |
+
+Separate host-globals passes with zero navigator references; notices passes
+for 83 bundled packages. The full quality/coverage/accessibility run stays
+with the lead under the rig brief/common rules. The named
+FIXM105C-W-integration handoff is in PLAN §9, with the size/split deferral in
+§7. Real calibration receipts, stores, exact ledger binding, hosted-fee
+admission, all editor entry points, paid storage U6c and product/help docs
+remain W/other lanes' original explicit handoffs. None of the five RVM105C
+review findings remains unfixed.
+
+Final changed-file Prettier and `git diff --check` pass. The verification
+commit contains only the currency expectation, shared test fixture and this
+record/PLAN update; production source digests remain those recorded above.

@@ -56,23 +56,33 @@ function setup() {
   return { request, session, daily, write, item }
 }
 
+function holdSettlement(claim: ReturnType<typeof setup>['daily']['claim']) {
+  const entered = Promise.withResolvers<undefined>()
+  const held = Promise.withResolvers<undefined>()
+  claim.settle.mockImplementation(() => {
+    entered.resolve(undefined)
+    return held.promise
+  })
+  return {
+    entered: entered.promise,
+    release: () => {
+      held.resolve(undefined)
+    },
+  }
+}
+
 describe('media request accounting', () => {
   it('coalesces concurrent settle and finish calls while a ledger write is held', async () => {
     const t = setup()
     const reservation = await reserveMediaRequest(t.request)
     reservation.started()
-    const entered = Promise.withResolvers<undefined>()
-    const held = Promise.withResolvers<undefined>()
-    t.daily.claim.settle.mockImplementation(() => {
-      entered.resolve(undefined)
-      return held.promise
-    })
+    const held = holdSettlement(t.daily.claim)
     const usage = { input_tokens: 3000, output_tokens: 40 }
     const settling = reservation.settle(usage)
-    await entered.promise
+    await held.entered
     const finishing = reservation.finish()
     const repeated = reservation.settle(usage)
-    held.resolve(undefined)
+    held.release()
     await Promise.all([settling, finishing, repeated])
     expect(t.session.claim.settle).toHaveBeenCalledExactlyOnceWith('0.000308', false)
     expect(t.daily.claim.settle).toHaveBeenCalledExactlyOnceWith('0.000308', false)
@@ -84,19 +94,14 @@ describe('media request accounting', () => {
       const t = setup()
       const reservation = await reserveMediaRequest(t.request)
       if (wasSent) reservation.started()
-      const entered = Promise.withResolvers<undefined>()
-      const held = Promise.withResolvers<undefined>()
-      t.daily.claim.settle.mockImplementation(() => {
-        entered.resolve(undefined)
-        return held.promise
-      })
+      const held = holdSettlement(t.daily.claim)
       const first = reservation.finish()
-      await entered.promise
+      await held.entered
       const second = reservation.finish()
       expect(() => {
         reservation.refused()
       }).toThrow('retry')
-      held.resolve(undefined)
+      held.release()
       await Promise.all([first, second])
       for (const ledger of [t.session, t.daily])
         expect(ledger.claim.settle).toHaveBeenCalledExactlyOnceWith(

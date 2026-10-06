@@ -20053,7 +20053,10 @@ tests at default timeouts, localization/host-API/deadcode/duplication and a
 production build. The pre-existing W-owned deferred-webview size and
 unlisted lazy chip split failures remain explicit integration deferrals;
 no cap, check, ignore or timeout is weakened. Exact money also introduces
-the shared USD helper used by M106H/M108T. Final sizes, gate results and red
+the shared USD helper used by M106H/M108T. The final production build reports
+903.1/900 KiB browser startup and 50.6/50 KiB deferred JS; the helper adds
+about 3.8 KiB to startup on this pre-diet base. W's existing diet and lazy
+surface registration are required before release. Final sizes, gate results and red
 drills are in `docs/certification/m105-c-cost-(b).md`.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
