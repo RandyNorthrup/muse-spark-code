@@ -1227,6 +1227,7 @@
     "prepare": "husky",
     "security:sast": "node scripts/sast.mjs",
     "schema:exec": "node scripts/exec-schema.mjs",
+    "schema:report": "node scripts/schema-report.mjs",
     "reference:generate": "node scripts/gen-reference.mjs",
     "check:reference": "node scripts/gen-reference.mjs --check"
   },

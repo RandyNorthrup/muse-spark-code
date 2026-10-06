@@ -1,0 +1,517 @@
+{
+  "format": "report-v1",
+  "header": {
+    "kind": "milestone",
+    "scope": "Fixture workspace",
+    "asOf": "2026-10-06T12:00:00+00:00",
+    "generatorVersion": "0.14.2",
+    "contentHash": "1227602e0587a9af7b4540a9d80354a045c6e2458d6d114453fc4fe7d55451c0"
+  },
+  "needsYou": {
+    "id": "needsYou",
+    "label": "needsYou",
+    "sortKey": "key",
+    "columns": [
+      {
+        "key": "detail",
+        "label": "questions"
+      }
+    ],
+    "rows": [
+      {
+        "key": "0-owner",
+        "cells": {
+          "detail": {
+            "type": "text",
+            "value": "Choose the release channel."
+          }
+        },
+        "sourceIds": [
+          "plan"
+        ]
+      },
+      {
+        "key": "1-channel",
+        "cells": {
+          "detail": {
+            "type": "text",
+            "value": "Open VSX is behind the tag."
+          }
+        },
+        "sourceIds": [
+          "git"
+        ]
+      },
+      {
+        "key": "2-ci",
+        "cells": {
+          "detail": {
+            "type": "text",
+            "value": "Default branch quality failed."
+          }
+        },
+        "sourceIds": [
+          "github"
+        ]
+      }
+    ],
+    "omittedRows": 0
+  },
+  "sections": [
+    {
+      "id": "status",
+      "label": "status",
+      "sortKey": "key",
+      "columns": [
+        {
+          "key": "name",
+          "label": "name"
+        },
+        {
+          "key": "state",
+          "label": "status"
+        }
+      ],
+      "rows": [
+        {
+          "key": "a-M12",
+          "cells": {
+            "name": {
+              "type": "text",
+              "value": "M12: fixture contracts | <release> & \"notes\""
+            },
+            "state": {
+              "type": "label",
+              "value": "planned"
+            }
+          },
+          "sourceIds": [
+            "git",
+            "plan"
+          ]
+        },
+        {
+          "key": "b-M110a0",
+          "cells": {
+            "name": {
+              "type": "text",
+              "value": "M110a0: fixture runtime\nA second commit."
+            },
+            "state": {
+              "type": "label",
+              "value": "merged"
+            }
+          },
+          "sourceIds": [
+            "git"
+          ]
+        }
+      ],
+      "omittedRows": 12
+    },
+    {
+      "id": "goal",
+      "label": "goal",
+      "sortKey": "key",
+      "columns": [
+        {
+          "key": "name",
+          "label": "name"
+        },
+        {
+          "key": "state",
+          "label": "status"
+        }
+      ],
+      "rows": [
+        {
+          "key": "a-M12",
+          "cells": {
+            "name": {
+              "type": "text",
+              "value": "M12: fixture contracts"
+            },
+            "state": {
+              "type": "label",
+              "value": "planned"
+            }
+          },
+          "sourceIds": [
+            "git",
+            "plan"
+          ]
+        },
+        {
+          "key": "b-M110a0",
+          "cells": {
+            "name": {
+              "type": "text",
+              "value": "M110a0: fixture runtime\nA second commit."
+            },
+            "state": {
+              "type": "label",
+              "value": "merged"
+            }
+          },
+          "sourceIds": [
+            "git"
+          ]
+        }
+      ],
+      "omittedRows": 0
+    },
+    {
+      "id": "dependencies",
+      "label": "dependencies",
+      "sortKey": "key",
+      "columns": [
+        {
+          "key": "name",
+          "label": "name"
+        },
+        {
+          "key": "state",
+          "label": "status"
+        }
+      ],
+      "rows": [
+        {
+          "key": "a-M12",
+          "cells": {
+            "name": {
+              "type": "text",
+              "value": "M12: fixture contracts"
+            },
+            "state": {
+              "type": "label",
+              "value": "planned"
+            }
+          },
+          "sourceIds": [
+            "git",
+            "plan"
+          ]
+        },
+        {
+          "key": "b-M110a0",
+          "cells": {
+            "name": {
+              "type": "text",
+              "value": "M110a0: fixture runtime\nA second commit."
+            },
+            "state": {
+              "type": "label",
+              "value": "merged"
+            }
+          },
+          "sourceIds": [
+            "git"
+          ]
+        }
+      ],
+      "omittedRows": 0
+    },
+    {
+      "id": "lanes",
+      "label": "lanes",
+      "sortKey": "key",
+      "columns": [
+        {
+          "key": "name",
+          "label": "name"
+        },
+        {
+          "key": "state",
+          "label": "status"
+        }
+      ],
+      "rows": [
+        {
+          "key": "a-M12",
+          "cells": {
+            "name": {
+              "type": "text",
+              "value": "M12: fixture contracts"
+            },
+            "state": {
+              "type": "label",
+              "value": "planned"
+            }
+          },
+          "sourceIds": [
+            "git",
+            "plan"
+          ]
+        },
+        {
+          "key": "b-M110a0",
+          "cells": {
+            "name": {
+              "type": "text",
+              "value": "M110a0: fixture runtime\nA second commit."
+            },
+            "state": {
+              "type": "label",
+              "value": "merged"
+            }
+          },
+          "sourceIds": [
+            "git"
+          ]
+        }
+      ],
+      "omittedRows": 0
+    },
+    {
+      "id": "certification",
+      "label": "certification",
+      "sortKey": "key",
+      "columns": [
+        {
+          "key": "name",
+          "label": "name"
+        },
+        {
+          "key": "state",
+          "label": "status"
+        }
+      ],
+      "rows": [
+        {
+          "key": "a-M12",
+          "cells": {
+            "name": {
+              "type": "text",
+              "value": "M12: fixture contracts"
+            },
+            "state": {
+              "type": "label",
+              "value": "planned"
+            }
+          },
+          "sourceIds": [
+            "git",
+            "plan"
+          ]
+        },
+        {
+          "key": "b-M110a0",
+          "cells": {
+            "name": {
+              "type": "text",
+              "value": "M110a0: fixture runtime\nA second commit."
+            },
+            "state": {
+              "type": "label",
+              "value": "merged"
+            }
+          },
+          "sourceIds": [
+            "git"
+          ]
+        }
+      ],
+      "omittedRows": 0
+    },
+    {
+      "id": "gates",
+      "label": "gates",
+      "sortKey": "key",
+      "columns": [
+        {
+          "key": "name",
+          "label": "name"
+        },
+        {
+          "key": "state",
+          "label": "status"
+        }
+      ],
+      "rows": [
+        {
+          "key": "a-M12",
+          "cells": {
+            "name": {
+              "type": "text",
+              "value": "M12: fixture contracts"
+            },
+            "state": {
+              "type": "label",
+              "value": "planned"
+            }
+          },
+          "sourceIds": [
+            "git",
+            "plan"
+          ]
+        },
+        {
+          "key": "b-M110a0",
+          "cells": {
+            "name": {
+              "type": "text",
+              "value": "M110a0: fixture runtime\nA second commit."
+            },
+            "state": {
+              "type": "label",
+              "value": "merged"
+            }
+          },
+          "sourceIds": [
+            "git"
+          ]
+        }
+      ],
+      "omittedRows": 0
+    },
+    {
+      "id": "residuals",
+      "label": "residuals",
+      "sortKey": "key",
+      "columns": [
+        {
+          "key": "name",
+          "label": "name"
+        },
+        {
+          "key": "state",
+          "label": "status"
+        }
+      ],
+      "rows": [
+        {
+          "key": "a-M12",
+          "cells": {
+            "name": {
+              "type": "text",
+              "value": "M12: fixture contracts"
+            },
+            "state": {
+              "type": "label",
+              "value": "planned"
+            }
+          },
+          "sourceIds": [
+            "git",
+            "plan"
+          ]
+        },
+        {
+          "key": "b-M110a0",
+          "cells": {
+            "name": {
+              "type": "text",
+              "value": "M110a0: fixture runtime\nA second commit."
+            },
+            "state": {
+              "type": "label",
+              "value": "merged"
+            }
+          },
+          "sourceIds": [
+            "git"
+          ]
+        }
+      ],
+      "omittedRows": 0
+    },
+    {
+      "id": "questions",
+      "label": "questions",
+      "sortKey": "key",
+      "columns": [
+        {
+          "key": "name",
+          "label": "name"
+        },
+        {
+          "key": "state",
+          "label": "status"
+        }
+      ],
+      "rows": [
+        {
+          "key": "a-M12",
+          "cells": {
+            "name": {
+              "type": "text",
+              "value": "M12: fixture contracts"
+            },
+            "state": {
+              "type": "label",
+              "value": "planned"
+            }
+          },
+          "sourceIds": [
+            "git",
+            "plan"
+          ]
+        },
+        {
+          "key": "b-M110a0",
+          "cells": {
+            "name": {
+              "type": "text",
+              "value": "M110a0: fixture runtime\nA second commit."
+            },
+            "state": {
+              "type": "label",
+              "value": "merged"
+            }
+          },
+          "sourceIds": [
+            "git"
+          ]
+        }
+      ],
+      "omittedRows": 0
+    }
+  ],
+  "sources": [
+    {
+      "id": "git",
+      "observedAt": "2026-10-06T11:00:00.000+00:00",
+      "freshness": {
+        "state": "stale",
+        "ageMs": 3600000
+      },
+      "status": "partial",
+      "reason": "Commit bound reached."
+    },
+    {
+      "id": "github",
+      "observedAt": null,
+      "freshness": {
+        "state": "unknown",
+        "ageMs": null
+      },
+      "status": "unavailable",
+      "reason": "Network is off."
+    },
+    {
+      "id": "plan",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "usage",
+      "observedAt": null,
+      "freshness": {
+        "state": "unknown",
+        "ageMs": null
+      },
+      "status": "notApplicable",
+      "reason": "Journal integration is not present."
+    }
+  ],
+  "footer": {
+    "rendererVersion": "1",
+    "icuVersion": "77.1",
+    "locale": "en"
+  }
+}

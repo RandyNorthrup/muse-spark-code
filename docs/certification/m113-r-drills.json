@@ -1,0 +1,222 @@
+[
+  {
+    "id": "snapshot-scrub",
+    "file": "redaction.ts",
+    "test": "reportRedaction.test.ts",
+    "namedTest": "scrubs commit subjects",
+    "exit": 1,
+    "namedFailureObserved": true,
+    "restored": true,
+    "sha256": "f20ccab9b17ba80b67b9bb2b296c58d7179acc546f49587d03600de091dd4b4d"
+  },
+  {
+    "id": "snapshot-key-collision",
+    "file": "redaction.ts",
+    "test": "reportRedaction.test.ts",
+    "namedTest": "scrubs source dictionary keys",
+    "exit": 1,
+    "namedFailureObserved": true,
+    "restored": true,
+    "sha256": "f20ccab9b17ba80b67b9bb2b296c58d7179acc546f49587d03600de091dd4b4d"
+  },
+  {
+    "id": "canonical-scrub",
+    "file": "canonical.ts",
+    "test": "reportRedaction.test.ts",
+    "namedTest": "scrubs canaries",
+    "exit": 1,
+    "namedFailureObserved": true,
+    "restored": true,
+    "sha256": "639e2a9284706a0cacf4ebcd47c7632083b06096daeb9032643c436616ca9794"
+  },
+  {
+    "id": "output-scrub",
+    "file": "canonical.ts",
+    "test": "reportRedaction.test.ts",
+    "namedTest": "scrubs the final formatted output boundary",
+    "exit": 1,
+    "namedFailureObserved": true,
+    "restored": true,
+    "sha256": "639e2a9284706a0cacf4ebcd47c7632083b06096daeb9032643c436616ca9794"
+  },
+  {
+    "id": "hash-verification",
+    "file": "canonical.ts",
+    "test": "render.json.test.ts",
+    "namedTest": "hashes scrubbed canonical bytes",
+    "exit": 1,
+    "namedFailureObserved": true,
+    "restored": true,
+    "sha256": "639e2a9284706a0cacf4ebcd47c7632083b06096daeb9032643c436616ca9794"
+  },
+  {
+    "id": "hash-excludes-asof",
+    "file": "canonical.ts",
+    "test": "render.json.test.ts",
+    "namedTest": "hashes scrubbed canonical bytes",
+    "exit": 1,
+    "namedFailureObserved": true,
+    "restored": true,
+    "sha256": "639e2a9284706a0cacf4ebcd47c7632083b06096daeb9032643c436616ca9794"
+  },
+  {
+    "id": "schema-errors-fixed",
+    "file": "canonical.ts",
+    "test": "render.json.test.ts",
+    "namedTest": "refuses malformed saved input",
+    "exit": 1,
+    "namedFailureObserved": true,
+    "restored": true,
+    "sha256": "639e2a9284706a0cacf4ebcd47c7632083b06096daeb9032643c436616ca9794"
+  },
+  {
+    "id": "parse-errors-fixed",
+    "file": "canonical.ts",
+    "test": "render.json.test.ts",
+    "namedTest": "refuses a scrubbed JSON parse failure",
+    "exit": 1,
+    "namedFailureObserved": true,
+    "restored": true,
+    "sha256": "639e2a9284706a0cacf4ebcd47c7632083b06096daeb9032643c436616ca9794"
+  },
+  {
+    "id": "stable-row-order",
+    "file": "canonical.ts",
+    "test": "determinism.test.ts",
+    "namedTest": "ignores fact-row",
+    "exit": 1,
+    "namedFailureObserved": true,
+    "restored": true,
+    "sha256": "639e2a9284706a0cacf4ebcd47c7632083b06096daeb9032643c436616ca9794"
+  },
+  {
+    "id": "clock-read",
+    "file": "canonical.ts",
+    "test": "determinism.test.ts",
+    "namedTest": "without clock or randomness reads",
+    "exit": 1,
+    "namedFailureObserved": true,
+    "restored": true,
+    "sha256": "639e2a9284706a0cacf4ebcd47c7632083b06096daeb9032643c436616ca9794"
+  },
+  {
+    "id": "backend-import",
+    "file": "index.ts",
+    "test": "determinism.test.ts",
+    "namedTest": "complete renderer import graph",
+    "exit": 1,
+    "namedFailureObserved": true,
+    "restored": true,
+    "sha256": "6b7330e07daa2f84897e3d69f8c03fb2aeb40f562d03c69d68f9ebb458e87623"
+  },
+  {
+    "id": "source-honesty",
+    "file": "display.ts",
+    "test": "render.md.test.ts",
+    "namedTest": "every source status",
+    "exit": 1,
+    "namedFailureObserved": true,
+    "restored": true,
+    "sha256": "6d32c60355ec1961ab89f5ae3b84e75766eaf6d58e77a0a6856dccdcd1151ebd"
+  },
+  {
+    "id": "markdown-escaping",
+    "file": "markdown.ts",
+    "test": "render.md.test.ts",
+    "namedTest": "escapes table pipes",
+    "exit": 1,
+    "namedFailureObserved": true,
+    "restored": true,
+    "sha256": "76d572fd530fdd5365465cad293779c046d4712dac6fba70d14b762f01624cfd"
+  },
+  {
+    "id": "html-escaping",
+    "file": "html.ts",
+    "test": "render.html.test.ts",
+    "namedTest": "escapes source markup",
+    "exit": 1,
+    "namedFailureObserved": true,
+    "restored": true,
+    "sha256": "ca0e331d265a04443d7970062671cb4742aae8498fa4ba3f97728f5e85058b03"
+  },
+  {
+    "id": "theme-injection",
+    "file": "html.ts",
+    "test": "render.html.test.ts",
+    "namedTest": "rejects CSS",
+    "exit": 1,
+    "namedFailureObserved": true,
+    "restored": true,
+    "sha256": "ca0e331d265a04443d7970062671cb4742aae8498fa4ba3f97728f5e85058b03"
+  },
+  {
+    "id": "terminal-width",
+    "file": "text.ts",
+    "test": "render.text.test.ts",
+    "namedTest": "at 80 cells",
+    "exit": 1,
+    "namedFailureObserved": true,
+    "restored": true,
+    "sha256": "f68377ea9ec1718678a9b94266e4475b25ea410c04f7797445e1a284b320a7a9"
+  },
+  {
+    "id": "terminal-controls",
+    "file": "display.ts",
+    "test": "render.text.test.ts",
+    "namedTest": "removes terminal controls",
+    "exit": 1,
+    "namedFailureObserved": true,
+    "restored": true,
+    "sha256": "6d32c60355ec1961ab89f5ae3b84e75766eaf6d58e77a0a6856dccdcd1151ebd"
+  },
+  {
+    "id": "report-offset",
+    "file": "timestamp.ts",
+    "test": "render.json.test.ts",
+    "namedTest": "writes timestamps with the report offset",
+    "exit": 1,
+    "namedFailureObserved": true,
+    "restored": true,
+    "sha256": "57743634ec85d8d022d395818c44a6fc494264c3731805b51304ed01e155aa80"
+  },
+  {
+    "id": "pre-escape-scrub",
+    "file": "display.ts",
+    "test": "reportRedaction.test.ts",
+    "namedTest": "scrubs freshly emitted md",
+    "exit": 1,
+    "namedFailureObserved": true,
+    "restored": true,
+    "sha256": "6d32c60355ec1961ab89f5ae3b84e75766eaf6d58e77a0a6856dccdcd1151ebd"
+  },
+  {
+    "id": "schema-drift",
+    "file": "docs/schemas/report-v1.schema.json",
+    "test": "render.json.test.ts",
+    "namedTest": "runs the schema generator check",
+    "exit": 1,
+    "namedFailureObserved": true,
+    "restored": true,
+    "sha256": "626147fd6c82caa63a01a1282e9030357444a52cdd2ce0c19abcd9351816b7fe"
+  },
+  {
+    "id": "valid-theme-color",
+    "file": "html.ts",
+    "test": "render.html.test.ts",
+    "namedTest": "rejects CSS",
+    "exit": 1,
+    "namedFailureObserved": true,
+    "restored": true,
+    "sha256": "523b54f4993d7416a22088cc879ca81ef8266cab5bb59f3788e6de9c21b8beac"
+  },
+  {
+    "id": "nested-hash-scrub",
+    "file": "canonical.ts",
+    "test": "reportRedaction.test.ts",
+    "namedTest": "does not exempt a source cell named contentHash",
+    "exit": 1,
+    "namedFailureObserved": true,
+    "restored": true,
+    "sha256": "863d69e542cf63be26230df90eca6e7c7b3986135b4c615b58de79cd49c608c8"
+  }
+]
