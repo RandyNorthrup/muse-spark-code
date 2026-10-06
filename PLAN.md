@@ -4473,7 +4473,10 @@ Items 13–16 of the owner's requests of 2026-10-03 (D66). The choices:
     synced from a computer that has it) keeps its stored title in the
     Bookmarked group once every page has been read. It is marked not
     available here, and its only action is Remove.
-- **Timed sends (item 15) extend M52.**
+- **Timed sends (item 15) extend M52.** **Superseded 2026-10-06 by D95
+  (M115):** items 15 and 16 become M115's once trigger and its Resume later,
+  run unattended under a schedule's grant instead of in the conversation's
+  mode; the rest of D67 stands.
   - **A one-shot cadence.** `{ kind: 'once', atMs }` joins `interval` and
     `cron` (`src/shared/schedule.ts`). It fires once and ends after its
     attempt.
@@ -10781,6 +10784,9 @@ The owner, 2026-10-05:
    or clarify at once; M96's workers, when they merge, decline as unattended
    work does. Scheduled prompts are interactive (above) and get decision 2.
    `docs/ci.md` and the README say so.
+   - **Amended 2026-10-06 by D95:** scheduled prompts become unattended
+     (M115). Their questions defer at once, without the minute, and stay open
+     and answerable like any other.
 
 9. **Every editor** (D84):
 
@@ -10904,6 +10910,7 @@ Gates` appears twice (lines 24216 and 24793) with M98's entry inside the
    | `fleet`                       | —                                                                                                                                                             | agents now: sessions, subagents, best-of-N candidates, schedules, background tasks; team workers and lanes; paired devices; nodes                                                                                                                       | the hosts' live state; M96's team host; M100; M110                               | b (local agents), c           | M96; M100; M110a                        |
    | `security`                    | —                                                                                                                                                             | the vault's tier; items by kind; grants, uses, denials and locks, never a value; developer options' audit (D88's amendment)                                                                                                                             | M109's audit; the developer audit                                                | c                             | M109                                    |
    | `accounts`                    | —                                                                                                                                                             | accounts per provider, their placement, thresholds and use, swaps and stops, confirmations (labels resolved locally)                                                                                                                                    | M108                                                                             | c                             | M108                                    |
+   | `schedules`                   | —                                                                                                                                                             | the timeline of upcoming fires and their collisions; each schedule's trigger, target, delivery, grant and who set it; recent fires with outcomes (ran, refused, missed, skipped, failed), refused actions and cost                                      | M115's store and fire record                                                     | a, once M115 has merged       | M115                                    |
    | `keybindings`                 | —                                                                                                                                                             | every key binding in effect, with its command and where it applies: the editor's (from `package.json` and the feature catalogue), the panel's, ACP's commands, the desktop's (D91.15's amendment) and the TUI's; conflicts flagged                      | `package.json`, `featureCatalog.ts`, the desktop's generated configuration       | a (editors); c (desktop, TUI) | the desktop: M111a; the TUI: M110a0's T |
    | `/report` alone               | —                                                                                                                                                             | the picker: every kind with its last report's age; **Report a problem…** opens M93's dialog                                                                                                                                                             | —                                                                                | a                             | —                                       |
 
@@ -11213,7 +11220,286 @@ consumes it (D91.19's amendment).
 8. **What it never does:** restyle VS Code's own interface; blur a control;
    move for decoration alone; download a font without the user's click.
 
+---
+
+### D95 — Scheduled prompts v2: unattended, stacked, with a delivery mode (M115, 2026-10-06)
+
+The owner, 2026-10-05, after D92 noted that scheduled prompts block on their
+questions today: "scheduled prompts should be unattended and they should be
+either single trigger schedule or repeating or scheduled to trigger custom
+and they can be stacked so to say basically you can schedule multiple to
+trigger at different times and you should be able to set the prompt as a
+steer or an interrupt". Then: "the orchestrator should be able to set
+scheduled prompts for agents as well", and "we should also be able to set
+prompts to trigger off of a status as well ie a pr merging or a milestone
+completion etc".
+
+**What exists** (read on main at `2d4d72bd3`):
+
+- **M52's Model API schedules.** `src/shared/schedule.ts:7–63` has two
+  cadences (`interval`, `cron`), a job bound to one session, workspace and
+  key digest, and a store whose `claim` admits an occurrence once.
+  `src/core/backends/modelapi/schedules.ts` parses `/loop` and computes the
+  next fire (`nextScheduleFire`, line 155) with a local five-field cron
+  matcher. `src/host/backend/fileScheduleStore.ts` keeps one file per job in
+  VS Code's workspace storage and admits a fire by creating its receipt with
+  `wx`, never rolled back (lines 1–5, 219–221). The limits are in
+  `constants.ts:3137–3144`: at least one minute, at most seven days between
+  fires, a seven-day lifetime, 4,000 characters, a 60-second poll, and 100
+  jobs per session.
+- **Every fire asks.** A due occurrence waits for **Run**, which opens a
+  per-run price modal (`conversationController.ts:7015–7046`,
+  `confirmScheduledRun`), then `ModelApiHost.runSchedule`
+  (`ModelApiHost.ts:10825–10862`) re-checks the session, model, paid gate,
+  claim and account. The run goes into the open conversation in its current
+  mode, so its approvals and questions wait for a person (D92's finding).
+- **Only the Model API, only a loaded session.** Muse Code's own cron tools
+  (`cron_create`, `cron_list`, `cron_delete`, `SCHEDULE_TOOLS` at
+  `constants.ts:1392`) run inside its turns and cannot be listed from the
+  panel; nothing runs while VS Code is closed (D4). ACP has no schedules;
+  headless `exec` refuses them (AGENTS rule 12).
+- **Planned, not built:** M88's lane C (D67, items 15 and 16): a one-shot
+  cadence, timed sends on Muse Code in an extension store, and **Resume
+  later** after a limit, each running in the conversation's mode.
+- **Related, unchanged:** M45's goal wakes (the model's own continuation),
+  M96c's task scheduler (the team's picks and slots), D87.2's `schedule`
+  governed kind, D89's unattended marking (M109 lane R), D83.8's unattended
+  refusals.
+
+1. **Scheduled prompts run unattended, end to end.** Each fire carries a run
+   context, `{ unattended: true, scheduleId, runId, grant, creator }`,
+   through both backends, the hooks, the tools and the paid gate:
+   - **Approvals that need a person are refused,** never left waiting. The
+     transcript row says "Refused on schedule: {action} needs approval and
+     is not in this schedule's grant", and the model is told it was refused
+     (the Model API's rejection result; Muse Code's `approval/decide` reject,
+     as best-of-N's decliner does, `worktreeConversationHost.ts:200–215`).
+   - **Questions defer at once** (D92), with no minute's wait, since nobody
+     is there; they stay open and answerable later.
+   - **Physical actions** (D83) are always refused (D83.8).
+   - **Money:** the paid budget applies, and paid use beyond what the
+     schedule's consent covers (decision 3) is refused before any request.
+   - **The mode.** A schedule runs in the mode chosen when it was made:
+     Manual, Plan, Accept edits or Auto. Bypass is never offered: the grant
+     is how a schedule is trusted. Whatever that mode would ask a person
+     about is matched against the grant; anything else is refused.
+   - **Never granted:** protected paths (`isProtectedPath`,
+     `src/core/protectedPaths.ts`), `requiresAsking` tools, and anything
+     D65 denies headless runs.
+   - **What the model reads.** The prompt is an ordinary user message with
+     one fixed note in it (`SCHEDULE_MODEL_TEXT.unattendedNote`: sent on a
+     schedule, nobody is watching, requests outside the grant are refused).
+     The system prompt and the tool list are unchanged, so the request's
+     prefix stays cache-stable (the golden requests).
+   - **Governed:** a fire is background work of kind `schedule` (D87.2): it
+     waits at M107's pause, with "waiting: machine busy", and never jumps
+     its queue.
+
+2. **A standing grant per schedule.** When a schedule is made, the user may
+   grant it an allow-list:
+   - **tools and commands,** in the session-rule syntax the approval card
+     already offers ("Always allow" prefixes, MCP tool names);
+   - **paths,** as workspace-relative globs, never outside the workspace;
+   - **a paid cap** (decision 3).
+
+   The grant is shown on the schedule's card, revocable at any time, and
+   audited: its creation, each change, its revocation, and each use (the run
+   id, the rule that matched, the action), without arguments or file
+   contents. M109's vault grants apply to a scheduled run only when they are
+   scoped to that schedule (D89's requester, `schedule:<id>`). Without a
+   grant, decision 1's refusals apply to everything that asks.
+
+3. **Paid consent once per schedule.** On the Model API a schedule is the
+   `scheduledPrompts` paid feature (D34, D48, D78). Creating one shows D48's
+   question once for that schedule: the prompt, the model, its price tier,
+   the cadence, and the cap per local day (`SCHEDULE_PAID_CAP_DEFAULT_USD`,
+   $1.00), plus any paid extras it may use (search, images), each ticked.
+   Each fire then reserves inside both the cap and D78's shared daily
+   budget; a fire that would pass either is refused before its request and
+   recorded. A changed model, key or price tier sends the schedule back to
+   ask again before its next fire. This is D48's "Allow always", scoped to
+   one schedule and one cap; AGENTS rule 12 gains its line. M52's per-run
+   **Run** modal goes. Muse Code's subscription pays for its own turns, so
+   it has no paid gate (M88's ruling).
+
+4. **Time triggers** (decision 11 adds events, and the two compose).
+   - **Once:** a date and time.
+   - **Repeating:** every N minutes, hours or days; on weekdays; or a
+     weekly set of days, each with its times.
+   - **Custom:** a five-field cron expression (M52's matcher), with the next
+     five fire times previewed in the user's time zone before saving.
+   - **End conditions,** optional: an end date, or after N runs.
+   - **Time zones and daylight saving.** A schedule stores the IANA zone it
+     was made in and is computed there with `Intl.DateTimeFormat` (no
+     dependency), so moving the machine does not shift it. Elapsed-time
+     kinds (every N minutes or hours) ignore wall-clock changes. Wall-clock
+     kinds follow the zone: a time skipped by a spring-forward fires at the
+     first minute after the gap; a time repeated by a fall-back fires once,
+     the first time.
+   - **Limits:** at least `SCHEDULE_MIN_INTERVAL_MS` (one minute) between
+     fires, as now. M52's seven-day lifetime ends: `/loop` keeps Muse Code's
+     grammar and its seven days as its default end date, and other schedules
+     end only by their own condition. A schedule whose last
+     `SCHEDULE_PAUSE_AFTER_FAILURES` (3) fires failed is paused, saying why.
+
+5. **Stacking.** Any number of schedules (up to `SCHEDULE_MAX_PER_WORKSPACE`,
+   200), each with its own prompt, kind, target and delivery mode.
+   - A **timeline** shows the upcoming fires across all of them (the next
+     24 hours, or 7 days), marking collisions: fires on one target within
+     `SCHEDULE_COLLISION_WINDOW_MS` (60 seconds) of each other.
+   - **Colliding fires run in creation order,** one after another, unless
+     each is set to **Run in parallel**, which needs the new-conversation
+     delivery.
+
+6. **Delivery mode, per schedule:**
+   - **Steer:** injected into the running turn (`submit`'s steer); with no
+     turn running, a new turn.
+   - **Interrupt:** the running turn is stopped cleanly, exactly as Stop
+     stops it (on Muse Code its part-decided approvals are rejected first,
+     `PromptLedger.partlyDecided`), then the prompt runs. The card warns that
+     this can stop the user's own turn.
+   - **Queue:** the backend's queued message (M87's queue), run after the
+     current turn ends and withdrawable from the composer as any queued
+     message is.
+   - **New turn when idle** (the default): held by the scheduler until the
+     session is idle, then sent.
+   - **New conversation:** a fresh session for each fire, titled with the
+     schedule's name and the fire's time.
+   - **A closed target:** **Open it** (the default) resumes the session in a
+     background conversation host, as best-of-N's worktree conversations run
+     (`worktreeConversationHost.ts`), without switching the user's panel, and
+     shows it in the Agent map and History with a notice; or **Skip**, which
+     records the fire as missed.
+   - **Missed fires** (the machine was off, asleep, or no host held the
+     workspace): **Run once** (the default: one catch-up, as Muse Code's
+     `/loop` recovers at most one) or **Skip**, per schedule.
+
+7. **Targets:** this conversation; a named conversation (by its id, shown by
+   its title); a new conversation each fire; and, where M96 has merged, a
+   role or a team, as a task on M96c's board under the role's charter.
+
+8. **Agents schedule too** (the owner's second request).
+   - **Tools:** `schedule_prompt`, `schedule_list` and `schedule_cancel`, for
+     orchestrators: the lead conversation, M96's team leads and roles, and
+     M110's orchestrator hosts. A worker has them only if its role's charter
+     allows. (The run's existing transcript row, `scheduled_prompt` at
+     `constants.ts:1391`, keeps its name.)
+   - **Targets:** the agent's own session, a named worker or role, a team,
+     or a node (M110).
+   - **Made by an agent, shown as such:** "Set by {agent} in {session}" on
+     the card, in the list and the timeline, beside the user's own
+     schedules, where the user can edit, pause or cancel any of them.
+   - **No escalation.** An agent's schedule is bounded by its creator's
+     permissions, grant and paid budget at the time of creation, and never
+     by more: its grant is the intersection of what it asks for and what the
+     creator itself had, and its paid cap comes out of the creator's.
+   - **Asked once per schedule.** Creating one asks the user (**Allow**,
+     **Always for this orchestrator**, **Never for this orchestrator**).
+     Always lets that orchestrator create schedules without asking inside a
+     cap: `AGENT_SCHEDULES_MAX_ACTIVE` (10) active, no fire more often than
+     `AGENT_SCHEDULE_MIN_INTERVAL_MS` (15 minutes), and a total paid cap per
+     day.
+   - **Bounded in time and depth.** An agent's schedules end with their team
+     or session unless the user pins them. A scheduled run may create
+     schedules only to a depth of 1 (`AGENT_SCHEDULE_MAX_DEPTH`): a run that
+     was itself scheduled by an agent cannot schedule another unless the user
+     allows it for that schedule.
+   - Every agent-made fire is unattended under decision 1, and stacking,
+     delivery modes and collision order are the same as for the user's.
+
+9. **One store, every editor, never twice.**
+   - **Shared.** Schedules move from VS Code's workspace storage to
+     `<agentDataFolder>/schedules/v1/<workspaceKey>/` (M102's folder
+     convention), so every editor and the runtime see one list. M52's jobs
+     are migrated on first load: copied, verified, then removed.
+   - **Who fires.** Every host process holding the workspace (a VS Code
+     window, the runtime for the companion page, the native plugins and ACP
+     sessions, a Muse Node) runs the scheduler; M52's `wx` claim decides
+     which one fires. The run id is `<scheduleId>:<occurrenceMs>`, so a fire
+     is idempotent across processes, restarts and crashes. No OS service is
+     added on the user's own PC (D4); a node (M110) is the always-on host for
+     schedules that must fire while the PC is off.
+   - **Clocks and sleep.** The scheduler compares the wall clock with the
+     monotonic clock on each poll. A jump (sleep, a clock change, a
+     time-zone change) recomputes every schedule, applies its missed-fire
+     policy, and never fires an occurrence twice.
+   - **The record.** Each fire is recorded: run id, schedule, target,
+     delivery, outcome (ran, refused, missed, skipped, failed), the refused
+     actions, and its cost with M102's certainty. M113's `/report schedules`
+     reads it.
+
+10. **Every editor** (D84):
+
+    | Surface                                          | Schedules                                                                                                                                                   | When                               |
+    | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+    | VS Code family                                   | the schedule list, editor (kind, preview, zone, end, target, delivery, mode, grant, cap) and timeline; `/schedule` and `/loop`; the card's audit and Revoke | M115                               |
+    | JetBrains IDEs, Visual Studio, Eclipse (M104b–d) | the same panel through the bridges; MHP's `schedules/*`                                                                                                     | contract in M115; wired by M104b–d |
+    | The companion page                               | the same panel                                                                                                                                              | M115, on M104 lane C               |
+    | ACP clients                                      | `/schedule add\|list\|remove\|run-now\|timeline`; the run's rows as session updates                                                                         | M115                               |
+    | Any terminal                                     | `muse-spark-code-acp schedule add\|list\|remove\|run-now\|pause\|resume\|timeline\|fire <id> [--json]`                                                      | M115                               |
+    | Headless `exec`                                  | refuses to create or host schedules (AGENTS rule 12, unchanged)                                                                                             | unchanged                          |
+    | The TUI (M110a0 lane T)                          | a Schedules view and the timeline                                                                                                                           | with lane T                        |
+    | Muse Desktop (M111b)                             | the panel; the bar's agents item lists the next fire                                                                                                        | with M111b                         |
+    | A Muse Node (M110)                               | hosts schedules while the user's machines are off                                                                                                           | with M110a0                        |
+
+11. **Event triggers** (the owner's third request). A schedule's trigger is
+    a time (decision 4), an event, or both composed: "after event X, at 09:00
+    the next weekday".
+    - **Event sources** are pluggable and gated by capability: a source that
+      cannot run here (no GitHub remote, no network setting, no M108) is
+      listed as unavailable with its reason, never offered silently.
+
+      | Source              | Events                                                                                                                                    | How it is read                                                                                                                                                  | Waits for                  |
+      | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+      | GitHub and GitLab   | a pull request opened, closed or merged; a review requested; a CI run finished (passed or failed); a release published; an issue labelled | M113's network sources (M71's sign-in, `gh api`, or the public API), polled with ETags under `museSpark.reports.network`; webhooks on an M110 orchestrator host | M113 b (N); webhooks M110c |
+      | Local git           | a branch updated; a tag created                                                                                                           | the repository's refs, read locally                                                                                                                             | —                          |
+      | The plan            | a milestone's status changed; its certification checklist complete                                                                        | M113's plan reader under `check:plan`'s grammar                                                                                                                 | M113 a (P)                 |
+      | Agents and the team | a turn, lane, task or team finished; a question answered (M112)                                                                           | the hosts' own events                                                                                                                                           | M96 for team events        |
+      | Usage               | an M108 account crossing a threshold                                                                                                      | M108's threshold events                                                                                                                                         | M108                       |
+      | Resources           | an M107 level change                                                                                                                      | the governor's events                                                                                                                                           | M107                       |
+      | Files               | a watched glob changed (debounced)                                                                                                        | the editor's or the runtime's file watcher, inside the workspace                                                                                                | —                          |
+      | Release channels    | a version live on the Marketplace, Open VSX or npm                                                                                        | M113's store sources                                                                                                                                            | M113 b (N)                 |
+      | Manual              | a poke                                                                                                                                    | `muse-spark-code-acp schedule fire <id>`, or a webhook on an M110 host                                                                                          | webhooks M110c             |
+
+    - **Conditions** are simple filters on the event's fields (repository,
+      branch, author, label, milestone id, status), with a preview: "would
+      have fired 3 times in the last 7 days", from history where the source
+      keeps one, or "no history to preview" where it does not.
+    - **Firing.** Per trigger, events are debounced and coalesced
+      (`SCHEDULE_EVENT_DEBOUNCE_MS`, 30 seconds); each event instance has an
+      at-most-once run id (`<scheduleId>:<source>:<eventKey>`, claimed as a
+      time fire is), so it never fires twice across restarts; a missed event
+      (no host was running) follows the schedule's catch-up policy. Every
+      fire is unattended (decision 1), with the same delivery modes and
+      targets.
+    - **The event reaches the prompt as data, never as instructions:** a
+      fenced, typed block (the pull request's title, number and URL; the
+      milestone's id and status) marked as untrusted content, carrying D89.7's
+      taint, so text in an event can never widen a grant, add a tool or
+      change a target. Field lengths are bounded and the export's scrub runs
+      over them.
+    - **Agents' event triggers** follow decision 8's no-escalation rule,
+      caps and loop guard; an event that an agent's own run causes (its
+      merge, its finished lane) counts toward the depth.
+12. **What it replaces.** M52's per-run **Run** modal and its "only a loaded
+    session" rule; M52's seven-day lifetime (kept as `/loop`'s default end);
+    M52's workspace-storage store (migrated); and M88's lane C, whose
+    one-shot cadence, Muse Code timed sends and **Resume later** (a once
+    schedule of `MODEL_TEXT.resumePrompt` in the failed turn's session,
+    under M88's limit definitions) become M115's, unattended. If M88's lane
+    C lands first, M115 builds on it. M45's goal wakes and M96c's task
+    scheduler stay as they are. Muse Code's own cron tools stay the model's,
+    inside its turns.
+
 ## 3. Open questions (need the owner)
+
+- **Q-M115 — Schedules while every editor is closed (2026-10-06).** D4 keeps
+  the extension inside its editor, so on the user's own PC a schedule fires
+  only while some editor or the runtime holds the workspace; otherwise its
+  missed-fire policy applies at the next start. An OS scheduler entry (Task
+  Scheduler, launchd, a systemd user timer) that starts the runtime for a
+  due fire would change that. **Default:** no OS entry; a Muse Node (M110)
+  is the always-on host for schedules that must fire while the PC is off.
 
 - **Q-M113 — Two limits on `/report` (2026-10-05).** Nothing here blocks a
   lane; each default is built.
@@ -11743,65 +12029,71 @@ train, and those waiting on outside events, keep their own status lines.
 1. **0.14.1** — in CI: the shell credential fence, the third startup diet and
    the badge fixes. Needs: nothing.
 2. **0.14.2: the `/help` reference** (lane HELPREF) — small, and the owner
-   asked for it as soon as possible; M112, M113 and M114 add their rows to
-   its `featureCatalog`. Needs: 0.14.1.
+   asked for it as soon as possible; M112 to M115 add their rows to its
+   `featureCatalog`. Needs: 0.14.1.
 3. **M112: questions that never block** (D92) — small (about 48
    lane-hours), in 0.14.3, or folded into 0.14.2 when both are ready
    together. Needs: main only; its native-host, TUI and desktop rows wait for
    M104, M110a0 and M111b and block nothing.
-4. **M114: design language and polish** (D94) — right after M112: its lane 0
+4. **M115: scheduled prompts v2** (D95) — right after M112: it shares the
+   deferral and the unattended machinery, and it replaces M52's per-run
+   modal and M88's lane C (timed sends). About 134 lane-hours; ships in the
+   first train after M112 that it is ready for. Needs: M112; event sources,
+   targets and editor rows join as M96, M103, M104, M107, M108, M109, M110
+   and M113 merge, and none blocks the rest.
+5. **M114: design language and polish** (D94) — next after M115: its lane 0
    (the token source and the raw-colour rule) is the prerequisite of every
    UI-building lane that follows, M111's and M110's web UI and TUI design
    among them. The panel's part ships in a 0.16.x patch, after 0.16.0's M104
    so that the companion page and the native webviews are polished in the
    same pass; the desktop's and the node's parts ship with M111 and M110a0.
    Needs: main for lanes 0, A, P1, P2, F and S; M104 for C.
-5. **0.15.0: M95, M96, M97, M101 and M102** — the provider registry, roles
+6. **0.15.0: M95, M96, M97, M101 and M102** — the provider registry, roles
    and the team, the usage journal and the rest of the batch; most later
    milestones build on M95 and M102. Needs: main.
-6. **0.16.0: M98 phase 2, M103 and M104** — the maker guard, MHP, the
+7. **0.16.0: M98 phase 2, M103 and M104** — the maker guard, MHP, the
    companion server and the native bridges, which every later editor row
    uses. Needs: 0.15.0.
-7. **M100: paired devices, first slice** (D80) — missing from the order as
+8. **M100: paired devices, first slice** (D80) — missing from the order as
    given; added here. Its lanes S and E gate M107's relocation, M108's
    devices (now the main multi-account path, D88's placement amendment),
    M109's device part and M110a. Needs: M95, M96 and M96c (0.15.0).
-8. **M106: agent-loop wire guarantees** (D86) — moved before M108: its lane R
+9. **M106: agent-loop wire guarantees** (D86) — moved before M108: its lane R
    (the rate-limit bucket, `pacing.ts`) is what M108's thresholds read, and
    M110r's Y1 builds on it. Needs: M95, M101 and M102 (0.15.0); lane T also
    needs FIXM101P2.
-9. **M107: the resource governor** (D87) — lanes S, T, G, A, C1, U and H need
-   only main and lane 0. Needs: M96 and M96c for C2, M100's S and E for R,
-   M102 for J.
-10. **M109: the vault and broker** (D89) — lanes 0, C, P, B and U need
+10. **M107: the resource governor** (D87) — lanes S, T, G, A, C1, U and H need
+    only main and lane 0. Needs: M96 and M96c for C2, M100's S and E for R,
+    M102 for J.
+11. **M109: the vault and broker** (D89) — lanes 0, C, P, B and U need
     nothing unmerged, so it can run beside M107. Needs: M81's A1 for L; M96
     for R, and M100 and M107's R for R's device part; lane M moves each store
     as its owner merges (M95 K, M108 K, M100 P, M103, M85).
-11. **M108: several accounts per provider** (D88) — corrected: it does not
+12. **M108: several accounts per provider** (D88) — corrected: it does not
     need M109; M109's lane M moves M108's account secrets into the vault
     whichever lands first. Needs: M95 and M102 for lanes 0, K, T, U and J;
     M106's lane R for T; K and P for X (developer options); M100 and M107's R
     for D.
-12. **M105: multimodal input** (D85) — after the governor, vault and accounts
+13. **M105: multimodal input** (D85) — after the governor, vault and accounts
     by size only; nothing in it waits for M107–M109, and delivery a (the
     Files API and the media core) can move up if a slot frees. Needs: M95's
     lane N, M101's C1, P2 and T, M102, and M104's lanes 0, B, C and D.
-13. **M113: deterministic reports** (D93) — runs beside everything from
+14. **M113: deterministic reports** (D93) — runs beside everything from
     M112's lane 0 on. Needs: nothing new for the engine and the project,
     milestone, release, changes, session and editor keybindings kinds; M102
     for usage; M108 for accounts; M109 for security; M96 and, for nodes,
-    M110a for fleet; M110a0's lane T for the TUI; M111a and M111b for the
-    desktop.
-14. **M110a0: the home node, then M110os's first image** (D90) — placed by
+    M110a for fleet; M115 for schedules; M110a0's lane T for the TUI; M111a
+    and M111b for the desktop.
+15. **M110a0: the home node, then M110os's first image** (D90) — placed by
     size (about 360 lane-hours), not by dependency: it needs none of M100,
     M107, M108 or M109, and can start right after 0.16.0 when the owner wants
     it sooner. M110os follows M110a0. Needs: M104a's lanes B, C and D, M63,
     M80 and M89; M114's lane 0 for U1, U2 and TD.
-15. **M110's later phases** — each phase's row in M110's roadmap names its
+16. **M110's later phases** — each phase's row in M110's roadmap names its
     own: M110r's Y1 any time after M106's R and M101's C1 and C2; M110t after
     M110a0; M110a with M100 and M96c; M110b with M107's G and M109; M110c
     after M110a and M110b; M110d to M110h after them. Needs: M110a0.
-16. **M111: Muse Desktop** (D91) — corrected: only M111os and M111i wait for
+17. **M111: Muse Desktop** (D91) — corrected: only M111os and M111i wait for
     M110os (OS1, OS2 and OS4). M111a0 needs only M114's lane 0; M111a is
     built on a Debian 13 virtual machine; M111b runs on fakes and is wired on
     M104a and M110a0; M111c's sections join as M96, M100, M102, M103, M108,
@@ -14549,6 +14841,10 @@ frames are unchanged; no new live hook capture is claimed here.
 - **Acceptance:** tests from the cited reference shapes cover source order, trust/opt-in, bad config, matcher selection, denial, updated input plus permission recheck, failure/timeout/output caps, cancellation, cleared credentials, each applicable event and persisted replay. Red drills show a disabled guard test fails, then restored green. `npm run quality` and the relevant UI/accessibility checks pass. Record local and live evidence in `docs/certification/m51.md`; do not mark complete on unit tests alone.
 
 ### M52 — Scheduled prompts (D36)
+
+**Extended by D95 (M115, 2026-10-06):** unattended runs, kinds, events,
+delivery modes, the shared store and every editor; M52's per-run Run modal
+and loaded-session rule are replaced (D95.12).
 
 **Status 2026-09-27: merged as PR #40 at `93ea81c`; all seven hosted jobs
 passed (run 36294862598)** (`docs/certification/m52.md`). No live model
@@ -21041,6 +21337,10 @@ owns the same string files as in M87.
 | C Timed sends and resume | 15, 16 | `src/shared/schedule.ts`, `src/core/backends/modelapi/schedules.ts`, `src/host/backend/fileScheduleStore.ts`, `ModelApiHost.ts`, `client.ts`, the new `src/host/schedules/museCodeTimedSends.ts` and `src/core/limits.ts`, `SchedulePanel.tsx`, the new `ScheduleSendDialog.tsx`, `Transcript.tsx` (the failed row's Resume later, the timed send's mark), `src/host/conversation/turnNotifications.ts`; tests `schedules.test.ts`, `fileScheduleStore.test.ts`, `SchedulePanel.test.tsx`, `Transcript.test.tsx`, `turnNotifications.test.ts`, the Model API host and client tests, the new `helpers/m88Capture.ts`, and new tests for each new file | Constants: the schedule block (the one-shot lead and horizon, the on-time grace, the resume delay) and `MODEL_TEXT.resumePrompt`. `palette.ts`: the "Schedule this prompt…" row. Styles: the schedule pane block. Harness: after `schedules-narrow`. | After lane P            |
 | W Wiring and join        | all    | `App.tsx`, `App.test.tsx`, `src/extension.ts` (the stores, the runner and the ports), `test/harness/themes/*.json` if a token is new, `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `AGENTS.md`, `PLAN.md`, `docs/PRIVACY.md`, `docs/certification/m88.md`                                                                                                                                                                                                                                                                                                                                                                                         | —                                                                                                                                                                                                                                                    | Last                    |
 
+**Lane C moved to M115 (D95, 2026-10-06):** its one-shot cadence, Muse Code
+timed sends and Resume later are built there, unattended. Lanes 0, P, A, B
+and W stand.
+
 **Lane 0's strings** (English; all 14 tables):
 
 - **A, the library:** `promptLibraryTitle` "Saved prompts",
@@ -25925,18 +26225,18 @@ kind). The usage kind waits for M102, the native-host rows for M104b–d.
   4. Delivery c's rows as their milestones merge.
   5. W last.
 
-| Lane                                          | Items                                                                                                                                                                                                                                                                                                                                                                      | Files it owns                                                                                                                                             | Its regions in shared files                                                                                                                                                                                                                                                                                                                            | Starts                       | Rig      | Hours |
-| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- | -------- | ----: |
-| 0 Contracts, strings, fakes (lead)            | The contracts below; every string; the fakes: a snapshot builder, a fixture repository built with fixed author and committer dates, a fixture plan in each accepted format, recorded GitHub and store responses with their rate-limit headers, a fake journal, a fake registry, a fake clock                                                                               | new `src/shared/reportSchema.ts`, `src/core/reporting/sources/types.ts`, `test/unit/helpers/reporting/**`, `docs/certification/m113-contracts.md`         | `constants.ts` (`REPORT_*`); `en.ts` (the command, the palette item, `/report`'s description) and the 14 tables; the report table family (on M102's mechanism, else a regional block); `package.nls*.json`; `SLASH_COMMAND_NAMES` (`report`); `src/shared/hostApi/**` (`reports/*`, with M104 lane 0's owner); `docs/schemas/` (the generator's entry) | day 0                        | Kubuntu  |    10 |
-| P The plan reader and `check:plan`            | D93.5: the `plan-format` v1 grammar; the status phrase table built from every phrase in today's file; the lanes tables; §3, §8 and §10; the delivery-order list; the `quality-ledger` fence; drift and its messages; milestone id matching; the `check:plan` gate; **today's drift fixed in PLAN.md** (M98 into §6, one §7, the missing status lines), documentation only  | new `src/core/reporting/plan/**`, `scripts/check-plan.mjs`                                                                                                | `package.json` (`check:plan` in `quality:gates`); PLAN.md (the drift fixes only)                                                                                                                                                                                                                                                                       | after 0                      | Kubuntu  |    16 |
-| S Local sources                               | D93.6's local sources: git (log, tags, branches, worktrees, ancestry, bounded), the changelog, `docs/certification/**`, M84's export source for sessions, the session's usage, M112's registry, the workspace's key; each source's status, reason and freshness                                                                                                            | new `src/core/reporting/sources/{git,changelog,certification,session,questions}.ts`, `src/host/reporting/sources.ts`, `src/runtime/reporting/sources.ts`  | `src/core/git/**` (read-only calls, with M71's owner); `src/core/export/sessionTransfer.ts` (the source's export, with M84's owner)                                                                                                                                                                                                                    | after 0                      | Win11 VM |    12 |
-| K Kinds                                       | D93.4: the collectors for project, milestone, release, changes and session (a); usage once M102 merges (a); keybindings for the editors (a); quality and fleet's local agents (b); accounts, security, fleet's devices and nodes, and the desktop's and the TUI's keybindings (c); Needs you; next steps from the delivery order; the row caps and `--full`                | new `src/core/reporting/collect/**`                                                                                                                       | `src/core/usage/aggregate.ts` (a read, with M102's owner); `src/shared/diffTally.ts` (moved from `src/webview/diffTally.ts` so the session kind and the webview share it)                                                                                                                                                                              | after P's and S's interfaces | Kubuntu  |    22 |
-| R Renderers, redaction, determinism           | D93.7 and 8: Markdown, HTML, text and canonical JSON; the scrub at the snapshot and again on each output; escaping per format; ISO dates; the footer; the golden snapshots per kind and format; the determinism harness (two renders in one process and in two child processes with different `TZ` and `LANG`, byte-compared); the JSON Schema generator and its `--check` | new `src/core/reporting/render/**`, `scripts/schema-report.mjs`, `test/fixtures/reports/**`                                                               | `src/core/export/**` (the scrub, reused, with M84's owner); `package.json` (`schema:report`)                                                                                                                                                                                                                                                           | after 0                      | Mac mini |    16 |
-| V VS Code surfaces                            | D93.11's VS Code row: `/report` in the composer and the picker; the report tab with Save as, Copy as Markdown, Attach to message, History, Diff with previous and Refresh; Account & usage's **Usage report**; harness scenes and axe                                                                                                                                      | new `src/host/reporting/reportPanel.ts`, `src/host/reporting/reportPanelEntry.ts` (→ `dist/reportingPanel.js`), `src/webview/reporting/**` (a lazy chunk) | `src/shared/palette.ts` (the item); `conversationController.ts` (the slash region: run by the host, never sent to the model); `UsageDialog.tsx` (the button); `extension.ts` (the command, loaders only); `styles.css` (its region); `test/harness` scenes                                                                                             | after 0; finished after R    | Mac mini |    18 |
-| X The runtime, ACP, the companion, MHP        | D93.11's other rows: the CLI's `report <kind>` beside M93's bare `report` and its `report problem` alias, the flags and exit codes; ACP's `/report` and `/report history`; the companion page's view; MHP's `reports/*` through fake bridges; the TUI's and the desktop's hooks on the same calls                                                                          | new `src/runtime/reporting/reportsCommand.ts`, `src/acp/reports.ts`                                                                                       | `src/runtime/cliArgs.ts` (`report`'s positionals; bare `report` unchanged); `src/runtime/main.ts`; `src/acp/agent.ts` (commands); `src/runtime/companion/server.ts` (the route, with M104 lane C's owner); `scripts/package-acp.mjs`                                                                                                                   | after K and R                | Win11 VM |    14 |
-| N Network sources (b)                         | D93.6's network: GitHub through M71's client, `gh api` or the public API; the store channels; `museSpark.reports.network` and `--network`; rate limits; ETags and the cache; per-source timeouts; channel lag for **Needs you**                                                                                                                                            | new `src/core/reporting/sources/{github,stores}.ts`, `src/core/reporting/sources/cache.ts`                                                                | `src/core/git/github.ts` and `githubRemote.ts` (the REST client's read calls, with M71's owner); the network posture's egress check (`src/host/networkPosture.ts`, with its owner)                                                                                                                                                                     | after R                      | Mac mini |    14 |
-| H History, diff and the check-run journal (b) | D93.9 and 10: the history store and its bound; `report history`; the diff and its section; "No change since"; the check-run journal written by M68's runner (and M96c's slots once merged)                                                                                                                                                                                 | new `src/core/reporting/history.ts`, `src/core/reporting/diff.ts`, `src/core/reporting/checkRuns.ts`                                                      | `src/core/verify/checkCommands.ts` and the verify loop's run site (one append call, with M68's owner); M96c's check slots (the same call, once merged)                                                                                                                                                                                                 | after R                      | Win11 VM |    10 |
-| W Wiring, docs and gates (last)               | `dist/reporting.js` and `dist/reportingPanel.js`, budgets and the split rule (no backend import), `package.json`, the docs, the `/help` rows, registry rows, certification, the full gate                                                                                                                                                                                  | `docs/certification/m113*.md`                                                                                                                             | `scripts/build.mjs`; the bundle-size and split gates; the host API record; knip and dpdm entries; `.vscodeignore`; README; PRIVACY; SECURITY; CHANGELOG; `docs/acp.md`; `docs/ci.md`; `docs/ide-compatibility/**`; `src/shared/featureCatalog.ts`; AGENTS.md's layout; PLAN                                                                            | last                         | Kubuntu  |     8 |
+| Lane                                          | Items                                                                                                                                                                                                                                                                                                                                                                                       | Files it owns                                                                                                                                             | Its regions in shared files                                                                                                                                                                                                                                                                                                                            | Starts                       | Rig      | Hours |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- | -------- | ----: |
+| 0 Contracts, strings, fakes (lead)            | The contracts below; every string; the fakes: a snapshot builder, a fixture repository built with fixed author and committer dates, a fixture plan in each accepted format, recorded GitHub and store responses with their rate-limit headers, a fake journal, a fake registry, a fake clock                                                                                                | new `src/shared/reportSchema.ts`, `src/core/reporting/sources/types.ts`, `test/unit/helpers/reporting/**`, `docs/certification/m113-contracts.md`         | `constants.ts` (`REPORT_*`); `en.ts` (the command, the palette item, `/report`'s description) and the 14 tables; the report table family (on M102's mechanism, else a regional block); `package.nls*.json`; `SLASH_COMMAND_NAMES` (`report`); `src/shared/hostApi/**` (`reports/*`, with M104 lane 0's owner); `docs/schemas/` (the generator's entry) | day 0                        | Kubuntu  |    10 |
+| P The plan reader and `check:plan`            | D93.5: the `plan-format` v1 grammar; the status phrase table built from every phrase in today's file; the lanes tables; §3, §8 and §10; the delivery-order list; the `quality-ledger` fence; drift and its messages; milestone id matching; the `check:plan` gate; **today's drift fixed in PLAN.md** (M98 into §6, one §7, the missing status lines), documentation only                   | new `src/core/reporting/plan/**`, `scripts/check-plan.mjs`                                                                                                | `package.json` (`check:plan` in `quality:gates`); PLAN.md (the drift fixes only)                                                                                                                                                                                                                                                                       | after 0                      | Kubuntu  |    16 |
+| S Local sources                               | D93.6's local sources: git (log, tags, branches, worktrees, ancestry, bounded), the changelog, `docs/certification/**`, M84's export source for sessions, the session's usage, M112's registry, the workspace's key; each source's status, reason and freshness                                                                                                                             | new `src/core/reporting/sources/{git,changelog,certification,session,questions}.ts`, `src/host/reporting/sources.ts`, `src/runtime/reporting/sources.ts`  | `src/core/git/**` (read-only calls, with M71's owner); `src/core/export/sessionTransfer.ts` (the source's export, with M84's owner)                                                                                                                                                                                                                    | after 0                      | Win11 VM |    12 |
+| K Kinds                                       | D93.4: the collectors for project, milestone, release, changes and session (a); usage once M102 merges (a); keybindings for the editors (a); quality and fleet's local agents (b); accounts, security, fleet's devices and nodes, and the desktop's and the TUI's keybindings (c); schedules once M115 has merged; Needs you; next steps from the delivery order; the row caps and `--full` | new `src/core/reporting/collect/**`                                                                                                                       | `src/core/usage/aggregate.ts` (a read, with M102's owner); `src/shared/diffTally.ts` (moved from `src/webview/diffTally.ts` so the session kind and the webview share it)                                                                                                                                                                              | after P's and S's interfaces | Kubuntu  |    22 |
+| R Renderers, redaction, determinism           | D93.7 and 8: Markdown, HTML, text and canonical JSON; the scrub at the snapshot and again on each output; escaping per format; ISO dates; the footer; the golden snapshots per kind and format; the determinism harness (two renders in one process and in two child processes with different `TZ` and `LANG`, byte-compared); the JSON Schema generator and its `--check`                  | new `src/core/reporting/render/**`, `scripts/schema-report.mjs`, `test/fixtures/reports/**`                                                               | `src/core/export/**` (the scrub, reused, with M84's owner); `package.json` (`schema:report`)                                                                                                                                                                                                                                                           | after 0                      | Mac mini |    16 |
+| V VS Code surfaces                            | D93.11's VS Code row: `/report` in the composer and the picker; the report tab with Save as, Copy as Markdown, Attach to message, History, Diff with previous and Refresh; Account & usage's **Usage report**; harness scenes and axe                                                                                                                                                       | new `src/host/reporting/reportPanel.ts`, `src/host/reporting/reportPanelEntry.ts` (→ `dist/reportingPanel.js`), `src/webview/reporting/**` (a lazy chunk) | `src/shared/palette.ts` (the item); `conversationController.ts` (the slash region: run by the host, never sent to the model); `UsageDialog.tsx` (the button); `extension.ts` (the command, loaders only); `styles.css` (its region); `test/harness` scenes                                                                                             | after 0; finished after R    | Mac mini |    18 |
+| X The runtime, ACP, the companion, MHP        | D93.11's other rows: the CLI's `report <kind>` beside M93's bare `report` and its `report problem` alias, the flags and exit codes; ACP's `/report` and `/report history`; the companion page's view; MHP's `reports/*` through fake bridges; the TUI's and the desktop's hooks on the same calls                                                                                           | new `src/runtime/reporting/reportsCommand.ts`, `src/acp/reports.ts`                                                                                       | `src/runtime/cliArgs.ts` (`report`'s positionals; bare `report` unchanged); `src/runtime/main.ts`; `src/acp/agent.ts` (commands); `src/runtime/companion/server.ts` (the route, with M104 lane C's owner); `scripts/package-acp.mjs`                                                                                                                   | after K and R                | Win11 VM |    14 |
+| N Network sources (b)                         | D93.6's network: GitHub through M71's client, `gh api` or the public API; the store channels; `museSpark.reports.network` and `--network`; rate limits; ETags and the cache; per-source timeouts; channel lag for **Needs you**                                                                                                                                                             | new `src/core/reporting/sources/{github,stores}.ts`, `src/core/reporting/sources/cache.ts`                                                                | `src/core/git/github.ts` and `githubRemote.ts` (the REST client's read calls, with M71's owner); the network posture's egress check (`src/host/networkPosture.ts`, with its owner)                                                                                                                                                                     | after R                      | Mac mini |    14 |
+| H History, diff and the check-run journal (b) | D93.9 and 10: the history store and its bound; `report history`; the diff and its section; "No change since"; the check-run journal written by M68's runner (and M96c's slots once merged)                                                                                                                                                                                                  | new `src/core/reporting/history.ts`, `src/core/reporting/diff.ts`, `src/core/reporting/checkRuns.ts`                                                      | `src/core/verify/checkCommands.ts` and the verify loop's run site (one append call, with M68's owner); M96c's check slots (the same call, once merged)                                                                                                                                                                                                 | after R                      | Win11 VM |    10 |
+| W Wiring, docs and gates (last)               | `dist/reporting.js` and `dist/reportingPanel.js`, budgets and the split rule (no backend import), `package.json`, the docs, the `/help` rows, registry rows, certification, the full gate                                                                                                                                                                                                   | `docs/certification/m113*.md`                                                                                                                             | `scripts/build.mjs`; the bundle-size and split gates; the host API record; knip and dpdm entries; `.vscodeignore`; README; PRIVACY; SECURITY; CHANGELOG; `docs/acp.md`; `docs/ci.md`; `docs/ide-compatibility/**`; `src/shared/featureCatalog.ts`; AGENTS.md's layout; PLAN                                                                            | last                         | Kubuntu  |     8 |
 
 Total: about 140 lane-hours: a about 105, b about 30, and c about 5 as its
 milestones merge.
@@ -26244,6 +26544,246 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
   - [ ] The fonts' licences in NOTICES; no font in the VSIX
   - [ ] C with M104, N with M110a0, D with M111, or each named as waiting
   - [ ] Editor rows recorded; budgets measured; the full gate green
+
+---
+
+### M115 — Scheduled prompts v2: unattended, stacked, with a delivery mode (D95)
+
+**Status 2026-10-06: planned.** It comes right after M112 in the delivery
+order: it shares M112's deferral and the unattended machinery, and builds on
+M52's store, claim and cron matcher. No model call is needed outside one live
+check (step 3). Lanes T, S, U, D, G, V and X start on lane 0's contracts and
+need nothing unmerged but M112; event sources, targets and editor rows join
+as their milestones merge (below), and none blocks the rest.
+
+- **Goal.** A user, or an orchestrating agent within the user's limits,
+  schedules any number of prompts to fire once, repeatedly, on a cron
+  expression or on an event (a pull request merged, a milestone certified),
+  each with its target and its delivery (steer, interrupt, queue, new turn,
+  new conversation). Every fire runs unattended: it never waits for a
+  person, refuses what its grant does not cover, defers its questions, stays
+  within its paid cap, never fires twice, and shows on one timeline in every
+  editor.
+- **Depends on.**
+  - **Main:** M52's store, claim, cron matcher and panel; the controller's
+    `submit` (steer and new turn) and Stop; M87's queued messages; best-of-N's
+    background conversation host and decliner; D48 and D78's paid gate and
+    daily budget; M84's scrub.
+  - **M112:** the deferral (`deferQuestions`) and the open-question registry.
+  - **Joining as they merge:** M96 and M96c (role and team targets, team
+    events, team leads' tools); M103 (D83.8's refusal); M104 (MHP, the
+    companion page, the native bridges); M107 (admission as `schedule`, its
+    level events); M108 (threshold events); M109 (vault grants scoped to a
+    schedule, D89.7's taint); M113 a (plan events) and b (GitHub and store
+    events); M110 (nodes as targets and hosts, webhooks on orchestrator
+    hosts); M110a0's lane T (the TUI); M111b (the desktop). M88's lane C is
+    absorbed (D95.12).
+- **Scope.** D95 entire; strings in all 14 tables; README ("Scheduled
+  prompts": kinds, events, delivery, grants, what an unattended run refuses,
+  what happens while everything is closed), AGENTS.md (rule 12's
+  per-schedule consent line), PRIVACY (the fire record, the grant audit),
+  SECURITY (unattended runs, grants, event content as untrusted data),
+  CHANGELOG, `docs/acp.md` (`/schedule`), `docs/ci.md` (`exec` still refuses
+  schedules), `docs/ide-compatibility/**` rows, the `/help` rows, M113's
+  `schedules` kind, certification.
+- **Settings.** `museSpark.modelApiScheduledPrompts` stays the paid gate
+  (D78's availability). New, machine-scoped: `museSpark.schedules` (on);
+  `museSpark.schedules.defaultDelivery` (`whenIdle`); and
+  `museSpark.schedules.agentCreation` (`ask`; `always`, `never`), the default
+  for orchestrators without a remembered answer.
+- **Commands.** **Schedule this prompt…**, **Show schedules**, **Show
+  schedule timeline**; `/schedule` and `/loop` in the composer; ACP's
+  `/schedule`; the CLI's `schedule`.
+- **Lanes and file ownership.** One integration branch,
+  `feature/m115-schedules`, under M87's region rules. Muse implements, Codex
+  reviews in one pass by class, and the lead integrates. T, S, U and G (time,
+  exactly-once, unattended refusals, no escalation) go to Codex or Claude.
+  **Order:**
+  1. Lane 0.
+  2. T, S, U, D, G, V and X in parallel against lane 0's fakes; E's local
+     sources (git, files, agents, manual) at the same time.
+  3. E's other sources as M113, M107, M108 and M96 merge; the targets and
+     editor rows as theirs do.
+  4. The live check; W last.
+
+| Lane                                | Items                                                                                                                                                                                                                                                                                                                                                                                                                               | Files it owns                                                                                                                            | Its regions in shared files                                                                                                                                                                                                                                                                                                                                                                                         | Starts                                       | Rig      | Hours |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- | -------- | ----: |
+| 0 Contracts, strings, fakes (lead)  | The contracts below; M52's v1 jobs mapped to v2 for the migration; every string; the fakes: a clock with IANA zones, daylight-saving gaps and folds, and wall-clock jumps; a session per backend that records steer, cancel, queue and send; a store shared by two processes; a fake source per event kind; a fake approval stream per action class                                                                                 | new `src/shared/scheduleV2.ts`, `src/shared/scheduleEvents.ts`, `test/unit/helpers/schedules/**`, `docs/certification/m115-contracts.md` | `src/shared/schedule.ts` (v1 kept for the migration); `constants.ts` (`SCHEDULE_*`, `AGENT_SCHEDULE*`, and `SCHEDULE_MODEL_TEXT` with its declared readers); `src/shared/protocol.ts` (schedule messages); `src/shared/hostApi/**` (`schedules/*`, with M104 lane 0's owner); `en.ts`, the 14 tables, `package.nls*.json`                                                                                           | day 0                                        | Kubuntu  |    10 |
+| T Time engine                       | D95.4: every time kind to its next fires in the stored zone with `Intl.DateTimeFormat`; gaps and folds; elapsed against wall-clock kinds; the five-fire preview; end conditions; missed-fire computation after a jump or sleep; composing an event with a time; `/loop`'s grammar kept                                                                                                                                              | new `src/core/schedules/time/**`                                                                                                         | `src/core/backends/modelapi/schedules.ts` (the cron matcher moves to `src/core/schedules/time/cron.ts`, with M52's tests)                                                                                                                                                                                                                                                                                           | after 0                                      | Mac mini |    12 |
+| S Store, scheduler, fire record     | D95.5 and 9: the shared store and the migration from workspace storage; claims and run ids for time and event fires; the per-target queue in creation order and **Run in parallel**; the scheduler in every host; the wall and monotonic clock check; pausing after failures; `run-now` and `fire` requests; the fire record                                                                                                        | new `src/core/schedules/{store,scheduler,fireRecord,migrate}.ts`, `src/runtime/schedules/nodeScheduleFs.ts`                              | `src/host/backend/fileScheduleStore.ts` (becomes the adapter, then the migration source); `src/extension.ts` (the store's wiring, loaders only); `src/runtime/dataFolder.ts` (the `schedules` folder)                                                                                                                                                                                                               | after 0                                      | Win11 VM |    14 |
+| U Unattended runs, grants and money | D95.1–3: the run context through both backends; approvals matched against the grant or refused, with their rows (the Model API's rejection; Muse Code's `approval/decide`); questions deferred at once (M112); D83's refusal; protected paths and `requiresAsking` never granted; the mode without Bypass; the grant's editor model, audit and revocation; per-schedule paid consent, cap and D78 reservation; the run's model note | new `src/core/schedules/unattended.ts`, `src/core/schedules/grant.ts`, `src/core/schedules/grantAudit.ts`                                | `ModelApiHost.ts` (`runSchedule`, the approval decision region); `MuseCodeHost.ts` (the approval decision region); `src/core/paid/paidConsent.ts` (the schedule scope); `src/host/paid/paidDailyBudget.ts` (the reservation); `conversationController.ts` (`runSchedule`, the modal removed); the hook dispatcher's unattended flag; M107's admission call and M109's requester id (with their owners, once merged) | after 0, with M112 merged                    | Kubuntu  |    18 |
+| D Delivery and targets              | D95.6 and 7: steer, interrupt, queue, when idle and new conversation on both backends; Stop's path for interrupt; the background conversation host for a closed target; **Skip** and **Run once**; role and team targets on M96c's board once merged                                                                                                                                                                                | new `src/core/schedules/delivery.ts`, `src/host/schedules/backgroundTarget.ts`                                                           | `conversationController.ts` (the delivery region: `submit`, Stop, the queue); `src/core/bestOfN/worktreeConversationHost.ts` (the host reused, with its owner); M96's board admission (with M96's owner, once merged)                                                                                                                                                                                               | after 0                                      | Kubuntu  |    12 |
+| E Event sources                     | D95.11: the source port; local git, files (debounced), agents and turns, questions answered, manual `fire`; the plan (on M113's reader); GitHub and the stores (on M113's network sources, with ETags); M107's levels; M108's thresholds; team events (M96); webhooks on an M110 host; conditions and their preview; coalescing; the fenced, untrusted event block with its bounds and scrub                                        | new `src/core/schedules/events/**`                                                                                                       | M113's `src/core/reporting/sources/**` and `plan/**` (read only, with M113's owner); the hosts' file watchers (with their owners)                                                                                                                                                                                                                                                                                   | after 0; each source as its milestone merges | Mac mini |    18 |
+| G Agents' scheduling                | D95.8: `schedule_prompt`, `schedule_list` and `schedule_cancel` on the Model API and through the runtime's MCP server for Muse Code; who may hold them (the lead, team leads, roles' charters); the targets; the creator's mark; the grant intersection and the paid cap from the creator's; Ask, Always and Never per orchestrator with Always's caps; expiry with the team or session and pinning; the depth guard                | new `src/core/schedules/agentTools.ts`, `src/core/schedules/noEscalation.ts`                                                             | `tools.ts` (declarations, behind their capability; the golden requests updated only where the tools are on); the runtime's MCP server (with its owner); M96's charter schema (the permission, with M96's owner, once merged)                                                                                                                                                                                        | after 0 and U's grant model                  | Win11 VM |    12 |
+| V VS Code surfaces                  | D95.10's VS Code row: the list, the editor (trigger, preview, zone, end, target, delivery, mode, grant, cap, parallel), the timeline with collisions, the card with its audit, Revoke, Pause and the creator; **Schedule this prompt…**; `/schedule` and `/loop`; the transcript's rows (sent on schedule, refused, missed); harness scenes and axe                                                                                 | new `src/webview/schedules/**` (a lazy chunk)                                                                                            | `SchedulePanel.tsx` (replaced by the chunk's list); `palette.ts`; `ToolRow.tsx` and `toolPresentation.ts` (the run's rows); `extension.ts` (commands, loaders only); `styles.css` (its region); `test/harness` scenes                                                                                                                                                                                               | after 0; finished after S and U              | Mac mini |    20 |
+| X Runtime, ACP, CLI, companion, MHP | D95.10's other rows: the runtime's scheduler host; the CLI's `schedule` subcommands with `--json`; ACP's `/schedule`; the companion page through the panel; MHP's `schedules/*` through the fake bridges; the TUI's and the desktop's hooks; `exec`'s refusal kept                                                                                                                                                                  | new `src/runtime/schedules/**`, `src/acp/schedules.ts`                                                                                   | `src/runtime/cliArgs.ts` and `main.ts` (`schedule`); `src/acp/agent.ts` (commands); `src/runtime/companion/server.ts` (with M104 lane C's owner, once merged)                                                                                                                                                                                                                                                       | after 0 and S                                | Win11 VM |    12 |
+| W Wiring, docs, help, report (lead) | `dist/schedules.js` (lazy), budgets, the split rule, `package.json`, the docs, AGENTS.md rule 12's line, the `/help` rows, M113's `schedules` kind, registry rows, certification, the full gate                                                                                                                                                                                                                                     | `docs/certification/m115*.md`                                                                                                            | `scripts/build.mjs`; the bundle-size and split gates; the host API record; README; AGENTS.md; PRIVACY; SECURITY; CHANGELOG; `docs/acp.md`; `docs/ci.md`; `docs/ide-compatibility/**`; `src/shared/featureCatalog.ts`; M113's collector (with its owner); PLAN                                                                                                                                                       | last                                         | Kubuntu  |     6 |
+
+Total: about 134 lane-hours.
+
+- **Lane 0's contracts,** frozen before the other lanes start:
+  - **`scheduleV2.ts`:** the schedule (id, name, trigger, target, delivery,
+    `whenClosed`, `catchUp`, mode, grant, paid consent and cap, parallel,
+    creator, depth, zone, end condition, paused and why) as zod, with the
+    v1-to-v2 mapping; the run context; the fire record and its outcomes.
+  - **`scheduleEvents.ts`:** the event source port (`id`, `capability()`,
+    `poll(since)` or `subscribe`, `history(range)` for the preview), the
+    event instance (`source`, `eventKey`, fields, `observedAt`) and the
+    fenced block's shape.
+  - **Interfaces:** the store (`create`, `list`, `update`, `remove`,
+    `claim(runId)`), the scheduler's host port (`now`, `monotonicNow`,
+    `holds(workspace)`, `deliver`), the grant matcher
+    (`matches(grant, action) → rule | undefined`), and the no-escalation
+    function (`bounded(request, creator) → grant`).
+  - **Messages:** host and webview, and MHP's `schedules/list`, `create`,
+    `update`, `remove`, `runNow` and `timeline`.
+  - **Constants:** `SCHEDULE_MAX_PER_WORKSPACE` (200),
+    `SCHEDULE_COLLISION_WINDOW_MS` (60,000), `SCHEDULE_PAUSE_AFTER_FAILURES`
+    (3), `SCHEDULE_PAID_CAP_DEFAULT_USD` (1.00), `SCHEDULE_EVENT_DEBOUNCE_MS`
+    (30,000), `SCHEDULE_EVENT_FIELD_MAX_CHARS` (500),
+    `AGENT_SCHEDULES_MAX_ACTIVE` (10), `AGENT_SCHEDULE_MIN_INTERVAL_MS`
+    (900,000), `AGENT_SCHEDULE_MAX_DEPTH` (1); `SCHEDULE_MIN_INTERVAL_MS`,
+    `SCHEDULE_MAX_PROMPT_CHARS` and `SCHEDULE_POLL_INTERVAL_MS` kept.
+  - **`SCHEDULE_MODEL_TEXT`:** the unattended note, the refusal reasons and
+    the event block's lead line, read by `dist/schedules.js` and the backends
+    that send them.
+- **Steps.**
+  1. Lane 0.
+  2. The lanes as ordered above, each against the fakes.
+  3. **The live check** (owner-authorized live spend, the contributor model,
+     an empty `C:\muse-live-ws`, counted from the trace logs afterwards, as
+     CLAUDE.md requires): one once-schedule a minute ahead on each backend
+     whose prompt needs an approval outside its grant, asks a question and
+     reads a file inside it. Expected: about 3 inference requests on the
+     Model API and two short Muse Code turns. The record states that the
+     approval was refused with its row, the question deferred, and the read
+     ran.
+  4. Lane W and the full gate.
+- **Acceptance** (fakes unless named):
+  1. **Unattended.** For each action class (shell, edit, MCP, web fetch,
+     paid extra, physical, a protected path, a `requiresAsking` tool) a
+     scheduled run outside its grant refuses at once with its row and
+     reason, on both backends; inside the grant it runs and the audit names
+     the rule. Nothing waits for a person (a spy sees no pending card after
+     the run). A red drill leaves one approval pending, and the test fails.
+  2. **Questions** defer at once and stay open (M112's registry).
+  3. **Money.** Creation asks D48's question once per schedule; fires
+     reserve inside the schedule's cap and D78's budget; a fire past either
+     is refused before HTTP (a spy counts no request); a changed model, key
+     or tier asks again before the next fire. Muse Code has no paid gate.
+  4. **Time.** On the fake clock: every kind's fires in three zones across a
+     spring-forward gap and a fall-back fold; a gap fires once at the first
+     valid minute, a fold once; elapsed kinds unaffected; end conditions; the
+     five-fire preview matches the fires that follow.
+  5. **Never twice.** Two processes, a crash between claim and send, a
+     restart, a clock set back an hour, and a sleep across three fires each
+     give exactly one fire per occurrence and the missed-fire policy's one
+     catch-up (a red drill removes the claim, and the test fails).
+  6. **Stacking.** Colliding fires on one target run in creation order, one
+     after another; **Run in parallel** runs them in separate new sessions;
+     the timeline marks each collision.
+  7. **Delivery,** on both backends: steer reaches the running turn (and
+     starts a turn when idle); interrupt stops as Stop does, rejecting
+     part-decided approvals on Muse Code, then runs; queue is withdrawable;
+     when idle waits; new conversation opens a fresh session; a closed target
+     opens in the background without switching the panel, or is skipped and
+     recorded.
+  8. **The cache.** A scheduled turn's request prefix is byte-identical to an
+     ordinary turn's (the golden requests); only the user message carries
+     the note.
+  9. **Events.** Each source kind fires from its fake; filters select; the
+     preview counts from history; debouncing coalesces a burst into one
+     fire; an event instance fires once across a restart (a red drill drops
+     the event's run id, and the test fails); the event block arrives fenced
+     and marked untrusted, and an injected "grant yourself shell" in a pull
+     request title changes no grant (a red drill lets event text reach the
+     grant, and the test fails).
+  10. **Agents.** An orchestrator creates, lists and cancels through the
+      tools; a worker without the charter's permission cannot; the card says
+      "Set by {agent} in {session}"; the grant never exceeds the creator's
+      (a property test over permission sets; a red drill unions them, and the
+      test fails); Always's caps hold (count, interval floor, paid cap); a
+      depth-2 schedule is refused unless allowed; schedules end with their
+      team or session unless pinned.
+  11. **The store.** M52's jobs migrate with nothing lost and are removed
+      only after verification; every editor sees one list.
+  12. **Editors.** VS Code's list, editor and timeline pass axe in four
+      themes and at 320 px; the companion page; the fake JCEF, WebView2 and
+      SWT bridges; ACP's `/schedule`; the CLI's subcommands with `--json`;
+      `exec` refuses; the TUI and the desktop on the MHP fakes, or named as
+      waiting.
+  13. **Budgets.** As below; activation unchanged.
+- **Tests.** Unit tests per lane with a red drill each, recorded in
+  `docs/certification/m115-<lane>.md`:
+  - `scheduleTime.test.ts` (zones, gaps, folds, previews);
+  - `scheduleStore.test.ts` and `scheduleMigrate.test.ts`;
+  - `scheduler.test.ts` (claims, jumps, collisions, parallel);
+  - `unattended.test.ts` (every action class, both backends);
+  - `scheduleGrant.test.ts` and `grantAudit.test.ts`;
+  - `schedulePaid.test.ts`;
+  - `delivery.test.ts`;
+  - `scheduleEvents.<source>.test.ts` per source, and
+    `eventDedupe.test.ts` across restarts;
+  - `agentSchedules.test.ts` (no escalation, caps, depth, creator);
+  - `acpSchedules.test.ts` and `scheduleCommand.test.ts`;
+  - the e2e `schedules.e2e.test.ts`: the fake Muse Code CLI and the fake
+    Model API through a once fire, a colliding pair, an interrupt and an
+    event fire.
+
+  **Red drills:**
+  - leave an approval pending in a scheduled run;
+  - grant a protected path;
+  - fire an occurrence twice;
+  - fire an event instance twice after a restart;
+  - fire twice in a fall-back fold;
+  - let event text reach a grant;
+  - union an agent's grant with its creator's;
+  - schedule past the depth guard;
+  - spend past a schedule's cap;
+  - put the unattended note in the system prompt.
+
+- **Gates.** The full `npm run quality`, `check:l10n`, the host API record,
+  D6's budgets and the split guard (`SCHEDULE_MODEL_TEXT`'s readers),
+  `test:a11y`, the golden requests, `check:reference`, semgrep.
+- **Security.**
+  - An unattended run can do only what its grant names, inside the
+    workspace, never a protected path; everything else is refused.
+  - Event content is untrusted data: fenced, bounded, scrubbed and tainted;
+    it never changes a grant, a target or a tool.
+  - An agent's schedule never gets more than its creator had, and its depth
+    is bounded.
+  - Grants and their uses are audited without arguments or contents.
+  - No OS service; the store is owner-only; schedules hold no credential.
+  - PLAN §9 records the residuals: a grant the user writes too broadly runs
+    unattended within it; an interrupt can stop the user's own turn, as the
+    card warns; a schedule made on one machine fires only where a host holds
+    its workspace.
+- **Docs.** README; AGENTS.md (rule 12's line); PRIVACY; SECURITY;
+  `docs/acp.md`; `docs/ci.md`; CHANGELOG; the `/help` rows; this plan;
+  certification.
+- **Performance and bundles.**
+
+  | Artifact                  |                            M115 adds (target) | Cap                                                     |
+  | ------------------------- | --------------------------------------------: | ------------------------------------------------------- |
+  | `dist/extension.js`       | ≤ 2 KiB (the scheduler's poll and the loader) | 600 KiB, unchanged                                      |
+  | `dist/schedules.js` (new) |                                       ~45 KiB | measured + 15%, rounded up to 25 KiB                    |
+  | `dist/modelApi.js`        |        ≤ 1 KiB (the run context and refusals) | 475 KiB, unchanged                                      |
+  | `dist/acp.js`             |        ≤ 2 KiB (the command; the engine lazy) | 850 KiB, unchanged                                      |
+  | Webview schedules chunk   |                                       ~14 KiB | inside the 50 KiB optional total, or its own page entry |
+  | `dist/uiText.js`          |                                     ≤ 1.5 KiB | 125 KiB, unchanged (a regional block if it is near)     |
+
+  The poll stays at one minute and reads only the store's index; event
+  sources poll at their own bounded rates under M113's limits.
+
+- **Size.** M–L: about 134 lane-hours.
+- **Certification checklist** (§6.0, plus):
+  - [ ] Lane 0's contracts; M52's migration verified on a real store copy
+  - [ ] Lanes T, S, U, D, G, V and X with their drills
+  - [ ] Each event source with its fake, or named as waiting for its
+        milestone
+  - [ ] The live check counted from the trace logs
+  - [ ] Editor rows recorded; strings in all 14 tables; the `/help` rows;
+        M113's `schedules` kind; budgets measured; the full gate green
 
 ## 7. Gates
 
