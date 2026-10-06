@@ -6842,6 +6842,89 @@ have equivalent functionality even if we need to develop it ourselves".
   qualification (M104g). The research is
   `docs/certification/m104-research.md` (this file, moved in).
 
+- **M104 E3 (2026-10-05), native closure.** Qualify JCEF resource delivery and
+  the shared renderer in the IDE framework under Xvfb, including send,
+  approval and Stop; provide a browser companion when JCEF is unavailable.
+  Restore native inline Tab using the public platform API and frozen
+  `tab/*` methods, retaining the runtime's spend/budget admission. Verify the
+  declared build range against the two latest installed IDEA releases;
+  remove unstable SDK calls rather than suppress their verifier findings.
+  The native browser uses the public IDE HTML loader with the shared built
+  entries folded into nonce-authorized inline assets: intercepted HTTPS and
+  loopback network loading stalled independently on the rig. Construction
+  failure or a readiness deadline selects the existing companion CLI mode;
+  frozen `ui/openExternal` opens its fresh runtime URL. The certification
+  records the stopped approaches; no new companion carrier method is invented.
+- **Native JCEF startup budget (FIXM104E).** `renderPages` checks the actual
+  shipped `main.inline.js` against 950 KiB, the sum of D6's existing shared
+  startup 900 KiB and deferred 50 KiB caps. JCEF eagerly folds both; the
+  shared 900 KiB gate remains unchanged. `whatsNew.inline.js` keeps 25 KiB.
+  The new native checks run before localized pages or the ZIP can be built,
+  and are Gradle inputs. No existing budget is raised.
+- **FIXM104E review closure (2026-10-05).** Fix RVM104E's six findings
+  inside the JetBrains lane: retain bounded cancelled-request correlation;
+  resolve opt-in metadata outside the connection monitor with a deadline and
+  shutdown precedence; dispose the native session, Tab binding and process
+  tree together on transport failure; use the IDE's VS Code-compatible glob
+  matcher for root/nested inclusions and exclusions; add real daemon
+  diagnostics/get and diagnostics/didChange tests; count the shipped inline
+  startup script in a native build gate. Keep existing caps and frozen wire
+  bytes. Each finding gets a regression and byte-exact red drill in
+  `docs/certification/m104-e3.md`. Regression qualification also exposed
+  nullable JSON Schema `type` arrays in the frozen contract: validate those
+  exact declared unions and reject every undeclared type; no wire change.
+  The platform's minimatch brace expansion is a stub, so expand alternatives
+  locally with the shared glob limits (256 characters/alternatives) before
+  invoking that existing matcher. No new dependencies or live calls.
+- **REDM104E lifecycle redesign (2026-10-05).** Replace split host/pipe
+  lifetime management with one generation-scoped connection actor owning the
+  runtime, bounded transport and MHP session. Callers enqueue work only;
+  stream pumps are private supervised I/O tasks, never host-owned. Admission
+  overflow, write timeout, invalid wire data and the metadata deadline fail
+  the entire generation with a fixed diagnostic. Closing marks the generation
+  unavailable immediately, cancels work, requests bounded stream closure and
+  terminates its process containment before bounded worker joins. POSIX
+  process groups and Windows jobs survive parent-first exit; refuse launch
+  if containment cannot be established. Replies and UI callbacks carry the
+  originating generation. Validate integer conversion before narrowing and
+  expose only fixed failure words to Tab/IDE logging. Existing round-one
+  regressions stay; one native stress suite adds all six round-two cases,
+  reconnect/project lifetime coverage and byte-exact red drills. Run strict
+  Plugin Verifier against all three declared IDEA releases. No shared wire,
+  paid behavior, other editor or gate threshold changes; no IDE agreement.
+  The JVM shutdown path also retains an eagerly prepared containment handle
+  and force-kills without stream I/O: daemon cleanup alone can be abandoned
+  when the IDE exits. Separate-JVM fake tests cover an attached runtime and a
+  parent-first worker; the shutdown hook is removed after normal cleanup.
+- **FIXM104E3 / RVM104E3 (2026-10-05).** Close both P2 lifecycle gaps
+  inside the JetBrains lane. Retain descendant handles and start instants while
+  the runtime is alive, snapshot before signalling, first let the runtime stop
+  its supervised children, then force remaining verified identities, including
+  separate POSIX sessions and JVM exit. Fence editor requests against their
+  originating connection epoch synchronously at every native mutation and
+  inside document write actions. Add regressions, byte-exact red drills and
+  repeat strict Plugin Verifier on the three declared IDEA releases. Keep
+  frozen wire, dependencies, shared runtime and gates unchanged.
+- **MHP 1.2 proposal (E3; other hosts unchanged).** The frozen 1.1
+  `initialize` direction is runtime-to-host, but its result cannot carry the
+  host's actual metadata. Add capability `hostMetadata` and protocol version
+  `mhp/1.2.0` to initialize only. When the runtime offers that capability
+  and a range containing 1.2, and the host implements it, the result adds
+  required `hostMetadata: { host: { id: string, version: string }, locale:
+string, theme: { kind: light|dark|highContrastLight|highContrastDark,
+tokens: Record<--muse-token,string> }, folders: { uri: URI, name: string }[],
+trusted: boolean }`, with no additional properties at any object level
+  except the token record. These schemas exactly reuse the 1.1 initialize
+  parameter fields. Otherwise select 1.1 and omit the capability and field.
+  Panel envelopes remain `mhp: "1.1"`; this minor changes initialize only.
+  JetBrains validates this opt-in extension locally; the frozen files and
+  every other host stay byte-exact. A runtime must use the legacy initialize
+  request for a host whose 1.2 support is unknown: frozen 1.1 capability enums
+  reject unknown words. Sending `hostMetadata` therefore requires independently
+  established peer support, not a speculative flag sent to old hosts.
+  Runtime/contract adoption remains with
+  lanes 0/B. No credential/account field belongs in this metadata.
+
 ## 3. Open questions (need the owner)
 
 - **Q-TRAIN14 universal helper artifact (2026-10-05).** The worktree has no
@@ -19575,6 +19658,35 @@ pre-existing generated host inventory is lane J's write; an inventory mismatch
 remains open rather than ignored or weakened. Receipts and exact outcomes are
 in `docs/certification/m104-c.md`. No full-quality success is claimed here.
 
+**FIXM104E3 (2026-10-05, Kubuntu).** Follow RVM104E3's scoped rig brief:
+all owned native regressions and deliberate failures, native lint, scoped
+repository checks, production build and strict Plugin Verifier on the three
+pinned IDEA releases. The shared rules explicitly prohibit full `npm run quality`
+and aggregate unit coverage here; those remain the lead's integration gate.
+No merge/push, dependency, threshold, suppression or installed-IDE agreement
+change is authorized. Exact results and the named tree-discovery residual are
+in `docs/certification/m104-e-redesign.md`.
+
+**REDM104E (2026-10-05, Kubuntu).** The explicit rig/common brief requires
+owned JVM tests, scoped repository gates and the three declared IDEA verifier
+releases. Full `npm run quality`, aggregate coverage and unrelated editor
+qualification remain with the lead; running them here is explicitly prohibited.
+No merge is listed by this redesign brief; the rig's no-merge override applies.
+No agreement, paid/live call, dependency, gate cap or severity change is allowed.
+The existing absence of the feature-reference catalog at this branch remains
+as recorded below. Lifecycle evidence goes in `docs/certification/m104-e-redesign.md`.
+
+**M104 E3 (2026-10-05, Kubuntu).** The rig brief requires scoped repository
+checks and the owned JVM suite, with full quality and aggregate repository
+tests left to the lead. No threshold, timeout, rule or test filter is weakened.
+The common feature-reference instruction names `src/shared/featureCatalog.ts`,
+`scripts/gen-reference.mjs` and `check:reference`; none exists at this branch's
+base. Native behavior is therefore documented in the JetBrains guide and D84,
+with reference adoption left to the lane that introduces that catalog. The
+fresh standalone IDEA profile awaits the owner's User Agreement approval;
+framework JCEF screenshots and UI receipts are recorded independently in
+`docs/certification/m104-e3.md`.
+
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
 120 minutes. No cap, threshold, skip or user-facing feature may be weakened.
@@ -20787,6 +20899,54 @@ before a repaired one loads (2026-09-30).
   the boundary because they can inspect process memory and read owner-only
   token files. Follow-up: the lead qualifies the composed runtime and editor
   routes; lane transport evidence does not establish editor support.
+
+- **FIXM104E3 / RVM104E3 finding 2:** editor request dispatch and native
+  mutation methods synchronously check the captured lifetime/owner and its
+  atomic open flag on the EDT. Document write actions and each edit repeat
+  that check. Actor-delayed cancellation and reply suppression no longer
+  authorize retired native effects. Queued native Tab/command/document
+  regressions and reentrant command/document retirement tests are recorded
+  in `docs/certification/m104-e-redesign.md`; no residual is retained for
+  this finding.
+
+- **FIXM104E3 / RVM104E3 — R3-tree-discovery-window:** retained descendant
+  identities fix cleanup of observed separate-session workers after parent-first
+  exit and JVM shutdown. Detached descendants outside observed ancestry can
+  remain unseen, for example after creation/reparenting between the 10-ms
+  observations. ProcessHandle cannot reconstruct an exited parent's ancestry.
+  Cooperative runtime supervision and process-group/Windows-job containment
+  remain, but no unconditional whole-tree claim is made. Safe for the existing
+  development-only qualification; follow-up is supervisor integration and an OS
+  containment design before product support. Exact regression/drill and strict
+  verifier receipts are in `docs/certification/m104-e-redesign.md`.
+
+- **REDM104E / RVM104E2 (2026-10-05):** the generation owner replaces the
+  first-round split lifecycle. Native stress tests cover blocked process
+  stdin, output flooding, parent-first death, shutdown hangs, late cancellation,
+  overflowing coordinates, fixed Tab failures, metadata handoff/deadline,
+  mailbox admission, project teardown and reconnect. Separate-JVM tests cover
+  whole-IDE exit, including a reparented worker. Same-group POSIX containment is proved
+  on Kubuntu; Windows job and macOS execution still require their rigs.
+  Private I/O pumps belong to the actor; no IDE callback closes a process
+  stream synchronously. Installed-IDE qualification remains blocked by the
+  owner's User Agreement, and companion/controller assembly remains an
+  integration item. This does not promote product support or parity status.
+  The final ZIP, strict three-release verifier receipts and byte-exact drills
+  are recorded in `docs/certification/m104-e-redesign.md`.
+
+- **FIXM104E / RVM104E (2026-10-05, first-round record):** all six numbered review findings
+  are fixed in the JetBrains lane; no P1/P2/P3 finding is retained as a
+  residual. Cancelled outbound requests retain only their existing bounded
+  pending slots until a validated reply or connection close; an unresponsive
+  peer gets ordinary backpressure, never unbounded tombstones or a widened
+  correlation guard. Metadata has a two-second deadline; the IDE-thread
+  handoff may finish later on a daemon worker, but shutdown never waits for it
+  and closed connections discard completion. Native startup counts the actual
+  folded entry under the existing shared eager/deferred allowance; the shared
+  startup cap is unchanged. Test names, restoration hashes and scoped receipts
+  are in `docs/certification/m104-e3.md`. The existing standalone IDE agreement
+  and runtime/controller assembly qualification remain deferred to the owner
+  and integration lanes; no supported-product claim is added.
 
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through

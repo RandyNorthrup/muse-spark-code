@@ -41,6 +41,13 @@ happened, not what was planned; superseded entries are kept.
   is not qualified for integration: the fallback carrier route and companion
   authenticated module loading remain open.
 
+- JetBrains development plugin: render the shared panel through JCEF's public
+  HTML loader with packaged inline assets; add native inline Tab completion
+  over MHP, preserve numeric completion IDs, and negotiate an opt-in MHP 1.2
+  host-metadata proposal. Replace experimental/default-method API calls and
+  bound compatibility to IDEA 2025.3–2026.2. Fake-runtime qualification and
+  remaining runtime integration are recorded in `docs/certification/m104-e3.md`.
+
 - MHP 1.1.0 panel carrier contract: validated shared payloads, ordered
   session-bound surface envelopes and lifecycle, the `window.museHost`
   API, and multiplexed NDJSON/companion HTTP/SSE framing. Native consumers
@@ -63,6 +70,28 @@ happened, not what was planned; superseded entries are kept.
   leakage across loopback ports and isolating tabs and concurrent runtimes.
   Rejected launches show localized, accessible instructions to reopen the
   panel from the editor.
+
+- JetBrains development plugin: fence queued native editor requests against
+  their originating lifetime and connection before they mutate replacement
+  state. Recheck document edits inside the write command and before each edit,
+  including retirement during native command/document callbacks.
+
+- JetBrains development plugin: retain observed runtime descendants by PID and
+  start instant so separate POSIX sessions are cleaned up after parent-first
+  exit and JVM shutdown. Give the runtime the first bounded stop opportunity
+  before forcing remaining verified children.
+
+- JetBrains development plugin: give each runtime a connection actor and epoch;
+  bound writes, metadata collection and cleanup; terminate contained workers
+  after parent-first crashes. Reconnect drops old work, overflowing edit
+  positions are refused before narrowing, and Tab failures expose fixed words.
+  Native stress and compatibility receipts are in `docs/certification/m104-e-redesign.md`.
+
+- JetBrains development plugin: isolate cancelled Tab responses, bound the
+  metadata handshake without blocking shutdown, and dispose the native session
+  and runtime process tree on transport failure. Workspace globs include root
+  files and apply exclusions at every depth. Add settled diagnostics regressions
+  and size accounting for the actual shipped inline startup scripts.
 
 - **The README's "What's new" section matches the release again.** 0.12.1 and
   0.13.0 shipped with the README still headed "What's new in 0.12.0". It now
