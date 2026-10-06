@@ -308,24 +308,35 @@ describe('M117 seeded duration simulation', () => {
     expect(simulateEstimate(explicit, lognormalPort).p50).not.toBe(result.p50)
   })
 
-  it('estimates forty lanes with all 2000 runs and bottleneck inside the local budget', () => {
-    const lanes = Array.from({ length: ESTIMATE_LOCAL_BUDGET_LANES }, (_, index) =>
-      scheduleLane(`L${String(index)}`, {
-        dependencies: index === 0 ? [] : [`L${String(index - 1)}`],
-      }),
-    )
-    const inputs = simulationInputs(lanes)
-    const start = performance.now()
-    const result = simulateEstimate(inputs, lognormalPort)
-    const bottleneck = findEstimateBottleneck(
-      lanes,
-      inputs.fleet,
-      estimateDurationMap(result.durationSamples),
-    )
-    expect(result.runs).toBe(ESTIMATE_RUNS)
-    expect(bottleneck.kind).toBe('criticalPath')
-    expect(performance.now() - start).toBeLessThan(ESTIMATE_LOCAL_BUDGET_MS)
-  })
+  // A complete 2,000-trial benchmark plus paired comparisons must report its
+  // measured two-second violation even during the intentionally slower red drill.
+  const BENCHMARK_TIMEOUT_MS = 15_000
+  it.each(['chain', 'independent', 'fan-out'])(
+    'estimates forty %s lanes with all 2000 runs and bottleneck inside the local budget',
+    (shape) => {
+      const lanes = Array.from({ length: ESTIMATE_LOCAL_BUDGET_LANES }, (_, index) =>
+        scheduleLane(`L${String(index)}`, {
+          dependencies:
+            index === 0 || shape === 'independent'
+              ? []
+              : [shape === 'chain' ? `L${String(index - 1)}` : 'L0'],
+        }),
+      )
+      const inputs = simulationInputs(lanes)
+      const start = performance.now()
+      const result = simulateEstimate(inputs, lognormalPort)
+      const bottleneck = findEstimateBottleneck(
+        lanes,
+        inputs.fleet,
+        estimateDurationMap(result.durationSamples),
+      )
+      const elapsed = performance.now() - start
+      expect(result.runs).toBe(ESTIMATE_RUNS)
+      expect(bottleneck.kind).toBe(shape === 'chain' ? 'criticalPath' : 'machines')
+      expect(elapsed, `${shape}: ${elapsed.toFixed(1)} ms`).toBeLessThan(ESTIMATE_LOCAL_BUDGET_MS)
+    },
+    BENCHMARK_TIMEOUT_MS,
+  )
 })
 
 describe('M117 process determinism', () => {
