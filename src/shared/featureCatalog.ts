@@ -5,6 +5,7 @@ import { COMMAND_IDS, type SETTING_DEFAULTS } from './constants'
 import type { UiText } from './l10n/en'
 
 type PlainReferenceText =
+  | { readonly fallbackKey: string; readonly fallback: string }
   | { readonly cli: keyof UiText['referenceCliOptions'] }
   | { readonly ui: { [K in keyof UiText]: UiText[K] extends string ? K : never }[keyof UiText] }
   | { readonly tip: keyof UiText['paletteTips'] }
@@ -35,6 +36,17 @@ const UI_CONDITIONS: Readonly<
   referencePermissionLimits: 'backend&permissionMode&autoReviewer',
   museCodeReviewerNotice: 'permissionMode=auto&museCodeAutoReviewer=true',
   gitCommitItemDetail: 'userRequestedMessage',
+  referenceDictation: 'platform&localWindow',
+  referenceVoice: 'backend&localWindow&voiceAdmission',
+  referenceBundled: 'backend',
+  mcpRestartDetail: 'turnState',
+}
+const NLS_CONDITIONS: Readonly<Partial<Record<string, string>>> = {
+  'config.backend.enumDescriptions.auto': 'backendAvailability',
+  'config.browserCheckRuntime.enumDescriptions.download': 'browserRuntimeAcquisition',
+  'config.tabMultiline.enumDescriptions.auto': 'multilineMode',
+  'config.tabTrigger.enumDescriptions.onInvoke': 'tabTrigger',
+  'config.judge.engine.enumDescriptions.auto': 'judgeEngine',
 }
 const SETTING_CONDITIONS: Readonly<Partial<Record<keyof typeof SETTING_DEFAULTS, string>>> = {
   preferredLocation: 'activeConversation',
@@ -51,6 +63,8 @@ const SETTING_CONDITIONS: Readonly<Partial<Record<keyof typeof SETTING_DEFAULTS,
   tabMultiline: 'multilineMode',
   tabTrigger: 'tabTrigger',
   'shell.passEnvironmentVariables': 'backend=modelApi&shellOrigin=interactive',
+  modelApiVoice: 'voiceAdmission',
+  bundledSkills: 'backend&skillInstallation',
 }
 
 /** The generator uses these explicit selectors on every description surface. */
@@ -59,6 +73,7 @@ export function referenceDescription(text: ReferenceText): ReferenceText {
   const settingConditions: Readonly<Partial<Record<string, string>>> = SETTING_CONDITIONS
   let when: string | undefined
   if ('ui' in text) when = UI_CONDITIONS[text.ui]
+  else if ('fallbackKey' in text) when = NLS_CONDITIONS[text.fallbackKey]
   else if ('setting' in text) when = settingConditions[text.setting]
   else if ('cli' in text && text.cli === 'fail-on-denial') when = 'permission=denied'
   return when === undefined ? text : { conditions: [{ when, text }] }

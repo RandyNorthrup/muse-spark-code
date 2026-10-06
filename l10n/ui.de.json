@@ -2553,7 +2553,7 @@
   "referenceTabSnooze": "15 Minuten zurückstellen; Eine Stunde zurückstellen; Bis zum Neustart zurückstellen.",
   "referenceServe": "{command} [Optionen]              Das Agent Client Protocol über stdin und stdout bereitstellen",
   "referencePaletteKeys": "Einträge durchlaufen, eine Auswahl wählen oder vervollständigen oder die Liste schließen. Wählen, wie viel Mühe Muse in jede Antwort steckt.",
-  "referenceBestOfNRequirements": "Kandidaten erfordern Model API, die aktivierte Bezahlfunktion, einen vertrauenswürdigen Git-Arbeitsbereich, Git 2.36 oder neuer und keine konfigurierten Git-Filter oder Hooks. Ein begrenztes Sitzungsbudget verhindert diesen Ablauf, bis Kandidaten Budgets teilen können. Versuchs- und Anfragegrenzen festlegen, Ergebnisse vergleichen oder abbrechen und ausgewählte Änderungen anwenden und stagen, ohne Commit.",
+  "referenceBestOfNRequirements": "Kandidaten erfordern Model API, die aktivierte Bezahlfunktion, einen vertrauenswürdigen Git-Arbeitsbereich, Git 2.36 oder neuer und keine konfigurierten Git-Filter oder Hooks. Ein begrenztes Sitzungsbudget erfordert einen der übergeordneten Sitzung gehörenden Budgetbereich, den die Kandidaten gemeinsam nutzen. Versuchs- und Anfragegrenzen festlegen, Ergebnisse vergleichen oder abbrechen und ausgewählte Änderungen anwenden und stagen, ohne Commit.",
   "referenceWindowsSessions": "Muse Code kann unter Windows keine Sitzungen umbenennen oder abzweigen (meta-models/muse-code-sdk#30, #31).",
   "referenceAgentControls": "Agentensteuerung; Unterbrechen; Anhalten; Fortsetzen; Agent schließen; Agent erneut öffnen; Ergebnis als gelesen markieren; Nachricht senden; Folgeaufgabe",
   "referenceElicitationTitle": "MCP-Formulare",

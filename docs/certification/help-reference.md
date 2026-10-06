@@ -557,3 +557,85 @@ retains commands and results. No dependencies or tools were installed, no live
 or paid request or credential read occurred, and no aggregate quality, merge,
 rebase or push was run. The rig brief reserves integration and aggregate quality
 for the lead.
+
+## FIXHELPREF4 — Final focused truth audit repairs (2026-10-06)
+
+Rig: Kubuntu; base `3a5da96d6`; scope: RVHELPREF4's P1 and both P2 findings.
+No finding is deferred. This record supersedes FIXHELPREF3's incomplete C06
+coverage claim.
+
+| Finding                              | Status                                                                        | Regression                                                                                                                                                   | Deliberate failure                                                    |
+| ------------------------------------ | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| P1 — Best-of-N budget prerequisite   | Fixed in English, all 14 translations and every generated output              | Generator `RVHELPREF4 P1` runs production manager admission: the same finite cap refuses without a parent scope and admits a candidate with its owned scope  | Restore the false finite-budget prohibition; named P1 test fails      |
+| P2-1 — Missing state predicates      | Fixed: closed predicate vocabulary in any plain description                   | Generator `RVHELPREF4 P2-1` covers the exact delegation sentence, all four verbs with all 14 states, right now, the future-feature control and neutral prose | Remove available from the predicate vocabulary; named P2-1 test fails |
+| P2-2 — Skipped shortcut descriptions | Fixed: recursive walk of the complete emitted model, independent of row kinds | Generator `RVHELPREF4 P2-2` rejects both exact modal sentences and a future nested row; neutral shortcut prose passes                                        | Omit shortcuts from the output walk; named P2-2 test fails            |
+
+The three regressions failed against the reviewed implementation: the P1 failure
+shows its stale sentence after the production manager's finite-cap admission
+checks, and both P2 failures show accepted plain state claims. The corrected
+reference suites first passed 86 tests. New enum/prefix assertions and the
+existing real-journal shared-budget suite are included in final validation.
+
+The complete output walk also caught existing state prose in free dictation,
+paid voice, bundled skills, restart help, enum descriptions and Judge's paid
+availability facts. Those claims retain their original wording in explicit
+typed conditions. Localized manifest references with English fallback support
+conditional enum meanings. Page display/search, terminal help, Markdown and
+nested facts preserve their selector and installed translation. Metadata keys
+and technical enum values are not descriptions; resolved aliases are checked
+through their authoritative typed text. Source audits remain necessary for
+semantic claims outside the closed vocabulary.
+
+The first production build correctly failed its unchanged reference cap:
+**103,230 bytes / 102,400**. The existing lossless pool now packs repeated
+technical string prefixes. Complete decoded-model equality, a corrupt-prefix
+index regression, a reserved-marker gate drill and byte-exact restoration
+certify the extension. The production reference measures **101,667 bytes
+(99.3 KiB) / 100 KiB**; every bundle cap remains unchanged.
+
+[Drill receipts](help-reference/fixhelpref4-drills.json) contain mutation text,
+complete owning-file commands, named failures, nonzero exits and matching
+before/restored SHA-256 hashes. Additional drills remove prefix decoding and
+its index guard, installed-language enum resolution, and the page's enum
+condition renderer. No test-name filter, skip, snapshot acceptance, changed
+threshold, timeout increase or new dependency is used.
+
+Final scoped validation is recorded in
+[the validation receipt](help-reference/fixhelpref4-validation.json). All runs
+use the worktree directly and one heavy process at a time. Vitest uses at most
+three files, three workers and the rig-mandated 120-second test timeout. The
+lead retains aggregate quality and integration/release certification under
+the explicit rig brief. No credential read, live/paid request, dependency or
+tool install, merge, rebase or push is part of this lane.
+
+### FIXHELPREF4 final validation
+
+All **95 distinct tests in four owning files pass**: 50 in the reference
+generator, 15 in the terminal/model entry, 24 in the reference page and six
+in the production-manager/shared-journal budget suite. The three generator
+regressions failed against the reviewed implementation before their fixes.
+
+Eight planned red drills have named failures and nonzero exits; every mutated
+file was restored byte-exact. A ninth exploratory UI-only marker mutation
+fired Markdown freshness because the model carries that text by reference.
+The subsequent serialized CLI marker probe reached the intended reserved-token
+guard; both probes are retained without conflating their outcomes.
+
+Five-project typecheck and the final changed-file ESLint/Prettier, plain knip,
+zero-clone jscpd, localization, reference freshness, host API and production
+build pass. The receipt retains the initial lint findings and their final
+green replacement; no lint rule or ignore was changed. Localization reports
+14 tables, 165 manifest strings, 602 source files and zero problems. Host API:
+332 APIs, zero problems.
+
+Production sizes: extension **437.8 KiB / 600**, Model API **446.6 / 475**,
+Node reference **99.3 / 100**, reference page **37.0 / 50**, chat startup with
+static imports **895.1 / 900**, deferred chat JavaScript **49.8 / 50**, ACP
+**820.0 / 850**. Size, split, model-text, host-global and notices checks pass.
+The production ACP bundle prints corrected full help in English and French,
+and successfully prints `exec --help`, `report --help`, `scan-secrets --help`.
+Those routes load no backend or credential store and make no model request.
+
+The existing pre-commit hook remains enabled (`.husky/_`): serial lint-staged
+ESLint/Prettier and staged gitleaks. Local commit only; aggregate quality,
+integration and publication remain with the lead under the rig brief.

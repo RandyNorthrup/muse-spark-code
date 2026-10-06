@@ -36,13 +36,13 @@ const values = {
 afterEach(() => {
   setUiText(EN, 'en')
 })
-function page() {
+function page(givenValues = values) {
   const postMessage = vi.fn()
   const onClose = vi.fn()
   render(
     <ReferencePage
       postMessage={postMessage}
-      values={values}
+      values={givenValues}
       settings={testSettings}
       onClose={onClose}
     />,
@@ -235,6 +235,15 @@ describe('RVHELPREF page parity and errors', () => {
 })
 
 describe('RVHELPREF2 presentation truth', () => {
+  it('RVHELPREF4 displays and searches localized enum conditions', () => {
+    const meaning = 'Un autre juge participe après sa configuration.'
+    page({ ...values, nls: { 'config.judge.engine.enumDescriptions.auto': meaning } })
+    const shown = `judgeEngine: ${meaning}`
+    const heading = () => screen.getByRole('heading', { name: 'museSpark.judge.engine' })
+    expect(heading().closest('article')).toHaveTextContent(shown)
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: shown } })
+    expect(heading().closest('article')).toHaveTextContent(shown)
+  })
   it('C06 displays and searches the declared condition with installed text', () => {
     const conditionText = 'Avec la délégation automatique, Muse Code peut déléguer.'
     setUiText({ ...EN, referenceNativeAgentsConditions: conditionText }, 'fr')

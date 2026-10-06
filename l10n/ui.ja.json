@@ -2459,7 +2459,7 @@
   "referenceTabSnooze": "15 分間スヌーズ; 1 時間スヌーズ; 再起動までスヌーズ.",
   "referenceServe": "{command} [オプション]              stdin と stdout で Agent Client Protocol を提供します",
   "referencePaletteKeys": "項目を移動し、選択または補完するか、リストを閉じます。 各回答に Muse がかける手間を選びます。",
-  "referenceBestOfNRequirements": "候補にはModel API、有料機能の有効化、信頼されたGitワークスペース、Git 2.36以降、およびGitフィルターやフックプログラムが未設定であることが必要です。候補間で予算を共有できるまで、有限のセッション予算では利用できません。試行数とリクエスト上限を設定し、比較またはキャンセルし、選んだ変更を適用してステージします。コミットは作成しません。",
+  "referenceBestOfNRequirements": "候補にはModel API、有料機能の有効化、信頼されたGitワークスペース、Git 2.36以降、およびGitフィルターやフックプログラムが未設定であることが必要です。有限のセッション予算には、親セッションが所有し、候補間で共有する予算スコープが必要です。試行数とリクエスト上限を設定し、比較またはキャンセルし、選んだ変更を適用してステージします。コミットは作成しません。",
   "referenceWindowsSessions": "Muse Code では、Windows でセッションの名前変更やフォークはできません (meta-models/muse-code-sdk#30, #31)。",
   "referenceAgentControls": "エージェントの操作; 中断; 停止; 再開; エージェントを閉じる; エージェントを再度開く; 結果を既読にする; メッセージを送信; フォローアップ タスク",
   "referenceElicitationTitle": "MCP フォーム",

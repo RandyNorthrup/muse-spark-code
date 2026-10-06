@@ -74,7 +74,7 @@ export function createReference(table: UiText, locale: string) {
           ...s.refinements,
           ...(s.enum?.map(
             (v, i) =>
-              `${configurationValue(v)}: ${(s.enumDescriptionKeys?.[i] === undefined || s.enumDescriptionKeys[i] === null ? undefined : nls[s.enumDescriptionKeys[i]]) ?? s.enumDescriptions?.[i] ?? ''}`,
+              `${configurationValue(v)}: ${s.enumTexts?.[i] === undefined ? ((s.enumDescriptionKeys?.[i] === undefined || s.enumDescriptionKeys[i] === null ? undefined : nls[s.enumDescriptionKeys[i]]) ?? s.enumDescriptions?.[i] ?? '') : referenceText(s.enumTexts[i], REFERENCE, nls, UI_TEXT)}`,
           ) ?? []),
         )
       lines.push('', UI_TEXT.referenceShortcuts)

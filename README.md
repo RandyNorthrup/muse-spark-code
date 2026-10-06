@@ -3245,7 +3245,12 @@ admission wiring, option contracts, catalogue descriptions and generated-file
 freshness. Conditional descriptions use typed `conditions` with technical
 selectors; generic state wording in plain descriptions fails the gate. The
 generator renders these conditions on the page, in Markdown and in terminal
-help. Independent tests exercise parser acceptance and keyboard actions.
+help, including enum meanings and paid-default facts. The guard walks the
+complete emitted model and rejects the closed state-predicate vocabulary on
+every description surface, including shortcuts. A Best-of-N truth regression
+exercises the production manager: a finite session cap requires an owned
+parent budget scope shared by candidates. Independent tests exercise parser
+acceptance and keyboard actions.
 Search includes displayed descriptions and keeps related command links reachable.
 Installed skills are dynamic and are refreshed
 when ACP answers help. Native shared-webview and phone companion integrations

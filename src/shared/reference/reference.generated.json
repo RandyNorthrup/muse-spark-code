@@ -428,8 +428,12 @@
     {
       "id": "free-dictation",
       "name": { "ui": "dictationLabel" },
-      "summary": { "ui": "referenceDictation" },
-      "description": { "ui": "referenceDictation" },
+      "summary": {
+        "conditions": [{ "when": "platform&localWindow", "text": { "ui": "referenceDictation" } }]
+      },
+      "description": {
+        "conditions": [{ "when": "platform&localWindow", "text": { "ui": "referenceDictation" } }]
+      },
       "commands": [],
       "settings": [],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#voice-dictation",
@@ -583,7 +587,7 @@
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["vscode:museCode", "vscode:modelApi"],
-      "details": [{ "ui": "referenceBundled" }],
+      "details": [{ "conditions": [{ "when": "backend", "text": { "ui": "referenceBundled" } }] }],
       "facts": {
         "resumeSelectors": { "claude": "resume-claude", "codex": "resume-codex" },
         "resumeAvailability": "installedMuseCodeSkills",
@@ -874,8 +878,16 @@
     {
       "id": "voice",
       "name": { "ui": "paidVoiceName" },
-      "summary": { "ui": "referenceVoice" },
-      "description": { "ui": "referenceVoice" },
+      "summary": {
+        "conditions": [
+          { "when": "backend&localWindow&voiceAdmission", "text": { "ui": "referenceVoice" } }
+        ]
+      },
+      "description": {
+        "conditions": [
+          { "when": "backend&localWindow&voiceAdmission", "text": { "ui": "referenceVoice" } }
+        ]
+      },
       "commands": [],
       "settings": ["museSpark.dictationEngine", "museSpark.modelApiVoice"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#voice-dictation",
@@ -1252,8 +1264,17 @@
         "defaultState": {
           "type": "enum",
           "value": "auto",
-          "meaning": "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured.",
-          "meaningKey": "config.judge.engine.enumDescriptions.auto"
+          "meaning": {
+            "conditions": [
+              {
+                "when": "judgeEngine",
+                "text": {
+                  "fallbackKey": "config.judge.engine.enumDescriptions.auto",
+                  "fallback": "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured."
+                }
+              }
+            ]
+          }
         },
         "pricesUsd": { "webSearchPerThousand": 2.5, "imageGeneration": 0.01, "voicePerHour": 0.18 },
         "tokenRatesPerMillion": {
@@ -1266,8 +1287,17 @@
             "defaultState": {
               "type": "enum",
               "value": "auto",
-              "meaning": "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured.",
-              "meaningKey": "config.judge.engine.enumDescriptions.auto"
+              "meaning": {
+                "conditions": [
+                  {
+                    "when": "judgeEngine",
+                    "text": {
+                      "fallbackKey": "config.judge.engine.enumDescriptions.auto",
+                      "fallback": "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured."
+                    }
+                  }
+                ]
+              }
             },
             "key": "SecretStorage",
             "consent": "use",
@@ -1658,8 +1688,8 @@
       "nameKey": "command.restartMuseCode.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "A reply that is running stops; the conversation continues on your next message",
-      "text": { "ui": "mcpRestartDetail" },
+      "description": "turnState: A reply that is running stops; the conversation continues on your next message",
+      "text": { "conditions": [{ "when": "turnState", "text": { "ui": "mcpRestartDetail" } }] },
       "canRun": false
     },
     {
@@ -1794,6 +1824,7 @@
         "config.preferredLocation.enumDescriptions.sidebar",
         "config.preferredLocation.enumDescriptions.panel"
       ],
+      "enumTexts": {},
       "scope": "window",
       "refinements": [],
       "schema": { "type": "string", "enum": ["sidebar", "panel"], "default": "panel" }
@@ -1820,6 +1851,7 @@
         "config.initialPermissionMode.enumDescriptions.auto",
         "config.initialPermissionMode.enumDescriptions.bypassPermissions"
       ],
+      "enumTexts": {},
       "scope": "machine",
       "refinements": [],
       "schema": {
@@ -1853,6 +1885,7 @@
         "config.archiveInactiveSessions.enumDescriptions.14",
         "config.archiveInactiveSessions.enumDescriptions.0"
       ],
+      "enumTexts": {},
       "scope": "window",
       "refinements": [],
       "schema": { "type": "number", "enum": [1, 2, 7, 14, 0], "default": 14 }
@@ -1889,6 +1922,19 @@
         "config.backend.enumDescriptions.museCode",
         "config.backend.enumDescriptions.modelApi"
       ],
+      "enumTexts": {
+        "0": {
+          "conditions": [
+            {
+              "when": "backendAvailability",
+              "text": {
+                "fallbackKey": "config.backend.enumDescriptions.auto",
+                "fallback": "Muse Code when the CLI is installed and signed in (billed to your Muse subscription); otherwise the Meta Model API when a key is stored; otherwise Muse Code's sign-in."
+              }
+            }
+          ]
+        }
+      },
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "string", "enum": ["auto", "museCode", "modelApi"], "default": "auto" }
@@ -1911,6 +1957,7 @@
         "config.shellSandbox.enumDescriptions.muse",
         "config.shellSandbox.enumDescriptions.off"
       ],
+      "enumTexts": {},
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "string", "enum": ["auto", "muse", "off"], "default": "auto" }
@@ -1938,6 +1985,7 @@
         "config.sandboxNetwork.enumDescriptions.restricted",
         "config.sandboxNetwork.enumDescriptions.enabled"
       ],
+      "enumTexts": {},
       "scope": "machine",
       "refinements": [],
       "schema": {
@@ -2110,6 +2158,9 @@
       "schema": { "type": "boolean", "default": true }
     },
     {
+      "text": {
+        "conditions": [{ "when": "voiceAdmission", "text": { "setting": "modelApiVoice" } }]
+      },
       "id": "museSpark.modelApiVoice",
       "name": "museSpark.modelApiVoice",
       "description": "Offers Muse Voice ($0.18 per audio hour); free OS dictation remains the default. Muse Voice is unavailable under a finite budget. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.",
@@ -2136,6 +2187,7 @@
         "config.modelApiPromptCacheRetention.enumDescriptions.inMemory",
         "config.modelApiPromptCacheRetention.enumDescriptions.24h"
       ],
+      "enumTexts": {},
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "string", "enum": ["in_memory", "24h"], "default": "in_memory" }
@@ -2371,6 +2423,11 @@
       "schema": { "type": "boolean", "default": true }
     },
     {
+      "text": {
+        "conditions": [
+          { "when": "backend&skillInstallation", "text": { "setting": "bundledSkills" } }
+        ]
+      },
       "id": "museSpark.bundledSkills",
       "name": "museSpark.bundledSkills",
       "description": "On by default: the skills that come with Muse Spark (project_setup, feature_delivery and quality_retrofit, from the high-quality-projects package) are available on the Model API backend, after any project or personal skill with the same name. Muse Code reads only its own folders, so for it they are installed with Muse Spark: Install Bundled Skills for Muse Code, which a Muse Code conversation offers once per window until you install them or choose Not now. Their delivery helpers need Python 3.12 or newer.",
@@ -2583,6 +2640,19 @@
         "config.browserCheckRuntime.enumDescriptions.download",
         "config.browserCheckRuntime.enumDescriptions.off"
       ],
+      "enumTexts": {
+        "1": {
+          "conditions": [
+            {
+              "when": "browserRuntimeAcquisition",
+              "text": {
+                "fallbackKey": "config.browserCheckRuntime.enumDescriptions.download",
+                "fallback": "Download it when a check needs it, without asking, now and for every later pinned version."
+              }
+            }
+          ]
+        }
+      },
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "string", "enum": ["ask", "download", "off"], "default": "ask" }
@@ -2637,6 +2707,7 @@
         "config.tabModel.enumDescriptions.standard",
         "config.tabModel.enumDescriptions.contributor"
       ],
+      "enumTexts": {},
       "scope": "machine",
       "refinements": [],
       "schema": {
@@ -2692,6 +2763,19 @@
         "config.tabMultiline.enumDescriptions.onInvoke",
         "config.tabMultiline.enumDescriptions.never"
       ],
+      "enumTexts": {
+        "0": {
+          "conditions": [
+            {
+              "when": "multilineMode",
+              "text": {
+                "fallbackKey": "config.tabMultiline.enumDescriptions.auto",
+                "fallback": "Multi-line when the cursor's line is blank or ends in a block opener, and on every explicit Invoke."
+              }
+            }
+          ]
+        }
+      },
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "string", "enum": ["auto", "onInvoke", "never"], "default": "auto" }
@@ -2713,6 +2797,19 @@
         "config.tabTrigger.enumDescriptions.automatic",
         "config.tabTrigger.enumDescriptions.onInvoke"
       ],
+      "enumTexts": {
+        "1": {
+          "conditions": [
+            {
+              "when": "tabTrigger",
+              "text": {
+                "fallbackKey": "config.tabTrigger.enumDescriptions.onInvoke",
+                "fallback": "Suggest only when you invoke suggestions by hand."
+              }
+            }
+          ]
+        }
+      },
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "string", "enum": ["automatic", "onInvoke"], "default": "onInvoke" }
@@ -2733,6 +2830,7 @@
         "config.tabWithCopilot.enumDescriptions.yield",
         "config.tabWithCopilot.enumDescriptions.both"
       ],
+      "enumTexts": {},
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "string", "enum": ["yield", "both"], "default": "yield" }
@@ -2755,6 +2853,19 @@
         "config.judge.engine.enumDescriptions.same",
         "config.judge.engine.enumDescriptions.off"
       ],
+      "enumTexts": {
+        "0": {
+          "conditions": [
+            {
+              "when": "judgeEngine",
+              "text": {
+                "fallbackKey": "config.judge.engine.enumDescriptions.auto",
+                "fallback": "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured."
+              }
+            }
+          ]
+        }
+      },
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "string", "enum": ["auto", "same", "off"], "default": "auto" }

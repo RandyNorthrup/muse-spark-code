@@ -2553,7 +2553,7 @@
   "referenceTabSnooze": "Szundi 15 percre; Szundi egy órára; Szundi újraindításig.",
   "referenceServe": "{command} [kapcsolók]              Az Agent Client Protocol kiszolgálása stdin és stdout felett",
   "referencePaletteKeys": "Elemek bejárása, kiválasztás vagy kiegészítés, illetve a lista bezárása. Válassza ki, mennyi erőfeszítést tegyen a Muse az egyes válaszokba.",
-  "referenceBestOfNRequirements": "A jelöltekhez Model API, bekapcsolt fizetős funkció, megbízható Git-munkaterület, Git 2.36 vagy újabb és beállított Git-szűrők és hookprogramok hiánya szükséges. Véges munkamenetkeret mellett ez nem használható, amíg a jelöltek nem oszthatnak keretet. Állítsa be a próbálkozások és kérések korlátját, hasonlítsa össze vagy szakítsa meg, majd alkalmazza és készítse elő a kiválasztott változtatásokat commit nélkül.",
+  "referenceBestOfNRequirements": "A jelöltekhez Model API, bekapcsolt fizetős funkció, megbízható Git-munkaterület, Git 2.36 vagy újabb és beállított Git-szűrők és hookprogramok hiánya szükséges. A véges munkamenetkerethez a szülőmunkamenet tulajdonában álló, a jelöltek által megosztott költségkeret-hatókör szükséges. Állítsa be a próbálkozások és kérések korlátját, hasonlítsa össze vagy szakítsa meg, majd alkalmazza és készítse elő a kiválasztott változtatásokat commit nélkül.",
   "referenceWindowsSessions": "A Muse Code Windowson nem tud munkameneteket átnevezni vagy elágaztatni (meta-models/muse-code-sdk#30, #31).",
   "referenceAgentControls": "Ügynökvezérlők; Megszakítás; Leállítás; Folytatás; Ügynök bezárása; Ügynök újbóli megnyitása; Eredmény megjelölése olvasottként; Üzenet küldése; Követő feladat",
   "referenceElicitationTitle": "MCP-űrlapok",

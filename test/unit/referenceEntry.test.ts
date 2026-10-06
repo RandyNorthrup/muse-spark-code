@@ -30,6 +30,15 @@ function host(): ReferenceHost {
   }
 }
 describe('reference host actions and command line', () => {
+  it('RVHELPREF4 renders localized enum and fact conditions in terminal help', () => {
+    const meaning = 'Un autre juge participe après sa configuration.'
+    const text = createReference(EN, 'fr').all({
+      'config.judge.engine.enumDescriptions.auto': meaning,
+    })
+    expect(text).toContain(`judgeEngine: ${meaning}`)
+    expect(text).toContain('"when":"judgeEngine"')
+    expect(text).toContain(`"fallback":"${meaning}"`)
+  })
   it('C06 prints typed conditions and rejects malformed condition data at the model boundary', () => {
     const shown = createReference(EN, 'en').all()
     expect(shown).toContain(`run.subagent_delegation_mode: ${EN.referenceNativeAgentsConditions}`)
@@ -234,4 +243,21 @@ it('round-trips the entire compressed reference without losing any fact', () => 
   )
   expect(referenceModel()).toEqual(json)
   expect(createReference(EN, 'en').all()).not.toContain('{command}')
+})
+
+it('RVHELPREF4 rejects a corrupt packed technical-prefix index', () => {
+  const generated = readFileSync(
+    new URL('../../src/shared/reference/reference.generated.ts', import.meta.url),
+    'utf8',
+  )
+  const body = generated.slice(
+    generated.indexOf('const textKeys ='),
+    generated.indexOf('const plainTextSchema ='),
+  )
+  const code = ts.transpileModule(`${body.replace('~s0:', '~sz:')}\nreferenceModel()`, {
+    compilerOptions: { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.CommonJS },
+  }).outputText
+  expect(() => {
+    runInNewContext(code, { exports: {}, parseReferenceModel })
+  }).toThrow('~sz:')
 })

@@ -16,6 +16,11 @@ happened, not what was planned; superseded entries are kept.
 - Help includes the shell credential pass-through setting and its restrictions
   on interactive Model API commands.
 
+- Best-of-N help states the implemented shared parent-budget prerequisite in
+  all fourteen languages. The reference guard rejects state predicates across
+  every emitted description, including shortcuts, enum meanings and facts;
+  conditional text retains typed selectors on every help surface.
+
 - Help keeps conditional state in typed descriptions with a rejecting guard
   for new plain-text claims. Hooks describes both backends, and secret-scanner
   help explains scanning and in-memory key matching without storage.

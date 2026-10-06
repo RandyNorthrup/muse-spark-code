@@ -125,6 +125,10 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
       s.text === undefined
         ? translated(s.descriptionKey, s.description)
         : referenceText(s.text, model, nls, UI_TEXT)
+    const enumDescription = (s: (typeof model.settings)[number], index: number) =>
+      s.enumTexts?.[index] === undefined
+        ? translated(s.enumDescriptionKeys?.[index], s.enumDescriptions?.[index] ?? '')
+        : referenceText(s.enumTexts[index], model, nls, UI_TEXT)
     const settingsRows = model.settings.filter((s) =>
       isMatch(
         s.id,
@@ -136,10 +140,7 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
         Array.isArray(s.type) ? s.type.join(' | ') : String(s.type),
         s.scope,
         ...s.refinements,
-        ...(s.enum ?? []).flatMap((v, i) => [
-          valueText(v),
-          translated(s.enumDescriptionKeys?.[i], s.enumDescriptions?.[i] ?? ''),
-        ]),
+        ...(s.enum ?? []).flatMap((v, i) => [valueText(v), enumDescription(s, i)]),
       ),
     )
     const slashRows = model.slash.filter((c) =>
@@ -359,8 +360,7 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
                   <ul>
                     {s.enum.map((v, i) => (
                       <li key={JSON.stringify(v)}>
-                        <code>{valueText(v)}</code>:{' '}
-                        {translated(s.enumDescriptionKeys?.[i], s.enumDescriptions?.[i] ?? '')}
+                        <code>{valueText(v)}</code>: {enumDescription(s, i)}
                       </li>
                     ))}
                   </ul>

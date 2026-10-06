@@ -14,7 +14,7 @@ const JSON_MODEL = 'src/shared/reference/reference.generated.json'
 // asserting the current session's state are not reusable reference descriptions.
 export function lintReferenceDescription(text, identity) {
   if (typeof text !== 'string') return []
-  return /\b(?:when|if|currently|enabled|disabled|already)\b|\b(?:is|are|remains?|stays?)\s+(?:on|off)\b|\bcannot\b[^.!?\n]*\buntil\b|\b(?:this|the current)\b[^.!?\n]*\b(?:cannot|contains a secret)\b|\b(?:was|were)\s+detected\b|\bhas\s+no\b[^.!?\n]*\bin\s+this\b/i.test(
+  return /\b(?:when|if|currently|enabled|disabled|already)\b|\bright\s+now\b|\b(?:is|are|was|were|becomes?|remains?|stays?)\s+(?:not\s+)?["'`]*(?:available|unavailable|enabled|disabled|on|off|active|inactive|running|connected|disconnected|signed\s+in|installed|configured)\b|\bcannot\b[^.!?\n]*\buntil\b|\b(?:this|the current)\b[^.!?\n]*\b(?:cannot|contains a secret)\b|\b(?:was|were)\s+detected\b|\bhas\s+no\b[^.!?\n]*\bin\s+this\b/i.test(
     text,
   )
     ? [`Catalogue asserts conditional state: ${identity}`]
@@ -425,8 +425,17 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     const schema = properties[settingId]
     // Retain enum values and their schema meanings; never treat a string enum
     // as a boolean default. Runtime predicate truth is tested separately.
-    const defaultState =
-      schema === undefined ? undefined : source.resolveSettingDefault(schema, nls)
+    let defaultState = schema === undefined ? undefined : source.resolveSettingDefault(schema, nls)
+    if (typeof defaultState?.meaningKey === 'string') {
+      const meaning = source.referenceDescription({
+        fallbackKey: defaultState.meaningKey,
+        fallback: defaultState.meaning,
+      })
+      if ('conditions' in meaning) {
+        const { meaningKey: _key, ...state } = defaultState
+        defaultState = { ...state, meaning }
+      }
+    }
     return {
       ...feature,
       summary: source.referenceDescription(feature.summary),
@@ -568,6 +577,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     if ('conditions' in ref)
       return ref.conditions.map(({ when, text }) => `${when}: ${descriptionFor(text)}`).join('\n')
     if ('cli' in ref) return source.EN.referenceCliOptions[ref.cli]
+    if ('fallbackKey' in ref) return nls[ref.fallbackKey] ?? ref.fallback
     if ('ui' in ref) return source.EN[ref.ui]
     if ('tip' in ref) return source.EN.paletteTips[ref.tip]
     if ('command' in ref)
@@ -596,6 +606,16 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     enumDescriptionKeys: (s.markdownEnumDescriptions ?? s.enumDescriptions)?.map((description) =>
       keyOf(description),
     ),
+    ...((s.markdownEnumDescriptions ?? s.enumDescriptions) !== undefined && {
+      enumTexts: Object.fromEntries(
+        (s.markdownEnumDescriptions ?? s.enumDescriptions).flatMap((description, index) => {
+          const key = keyOf(description)
+          if (key === undefined) return []
+          const ref = source.referenceDescription({ fallbackKey: key, fallback: nls[key] })
+          return 'conditions' in ref ? [[index, ref]] : []
+        }),
+      ),
+    }),
     scope: s.scope ?? 'window',
     refinements:
       {
@@ -934,7 +954,6 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       errors.push(`Host capability mismatch: ${f.id}`)
     for (const text of [f.summary, f.description, ...f.details]) {
       if (!descriptionFor(text)?.trim()) errors.push(`Feature lacks text: ${f.id}`)
-      errors.push(...lintReferenceText(text, f.id, descriptionFor))
     }
     let name
     if ('setting' in f.name) {
@@ -942,7 +961,6 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
         name = `museSpark.${f.name.setting}`
     } else name = descriptionFor(f.name)
     if (!name?.trim()) errors.push(`Feature lacks text: ${f.id}`)
-    errors.push(...lintReferenceDescription(name, f.id), ...lintDescriptionReference(f.name))
     for (const id of f.commands)
       if (commands.every((c) => c.id !== id)) errors.push(`Unknown feature command: ${f.id}: ${id}`)
     for (const id of f.settings)
@@ -955,13 +973,6 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
   }
   for (const entry of [...commands, ...settings, ...slash.values(), ...cli]) {
     if (!entry.description?.trim()) errors.push(`Missing description: ${entry.id ?? entry.name}`)
-    if (entry.descriptions === undefined) {
-      if (entry.text === undefined)
-        errors.push(...lintReferenceDescription(entry.description, entry.id ?? entry.name))
-      else errors.push(...lintReferenceText(entry.text, entry.id ?? entry.name, descriptionFor))
-    } else
-      for (const text of Object.values(entry.descriptions))
-        errors.push(...lintReferenceText(text, entry.name, descriptionFor))
   }
   for (const entry of [...commands, ...settings]) {
     const group = 'canRun' in entry ? 'commands' : 'settings'
@@ -974,8 +985,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     if (!descriptionFor(entry.description)?.trim())
       errors.push(`Missing command description: ${key}`)
   }
-  if (errors.length > 0) throw new Error(errors.join('\n'))
-  return {
+  const model = {
     features,
     commands,
     settings,
@@ -984,6 +994,40 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     executable: source.ACP_AGENT_NAME,
     shortcuts: [...shortcuts, ...source.referenceKeyboardActions()],
   }
+  // Walk what we emit, rather than maintaining a list of description-bearing kinds.
+  const lintOutput = (value, identity = 'reference', field = '') => {
+    if (typeof value === 'string')
+      return /\s/.test(value) || /description|summary|meaning/i.test(field)
+        ? lintReferenceDescription(value, identity)
+        : []
+    if (Array.isArray(value))
+      return value.flatMap((entry, index) => lintOutput(entry, identity, `${field}.${index}`))
+    if (typeof value !== 'object' || value === null) return []
+    if (
+      'conditions' in value ||
+      (Object.keys(value).length === 1 &&
+        ['ui', 'cli', 'tip', 'setting', 'command'].some((key) => Object.hasOwn(value, key))) ||
+      ('fallbackKey' in value && 'fallback' in value)
+    )
+      return field === 'name' && 'setting' in value
+        ? []
+        : lintReferenceText(value, identity, descriptionFor)
+    const owner = value.id ?? value.command ?? value.name ?? identity
+    return Object.entries(value).flatMap(([key, entry]) => {
+      if (key.endsWith('Key') || key.endsWith('Keys')) return []
+      // Resolved aliases are checked through their authoritative typed text.
+      if (key === 'description' && (value.text !== undefined || value.descriptions !== undefined))
+        return []
+      return key === 'enumDescriptions' && Array.isArray(entry)
+        ? entry.flatMap((description, index) =>
+            lintOutput(value.enumTexts?.[index] ?? description, owner, key),
+          )
+        : lintOutput(entry, owner, key)
+    })
+  }
+  errors.push(...lintOutput(model))
+  if (errors.length > 0) throw new Error(errors.join('\n'))
+  return model
 }
 
 // Preserve code spans; angle brackets in prose must survive Markdown's HTML parser.
@@ -1001,6 +1045,7 @@ export function referenceMarkdown(model, source, nls, manifest) {
         .map(({ when, text: condition }) => `${prose(when)}: ${text(condition)}`)
         .join('\n')
     if ('cli' in ref) return prose(source.EN.referenceCliOptions[ref.cli])
+    if ('fallbackKey' in ref) return prose(nls[ref.fallbackKey] ?? ref.fallback)
     if ('ui' in ref) return prose(source.EN[ref.ui])
     if ('tip' in ref) return prose(source.EN.paletteTips[ref.tip])
     if ('command' in ref) return prose(model.commands.find((c) => c.id === ref.command)?.name)
@@ -1071,7 +1116,8 @@ export function referenceMarkdown(model, source, nls, manifest) {
       ...(s.enum === undefined
         ? []
         : s.enum.map(
-            (v, i) => `- \`${JSON.stringify(v)}\`: ${prose(s.enumDescriptions?.[i] ?? '')}`,
+            (v, i) =>
+              `- \`${JSON.stringify(v)}\`: ${s.enumTexts?.[i] === undefined ? prose(s.enumDescriptions?.[i] ?? '') : text(s.enumTexts[i])}`,
           )),
       '',
     )
@@ -1112,7 +1158,10 @@ export async function generateReference(root, isCheck = false) {
   const texts = [
     ...model.features.flatMap((f) => [f.name, f.summary, f.description, ...f.details]),
     ...model.commands.map((c) => c.text),
-    ...model.settings.flatMap((s) => (s.text === undefined ? [] : [s.text])),
+    ...model.settings.flatMap((s) => [
+      ...(s.text === undefined ? [] : [s.text]),
+      ...Object.values(s.enumTexts ?? {}),
+    ]),
     ...model.cli.flatMap((c) => (c.text === undefined ? [] : [c.text])),
     ...model.shortcuts.flatMap((c) => (c.text === undefined ? [] : [c.text])),
     ...model.slash.flatMap((c) => Object.values(c.descriptions)),
@@ -1125,13 +1174,13 @@ export async function generateReference(root, isCheck = false) {
   const keyArray = (keys) =>
     `[${keys.map((key) => `textKeys[${textKeys.indexOf(key)}]`).join(',')}]`
   const schema = `
-    const plainTextSchema = z.union([z.object({ cli: z.enum(${keyArray(cliKeys)}) }), z.object({ ui: z.enum(${keyArray(uiKeys)}) }), z.object({ tip: z.enum(${keyArray(tipKeys)}) }), z.object({ setting: z.string() }), z.object({ command: z.string() })])
+    const plainTextSchema = z.union([z.object({ fallbackKey: z.string(), fallback: z.string() }), z.object({ cli: z.enum(${keyArray(cliKeys)}) }), z.object({ ui: z.enum(${keyArray(uiKeys)}) }), z.object({ tip: z.enum(${keyArray(tipKeys)}) }), z.object({ setting: z.string() }), z.object({ command: z.string() })])
     const textSchema = z.union([plainTextSchema, z.object({ conditions: z.array(z.object({ when: z.string().check(z.regex(/^[A-Za-z0-9_.=:&|!-]+$/)), text: plainTextSchema })).check(z.minLength(1)) })])
     const strings = z.array(z.string())
     const schema = z.object({ executable: z.string(),
       features: z.array(z.object({ id: z.string(), name: textSchema, summary: textSchema, description: textSchema, commands: strings, settings: strings, docs: z.string(), editors: z.array(z.enum(['vscode', 'acp'])), backends: z.array(z.enum(['museCode', 'modelApi'])), paid: z.boolean(), surfaces: z.array(z.enum(['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi'])), details: z.array(textSchema), facts: z.record(z.string(), z.unknown()) })),
       commands: z.array(z.object({ id: z.string(), name: z.string(), nameKey: z.optional(z.string()), category: z.string(), categoryKey: z.optional(z.string()), description: z.string(), text: textSchema, enablement: z.optional(z.string()), canRun: z.boolean() })),
-      settings: z.array(z.object({ text: z.optional(textSchema), id: z.string(), name: z.string(), nameKey: z.optional(z.string()), description: z.string(), descriptionKey: z.optional(z.string()), type: z.union([z.string(), strings]), default: z.unknown(), enum: z.optional(z.array(z.unknown())), enumDescriptions: z.optional(strings), enumDescriptionKeys: z.optional(z.array(z.nullable(z.string()))), scope: z.string(), refinements: strings, schema: z.record(z.string(), z.unknown()) })),
+      settings: z.array(z.object({ text: z.optional(textSchema), id: z.string(), name: z.string(), nameKey: z.optional(z.string()), description: z.string(), descriptionKey: z.optional(z.string()), type: z.union([z.string(), strings]), default: z.unknown(), enum: z.optional(z.array(z.unknown())), enumDescriptions: z.optional(strings), enumTexts: z.optional(z.record(z.string(), textSchema)), enumDescriptionKeys: z.optional(z.array(z.nullable(z.string()))), scope: z.string(), refinements: strings, schema: z.record(z.string(), z.unknown()) })),
       slash: z.array(z.object({ name: z.string(), description: z.string(), descriptions: z.record(z.string(), textSchema), backends: strings, syntax: strings })),
       cli: z.array(z.object({ route: z.string(), name: z.string(), description: z.string(), text: z.optional(textSchema), usageKey: z.optional(z.enum(['acpUsage', 'reportUsage'])), usageLine: z.optional(z.number()), contract: z.optional(z.record(z.string(), z.unknown())) })),
       shortcuts: z.array(z.object({ command: z.string(), key: z.string(), mac: z.optional(z.string()), win: z.optional(z.string()), linux: z.optional(z.string()), when: z.optional(z.string()), text: z.optional(textSchema) }))
@@ -1141,16 +1190,24 @@ export async function generateReference(root, isCheck = false) {
   // Intern repeated JSON tokens without adding a browser/Node compression dependency.
   // The same expanded model is still parsed by zod before either host uses it.
   const numericPrefix = '~n:'
+  const stringPrefixes = [
+    'museSpark.',
+    'config.',
+    'https://github.com/RandyNorthrup/muse-spark-code#',
+  ]
   const serialize = (value) =>
-    JSON.stringify(value, (_key, entry) =>
-      typeof entry === 'number' ? `${numericPrefix}${entry}` : entry,
-    )
+    JSON.stringify(value, (_key, entry) => {
+      if (typeof entry === 'number') return `${numericPrefix}${entry}`
+      if (typeof entry !== 'string') return entry
+      const index = stringPrefixes.findIndex((prefix) => entry.startsWith(prefix))
+      return index === -1 ? entry : `~s${index}:${entry.slice(stringPrefixes[index].length)}`
+    })
   const modelJson = serialize(model)
   const tokens = /"(?:[^"\\]|\\.)*"/g
   if (
     JSON.stringify(model)
       .match(tokens)
-      .some((token) => /^"~(?:[0-9a-z]+"$|n:)/.test(token))
+      .some((token) => /^"~(?:[0-9a-z]+"$|n:|s[0-9a-z]+:)/.test(token))
   )
     throw new Error('Reserved reference token')
   const fragments = new Map()
@@ -1232,10 +1289,17 @@ const textKeys = ${JSON.stringify(textKeys)} as const
 export function referenceModel(): ReferenceModel {
   const referenceRadix = ${source.REFERENCE_POOL_RADIX}
   const numericPrefix = ${JSON.stringify(numericPrefix)}
+  const stringPrefixes = ${JSON.stringify(stringPrefixes)}
   const pool: readonly unknown[] = ${encodeTextKeys(JSON.stringify(pool.map((fragment) => JSON.parse(fragment))))}
   const expand = (value: unknown): unknown => {
     if (typeof value === 'string') {
       if (value.startsWith(numericPrefix)) return Number(value.slice(numericPrefix.length))
+      const prefixMatch = /^~s([0-9a-z]+):(.*)$/s.exec(value)
+      if (prefixMatch !== null) {
+        const prefix = stringPrefixes[Number.parseInt(prefixMatch[1] ?? '', referenceRadix)]
+        if (prefix === undefined) throw new RangeError(value)
+        return prefix + (prefixMatch[2] ?? '')
+      }
       const match = /^~([0-9a-z]+)$/.exec(value)
       if (match === null) return value
       const token = pool[Number.parseInt(match[1] ?? '', referenceRadix)]
