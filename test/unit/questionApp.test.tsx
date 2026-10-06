@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../../src/shared/protocol'
@@ -272,18 +272,19 @@ describe('M112 App commands and shared question delivery', () => {
     host({ type: 'openQuestions', snapshot: { sessionId: 'session-1', questions: [record] } })
     fireEvent.click(row().getByRole('button', { name: 'More actions' }))
     const dismissItem = await screen.findByRole('menuitem', { name: 'Dismiss' })
-    await act(async () => {
-      fireEvent.click(dismissItem)
-      await import('../../src/webview/components/QuestionUi')
-    })
-    expect(post).toHaveBeenCalledWith({
-      type: 'dismissOpenQuestion',
-      sessionId: 'session-1',
-      userInputId: 'q-1',
+    fireEvent.click(dismissItem)
+    // App dispatches through a lazy command module; wait for its observable
+    // result rather than assuming a second import settles its callback too.
+    await waitFor(() => {
+      expect(post).toHaveBeenCalledWith({
+        type: 'dismissOpenQuestion',
+        sessionId: 'session-1',
+        userInputId: 'q-1',
+      })
     })
     fireEvent.click(screen.getByRole('button', { name: '1 open question' }))
     fireEvent.click(dock().getByRole('button', { name: 'More actions' }))
-    const dismiss = screen.getByRole('menuitem', { name: 'Dismiss' })
+    const dismiss = await screen.findByRole('menuitem', { name: 'Dismiss' })
     expect(dismiss).toHaveAttribute('aria-disabled', 'true')
     fireEvent.click(dismiss)
     expect(

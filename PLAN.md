@@ -13402,6 +13402,24 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### REL0143F — Repair release PR #129 CI failures (2026-10-06)
+
+Continue `release/0.14.3` at `4122e1155` without another merge or push.
+Reproduce the report frame inventory, crash recovery, question dismissal and
+Cline quoting failures. Match the shipped inventory exactly, exercise M25's
+state flush and crash-loop prevention through the diet's retry helper, preserve
+M112's session-scoped exactly-once commands across lazy surfaces, and remove
+expensive shell startup from the quoting unit test without raising timeouts.
+Run every Vitest file in batches of at most three on Kubuntu with the repository
+default timeout; fix additional merge failures. Run production build, VSIX
+package, reference, localization, five-project typecheck, lint and the shared
+static checks. All existing gates and caps remain unchanged. The brief's full
+batched suite requirement supersedes common.md's focused-file restriction;
+aggregate quality and hosted cross-platform certification remain lead-owned.
+No live/paid call, network request, dependency, hook change or publication.
+Record failures, byte-exact red drills, counts and gate receipts in
+`docs/certification/rel0143-ci.md`. Local commits use the existing hooks.
+
 ### FIXM112Q — Durable-question review corrections (2026-10-06, Q complete)
 
 Scope: all six findings in `RVM112Q.report.md`, within Q's existing files.

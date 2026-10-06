@@ -4400,6 +4400,7 @@ export const REPORT_ERROR_CODES: ReadonlySet<string> = new Set([
 // owning test. Register new bundles before retaining their stack frames.
 export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/extension.js',
+  'dist/questionNotes.js',
   'dist/uiText.js',
   'dist/modelApi.js',
   'dist/sessionBoard.js',

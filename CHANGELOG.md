@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Problem reports retain frames from the shipped question deferral bundle.
+- Release checks cover crash recovery through the shared reload helper, await
+  deferred question commands and menus, and verify Cline shell quoting on all
+  platforms without a slow PowerShell startup.
+
 ## [0.14.3] - 2026-10-06
 
 ### Added
