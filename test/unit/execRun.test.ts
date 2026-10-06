@@ -21,8 +21,8 @@ import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { createLifecycle } from '../../src/runtime/exec/execLimits'
 import {
   validateResult,
-  execEventSchema,
-  type ExecEvent,
+  execEventV2Schema,
+  type ResourceExecEvent,
   type ExecResult,
 } from '../../src/runtime/exec/execProtocol'
 import { SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
@@ -204,11 +204,11 @@ async function harness(
   const run = async () => {
     try {
       const code = await runExec(life, deps)
-      const events: ExecEvent[] = out.chunks.flatMap((chunk) =>
+      const events: ResourceExecEvent[] = out.chunks.flatMap((chunk) =>
         chunk
           .trim()
           .split('\n')
-          .map((line): ExecEvent => execEventSchema.parse(JSON.parse(line))),
+          .map((line): ResourceExecEvent => execEventV2Schema.parse(JSON.parse(line))),
       )
       const records = events.filter((event) => event.type === 'result')
       const result =

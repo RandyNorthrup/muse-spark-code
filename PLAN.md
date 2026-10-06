@@ -19752,6 +19752,16 @@ the lead retains W's integration/platform gates and shared delivery docs.
 All four RVM107S findings are fixed with before-fix regressions and 13
 red/restored source drills; none is deferred. The inherited platform/delivery
 qualifications are named in §9 and the certification record.
+**FIXM107H review repair, 2026-10-06.** Repair RVM107H's two findings in
+H-owned runtime/ACP files: explicitly forward the injected machine store's
+methods with their receiver intact, and remember the full pause warning
+per ACP conversation. Later pause transitions still deliver current status
+and structured event metadata. Add class-store and repeated-pause regression
+tests, prove both fail on the review base and under deliberate mutations,
+and record exact restoration in `docs/certification/m107-h.md`. No new
+dependency, wire shape, setting, command or translated copy. W/lead retains
+joined wiring and full quality; the rig brief prohibits merges and full
+quality in this lane.
 
 **Status 2026-10-05: planned.** No model call is needed anywhere in this
 milestone. Lanes S, T, G, A, C1, U and H depend only on main and lane 0's
@@ -20242,6 +20252,27 @@ The pre-existing host-API importer-count drift stays W's responsibility;
 the gate remains red until its generated record is updated at integration.
 No gate, timeout, threshold, ignore or bundle cap is weakened. Receipts
 and deliberate failures are in `docs/certification/m107-s.md`.
+**FIXM107H bounded repair certification (2026-10-06).** The explicit rig
+brief and shared lane rules prohibit aggregate `npm run quality` and full
+test suites here, and prohibit merges. Local hook-on commits use the owning
+resource regressions, byte-exact guard drills, scoped lint/format and all
+five typecheck projects. The final repair receipt also runs the ACP/runtime
+compatibility tests, dead-code, duplication, localization, host API and
+production build checks. W/lead retains the joined full quality, coverage,
+cross-platform and native surface certification. No gate is weakened;
+exact results and inherited integration failures are recorded in
+`docs/certification/m107-h.md`.
+
+**FIXM107H inherited wiring deferrals.** The fresh production build passes
+all existing caps (ACP 827.2/850 KiB) but exits 1 at the unchanged seven
+`src/shared/resources.ts` reads of `zod/mini._default`, absent from
+`dist/validation.js`. W owns exporting that mini-parser member and the
+resource bundle's split/package wiring. The host API check also exits 1:
+generated Node-importer counts require child_process 13 → 14, fs/promises
+47 → 49, os 9 → 10 and path 84 → 89. Neither repair adds a Node import;
+W owns refreshing/reviewing the integrated host record. The gates remain
+red, with no ignore, cap change or release approval. Named integration
+residuals and follow-up are in §9 and `docs/certification/m107-h.md`.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
@@ -21516,6 +21547,18 @@ before a repaired one loads (2026-09-30).
   wires all runtimes, updates its owned record and certifies the joined size,
   full quality/coverage and editor matrix. These are inherited qualification
   handoffs, not deferred RVM107S findings.
+- **M107-H-W-integration (FIXM107H).** Both RVM107H findings are fixed;
+  no P2/P3 finding is deferred. Existing W-owned validation-bundle and
+  host-API-record failures remain: seven missing `zod/mini._default` reads,
+  and the generated Node-importer counts recorded in §7. Safe only as an
+  unmerged, unshipped lane: unchanged split/record gates still reject the
+  joined feature. Follow-up: W exports the existing mini-parser member,
+  wires/packages the resource bundle, refreshes/reviews the host record,
+  incorporates H's supplied Unreleased fix entry, and runs joined full
+  quality with the C1/T, J, R and M104 bindings named in H's certification.
+  The ACP bundle fits its unchanged 850 KiB hard cap but remains above
+  M107's ≤2 KiB addition target already handed to W; W reviews shared/lazy
+  factoring without weakening resource boundary validation or a budget.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

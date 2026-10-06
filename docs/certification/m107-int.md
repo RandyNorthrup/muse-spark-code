@@ -33,3 +33,26 @@ deferred-array mismatch in the adapted regression. Explicit return typing
 and the fixture's actual mutable snapshot type correct both without a cast
 or gate change. Final joined checks, shutdown audit, U/H receipts and sizes
 are recorded below as completed.
+
+## U join
+
+Clean merge `682a9784` joins `m107/u` (`c0d142350`). All five TypeScript
+projects pass. The complete `resourceStatus`, `resourceStatusPortable` and
+`ResourceSurface` files pass **24/24**. The App and harness regression batch
+and final browser acceptance are recorded with the final scoped checks.
+The merge retains U's injected lazy App port and named W/M104/M96c/J
+delivery bindings; no startup import, guessed MHP shape or cap increase.
+
+## H join
+
+Merge `m107/h` (`3885f037b`), retaining all three additive PLAN conflicts
+in M107, gates and residual risks. Add H's supplied Unreleased repair note.
+All five TypeScript projects pass. Complete `runtimeResources`,
+`acpResources`, `execResources`: **34 passed**; `acpAgent`, `execRun`,
+`acpRuntime`: **185 passed**; `execArgs`, `execOutput`, `execSchema`:
+**101 passed**. H's prototype-store and repeated-pause review regressions
+pass unchanged. The frozen v1 result and existing schemas remain intact.
+
+U's App, AppLazy and harness-entry batch also passes **155/155**. Its
+existing jsdom canvas diagnostics are unchanged; the real browser result
+is recorded separately below.

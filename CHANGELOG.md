@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Runtime resource settings preserve injected class stores' methods. ACP
+  shows one full pause warning per conversation while continuing level updates.
+
 - Windows Muse Code shutdown stops the verified registered job, bounds all
   SDK close surfaces, reports forced or unproved shutdown honestly, and
   disposes session handles even when close reports a failure. The CLI inherits
