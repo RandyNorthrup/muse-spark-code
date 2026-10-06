@@ -6790,6 +6790,28 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### BADGEFIX — Exact package versions on store pages (2026-10-05)
+
+- [x] Generate static Marketplace/Open VSX and npm/GitHub release version
+      badges from the manifest while staging each package. Landing-page templates
+      use `{version}`; installed READMEs contain the exact package version.
+      Keep GitHub's root README versions and all count badges dynamic.
+- [x] Discover all README badge images, including Markdown/reference images and
+      GitHub's trusted workflow badge; fetch them before purging GitHub camo.
+- [x] Add `check:badges` to quality and CI: HTTPS image targets, trusted store
+      SVG hosts, no dynamic store versions, exact staged versions and valid SVG
+      responses. Keep PNG screenshots as HTTPS content images. Network skips
+      require a named local reason and are refused in CI; packaging checks the
+      exact staged READMEs. No model calls, dependencies or runtime UI changes.
+- [x] Package and inspect the VSIX and ACP tarball; prove dynamic-version and
+      version-mismatch failures, restore byte-exact, and record focused/static
+      checks and artifact versions in `docs/certification/badgefix.md`.
+
+The rig brief prohibits push, merge and rebase; shared rules reserve aggregate
+quality for the lead. Run the bounded owning tests and static/build gates here,
+with hooks on. Badge-check public requests are the brief's sole added network
+exception; release cache refresh remains CI-only. Time box: 60 minutes.
+
 ### CIFIX14C — Packaged ACP help agrees with its canonical table (2026-10-05)
 
 - [x] Reproduce the release job's strict English fallback check against the
@@ -18205,6 +18227,23 @@ joined with M57, M58 and PR #49's sign-in
         commit-writing path exists
 
 ## 7. Gates
+
+**BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
+prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
+test files, deliberate failures, typecheck, scoped lint/format, deadcode,
+duplication, localization, host API and production/package checks directly on
+Kubuntu; the lead retains full integrated quality and hosted service proof.
+Local badge requests use the explicitly permitted named skip because the shared
+rig lane forbids public network. CI and CI packaging reject that override and
+must validate actual SVG responses. PNG screenshots remain HTTPS content images;
+the SVG requirement applies to badges. No threshold or existing gate is relaxed.
+Focused certification passed: 86 tests, 23 byte-exact red drills, required
+static/build/package checks and actual VSIX/ACP archive version inspection.
+The 0.14.0 VSIX is 2,168,278 bytes under the unchanged 2,252,800-byte cap; the
+ACP tarball is 1,295,446 bytes. Both carry exact static v0.14.0 badges, and a
+future-version fixture proves no manual badge bump is needed. The Kubuntu
+package lacks the compiled macOS helper; hosted universal packaging remains
+unchanged. Receipts: `docs/certification/badgefix.md`.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
