@@ -1,0 +1,1 @@
+tmpfs /var tmpfs rw,nosuid,nodev,mode=0755 0 0
