@@ -273,3 +273,74 @@ fullwidth overflow cases. The final scoped gate results follow below.
   README/CHANGELOG/catalogue and wiring remain the existing named W
   handoff; this internal bug fix adds no command, setting or feature.
   Commits use explicit file paths and the unchanged normal hooks.
+
+## Review RVM113R2 correction (FIXM113R2, 2026-10-06)
+
+Authority: `C:/lanes/_ctx/M113R.rig.md`, shared `codex/common.md` and the
+complete `C:/lanes/_ctx/codex/RVM113R2.report.md`, starting from
+`f69558e98b0d97c74faa9a3fec154ca3c12895e3` on win11. The review has one P2,
+fixed here with **no deferred review finding**. PLAN M113 records the scope
+before code; §7 records the bounded rig certification and §9 the outcome.
+
+| Finding                               | Fixed behavior and regression                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Red drill                                                                                                                           |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| P2, workspace separators after spaces | The workspace prefix still matches case-insensitively for Windows roots in either separator. Its suffix consumes spaces through the path's quote, field end or invalid character, then normalizes every slash/backslash run. `preserves complete spaced workspace-relative Windows paths and hashes equivalent spellings identically` covers `src/main.ts`, `src/My Folder/main.ts` and `My Dir/file name.ts`, each in forward, backslash, doubled and mixed spellings. Snapshots, final documents/hashes, all four formats and saved-JSON round trips agree. | Reintroduce whitespace as a suffix terminator: both spaced-path cases and the text/JSON/HTML token test fail.                       |
+| Same P2, path boundaries              | `normalizes spaced workspace path tokens through their real end in text, JSON and HTML` covers `C:\Users\Private Person\work\My Dir\file name.ts` as a whole field, quoted prose, escaped JSON and HTML. Quotes, angle brackets, pipe, question mark, asterisk, colon, newline, carriage return, tab and NUL end normalization. Sibling-prefix paths remain redacted in text, JSON and HTML; another-drive and home/outside controls remain.                                                                                                                  | Removing the colon terminator, then separately removing the control-character terminator, fails the named token test in each drill. |
+
+The initial unmodified-source control failed all three new spaced-path
+regressions at the default timeout, showing retained backslashes after a
+space. The fixed control passes. All three subsequent drills run the whole
+`reportRedaction.test.ts` file with `--maxWorkers=3`, no filter, skip or
+timeout override; each exits 1 on its named regression and restores the
+source in `finally`, with equal before/after SHA-256. Receipts are appended
+as `RVM113R2-P2-spaced-relative-path`, `RVM113R2-P2-path-colon-end` and
+`RVM113R2-P2-path-control-end` in
+[the existing review drill record](m113-r-review-drills.json).
+
+**Existing named residual: M113-R-shape-only-source-prose.** The review's
+boundary probes clarify the existing D93 contract, rather than finding
+another regression: nested source JSON with Unicode-escaped credential
+keys or another escaped credential field, percent/base64-encoded keys and
+credentials split across text-list entries are not recursively decoded.
+Outer saved-document Unicode escapes are decoded and covered by the
+existing regression. This is accepted under the shared shape-only export
+contract; saved verification proves known-shape compliance, not absence of
+arbitrary secrets in source prose. Follow-up belongs to the shared-export
+scrub owner: design bounded decoding if the contract expands. PLAN §9
+names the same residual explicitly.
+
+W retains the existing product-doc/reference/wiring handoff, including the
+Unreleased entry: "Report exports preserve complete workspace-relative
+Windows paths containing spaces and produce the same canonical hash for
+equivalent separator spellings." This internal correction adds no command,
+setting or feature-catalogue row. Full quality remains the lead's gate;
+the rig brief forbids running it here. No gate, schema, timeout, dependency,
+bundle budget or shared scrub rule is changed.
+
+### Final second-review verification on win11
+
+- **179 tests passed**, in complete owning files at repository-default
+  timeouts and `--maxWorkers=3`, at most three files per run: redaction +
+  JSON + text (**76**), determinism + HTML + Markdown (**42**), M84 session
+  transfer + report schema + report contracts (**61**). The no-space control,
+  all 60 format goldens and cross-process TZ/LANG comparisons pass.
+- All five `npm run typecheck` projects pass. Plain knip passes; jscpd
+  analyzes **1,207 files with zero clones** at the unchanged threshold.
+  The schema and help-reference freshness checks pass. Scoped ESLint,
+  Prettier and the base-to-working-tree diff check pass.
+- `npm run build` exits 0, including the production size, split,
+  host-global and notices gates: extension **439.5/600 KiB**, Model API
+  **446.9/475**, ACP **821.5/850**, startup **797.7/900**, deferred JS
+  **50.0/50**, shared English **53.3/125**. These are the currently shipped
+  bundles; W retains the reporting-engine registration/measurement handoff.
+- Localization exits 1 only for the same **seven unused W-owned report
+  manifest keys**, with all 14 UI tables passing. The host API inventory
+  exits 1 only for the same **`node:crypto` count 46 → 47** mismatch.
+  Both remain the named integration handoffs; neither is weakened or
+  claimed green. Full quality remains the lead's integration obligation.
+- No installed tool/dependency, external request, credential read,
+  live/paid attempt, message posting, merge, rebase, push, stash or git
+  config write occurred. The rig brief's merge prohibition takes precedence
+  over the stale merge step in the shared common brief. Commits stage only
+  the five lane-owned files explicitly and run the unchanged repository
+  hooks; `.husky/_/pre-commit` exists before committing.

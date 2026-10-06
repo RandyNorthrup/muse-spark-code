@@ -83,5 +83,54 @@
     "beforeSha256": "2b51a4b0b799913b01ec9bfcffd60721674743fb58c3f343cfae0b04b99bc391",
     "afterSha256": "2b51a4b0b799913b01ec9bfcffd60721674743fb58c3f343cfae0b04b99bc391",
     "restoredByteExact": true
+  },
+  {
+    "id": "RVM113R2-P2-spaced-relative-path",
+    "file": "src/core/reporting/render/redaction.ts",
+    "testFile": "test/unit/reportRedaction.test.ts",
+    "expectedFailedTests": [
+      "preserves complete spaced workspace-relative Windows paths and hashes equivalent spellings identically: src/My Folder/main.ts",
+      "preserves complete spaced workspace-relative Windows paths and hashes equivalent spellings identically: My Dir/file name.ts",
+      "normalizes spaced workspace path tokens through their real end in text, JSON and HTML"
+    ],
+    "failedTests": [
+      "preserves complete spaced workspace-relative Windows paths and hashes equivalent spellings identically: src/My Folder/main.ts",
+      "preserves complete spaced workspace-relative Windows paths and hashes equivalent spellings identically: My Dir/file name.ts",
+      "normalizes spaced workspace path tokens through their real end in text, JSON and HTML"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "dab9b476e79c9a7180ea44e5d5c9cd05ef56897e53fc6e599ec0ca8a1dad811f",
+    "afterSha256": "dab9b476e79c9a7180ea44e5d5c9cd05ef56897e53fc6e599ec0ca8a1dad811f",
+    "restoredByteExact": true
+  },
+  {
+    "id": "RVM113R2-P2-path-colon-end",
+    "file": "src/core/reporting/render/redaction.ts",
+    "testFile": "test/unit/reportRedaction.test.ts",
+    "expectedFailedTests": [
+      "normalizes spaced workspace path tokens through their real end in text, JSON and HTML"
+    ],
+    "failedTests": [
+      "normalizes spaced workspace path tokens through their real end in text, JSON and HTML"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "dab9b476e79c9a7180ea44e5d5c9cd05ef56897e53fc6e599ec0ca8a1dad811f",
+    "afterSha256": "dab9b476e79c9a7180ea44e5d5c9cd05ef56897e53fc6e599ec0ca8a1dad811f",
+    "restoredByteExact": true
+  },
+  {
+    "id": "RVM113R2-P2-path-control-end",
+    "file": "src/core/reporting/render/redaction.ts",
+    "testFile": "test/unit/reportRedaction.test.ts",
+    "expectedFailedTests": [
+      "normalizes spaced workspace path tokens through their real end in text, JSON and HTML"
+    ],
+    "failedTests": [
+      "normalizes spaced workspace path tokens through their real end in text, JSON and HTML"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "dab9b476e79c9a7180ea44e5d5c9cd05ef56897e53fc6e599ec0ca8a1dad811f",
+    "afterSha256": "dab9b476e79c9a7180ea44e5d5c9cd05ef56897e53fc6e599ec0ca8a1dad811f",
+    "restoredByteExact": true
   }
 ]

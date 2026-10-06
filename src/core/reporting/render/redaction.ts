@@ -29,8 +29,9 @@ export function reportScrubber(options: ReportRedaction = {}): (text: string) =>
       return [
         {
           pattern: new RegExp(
-            String.raw`(?<![\w./:])${escaped}(?=[\\/]|[\s"'<>]|$)(?:[\\/]+[^\s"'<>|?*]*)?`,
-            /^[A-Za-z]:/.test(normalized) ? 'gi' : 'g',
+            // Spaces belong to the path; quotes, controls and invalid path characters end it.
+            String.raw`(?<![\w./:])${escaped}(?=[\\/]|[\s"'<>]|$)(?:[\\/]+[^"'<>|?*:\p{Cc}]*)?`,
+            /^[A-Za-z]:/.test(normalized) ? 'giu' : 'gu',
           ),
           replacement,
           rootLength: normalized.length,

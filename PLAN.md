@@ -27572,6 +27572,16 @@ or guard change. Every finding gets a default-timeout regression and a
 byte-exact red drill in the lane R certification; W retains the existing
 product-documentation and integration-gate handoffs.
 
+**Lane R second review correction (RVM113R2, 2026-10-06).** Fix the
+remaining P2 by recognizing the known workspace prefix in decoded strings
+and consuming the whole relative path, including directory and filename
+spaces, through a quote, field end or invalid path character. Normalize
+every retained separator, including doubled JSON backslashes, with
+case-insensitive Windows roots. Prove equivalent documents, hashes and
+text/JSON/HTML output, saved-JSON round trips and outside-workspace
+redaction with default-timeout tests and a byte-exact red drill. Keep the
+shape-only scrub contract and the existing W integration handoffs explicit.
+
 Lanes P, S, R and V start once lane 0's contracts freeze, which can be as
 soon as M112's lane 0 has published the registry's types (for the session
 kind). The usage kind waits for M102, the native-host rows for M104b–d.
@@ -28739,6 +28749,9 @@ and the existing `node:crypto` inventory mismatch (46 to 47) remain named
 W integration handoffs in `docs/certification/m113-r-renderers,-redaction,-determinism.md`;
 neither gate is weakened or claimed green. W's complete integration gate
 must pass before the milestone ships. RVM113R has no deferred finding.
+RVM113R2 uses the same bounded certification: complete default-timeout
+owning files and scoped checks run on win11, with exact-restoration drills;
+the single P2 is fixed and neither existing integration handoff is hidden.
 
 **M113-L0-RVM113L02 bounded rig certification (2026-10-06).** The brief
 reserves aggregate quality for the lead. Run complete owned unit files with
@@ -30107,6 +30120,24 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M113-R-review-RVM113R2 (2026-10-06).** The single P2 is fixed;
+  no review finding is deferred. Known workspace paths consume the full
+  relative suffix, including spaces, through quotes, field ends or invalid
+  path characters, and normalize all separators before the shared scrub.
+  Ordinary, doubled and mixed Windows separators yield identical documents
+  and hashes. Text/JSON/HTML boundaries, saved-JSON round trips, outside
+  paths and three byte-exact red drills are recorded in the lane R
+  certification and `docs/certification/m113-r-review-drills.json`.
+- **M113-R-shape-only-source-prose (existing D93 limit, clarified by
+  RVM113R2, 2026-10-06).** The scrub recognizes registered shapes after
+  decoding the outer saved document. It does not recursively decode inner
+  JSON with Unicode-escaped credential keys, twice-escaped credential
+  fields, percent/base64-encoded keys or credentials split across text-list
+  entries. This remains accepted under the existing shape-only export
+  contract: saved-input verification proves known-shape compliance, not
+  absence of arbitrary secrets in source prose. Follow-up: the shared-export
+  scrub owner must design bounded decoding if that contract expands.
 
 - **M113-R-review-RVM113R (2026-10-06).** The P1, both P2 findings and P3
   are fixed with no review residuals. Report strings and object keys are

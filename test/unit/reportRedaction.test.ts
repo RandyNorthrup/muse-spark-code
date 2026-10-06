@@ -94,44 +94,79 @@ describe('report snapshot and output scrub', () => {
       expect(clean.sections[0]!.rows[0]!.cells['name']).toEqual({ type: 'text', value: line })
     },
   )
-  it('preserves complete workspace-relative Windows filenames before scrubbing and hashes equivalent paths identically', () => {
-    const options = {
+  it.each(['src/main.ts', 'src/My Folder/main.ts', 'My Dir/file name.ts'])(
+    'preserves complete spaced workspace-relative Windows paths and hashes equivalent spellings identically: %s',
+    (relative) => {
+      const options = {
+        workspaceRoot: 'C:/Users/Private Person/work',
+        homeRoot: 'C:/Users/Private Person',
+      }
+      const paths = [
+        `C:/Users/Private Person/work/${relative}`,
+        `c:\\users\\PRIVATE PERSON\\work\\${relative.replaceAll('/', '\\')}`,
+        `C:\\\\Users\\\\Private Person\\\\work\\\\${relative.replaceAll('/', '\\\\')}`,
+        String.raw`C:/Users\Private Person//work/${relative.replaceAll('/', '\\')}`,
+      ]
+      const reports = paths.map((file) => {
+        const snapshot = buildSourceSnapshot({
+          changelog: availableSource('changelog', {
+            sections: [{ version: 'Unreleased', date: null, lines: [file] }],
+          }),
+        })
+        const cleanSnapshot = scrubSourceSnapshot(snapshot, options)
+        const line = cleanSnapshot.sources.changelog.data?.sections[0]?.lines[0]
+        expect(line).toBe(`./${relative}`)
+        if (line === undefined) throw new Error('Changelog fixture is unavailable')
+        const document = renderFixture()
+        document.header.scope = file
+        document.sections[0]!.rows[0]!.cells['name'] = { type: 'text', value: line }
+        const clean = finalizeReport(document, options)
+        const renderers = createReportRenderers({ textForLocale: () => EN }, options)
+        for (const format of REPORT_FORMATS) {
+          const output = renderers[format](clean, 'en', REPORT_THEME)
+          expect(output).toContain(`./${relative}`)
+          expect(output).not.toContain('Private Person')
+        }
+        expect(verifyReport(clean, options)).toEqual(clean)
+        const saved: unknown = JSON.parse(renderers.json(clean, 'en', REPORT_THEME))
+        expect(verifyReport(saved, options)).toEqual(clean)
+        for (const format of REPORT_FORMATS) {
+          expect(renderers[format](verifyReport(saved, options), 'en', REPORT_THEME)).toBe(
+            renderers[format](clean, 'en', REPORT_THEME),
+          )
+        }
+        return clean
+      })
+      for (const report of reports) expect(report).toEqual(reports[0])
+      const scrub = reportScrubber(options)
+      expect(scrub(String.raw`C:\Users\Private Person\other\private.txt`)).not.toContain(
+        'private.txt',
+      )
+      expect(scrub(String.raw`D:\outside\private.txt`)).not.toContain('private.txt')
+    },
+  )
+  it('normalizes spaced workspace path tokens through their real end in text, JSON and HTML', () => {
+    const scrub = reportScrubber({
       workspaceRoot: 'C:/Users/Private Person/work',
       homeRoot: 'C:/Users/Private Person',
-    }
-    const paths = [
-      String.raw`c:\users\PRIVATE PERSON\work\src\main.ts`,
-      'C:/Users/Private Person/work/src/main.ts',
-    ]
-    const reports = paths.map((file) => {
-      const snapshot = buildSourceSnapshot({
-        changelog: availableSource('changelog', {
-          sections: [{ version: 'Unreleased', date: null, lines: [file] }],
-        }),
-      })
-      const cleanSnapshot = scrubSourceSnapshot(snapshot, options)
-      const line = cleanSnapshot.sources.changelog.data?.sections[0]?.lines[0]
-      expect(line).toBe('./src/main.ts')
-      if (line === undefined) throw new Error('Changelog fixture is unavailable')
-      const document = renderFixture()
-      document.header.scope = file
-      document.sections[0]!.rows[0]!.cells['name'] = { type: 'text', value: line }
-      const clean = finalizeReport(document, options)
-      const renderers = createReportRenderers({ textForLocale: () => EN }, options)
-      for (const format of REPORT_FORMATS) {
-        const output = renderers[format](clean, 'en', REPORT_THEME)
-        expect(output).toContain('./src/main.ts')
-        expect(output).not.toContain('Private Person')
-      }
-      expect(verifyReport(clean, options)).toEqual(clean)
-      return clean
     })
-    expect(reports[0]).toEqual(reports[1])
-    const scrub = reportScrubber(options)
-    expect(scrub(String.raw`C:\Users\Private Person\other\private.txt`)).not.toContain(
-      'private.txt',
-    )
-    expect(scrub(String.raw`D:\outside\private.txt`)).not.toContain('private.txt')
+    const file = String.raw`C:\Users\Private Person\work\My Dir\file name.ts`
+    const relative = './My Dir/file name.ts'
+    expect(scrub(file)).toBe(relative)
+    for (const quote of ['"', "'"]) {
+      expect(scrub(`Changed ${quote}${file}${quote} then continued`)).toBe(
+        `Changed ${quote}${relative}${quote} then continued`,
+      )
+    }
+    for (const end of ['<', '>', '|', '?', '*', ':', '\n', '\r', '\t', '\u{0}']) {
+      expect(scrub(String.raw`${file}${end}tail\keep`)).toBe(String.raw`${relative}${end}tail\keep`)
+    }
+    expect(scrub(`<p>${file}</p>`)).toBe(`<p>${relative}</p>`)
+    const outside = String.raw`C:\Users\Private Person\work-other\private.txt`
+    const saved: unknown = JSON.parse(scrub(JSON.stringify({ file, outside })))
+    expect(saved).toEqual({ file: relative, outside: '[redacted path]' })
+    expect(scrub(`<p>${outside}</p>`)).toBe('<p>[redacted path]</p>')
+    expect(scrub(`Changed "${outside}"`)).toBe('Changed "[redacted path]"')
   })
   it('scrubs the final formatted output boundary', () => {
     const output = scrubReportOutput(`<p>${CANARY} ${ACCOUNT} ${DIGEST}</p>`, {})
