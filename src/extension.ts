@@ -2638,7 +2638,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         fileExists: isExistingPath,
         writeFile: (fsPath, content) => writeUserFile(check, fsPath, content),
         openFile: async (fsPath) => {
-          await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(vscode.Uri.file(fsPath)))
+          await vscode.window.showTextDocument(
+            await vscode.workspace.openTextDocument(vscode.Uri.file(fsPath)),
+          )
         },
         runInit: () => {
           check()

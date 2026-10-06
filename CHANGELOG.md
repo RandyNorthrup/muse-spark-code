@@ -19,6 +19,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Hosts without the native walkthrough command get a local getting-started
+  page with sign-in guidance, shortcuts and chat/rules actions. File opening
+  passes the opened document to the editor API.
+
 - Machine-scoped settings are read from user/global configuration even in
   hosts that accept repository overrides, preventing a workspace from
   enabling Bypass, replacing the CLI or opting into paid features.

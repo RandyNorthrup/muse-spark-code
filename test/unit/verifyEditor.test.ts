@@ -26,6 +26,10 @@ import { createLogger } from '../../src/host/logger'
 
 const shownDocument = window.showTextDocument
 
+function shownPath(target: vscode.Uri | vscode.TextDocument): string {
+  return ('uri' in target ? target.uri : target).fsPath
+}
+
 const ROOT = '/ws'
 const FILE = { relative: 'src/a.ts', absolute: '/ws/src/a.ts' }
 const OTHER = { relative: 'src/b.ts', absolute: '/ws/src/b.ts' }
@@ -270,7 +274,7 @@ describe('diagnosticsAfterEdit', () => {
     // Each beside the user's editor, never a preview (which would replace
     // the user's own), without taking focus.
     expect(
-      vi.mocked(shownDocument).mock.calls.map(([uri, options]) => [uri.fsPath, options]),
+      vi.mocked(shownDocument).mock.calls.map(([uri, options]) => [shownPath(uri), options]),
     ).toEqual([
       [FILE.absolute, { viewColumn: ViewColumn.Beside, preview: false, preserveFocus: true }],
       [OTHER.absolute, { viewColumn: ViewColumn.Beside, preview: false, preserveFocus: true }],
@@ -372,7 +376,9 @@ describe('diagnosticsAfterEdit', () => {
       { file: OTHER, entries: [], unchecked: 'stopped' },
     ])
     expect(Date.now() - started).toBeLessThan(SETTLE.firstMs)
-    expect(vi.mocked(shownDocument).mock.calls.map(([uri]) => uri.fsPath)).toEqual([FILE.absolute])
+    expect(vi.mocked(shownDocument).mock.calls.map(([uri]) => shownPath(uri))).toEqual([
+      FILE.absolute,
+    ])
   })
 
   it('runs one caller at a time: a second waits for the first', async () => {
@@ -641,10 +647,7 @@ describe('the file as the edit left it', () => {
     expect(
       vi
         .mocked(shownDocument)
-        .mock.calls.map(([uri, options]): readonly unknown[] => [
-          uri instanceof FakeUri ? uri.fsPath : undefined,
-          options,
-        ]),
+        .mock.calls.map(([uri, options]): readonly unknown[] => [shownPath(uri), options]),
     ).toEqual([
       [FILE.absolute, { viewColumn: BESIDE_COLUMN, preview: true, preserveFocus: true }],
       ['/ws/user.ts', { viewColumn: BESIDE_COLUMN, preview: false, preserveFocus: true }],
@@ -673,7 +676,9 @@ describe('settleFile (the diagnostics tool)', () => {
     expect(await pending).toEqual([
       { path: 'src/a.ts', severity: 'error', line: 3, column: 5, message: 'bad', source: 'ts' },
     ])
-    expect(vi.mocked(shownDocument).mock.calls[0]?.[0].fsPath).toBe(FILE.absolute)
+    expect(vi.mocked(shownDocument).mock.calls[0]?.[0]).toMatchObject({
+      uri: { fsPath: FILE.absolute },
+    })
     expect(window.tabGroups.close).toHaveBeenCalledTimes(1)
     // No report: nothing read.
     expect(await verify.settleFile(OTHER.absolute)).toBeUndefined()

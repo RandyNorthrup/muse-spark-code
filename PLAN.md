@@ -14547,26 +14547,10 @@ usage window gives has never been captured (§3).
   source and its setting; the Muse Code install, update offer and removal;
   strings in all 14 tables; README, PRIVACY (the files the install writes),
   CHANGELOG, this plan and `docs/certification/m89.md`.
-- **Arduino host qualification follow-up (M103A2, 2026-10-05).** The real
-  IDE 2.3.10 run (API 1.96, Node 20.14) returned 21/34 with 13 failures.
-  This lane fixes shared adapters for machine-scoped settings (user/global
-  values only even when Theia accepts workspace overrides), document opening,
-  walkthroughs and language-provider commands. Native VS Code paths are kept
-  where available. Qualification must observe webview panels through their
-  actual lifecycle when the host omits them from `tabGroups`, retaining the
-  same title, creation and in-place-clear assertions. Language support is
-  qualified against the IDE's installed providers; any impossible capability
-  requires an explicit host expectation, an actionable visible fallback and
-  a recorded reason rather than a skipped test. All 34 cases run in the real
-  IDE, followed by VS Code regressions for shared changes, the API-floor
-  compiler, both unchanged VSIX budgets and byte-exact red drills. No model,
-  credential or physical-device calls; the lead owns the full quality gate.
-  Evidence: `docs/certification/m103-a2.md`.
-
-**Lanes and file ownership.** One integration branch
-(`feature/m89-bundled-skills`); lane 0 first, then V, S and I in parallel,
-then W. Region-owned files follow M87's lane rules (constants, styles,
-harness).
+- **Lanes and file ownership.** One integration branch
+  (`feature/m89-bundled-skills`); lane 0 first, then V, S and I in parallel,
+  then W. Region-owned files follow M87's lane rules (constants, styles,
+  harness).
 
 | Lane      | Owns                                                                                                                                                                                                                                                         |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -15195,6 +15179,22 @@ every user.
   README (a Makers section with the safety box), SECURITY, PRIVACY,
   CHANGELOG, this plan, `docs/research/makers-2026-10-05.md`,
   `docs/certification/m103*.md`.
+
+**Arduino host qualification follow-up (M103A2, 2026-10-05).** The real
+IDE 2.3.10 run (API 1.96, Node 20.14) returned 21/34 with 13 failures.
+This lane fixes shared adapters for machine-scoped settings (user/global
+values only even when Theia accepts workspace overrides), document opening,
+walkthroughs and language-provider commands. Native VS Code paths are kept
+where available. Qualification must observe webview panels through their
+actual lifecycle when the host omits them from `tabGroups`, retaining the
+same title, creation and in-place-clear assertions. Language support is
+qualified against the IDE's installed providers; any impossible capability
+requires an explicit host expectation, an actionable visible fallback and
+a recorded reason rather than a skipped test. All 34 cases run in the real
+IDE, followed by VS Code regressions for shared changes, the API-floor
+compiler, both unchanged VSIX budgets and byte-exact red drills. No model,
+credential or physical-device calls; the lead owns the full quality gate.
+Evidence: `docs/certification/m103-a2.md`.
 
 **Lanes and file ownership.** One integration branch
 (`feature/m103-makers`). Sub-milestone **f** is the maker editors (lanes A
