@@ -27,6 +27,12 @@ function readGitHub(transport: ReportNetworkTransport) {
   return githubReportSource({ ...options, reader: rig.reader }).read(networkContext())
 }
 
+const ghProbe = {
+  platform: 'linux' as const,
+  pathVariable: '/system/bin',
+  fileExists: () => true,
+}
+
 describe('GitHub report source', () => {
   it('refuses HEAD check runs for a different commit', async () => {
     const transport = vi.fn((request: { url: string }) =>
@@ -285,7 +291,7 @@ describe('gh report transport', () => {
   it('refuses credential-shaped refs and header values before spawning gh', async () => {
     const run = vi.fn<NonNullable<ReportGhOptions['run']>>()
     const secret = `ghp_${'a'.repeat(36)}`
-    const transport = ghReportTransport({ run, environment: {}, maxBytes: 4096 })
+    const transport = ghReportTransport({ run, probe: ghProbe, environment: {}, maxBytes: 4096 })
     await expect(
       transport(
         { url: `https://api.github.com/repos/a/b?ref=${secret}` },
@@ -304,6 +310,7 @@ describe('gh report transport', () => {
       .mockResolvedValue({ stdout: 'HTTP/2.0 200 OK\r\nETag: "captured"\r\n\r\n{}', stderr: '' })
     const transport = ghReportTransport({
       run,
+      probe: ghProbe,
       environment: {
         PATH: '/system/bin',
         GH_TOKEN: 'fixture-gh',
@@ -333,16 +340,54 @@ describe('gh report transport', () => {
     expect(settings?.env).toEqual({ PATH: '/system/bin' })
   })
 
+  it.each([
+    { platform: 'linux', pathVariable: ':.:./workspace:/trusted/bin', expected: '/trusted/bin/gh' },
+    {
+      platform: 'win32',
+      pathVariable: String.raw`;.;relative\bin;C:\trusted\bin`,
+      expected: String.raw`C:\trusted\bin\gh.exe`,
+    },
+  ] as const)('resolves gh without workspace PATH entries on $platform', async (probe) => {
+    const fileExists = vi.fn(() => true)
+    const run = vi
+      .fn<NonNullable<ReportGhOptions['run']>>()
+      .mockResolvedValue({ stdout: 'HTTP/2 200 OK\n\n{}', stderr: '' })
+    await ghReportTransport({
+      run,
+      probe: { ...probe, fileExists },
+      environment: {},
+      maxBytes: 4096,
+    })({ url: 'https://api.github.com/repos/fixture/repo' }, null, new AbortController().signal)
+    expect(run.mock.calls[0]?.[0]).toBe(probe.expected)
+    expect(fileExists).toHaveBeenCalledExactlyOnceWith(probe.expected)
+  })
+
+  it('refuses a missing gh executable instead of using a bare fallback', async () => {
+    const run = vi
+      .fn<NonNullable<ReportGhOptions['run']>>()
+      .mockResolvedValue({ stdout: 'HTTP/2 200 OK\n\n{}', stderr: '' })
+    await expect(
+      ghReportTransport({
+        run,
+        probe: { ...ghProbe, fileExists: () => false },
+        environment: {},
+        maxBytes: 4096,
+      })({ url: 'https://api.github.com/repos/a/b' }, null, new AbortController().signal),
+    ).rejects.toThrow('gh-not-found')
+    expect(run).not.toHaveBeenCalled()
+  })
+
   it('preserves rate headers from gh nonzero HTTP exits without showing stderr', async () => {
     const run = vi.fn<NonNullable<ReportGhOptions['run']>>().mockRejectedValue({
       stdout: 'HTTP/2.0 429 Too Many Requests\nRetry-After: 60\n\n{}',
       stderr: 'must-never-show',
     })
-    const response = await ghReportTransport({ run, environment: {}, maxBytes: 4096 })(
-      { url: 'https://api.github.com/repos/a/b' },
-      null,
-      new AbortController().signal,
-    )
+    const response = await ghReportTransport({
+      run,
+      probe: ghProbe,
+      environment: {},
+      maxBytes: 4096,
+    })({ url: 'https://api.github.com/repos/a/b' }, null, new AbortController().signal)
     expect(response.status).toBe(429)
     expect(response.headers.get('retry-after')).toBe('60')
   })
@@ -351,11 +396,12 @@ describe('gh report transport', () => {
     const run = vi
       .fn<NonNullable<ReportGhOptions['run']>>()
       .mockResolvedValue({ stdout: 'HTTP/2.0 304 Not Modified\nETag: "v1"\n\n', stderr: '' })
-    const observed17 = await ghReportTransport({ run, environment: {}, maxBytes: 4096 })(
-      { url: 'https://api.github.com/repos/a/b' },
-      null,
-      new AbortController().signal,
-    )
+    const observed17 = await ghReportTransport({
+      run,
+      probe: ghProbe,
+      environment: {},
+      maxBytes: 4096,
+    })({ url: 'https://api.github.com/repos/a/b' }, null, new AbortController().signal)
     expect(observed17.status).toBe(304)
   })
 
@@ -364,7 +410,7 @@ describe('gh report transport', () => {
     async (url) => {
       const run = vi.fn<NonNullable<ReportGhOptions['run']>>()
       await expect(
-        ghReportTransport({ run, environment: {}, maxBytes: 4096 })(
+        ghReportTransport({ run, probe: ghProbe, environment: {}, maxBytes: 4096 })(
           { url },
           null,
           new AbortController().signal,
@@ -381,7 +427,7 @@ describe('gh report transport', () => {
         .fn<NonNullable<ReportGhOptions['run']>>()
         .mockResolvedValue({ stdout, stderr: '' })
       await expect(
-        ghReportTransport({ run, environment: {}, maxBytes: 4096 })(
+        ghReportTransport({ run, probe: ghProbe, environment: {}, maxBytes: 4096 })(
           { url: 'https://api.github.com/repos/a/b' },
           null,
           new AbortController().signal,

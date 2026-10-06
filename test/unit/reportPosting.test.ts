@@ -9,6 +9,7 @@ const input = {
   target,
   body: '# Full report\n\n| Source | State |\n| Git | ok |',
 } as const
+const schedule = { action: 'post-report', kind: 'project', target } as const
 function postingRig(): ReportPostingDeps {
   const { deps } = networkRig()
   return {
@@ -16,6 +17,7 @@ function postingRig(): ReportPostingDeps {
     scrub: deps.scrub,
     enabled: vi.fn(() => Promise.resolve(true)),
     previewed: vi.fn(() => Promise.resolve(true)),
+    authorizeSchedule: vi.fn(() => Promise.resolve(true)),
     rememberPreview: vi.fn(() => Promise.resolve()),
     confirm: vi.fn(() => Promise.resolve('post' as const)),
     send: vi.fn(() =>
@@ -23,11 +25,82 @@ function postingRig(): ReportPostingDeps {
     ),
   }
 }
+function admissionPolicy(base: ReportPostingDeps, onAdmission: () => void) {
+  return {
+    ...base.policy,
+    allowEgress: vi.fn(() => {
+      onAdmission()
+      return Promise.resolve(true)
+    }),
+  }
+}
 afterEach(() => {
   vi.useRealTimers()
 })
 
 describe('report posting', () => {
+  it('refuses a scrub change during egress before dispatch', async () => {
+    const base = postingRig()
+    let hasNewRedaction = false
+    const deps = {
+      ...base,
+      scrub: (body: string) => (hasNewRedaction ? body.replace('Full', '[redacted]') : body),
+      policy: admissionPolicy(base, () => {
+        hasNewRedaction = true
+      }),
+    }
+    expect(await postReport(deps, networkContext(), input)).toMatchObject({ status: 'refused' })
+    expect(deps.send).not.toHaveBeenCalled()
+  })
+  it('refuses a forged schedule despite target opt-in and a previous preview', async () => {
+    const base = postingRig()
+    let isAdmitted = false
+    const deps = {
+      ...base,
+      authorizeSchedule: vi.fn(() => Promise.resolve(isAdmitted)),
+      policy: admissionPolicy(base, () => {
+        isAdmitted = true
+      }),
+    }
+    const context = networkContext()
+    const grant = { action: 'post-report', kind: 'project', target }
+    expect(await postReport(deps, context, input, grant)).toMatchObject({ status: 'refused' })
+    expect(deps.authorizeSchedule).toHaveBeenCalledWith(context, grant)
+    expect(deps.policy.allowEgress).not.toHaveBeenCalled()
+    expect(deps.send).not.toHaveBeenCalled()
+  })
+
+  it('rechecks scheduled authority after egress admission', async () => {
+    const deps = {
+      ...postingRig(),
+      authorizeSchedule: vi
+        .fn<ReportPostingDeps['authorizeSchedule']>()
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false),
+    }
+    expect(await postReport(deps, networkContext(), input, schedule)).toMatchObject({
+      status: 'refused',
+    })
+    expect(deps.send).not.toHaveBeenCalled()
+  })
+  it('refuses a setting revoked during scheduled authority verification', async () => {
+    const base = postingRig()
+    let isEnabled = true
+    let authorizations = 0
+    const deps = {
+      ...base,
+      enabled: vi.fn(() => Promise.resolve(isEnabled)),
+      authorizeSchedule: vi.fn(() => {
+        authorizations++
+        if (authorizations === 2) isEnabled = false
+        return Promise.resolve(true)
+      }),
+    }
+    expect(await postReport(deps, networkContext(), input, schedule)).toMatchObject({
+      status: 'refused',
+    })
+    expect(deps.send).not.toHaveBeenCalled()
+  })
   it.each([-1, 0, 0.5])('refuses invalid issue numbers %s', async (number) => {
     const deps = postingRig()
     await expect(
@@ -41,13 +114,9 @@ describe('report posting', () => {
     const deps = {
       ...base,
       enabled: vi.fn(() => Promise.resolve(isEnabled)),
-      policy: {
-        ...base.policy,
-        allowEgress: vi.fn(() => {
-          isEnabled = false
-          return Promise.resolve(true)
-        }),
-      },
+      policy: admissionPolicy(base, () => {
+        isEnabled = false
+      }),
     }
     expect(await postReport(deps, networkContext(), input)).toMatchObject({ status: 'refused' })
     expect(deps.send).not.toHaveBeenCalled()

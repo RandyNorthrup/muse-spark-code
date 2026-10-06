@@ -11,6 +11,7 @@ import {
   UI_TEXT,
 } from '../../../shared/constants'
 import { withoutCredentials } from '../../credentialEnvironment'
+import { resolveExecutable, type ExecutableProbe } from '../../executables'
 import { redactSecrets } from '../../redact'
 import { githubRepositoryOf, type GitHubRepository } from '../../git/githubRemote'
 import { isCommitSha } from '../../git/github'
@@ -289,6 +290,8 @@ const commandResultSchema = z.object({ stdout: z.string(), stderr: z.string() })
 export interface ReportGhOptions {
   readonly environment: NodeJS.ProcessEnv
   readonly maxBytes: number
+  /** Host file probe; the existing D24 resolver excludes workspace PATH entries. */
+  readonly probe: ExecutableProbe
   /** Tests inject the actual child-process boundary, not an authentication fake. */
   readonly run?: (
     file: string,
@@ -312,6 +315,8 @@ export function ghReportTransport(options: ReportGhOptions): ReportNetworkTransp
       request.body !== undefined
     )
       throw new ReportNetworkFailure('gh-endpoint-refused')
+    const file = resolveExecutable('gh', options.probe)
+    if (file === undefined) throw new ReportNetworkFailure('gh-not-found')
     const args = [
       'api',
       '--hostname',
@@ -328,7 +333,7 @@ export function ghReportTransport(options: ReportGhOptions): ReportNetworkTransp
     ]
     let raw: unknown
     try {
-      raw = await (options.run ?? exec)('gh', args, {
+      raw = await (options.run ?? exec)(file, args, {
         encoding: 'utf8',
         env: withoutCredentials(options.environment),
         signal,
@@ -383,6 +388,7 @@ const reportPostGrantSchema = z.strictObject({
   kind: reportKindSchema,
   target: postTargetSchema,
 })
+type PostScheduleGrant = z.infer<typeof reportPostGrantSchema>
 export interface ReportPostPreview {
   readonly kind: ReportKind
   readonly target: PostTarget
@@ -394,6 +400,12 @@ export interface ReportPostingDeps {
   /** Per kind and exact repository/number/target kind; never a session rule. */
   readonly enabled: (kind: ReportKind, target: PostTarget) => Promise<boolean>
   readonly previewed: (kind: ReportKind, target: PostTarget) => Promise<boolean>
+  /** Q verifies the active occurrence/creator/workspace grant independently
+   * of the caller's fields. A prior target preview is not scheduler authority. */
+  readonly authorizeSchedule: (
+    context: SourceReadContext,
+    grant: PostScheduleGrant,
+  ) => Promise<boolean>
   readonly rememberPreview: (kind: ReportKind, target: PostTarget) => Promise<void>
   readonly confirm: (preview: ReportPostPreview, signal: AbortSignal) => Promise<'post' | 'cancel'>
   /** Captured adapter uses the user's D95.13 identity, no token in this module. */
@@ -434,6 +446,7 @@ export async function postReport(
     return { status: 'refused', reason: UI_TEXT.reportUi.previewPost }
   const body = deps.scrub(`${deps.scrub(input.body)}\n\n${UI_TEXT.reportUi.automatedNote}\n`)
   const preview: ReportPostPreview = { kind, target, body }
+  let scheduleGrant: PostScheduleGrant | undefined
   if (schedule !== undefined) {
     const targetKey = JSON.stringify(target)
     const grant = reportPostGrantSchema.safeParse(schedule)
@@ -441,9 +454,11 @@ export async function postReport(
       !grant.success ||
       grant.data.kind !== kind ||
       JSON.stringify(grant.data.target) !== targetKey ||
-      !(await deps.previewed(kind, target))
+      !(await deps.previewed(kind, target)) ||
+      !(await deps.authorizeSchedule(context, grant.data))
     )
       return { status: 'refused', reason: UI_TEXT.reportUi.previewPost }
+    scheduleGrant = grant.data
   } else if ((await deps.confirm(structuredClone(preview), context.signal)) !== 'post')
     return { status: 'refused', reason: UI_TEXT.reportUi.previewPost }
   if (
@@ -470,7 +485,11 @@ export async function postReport(
   const work = async (): Promise<ReportPostResult> => {
     if (!(await deps.policy.allowEgress(url, signal)))
       return { status: 'refused', reason: UI_TEXT.reportUi.networkOff }
+    if (scheduleGrant !== undefined && !(await deps.authorizeSchedule(context, scheduleGrant)))
+      return { status: 'refused', reason: UI_TEXT.reportUi.previewPost }
     if (!isPostingAllowed(deps, context) || !(await deps.enabled(kind, target)))
+      return { status: 'refused', reason: UI_TEXT.reportUi.previewPost }
+    if (deps.scrub(body) !== body || !isPostingAllowed(deps, context))
       return { status: 'refused', reason: UI_TEXT.reportUi.previewPost }
     signal.throwIfAborted()
     dispatch.hasStarted = true

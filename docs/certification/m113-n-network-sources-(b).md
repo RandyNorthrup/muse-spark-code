@@ -50,7 +50,10 @@ requests, credentials, dependencies, installs or global settings.
   `partial`, not fabricated complete success.
 - `ghReportTransport`: the real default runner is Node's `execFile`, no
   shell, with a timeout, maxBuffer, AbortSignal and a credential-free supplied
-  environment. The process-spy tests exercise that boundary. gh owns its
+  environment. D24's existing safe PATH resolver selects an absolute executable
+  through the mandatory host file probe, excluding empty/relative workspace
+  entries on both POSIX and Windows; a missing binary is explicitly refused.
+  The process-spy tests exercise that boundary. gh owns its
   login; no token is read, stored or passed in arguments/environment. HTTP
   status/headers from nonzero gh exits still reach rate-limit handling;
   stderr never reaches reports. `--include` is parsed as standard HTTP syntax,
@@ -67,12 +70,28 @@ requests, credentials, dependencies, installs or global settings.
   invocation shows the entire scrubbed body plus the localized automated note
   and needs the semantic `post` decision. An unattended invocation needs a
   validated `post-report` schedule grant for that exact kind/target and a
-  previous approved full preview. The pinned status issue uses `updateIssue`
+  previous approved full preview. The mandatory scheduler-authority port
+  independently verifies the active occurrence, creator and workspace before
+  egress and again before dispatch; caller-provided fields and a remembered
+  target preview cannot establish authority. The pinned status issue uses `updateIssue`
   with its existing number, never creates another issue. Consent is rechecked
   after preview and after egress admission. A changed scrub result invalidates
   the preview. Receipts validate origin and exact target. Dispatched failures
   or deadlines are `uncertain`, never automatically retried or remembered as
   a successful preview.
+
+Final review added the independent scheduler-authority port. Its regression
+refuses a forged grant even with target opt-in and a prior preview. A separate
+regression first failed with `posted` when target consent was revoked during
+the second authority check; moving the final setting check after that awaited
+verification fixed it. A redaction change during egress also invalidates the
+preview before dispatch. The initial authority drill exposed that two identical
+denial checks masked the intended first-admission test; the fixture now changes
+authority at egress to prove each boundary independently.
+The executable regressions first failed on both POSIX and Windows with a
+bare `gh` name, and the missing-binary case incorrectly succeeded. Binding
+the existing resolver fixed all three without adding a resolver or filesystem
+implementation to this lane.
 
 The first concurrency regression failed before its repair: four simultaneous
 cache updates retained one entry. Serializing updates fixed it; the queue
@@ -89,16 +108,16 @@ receipts; store tests are normalized application-port fakes, never claimed
 wire captures. The lead must not claim stores, workflow/releases or posting
 service adapters certified until the following bindings land.
 
-| Handoff                   | Owner            | Required binding                                                                                                                                                                                                                                                                                                                                                                                          |
-| ------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| N-captures                | Lead / N         | Approved Marketplace, Open VSX, npm, workflow/release and posting captures, with workspace and attempt counts. `ReportStoreAdapter` supplies a captured schema/transform; `ReportGitHubAdditionalPort` supplies normalized facts. No guessed wire parser is shipped.                                                                                                                                      |
-| N-cache-storage           | S / W            | Bind `ReportCacheStorage` to owner-only, bounded, confined, link-refusing atomic storage at `<agentDataFolder>/reports/v1/cache/index.json`. Share one cache instance per storage binding; separate processes/windows need the host's storage serialization. Storage calls must honour their AbortSignal.                                                                                                 |
-| N-reader-wiring           | V / X / W        | Inject the installed-language export scrub (registered values, digests, account ids and local roots), actual observation clock, machine-scoped network setting, terminal flag and D65/network-posture check. Bind signed-in HTTP through M71's credential-owning host client; public fetch and gh transports are implemented here. W supplies named byte/page/cache-entry constants without raising caps. |
-| N-posting                 | V / X / Q / M115 | Bind per-kind/exact-target settings and the stored preview state, the full preview's Post button, and the captured comment/update adapter using D95.13's user identity. A schedule grant is not a remembered blanket permission. Surface `uncertain` honestly and never silently retry it.                                                                                                                |
-| N-Needs-you               | K                | Consume `stores` channel status/lag and GitHub's scoped default-branch failures. Unknown/missing channels remain explicit source rows.                                                                                                                                                                                                                                                                    |
-| N-manifest-reference-docs | W                | Register the prepared `museSpark.reports.network` manifest keys, default whenSignedIn and machine scope; expose `--network` through X. Add accurate network/posting help catalogue entries, regenerate reference, and update README Reports, CHANGELOG Unreleased, PRIVACY, SECURITY, ACP/CI and host docs. These files belong to W, so this lane leaves them untouched.                                  |
-| N-host-api-record         | W                | Regenerate the owned host API record after integration. This lane adds one importing file each for `node:child_process` (13→14), `node:crypto` (46→47), and `node:util` (5→6). No VS Code API or importing file is added. The source check currently fails only generated-record freshness.                                                                                                               |
-| N-lazy-bundle             | W / R            | Import these modules only through `dist/reporting.js`, with R's render/scrub and the guarded no-backend split; measure the complete engine against D93's new budget. No activation or UI import is added here.                                                                                                                                                                                            |
+| Handoff                   | Owner            | Required binding                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| N-captures                | Lead / N         | Approved Marketplace, Open VSX, npm, workflow/release and posting captures, with workspace and attempt counts. `ReportStoreAdapter` supplies a captured schema/transform; `ReportGitHubAdditionalPort` supplies normalized facts. No guessed wire parser is shipped.                                                                                                                                                                                                  |
+| N-cache-storage           | S / W            | Bind `ReportCacheStorage` to owner-only, bounded, confined, link-refusing atomic storage at `<agentDataFolder>/reports/v1/cache/index.json`. Share one cache instance per storage binding; separate processes/windows need the host's storage serialization. Storage calls must honour their AbortSignal.                                                                                                                                                             |
+| N-reader-wiring           | V / X / W        | Inject the installed-language export scrub (registered values, digests, account ids and local roots), actual observation clock, machine-scoped network setting, terminal flag and D65/network-posture check. Bind signed-in HTTP through M71's credential-owning host client; public fetch and gh transports are implemented here. The gh transport requires the host's D24 `ExecutableProbe`. W supplies named byte/page/cache-entry constants without raising caps. |
+| N-posting                 | V / X / Q / M115 | Bind per-kind/exact-target settings and the stored preview state, the full preview's Post button, and the captured comment/update adapter using D95.13's user identity. Q binds mandatory `authorizeSchedule` to the active occurrence/creator/workspace authority, independently of the caller's grant and prior preview. Surface `uncertain` honestly and never silently retry it.                                                                                  |
+| N-Needs-you               | K                | Consume `stores` channel status/lag and GitHub's scoped default-branch failures. Unknown/missing channels remain explicit source rows.                                                                                                                                                                                                                                                                                                                                |
+| N-manifest-reference-docs | W                | Register the prepared `museSpark.reports.network` manifest keys, default whenSignedIn and machine scope; expose `--network` through X. Add accurate network/posting help catalogue entries, regenerate reference, and update README Reports, CHANGELOG Unreleased, PRIVACY, SECURITY, ACP/CI and host docs. These files belong to W, so this lane leaves them untouched.                                                                                              |
+| N-host-api-record         | W                | Regenerate the owned host API record after integration. This lane adds one importing file each for `node:child_process` (13→14), `node:crypto` (46→47), and `node:util` (5→6). No VS Code API or importing file is added. The source check currently fails only generated-record freshness.                                                                                                                                                                           |
+| N-lazy-bundle             | W / R            | Import these modules only through `dist/reporting.js`, with R's render/scrub and the guarded no-backend split; measure the complete engine against D93's new budget. No activation or UI import is added here.                                                                                                                                                                                                                                                        |
 
 All editors use the same core ports: VS Code, native MHP hosts, companion,
 ACP/CLI/headless and later desktop/TUI. There is no VS Code import. This lane
@@ -113,6 +132,9 @@ already recorded by lane 0 remain W's handoff; they are not ignored or removed.
 Final scoped gate results and deliberate-break receipts are appended below.
 The duplication gate first caught four repeated test setup blocks; shared
 test-only fixtures removed them without changing an assertion or threshold.
+The follow-up gate caught two further repeated test setup blocks; a shared
+admission-policy fixture and schedule value removed them with all assertions
+retained, and the zero-threshold check passed again.
 Plain knip runs through `npm run deadcode` with Jiti filesystem caching off
 (`JITI_FS_CACHE=0`) to avoid writes under the shared `node_modules`; this does
 not alter analysis or hooks.
@@ -122,7 +144,7 @@ threshold, timeout, ignore, dependency or escape-hatch rule was changed.
 
 ## Deliberate breaks
 
-All 57 mutations below ran the complete named owning test file with
+The initial 57 mutations below ran the complete named owning test file with
 `npx --no-install vitest run <file> --maxWorkers=3`, default test timeouts,
 no test-name filters. Every run exited 1 with the expected named failure.
 The original production file was restored in `finally` and its SHA-256
@@ -201,6 +223,22 @@ Restored production SHA-256 for this drill batch:
 - `src/core/reporting/sources/github.ts`: `5bd952458894a33852bec109b1e9b17c394308afe4b8fa01eb1e90d592eec249`
 - `src/core/reporting/sources/stores.ts`: `27c9217fe8862e16f5d44a9cfbb6d0c69b001a6269e5605ba2f8701530d59053`
 
+The final posting/transport follow-up adds six mutations, for **63 total** named red
+drills. Each ran the complete owning test file with the same default
+timeout and worker limit, exited 1 with the named failure, and restored
+`github.ts` byte-exact to
+`41119c7babfb4740b75556d65a04417fe8def430d67d5e1e5ba3bb4a6d05e785`.
+Receipts: `temp/m113n/posting-drills.json` and the matching logs.
+
+| Mutation                          | Named failing test                                                     |
+| --------------------------------- | ---------------------------------------------------------------------- |
+| `post-schedule-authority`         | refuses a forged schedule despite target opt-in and a previous preview |
+| `post-schedule-authority-recheck` | rechecks scheduled authority after egress admission                    |
+| `post-rescrub-after-egress`       | refuses a scrub change during egress before dispatch                   |
+| `post-revoke-after-authority`     | refuses a setting revoked during scheduled authority verification      |
+| `gh-safe-executable`              | resolves gh without workspace PATH entries on linux (also fails win32) |
+| `gh-no-bare-fallback`             | refuses a missing gh executable instead of using a bare fallback       |
+
 ## Final scoped results (Kubuntu)
 
 All final test runs use the repository default timeout, no test-name filters,
@@ -218,15 +256,21 @@ at most three files per invocation and `--maxWorkers=3`.
 | `npm run check:host-api`                                                                | Exit 1: one generated-record freshness problem, the three Node import counts named in N-host-api-record. No VS Code API changes. W owns regeneration; no record was edited.       |
 | dpdm from all three network entries, with `-T`                                          | Exit 0, no cycles.                                                                                                                                                                |
 | `npm run build`                                                                         | Exit 0: unchanged size/split, host-global and third-party notice gates. These modules have no activation entry on this base; W must measure the integrated lazy reporting bundle. |
-| `reportNetworkCache.test.ts`, `githubReportSource.test.ts`, `storeReportSource.test.ts` | Exit 0, 75 tests.                                                                                                                                                                 |
-| `reportPosting.test.ts`                                                                 | Exit 0, 27 tests.                                                                                                                                                                 |
-| Red drills                                                                              | 57 named semantic failures, exit 1, every production restoration SHA-256 byte-exact.                                                                                              |
+| `reportNetworkCache.test.ts`, `githubReportSource.test.ts`, `storeReportSource.test.ts` | Exit 0, 78 tests.                                                                                                                                                                 |
+| `reportPosting.test.ts`                                                                 | Exit 0, 31 tests; 109 total owned tests.                                                                                                                                          |
+| Red drills                                                                              | 63 named semantic failures across both batches, exit 1, every production restoration SHA-256 byte-exact.                                                                          |
+
+Build receipts: extension 439.5 KiB / 600 KiB, Model API 446.9 KiB / 475 KiB,
+ACP 821.5 KiB / 850 KiB, checkpoint store 76.9 KiB / 225 KiB.
 
 Final logs and exact commands are retained locally in
-`temp/m113n/checks.json` and `*-final.log`. The only nonzero final gates
+`temp/m113n/checks.json`, `checks-followup.json` and the matching final/follow-up logs. The only nonzero final gates
 are the two named integration handoffs; they are not claimed green. No full
 quality run, live service certification or editor integration is claimed.
 
-The normal repository pre-commit hook must run lint-staged (ESLint/Prettier)
-and gitleaks with hooks enabled. Commit receipts are recorded separately
-after the commit; no source change follows these final checks.
+The first implementation commit is
+`2b0d882791bd8e618b22fc0994623c0bd6fbab31`. Its normal pre-commit hook ran
+lint-staged's ESLint/Prettier and gitleaks successfully, with no leaks.
+The worktree's `.husky/_/pre-commit` exists. The posting follow-up uses the
+same enabled hooks; its commit receipt is included in the final lane report.
+No source change follows the final follow-up checks.
