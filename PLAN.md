@@ -15414,6 +15414,10 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+Lane B implementation (2026-10-05): the ACP lifecycle is being moved to the
+runtime controller registry, followed by panel transport and persistent stores.
+This does not yet claim panel parity; evidence is in `docs/certification/m104-b.md`.
+
 **Lane 0 status: MHP 1.1.0 adds the panel carrier (lead decision; E01).**
 The frozen `mhp/1.0.0` editor-service table, errors and snapshot remain
 unchanged. The additive `mhp/1.1.0` contract reuses the shared chat, Tasks

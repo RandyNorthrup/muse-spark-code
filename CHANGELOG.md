@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Standalone session controller registry now owns ACP adoption, reload stop
+  barriers and host-exit cleanup; the existing ACP wire behavior is preserved.
+
 - MHP 1.1.0 panel carrier contract: validated shared payloads, ordered
   session-bound surface envelopes and lifecycle, the `window.museHost`
   API, and multiplexed NDJSON/companion HTTP/SSE framing. Native consumers
