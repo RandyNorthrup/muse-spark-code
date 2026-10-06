@@ -119,9 +119,12 @@ describe('M108 headless account admission', () => {
       const request = execAccountRequest(options(true), poolRequest({ isInteractive: true }))
       if (choice === 'confirm') expect(await h.pool.run(request, h.dispatch)).toBe('b')
       else {
-        await expect(h.pool.run(request, h.dispatch)).rejects.toBeInstanceOf(
-          AccountPoolStoppedError,
-        )
+        await expect(h.pool.run(request, h.dispatch)).rejects.toMatchObject({
+          decision: {
+            kind: 'stop',
+            reason: choice === 'absent' ? 'confirmation' : 'ownCapsOnly',
+          },
+        })
         expect(h.dispatch).not.toHaveBeenCalled()
       }
       expect(h.ask).not.toHaveBeenCalled()

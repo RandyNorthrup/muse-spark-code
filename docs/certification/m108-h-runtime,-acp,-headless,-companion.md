@@ -4,7 +4,7 @@ Kubuntu, `/home/randy/lanes/M108H`, branch `m108/h`, base `291fc547a`.
 Read the rig brief, shared `codex/common.md`, AGENTS, PLAN D88/M108,
 account-terms research and prerequisite account/policy/pool certifications.
 The rig brief overrides the older merge, remote-run and timeout directions.
-No credential-store read, network, live/paid model call, dependency install,
+No real credential-store read, network, live/paid model call, dependency install,
 push, merge, rebase or change outside this worktree.
 
 ## Delivered scope
@@ -51,7 +51,7 @@ There are no new settings or manifest strings; package.nls files stay intact.
 
 | Binding       | Owner          | Required composition                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | ------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| H-W-PROFILE   | W / M109 / M95 | Supply `RuntimeAccountsServices` to main from the single profile-owned account service. Bind K's providers metadata and vault without inventing a providers-file envelope. The default entrypoint has no such service on this base and refuses additional-account commands before reading a secret. K's cross-process broker fences and captured sign-in revoker remain prerequisites.                                                                                                                                                                                                                                                                                                 |
+| H-W-PROFILE   | W / M109 / M95 | Supply `RuntimeAccountsServices` to main from the single profile-owned account service. Bind `runtimeFor` and M95's account-aware backend to that same owner; attaching a session display port alone does not select a request's credential. Bind K's providers metadata and vault without inventing a providers-file envelope. The default entrypoint has no such service on this base and refuses additional-account commands before reading a secret. K's cross-process broker fences and captured sign-in revoker remain prerequisites.                                                                                                                                            |
 | H-P-SESSION   | P / W          | Bind `AccountsSessionPort` to the selected provider and backend session. `use` must check `canCommit` immediately before the synchronous owner transaction, update the next request's selected account, invalidate old replay/cache ownership, and retain the original budget owner. Manual selection must override the pool's older sticky assignment through the owner. Read/subscribe and event publication share that authority; events are committed by P's required atomic `commit(event, adopt)` port.                                                                                                                                                                          |
 | H-M95-EXEC    | M95 / P / W    | Bind `ExecAccountsPort.create` to the registry's account-specific runtime using the supplied bounded fetch for every physical attempt, retry and paid call. Call `execAccountRequest` and P admission before each send, preserve the run ledger and shared daily/conversation caps, bind paid consent per account, and retain liability with its producer. The existing ledger/egress/catalogue is Meta-specific on this base: M95 must supply its captured provider codecs, model prices and egress admission without bypassing the bounded transport for another vendor. Installed multi-account dispatch stays unavailable until this binding and the profile broker are certified. |
 | H-U-COMPANION | U / M104 / W   | Bind `AccountsPanelPort` to U's existing Models & Agents panel dispatcher. M104 still owns authenticated origin/permission/envelope checks and subscription lifecycle; the page receives no credentials or machine confirmation authority. The native bridges share the same panel, not another account implementation.                                                                                                                                                                                                                                                                                                                                                                |
@@ -102,7 +102,7 @@ coverage, installed-editor/a11y and live gates stay with W/the lead under
 the explicit bounded-rig rules. The required host API record regeneration,
 if reported below, also stays with W.
 
-All 58 final mutations produced exit 1 and the named assertion failures below.
+All 62 final mutations produced exit 1 and the named assertion failures below.
 Each source was restored byte-for-byte in `finally`; SHA-256 was checked
 after each drill and again against the final sources. Two preliminary green
 mutations exposed weak tests: invalid Meta keys still reached K's validator,
@@ -110,15 +110,21 @@ and an immediate queue assertion missed the second selection's microtask.
 The tests now assert no storage call and wait one microtask respectively;
 the repeated mutations fired. No green mutation counts as a receipt.
 
+The duplication gate initially found a repeated reset-time formatter and a
+repeated test assertion block. ACP and exec now share the formatter; the
+vendor-limit test checks the exact policy stop reason. Affected guard drills
+were rerun against these final sources. Built-CLI drills also prove that an
+explicit second account cannot fall back to the legacy default auth path.
+
 | Source                                     | Restored SHA-256                                                   |
 | ------------------------------------------ | ------------------------------------------------------------------ |
-| `src/acp/accounts.ts`                      | `a5508142c984dd5777092775f7041db13b3834aebc127de7e2c6a1964ae54b4d` |
+| `src/acp/accounts.ts`                      | `fb010be26ebb2e92fc8f12c0b33904f080da5ff0a559cb2dd42b6c57df829fa9` |
 | `src/acp/agent.ts`                         | `a1378c8f421389640cd28185592e9bc35eee9afdbfa18f9ae8d6df032c3079da` |
 | `src/runtime/cliArgs.ts`                   | `e5cc5932d82aeea79cbb9a6eb65a9aa545cd553b87e89817162c99a75a00f448` |
 | `src/runtime/exec/execAccounts.ts`         | `2870eb72dcd87030a10473fe51e9a91e5cde717c46070636a1da6b671c49ac62` |
 | `src/runtime/exec/execArgs.ts`             | `4f9cae3ff27de05ebbf63e6aa84aaf0188597dbfc36bc6075beb6d32195f3ffd` |
 | `src/runtime/exec/execClient.ts`           | `9331afe22626d247ecd0c3d1ecc870a5dae3c08913bad8eb5447b6380deea2fa` |
-| `src/runtime/exec/runExec.ts`              | `9f450da2f2efe709b615ad26fd5a4b2d7b3bf324a5357d45bfbe4d09569fdbda` |
+| `src/runtime/exec/runExec.ts`              | `330bfa84ee5ea9537375936ebbf3c2cbe9f2639ac47385a13a6967c32bc16411` |
 | `src/runtime/main.ts`                      | `747d055191adf0916b28d1ad1ec1ba770d2fa3ac0f93d683523a47b2b8f284c2` |
 | `src/runtime/providers/accountsCommand.ts` | `46c3eac64a270e9744247dab8c0bb42d988cd9fcc4443fc41da9e2ea5ba6aabc` |
 
@@ -182,12 +188,63 @@ the repeated mutations fired. No green mutation counts as a receipt.
 | exec-exact-estimate            | test/unit/execAccounts.test.ts > M108 headless account admission > retains exact estimates, shared parent budgets and uncertain liability across swaps                                                                                                   |
 | stdin-provider-prompt          | test/unit/accountsCommand.test.ts > M108 terminal account commands > supports API-key providers and refuses subscription auth, unknown accounts and invalid Meta keys                                                                                    |
 | cli-installed-language         | test/unit/execRun.test.ts > M108 account runtime composition > renders new CLI usage errors in the installed language before any credential access                                                                                                       |
+| cli-unbound-auth               | test/unit/execRun.test.ts > M108 account runtime composition > refuses unbound terminal account operations before credential access                                                                                                                      |
+| cli-unbound-management         | test/unit/execRun.test.ts > M108 account runtime composition > refuses unbound terminal account operations before credential access                                                                                                                      |
+| cli-legacy-auth-target         | test/unit/execRun.test.ts > M108 account runtime composition > refuses unbound terminal account operations before credential access                                                                                                                      |
+| cli-default-auth-scope         | test/unit/execRun.test.ts > M108 account runtime composition > refuses unbound terminal account operations before credential access                                                                                                                      |
 
-Initial completed verification on Kubuntu (default Vitest timeout):
+## Final local verification
 
-- `npx vitest run test/unit/accountsCommand.test.ts test/unit/acpAccounts.test.ts test/unit/execAccounts.test.ts --maxWorkers=3`: 48/48 passed.
-- `npx vitest run test/unit/execRun.test.ts --maxWorkers=3`: 60/60 passed, including the built German CLI and bounded runtime composition.
-- `npm run typecheck`: all five projects passed.
-- Changed-file Prettier check: passed.
+All receipts below are from this Kubuntu worktree after the final mutation
+restoration. The three Vitest invocations use the repository's default
+timeout, complete files and at most three workers: 340/340 tests in nine
+files, with no skip or name filter.
 
-The final local gate and regression receipts follow in the completion commit.
+| Command                                                                                                                        | Result                                                                            |
+| ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| `npx vitest run test/unit/accountsCommand.test.ts test/unit/acpAccounts.test.ts test/unit/execAccounts.test.ts --maxWorkers=3` | 48 passed; 1.60 s                                                                 |
+| `npx vitest run test/unit/execRun.test.ts test/unit/acpAgent.test.ts test/unit/execOutput.test.ts --maxWorkers=3`              | 176 passed; 13.91 s                                                               |
+| `npx vitest run test/unit/acpRuntime.test.ts test/unit/execArgs.test.ts test/unit/execSchema.test.ts --maxWorkers=3`           | 116 passed; 4.26 s                                                                |
+| `npm run typecheck`                                                                                                            | All five projects passed                                                          |
+| Changed-file ESLint, `--max-warnings=0`                                                                                        | Passed (also enforced by each commit's hook)                                      |
+| Changed-file Prettier check                                                                                                    | Passed                                                                            |
+| `npm run deadcode`                                                                                                             | Passed; the two existing configuration hints are unchanged                        |
+| `npx jscpd`                                                                                                                    | Passed; 0 clones, threshold remains 0                                             |
+| `node scripts/check-l10n.mjs`                                                                                                  | 14 tables, 164 manifest strings, 609 sources; 0 problems                          |
+| `npm run cycles`                                                                                                               | Passed; 568 files, no cycles                                                      |
+| `npm run build`                                                                                                                | Passed; every size, split, host-global and notices check                          |
+| `node scripts/exec-schema.mjs --check`                                                                                         | Exec schemas match; no version change                                             |
+| `npm run check:host-api`                                                                                                       | Exit 1: generated record differs by the two counts below; W owns its regeneration |
+
+`node dist/acp.js --help` and `node dist/acp.js --version` also exited 0
+from the production build; help includes the account commands and pool flag.
+No credential store or backend was invoked.
+
+**H-W-HOSTAPI (W).** Regenerate and review
+`docs/ide-compatibility/host-api.md` at integration with
+`npm run check:host-api -- --write`. The check reports `node:crypto` 46 → 47
+and `node:util` 5 → 6. Its inventory is otherwise 332 VS Code APIs,
+31 importing files, 25 Node built-ins and 61 theme variables. This lane
+has not edited W's generated record or any gate. No gate threshold rose.
+
+| Production output                | Measured  | Existing cap |
+| -------------------------------- | --------- | ------------ |
+| Extension activation             | 440.3 KiB | 600 KiB      |
+| Model API                        | 450.1 KiB | 475 KiB      |
+| ACP/runtime                      | 834.6 KiB | 850 KiB      |
+| Checkpoint store                 | 76.9 KiB  | 225 KiB      |
+| Chat startup with static imports | 897.8 KiB | 900 KiB      |
+| Deferred webview JS              | 49.7 KiB  | 50 KiB       |
+| Shared Node English fallback     | 49.6 KiB  | 125 KiB      |
+
+`6d276ab24` committed the implementation and initial 58-drill record with
+hooks on. The completion commit shares the stop formatter, strengthens the
+vendor-policy assertion, adds the built-CLI availability checks, and records
+62 final guard drills and these gate receipts. Hooks run the repository's
+unmodified lint-staged ESLint/Prettier and staged redacted gitleaks scan.
+
+Full `quality`, coverage, semgrep, the installed-editor and a11y matrix, live
+captures and hosted Action receipts remain W/lead work under the explicit
+rig brief. Installed multi-account dispatch requires the named registry,
+profile broker and session/panel bindings above. No dependency was installed,
+no live request ran, and no cap or policy default was weakened.

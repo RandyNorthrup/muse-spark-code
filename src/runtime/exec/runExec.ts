@@ -30,12 +30,12 @@ import {
   type EnvironmentVariable,
 } from '../../shared/constants'
 import { effortLevelsFor } from '../../shared/effort'
-import { fill, formatUsd, formatDateTime, plural } from '../../shared/l10n/text'
+import { fill, formatUsd, plural } from '../../shared/l10n/text'
 import { formatUsd as exactUsd, parseUsd } from '../../shared/usd'
 import { modelApiPaidTier } from '../../shared/paid'
 import { createRuntimeBackend, type RuntimeBackend, type RuntimeBackendDeps } from '../backends'
 import { execAccountSelection, type ExecAccountsPort } from './execAccounts'
-import { accountUsageUrl, type AccountsSessionPort } from '../../acp/accounts'
+import { accountStopText, accountUsageUrl, type AccountsSessionPort } from '../../acp/accounts'
 import { type ExecOptions, serveOptionsFor } from './execArgs'
 import { createExecClient } from './execClient'
 import { execFetch, type ExecTransport } from './execFetch'
@@ -486,13 +486,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           else if (event.type === 'spread')
             log.info(`${UI_TEXT.accounts.spreadEvent}: ${event.provider} · ${event.account}`)
           else {
-            const text =
-              event.trigger.resetAt === null
-                ? fill(UI_TEXT.accounts.resetUnknown, { provider: event.provider })
-                : fill(UI_TEXT.accounts.stopped, {
-                    provider: event.provider,
-                    reset: formatDateTime(Date.parse(event.trigger.resetAt)),
-                  })
+            const text = accountStopText(event)
             let url = ''
             try {
               if (accounts !== undefined) url = accountUsageUrl(accounts, event.provider)

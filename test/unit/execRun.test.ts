@@ -1102,6 +1102,20 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
 })
 
 describe('M108 account runtime composition', () => {
+  it('refuses unbound terminal account operations before credential access', async () => {
+    for (const argv of [
+      ['providers', 'accounts', 'list', '--provider', 'meta'],
+      ['auth', 'set', '--provider', 'meta', '--account', 'work'],
+    ]) {
+      const r = await builtCommand(argv, 'terminal-account-canary\n', 0)
+      expect(r.code).toBe(1)
+      expect(r.stdout).toBe('')
+      expect(r.stderr).toContain(UI_TEXT.accounts.unavailable)
+      expect(r.stderr).not.toContain('terminal-account-canary')
+      expect(r.stderr).not.toContain('forbidden')
+    }
+  })
+
   it('renders new CLI usage errors in the installed language before any credential access', async () => {
     const r = await builtCommand(
       ['providers', 'accounts', 'list', '--provider', 'META'],

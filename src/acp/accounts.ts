@@ -40,6 +40,15 @@ export function accountUsageUrl(port: AccountsSessionPort, provider: string): st
   throw new Error(UI_TEXT.accounts.unavailable)
 }
 
+export function accountStopText(event: Extract<AccountEvent, { type: 'stop' }>): string {
+  return event.trigger.resetAt === null
+    ? fill(UI_TEXT.accounts.resetUnknown, { provider: event.provider })
+    : fill(UI_TEXT.accounts.stopped, {
+        provider: event.provider,
+        reset: formatDateTime(Date.parse(event.trigger.resetAt)),
+      })
+}
+
 /** U's panel dispatcher, also used by the authenticated companion bridge.
  * M104 owns origin/permission/envelope checks; this is the inner payload port. */
 export interface AccountsPanelPort {
@@ -131,14 +140,7 @@ export class AcpAccounts {
     if (event.type === 'spread')
       return `${UI_TEXT.accounts.spreadEvent}: ${event.provider} · ${this.label(event.account)}`
     const url = accountUsageUrl(this.port, event.provider)
-    const stopped =
-      event.trigger.resetAt === null
-        ? fill(UI_TEXT.accounts.resetUnknown, { provider: event.provider })
-        : fill(UI_TEXT.accounts.stopped, {
-            provider: event.provider,
-            reset: formatDateTime(Date.parse(event.trigger.resetAt)),
-          })
-    return `${stopped} ${url}`
+    return `${accountStopText(event)} ${url}`
   }
 
   private current(): string {
