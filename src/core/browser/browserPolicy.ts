@@ -3,7 +3,15 @@
 
 import { isIPv4, isIPv6 } from 'node:net'
 import { isPublicAddress } from '../publicAddress'
-import { MAKER_COMPANION_PORT_FIRST, MAKER_COMPANION_PORT_END } from '../../shared/constants'
+import {
+  MAKER_COMPANION_PORT_FIRST,
+  MAKER_COMPANION_PORT_END,
+  BROWSER_MACHINE_UI,
+  BROWSER_MACHINE_API,
+  BROWSER_MACHINE_PORTS,
+  BROWSER_HTTP_PORT,
+  BROWSER_HTTPS_PORT,
+} from '../../shared/constants'
 import {
   BROWSER_CHECK_HOST_MAX_CHARS,
   BROWSER_CHECK_URL_MAX_CHARS,
@@ -97,9 +105,28 @@ function isNonPublicHost(host: string): boolean {
       !isPublicAddress(host.startsWith('[') ? host.slice(1, -1) : host))
   )
 }
+/** Fixed machine UI identities and private standard web/service ports never widen. */
+export function isMachineBrowserUrl(url: URL): boolean {
+  let pathname: string
+  try {
+    pathname = decodeURIComponent(url.pathname)
+  } catch {
+    return true
+  }
+  return (
+    BROWSER_MACHINE_UI.test(`${url.hostname}${pathname}`) ||
+    BROWSER_MACHINE_API.test(pathname) ||
+    (isNonPublicHost(url.hostname) &&
+      BROWSER_MACHINE_PORTS.has(
+        Number(url.port || (url.protocol === 'https:' ? BROWSER_HTTPS_PORT : BROWSER_HTTP_PORT)),
+      ))
+  )
+}
 /** Exact origins only can admit private addresses; host-wide widening never does. */
 export function isExplicitDevOrigin(url: URL, entries: ReadonlySet<string>): boolean {
-  return entries.has(url.origin) && !isMakerCompanionPort(Number(url.port))
+  return (
+    entries.has(url.origin) && !isMakerCompanionPort(Number(url.port)) && !isMachineBrowserUrl(url)
+  )
 }
 
 /** Where a URL the model asked for stands, before any card. */
@@ -137,6 +164,7 @@ export function placeBrowserUrl(raw: string, extraHosts: ReadonlySet<string>): B
     url.username !== '' ||
     url.password !== '' ||
     isMakerCompanionPort(Number(url.port)) ||
+    isMachineBrowserUrl(url) ||
     (isNonPublicHost(host) && !isExplicitDevOrigin(url, extraHosts))
   ) {
     return { kind: 'refused' }
@@ -169,6 +197,7 @@ export function isAllowedRequest(rawUrl: string, allowedHosts: ReadonlySet<strin
   }
   return (
     NETWORK_SCHEMES.has(url.protocol) &&
+    !isMachineBrowserUrl(url) &&
     !isMakerCompanionPort(Number(url.port)) &&
     (isExplicitDevOrigin(new URL(url.href.replace(/^ws/, 'http')), allowedHosts) ||
       (!isNonPublicHost(url.hostname) && allowedHosts.has(url.hostname)))

@@ -239,8 +239,8 @@ describe('readSettings', () => {
     expect(String(log.warn.mock.calls[0]?.[0])).toContain('each check needs a name of its own')
   })
 
-  it('reads exact dev origins from workspace settings rather than the machine-only lane', () => {
-    const origins = ['http://localhost:3000', 'https://192.168.1.20:8443']
+  it('ignores the reviewer workspace-file private origin, including in Bypass', () => {
+    const origins = ['http://192.168.1.50:80']
     const settings = readSettings(
       {
         ...fakeSettingsSource({ browserCheckExtraHosts: origins }),
@@ -248,7 +248,7 @@ describe('readSettings', () => {
       },
       new FakeLogOutputChannel(),
     )
-    expect(settings.browserCheckExtraHosts).toEqual(origins)
+    expect(settings.browserCheckExtraHosts).toEqual([])
     const invalid = readSettings(
       fakeSettingsSource({ browserCheckExtraHosts: ['http://localhost:47830'] }),
       new FakeLogOutputChannel(),

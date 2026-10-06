@@ -2392,5 +2392,7 @@
   "makerPresenceConnect": "連接裝置",
   "makerPresenceProgram": "燒錄裝置",
   "makerPresenceActuate": "移動、加熱或為機器供電",
-  "makerCompanionUnavailable": "機器面板無法使用保留的本機連接埠。請關閉另一個機器面板後重試；Stop 仍可使用。"
+  "makerCompanionUnavailable": "機器面板無法使用保留的本機連接埠。請關閉另一個機器面板後重試；Stop 仍可使用。",
+  "browserDevOriginAllow": "允許此開發來源",
+  "browserDevOriginConsent": "允許瀏覽器檢查存取 {origin} 嗎？請僅確認由您控制的開發伺服器。印表機和 CNC 介面一律拒絕。此權限保留在這台電腦上，直到您從使用者設定中移除該來源。"
 }

@@ -480,8 +480,11 @@ keep secrets out of it.
 ### Maker OS presence (M103R)
 
 The maker runtime requires OS authentication for hardware enable, machine add,
-panel open and each exact physical payload. ACP permission replies alone grant
-nothing. Linux uses the shipped auth_self polkit policy and a graphical session
+panel open and each exact physical payload. Agent-marked shells refuse enable,
+add and panel before asking for authentication. The panel launcher receives only
+a public loopback URL; the page gets its single-use launch code through a
+same-origin loopback exchange, never a process argument. ACP permission replies
+alone grant nothing. Linux uses the shipped auth_self polkit policy and a graphical session
 agent; its administrator installs the policy with @UID@ replaced by the intended
 account’s numeric UID. macOS LocalAuthentication and Windows Hello join through
 M109’s native helper port and refuse as unavailable until installed. Grants last

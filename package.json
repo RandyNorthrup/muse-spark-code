@@ -975,7 +975,7 @@
           },
           "maxItems": 32,
           "description": "%config.browserCheckExtraHosts.description%",
-          "scope": "resource"
+          "scope": "machine"
         },
         "museSpark.browserCheckRuntime": {
           "type": "string",

@@ -14,6 +14,7 @@ import {
   runBrowserCheck as runCheck,
 } from '../../core/browser/browserRun'
 import { hostBrowserRunDeps } from './browserProcess'
+import path from 'node:path'
 
 /** One check on the verified runtime (design spec v4 §5's frozen signature). */
 export async function runBrowserCheck(
@@ -21,7 +22,12 @@ export async function runBrowserCheck(
   options: BrowserHostOptions,
 ): Promise<BrowserCheckResult> {
   return await runCheck(
-    hostBrowserRunDeps({ platform: process.platform, env: process.env, warn: options.warn }),
+    hostBrowserRunDeps({
+      platform: process.platform,
+      env: process.env,
+      warn: options.warn,
+      machineDirectory: path.join(options.storageDir, 'maker'),
+    }),
     request,
     options,
   )

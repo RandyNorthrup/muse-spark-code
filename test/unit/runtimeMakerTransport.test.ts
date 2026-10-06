@@ -14,6 +14,7 @@ import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { spawn } from 'node:child_process'
 import { withoutCredentials, withoutKeyringRoutes } from '../../src/runtime/credentialVariables'
 import { RUNTIME_MAKER_LAUNCH_CODE_MS } from '../../src/shared/constants'
+import { companionLaunchSchema } from '../../src/shared/companionProtocol'
 
 vi.mock('node:crypto', async (importOriginal) => {
   const actual = await importOriginal<typeof crypto>()
@@ -53,7 +54,11 @@ async function companion(bind?: string) {
     ...(bind !== undefined && { bind }),
   })
   cleanups.push(() => server.close())
-  const launch = new URL(await server.open()).hash.slice(1)
+  const opened = await server.open()
+  expect(opened).toBe(`${server.url}/`)
+  expect(new URL(opened).hash).toBe('')
+  const delivery = await http(server.url, '/launch-code', { Origin: server.url }, '')
+  const launch = companionLaunchSchema.parse(JSON.parse(delivery.text)).launch
   return { ...server, dispatch, host, launch }
 }
 async function http(
@@ -101,6 +106,20 @@ async function session(server: Awaited<ReturnType<typeof companion>>) {
   return cookie
 }
 describe('companion boundary', () => {
+  it('delivers a launch code only once over same-origin loopback, never in the opened URL', async () => {
+    const server = await companion()
+    expect(await status(server.url, '/launch-code', { Origin: server.url }, '')).toBe(401)
+    await server.open()
+    expect(await status(server.url, '/launch-code', {}, '')).toBe(403)
+    expect(
+      await status(server.url, '/launch-code', { Origin: 'https://foreign.example' }, ''),
+    ).toBe(403)
+    const delivery = await http(server.url, '/launch-code', { Origin: server.url }, '')
+    expect(delivery.status).toBe(200)
+    expect(delivery.headers['cache-control']).toBe('no-store')
+    expect(companionLaunchSchema.parse(JSON.parse(delivery.text)).launch).toMatch(/^[a-f0-9]{64}$/)
+    expect(await status(server.url, '/launch-code', { Origin: server.url }, '')).toBe(401)
+  })
   it.each(['0.0.0.0', '192.168.1.2', 'localhost'])('refuses bind %s', async (bind) => {
     await expect(companion(bind)).rejects.toThrow('maker-loopback-required')
   })

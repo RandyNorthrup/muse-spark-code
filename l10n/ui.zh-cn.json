@@ -2392,5 +2392,7 @@
   "makerPresenceConnect": "连接设备",
   "makerPresenceProgram": "编程设备",
   "makerPresenceActuate": "移动、加热或为机器供电",
-  "makerCompanionUnavailable": "机器面板无法使用保留的本地端口。请关闭另一个机器面板后重试；Stop 仍可使用。"
+  "makerCompanionUnavailable": "机器面板无法使用保留的本地端口。请关闭另一个机器面板后重试；Stop 仍可使用。",
+  "browserDevOriginAllow": "允许此开发源",
+  "browserDevOriginConsent": "允许浏览器检查访问 {origin} 吗？请仅确认由您控制的开发服务器。打印机和 CNC 界面始终被拒绝。此权限保留在这台计算机上，直到您从用户设置中移除该源。"
 }

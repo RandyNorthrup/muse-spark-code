@@ -2208,15 +2208,27 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   Loopback, link-local and private addresses are refused by default, including
   DNS names resolving to them, redirects, IPv4-mapped IPv6 and a relay on a
   second port. To use a dev server, explicitly add its exact origin, for
-  example `http://localhost:3000`, to `museSpark.browserCheckExtraHosts` for
-  this workspace. Scheme, host and port all matter; allowing that origin does
-  not allow another port. A plain host entry widens only public destinations,
+  example `http://localhost:3000`, to **user-level** `museSpark.browserCheckExtraHosts`.
+  Workspace files and settings cannot add an origin. Editing the setting to add
+  a non-loopback origin opens a separate confirmation naming its address;
+  closing or rejecting it leaves that origin unavailable. Re-edit an existing
+  non-loopback entry to request confirmation after upgrading. Remove the origin
+  to revoke it; adding it again asks anew. Scheme, host and port all matter;
+  allowing that origin does not allow another port. A plain host entry widens only public destinations,
   and a one-call permission card cannot widen private-address access. Maker
   companion ports 47830–47839 are always refused, even if listed or their
   discovery record was removed. The proxy pins each connection to its one
   DNS answer, strips plain HTTP credentials and sign-in challenges, and
-  passes HTTPS and WebSockets unread. The check's own canaries have a private
-  nonce-path allowance revoked before the model's page runs. All existing
+  applies discovered NAT64 prefixes to the IPv4 address inside an IPv6 answer,
+  and refuses unknown translation. Registered machine hosts and their resolved
+  aliases are refused on every port, in every mode, Bypass included. Known
+  OctoPrint, Mainsail, Fluidd/Moonraker, Duet DWC, PrusaLink, Bambu LAN,
+  Repetier and Snapmaker Luban interfaces remain refused even when listed.
+  Private ports 80, 443, 5000, 7125, 3344, 8080, 8000 and 8888, and private
+  encrypted tunnels, are unavailable. HTTP documents must be uncompressed and
+  at most 64 KiB; known machine UI content is refused before the browser can
+  interact. Public HTTPS and WebSockets remain unread. The check's own canaries
+  have a private nonce-path allowance revoked before the model's page runs. All existing
   network, sign-in and leak checks still run before and after the page.
 - **The download.** What comes from Google is one archive per platform,
   the version this release pins (154.0.8037.92), checked before use against
@@ -3380,7 +3392,7 @@ Bypass at once.
 | `notifyOnBackgroundTurn`          | `true`      | A VS Code notification when a turn of a minute or more ends, or a turn waits for your approval or answer, while the VS Code window is unfocused; never while it is focused                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `modelApiReplyUsage`              | `true`      | On by default. Shows tokens and estimated cost under each Model API reply; display only.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `modelApiSessionBudgetUsd`        | `0`         | Spend cap in dollars for each Model API conversation (`0`: no cap). Shared durable reservations cover the conversation's own token requests and image fees; working storage is required. Paid subagent requests keep their own consent and request ceiling: their reported cost is counted, but it is not reserved against this cap and can take the conversation past it. Unknown sent usage retains its full liability and cannot retry an ambiguous failure under the same allowance. Capped web search is unavailable until its billed query bound is verified, and paid Muse Voice is unavailable while a cap is set. Input estimates and published prices may differ from actual billing. Machine-scoped |
-| `browserCheckExtraHosts`          | `[]`        | [Browser check](#browser-check): public host names or exact http(s) dev-server origins for this workspace. Private addresses need an exact origin such as `http://localhost:3000`. Companion ports 47830–47839 are always refused. Empty allows no local server. HTTPS and WebSockets are not inspected. Workspace-scoped                                                                                                                                                                                                                                                                                                                                                                                      |
+| `browserCheckExtraHosts`          | `[]`        | [Browser check](#browser-check): user-level public hosts or exact dev-server origins. Non-loopback origins require an address confirmation after a settings edit. Registered machines, known printer/CNC UIs, private web/machine ports and encrypted private tunnels are always refused, including Bypass. Remove an origin to revoke it. Machine-scoped                                                                                                                                                                                                                                                                                                                                                      |
 | `browserCheckRuntime`             | `'ask'`     | [Browser check](#browser-check): how the check gets its browser, Google's Chrome for Testing headless shell pinned to this extension version (about 100 to 120 MB per version, from `storage.googleapis.com` into the extension's storage): `ask` asks before downloading it, `download` downloads it when a check needs it without asking (for every later pinned version too), `off` offers no browser check and downloads nothing. Machine-scoped                                                                                                                                                                                                                                                           |
 | `showWhatsNewOnUpdate`            | `true`      | Open What's New after the extension updates: the page after a release with Highlights, a quiet notification after a fixes-only patch; off shows nothing on updates ([What's New after an update](#whats-new-after-an-update))                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `paidDailyBudgetUsd`              | `5`         | Shared interactive extras budget in USD, $0.50–$500; machine-scoped. Daily reservations persist across windows; Tab uses its own separate ledger.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -4176,9 +4188,10 @@ Agent-marked shells (including subagent and unattended shell children) refuse
 These commands belong in the person's terminal. Stop remains available there
 and in agent shells.
 
-The runtime opens the OS browser with a single-use launch capability passed
-directly to its launcher, never printed to stdout, stderr or a log. The page
-removes the URL fragment after receiving it. That capability opens a session;
+The runtime opens the OS browser with a public loopback URL. After OS presence,
+the opened page receives its single-use launch code through a one-shot,
+same-origin loopback exchange. No process argument, URL fragment, stdout,
+stderr or log carries the code. That capability opens a session;
 every physical approval still needs a separate OS presence check. Companion
 ports 47830–47839 are reserved and cannot be allowed by the browser tool.
 
@@ -4219,13 +4232,14 @@ Browser checks refuse published maker companion ports before browser preparation
 and before every connection, including aliases, redirects and tunnels. The
 companion announces its public ports in a shared runtime registry; no credential
 is stored there. An unreadable registry refuses the check. Crash records keep
-their ports blocked conservatively. Same-user registry deletion can remove that
-navigation block; G4 protection or trusted discovery remains unqualified
-(FIXM103R2-REGISTRY-INTEGRITY). A fresh check still needs the attended terminal's
-code and cannot inherit the person's page session.
+their ports blocked conservatively. Reserved companion ports stay refused even
+if that registry is deleted. Workspace settings cannot admit private origins;
+user settings require the separate address confirmation and never admit known
+machine interfaces. A page session supplies no physical approval authority.
 
-The panel binds only a loopback literal. Its typed launch code is consumed
-once; only a successful exchange mints the approval key. The host-only HttpOnly
+The panel binds only a loopback literal. Its launch code is delivered over
+loopback and consumed once; only a successful exchange mints the session cookie.
+Each physical action requires a separate OS presence grant. The host-only HttpOnly
 cookie is bound to its random instance and port,
 so two panels can coexist. Request credentials cannot answer approvals:
 answers require a separate per-approval capability held only in the person's

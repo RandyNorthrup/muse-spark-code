@@ -17143,7 +17143,7 @@ const CHECKED: BrowserCheckResult = {
 /** A browser check that records what it was asked and answers with `result`. */
 function recordingBrowser(
   result: () => BrowserCheckResult = () => CHECKED,
-  extraHosts: readonly string[] = [],
+  extraHosts: readonly string[] = ['http://localhost:3000', 'http://127.0.0.1:5173'],
   isOffered = true,
 ) {
   const requests: BrowserCheckRequest[] = []
@@ -17190,6 +17190,19 @@ function checkRows(events: readonly AgentEvent[]) {
   )
 }
 
+/** A refused URL reaches neither a card nor the browser, once for each call. */
+function expectRefusedChecks(
+  browser: ReturnType<typeof recordingBrowser>,
+  events: readonly AgentEvent[],
+  count: number,
+): void {
+  expect(hasApprovalCard(events)).toBe(false)
+  expect(browser.requests).toEqual([])
+  expect(checkRows(events).map((row) => row.failureReason)).toEqual(
+    Array.from({ length: count }, () => UI_TEXT.browserCheckUrlRefused),
+  )
+}
+
 /** Whether the first request of a conversation lists the browser check. */
 async function isCheckListed(options: Parameters<typeof setup>[0], isSideChat = false) {
   const t = setup(options)
@@ -17201,6 +17214,30 @@ async function isCheckListed(options: Parameters<typeof setup>[0], isSideChat = 
 }
 
 describe('the browser check on the Model API backend (M81)', () => {
+  it('refuses the reviewer private machine URL and allowlisted known UI clicks in Bypass before a card', async () => {
+    const origins = ['http://192.168.1.50', `${HTTP}//mainsail.example:5173`]
+    const browser = recordingBrowser(undefined, origins)
+    const t = setup({ browserCheck: browser.host })
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      ...origins.map((origin, index) => ({
+        calls: [
+          {
+            name: 'browser_check',
+            arguments: JSON.stringify({
+              url: `${origin}/`,
+              actions: [{ kind: 'click', selector: '#print' }],
+            }),
+            callId: `check_${String(index)}`,
+          },
+        ],
+      })),
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'check' }])
+    await turnDone()
+    expectRefusedChecks(browser, events, origins.length)
+  })
   it('is offered only in a trusted workspace with a browser check, and not in a side chat', async () => {
     const browser = recordingBrowser()
     expect(await isCheckListed({ browserCheck: browser.host })).toBe(true)
@@ -17227,7 +17264,7 @@ describe('the browser check on the Model API backend (M81)', () => {
     expect(browser.requests[0]).toMatchObject({
       url: 'http://localhost:3000/',
       actions: [],
-      allowedHosts: [],
+      allowedHosts: ['http://127.0.0.1:5173', 'http://localhost:3000'],
       includeScreenshot: true,
     })
     const output = toolOutput(t, 'check_0') ?? ''
@@ -17306,7 +17343,7 @@ describe('the browser check on the Model API backend (M81)', () => {
   })
 
   it('widens beyond loopback only on a card, Bypass included, and keeps an "always" to that host', async () => {
-    const browser = recordingBrowser()
+    const browser = recordingBrowser(undefined, [])
     const t = setup({ browserCheck: browser.host })
     const { session, events, turnDone } = await startSession(t, 'allowAll')
     scriptChecks(
@@ -17322,19 +17359,13 @@ describe('the browser check on the Model API backend (M81)', () => {
       target: `${HTTP}//intranet.example:8080/`,
       toolName: 'browser_check',
     })
-    // The same host runs without a card now; another one asks, and a Reject holds.
-    const metadata = await answerCard(session, events, 1, 'abort')
-    expect(metadata.subject.kind).toBe('browserCheckWiden')
+    // The same public host needs no second card; the private metadata URL is refused before a card.
     await turnDone()
     expect(browser.requests.map((request) => [request.url, request.allowedHosts])).toEqual([
       [`${HTTP}//intranet.example:8080/`, ['intranet.example']],
       [`${HTTP}//intranet.example:8080/next`, ['intranet.example']],
     ])
-    expect(checkRows(events).map((row) => row.status)).toEqual([
-      'completed',
-      'completed',
-      'rejected',
-    ])
+    expect(checkRows(events).map((row) => row.status)).toEqual(['completed', 'completed', 'failed'])
   })
 
   it('needs no widening card for a host in the setting, and reads the setting when it runs', async () => {
@@ -17356,12 +17387,7 @@ describe('the browser check on the Model API backend (M81)', () => {
     scriptChecks(t, 'file:///etc/passwd', 'http://admin:secret@localhost/')
     await session.sendTurn([{ type: 'text', text: 'check' }])
     await turnDone()
-    expect(hasApprovalCard(events)).toBe(false)
-    expect(browser.requests).toEqual([])
-    expect(checkRows(events).map((row) => row.failureReason)).toEqual([
-      UI_TEXT.browserCheckUrlRefused,
-      UI_TEXT.browserCheckUrlRefused,
-    ])
+    expectRefusedChecks(browser, events, 2)
     expect(toolOutput(t, 'check_1')).toBe(`Error: ${MODEL_TEXT.browserCheckUrlRefused}`)
 
     const untrusted = setup({ browserCheck: browser.host, isTrusted: false })
@@ -17453,7 +17479,7 @@ describe('the browser check on the Model API backend (M81)', () => {
             })
           })
         },
-        extraHosts: () => [],
+        extraHosts: () => ['http://localhost:3000'],
         isOffered: () => true,
       },
     })

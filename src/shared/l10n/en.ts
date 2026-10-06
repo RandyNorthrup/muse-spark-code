@@ -1144,6 +1144,9 @@ export const EN = {
   // M81 (PLAN.md D49): the browser check. Before each check Muse Code asks
   // the extension for; the second sentence when the host is beyond loopback.
   browserCheckConfirmTitle: 'Muse Code wants to open {url} in a headless browser',
+  browserDevOriginAllow: 'Allow this dev origin',
+  browserDevOriginConsent:
+    'Allow browser checks to reach {origin}? Confirm only a development server you control. Printer and CNC interfaces are always refused. This permission stays on this machine until you remove the origin from your user settings.',
   browserCheckConfirmDetail:
     'The browser uses a temporary private profile and a proxy. Private addresses require an exact dev-server origin in museSpark.browserCheckExtraHosts. Maker companion origins are always refused.',
   browserCheckConfirmDetailWiden:

@@ -2487,5 +2487,7 @@
   "makerPresenceConnect": "Eszköz csatlakoztatása",
   "makerPresenceProgram": "Eszköz programozása",
   "makerPresenceActuate": "Gép mozgatása, fűtése vagy bekapcsolása",
-  "makerCompanionUnavailable": "A gépek panelje nem tudja használni a fenntartott helyi portokat. Zárjon be egy másik géppanelt, és próbálja újra; a Stop továbbra is elérhető."
+  "makerCompanionUnavailable": "A gépek panelje nem tudja használni a fenntartott helyi portokat. Zárjon be egy másik géppanelt, és próbálja újra; a Stop továbbra is elérhető.",
+  "browserDevOriginAllow": "Fejlesztői eredet engedélyezése",
+  "browserDevOriginConsent": "Elérhetik a böngészőellenőrzések ezt: {origin}? Csak saját felügyeletű fejlesztői kiszolgálót erősítsen meg. A nyomtató- és CNC-felületek mindig tiltottak. Az engedély ezen a gépen marad, amíg el nem távolítja az eredetet a felhasználói beállításokból."
 }

@@ -2582,5 +2582,7 @@
   "makerPresenceConnect": "Conectar dispositivo",
   "makerPresenceProgram": "Programar dispositivo",
   "makerPresenceActuate": "Mover, calentar o encender la máquina",
-  "makerCompanionUnavailable": "El panel de máquinas no puede usar sus puertos locales reservados. Cierre otro panel de máquinas e inténtelo de nuevo; Stop sigue disponible."
+  "makerCompanionUnavailable": "El panel de máquinas no puede usar sus puertos locales reservados. Cierre otro panel de máquinas e inténtelo de nuevo; Stop sigue disponible.",
+  "browserDevOriginAllow": "Permitir este origen de desarrollo",
+  "browserDevOriginConsent": "¿Permitir que las comprobaciones del navegador accedan a {origin}? Confirme solo un servidor de desarrollo que controle. Las interfaces de impresoras y CNC siempre se rechazan. Este permiso permanece en este equipo hasta que elimine el origen de sus ajustes de usuario."
 }

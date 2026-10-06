@@ -2582,5 +2582,7 @@
   "makerPresenceConnect": "Connecter le périphérique",
   "makerPresenceProgram": "Programmer le périphérique",
   "makerPresenceActuate": "Déplacer, chauffer ou alimenter la machine",
-  "makerCompanionUnavailable": "Le panneau des machines ne peut pas utiliser ses ports locaux réservés. Fermez un autre panneau des machines et réessayez ; Stop reste disponible."
+  "makerCompanionUnavailable": "Le panneau des machines ne peut pas utiliser ses ports locaux réservés. Fermez un autre panneau des machines et réessayez ; Stop reste disponible.",
+  "browserDevOriginAllow": "Autoriser cette origine de développement",
+  "browserDevOriginConsent": "Autoriser les vérifications du navigateur à accéder à {origin} ? Confirmez uniquement un serveur de développement que vous contrôlez. Les interfaces des imprimantes et CNC sont toujours refusées. Cette autorisation reste sur cet ordinateur jusqu’à la suppression de l’origine de vos paramètres utilisateur."
 }

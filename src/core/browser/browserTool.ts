@@ -101,7 +101,7 @@ export type BrowserCallPlacement =
 export interface BrowserCheckHost {
   /** The run, in the browser's own bundle. */
   readonly check: BrowserChecker
-  /** `museSpark.browserCheckExtraHosts` (workspace-scoped), read at each use. */
+  /** Confirmed user-level `museSpark.browserCheckExtraHosts`, read at each use. */
   readonly extraHosts: () => readonly string[]
   /** `museSpark.browserCheckRuntime` is not `off`, read at each use. */
   readonly isOffered: () => boolean

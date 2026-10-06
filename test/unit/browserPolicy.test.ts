@@ -21,17 +21,53 @@ function placed(url: string, extra: ReadonlySet<string> = NONE) {
 }
 
 describe('the browser check address rule (M81)', () => {
+  it('refuses known machine API paths, including encoded names, on an allowlisted dev origin', () => {
+    const origin = 'http://localhost:5173'
+    for (const pathname of [
+      '/api/printer/command',
+      '/api/job',
+      '/printer/gcode/script',
+      '/machine/reboot',
+      '/rr_gcode',
+      '/%61pi/%70rinter/command',
+      '/%zz',
+    ]) {
+      expect(isAllowedRequest(`${origin}${pathname}`, new Set([origin])), pathname).toBe(false)
+    }
+  })
+  it.each([
+    'octoprint',
+    'mainsail',
+    'fluidd',
+    'moonraker',
+    'duet',
+    'prusalink',
+    'bambu',
+    'repetier',
+    'snapmaker-luban',
+  ])('refuses an allowlisted known %s UI at any mode or port', (ui) => {
+    const origin = `http://${ui}.local:5173`
+    expect(placed(origin, new Set([origin]))).toBe('refused')
+    expect(isAllowedRequest(`${origin}/`, new Set([origin]))).toBe(false)
+  })
+  it.each([80, 443, 5000, 7125, 3344, 8080, 8000, 8888])(
+    'refuses allowlisted private machine web port %s',
+    (port) => {
+      const origin = `http://192.168.1.50:${String(port)}`
+      expect(placed(origin, new Set([new URL(origin).origin]))).toBe('refused')
+    },
+  )
   it('counts localhost, 127.0.0.0/8 and ::1 as loopback, in every spelling the URL parser accepts', () => {
     for (const url of [
       'http://localhost:3000/',
-      'http://LOCALHOST/',
+      'http://LOCALHOST:3000/',
       'http://127.0.0.1:5173/app',
-      'http://127.1/',
-      'http://0x7f.0.0.1/',
-      'http://2130706433/',
-      'http://127.255.255.254/',
-      'http://[::1]:8080/',
-      'https://[0:0:0:0:0:0:0:1]/',
+      'http://127.1:3000/',
+      'http://0x7f.0.0.1:3000/',
+      'http://2130706433:3000/',
+      'http://127.255.255.254:3000/',
+      'http://[::1]:3000/',
+      'https://[0:0:0:0:0:0:0:1]:3000/',
     ]) {
       expect(placed(url), url).toBe('refused')
       expect(placed(url, new Set([new URL(url).origin])), url).toMatchObject({ kind: 'local' })
@@ -151,15 +187,15 @@ describe('the browser check address rule (M81)', () => {
     const allowed = new Set([
       'dev.example.com',
       'http://localhost:3000',
-      'https://127.0.0.1',
+      'https://127.0.0.1:3000',
       'http://localhost:5173',
-      'https://[::1]',
+      'https://[::1]:3000',
     ])
     for (const url of [
       'http://localhost:3000/x.js',
-      'https://127.0.0.1/',
+      'https://127.0.0.1:3000/',
       'ws://localhost:5173/hmr',
-      'wss://[::1]/',
+      'wss://[::1]:3000/',
       `${HTTP}//dev.example.com/api`,
     ]) {
       expect(isAllowedRequest(url, allowed), url).toBe(true)

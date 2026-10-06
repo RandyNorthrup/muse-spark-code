@@ -2392,5 +2392,7 @@
   "makerPresenceConnect": "장치 연결",
   "makerPresenceProgram": "장치 프로그래밍",
   "makerPresenceActuate": "장비 이동, 가열 또는 전원 조작",
-  "makerCompanionUnavailable": "장비 패널이 예약된 로컬 포트를 사용할 수 없습니다. 다른 장비 패널을 닫고 다시 시도하세요. Stop은 계속 사용할 수 있습니다."
+  "makerCompanionUnavailable": "장비 패널이 예약된 로컬 포트를 사용할 수 없습니다. 다른 장비 패널을 닫고 다시 시도하세요. Stop은 계속 사용할 수 있습니다.",
+  "browserDevOriginAllow": "이 개발 출처 허용",
+  "browserDevOriginConsent": "브라우저 검사가 {origin}에 접근하도록 허용할까요? 직접 관리하는 개발 서버만 확인하세요. 프린터와 CNC 인터페이스는 항상 거부됩니다. 사용자 설정에서 출처를 제거할 때까지 이 컴퓨터에 권한이 유지됩니다."
 }

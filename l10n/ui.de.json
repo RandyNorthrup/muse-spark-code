@@ -2487,5 +2487,7 @@
   "makerPresenceConnect": "Gerät verbinden",
   "makerPresenceProgram": "Gerät programmieren",
   "makerPresenceActuate": "Maschine bewegen, heizen oder einschalten",
-  "makerCompanionUnavailable": "Das Maschinenpanel kann seine reservierten lokalen Ports nicht belegen. Schließen Sie ein anderes Maschinenpanel und versuchen Sie es erneut; Stop bleibt verfügbar."
+  "makerCompanionUnavailable": "Das Maschinenpanel kann seine reservierten lokalen Ports nicht belegen. Schließen Sie ein anderes Maschinenpanel und versuchen Sie es erneut; Stop bleibt verfügbar.",
+  "browserDevOriginAllow": "Diesen Entwicklungsursprung erlauben",
+  "browserDevOriginConsent": "Browserprüfungen den Zugriff auf {origin} erlauben? Bestätigen Sie nur einen Entwicklungsserver, den Sie kontrollieren. Drucker- und CNC-Oberflächen werden immer abgelehnt. Diese Berechtigung bleibt auf diesem Computer, bis Sie den Ursprung aus Ihren Benutzereinstellungen entfernen."
 }

@@ -18755,7 +18755,7 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
-**REDM103R / FIXM103R2 bounded verification (2026-10-06, Kubuntu).** The explicit rig
+**FIXM103R4 / REDM103R / FIXM103R2 bounded verification (2026-10-06, Kubuntu).** The explicit rig
 brief prohibits aggregate quality/full tests here and delegates them to the
 lead. Complete owning suites run at the unchanged repository default timeout,
 at most three files per run, with typecheck, changed-file ESLint/Prettier,
@@ -18924,7 +18924,14 @@ Browser dev origins come only from user-level settings; private/LAN additions
 require a settings UI confirmation naming the origin, stored outside the
 workspace. Default private access is loopback only after an exact origin is
 configured. Registered machine hosts and known printer/CNC UI destinations
-are always refused, including allowlisted origins and Bypass. Runtime maker
+are always refused, including allowlisted origins and Bypass. Browser
+checks refuse private standard web/machine ports and encrypted private tunnels;
+plain HTTP documents are bounded, uncompressed and screened for known maker
+UI identities before reaching the browser. Read the runtime's and extension's
+validated machine registries at every connection and deny matching hosts and
+resolved aliases on every port. Revocation removes the user origin grant;
+subsequent addition needs a fresh settings question. Existing public host
+widening still cannot admit private addresses. Runtime maker
 enable, add and panel refuse agent-marked shells before any presence question;
 unattended shell children carry the marker. Browser proxy classification uses
 the web fetch adapter's NAT64 discovery, including the well-known prefix, and
@@ -18944,15 +18951,18 @@ policy/agent refuses. Signed Darwin LocalAuthentication and Windows Hello
 helpers join through M109's port; this base lacks M109 and defaults to an honest
 unavailable refusal on those platforms. No terminal bootstrap code, ancestry
 walk or SSH peer confers authority; multiplexers have no special refusal.
-The OS browser receives a launch capability without stdout disclosure. ACP
+FIXM103R4 supersedes the launch transport: the OS browser receives only a
+public URL and its page uses a one-shot loopback exchange. ACP
 permission answers still require OS presence. Workers retain no physical tools.
 Browser checks deny non-public resolved addresses unless an exact dev-server
-origin was explicitly set for the workspace. Public-host widening remains,
+origin was explicitly set by the person (user-only with separate non-loopback
+settings confirmation after FIXM103R4). Public-host widening remains,
 but cannot admit private addresses. Reserve a small fixed companion port range
 that no browser scope can admit, so registry deletion cannot permit a companion
 even when dev origins are configured; other loopback relays remain denied by
 default. The existing browserCheckExtraHosts setting accepts exact origins and
-becomes workspace-scoped; legacy host entries widen public destinations only.
+is machine-scoped/user-only after FIXM103R4; legacy host entries widen public
+destinations only.
 The host's own canaries get a private, path-bound proxy allowance, unavailable
 to page traffic. Its existing pure IP classifier is shared at core/publicAddress
 (the lazy web module re-exports it) so activation's scope checks share one rule
@@ -20949,7 +20959,10 @@ before a repaired one loads (2026-09-30).
 
 - **FIXM103R2-REGISTRY-INTEGRITY (closed by REDM103R, 2026-10-06).**
   Browser proxy connections deny private resolved addresses unless the exact
-  dev-server origin was configured. Companion listeners always use reserved
+  dev-server origin was configured in user settings (FIXM103R4); non-loopback
+  origins also need a separate settings UI address confirmation. Registered
+  machine hosts/aliases, known UIs, private standard web/machine ports and
+  encrypted private tunnels cannot be admitted. Companion listeners always use reserved
   ports 47830–47839, which no allowlist admits, independent of discovery files.
   Registry erasure cannot open a companion destination. An explicitly allowed
   dev server remains trusted to serve its content; a proxy placed there can
@@ -20978,14 +20991,16 @@ before a repaired one loads (2026-09-30).
   supported or certified. P/V/W must unify the root and test cross-host Stop
   and lease contention on all operating systems before physical support.
 - **FIXM103R-PRIVATE-EDITOR-LAUNCH (REDM103R).**
-  Person-authorized browser opening passes a single-use capability directly to
-  the OS launcher, never stdout. It grants only a panel session, with independent
+  Person-authorized browser opening passes only a public URL to the OS launcher
+  (FIXM103R4); its one-shot, same-origin loopback exchange delivers the code to
+  the page. No command line or output carries it. It grants only a panel session, with independent
   OS presence for each hardware action. Native-editor automatic launch/provider
   IPC and the complete shared maker surface remain T/U/W integration work.
 - **FIXM103R-HELPREF (inherited integration residual, 2026-10-06).**
   This base lacks featureCatalog.ts, gen-reference.mjs and check:reference.
   README/CHANGELOG carry the changed commands now. HELPREF/W must mirror
-  these safety/availability contracts when its catalogue joins; no new
+  these safety/availability contracts, including FIXM103R4 origin consent and
+  public panel launch, when its catalogue joins; no new
   undocumented command or substitute catalogue was introduced.
 - **FIXM103R-M107-ATTENDANCE (superseded by REDM103R).**
   Process ancestry, SSH peers and TTYs no longer authorize maker actions.

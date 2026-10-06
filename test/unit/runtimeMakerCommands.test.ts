@@ -1,4 +1,5 @@
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, rm, writeFile, readFile } from 'node:fs/promises'
+import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -199,11 +200,13 @@ describe('runtime maker command execution without a credential store or device',
     expect(await fixture.run(['panel'])).toBe(0)
     expect(fixture.output).toEqual([])
     expect(fixture.openBrowser).toHaveBeenCalledWith(
-      expect.stringMatching(/^http:\/\/127\.0\.0\.1:\d+\/#([a-f0-9]{64})$/),
+      expect.stringMatching(/^http:\/\/127\.0\.0\.1:\d+\/$/),
     )
     const assets = await companionAssets(fixture.distDirectory)
     expect(assets.get('/')?.body).not.toContain('maker-code')
     expect(assets.get('/bridge.js')?.body).toContain("fetch('/presence'")
+    expect(assets.get('/bridge.js')?.body).toContain("fetch('/launch-code'")
+    expect(assets.get('/bridge.js')?.body).not.toContain('location.hash')
   })
   it.each([
     ['hardware', 'enable', '--reason', 'bench', '--trust-workspace'],
@@ -333,10 +336,27 @@ describe('runtime maker command execution without a credential store or device',
     },
   )
   it.each(['linux', 'darwin', 'win32'] as const)(
-    'opens only the OS-presence-approved capability URL with the %s OS launcher',
+    'keeps the launch code out of the %s opener arguments and real /proc cmdline',
     async (platform) => {
-      const run = vi.spyOn(processTree, 'runProgram').mockResolvedValue('')
-      const url = 'http://127.0.0.1:12345/#' + 'a'.repeat(64)
+      const run = vi.spyOn(processTree, 'runProgram').mockImplementation(async (_file, args) => {
+        if (process.platform === 'linux') {
+          const child = spawn(process.execPath, ['-e', 'process.stdin.resume()', '--', ...args], {
+            env: {},
+          })
+          try {
+            await new Promise<void>((resolve) => child.once('spawn', resolve))
+            const commandLine = await readFile(`/proc/${String(child.pid)}/cmdline`, 'utf8')
+            expect(commandLine).not.toMatch(/[a-f0-9]{64}/)
+            expect(commandLine).not.toContain('#')
+          } finally {
+            const closed = new Promise<void>((resolve) => child.once('close', resolve))
+            child.kill()
+            await closed
+          }
+        }
+        return ''
+      })
+      const url = 'http://127.0.0.1:12345/'
       try {
         await openMakerBrowser(url, platform, { SystemRoot: String.raw`C:\Windows` })
         const [file, args] = run.mock.calls[0] ?? []
@@ -355,7 +375,7 @@ describe('runtime maker command execution without a credential store or device',
       }
     },
   )
-  it.each(['#private-fake-launch', '?launch=private-fake-launch'])(
+  it.each(['#private-fake-launch', '#' + 'a'.repeat(64), '?launch=private-fake-launch'])(
     'refuses a launcher URL carrying a capability in %s',
     async (suffix) => {
       const run = vi.spyOn(processTree, 'runProgram').mockResolvedValue('')

@@ -16,7 +16,11 @@ import {
 } from '../../shared/constants'
 import { makerSurfaceMessageSchema, type MakerSurfaceMessage } from '../../shared/makerProtocol'
 import type { RuntimeMakerHost } from './runtimeMakerHost'
-import { companionBootstrapSchema, companionPresenceSchema } from '../../shared/companionProtocol'
+import {
+  companionBootstrapSchema,
+  companionPresenceSchema,
+  companionLaunchSchema,
+} from '../../shared/companionProtocol'
 import { registerMakerCompanion } from '../../core/maker/companionRegistry'
 
 export interface CompanionDeps {
@@ -52,6 +56,7 @@ export async function startCompanion(deps: CompanionDeps) {
   const bind = deps.bind ?? RUNTIME_MAKER_HOST
   if (bind !== RUNTIME_MAKER_HOST && bind !== '::1') throw new Error('maker-loopback-required')
   let launch = ''
+  let isLaunchDelivered = false
   let launchExpires = 0
   const instance = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
   const session = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
@@ -93,13 +98,33 @@ export async function startCompanion(deps: CompanionDeps) {
     response.setHeader('Referrer-Policy', 'no-referrer')
     response.setHeader('X-Content-Type-Options', 'nosniff')
     response.setHeader('Cache-Control', 'no-store')
+    if (request.url === '/launch-code' && request.method === 'POST') {
+      if (incomingOrigin !== origin) {
+        response.writeHead(HTTP_STATUS.forbidden).end()
+        return
+      }
+      if (launch === '' || isLaunchDelivered || Date.now() >= launchExpires) {
+        response.writeHead(HTTP_STATUS.unauthorized).end()
+        return
+      }
+      isLaunchDelivered = true
+      response
+        .writeHead(HTTP_STATUS.ok, { 'Content-Type': 'application/json' })
+        .end(JSON.stringify(companionLaunchSchema.parse({ launch })))
+      return
+    }
     if (request.url === '/launch' && request.method === 'POST') {
       if (incomingOrigin !== origin) {
         response.writeHead(HTTP_STATUS.forbidden).end()
         return
       }
       const input = z.strictObject({ launch: z.string() }).parse(await body(request))
-      if (launch === '' || Date.now() >= launchExpires || !isSame(input.launch, launch)) {
+      if (
+        launch === '' ||
+        !isLaunchDelivered ||
+        Date.now() >= launchExpires ||
+        !isSame(input.launch, launch)
+      ) {
         response.writeHead(HTTP_STATUS.unauthorized).end()
         return
       }
@@ -306,8 +331,9 @@ export async function startCompanion(deps: CompanionDeps) {
       if (deps.host === undefined) throw new Error(UI_TEXT.makerPresenceUnavailable)
       await deps.host.requirePresence(UI_TEXT.makerLaunchConnect, { panel: origin })
       launch = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
+      isLaunchDelivered = false
       launchExpires = Date.now() + RUNTIME_MAKER_LAUNCH_CODE_MS
-      return `${origin}/#${launch}`
+      return `${origin}/`
     },
     mcp: {
       url: `${origin}/mcp`,

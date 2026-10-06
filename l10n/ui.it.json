@@ -2582,5 +2582,7 @@
   "makerPresenceConnect": "Connetti dispositivo",
   "makerPresenceProgram": "Programma dispositivo",
   "makerPresenceActuate": "Muovi, riscalda o alimenta la macchina",
-  "makerCompanionUnavailable": "Il pannello delle macchine non può usare le porte locali riservate. Chiudi un altro pannello delle macchine e riprova; Stop resta disponibile."
+  "makerCompanionUnavailable": "Il pannello delle macchine non può usare le porte locali riservate. Chiudi un altro pannello delle macchine e riprova; Stop resta disponibile.",
+  "browserDevOriginAllow": "Consenti questa origine di sviluppo",
+  "browserDevOriginConsent": "Consentire ai controlli del browser di accedere a {origin}? Conferma solo un server di sviluppo che controlli. Le interfacce di stampanti e CNC vengono sempre rifiutate. Questa autorizzazione resta su questo computer finché non rimuovi l’origine dalle impostazioni utente."
 }

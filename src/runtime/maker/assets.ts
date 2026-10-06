@@ -4,16 +4,14 @@ import { UI_TEXT, WEBVIEW_ROOT_ELEMENT_ID, WEBVIEW_L10N_ELEMENT_ID } from '../..
 import { uiLocale } from '../../shared/l10n/text'
 
 // The installed shared panel supplies every view; this script is only its host bridge.
-const BRIDGE = `const launch=location.hash.slice(1);
-history.replaceState(null, '', location.pathname);
-const response=await fetch('/launch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({launch:launch})});
-if(!response.ok) throw new Error('maker-launch-refused');
-const bootstrapRaw=await response.json();
-let state;
+const BRIDGE = `let state;
+let connect;
+const connected=new Promise(resolve=>{connect=resolve;});
 window.acquireVsCodeApi = () => ({
   getState: () => state,
   setState: value => {state=value;},
   postMessage: raw => {void (async () => {
+    await connected;
     const {companionPresenceSchema,makerHostMessageSchema,makerSurfaceMessageSchema}=await ready;
     const message=makerSurfaceMessageSchema.parse(raw);
     const headers={'Content-Type':'application/json'};
@@ -33,9 +31,16 @@ window.acquireVsCodeApi = () => ({
 
 });
 const ready=import('/assets/main.js');
-const {companionBootstrapSchema,makerHostMessageSchema}=await ready;
+const {companionBootstrapSchema,companionLaunchSchema,makerHostMessageSchema}=await ready;
+const delivery=await fetch('/launch-code',{method:'POST'});
+if(!delivery.ok) throw new Error('maker-launch-refused');
+const launch=companionLaunchSchema.parse(await delivery.json());
+const response=await fetch('/launch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(launch)});
+if(!response.ok) throw new Error('maker-launch-refused');
+const bootstrapRaw=await response.json();
 const bootstrap=companionBootstrapSchema.parse(bootstrapRaw);
 window.museSparkThonnyProvider=bootstrap.provider;
+connect();
 const events=new EventSource('/events');
 events.onmessage=event => {window.dispatchEvent(new MessageEvent('message',{data:makerHostMessageSchema.parse(JSON.parse(event.data))}));};`
 

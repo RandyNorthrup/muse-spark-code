@@ -2677,5 +2677,7 @@
   "makerPresenceConnect": "Połącz urządzenie",
   "makerPresenceProgram": "Zaprogramuj urządzenie",
   "makerPresenceActuate": "Ruch, grzanie lub zasilanie maszyny",
-  "makerCompanionUnavailable": "Panel maszyn nie może użyć zarezerwowanych portów lokalnych. Zamknij inny panel maszyn i spróbuj ponownie; Stop nadal jest dostępny."
+  "makerCompanionUnavailable": "Panel maszyn nie może użyć zarezerwowanych portów lokalnych. Zamknij inny panel maszyn i spróbuj ponownie; Stop nadal jest dostępny.",
+  "browserDevOriginAllow": "Zezwól na to źródło deweloperskie",
+  "browserDevOriginConsent": "Zezwolić kontrolom przeglądarki na dostęp do {origin}? Potwierdź tylko serwer deweloperski, który kontrolujesz. Interfejsy drukarek i CNC są zawsze odrzucane. Uprawnienie pozostaje na tym komputerze do usunięcia źródła z ustawień użytkownika."
 }

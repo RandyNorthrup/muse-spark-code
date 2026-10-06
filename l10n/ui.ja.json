@@ -2392,5 +2392,7 @@
   "makerPresenceConnect": "デバイスに接続",
   "makerPresenceProgram": "デバイスを書き込み",
   "makerPresenceActuate": "機器の移動・加熱・電源操作",
-  "makerCompanionUnavailable": "機器パネルが予約済みのローカルポートを使用できません。他の機器パネルを閉じて再試行してください。Stop は引き続き利用できます。"
+  "makerCompanionUnavailable": "機器パネルが予約済みのローカルポートを使用できません。他の機器パネルを閉じて再試行してください。Stop は引き続き利用できます。",
+  "browserDevOriginAllow": "この開発用オリジンを許可",
+  "browserDevOriginConsent": "ブラウザーの確認が {origin} にアクセスすることを許可しますか？自分で管理する開発サーバーのみ確認してください。プリンターと CNC の操作画面は常に拒否されます。この許可は、ユーザー設定からオリジンを削除するまでこのコンピューターに残ります。"
 }

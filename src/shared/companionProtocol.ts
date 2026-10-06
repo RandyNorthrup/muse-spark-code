@@ -1,6 +1,10 @@
 import * as z from 'zod/mini'
 import { RUNTIME_MAKER_HOST, RUNTIME_MAKER_MAX_PORT } from './constants'
 
+export const companionLaunchSchema = z.strictObject({
+  launch: z.string().check(z.regex(/^[a-f0-9]{64}$/)),
+})
+
 export const companionBootstrapSchema = z.strictObject({
   provider: z.optional(
     z.strictObject({

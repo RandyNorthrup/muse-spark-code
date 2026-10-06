@@ -124,7 +124,10 @@ describe('the browser check tool (M81)', () => {
   })
 
   it('widens a check to the setting as it stands now, and to the URL host a card allowed', () => {
-    const local = placeBrowserCall({ url: 'http://localhost/' }, new Set(['http://localhost']))
+    const local = placeBrowserCall(
+      { url: 'http://localhost:3000/' },
+      new Set(['http://localhost:3000']),
+    )
     const beyond = placeBrowserCall({ url: `${HTTP}//intranet.example:8080/` }, NONE)
     if (!local.ok || !beyond.ok) {
       throw new Error('expected placements')

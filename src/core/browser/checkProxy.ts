@@ -8,7 +8,7 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from 'node:http'
-import { connect, isIPv4, type Socket } from 'node:net'
+import { connect, isIPv4, isIPv6, type Socket } from 'node:net'
 import type { Duplex } from 'node:stream'
 import {
   BROWSER_AUTH_SENTINEL,
@@ -20,8 +20,15 @@ import {
   BROWSER_PROXY_HOST,
   BROWSER_PROXY_MAX_CONNECTIONS,
 } from '../../shared/browserCheckConstants'
-import { isMakerCompanionPort, isExplicitDevOrigin } from './browserPolicy'
+import { isMakerCompanionPort, isExplicitDevOrigin, isMachineBrowserUrl } from './browserPolicy'
+import {
+  BROWSER_MACHINE_PORTS,
+  BROWSER_MACHINE_UI,
+  BROWSER_DEV_HTML_MAX_BYTES,
+} from '../../shared/constants'
 import { isPublicAddress } from '../publicAddress'
+import type { Nat64Discovery } from '../web/webFetch'
+import * as z from 'zod/mini'
 import type { PhaseFixture } from './canaries'
 import { listen } from './canaries'
 import { makerCompanionPorts } from '../maker/companionRegistry'
@@ -29,7 +36,7 @@ import { makerCompanionPorts } from '../maker/companionRegistry'
 /** What a check may reach, frozen when the user approved it. */
 export interface FrozenScope {
   readonly url: string
-  /** Public widened hosts and exact workspace dev origins, as browserPolicy writes them. */
+  /** Public widened hosts and confirmed user-level dev origins, as browserPolicy writes them. */
   readonly explicitHosts: readonly string[]
   readonly approvalKey: string
 }
@@ -89,6 +96,7 @@ const HOP_BY_HOP: ReadonlySet<string> = new Set([
   'http2-settings',
   'authorization',
   'proxy-authorization',
+  'accept-encoding',
 ])
 const CHALLENGES: ReadonlySet<string> = new Set(['www-authenticate', 'proxy-authenticate'])
 const NOMINATING: ReadonlySet<string> = new Set(['connection', 'proxy-connection'])
@@ -215,6 +223,9 @@ const NODE_LOOKUP: ProxyLookup = async (host) => {
 export async function startCheckProxy(
   scope: FrozenScope,
   lookupName: ProxyLookup = NODE_LOOKUP,
+  nat64: () => Promise<Nat64Discovery> = () =>
+    Promise.resolve({ isKnown: false, detail: 'no-discovery' }),
+  registeredMachines?: () => Promise<readonly string[]>,
 ): Promise<CheckProxy> {
   const explicit = new Set(scope.explicitHosts.filter((host) => host !== BROWSER_AUTH_SENTINEL))
   const probes = new Set<Pick<PhaseFixture, 'port' | 'nonce' | 'loopbackHosts'>>()
@@ -257,7 +268,8 @@ export async function startCheckProxy(
       return [host.slice(1, -1)]
     }
     // An explicitly widened name, approved before this lookup: one answer.
-    return [await lookupName(host)]
+    const address = await lookupName(host)
+    return [isIPv6(address) ? new URL(`http://[${address}]/`).hostname.slice(1, -1) : address]
   }
   const connectFirst = async (destination: Destination): Promise<Socket> => {
     const { host, port } = destination
@@ -274,14 +286,46 @@ export async function startCheckProxy(
           target.loopbackHosts.includes(host) &&
           destination.path.startsWith(`/${target.nonce}/`),
       )
+    let blockedAddresses: readonly string[] = []
+    if (!isProbe) {
+      if (
+        registeredMachines === undefined ||
+        isMachineBrowserUrl(new URL(destination.path || '/', url))
+      )
+        throw new DestinationDenied('browser-machine-origin-denied')
+      const endpoints = await registeredMachines()
+      const hosts = endpoints.map((endpoint) => new URL(endpoint).hostname)
+      if (hosts.includes(host)) throw new DestinationDenied('browser-registered-machine-denied')
+      const resolved = await Promise.all(
+        hosts.map(async (machineHost) => await addressesOf(machineHost)),
+      )
+      blockedAddresses = resolved.flat()
+    }
     // Re-read before every upstream connection, including redirects and newly started panels.
     const deniedPorts = await makerCompanionPorts()
     if (isMakerCompanionPort(port) || deniedPorts.has(port))
       throw new DestinationDenied('maker-companion-navigation-denied')
     let last: unknown = new Error('no address')
     const addresses = await addressesOf(host)
+    const translation =
+      !isProbe && addresses.some((address) => isIPv6(address))
+        ? await nat64()
+        : { isKnown: true as const, prefixes: [] }
     for (const address of addresses) {
-      if (!isProbe && !isDev && !isPublicAddress(address))
+      if (!isProbe && blockedAddresses.includes(address))
+        throw new DestinationDenied('browser-registered-machine-denied')
+      if (
+        !isProbe &&
+        translation.isKnown &&
+        !isPublicAddress(address, translation.prefixes) &&
+        (BROWSER_MACHINE_PORTS.has(port) || destination.scheme === 'https:')
+      )
+        throw new DestinationDenied('browser-machine-ui-denied')
+      if (
+        !isProbe &&
+        ((!translation.isKnown && isIPv6(address)) ||
+          (!isDev && !isPublicAddress(address, translation.isKnown ? translation.prefixes : [])))
+      )
         throw new DestinationDenied('browser-private-address-denied')
       try {
         return await new Promise<Socket>((resolve, reject) => {
@@ -347,7 +391,13 @@ export async function startCheckProxy(
       createConnection: () => socket,
       method: request.method,
       path: destination.path,
-      headers: [...cleanHead(request.rawHeaders).head, 'Host', destination.authority],
+      headers: [
+        ...cleanHead(request.rawHeaders).head,
+        'Host',
+        destination.authority,
+        'Accept-Encoding',
+        'identity',
+      ],
       setHost: false,
       maxHeaderSize: BROWSER_PROXY_HEAD_MAX_BYTES,
     })
@@ -396,6 +446,36 @@ export async function startCheckProxy(
         return
       }
       const { head, stripped } = cleanHead(answer.rawHeaders)
+      if (
+        answer.headers['content-type']?.toLowerCase().includes('html') === true ||
+        ['document', 'iframe', 'frame'].includes(
+          request.headers['sec-fetch-dest']?.toString() ?? '',
+        )
+      ) {
+        void (async () => {
+          const chunks: Buffer[] = []
+          let bytes = 0
+          for await (const raw of answer) {
+            const chunk = z.instanceof(Buffer).parse(raw)
+            bytes += chunk.length
+            if (bytes > BROWSER_DEV_HTML_MAX_BYTES) throw new DestinationDenied('browser-html-size')
+            chunks.push(chunk)
+          }
+          const page = Buffer.concat(chunks)
+          if (
+            answer.headers['content-encoding'] !== undefined ||
+            BROWSER_MACHINE_UI.test(page.toString('utf8'))
+          )
+            throw new DestinationDenied('browser-machine-ui-denied')
+          note('http', destination, true, stripped)
+          response.writeHead(status, head).end(page)
+        })().catch(() => {
+          answer.destroy()
+          note('http', destination, false)
+          response.writeHead(STATUS_FORBIDDEN, { 'Content-Length': '0' }).end()
+        })
+        return
+      }
       note('http', destination, true, stripped)
       response.writeHead(status, head)
       answer.pipe(response)

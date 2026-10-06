@@ -2677,5 +2677,7 @@
   "makerPresenceConnect": "Připojit zařízení",
   "makerPresenceProgram": "Naprogramovat zařízení",
   "makerPresenceActuate": "Pohyb, ohřev nebo napájení stroje",
-  "makerCompanionUnavailable": "Panel strojů nemůže použít vyhrazené místní porty. Zavřete jiný panel strojů a zkuste to znovu; Stop je stále dostupný."
+  "makerCompanionUnavailable": "Panel strojů nemůže použít vyhrazené místní porty. Zavřete jiný panel strojů a zkuste to znovu; Stop je stále dostupný.",
+  "browserDevOriginAllow": "Povolit tento vývojový původ",
+  "browserDevOriginConsent": "Povolit kontrolám prohlížeče přístup k {origin}? Potvrďte pouze vývojový server, který ovládáte. Rozhraní tiskáren a CNC jsou vždy odmítnuta. Oprávnění zůstane na tomto počítači, dokud původ neodeberete z uživatelských nastavení."
 }

@@ -119,7 +119,7 @@ function rawObject(raw: unknown): Record<string, unknown> {
   return Object.fromEntries(Object.entries(raw))
 }
 
-/** Fixed OS launcher, no shell; URL is minted by our loopback server. */
+/** Fixed OS launcher, public URL only; the page exchanges its code over loopback. */
 export async function openMakerBrowser(
   url: string,
   platform: NodeJS.Platform,
@@ -133,7 +133,7 @@ export async function openMakerBrowser(
     page.password !== '' ||
     page.pathname !== '/' ||
     page.search !== '' ||
-    !/^[a-f0-9]{64}$/.test(page.hash.slice(1))
+    page.hash !== ''
   )
     throw new Error(UI_TEXT.makerUnattendedDenied)
   if (platform === 'win32') {

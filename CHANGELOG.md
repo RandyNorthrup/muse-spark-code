@@ -10,6 +10,14 @@ happened, not what was planned; superseded entries are kept.
 - FIXM103R4: maker CLI hardware enable, machine add and panel commands refuse
   agent-marked shells before asking for OS presence. Unattended shell children
   carry the runtime marker; Stop remains available.
+  The panel opens with a public URL and exchanges its one-shot code over
+  loopback; the code never appears on an opener command line.
+  Browser origins are user-only, with a separate settings confirmation for
+  non-loopback origins. Registered machine hosts and aliases, known printer/CNC
+  UIs, private machine/web ports and encrypted private tunnels stay refused,
+  including Bypass. HTTP documents are bounded and screened before browser
+  interaction. Browser classification now uses web fetch's NAT64 discovery
+  and refuses unknown IPv6 translation.
 
 - REDM103R supersedes the terminal/SSH approval repairs below: physical maker
   approvals, hardware enable, machine add and panel open require OS user

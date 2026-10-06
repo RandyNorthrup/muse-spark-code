@@ -223,6 +223,18 @@ export const RUNTIME_MAKER_BUNDLE_FILE = 'runtimeMaker.js'
 export const RUNTIME_MAKER_MAX_BYTES = 64 * 1024
 export const RUNTIME_MAKER_TOKEN_BYTES = 32
 export const RUNTIME_MAKER_LAUNCH_CODE_MS = 60_000
+export const BROWSER_DEV_ORIGIN_GRANTS_KEY = 'browser.devOrigins'
+// Conservative exclusions: private web ports and established machine service ports.
+export const BROWSER_MACHINE_PORTS: ReadonlySet<number> = new Set([
+  80, 443, 5000, 7125, 3344, 8080, 8000, 8888,
+])
+export const BROWSER_MACHINE_UI =
+  /octoprint|mainsail|fluidd|moonraker|duet(?:\s*web\s*control)?|\bdwc\b|prusa\s*(?:link|connect)|bambu|repetier|snapmaker|luban|cncjs|fluidnc/i
+export const BROWSER_MACHINE_API =
+  /^\/(?:api\/(?:printer|job|v1\/(?:print|job))|printer(?:\/|$)|machine(?:\/|$)|rr_)/i
+export const BROWSER_DEV_HTML_MAX_BYTES = 64 * 1024
+export const BROWSER_HTTP_PORT = 80
+export const BROWSER_HTTPS_PORT = 443
 export const MAKER_PRESENCE_GRANT_MS = 5000
 export const MAKER_PRESENCE_DIGEST_CHARS = 12
 export const MAKER_PRESENCE_TIMEOUT_MS = 60_000
@@ -626,6 +638,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   // What runs on every turn (git) and what is copied out of the workspace (M72).
   'turnCheckpoints',
   // Only the user widens what a page in the browser check may reach (M81).
+  'browserCheckExtraHosts',
   // Only the user consents to the browser check's download (M81 A1).
   'browserCheckRuntime',
   // Instructions the model follows and scripts it may run (M89): the user's choice.
@@ -4623,7 +4636,7 @@ export const MODEL_TEXT = {
   browserCheckBlockedRequests: 'Blocked requests:',
   browserCheckMore: '{count} more not shown',
   browserCheckUrlRefused:
-    'the URL is invalid, private, or a maker companion origin. Private destinations require an exact http(s) dev-server origin explicitly configured by the user for this workspace in museSpark.browserCheckExtraHosts. A permission card cannot widen private-address access',
+    'the URL is invalid, private, or a maker companion origin. Private destinations require an exact http(s) dev-server origin configured in user-level museSpark.browserCheckExtraHosts, with separate settings UI confirmation for non-loopback origins. Registered machine hosts and known printer/CNC interfaces are always refused. A permission card cannot widen private-address access',
   browserCheckInvalidArguments:
     'the arguments are not valid, so nothing was opened: url is a string, and actions, when given, is a list of at most {actions} steps, each with kind click or type and a CSS selector of 1 to {selector} characters, a type step also with the text it types (at most {text} characters)',
   // The closed failures (M81 A1, browserRun.ts): the runtime's preparation.

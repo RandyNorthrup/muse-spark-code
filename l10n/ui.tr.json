@@ -2487,5 +2487,7 @@
   "makerPresenceConnect": "Cihaza bağlan",
   "makerPresenceProgram": "Cihazı programla",
   "makerPresenceActuate": "Makineyi hareket ettir, ısıt veya çalıştır",
-  "makerCompanionUnavailable": "Makine paneli ayrılmış yerel bağlantı noktalarını kullanamıyor. Başka bir makine panelini kapatıp yeniden deneyin; Stop kullanılabilir."
+  "makerCompanionUnavailable": "Makine paneli ayrılmış yerel bağlantı noktalarını kullanamıyor. Başka bir makine panelini kapatıp yeniden deneyin; Stop kullanılabilir.",
+  "browserDevOriginAllow": "Bu geliştirme kaynağına izin ver",
+  "browserDevOriginConsent": "Tarayıcı kontrollerinin {origin} adresine erişmesine izin verilsin mi? Yalnızca denetiminizdeki bir geliştirme sunucusunu onaylayın. Yazıcı ve CNC arayüzleri her zaman reddedilir. Kaynağı kullanıcı ayarlarınızdan kaldırana kadar bu izin bu bilgisayarda kalır."
 }
