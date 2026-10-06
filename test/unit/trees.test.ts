@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ResourceTreeRegistry } from '../../src/core/resources/trees/registry'
 import { resourceKindSchema, type ResourceTicket } from '../../src/shared/resources'
 import { FakeResourceTree } from './helpers/resources/fakes'
+import type { ResourceActionResult } from '../../src/core/resources/trees/actions'
 
 function tree(id = 'check-1'): ResourceTicket {
   return {
@@ -32,23 +33,36 @@ function pendingMembership(reader: FakeResourceTree) {
 describe('resource launch authority (M107 T)', () => {
   it('kills only a current registered member and refuses retirement during proof', async () => {
     const { ticket, reader } = world()
-    const kill = vi.fn(() => Promise.resolve(true))
-    const registry = new ResourceTreeRegistry(Object.assign(reader, { kill }))
-    expect(await registry.kill(ticket)).toBe(false)
+    const signal = vi.fn((): Promise<ResourceActionResult> => Promise.resolve('done'))
+    const actionMembers = vi.fn(() => Promise.resolve([ticket.root]))
+    const registry = new ResourceTreeRegistry(Object.assign(reader, { signal, actionMembers }))
+    expect(await registry.kill(ticket)).toEqual({ status: 'refused', members: [] })
     await registry.register(ticket)
-    expect(await registry.kill({ ...ticket, sessionId: 'forged' })).toBe(false)
-    expect(await registry.kill(ticket)).toBe(true)
-    expect(kill).toHaveBeenCalledExactlyOnceWith(ticket, ticket.root)
-    const proof = pendingMembership(reader)
-    vi.mocked(reader.contains).mockClear()
+    expect(await registry.kill({ ...ticket, sessionId: 'forged' })).toEqual({
+      status: 'refused',
+      members: [],
+    })
+    expect(await registry.kill(ticket)).toEqual({
+      status: 'done',
+      members: [{ identity: ticket.root, result: 'done' }],
+    })
+    expect(signal).toHaveBeenCalledExactlyOnceWith(
+      ticket,
+      ticket.root,
+      'SIGKILL',
+      expect.any(Function),
+    )
+    const proof = Promise.withResolvers<(typeof ticket.root)[]>()
+    actionMembers.mockReturnValueOnce(proof.promise)
+    actionMembers.mockClear()
     const pending = registry.kill(ticket)
     await vi.waitFor(() => {
-      expect(reader.contains).toHaveBeenCalledWith(ticket, ticket.root)
+      expect(actionMembers).toHaveBeenCalledWith(ticket)
     })
     registry.unregister(ticket)
-    proof.resolve(true)
-    expect(await pending).toBe(false)
-    expect(kill).toHaveBeenCalledTimes(1)
+    proof.resolve([ticket.root])
+    expect(await pending).toEqual({ status: 'refused', members: [] })
+    expect(signal).toHaveBeenCalledTimes(1)
   })
 
   it('registers every kind and both classes with its actual root, scope and session', async () => {

@@ -5,6 +5,7 @@ import type {
   ResourceTicket,
   ResourceTreeReader,
 } from '../../shared/resources'
+import type { ResourceTreeActionReader } from './trees/actions'
 
 export interface ResourceJob {
   /** A shell job's holder must finish normally after the complete job became empty. */
@@ -34,10 +35,8 @@ export interface ResourceAdmissionPort {
   run<T>(kind: ResourceKind, action: () => Promise<T>, signal?: AbortSignal): Promise<T>
 }
 export interface ResourceTreeBinding {
-  readonly reader: ResourceTreeReader & {
-    forget?: (ticket: ResourceTicket) => void
-    kill?: (ticket: ResourceTicket, member: ResourceProcessIdentity) => Promise<boolean>
-  }
+  readonly reader: ResourceTreeReader &
+    Partial<ResourceTreeActionReader> & { forget?: (ticket: ResourceTicket) => void }
   readonly root: ResourceProcessIdentity | null
   readonly scope: ResourceTicket['scope']
   /** Failure is unknown, never retirement. */

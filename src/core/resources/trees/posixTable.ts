@@ -6,6 +6,8 @@ const DECIMAL = /^\d+$/
 export const processSampleSchema = z.extend(resourceProcessIdentitySchema, {
   // Kernel/system processes may have pgid 0; a governed ticket always has pgid > 0.
   pgid: z.number().check(z.int(), z.gte(0)),
+  parent: z.number().check(z.int(), z.gte(0)),
+  exited: z.boolean(),
   cpuSeconds: resourceTreeUsageSchema.shape.cpuSeconds,
   residentBytes: resourceTreeUsageSchema.shape.residentBytes,
 })
@@ -25,12 +27,16 @@ export function parseLinuxStat(
     .trim()
     .split(/\s+/)
   const pgid = fields[2]
+  const parent = fields[1]
+  const state = fields[0]
   const user = fields[11]
   const system = fields[12]
   const startTime = fields[19]
   const rss = fields[21]
   if (
-    [pid, pgid, user, system, startTime, rss].some(
+    state === undefined ||
+    !/^[RSDZTtXxIKWP]$/.test(state) ||
+    [pid, parent, pgid, user, system, startTime, rss].some(
       (field) => field === undefined || !DECIMAL.test(field),
     )
   )
@@ -38,6 +44,8 @@ export function parseLinuxStat(
   const parsed = processSampleSchema.safeParse({
     pid: Number(pid),
     pgid: Number(pgid),
+    parent: Number(parent),
+    exited: ['Z', 'X', 'x'].includes(state),
     startTime,
     cpuSeconds: (Number(user) + Number(system)) / ticksPerSecond,
     residentBytes: Number(rss) * pageBytes,
@@ -69,14 +77,18 @@ export function parseMacProcessTable(
   const rows: Omit<ProcessSample, 'startTime'>[] = []
   for (const line of text.trim().split(/\r?\n/)) {
     if (line === '') continue
-    const match = /^\s*(\d+)\s+(\d+)\s+([\d:.-]+)\s+(\d+)\s*$/.exec(line)
+    const match = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+([A-Z][A-Za-z+<>-]*)\s+([\d:.-]+)\s+(\d+)\s*$/.exec(
+      line,
+    )
     if (match === null) return null
-    const [, pid, pgid, time = '', rss] = match
+    const [, pid, parent, pgid, state = '', time = '', rss] = match
     const cpuSeconds = parseCpuTime(time)
     if (cpuSeconds === null) return null
     const parsed = processSampleSchema.safeParse({
       pid: Number(pid),
       pgid: Number(pgid),
+      parent: Number(parent),
+      exited: state.startsWith('Z'),
       startTime: '0',
       cpuSeconds,
       residentBytes: Number(rss) * BYTES_PER_KIB,

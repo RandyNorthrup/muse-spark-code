@@ -9,6 +9,7 @@ import {
 import { PosixResourceTreeReader, type PosixTreeSnapshot, type PosixTreeSource } from './posix'
 import { parseLinuxStat, type ProcessSample } from './posixTable'
 import { coalescedTreeRead, runTreeProgram, type ResourceTreeRun } from './run'
+import { signalVerifiedPosix, type ResourceActionResult, type ResourceSignal } from './actions'
 
 export interface LinuxTreeDeps {
   /** Trusted delegated harness scope, supplied by M96 K; never a workspace setting. */
@@ -17,6 +18,7 @@ export interface LinuxTreeDeps {
   readonly list?: (directory: string) => Promise<readonly string[]>
   readonly canonical?: (file: string) => Promise<string>
   readonly run?: ResourceTreeRun
+  readonly sendSignal?: (pid: number, signal: ResourceSignal) => void
 }
 
 const MICROSECONDS_PER_SECOND = 1_000_000
@@ -127,7 +129,7 @@ class LinuxTreeSource implements PosixTreeSource {
     if (!resourceProcessIdentitySchema.safeParse({ pid, startTime: '0' }).success) return null
     try {
       const row = await this.stat(pid)
-      return row === null ? null : { pid: row.pid, startTime: row.startTime }
+      return row === null || row.exited ? null : { pid: row.pid, startTime: row.startTime }
     } catch {
       return null
     }
@@ -148,7 +150,7 @@ class LinuxTreeSource implements PosixTreeSource {
         .split(/\s+/, 2)[1]
       const units = await this.getUnits()
       const row = parseLinuxStat(text, units.hz, units.page)
-      return row?.pid === pid && row.pgid === pid && parent === String(parentPid)
+      return row?.pid === pid && !row.exited && row.pgid === pid && parent === String(parentPid)
         ? { pid: row.pid, startTime: row.startTime }
         : null
     } catch {
@@ -156,10 +158,27 @@ class LinuxTreeSource implements PosixTreeSource {
     }
   }
 
-  async containsNow(ticket: ResourceTicket, identity: ResourceProcessIdentity): Promise<boolean> {
+  async containsNow(
+    ticket: ResourceTicket,
+    identity: ResourceProcessIdentity,
+    isEnrolled = false,
+    parent?: ResourceProcessIdentity,
+  ): Promise<boolean> {
     try {
       const current = await this.stat(identity.pid)
-      if (current?.startTime !== identity.startTime) return false
+      if (current?.exited !== false || current.startTime !== identity.startTime) return false
+      if (parent !== undefined) {
+        const ancestor = await this.stat(parent.pid)
+        const latest = await this.stat(identity.pid)
+        return (
+          ancestor?.exited === false &&
+          ancestor.startTime === parent.startTime &&
+          latest?.exited === false &&
+          latest.startTime === identity.startTime &&
+          latest.parent === parent.pid
+        )
+      }
+      if (isEnrolled) return true
       if (ticket.scope.type === 'group') return current.pgid === ticket.scope.pgid
       const scope = await this.cgroup(ticket)
       const isMember = scope !== null && (await this.inCgroup(identity.pid, scope))
@@ -167,6 +186,19 @@ class LinuxTreeSource implements PosixTreeSource {
       return latest?.startTime === identity.startTime
     } catch {
       return false
+    }
+  }
+
+  async signalNow(
+    identity: ResourceProcessIdentity,
+    signal: ResourceSignal,
+    isRegistered: () => boolean,
+  ): Promise<ResourceActionResult> {
+    try {
+      const current = await this.stat(identity.pid)
+      return signalVerifiedPosix(identity, current, signal, isRegistered, this.deps.sendSignal)
+    } catch {
+      return 'refused'
     }
   }
 
@@ -179,7 +211,7 @@ class LinuxTreeSource implements PosixTreeSource {
       const table = await this.table()
       for (const row of table) {
         if (ticket.scope.type === 'group') {
-          if (row.pgid === ticket.scope.pgid) rows.push(row)
+          rows.push(row)
           continue
         }
         if (scope === null || !(await this.inCgroup(row.pid, scope))) continue

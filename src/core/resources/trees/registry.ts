@@ -8,16 +8,22 @@ import {
   type ResourceTreeReader,
   type ResourceTreeUsage,
 } from '../../../shared/resources'
+import {
+  resourceActionResultSchema,
+  resourceSignalSchema,
+  type ResourceActionResult,
+  type ResourceSignal,
+  type ResourceTreeActionReader,
+  type ResourceTreeKillResult,
+} from './actions'
 
 /** Local launch authority. OS readers prove membership; tickets never confer it alone. */
 export class ResourceTreeRegistry implements ResourceTreeReader {
   private readonly entries = new Map<string, { ticket: ResourceTicket; ready: boolean }>()
 
   constructor(
-    private readonly reader: ResourceTreeReader & {
-      forget?: (ticket: ResourceTicket) => void
-      kill?: (ticket: ResourceTicket, member: ResourceProcessIdentity) => Promise<boolean>
-    },
+    private readonly reader: ResourceTreeReader &
+      Partial<ResourceTreeActionReader> & { forget?: (ticket: ResourceTicket) => void },
   ) {}
 
   private entry(ticket: ResourceTicket): { ticket: ResourceTicket; ready: boolean } | undefined {
@@ -73,20 +79,6 @@ export class ResourceTreeRegistry implements ResourceTreeReader {
     return tickets
   }
 
-  /** Stop is an explicit owner action, outside governor admission and policy. */
-  async kill(ticket: ResourceTicket): Promise<boolean> {
-    const entry = this.entry(ticket)
-    if (entry?.ready !== true || this.reader.kill === undefined) return false
-    const members = await this.members(ticket)
-    for (const member of members) {
-      if (this.entry(ticket) !== entry) return false
-      if (await this.contains(ticket, member)) {
-        return await this.reader.kill(structuredClone(entry.ticket), member)
-      }
-    }
-    return false
-  }
-
   async contains(ticket: ResourceTicket, identity: ResourceProcessIdentity): Promise<boolean> {
     const entry = this.entry(ticket)
     const parsed = resourceProcessIdentitySchema.safeParse(identity)
@@ -124,6 +116,79 @@ export class ResourceTreeRegistry implements ResourceTreeReader {
         : null
     } catch {
       return null
+    }
+  }
+
+  /** Stop/cancel bypasses governor admission. A boolean membership check is not an action. */
+  async signal(
+    ticket: ResourceTicket,
+    member: ResourceProcessIdentity,
+    signal: ResourceSignal,
+  ): Promise<ResourceActionResult> {
+    const entry = this.entry(ticket)
+    const identity = resourceProcessIdentitySchema.safeParse(member)
+    const requested = resourceSignalSchema.safeParse(signal)
+    if (
+      entry?.ready !== true ||
+      !identity.success ||
+      !requested.success ||
+      identity.data.pid === process.pid ||
+      this.reader.signal === undefined
+    )
+      return 'refused'
+    try {
+      return resourceActionResultSchema.parse(
+        await this.reader.signal(
+          structuredClone(entry.ticket),
+          identity.data,
+          requested.data,
+          () => this.entries.get(entry.ticket.id) === entry && entry.ready,
+        ),
+      )
+    } catch {
+      return 'refused'
+    }
+  }
+
+  /** Snapshot identities first, then signal individually: never a PID/group-only kill. */
+  async kill(
+    ticket: ResourceTicket,
+    signal: ResourceSignal = 'SIGKILL',
+  ): Promise<ResourceTreeKillResult> {
+    const entry = this.entry(ticket)
+    if (
+      entry?.ready !== true ||
+      this.reader.actionMembers === undefined ||
+      this.reader.signal === undefined ||
+      !resourceSignalSchema.safeParse(signal).success
+    )
+      return { status: 'refused', members: [] }
+    try {
+      const raw = await this.reader.actionMembers(structuredClone(entry.ticket))
+      if (raw === null || this.entry(ticket) !== entry) return { status: 'refused', members: [] }
+      const snapshot = z.array(resourceProcessIdentitySchema).parse(raw)
+      const members: { identity: ResourceProcessIdentity; result: ResourceActionResult }[] = []
+      const ordered = snapshot
+        .toReversed()
+        .toSorted(
+          (left, right) =>
+            Number(
+              left.pid === entry.ticket.root.pid && left.startTime === entry.ticket.root.startTime,
+            ) -
+            Number(
+              right.pid === entry.ticket.root.pid &&
+                right.startTime === entry.ticket.root.startTime,
+            ),
+        )
+      for (const identity of ordered) {
+        members.push({ identity, result: await this.signal(entry.ticket, identity, signal) })
+      }
+      const results = new Set(members.map((member) => member.result))
+      const priorities: readonly ResourceActionResult[] = ['refused', 'identity-changed', 'done']
+      const status = priorities.find((result) => results.has(result)) ?? 'gone'
+      return { status, members }
+    } catch {
+      return { status: 'refused', members: [] }
     }
   }
 }

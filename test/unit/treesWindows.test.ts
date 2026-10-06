@@ -45,6 +45,75 @@ function pendingJobAnswer(run: ReturnType<typeof jobReader>['run']) {
 }
 
 describe('Windows resource job reader', () => {
+  it('uses the verified native handle action and validates honest results without a bare job kill', async () => {
+    const run = vi.fn((_file: string, args: readonly string[]) =>
+      Promise.resolve(args.at(-1)?.includes('::Contains(') ? 'true' : '"done"'),
+    )
+    const reader = new WindowsResourceTreeReader({ ...deps, run })
+    const registry = new ResourceTreeRegistry(reader)
+    await registry.register(ticket)
+    expect(await registry.signal(ticket, ticket.root, 'SIGKILL')).toBe('done')
+    expect(run.mock.calls.at(-1)?.[1].at(-1)).toContain('::Signal(')
+    expect(run.mock.calls.at(-1)?.[1].at(-1)).toContain('$true')
+    for (const result of ['gone', 'identity-changed', 'refused']) {
+      run.mockResolvedValueOnce(JSON.stringify(result))
+      expect(await registry.signal(ticket, ticket.root, 'SIGTERM')).toBe(result)
+    }
+    run.mockResolvedValueOnce('"unknown"')
+    expect(await registry.signal(ticket, ticket.root, 'SIGTERM')).toBe('refused')
+    run.mockResolvedValueOnce('"unknown"')
+    expect(await reader.signal(ticket, ticket.root, 'SIGTERM', () => true)).toBe('refused')
+    for (const call of run.mock.calls) expect(call[1].at(-1)).not.toContain('::Terminate(')
+  })
+
+  it('refuses retirement during enumeration before dispatching the Windows action', async () => {
+    const { reader, registry, run } = jobReader(() => [ticket.root])
+    await registry.register(ticket)
+    const finish = pendingJobAnswer(run)
+    const pending = registry.signal(
+      ticket,
+      { pid: 811, startTime: '134040000000000001' },
+      'SIGKILL',
+    )
+    registry.unregister(ticket)
+    finish.resolve(
+      JSON.stringify({
+        members: [ticket.root, { pid: 811, startTime: '134040000000000001' }],
+        usage: { cpuSeconds: 1, residentBytes: 1 },
+      }),
+    )
+    expect(await pending).toBe('refused')
+    expect(reader).toHaveProperty('known.size', 0)
+    expect(run.mock.calls.some((call) => call[1].at(-1)?.includes('::Signal('))).toBe(false)
+  })
+
+  it('snapshots identities and returns gone for an observed job that has ended', async () => {
+    const { registry, run } = jobReader(() => [ticket.root])
+    await registry.register(ticket)
+    run.mockResolvedValueOnce('null').mockResolvedValueOnce('"gone"')
+    expect(await registry.kill(ticket)).toEqual({
+      status: 'gone',
+      members: [{ identity: ticket.root, result: 'gone' }],
+    })
+  })
+
+  it('retains one process handle for creation, exit state, job membership and termination', async () => {
+    const source = await readJobSource('shellJob')
+    const region = source.slice(
+      source.indexOf('// M107 T2 signal region.'),
+      source.indexOf('// End M107 T2 signal region.'),
+    )
+    expect(region).toContain(
+      'OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE, false, pid)',
+    )
+    expect(region).toContain('Creation(process) != expected')
+    expect(region).toContain('!IsAlive(process)')
+    expect(region).toContain('!Member(process, job)')
+    expect(region).toContain('TerminateProcess(process, force ? EXIT_KILLED : EXIT_TERMINATED)')
+    expect(region).toContain('finally { CloseHandle(process); }')
+    expect(region).toContain('finally { CloseHandle(job); }')
+    expect(region).not.toContain('TerminateJobObject(')
+  })
   it('uses the compiled helper for exact identity, job membership and lifetime CPU / resident memory', async () => {
     const run = vi.fn((_file: string, args: readonly string[], _env?: NodeJS.ProcessEnv) => {
       const body = args.at(-1)!
@@ -156,6 +225,16 @@ describe('Windows resource job reader', () => {
     expect(await reader.members(ticket)).toEqual([])
   })
 
+  it('keeps the original job through an exact witness when a descendant reuses its departed root PID', async () => {
+    let members = [ticket.root, { pid: 811, startTime: '134040000000000001' }]
+    const { reader } = jobReader(() => members)
+    expect(await reader.members(ticket)).toEqual(members)
+    members = [{ pid: 810, startTime: '134040000000000002' }, members[1]!]
+    expect(await reader.members(ticket)).toEqual(members)
+    members = [members[0]!]
+    expect(await reader.members(ticket)).toEqual(members)
+  })
+
   it.each(['query', 'root-proof'] as const)(
     'does not restore Windows witnesses when a pending %s finishes after retirement',
     async (stage) => {
@@ -250,6 +329,15 @@ describe('Windows resource job reader', () => {
               startTime: String(BigInt(root!.startTime) + 1n),
             }),
           ).toBe(false)
+          expect(
+            await registry.signal(
+              launch,
+              { ...root!, startTime: String(BigInt(root!.startTime) + 1n) },
+              'SIGKILL',
+            ),
+          ).toBe('refused')
+          expect(await registry.kill(launch)).toMatchObject({ status: 'done' })
+          await death
         } finally {
           await killTree(
             child,

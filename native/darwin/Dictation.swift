@@ -40,7 +40,50 @@
 import AVFoundation
 import CoreAudio
 import Foundation
+import Darwin
 import Speech
+
+// Read-only process identity mode of the existing signed helper (M107 T2).
+// No audio, privacy request, command line, environment or process name is read.
+
+func runProcIdentityIfRequested() {
+    guard CommandLine.arguments.dropFirst().first == "proc-identity" else { return }
+    let arguments = CommandLine.arguments.dropFirst(2)
+    guard !arguments.isEmpty else { exit(2) }
+    var rows: [Any] = []
+    for argument in arguments {
+        guard let pid = Int32(argument), pid > 0 else { exit(2) }
+        var info = proc_bsdinfo()
+        let size = Int32(MemoryLayout<proc_bsdinfo>.size)
+        let count = proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, size)
+        if count == 0 && errno == ESRCH {
+            rows.append(NSNull())
+            continue
+        }
+        guard count == size, info.pbi_pid == UInt32(pid) else {
+            rows.append(["pid": pid, "unavailable": true])
+            continue
+        }
+        let microsPerSecond: UInt64 = 1_000_000
+        guard info.pbi_start_tvusec < microsPerSecond else { exit(2) }
+        let start = info.pbi_start_tvsec.multipliedReportingOverflow(by: microsPerSecond)
+        let exact = start.partialValue.addingReportingOverflow(info.pbi_start_tvusec)
+        guard !start.overflow, !exact.overflow else { exit(2) }
+        rows.append([
+            "pid": pid,
+            "startTime": String(exact.partialValue),
+            "pgid": info.pbi_pgid,
+            "parent": info.pbi_ppid,
+            "exited": info.pbi_status == SZOMB,
+        ])
+    }
+    guard let data = try? JSONSerialization.data(withJSONObject: rows) else { exit(2) }
+    FileHandle.standardOutput.write(data)
+    exit(0)
+}
+
+// Dispatch before responsibility/audio setup: process probes must never ask TCC.
+runProcIdentityIfRequested()
 
 let exitCodeUnavailable: Int32 = 2
 

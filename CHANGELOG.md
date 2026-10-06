@@ -46,6 +46,11 @@ happened, not what was planned; superseded entries are kept.
   recovery and retirement, verify confirmed policy again, and require a fresh
   prior-state reading before attempting another irreversible change.
 
+- Registered resource trees expose verified signal and tree-kill actions, with
+  exact birth checks and honest outcomes. Observed descendants retain authority
+  after reparenting or starting another session; recycled PIDs need new proof.
+- Resource trees use the shipped macOS helper's kernel microsecond identities
+  and classify zombie processes as exited instead of live members.
 - Resource-tree readers revalidate an existing POSIX authority anchor before
   retaining new witnesses, preventing a mixed-time scan from admitting a
   process in a reused group. Ticket retirement also invalidates pending reads

@@ -3929,6 +3929,12 @@ its own installed-language state. The webview is React 19 bundled to one IIFE wi
 its stylesheet; `zod/mini` validates every host ⇄ webview message; the voice
 helpers are Windows PowerShell and Swift with no dependencies.
 
+The macOS helper also serves the internal, read-only `proc-identity <pid…>`
+mode. Resource-tree launchers use its exact kernel start microseconds, parent,
+group and exited state before authorizing process actions; this mode runs
+before any audio or privacy setup. Native tests build and sign the production
+helper in private fixtures, so they work in a clean checkout.
+
 The session board and best-of-N implementation loads on its first action
 from `dist/sessionBoard.js`. Paid Auto reviewer execution loads only after
 consent from `dist/reviewer.js`, also shipped with the ACP agent. Ordinary

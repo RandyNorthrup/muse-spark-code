@@ -195,11 +195,9 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       },
       kill: async () => {
         await this.refreshTrees()
-        return (
-          this.work.has(work) &&
-          work.ticket !== undefined &&
-          ((await work.registry?.kill(work.ticket)) ?? false)
-        )
+        if (!this.work.has(work) || work.ticket === undefined) return false
+        const result = await work.registry?.kill(work.ticket)
+        return result?.status === 'done'
       },
       register: (process) => {
         if (!this.work.has(work)) return
