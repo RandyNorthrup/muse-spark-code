@@ -163,8 +163,7 @@ describe('/handoff (M74)', () => {
     admit()
     expect(screen.queryByRole('dialog')).toBeNull()
     deliver({ ...READY, goal: 'Ship it', todos: ['Ship it', 'Tell the team'] })
-    await screen.findByLabelText(UI_TEXT.handoffDialogBody)
-    const dialog = screen.getByRole('dialog')
+    const dialog = await screen.findByRole('dialog', { name: UI_TEXT.handoffDialogTitle })
     expect(dialog).toHaveTextContent(UI_TEXT.handoffDialogBody)
     expect(dialog).toHaveTextContent(fill(UI_TEXT.handoffRequestCardWithGoal, { goal: 'Ship it' }))
     expect(dialogText().value).toBe(BRIEF)
@@ -307,7 +306,7 @@ describe('/handoff (M74)', () => {
       if (when === 'before') {
         deliver(READY)
       }
-      const share = screen.getByRole('dialog', { name: 'Shared conversation' })
+      const share = await screen.findByRole('dialog', { name: 'Shared conversation' })
       expect(modalRoots()).toEqual([share])
       expect(share.contains(document.activeElement)).toBe(true)
       expect(screen.queryByRole('button', { name: UI_TEXT.handoffConfirm })).toBeNull()

@@ -9,7 +9,6 @@
 // `onActiveRowChange`.
 
 import {
-  type FocusEvent,
   type KeyboardEvent,
   type Ref,
   useEffect,
@@ -36,6 +35,7 @@ import { scrollRowIntoView, wrapIndex } from '../listNavigation'
 import { EffortSlider } from './EffortSlider'
 import { BackIcon, CheckIcon } from './icons'
 import { ListBody } from './ListBody'
+import { PaletteList, usePaletteDismiss } from './paletteDialog'
 
 export type PaletteView = 'actions' | 'models'
 
@@ -496,11 +496,9 @@ export function Palette(props: PaletteProps) {
     body = <p className="menu-empty">{UI_TEXT.paletteNoMatches}</p>
   } else {
     body = (
-      <ul
-        id={PALETTE_LISTBOX_ID}
-        role="listbox"
-        aria-label={view === 'models' ? UI_TEXT.modelListLabel : UI_TEXT.paletteLabel}
-        className="palette-list"
+      <PaletteList
+        listboxId={PALETTE_LISTBOX_ID}
+        label={view === 'models' ? UI_TEXT.modelListLabel : UI_TEXT.paletteLabel}
       >
         {entries.map((entry) => {
           switch (entry.kind) {
@@ -533,7 +531,7 @@ export function Palette(props: PaletteProps) {
             }
           }
         })}
-      </ul>
+      </PaletteList>
     )
   }
 
@@ -545,33 +543,17 @@ export function Palette(props: PaletteProps) {
   // Anything taking the focus outside the palette closes it; Tab into the
   // list keeps it open (M37). Attached, the focus is the prompt's, which
   // closes it itself.
-  const onPaletteBlur = (event: FocusEvent<HTMLDivElement>) => {
-    if (isAttached) {
-      return
-    }
-    if (!event.currentTarget.contains(event.relatedTarget)) {
-      onClose()
-    }
-  }
-  // Escape from the list; the filter box handles its own.
-  const onPaletteKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'Escape' || event.target === filterBox.current) {
-      return
-    }
-    event.preventDefault()
-    if (view === 'models') {
-      onBack()
-    } else {
-      onClose()
-    }
-  }
+  const { onDialogBlur } = usePaletteDismiss(filterBox, onClose)
   return (
     <div
       className={isAttached ? 'palette palette-attached' : 'palette'}
       role="dialog"
       aria-label={UI_TEXT.paletteLabel}
-      onBlur={onPaletteBlur}
-      onKeyDown={onPaletteKeyDown}
+      onBlur={isAttached ? undefined : onDialogBlur}
+      onKeyDown={(event) => {
+        // The filter handles its own keys; the list shares its Escape behavior.
+        if (event.key === 'Escape' && event.target !== filterBox.current) didHandleKey(event)
+      }}
     >
       {isAttached ? null : (
         <div className="palette-header">

@@ -3669,7 +3669,7 @@ describe('App: the M87 wiring (PLAN.md D66)', () => {
 describe('App: explicit held prompt resend (RVM92E P2)', () => {
   it.each(['newer draft', ''])(
     'sends the held prompt and its attachments while preserving draft %j',
-    (newer) => {
+    async (newer) => {
       const postMessage = renderReady()
       const text = `deploy with sk-${'k'.repeat(24)} now`
       addTestImage()
@@ -3681,7 +3681,7 @@ describe('App: explicit held prompt resend (RVM92E P2)', () => {
         localId: 'local-1',
         redactedText: 'deploy with [redacted] now',
       })
-      fireEvent.click(screen.getByRole('button', { name: UI_TEXT.secretPromptSendAnyway }))
+      fireEvent.click(await screen.findByRole('button', { name: UI_TEXT.secretPromptSendAnyway }))
       const sent = postMessage.mock.calls.at(-1)?.[0]
       expect(
         sent?.type === 'sendMessage' && sent.text === text && sent.secretAccepted === true,
@@ -3690,7 +3690,7 @@ describe('App: explicit held prompt resend (RVM92E P2)', () => {
       expect(textarea().value).toBe(newer)
     },
   )
-  it('resends the held reference while preserving a newer composer reference', () => {
+  it('resends the held reference while preserving a newer composer reference', async () => {
     const store = createUiStore({
       ...initialUiState,
       phase: 'ready',
@@ -3726,7 +3726,7 @@ describe('App: explicit held prompt resend (RVM92E P2)', () => {
         at: 1,
       })
     })
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.secretPromptSendAnyway }))
+    fireEvent.click(await screen.findByRole('button', { name: UI_TEXT.secretPromptSendAnyway }))
     expect(postMessage.mock.calls.at(-1)?.[0]).toMatchObject({
       reference: original,
       secretAccepted: true,
@@ -3734,7 +3734,7 @@ describe('App: explicit held prompt resend (RVM92E P2)', () => {
     expect(store.getState().reference).toEqual(newer)
   })
 
-  it('keeps authentication admission during a transient Model API sign-in', () => {
+  it('keeps authentication admission during a transient Model API sign-in', async () => {
     const postMessage = renderReady()
     deliver({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
     fireEvent.change(textarea(), { target: { value: `use sk-${'k'.repeat(24)}` } })
@@ -3742,7 +3742,7 @@ describe('App: explicit held prompt resend (RVM92E P2)', () => {
     deliver({ type: 'secretPromptDetected', localId: 'local-1', redactedText: 'use [redacted]' })
     deliver({ type: 'authState', status: 'signingIn', backend: 'modelApi' })
     const before = postMessage.mock.calls.length
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.secretPromptSendAnyway }))
+    fireEvent.click(await screen.findByRole('button', { name: UI_TEXT.secretPromptSendAnyway }))
     expect(postMessage.mock.calls).toHaveLength(before)
   })
 })

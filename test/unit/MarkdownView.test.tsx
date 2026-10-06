@@ -43,11 +43,11 @@ describe('MarkdownView', () => {
     expect(onOpenLink).toHaveBeenCalledWith('https://dev.meta.ai/')
   })
 
-  it('turns fenced code into a highlighted block with Copy and Insert', () => {
-    vi.useFakeTimers()
+  it('turns fenced code into a highlighted block with Copy and Insert', async () => {
     const { onCopy, onInsert } = renderMarkdown('```ts\nconst a = 1\n```')
     expect(screen.getByText('typescript')).toBeInTheDocument()
-    expect(document.querySelector('.hljs-keyword')).not.toBeNull()
+    await screen.findByText('const', { selector: '.hljs-keyword' })
+    vi.useFakeTimers()
     fireEvent.click(screen.getByText('Copy'))
     expect(onCopy).toHaveBeenCalledWith('const a = 1')
     expect(screen.getByText('Copied')).toBeInTheDocument()

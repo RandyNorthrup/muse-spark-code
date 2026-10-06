@@ -4,7 +4,11 @@
 // its budget or is missing.
 
 import { existsSync, readFileSync, statSync } from 'node:fs'
-import { DEFERRED_WEBVIEW_SURFACES, webviewStartupOutputs } from './lib/webviewBundles.mjs'
+import {
+  DEFERRED_WEBVIEW_SURFACES,
+  webviewDeferredBudgetGroups,
+  webviewStartupOutputs,
+} from './lib/webviewBundles.mjs'
 
 const BYTES_PER_KIB = 1024
 // M99: bound the generated notes independently of their ZIP compression.
@@ -180,21 +184,16 @@ for (const { path, budgetKiB } of [...BUDGETS, ...deferredBudgets]) {
   console.log(`${status} ${label}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`)
 }
 
-// TRAIN13B: optional UI chunks, 38.6 KiB + 15%, rounded to 25 KiB.
-const WEBVIEW_DEFERRED_BUDGET_KIB = 50
+// Each new lazy closure has its own cap; old surfaces and unclassified
+// deferred helpers stay under TRAIN13B's unchanged aggregate 50 KiB cap.
 const webview = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
-const eager = new Set([
-  ...webviewStartupOutputs(webview),
-  ...webviewStartupOutputs(webview, 'dist/webview/models.js'),
-])
-const deferredKiB =
-  Object.keys(webview.outputs)
-    .filter((file) => file.endsWith('.js') && !eager.has(file))
-    .reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
-if (deferredKiB > WEBVIEW_DEFERRED_BUDGET_KIB) hasFailure = true
-console.log(
-  `${deferredKiB <= WEBVIEW_DEFERRED_BUDGET_KIB ? 'ok  ' : 'OVER'} dist/webview deferred JS: ${deferredKiB.toFixed(1)} KiB (budget ${WEBVIEW_DEFERRED_BUDGET_KIB} KiB)`,
-)
+for (const { name, budgetKiB, outputs } of webviewDeferredBudgetGroups(webview)) {
+  const sizeKiB = outputs.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
+  if (sizeKiB > budgetKiB) hasFailure = true
+  console.log(
+    `${sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'} dist/webview ${name}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
+  )
+}
 
 if (hasFailure) {
   console.error('bundle size budget exceeded or a bundle is missing; see PLAN.md section 2 (D6)')

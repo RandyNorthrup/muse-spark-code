@@ -34,6 +34,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Chat startup now loads syntax highlighting only for a closed supported code
+  fence, leaving code text and Copy, Insert and Apply immediately available
+  while its engine loads. Action-only dialogs and the separate Tasks surface
+  also load on demand; the command palette reuses its shared list shell. The
+  900 KiB startup budget and existing deferred budget stay unchanged.
+
 - Isolate M95's built exec package and bundle-split drills so parallel unit
   suites cannot delete each other's browser chunks or read partially written
   metafiles. Share the verified restored-fixture check across cases, cutting
