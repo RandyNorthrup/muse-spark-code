@@ -3895,3 +3895,95 @@ li:focus-within > .row-actions .row-actions-button,
   font-size: 0.9em;
   overflow-wrap: anywhere;
 }
+
+/* M112: one bounded attention dock; waiting/open rows stand out in every theme. */
+.attention-dock {
+  flex-shrink: 0;
+  overscroll-behavior: contain;
+}
+
+.tool-header[hidden],
+.attention-dock [hidden],
+.question[hidden],
+.question [hidden] {
+  display: none;
+}
+
+.attention-questions {
+  min-width: 0;
+}
+
+.attention-question-line,
+.question-countdown {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+}
+
+.tool-question-open,
+.question-waiting,
+.question-open {
+  border-inline-start: 3px solid var(--vscode-focusBorder);
+  outline: 1px solid var(--vscode-contrastBorder, transparent);
+}
+
+.question-summary,
+.question-state-label,
+.open-questions-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.question-summary,
+.open-questions-chip {
+  flex-wrap: wrap;
+}
+
+.question-summary-header {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.question-state-label {
+  font-weight: 600;
+}
+
+.question-state-icon {
+  min-width: 16px;
+  text-align: center;
+}
+
+.question-folded {
+  padding-block: 4px;
+}
+
+.attention-question-selector {
+  max-width: 100%;
+  min-height: 24px;
+  margin-block: 2px;
+  overflow-wrap: anywhere;
+  color: var(--vscode-foreground);
+}
+
+.question .row-actions {
+  opacity: 100%;
+}
+
+.tool-question-open > .question {
+  border-inline-start: 0;
+  outline: none;
+}
+
+.tool-question-open > .row-actions {
+  opacity: 100%;
+}
+
+.question-folded .question-summary {
+  flex-wrap: nowrap;
+}
+
+.question-folded .question-summary-header {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

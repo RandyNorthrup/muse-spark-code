@@ -91,6 +91,16 @@ describe('HistoryDialog', () => {
     expect(screen.getByText('yesterday · 1 turn · fork')).toBeInTheDocument()
   })
 
+  it('marks known sessions with localized singular/plural open counts and clears zero counts', () => {
+    renderDialog({ openQuestionCounts: { now: 1, yesterday: 2, stale: 0 } })
+    expect(screen.getByRole('option', { name: /Fix the parser/ })).toHaveTextContent(
+      '1 open question',
+    )
+    expect(screen.getByRole('option', { name: /Write docs/ })).toHaveTextContent('2 open questions')
+    fireEvent.click(screen.getByLabelText('Show archived'))
+    expect(screen.getByRole('option', { name: /Old idea/ })).not.toHaveTextContent('open question')
+  })
+
   it('shows archived and stale rows behind the switch, with Unarchive on the archived one', () => {
     const { props } = renderDialog()
     fireEvent.click(screen.getByLabelText('Show archived'))

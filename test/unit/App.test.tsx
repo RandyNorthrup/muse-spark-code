@@ -152,7 +152,7 @@ function askColour() {
       ],
     },
   })
-  fireEvent.click(screen.getByRole('radio', { name: 'Red' }))
+  fireEvent.click(within(screen.getByRole('main')).getByRole('radio', { name: 'Red' }))
 }
 
 function renderReady(status: 'signedIn' | 'signedOut' = 'signedIn') {
@@ -1005,7 +1005,7 @@ describe('App transcript (M4)', () => {
     expect(screen.getByText('Allow once')).toBeEnabled()
     askColour()
 
-    fireEvent.click(screen.getByText('Submit'))
+    fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'answerQuestion',
       userInputId: 'q1',
@@ -2381,9 +2381,9 @@ describe('App webview and UI state (M25)', () => {
     const postMessage = renderReady()
     askColour()
 
-    fireEvent.click(screen.getByText('Submit'))
-    fireEvent.click(screen.getByText('Submit'))
-    fireEvent.click(screen.getByText('Cancel'))
+    fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
+    fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
+    fireEvent.click(within(screen.getByRole('main')).getByText('Cancel'))
     const answers = () =>
       postMessage.mock.calls.filter(
         ([message]) => message.type === 'answerQuestion' || message.type === 'cancelQuestion',
@@ -2391,7 +2391,7 @@ describe('App webview and UI state (M25)', () => {
     expect(answers()).toHaveLength(1)
     // The host refused the answer: the card opens again for another try.
     deliver({ type: 'notice', level: 'error', text: 'The answer was not accepted: gone' })
-    fireEvent.click(screen.getByText('Submit'))
+    fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
     expect(answers()).toHaveLength(2)
   })
 

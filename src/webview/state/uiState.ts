@@ -408,7 +408,8 @@ export interface UiState {
   /** Counts observed for History; text never crosses into a history row. */
   readonly openQuestionCounts: Readonly<Record<string, number>>
   readonly questionNavigation:
-    { readonly userInputId: string; readonly sequence: number } | undefined
+    | { readonly userInputId: string; readonly sequence: number; readonly isReminder?: true }
+    | undefined
   readonly announcement: Announcement | undefined
   /** The microphone button (M9): `reason` explains an unavailable one. */
   readonly dictation: DictationUiState
@@ -2579,6 +2580,7 @@ function withOpenQuestions(
         ...next,
         questionNavigation: {
           userInputId: reminder.userInputId,
+          isReminder: true,
           sequence: (state.questionNavigation?.sequence ?? 0) + 1,
         },
       },

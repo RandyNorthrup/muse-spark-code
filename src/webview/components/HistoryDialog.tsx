@@ -30,6 +30,7 @@ import {
 export interface HistoryDialogProps {
   /** undefined while the host has not answered `listSessions`. */
   readonly sessions: readonly SessionRow[] | undefined
+  readonly openQuestionCounts?: Readonly<Record<string, number>>
   readonly archivedIds: readonly string[]
   readonly currentSessionId: string | undefined
   readonly archiveAfterDays: number
@@ -221,7 +222,11 @@ export function HistoryDialog(props: HistoryDialogProps) {
               isActive={entry.index === activeIndex}
               isCurrent={entry.row.sessionId === currentSessionId}
               isRowArchived={archivedIds.includes(entry.row.sessionId)}
-              meta={metaOf(entry.row, nowMs)}
+              meta={
+                (props.openQuestionCounts?.[entry.row.sessionId] ?? 0) > 0
+                  ? `${metaOf(entry.row, nowMs)} · ${plural(UI_TEXT.openQuestionsCount, props.openQuestionCounts?.[entry.row.sessionId] ?? 0)}`
+                  : metaOf(entry.row, nowMs)
+              }
               onHover={() => {
                 setActiveIndex(entry.index)
               }}
