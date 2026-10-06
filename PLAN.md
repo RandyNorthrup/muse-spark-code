@@ -19407,6 +19407,25 @@ every Model API user in every editor.
 
 ### M106 — Agent-loop wire guarantees (D86)
 
+**H round-5 lifecycle fix (FIXM106H5, 2026-10-06).** Resolve RVM106H5's
+sole P2 by retiring request quotes and validators through the existing session
+work-completion and disposal owners. Settled leaf requests release their tokens;
+parent tokens still needed by child tasks and follow-ups keep their existing
+authority until that conversation closes. Disposal releases all of its tokens,
+including pending questions and inherited child tokens, without clearing remembered
+grants or dispatched settlement claims. Add a repeated open/close bounded-size
+invariant, retained-surface and settlement regressions, and byte-exact red drills.
+No guard, dependency, timeout, wire shape or product/editor handoff changes.
+
+**H round-5 rig result (2026-10-06).** All 1,084 tests in the 15 owned
+whole files pass at default timeouts. Five named red drills fail and restore
+byte-exact. Authority coverage passes unchanged thresholds: 98.01% statements,
+93.8% branches, 100% functions and 99.45% lines. Scoped lint/format, five-project
+typecheck, knip, cycles, zero-clone jscpd, localization, host API and production
+build pass. Model API is 467.3/475 KiB, ACP 834.9/850 KiB and extension
+456.9/600 KiB. `docs/certification/m106-h.md` records the lifecycle evidence;
+there is no accepted finding residual.
+
 **H round-4 fixes (FIXM106H4, 2026-10-06).** Resolve all four P2s and
 P3 in RVM106H4 without changing the reducer architecture. One profile-wide
 approval counter is persisted beside the grant store; exclusive publication
@@ -21319,6 +21338,20 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+**FIXM106H5 review disposition (2026-10-06).** RVM106H5's single lifecycle
+P2 is fixed; there is no accepted finding residual. The existing session disposal
+callback releases conversation-owned quotes and validators, including child
+sessions outside the host map. Work completion retires settled request tokens;
+the latest live parent token and tokens held by active/queued child grants remain
+available for the existing continuation/follow-up policy, then release on disposal.
+Stale questions invalidate their tagged quote, so late completion cannot restore
+a disposed request. Remembered grants, dispatched claims and exact settlement
+remain independent of request callback lifetime. A 12-conversation open/close
+invariant reaches zero retained validators and quotes; retained surfaces and a
+child held at daily admission preserve live authority. Five byte-exact red drills
+are recorded in `docs/certification/m106-h.md`. Existing W/M95 handoffs, integrated
+quality, multi-OS/editor checks and M80 hosted/live receipts remain lead-owned.
 
 **FIXM106H4 review disposition (2026-10-06).** All four P2s and the
 ACP documentation P3 in RVM106H4 are fixed; no named finding residual remains.

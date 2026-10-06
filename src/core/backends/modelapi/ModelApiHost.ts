@@ -2214,6 +2214,12 @@ export class ModelApiSession implements AgentSession {
      */
     private readonly extensionHooks: readonly ExtensionHookDefinition[] = [],
   ) {
+    // The existing disposal owner releases authority for every session,
+    // including children restored or forked without a host-map entry.
+    this.onDispose = () => {
+      deps.client.releaseSearchQuotes(sessionId)
+      onDispose()
+    }
     this.workspaceEdits.add(this.ledger)
     this.modelId = modelId
     this.searchMaxPerRequest = deps.webSearchMaxPerRequest?.() ?? WEB_SEARCH_MAX_PER_REQUEST
@@ -3155,7 +3161,24 @@ export class ModelApiSession implements AgentSession {
       }
     } finally {
       this.unsettled.delete(id)
+      this.releaseSettledSearchQuotes()
     }
+  }
+
+  private releaseSettledSearchQuotes(): void {
+    const retained: string[] = []
+    // The latest parent token also serves explicitly consented child follow-ups.
+    if (
+      (this.active !== undefined || this.children.size > 0) &&
+      this.approvedSearchQuote !== undefined
+    )
+      retained.push(this.approvedSearchQuote.id)
+    for (const child of this.children.values()) {
+      for (const grant of [child.session.childTaskGrant, child.nextTaskGrant]) {
+        if (grant?.searchQuote !== undefined) retained.push(grant.searchQuote.id)
+      }
+    }
+    this.deps.client.releaseSearchQuotes(this.sessionId, this.isDisposed ? [] : retained)
   }
 
   /** What this request may offer: the shell and memory need trust, skills need loading. */
@@ -6485,6 +6508,7 @@ export class ModelApiSession implements AgentSession {
         child.session.childTaskGrant = child.nextTaskGrant
         child.nextTaskGrant = undefined
       }
+      this.releaseSettledSearchQuotes()
       child.terminal = event.terminal
       if (child.state !== 'closed' && child.state !== 'interrupted') {
         child.state = 'result_ready'

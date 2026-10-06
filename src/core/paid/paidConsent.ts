@@ -375,11 +375,12 @@ export class PaidUseConsent {
         })
         return false
       }
-      return (
+      const isLive =
         this.isEnabled('webSearch') &&
         request.isCurrent?.() !== false &&
         this.authority.isCurrent(tag)
-      )
+      if (!isLive) this.authority.dispatch({ type: 'invalidate', grant: tag })
+      return isLive
     }
     if (!isCurrent()) return undefined
     this.authority.bind(quote, isCurrent)

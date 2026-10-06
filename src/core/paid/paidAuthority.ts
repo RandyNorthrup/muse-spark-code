@@ -367,6 +367,19 @@ export class PaidAuthority {
   public bind(quote: PaidQuote, isCurrent: () => boolean): void {
     this.validators.set(requestKey(quote), isCurrent)
   }
+  /** Retire request callbacks, preserving live child authority and immutable claims/grants. */
+  public releaseConversation(
+    conversationId: string,
+    retainedQuoteIds: readonly string[] = [],
+  ): void {
+    for (const current of this.state.quotes.values()) {
+      if (
+        current.quote.conversationId === conversationId &&
+        !retainedQuoteIds.includes(current.quote.id)
+      )
+        this.dispatch({ type: 'invalidate', grant: current })
+    }
+  }
   public canSpend(quote: PaidQuote): boolean {
     const current = this.state.quotes.get(requestKey(quote))
     if (

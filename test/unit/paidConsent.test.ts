@@ -115,6 +115,22 @@ describe('PaidUseConsent (M58)', () => {
     expect(t.grants().size).toBe(0)
   })
 
+  it.each([false, true])(
+    'R5 P2: stale consent releases its request validator (initially current: %s)',
+    async (initial) => {
+      let isCurrent = initial
+      const pending = Promise.withResolvers<PaidUseAnswer>()
+      const t = consentWith({ answer: () => pending.promise })
+      const decision = t.consent.allows({ ...SEARCH, isCurrent: () => isCurrent })
+      expect(t.consent.authority).toHaveProperty('validators.size', initial ? 1 : 0)
+      isCurrent = false
+      pending.resolve('always')
+      expect(await decision).toBeUndefined()
+      expect(t.consent.authority).toHaveProperty('validators.size', 0)
+      expect(t.consent.authority).toHaveProperty('state.quotes.size', 0)
+    },
+  )
+
   it('lets an "always" it cannot keep go ahead once, and says so', async () => {
     const log = new FakeLogOutputChannel()
     const consent = new PaidUseConsent({

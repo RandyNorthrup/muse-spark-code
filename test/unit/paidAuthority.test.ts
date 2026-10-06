@@ -351,6 +351,45 @@ it('R4 P2-4: inherited child tokens retain the parent tariff, bound and revocati
   )
 })
 
+it('R5 P2: retiring a conversation preserves independent consent, remembered grants and dispatched fees', () => {
+  const owner = new PaidAuthority()
+  const first = { ...a, quote: { ...a.quote, conversationId: 'first' } }
+  const second = { ...first, quote: { ...first.quote, conversationId: 'second' } }
+  for (const grant of [first, second]) {
+    owner.dispatch({ type: 'quote', ...grant, ask: true })
+    owner.dispatch({ type: 'answer', grant, answer: 'always' })
+    owner.dispatch({ type: 'saved', grant, ok: true })
+    owner.bind(grant.quote, () => true)
+  }
+  owner.dispatch({
+    type: 'reserve',
+    quote: first.quote,
+    claimId: 'in-flight',
+    reservedUsd: Usd.from('1').toAmount(),
+  })
+  owner.releaseConversation('first', [first.quote.id])
+  expect(owner.canSpend(first.quote)).toBe(true)
+  owner.releaseConversation('first')
+  owner.releaseConversation('first')
+  expect(owner.canSpend(first.quote)).toBe(false)
+  expect(owner.canSpend(second.quote)).toBe(true)
+  expect(owner).toHaveProperty('validators.size', 1)
+  expect(owner.hasGrant()).toBe(true)
+  expect(
+    owner.dispatch({ type: 'settle', claimId: 'in-flight', returnedCalls: 1, isTerminal: true }),
+  ).toContainEqual(
+    expect.objectContaining({
+      settlement: expect.objectContaining({ costUsd: first.quote.tariffUsd }),
+    }),
+  )
+  owner.releaseConversation('second')
+  expect(owner).toHaveProperty('validators.size', 0)
+  expect(owner).toHaveProperty('state.quotes.size', 0)
+  expect(owner.grant(first.quote)).toBeDefined()
+  expect(owner.dispatch({ type: 'saved', grant: first, ok: true })).toEqual([])
+  expect(owner.canSpend(first.quote)).toBe(false)
+})
+
 it('R4 interleavings: two conversations, parent/child, revoked saves and older orders across 720 schedules', () => {
   const first = { ...a, order: 1, quote: { ...a.quote, conversationId: 'first', maxCalls: 1 } }
   const second = { ...first, quote: { ...first.quote, conversationId: 'second' } }

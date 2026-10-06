@@ -17,6 +17,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Hosted-search request validators retire after settlement and conversation
+  disposal, so opening and closing chats does not retain their transcripts.
+  Live parent/child authorization, remembered grants and dispatched charges
+  keep their existing lifetime and accounting guards.
 - Hosted-search Always approvals follow one persisted profile order, so an older
   owner cannot restore a higher ceiling. Revoked save completions preserve fresh
   approvals, parallel conversations keep independent consent, and child tasks

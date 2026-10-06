@@ -529,6 +529,13 @@ export class ModelApiClient {
     return this.deps.paidAuthority?.inherit(parent, quote) ?? true
   }
 
+  public releaseSearchQuotes(
+    conversationId: string,
+    retainedQuoteIds: readonly string[] = [],
+  ): void {
+    this.deps.paidAuthority?.releaseConversation(conversationId, retainedQuoteIds)
+  }
+
   /** Whether interactive extras have a finite daily admission port (D78). */
   public get hasPaidDailyBudget(): boolean {
     return this.deps.reservePaidRequest !== undefined

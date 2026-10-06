@@ -873,18 +873,30 @@ function quotedConsent(authority: PaidAuthority, answer: PaidUseAnswer = 'once')
   return { consent, ask }
 }
 
-it('R4 P2-3: two approved conversations both POST after an interleaved daily reservation', async () => {
+async function authorizedSearchHost(
+  options: Parameters<typeof host>[0] = {},
+  answer: PaidUseAnswer = 'once',
+) {
   const authority = new PaidAuthority()
-  const { consent, ask } = quotedConsent(authority)
-  const held = Promise.withResolvers<undefined>()
-  const release = Promise.withResolvers<undefined>()
-  const budget = claims()
-  let isFirst = true
+  const { consent, ask } = quotedConsent(authority, answer)
   const t = await host({
     capabilities: () => CAPABILITIES,
     maxCalls: () => 1,
     pricing: { paidAuthority: authority },
     consent: (request) => consent.allows(request),
+    isRemembered: () => consent.isRemembered('webSearch'),
+    daily: claims().reserve,
+    ...options,
+  })
+  return { ...t, authority, paidConsent: consent, ask }
+}
+
+it('R4 P2-3: two approved conversations both POST after an interleaved daily reservation', async () => {
+  const held = Promise.withResolvers<undefined>()
+  const release = Promise.withResolvers<undefined>()
+  const budget = claims()
+  let isFirst = true
+  const { ask, ...t } = await authorizedSearchHost({
     daily: async (...args) => {
       if (isFirst) {
         isFirst = false
@@ -919,17 +931,7 @@ it('R4 P2-3: two approved conversations both POST after an interleaved daily res
 })
 
 it('R4 P2-4: a parent-authorized explorer and retried follow-up POST through the shared authority', async () => {
-  const authority = new PaidAuthority()
-  const { consent, ask } = quotedConsent(authority, 'always')
-  const t = await host({
-    capabilities: () => CAPABILITIES,
-    maxCalls: () => 1,
-    pricing: { paidAuthority: authority },
-    consent: (request) => consent.allows(request),
-    subagents: true,
-    isRemembered: () => consent.isRemembered('webSearch'),
-    daily: claims().reserve,
-  })
+  const { authority, ask, ...t } = await authorizedSearchHost({ subagents: true }, 'always')
   t.api.script(
     {
       calls: [
@@ -954,6 +956,11 @@ it('R4 P2-4: a parent-authorized explorer and retried follow-up POST through the
   expect(t.api.responseBodies()).toHaveLength(3)
   const child = t.session.history().items.find((item) => item.kind === 'subagent')
   if (child?.kind !== 'subagent' || child.subagentId === undefined) throw new Error('missing child')
+  // New parent requests retire previous tokens once no child task holds them.
+  t.api.script({ text: 'Parent complete.', searches: [{}] })
+  await t.turn()
+  await t.session.settled()
+  expect(authority).toHaveProperty('validators.size', 1)
   t.api.script({ httpError: { status: 429 } }, { text: 'Follow-up complete.', searches: [{}] })
   await t.session.messageSubagent(child.subagentId, 'Continue research', true)
   await vi.waitFor(() => {
@@ -961,7 +968,129 @@ it('R4 P2-4: a parent-authorized explorer and retried follow-up POST through the
       result: { summary: 'Follow-up complete.' },
     })
   })
-  expect(t.api.responseBodies()).toHaveLength(5)
+  expect(t.api.responseBodies()).toHaveLength(6)
   expect(t.api.responseBodies().every((body) => body['max_tool_calls'] === 1)).toBe(true)
   expect(ask.mock.calls).toHaveLength(3)
+  await t.session.settled()
+  // Only the live parent's follow-up token remains; settled child requests retire.
+  expect(authority).toHaveProperty('validators.size', 1)
+  await t.engine.close()
+  expect(authority).toHaveProperty('validators.size', 0)
+  expect(authority).toHaveProperty('state.quotes.size', 0)
+})
+
+it('R5 P2: N completed and disposed conversations leave zero retained validators', async () => {
+  const { authority, paidConsent, ...t } = await authorizedSearchHost({}, 'always')
+  const conversations = 12
+  for (let index = 0; index < conversations; index += 1) {
+    const session =
+      index === 0
+        ? t.session
+        : await t.engine.startSession({
+            workspaceRoot: '/ws',
+            modelId: 'muse-spark-1.3',
+            approvalMode: 'allowAll',
+          })
+    if (!(session instanceof ModelApiSession)) throw new Error('expected Model API session')
+    const watched = watchSessionTurns(session)
+    t.api.script({ text: 'Complete.', searches: [{}] })
+    await session.sendTurn([{ type: 'text', text: 'Find it' }])
+    await watched.turnDone()
+    await session.settled()
+    session.dispose()
+    expect(authority).toHaveProperty('validators.size', 0)
+    expect(authority).toHaveProperty('state.quotes.size', 0)
+  }
+  expect(t.api.responseBodies()).toHaveLength(conversations)
+  expect(t.engine).toHaveProperty('sessions.size', 0)
+  expect(paidConsent.isRemembered('webSearch')).toBe(true)
+})
+
+it('R5 P2: a settled request retires its validator while its conversation stays open', async () => {
+  const { authority, ...t } = await authorizedSearchHost()
+  t.api.script({ searches: [{}] })
+  await t.turn()
+  await t.session.settled()
+  expect(t.engine).toHaveProperty('sessions.size', 1)
+  expect(authority).toHaveProperty('validators.size', 0)
+  expect(authority).toHaveProperty('state.quotes.size', 0)
+})
+
+it('R5 P2: only the last surface disposal releases a pending request and its late settlement', async () => {
+  const held = Promise.withResolvers<undefined>()
+  const release = Promise.withResolvers<undefined>()
+  const budget = claims()
+  const { authority, ...t } = await authorizedSearchHost({
+    daily: async (...args) => {
+      held.resolve(undefined)
+      await release.promise
+      return await budget.reserve(...args)
+    },
+  })
+  t.session.retain()
+  try {
+    await t.session.sendTurn([{ type: 'text', text: 'Find it' }])
+    await held.promise
+    expect(authority).toHaveProperty('validators.size', 1)
+    t.session.dispose()
+    expect(authority).toHaveProperty('validators.size', 1)
+    t.session.dispose()
+    expect(authority).toHaveProperty('validators.size', 0)
+    expect(authority).toHaveProperty('state.quotes.size', 0)
+  } finally {
+    release.resolve(undefined)
+  }
+  await t.session.settled()
+  expect(t.api.responseBodies()).toHaveLength(0)
+  expect(budget.exactSettled).toEqual([Usd.from(0).toAmount()])
+  expect(authority).toHaveProperty('validators.size', 0)
+})
+
+it('R5 P2: retiring a parent request preserves a child waiting at daily admission', async () => {
+  const held = Promise.withResolvers<undefined>()
+  const release = Promise.withResolvers<undefined>()
+  const budget = claims()
+  const { authority, ...t } = await authorizedSearchHost({
+    subagents: true,
+    daily: async (...args) => {
+      if (args[1] === 'subagents') {
+        held.resolve(undefined)
+        await release.promise
+      }
+      return await budget.reserve(...args)
+    },
+  })
+  t.api.script(
+    {
+      calls: [
+        {
+          name: 'subagent_spawn',
+          arguments: '{"role":"explorer","objective":"Research files"}',
+          callId: 'spawn',
+        },
+      ],
+    },
+    { text: 'Parent complete.' },
+    { text: 'New parent complete.' },
+    { text: 'Child complete.', searches: [{}] },
+  )
+  try {
+    await t.session.sendTurn([{ type: 'text', text: 'Delegate research' }])
+    await held.promise
+    await vi.waitFor(() => {
+      expect(t.session.status).toBe('idle')
+    })
+    await t.turn()
+    expect(authority).toHaveProperty('validators.size', 3)
+  } finally {
+    release.resolve(undefined)
+  }
+  await t.session.settled()
+  expect(t.session.history().items.find((item) => item.kind === 'subagent')).toMatchObject({
+    result: { summary: 'Child complete.' },
+  })
+  expect(t.api.responseBodies()).toHaveLength(4)
+  expect(authority).toHaveProperty('validators.size', 1)
+  await t.engine.close()
+  expect(authority).toHaveProperty('validators.size', 0)
 })
