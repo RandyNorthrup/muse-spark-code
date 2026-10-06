@@ -4,6 +4,7 @@
 // formatter through `vscode.executeFormatDocumentProvider`. Runs inside the
 // Extension Development Host (see .vscode-test.mjs).
 
+import { redactSecrets } from '../../src/core/redact'
 import * as assert from 'node:assert/strict'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -58,6 +59,7 @@ suite('verify loop in VS Code (M68)', () => {
       }, 500)
     }
     verify = createVerifyEditor({
+      redact: redactSecrets,
       platform: process.platform,
       log: {
         ...createLogger(channel),
@@ -77,6 +79,7 @@ suite('verify loop in VS Code (M68)', () => {
     await vscode.commands.executeCommand('workbench.action.closeAllEditors')
     clearInterval(observe)
     reportSubscription?.dispose()
+    verify.dispose()
     channel.dispose()
     await rm(folder, { recursive: true, force: true })
   })
@@ -110,6 +113,14 @@ suite('verify loop in VS Code (M68)', () => {
     // Missing TS service is explicitly unchecked, never an empty clean report.
     if (!hasTypeScript) assert.equal(results[0]?.unchecked, 'noReport')
     assert.equal(results[1]?.unchecked, undefined)
+    const fallbackEntries = results[1]?.entries.filter(
+      (entry) => entry.source === 'muse-spark-json',
+    )
+    assert.equal(
+      fallbackEntries?.length,
+      hasTypeScript ? 0 : 1,
+      'native JSON reports must not duplicate',
+    )
     assert.equal(results[1]?.entries[0]?.line, 3)
     // The tabs it opened are closed again (the M68 review).
     const shown = new Set(

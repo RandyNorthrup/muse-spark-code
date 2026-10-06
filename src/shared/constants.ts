@@ -2753,6 +2753,8 @@ export const WORKSPACE_IDENTITY_ZERO = 0n
 // Measured in VS Code 1.139.1 and 1.125.0 (M68): JSON's first report came at
 // once, a cold TypeScript server's in about 1.6 s, and TypeScript's
 // semantic errors follow its syntax errors.
+export const VERIFY_EDITOR_BUNDLE_FILE = 'verifyEditor.js'
+export const JSON_DIAGNOSTICS_SOURCE = 'muse-spark-json'
 export const DIAGNOSTICS_SETTLE_FIRST_MS = 4000
 export const DIAGNOSTICS_SETTLE_QUIET_MS = 1500
 export const DIAGNOSTICS_SETTLE_MAX_MS = 10_000

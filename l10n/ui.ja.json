@@ -1,4 +1,8 @@
 {
+  "jsonExpectedComma": "カンマが必要です",
+  "jsonInvalidSyntax": "JSON の構文が無効です",
+  "jsonInvalidSetting": "{setting} の値が無効です",
+  "jsonVerificationUnavailable": "エディターの検証を利用できません。",
   "untitledConversation": "無題",
   "crashTitle": "パネルでエラーが発生しました",
   "crashDetail": "再読み込みするとパネルが再構築されます。会話はホストに保持されています。",

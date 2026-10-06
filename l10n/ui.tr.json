@@ -1,4 +1,8 @@
 {
+  "jsonExpectedComma": "Virgül bekleniyor",
+  "jsonInvalidSyntax": "Geçersiz JSON sözdizimi",
+  "jsonInvalidSetting": "{setting} için geçersiz değer",
+  "jsonVerificationUnavailable": "Düzenleyici doğrulaması kullanılamıyor.",
   "untitledConversation": "Adsız",
   "crashTitle": "Panelde bir hata oluştu",
   "crashDetail": "Yeniden yükleme paneli yeniden oluşturur; konuşma konakta korunur.",

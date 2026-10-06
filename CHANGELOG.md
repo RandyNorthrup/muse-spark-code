@@ -19,6 +19,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- JSON verification supplies positioned local diagnostics when the host emits
+  no JSON report, publishes through the editor API, checks existing Muse
+  permission-setting schemas, and prefers native diagnostics without duplicates.
+  Verification and formatting now load on first use in a separate guarded
+  bundle; existing startup and VSIX budgets remain unchanged.
+
 - Arduino IDE file reveals tolerate the measured Theia editor-notification
   race. Temporary clean documents close through their own editor handle when
   the host omits tab identities. Formatting validates the captured Monaco

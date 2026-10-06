@@ -4,6 +4,7 @@
 // edit, over the `vscode` mock. The real API is exercised by the integration
 // test inside VS Code.
 
+import { redactSecrets } from '../../src/core/redact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as vscode from 'vscode'
 import {
@@ -47,6 +48,7 @@ interface DocumentState {
   text: string
   isDirty?: boolean
   eol?: (typeof EndOfLine)[keyof typeof EndOfLine]
+  languageId?: string
 }
 
 /** The offset of a position in `text`, counting each line break's characters. */
@@ -64,6 +66,13 @@ function fakeDocument(
 ): vscode.TextDocument {
   const document = {
     uri,
+    get languageId() {
+      return state.languageId ?? 'typescript'
+    },
+    positionAt: (offset: number) => {
+      const lines = state.text.slice(0, offset).split('\n')
+      return new Position(lines.length - 1, lines.at(-1)?.length ?? 0)
+    },
     get isDirty() {
       return state.isDirty ?? false
     },
@@ -156,6 +165,7 @@ function editor(options: { platform?: NodeJS.Platform; links?: Record<string, st
 } {
   const channel = new FakeLogOutputChannel()
   const verify = createVerifyEditor({
+    redact: redactSecrets,
     platform: options.platform ?? 'linux',
     log: createLogger(channel),
     workspaceRoot: ROOT,
@@ -634,6 +644,7 @@ describe('the file as the edit left it', () => {
   it('does not open for the diagnostics tool a path retargeted after it was confined', async () => {
     let calls = 0
     const verify = createVerifyEditor({
+      redact: redactSecrets,
       platform: 'linux',
       log: createLogger(new FakeLogOutputChannel()),
       workspaceRoot: ROOT,
@@ -742,6 +753,7 @@ describe('settleFile (the diagnostics tool)', () => {
     expect(await verify.settleFile('/ws/node_modules/x/index.js')).toBeUndefined()
     const channel = new FakeLogOutputChannel()
     const folderless = createVerifyEditor({
+      redact: redactSecrets,
       platform: 'linux',
       log: createLogger(channel),
       workspaceRoot: undefined,
@@ -935,5 +947,221 @@ describe('Theia document reveal race', () => {
     await expect(showEditorDocument(fakeDocument({ text: '' }, uri), {}, () => false)).rejects.toBe(
       failure,
     )
+  })
+})
+
+describe('JSON diagnostics without a native report', () => {
+  const file = { relative: 'broken.json', absolute: '/ws/broken.json' }
+  const uri = Uri.file(file.absolute)
+  const source = 'muse-spark-json'
+  let held: vscode.Diagnostic[]
+  let state: DocumentState
+  const set = vi.fn<(uri: vscode.Uri, entries: readonly vscode.Diagnostic[]) => void>()
+  const remove = vi.fn()
+  const dispose = vi.fn()
+
+  beforeEach(() => {
+    held = []
+    state = { text: '{\n  "a": 1\n  "b": 2\n}\n', languageId: 'json' }
+    const document = fakeDocument(state, uri)
+    vi.mocked(workspace.openTextDocument).mockResolvedValue(document)
+    vi.mocked(workspace.fs.readFile).mockImplementation(() =>
+      Promise.resolve(new TextEncoder().encode(state.text)),
+    )
+    function diagnostics(uri: vscode.Uri): vscode.Diagnostic[]
+    function diagnostics(): [vscode.Uri, vscode.Diagnostic[]][]
+    function diagnostics(
+      target?: vscode.Uri,
+    ): vscode.Diagnostic[] | [vscode.Uri, vscode.Diagnostic[]][] {
+      return target === undefined ? [[uri, held]] : held
+    }
+    vi.mocked(languages.getDiagnostics).mockImplementation(diagnostics)
+    set.mockImplementation((_uri, entries) => {
+      held = [...entries]
+      report(file.absolute)
+    })
+    remove.mockImplementation(() => {
+      held = held.filter((entry) => entry.source !== source)
+    })
+    // Only collection operations this adapter uses; no fake native service.
+    vi.mocked(languages.createDiagnosticCollection).mockReturnValue({
+      set,
+      delete: remove,
+      get: () =>
+        held.some((entry) => entry.source === source)
+          ? held.filter((entry) => entry.source === source)
+          : undefined,
+      dispose,
+    } as unknown as vscode.DiagnosticCollection)
+  })
+  afterEach(() => {
+    vi.mocked(languages.createDiagnosticCollection).mockReset()
+    set.mockClear()
+    remove.mockClear()
+    dispose.mockClear()
+  })
+
+  it('publishes positioned syntax diagnostics, reads them through the API, then cleans up', async () => {
+    const { verify } = editor()
+    const [result] = await verify.diagnosticsAfterEdit([file], new AbortController().signal)
+    expect(result?.unchecked).toBeUndefined()
+    expect(result?.entries).toEqual([
+      {
+        path: file.relative,
+        severity: 'error',
+        line: 3,
+        column: 3,
+        message: 'Expected comma',
+        source,
+      },
+    ])
+    expect(set).toHaveBeenCalledOnce()
+    expect(remove).toHaveBeenCalledWith(uri)
+    expect(held).toEqual([])
+    verify.dispose()
+    expect(dispose).toHaveBeenCalled()
+  })
+
+  it('a native error arriving during the final disk read prevents publication', async () => {
+    vi.mocked(workspace.fs.readFile).mockImplementation(() => {
+      held = [diagnostic(0, 2, 2, 'native report')]
+      return Promise.resolve(new TextEncoder().encode(state.text))
+    })
+    const read = await editor().verify.settleFile(file.absolute)
+    expect(read?.[0]?.source).toBe('ts')
+    expect(languages.createDiagnosticCollection).not.toHaveBeenCalled()
+  })
+
+  it('does not mistake a previous collection-clear event for a clean JSON report', async () => {
+    const pending = editor().verify.settleFile(file.absolute)
+    setTimeout(() => {
+      report(file.absolute)
+    }, 5)
+    const read = await pending
+    expect(read?.[0]?.source).toBe(source)
+  })
+
+  it('withdraws fallback diagnostics if a late native provider answers', async () => {
+    const pending = editor().verify.settleFile(file.absolute)
+    setTimeout(() => {
+      held.push(diagnostic(0, 2, 2, 'native report'))
+      report(file.absolute)
+    }, 70)
+    expect(await pending).toEqual([
+      expect.objectContaining({ source: 'ts', message: 'native report' }),
+    ])
+  })
+
+  it('checks an already visible JSON document without a reporting service', async () => {
+    window.visibleTextEditors = [{ ...fakeEditor(uri), document: fakeDocument(state, uri) }]
+    const read = await editor().verify.settleFile(file.absolute)
+    expect(read?.[0]?.source).toBe(source)
+  })
+
+  it('the diagnostics tool gets the same positioned fallback', async () => {
+    const read = await editor().verify.settleFile(file.absolute)
+    expect(read?.[0]).toMatchObject({ path: file.relative, source, line: 3 })
+  })
+
+  it('prefers native reports without creating duplicate diagnostics', async () => {
+    held = [diagnostic(0, 2, 2, 'Expected comma')]
+    const pending = editor().verify.diagnosticsAfterEdit([file], new AbortController().signal)
+    setTimeout(() => {
+      report(file.absolute)
+    }, 5)
+    const read = await pending
+    expect(read[0]?.entries[0]?.source).toBe('ts')
+    expect(languages.createDiagnosticCollection).not.toHaveBeenCalled()
+  })
+
+  it('does not duplicate held native errors even when there was no report event', async () => {
+    held = [diagnostic(0, 2, 2, 'Expected comma')]
+    await editor().verify.settleFile(file.absolute)
+    expect(languages.createDiagnosticCollection).not.toHaveBeenCalled()
+  })
+
+  it('publishes a clean report after fixing the file, including JSONC comments', async () => {
+    state.text = '{ /* safe */ "a": 1, }'
+    state.languageId = 'jsonc'
+    expect(await editor().verify.settleFile(file.absolute)).toEqual([])
+    expect(set).toHaveBeenCalledWith(uri, [])
+  })
+
+  it('reads a computed clean report even when the host suppresses empty-delta events', async () => {
+    state.text = '{}'
+    set.mockImplementation((_uri, entries) => {
+      held = [...entries]
+    })
+    expect(await editor().verify.settleFile(file.absolute)).toEqual([])
+  })
+
+  it('keeps stale editor text unchecked', async () => {
+    vi.mocked(workspace.fs.readFile).mockResolvedValue(new TextEncoder().encode('{}'))
+    expect(await editor().verify.settleFile(file.absolute)).toBeUndefined()
+    expect(set).not.toHaveBeenCalled()
+  })
+
+  it('refuses cancellation and read revocation while its own report settles', async () => {
+    const stop = new AbortController()
+    const pending = editor().verify.diagnosticsAfterEdit([file], stop.signal)
+    setTimeout(() => {
+      stop.abort()
+    }, 70)
+    const stopped = await pending
+    expect(stopped[0]?.unchecked).toBe('stopped')
+    let isAllowed = true
+    const pendingRead = editor().verify.diagnosticsAfterEdit(
+      [file],
+      new AbortController().signal,
+      () => isAllowed,
+    )
+    setTimeout(() => {
+      isAllowed = false
+    }, 70)
+    const revoked = await pendingRead
+    expect(revoked[0]?.unchecked).toBe('notShown')
+  })
+
+  it('refuses unsaved text and a retargeted path after publication', async () => {
+    const pending = editor().verify.diagnosticsAfterEdit([file], new AbortController().signal)
+    setTimeout(() => {
+      state.isDirty = true
+    }, 70)
+    const unsaved = await pending
+    expect(unsaved[0]?.unchecked).toBe('unsaved')
+    state.isDirty = false
+    const links: Record<string, string> = {}
+    set.mockImplementation((_uri, entries) => {
+      held = [...entries]
+      links[file.absolute] = '/outside/changed.json'
+      report(file.absolute)
+    })
+    const changed = await editor({ links }).verify.diagnosticsAfterEdit(
+      [file],
+      new AbortController().signal,
+    )
+    expect(changed[0]?.unchecked).toBe('changed')
+  })
+
+  it('does not publish after cancellation or read admission changes', async () => {
+    const stop = new AbortController()
+    const pending = editor().verify.diagnosticsAfterEdit([file], stop.signal)
+    setTimeout(() => {
+      stop.abort()
+    }, 5)
+    const stopped = await pending
+    expect(stopped[0]?.unchecked).toBe('stopped')
+    let isAllowed = true
+    const revoked = editor().verify.diagnosticsAfterEdit(
+      [file],
+      new AbortController().signal,
+      () => isAllowed,
+    )
+    setTimeout(() => {
+      isAllowed = false
+    }, 5)
+    const refused = await revoked
+    expect(refused[0]?.unchecked).toBe('notShown')
+    expect(set).not.toHaveBeenCalled()
   })
 })

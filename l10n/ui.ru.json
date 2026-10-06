@@ -1,4 +1,8 @@
 {
+  "jsonExpectedComma": "Ожидается запятая",
+  "jsonInvalidSyntax": "Недопустимый синтаксис JSON",
+  "jsonInvalidSetting": "Недопустимое значение параметра {setting}",
+  "jsonVerificationUnavailable": "Проверка редактора недоступна.",
   "untitledConversation": "Без названия",
   "crashTitle": "В панели произошла ошибка",
   "crashDetail": "Перезагрузка пересоздает панель; беседа сохраняется на хосте.",

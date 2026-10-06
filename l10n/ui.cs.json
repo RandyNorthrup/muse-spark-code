@@ -1,4 +1,8 @@
 {
+  "jsonExpectedComma": "Očekává se čárka",
+  "jsonInvalidSyntax": "Neplatná syntaxe JSON",
+  "jsonInvalidSetting": "Neplatná hodnota pro {setting}",
+  "jsonVerificationUnavailable": "Ověření editoru není dostupné.",
   "untitledConversation": "Bez názvu",
   "crashTitle": "V panelu došlo k chybě",
   "crashDetail": "Opětovné načtení panel znovu sestaví; konverzaci uchovává hostitel.",

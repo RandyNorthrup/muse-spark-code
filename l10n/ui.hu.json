@@ -1,4 +1,8 @@
 {
+  "jsonExpectedComma": "Vessző szükséges",
+  "jsonInvalidSyntax": "Érvénytelen JSON-szintaxis",
+  "jsonInvalidSetting": "Érvénytelen érték: {setting}",
+  "jsonVerificationUnavailable": "A szerkesztő ellenőrzése nem érhető el.",
   "untitledConversation": "Névtelen",
   "crashTitle": "Hiba történt a panelen",
   "crashDetail": "Az Újratöltés újraépíti a panelt; a beszélgetést a gazdafolyamat megőrzi.",

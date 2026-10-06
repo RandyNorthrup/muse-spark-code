@@ -143,7 +143,8 @@ export const ProgressLocation = { SourceControl: 1, Window: 10, Notification: 15
 export const diagnosticsChanged = new EventEmitter<vscode.DiagnosticChangeEvent>()
 
 export const languages = {
-  getDiagnostics: vi.fn<() => [vscode.Uri, vscode.Diagnostic[]][]>(),
+  getDiagnostics: vi.fn<typeof vscode.languages.getDiagnostics>(),
+  createDiagnosticCollection: vi.fn<typeof vscode.languages.createDiagnosticCollection>(),
   onDidChangeDiagnostics: diagnosticsChanged.event,
 }
 
@@ -191,3 +192,14 @@ export const commands = {
 }
 
 export const version = '0.0.0-test'
+
+/** The real API constructor fields used by JSON fallback diagnostics. */
+export class Diagnostic {
+  public source: string | undefined
+  public constructor(
+    public readonly range: vscode.Range,
+    public readonly message: string,
+    public readonly severity: vscode.DiagnosticSeverity,
+  ) {}
+}
+export const DiagnosticSeverity = { Error: 0, Warning: 1, Information: 2, Hint: 3 } as const

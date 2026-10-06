@@ -1,4 +1,8 @@
 {
+  "jsonExpectedComma": "应有逗号",
+  "jsonInvalidSyntax": "JSON 语法无效",
+  "jsonInvalidSetting": "{setting} 的值无效",
+  "jsonVerificationUnavailable": "编辑器验证不可用。",
   "untitledConversation": "未命名",
   "crashTitle": "面板出错了",
   "crashDetail": "重新加载会重建面板；对话由扩展主机保留。",

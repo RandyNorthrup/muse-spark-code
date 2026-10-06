@@ -69,7 +69,7 @@ import {
 } from './host/backend/toolIo'
 import { EditorContextTracker } from './host/editor/editorContextTracker'
 import { createRevertIo } from './host/editor/revertIo'
-import { createVerifyEditor } from './host/editor/verifyEditor'
+import { createDeferredVerifyEditor } from './host/editor/verifyEditorBundle'
 import { verifyGuidance } from './core/verify/checkCommands'
 import { IdeMcpServer } from './host/ide/ideMcpServer'
 import { createRulesFile } from './host/commands/createRulesFile'
@@ -1256,12 +1256,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // The verify loop (M68, PLAN.md D49): what the language servers report on
   // edited files, which only an editor showing a file makes them do, and the
   // formatter over the Model API backend's edits.
-  const verifyEditor = createVerifyEditor({
-    platform: process.platform,
-    log,
-    workspaceRoot,
-    realPath: canonicalPath,
-  })
+  const verifyEditor = createDeferredVerifyEditor(
+    {
+      platform: process.platform,
+      log,
+      workspaceRoot,
+      realPath: canonicalPath,
+    },
+    vscode.Uri.joinPath(context.extensionUri, 'dist').fsPath,
+  )
   context.subscriptions.push(verifyEditor)
   const diagnostics = diagnosticsTool({
     getDiagnostics: collectDiagnostics,
@@ -1858,12 +1861,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       formatAfterEdit: (absolutePath, text) => verifyEditor.formatAfterEdit(absolutePath, text),
     },
     createAttemptVerify: (attemptRoot) => {
-      const editor = createVerifyEditor({
-        platform: process.platform,
-        log,
-        workspaceRoot: attemptRoot,
-        realPath: canonicalPath,
-      })
+      const editor = createDeferredVerifyEditor(
+        {
+          platform: process.platform,
+          log,
+          workspaceRoot: attemptRoot,
+          realPath: canonicalPath,
+        },
+        vscode.Uri.joinPath(context.extensionUri, 'dist').fsPath,
+      )
       return {
         isDiagnosticsOn: () => currentSettings().diagnosticsAfterEdits,
         checkCommands: () => currentSettings().checkCommands,

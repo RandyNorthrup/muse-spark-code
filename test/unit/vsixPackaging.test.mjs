@@ -51,6 +51,7 @@ beforeAll(async () => {
   for (const file of [
     'dist/extension.js',
     'dist/validation.js',
+    'dist/verifyEditor.js',
     'dist/webview/main.js',
     'dist/webview/main.css',
     'dist/webview/chunks/UsageDialog-test.js',
@@ -86,6 +87,19 @@ describe('VSIX packaging', () => {
     )
     expect(packaged).not.toContain('docs/marketplace-readme.md')
   })
+  it('refuses to stage a package without the lazy verification adapter', async () => {
+    const file = path.join(fixture.root, 'dist/verifyEditor.js')
+    const before = readFileSync(file)
+    try {
+      rmSync(file)
+      await expect(stageVsix(fixture.root, fixture.stage)).rejects.toThrow(
+        'Editor verification bundle excluded from VSIX',
+      )
+    } finally {
+      writeFileSync(file, before)
+    }
+  })
+
   it('compacts translations with identical values and leaves the source byte-exact', () => {
     const source = path.join(fixture.root, 'l10n/ui.de.json')
     const before = readFileSync(path.join(ROOT, 'l10n/ui.de.json'))

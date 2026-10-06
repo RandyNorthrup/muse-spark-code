@@ -1,4 +1,8 @@
 {
+  "jsonExpectedComma": "Oczekiwano przecinka",
+  "jsonInvalidSyntax": "Nieprawidłowa składnia JSON",
+  "jsonInvalidSetting": "Nieprawidłowa wartość ustawienia {setting}",
+  "jsonVerificationUnavailable": "Weryfikacja edytora jest niedostępna.",
   "untitledConversation": "Bez tytułu",
   "crashTitle": "W panelu wystąpił błąd",
   "crashDetail": "Ponowne załadowanie odbudowuje panel; rozmowę przechowuje host.",

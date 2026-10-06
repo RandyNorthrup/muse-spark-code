@@ -16,6 +16,11 @@
 import { forms } from './forms'
 
 export const EN = {
+  jsonExpectedComma: 'Expected comma',
+  jsonInvalidSyntax: 'Invalid JSON syntax',
+  jsonInvalidSetting: 'Invalid value for {setting}',
+  jsonVerificationUnavailable: 'Editor verification is unavailable.',
+
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
   paidDailyLedgerUnavailable:

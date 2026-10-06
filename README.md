@@ -347,15 +347,16 @@ The experimental Arduino package ends in **`-arduino.vsix`**. It is the same Mus
 Spark Code (Unofficial) product, built for Arduino IDE's VS Code API 1.96,
 Node 20.14 and Chromium 124. Arduino supports themes officially; this full
 extension is an unsupported side-load. There is no extension store in the IDE.
-Qualification is still incomplete: the follow-up real IDE run passes 32 of
-34 integration tests, with both JSON diagnostics cases still failing. Chat
-tabs, file opening, walkthroughs, formatting and settings scope now pass.
-Arduino has no TypeScript language service: semantic tools explain that
-limitation and direct the model to search and read_file; diagnostics with no
-report stay explicitly unchecked. Run your project's check command before
-relying on diagnostics in this experimental host. See [the follow-up
-certification record](docs/certification/m103-a2.md), including its explicit
-host expectations. Machine-scoped settings are read from user/global settings
+JSON diagnostics use a positioned local fallback when the host emits no report;
+VS Code's native reports stay preferred. The fallback also checks Muse permission
+settings using the schemas shipped with the extension, without downloading a
+language server. Verification loads only on first use. Arduino has no TypeScript
+language service: semantic tools explain that limitation and direct the model to
+search and read_file; diagnostics with no report stay explicitly unchecked.
+Run your project's check command before relying on diagnostics in this experimental
+host. See [the JSON completion record](docs/certification/m103-a3.md) and
+[the prior qualification record](docs/certification/m103-a2.md), including its
+explicit host expectations. Machine-scoped settings are read from user/global settings
 even when the IDE accepts a workspace override; a repository cannot enable
 Bypass or paid features, or replace the CLI.
 

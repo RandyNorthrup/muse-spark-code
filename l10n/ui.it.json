@@ -1,4 +1,8 @@
 {
+  "jsonExpectedComma": "Virgola prevista",
+  "jsonInvalidSyntax": "Sintassi JSON non valida",
+  "jsonInvalidSetting": "Valore non valido per {setting}",
+  "jsonVerificationUnavailable": "La verifica dell’editor non è disponibile.",
   "untitledConversation": "Senza titolo",
   "crashTitle": "Si è verificato un errore nel pannello",
   "crashDetail": "Ricarica ricostruisce il pannello; la conversazione viene conservata dall’host.",

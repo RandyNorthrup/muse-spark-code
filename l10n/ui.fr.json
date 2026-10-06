@@ -1,4 +1,8 @@
 {
+  "jsonExpectedComma": "Virgule attendue",
+  "jsonInvalidSyntax": "Syntaxe JSON non valide",
+  "jsonInvalidSetting": "Valeur non valide pour {setting}",
+  "jsonVerificationUnavailable": "La vérification de l’éditeur est indisponible.",
   "untitledConversation": "Sans titre",
   "crashTitle": "Le panneau a rencontré une erreur",
   "crashDetail": "Recharger reconstruit le panneau ; l’hôte conserve la conversation.",

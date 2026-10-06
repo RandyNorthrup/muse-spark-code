@@ -1,4 +1,8 @@
 {
+  "jsonExpectedComma": "Komma erwartet",
+  "jsonInvalidSyntax": "Ungültige JSON-Syntax",
+  "jsonInvalidSetting": "Ungültiger Wert für {setting}",
+  "jsonVerificationUnavailable": "Die Editorprüfung ist nicht verfügbar.",
   "untitledConversation": "Unbenannt",
   "crashTitle": "Im Panel ist ein Fehler aufgetreten",
   "crashDetail": "„Neu laden“ baut das Panel neu auf; die Unterhaltung bleibt im Host erhalten.",

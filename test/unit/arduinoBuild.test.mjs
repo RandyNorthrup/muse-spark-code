@@ -29,6 +29,7 @@ beforeAll(() => {
   for (const file of [
     'dist/extension.js',
     'dist/validation.js',
+    'dist/verifyEditor.js',
     'dist/webview/main.js',
     'dist/webview/chunks/maker-test.js',
   ]) {

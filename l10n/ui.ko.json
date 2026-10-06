@@ -1,4 +1,8 @@
 {
+  "jsonExpectedComma": "쉼표가 필요합니다",
+  "jsonInvalidSyntax": "잘못된 JSON 구문",
+  "jsonInvalidSetting": "{setting}의 값이 잘못되었습니다",
+  "jsonVerificationUnavailable": "편집기 검증을 사용할 수 없습니다.",
   "untitledConversation": "제목 없음",
   "crashTitle": "패널에서 오류가 발생했습니다",
   "crashDetail": "다시 로드하면 패널이 다시 빌드됩니다. 대화는 호스트에 보존됩니다.",

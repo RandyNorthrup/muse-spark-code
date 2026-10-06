@@ -15209,6 +15209,22 @@ as a capability limit, not proof of full TypeScript parity. No provider is
 silently installed and no test is skipped. Native VS Code expectations
 remain unchanged.
 
+**JSON diagnostics completion (M103A3, 2026-10-05).** Feature-detect a
+missing diagnostic response for each JSON document at runtime, without host
+names. After the bounded native wait, provide positioned JSON syntax checks
+and the existing Muse permission-setting schemas through a DiagnosticCollection.
+Native reports take precedence; unsupported non-JSON languages remain explicitly
+unchecked. Keep confinement, cancellation, disk-text and cleanup guards. Defer
+the entire verification adapter until its first diagnostics/formatting request
+in `dist/verifyEditor.js`, with a 25 KiB budget under D6's measured-plus-margin
+rule; existing startup and package caps stay unchanged. All editor adapters can
+reuse the pure core parser; ACP/headless's broader language broker remains M104.
+Certify all 34 real Arduino tests and 19 owning native VS Code controls, prove
+native JSON reports do not duplicate, and disable the fallback for a two-failure
+real-IDE red drill followed by byte-exact restoration. No live/paid calls or
+physical-device access. The lane runs scoped checks; the lead retains aggregate
+quality/coverage. Evidence: `docs/certification/m103-a3.md`.
+
 **Lanes and file ownership.** One integration branch
 (`feature/m103-makers`). Sub-milestone **f** is the maker editors (lanes A
 and T, and the Eclipse and JetBrains qualification rows); the owner has
@@ -15621,6 +15637,12 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**M103A3 (2026-10-05, macmini).** The rig brief forbids aggregate quality
+and assigns it to the lead. This lane runs focused files, compiler/lint gates,
+localization, host inventory, dead code, duplication, builds and both unchanged
+VSIX budgets. Real Arduino/native controls and failing fallback/gate controls
+are retained in `docs/certification/m103-a3.md`; no skip or timeout change.
 
 **M103A2 qualification (2026-10-05, macmini).** The lane brief assigns the
 complete quality/coverage gate to the lead; focused owning tests, all typechecks
@@ -16125,11 +16147,19 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
+M103A3: `src/host/editor/verifyEditorBundle.ts` checks its same-build factory's
+object/function shape; TypeScript signatures are trusted only for this packaged
+module, as with the existing lazy bundle loaders. The collection mock in
+`test/unit/verifyEditor.test.ts` uses an inline-reason double assertion for only
+its called API methods. No product cast or suppression is added.
+
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
-| M103A2 location                   | Escape hatch                                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                          | Date       |
-| --------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/host/editor/verifyEditor.ts` | Two `eslint-disable-next-line @typescript-eslint/no-deprecated` for `TextEditor.hide` | Arduino/Theia omits tab input identities. Its still-available editor-specific hide API closes only our new clean temporary editor, after recording whether its document was already open. Closing the active editor could close the user’s file. Native tabGroups.close remains preferred. Unit controls cover existing and dirty editors; the real IDE qualifies the fallback. | 2026-10-05 |
+| M103A2 location                         | Escape hatch                                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                          | Date       |
+| --------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/editor/verifyEditor.ts`       | Two `eslint-disable-next-line @typescript-eslint/no-deprecated` for `TextEditor.hide` | Arduino/Theia omits tab input identities. Its still-available editor-specific hide API closes only our new clean temporary editor, after recording whether its document was already open. Closing the active editor could close the user’s file. Native tabGroups.close remains preferred. Unit controls cover existing and dirty editors; the real IDE qualifies the fallback. | 2026-10-05 |
+| `src/host/editor/verifyEditorBundle.ts` | Same-build function signature trusted after object/function checks                    | The factory comes from the same build/package; failed or malformed modules reject and retry.                                                                                                                                                                                                                                                                                    | 2026-10-05 |
+| `test/unit/verifyEditor.test.ts`        | Inline-reason double assertion for DiagnosticCollection mock                          | Only set/get/delete/dispose operations the adapter calls are supplied; tests use the real API shape and real IDE controls.                                                                                                                                                                                                                                                      | 2026-10-05 |
 
 | M80 lane A location                      | Escape hatch                                   | Reason                                                                                                                                                                                                                                               | Date       |
 | ---------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |

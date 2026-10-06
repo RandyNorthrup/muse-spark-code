@@ -15,6 +15,8 @@ const WHATS_NEW_CONTENT_BUDGET_KIB = 40
  */
 const BUDGETS = [
   { path: 'dist/extension.js', budgetKiB: 600 },
+  // M103A3: editor verification and JSON fallback, deferred until first use.
+  { path: 'dist/verifyEditor.js', budgetKiB: 25 },
   // The Model API backend, loaded when it first starts (M57). Revisited on
   // purpose after M77, M78 and M82 (2026-10-02): 402.8 KiB measured, plus 15%,
   // rounded up to 25 KiB (PLAN.md D6).

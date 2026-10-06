@@ -64,6 +64,8 @@ const BUILD_PROFILE_FILE = 'dist/build-profile.json'
 
 const HOST_ENTRY = 'src/extension.ts'
 const HOST_OUTFILE = 'dist/extension.js'
+const VERIFY_EDITOR_ENTRY = 'src/host/editor/verifyEditor.ts'
+const VERIFY_EDITOR_OUTFILE = 'dist/verifyEditor.js'
 // One immutable English fallback shared by Node bundles; each keeps its own
 // mutable installed-language state. The browser keeps its fallback bundled.
 const UI_TEXT_ENTRY = 'src/shared/l10n/en.ts'
@@ -192,6 +194,13 @@ const hostOptions = {
   format: 'cjs',
   target: hostNodeTarget,
   external: ['vscode'],
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const verifyEditorOptions = {
+  ...hostOptions,
+  entryPoints: [VERIFY_EDITOR_ENTRY],
+  outfile: VERIFY_EDITOR_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -451,6 +460,7 @@ console.log(
 if (isWatch) {
   const contexts = await Promise.all([
     esbuild.context(hostOptions),
+    esbuild.context(verifyEditorOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
@@ -478,6 +488,7 @@ if (isWatch) {
 } else {
   const shipped = {
     extension: esbuild.build(hostOptions),
+    verifyEditor: esbuild.build(verifyEditorOptions),
     modelApi: esbuild.build(modelApiOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),

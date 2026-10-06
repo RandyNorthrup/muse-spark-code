@@ -1,4 +1,8 @@
 {
+  "jsonExpectedComma": "Se esperaba una coma",
+  "jsonInvalidSyntax": "Sintaxis JSON no válida",
+  "jsonInvalidSetting": "Valor no válido para {setting}",
+  "jsonVerificationUnavailable": "La verificación del editor no está disponible.",
   "untitledConversation": "Sin título",
   "crashTitle": "El panel encontró un error",
   "crashDetail": "Recargar vuelve a crear el panel; el host conserva la conversación.",
