@@ -2647,5 +2647,8 @@
   "resourceRelocateDescription": "Куда переносить задачи команды и проверки из очереди, когда этот компьютер занят. Существующие согласия и предложения устройств остаются в силе.",
   "resourceRelocatePairedDescription": "Использует уже одобренное связанное устройство с обычной загрузкой ресурсов.",
   "resourceRelocateAskDescription": "Спрашивает перед переносом работы из очереди.",
-  "resourceRelocateOffDescription": "Оставляет работу на этом компьютере."
+  "resourceRelocateOffDescription": "Оставляет работу на этом компьютере.",
+  "resourceDiskFree": "Свободное место на диске",
+  "resourceDiskWriteRefused": "Невозможно записать в {volume}: критически мало свободного места на диске.",
+  "resourceDiskMinFreeGiBDescription": "Нижний порог свободного места в GiB. По умолчанию — 10 GiB или 10% тома, меньшая из величин, но не менее 2 GiB."
 }

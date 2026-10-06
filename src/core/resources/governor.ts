@@ -29,9 +29,10 @@ import {
   type ResourceStatus,
 } from '../../shared/resources'
 import { type ResourceEvents } from './events'
+import { diskPressure } from './disk'
 
 type Reason = Extract<ResourceEvent, { type: 'levelChanged' }>['reason']
-type Metric = 'cpu' | 'memoryUsed' | 'memoryFree' | 'gpu' | 'disk'
+type Metric = 'cpu' | 'memoryUsed' | 'memoryFree' | 'gpu' | 'disk' | 'diskFree'
 interface Threshold {
   metric: Metric
   high: boolean | null
@@ -51,6 +52,7 @@ export interface ResourceGovernorOptions {
 export class ResourceGovernor {
   private settings: ResourceSettings
   private sample: ResourceSample | null = null
+  private diskHeld = false
   private current: ResourceLevel = 'normal'
   private changedAt = -RESOURCE_MIN_DWELL_MS
   private readonly highSince = new Map<Metric, number>()
@@ -63,6 +65,7 @@ export class ResourceGovernor {
   private cancelSample: (() => void) | undefined
   private pending: Promise<void> | undefined
   private started = false
+  private readonly sampleListeners = new Set<() => void>()
   private disposed = false
 
   constructor(private readonly options: ResourceGovernorOptions) {
@@ -92,6 +95,7 @@ export class ResourceGovernor {
             throw new Error('Resource sample predates override expiry')
           this.expiredOverrideAt = null
           this.evaluate(sample)
+          this.publishSample()
         } catch (error) {
           if (!this.disposed) {
             if (this.expiredOverrideAt !== null && requestedAt < this.expiredOverrideAt) continue
@@ -106,12 +110,23 @@ export class ResourceGovernor {
               diskBusyPercent: null,
               pressure: null,
             })
+            this.publishSample()
           }
         }
         return
       }
     } finally {
       this.pending = undefined
+    }
+  }
+
+  private publishSample(): void {
+    for (const listener of this.sampleListeners) {
+      try {
+        listener()
+      } catch (error: unknown) {
+        this.options.onError(error)
+      }
     }
   }
 
@@ -152,6 +167,10 @@ export class ResourceGovernor {
       readings.push(percentage('gpu', sample.gpuPercent, this.settings.gpuMaxPercent))
     if (this.settings.diskBusyMaxPercent !== null)
       readings.push(percentage('disk', sample.diskBusyPercent, this.settings.diskBusyMaxPercent))
+    if (sample.diskVolumes !== undefined) {
+      const disk = diskPressure(sample.diskVolumes, this.settings)
+      readings.push({ metric: 'diskFree', high: disk.high, recovered: disk.hasRecovered })
+    }
     return readings
   }
 
@@ -171,9 +190,10 @@ export class ResourceGovernor {
       this.highSince.set(reading.metric, since)
       this.highSamples.set(reading.metric, count)
       const isSustained =
-        reading.metric === 'memoryUsed' || reading.metric === 'memoryFree'
+        reading.metric === 'diskFree' ||
+        (reading.metric === 'memoryUsed' || reading.metric === 'memoryFree'
           ? count >= RESOURCE_MEMORY_ENTER_SAMPLES
-          : now - since >= RESOURCE_CPU_WINDOW_MS
+          : now - since >= RESOURCE_CPU_WINDOW_MS)
       if (isSustained) enter ??= reading.metric
     }
     if (sample.cpuPercent !== null && sample.cpuPercent >= RESOURCE_CRITICAL_CPU_PERCENT)
@@ -183,7 +203,12 @@ export class ResourceGovernor {
       sample.memoryTotalBytes === null
         ? null
         : resourceMemoryFloorBytes(this.settings, sample.memoryTotalBytes)
+    const disk = diskPressure(sample.diskVolumes ?? [], this.settings)
+    if (disk.high === true || disk.isPaused || disk.isCritical) this.diskHeld = true
+    else if (disk.hasRecovered && this.current === 'normal') this.diskHeld = false
     const isCritical =
+      disk.isCritical ||
+      disk.isPaused ||
       (this.criticalSince !== undefined &&
         now - this.criticalSince >= RESOURCE_CRITICAL_CPU_WINDOW_MS) ||
       (sample.memoryAvailableBytes !== null &&
@@ -198,7 +223,7 @@ export class ResourceGovernor {
     }
     if (this.current === 'normal') {
       if (enter !== undefined && now - this.changedAt >= RESOURCE_MIN_DWELL_MS)
-        this.change('throttle', enter)
+        this.change('throttle', enter === 'diskFree' ? 'disk' : enter)
       return
     }
     // Recovery/escalation windows each also enforce the sixty-second dwell.
@@ -214,7 +239,7 @@ export class ResourceGovernor {
     if (high !== undefined && now - this.changedAt >= RESOURCE_ESCALATE_MS)
       this.change(
         this.current === 'throttle' && this.canRelocate() ? 'relocate' : 'pause',
-        high.metric,
+        high.metric === 'diskFree' ? 'disk' : high.metric,
       )
   }
 
@@ -226,6 +251,7 @@ export class ResourceGovernor {
     if (to === this.current) return
     const from = this.current
     this.current = to
+    if (to === 'normal' && reason === 'recovery') this.diskHeld = false
     this.changedAt = this.options.clock.now()
     this.options.events.publish({ type: 'levelChanged', atMs: this.changedAt, from, to, reason })
   }
@@ -237,6 +263,14 @@ export class ResourceGovernor {
     this.recoveredSince = undefined
   }
 
+  /** Admission must wake on disk recovery even while an override keeps the level normal. */
+  onSample(listener: () => void): () => void {
+    this.sampleListeners.add(listener)
+    return () => {
+      this.sampleListeners.delete(listener)
+    }
+  }
+
   level(): ResourceLevel {
     return this.current
   }
@@ -245,6 +279,11 @@ export class ResourceGovernor {
   capacity(_kind: ResourceKind): number | null {
     if (this.current === 'normal') return null
     return this.current === 'pause' ? 0 : 1
+  }
+
+  /** Disk-heavy work cannot use foreground's automatic twenty-second bypass. */
+  diskBlocked(): boolean {
+    return this.settings.enabled && this.overrideUntil === null && this.diskHeld
   }
 
   status(queued: ResourceStatus['queued']): ResourceStatus {
@@ -299,6 +338,7 @@ export class ResourceGovernor {
   dispose(): void {
     this.disposed = true
     this.started = false
+    this.sampleListeners.clear()
     this.cancelSample?.()
     this.cancelOverride?.()
     this.overrideUntil = null

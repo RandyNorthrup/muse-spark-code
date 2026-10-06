@@ -2365,5 +2365,8 @@
   "resourceRelocateDescription": "このマシンが高負荷のときに、待機中のチームタスクやチェックを移動できる場所です。既存のデバイスの同意と提供条件は引き続き適用されます。",
   "resourceRelocatePairedDescription": "負荷が通常で、すでに承認済みのペアリングされたデバイスを使用します。",
   "resourceRelocateAskDescription": "待機中の処理を移動する前に確認します。",
-  "resourceRelocateOffDescription": "処理をこのマシンで続けます。"
+  "resourceRelocateOffDescription": "処理をこのマシンで続けます。",
+  "resourceDiskFree": "ディスクの空き容量",
+  "resourceDiskWriteRefused": "{volume} に書き込めません。ディスクの空き容量が危険な水準です。",
+  "resourceDiskMinFreeGiBDescription": "空き容量の下限（GiB）。既定は10 GiBとボリュームの10%の小さい方ですが、最低2 GiBです。"
 }

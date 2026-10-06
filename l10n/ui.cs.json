@@ -2647,5 +2647,8 @@
   "resourceRelocateDescription": "Kam přesunout týmové úkoly a kontroly z fronty, když je počítač vytížený. Stávající souhlasy a nabídky zařízení zůstávají v platnosti.",
   "resourceRelocatePairedDescription": "Použije již schválené spárované zařízení s běžným zatížením prostředků.",
   "resourceRelocateAskDescription": "Před přesunutím práce z fronty se zeptá.",
-  "resourceRelocateOffDescription": "Ponechá práci na tomto počítači."
+  "resourceRelocateOffDescription": "Ponechá práci na tomto počítači.",
+  "resourceDiskFree": "Volné místo na disku",
+  "resourceDiskWriteRefused": "Nelze zapisovat do {volume}: kriticky málo volného místa na disku.",
+  "resourceDiskMinFreeGiBDescription": "Dolní mez volného místa v GiB. Výchozí hodnota je 10 GiB nebo 10% svazku, podle toho, co je menší, nejméně však 2 GiB."
 }

@@ -2553,5 +2553,8 @@
   "resourceRelocateDescription": "Destinazione delle attività di squadra e dei controlli in coda quando questa macchina è occupata. Restano validi i consensi e le offerte dei dispositivi.",
   "resourceRelocatePairedDescription": "Usa un dispositivo associato già autorizzato con un carico di risorse normale.",
   "resourceRelocateAskDescription": "Chiede prima di spostare il lavoro in coda.",
-  "resourceRelocateOffDescription": "Mantiene il lavoro su questa macchina."
+  "resourceRelocateOffDescription": "Mantiene il lavoro su questa macchina.",
+  "resourceDiskFree": "Spazio libero su disco",
+  "resourceDiskWriteRefused": "Impossibile scrivere su {volume}: lo spazio libero su disco è a un livello critico.",
+  "resourceDiskMinFreeGiBDescription": "Soglia di spazio libero in GiB. Il valore predefinito è 10 GiB o il 10% del volume, il minore dei due, con un minimo di 2 GiB."
 }

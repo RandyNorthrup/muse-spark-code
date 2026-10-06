@@ -2459,5 +2459,8 @@
   "resourceRelocateDescription": "A várakozó csapatfeladatok és ellenőrzések célja, amikor a gép foglalt. A meglévő eszközengedélyek és ajánlatok továbbra is érvényesek.",
   "resourceRelocatePairedDescription": "Már engedélyezett, párosított eszközt használ normál erőforrás-terheléssel.",
   "resourceRelocateAskDescription": "A várakozó munka áthelyezése előtt kérdez.",
-  "resourceRelocateOffDescription": "Ezen a gépen tartja a munkát."
+  "resourceRelocateOffDescription": "Ezen a gépen tartja a munkát.",
+  "resourceDiskFree": "Szabad lemezterület",
+  "resourceDiskWriteRefused": "Nem lehet írni ide: {volume}. Kritikusan kevés a szabad lemezterület.",
+  "resourceDiskMinFreeGiBDescription": "A szabad lemezterület alsó határa GiB-ban. Alapértéke 10 GiB vagy a kötet 10%-a, amelyik kisebb, de legalább 2 GiB."
 }

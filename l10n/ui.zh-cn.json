@@ -2365,5 +2365,8 @@
   "resourceRelocateDescription": "此计算机繁忙时，排队的团队任务和检查可迁移到的位置。现有的设备授权和提供条件仍然适用。",
   "resourceRelocatePairedDescription": "使用已批准配对且资源负载正常的设备。",
   "resourceRelocateAskDescription": "迁移排队的工作前先询问。",
-  "resourceRelocateOffDescription": "将工作保留在此计算机上。"
+  "resourceRelocateOffDescription": "将工作保留在此计算机上。",
+  "resourceDiskFree": "磁盘可用空间",
+  "resourceDiskWriteRefused": "无法写入 {volume}：磁盘可用空间已严重不足。",
+  "resourceDiskMinFreeGiBDescription": "磁盘可用空间下限（GiB）。默认值为 10 GiB 和卷容量的 10% 中较小者，但不低于 2 GiB。"
 }

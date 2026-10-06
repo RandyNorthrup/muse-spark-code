@@ -2647,5 +2647,8 @@
   "resourceRelocateDescription": "Miejsce przenoszenia zadań zespołu i sprawdzeń z kolejki, gdy komputer jest zajęty. Nadal obowiązują dotychczasowe zgody i oferty urządzeń.",
   "resourceRelocatePairedDescription": "Używa już zatwierdzonego sparowanego urządzenia z normalnym obciążeniem zasobów.",
   "resourceRelocateAskDescription": "Pyta przed przeniesieniem pracy z kolejki.",
-  "resourceRelocateOffDescription": "Pozostawia pracę na tym komputerze."
+  "resourceRelocateOffDescription": "Pozostawia pracę na tym komputerze.",
+  "resourceDiskFree": "Wolne miejsce na dysku",
+  "resourceDiskWriteRefused": "Nie można zapisać na {volume}: krytycznie mało wolnego miejsca na dysku.",
+  "resourceDiskMinFreeGiBDescription": "Dolny próg wolnego miejsca w GiB. Domyślnie 10 GiB lub 10% woluminu, zależnie od tego, która wartość jest mniejsza, ale co najmniej 2 GiB."
 }

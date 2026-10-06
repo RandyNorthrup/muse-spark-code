@@ -2553,5 +2553,8 @@
   "resourceRelocateDescription": "Destination des tâches d’équipe et vérifications en attente lorsque cette machine est occupée. Les autorisations et offres des appareils restent applicables.",
   "resourceRelocatePairedDescription": "Utilise un appareil associé déjà autorisé dont la charge est normale.",
   "resourceRelocateAskDescription": "Demande avant de déplacer le travail en attente.",
-  "resourceRelocateOffDescription": "Garde le travail sur cette machine."
+  "resourceRelocateOffDescription": "Garde le travail sur cette machine.",
+  "resourceDiskFree": "Espace disque libre",
+  "resourceDiskWriteRefused": "Impossible d’écrire sur {volume} : l’espace disque libre est critique.",
+  "resourceDiskMinFreeGiBDescription": "Seuil d’espace disque libre en GiB. Par défaut, 10 GiB ou 10% du volume, selon la valeur la plus faible, avec un minimum de 2 GiB."
 }

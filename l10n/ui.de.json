@@ -2459,5 +2459,8 @@
   "resourceRelocateDescription": "Ziel für eingereihte Teamaufgaben und Prüfungen, wenn dieser Rechner ausgelastet ist. Bestehende Gerätezustimmungen und Angebote gelten weiterhin.",
   "resourceRelocatePairedDescription": "Verwendet ein bereits genehmigtes gekoppeltes Gerät mit normaler Ressourcenauslastung.",
   "resourceRelocateAskDescription": "Fragt vor dem Verschieben eingereihter Arbeit.",
-  "resourceRelocateOffDescription": "Behält die Arbeit auf diesem Rechner."
+  "resourceRelocateOffDescription": "Behält die Arbeit auf diesem Rechner.",
+  "resourceDiskFree": "Freier Speicherplatz",
+  "resourceDiskWriteRefused": "Schreiben auf {volume} nicht möglich: kritisch wenig freier Speicherplatz.",
+  "resourceDiskMinFreeGiBDescription": "Untergrenze für freien Speicherplatz in GiB. Standardmäßig 10 GiB oder 10% des Volumes, je nachdem, was kleiner ist, jedoch mindestens 2 GiB."
 }

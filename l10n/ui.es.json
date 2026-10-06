@@ -2553,5 +2553,8 @@
   "resourceRelocateDescription": "Destino del trabajo del equipo y las comprobaciones en cola cuando este equipo está ocupado. Se mantienen los permisos y las ofertas de los dispositivos.",
   "resourceRelocatePairedDescription": "Usa un dispositivo vinculado ya autorizado con una carga de recursos normal.",
   "resourceRelocateAskDescription": "Pregunta antes de mover el trabajo en cola.",
-  "resourceRelocateOffDescription": "Mantiene el trabajo en este equipo."
+  "resourceRelocateOffDescription": "Mantiene el trabajo en este equipo.",
+  "resourceDiskFree": "Espacio libre en disco",
+  "resourceDiskWriteRefused": "No se puede escribir en {volume}: el espacio libre en disco es críticamente bajo.",
+  "resourceDiskMinFreeGiBDescription": "Umbral de espacio libre en GiB. El valor predeterminado es 10 GiB o el 10% del volumen, el menor de los dos, con un mínimo de 2 GiB."
 }

@@ -2553,5 +2553,8 @@
   "resourceRelocateDescription": "Destino das tarefas da equipe e verificações na fila quando esta máquina está ocupada. Os consentimentos e as ofertas dos dispositivos continuam válidos.",
   "resourceRelocatePairedDescription": "Usa um dispositivo pareado já autorizado com carga de recursos normal.",
   "resourceRelocateAskDescription": "Pergunta antes de mover o trabalho na fila.",
-  "resourceRelocateOffDescription": "Mantém o trabalho nesta máquina."
+  "resourceRelocateOffDescription": "Mantém o trabalho nesta máquina.",
+  "resourceDiskFree": "Espaço livre em disco",
+  "resourceDiskWriteRefused": "Não é possível gravar em {volume}: o espaço livre em disco está criticamente baixo.",
+  "resourceDiskMinFreeGiBDescription": "Limite mínimo de espaço livre em GiB. O padrão é 10 GiB ou 10% do volume, o que for menor, com um mínimo de 2 GiB."
 }

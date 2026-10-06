@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Staged disk-space protection samples harness write volumes with `fs.statfs`,
+  uses the existing governor's levels and recovery, and blocks disk-heavy
+  admission before the foreground deadline can bypass it. Owned-tree temp
+  environments and a persisted creation registry provide guarded cleanup
+  and failed-run retention; remaining host/device/platform bindings are
+  tracked in the M107 DK certification.
+
 - Windows Muse Code shutdown stops the verified registered job, bounds all
   SDK close surfaces, reports forced or unproved shutdown honestly, and
   disposes session handles even when close reports a failure. The CLI inherits

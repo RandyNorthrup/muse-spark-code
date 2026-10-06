@@ -39,6 +39,10 @@ export const EN = {
   resourceAvailableMemory: 'Available memory',
   resourceGpu: 'GPU use',
   resourceDisk: 'Disk busy',
+  resourceDiskFree: 'Free disk space',
+  resourceDiskWriteRefused: 'Cannot write to {volume}: critically low free disk space.',
+  resourceDiskMinFreeGiBDescription:
+    'Free disk space floor in GiB. The default is 10 GiB or 10% of the volume, whichever is smaller, with a minimum of 2 GiB.',
   resourceHistory: 'Resource history',
   resourceHarness: 'Harness work',
   resourceCpuTime: 'CPU time',

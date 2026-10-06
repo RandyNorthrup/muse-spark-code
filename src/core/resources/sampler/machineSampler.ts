@@ -6,6 +6,7 @@ import {
   type ResourceSettings,
 } from '../../../shared/resources'
 import { linuxMemoryLimit, type SamplerFileReader } from './linuxMemory'
+import type { ResourceDiskSampler } from '../disk'
 import { counterReading, CpuDelta, percentReading, pressureReading } from './readings'
 
 export interface ResourceOptionalProbes {
@@ -49,6 +50,7 @@ export class MachineResourceSampler implements ResourceSampler {
   constructor(
     private readonly port: MachineSamplerPort,
     private readonly settings: () => ResourceSettings,
+    private readonly disks?: ResourceDiskSampler,
   ) {}
 
   private async optional(
@@ -130,6 +132,7 @@ export class MachineResourceSampler implements ResourceSampler {
       ...memory,
       gpuPercent,
       diskBusyPercent,
+      ...(this.disks !== undefined && { diskVolumes: await this.disks.sample() }),
       pressure:
         cpuPressure == null && memoryPressure == null
           ? null

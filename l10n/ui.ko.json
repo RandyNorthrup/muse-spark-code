@@ -2365,5 +2365,8 @@
   "resourceRelocateDescription": "컴퓨터 사용량이 높을 때 대기 중인 팀 작업과 검사를 이동할 위치입니다. 기존 장치 동의와 제공 조건은 계속 적용됩니다.",
   "resourceRelocatePairedDescription": "리소스 사용량이 정상인, 이미 승인된 페어링 장치를 사용합니다.",
   "resourceRelocateAskDescription": "대기 중인 작업을 이동하기 전에 묻습니다.",
-  "resourceRelocateOffDescription": "이 컴퓨터에서 작업을 유지합니다."
+  "resourceRelocateOffDescription": "이 컴퓨터에서 작업을 유지합니다.",
+  "resourceDiskFree": "디스크 여유 공간",
+  "resourceDiskWriteRefused": "{volume}에 쓸 수 없습니다. 디스크 여유 공간이 매우 부족합니다.",
+  "resourceDiskMinFreeGiBDescription": "디스크 여유 공간 하한(GiB)입니다. 기본값은 10 GiB와 볼륨의 10% 중 작은 값이며, 최소 2 GiB입니다."
 }

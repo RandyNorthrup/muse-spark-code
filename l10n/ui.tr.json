@@ -2459,5 +2459,8 @@
   "resourceRelocateDescription": "Makine meşgulken kuyruktaki ekip görevlerinin ve kontrollerin taşınabileceği yer. Mevcut cihaz izinleri ve teklifleri geçerliliğini korur.",
   "resourceRelocatePairedDescription": "Kaynak yükü normal olan, önceden onaylanmış eşleştirilmiş bir cihazı kullanır.",
   "resourceRelocateAskDescription": "Kuyruktaki işi taşımadan önce sorar.",
-  "resourceRelocateOffDescription": "İşi bu makinede tutar."
+  "resourceRelocateOffDescription": "İşi bu makinede tutar.",
+  "resourceDiskFree": "Boş disk alanı",
+  "resourceDiskWriteRefused": "{volume} üzerine yazılamıyor: boş disk alanı kritik derecede az.",
+  "resourceDiskMinFreeGiBDescription": "GiB cinsinden boş disk alanı alt sınırı. Varsayılan, 10 GiB veya birimin %10 değerinden küçük olanıdır; en az 2 GiB olur."
 }
