@@ -798,7 +798,7 @@ const REFERENCE_DETAILS: Readonly<
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],
   account: ['signInBrowserDetail', 'signInApiKeyDetail', 'installDetail', 'referenceSecretPrompt'],
   'code-intelligence': ['referenceCodeIntelExtra'],
-  chat: ['referenceThinking', 'referenceConversationActions'],
+  chat: ['referenceThinking', 'referenceConversationActions', 'crashDetail'],
   context: ['referenceContext'],
   skills: ['referenceBundled'],
   exports: ['referenceExports'],

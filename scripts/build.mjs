@@ -61,10 +61,14 @@ import {
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
-import { UI_TEXT_REGIONS, regionalUiText, compressedEnglish } from './lib/uiTextRegions.mjs'
+import {
+  UI_TEXT_REGIONS,
+  regionalUiText,
+  compressedEnglish,
+  compactBrowserEnglish,
+} from './lib/uiTextRegions.mjs'
 import { webviewEntryMetafile } from './lib/webviewBundles.mjs'
 import { compressedModelText } from './lib/compressedModelText.mjs'
-import { compressedEnglish as inlineBrowserEnglish } from './lib/compressedEnglish.mjs'
 import { loadL10n } from './lib/l10nSource.mjs'
 import * as esbuild from 'esbuild'
 import { copyCatalogToDist } from './sync-provider-catalog.mjs'
@@ -698,7 +702,7 @@ const webviewOptions = {
   ...common,
   plugins: [
     sharedHighlightGrammar,
-    ...(isProduction ? [inlineBrowserEnglish('browser')] : []),
+    ...(isProduction ? [compactBrowserEnglish] : []),
     browserReviewComment,
     {
       name: 'reference-caller-react',

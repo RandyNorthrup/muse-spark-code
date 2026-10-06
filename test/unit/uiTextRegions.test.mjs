@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer'
 // Exercise the real generated Node fallback and localization state.
 import { readFileSync, mkdtempSync } from 'node:fs'
 import path from 'node:path'
@@ -7,9 +8,6 @@ import vm from 'node:vm'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
-import LZString from 'lz-string'
-import { L10N_COMPACT_TOKEN_FIRST, L10N_COMPACT_TOKEN_LAST } from '../../src/shared/constants'
-import { compactEnglishSource } from '../../src/shared/l10n/compactEnglish'
 import {
   UI_TEXT_REGIONS,
   regionalUiText,
@@ -33,7 +31,7 @@ beforeAll(async () => {
       write: false,
       minify: true,
       platform: 'browser',
-      format: 'cjs',
+      format: 'esm',
       plugins: [compactBrowserEnglish],
     }),
     ...regions.map((region) =>
@@ -167,40 +165,12 @@ describe('regional Node English fallback', () => {
   })
 })
 
-it('round-trips every browser English key, value and plural form inline', () => {
-  const module = { exports: {} }
-  vm.runInNewContext(built.browserSource, { module, exports: module.exports })
-  expect(module.exports.EN).toEqual(EN)
-  expect(JSON.stringify(module.exports.EN)).toBe(JSON.stringify(EN))
-})
-
-it('refuses an English value that collides with reserved dictionary tokens', () => {
-  for (const token of [L10N_COMPACT_TOKEN_FIRST, L10N_COMPACT_TOKEN_LAST]) {
-    const text = String.fromCodePoint(token)
-    expect(() => compactEnglishSource({ label: text })).toThrow('reserved dictionary token')
-    expect(() => compactEnglishSource({ [text]: 'Label' })).toThrow('reserved dictionary token')
-  }
-})
-
-it('preserves Unicode outside the reserved range', async () => {
-  const sample = { label: 'é € \u{E000}' }
-  const compiled = await build({
-    stdin: { contents: compactEnglishSource(sample), resolveDir: process.cwd() },
-    bundle: true,
-    write: false,
-    platform: 'browser',
-    format: 'cjs',
-  })
-  const module = { exports: {} }
-  vm.runInNewContext(compiled.outputFiles[0].text, { module, exports: module.exports })
-  expect(module.exports.EN).toEqual(sample)
-})
-
-it('refuses a compressor that changes canonical English bytes', () => {
-  const compressor = vi.spyOn(LZString, 'compressToBase64').mockReturnValue('invalid')
-  try {
-    expect(() => compactEnglishSource({ label: 'hello' })).toThrow('compression changed the table')
-  } finally {
-    compressor.mockRestore()
-  }
+it('round-trips every browser English key, value and plural form inline', async () => {
+  const bundle = await import(
+    `data:text/javascript;base64,${Buffer.from(built.browserSource).toString('base64')}`
+  )
+  expect(bundle.EN).toEqual(EN)
+  expect(JSON.stringify(bundle.EN)).toBe(JSON.stringify(EN))
+  expect(built.browserSource).toContain('DecompressionStream')
+  expect(built.browserSource).not.toContain('import(')
 })

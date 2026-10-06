@@ -14,8 +14,13 @@ import type { ErrorReporter } from '../errorReport'
 import { webviewErrorReport } from '../errorReport'
 import { type HostBridge, vsCodeHostBridge } from '../hostBridge'
 import { installEmbeddedTable } from '../installTable'
-import { ModelsApp } from './panel'
+import { deferred } from '../components/DeferredSurface'
 import './models.css'
+
+const ModelsApp = deferred(async () => {
+  const module = await import('./panel')
+  return { default: module.ModelsApp }
+})
 
 interface CrashState {
   readonly crashed: boolean

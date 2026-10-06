@@ -20,6 +20,7 @@ export function QuoteMenu({ onChoose, onCopy, onClose, origin }: QuoteMenuProps)
   return (
     <div className="quote-menu">
       <GooeyMenu
+        keepFocus
         label={UI_TEXT.quoteMenuLabel}
         {...(origin === undefined ? {} : { origin })}
         onClose={onClose}

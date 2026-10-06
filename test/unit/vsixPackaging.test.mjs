@@ -31,6 +31,9 @@ const CHILD_PROCESS_TIMEOUT_MS = 60_000
 const ARCHIVE_SETUP_TIMEOUT_MS = 60_000
 // Fault fixtures test decoded content/digests, not production compression effort.
 const FAULT_COMPRESSION = { params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 1 } }
+// Staging copies the l10n tree and runs vsce's own file collection. On a loaded
+// macOS runner shard that exceeded vitest's 10 s hook default (PR #128, twice).
+const STAGE_TIMEOUT_MS = 60_000
 
 const ROOT = process.cwd()
 const hash = (text) => createHash('sha256').update(text).digest('hex')
@@ -175,7 +178,7 @@ beforeAll(async () => {
 
 beforeAll(async () => {
   fixture.files = await stageVsix(fixture.root, fixture.stage)
-})
+}, STAGE_TIMEOUT_MS)
 
 beforeAll(async () => {
   const archive = path.join(fixture.root, 'compact.vsix')

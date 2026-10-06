@@ -5,9 +5,9 @@
 
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import {
-  DEFERRED_WEBVIEW_SURFACES,
   webviewDeferredBudgetGroups,
   webviewStartupOutputs,
+  webviewPanelOutputs,
 } from './lib/webviewBundles.mjs'
 
 const BYTES_PER_KIB = 1024
@@ -191,19 +191,29 @@ const BUDGETS = [
   { path: 'dist/headless.js', budgetKiB: 100 },
 ]
 
-// Optional surfaces have their own measured + 15%, rounded-up budget.
-const DEFERRED_SURFACE_BUDGET_KIB = 25
-const webviewMeta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
-const deferredBudgets = Object.entries(webviewMeta.outputs)
-  .filter(([, output]) =>
-    DEFERRED_WEBVIEW_SURFACES.some(
-      (name) => output.entryPoint === `src/webview/components/${name}.tsx`,
-    ),
-  )
-  .map(([path]) => ({ path, budgetKiB: DEFERRED_SURFACE_BUDGET_KIB }))
+// DIET1: independently emitted optional surfaces, measured on main, each plus
+// 15%, rounded up to 25 KiB. Closure caps also charge their shared imports.
+const WEBVIEW_SURFACE_BUDGETS = [
+  // Sign-in: 3.9 KiB + 15%, rounded to 25 KiB.
+  { entry: 'SignIn', budgetKiB: 25 },
+  // Goal panel: 3.2 KiB by the same rule.
+  { entry: 'GoalPanel', budgetKiB: 25 },
+  // Schedule panel: 1.6 KiB by the same rule.
+  { entry: 'SchedulePanel', budgetKiB: 25 },
+  // Palette: 5.4 KiB (7.5 KiB closure) by the same rule.
+  { entry: 'Palette', budgetKiB: 25 },
+  // Popover menu: 2.0 KiB by the same rule.
+  { entry: 'PopoverMenu', budgetKiB: 25 },
+  // Radial menu body: 4.9 KiB by the same rule.
+  { entry: 'GooeyMenuContent', budgetKiB: 25 },
+  // Account & usage body: 12.7 KiB by the same rule.
+  { entry: 'UsageDialogContent', budgetKiB: 25 },
+  // Agent map body: 8.0 KiB by the same rule.
+  { entry: 'AgentMapContent', budgetKiB: 25 },
+]
 
 let hasFailure = false
-for (const { path, budgetKiB } of [...BUDGETS, ...deferredBudgets]) {
+for (const { path, budgetKiB } of BUDGETS) {
   if (!existsSync(path)) {
     hasFailure = true
     console.log(`MISS ${path}: not built (budget ${budgetKiB} KiB)`)
@@ -233,6 +243,30 @@ for (const { path, budgetKiB } of [...BUDGETS, ...deferredBudgets]) {
 // Each new lazy closure has its own cap; old surfaces and unclassified
 // deferred helpers stay under TRAIN13B's unchanged aggregate 50 KiB cap.
 const webview = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
+for (const { name, source, budgetKiB } of [
+  // TRAIN15G: full lazy closure 56.3 KiB +15%, rounded up to 25 KiB.
+  { name: 'models', source: 'src/webview/models/panel.tsx', budgetKiB: 75 },
+  // TRAIN15G: full lazy closure 35.4 KiB +15%, rounded up to 25 KiB.
+  { name: 'usage', source: 'src/webview/usage/UsageApp.tsx', budgetKiB: 50 },
+]) {
+  const meta = JSON.parse(readFileSync(`dist/meta/${name}Webview.json`, 'utf8'))
+  const files = webviewPanelOutputs(meta, `dist/webview/${name}.js`, source)
+  const sizeKiB = files.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
+  if (sizeKiB > budgetKiB) hasFailure = true
+  console.log(
+    `${sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'} dist/webview ${name} body: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
+  )
+}
+for (const { entry, budgetKiB } of WEBVIEW_SURFACE_BUDGETS) {
+  for (const [file, output] of Object.entries(webview.outputs)) {
+    if (output.entryPoint?.replaceAll('\\', '/') !== `src/webview/components/${entry}.tsx`) continue
+    const sizeKiB = statSync(file).size / BYTES_PER_KIB
+    if (sizeKiB > budgetKiB) hasFailure = true
+    console.log(
+      `${sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'} ${file} (${entry}): ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
+    )
+  }
+}
 for (const { name, budgetKiB, outputs } of webviewDeferredBudgetGroups(webview)) {
   const sizeKiB = outputs.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
   if (sizeKiB > budgetKiB) hasFailure = true

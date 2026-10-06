@@ -11,9 +11,14 @@ import { swtHostBridge } from '../hostBridges/swtHostBridge'
 import { webView2HostBridge, type WebView2UsagePort } from '../hostBridges/webView2HostBridge'
 import type { NativeUsagePort } from '../hostBridges/usageBridge'
 import { installUsageTable } from './installUsageTable'
-import { UsageApp } from './UsageApp'
+import { deferred } from '../components/DeferredSurface'
 import './usage.css'
 import { companionUsagePort } from './companion'
+
+const UsageApp = deferred(async () => {
+  const module = await import('./UsageApp')
+  return { default: module.UsageApp }
+})
 
 declare global {
   interface Window {

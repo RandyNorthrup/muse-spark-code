@@ -14,6 +14,7 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import { listFiles } from '@vscode/vsce/out/package.js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { webviewDeferredBudgetGroups } from '../../scripts/lib/webviewBundles.mjs'
 
 const ENTRY = 'dist/webview/main.js'
 const SIZE_GATE = path.resolve('scripts/check-bundle-size.mjs')
@@ -70,7 +71,22 @@ function sizeFixture(sharedBytes) {
   writeFileSync(path.join(built.fixture, 'dist/webview/TeamUi.js'), '')
   writeFileSync(
     path.join(built.fixture, 'dist/meta/usageWebview.json'),
-    JSON.stringify({ outputs: { 'dist/webview/usage.js': { imports: [] } } }),
+    JSON.stringify({
+      outputs: {
+        'dist/webview/usage.js': { imports: [] },
+        'dist/webview/deferred.js': { imports: [], entryPoint: 'src/webview/usage/UsageApp.tsx' },
+      },
+    }),
+  )
+  writeFileSync(path.join(built.fixture, 'dist/webview/models-body.js'), '')
+  writeFileSync(
+    path.join(built.fixture, 'dist/meta/modelsWebview.json'),
+    JSON.stringify({
+      outputs: {
+        'dist/webview/models.js': { imports: [] },
+        'dist/webview/models-body.js': { imports: [], entryPoint: 'src/webview/models/panel.tsx' },
+      },
+    }),
   )
   const shared = { path: 'dist/webview/shared.js', kind: 'import-statement', external: false }
   writeFileSync(
@@ -104,7 +120,30 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(bytes).toBeLessThanOrEqual(900 * 1024)
   })
 
-  it.each(['GitPanel', 'UsageDialog'])('loads %s only through its dynamic import', (name) => {
+  it('keeps FIXDIET1 startup and original deferred bytes within their review baseline', () => {
+    const bytes = [...initialOutputs()].reduce((sum, output) => sum + statSync(output).size, 0)
+    expect(bytes).toBeLessThanOrEqual(733.8 * 1024)
+    const legacy = webviewDeferredBudgetGroups({ outputs: built.outputs }).find(
+      (group) => group.name === 'deferred JS',
+    )
+    expect(legacy).toBeDefined()
+    expect(
+      legacy.outputs.reduce((sum, output) => sum + statSync(output).size, 0),
+    ).toBeLessThanOrEqual(32.1 * 1024)
+  })
+
+  it.each([
+    'GitPanel',
+    'UsageDialog',
+    'SignIn',
+    'GoalPanel',
+    'SchedulePanel',
+    'Palette',
+    'PopoverMenu',
+    'GooeyMenuContent',
+    'UsageDialogContent',
+    'AgentMapContent',
+  ])('loads %s only through its dynamic import', (name) => {
     const source = `src/webview/components/${name}.tsx`
     const owners = Object.entries(built.outputs).filter(([, output]) =>
       Object.hasOwn(output.inputs, source),
@@ -113,7 +152,7 @@ describe('the production webview chunks (FIX78W)', () => {
     const [[output]] = owners
     expect(initialOutputs().has(output)).toBe(false)
     expect(built.outputs[output].entryPoint).toBe(source)
-    expect(built.outputs[ENTRY].imports).toContainEqual(
+    expect(Object.values(built.outputs).flatMap((chunk) => chunk.imports)).toContainEqual(
       expect.objectContaining({ path: output, kind: 'dynamic-import' }),
     )
   })
@@ -130,7 +169,7 @@ describe('the production webview chunks (FIX78W)', () => {
       expect(output.entryPoint).toBe(source)
       expect(initialOutputs().has(file)).toBe(false)
       const usage = Object.values(built.outputs).find(
-        (output) => output.entryPoint === 'src/webview/components/UsageDialog.tsx',
+        (output) => output.entryPoint === 'src/webview/components/UsageDialogContent.tsx',
       )
       expect(usage.imports).toContainEqual(
         expect.objectContaining({ path: file, kind: 'dynamic-import' }),
@@ -177,6 +216,33 @@ describe('the production webview chunks (FIX78W)', () => {
     )
   })
 
+  it.each([
+    ['modelsWebview', 'dist/webview/models.js', 'src/webview/models/panel.tsx'],
+    ['usageWebview', 'dist/webview/usage.js', 'src/webview/usage/UsageApp.tsx'],
+  ])('defers the optional %s body while sharing chat vendor chunks', (page, entry, source) => {
+    const meta = JSON.parse(readFileSync(`dist/meta/${page}.json`, 'utf8'))
+    const owners = Object.entries(meta.outputs).filter(([, output]) =>
+      Object.hasOwn(output.inputs, source),
+    )
+    expect(owners).toHaveLength(1)
+    const [[file, output]] = owners
+    expect(output.entryPoint).toBe(source)
+    expect(meta.outputs[entry].imports).toContainEqual(
+      expect.objectContaining({ path: file, kind: 'dynamic-import' }),
+    )
+    for (const dependency of [
+      'node_modules/react/cjs/react.production.js',
+      'node_modules/react-dom/cjs/react-dom-client.production.js',
+      'src/shared/l10n/text.ts',
+    ]) {
+      const shared = Object.entries(meta.outputs).filter(([, chunk]) =>
+        Object.hasOwn(chunk.inputs, dependency),
+      )
+      expect(shared, dependency).toHaveLength(1)
+      expect(Object.hasOwn(built.outputs, shared[0][0]), dependency).toBe(true)
+    }
+  })
+
   it('keeps the shipped M96 renderers inside the shared chat graph', () => {
     const graphs = ['webview', 'modelsWebview', 'whatsNewPage'].map((page) =>
       JSON.parse(readFileSync(`dist/meta/${page}.json`, 'utf8')),
@@ -215,6 +281,7 @@ describe('the production webview chunks (FIX78W)', () => {
   it('packages every emitted browser script, with no stale browser chunks', async () => {
     const files = await listFiles({ cwd: built.fixture, dependencies: false })
     const listed = files
+      .map((file) => file.replaceAll('\\', '/'))
       .filter((file) => file.startsWith('dist/webview/') && file.endsWith('.js'))
       .toSorted((a, b) => a.localeCompare(b, 'en'))
     expect(listed).toEqual(

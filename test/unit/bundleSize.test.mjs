@@ -7,13 +7,31 @@ const CONTENT_FILE = 'dist/whatsNew.json'
 const CONTENT_BUDGET_BYTES = 40 * 1024
 
 function mockWebviewMeta(meta, models, whatsNew) {
-  const modelsMeta =
+  let modelsMeta =
     models ??
     (meta.outputs['dist/webview/models.js'] === undefined
       ? { outputs: { 'dist/webview/models.js': { imports: [] } } }
       : meta)
+  modelsMeta = {
+    ...modelsMeta,
+    outputs: {
+      ...modelsMeta.outputs,
+      'dist/webview/chunks/models-body.js': {
+        imports: [],
+        entryPoint: 'src/webview/models/panel.tsx',
+      },
+    },
+  }
   const pageMetafiles = {
-    'dist/meta/usageWebview.json': { outputs: { 'dist/webview/usage.js': { imports: [] } } },
+    'dist/meta/usageWebview.json': {
+      outputs: {
+        'dist/webview/usage.js': { imports: [] },
+        'dist/webview/chunks/usage-body.js': {
+          imports: [],
+          entryPoint: 'src/webview/usage/UsageApp.tsx',
+        },
+      },
+    },
     'dist/meta/modelsWebview.json': modelsMeta,
     'dist/meta/whatsNewPage.json': whatsNew ?? {
       outputs: { 'dist/webview/whatsNew.js': { imports: [] } },
@@ -39,20 +57,33 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('bundled What’s New content budget', () => {
-  it('bounds reachable deferred chat chunks while allowing the separately budgeted usage page', async () => {
-    readFileSync.mockReturnValue(
-      JSON.stringify({
-        outputs: {
-          'dist/webview/main.js': {
-            imports: [{ path: 'dist/webview/chunks/dialog.js', kind: 'dynamic-import' }],
-          },
-          'dist/webview/chunks/dialog.js': { imports: [] },
-          'dist/webview/models.js': { imports: [] },
-          'dist/webview/usage.js': { imports: [] },
-          'dist/webview/whatsNew.js': { imports: [] },
-        },
-      }),
+  it.each([
+    ['models', 75],
+    ['usage', 50],
+  ])('bounds the complete lazy %s body at %i KiB', async (name, budget) => {
+    const body = `dist/webview/chunks/${name}-body.js`
+    statSync.mockImplementation((file) => ({ size: file === body ? budget * 1024 : 0 }))
+    await import('../../scripts/check-bundle-size.mjs')
+    expect(process.exit).not.toHaveBeenCalled()
+    vi.resetModules()
+    statSync.mockImplementation((file) => ({ size: file === body ? budget * 1024 + 1 : 0 }))
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+    expect(console.log).toHaveBeenCalledWith(
+      `OVER dist/webview ${name} body: ${budget.toFixed(1)} KiB (budget ${budget} KiB)`,
     )
+  })
+  it('bounds reachable deferred chat chunks while allowing the separately budgeted usage page', async () => {
+    mockWebviewMeta({
+      outputs: {
+        'dist/webview/main.js': {
+          imports: [{ path: 'dist/webview/chunks/dialog.js', kind: 'dynamic-import' }],
+        },
+        'dist/webview/chunks/dialog.js': { imports: [] },
+        'dist/webview/models.js': { imports: [] },
+        'dist/webview/usage.js': { imports: [] },
+        'dist/webview/whatsNew.js': { imports: [] },
+      },
+    })
     statSync.mockImplementation((file) => ({ size: file.endsWith('usage.js') ? 200 * 1024 : 0 }))
     await import('../../scripts/check-bundle-size.mjs')
     expect(process.exit).not.toHaveBeenCalled()
@@ -158,6 +189,14 @@ describe('bundled What’s New content budget', () => {
     ['provider usage', 25, 'src/webview/components/ProviderUsageSection.tsx'],
     ['paid usage', 25, 'src/webview/components/PaidUsageSection.tsx'],
     ['team UI', 25, 'src/webview/components/TeamUi.tsx'],
+    ['SignIn', 25, 'src/webview/components/SignIn.tsx'],
+    ['GoalPanel', 25, 'src/webview/components/GoalPanel.tsx'],
+    ['SchedulePanel', 25, 'src/webview/components/SchedulePanel.tsx'],
+    ['Palette', 25, 'src/webview/components/Palette.tsx'],
+    ['PopoverMenu', 25, 'src/webview/components/PopoverMenu.tsx'],
+    ['GooeyMenuContent', 25, 'src/webview/components/GooeyMenuContent.tsx'],
+    ['UsageDialogContent', 25, 'src/webview/components/UsageDialogContent.tsx'],
+    ['AgentMapContent', 25, 'src/webview/components/AgentMapContent.tsx'],
   ])(
     'enforces the %s cap without widening the original deferred allowance',
     async (name, cap, entryPoint) => {

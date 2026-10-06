@@ -1043,3 +1043,69 @@ Implementation merge: `82c36305cb735131e8ccc0084fe88fbcc8716528`. Normal serial 
 gitleaks hooks pass. After hooks, all fourteen request golden hashes, main's
 version/README What's New and both released changelog suffixes remain unchanged.
 The implementation commit and hook log are recorded in the JSON receipt.
+
+## TRAIN15G — Main diet and shared webview package (win11, 2026-10-06)
+
+Continue a38fe1177 and merge sync/main-0150, 61d8647c2, with --no-ff.
+Resolve 23 conflicts additively; move the train’s provider, team and usage
+behavior into main’s lazy bodies. Retain all fourteen translations and
+regenerate Help reference: 59 features, 51 commands, 67 settings, 28 slash
+commands and 213 CLI entries. No version or README What’s New changes.
+
+The initial browser inventory already has one emitted React/shared UI owner
+across chat, Models and Usage. Their 425/413-KiB startup totals count shared
+files per page, rather than separate copies in the VSIX. Keep the common ESM
+graph, replace the older train English codec with main’s native codec, and
+defer both optional panel bodies through DeferredSurface. Models startup
+falls from 431.6 to 379.7 KiB; Usage from 420.1 to 396.1 KiB. Full non-bootstrap
+body closures are 57,621 / 36,212 bytes, with new 75/50-KiB caps from measured
++15%, rounded up to 25 KiB. Existing individual caps remain unchanged.
+
+The companion’s import map resolves static and dynamic imports and embeds
+the shared installed-language table before rendering loading/retry controls.
+A real Chrome probe loads the production Usage page under its authenticated
+nonce CSP; the shared builder checks all three entries in VS Code, VSCodium,
+code-server, Theia and companion origins. Native usage bridges retain this UI.
+Windows metafile output/import/entry paths are normalized before traversal.
+
+| Actual variant | Post-main before bytes | After bytes | Change |
+| -------------- | ---------------------: | ----------: | -----: |
+| Helperless     |              2,607,225 |   2,609,182 |  1,957 |
+| Universal      |              2,686,773 |   2,688,730 |  1,957 |
+
+The incoming TRAIN15F archives were 2,600,909 / 2,680,457 bytes. New lazy
+chunks add small ZIP/import overhead; no duplicated vendor asset was found
+to remove. Universal carries the certified 289,568-byte helper, SHA-256
+f42e757a0d78a6bc6a6af22c3bcf34fc7d082eb9e8130d9336024a55c19f0f36, with
+0755 ZIP metadata. Inventories include every entry and its compressed bytes.
+
+The lead’s explicitly approved train-only decision is exact:
+ceil(2,688,730 × 1.05 / 25,600) × 25,600 =
+**2,841,600 bytes (2775 KiB)**, replacing 2,534,400. Actual npm run package
+passes for both variants; ACP packaging, exact staged localization/badges
+and native module export checks pass. No other existing cap is raised.
+
+Six deliberate controls fail their intended assertion/gate, then restore
+byte-exact by SHA-256: Models/Usage closure caps, complete nested closure
+accounting, companion dynamic imports, every shell’s chunk CSP and the
+VSIX inclusive boundary. Initial optional-body assertions also fail on the
+eager implementation; Windows normalization fails before its merge repair.
+Restored owning guard/page batches, all five type projects, scoped ESLint and
+Prettier, plain knip, duplication, localization, host API, reference and exec
+schemas pass. Detailed logs and initial failures remain in the JSON receipt.
+
+One inherited assertion stays enabled/red: main’s own 733.8/32.1-KiB
+startup/deferred measurement is exceeded by the full train (796.7/about
+32.5 KiB), within unchanged 900/50-KiB production caps. The brief authorizes
+only the universal VSIX cap formula. No threshold, test timeout or exclusion
+is weakened. PLAN section 7 records this integration hold. Full owning-suite
+and affected-page accessibility receipts follow below.
+
+No public network, paid/live calls, credentials, installs, pushes, rebases,
+manual stashes or Git configuration writes. Offline badge mode skips only
+network freshness; source and exact-package badge checks still run. Full
+aggregate quality, hosted matrices and native/live release receipts remain
+the lead’s checks under common.md.
+
+Exact files, conflicts, inventories, golden hashes, package and drill logs:
+[train-0.15.0-train15g.json](train-0.15.0-train15g.json).

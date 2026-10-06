@@ -246,6 +246,17 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**TRAIN15G (2026-10-06, win11).** Chat, Models and Usage share the existing
+ESM graph and one emitted React/shared UI owner. Their static startup totals
+count that shared chunk per page, not duplicated package files. Main’s native
+English codec replaces the train’s older browser codec. Models and Usage
+bodies load through DeferredSurface; their full non-bootstrap static closures
+are 57,621 and 36,212 bytes. New caps are measured +15%, rounded up to 25 KiB:
+75 KiB and 50 KiB. Existing bundle caps remain unchanged. The authenticated
+companion import map resolves dynamic imports as well as static ones and
+retains its nonce CSP. The shared builder permits the same chunk origin in
+VS Code, VSCodium, code-server and Theia; native usage bridges share this UI.
+
 **TRAIN15D lead decision (2026-10-06, kubuntu).** Audit every M96 browser
 surface against the existing shared chat/Models/What's New ESM build and
 measure it, then audit loose M96 data/static assets against the existing
@@ -393,6 +404,26 @@ hosts and ACP/headless editors; browser fallback and editor features are unchang
 | stay unchanged; package/member and drill receipts are in                            |
 | `docs/certification/vsix-diet-2.md`. This is shared Node packaging for VS Code      |
 | hosts and ACP/headless editors; browser fallback and editor features are unchanged. |
+| **DIET1 (2026-10-06, main `e56b795a`).** The production baseline is                 |
+| 813,180 B (794.1 KiB) for chat startup and 51,157 B (49.96 KiB) for the original    |
+| deferred aggregate. After DIET1, startup is 751,392 B (733.8 KiB), down             |
+| 61,788 B (60.3 KiB), and the original deferred aggregate is 32,875 B                |
+| (32.1 KiB). Optional sign-in, goal/schedule panels, palette/popover and             |
+| radial menus now load on use. Account & usage and Agent map retain their public     |
+| entrypoints and load independently budgeted content chunks. Each new surface        |
+| has a 25 KiB physical and import-closure cap: measured size plus 15%, rounded       |
+| up to 25 KiB. Legacy/shared/unclassified deferred bytes keep their original         |
+| 50 KiB cap, and startup keeps 900 KiB. The complete browser English fallback        |
+| stays inline, encoded losslessly as DEFLATE/base85 and decoded by the native        |
+| DecompressionStream before dependent ESM modules run; Node and integration          |
+| fallbacks and all table checks remain unchanged. FIXDIET1 replaces dynamic-root     |
+| query retries with the existing host document rebuild after a synchronous state     |
+| flush: the browser refetches failed static dependencies too. React.lazy caches      |
+| successes and shared static dependencies retain canonical URLs.                     |
+| All editor shells use the shared CSP/asset-origin path. Receipts and final          |
+| before/after sizes: `docs/certification/diet1.md`. FIXDIET1 holds startup           |
+| at 750,942 B (733.3 KiB) and the original deferred group at 32,835 B                |
+| (32.1 KiB), within the review baseline targets.                                     |
 
 **TRAIN14A integration size recovery (2026-10-05).** The initial M94 archive
 has insufficient universal-helper headroom, and the prepared M71 join exceeds
@@ -431,7 +462,7 @@ properties, and retain all existing caps. No new artifact or dependency.
 | Webview action-dialog import closures | ≤ 25 KiB aggregate (STARTDIET: ShareView, SessionBoardDialog, HandoffDialog, SecretPromptDialog; first split 11.2 KiB by the same rule)                                                                                                                                                                                                                                                                |
 | Webview Tasks import closure          | ≤ 25 KiB (STARTDIET: TasksApp.tsx and its boundary; first split 1.4 KiB by the same rule)                                                                                                                                                                                                                                                                                                              |
 | Webview team UI import closure        | ≤ 25 KiB (M96: exclusive deferred TeamUi closure, 16,132 bytes in the composed graph; existing incoming cap)                                                                                                                                                                                                                                                                                           |
-| `.vsix`                               | ≤ 2475 KiB compressed (TRAIN15D lead decision, 2026-10-06: universal 2,396,321 bytes +5%, rounded up to 25 KiB = 2,534,400 bytes; “0.15.0 ships M95 providers, M96 teams, M101 compaction and M102 usage; caps for every individual bundle are unchanged”; `check-vsix-size.mjs` in the package job)                                                                                                   |
+| `.vsix`                               | ≤ 2775 KiB compressed (TRAIN15G lead decision, 2026-10-06: universal 2,688,730 bytes +5%, rounded up to 25 KiB = 2,841,600 bytes; “0.15.0 ships M95 providers, M96 teams, M101 compaction and M102 usage; caps for every individual bundle are unchanged”; `check-vsix-size.mjs` in the package job)                                                                                                   |
 | `dist/acp.js`                         | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                                                                      |
 | `dist/planMarkdown.js`                | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                                                                                                                        |
 | `dist/checkpointStore.js`             | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                   |
@@ -904,7 +935,7 @@ other budget changes.
 | `dist/searchWorker.js`         | ≤ 50 KiB                                                                                                                                                                                                                                                                                             |
 | `dist/pageWorker.js`           | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                                                                                                           |
 | `dist/webview/main.js`         | ≤ 900 KiB including React, the markdown renderer, highlight.js and every static startup chunk                                                                                                                                                                                                        |
-| `.vsix`                        | ≤ 2475 KiB compressed (TRAIN15D lead decision, 2026-10-06: universal 2,396,321 bytes +5%, rounded up to 25 KiB = 2,534,400 bytes; “0.15.0 ships M95 providers, M96 teams, M101 compaction and M102 usage; caps for every individual bundle are unchanged”; `check-vsix-size.mjs` in the package job) |
+| `.vsix`                        | ≤ 2775 KiB compressed (TRAIN15G lead decision, 2026-10-06: universal 2,688,730 bytes +5%, rounded up to 25 KiB = 2,841,600 bytes; “0.15.0 ships M95 providers, M96 teams, M101 compaction and M102 usage; caps for every individual bundle are unchanged”; `check-vsix-size.mjs` in the package job) |
 | `dist/acp.js`                  | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                    |
 | `dist/planMarkdown.js`         | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                      |
 | `dist/checkpointStore.js`      | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                 |
@@ -39739,9 +39770,44 @@ compression of fourteen complete tables. Parameterize each exception and staged
 table case, preserving assertions, and use fast fixture-only Brotli encoding;
 the gate still checks the same decoded bytes and ordinary five-second deadline.
 
+### TRAIN15G — Shared webview payload and final train package budget (2026-10-06, win11)
+
+Merge sync/main-0150 (61d8647c2) with --no-ff, preserving every train feature
+and the startup/deferred diet. Regenerate Help reference from merged sources.
+Audit the combined browser graph for one emitted React/shared UI owner across
+chat, Models and Usage; defer the optional panel bodies with DeferredSurface
+and independent measured +15%, rounded-up-to-25-KiB closure budgets. Keep
+shared chunk access in every editor CSP and authenticated ACP companion UI,
+including dynamic imports. Normalize Windows metafile paths before traversal.
+Measure actual helperless and certified-helper universal VSIX before/after.
+Only if universal still exceeds 2,534,400 bytes, the lead authorizes the
+compressed cap to measured universal +5%, rounded up to 25 KiB. No other cap
+increase. Run complete owning files under default test timeouts, goldens,
+static/build/reference gates, VSIX/ACP packaging and affected accessibility
+pages. No version bump or README What’s New changes; no paid/live calls.
+
 ## 7. Gates
 
-**TRAIN15F final package cap hold (2026-10-06, win11).** Actual post-diet
+**TRAIN15G inherited DIET1 measurement hold (2026-10-06, win11).** Main adds
+a regression assertion for its own 733.8-KiB startup and 32.1-KiB deferred
+measurement. The integrated train measures 815,775 startup bytes (796.7 KiB)
+and about 32.5 KiB deferred, within unchanged 900/50-KiB production caps.
+The assertion remains enabled and unchanged. Shared ownership, deferred
+loads, and package membership assertions pass. The brief authorizes only
+the universal VSIX cap formula; an additional startup diet or revision of
+this main-only measurement expectation needs a lead decision.
+
+**TRAIN15G scoped certification.** The rig brief and shared common.md prohibit
+aggregate quality here. Run owning default-timeout suites and individual gates;
+the lead retains aggregate quality, hosted matrices and native/live receipts.
+The sole authorized cap decision is the measured universal VSIX formula above.
+
+**TRAIN15F final package cap hold (resolved in TRAIN15G).** The lead’s new
+brief authorizes measured universal +5%, rounded up to 25 KiB after the
+shared-browser audit. Actual TRAIN15G packages pass the resulting cap; the
+measurements below retain the earlier hold’s history.
+
+**Original TRAIN15F package cap hold (2026-10-06, win11).** Actual post-diet
 helperless VSIX is 2,600,909 bytes (66,509 over);
 verified-helper universal is 2,680,457 (146,057 over).
 The existing 2,534,400-byte / 2475-KiB cap is unchanged. Raw bundle,
@@ -39831,6 +39897,52 @@ twenty base deltas in `docs/certification/train-0.15.0.md`, commit the blocked
 integration locally with hooks, and do not merge steps 3–5. This is a justified
 review-candidate deferral under rule 2, never a green release claim. The lead
 owns a further size-recovery decision and the later continuation/full gate.
+
+### DIET1 — Webview startup and deferred headroom (2026-10-06)
+
+- [x] Measure main `e56b795a` with the production metafile: startup 813,180 B
+      (794.1 KiB); original deferred aggregate 51,157 B (49.96 KiB).
+- [x] Reduce startup by at least 60 KiB and original deferred aggregate to
+      at most 35 KiB without raising either existing cap or adding dependencies.
+      Keep transcript, composer and approvals eager; defer optional surfaces
+      and preserve the complete inline English fallback with lossless encoding.
+- [x] Accessible loading, local load failure and retry; shared-host CSP/asset
+      proof; owning tests and intentional static-import red drill.
+- [x] Fix RVMDIET1 P2-1, P2-2 and P3 with owning regressions and byte-exact
+      red drills; final 628-page accessibility matrix exits 0 on macmini.
+- [~] Scoped rig gates, production/package, accessibility and browser smoke;
+  certification `docs/certification/diet1.md`, contribution rule and changelog.
+  Lane rules prohibit aggregate quality, network, merges and pushes; the
+  lead retains integrated quality and hosted checks.
+
+**FIXDIET1 review follow-up (2026-10-06).** RVMDIET1 P2-1 is fixed by
+rebuilding the panel document on Retry; the existing persister flushes state
+before the host rebuilds and the browser refetches the complete module graph,
+including failed static dependencies. The dynamic-root URL rewrite is removed.
+Interactive lazy surfaces use the shared deferred loader. Each open owns
+an intent that is cancelled on dismissal; loading and failed nonmodal menus
+retain outside-pointer/focus, Escape and trigger-focus behavior (P2-2/P3).
+Regression tests and byte-exact red drills certify each fix. Keep startup at most
+733.8 KiB, the original deferred group at most 32.1 KiB and each moved
+surface within 25 KiB. No dependency, gate relaxation, model call or merge.
+
+## 7. Gates
+
+**DIET1 bounded rig certification (2026-10-06).** The user-provided lane brief
+and shared rules prohibit aggregate quality and public network, merges and
+pushes. The local commit uses scoped typecheck, lint/format, Knip, duplication,
+localization, reference, host API, webview suites, production/split/size,
+accessibility matrix, real-browser fake-host smoke and VSIX packaging. Local
+packaging uses the existing named badge-network skip; CI rejects it. The lead
+must run integrated `npm run quality` and hosted checks before integration.
+See `docs/certification/diet1.md` for measurements and byte-exact red drills.
+The initial second accessibility scan reported zero violations/undecided rules
+across 628 pages but exited 1 when light/usage-install missed the unchanged
+10-second readiness deadline. FIXDIET1's final complete matrix supersedes that
+outstanding receipt: 628 pages (157 scenarios × four themes), exit 0, zero
+violations, zero undecided rules, zero exemptions and zero missing results.
+No timeout, exemption, worker policy or accessibility rule changed. The lead
+still owns integrated aggregate quality and actual host/release certification.
 
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
@@ -45518,6 +45630,17 @@ before a repaired one loads (2026-09-30).
   residual remains. The existing integrated-release quality/platform checks
   remain with the lead under this rig's explicit scoped-gate rule (§7); this
   local repair does not claim installed-editor or cross-platform certification.
+- **FIXDIET1 audit outcome (2026-10-06).** RVMDIET1 P2-1, P2-2 and P3 are
+  fixed; no review finding is deferred. Retry flushes the existing webview
+  snapshot before the host rebuilds the document, so entry and static
+  dependency failures recover together without duplicating React/language
+  state. A cancelled cold-menu intent cannot mount its late import; loading
+  and failed rows retain dismissal and focus return. The same shared React
+  path serves either backend and shells embedding this webview; ACP editors
+  keep their native UI. Existing persistence size/session validation,
+  credential boundaries, CSP, dependencies and bundle caps are unchanged.
+  The lead retains integrated quality and real host/release certification.
+  Tests, exact-restoration drills and rig receipts: docs/certification/diet1.md.
 
 - **ENVFENCE-HELPREF (resolved in REL0142 integration, 2026-10-06).** Main's
   credential pass-through setting joins the Help permissions feature with its

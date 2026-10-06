@@ -485,6 +485,8 @@
   "showMore": "Показать больше",
   "showLess": "Показать меньше",
   "loadingOutput": "Загрузка…",
+  "surfaceLoadFailed": "Не удалось загрузить эту панель.",
+  "surfaceLoadRetry": "Повторить попытку",
   "toolFailed": "Сбой",
   "toolRejected": "Отклонено",
   "toolStopped": "Остановлено",

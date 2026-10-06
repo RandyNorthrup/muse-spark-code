@@ -99,6 +99,8 @@
     // Native loader regression child, run by both package scripts after build.
     "test/packaging/moduleExports.test.mjs",
     "test/e2e/**/*.test.ts",
+    // DIET1 production browser smoke, invoked directly as documented in README.
+    "test/e2e/webviewDiet.mjs",
     "test/e2e/fake-muse/serve.mjs",
     // The fake stdio MCP server the M50 tests start as a child process.
     "test/unit/helpers/fakeMcpServer.mjs",

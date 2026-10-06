@@ -1,10 +1,31 @@
+const normalPath = (file) => file.replaceAll('\\', '/')
+
+function normalOutputs(meta) {
+  return Object.fromEntries(
+    Object.entries(meta.outputs).map(([file, output]) => [
+      normalPath(file),
+      {
+        ...output,
+        entryPoint: output.entryPoint === undefined ? undefined : normalPath(output.entryPoint),
+        cssBundle: output.cssBundle === undefined ? undefined : normalPath(output.cssBundle),
+        imports: output.imports.map((imported) => ({
+          ...imported,
+          path: normalPath(imported.path),
+        })),
+      },
+    ]),
+  )
+}
+
 // Count every eagerly imported JavaScript chunk, once. Dynamic surfaces have
 // their own budget; moving startup code into a static chunk buys no headroom.
 function staticOutputs(meta, roots) {
   const eager = new Set()
+  const outputs = normalOutputs(meta)
   const visit = (file) => {
+    file = normalPath(file)
     if (eager.has(file)) return
-    const output = meta.outputs[file]
+    const output = outputs[file]
     if (output === undefined) throw new Error(`Missing webview output: ${file}`)
     eager.add(file)
     for (const imported of output.imports) {
@@ -19,13 +40,25 @@ export function webviewStartupOutputs(meta, entry = 'dist/webview/main.js') {
   return staticOutputs(meta, [entry])
 }
 
+// Optional panel bodies charge all static dependencies outside their page's bootstrap.
+export function webviewPanelOutputs(meta, entry, source) {
+  const eager = new Set(webviewStartupOutputs(meta, entry))
+  const body = Object.entries(meta.outputs).filter(
+    ([, output]) => output.entryPoint !== undefined && normalPath(output.entryPoint) === source,
+  )
+  if (body.length !== 1) throw new Error(`Missing or duplicated panel body: ${source}`)
+  return staticOutputs(meta, [body[0][0]]).filter((file) => !eager.has(file))
+}
+
 // Keep each page's full reachable graph, including lazy imports and its CSS.
 // Shared outputs occur in both records and are counted by each startup cap.
 export function webviewEntryMetafile(meta, entry) {
+  const source = normalOutputs(meta)
   const outputs = {}
   const visit = (file) => {
+    file = normalPath(file)
     if (Object.hasOwn(outputs, file)) return
-    const output = meta.outputs[file]
+    const output = source[file]
     if (output === undefined) throw new Error(`Missing webview output: ${file}`)
     outputs[file] = output
     for (const imported of output.imports) if (!imported.external) visit(imported.path)
@@ -56,6 +89,20 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     entries: ['src/webview/components/ProviderUsageSection.tsx'],
     budgetKiB: 25,
   },
+  ...[
+    'SignIn',
+    'GoalPanel',
+    'SchedulePanel',
+    'Palette',
+    'PopoverMenu',
+    'GooeyMenuContent',
+    'UsageDialogContent',
+    'AgentMapContent',
+  ].map((name) => ({
+    name,
+    entries: [`src/webview/components/${name}.tsx`],
+    budgetKiB: 25,
+  })),
   {
     name: 'code highlighting',
     entries: ['src/webview/components/HighlightedCode.tsx'],
@@ -82,6 +129,7 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
 ]
 
 export function webviewDeferredBudgetGroups(meta) {
+  meta = { ...meta, outputs: normalOutputs(meta) }
   const eager = new Set(webviewStartupOutputs(meta))
   const reachable = new Set()
   const visit = (file) => {
@@ -99,8 +147,12 @@ export function webviewDeferredBudgetGroups(meta) {
   }
   const entries = (sources) =>
     Object.entries(meta.outputs)
-      .filter(([, output]) => sources.includes(output.entryPoint))
-      .map(([file]) => file)
+      .filter(([, output]) =>
+        sources.includes(
+          output.entryPoint === undefined ? undefined : normalPath(output.entryPoint),
+        ),
+      )
+      .map(([file]) => normalPath(file))
   const legacy = new Set(
     staticOutputs(
       meta,
@@ -144,6 +196,7 @@ export const DEFERRED_WEBVIEW_SURFACES = [
 // Team-only static dependencies have their own cap. Dependencies shared with
 // startup or another deferred surface stay charged to those existing budgets.
 export function webviewTeamOutputs(meta) {
+  meta = { ...meta, outputs: normalOutputs(meta) }
   const team = new Set()
   const other = new Set(webviewStartupOutputs(meta))
   const visit = (file, outputs) => {

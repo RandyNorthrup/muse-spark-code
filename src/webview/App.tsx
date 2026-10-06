@@ -2,7 +2,6 @@ import { JudgeStatusLine } from './components/JudgeStatusLine'
 import {
   type ReactNode,
   Suspense,
-  lazy,
   createElement,
   Fragment,
   useCallback,
@@ -72,16 +71,13 @@ import { Composer, type ImageData, type SlashPaletteSlot } from './components/Co
 import { DiffTally } from './components/DiffTally'
 import { EffortSlider } from './components/EffortSlider'
 import { EmptyState } from './components/EmptyState'
-import { GoalPanel } from './components/GoalPanel'
-import { SchedulePanel } from './components/SchedulePanel'
 import { Header } from './components/Header'
 import { DeferredReportDialog } from './components/DeferredReportDialog'
 import { LegalReport } from './components/LegalReport'
 import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
-import { Palette, type PaletteKeys, type PaletteView } from './components/Palette'
-import { type MenuEntry, PopoverMenu } from './components/PopoverMenu'
-import { SignIn } from './components/SignIn'
+import type { PaletteKeys, PaletteView } from './components/Palette'
+import type { MenuEntry } from './components/PopoverMenu'
 import { TodoPanel } from './components/TodoPanel'
 import type { TeamTreeActions } from './components/TeamTree'
 import { teamRunningTaskCount, teamTaskCount } from './state/teamEntries'
@@ -112,41 +108,58 @@ import {
 import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
 import { Modal } from './components/Modal'
-import { DeferredSurface } from './components/DeferredSurface'
+import { deferred } from './components/DeferredSurface'
 
-const HandoffDialog = lazy(async () => {
-  const module = await import('./components/HandoffDialog')
-  return { default: module.HandoffDialog }
+const SignIn = deferred(async () => {
+  const module = await import('./components/SignIn')
+  return { default: module.SignIn }
 })
-const HistoryDialog = lazy(async () => {
+const GoalPanel = deferred(async () => {
+  const module = await import('./components/GoalPanel')
+  return { default: module.GoalPanel }
+})
+const SchedulePanel = deferred(async () => {
+  const module = await import('./components/SchedulePanel')
+  return { default: module.SchedulePanel }
+})
+const Palette = deferred(async () => {
+  const module = await import('./components/Palette')
+  return { default: module.Palette }
+})
+const PopoverMenu = deferred(async () => {
+  const module = await import('./components/PopoverMenu')
+  return { default: module.PopoverMenu }
+})
+
+const HistoryDialog = deferred(async () => {
   const module = await import('./components/HistoryDialog')
   return { default: module.HistoryDialog }
 })
-const AgentMap = lazy(async () => {
+const AgentMap = deferred(async () => {
   const module = await import('./components/AgentMap')
   return { default: module.AgentMap }
-})
-const UsageDialog = lazy(async () => {
+}, true)
+const UsageDialog = deferred(async () => {
   const module = await import('./components/UsageDialog')
   return { default: module.UsageSurface }
-})
-const PlanUi = lazy(async () => {
+}, true)
+const PlanUi = deferred(async () => {
   const module = await import('./components/PlanUi')
   return { default: module.PlanUi }
 })
-const SetupBanner = lazy(async () => {
+const SetupBanner = deferred(async () => {
   const module = await import('./components/SetupBanner')
   return { default: module.SetupBanner }
 })
-const BestOfNDialog = lazy(async () => {
+const BestOfNDialog = deferred(async () => {
   const module = await import('./components/BestOfNDialog')
   return { default: module.BestOfNDialog }
-})
-const ReviewPane = lazy(async () => {
+}, true)
+const ReviewPane = deferred(async () => {
   const module = await import('./components/ReviewPane')
   return { default: module.ReviewPane }
-})
-const ReferencePage = lazy(async () => {
+}, true)
+const ReferencePage = deferred(async () => {
   const stylesheet = document.createElement('link')
   stylesheet.rel = 'stylesheet'
   stylesheet.href = new URL('referencePage.css', import.meta.url).href
@@ -161,22 +174,27 @@ const ReferencePage = lazy(async () => {
       Modal,
     }),
   }
-})
+}, true)
 
-const SecretPromptDialog = lazy(async () => {
+const HandoffDialog = deferred(async () => {
+  const { HandoffDialog } = await import('./components/HandoffDialog')
+  return { default: HandoffDialog }
+}, true)
+
+const SecretPromptDialog = deferred(async () => {
   const { SecretPromptDialog } = await import('./components/SecretPromptDialog')
   return { default: SecretPromptDialog }
-})
+}, true)
 
-const SessionBoardDialog = lazy(async () => {
+const SessionBoardDialog = deferred(async () => {
   const { SessionBoardDialog } = await import('./components/SessionBoardDialog')
   return { default: SessionBoardDialog }
 })
 
-const ShareView = lazy(async () => {
+const ShareView = deferred(async () => {
   const { ShareView } = await import('./components/ShareView')
   return { default: ShareView }
-})
+}, true)
 
 export interface AppProps {
   readonly planNoticePort?: PlanNoticePort
@@ -242,7 +260,7 @@ function restoreNoteOf(state: UiState): string | undefined {
 
 // These panels share this runtime's React and installed language; importing
 // them waits for state to show (Git) or the user's Account & usage action.
-const GitPanel = lazy(async () => {
+const GitPanel = deferred(async () => {
   const { GitPanel } = await import('./components/GitPanel')
   return { default: GitPanel }
 })
@@ -2038,6 +2056,7 @@ export function App({
         onBack={onPaletteBack}
         onClose={slot.onClose}
         isAttached
+        keepFocus
         keys={slashPaletteKeys}
         onActiveRowChange={slot.onActiveRowChange}
       />
@@ -2481,6 +2500,7 @@ export function App({
         onChange={onHandoffChanged}
         onConfirm={onHandoffConfirm}
         onCancel={onHandoffCancel}
+        onClose={onHandoffCancel}
       />
     )
   // The report-a-problem preview (M93 lane W): the sealed draft the host
@@ -2506,6 +2526,7 @@ export function App({
         redactedText={state.secretPrompt.redactedText}
         onSendAnyway={onSecretPromptSendAnyway}
         onEdit={onSecretPromptDismiss}
+        onClose={onSecretPromptDismiss}
       />
     )
   // Behind a modal nothing takes focus or clicks (M25): the modal traps Tab,
@@ -2545,12 +2566,10 @@ export function App({
           onOpenAgents={onOpenAgents}
           onOpenSideChat={canOpenSideChat ? onOpenSideChat : undefined}
         />
-        <DeferredSurface onClose={closeOverlay} isModal={false}>
-          {history}
-          {board}
-        </DeferredSurface>
+        {history}
+        {board}
       </div>
-      <DeferredSurface onClose={closeOverlay}>
+      <>
         {overlay === 'help' ? (
           <ReferencePage
             postMessage={postMessage}
@@ -2563,9 +2582,9 @@ export function App({
         {agentMap}
         {reviewPane}
         {bestOfN}
-      </DeferredSurface>
-      <DeferredSurface onClose={onHandoffCancel}>{handoffDialog}</DeferredSurface>
-      <DeferredSurface onClose={onSecretPromptDismiss}>{secretPromptDialog}</DeferredSurface>
+      </>
+      {handoffDialog}
+      {secretPromptDialog}
       {reportDialog}
       {legalReport}
       <Suspense fallback={null}>
@@ -2589,7 +2608,7 @@ export function App({
         ) : null}
       </Suspense>
       {state.share === undefined ? null : (
-        <DeferredSurface onClose={onCloseShare}>
+        <>
           <ShareView
             title={state.share.title}
             exportedAt={state.share.exportedAt}
@@ -2602,7 +2621,7 @@ export function App({
             onCopy={onCopy}
             onSectionError={onShareSectionError}
           />
-        </DeferredSurface>
+        </>
       )}
       <main
         ref={bodyRef}
@@ -2630,7 +2649,7 @@ export function App({
       state.git.state.worktree === undefined &&
       state.git.state.pullRequest === undefined &&
       state.git.state.hold === undefined ? null : (
-        <DeferredSurface onClose={onGitClose} isModal={false}>
+        <>
           <GitPanel
             git={state.git}
             isInert={isModalOpen}
@@ -2643,31 +2662,35 @@ export function App({
             onGenerate={onGitGenerate}
             onOpenLink={onOpenExternal}
           />
-        </DeferredSurface>
+        </>
       )}
-      <GoalPanel
-        key={state.sessionId}
-        goal={state.goal}
-        isInert={isModalOpen}
-        onCommand={onGoalCommand}
-        editor={{
-          draft: state.goalEdit?.draft,
-          isPending: state.goalEdit?.pending !== undefined,
-          onStart: onGoalEditStarted,
-          onChange: onGoalEditChanged,
-          onCancel: onGoalEditCanceled,
-          onSave: onGoalEditSaved,
-        }}
-      />
-      <SchedulePanel
-        jobs={state.schedules}
-        nowMs={now()}
-        isPaidOn={state.paid.features.includes('scheduledPrompts')}
-        isInert={isModalOpen}
-        onRun={onScheduleRun}
-        onCancel={onScheduleCancel}
-        onEnable={onScheduleEnable}
-      />
+      {state.goal === undefined ? null : (
+        <GoalPanel
+          key={state.sessionId}
+          goal={state.goal}
+          isInert={isModalOpen}
+          onCommand={onGoalCommand}
+          editor={{
+            draft: state.goalEdit?.draft,
+            isPending: state.goalEdit?.pending !== undefined,
+            onStart: onGoalEditStarted,
+            onChange: onGoalEditChanged,
+            onCancel: onGoalEditCanceled,
+            onSave: onGoalEditSaved,
+          }}
+        />
+      )}
+      {state.schedules.length === 0 ? null : (
+        <SchedulePanel
+          jobs={state.schedules}
+          nowMs={now()}
+          isPaidOn={state.paid.features.includes('scheduledPrompts')}
+          isInert={isModalOpen}
+          onRun={onScheduleRun}
+          onCancel={onScheduleCancel}
+          onEnable={onScheduleEnable}
+        />
+      )}
       <TodoPanel items={state.todos} isInert={isModalOpen} onOpenInTab={onOpenTasksTab} />
       {isBodyGated ? null : (
         <ApprovalDock waiting={waiting} onDecide={onDecide} isInert={isModalOpen} />

@@ -251,7 +251,19 @@ describe('M102 integrated surfaces', () => {
     expect(exportState.totals).toEqual(state.totals)
     expect(exportState.limits).toEqual(state.limits)
     await mkdir(path.join(root, 'dist', 'webview'), { recursive: true })
-    await writeFile(path.join(root, 'dist', 'webview', 'usage.js'), 'window.usageLoaded = true')
+    await mkdir(path.join(root, 'dist', 'webview', 'chunks'), { recursive: true })
+    await writeFile(
+      path.join(root, 'dist', 'webview', 'usage.js'),
+      'import { vendor } from "./chunks/vendor.js"; import("./chunks/page.js").then(page => page.start(vendor))',
+    )
+    await writeFile(
+      path.join(root, 'dist', 'webview', 'chunks', 'page.js'),
+      'import { vendor } from "./vendor.js"; export const start = () => vendor',
+    )
+    await writeFile(
+      path.join(root, 'dist', 'webview', 'chunks', 'vendor.js'),
+      'export const vendor = "shared"',
+    )
     await writeFile(path.join(root, 'dist', 'webview', 'usage.css'), ':root { color: white }')
     const panel = await openUsageCompanion({
       usage: access,
@@ -273,6 +285,23 @@ describe('M102 integrated surfaces', () => {
       expect(page.status).toBe(200)
       expect(page.body).toContain('data-host-bridge="http"')
       expect(page.body).not.toContain(token)
+      const importMapText = /type="importmap">([^<]+)<\/script>/u.exec(page.body)?.[1]
+      if (importMapText === undefined) throw new Error('missing import map')
+      const importMap = z
+        .object({ imports: z.record(z.string(), z.string()) })
+        .parse(JSON.parse(importMapText))
+      expect(Object.keys(importMap.imports).toSorted((a, b) => a.localeCompare(b, 'en'))).toEqual([
+        'muse-usage/chunks/page.js',
+        'muse-usage/chunks/vendor.js',
+        'muse-usage/usage.js',
+      ])
+      const usageScript = await call(panel, '/usage.js', 'GET', undefined, headers(panel, token))
+      expect(usageScript.body).toContain('import("muse-usage/chunks/page.js")')
+      expect(usageScript.body).not.toContain('"./chunks/')
+      const vendorCopies = Object.values(importMap.imports).filter((module) =>
+        decodeURIComponent(module).includes('export const vendor = "shared"'),
+      )
+      expect(vendorCopies).toHaveLength(1)
       const stream = await fetch(new URL('/events', panel.url), {
         method: 'POST',
         signal: controller.signal,

@@ -3,6 +3,7 @@ import {
   webviewDeferredBudgetGroups,
   webviewStartupOutputs,
   webviewEntryMetafile,
+  webviewPanelOutputs,
 } from '../../scripts/lib/webviewBundles.mjs'
 
 const MAIN = 'dist/webview/main.js'
@@ -38,6 +39,18 @@ function metafile() {
 }
 
 describe('webview import budgets', () => {
+  it('charges nested panel dependencies once and excludes its shared bootstrap', () => {
+    const meta = metafile()
+    const panel = 'dist/webview/chunks/panel.js'
+    const source = 'src/webview/usage/UsageApp.tsx'
+    meta.outputs[MAIN].imports.push(edge(panel, 'dynamic-import'))
+    meta.outputs[panel] = output([edge(CORE), edge(SHARED), edge(SHARED)], source)
+    expect(webviewPanelOutputs(meta, MAIN, source)).toEqual([panel, SHARED])
+    Reflect.deleteProperty(meta.outputs, panel)
+    expect(() => webviewPanelOutputs(meta, MAIN, source)).toThrow(
+      'Missing or duplicated panel body',
+    )
+  })
   it('counts the whole static closure exactly once, excluding dynamic and external imports', () => {
     expect(webviewStartupOutputs(metafile())).toEqual([MAIN, CORE])
   })
@@ -104,6 +117,24 @@ describe('webview import budgets', () => {
     const chat = webviewEntryMetafile(meta, MAIN)
     expect(Object.hasOwn(chat.outputs, HISTORY)).toBe(true)
     expect(Object.hasOwn(chat.outputs, models)).toBe(false)
+  })
+  it('normalizes Windows output, import and entry paths before grouping', () => {
+    const meta = metafile()
+    meta.outputs = Object.fromEntries(
+      Object.entries(meta.outputs).map(([file, value]) => [
+        file.replaceAll('/', '\\'),
+        {
+          ...value,
+          entryPoint: value.entryPoint?.replaceAll('/', '\\'),
+          imports: value.imports.map((entry) => ({
+            ...entry,
+            path: entry.path.replaceAll('/', '\\'),
+          })),
+        },
+      ]),
+    )
+    expect(webviewStartupOutputs(meta)).toEqual([MAIN, CORE])
+    expect(webviewDeferredBudgetGroups(meta)).toEqual(webviewDeferredBudgetGroups(metafile()))
   })
 
   it('refuses an incomplete static import graph', () => {

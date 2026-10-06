@@ -1166,6 +1166,7 @@ const chunks = 'dist/webview/chunks'
 const otherPageChunks = new Set()
 for (const [page, entry] of [
   ['modelsWebview', 'dist/webview/models.js'],
+  ['usageWebview', 'dist/webview/usage.js'],
   ['whatsNewPage', 'dist/webview/whatsNew.js'],
 ]) {
   const meta = JSON.parse(readFileSync(`dist/meta/${page}.json`, 'utf8'))

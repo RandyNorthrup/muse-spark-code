@@ -20,6 +20,7 @@ import {
   USAGE_COMPANION_REQUEST_MS,
   USAGE_COMPANION_MAX_WINDOWS,
   USAGE_STALE_MS,
+  WEBVIEW_L10N_ELEMENT_ID,
 } from '../../shared/constants'
 
 interface WindowConnection {
@@ -61,6 +62,10 @@ export async function openUsageCompanion(deps: {
     '<',
     String.raw`\u003c`,
   )
+  const embeddedUiTable = JSON.stringify({ locale: deps.locale, table: deps.uiText }).replaceAll(
+    '<',
+    String.raw`\u003c`,
+  )
   const assets = new Map<string, CompanionAsset>()
   const root = await realpath(deps.assetsFolder)
   const imports: Record<string, string> = {}
@@ -73,14 +78,16 @@ export async function openUsageCompanion(deps: {
       throw new Error('EPANEL_ASSET')
     modules.set(name, '')
     let content = await readFile(source, 'utf8')
-    for (const match of content.matchAll(/\b(from|import)\s*["'](\.[^"']+\.js)["']/gu)) {
+    for (const match of content.matchAll(
+      /\b(from\s*|import\s*(?:\(\s*)?)["'](\.[^"']+\.js)["']/gu,
+    )) {
       const relative = match[2]
-      const keyword = match[1]
-      if (relative === undefined || keyword === undefined) throw new Error('EPANEL_ASSET')
+      const prefix = match[1]
+      if (relative === undefined || prefix === undefined) throw new Error('EPANEL_ASSET')
       const dependency = path.posix.normalize(path.posix.join(path.posix.dirname(name), relative))
       if (!/^(?:chunks\/)?[\w-]+\.js$/u.test(dependency)) throw new Error('EPANEL_ASSET')
       const target = await loadModule(dependency)
-      content = content.replace(match[0], () => `${keyword} ${JSON.stringify(target)}`)
+      content = content.replace(match[0], () => `${prefix}${JSON.stringify(target)}`)
     }
     modules.set(name, content)
     imports[specifier] = `data:text/javascript;charset=utf-8,${encodeURIComponent(content)}`
@@ -113,7 +120,7 @@ export async function openUsageCompanion(deps: {
     },
     assets,
     renderPage: (nonce) =>
-      `<!doctype html><html lang="${table.locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/usage.css"><script nonce="${nonce}" type="importmap">${importMap}</script><script nonce="${nonce}" id="muse-usage-l10n" type="application/json">${embeddedTable}</script></head><body data-host-bridge="http"><div id="root"></div><script type="module" nonce="${nonce}" src="/usage.js"></script></body></html>`,
+      `<!doctype html><html lang="${table.locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/usage.css"><script nonce="${nonce}" type="importmap">${importMap}</script><script nonce="${nonce}" id="${WEBVIEW_L10N_ELEMENT_ID}" type="application/json">${embeddedUiTable}</script><script nonce="${nonce}" id="muse-usage-l10n" type="application/json">${embeddedTable}</script></head><body data-host-bridge="http"><div id="root"></div><script type="module" nonce="${nonce}" src="/usage.js"></script></body></html>`,
     handler: {
       inputSchema: usageCompanionRequestSchema,
       outputSchema: usageCompanionEventSchema,
