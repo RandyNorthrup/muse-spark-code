@@ -2724,5 +2724,15 @@
   "compactionToolCall": "Özet bir araç istedi; konuşma değişmedi.",
   "summaryForkUnavailable": "Özetle dallandırma için ücretli kullanım onayı gerekir; dal açılmadı.",
   "autoCompactionAwaitingEvaluation": "Otomatik sıkıştırma değerlendirme bekliyor ve etkin değil.",
-  "autoCompactionFailed": "Otomatik sıkıştırma başarısız oldu; özgün bağlamla devam ediliyor."
+  "autoCompactionFailed": "Otomatik sıkıştırma başarısız oldu; özgün bağlamla devam ediliyor.",
+  "thenRunNotString": "then_run dize olarak tek bir komut satırı olmalıdır",
+  "incompleteToolCallsNotRun": "Model yanıtı kesildi. Hiçbir araç çağrısı çalıştırılmadı; yeniden deneyin.",
+  "toolEditInvalid": "Boş olmayan bir find/replace çifti veya edits listesi kullanın; ikisini birlikte kullanmayın.",
+  "toolEditNoChange": "Aranan ve yerine yazılacak metin aynı; hiçbir şey değişmez.",
+  "toolEditNotFound": "Aranan metin {path} içinde bulunamadı.",
+  "toolEditAmbiguous": "Aranan metin {path} içinde birden fazla kez geçiyor; daha fazla bağlam ekleyin.",
+  "toolEditOverlap": "Düzenlemeler çakışıyor; iki öğe aynı metni değiştiremez.",
+  "toolReadPastEnd": "{offset} ofseti {path} dosyasının sonunu aşıyor.",
+  "toolReadText": "`{path}` metin dosyası okundu.",
+  "toolReadRange": "{total} satırdan {start}–{end}; offset={offset}"
 }

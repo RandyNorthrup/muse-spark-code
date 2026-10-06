@@ -121,6 +121,7 @@ import {
   SUBAGENT_WAIT_DEFAULT_MS,
   type SubagentAction,
   THINKING_OFF_EFFORT,
+  THEN_RUN_ARGUMENT,
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
   TOOL_STATUS_INTERRUPTED,
@@ -409,6 +410,7 @@ import {
 } from './schemas'
 import {
   classifyTool,
+  codePointBoundary,
   type EditFormatter,
   type FormatTarget,
   executeTool,
@@ -1901,8 +1903,9 @@ function ideFunctionName(tool: McpTool): string {
 }
 
 function clipOutput(text: string): string {
+  // Cut on a code point boundary, so the clip never splits a surrogate pair (M101).
   return text.length > TOOL_OUTPUT_MAX_CHARS
-    ? `${text.slice(0, TOOL_OUTPUT_MAX_CHARS)}${TOOL_OUTPUT_CLIP_MARKER}`
+    ? `${text.slice(0, codePointBoundary(text, TOOL_OUTPUT_MAX_CHARS))}${TOOL_OUTPUT_CLIP_MARKER}`
     : text
 }
 
@@ -4470,6 +4473,14 @@ export class ModelApiSession implements AgentSession {
       this.skipCalls(turnId, calls, post.blockedReason)
       throw new HookStoppedError(post.blockedReason)
     }
+    if (final.status === 'incomplete' && final.output.some((item) => isFunctionCallItem(item))) {
+      throw new ModelApiError(
+        UI_TEXT.incompleteToolCallsNotRun,
+        0,
+        undefined,
+        'response_incomplete',
+      )
+    }
     return { calls, goalCommandRevision, postContexts: [...thoughtContexts, ...post.contexts] }
   }
 
@@ -4597,7 +4608,32 @@ export class ModelApiSession implements AgentSession {
       } else if (isFunctionCallItem(item)) {
         isReasoningLast = false
         this.replay.push({ turnId, item })
-        calls.push(item)
+        // A cut-short reply refuses every call, including items marked
+        // completed. All codecs map their output-limit stop to incomplete.
+        if (response.status === 'incomplete') {
+          const started: ItemSnapshot = {
+            itemId: this.deps.newId(),
+            kind: 'toolCall',
+            status: IN_PROGRESS,
+            turnId,
+            tool: item.name,
+            args: item.arguments,
+          }
+          this.recordTranscript(turnId, started)
+          this.emit({ type: 'itemStarted', item: started })
+          this.finishCall(
+            turnId,
+            started,
+            item,
+            toolFailure(
+              MODEL_API_MODEL_TEXT.incompleteCallNotRun,
+              UI_TEXT.incompleteToolCallsNotRun,
+            ),
+            FAILED,
+          )
+        } else {
+          calls.push(item)
+        }
       }
     }
     // A reply that was reasoning alone gets a minimal assistant message after
@@ -6087,6 +6123,9 @@ export class ModelApiSession implements AgentSession {
         signal: stop.signal,
         limit,
         seen: this.seenFiles,
+        // Kept whole for observation packing (M101): a packed shell result
+        // stays recoverable through `recall_output`.
+        wholeShellOutput: this.packing !== undefined,
         assertCanRun: () => {
           if (stop.signal.aborted || !isAllowed(this.backgroundShells.get(itemId) === stop))
             throw new AbortedError()
@@ -7475,6 +7514,7 @@ export class ModelApiSession implements AgentSession {
           outcome: await executeTool(call.name, call.arguments, {
             ...this.fileToolContext(signal),
             contextTokens: contextModelFor(this.deps, this.modelId)?.contextTokens,
+            wholeShellOutput: this.packing !== undefined,
             assertCanWrite,
             ...(approvedTarget !== undefined && { approvedTarget }),
             ...(formatter !== undefined && { formatter }),
@@ -9138,9 +9178,26 @@ export class ModelApiSession implements AgentSession {
     if (isEdited) {
       this.noteEdited(target)
     }
-    const command = thenRunOf(call.arguments)
-    if (command === undefined) {
+    const thenRunRequest = thenRunOf(call.arguments)
+    if (thenRunRequest.kind === 'absent') {
       return { ...performed, isRejected: false }
+    }
+    // Present but not a command line: reported as not run, never silently
+    // dropped (M101).
+    if (thenRunRequest.kind === 'invalid') {
+      return {
+        outcome: {
+          ...performed.outcome,
+          output: `${performed.outcome.output}\n\n${fill(MODEL_API_MODEL_TEXT.thenRunNotRun, { reason: MODEL_API_MODEL_TEXT.thenRunNotString })}`,
+          thenRun: {
+            command: THEN_RUN_ARGUMENT,
+            outcome: 'notRun',
+            detail: UI_TEXT.thenRunNotString,
+            output: '',
+          },
+        },
+        isRejected: false,
+      }
     }
     if (!isEdited) {
       return {
@@ -9155,7 +9212,7 @@ export class ModelApiSession implements AgentSession {
       ...(await this.thenRun(
         itemId,
         target,
-        command,
+        thenRunRequest.command,
         performed.outcome,
         signal,
         shouldForceApproval,
@@ -9303,7 +9360,14 @@ export class ModelApiSession implements AgentSession {
     }
     const { line, result } = ran
     if (isAllowed()) this.noteCheckCommandRun(line, result, startedOn)
-    const finished = shellOutcome(result, SHELL_DEFAULT_TIMEOUT_MS)
+    // Kept whole for observation packing (M101): a packed then_run result
+    // stays recoverable through `recall_output`.
+    const finished = shellOutcome(
+      result,
+      SHELL_DEFAULT_TIMEOUT_MS,
+      TOOL_OUTPUT_MAX_CHARS,
+      this.packing !== undefined,
+    )
     return {
       outcome: {
         ...edit,

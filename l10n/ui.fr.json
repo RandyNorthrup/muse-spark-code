@@ -2827,5 +2827,15 @@
   "compactionToolCall": "Le résumé a demandé un outil ; la conversation reste inchangée.",
   "summaryForkUnavailable": "Créer une branche avec résumé nécessite une autorisation de paiement ; aucune branche n’a été ouverte.",
   "autoCompactionAwaitingEvaluation": "La compaction automatique attend son évaluation et reste inactive.",
-  "autoCompactionFailed": "La compaction automatique a échoué ; poursuite avec le contexte initial."
+  "autoCompactionFailed": "La compaction automatique a échoué ; poursuite avec le contexte initial.",
+  "thenRunNotString": "then_run doit être une ligne de commande sous forme de chaîne",
+  "incompleteToolCallsNotRun": "La réponse du modèle a été tronquée. Aucun appel d’outil n’a été exécuté ; réessayez.",
+  "toolEditInvalid": "Utilisez une paire find/replace non vide ou une liste edits non vide, jamais les deux.",
+  "toolEditNoChange": "Les textes recherché et de remplacement sont identiques ; rien ne changerait.",
+  "toolEditNotFound": "Le texte recherché est introuvable dans {path}.",
+  "toolEditAmbiguous": "Le texte recherché apparaît plusieurs fois dans {path} ; ajoutez du contexte.",
+  "toolEditOverlap": "Les modifications se chevauchent ; deux entrées ne peuvent pas modifier le même texte.",
+  "toolReadPastEnd": "Le décalage {offset} dépasse la fin de {path}.",
+  "toolReadText": "Fichier texte `{path}` lu.",
+  "toolReadRange": "Lignes {start}–{end} sur {total} ; offset={offset}"
 }

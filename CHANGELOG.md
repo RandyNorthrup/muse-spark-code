@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M101 tool correctness: atomic multi-edit calls are schema-valid, fuzzy
+  matching preserves newlines and yields to Stop, read paging keeps its
+  next offset, file URLs decode before confinement, and ACP previews name
+  the same targets. Shell originals remain recallable above the first-send
+  budget, background completions pack, and new failures are translated.
+
+- M101 tool safety: cut-short replies refuse every tool call, including
+  completed items, show failed tool rows and explain why the turn failed
+  across all five provider codecs.
 - M101 review repairs keep Gemini goal progress as trailing user context and
   Chat/OpenRouter rolling cache markers on historical messages. Pending
   Manual approvals preserve sticky packed ids for safe crash recovery, even
@@ -157,6 +166,21 @@ happened, not what was planned; superseded entries are kept.
 - **Offline provider catalogue replay avoids deep Buffer assertion cost.**
   Tests compare byte length and SHA-256 without changing the default timeout
   or the sealed snapshot integrity checks.
+- **M101 lane T: tool and packing correctness.** A packed placeholder trims
+  the tail from its front so the final lines (a shell result's exit code)
+  survive, a single long line packs to about a 1k excerpt, and packing that
+  would save under half is skipped. A reply cut short by the output limit
+  answers each uncompleted call with an error instead of running half-formed
+  arguments, on every codec's stop mapping. Every model-given path resolves
+  through one shared normalisation (Unicode spaces, a leading `@`, `file://`,
+  Windows drive forms; `~` refused). `edit_file` falls back to a normalised
+  unique match, refuses a no-op edit, and takes `edits[]` applied all or not
+  at all with overlaps refused. A truncated `read_file` names the shown
+  lines and the offset that reads on, and an offset past the end is an error.
+  Search hits are cut to about 500 characters with a note. Shell and
+  `then_run` output rides whole while the session packs observations, so it
+  stays recoverable through `recall_output`; a non-string `then_run` is
+  reported instead of silently dropped; output clips never split a character.
 
 
 ### Added

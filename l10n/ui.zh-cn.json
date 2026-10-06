@@ -2621,5 +2621,15 @@
   "compactionToolCall": "摘要请求了工具；对话未更改。",
   "summaryForkUnavailable": "带摘要的分支需要付费使用授权；未打开任何分支。",
   "autoCompactionAwaitingEvaluation": "自动压缩正在等待评估，目前未启用。",
-  "autoCompactionFailed": "自动压缩失败；继续使用原始上下文。"
+  "autoCompactionFailed": "自动压缩失败；继续使用原始上下文。",
+  "thenRunNotString": "then_run 必须是字符串形式的单条命令行",
+  "incompleteToolCallsNotRun": "模型回复被截断。未执行任何工具调用，请重试。",
+  "toolEditInvalid": "请使用非空的 find/replace 对或非空的 edits 列表，不可同时使用。",
+  "toolEditNoChange": "查找文本与替换文本相同，不会产生任何更改。",
+  "toolEditNotFound": "在 {path} 中未找到查找文本。",
+  "toolEditAmbiguous": "查找文本在 {path} 中出现多次，请添加更多上下文。",
+  "toolEditOverlap": "编辑范围重叠，两个条目不能更改同一段文本。",
+  "toolReadPastEnd": "偏移量 {offset} 超出了 {path} 的末尾。",
+  "toolReadText": "已读取文本文件 `{path}`。",
+  "toolReadRange": "第 {start}–{end} 行，共 {total} 行；offset={offset}"
 }

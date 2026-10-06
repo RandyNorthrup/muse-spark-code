@@ -2621,5 +2621,15 @@
   "compactionToolCall": "摘要要求使用工具；對話未變更。",
   "summaryForkUnavailable": "建立附摘要的分支需要付費使用授權；未開啟任何分支。",
   "autoCompactionAwaitingEvaluation": "自動壓縮正在等待評估，目前未啟用。",
-  "autoCompactionFailed": "自動壓縮失敗；繼續使用原始上下文。"
+  "autoCompactionFailed": "自動壓縮失敗；繼續使用原始上下文。",
+  "thenRunNotString": "then_run 必須是字串形式的單條命令列",
+  "incompleteToolCallsNotRun": "模型回覆遭截斷。未執行任何工具呼叫，請重試。",
+  "toolEditInvalid": "請使用非空的 find/replace 對或非空的 edits 清單，不可同時使用。",
+  "toolEditNoChange": "尋找文字與取代文字相同，不會產生任何變更。",
+  "toolEditNotFound": "在 {path} 中找不到尋找文字。",
+  "toolEditAmbiguous": "尋找文字在 {path} 中出現多次，請加入更多上下文。",
+  "toolEditOverlap": "編輯範圍重疊，兩個項目不能變更同一段文字。",
+  "toolReadPastEnd": "位移量 {offset} 超出了 {path} 的結尾。",
+  "toolReadText": "已讀取文字檔案 `{path}`。",
+  "toolReadRange": "第 {start}–{end} 行，共 {total} 行；offset={offset}"
 }

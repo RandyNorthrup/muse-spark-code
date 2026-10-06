@@ -2827,5 +2827,15 @@
   "compactionToolCall": "Il riepilogo ha richiesto uno strumento; la conversazione è rimasta invariata.",
   "summaryForkUnavailable": "Creare una diramazione con riepilogo richiede l’autorizzazione al pagamento; nessuna diramazione è stata aperta.",
   "autoCompactionAwaitingEvaluation": "La compattazione automatica è in attesa di valutazione e rimane inattiva.",
-  "autoCompactionFailed": "La compattazione automatica non è riuscita; si continua con il contesto originale."
+  "autoCompactionFailed": "La compattazione automatica non è riuscita; si continua con il contesto originale.",
+  "thenRunNotString": "then_run deve essere una riga di comando come stringa",
+  "incompleteToolCallsNotRun": "La risposta del modello è stata troncata. Nessuna chiamata agli strumenti è stata eseguita; riprova.",
+  "toolEditInvalid": "Usa una coppia find/replace non vuota o un elenco edits non vuoto, mai entrambi.",
+  "toolEditNoChange": "Il testo cercato e quello sostitutivo sono identici; nulla cambierebbe.",
+  "toolEditNotFound": "Il testo cercato non è stato trovato in {path}.",
+  "toolEditAmbiguous": "Il testo cercato compare più volte in {path}; aggiungi contesto.",
+  "toolEditOverlap": "Le modifiche si sovrappongono; due voci non possono cambiare lo stesso testo.",
+  "toolReadPastEnd": "Lo scostamento {offset} supera la fine di {path}.",
+  "toolReadText": "Letto il file di testo `{path}`.",
+  "toolReadRange": "Righe {start}–{end} di {total}; offset={offset}"
 }

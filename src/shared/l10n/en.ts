@@ -1011,6 +1011,15 @@ export const EN = {
   toolReadPdfInvalid: 'The file `{path}` has a PDF name but no PDF header.',
   toolReadImageInvalid: 'The file `{path}` is not a supported image.',
   toolVisualFileMissing: 'The file `{path}` was not found.',
+  toolEditInvalid: 'Use a nonempty find/replace pair or a nonempty edits list, never both.',
+  toolEditNoChange: 'Find and replace are identical; nothing would change.',
+  toolEditNotFound: 'Find text was not found in {path}.',
+  toolEditAmbiguous: 'Find text occurs more than once in {path}; include more context.',
+  toolEditOverlap: 'Edits overlap; no two entries may change the same text.',
+  toolReadPastEnd: 'Offset {offset} is beyond the end of {path}.',
+  toolReadText: 'Read text file `{path}`.',
+  toolReadRange: 'Lines {start}–{end} of {total}; offset={offset}',
+  incompleteToolCallsNotRun: 'The model reply was cut short. No tool calls were run; please retry.',
   toolVisualReadFailed: 'The file `{path}` could not be read.',
   // M69 (PLAN.md D49): web fetch. The row's line under a fetched page: its
   // size and content type (text/html).
@@ -3044,6 +3053,8 @@ export const EN = {
   thenRunLabel: 'Then ran',
   // {reason}: one of checkSkips, with the user's or the hook's words after it.
   thenRunNotRun: 'Not run: {reason}',
+  // A then_run value that is present but not a command line.
+  thenRunNotString: 'then_run must be one command line as a string',
   // After "a hook denied it": the hook rewrote the command into none.
   hookInputNoCommand: 'The hook’s updated input names no command.',
   thenRunTimedOut: 'Stopped at its time limit',

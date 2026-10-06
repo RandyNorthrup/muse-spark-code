@@ -2724,5 +2724,15 @@
   "compactionToolCall": "Die Zusammenfassung hat ein Werkzeug angefordert; die Unterhaltung bleibt unverändert.",
   "summaryForkUnavailable": "Für einen Zweig mit Zusammenfassung ist eine Zahlungsfreigabe erforderlich; kein Zweig wurde geöffnet.",
   "autoCompactionAwaitingEvaluation": "Die automatische Komprimierung wartet auf die Auswertung und ist inaktiv.",
-  "autoCompactionFailed": "Die automatische Komprimierung ist fehlgeschlagen; der ursprüngliche Kontext wird weiterverwendet."
+  "autoCompactionFailed": "Die automatische Komprimierung ist fehlgeschlagen; der ursprüngliche Kontext wird weiterverwendet.",
+  "thenRunNotString": "then_run muss eine Befehlszeile als Zeichenkette sein",
+  "incompleteToolCallsNotRun": "Die Modellantwort wurde abgeschnitten. Kein Werkzeugaufruf wurde ausgeführt; bitte erneut versuchen.",
+  "toolEditInvalid": "Verwenden Sie ein nicht leeres find/replace-Paar oder eine nicht leere edits-Liste, niemals beides.",
+  "toolEditNoChange": "Such- und Ersatztext sind identisch; es würde sich nichts ändern.",
+  "toolEditNotFound": "Der Suchtext wurde in {path} nicht gefunden.",
+  "toolEditAmbiguous": "Der Suchtext kommt in {path} mehrmals vor; geben Sie mehr Kontext an.",
+  "toolEditOverlap": "Änderungen überlappen; zwei Einträge dürfen nicht denselben Text ändern.",
+  "toolReadPastEnd": "Offset {offset} liegt hinter dem Ende von {path}.",
+  "toolReadText": "Textdatei `{path}` gelesen.",
+  "toolReadRange": "Zeilen {start}–{end} von {total}; offset={offset}"
 }

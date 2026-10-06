@@ -2621,5 +2621,15 @@
   "compactionToolCall": "요약이 도구를 요청했습니다. 대화는 변경되지 않았습니다.",
   "summaryForkUnavailable": "요약과 함께 분기하려면 유료 사용 승인이 필요합니다. 분기가 열리지 않았습니다.",
   "autoCompactionAwaitingEvaluation": "자동 압축은 평가를 기다리고 있으며 비활성 상태입니다.",
-  "autoCompactionFailed": "자동 압축에 실패했습니다. 원래 컨텍스트로 계속 진행합니다."
+  "autoCompactionFailed": "자동 압축에 실패했습니다. 원래 컨텍스트로 계속 진행합니다.",
+  "thenRunNotString": "then_run은 문자열인 하나의 명령줄이어야 합니다",
+  "incompleteToolCallsNotRun": "모델 응답이 잘렸습니다. 도구 호출이 실행되지 않았습니다. 다시 시도하세요.",
+  "toolEditInvalid": "비어 있지 않은 find/replace 쌍 또는 edits 목록 중 하나만 사용하세요.",
+  "toolEditNoChange": "찾을 텍스트와 바꿀 텍스트가 같아 변경 사항이 없습니다.",
+  "toolEditNotFound": "{path}에서 찾을 텍스트를 찾지 못했습니다.",
+  "toolEditAmbiguous": "{path}에 찾을 텍스트가 여러 번 나옵니다. 주변 문맥을 추가하세요.",
+  "toolEditOverlap": "편집 범위가 겹칩니다. 두 항목이 같은 텍스트를 변경할 수 없습니다.",
+  "toolReadPastEnd": "오프셋 {offset}이 {path}의 끝을 넘어갑니다.",
+  "toolReadText": "텍스트 파일 `{path}`을 읽었습니다.",
+  "toolReadRange": "전체 {total}줄 중 {start}–{end}줄; offset={offset}"
 }

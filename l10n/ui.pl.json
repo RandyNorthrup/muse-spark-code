@@ -2930,5 +2930,15 @@
   "compactionToolCall": "Podsumowanie zażądało narzędzia; rozmowa pozostała bez zmian.",
   "summaryForkUnavailable": "Utworzenie odgałęzienia z podsumowaniem wymaga zgody na płatność; nie otwarto odgałęzienia.",
   "autoCompactionAwaitingEvaluation": "Automatyczna kompakcja oczekuje na ocenę i jest nieaktywna.",
-  "autoCompactionFailed": "Automatyczna kompakcja nie powiodła się; kontynuowanie z pierwotnym kontekstem."
+  "autoCompactionFailed": "Automatyczna kompakcja nie powiodła się; kontynuowanie z pierwotnym kontekstem.",
+  "thenRunNotString": "then_run musi być jedną linią poleceń jako ciąg znaków",
+  "incompleteToolCallsNotRun": "Odpowiedź modelu została ucięta. Żadne wywołanie narzędzia nie zostało wykonane; spróbuj ponownie.",
+  "toolEditInvalid": "Użyj niepustej pary find/replace lub niepustej listy edits, nigdy obu naraz.",
+  "toolEditNoChange": "Tekst wyszukiwany i zastępujący są identyczne; nic się nie zmieni.",
+  "toolEditNotFound": "Nie znaleziono wyszukiwanego tekstu w {path}.",
+  "toolEditAmbiguous": "Wyszukiwany tekst występuje w {path} więcej niż raz; dodaj kontekst.",
+  "toolEditOverlap": "Edycje nakładają się; dwa wpisy nie mogą zmieniać tego samego tekstu.",
+  "toolReadPastEnd": "Przesunięcie {offset} znajduje się za końcem {path}.",
+  "toolReadText": "Odczytano plik tekstowy `{path}`.",
+  "toolReadRange": "Wiersze {start}–{end} z {total}; offset={offset}"
 }

@@ -2930,5 +2930,15 @@
   "compactionToolCall": "Souhrn požádal o nástroj; konverzace zůstala beze změny.",
   "summaryForkUnavailable": "Vytvoření větve se souhrnem vyžaduje schválení placeného použití; žádná větev nebyla otevřena.",
   "autoCompactionAwaitingEvaluation": "Automatické zhuštění čeká na vyhodnocení a není aktivní.",
-  "autoCompactionFailed": "Automatické zhuštění selhalo; pokračuje se s původním kontextem."
+  "autoCompactionFailed": "Automatické zhuštění selhalo; pokračuje se s původním kontextem.",
+  "thenRunNotString": "then_run musí být jeden příkazový řádek jako řetězec",
+  "incompleteToolCallsNotRun": "Odpověď modelu byla zkrácena. Žádné volání nástroje nebylo spuštěno; zkuste to znovu.",
+  "toolEditInvalid": "Použijte neprázdnou dvojici find/replace nebo neprázdný seznam edits, nikdy obojí.",
+  "toolEditNoChange": "Hledaný a náhradní text jsou stejné; nic by se nezměnilo.",
+  "toolEditNotFound": "Hledaný text nebyl v {path} nalezen.",
+  "toolEditAmbiguous": "Hledaný text se v {path} vyskytuje vícekrát; přidejte kontext.",
+  "toolEditOverlap": "Úpravy se překrývají; dvě položky nesmějí měnit stejný text.",
+  "toolReadPastEnd": "Posun {offset} je za koncem {path}.",
+  "toolReadText": "Přečten textový soubor `{path}`.",
+  "toolReadRange": "Řádky {start}–{end} z {total}; offset={offset}"
 }

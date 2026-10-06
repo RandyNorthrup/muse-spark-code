@@ -20100,6 +20100,27 @@ in the ACP/headless runtime (no VS Code setting is available there). Tests,
 byte-exact red drills and named integration residuals go in
 `docs/certification/m101-a.md` and §9. No dependency, gate or paid-call change.
 
+FIXM101T review repair (2026-10-05): address RVM101T findings 1–15 in
+this lane's tool, resolver, packing and incomplete-response paths, with ACP
+path parity and regression/drill records. No dependencies, paid/live calls,
+guard widening, main merge or push. Run lane gates directly on macmini;
+the lead owns full quality. Item 21 requires the preset limits/capability
+seam and a cross-platform pixel decoder; assess that redesign explicitly
+and record a named residual if it cannot fit the no-dependency constraint.
+
+Lane T review repair (FIXM101T, 2026-10-05): RVM101T findings 1–12,
+14 and 15 are fixed with named regression tests and byte-exact red drills.
+Every incomplete-envelope call is refused visibly; schema-valid atomic
+edits, cancellable linear fuzzy matching, complete-line read paging, decoded
+confined paths and ACP target parity, retained shell originals and packable
+background completions are verified. All new UI failures are translated.
+Items 4, 8, 9, 12, 13, 14, 15, 18 and 20 are re-verified against research
+acceptance; item 21/finding 13 remains the named FIXM101T-IMAGE21 redesign
+residual in §9. The inherited packing default/runtime gap and M75 live pair
+are named there too. Original fabricated evidence is withdrawn; the shared
+schema pin, actual bundle deltas, 18-file/1,230-test results and drills are
+in `docs/certification/m101-t.md`. No paid/live calls or dependencies added.
+
 ### M95 K repair residuals (2026-10-05)
 
 - **K22 resolved:** final comparable activation is 608,089 bytes against
@@ -21009,6 +21030,11 @@ match `60bf96aa` byte-exact. ACP and built exec conversations pass; the
 separate fake CLI/account/README batch passes all 41 tests. The fixture repair
 belongs to integration, outside Lane A. No test is filtered or weakened, and
 no failed package rows are claimed green. Receipts: `docs/certification/m101-a.md`.
+
+**FIXM101T lane receipt:** the rig/common brief forbids a full quality run
+and main merges here; the lead must run full `npm run quality` before
+integration. Direct lane checks, build caps and red drills are recorded in
+`docs/certification/m101-t.md`; no gate is weakened.
 
 ### M98 — Muse Judge: a calibrated judge for any agent (D77, phase 1 integration)
 
@@ -21998,6 +22024,38 @@ before a repaired one loads (2026-09-30).
   checks cannot certify release. Follow-up: repair the fixtures/UI, gate the
   combined tree and collect counted live receipts before acceptance. No live
   or paid call, dependency, suppression or gate change in this repair.
+
+- **FIXM101T-IMAGE21 (RVM101T finding 13, research item 21):** downscaling
+  remains unimplemented. This base has no pixel decoder/resizer, no preset
+  image limits and no host capability lookup. A portable implementation for
+  VS Code, ACP and headless needs a P2/provider seam plus an approved resize
+  implementation; platform-specific subprocesses or a PNG-only rewrite
+  would not provide equivalent functionality. No new dependency is allowed
+  in this lane. Existing image header/byte/attachment-count checks stay in
+  force, and backend errors are explicit; the existing size/cost behavior
+  is retained, not certified as meeting item 21. Follow-up: integrate BYO-15
+  and a shared one-time ingress resizer gated by vision and actual preset
+  limits; test PNG/JPEG/GIF/WebP, every host and each vision preset within
+  the bundle caps. M101 lane T acceptance remains open for this item.
+- **FIXM101T-PACK-DEFAULT (inherited integration gap):** this lane does not
+  own package/settings/README packing defaults. The actual manifest still
+  defaults packing off, despite D81.6. The integration lane must switch the
+  manifest and host/runtime defaults together, update README, and test the
+  default and explicit-off paths. Until then this record claims packing
+  fixes only for sessions whose packing setting is on. The current ACP and
+  headless backend factory does not supply the packing dependency; integration
+  must expose the same shared core via its runtime option and default policy,
+  with resume/fork/recall checks there too. It adds no paid call.
+- **FIXM101T-EVAL20:** lane E must run M75 multi-edit comparability and live
+  stop/overflow receipts. This repair changes shared tool-schema bytes,
+  not pricing or extra-call consent. No live/paid calls are allowed here.
+- **FIXM101T-RUNNER-BOUND:** packing/recall retain the shell output the
+  existing runner retained, up to 2,097,152 characters per stream before
+  its head/tail bound. Finding 10's extra 1m truncation is fixed, but recall
+  cannot recover bytes discarded by that earlier runner bound. No memory
+  guard is raised. Retaining larger raw streams needs a separate private
+  0600 spool and runtime cleanup/lifecycle design; test that design in all
+  hosts before claiming unbounded shell recall.
 
 ## 10. Definition of done and release records
 

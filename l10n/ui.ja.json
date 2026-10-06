@@ -2621,5 +2621,15 @@
   "compactionToolCall": "要約がツールを要求しました。会話は変更されていません。",
   "summaryForkUnavailable": "要約付きの分岐には有料利用の承認が必要です。分岐は開かれていません。",
   "autoCompactionAwaitingEvaluation": "自動コンパクションは評価待ちのため無効です。",
-  "autoCompactionFailed": "自動コンパクションに失敗しました。元のコンテキストで続行します。"
+  "autoCompactionFailed": "自動コンパクションに失敗しました。元のコンテキストで続行します。",
+  "thenRunNotString": "then_runは文字列である1つのコマンドラインでなければなりません",
+  "incompleteToolCallsNotRun": "モデルの応答が途中で切れました。ツールの呼び出しは実行されていません。もう一度お試しください。",
+  "toolEditInvalid": "空でない find/replace の組か、空でない edits リストのどちらか一方を指定してください。",
+  "toolEditNoChange": "検索文字列と置換文字列が同じため、変更はありません。",
+  "toolEditNotFound": "{path} に検索文字列が見つかりません。",
+  "toolEditAmbiguous": "{path} に検索文字列が複数あります。前後の文脈を追加してください。",
+  "toolEditOverlap": "編集範囲が重なっています。同じ文字列を複数の項目で変更できません。",
+  "toolReadPastEnd": "オフセット {offset} は {path} の末尾を超えています。",
+  "toolReadText": "テキストファイル `{path}` を読み込みました。",
+  "toolReadRange": "全 {total} 行の {start}～{end} 行目；offset={offset}"
 }

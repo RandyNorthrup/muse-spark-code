@@ -2827,5 +2827,15 @@
   "compactionToolCall": "El resumen solicitó una herramienta; la conversación no ha cambiado.",
   "summaryForkUnavailable": "Crear una rama con resumen requiere autorización de pago; no se abrió ninguna rama.",
   "autoCompactionAwaitingEvaluation": "La compactación automática está pendiente de evaluación y permanece inactiva.",
-  "autoCompactionFailed": "La compactación automática falló; se continúa con el contexto original."
+  "autoCompactionFailed": "La compactación automática falló; se continúa con el contexto original.",
+  "thenRunNotString": "then_run debe ser una línea de comandos como cadena",
+  "incompleteToolCallsNotRun": "La respuesta del modelo se truncó. No se ejecutó ninguna llamada a herramientas; inténtalo de nuevo.",
+  "toolEditInvalid": "Usa un par find/replace no vacío o una lista edits no vacía, nunca ambos.",
+  "toolEditNoChange": "El texto buscado y el de reemplazo son idénticos; nada cambiaría.",
+  "toolEditNotFound": "No se encontró el texto buscado en {path}.",
+  "toolEditAmbiguous": "El texto buscado aparece varias veces en {path}; incluye más contexto.",
+  "toolEditOverlap": "Las ediciones se superponen; dos entradas no pueden cambiar el mismo texto.",
+  "toolReadPastEnd": "El desplazamiento {offset} está más allá del final de {path}.",
+  "toolReadText": "Se leyó el archivo de texto `{path}`.",
+  "toolReadRange": "Líneas {start}–{end} de {total}; offset={offset}"
 }

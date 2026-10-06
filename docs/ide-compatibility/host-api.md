@@ -451,7 +451,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:stream`          | 12    |
 | `node:stream/promises` | 2     |
 | `node:string_decoder`  | 1     |
-| `node:timers/promises` | 3     |
+| `node:timers/promises` | 4     |
 | `node:tls`             | 1     |
 | `node:url`             | 4     |
 | `node:util`            | 5     |
