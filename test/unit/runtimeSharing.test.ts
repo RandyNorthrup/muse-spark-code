@@ -15,11 +15,76 @@ import { createChatSharePrivacy } from '../../src/core/sharing/privacy'
 import { shareJsonSchema, shareRequestSchema } from '../../src/shared/share'
 import { parseSharingArgs } from '../../src/runtime/sharing/args'
 import { savedPromptFixture } from './helpers/sharingFixtures'
+const terminal = vi.hoisted(() => ({ answers: [] as string[] }))
+vi.mock('node:readline/promises', () => ({
+  createInterface: () => ({
+    question: () => Promise.resolve(terminal.answers.shift()),
+    close: () => undefined,
+  }),
+}))
 const roots: string[] = []
 afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
 })
 describe('M118 production runtime bindings', () => {
+  it.each([
+    { body: 'Hello {{ audience }}', answers: ['readers'], expected: 'Hello readers' },
+    {
+      body: '{{first}} then {{second}}',
+      answers: ['{{second}}', 'end'],
+      expected: '{{second}} then end',
+    },
+  ])('uses the shared literal terminal resolver for $body', async ({ body, answers, expected }) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'm118-terminal-'))
+    roots.push(root)
+    const ports: RuntimeSharingPorts = {
+      folders: {
+        platform: process.platform,
+        homeDir: root,
+        env: { XDG_DATA_HOME: root, LOCALAPPDATA: root },
+      },
+      read: () => Promise.reject(new Error('Prompt use must not read a backend')),
+    }
+    const saved = await runtimeAcpSharing(ports, EN, 'en').execute(
+      `/prompt save --title Variables -- ${body}`,
+      {
+        cwd: root,
+        sessionId: 's1',
+        isActive: () => true,
+        signal: new AbortController().signal,
+      },
+    )
+    const id = /\(([^()]*)\)$/.exec(saved)?.[1]
+    if (id === undefined) throw new Error('Missing saved terminal fixture')
+    terminal.answers = ['y', ...answers, 'y']
+    const tty = Object.getOwnPropertyDescriptor(process.stdin, 'isTTY')
+    Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: true })
+    const chunks: string[] = []
+    const output = vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+      chunks.push(String(chunk))
+      return true
+    })
+    try {
+      expect(
+        await runRuntimeSharing(
+          parseSharingArgs(['prompts', 'use', id, '--cwd', root]),
+          ports,
+          EN,
+          'en',
+        ),
+      ).toBe(0)
+      const result = z
+        .object({ kind: z.literal('prepared'), text: z.string() })
+        .parse(JSON.parse(chunks.at(-1) ?? ''))
+      expect(result.text).toBe(expected)
+      expect(terminal.answers).toEqual([])
+    } finally {
+      output.mockRestore()
+      if (tty === undefined) Reflect.deleteProperty(process.stdin, 'isTTY')
+      else Object.defineProperty(process.stdin, 'isTTY', tty)
+      terminal.answers = []
+    }
+  })
   it('saves verbatim personal prompts, lists and prepares them in a new workspace without backend reads', async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), 'm118-runtime-'))
     roots.push(root)
@@ -55,7 +120,7 @@ describe('M118 production runtime bindings', () => {
     expect(read).not.toHaveBeenCalled()
   })
   it.each([false, true])(
-    'refreshes registered values and releases through an isAliased workspace: %s',
+    'refreshes registered values and releases through an aliased workspace: %s',
     async (isAliased) => {
       const realRoot = await mkdtemp(path.join(os.tmpdir(), 'm118-registered-'))
       roots.push(realRoot)

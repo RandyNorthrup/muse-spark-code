@@ -13012,6 +13012,8 @@ placeholders and literal single-pass substitutions; observe Settings Sync change
 at activation before the lazy sharing bundle is used; show prompt-action failures
 through the shared response reducer on composer, message/history and palette
 routes. No new dependency, wire shape, guard relaxation or paid/live call.
+The activation shim reuses the existing configuration listener and constructs
+its loader/raw ports only on demand, retaining M118's 1 KiB growth limit.
 Each correction gets a failing regression and a byte-exact restored red drill
 in `docs/certification/m118.md`. Rig runs use repository-default test timeouts.
 The sprint rig brief forbids aggregate quality and unlisted merges; the lead
@@ -28592,6 +28594,13 @@ anywhere joined it).
 
 ## 7. Gates
 
+**FIXM118INT repair certification (2026-10-06).** All five RVM118INT P2s
+have regressions and restored red drills; the owning files run directly on
+Kubuntu at repository-default timeouts. The repair brief/shared rules prohibit
+aggregate quality and unlisted merges, so the lead retains full hosted quality.
+No existing gate, budget, timeout, ignore or guard is relaxed. See
+`docs/certification/m118.md` for exact results and byte-exact drill receipts.
+
 **M118INT bounded integration certification (2026-10-06).** The rig brief
 explicitly prohibits aggregate `npm run quality` and requires at most three
 Vitest files with three workers per run. This override permits local integration
@@ -29858,6 +29867,15 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM118INT / RVM118INT (closed, 2026-10-06).** All five reviewed P2s
+  are fixed: sharing writers bind the canonical confinement result for target
+  and identity; prompt cancellation fences in-flight Save dialogs and atomic
+  admissions; terminal variables use the same single-pass resolver; activation
+  observes machine sync consent before first use; shared action errors become
+  visible conversation notices. Regression tests and valid red drills cover
+  each. No P1/P2/P3 review residual is left; existing M118 editor/CI dependencies
+  below remain unclaimed. No new dependency, wire shape or paid/live call.
 
 - **M118INT remaining dependency/CI work.** Shared React/VS Code and installed
   CLI/ACP bindings are certified with bounded fake-only checks and unchanged

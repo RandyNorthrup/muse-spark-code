@@ -3905,10 +3905,15 @@ be committed to git. A saved personal prompt can be loaded in a fresh empty
 workspace. **Use saved prompt…**, **Insert** and **Run with variables** review
 variables and imported content, then fill the composer; they never send a
 message. Save no secrets. Settings Sync mirrors personal prompts only when
-`museSpark.syncPromptsAndBookmarks` is explicitly enabled globally.
+`museSpark.syncPromptsAndBookmarks` is explicitly enabled globally. Turning it
+on registers and merges the mirror immediately, even before opening the library.
+Named variables accept whitespace inside `{{ name }}`; inserted values stay
+literal, including text that looks like another variable. Prompt action failures
+appear as error notices in the conversation.
 
 Copy exports scrubbed text or Markdown. File export uses `.muse-prompt.md`
-with versioned JSON front matter. Import from a file or a pasted public HTTPS
+with versioned JSON front matter. Closing the prompt sharing UI cancels a pending
+export, including one waiting on the Save dialog. Import from a file or a pasted public HTTPS
 raw-file link (including a raw gist link) is capped at 128 KiB, shows the
 whole prompt, declared variables and destination scope, and marks the result
 untrusted. A gist web page is HTML, so use its raw-file URL. Publishing secret

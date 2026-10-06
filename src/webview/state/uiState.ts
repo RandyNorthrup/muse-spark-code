@@ -2451,7 +2451,11 @@ function reconcile(
 
 function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: number): UiState {
   switch (message.type) {
-    case 'sharingResult':
+    case 'sharingResult': {
+      return message.error === undefined
+        ? state
+        : announce(withNotice(state, 'error', message.error), message.error)
+    }
     case 'openSharing': {
       return state
     }

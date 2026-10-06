@@ -204,9 +204,10 @@ async function commandsFor(deps: PromptHostDeps): Promise<PromptCommands> {
   const sharer = new PromptSharer({
     ...privacy,
     isConfidentialWorkspace: deps.isConfidentialWorkspace,
-    release: async (destination, text, title) => {
+    release: async (destination, text, title, admitRelease) => {
       const originatingSurface = deps.chat.active()
       const isCurrentSurface = () => originatingSurface === deps.chat.active()
+      admitRelease()
       if (deps.isConfidentialWorkspace() !== false) throw new Error(UI_TEXT.shareConfidential)
       if (destination === 'copy') {
         await vscode.env.clipboard.writeText(text)
@@ -221,6 +222,7 @@ async function commandsFor(deps: PromptHostDeps): Promise<PromptCommands> {
         ),
         filters: { Markdown: ['muse-prompt.md'] },
       })
+      admitRelease()
       if (uri === undefined) return
       if (deps.isConfidentialWorkspace() !== false) throw new Error(UI_TEXT.shareConfidential)
       registered = await deps.registeredSecrets()
@@ -233,11 +235,13 @@ async function commandsFor(deps: PromptHostDeps): Promise<PromptCommands> {
       )
       if (!checked.ok) throw new Error(UI_TEXT.shareCancelled)
       const admit = () => {
+        admitRelease()
         if (!isCurrentSurface()) throw new Error(UI_TEXT.sharePreviewExpired)
         if (deps.isConfidentialWorkspace() !== false) throw new Error(UI_TEXT.shareConfidential)
         if (privacy.redactRegisteredSecrets(text) !== text)
           throw new Error(UI_TEXT.promptFileInvalid)
       }
+      admit()
       await writeFileAtomically(checked.checkedAbsolute, text, {
         mode: PROMPT_FILE_MODE,
         expectedCanonicalPath: checked.checkedAbsolute,
@@ -620,16 +624,6 @@ function readSurface(
 /** Factory exports one callable boundary; policy and credentials are adapted only after first use. */
 export function createPromptHost(ports: PromptActivationPorts, table: UiText, locale: string) {
   setUiText(table, locale)
-  ports.context.subscriptions.push(
-    vscode.workspace.onDidChangeConfiguration((event) => {
-      if (event.affectsConfiguration(`${SETTINGS_SECTION}.${PROMPT_SYNC_SETTING}`))
-        void runHostPromptCommand('synchronise', undefined, ports, table, locale).catch(
-          (error_: unknown) => {
-            ports.log.warn(safePromptFailure(error_).message)
-          },
-        )
-    }),
-  )
   return {
     run: async (command: string, input?: unknown) => {
       if (command === 'synchronise') {

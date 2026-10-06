@@ -59,13 +59,19 @@ export class PromptImporter {
 
 export interface PromptSharePort extends SharePrivacyPort {
   isConfidentialWorkspace(): boolean | undefined
-  release(destination: 'copy' | 'file', text: string, title: string): Promise<void>
+  release(
+    destination: 'copy' | 'file',
+    text: string,
+    title: string,
+    admit: () => void,
+  ): Promise<void>
 }
 
 /** Prompt copy/export uses the same scrub and final-click policy as chat sharing. */
 export class PromptSharer {
   private pending:
     { id: string; text: string; title: string; destination: 'copy' | 'file' } | undefined
+  private generation = 0
   public constructor(private readonly port: PromptSharePort) {}
 
   private checkPolicy(): void {
@@ -78,6 +84,7 @@ export class PromptSharer {
     destination: 'copy' | 'file',
   ) {
     this.pending = undefined
+    this.generation++
     this.checkPolicy()
     const clean = validatePrompt({
       ...prompt,
@@ -96,15 +103,19 @@ export class PromptSharer {
   public async confirm(id: string): Promise<void> {
     const preview = this.pending
     if (preview?.id !== id) throw new Error(UI_TEXT.promptFileInvalid)
+    const generation = this.generation
     this.pending = undefined
     this.checkPolicy()
     // Registered secrets can change while the preview is open; require a fresh preview then.
     if (scrubShareText(preview.text, this.port) !== preview.text)
       throw new Error(UI_TEXT.promptFileInvalid)
-    await this.port.release(preview.destination, preview.text, preview.title)
+    await this.port.release(preview.destination, preview.text, preview.title, () => {
+      if (generation !== this.generation) throw new Error(UI_TEXT.shareCancelled)
+    })
   }
 
   public cancel(): void {
     this.pending = undefined
+    this.generation++
   }
 }

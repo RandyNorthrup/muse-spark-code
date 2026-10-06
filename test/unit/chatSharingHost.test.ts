@@ -66,7 +66,7 @@ async function rig(isAliased = false) {
 }
 describe('M118 real chat destinations', () => {
   it.each([false, true])(
-    'writes exact reviewed bytes privately through an isAliased workspace: %s',
+    'writes exact reviewed bytes privately through an aliased workspace: %s',
     async (isAliased) => {
       const t = await rig(isAliased)
       const file = path.join(t.root, 'shared.md')

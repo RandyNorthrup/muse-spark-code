@@ -6,6 +6,7 @@ import { createInterface } from 'node:readline/promises'
 import { spawn } from 'node:child_process'
 import * as z from 'zod/mini'
 import { PromptStore } from '../../core/prompts/promptStore'
+import { usePrompt } from '../../core/prompts/promptLibrary'
 import { createChatSharePrivacy } from '../../core/sharing/privacy'
 import { buildChatShare, renderChatShare, type ChatShareSource } from '../../core/sharing/chatShare'
 import { buildPromptShare } from '../../core/sharing/promptShare'
@@ -203,15 +204,21 @@ function terminalUi(): SharingUi {
         `${UI_TEXT.promptUntrusted}\n${prompt.body}\n${UI_TEXT.promptVariables}: ${prompt.variables.map((variable) => variable.name).join(', ')}\n`,
       )
       if ((await question(`${UI_TEXT.promptInsert} (y/N)`, signal)) !== 'y') return
-      let text = prompt.body
-      for (const variable of prompt.variables) {
-        const value = await question(`${UI_TEXT.promptVariables}: ${variable.name}`, signal)
-        if (value === undefined) return
-        text = text.replaceAll(`{{${variable.name}}}`, () => value)
-      }
-      if (text.length > PROMPT_LIMITS.body) throw new Error(UI_TEXT.promptLimits)
-      process.stdout.write(`${text}\n`)
-      return (await question(`${UI_TEXT.promptInsert} (y/N)`, signal)) === 'y' ? text : undefined
+      let prepared: string | undefined
+      await usePrompt(prompt, {
+        valueFor: (variable) => question(`${UI_TEXT.promptVariables}: ${variable.name}`, signal),
+        review: async (text) => {
+          signal.throwIfAborted()
+          process.stdout.write(`${text}\n`)
+          return (await question(`${UI_TEXT.promptInsert} (y/N)`, signal)) === 'y'
+        },
+        insert: (text) => {
+          signal.throwIfAborted()
+          prepared = text
+          return Promise.resolve()
+        },
+      })
+      return prepared
     },
   }
 }

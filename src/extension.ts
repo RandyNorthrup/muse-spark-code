@@ -1,5 +1,5 @@
 import { promptBundleLoader } from './host/prompts/promptBundle'
-import type { PromptActivationPorts, createPromptHost } from './host/prompts/promptEntry'
+import type { createPromptHost } from './host/prompts/promptEntry'
 import { isJudgeEngineOn } from './core/judge/engine'
 import { judgeWindowPort } from './host/judge/judgeBundle'
 import { storeErrorCode } from './host/backend/storeErrors'
@@ -3195,30 +3195,33 @@ async function activateWindow(
     }
     openChatPanel(hostContext, registry)
   }
-  // Only first use loads the sharing implementation and its configuration listener.
-  const loadPrompts = promptBundleLoader(
-    path.join(context.extensionUri.fsPath, 'dist', PROMPT_BUNDLE_FILE),
-    log,
-  )
-  const promptDeps: PromptActivationPorts = {
-    context,
-    workspaceRoot,
-    credentials,
-    settings: currentSettings,
-    registry,
-    openConversation,
-    ready: readyPromptSurfaces,
-    controllers,
-    webFetch: webFetchBundle,
-    log,
-  }
+  // Sharing loads on first use or when the user changes its machine sync consent.
   const sharing = () =>
-    (promptHost ??= loadPrompts().createPromptHost(promptDeps, UI_TEXT, uiLocale()))
+    (promptHost ??= promptBundleLoader(
+      `${context.extensionUri.fsPath}/dist/${PROMPT_BUNDLE_FILE}`,
+      log,
+    )().createPromptHost(
+      {
+        context,
+        workspaceRoot,
+        credentials,
+        settings: currentSettings,
+        registry,
+        openConversation,
+        ready: readyPromptSurfaces,
+        controllers,
+        webFetch: webFetchBundle,
+        log,
+      },
+      UI_TEXT,
+      uiLocale(),
+    ))
+  const syncPrompts = () => sharing().run('synchronise')
   if (
     vscode.workspace.getConfiguration(SETTINGS_SECTION).inspect<boolean>(PROMPT_SYNC_SETTING)
       ?.globalValue
   )
-    void sharing().run('synchronise')
+    void syncPrompts()
   for (const id of Object.values(PROMPT_COMMAND_IDS))
     context.subscriptions.push(
       registerLoggedCommand(log, id, (input: unknown) => sharing().run(id, input)),
@@ -3371,6 +3374,8 @@ async function activateWindow(
       { webviewOptions: { retainContextWhenHidden: true } },
     ),
     vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration(`${SETTINGS_SECTION}.${PROMPT_SYNC_SETTING}`))
+        void syncPrompts()
       if (event.affectsConfiguration(SETTINGS_SECTION)) {
         void withHookRunner((runner) => runner.noteSettingsChange(), false).catch(
           logRejection(log, 'ConfigChange hook'),

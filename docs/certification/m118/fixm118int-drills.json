@@ -1,0 +1,76 @@
+[
+  {
+    "name": "canonical-path",
+    "tests": [
+      "test/unit/chatSharingHost.test.ts",
+      "test/unit/runtimeSharing.test.ts",
+      "test/unit/promptNative.test.ts"
+    ],
+    "exitCode": 1,
+    "original": {
+      "src/host/prompts/chatSharing.ts": "397fe3fe17900fe5e45caff0ab17e5ab21d170d96ad8d316ab1b9ae3f0b3ba94",
+      "src/host/prompts/promptEntry.ts": "f3f5ffcb8b84fb77f1820d7e4e0ff846946baeb9b2714e3a6ceb31295e909b6d",
+      "src/runtime/sharing/sharingEntry.ts": "d116e01d4dc9549305b57ac62388b311619cb871d83b9f48407b7db1a94fce5d"
+    },
+    "restored": {
+      "src/host/prompts/chatSharing.ts": "397fe3fe17900fe5e45caff0ab17e5ab21d170d96ad8d316ab1b9ae3f0b3ba94",
+      "src/host/prompts/promptEntry.ts": "f3f5ffcb8b84fb77f1820d7e4e0ff846946baeb9b2714e3a6ceb31295e909b6d",
+      "src/runtime/sharing/sharingEntry.ts": "d116e01d4dc9549305b57ac62388b311619cb871d83b9f48407b7db1a94fce5d"
+    }
+  },
+  {
+    "name": "prompt-cancel-generation",
+    "tests": ["test/unit/promptHostLifecycle.test.ts", "test/unit/promptImport.test.ts"],
+    "exitCode": 1,
+    "original": {
+      "src/core/prompts/promptImport.ts": "fa7566b0fc47a050d3aba477ccca37dd27055397274f78ea9d6ce8d1b32a2411"
+    },
+    "restored": {
+      "src/core/prompts/promptImport.ts": "fa7566b0fc47a050d3aba477ccca37dd27055397274f78ea9d6ce8d1b32a2411"
+    }
+  },
+  {
+    "name": "prompt-cancel-admission",
+    "tests": ["test/unit/promptHostLifecycle.test.ts"],
+    "exitCode": 1,
+    "original": {
+      "src/host/prompts/promptEntry.ts": "33f7be85d25ba7615081d62dd20b53efd898013d195bcabddd5502594836a720"
+    },
+    "restored": {
+      "src/host/prompts/promptEntry.ts": "33f7be85d25ba7615081d62dd20b53efd898013d195bcabddd5502594836a720"
+    }
+  },
+  {
+    "name": "terminal-shared-resolver",
+    "tests": ["test/unit/runtimeSharing.test.ts"],
+    "exitCode": 1,
+    "original": {
+      "src/runtime/sharing/sharingEntry.ts": "f9f0b4f7eab91099363b109f187bcacb00df7ebbf4314d15475e2184791f6634"
+    },
+    "restored": {
+      "src/runtime/sharing/sharingEntry.ts": "f9f0b4f7eab91099363b109f187bcacb00df7ebbf4314d15475e2184791f6634"
+    }
+  },
+  {
+    "name": "sync-activation-listener",
+    "tests": ["test/unit/promptHostLifecycle.test.ts"],
+    "exitCode": 1,
+    "original": {
+      "src/extension.ts": "1e7fcdd1d2b64b693ab22ff1a7a6ac4e8ff4016b50496e1c99b4a29b45aa413d"
+    },
+    "restored": {
+      "src/extension.ts": "1e7fcdd1d2b64b693ab22ff1a7a6ac4e8ff4016b50496e1c99b4a29b45aa413d"
+    }
+  },
+  {
+    "name": "prompt-failure-notice",
+    "tests": ["test/unit/App.test.tsx"],
+    "exitCode": 1,
+    "original": {
+      "src/webview/state/uiState.ts": "1122d605b58ec93a90c67e38c788479271965e2fde24e3c51c9024730dd83c39"
+    },
+    "restored": {
+      "src/webview/state/uiState.ts": "1122d605b58ec93a90c67e38c788479271965e2fde24e3c51c9024730dd83c39"
+    }
+  }
+]

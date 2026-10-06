@@ -22,7 +22,7 @@ export function sharingFeatures() {
       surface: 'editor',
       syntax: 'museSpark.useSavedPrompt',
       label: UI_TEXT.promptUseSaved,
-      detail: UI_TEXT.promptRun,
+      detail: `${UI_TEXT.promptVariables}; ${UI_TEXT.promptInsert}`,
     },
     {
       id: PROMPT_COMMAND_IDS.library,
@@ -53,6 +53,7 @@ export function sharingFeatures() {
       detail: `${UI_TEXT.shareConversation}; ${UI_TEXT.shareFull}`,
     },
     {
+      // Activation observes machine consent before any sharing command is used.
       id: 'museSpark.syncPromptsAndBookmarks',
       surface: 'setting',
       syntax: 'museSpark.syncPromptsAndBookmarks',
@@ -100,7 +101,7 @@ export function sharingFeatures() {
       surface: 'cli',
       syntax: 'prompts use ID [--scope user|workspace] [--chat active|new] [--cwd FOLDER]',
       label: UI_TEXT.promptUseSaved,
-      detail: UI_TEXT.promptRun,
+      detail: `${UI_TEXT.promptVariables}; ${UI_TEXT.promptInsert}`,
     },
     {
       id: 'prompts-share-cli',

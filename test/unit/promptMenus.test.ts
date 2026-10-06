@@ -154,7 +154,12 @@ describe('prompt menus and commands', () => {
       'museSpark.promptSource': 'composer',
       'museSpark.promptText': 'Exact body',
     })
-    expect(rig.release).toHaveBeenCalledWith('copy', 'Exact body', 'Exact body')
+    expect(rig.release).toHaveBeenCalledWith(
+      'copy',
+      'Exact body',
+      'Exact body',
+      expect.any(Function),
+    )
     expect(rig.store.write).not.toHaveBeenCalled()
     expect(rig.insert).not.toHaveBeenCalled()
     await expect(

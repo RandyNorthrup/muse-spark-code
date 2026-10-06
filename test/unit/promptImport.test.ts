@@ -111,6 +111,28 @@ function shareRig() {
   }
 }
 describe('prompt sharing', () => {
+  it.each(['cancel', 'newPreview'])('invalidates an in-flight release on %s', async (action) => {
+    const picker = Promise.withResolvers<undefined>()
+    const wrote = vi.fn()
+    const sharer = new PromptSharer({
+      isConfidentialWorkspace: () => false,
+      redactRegisteredSecrets: (text) => text,
+      normalisePaths: (text) => text,
+      release: async (_destination, _text, _title, admit) => {
+        await picker.promise
+        admit()
+        wrote()
+      },
+    })
+    const preview = sharer.preview(fixture, 'file', 'file')
+    const releasing = sharer.confirm(preview.id)
+    const cancelled = expect(releasing).rejects.toThrow()
+    if (action === 'cancel') sharer.cancel()
+    else sharer.preview(fixture, 'file', 'file')
+    picker.resolve(undefined)
+    await cancelled
+    expect(wrote).not.toHaveBeenCalled()
+  })
   it('scrubs preview and exports valid portable Markdown only on the final click', async () => {
     const { sharer, release } = shareRig()
     const input = { ...fixture, body: 'registered-sentinel /home/private', variables: [] }
@@ -118,7 +140,7 @@ describe('prompt sharing', () => {
     expect(release).not.toHaveBeenCalled()
     expect(parsePromptFile(preview.text).body).toBe('[redacted] [home]')
     await sharer.confirm(preview.id)
-    expect(release).toHaveBeenCalledWith('file', preview.text, preview.title)
+    expect(release).toHaveBeenCalledWith('file', preview.text, preview.title, expect.any(Function))
     await expect(sharer.confirm(preview.id)).rejects.toThrow()
     expect(sharer.preview(input, 'text', 'copy').text).toBe('[redacted] [home]')
     expect(sharer.preview(input, 'md', 'copy').text).toContain('# Review a selection\n')

@@ -3679,3 +3679,81 @@ describe('M118 shared message context menu', () => {
     ).toHaveLength(0)
   })
 })
+
+describe('M118 prompt action failure notices', () => {
+  it.each([
+    { entry: 'composer', label: UI_TEXT.promptSave, action: 'saveText' },
+    { entry: 'composer', label: UI_TEXT.sharePrompt, action: 'shareText' },
+    { entry: 'composer', label: UI_TEXT.promptUseSaved, action: 'use' },
+    { entry: 'message', label: UI_TEXT.promptSave, action: 'saveText' },
+    { entry: 'message', label: UI_TEXT.sharePrompt, action: 'shareText' },
+    { entry: 'history', label: UI_TEXT.promptSave, action: 'saveHistory' },
+    { entry: 'palette', label: UI_TEXT.promptUseSaved, action: 'use' },
+    { entry: 'palette', label: UI_TEXT.sharePrompt, action: 'shareSaved' },
+  ])('shows the host failure for $entry $action', async ({ entry, label, action }) => {
+    const post = renderReady()
+    const text = 'Public prompt for sharing'
+    switch (entry) {
+      case 'composer': {
+        fireEvent.change(textarea(), { target: { value: text } })
+        fireEvent.click(screen.getByRole('button', { name: label }))
+        break
+      }
+      case 'message': {
+        loadHistory([historyUser('u1', 't1', text)])
+        fireEvent.contextMenu(screen.getByText(text))
+        fireEvent.click(screen.getByRole('menuitem', { name: label }))
+        break
+      }
+      case 'history': {
+        fireEvent.click(screen.getByLabelText('Session history'))
+        deliver({
+          type: 'sessionList',
+          archivedIds: [],
+          sessions: [
+            {
+              sessionId: 'old',
+              title: 'Saved public prompt',
+              isNamed: false,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              status: 'notLoaded',
+              turnCount: 1,
+              isFork: false,
+            },
+          ],
+        })
+        fireEvent.contextMenu(await screen.findByRole('option', { name: /Saved public prompt/ }))
+        fireEvent.click(screen.getByRole('menuitem', { name: label }))
+        break
+      }
+      case 'palette': {
+        const filter = openPalette()
+        fireEvent.change(filter, { target: { value: label } })
+        fireEvent.keyDown(filter, { key: 'Enter' })
+        break
+      }
+      default: {
+        throw new Error('Unknown test entry point')
+      }
+    }
+    const request = post.mock.calls
+      .map(([message]) => message)
+      .findLast((message) => message.type === 'sharingAction')
+    expect(request).toMatchObject({ type: 'sharingAction', action })
+    if (request?.type !== 'sharingAction') throw new Error('Missing sharing request')
+    deliver({
+      type: 'sharingResult',
+      id: request.id,
+      value: undefined,
+      error: UI_TEXT.shareConfidential,
+    })
+    expect(
+      await screen.findByText(UI_TEXT.shareConfidential, { selector: '.notice-error' }),
+    ).toBeInTheDocument()
+    expect(document.querySelector('[aria-live="polite"]')).toHaveTextContent(
+      UI_TEXT.shareConfidential,
+    )
+    expect(post.mock.calls.some(([message]) => message.type === 'sendMessage')).toBe(false)
+  })
+})

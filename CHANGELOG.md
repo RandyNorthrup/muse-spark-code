@@ -8,6 +8,10 @@ happened, not what was planned; superseded entries are kept.
 ## [Unreleased]
 
 - Fix prompt and chat exports from symlinked workspace paths by binding atomic writes to their checked canonical targets.
+- Cancel prompt exports that are waiting on the Save dialog, reuse literal
+  variable substitution in terminal prompt loading, activate the prompt sync
+  mirror on settings changes before first use, and show failures from composer,
+  message/history menus and palette prompt actions as conversation notices.
 
 - Integrate M118's saved prompt library and message/history/composer/editor
   Save menus, portable personal prompts in every workspace, reviewed raw
