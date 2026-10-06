@@ -2489,6 +2489,16 @@
     "requestCount": {
       "one": "{count} kérés",
       "other": "{count} kérés"
-    }
+    },
+    "usageLiability": "Lefoglalva: {reserved}; bizonytalan összeg: {uncertain}.",
+    "usageReached": "Küszöbérték elérve",
+    "usageReset": "Visszaállítás: {reset}.",
+    "usageResetUnknown": "A visszaállítás ideje ismeretlen.",
+    "usageSpread": "{provider} · {account}: {worker} munkavégző hozzárendelve.",
+    "usageStop": "{provider} · {account}: leállítva ennél a küszöbnél: {threshold}.",
+    "usageThreshold": "{metric} korlátja a következő időszakra: {period}: {threshold}",
+    "usageEvents": "Fiókesemények",
+    "usageRateTokens": "Tokenek",
+    "usageUnavailable": "Nincsenek aktuális használati adatok."
   }
 }

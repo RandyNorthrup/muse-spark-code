@@ -2489,6 +2489,16 @@
     "requestCount": {
       "one": "{count} Anfrage",
       "other": "{count} Anfragen"
-    }
+    },
+    "usageLiability": "Reserviert {reserved}; ungewiss {uncertain}.",
+    "usageReached": "Schwellenwert erreicht",
+    "usageReset": "Wird {reset} zurückgesetzt.",
+    "usageResetUnknown": "Zeitpunkt der Zurücksetzung unbekannt.",
+    "usageSpread": "{provider} · {account}: Worker {worker} zugewiesen.",
+    "usageStop": "{provider} · {account}: bei {threshold} angehalten.",
+    "usageThreshold": "Limit für {metric} im Zeitraum {period}: {threshold}",
+    "usageEvents": "Kontoereignisse",
+    "usageRateTokens": "Tokenanzahl",
+    "usageUnavailable": "Keine aktuellen Nutzungsdaten."
   }
 }

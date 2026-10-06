@@ -2584,6 +2584,16 @@
       "one": "{count} requête",
       "many": "{count} requêtes",
       "other": "{count} requêtes"
-    }
+    },
+    "usageLiability": "Réservé : {reserved} ; montant incertain : {uncertain}.",
+    "usageReached": "Seuil atteint",
+    "usageReset": "Réinitialisation : {reset}.",
+    "usageResetUnknown": "Heure de réinitialisation inconnue.",
+    "usageSpread": "{provider} · {account} : agent de travail {worker} affecté.",
+    "usageStop": "{provider} · {account} : arrêt au seuil {threshold}.",
+    "usageThreshold": "Limite de {metric} pour {period} : {threshold}",
+    "usageEvents": "Événements des comptes",
+    "usageRateTokens": "Jetons",
+    "usageUnavailable": "Aucun relevé actuel d’utilisation."
   }
 }

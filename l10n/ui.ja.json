@@ -2394,6 +2394,16 @@
     "removeConfirm": "{account} を削除しますか？保存された認証情報が削除され、ログインが取り消されます。",
     "requestCount": {
       "other": "{count} 件のリクエスト"
-    }
+    },
+    "usageLiability": "予約済み {reserved}、未確定 {uncertain}。",
+    "usageReached": "しきい値に到達",
+    "usageReset": "{reset} にリセット。",
+    "usageResetUnknown": "リセット時刻は不明です。",
+    "usageSpread": "{provider} · {account}: ワーカー {worker} を割り当てました。",
+    "usageStop": "{provider} · {account}: {threshold} に達したため停止しました。",
+    "usageThreshold": "{period} の {metric} の上限: {threshold}",
+    "usageEvents": "アカウントのイベント",
+    "usageRateTokens": "トークン",
+    "usageUnavailable": "現在の使用状況データはありません。"
   }
 }

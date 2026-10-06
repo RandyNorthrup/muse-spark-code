@@ -2394,6 +2394,16 @@
     "removeConfirm": "移除 {account}？其已存储的凭据将被删除，登录授权将被撤销。",
     "requestCount": {
       "other": "{count} 次请求"
-    }
+    },
+    "usageLiability": "预留金额 {reserved}；未确定金额 {uncertain}。",
+    "usageReached": "已达到阈值",
+    "usageReset": "将于 {reset} 重置。",
+    "usageResetUnknown": "重置时间未知。",
+    "usageSpread": "{provider} · {account}：已分配工作代理 {worker}。",
+    "usageStop": "{provider} · {account}：达到 {threshold} 后已停止。",
+    "usageThreshold": "{period}的{metric}上限：{threshold}",
+    "usageEvents": "账户事件",
+    "usageRateTokens": "令牌数",
+    "usageUnavailable": "暂无当前使用情况数据。"
   }
 }

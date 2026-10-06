@@ -2584,6 +2584,16 @@
       "one": "{count} richiesta",
       "many": "{count} richieste",
       "other": "{count} richieste"
-    }
+    },
+    "usageLiability": "Riservato {reserved}; importo incerto {uncertain}.",
+    "usageReached": "Soglia raggiunta",
+    "usageReset": "Reimpostazione: {reset}.",
+    "usageResetUnknown": "Ora di reimpostazione sconosciuta.",
+    "usageSpread": "{provider} · {account}: agente di lavoro {worker} assegnato.",
+    "usageStop": "{provider} · {account}: arrestato alla soglia {threshold}.",
+    "usageThreshold": "Limite di {metric} per {period}: {threshold}",
+    "usageEvents": "Eventi degli account",
+    "usageRateTokens": "Token",
+    "usageUnavailable": "Nessun dato di utilizzo attuale."
   }
 }

@@ -2394,6 +2394,16 @@
     "removeConfirm": "移除 {account}？其已儲存的認證將被刪除，登入授權將被撤銷。",
     "requestCount": {
       "other": "{count} 次請求"
-    }
+    },
+    "usageLiability": "預留金額 {reserved}；未確定金額 {uncertain}。",
+    "usageReached": "已達到閾值",
+    "usageReset": "將於 {reset} 重設。",
+    "usageResetUnknown": "重設時間未知。",
+    "usageSpread": "{provider} · {account}：已指派工作代理 {worker}。",
+    "usageStop": "{provider} · {account}：達到 {threshold} 後已停止。",
+    "usageThreshold": "{period}的{metric}上限：{threshold}",
+    "usageEvents": "帳戶事件",
+    "usageRateTokens": "權杖數",
+    "usageUnavailable": "暫無目前使用情況資料。"
   }
 }

@@ -2679,6 +2679,16 @@
       "few": "{count} запроса",
       "many": "{count} запросов",
       "other": "{count} запроса"
-    }
+    },
+    "usageLiability": "Зарезервировано {reserved}; неопределённая сумма {uncertain}.",
+    "usageReached": "Порог достигнут",
+    "usageReset": "Сброс: {reset}.",
+    "usageResetUnknown": "Время сброса неизвестно.",
+    "usageSpread": "{provider} · {account}: назначен исполнитель {worker}.",
+    "usageStop": "{provider} · {account}: остановлено при достижении {threshold}.",
+    "usageThreshold": "Лимит для {metric} за период {period}: {threshold}",
+    "usageEvents": "События аккаунтов",
+    "usageRateTokens": "Токены",
+    "usageUnavailable": "Нет актуальных данных об использовании."
   }
 }

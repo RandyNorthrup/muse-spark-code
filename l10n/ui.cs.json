@@ -2679,6 +2679,16 @@
       "few": "{count} požadavky",
       "many": "{count} požadavku",
       "other": "{count} požadavků"
-    }
+    },
+    "usageLiability": "Rezervováno {reserved}; nejistá částka {uncertain}.",
+    "usageReached": "Prahová hodnota dosažena",
+    "usageReset": "Obnoví se {reset}.",
+    "usageResetUnknown": "Čas obnovení není znám.",
+    "usageSpread": "{provider} · {account}: pracovník {worker} byl přiřazen.",
+    "usageStop": "{provider} · {account}: zastaveno při dosažení {threshold}.",
+    "usageThreshold": "Limit pro {metric} za období {period}: {threshold}",
+    "usageEvents": "Události účtů",
+    "usageRateTokens": "Tokeny",
+    "usageUnavailable": "Aktuální údaje o využití nejsou k dispozici."
   }
 }

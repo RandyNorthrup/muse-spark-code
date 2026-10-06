@@ -2679,6 +2679,16 @@
       "few": "{count} żądania",
       "many": "{count} żądań",
       "other": "{count} żądania"
-    }
+    },
+    "usageLiability": "Zarezerwowano {reserved}; kwota niepewna {uncertain}.",
+    "usageReached": "Osiągnięto próg",
+    "usageReset": "Reset: {reset}.",
+    "usageResetUnknown": "Czas resetu jest nieznany.",
+    "usageSpread": "{provider} · {account}: przypisano pracownika {worker}.",
+    "usageStop": "{provider} · {account}: zatrzymano po osiągnięciu {threshold}.",
+    "usageThreshold": "Limit dla {metric} w okresie {period}: {threshold}",
+    "usageEvents": "Zdarzenia kont",
+    "usageRateTokens": "Tokeny",
+    "usageUnavailable": "Brak aktualnych danych o użyciu."
   }
 }

@@ -2489,6 +2489,16 @@
     "requestCount": {
       "one": "{count} istek",
       "other": "{count} istek"
-    }
+    },
+    "usageLiability": "Ayrılan tutar {reserved}; belirsiz tutar {uncertain}.",
+    "usageReached": "Eşiğe ulaşıldı",
+    "usageReset": "Sıfırlama: {reset}.",
+    "usageResetUnknown": "Sıfırlama zamanı bilinmiyor.",
+    "usageSpread": "{provider} · {account}: {worker} çalışanı atandı.",
+    "usageStop": "{provider} · {account}: {threshold} eşiğinde durduruldu.",
+    "usageThreshold": "{period} dönemi için {metric} sınırı: {threshold}",
+    "usageEvents": "Hesap olayları",
+    "usageRateTokens": "Token sayısı",
+    "usageUnavailable": "Güncel kullanım verisi yok."
   }
 }

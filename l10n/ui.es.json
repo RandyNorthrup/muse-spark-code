@@ -2584,6 +2584,16 @@
       "one": "{count} solicitud",
       "many": "{count} solicitudes",
       "other": "{count} solicitudes"
-    }
+    },
+    "usageLiability": "Reservado {reserved}; importe incierto {uncertain}.",
+    "usageReached": "Umbral alcanzado",
+    "usageReset": "Se restablece {reset}.",
+    "usageResetUnknown": "Se desconoce la hora de restablecimiento.",
+    "usageSpread": "{provider} · {account}: trabajador {worker} asignado.",
+    "usageStop": "{provider} · {account}: detenido al alcanzar {threshold}.",
+    "usageThreshold": "Límite de {metric} para {period}: {threshold}",
+    "usageEvents": "Eventos de cuentas",
+    "usageRateTokens": "Tokens de uso",
+    "usageUnavailable": "No hay datos de uso actuales."
   }
 }

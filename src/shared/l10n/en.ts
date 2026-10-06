@@ -3120,6 +3120,16 @@ export const EN = {
       one: '{count} request',
       other: '{count} requests',
     }),
+    usageLiability: 'Reserved {reserved}; uncertain {uncertain}.',
+    usageReached: 'Threshold reached',
+    usageReset: 'Resets {reset}.',
+    usageResetUnknown: 'Reset time is unknown.',
+    usageSpread: '{provider} · {account}: worker {worker} assigned.',
+    usageStop: '{provider} · {account}: stopped at {threshold}.',
+    usageThreshold: '{metric} limit for {period}: {threshold}',
+    usageEvents: 'Account events',
+    usageRateTokens: 'Tokens',
+    usageUnavailable: 'No current usage snapshot.',
   },
 }
 
