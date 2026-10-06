@@ -5,7 +5,7 @@ import { chromium } from 'playwright-core'
 import { findChrome } from '../../../scripts/lib/chrome.mjs'
 import { serveRepo } from '../../../scripts/lib/harnessServer.mjs'
 import { ARCHIVE_BUDGET, digest } from '../../../scripts/lib/visualImages.mjs'
-import { surfaceForScene } from '../../../scripts/lib/visualManifest.mjs'
+import { captureGroup, surfaceForScene } from '../../../scripts/lib/visualManifest.mjs'
 import { fixtureScenes, makeFixtures } from './fixtures.mjs'
 
 export const CAPTURE_CONTEXT = Object.freeze({
@@ -197,7 +197,7 @@ async function stateShot(page, cdp, state, target) {
 }
 
 /** Streaming comparison avoids retaining thousands of images in memory. */
-export async function captureMatrix(root, audit, matrix, onCapture) {
+export async function captureMatrix(root, audit, matrix, onCapture, groups) {
   const chrome = findChrome()
   if (chrome === undefined) throw new Error('Chrome is required for check:visual')
   const { server, port } = await serveRepo(root)
@@ -242,8 +242,16 @@ export async function captureMatrix(root, audit, matrix, onCapture) {
     for (const theme of matrix.themes)
       for (const width of matrix.widths)
         for (const scene of audit.scenes) {
+          if (groups !== undefined && !groups.has(captureGroup({ scene, theme, width }))) continue
           errors.length = 0
-          await openScene(page, root, port, scene, theme, width, matrix.height, fixtures)
+          try {
+            await openScene(page, root, port, scene, theme, width, matrix.height, fixtures)
+          } catch (error) {
+            throw new Error(
+              `Visual scene failed: ${scene}/${theme}/${width}/en: ${error.message}; page errors: ${errors.join('; ') || 'none'}`,
+              { cause: error },
+            )
+          }
           const rows = audit.components.filter((row) => row.scene === scene)
           const components = await page.evaluate(
             (rows) =>

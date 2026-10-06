@@ -59,6 +59,19 @@ size-bounded manifest, and supplies full Git history with an explicit fetch
 of the recorded revision if needed. Its required aggregate rejects a failed,
 cancelled or skipped visual job. PNGs regenerate on the Ubuntu runner with
 its installed Chrome/fonts; only the comparison receipt is uploaded.
+CI partitions the validated reviewed manifest into six deterministic shards,
+keeping all six states of each scene/theme/width together. Each shard rebuilds
+and compares only its assigned groups; it fails independently and can be
+rerun without replaying successful groups. For a local batch, run
+`npm run check:visual -- --shard=1/6` (indices 1 through 6). Receipts use
+`temp/m114-visual-result-<index>-of-6.json`. Put all six in one directory and
+run `npm run check:visual -- --merge-shards=<receipt-directory>`. The merge
+requires each index once, exact manifest/selection hashes and capture counts,
+one rendering environment and the combined 512 MiB baseline/candidate budgets.
+The required visual job rejects any failed, cancelled or skipped shard.
+Normal `check:visual` still compares the entire matrix in one process; updates
+always require the entire matrix and cannot use a shard.
+
 Both full capture sets stay size-bounded; temporary reconstructed sources and
 PNGs are cleaned after comparison. No golden download or silent skip exists.
 

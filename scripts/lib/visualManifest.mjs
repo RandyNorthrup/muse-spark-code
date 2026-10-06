@@ -1,7 +1,15 @@
 import { z } from 'zod'
-import { ARCHIVE_BUDGET, PIXEL_POLICY } from './visualImages.mjs'
+import { ARCHIVE_BUDGET, digest, PIXEL_POLICY } from './visualImages.mjs'
 
 const hash = z.string().regex(/^[\da-f]{64}$/)
+const policySchema = z
+  .object({
+    threshold: z.literal(PIXEL_POLICY.threshold),
+    includeAA: z.literal(PIXEL_POLICY.includeAA),
+    maxChangedPixelRatio: z.literal(PIXEL_POLICY.maxChangedPixelRatio),
+    maxChangedPixels: z.literal(PIXEL_POLICY.maxChangedPixels),
+  })
+  .strict()
 const captureSchema = z
   .object({
     surface: z.enum(['panel', 'tasks', 'whats-new']),
@@ -38,14 +46,7 @@ const manifestSchema = z
         network: z.literal('loopback-only'),
       })
       .strict(),
-    policy: z
-      .object({
-        threshold: z.literal(PIXEL_POLICY.threshold),
-        includeAA: z.literal(PIXEL_POLICY.includeAA),
-        maxChangedPixelRatio: z.literal(PIXEL_POLICY.maxChangedPixelRatio),
-        maxChangedPixels: z.literal(PIXEL_POLICY.maxChangedPixels),
-      })
-      .strict(),
+    policy: policySchema,
     captures: z.array(captureSchema),
   })
   .strict()
@@ -64,6 +65,94 @@ export function surfaceForScene(scene) {
 }
 export const captureKey = (capture) =>
   `${capture.surface ?? surfaceForScene(capture.scene)}/${capture.scene}/${capture.state}/${capture.theme}/${capture.width}`
+
+export const captureGroup = (capture) => `${capture.scene}/${capture.theme}/${capture.width}`
+
+/** Keep every state of a scene together; the reviewed manifest fixes the order. */
+export function selectVisualShard(manifest, shard) {
+  if (shard === undefined) return manifest.captures
+  const groups = [...new Set(manifest.captures.map((capture) => captureGroup(capture)))]
+  const { index, count } = z
+    .object({ index: z.number().int().positive(), count: z.number().int().positive() })
+    .strict()
+    .parse(shard)
+  if (index > count || count > groups.length) throw new Error('Invalid visual shard range')
+  const selected = new Set(
+    groups.slice(
+      Math.floor(((index - 1) * groups.length) / count),
+      Math.floor((index * groups.length) / count),
+    ),
+  )
+  return manifest.captures.filter((capture) => selected.has(captureGroup(capture)))
+}
+
+export const selectionDigest = (captures) =>
+  digest(
+    JSON.stringify(
+      captures.map((capture) => captureKey(capture)).toSorted((a, b) => a.localeCompare(b)),
+    ),
+  )
+
+export function mergeVisualResults(values, manifest, manifestSha256, candidateSha256) {
+  const receiptSchema = z
+    .object({
+      revision: z.literal(manifest.revision),
+      manifestSha256: z.literal(manifestSha256),
+      candidateSha256: z.literal(candidateSha256),
+      shard: z
+        .object({ index: z.number().int().positive(), count: z.number().int().positive() })
+        .strict(),
+      selectionSha256: hash,
+      checked: z.number().int().positive(),
+      changedPixels: z.number().int().nonnegative(),
+      maxImageChangedPixels: z.number().int().nonnegative().max(PIXEL_POLICY.maxChangedPixels),
+      baselineBytes: z.number().int().positive(),
+      candidateBytes: z.number().int().positive(),
+      regenerated: z.boolean(),
+      browser: z.string(),
+      rasterization: hash,
+      platform: z.string(),
+      policy: policySchema,
+    })
+    .strict()
+  const results = values.map((value) => receiptSchema.parse(value))
+  const count = results[0]?.shard.count
+  if (count === undefined || results.length !== count)
+    throw new Error('Missing visual shard receipts')
+  const seen = new Set()
+  const environment = results[0]
+  let checked = 0
+  let baselineBytes = 0
+  let candidateBytes = 0
+  let changedPixels = 0
+  let maxImageChangedPixels = 0
+  for (const result of results) {
+    if (result.shard.count !== count || seen.has(result.shard.index))
+      throw new Error('Duplicate or inconsistent visual shard')
+    const selected = selectVisualShard(manifest, result.shard)
+    if (result.checked !== selected.length || result.selectionSha256 !== selectionDigest(selected))
+      throw new Error('Incomplete visual shard coverage')
+    for (const key of ['browser', 'rasterization', 'platform', 'regenerated'])
+      if (result[key] !== environment[key]) throw new Error('Visual shard environment changed')
+    seen.add(result.shard.index)
+    checked += result.checked
+    baselineBytes += result.baselineBytes
+    candidateBytes += result.candidateBytes
+    changedPixels += result.changedPixels
+    maxImageChangedPixels = Math.max(maxImageChangedPixels, result.maxImageChangedPixels)
+  }
+  if (checked !== manifest.captures.length) throw new Error('Incomplete visual matrix coverage')
+  if (baselineBytes > ARCHIVE_BUDGET || candidateBytes > ARCHIVE_BUDGET)
+    throw new Error('Visual archive exceeds its 512 MiB budget')
+  return {
+    checked,
+    baselineBytes,
+    candidateBytes,
+    changedPixels,
+    maxImageChangedPixels,
+    shards: count,
+  }
+}
 
 export function validateManifest(value, audit, matrix) {
   const manifest = manifestSchema.parse(value)

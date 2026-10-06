@@ -29132,6 +29132,18 @@ record the four actual UI red drills and two consecutive complete passes;
 startup compaction remains assigned to P1/P2/lane 0 and integration. The
 historical failed receipts above remain evidence of the superseded policy.
 
+**M114 S continuation 3 scope (rig brief, 2026-10-06).** Diagnose the late
+mount timeout with exact scene/theme/width/language and page-error context;
+check frozen-clock startup, scenario readiness and resource cleanup before
+changing the S-owned capture driver. Keep the existing deadlines, complete
+matrix and reviewed pixel policy. If the complete source/candidate replay
+cannot fit the CI job, partition the validated manifest deterministically
+into independently failing shards and require every shard in both tiers.
+Collect two consecutive complete comparison receipts and repeat the four
+actual UI red drills on the final driver. Foreign harness scenario fixes
+remain named handoffs, unless the cause is in S's owned files. Full quality,
+hosted execution and startup compaction stay integration-owned.
+
 **M114 S continuation final boundary (2026-10-06).** The reviewed tolerance,
 four real UI red drills, missing theme capture and required CI binding are
 implemented. All 25 owning tests pass at default deadlines and scoped

@@ -2,7 +2,7 @@
 // source revision in temp/ and renders both revisions in the same environment.
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { pathToFileURL } from 'node:url'
@@ -15,11 +15,20 @@ import {
 import {
   comparePixels,
   decodePng,
+  digest,
   PIXEL_POLICY,
   verifyCapture,
   verifyCaptureBytes,
 } from './lib/visualImages.mjs'
-import { captureKey, ENVIRONMENT, validateManifest } from './lib/visualManifest.mjs'
+import {
+  captureGroup,
+  captureKey,
+  ENVIRONMENT,
+  mergeVisualResults,
+  selectionDigest,
+  selectVisualShard,
+  validateManifest,
+} from './lib/visualManifest.mjs'
 
 export const MANIFEST = 'test/harness/goldens/manifest.json'
 const AUDIT = 'docs/certification/m114-audit.json'
@@ -31,11 +40,31 @@ export function parseVisualArgs(args) {
     if (arg === '--update') options.update = true
     else if (arg.startsWith('--review=')) options.review = arg.slice('--review='.length).trim()
     else if (arg.startsWith('--archive=')) options.archive = arg.slice('--archive='.length)
+    else if (arg.startsWith('--shard=')) {
+      const match = /^([1-9]\d*)\/([1-9]\d*)$/.exec(arg.slice('--shard='.length))
+      if (match === null) throw new Error('Use --shard=<index>/<count>')
+      const index = Number(match[1])
+      const count = Number(match[2])
+      if (!Number.isSafeInteger(index) || !Number.isSafeInteger(count) || index > count)
+        throw new Error('Invalid visual shard range')
+      options.shard = { index, count }
+    } else if (arg.startsWith('--merge-shards='))
+      options.merge = arg.slice('--merge-shards='.length)
     else throw new Error(`Unknown visual argument: ${arg}`)
   }
   if (options.update && !options.review)
     throw new Error('Visual updates require --review=<review reference>')
   if (!options.update && options.review !== undefined) throw new Error('--review requires --update')
+  if (options.update && options.shard !== undefined)
+    throw new Error('Visual updates require the full matrix')
+  if (
+    options.merge !== undefined &&
+    (options.update ||
+      options.shard !== undefined ||
+      options.archive !== undefined ||
+      !options.merge)
+  )
+    throw new Error('--merge-shards only accepts a receipt directory')
   return options
 }
 
@@ -87,6 +116,42 @@ async function main() {
   const audit = await json(root, AUDIT)
   const matrix = await json(root, MATRIX)
   await mkdir(path.join(root, 'temp'), { recursive: true })
+  const candidateSha256 = digest(
+    (await run('git', ['rev-parse', 'HEAD'], root)) +
+      (await run(
+        'git',
+        [
+          'diff',
+          'HEAD',
+          '--',
+          'src',
+          'design',
+          'test/harness',
+          'scripts/build.mjs',
+          'CHANGELOG.md',
+        ],
+        root,
+      )),
+  )
+  if (options.merge !== undefined) {
+    const manifestBytes = await readFile(path.join(root, MANIFEST))
+    const manifest = validateManifest(JSON.parse(manifestBytes.toString()), audit, matrix)
+    const files = await readdir(options.merge)
+    const values = await Promise.all(
+      files
+        .filter((file) => file.endsWith('.json'))
+        .map(async (file) => JSON.parse(await readFile(path.join(options.merge, file), 'utf8'))),
+    )
+    const result = mergeVisualResults(values, manifest, digest(manifestBytes), candidateSha256)
+    await writeFile(
+      path.join(root, 'temp/m114-visual-result.json'),
+      JSON.stringify(result, null, 2) + '\n',
+    )
+    console.log(
+      `visual: all ${result.shards} shards passed, ${result.checked} captures; both archives within 512 MiB`,
+    )
+    return
+  }
   await build(root)
   if (options.update) {
     if (!options.archive)
@@ -136,18 +201,21 @@ async function main() {
     )
     return
   }
-  const manifest = validateManifest(await json(root, MANIFEST), audit, matrix)
+  const manifestBytes = await readFile(path.join(root, MANIFEST))
+  const manifest = validateManifest(JSON.parse(manifestBytes.toString()), audit, matrix)
+  const selected = selectVisualShard(manifest, options.shard)
+  const groups = new Set(selected.map((capture) => captureGroup(capture)))
   let archive = path.resolve(options.archive ?? manifest.archive)
   let regenerated
   let sourceRoot
-  const expected = new Map(manifest.captures.map((capture) => [captureKey(capture), capture]))
+  const expected = new Map(selected.map((capture) => [captureKey(capture), capture]))
   let checked = 0
   let changedPixels = 0
   let maxImageChangedPixels = 0
   try {
     // A stored archive is verified before any use, including on another OS.
     if (existsSync(archive))
-      for (const capture of manifest.captures)
+      for (const capture of selected)
         verifyCaptureBytes(
           await readFile(path.join(archive, capture.file.replaceAll('\\', '/'))),
           capture,
@@ -182,8 +250,12 @@ async function main() {
         throw new Error(`Requested visual archive is missing: ${archive}`)
       sourceRoot = await snapshot(root, manifest.revision)
       regenerated = await mkdtemp(path.join(root, 'temp/m114-visual-baseline-'))
-      const result = await captureMatrix(sourceRoot, audit, matrix, (capture, bytes) =>
-        saveCapture(regenerated, capture, bytes),
+      const result = await captureMatrix(
+        sourceRoot,
+        audit,
+        matrix,
+        (capture, bytes) => saveCapture(regenerated, capture, bytes),
+        groups,
       )
       archive = regenerated
       expected.clear()
@@ -192,38 +264,58 @@ async function main() {
         `visual: regenerated baseline from ${manifest.revision} in ${version}/${process.platform}`,
       )
     }
-    await captureMatrix(root, audit, matrix, async (capture, bytes) => {
-      const baseline = expected.get(captureKey(capture))
-      if (!baseline || baseline.applied !== capture.applied || baseline.target !== capture.target)
-        throw new Error(`Visual state coverage changed: ${captureKey(capture)}`)
-      const before = verifyCapture(
-        await readFile(path.join(archive, baseline.file.replaceAll('\\', '/'))),
-        baseline,
-      )
-      try {
-        const changed = comparePixels(
-          before,
-          decodePng(bytes, capture.width, capture.height),
-          capture.width,
-          capture.height,
+    const candidate = await captureMatrix(
+      root,
+      audit,
+      matrix,
+      async (capture, bytes) => {
+        const baseline = expected.get(captureKey(capture))
+        if (!baseline || baseline.applied !== capture.applied || baseline.target !== capture.target)
+          throw new Error(`Visual state coverage changed: ${captureKey(capture)}`)
+        const before = verifyCapture(
+          await readFile(path.join(archive, baseline.file.replaceAll('\\', '/'))),
+          baseline,
         )
-        changedPixels += changed
-        maxImageChangedPixels = Math.max(maxImageChangedPixels, changed)
-      } catch (error) {
-        await saveCapture(path.join(root, 'temp/m114-visual-failures'), capture, bytes)
-        throw new Error(`${captureKey(capture)}: ${error.message}`, { cause: error })
-      }
-      checked += 1
-    })
+        try {
+          const changed = comparePixels(
+            before,
+            decodePng(bytes, capture.width, capture.height),
+            capture.width,
+            capture.height,
+          )
+          changedPixels += changed
+          maxImageChangedPixels = Math.max(maxImageChangedPixels, changed)
+        } catch (error) {
+          await saveCapture(path.join(root, 'temp/m114-visual-failures'), capture, bytes)
+          throw new Error(`${captureKey(capture)}: ${error.message}`, { cause: error })
+        }
+        checked += 1
+      },
+      groups,
+    )
+    if (checked !== selected.length) throw new Error('Incomplete visual shard coverage')
+    const resultFile =
+      options.shard === undefined
+        ? 'm114-visual-result.json'
+        : `m114-visual-result-${options.shard.index}-of-${options.shard.count}.json`
     await writeFile(
-      path.join(root, 'temp/m114-visual-result.json'),
+      path.join(root, 'temp', resultFile),
       JSON.stringify(
         {
           revision: manifest.revision,
+          manifestSha256: digest(manifestBytes),
+          candidateSha256,
+          ...(options.shard !== undefined && { shard: options.shard }),
+          selectionSha256: selectionDigest(selected),
           checked,
           changedPixels,
           maxImageChangedPixels,
           regenerated: regenerated !== undefined,
+          baselineBytes: expected.values().reduce((sum, capture) => sum + capture.bytes, 0),
+          candidateBytes: candidate.totalBytes,
+          browser: candidate.browser,
+          rasterization: candidate.rasterization,
+          platform: candidate.platform,
           policy: PIXEL_POLICY,
         },
         null,

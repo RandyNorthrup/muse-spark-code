@@ -40,6 +40,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Batch visual comparisons into six deterministic, independently failing
+  CI shards. Require every receipt, matching coverage and rendering environment,
+  and the combined 512 MiB budgets before the visual gate passes.
 - Follow imported generated stylesheets in the host-API theme inventory,
   restoring its complete theme-variable record after panel token migration.
 

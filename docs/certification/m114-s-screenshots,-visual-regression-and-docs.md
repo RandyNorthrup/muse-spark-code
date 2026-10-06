@@ -545,3 +545,37 @@ binding are completed; visual certification is **not completed**. The CI job
 will correctly block on a failed capture. Hosted execution, aggregate quality
 and the unchanged **12,741-byte startup-growth** compaction remain integration
 handoffs. No full quality run, workflow dispatch, push or live/paid call occurs.
+
+## Continuation 3: deterministic CI batches
+
+Read the latest certification, rig brief, complete shared rules, AGENTS,
+D94/M114 and the token contract before editing. The rig brief supersedes
+the shared brief's obsolete merge step; no branch is merged. The current
+candidate and all historical failed receipts are retained unchanged.
+
+The comparison now supports `--shard=<index>/<count>`, selecting contiguous
+scene/theme/width groups from the validated reviewed manifest and retaining
+every state in each group. Six shards contain **804 captures each**, exactly
+**4,824 unique keys**, with no skipped component or state. An update cannot
+use a shard. Each shard independently verifies archived hashes, replays the
+recorded source when needed and fails its own pixel/coverage checks. Receipts
+bind the manifest, selected keys, candidate Git revision/diff, browser,
+platform and font fingerprint. `--merge-shards=<directory>` requires every
+index once, exact counts/hashes and one candidate/environment, and checks
+the combined baseline and candidate sizes against **512 MiB each**.
+
+Both CI tiers use six source-reconstructing jobs and the required visual
+merge. A failed, cancelled or skipped shard fails that merge; the existing
+required aggregate still rejects a failed visual job. The 45-minute shard
+deadline and pixel policy remain unchanged. This bounds reconstruction work
+per job and permits rerunning one failed batch without restarting every
+successful batch. Hosted execution remains the lead's verification.
+
+Five new owning-suite red drills deliberately omit a state, accept a missing
+receipt, relax the combined budget, remove candidate binding and omit a CI
+shard. Each exits 1 in the complete owning suite at default Vitest deadlines;
+each source is restored SHA-256-exact. The durable receipt is
+[c3-shard-drills.json](m114-s-after/c3-shard-drills.json).
+
+The page-mount diagnostic, consecutive complete comparisons and four final
+UI drills follow below; this intermediate piece does not claim certification.

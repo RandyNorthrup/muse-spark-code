@@ -13,7 +13,15 @@ import {
   verifyCapture,
   verifyCaptureBytes,
 } from '../../scripts/lib/visualImages.mjs'
-import { ENVIRONMENT, validateManifest } from '../../scripts/lib/visualManifest.mjs'
+import {
+  captureGroup,
+  captureKey,
+  ENVIRONMENT,
+  mergeVisualResults,
+  selectionDigest,
+  selectVisualShard,
+  validateManifest,
+} from '../../scripts/lib/visualManifest.mjs'
 
 function chunk(kind, bytes) {
   const buffer = Buffer.alloc(bytes.length + 12)
@@ -200,6 +208,117 @@ describe('M114 bounded pixelmatch visual gate', () => {
     expect(() => validateManifest(state, audit, matrix)).toThrow('Unapplied')
   })
 
+  it('partitions the reviewed matrix exactly once without splitting scene states', () => {
+    const value = manifest()
+    const partitions = [1, 2, 3].map((index) => selectVisualShard(value, { index, count: 3 }))
+    expect(
+      partitions
+        .flat()
+        .map((capture) => captureKey(capture))
+        .toSorted((a, b) => a.localeCompare(b)),
+    ).toEqual(
+      value.captures.map((capture) => captureKey(capture)).toSorted((a, b) => a.localeCompare(b)),
+    )
+    for (const partition of partitions) {
+      const groups = new Set(partition.map((capture) => captureGroup(capture)))
+      for (const group of groups)
+        expect(partition.filter((capture) => captureGroup(capture) === group)).toHaveLength(2)
+    }
+    expect(() => selectVisualShard(value, { index: 4, count: 3 })).toThrow('range')
+    expect(() => selectVisualShard(value, { index: 1, count: 5 })).toThrow('range')
+    expect(parseVisualArgs(['--shard=2/3']).shard).toEqual({ index: 2, count: 3 })
+    for (const arg of ['--shard=0/3', '--shard=4/3', '--shard=1/0', '--shard=1.5/3'])
+      expect(() => parseVisualArgs([arg])).toThrow()
+    expect(() => parseVisualArgs(['--update', '--review=named', '--shard=1/3'])).toThrow(
+      'full matrix',
+    )
+    expect(() => parseVisualArgs(['--merge-shards=temp', '--shard=1/3'])).toThrow(
+      'receipt directory',
+    )
+    const reviewed = JSON.parse(readFileSync('test/harness/goldens/manifest.json', 'utf8'))
+    const complete = [1, 2, 3, 4, 5, 6].flatMap((index) => {
+      const partition = selectVisualShard(reviewed, { index, count: 6 })
+      expect(partition).toHaveLength(804)
+      return partition.map((capture) => captureKey(capture))
+    })
+    expect(new Set(complete).size).toBe(4824)
+    expect(complete.toSorted((a, b) => a.localeCompare(b))).toEqual(
+      reviewed.captures
+        .map((capture) => captureKey(capture))
+        .toSorted((a, b) => a.localeCompare(b)),
+    )
+  })
+
+  it('requires every shard, exact coverage and environment, and the combined archive budget', () => {
+    const value = manifest()
+    const manifestHash = 'd'.repeat(64)
+    const receipts = [1, 2, 3].map((index) => {
+      const selected = selectVisualShard(value, { index, count: 3 })
+      return {
+        revision: value.revision,
+        manifestSha256: manifestHash,
+        candidateSha256: manifestHash,
+        shard: { index, count: 3 },
+        selectionSha256: selectionDigest(selected),
+        checked: selected.length,
+        changedPixels: 0,
+        maxImageChangedPixels: 0,
+        baselineBytes: 100,
+        candidateBytes: 100,
+        regenerated: true,
+        browser: value.browser,
+        rasterization: value.rasterization,
+        platform: value.platform,
+        policy: value.policy,
+      }
+    })
+    expect(mergeVisualResults(receipts, value, manifestHash, manifestHash)).toMatchObject({
+      checked: 8,
+      shards: 3,
+    })
+    expect(() =>
+      mergeVisualResults(receipts.slice(0, 2), value, manifestHash, manifestHash),
+    ).toThrow('Missing')
+    expect(() =>
+      mergeVisualResults(
+        [receipts[0], receipts[0], receipts[2]],
+        value,
+        manifestHash,
+        manifestHash,
+      ),
+    ).toThrow('Duplicate')
+    for (const mutate of [
+      (receipt) => {
+        receipt.checked -= 1
+      },
+      (receipt) => {
+        receipt.selectionSha256 = 'e'.repeat(64)
+      },
+      (receipt) => {
+        receipt.manifestSha256 = 'e'.repeat(64)
+      },
+      (receipt) => {
+        receipt.candidateSha256 = 'e'.repeat(64)
+      },
+      (receipt) => {
+        receipt.browser = 'different'
+      },
+      (receipt) => {
+        receipt.policy.maxChangedPixels += 1
+      },
+      (receipt) => {
+        receipt.baselineBytes = 512 * 1024 * 1024
+      },
+      (receipt) => {
+        receipt.candidateBytes = 512 * 1024 * 1024
+      },
+    ]) {
+      const changed = globalThis.structuredClone(receipts)
+      mutate(changed[0])
+      expect(() => mergeVisualResults(changed, value, manifestHash, manifestHash)).toThrow()
+    }
+  })
+
   it('rejects traversal, wrong dimensions, malformed metadata, relaxed pixel policy and oversized archives', () => {
     for (const mutate of [
       (value) => {
@@ -250,13 +369,18 @@ describe('M114 bounded pixelmatch visual gate', () => {
   })
   it('requires visual source replay and tokens in both CI tiers and the required aggregate', () => {
     const workflow = readFileSync('.github/workflows/build.yml', 'utf8')
-    const visual = workflow.slice(workflow.indexOf('  visual:'), workflow.indexOf('  unit:'))
+    const visual = workflow.slice(workflow.indexOf('  visual-shards:'), workflow.indexOf('  unit:'))
     expect(visual).toContain('fetch-depth: 0')
     expect(visual).toContain('persist-credentials: false')
     expect(visual).toContain('validateManifest(')
     expect(visual).toContain('git fetch --no-tags origin "$revision"')
     expect(visual).toContain('git cat-file -e "$revision^{commit}"')
     expect(visual).toContain('run: npm run check:visual')
+    expect(visual).toContain('shard: [1, 2, 3, 4, 5, 6]')
+    expect(visual).toContain('--shard=${{ matrix.shard }}/6')
+    expect(visual).toContain('needs: visual-shards')
+    expect(visual).toContain('test "$SHARDS" = success')
+    expect(visual).toContain('--merge-shards=temp/visual-shards')
     expect(visual).not.toContain('inputs.fast')
     expect(workflow).toContain('check:badges check:tokens check:l10n')
     const required = workflow.slice(
