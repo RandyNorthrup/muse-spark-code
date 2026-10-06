@@ -19346,6 +19346,17 @@ are recorded in `docs/certification/m104-d.md`. No live model calls.
 parts. All of them build against the MHP v1 contract frozen at the end of
 lane A's first step.
 
+**H review repair (FIXM104H, 2026-10-05):** repair launch ownership across
+Qt async lookup, isolate Stop failures, preserve failed termination handles,
+report browser failures without private output, support explicit Node/ACP
+argv prefixes, remove Neovim launch URLs from command history, isolate
+Sublime unload failures, draft the Zed upstream request, and format both
+Sublime configuration files. Each repair gets a failing regression and
+byte-exact red drill in `docs/certification/m104-h.md`. H retains ownership
+of the unfinished MHP shim adapters, LSP broker/server and Zed completion
+endpoint; they require a separate M104e implementation after B/C composition
+and are not transferred or accepted as complete by these launcher repairs.
+
 | Milestone | Delivers                                                                                                                                  | Depends on                                   |
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
 | M104a     | MHP v1; the VS Code adapter refactor; the runtime `panel` mode; UI bridges, tokens and fallbacks; the companion server; the registry gate | M95, M96c, M98 merged (or rebased onto them) |
@@ -21071,6 +21082,43 @@ before a repaired one loads (2026-09-30).
   renderer/bootstrap and integrated feature conformance. This is a contract
   gate, not an exception to the all-editor parity requirement or a supported
   product claim.
+
+- **RVM104H-EDITOR-SERVICES (P2, 2026-10-05):** the five H shims launch
+  panels/ACP but do not implement MHP selection, versioned dirty-buffer
+  edits, diagnostics or completion services, the runtime LSP broker/server,
+  or Zed's completion endpoint. Implementing the negotiated bidirectional
+  transport and native adapters is a redesign beyond the bounded repair
+  lane. H retains this work under M104e, dependent on B/C composition; J/I
+  must keep all corresponding matrix rows unqualified. Safe only as an
+  unqualified prototype: no dirty-buffer safety or full parity is claimed,
+  and the composed runtime must refuse unsafe disk fallback before release.
+  Follow-up: implement the adapters/broker and run the dirty-buffer,
+  selection, diagnostics, completion and same-session conformance scenarios
+  in all five editors before promotion.
+
+- **RVM104H-STOP-TREE (P2 acceptance residual, 2026-10-05):** the repaired
+  Stop paths use native process control outside the runtime request queue
+  and isolate cancellation failures. Qt's native Process stops the root
+  with TERM then KILL after 500 ms; Neovim and Sublime currently send TERM,
+  Emacs deletes its process, and Zed delegates to terminal cancellation.
+  These do not establish bounded process-tree cleanup for every shim/OS,
+  including TERM-ignoring runtimes, descendants and independently owned ACP
+  clients. Reliable cross-platform tree ownership needs runtime/native
+  process-group/job supervision and editor integration, beyond isolated
+  launcher repairs. Safe only while these are unqualified prototypes (this
+  baseline rejects `panel --companion`); it is a release blocker, not an
+  accepted process leak. H/B/I follow up with supervised process ownership
+  and real busy/hung-root-and-grandchild Stop drills in all five editors
+  and OSes before B/C composition is promoted.
+
+- **RVM104H-ZED-TASK-QUOTING (unconfirmed P2, 2026-10-05):** direct ACP
+  and bootstrap argv execution is tested, but Zed's native task shell
+  construction has not been exercised with spaces/metacharacters in paths.
+  The generated task remains unqualified; no shell-safety claim is made
+  from dictionary tests. H/I must capture the supported Zed task runner,
+  test literal paths in its native terminal, and fix quoting if needed
+  before promotion. Safe for now only as documented manual prototype setup;
+  do not use untrusted task paths.
 
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through
