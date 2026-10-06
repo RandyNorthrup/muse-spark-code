@@ -25406,6 +25406,21 @@ regressions and byte-exact red drills for every guard in J's certification.
 No dependency, guard widening, merge, full quality or paid/live call. M102
 journal/route binding and W's reference/delivery/full gates remain integration
 handoffs; the absent feature catalog is not replaced in this lane.
+**FIXM107C2 review repair (2026-10-06, Kubuntu).** Repair RVM107C2's
+one P2 in the team slot adapter: after local acquisition waits, use the
+same live capacity helper as the picker before returning runnable work.
+Exclude only the newly acquired local reservation from that check. If
+capacity has fallen, release both unstarted reservations and return to
+the governor queue with the original kind, priority and parent; never hold
+a scheduler slot while waiting again. Preserve child preflight,
+cancellation and retirement rules. Add pause and throttle transitions
+during local acquisition, prove the regressions red before the fix, then
+break the final guard and restore it byte-exact. Record scoped gates in
+`docs/certification/m107-c2-the-team-and-runners.md`; the rig brief leaves
+aggregate quality and the existing M96/M96c production joins with the lead.
+The correction is now proved by 29/29 owning tests, 100% scoped coverage,
+two red/restored guard drills and all required scoped delivery checks.
+The sole reviewed P2 is closed; §9 names the remaining dependency binding.
 
 **M107INT round 3 (2026-10-06, Win11).** Join T2, U and H with the three
 listed no-fast-forward merges. Resolve shared records additively, preserve
@@ -30544,6 +30559,19 @@ before a repaired one loads (2026-09-30).
   including large-history paging and keyboard/axe checks, on a working rig
   before the M102 page join ships. No harness gate or production policy is
   weakened to work around the browser installation.
+- **M107-C2-live-capacity-binding (FIXM107C2, 2026-10-06).** RVM107C2's
+  sole P2 is fixed in the portable adapter, with pause/throttle regressions
+  and byte-exact guard drills. No reviewed finding is accepted as a residual.
+  M96/M96c and the C1/T reserved-permit registry attachment remain absent on
+  this base. Safe for now: C2 is outside every shipped bundle, and rejected
+  unstarted local/governor reservations are withdrawn before requeue; running
+  work is never released by a capacity change. Follow-up: M96c/W must supply
+  the new required `TeamCapacityPort` using the queue's same live governor
+  and registry, existing configured caps, and scheduler occupancy including
+  the newly acquired reservation; bind the exact final permit to C1/T, then
+  certify joined fairness/child rules, runner dispatch, responsiveness,
+  bundle sizes and all editors. The rig forbids aggregate quality here;
+  the lead runs it before integration. See `m107-c2-the-team-and-runners.md`.
 
 - **M107 round-3 delivery qualification (2026-10-06).** T2/U/H are joined
   into C1/G/A/S. Every repository-owned governed payload stop uses its registered

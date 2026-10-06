@@ -22,6 +22,9 @@ happened, not what was planned; superseded entries are kept.
   segments and 1,000 events, with charts and tables paged in groups of 60.
   Work and event totals still include every retained journal record.
 
+- The staged team/check slot adapter rechecks live governor capacity after
+  local slot waiting. Work remains queued at pause or when throttle is full,
+  releasing unstarted reservations before waiting again.
 - Governed shell, MCP, browser, Git, voice and plugin cleanup uses registered
   member stops, including descendants after root exit. Refused stops retain
   unknown occupancy and never fall back to a bare process or job kill.
