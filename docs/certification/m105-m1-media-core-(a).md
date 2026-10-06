@@ -4,7 +4,7 @@
 
 The follow-up rig brief and shared rules were read in full. No merge is
 authorized by the rig override; work stays on `m105/m1`. Full quality remains
-the lead's integrated-tree gate. All review findings are being fixed, with
+the lead's integrated-tree gate. All three review findings are fixed, with
 no dependency, paid call, install or gate change.
 
 **P2-2: actual ISO-BMFF tracks.** `vide` decides video; a movie with only
@@ -83,7 +83,128 @@ the overflowing child. Its fixture now exits naturally before the deadline;
 removing the streaming cap then fails the kill assertion. The rerun and deadline
 drill both fired, with full test files, default timeouts and byte-exact restoration.
 
-## Original implementation record
+## P2-1 correction: limits during encoding
+
+The default runner now starts a file-change watcher and a 25 ms watchdog with
+the child. It stops on a non-file output or output size above the configured
+cap (200 MiB by default, at most 1 GiB). ffmpeg additionally receives
+`-max_alloc`; this native control supplements the RSS watchdog. Output
+overflow stops and refuses conversion instead of requesting a shortened clip.
+Both converter kinds have running-output overflow regressions.
+RSS is sampled immediately and throughout the run against a named 512 MiB
+cap. Invalid, failed or stalled samples stop the child; a sample has a 100 ms
+deadline. Stop, output/memory refusal and the encoding deadline all wait for
+close before deleting the private directory. Watchers and timers are disposed.
+The final bytes/duration/format admission remains in place.
+
+**Named handoff: M105-M1-resource-monitor-binding (M107/W/E1/E2).** M107's
+process-ticket implementation is absent on this base. The core defaults to
+Linux's `/proc/<pid>/status` RSS sampler, checking the live host's sampler
+before admission. Other platforms require the injected native `readRssBytes`
+port and refuse encoding without it. Bind the process governor/ticket when
+available in the integrated tree, and supply equivalent monitoring in the
+extension, runtime and native editor surfaces. An alternate `run` port must
+enforce the supplied output/RSS/deadline contract and wait for close; no
+production unbounded runner is supplied. This is an integration requirement;
+no P2 review finding is left open.
+
+Regressions: “kills ffmpeg while output grows past its byte cap”, “kills
+avconvert while output grows past its byte cap”, “kills encoding on excessive,
+invalid, failed or stalled RSS samples”, “refuses encoding when the platform
+has no RSS monitor binding”, and “refuses invalid output byte caps before
+launch”. The old final-cancellation fixture now aborts on its second limit
+read, since output-cap admission correctly reads the limit before launch.
+
+Linux sampling also distinguishes an explicitly exited/zombie child from a
+live process without RSS; the former consumes no resident memory, while the
+latter refuses before launch. That race and unreadable-live-RSS refusal have
+one dedicated regression. The final resource suite and attachments pass
+**45/45** assertions; together with the sniff/admission suites this is **80**
+distinct assertions, all under the repository's default timeout.
+
+All ten resource drills exited 1 at the named assertions, with the entire
+converter test file, default timeouts and byte-exact restoration to SHA-256
+`724543b67f26a3c1aceeecbed111344e4ac524d0205ef701625d35b1e91f351e`.
+There are **20 follow-up red drills** in total (3 kind, 7 trust/version,
+10 encoding resource guards), with no remaining review finding.
+
+| Deliberate resource break   | Named failing regression                                                                                |
+| --------------------------- | ------------------------------------------------------------------------------------------------------- |
+| growing output cap          | kills ffmpeg while output grows past its byte cap; kills avconvert while output grows past its byte cap |
+| RSS byte maximum            | kills encoding on excessive, invalid, failed or stalled RSS samples                                     |
+| RSS integer validation      | kills encoding on excessive, invalid, failed or stalled RSS samples                                     |
+| negative RSS refusal        | kills encoding on excessive, invalid, failed or stalled RSS samples                                     |
+| RSS sample deadline         | kills encoding on excessive, invalid, failed or stalled RSS samples                                     |
+| required native monitor     | refuses encoding when the platform has no RSS monitor binding                                           |
+| ffmpeg allocation argument  | uses an argument array, private directory/file, and verifies mp4 metadata before success                |
+| output cap admission        | refuses invalid output byte caps before launch                                                          |
+| exited-child RSS exception  | allows a Linux child exiting between RSS sampling and close without accepting unreadable live RSS       |
+| unreadable live RSS refusal | allows a Linux child exiting between RSS sampling and close without accepting unreadable live RSS       |
+
+The duplication gate caught 8 repeated lifecycle lines between the probe and
+encoder. Both now share their Stop/error/deadline observer; neither limit nor
+failure check was removed. `npx jscpd` reports zero clones. Two additional
+shared-lifecycle drills removed the deadline and in-flight abort wiring: both
+exited 1 at “waits for process close after timeout/Stop and suppresses process
+output”, and the deadline break also failed the version-probe kill regression.
+Both restored the same converter SHA above. **22 follow-up drill executions**
+are recorded (20 finding controls and these two lifecycle controls).
+
+## Follow-up final verification
+
+The rig's `/tmp` hit its per-user quota during repeated drills. Vitest's
+cache debug trace showed native write errno 122 (`EDQUOT`), then missing SSR
+cache files during suite collection. No source guard or timeout was changed to
+work around it. Final tests and the last resource drills use
+`TMPDIR=/home/randy/lanes/M105M1/temp` (the ignored lane scratch directory).
+The same conversion/attachment batch then passed 45/45. A scoped filesystem
+spy remains limited to the kernel-state test; a broad builtin mock was removed
+while investigating the failure. The quota, rather than that mock, was the
+confirmed collection blocker. No shared temp files or machine settings were
+changed, and no tool was installed. One kernel-state fixture then exposed its
+mix of two fake reads with later real kernel samples during child transitions;
+it now supplies a consistent fake kernel state for all child samples. The
+real Linux sampler remains exercised by the ordinary process-completion cases,
+and the production limit/deadline stayed unchanged. The adjusted state test
+and both state guard drills passed/fired under the repository's timeout.
+
+Final commands (Kubuntu; compiler/linter/build/Vitest ran one at a time):
+
+- `TMPDIR=/home/randy/lanes/M105M1/temp npx vitest run test/unit/mediaSniff.test.ts test/unit/mediaSniffMalformed.test.ts test/unit/mediaLimits.test.ts --maxWorkers=3`: **35/35 passed**.
+- `TMPDIR=/home/randy/lanes/M105M1/temp npx vitest run test/unit/mediaConvert.test.ts test/unit/attachments.test.ts --maxWorkers=3`: **45/45 passed**; the final converter suite runs after the state-fixture adjustment and guard restoration.
+- `npm run typecheck`: all five projects passed on final production source;
+  `npm run typecheck:unit` also passed after the last test-fixture change.
+- Changed-file ESLint (`--max-warnings=0`), Prettier and `git diff --check`:
+  passed. No lint exemption or escape hatch was added.
+- `npm run deadcode`: passed (only the two existing hints).
+- `npx jscpd`: passed, zero clones; its initial duplicate failure was fixed
+  by sharing the converter lifecycle observer.
+- `npm run check:l10n`: 14 tables, 164 manifest strings, 600 source files,
+  **0 problems**. No text key, command, setting or dependency changed.
+- `npm run check:host-api`: exit 1, the existing W-owned generated record is
+  stale. The current Node importer counts are buffer 44, child_process 14,
+  crypto 48, fs 34, fs/promises 48, os 10, path 85. It still finds 332 VS Code
+  APIs, 31 vscode importers and 61 theme variables; media core imports none.
+- `npm run build`: production compilation passed; exit 1 at the existing
+  deferred-browser **51.1/50 KiB** cap. Other measured artifacts: extension
+  **442.7/600 KiB**, conversation **201.7/250 KiB**, Model API
+  **450.0/475 KiB**, ACP **822.8/850 KiB**, browser startup
+  **899.2/900 KiB**. A static Windows install string avoids an unnecessary
+  startup evaluation of `String.raw`. No budget was raised.
+- `node scripts/check-bundle-split.mjs`: exit 1 at predecessor lane F's
+  `files.ts` missing classification, unchanged and W-owned.
+- `node scripts/check-host-globals.mjs`: passed for every shipped Node bundle.
+- `node scripts/third-party-notices.mjs`: passed, 83 bundled packages.
+
+Full quality, cross-platform, live media/model and shipped editor bindings
+remain the lead's integration work, as required by the rig brief. No review
+finding is residual. The two named trust/resource bindings refuse safely while
+absent; the existing integration gates keep rejecting release. W retains the
+README, CHANGELOG and reference updates for the shipped media bindings. Its
+Unreleased security note should name trusted versioned conversion, running
+output/RSS limits and actual audio-only MP4 classification.
+
+## Original implementation record (before RVM105M1)
 
 Kubuntu, 2026-10-06. Branch `m105/m1`, base `10ff139c7` (lane 0 and F,
 including F's review fixes). Read the rig brief, shared rules, AGENTS.md,

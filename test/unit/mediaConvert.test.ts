@@ -2,7 +2,7 @@ import { Buffer } from 'node:buffer'
 import { spawn } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import type * as ChildProcess from 'node:child_process'
-import { chmod, lstat, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import fs, { chmod, lstat, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeAll, afterAll, describe, expect, it, vi } from 'vitest'
@@ -16,6 +16,8 @@ import {
   HOOK_FORBIDDEN_ENV_NAMES,
   MEDIA_CONVERTER_PROBE_MAX_BYTES,
   MEDIA_CONVERTER_PROBE_TIMEOUT_MS,
+  MEDIA_CONVERSION_DEFAULT_OUTPUT_BYTES,
+  MEDIA_CONVERSION_MAX_RSS_BYTES,
   SHELL_MAX_TIMEOUT_MS,
   UI_TEXT,
 } from '../../src/shared/constants'
@@ -72,6 +74,7 @@ function convertToMp4(
     trustedPath: { verify: () => Promise.resolve('ok') },
     probeVersion: () =>
       Promise.resolve(converter.kind === 'ffmpeg' ? FFMPEG_BANNER : 'avconvert version 1.0.0'),
+    ...(process.platform !== 'linux' && { readRssBytes: () => Promise.resolve(0) }),
     ...(process.platform === 'win32' && {
       createPrivateDirectory: () => mkdtemp(path.join(tmpdir(), 'm105-private-fake-')),
     }),
@@ -102,7 +105,7 @@ describe('M105 converter discovery', () => {
       ['-version'],
       expect.objectContaining({ timeoutMs: MEDIA_CONVERTER_PROBE_TIMEOUT_MS }),
     )
-    const windows = String.raw`C:\Program Files\ffmpeg\bin\ffmpeg.exe`
+    const windows = 'C:/Program Files/ffmpeg/bin/ffmpeg.exe'
     expect(
       await locateMediaConverter({
         platform: 'win32',
@@ -168,16 +171,16 @@ describe('M105 converter discovery', () => {
 
   it('kills a timed-out or overflowing version probe and waits for close', async () => {
     const actual = await vi.importActual<typeof ChildProcess>('node:child_process')
-    for (const mode of ['deadline', 'overflow', 'known']) {
+    for (const mode of ['deadline', 'overflow', 'known'] as const) {
       let child: ReturnType<typeof spawn> | undefined
       vi.mocked(spawn).mockImplementation((_command, _args, options) => {
         expect(options).toMatchObject({ stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true })
-        const script =
-          mode === 'known'
-            ? `process.stdout.write(${JSON.stringify(FFMPEG_BANNER)})`
-            : mode === 'overflow'
-              ? `process.stdout.write('x'.repeat(${String(MEDIA_CONVERTER_PROBE_MAX_BYTES + 1)})); setTimeout(() => {}, 300)`
-              : 'setTimeout(() => {}, 3500)'
+        const scripts = {
+          known: `process.stdout.write(${JSON.stringify(FFMPEG_BANNER)})`,
+          overflow: `process.stdout.write('x'.repeat(${String(MEDIA_CONVERTER_PROBE_MAX_BYTES + 1)})); setTimeout(() => {}, 300)`,
+          deadline: 'setTimeout(() => {}, 3500)',
+        }
+        const script = scripts[mode]
         child = actual.spawn(process.execPath, ['-e', script], options)
         return child
       })
@@ -219,6 +222,7 @@ describe('M105 private local conversion', () => {
       expect(command).toBe(process.execPath)
       expect(args[args.indexOf('-i') + 1]).toBe(fixture.input)
       expect(args).toContain('-nostdin')
+      expect(args[args.indexOf('-max_alloc') + 1]).toBe(String(MEDIA_CONVERSION_MAX_RSS_BYTES))
       expect(args[args.indexOf('-protocol_whitelist') + 1]).toBe('file')
       expect(args[args.indexOf('-f') + 1]).toBe('mov')
       expect(args[args.indexOf('-enable_drefs') + 1]).toBe('0')
@@ -226,6 +230,8 @@ describe('M105 private local conversion', () => {
       const output = outputPath(args)
       expect(options.cwd).toBe(path.dirname(output))
       expect(options.timeoutMs).toBe(SHELL_MAX_TIMEOUT_MS)
+      expect(options.maxOutputBytes).toBe(MEDIA_CONVERSION_DEFAULT_OUTPUT_BYTES)
+      expect(options.maxRssBytes).toBe(MEDIA_CONVERSION_MAX_RSS_BYTES)
       if (process.platform !== 'win32') {
         const directoryStat = await lstat(options.cwd)
         expect(directoryStat.mode & 0o777).toBe(0o700)
@@ -322,6 +328,121 @@ describe('M105 private local conversion', () => {
         await convertToMp4(fixture.input, fake, { run: writeConverted, limits }),
       ).toMatchObject({ ok: false, reason: expect.stringContaining('exceeds') })
       await expect(lstat(directories.at(-1)!)).rejects.toMatchObject({ code: 'ENOENT' })
+    }
+  })
+
+  it.each(['ffmpeg', 'avconvert'] as const)(
+    'kills %s while output grows past its byte cap',
+    async (kind) => {
+      const actual = await vi.importActual<typeof ChildProcess>('node:child_process')
+      let child: ReturnType<typeof spawn> | undefined
+      vi.mocked(spawn).mockImplementation((_command, args, options) => {
+        const output = kind === 'ffmpeg' ? outputPath(args) : args[args.indexOf('--output') + 1]!
+        if (kind === 'avconvert') directories.push(path.dirname(output))
+        child = actual.spawn(
+          process.execPath,
+          [
+            '-e',
+            'setTimeout(() => require("node:fs").writeFileSync(process.argv[1], Buffer.alloc(4444)), 30); setTimeout(() => {}, 400)',
+            output,
+          ],
+          options,
+        )
+        return child
+      })
+      const result = await convertToMp4(
+        fixture.input,
+        { ...fake, kind },
+        {
+          limits: { maxUploadBytes: 1024 },
+          timeoutMs: 3000,
+          readRssBytes: () => Promise.resolve(0),
+        },
+      )
+      expect(result.ok).toBe(false)
+      expect(child?.killed).toBe(true)
+      await expect(lstat(directories.at(-1)!)).rejects.toMatchObject({ code: 'ENOENT' })
+    },
+  )
+
+  it('kills encoding on excessive, invalid, failed or stalled RSS samples', async () => {
+    const actual = await vi.importActual<typeof ChildProcess>('node:child_process')
+    for (const readRssBytes of [
+      () => Promise.resolve(MEDIA_CONVERSION_MAX_RSS_BYTES + 1),
+      () => Promise.resolve(NaN),
+      () => Promise.resolve(-1),
+      () => Promise.reject(new Error('private sampler failure')),
+      () => new Promise<number>(() => undefined),
+    ]) {
+      let child: ReturnType<typeof spawn> | undefined
+      vi.mocked(spawn).mockImplementation((_command, args, options) => {
+        writeFileSync(outputPath(args), videoFixture())
+        child = actual.spawn(process.execPath, ['-e', 'setTimeout(() => {}, 400)'], options)
+        return child
+      })
+      const result = await convertToMp4(fixture.input, fake, { readRssBytes, timeoutMs: 3000 })
+      expect(result).toEqual({ ok: false, reason: 'Conversion failed: ffmpeg' })
+      expect(child?.killed).toBe(true)
+      await expect(lstat(directories.at(-1)!)).rejects.toMatchObject({ code: 'ENOENT' })
+    }
+  })
+
+  it('refuses encoding when the platform has no RSS monitor binding', async () => {
+    const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')!
+    const run = vi.fn(writeConverted)
+    Object.defineProperty(process, 'platform', { value: 'freebsd' })
+    try {
+      expect(
+        await convertWithPlatformDefault(fixture.input, fake, {
+          trustedPath: { verify: () => Promise.resolve('ok') },
+          probeVersion: () => Promise.resolve(FFMPEG_BANNER),
+          run,
+        }),
+      ).toMatchObject({ ok: false })
+      expect(run).not.toHaveBeenCalled()
+    } finally {
+      Object.defineProperty(process, 'platform', descriptor)
+    }
+  })
+
+  it('refuses invalid output byte caps before launch', async () => {
+    const run = vi.fn(writeConverted)
+    for (const maxUploadBytes of [0, -1, 1.5, NaN, Infinity, 1024 * 1024 * 1024 + 1])
+      expect(
+        await convertToMp4(fixture.input, fake, { limits: { maxUploadBytes }, run }),
+      ).toMatchObject({ ok: false })
+    expect(run).not.toHaveBeenCalled()
+  })
+
+  it('allows a Linux child exiting between RSS sampling and close without accepting unreadable live RSS', async () => {
+    const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')!
+    const actual = await vi.importActual<typeof ChildProcess>('node:child_process')
+    const readStatus = fs.readFile
+    const reading = vi.spyOn(fs, 'readFile')
+    Object.defineProperty(process, 'platform', { value: 'linux' })
+    try {
+      reading.mockImplementation((file, options) => {
+        const name = typeof file === 'string' ? file.replaceAll('\\', '/') : undefined
+        if (name === `/proc/${String(process.pid)}/status`)
+          return Promise.resolve('VmRSS: 123 kB\n')
+        return name?.startsWith('/proc/') === true
+          ? Promise.resolve('State: Z (zombie)\n')
+          : readStatus(file, options)
+      })
+      vi.mocked(spawn).mockImplementation((_command, args, options) => {
+        writeFileSync(outputPath(args), videoFixture())
+        return actual.spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60)'], options)
+      })
+      const result = await convertToMp4(fixture.input, fake)
+      expect(result.ok).toBe(true)
+      if (result.ok) await result.dispose()
+      reading.mockResolvedValueOnce('State: R (running)\n')
+      vi.mocked(spawn).mockClear()
+      expect(await convertToMp4(fixture.input, fake)).toMatchObject({ ok: false })
+      expect(spawn).not.toHaveBeenCalled()
+    } finally {
+      reading.mockRestore()
+      Object.defineProperty(process, 'platform', descriptor)
     }
   })
 
@@ -462,12 +583,13 @@ describe('M105 private local conversion', () => {
 
   it('honors cancellation during final output admission', async () => {
     const controller = new AbortController()
+    let reads = 0
     const result = await convertToMp4(fixture.input, fake, {
       signal: controller.signal,
       run: writeConverted,
       limits: {
         get maxUploadBytes() {
-          controller.abort()
+          if (++reads > 1) controller.abort()
           return 1024
         },
       },

@@ -1,17 +1,27 @@
 // Optional machine-local conversion. No installation, shell, credentials,
 // provider calls or user content in diagnostics. Callers own confinement/consent.
-import { spawn } from 'node:child_process'
+import { spawn, type ChildProcess } from 'node:child_process'
 import { Buffer } from 'node:buffer'
-import { chmod, lstat, mkdtemp, open, rm } from 'node:fs/promises'
+import { watch, type FSWatcher } from 'node:fs'
+import fs, { chmod, lstat, mkdtemp, open, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import {
   HOOK_FORBIDDEN_ENV_NAMES,
+  BYTES_PER_MIB,
   MEDIA_AVCONVERT_VERSION_PATTERN,
   MEDIA_CONVERTER_INSTALL_PATHS,
   MEDIA_CONVERTER_PROBE_MAX_BYTES,
   MEDIA_CONVERTER_PROBE_TIMEOUT_MS,
   MEDIA_FFMPEG_VERSION_PATTERN,
+  MEDIA_CONVERSION_DEFAULT_OUTPUT_BYTES,
+  MEDIA_CONVERSION_MAX_RSS_BYTES,
+  MEDIA_CONVERSION_WATCHDOG_INTERVAL_MS,
+  MEDIA_CONVERSION_SAMPLE_TIMEOUT_MS,
+  MEDIA_MAX_UPLOAD_MIB,
+  MEDIA_PROC_RSS_PATTERN,
+  MEDIA_PROC_EXITED_PATTERN,
+  MEDIA_PROC_RSS_UNIT_BYTES,
   SHELL_MAX_TIMEOUT_MS,
   UI_TEXT,
 } from '../../shared/constants'
@@ -92,6 +102,21 @@ async function isTrusted(
   return (await options.trustedPath?.verify(converter.command, { leafKind: 'file' })) === 'ok'
 }
 
+function observeConverter(
+  child: ChildProcess,
+  options: Pick<VersionProbeOptions, 'timeoutMs' | 'signal'>,
+  stop: () => void,
+): () => void {
+  const timer = setTimeout(stop, options.timeoutMs)
+  options.signal?.addEventListener('abort', stop, { once: true })
+  child.once('error', stop)
+  if (isAborted(options.signal)) stop()
+  return () => {
+    clearTimeout(timer)
+    options.signal?.removeEventListener('abort', stop)
+  }
+}
+
 function probeVersion(
   command: string,
   args: readonly string[],
@@ -119,15 +144,9 @@ function probeVersion(
       if (bytes > MEDIA_CONVERTER_PROBE_MAX_BYTES) stop()
       else output += chunk.toString('utf8')
     })
-    const timer = setTimeout(stop, options.timeoutMs)
-    options.signal?.addEventListener('abort', stop, { once: true })
-    if (isAborted(options.signal)) stop()
-    child.once('error', () => {
-      hasFailed = true
-    })
+    const release = observeConverter(child, options, stop)
     child.once('close', (code) => {
-      clearTimeout(timer)
-      options.signal?.removeEventListener('abort', stop)
+      release()
       if (hasFailed || code !== 0) reject(new Error('Version probe failed'))
       else resolve(output)
     })
@@ -193,16 +212,24 @@ interface ConversionRunOptions {
   readonly env: NodeJS.ProcessEnv
   readonly timeoutMs: number
   readonly signal?: AbortSignal
+  readonly outputPath: string
+  readonly maxOutputBytes: number
+  readonly maxRssBytes: number
+  readonly readRssBytes: (pid: number) => Promise<number>
 }
 
 export interface MediaConversionOptions extends ConverterVerification {
   readonly limits?: MediaLimits
   readonly signal?: AbortSignal
   readonly timeoutMs?: number
+  /** Native/kernel sampler for the encoder PID. Required off Linux until the
+   * M107 process-ticket binding is available; absent monitoring refuses. */
+  readonly readRssBytes?: (pid: number) => Promise<number>
   /** Fresh owner-only directory. Required on Windows: chmod cannot set its ACL.
    * The host/native runtime creates the directory; conversion owns its cleanup. */
   readonly createPrivateDirectory?: () => Promise<string>
-  /** Injected process boundary for other hosts and fake-only tests. */
+  /** Injected process boundary for other hosts and fake-only tests. It must
+   * enforce the supplied output/RSS/deadline limits and await child close. */
   readonly run?: (
     command: string,
     args: readonly string[],
@@ -236,23 +263,78 @@ function runConverter(
       windowsHide: true,
     })
     let hasFailed = false
+    let hasClosed = false
+    let isChecking = false
+    let sampleDeadline: ReturnType<typeof setTimeout> | undefined
     const stop = () => {
+      if (hasClosed) return
       hasFailed = true
       child.kill('SIGKILL')
     }
-    const timer = setTimeout(stop, options.timeoutMs)
-    options.signal?.addEventListener('abort', stop, { once: true })
-    if (isAborted(options.signal)) stop()
-    child.once('error', () => {
-      hasFailed = true
-    })
+    const checkResources = async () => {
+      if (isChecking || hasClosed || hasFailed) return
+      isChecking = true
+      sampleDeadline = setTimeout(stop, MEDIA_CONVERSION_SAMPLE_TIMEOUT_MS)
+      try {
+        const output = await lstat(options.outputPath)
+        if (!output.isFile() || output.size > options.maxOutputBytes) {
+          stop()
+          return
+        }
+        if (child.pid === undefined) {
+          stop()
+          return
+        }
+        const rss = await options.readRssBytes(child.pid)
+        if (!Number.isSafeInteger(rss) || rss < 0 || rss > options.maxRssBytes) stop()
+      } catch {
+        stop()
+      } finally {
+        clearTimeout(sampleDeadline)
+        isChecking = false
+      }
+    }
+    let watcher: FSWatcher | undefined
+    try {
+      watcher = watch(options.cwd, () => {
+        void checkResources()
+      })
+      watcher.on('error', stop)
+    } catch {
+      stop()
+    }
+    const watchdog = setInterval(() => {
+      void checkResources()
+    }, MEDIA_CONVERSION_WATCHDOG_INTERVAL_MS)
+    void checkResources()
+    const release = observeConverter(child, options, stop)
     child.once('close', (code) => {
-      clearTimeout(timer)
-      options.signal?.removeEventListener('abort', stop)
+      hasClosed = true
+      watcher?.close()
+      clearInterval(watchdog)
+      clearTimeout(sampleDeadline)
+      release()
       if (hasFailed || code !== 0) reject(new Error('Converter failed'))
       else resolve()
     })
   })
+}
+
+async function readLinuxRssBytes(pid: number): Promise<number> {
+  let status: string
+  try {
+    status = await fs.readFile(`/proc/${String(pid)}/status`, 'utf8')
+  } catch (error) {
+    // The process may have exited between the file check and this sample.
+    // Preflight checks /proc on our live PID, so absence cannot disable monitoring.
+    if (pid !== process.pid && error instanceof Error && 'code' in error && error.code === 'ENOENT')
+      return 0
+    throw error
+  }
+  const value = MEDIA_PROC_RSS_PATTERN.exec(status)?.[1]
+  if (value === undefined && pid !== process.pid && MEDIA_PROC_EXITED_PATTERN.test(status)) return 0
+  if (value === undefined) throw new Error('RSS unavailable')
+  return Number(value) * MEDIA_PROC_RSS_UNIT_BYTES
 }
 
 function isAborted(signal: AbortSignal | undefined): boolean {
@@ -282,6 +364,7 @@ export async function convertToMp4(
   options: MediaConversionOptions = {},
 ): Promise<MediaConversionResult> {
   const timeoutMs = options.timeoutMs ?? SHELL_MAX_TIMEOUT_MS
+  const maxOutputBytes = options.limits?.maxUploadBytes ?? MEDIA_CONVERSION_DEFAULT_OUTPUT_BYTES
   const failed = () =>
     ({
       ok: false,
@@ -290,6 +373,9 @@ export async function convertToMp4(
   if (
     !path.isAbsolute(inputPath) ||
     !path.isAbsolute(converter.command) ||
+    !Number.isSafeInteger(maxOutputBytes) ||
+    maxOutputBytes <= 0 ||
+    maxOutputBytes > MEDIA_MAX_UPLOAD_MIB * BYTES_PER_MIB ||
     !Number.isSafeInteger(timeoutMs) ||
     timeoutMs <= 0 ||
     timeoutMs > SHELL_MAX_TIMEOUT_MS ||
@@ -304,6 +390,10 @@ export async function convertToMp4(
     if (!input.isFile()) return failed()
     const source = await sniffFile(inputPath, input.size)
     if (!source.ok || !(await hasKnownVersion(converter, options, options.signal))) return failed()
+    const readRssBytes =
+      options.readRssBytes ?? (process.platform === 'linux' ? readLinuxRssBytes : undefined)
+    if (readRssBytes === undefined) return failed()
+    if (options.readRssBytes === undefined) await readLinuxRssBytes(process.pid)
     const privateDirectory =
       options.createPrivateDirectory === undefined
         ? await mkdtemp(path.join(tmpdir(), 'muse-media-'))
@@ -318,6 +408,8 @@ export async function convertToMp4(
       converter.kind === 'ffmpeg'
         ? [
             '-nostdin',
+            '-max_alloc',
+            String(MEDIA_CONVERSION_MAX_RSS_BYTES),
             '-hide_banner',
             '-loglevel',
             'error',
@@ -361,6 +453,10 @@ export async function convertToMp4(
       cwd: directory,
       env,
       timeoutMs,
+      outputPath: output,
+      maxOutputBytes,
+      maxRssBytes: MEDIA_CONVERSION_MAX_RSS_BYTES,
+      readRssBytes,
       ...(options.signal !== undefined && { signal: options.signal }),
     })
     if (isAborted(options.signal)) return failed()

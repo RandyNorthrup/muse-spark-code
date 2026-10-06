@@ -20062,6 +20062,15 @@ Each joins when its dependency merges, and none blocks the others.
 
 ## 7. Gates
 
+**M105-M1 follow-up gate scope (RVM105M1, 2026-10-06).** The rig brief
+requires direct focused suites and forbids full quality/full unit runs and
+merging another branch. Full quality and cross-platform gates remain the
+lead's integrated-tree responsibility. Keep the existing W-owned host-record,
+deferred-browser-size and `files.ts` split blockers enforced; this lane fixes
+the three media-core findings with regressions and red drills, without
+changing a gate or cap. Results and exact commands are in
+`docs/certification/m105-m1-media-core-(a).md`.
+
 **M105-F gate deferral (RVM105F corrections, 2026-10-05).** The lane brief
 reserves full quality and integration for the lead. Required local checks are
 recorded in `docs/certification/m105-f.md`; the unchanged lane W blockers
@@ -21243,6 +21252,15 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **M105-M1-resource-monitor-binding (M107/W/E1/E2).** RVM105M1's encoding
+  resource finding is fixed by the growing-output watcher, hard RSS watchdog
+  and encoding/sample deadlines. On this base M107's process ticket is absent;
+  Linux uses its kernel RSS sampler and other platforms require the native
+  sampler port. Without it encoding refuses. Integration binds the governor
+  ticket where available and provides equivalent monitoring in every editor.
+  The alternate process port must enforce the same limits and await close.
+  Certification: `docs/certification/m105-m1-media-core-(a).md`. No review
+  finding is deferred.
 - **M105-M1-trusted-converter-binding (REDM104L3/W/E1/E2).** All RVM105M1
   converter-trust guards consume the shared `TrustedPathVerifier` seam. This
   base lacks `src/runtime/trustedPath.ts`; without a verified binding discovery
