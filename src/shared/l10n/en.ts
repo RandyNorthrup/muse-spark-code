@@ -1385,6 +1385,8 @@ export const EN = {
   showMore: 'Show more',
   showLess: 'Show less',
   loadingOutput: 'Loading…',
+  surfaceLoadFailed: 'This panel could not load.',
+  surfaceLoadRetry: 'Try again',
   toolFailed: 'Failed',
   toolRejected: 'Rejected',
   // M46: a task the user (or Stop) ended.

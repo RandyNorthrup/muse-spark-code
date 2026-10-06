@@ -89,7 +89,18 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(bytes).toBeLessThanOrEqual(900 * 1024)
   })
 
-  it.each(['GitPanel', 'UsageDialog'])('loads %s only through its dynamic import', (name) => {
+  it.each([
+    'GitPanel',
+    'UsageDialog',
+    'SignIn',
+    'GoalPanel',
+    'SchedulePanel',
+    'Palette',
+    'PopoverMenu',
+    'GooeyMenuContent',
+    'UsageDialogContent',
+    'AgentMapContent',
+  ])('loads %s only through its dynamic import', (name) => {
     const source = `src/webview/components/${name}.tsx`
     const owners = Object.entries(built.outputs).filter(([, output]) =>
       Object.hasOwn(output.inputs, source),
@@ -98,7 +109,7 @@ describe('the production webview chunks (FIX78W)', () => {
     const [[output]] = owners
     expect(initialOutputs().has(output)).toBe(false)
     expect(built.outputs[output].entryPoint).toBe(source)
-    expect(built.outputs[ENTRY].imports).toContainEqual(
+    expect(Object.values(built.outputs).flatMap((chunk) => chunk.imports)).toContainEqual(
       expect.objectContaining({ path: output, kind: 'dynamic-import' }),
     )
   })
@@ -118,6 +129,7 @@ describe('the production webview chunks (FIX78W)', () => {
   it('packages every emitted browser script, with no stale browser chunks', async () => {
     const files = await listFiles({ cwd: built.fixture, dependencies: false })
     const listed = files
+      .map((file) => file.replaceAll('\\', '/'))
       .filter((file) => file.startsWith('dist/webview/') && file.endsWith('.js'))
       .toSorted((a, b) => a.localeCompare(b, 'en'))
     expect(listed).toEqual(

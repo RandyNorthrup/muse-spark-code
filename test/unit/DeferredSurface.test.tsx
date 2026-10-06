@@ -3,7 +3,8 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { lazy, useState, type ComponentType } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
-import { DeferredSurface } from '../../src/webview/components/DeferredSurface'
+import { EN } from '../../src/shared/l10n/en'
+import { deferred, DeferredSurface } from '../../src/webview/components/DeferredSurface'
 import { ErrorBoundary } from '../../src/webview/components/ErrorBoundary'
 
 function heldSurface(isModal = true) {
@@ -103,4 +104,95 @@ describe('deferred surfaces', () => {
       errorLog.mockRestore()
     }
   })
+})
+
+function ValueBody({ value }: { readonly value: string }) {
+  return <p>{value}</p>
+}
+function LoadedBody() {
+  return <p>Loaded</p>
+}
+
+it('loads on use, shows an honest failure, retries and receives current props', async () => {
+  const name = 'Optional panel'
+
+  const first = Promise.withResolvers<{ default: typeof ValueBody }>()
+  const load = vi
+    .fn<() => Promise<{ default: typeof ValueBody }>>()
+    .mockReturnValueOnce(first.promise)
+    .mockResolvedValue({ default: ValueBody })
+  const Surface = deferred(load)
+  const onClose = vi.fn()
+  const tree = (isOpen: boolean, value: string) =>
+    isOpen ? <Surface value={value} onClose={onClose} /> : <p>Chat</p>
+  const view = render(tree(false, name))
+  expect(load).not.toHaveBeenCalled()
+  view.rerender(tree(true, name))
+  expect(load).toHaveBeenCalledTimes(1)
+  expect(screen.getByRole('status')).toHaveTextContent(EN.loadingOutput)
+  view.rerender(tree(true, `${name}: latest`))
+  const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  try {
+    await act(async () => {
+      first.reject(new Error('chunk fetch failed'))
+      try {
+        await first.promise
+      } catch {
+        /* React reports the rejection. */
+      }
+    })
+    expect(screen.getByRole('alert')).toHaveTextContent(EN.surfaceLoadFailed)
+    expect(screen.queryByText('chunk fetch failed')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: EN.surfaceLoadRetry }))
+    expect(await screen.findByText(`${name}: latest`)).toBeInTheDocument()
+    expect(load).toHaveBeenCalledTimes(2)
+    view.rerender(tree(false, name))
+    view.rerender(tree(true, `${name}: reopened`))
+    expect(screen.getByText(`${name}: reopened`)).toBeInTheDocument()
+    expect(load).toHaveBeenCalledTimes(2)
+  } finally {
+    errors.mockRestore()
+  }
+})
+
+it('closing a pending modal prevents a late import from reopening it', async () => {
+  const held = Promise.withResolvers<{ default: typeof LoadedBody }>()
+  const Surface = deferred(() => held.promise, true)
+  const view = render(
+    <Surface
+      onClose={() => {
+        view.unmount()
+      }}
+    />,
+  )
+  expect(screen.getByRole('dialog')).toHaveAccessibleName(EN.loadingOutput)
+  fireEvent.click(screen.getByRole('button', { name: EN.usageClose }))
+  await act(async () => {
+    held.resolve({ default: LoadedBody })
+    await held.promise
+  })
+  expect(screen.queryByText('Loaded')).toBeNull()
+})
+
+it('keeps an attached menu’s opener focused and accepts Escape while loading', async () => {
+  const held = Promise.withResolvers<{ default: typeof LoadedBody }>()
+  const Surface = deferred(() => held.promise)
+  const onClose = vi.fn()
+  const view = render(<textarea aria-label="Prompt" />)
+  const prompt = screen.getByLabelText('Prompt')
+  prompt.focus()
+  view.rerender(
+    <>
+      <textarea aria-label="Prompt" />
+      <Surface keepFocus onClose={onClose} />
+    </>,
+  )
+  expect(document.activeElement).toBe(prompt)
+  fireEvent.keyDown(prompt, { key: 'Escape' })
+  expect(onClose).toHaveBeenCalledOnce()
+  await act(async () => {
+    held.resolve({ default: LoadedBody })
+    await held.promise
+  })
+  expect(document.activeElement).toBe(prompt)
 })

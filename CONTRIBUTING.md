@@ -19,6 +19,11 @@ extension loaded; `npm run watch` rebuilds on save. The Muse Code CLI and a
 Meta Model API key are optional: the unit tests run against fakes, and the
 sign-in gate explains what is missing.
 
+New UI surfaces ship in their own lazy chunks, loaded on first use, with
+accessible loading, an honest failure and retry, and a measured budget of their
+own (D6). Keep startup and the original deferred aggregate for first paint and
+retain their existing caps; chat, composer and approvals remain eager.
+
 ## Before you open a pull request
 
 Use this order for a candidate branch:

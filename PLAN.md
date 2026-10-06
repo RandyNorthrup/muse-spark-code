@@ -238,6 +238,24 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**DIET1 (2026-10-06, main `e56b795a`).** The production baseline is
+813,180 B (794.1 KiB) for chat startup and 51,157 B (49.96 KiB) for the original
+deferred aggregate. After DIET1, startup is 751,392 B (733.8 KiB), down
+61,788 B (60.3 KiB), and the original deferred aggregate is 32,875 B
+(32.1 KiB). Optional sign-in, goal/schedule panels, palette/popover and
+radial menus now load on use. Account & usage and Agent map retain their public
+entrypoints and load independently budgeted content chunks. Each new surface
+has a 25 KiB physical and import-closure cap: measured size plus 15%, rounded
+up to 25 KiB. Legacy/shared/unclassified deferred bytes keep their original
+50 KiB cap, and startup keeps 900 KiB. The complete browser English fallback
+stays inline, encoded losslessly as DEFLATE/base85 and decoded by the native
+DecompressionStream before dependent ESM modules run; Node and integration
+fallbacks and all table checks remain unchanged. Failed module URLs are cached
+by browsers, so generated dynamic imports use fresh nonsecret query values;
+React.lazy caches successes and static dependencies retain canonical URLs.
+All editor shells use the shared CSP/asset-origin path. Receipts and final
+before/after sizes: `docs/certification/diet1.md`.
+
 **TRAIN14A integration size recovery (2026-10-05).** The initial M94 archive
 has insufficient universal-helper headroom, and the prepared M71 join exceeds
 activation and shared English by 7.1 KiB each; browser budgets still fit.
@@ -28548,7 +28566,37 @@ anywhere joined it).
       byte-exact restoration. Focused certification is appended to
       `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
 
+### DIET1 — Webview startup and deferred headroom (2026-10-06)
+
+- [x] Measure main `e56b795a` with the production metafile: startup 813,180 B
+      (794.1 KiB); original deferred aggregate 51,157 B (49.96 KiB).
+- [x] Reduce startup by at least 60 KiB and original deferred aggregate to
+      at most 35 KiB without raising either existing cap or adding dependencies.
+      Keep transcript, composer and approvals eager; defer optional surfaces
+      and preserve the complete inline English fallback with lossless encoding.
+- [x] Accessible loading, local load failure and retry; shared-host CSP/asset
+      proof; owning tests and intentional static-import red drill.
+- [~] Scoped rig gates, production/package, accessibility and browser smoke;
+  certification `docs/certification/diet1.md`, contribution rule and changelog.
+  Lane rules prohibit aggregate quality, network, merges and pushes; the
+  lead retains integrated quality and hosted checks.
+
 ## 7. Gates
+
+**DIET1 bounded rig certification (2026-10-06).** The user-provided lane brief
+and shared rules prohibit aggregate quality and public network, merges and
+pushes. The local commit uses scoped typecheck, lint/format, Knip, duplication,
+localization, reference, host API, webview suites, production/split/size,
+accessibility matrix, real-browser fake-host smoke and VSIX packaging. Local
+packaging uses the existing named badge-network skip; CI rejects it. The lead
+must run integrated `npm run quality` and hosted checks before integration.
+See `docs/certification/diet1.md` for measurements and byte-exact red drills.
+The second complete accessibility scan reports zero violations/undecided rules
+across 628 pages, but exits 1 because one light/usage-install page misses the
+unchanged 10-second readiness deadline. The affected scenarios are rerun in all
+four themes at that same deadline. The 120-minute lane timebox leaves the full
+all-pages exit-0 receipt to the lead's integrated gate; no timeout, exemption,
+worker policy or accessibility rule is changed.
 
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning

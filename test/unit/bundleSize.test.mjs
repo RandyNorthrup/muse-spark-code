@@ -47,6 +47,14 @@ describe('bundled What’s New content budget', () => {
     ['code highlighting', 125, 'src/webview/components/HighlightedCode.tsx'],
     ['action dialogs', 25, 'src/webview/components/ShareView.tsx'],
     ['tasks tab', 25, 'src/webview/TasksApp.tsx'],
+    ['SignIn', 25, 'src/webview/components/SignIn.tsx'],
+    ['GoalPanel', 25, 'src/webview/components/GoalPanel.tsx'],
+    ['SchedulePanel', 25, 'src/webview/components/SchedulePanel.tsx'],
+    ['Palette', 25, 'src/webview/components/Palette.tsx'],
+    ['PopoverMenu', 25, 'src/webview/components/PopoverMenu.tsx'],
+    ['GooeyMenuContent', 25, 'src/webview/components/GooeyMenuContent.tsx'],
+    ['UsageDialogContent', 25, 'src/webview/components/UsageDialogContent.tsx'],
+    ['AgentMapContent', 25, 'src/webview/components/AgentMapContent.tsx'],
   ])(
     'enforces the %s cap without widening the original deferred allowance',
     async (name, cap, entryPoint) => {

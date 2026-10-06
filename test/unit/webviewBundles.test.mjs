@@ -62,6 +62,25 @@ describe('webview import budgets', () => {
     ).toEqual([])
   })
 
+  it('normalizes Windows output, import and entry paths before grouping', () => {
+    const meta = metafile()
+    meta.outputs = Object.fromEntries(
+      Object.entries(meta.outputs).map(([file, value]) => [
+        file.replaceAll('/', '\\'),
+        {
+          ...value,
+          entryPoint: value.entryPoint?.replaceAll('/', '\\'),
+          imports: value.imports.map((entry) => ({
+            ...entry,
+            path: entry.path.replaceAll('/', '\\'),
+          })),
+        },
+      ]),
+    )
+    expect(webviewStartupOutputs(meta)).toEqual([MAIN, CORE])
+    expect(webviewDeferredBudgetGroups(meta)).toEqual(webviewDeferredBudgetGroups(metafile()))
+  })
+
   it('refuses an incomplete static import graph', () => {
     const meta = metafile()
     Reflect.deleteProperty(meta.outputs, CORE)

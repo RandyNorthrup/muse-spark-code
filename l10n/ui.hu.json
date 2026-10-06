@@ -702,6 +702,8 @@
   "showMore": "Több megjelenítése",
   "showLess": "Kevesebb megjelenítése",
   "loadingOutput": "Betöltés…",
+  "surfaceLoadFailed": "A panel betöltése nem sikerült.",
+  "surfaceLoadRetry": "Újrapróbálkozás",
   "toolFailed": "Sikertelen",
   "toolRejected": "Elutasítva",
   "toolStopped": "Leállítva",

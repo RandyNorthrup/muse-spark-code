@@ -66,15 +66,12 @@ import { Composer, type ImageData, type SlashPaletteSlot } from './components/Co
 import { DiffTally } from './components/DiffTally'
 import { EffortSlider } from './components/EffortSlider'
 import { EmptyState } from './components/EmptyState'
-import { GoalPanel } from './components/GoalPanel'
-import { SchedulePanel } from './components/SchedulePanel'
 import { Header } from './components/Header'
 import { DeferredReportDialog } from './components/DeferredReportDialog'
 import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
-import { Palette, type PaletteKeys, type PaletteView } from './components/Palette'
-import { type MenuEntry, PopoverMenu } from './components/PopoverMenu'
-import { SignIn } from './components/SignIn'
+import type { PaletteKeys, PaletteView } from './components/Palette'
+import type { MenuEntry } from './components/PopoverMenu'
 import { TodoPanel } from './components/TodoPanel'
 import { type QueuedCardRef, Transcript } from './components/Transcript'
 import { diffTally } from './diffTally'
@@ -102,7 +99,28 @@ import {
 import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
 import { Modal } from './components/Modal'
-import { DeferredSurface } from './components/DeferredSurface'
+import { deferred, DeferredSurface } from './components/DeferredSurface'
+
+const SignIn = deferred(async () => {
+  const module = await import('./components/SignIn')
+  return { default: module.SignIn }
+})
+const GoalPanel = deferred(async () => {
+  const module = await import('./components/GoalPanel')
+  return { default: module.GoalPanel }
+})
+const SchedulePanel = deferred(async () => {
+  const module = await import('./components/SchedulePanel')
+  return { default: module.SchedulePanel }
+})
+const Palette = deferred(async () => {
+  const module = await import('./components/Palette')
+  return { default: module.Palette }
+})
+const PopoverMenu = deferred(async () => {
+  const module = await import('./components/PopoverMenu')
+  return { default: module.PopoverMenu }
+})
 
 const HistoryDialog = lazy(async () => {
   const module = await import('./components/HistoryDialog')
@@ -1868,6 +1886,7 @@ export function App({
         onBack={onPaletteBack}
         onClose={slot.onClose}
         isAttached
+        keepFocus
         keys={slashPaletteKeys}
         onActiveRowChange={slot.onActiveRowChange}
       />
@@ -2422,29 +2441,33 @@ export function App({
           />
         </DeferredSurface>
       )}
-      <GoalPanel
-        key={state.sessionId}
-        goal={state.goal}
-        isInert={isModalOpen}
-        onCommand={onGoalCommand}
-        editor={{
-          draft: state.goalEdit?.draft,
-          isPending: state.goalEdit?.pending !== undefined,
-          onStart: onGoalEditStarted,
-          onChange: onGoalEditChanged,
-          onCancel: onGoalEditCanceled,
-          onSave: onGoalEditSaved,
-        }}
-      />
-      <SchedulePanel
-        jobs={state.schedules}
-        nowMs={now()}
-        isPaidOn={state.paid.features.includes('scheduledPrompts')}
-        isInert={isModalOpen}
-        onRun={onScheduleRun}
-        onCancel={onScheduleCancel}
-        onEnable={onScheduleEnable}
-      />
+      {state.goal === undefined ? null : (
+        <GoalPanel
+          key={state.sessionId}
+          goal={state.goal}
+          isInert={isModalOpen}
+          onCommand={onGoalCommand}
+          editor={{
+            draft: state.goalEdit?.draft,
+            isPending: state.goalEdit?.pending !== undefined,
+            onStart: onGoalEditStarted,
+            onChange: onGoalEditChanged,
+            onCancel: onGoalEditCanceled,
+            onSave: onGoalEditSaved,
+          }}
+        />
+      )}
+      {state.schedules.length === 0 ? null : (
+        <SchedulePanel
+          jobs={state.schedules}
+          nowMs={now()}
+          isPaidOn={state.paid.features.includes('scheduledPrompts')}
+          isInert={isModalOpen}
+          onRun={onScheduleRun}
+          onCancel={onScheduleCancel}
+          onEnable={onScheduleEnable}
+        />
+      )}
       <TodoPanel items={state.todos} isInert={isModalOpen} onOpenInTab={onOpenTasksTab} />
       {isBodyGated ? null : (
         <ApprovalDock waiting={waiting} onDecide={onDecide} isInert={isModalOpen} />
