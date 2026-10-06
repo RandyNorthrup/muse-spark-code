@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Use native Git hook dispatch and its exit verdict throughout playbook
+  verification, removing Husky startup/layout emulation and invalidating older
+  receipts. Discover private refs in every worktree. Timeout cleanup tracks
+  detached descendants by parent chain and start-time identity; prepared
+  cgroup/scope runners take precedence pending the M107 integration binding.
+
 - Close playbook verification gaps for skipped Husky bodies, newly created refs
   and detached worktree commits. Run source hooks by absolute path, clean
   partial worktree registrations, scrub outer failures, and handle annotated

@@ -17,7 +17,12 @@
 // creation time just before it is killed, so a process that took a dead
 // one's id is never hit.
 
-import { execFile } from 'node:child_process'
+import {
+  execFile,
+  spawnSync,
+  type SpawnSyncOptions,
+  type SpawnSyncReturns,
+} from 'node:child_process'
 import { withoutCredentials } from '../core/credentialEnvironment'
 import path from 'node:path'
 import {
@@ -26,6 +31,7 @@ import {
 } from '../core/backends/musecode/launch'
 import { powerShellQuoted } from '../core/shellQuote'
 import {
+  GIT_OUTPUT_MAX_BYTES,
   ORPHAN_SWEEP_ROUNDS,
   POSIX_TREE_EXIT_POLL_MS,
   POSIX_TREE_EXIT_WAIT_MS,
@@ -458,4 +464,149 @@ export async function killTree(
     return
   }
   await sweepOrphans(pid, diedAt, startedAt, systemRoot, deps)
+}
+
+// The journal reducer is synchronous. A separate trusted supervisor keeps
+// enumerating while its caller is in spawnSync, before timeout reparents any
+// detached descendants. This is the POSIX fallback to a governed cgroup/job.
+const POSIX_TREE_SUPERVISOR = String.raw`
+const { spawn, execFileSync } = require('node:child_process');
+const { readFileSync } = require('node:fs');
+const spec = JSON.parse(readFileSync(0, 'utf8'));
+const known = new Map();
+let failed = false;
+let ending = false;
+let child;
+let poll;
+let deadline;
+const counts = { stdout: 0, stderr: 0 };
+function table() {
+  return execFileSync('/bin/ps', ['-axo', 'pid=,ppid=,lstart='], {
+    encoding: 'utf8', timeout: spec.cleanupMs, maxBuffer: spec.maxBuffer,
+    env: { ...process.env, LC_ALL: 'C' }
+  }).split('\n').flatMap(line => {
+    const match = /^\s*(\d+)\s+(\d+)\s+(.+?)\s*$/.exec(line);
+    return match ? [{ pid: Number(match[1]), parent: Number(match[2]), start: match[3] }] : [];
+  });
+}
+function identity(row) {
+  if (process.platform !== 'linux') return row.start;
+  try {
+    const stat = readFileSync('/proc/' + row.pid + '/stat', 'utf8');
+    return stat.slice(stat.lastIndexOf(')') + 2).split(' ')[19];
+  } catch (error) {
+    if (error.code !== 'ENOENT' && error.code !== 'ESRCH') throw error;
+    return undefined; // A process may exit between enumeration and identity read.
+  }
+}
+function capture() {
+  const rows = table();
+  const current = new Map(rows.map(row => [row.pid, row]));
+  if (!known.has(child.pid)) {
+    const root = current.get(child.pid);
+    if (root) known.set(root.pid, { ...root, identity: identity(root) });
+  }
+  let added;
+  do {
+    added = false;
+    for (const row of rows) {
+      const parent = known.get(row.parent);
+      const liveParent = current.get(row.parent);
+      if (known.has(row.pid) || !parent || !liveParent ||
+          identity(liveParent) !== parent.identity ||
+          Date.parse(row.start) < Date.parse(parent.start)) continue;
+      const stamp = identity(row);
+      if (stamp === undefined) continue;
+      known.set(row.pid, { ...row, identity: stamp });
+      added = true;
+    }
+  } while (added);
+}
+function signal(row, name) {
+  // Re-read the identity immediately before signalling; a reused PID is left.
+  let live;
+  try {
+    const text = execFileSync('/bin/ps', ['-o', 'lstart=', '-p', String(row.pid)], {
+      encoding: 'utf8', timeout: spec.cleanupMs, env: { ...process.env, LC_ALL: 'C' }
+    }).trim();
+    if (text) live = { ...row, start: text };
+  } catch (error) {
+    if (error.status !== 1) throw error;
+    return; // ps reports a process that has already exited.
+  }
+  if (!live || identity(live) !== row.identity) return;
+  try { process.kill(row.pid, name); }
+  catch (error) { if (error.code !== 'ESRCH') throw error; }
+}
+function endTree() {
+  if (ending) return;
+  ending = true;
+  clearInterval(poll);
+  clearTimeout(deadline);
+  try {
+    capture();
+    // Stop parents before the last enumeration so they cannot fork during it.
+    for (const row of known.values()) signal(row, 'SIGSTOP');
+    capture();
+  } catch (error) {
+    failed = true;
+    process.stderr.write(String(error.message));
+  } finally {
+    // Enumeration failure must still end every identity already captured.
+    for (const row of [...known.values()].reverse()) {
+      try { signal(row, 'SIGKILL'); }
+      catch (error) { failed = true; process.stderr.write(String(error.message)); }
+    }
+    // Same-group processes get the native group sweep as well.
+    try { if (child.pid > 0) process.kill(-child.pid, 'SIGKILL'); }
+    catch (error) { if (error.code !== 'ESRCH') failed = true; }
+  }
+}
+table(); // Refuse before dispatch when the process table is unavailable.
+child = spawn(spec.command, spec.args, { detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+for (const stream of ['stdout', 'stderr']) child[stream].on('data', chunk => {
+  counts[stream] += chunk.length;
+  if (counts[stream] > spec.maxBuffer) { failed = true; endTree(); return; }
+  process[stream].write(chunk);
+});
+child.on('error', error => { failed = true; process.stderr.write(error.message); endTree(); });
+child.on('exit', endTree);
+child.on('close', code => { process.exitCode = failed || code === null ? 1 : code; });
+poll = setInterval(() => {
+  try { capture(); }
+  catch (error) { failed = true; process.stderr.write(error.message); endTree(); }
+}, spec.pollMs);
+deadline = setTimeout(() => {
+  failed = true;
+  process.stderr.write('ETIMEDOUT');
+  endTree();
+}, spec.timeout);
+`
+
+/** POSIX synchronous caller, asynchronous tree supervision. The supplied
+ * environment is already scrubbed by the caller; no shell parses the effect. */
+export function runTreeSync(
+  command: string,
+  args: readonly string[],
+  options: SpawnSyncOptions,
+): SpawnSyncReturns<Buffer> {
+  const maxBuffer = options.maxBuffer ?? GIT_OUTPUT_MAX_BYTES
+  return spawnSync(process.execPath, ['-e', POSIX_TREE_SUPERVISOR], {
+    ...options,
+    // Child streams keep the caller's bound. Reserve room for the
+    // supervisor's failure text so the caller cannot kill it mid-cleanup.
+    maxBuffer: maxBuffer * 2,
+    input: Buffer.from(
+      JSON.stringify({
+        command,
+        args,
+        timeout: options.timeout ?? PROCESS_TABLE_TIMEOUT_MS,
+        maxBuffer,
+        pollMs: POSIX_TREE_EXIT_POLL_MS,
+        cleanupMs: POSIX_TREE_EXIT_WAIT_MS,
+      }),
+    ),
+    timeout: (options.timeout ?? PROCESS_TABLE_TIMEOUT_MS) + POSIX_TREE_EXIT_WAIT_MS * 2,
+    encoding: 'buffer',
+  })
 }
