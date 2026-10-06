@@ -244,17 +244,17 @@ describe('resource governor levels', () => {
     await f.read(5000, { gpuPercent: 10, diskBusyPercent: 10 })
     await f.series(65_000, { gpuPercent: null, diskBusyPercent: 10 })
     expect(f.governor.level()).toBe('pause')
-    await f.series(125_000, { gpuPercent: 60, diskBusyPercent: 10 })
+    await f.series(125_000, { gpuPercent: 63, diskBusyPercent: 10 })
     expect(f.governor.level()).toBe('pause')
-    await f.series(185_000, { gpuPercent: 59, diskBusyPercent: 70 })
+    await f.series(185_000, { gpuPercent: 62, diskBusyPercent: 72 })
     expect(f.governor.level()).toBe('pause')
     await f.series(245_000, {
-      gpuPercent: 59,
-      diskBusyPercent: 69,
+      gpuPercent: 62,
+      diskBusyPercent: 71,
       memoryAvailableBytes: 2.5 * RESOURCE_GIB_BYTES,
     })
     expect(f.governor.level()).toBe('pause')
-    await f.series(310_000, { gpuPercent: 59, diskBusyPercent: 69 })
+    await f.series(310_000, { gpuPercent: 62, diskBusyPercent: 71 })
     expect(f.governor.level()).toBe('relocate')
     await f.series(375_000, { cpuPercent: null, gpuPercent: null, diskBusyPercent: null })
     expect(f.governor.level()).toBe('relocate')
@@ -279,12 +279,140 @@ describe('resource governor levels', () => {
     expect(disk.seen.at(-1)).toMatchObject({ reason: 'disk' })
   })
 
+  it.each(['gpuPercent', 'diskBusyPercent'] as const)(
+    'recovers from sustained %s overload at limits from 1 to 10 percent',
+    async (metric) => {
+      for (const limit of [1, 1.5, 5, 10]) {
+        const settings = resourceSettingsSchema.parse({
+          [metric === 'gpuPercent' ? 'gpuMaxPercent' : 'diskBusyMaxPercent']: limit,
+          relocate: 'off',
+        })
+        const f = setup(settings)
+        await f.read(0, { [metric]: limit })
+        await f.series(90_000, { [metric]: limit })
+        expect(f.governor.level(), `${metric} limit ${String(limit)}`).toBe('pause')
+        await f.series(215_000, { [metric]: 0 })
+        expect(f.governor.level(), `${metric} limit ${String(limit)}`).toBe('normal')
+      }
+    },
+  )
+
+  it('has a reachable percentage recovery band across the full valid settings ranges', async () => {
+    for (let limit = 1; limit <= 100; limit += 0.25) {
+      const settings = resourceSettingsSchema.parse({
+        cpuMaxPercent: Math.max(30, limit),
+        memoryMaxPercent: Math.min(98, Math.max(40, limit)),
+        gpuMaxPercent: limit,
+        diskBusyMaxPercent: limit,
+        relocate: 'off',
+      })
+      const f = setup(settings)
+      const idle = { cpuPercent: 0, memoryUsedPercent: 0, gpuPercent: 0, diskBusyPercent: 0 }
+      await f.read(0, { ...idle, memoryAvailableBytes: 0 })
+      expect(f.governor.level()).toBe('pause')
+      await f.series(125_000, idle)
+      expect(f.governor.level(), `settings at limit ${String(limit)}`).toBe('normal')
+    }
+  })
+
   it.each([
-    ['cpu band', { cpuPercent: 75 }],
-    ['memory-used band', { memoryUsedPercent: 80 }],
+    [1, 0.5],
+    [2, 1.5],
+    [5, 4.5],
+    [10, 9],
+    [100, 90],
+  ])(
+    'holds the relative recovery boundary %s → %s with a half-point margin floor',
+    async (limit, boundary) => {
+      const f = setup(resourceSettingsSchema.parse({ gpuMaxPercent: limit, relocate: 'off' }))
+      await f.read(0, { gpuPercent: 0, memoryAvailableBytes: 0 })
+      await f.series(65_000, { gpuPercent: boundary })
+      expect(f.governor.level()).toBe('pause')
+      await f.series(130_000, { gpuPercent: boundary - 0.25 })
+      expect(f.governor.level()).toBe('throttle')
+    },
+  )
+
+  it('recovers on a 512 MiB container with default memory settings', async () => {
+    const f = setup()
+    const total = RESOURCE_GIB_BYTES / 2
+    await f.read(0, { memoryAvailableBytes: 0, memoryTotalBytes: total })
+    expect(f.governor.level()).toBe('pause')
+    await f.series(185_000, {
+      memoryUsedPercent: 0,
+      memoryAvailableBytes: total,
+      memoryTotalBytes: total,
+    })
+    expect(f.governor.level()).toBe('normal')
+    expect(f.onError).not.toHaveBeenCalled()
+  })
+
+  it('has a reachable free-memory recovery band across all valid floor settings and machine sizes', async () => {
+    for (let floorGiB = 0.5; floorGiB <= 64; floorGiB += 0.5) {
+      for (const total of [
+        1,
+        2,
+        1024,
+        RESOURCE_GIB_BYTES / 2,
+        8 * RESOURCE_GIB_BYTES,
+        1024 * RESOURCE_GIB_BYTES,
+      ]) {
+        const f = setup(
+          resourceSettingsSchema.parse({ memoryMinFreeGiB: floorGiB, relocate: 'off' }),
+        )
+        await f.read(0, { memoryAvailableBytes: 0, memoryTotalBytes: total })
+        expect(f.governor.level()).toBe('pause')
+        await f.series(125_000, {
+          memoryUsedPercent: 0,
+          memoryAvailableBytes: total,
+          memoryTotalBytes: total,
+        })
+        expect(f.governor.level(), `${String(floorGiB)} GiB floor on ${String(total)} bytes`).toBe(
+          'normal',
+        )
+        expect(f.onError).not.toHaveBeenCalled()
+      }
+    }
+  })
+
+  it('keeps the free-memory margin floor below the tiny-machine headroom', async () => {
+    const f = setup(resourceSettingsSchema.parse({ relocate: 'off' }))
+    await f.read(0, { memoryAvailableBytes: 0, memoryTotalBytes: 2 })
+    await f.series(65_000, { memoryUsedPercent: 0, memoryAvailableBytes: 1, memoryTotalBytes: 2 })
+    expect(f.governor.level()).toBe('pause')
+    await f.series(190_000, { memoryUsedPercent: 0, memoryAvailableBytes: 2, memoryTotalBytes: 2 })
+    expect(f.governor.level()).toBe('normal')
+  })
+
+  it.each([
+    [RESOURCE_GIB_BYTES / 2, RESOURCE_GIB_BYTES / 8],
+    [16 * RESOURCE_GIB_BYTES, 2.5 * RESOURCE_GIB_BYTES],
+  ])(
+    'holds the scaled/capped memory recovery boundary on a %s-byte machine',
+    async (total, boundary) => {
+      const f = setup(resourceSettingsSchema.parse({ relocate: 'off' }))
+      await f.read(0, { memoryAvailableBytes: 0, memoryTotalBytes: total })
+      await f.series(65_000, {
+        memoryUsedPercent: 0,
+        memoryAvailableBytes: boundary,
+        memoryTotalBytes: total,
+      })
+      expect(f.governor.level()).toBe('pause')
+      await f.series(130_000, {
+        memoryUsedPercent: 0,
+        memoryAvailableBytes: boundary + 1,
+        memoryTotalBytes: total,
+      })
+      expect(f.governor.level()).toBe('throttle')
+    },
+  )
+
+  it.each([
+    ['cpu band', { cpuPercent: 76.5 }],
+    ['memory-used band', { memoryUsedPercent: 81 }],
     ['free-memory band', { memoryAvailableBytes: 2.5 * RESOURCE_GIB_BYTES }],
-    ['GPU band', { gpuPercent: 60 }],
-    ['disk band', { diskBusyPercent: 70 }],
+    ['GPU band', { gpuPercent: 63 }],
+    ['disk band', { diskBusyPercent: 72 }],
     ['unknown CPU', { cpuPercent: null }],
     ['unknown used memory', { memoryUsedPercent: null }],
     ['unknown available memory', { memoryAvailableBytes: null }],

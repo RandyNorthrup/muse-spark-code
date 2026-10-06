@@ -10,6 +10,7 @@ import {
   RESOURCE_MEMORY_ENTER_SAMPLES,
   RESOURCE_MEMORY_HYSTERESIS_GIB,
   RESOURCE_MIN_DWELL_MS,
+  RESOURCE_OPTIONAL_MIN_PERCENT,
   RESOURCE_OVERRIDE_MS,
   RESOURCE_SAMPLE_MS,
 } from '../../shared/constants'
@@ -104,13 +105,25 @@ export class ResourceGovernor {
     const percentage = (metric: Metric, value: number | null, limit: number): Threshold => ({
       metric,
       high: value === null ? null : value >= limit,
-      recovered: value !== null && value < limit - RESOURCE_HYSTERESIS_POINTS,
+      recovered:
+        value !== null &&
+        value <
+          limit -
+            Math.max(RESOURCE_OPTIONAL_MIN_PERCENT / 2, (limit * RESOURCE_HYSTERESIS_POINTS) / 100),
     })
     const floor =
       sample.memoryTotalBytes === null
         ? null
         : resourceMemoryFloorBytes(this.settings, sample.memoryTotalBytes)
     const free = sample.memoryAvailableBytes
+    const memoryMargin =
+      sample.memoryTotalBytes === null
+        ? null
+        : Math.min(
+            sample.memoryTotalBytes / 2,
+            RESOURCE_MEMORY_HYSTERESIS_GIB * RESOURCE_GIB_BYTES,
+            Math.max(1, (sample.memoryTotalBytes * RESOURCE_HYSTERESIS_POINTS) / 100),
+          )
     const readings: Threshold[] = [
       percentage('cpu', sample.cpuPercent, this.settings.cpuMaxPercent),
       percentage('memoryUsed', sample.memoryUsedPercent, this.settings.memoryMaxPercent),
@@ -118,9 +131,7 @@ export class ResourceGovernor {
         metric: 'memoryFree',
         high: free === null || floor === null ? null : free < floor,
         recovered:
-          free !== null &&
-          floor !== null &&
-          free > floor + RESOURCE_MEMORY_HYSTERESIS_GIB * RESOURCE_GIB_BYTES,
+          free !== null && floor !== null && memoryMargin !== null && free > floor + memoryMargin,
       },
     ]
     if (this.settings.gpuMaxPercent !== null)
