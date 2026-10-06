@@ -49,6 +49,7 @@ describe('store report source', () => {
         Response.json({ wireVersion: '0.14.2' }, { headers: { etag: '"v1"' } }),
       )
       .mockResolvedValueOnce(new Response(null, { status: 304 }))
+      .mockResolvedValueOnce(new Response(null, { status: 304 }))
     const rig = networkRig({ transport })
     const source = storesReportSource({
       reader: rig.reader,
@@ -72,6 +73,18 @@ describe('store report source', () => {
     expect(cached.record).toMatchObject({ status: 'ok', freshness: { state: 'stale' } })
     expect(cached.data).toEqual(initial.data)
     expect(transport.mock.calls[1]?.[1]).toBe('"v1"')
+    const metadata = z
+      .array(z.object({ key: z.string(), etag: z.nullable(z.string()), observedAt: z.string() }))
+      .parse(rig.entries())
+    rig.replaceEntries(
+      metadata.map((entry) => ({ ...entry, data: { version: '0.14.2', url: 'invalid' } })),
+    )
+    const corrupted = await source.read(networkContext())
+    expect(corrupted.data).toBeNull()
+    expect(corrupted.record).toMatchObject({
+      status: 'unavailable',
+      reason: expect.stringContaining('store-response-invalid'),
+    })
   })
 
   it('reads only applicable public channels and exposes lag for Needs you', async () => {

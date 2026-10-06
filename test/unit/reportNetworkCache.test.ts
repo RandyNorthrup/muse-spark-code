@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import {
   publicReportTransport,
   ReportResponseCache,
+  type ReportNetworkPolicy,
   type ReportNetworkTransport,
 } from '../../src/core/reporting/sources/cache'
 import {
@@ -21,6 +22,16 @@ function read(rig: ReturnType<typeof networkRig>, context = networkContext()) {
     data: await query(request, schema),
     reason: null,
   }))
+}
+function rateFloorTransport(remaining = '10') {
+  return vi.fn(() =>
+    Promise.resolve(
+      Response.json(
+        { value: 'ok' },
+        { headers: { 'x-ratelimit-remaining': remaining, 'x-ratelimit-reset': '1791288060' } },
+      ),
+    ),
+  )
 }
 afterEach(() => {
   vi.useRealTimers()
@@ -141,6 +152,69 @@ describe('report network policy and cache', () => {
     expect(observed2.record.reason).toContain('egress-refused')
     expect(denied.transport).not.toHaveBeenCalled()
     expect(denied.storage.read).not.toHaveBeenCalled()
+  })
+
+  it.each(['cache', 'egress'] as const)(
+    'rechecks network-off after an awaited %s admission',
+    async (stage) => {
+      const entered = Promise.withResolvers<undefined>()
+      const release = Promise.withResolvers<undefined>()
+      let mode: ReportNetworkPolicy['mode'] = 'always'
+      const base = networkRig()
+      const rig = networkRig({
+        policy: {
+          ...base.deps.policy,
+          get mode() {
+            return mode
+          },
+          allowEgress: async () => {
+            if (stage === 'egress') {
+              entered.resolve(undefined)
+              await release.promise
+            }
+            return true
+          },
+        },
+      })
+      if (stage === 'cache')
+        rig.storage.read.mockImplementationOnce(async () => {
+          entered.resolve(undefined)
+          await release.promise
+          return undefined
+        })
+      const pending = read(rig)
+      await entered.promise
+      mode = 'off'
+      release.resolve(undefined)
+      expect(await pending).toMatchObject({
+        data: null,
+        record: {
+          status: 'unavailable',
+          reason: expect.stringContaining(UI_TEXT.reportUi.networkOff),
+        },
+      })
+      expect(rig.transport).not.toHaveBeenCalled()
+    },
+  )
+
+  it('rechecks network-off before every subsequent page', async () => {
+    let mode: ReportNetworkPolicy['mode'] = 'always'
+    const base = networkRig()
+    const rig = networkRig({
+      policy: {
+        ...base.deps.policy,
+        get mode() {
+          return mode
+        },
+      },
+    })
+    const result = await rig.reader.read(networkContext(), 'network', schema, async (query) => {
+      await query(request, schema)
+      mode = 'off'
+      return { data: await query(request, schema), reason: null }
+    })
+    expect(result.record.reason).toContain(UI_TEXT.reportUi.networkOff)
+    expect(rig.transport).toHaveBeenCalledOnce()
   })
 
   it('reuses a 304 with the original observation and age', async () => {
@@ -283,19 +357,42 @@ describe('report network policy and cache', () => {
   })
 
   it('stops at the rate floor and names the reset without dispatching again', async () => {
-    const transport = vi.fn(() =>
-      Promise.resolve(
-        Response.json(
-          { value: 'ok' },
-          { headers: { 'x-ratelimit-remaining': '10', 'x-ratelimit-reset': '1791288060' } },
-        ),
-      ),
-    )
+    const transport = rateFloorTransport()
     const rig = networkRig({ transport })
     const observed7 = await read(rig)
     expect(observed7.record.status).toBe('ok')
     const observed8 = await read(rig)
     expect(observed8.record.reason).toContain('2026-10-06T12:01:00.000Z')
+    expect(transport).toHaveBeenCalledOnce()
+  })
+
+  it('rechecks the rate floor after an awaited cache read', async () => {
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const transport = rateFloorTransport('0')
+    const rig = networkRig({ transport })
+    rig.storage.read.mockImplementationOnce(async () => {
+      entered.resolve(undefined)
+      await release.promise
+      return undefined
+    })
+    const waiting = read(rig)
+    await entered.promise
+    const initial = await read(rig)
+    expect(initial.record.status).toBe('ok')
+    release.resolve(undefined)
+    const result = await waiting
+    expect(result.record.status).toBe('unavailable')
+    expect(result.record.reason).toContain('2026-10-06T12:01:00.000Z')
+    expect(transport).toHaveBeenCalledOnce()
+  })
+
+  it('serializes concurrent same-host dispatches until rate headers establish the floor', async () => {
+    const transport = rateFloorTransport()
+    const rig = networkRig({ transport })
+    const results = await Promise.all([read(rig), read(rig)])
+    expect(results.map((result) => result.record.status)).toEqual(['ok', 'unavailable'])
+    expect(results[1].record.reason).toContain('2026-10-06T12:01:00.000Z')
     expect(transport).toHaveBeenCalledOnce()
   })
 
@@ -315,8 +412,14 @@ describe('report network policy and cache', () => {
 
   it('does not leak a thrown transport error or a refused HTTP body', async () => {
     const secret = `ghp_${'c'.repeat(36)}`
-    const rig = networkRig({ transport: vi.fn(() => Promise.reject(new Error(secret))) })
-    expect(JSON.stringify(await read(rig))).not.toContain(secret)
+    const transport = vi
+      .fn<ReportNetworkTransport>()
+      .mockRejectedValueOnce(new Error(secret))
+      .mockResolvedValue(Response.json({ value: 'ok' }))
+    const rig = networkRig({ transport })
+    const [failed, recovered] = await Promise.all([read(rig), read(rig)])
+    expect(JSON.stringify(failed)).not.toContain(secret)
+    expect(recovered.record.status).toBe('ok')
     const refused = networkRig({
       transport: vi.fn(() => Promise.resolve(Response.json({ message: secret }, { status: 500 }))),
     })

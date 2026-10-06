@@ -30098,6 +30098,18 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **M113-N-review-RVM113N (2026-10-06).** All four P2 findings fixed;
+  no review residuals. Responses are parsed, scrubbed as decoded structured
+  values and validated before storage; 304s validate stored output separately
+  from transforming input schemas. One per-host lock covers rate admission,
+  dispatch and response-header updates; current network policy is checked
+  immediately before every send. Regression tests and byte-exact red drills
+  are in `docs/certification/m113-n-network-sources-(b).md`. Existing
+  N-captures, N-cache-storage, N-reader-wiring and other integration handoffs
+  in that record remain with their named owners; no live-service claim is
+  added. W retains unused manifest-key wiring and host API regeneration,
+  public documentation and the lead's full integrated quality run.
+
 - **M113-L0-review-RVM113L02 (2026-10-06).** The P2 comparison-capacity
   finding is fixed with no review residuals. Capacity is derived from the
   actual document section schemas, including Needs you and both inputs'

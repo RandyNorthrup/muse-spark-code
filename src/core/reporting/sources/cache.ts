@@ -164,6 +164,7 @@ export function isReportNetworkAllowed(
 
 export class ReportNetworkReader {
   private readonly limitedUntil = new Map<string, number>()
+  private readonly dispatches = new Map<string, Promise<void>>()
 
   public constructor(private readonly deps: ReportNetworkDeps) {
     z.number().check(z.int(), z.positive()).parse(deps.maxBytes)
@@ -174,7 +175,7 @@ export class ReportNetworkReader {
     request: ReportNetworkRequest,
     schema: z.ZodMiniType<T>,
     signal: AbortSignal,
-    workspaceKey: string,
+    context: SourceReadContext,
     outputSchema: z.ZodMiniType<T> = schema,
   ): Promise<{
     data: T
@@ -211,27 +212,21 @@ export class ReportNetworkReader {
     if (!(await this.deps.policy.allowEgress(url.href, signal)))
       throw new ReportNetworkFailure('egress-refused')
     signal.throwIfAborted()
-    const now = timestamp.parse(this.deps.now())
-    const until = this.limitedUntil.get(url.origin)
-    if (until !== undefined && until > Date.parse(now)) {
-      throw new ReportNetworkFailure(
-        fill(UI_TEXT.reportUi.rateLimitedUntil, { time: new Date(until).toISOString() }),
-      )
-    }
     // Cache identity is computed only after scrubbing, including the read-query body.
     const key = createHash('sha256')
-      .update(this.deps.scrub(JSON.stringify({ workspaceKey, request })))
+      .update(this.deps.scrub(JSON.stringify({ workspaceKey: context.workspaceKey, request })))
       .digest('hex')
     const previous = await this.deps.cache.get(key, signal)
     signal.throwIfAborted()
     const oldEtag = previous?.etag ?? null
-    const response = await this.deps.transport(
+    const { response, limited, now } = await this.dispatch(
       request,
       oldEtag !== null && this.deps.scrub(oldEtag) === oldEtag ? oldEtag : null,
       signal,
+      context,
+      url.origin,
     )
     signal.throwIfAborted()
-    const limited = this.rateLimit(response, url.origin, Date.parse(now))
     if (response.status === HTTP_NOT_MODIFIED) {
       if (previous === undefined) throw new ReportNetworkFailure('cache-missing')
       // A 304 never makes the cached observation newer than it was.
@@ -256,6 +251,46 @@ export class ReportNetworkReader {
     const safeEtag = etag !== null && this.deps.scrub(etag) === etag ? etag : null
     await this.deps.cache.set({ key, etag: safeEtag, observedAt: now, data }, signal)
     return { data, observedAt: now, cached: false }
+  }
+
+  /** Hold each host's admission through its response headers and rate-state update. */
+  private async dispatch(
+    request: ReportNetworkRequest,
+    etag: string | null,
+    signal: AbortSignal,
+    context: SourceReadContext,
+    origin: string,
+  ): Promise<{ response: Response; limited: number | null; now: string }> {
+    const previous = this.dispatches.get(origin) ?? Promise.resolve()
+    const dispatched = (async () => {
+      await previous
+      signal.throwIfAborted()
+      const now = timestamp.parse(this.deps.now())
+      const until = this.limitedUntil.get(origin)
+      if (until !== undefined && until > Date.parse(now))
+        throw new ReportNetworkFailure(
+          fill(UI_TEXT.reportUi.rateLimitedUntil, { time: new Date(until).toISOString() }),
+        )
+      // No await between the live setting check and the actual transport call.
+      if (!this.allowed(context)) throw new ReportNetworkFailure(UI_TEXT.reportUi.networkOff)
+      const response = await this.deps.transport(request, etag, signal)
+      const limited = this.rateLimit(response, origin, Date.parse(now))
+      return { response, limited, now }
+    })()
+    const pending = (async () => {
+      try {
+        await dispatched
+      } catch {
+        // The caller receives the failure; later host admissions can still run.
+        return
+      }
+    })()
+    this.dispatches.set(origin, pending)
+    try {
+      return await dispatched
+    } finally {
+      if (this.dispatches.get(origin) === pending) this.dispatches.delete(origin)
+    }
   }
 
   private rateLimit(response: Response, origin: string, now: number): number | null {
@@ -356,7 +391,7 @@ export class ReportNetworkReader {
         signal.throwIfAborted()
         pages += 1
         if (pages > this.deps.maxPages) throw new ReportNetworkFailure('page-bound')
-        const page = await this.query(request, schema, signal, context.workspaceKey, outputSchema)
+        const page = await this.query(request, schema, signal, context, outputSchema)
         if (observedAt === null || Date.parse(page.observedAt) < Date.parse(observedAt)) {
           observedAt = page.observedAt
         }

@@ -287,14 +287,18 @@ feature, command, setting, dependency, capture or model attempt is introduced.
 
 All seven new regression cases failed against the original production code
 (78 existing tests passed), using the three complete owning suites and default
-timeouts. The first finished piece fixes findings 1 and 2:
+timeouts. All four findings are now fixed, with no review residuals. The
+first finished piece is `9e61d1762` (findings 1 and 2); the second completes
+rate/policy admission and strengthens output-validation/failure tests:
 
-| Finding                             | Repair                                                                                                                                                                                          | Regression                                                                          | Red drill                                                                                                                    |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| P2.1 decoded credential persistence | Parse the response, scrub decoded strings/field names through the shared `scrubStructured` helper, validate the output, then write the cache. The helper also scrubs cached and collected data. | `scrubs escaped credentials in captured pull titles before persistent cache writes` | `decoded-scrub`: remove the decoded scrub before storage; the complete GitHub suite exits 1 at the named test.               |
-| P2.2 transformed 304 cache output   | Query accepts a separate output schema; store adapters always supply the normalized fact schema. The 304 path validates stored parsed output directly and preserves its observation.            | `reuses transformed store facts on 304 with their output schema`                    | `parsed-304`: replace the cached output validator with the input parser; the complete store suite exits 1 at the named test. |
+| Finding                             | Repair                                                                                                                                                                                                                    | Regression                                                                                                                                 | Red drill                                                                                                                                                           |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2.1 decoded credential persistence | Parse the response, scrub decoded strings/field names through the shared `scrubStructured` helper, validate the output, then write the cache. The helper also scrubs cached and collected data.                           | `scrubs escaped credentials in captured pull titles before persistent cache writes`                                                        | `decoded-scrub`: remove the decoded scrub before storage; the complete GitHub suite exits 1 at the named test.                                                      |
+| P2.2 transformed 304 cache output   | Query accepts a separate output schema; store adapters always supply the normalized fact schema. The 304 path validates stored parsed output directly and preserves its observation.                                      | `reuses transformed store facts on 304 with their output schema`                                                                           | `parsed-304`: replace the cached output validator with the input parser; the complete store suite exits 1 at the named test.                                        |
+| P2.3 concurrent rate-floor bypass   | One per-host queue covers rate admission, transport dispatch and the returned rate headers. Admission uses the current time after cache access and after acquiring the queue. Failed dispatches release later admissions. | `rechecks the rate floor after an awaited cache read`; `serializes concurrent same-host dispatches until rate headers establish the floor` | `rate-floor-after-cache`: bypass the final floor check; `serialized-dispatch`: bypass the preceding host dispatch. Each full cache suite exits 1 at its named test. |
+| P2.4 network-off during an await    | Recheck the live policy immediately before each transport call, with no await between check and send.                                                                                                                     | `rechecks network-off after an awaited cache admission`; the egress variant; `rechecks network-off before every subsequent page`           | `network-before-dispatch`: remove the final policy check. All three named cases fail in the complete cache suite, exit 1.                                           |
 
-Both deliberate mutations restored `cache.ts` byte-exact in `finally`,
+Both first-piece deliberate mutations restored `cache.ts` byte-exact in `finally`,
 SHA-256 `267ff4e7955992cc2932ef538e43fe358de5eafabec3138f39f2ff25aa786b69`.
 Local logs: `temp/fixm113n/baseline.log`, `parsed-cache.log`,
 `drills-parsed.json` and `drill-{decoded-scrub,parsed-304}.log`.
@@ -305,3 +309,63 @@ passed all 43 tests with repository default timeouts.
 `npm run typecheck` passed all five projects; ESLint with zero warnings and
 Prettier passed the four TypeScript files in this first piece. The normal
 pre-commit hook is enabled and checks the explicit staged paths.
+
+The final seven red drills cover both original persistence/hit regressions
+again, the independent parsed-output validator (a corrupt cached URL is
+refused), the rate recheck, the host lock, the final live policy check, and
+queued recovery from a thrown transport error. `host-failure-release`
+deliberately makes the predecessor's failed dispatch poison its queue; the
+existing `does not leak a thrown transport error or a refused HTTP body`
+test now asserts the next concurrent read succeeds and fails under that
+mutation. All seven complete owning-file runs exited 1 at the expected named
+tests, restored byte-exact in `finally`, and compared SHA-256
+`349376dbfe7335d85a4d90b2b38663b865dd88113a7ea546f9058bc86d1be210`.
+Receipts: `temp/fixm113n/drills-final.json` and corresponding `drill-*.log`.
+Including the first piece, nine drill executions were certified.
+
+The zero-threshold duplication gate found one repeated rate-header fixture;
+a shared test-only factory within the owned cache suite removes it. No
+assertion or threshold changed; the rerun found zero clones, exit 0.
+No path comparison, wire field, localization key or escape hatch is added.
+
+### FIXM113N final verification (Kubuntu, 2026-10-06)
+
+All checks ran directly in this worktree, sequentially; no rig wrappers,
+test-name filters, timeout overrides, skipped tests or full-suite run. Final
+commands and receipts are in `temp/fixm113n/checks-final.json`; logs use
+`<check>-final.log` (the test logs are `sources-final-final.log` and
+`posting-final-final.log`). The code is the byte-exact restored final version
+above. The final documentation append receives another Prettier check.
+
+| Check                                                                                                                                                      | Result                                                                                                                                                                                                   |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck`                                                                                                                                        | Exit 0, all five projects.                                                                                                                                                                               |
+| ESLint on all eight owned TypeScript files, `--max-warnings=0`                                                                                             | Exit 0.                                                                                                                                                                                                  |
+| Prettier on those files, PLAN and this record                                                                                                              | Exit 0.                                                                                                                                                                                                  |
+| `npm run deadcode`, plain knip with `JITI_FS_CACHE=0`                                                                                                      | Exit 0; no writes under shared node_modules.                                                                                                                                                             |
+| `npx --no-install jscpd`                                                                                                                                   | Exit 0, zero clones, unchanged zero threshold.                                                                                                                                                           |
+| `npm run check:reference`                                                                                                                                  | Exit 0, generated reference current.                                                                                                                                                                     |
+| `node scripts/check-l10n.mjs`                                                                                                                              | Exit 1, exactly the seven existing unused report manifest keys; all 14 UI tables checked, no new problem. W's N-manifest-reference-docs handoff, unchanged.                                              |
+| `npm run check:host-api`                                                                                                                                   | Exit 1, the existing generated-record freshness problem: node:child_process 13→14, node:crypto 46→47, node:util 5→6. No new imports/API change in this repair. W's N-host-api-record handoff, unchanged. |
+| `npm run build`                                                                                                                                            | Exit 0, including unchanged size/split, host-global and notice gates.                                                                                                                                    |
+| `npx --no-install vitest run test/unit/reportNetworkCache.test.ts test/unit/githubReportSource.test.ts test/unit/storeReportSource.test.ts --maxWorkers=3` | Exit 0, 85 tests, repository default timeouts.                                                                                                                                                           |
+| `npx --no-install vitest run test/unit/reportPosting.test.ts --maxWorkers=3`                                                                               | Exit 0, 31 tests, repository default timeouts; 116 total owned tests.                                                                                                                                    |
+| Final red drills                                                                                                                                           | Seven expected red exits; nine executions including the first piece; every restoration SHA-256 byte-exact.                                                                                               |
+
+Build sizes remain extension 439.5/600 KiB, Model API 446.9/475 KiB,
+ACP 821.5/850 KiB and checkpoint store 76.9/225 KiB. These modules still
+await W's lazy reporting entry; this build does not certify that future
+integrated bundle. No gate is weakened or claimed green when nonzero.
+
+For W's existing reader-wiring handoff, use the same reader for concurrent
+reads in a host and bind `policy.mode` to the current setting (for example,
+a live getter). Each reader's host queue shares its rate state; public,
+signed-in and gh transports all pass through that admission. Cross-window
+storage serialization remains the existing storage handoff. W also owns the
+public Unreleased documentation for the four fixes. PLAN §9 records no
+remaining review finding while retaining these named integration boundaries.
+
+The first repair commit's normal hook ran lint-staged ESLint/Prettier and
+gitleaks, exit 0, no leaks. The second uses the same enabled hooks with only
+explicit paths staged. No merge, rebase, push, live service or model call,
+dependency install or global setting change occurred.
