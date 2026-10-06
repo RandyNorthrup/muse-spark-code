@@ -1,10 +1,17 @@
 import { describe, expect, it, vi } from 'vitest'
 import { AccountStore, type AccountProvider } from '../../src/core/providers/accounts'
 import { AccountConfirmations } from '../../src/core/accounts/confirmations'
-import { AccountsPanelHandler } from '../../src/host/models/accountsHandler'
+import {
+  AccountsPanelHandler,
+  type AccountsPanelHostPort,
+} from '../../src/host/models/accountsHandler'
 import { AccountPolicyPrompt } from '../../src/host/models/accountPolicyPrompt'
-import { modelsAccountsSliceSchema } from '../../src/shared/modelsPanel'
-import { panelPolicy, panelSlice } from './helpers/accounts/panel'
+import {
+  accountsNoticeSchema,
+  accountsPolicyQuestionSchema,
+  modelsAccountsSliceSchema,
+} from '../../src/shared/modelsPanel'
+import { panelPolicy, panelQuestion, panelSlice } from './helpers/accounts/panel'
 
 function harness() {
   let entry: AccountProvider = {
@@ -17,7 +24,7 @@ function harness() {
   }
   let current: string | null = 'work'
   const metadata = {
-    read: (id: string) => Promise.resolve(id === entry.id ? entry : undefined),
+    read: vi.fn((id: string) => Promise.resolve(id === entry.id ? entry : undefined)),
     writeAccounts: vi.fn((_provider: string, accounts: typeof entry.accounts) => {
       entry = { ...entry, accounts }
       return Promise.resolve()
@@ -45,6 +52,7 @@ function harness() {
     return Promise.resolve()
   })
   const credential = vi.fn(() => Promise.resolve())
+  const answer = vi.fn<AccountsPanelHostPort['answer']>(() => false)
   const handler = new AccountsPanelHandler({
     accounts: new AccountStore(metadata, vault),
     confirmations,
@@ -59,7 +67,7 @@ function harness() {
     }),
     credential,
     use,
-    answer: () => false,
+    answer,
     now: () => Date.parse('2026-10-06T00:00:00Z'),
   })
   return {
@@ -68,6 +76,7 @@ function harness() {
     store,
     use,
     credential,
+    answer,
     metadata,
     configure: (value: Partial<AccountProvider>) => {
       entry = { ...entry, ...value }
@@ -177,6 +186,8 @@ describe('M108 panel host', () => {
         type: 'accounts/confirm',
         provider: 'openai',
         product: 'api',
+        questionId: panelQuestion().questionId,
+        providerGeneration: 1,
         choice: 'confirm',
       }),
     ).toEqual({ type: 'accounts/error', code: 'consentRequired' })
@@ -202,6 +213,42 @@ describe('M108 panel host', () => {
       }),
     ).toEqual({ type: 'accounts/error', code: 'unavailable' })
   })
+  it.each(['cancelled', 'credential storage failed'])(
+    'rolls back a %s credential addition so the same draft can be retried',
+    async (failure) => {
+      const h = harness()
+      const account = { id: 'team', label: 'Team', order: 2, thresholds: {} }
+      const request = { type: 'accounts/add', provider: 'openai', account }
+      h.credential.mockRejectedValueOnce(new Error(failure))
+      expect(await h.handler.handle(request)).toEqual({
+        type: 'accounts/error',
+        code: 'unavailable',
+      })
+      const cancelled = await h.handler.snapshot('openai')
+      expect(cancelled.accounts).toEqual(panelSlice().accounts)
+      expect(h.vault.remove).toHaveBeenCalledWith({
+        provider: 'openai',
+        account: 'team',
+        origin: 'https://provider.invalid',
+      })
+      expect(await h.handler.handle(request)).toMatchObject({
+        accounts: expect.arrayContaining([account]),
+      })
+      expect(h.credential).toHaveBeenCalledTimes(2)
+    },
+  )
+  it('does not roll back an existing account when a duplicate add fails', async () => {
+    const h = harness()
+    await h.handler.handle({
+      type: 'accounts/add',
+      provider: 'openai',
+      account: panelSlice().accounts[0],
+    })
+    const unchanged = await h.handler.snapshot('openai')
+    expect(unchanged.accounts).toEqual(panelSlice().accounts)
+    expect(h.credential).not.toHaveBeenCalled()
+    expect(h.vault.remove).not.toHaveBeenCalled()
+  })
   it('validates every display boundary including URLs and current account', () => {
     const value = panelSlice()
     expect(modelsAccountsSliceSchema.safeParse(value).success).toBe(true)
@@ -215,6 +262,46 @@ describe('M108 panel host', () => {
       expect(modelsAccountsSliceSchema.safeParse({ ...value, ...change }).success).toBe(false)
     }
   })
+  it('validates question correlation and recovery projections without secret-bearing fields', () => {
+    const question = panelQuestion()
+    expect(accountsPolicyQuestionSchema.safeParse(question).success).toBe(true)
+    for (const change of [
+      { questionId: '' },
+      { providerGeneration: 0 },
+      { providerGeneration: Number.MAX_SAFE_INTEGER + 1 },
+      { secret: 'planted' },
+    ])
+      expect(accountsPolicyQuestionSchema.safeParse({ ...question, ...change }).success).toBe(false)
+    const event = {
+      type: 'stop',
+      provider: 'openai',
+      account: 'work',
+      time: '2026-10-06T00:00:00Z',
+      trigger: { kind: 'vendorLimit', reason: 'quota', resetAt: null },
+    }
+    expect(accountsNoticeSchema.safeParse({ event, resetAt: null }).success).toBe(true)
+    expect(accountsNoticeSchema.safeParse({ event, resetAt: '2026-10-07T00:00:00Z' }).success).toBe(
+      true,
+    )
+    for (const value of [
+      event,
+      { event },
+      { event, resetAt: 'tomorrow' },
+      { event, resetAt: null, secret: 'planted' },
+      { event: { ...event, secret: 'planted' }, resetAt: null },
+      {
+        event: {
+          type: 'spread',
+          provider: 'openai',
+          account: 'work',
+          time: event.time,
+          workerId: 'worker',
+        },
+        resetAt: '2026-10-07T00:00:00Z',
+      },
+    ])
+      expect(accountsNoticeSchema.safeParse(value).success).toBe(false)
+  })
 })
 
 function questionHarness() {
@@ -225,23 +312,102 @@ function questionHarness() {
     policy: () => row,
     now: () => Date.parse('2026-10-06T00:00:00Z'),
   })
-  return { row, show, prompt }
+  return {
+    row,
+    show,
+    prompt,
+    question: () => accountsPolicyQuestionSchema.parse(show.mock.lastCall?.[1]),
+  }
 }
 
 describe('M108 host-issued policy dialog', () => {
+  it('keeps delayed answers correlated across the handler provider lookup', async () => {
+    const h = harness()
+    const { row, prompt, question } = questionHarness()
+    h.answer.mockImplementation((request) => prompt.answer(request))
+    const first = prompt.ask('openai', row)
+    const old = question()
+    const entry = await h.metadata.read('openai')
+    const lookup = Promise.withResolvers<AccountProvider | undefined>()
+    h.metadata.read.mockReturnValueOnce(lookup.promise)
+    const response = h.handler.handle({
+      type: 'accounts/confirm',
+      provider: 'openai',
+      product: 'api',
+      choice: 'confirm',
+      questionId: old.questionId,
+      providerGeneration: old.providerGeneration,
+    })
+    prompt.close()
+    expect(await first).toBe('cancel')
+    // Even the identical clause requires an answer to this new host-issued question.
+    const next = prompt.ask('openai', row)
+    const current = question()
+    lookup.resolve(entry)
+    expect(await response).toEqual({ type: 'accounts/error', code: 'consentRequired' })
+    for (const correlation of [
+      { questionId: old.questionId, providerGeneration: current.providerGeneration },
+      { questionId: current.questionId, providerGeneration: old.providerGeneration },
+    ]) {
+      expect(
+        prompt.answer({
+          type: 'accounts/confirm',
+          provider: 'openai',
+          product: 'api',
+          choice: 'confirm',
+          ...correlation,
+        }),
+      ).toBe(false)
+    }
+    expect(
+      await h.handler.handle({
+        type: 'accounts/confirm',
+        provider: 'openai',
+        product: 'api',
+        choice: 'ownCapsOnly',
+        questionId: current.questionId,
+        providerGeneration: current.providerGeneration,
+      }),
+    ).toMatchObject({ provider: 'openai' })
+    expect(await next).toBe('ownCapsOnly')
+  })
+  it('rejects an answer belonging to a closed question when its replacement quotes another clause', async () => {
+    const { row, prompt, question } = questionHarness()
+    const first = prompt.ask('openai', row)
+    const answer = {
+      type: 'accounts/confirm',
+      provider: 'openai',
+      product: 'api',
+      choice: 'confirm',
+      questionId: question().questionId,
+      providerGeneration: question().providerGeneration,
+    }
+    prompt.close()
+    expect(await first).toBe('cancel')
+    row.sources[0]!.quote = 'Replacement clause'
+    const next = prompt.ask('openai', row)
+    expect(question().questionId).not.toBe(answer.questionId)
+    expect(question().providerGeneration).not.toBe(answer.providerGeneration)
+    expect(prompt.answer(answer)).toBe(false)
+    prompt.close()
+    expect(await next).toBe('cancel')
+  })
   it('quotes the actual row and only accepts the matching pending provider and product', async () => {
-    const { row, show, prompt } = questionHarness()
+    const { row, show, prompt, question } = questionHarness()
+    const pending = prompt.ask('openai', row)
     const request = {
       type: 'accounts/confirm',
       provider: 'openai',
       product: 'api',
       choice: 'confirm',
+      questionId: question().questionId,
+      providerGeneration: question().providerGeneration,
     } as const
-    expect(prompt.answer(request)).toBe(false)
-    const pending = prompt.ask('openai', row)
     expect(show).toHaveBeenCalledWith(
       'openai',
-      expect.objectContaining({ sources: row.sources, checkedAt: row.checkedAt }),
+      expect.objectContaining({
+        policy: expect.objectContaining({ sources: row.sources, checkedAt: row.checkedAt }),
+      }),
     )
     expect(prompt.answer({ ...request, provider: 'other' })).toBe(false)
     expect(prompt.answer({ ...request, product: 'other' })).toBe(false)
@@ -251,7 +417,7 @@ describe('M108 host-issued policy dialog', () => {
     expect(prompt.answer(request)).toBe(false)
   })
   it('discards a changed row and cancels on disposal or overlapping questions', async () => {
-    const { row, prompt } = questionHarness()
+    const { row, prompt, question } = questionHarness()
     const pending = prompt.ask('openai', row)
     expect(await prompt.ask('openai', row)).toBe('cancel')
     row.sources[0]!.quote = 'Changed clause'
@@ -261,6 +427,8 @@ describe('M108 host-issued policy dialog', () => {
         provider: 'openai',
         product: 'api',
         choice: 'confirm',
+        questionId: question().questionId,
+        providerGeneration: question().providerGeneration,
       }),
     ).toBe(false)
     expect(await pending).toBe('cancel')

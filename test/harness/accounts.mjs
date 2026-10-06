@@ -1,7 +1,7 @@
 // Test-only host. Production imports the same lazy entry through M95/M104.
 import { createElement, lazy, Suspense, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { panelSlice } from '../unit/helpers/accounts/panel'
+import { panelQuestion, panelSlice } from '../unit/helpers/accounts/panel'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import { installEmbeddedTable } from '../../src/webview/installTable'
 import '../../src/webview/styles.css'
@@ -64,7 +64,7 @@ async function mountAccountsHarness() {
       return createElement(Dialog, {
         provider: slice.provider,
         providerLabel: slice.providerLabel,
-        value: slice.policy,
+        value: panelQuestion(slice.policy),
         onChoose: () => {
           setQuestion(false)
           return Promise.resolve()
@@ -133,7 +133,7 @@ async function mountAccountsHarness() {
               time: '2026-10-06T00:00:00Z',
               trigger,
             },
-          ],
+          ].map((event) => ({ event, resetAt: event.type === 'stop' ? trigger.resetAt : null })),
         }),
       )
     return createElement(Section, { value: slice, port: { request, accept: setSlice, openLink } })

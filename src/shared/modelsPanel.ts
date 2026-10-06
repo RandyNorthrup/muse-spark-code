@@ -1,7 +1,12 @@
 // M108 U's account slice. M95/M104 supply the authenticated panel envelope.
 // This local projection carries metadata and policy evidence, never credentials.
 import * as z from 'zod/mini'
-import { accountIdSchema, accountPoolSchema, accountConfirmationChoiceSchema } from './accounts'
+import {
+  accountIdSchema,
+  accountPoolSchema,
+  accountConfirmationChoiceSchema,
+  accountEventSchema,
+} from './accounts'
 
 const safeUrl = z.url().check(
   z.refine((value) => {
@@ -35,6 +40,19 @@ export const accountsPolicyViewSchema = z.strictObject({
     .check(z.minLength(1)),
 })
 export type AccountsPolicyView = z.infer<typeof accountsPolicyViewSchema>
+
+/** Correlation survives delayed bridge/provider lookups and replacement dialogs. */
+export const accountsPolicyQuestionSchema = z.strictObject({
+  questionId: z.uuid(),
+  providerGeneration: z.int().check(z.positive()),
+  policy: accountsPolicyViewSchema,
+})
+export type AccountsPolicyQuestion = z.infer<typeof accountsPolicyQuestionSchema>
+
+/** P's stop error supplies recovery; an event trigger alone cannot predict it. */
+export const accountsNoticeSchema = z
+  .strictObject({ event: accountEventSchema, resetAt: z.nullable(z.iso.datetime()) })
+  .check(z.refine((notice) => notice.event.type === 'stop' || notice.resetAt === null))
 
 export const modelsAccountsSliceSchema = z
   .strictObject({

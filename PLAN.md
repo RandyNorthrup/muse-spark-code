@@ -19833,6 +19833,20 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
 
+**FIXM108U (2026-10-06):** repair all four RVM108U P2 findings within
+U's panel, host ports and display contracts. Keep one pending operation per
+Accounts view, tag its result/error/cleanup with its provider generation and
+request identity, and discard completions after navigation away and back.
+Issue a unique question id plus generation with each policy dialog and carry
+both through the shared answer payload, including the host's asynchronous
+provider lookup. Roll back an owned account addition in finally if its
+credential flow cancels or fails. Display stop recovery only from P's
+`AccountPoolStoppedError.resetAt`, carried alongside the opaque event in U's
+validated notice projection; the first trigger is not a recovery estimate.
+Add interleaved regression tests and byte-exact red drills for each finding.
+No dependencies, guard relaxations or gate/budget changes. W retains the
+installed M95/M104 bindings and joined-tree certification.
+
 **FIXM108P (2026-10-06):** fix all five RVM108P P2 findings inside P's
 owned core/paid ports. Serialize confirmation read/question/write ownership
 before starting I/O, discard stale reads/results by generation, and refresh
@@ -20077,6 +20091,14 @@ No dependency, endpoint guard, paid default or budget changes. See
         full gate green
 
 ## 7. Gates
+
+**FIXM108U bounded-lane certification (2026-10-06).** The explicit rig brief
+and shared rules prohibit aggregate quality/full unit runs, merges and
+network calls. Run complete owning files with repository timeouts and at
+most three workers/files, scoped static/build checks and hook-on commits.
+The lead retains integrated quality, coverage and installed editor/live
+certification. No gate is weakened; receipts are in
+`docs/certification/m108-u-panel-and-vs-code.md`.
 
 **FIXM108P bounded-lane certification (2026-10-06).** The rig brief and
 shared rules prohibit aggregate quality/full unit runs, merges and network
@@ -21270,6 +21292,21 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM108U-INSTALLED-BINDINGS (M108-U-M104-PROMPT / M108-U-P-BOUNDARY /
+  W).** No RVM108U finding remains in U's supplied panel/host ports. The
+  installed M95/M104 bridge is absent on this base. W must preserve the
+  host-issued question UUID and provider generation through every editor's
+  request/answer envelopes, bind one serialized Accounts/modal owner, and
+  project each stop with `accountNoticeFor(event, stoppedError)` from that
+  exact failed pool admission. A raw persisted stop event carries only its
+  trigger, so without the error the projection explicitly shows unknown
+  recovery. Safe for now: these modules are absent from shipped graphs and
+  installed multi-account surfaces remain disabled. Follow-up: certify
+  provider-return/delayed-answer interleavings and pool recovery through the
+  installed VS Code/native/companion transports before enabling them; H owns
+  equivalent ACP/terminal/headless bindings. Full quality and generated host
+  API/README/CHANGELOG/help updates remain W's joined-tree work.
 
 - **FIXM108P-PROFILE-OWNER (P-W-POLICY-STORE / M109 / W).** Compose one
   profile-owned pool and confirmation authority, and one account/tariff paid

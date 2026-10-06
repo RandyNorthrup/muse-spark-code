@@ -1,11 +1,21 @@
 import { accountPolicyFor } from '../../../../src/core/providers/accountPolicy'
-import type { ModelsAccountsSlice } from '../../../../src/shared/modelsPanel'
+import type {
+  AccountsPolicyQuestion,
+  ModelsAccountsSlice,
+} from '../../../../src/shared/modelsPanel'
 import type { AccountPolicy } from '../../../../src/core/providers/accountPolicy'
 
 export function panelPolicy(): AccountPolicy {
   const row = accountPolicyFor('openai', 'api')
   if (row === undefined) throw new Error('missing bundled policy')
   return structuredClone(row)
+}
+export function panelQuestion(policy = panelSlice().policy!): AccountsPolicyQuestion {
+  return {
+    questionId: 'b34b2481-c87a-4d45-8f0a-5208c261ad75',
+    providerGeneration: 1,
+    policy,
+  }
 }
 export function panelSlice(overrides: Partial<ModelsAccountsSlice> = {}): ModelsAccountsSlice {
   const row = panelPolicy()

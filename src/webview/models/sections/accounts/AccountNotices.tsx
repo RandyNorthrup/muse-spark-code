@@ -1,5 +1,4 @@
-import { accountEventSchema } from '../../../../shared/accounts'
-import { modelsAccountsSliceSchema } from '../../../../shared/modelsPanel'
+import { accountsNoticeSchema, modelsAccountsSliceSchema } from '../../../../shared/modelsPanel'
 import { UI_TEXT } from '../../../../shared/constants'
 import { fill, formatDateTime, formatNumber } from '../../../../shared/l10n/text'
 import { formatUsd, parseUsd } from '../../../../shared/usd'
@@ -32,11 +31,11 @@ export function AccountNotices({
   return (
     <div className="account-notices" role="log" aria-label={UI_TEXT.accounts.title}>
       {events.map((value, index) => {
-        const parsed = accountEventSchema.safeParse(value)
-        if (!parsed.success || parsed.data.provider !== slice.data.provider) return null
-        const event = parsed.data
+        const parsed = accountsNoticeSchema.safeParse(value)
+        if (!parsed.success || parsed.data.event.provider !== slice.data.provider) return null
+        const event = parsed.data.event
         if (event.type === 'spread') return null
-        const reset = event.trigger.resetAt
+        const reset = parsed.data.resetAt
         if (event.type === 'stop')
           return (
             <div key={index}>

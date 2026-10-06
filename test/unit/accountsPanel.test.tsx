@@ -11,10 +11,14 @@ import type { AccountsSectionPort } from '../../src/webview/models/sections/acco
 import { ThresholdEditor } from '../../src/webview/models/sections/accounts/ThresholdEditor'
 import { App } from '../../src/webview/App'
 import { UI_TEXT } from '../../src/shared/constants'
-import { panelSlice } from './helpers/accounts/panel'
+import { panelQuestion, panelSlice } from './helpers/accounts/panel'
 import { initialUiState } from '../../src/webview/state/uiState'
 import { createUiStore } from '../../src/webview/state/store'
 import { testSettings } from './helpers/fakes'
+import { poolRig, POOL_NOW } from './helpers/accounts/pool'
+import { AccountPoolStoppedError } from '../../src/core/accounts/pool'
+import { accountNoticeFor } from '../../src/host/models/accountsHandler'
+import { fill, formatDateTime } from '../../src/shared/l10n/text'
 
 function section(value = panelSlice()) {
   const port: AccountsSectionPort = {
@@ -174,6 +178,66 @@ describe('M108 Accounts section', () => {
     })
     expect(port.accept).not.toHaveBeenCalled()
   })
+  it('discards an obsolete reply after leaving and returning to the same provider', async () => {
+    const h = section()
+    const held = Promise.withResolvers<unknown>()
+    vi.mocked(h.port.request).mockReturnValueOnce(held.promise)
+    fireEvent.click(screen.getAllByRole('button', { name: UI_TEXT.accounts.use })[1]!)
+    h.rerender(<AccountsSection value={panelSlice({ provider: 'other' })} port={h.port} />)
+    h.rerender(<AccountsSection value={panelSlice({ currentAccount: 'personal' })} port={h.port} />)
+    await act(async () => {
+      held.resolve(panelSlice({ currentAccount: 'work' }))
+      await held.promise
+    })
+    expect(h.port.accept).not.toHaveBeenCalled()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+  it('keeps a settled error on its owning displayed slice', async () => {
+    const h = section()
+    vi.mocked(h.port.request).mockRejectedValueOnce(new Error('failed'))
+    await click(screen.getAllByRole('button', { name: UI_TEXT.accounts.use })[1]!)
+    expect(screen.getByRole('alert')).toHaveTextContent(UI_TEXT.actionFailed)
+    h.rerender(<AccountsSection value={panelSlice({ provider: 'other' })} port={h.port} />)
+    expect(screen.queryByRole('alert')).toBeNull()
+    h.rerender(<AccountsSection value={panelSlice()} port={h.port} />)
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+  it('discards an obsolete rejection and releases only its owned pending request', async () => {
+    const value = panelSlice()
+    const h = section(value)
+    const old = Promise.withResolvers<unknown>()
+    vi.mocked(h.port.request).mockReturnValueOnce(old.promise)
+    fireEvent.click(screen.getAllByRole('button', { name: UI_TEXT.accounts.use })[1]!)
+    const other = panelSlice({ provider: 'other' })
+    h.rerender(<AccountsSection value={other} port={h.port} />)
+    // Navigation cannot open a second mutation while the first still owns the view.
+    fireEvent.click(screen.getAllByRole('button', { name: UI_TEXT.accounts.use })[1]!)
+    expect(h.port.request).toHaveBeenCalledTimes(1)
+    await act(async () => {
+      old.reject(new Error('obsolete adapter error'))
+      try {
+        await old.promise
+      } catch {
+        // The obsolete request is deliberately rejected.
+      }
+    })
+    expect(screen.queryByRole('alert')).toBeNull()
+    h.rerender(<AccountsSection value={value} port={h.port} />)
+    expect(screen.queryByRole('alert')).toBeNull()
+    h.rerender(<AccountsSection value={other} port={h.port} />)
+    const current = Promise.withResolvers<unknown>()
+    vi.mocked(h.port.request).mockReturnValueOnce(current.promise)
+    fireEvent.click(screen.getAllByRole('button', { name: UI_TEXT.accounts.use })[1]!)
+    expect(h.port.request).toHaveBeenCalledTimes(2)
+    expect(screen.getByRole('button', { name: UI_TEXT.accounts.add })).toBeDisabled()
+    await act(async () => {
+      current.resolve({ ...other, currentAccount: 'personal' })
+      await current.promise
+    })
+    expect(h.port.accept).toHaveBeenCalledTimes(1)
+    expect(h.port.accept).toHaveBeenCalledWith({ ...other, currentAccount: 'personal' })
+    expect(screen.getByRole('button', { name: UI_TEXT.accounts.add })).toBeEnabled()
+  })
   it('resets edit fields when two providers use the same account id', async () => {
     const h = section()
     await click(screen.getAllByRole('button', { name: UI_TEXT.queuedEdit })[0]!)
@@ -278,6 +342,85 @@ describe('M108 threshold editor', () => {
 })
 
 describe('M108 picker, transcript and policy question', () => {
+  it('shows the pool recovery after all account blockers instead of the first trigger reset', async () => {
+    const t = poolRig()
+    t.rows[0]!.thresholds = { requests: { day: 1 } }
+    t.counts.set('a', 1)
+    const firstReset = new Date(POOL_NOW + 60_000).toISOString()
+    t.blocks.set('a', { blocked: { reason: 'rateLimited', resetAt: firstReset } })
+    t.blocks.set('b', { blocked: { reason: 'quota', resetAt: null } })
+    t.blocks.set('c', { blocked: { reason: 'quota', resetAt: null } })
+    let stopped: unknown
+    try {
+      await t.run()
+    } catch (error) {
+      stopped = error
+    }
+    expect(stopped).toBeInstanceOf(AccountPoolStoppedError)
+    if (!(stopped instanceof AccountPoolStoppedError)) throw new Error('expected pool stop')
+    const dailyReset = new Date(new Date(POOL_NOW).setHours(24, 0, 0, 0)).toISOString()
+    expect(stopped.resetAt).toBe(dailyReset)
+    const h = render(
+      <AccountNotices
+        value={panelSlice({
+          provider: 'anthropic',
+          providerLabel: 'Anthropic',
+          accounts: t.rows,
+          currentAccount: 'a',
+        })}
+        events={t.events.map((event) => accountNoticeFor(event, stopped))}
+        onOpenLink={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('log')).toHaveTextContent(
+      fill(UI_TEXT.accounts.stopped, {
+        provider: 'Anthropic',
+        reset: formatDateTime(Date.parse(dailyReset)),
+      }),
+    )
+    h.rerender(
+      <AccountNotices
+        value={panelSlice({
+          provider: 'anthropic',
+          providerLabel: 'Anthropic',
+          accounts: t.rows,
+          currentAccount: 'a',
+        })}
+        events={t.events.map((event) => accountNoticeFor(event))}
+        onOpenLink={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('log')).toHaveTextContent(
+      fill(UI_TEXT.accounts.resetUnknown, { provider: 'Anthropic' }),
+    )
+    expect(screen.getByRole('log')).not.toHaveTextContent(formatDateTime(Date.parse(firstReset)))
+    h.unmount()
+  })
+  it('resets acknowledgement for a new question with the identical clause and echoes its identity', async () => {
+    const onChoose = vi.fn(() => Promise.resolve())
+    const old = panelQuestion()
+    const props = { provider: 'openai', providerLabel: 'OpenAI', onChoose, onOpenLink: vi.fn() }
+    const h = render(<AccountsConfirmationDialog {...props} value={old} />)
+    await click(screen.getByRole('checkbox'))
+    const current = {
+      ...old,
+      questionId: 'e91141d9-1dc9-44d5-9e14-702a889fe3c1',
+      providerGeneration: 2,
+    }
+    h.rerender(<AccountsConfirmationDialog {...props} value={current} />)
+    expect(screen.getByRole('checkbox')).not.toBeChecked()
+    expect(screen.getByRole('button', { name: UI_TEXT.accounts.confirm })).toBeDisabled()
+    await click(screen.getByRole('checkbox'))
+    await click(screen.getByRole('button', { name: UI_TEXT.accounts.confirm }))
+    expect(onChoose).toHaveBeenCalledWith({
+      type: 'accounts/confirm',
+      provider: 'openai',
+      product: 'api',
+      choice: 'confirm',
+      questionId: current.questionId,
+      providerGeneration: current.providerGeneration,
+    })
+  })
   it('disables account switching for products whose credentials are not held', () => {
     const value = panelSlice()
     value.policy!.isCredentialHeld = false
@@ -291,7 +434,7 @@ describe('M108 picker, transcript and policy question', () => {
       <AccountsConfirmationDialog
         provider="openai"
         providerLabel="OpenAI"
-        value={panelSlice().policy}
+        value={panelQuestion()}
         onChoose={onChoose}
         onOpenLink={vi.fn()}
       />,
@@ -307,7 +450,7 @@ describe('M108 picker, transcript and policy question', () => {
   })
   it('asks again when the quoted row changes and supports Only at my own caps', async () => {
     const onChoose = vi.fn(() => Promise.resolve())
-    const value = panelSlice().policy!
+    const value = panelQuestion()
     const props = { provider: 'openai', providerLabel: 'OpenAI', onChoose, onOpenLink: vi.fn() }
     const { rerender } = render(<AccountsConfirmationDialog {...props} value={value} />)
     await click(screen.getByRole('checkbox'))
@@ -315,7 +458,13 @@ describe('M108 picker, transcript and policy question', () => {
     rerender(
       <AccountsConfirmationDialog
         {...props}
-        value={{ ...value, sources: [{ ...value.sources[0], quote: 'Updated clause' }] }}
+        value={{
+          ...value,
+          policy: {
+            ...value.policy,
+            sources: [{ ...value.policy.sources[0]!, quote: 'Updated clause' }],
+          },
+        }}
       />,
     )
     expect(screen.getByRole('checkbox')).not.toBeChecked()
@@ -325,6 +474,8 @@ describe('M108 picker, transcript and policy question', () => {
       type: 'accounts/confirm',
       provider: 'openai',
       product: 'api',
+      questionId: panelQuestion().questionId,
+      providerGeneration: 1,
       choice: 'ownCapsOnly',
     })
   })
@@ -394,7 +545,7 @@ describe('M108 picker, transcript and policy question', () => {
             trigger,
             coldCacheUsd: 999,
           },
-        ]}
+        ].map((event) => ({ event, resetAt: event.type === 'stop' ? trigger.resetAt : null }))}
       />,
     )
     expect(screen.getByRole('log')).toHaveTextContent(
@@ -432,7 +583,7 @@ describe('M108 picker, transcript and policy question', () => {
       <AccountsConfirmationDialog
         provider="openai"
         providerLabel="OpenAI"
-        value={panelSlice().policy}
+        value={panelQuestion()}
         onChoose={choose}
         onOpenLink={vi.fn()}
       />,
@@ -450,6 +601,8 @@ describe('M108 picker, transcript and policy question', () => {
       type: 'accounts/confirm',
       provider: 'openai',
       product: 'api',
+      questionId: panelQuestion().questionId,
+      providerGeneration: 1,
       choice: 'confirm',
     })
     const cancel = screen.getByRole('button', { name: UI_TEXT.accounts.cancel })

@@ -3,14 +3,28 @@
 import type { AccountStore, AccountProvider } from '../../core/providers/accounts'
 import { AccountStoreError } from '../../core/providers/credentialRecord'
 import type { AccountConfirmations } from '../../core/accounts/confirmations'
+import type { AccountPoolStoppedError } from '../../core/accounts/pool'
 import { accountPolicyFor } from '../../core/providers/accountPolicy'
 import {
   accountsRequestSchema,
   type AccountsRequest,
   type AccountsReply,
 } from '../../shared/hostApi/accounts'
-import { modelsAccountsSliceSchema, type ModelsAccountsSlice } from '../../shared/modelsPanel'
+import {
+  accountsNoticeSchema,
+  modelsAccountsSliceSchema,
+  type ModelsAccountsSlice,
+} from '../../shared/modelsPanel'
 import { accountPolicyViewFor } from './accountPolicyPrompt'
+import type { AccountEvent } from '../../shared/accounts'
+
+/** Project the exact failed pool admission; a trigger is never a retry estimate. */
+export function accountNoticeFor(event: AccountEvent, stopped?: AccountPoolStoppedError) {
+  return accountsNoticeSchema.parse({
+    event,
+    resetAt: event.type === 'stop' ? (stopped?.resetAt ?? null) : null,
+  })
+}
 
 export interface AccountsPanelHostPort {
   readonly accounts: AccountStore
@@ -79,7 +93,15 @@ export class AccountsPanelHandler {
         }
         case 'accounts/add': {
           await this.port.accounts.add(request.provider, request.account)
-          await this.port.credential(request.provider, request.account.id)
+          let hasCredential = false
+          try {
+            await this.port.credential(request.provider, request.account.id)
+            hasCredential = true
+          } finally {
+            // Only this successful addition is owned; also remove any partial credential.
+            if (!hasCredential)
+              await this.port.accounts.remove(request.provider, request.account.id)
+          }
           break
         }
         case 'accounts/remove': {

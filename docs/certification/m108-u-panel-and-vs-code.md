@@ -1,5 +1,121 @@
 # M108 U — Panel and VS Code
 
+## FIXM108U — RVM108U repairs (macmini, 2026-10-06)
+
+Repair base `fde11d93`; all four P2 findings are fixed within U's supplied
+ports. The review found no P1/P3 findings. No review finding is left as a
+residual. Read the complete rig/shared brief and review. No dependency,
+credential, paid/live call, network request, merge, rebase, push, hook bypass,
+cast escape hatch, timeout override or gate weakening.
+
+| Finding                         | Fixed behavior                                                                                                                                                                                                                                             | Regression                                                                                                                                                                                                                                                                                           | Drill                                                                       |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| P2-1 stale provider completions | One request owns the Accounts view until settlement. Each owner has a provider generation and request id; success and rejection must match the current generation. Cleanup releases only that owner. A settled error belongs to the exact displayed slice. | `accountsPanel.test.tsx`: `discards an obsolete reply after leaving and returning to the same provider`; `discards an obsolete rejection and releases only its owned pending request`; `keeps a settled error on its owning displayed slice`                                                         | U1-result, U1-error, U1-cleanup, U1-error-owner                             |
+| P2-2 replacement policy answer  | The host issues a UUID plus generation with each question. Strict question/confirm schemas, the dialog and the handler preserve both; the prompt checks both after asynchronous provider lookup. Identical clauses also require fresh acknowledgement.     | `accountsPanelHost.test.ts`: `rejects an answer belonging to a closed question when its replacement quotes another clause`; `keeps delayed answers correlated across the handler provider lookup`. UI: `resets acknowledgement for a new question with the identical clause and echoes its identity` | U2-id, U2-generation, U2-dialog, U2-question-strict                         |
+| P2-3 stranded account addition  | After a successful owned metadata add, a finally block removes that account and any partial credential unless credential acquisition succeeds. Duplicate-add failure cannot remove an existing account.                                                    | `accountsPanelHost.test.ts`: `rolls back a cancelled credential addition so the same draft can be retried`; the credential-storage-failure variant; `does not roll back an existing account when a duplicate add fails`                                                                              | U3-rollback                                                                 |
+| P2-4 premature recovery notice  | `accountNoticeFor(event, stoppedError)` carries P's authoritative reset in a strict `{ event, resetAt }` display projection. The UI never substitutes `trigger.resetAt`. Without a stop error it says recovery is unknown.                                 | `accountsPanel.test.tsx`: `shows the pool recovery after all account blockers instead of the first trigger reset`, using the real pool and fake journal/limits, including unknown-recovery display                                                                                                   | U4-display, U4-projection, U4-notice-strict, U4-recovery-date, U4-stop-only |
+
+### Regressions before repair
+
+The two complete host/UI test files failed **five named assertions** against
+unchanged production: stale same-provider acceptance, stale rejection,
+replacement-clause confirmation, stranded metadata, and the pool recovery
+notice. The last expected local midnight but received the first trigger's
+one-minute reset. A first fixture run used an absent selected account and
+failed display validation; corrected the fixture to select `a`, then reran
+both complete files to observe the intended recovery assertion. The red
+receipt is `temp/fixm108u-before.log` (untracked).
+
+Scoped lint caught synchronous error clearing in a layout effect. The final
+implementation instead tags errors with their displayed slice, retaining the
+provider-generation fence; no rule was disabled. The regression also revisits
+the exact original slice after an obsolete rejection, so hiding an error only
+while another provider is displayed cannot disguise stale completion.
+
+### Deliberate red drills on the repaired bytes
+
+**14 final drills:** each runs its complete owning test file, with repository
+test timeouts and `--maxWorkers=3`, sees exit 1 and the named assertion, and
+restores bytes in finally. SHA-256 is checked after every restoration and
+again for all sources before final validation. No timeout flags, filters,
+skips or raised budgets. Logs and JSON receipts are untracked under `temp/`.
+The earlier exploratory drill pass preceded the lint fix; the final U1 pass
+below certifies the final error ownership implementation. These new receipts
+supersede original-lane hashes for changed files; the old records below remain
+historical evidence.
+
+| Drill              | Owning file                           | Named failing assertion (exit 1)                                                              |
+| ------------------ | ------------------------------------- | --------------------------------------------------------------------------------------------- |
+| U1-result          | `test/unit/accountsPanel.test.tsx`    | `discards an obsolete reply after leaving and returning to the same provider`                 |
+| U1-error           | `test/unit/accountsPanel.test.tsx`    | `discards an obsolete rejection and releases only its owned pending request`                  |
+| U1-cleanup         | `test/unit/accountsPanel.test.tsx`    | `discards an obsolete rejection and releases only its owned pending request`                  |
+| U1-error-owner     | `test/unit/accountsPanel.test.tsx`    | `keeps a settled error on its owning displayed slice`                                         |
+| U2-id              | `test/unit/accountsPanelHost.test.ts` | `keeps delayed answers correlated across the handler provider lookup`                         |
+| U2-generation      | `test/unit/accountsPanelHost.test.ts` | `keeps delayed answers correlated across the handler provider lookup`                         |
+| U2-dialog          | `test/unit/accountsPanel.test.tsx`    | `resets acknowledgement for a new question with the identical clause and echoes its identity` |
+| U3-rollback        | `test/unit/accountsPanelHost.test.ts` | `rolls back a cancelled credential addition so the same draft can be retried`                 |
+| U4-display         | `test/unit/accountsPanel.test.tsx`    | `shows the pool recovery after all account blockers instead of the first trigger reset`       |
+| U4-projection      | `test/unit/accountsPanel.test.tsx`    | `shows the pool recovery after all account blockers instead of the first trigger reset`       |
+| U2-question-strict | `test/unit/accountsPanelHost.test.ts` | `validates question correlation and recovery projections without secret-bearing fields`       |
+| U4-notice-strict   | `test/unit/accountsPanelHost.test.ts` | `validates question correlation and recovery projections without secret-bearing fields`       |
+| U4-recovery-date   | `test/unit/accountsPanelHost.test.ts` | `validates question correlation and recovery projections without secret-bearing fields`       |
+| U4-stop-only       | `test/unit/accountsPanelHost.test.ts` | `validates question correlation and recovery projections without secret-bearing fields`       |
+
+| Repaired source                                                       | Original/restored SHA-256                                          |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `src/webview/models/sections/accounts/AccountsSection.tsx`            | `b34cdcf984a2ccab007b0c7b58c894543844c9fbc2d2f468c8a9680e9752d59d` |
+| `src/host/models/accountPolicyPrompt.ts`                              | `621755ba4b6c2d6f978ac5eb49b69d5c53247479db510a074b56f5e616c749a9` |
+| `src/webview/models/sections/accounts/AccountsConfirmationDialog.tsx` | `745fcfa9aaef21efea741ec41e536dbf7c2e13b29b8162a297ca433aee8dceed` |
+| `src/host/models/accountsHandler.ts`                                  | `a1b03df63e37596faa88112245d314bc17da12e10e3d5d41bb691948255bb2f7` |
+| `src/webview/models/sections/accounts/AccountNotices.tsx`             | `1005cd5628fd495cf96108de36e04cf8992f6820b66d4174bac089e4d753713f` |
+| `src/shared/modelsPanel.ts`                                           | `ebc8814a2df09e02ff230a9ca5033d026f3f43b4299d3a8f0d08387e716ed999` |
+
+### Integration conditions and scope
+
+**FIXM108U-INSTALLED-BINDINGS** (also PLAN §9): the base still lacks M95's
+installed panel and M104's authenticated transport. W must send the full
+`AccountsPolicyQuestion` from `AccountPolicyPrompt.show`, echo its question
+UUID and provider generation unchanged through the dialog/handler answer,
+serialize modal ownership and close on disposal/revocation. Promise-bound
+mutations retain one view owner across provider navigation; transport request
+correlation remains M104's responsibility. Use `accountNoticeFor` with the
+`AccountPoolStoppedError` from that exact failed admission; a persisted stop
+event alone cannot supply recovery. The existing raw `accounts/notice` event
+contract is preserved for its other consumers; it is not this display
+projection. Swap/spread projections have a null recovery field. No pool,
+threshold, credential-store or another lane's file is changed.
+
+Safe for now: these modules remain absent from installed production graphs,
+and installed multi-account surfaces are disabled on this base. Follow-up:
+W certifies the same interleavings/recovery through VS Code, native and
+companion bridges before enabling them; H retains ACP/terminal/headless
+bindings. Aggregate quality, coverage, generated host API and documentation
+remain the previously named integration work. The host API regeneration must
+include U's new `node:crypto` importer as well as P's existing importer and
+the account CSS token-source entry. No installed-editor or live receipt is
+claimed. No new user text, command or setting was introduced.
+
+W owns README/CHANGELOG/help on this lane; `featureCatalog.ts` and its
+reference generator are absent. The corrective Unreleased entry to carry at
+integration is: “Pending Accounts operations discard stale provider results
+and policy answers, cancelled additions roll back, and stop notices show the
+pool's recovery time.” Existing Accounts help content remains the named
+M108-U-W-HELP-DOCS handoff below.
+
+### Repair checkpoint validation
+
+The complete host/UI/contract run passed **67/67** with default timeouts.
+`npm run typecheck` passed all five projects; the final webview/unit
+checks also passed after the lint adjustment. The post-drill host/UI/browser
+run passed **77/77**, including all 32 real-browser axe scenes and the lazy
+budget/German checks. Broader static/build validation follows before the
+final receipt. Scoped ESLint
+passed after the error ownership fix. All 14 final drill source hashes match
+restored production bytes. The rig brief assigns aggregate quality/full unit
+runs to the lead; PLAN §7 records that bounded-lane exception.
+
+## Original lane certification
+
 Completed U's bounded implementation on the **macmini** rig, branch `m108/u`,
 from `291fc547a`. Read the rig brief, shared Codex rules, AGENTS.md, D88/M108,
 `docs/research/account-terms-2026-10-05.md`, the lane-0 policy certification

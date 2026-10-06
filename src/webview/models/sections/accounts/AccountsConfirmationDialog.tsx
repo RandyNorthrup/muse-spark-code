@@ -1,5 +1,8 @@
 import { useId, useRef, useState } from 'react'
-import { accountsPolicyViewSchema, type AccountsPolicyView } from '../../../../shared/modelsPanel'
+import {
+  accountsPolicyQuestionSchema,
+  type AccountsPolicyQuestion,
+} from '../../../../shared/modelsPanel'
 import type { AccountsRequest } from '../../../../shared/hostApi/accounts'
 import { accountIdSchema } from '../../../../shared/accounts'
 import { UI_TEXT } from '../../../../shared/constants'
@@ -20,14 +23,14 @@ export function AccountsConfirmationDialog({
   value,
   ...props
 }: QuestionProps & { readonly value: unknown }) {
-  const parsed = accountsPolicyViewSchema.safeParse(value)
+  const parsed = accountsPolicyQuestionSchema.safeParse(value)
   if (!parsed.success || !accountIdSchema.safeParse(props.provider).success)
     return <p role="alert">{UI_TEXT.accounts.invalidAccount}</p>
   return (
     <AccountsQuestion
       key={props.provider + JSON.stringify(parsed.data)}
       {...props}
-      row={parsed.data}
+      question={parsed.data}
     />
   )
 }
@@ -35,10 +38,11 @@ export function AccountsConfirmationDialog({
 function AccountsQuestion({
   provider,
   providerLabel,
-  row,
+  question,
   onChoose,
   onOpenLink,
-}: QuestionProps & { readonly row: AccountsPolicyView }) {
+}: QuestionProps & { readonly question: AccountsPolicyQuestion }) {
+  const row = question.policy
   const titleId = useId()
   const [hasAcknowledged, setAcknowledged] = useState(false)
   const [isPending, setPending] = useState(false)
@@ -49,7 +53,14 @@ function AccountsQuestion({
     pending.current = true
     setPending(true)
     try {
-      await onChoose({ type: 'accounts/confirm', provider, product: row.product, choice })
+      await onChoose({
+        type: 'accounts/confirm',
+        provider,
+        product: row.product,
+        questionId: question.questionId,
+        providerGeneration: question.providerGeneration,
+        choice,
+      })
     } catch {
       setFailed(true)
     } finally {

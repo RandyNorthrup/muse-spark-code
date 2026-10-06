@@ -24,19 +24,23 @@ export function AccountsSection({
 }) {
   const [editor, setEditor] = useState<string | null>(null)
   const [removalId, setRemovalId] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [isPending, setPending] = useState(false)
-  const pending = useRef(false)
-  const currentProvider = useRef<string | undefined>(undefined)
-  useLayoutEffect(() => {
-    const current = modelsAccountsSliceSchema.safeParse(value)
-    currentProvider.current = current.success ? current.data.provider : undefined
-    return () => {
-      currentProvider.current = undefined
-    }
-  }, [value])
+  const [error, setError] = useState<{ readonly value: unknown; readonly message: string } | null>(
+    null,
+  )
+  const [pendingId, setPendingId] = useState<number | null>(null)
+  const pending = useRef<{ readonly generation: number; readonly id: number } | null>(null)
+  const generation = useRef(0)
+  const requestId = useRef(0)
   const parsed = modelsAccountsSliceSchema.safeParse(value)
+  const provider = parsed.success ? parsed.data.provider : undefined
+  useLayoutEffect(() => {
+    generation.current += 1
+    return () => {
+      generation.current += 1
+    }
+  }, [provider, port])
   if (!parsed.success) return <p role="alert">{UI_TEXT.accounts.invalidAccount}</p>
+  const isPending = pendingId !== null
   const slice = parsed.data
   const policy = slice.policy
   const choiceLabels = {
@@ -51,33 +55,41 @@ export function AccountsSection({
     !policy.isCredentialHeld ||
     isMuseUnavailable
   const execute = async (request: AccountsRequest) => {
-    if (pending.current) return
-    pending.current = true
-    setPending(true)
+    if (pending.current !== null) return
+    requestId.current += 1
+    const owner = { generation: generation.current, id: requestId.current }
+    pending.current = owner
+    setPendingId(owner.id)
     setError(null)
     try {
       const reply: unknown = await port.request(request)
-      if (currentProvider.current !== slice.provider) return
+      if (generation.current !== owner.generation) return
       const next = modelsAccountsSliceSchema.safeParse(reply)
       if (!next.success || next.data.provider !== slice.provider) {
         const problem = accountsReplySchema.safeParse(reply)
-        setError(
-          problem.success &&
+        setError({
+          value,
+          message:
+            problem.success &&
             problem.data.type === 'accounts/error' &&
             problem.data.code === 'invalidAccount'
-            ? UI_TEXT.accounts.invalidAccount
-            : UI_TEXT.actionFailed,
-        )
+              ? UI_TEXT.accounts.invalidAccount
+              : UI_TEXT.actionFailed,
+        })
         return
       }
       port.accept(next.data)
       setEditor(null)
       setRemovalId(null)
     } catch {
-      setError(UI_TEXT.actionFailed)
+      if (generation.current === owner.generation)
+        setError({ value, message: UI_TEXT.actionFailed })
     } finally {
-      pending.current = false
-      setPending(false)
+      // A stale completion releases only its own serialized slot, never a successor's.
+      if (pending.current === owner) {
+        pending.current = null
+        setPendingId((current) => (current === owner.id ? null : current))
+      }
     }
   }
   const send = (request: AccountsRequest) => {
@@ -283,7 +295,7 @@ export function AccountsSection({
           {UI_TEXT.accounts.add}
         </button>
       )}
-      {error === null ? null : <p role="alert">{error}</p>}
+      {error === null || error.value !== value ? null : <p role="alert">{error.message}</p>}
     </section>
   )
 }
