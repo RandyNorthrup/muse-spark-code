@@ -223,6 +223,24 @@ happened, not what was planned; superseded entries are kept.
 - Fake-child plugin dispatch fixtures use drive-qualified plugin paths on
   Windows while retaining native-platform parsing and containment checks.
 
+### Fixed
+
+- Archived Node bundles retain their named exports under native `import()` and
+  `require()`, restoring lazy hooks, MCP forms, Auto review and deferred panels.
+  Both package jobs now compare every Node module's exports and selected
+  function calls with the unpacked build.
+- The VSIX packaging unit suite now builds its own English fixtures from source,
+  so a fresh checkout can run it before a production build.
+
+### Changed
+
+- Smaller universal VSIX and ACP packages: runtime translations, lazy English
+  regions share a bounded Brotli archive; exact lazy Node sources use a separate
+  solid archive so translation damage preserves backend availability.
+  Bundle checksums preserve the compiled bytes and filename; damaged tables
+  retain the existing English fallback. Lossless walkthrough image compression
+  preserves every pixel. Activation code and all package caps stay unchanged.
+
 ## [0.14.0] - 2026-10-05
 
 ### Highlights

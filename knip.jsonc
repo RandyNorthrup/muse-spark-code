@@ -69,6 +69,8 @@
     "src/webview/models/models.tsx",
     "src/runtime/main.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
+    // Native loader regression child, run by both package scripts after build.
+    "test/packaging/moduleExports.test.mjs",
     "test/e2e/**/*.test.ts",
     "test/e2e/fake-muse/serve.mjs",
     // The fake stdio MCP server the M50 tests start as a child process.

@@ -32,6 +32,7 @@
 !dist/uiTextRuntime.js
 !dist/uiTextHooks.js
 !dist/uiTextSurfaces.js
+!dist/runtime.bundles.json.br
 !dist/validation.js
 !dist/wire.js
 !dist/searchWorker.js

@@ -238,6 +238,28 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**VSIXDIET2 (2026-10-05).** Package staging solid-compresses the existing
+language-major translation matrix and all three lazy English regions at Brotli
+quality 11; a separate solid archive holds exact lazy CommonJS sources so
+translation damage never disables a backend. Node's built-in
+decoder retains the existing 14-MiB archive bound; only requested locale
+tables, English regions and modules are installed/compiled. SHA-256 guards
+every executable/English member; CommonJS compilation retains its original
+filename and relative imports. Inert static export declarations preserve
+native `import()` discovery; the reader stays on the private cached Module,
+so public `import()`/`require()` exports remain exact. Both packaging jobs
+check every Node module against the unpacked build; ACP checks the actual
+tarball. English regions keep independent inline
+fallbacks, so missing/corrupt translation archives preserve today's English
+behavior. Activation, recorder, shared parsers and ACP entry remain ordinary
+CommonJS; compressed regional key lists offset the eager reader's bytes.
+Both packages check exact staged translations against source JSON. Manifest
+tables, licences/notices, helpers and browser chunks remain ordinary files.
+Lossless PNG filtering preserves every walkthrough pixel. All existing caps
+stay unchanged; package/member and drill receipts are in
+`docs/certification/vsix-diet-2.md`. This is shared Node packaging for VS Code
+hosts and ACP/headless editors; browser fallback and editor features are unchanged.
+
 **TRAIN14A integration size recovery (2026-10-05).** The initial M94 archive
 has insufficient universal-helper headroom, and the prepared M71 join exceeds
 activation and shared English by 7.1 KiB each; browser budgets still fit.
@@ -7608,6 +7630,51 @@ The explicit lane brief authorizes full shard coverage but shared rules prohibit
 `npm run quality`; the lead retains the integrated full quality gate. No gate,
 timeout, retry or skip policy is changed. Evidence is recorded in
 `docs/certification/cifix14-macos.md`.
+
+### VSIXDIET2 — Universal package headroom for 0.15.0 (2026-10-05)
+
+**FIXVSIX2 review repair (2026-10-05, RVMVSIX2).** Fix P1 by retaining
+Node's static named-export declarations in each archived CommonJS wrapper,
+while compiling the exact digest-checked original source. Keep the archive
+reader on the private cached CommonJS Module, preserving uiText's public
+export surface too. Compare native
+`import()` and `require()` exports for every packaged Node module with the
+unpacked build in both VSIX and ACP, and exercise hooks, reviewer, session
+board, report and plugin functions without model calls. Fix P2 by building
+the packaging suite's English fixtures in memory from source, so unit CI needs
+no `dist/`. Register the packaging child test as a Knip entry (not an ignore),
+so the dead-code gate analyses this runtime entrypoint. Prove each repair red,
+restore byte-exact, remeasure universal
+headroom (at least 150,000 bytes) and byte-identical activation. No dependency,
+guard widening, paid/live call, merge, push or rebase; 90-minute repair box.
+
+- [x] Repair P2, run the complete suite without checkout build output, drill.
+- [x] Repair P1, compare every packaged module and callable regression, drill.
+- [x] Run scoped static/build/package gates and record sizes and receipts.
+
+- [x] Reproduce the 0.14.0 universal VSIX with the checksum-verified published
+      helper and rank every member by compressed bytes. Keep the 2,252,800-byte cap.
+- [x] Pack runtime translations and generated lazy English regions together at
+      Brotli quality 11, using Node's built-in bounded decoder and today's table
+      validation. Use the same archive in ACP; keep manifest translations readable
+      by VS Code and source JSON checked by the localization gate.
+- [x] Measure deterministic lossless package improvements, targeting at least
+      150,000 bytes of universal headroom with no activation growth or text changes.
+      Preserve all licences/notices, runtime assets and editor behavior.
+- [x] Solid-compress the exact existing lazy CommonJS bundle sources in an
+      independent archive: translation damage must preserve backend availability.
+      Keep activation, recorder, shared parsers and
+      ACP entry code ordinary CommonJS. Compile each selected, SHA-256-checked
+      original through Node's CommonJS module loader with its original filename;
+      retain independent inline English-region fallbacks for archive damage.
+- [x] Prove every locale's exact compact JSON round-trip, English-region lazy
+      loading, missing/corrupt fallback, and packaged ACP/CLI loading. Drill new
+      guards and restore each file byte-exact with SHA-256 receipts.
+- [x] Run scoped owning/importing suites in batches of at most three files,
+      static gates, all production caps and universal packaging on Kubuntu. Record
+      before/after members in `docs/certification/vsix-diet-2.md`; hook-on local
+      commits only, no network/live/paid calls, merge, push or rebase. The lane's
+      shared rules reserve aggregate quality/coverage for the lead; 120-minute box.
 
 ### TRAIN14B — Complete the 0.14.0 release train (2026-10-05)
 
@@ -18118,6 +18185,20 @@ release acceptance are still pending.**
 
 ### M95b — Subscription sign-in: ChatGPT plan, Copilot models, plan keys (D74)
 
+**M95R4 scope (2026-10-05, Windows 11 rig).** The continuation brief
+authorizes `--no-ff` merges of STARTDIET3 and FIXVSIX2, installation of
+PSScriptAnalyzer 1.25.0 for the current user, completion of the shared
+configured-provider/plan-key transport, the Copilot integration repair,
+the complete repaired accessibility scan and one final three-worker quality
+run. This explicit completion instruction supersedes round three's stopped
+size clarification and Copilot repair path. Keep every existing cap and gate;
+split M95 code lazily where required. Use captured codecs, per-request
+origin-bound credentials, DNS/address policy and pinned Node requests;
+share the factory between VS Code and ACP. Copilot stays VS Code-only.
+Record acceptance 1–19 and M95b 1–10 separately from the exact counted live
+receipts still needed by the lead. No live/paid calls, credentials read from
+the rig, push, rebase or further branch merge. Evidence: `m95-r4.md`.
+
 **M95R3 cost and gate repairs (2026-10-05).** Strengthen the unpriced
 usage regression with a cached total and retain dollar estimates only when
 the legacy Model API tariff is known and pricing is not unpriced, local or
@@ -20469,6 +20550,27 @@ POSIX plugin paths are parsed with the real Windows platform. Give those
 fixtures a drive-qualified root on Windows, retaining native-platform
 parsing and all cap, grant-stripping and containment assertions.
 
+**FIXVSIX2 scoped certification (2026-10-05).** RVMVSIX2 P1 and P2 are
+fixed. All 78 owning unit tests and 49 native packaged-module tests pass,
+with declared-export, private-reader and absent-dist red drills restored
+byte-exact. Typecheck, scoped lint/format, Knip, duplication, localization,
+host API, cycles, production caps and both package commands exit 0.
+Universal VSIX is 2,033,170 bytes, with 219,630 bytes headroom; activation
+is byte-identical. The rig brief reserves aggregate quality/coverage and
+installed-editor/platform certification for the lead. No gate is weakened.
+Receipts: `docs/certification/vsix-diet-2.md`.
+
+**VSIXDIET2 scoped certification (2026-10-05).** This lane's explicit shared
+rules prohibit aggregate `npm run quality`/full-test runs and reserve coverage
+and installed-editor/platform certification for the lead. Its required scoped
+gates pass: 286 tests in 17 complete files, five-project typecheck, changed-file
+lint/format, localization, host API, Knip, zero-clone duplication, cycles, all
+production caps and universal/ACP packages. Ten faults reject and restore
+byte-exact. Universal headroom is 221,523 bytes with byte-identical activation;
+the full member table and receipts are in `docs/certification/vsix-diet-2.md`.
+No threshold, ignore, test skip, timeout or gate is weakened. This local lane
+handoff does not claim aggregate release certification.
+
 **TRAIN14B Judge activation fixture stop (2026-10-05).** Full quality is
 explicitly authorized by this rig brief. Its aggregate unit run exposes a
 legacy Judge activation fixture that omits D78’s default callback. The field
@@ -21943,6 +22045,13 @@ before a repaired one loads (2026-09-30).
   inheritance versus stripping and test the shell boundary before broader
   provider security certification. This is an open gate, not newly accepted
   risk; see `docs/certification/m95-s.md`.
+
+- **FIXVSIX2 / RVMVSIX2 (resolved).** P1's native-import export loss and P2's
+  checkout-dist test prerequisite are fixed and drilled. No P2/P3 review
+  residual remains. The existing integrated-release quality/platform checks
+  remain with the lead under this rig's explicit scoped-gate rule (§7); this
+  local repair does not claim installed-editor or cross-platform certification.
+
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the
   compaction that exists, the manual one: PreCompact may block it, and

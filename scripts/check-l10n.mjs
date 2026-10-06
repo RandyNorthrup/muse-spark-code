@@ -488,7 +488,7 @@ function checkLoadOrder(problems) {
 
 // Package-time compaction must keep every translated value byte-for-byte
 // after JSON parsing. Validate staged data with the same strict source schema.
-function checkPackaged(root, l10n, untranslatedFor, strings, problems) {
+function checkPackaged(root, l10n, untranslatedFor, strings, problems, isAcp = false) {
   const files = [
     MANIFEST,
     MANIFEST_STRINGS,
@@ -498,6 +498,7 @@ function checkPackaged(root, l10n, untranslatedFor, strings, problems) {
     ]),
   ]
   for (const file of files) {
+    if (isAcp && !file.startsWith(`${l10n.TABLE_DIRECTORY}/`)) continue
     let shipped
     if (file.startsWith(`${l10n.TABLE_DIRECTORY}/`)) {
       try {
@@ -558,10 +559,17 @@ async function main() {
   const tables = checkTables(l10n, untranslatedFor, problems)
   const manifestKeys = checkManifest(l10n, untranslatedFor, strings, problems)
   const sources = checkLoadOrder(problems)
-  if (process.argv[2] === '--packaged') {
+  if (['--packaged', '--packaged-acp'].includes(process.argv[2])) {
     if (process.argv.length !== 4)
       throw new Error('--packaged requires exactly one stage directory')
-    checkPackaged(path.resolve(process.argv[3]), l10n, untranslatedFor, strings, problems)
+    checkPackaged(
+      path.resolve(process.argv[3]),
+      l10n,
+      untranslatedFor,
+      strings,
+      problems,
+      process.argv[2] === '--packaged-acp',
+    )
   } else if (process.argv.length !== 2) {
     throw new Error('Unknown localization gate arguments')
   }
