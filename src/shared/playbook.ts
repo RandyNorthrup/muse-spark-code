@@ -12,7 +12,7 @@ import {
   REVIEW_FINDING_TEXT_MAX_CHARS,
   REVIEW_FINDINGS_MAX,
 } from './constants'
-import type { ReviewBlock, ReviewResolution } from './reviewFindings'
+import { reviewResolutionSchema, type ReviewBlock, type ReviewResolution } from './reviewFindings'
 
 export type PlaybookFindingClass = (typeof PLAYBOOK_FINDING_CLASSES)[number]
 export type PlaybookConfigurableRule = (typeof PLAYBOOK_CONFIGURABLE_RULES)[number]
@@ -79,6 +79,8 @@ export const playbookRoundSchema = z.strictObject({
   phase: z.enum(['build', 'fix', 'redesign']),
   findings: z.array(findingRef).check(z.maxLength(REVIEW_FINDINGS_MAX)),
   answers: z.array(answer).check(z.maxLength(REVIEW_FINDINGS_MAX)),
+  // Redesign answers retain each prior id/outcome/reason, not only an aggregate.
+  resolution: z.optional(z.array(reviewResolutionSchema).check(z.maxLength(REVIEW_FINDINGS_MAX))),
   at: timestamp,
 })
 export type PlaybookRound = z.infer<typeof playbookRoundSchema>
@@ -127,6 +129,7 @@ export const playbookWhyNoteSchema = z.strictObject({
   ]),
   module: z.optional(file),
   laneId: z.optional(id),
+  workerId: z.optional(id),
   round: z.optional(z.int().check(z.gte(1))),
   classes: z.optional(z.array(z.enum(PLAYBOOK_FINDING_CLASSES))),
   missing: z.optional(z.array(id).check(z.maxLength(REVIEW_FINDINGS_MAX))),

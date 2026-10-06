@@ -103,7 +103,10 @@ The contracts do not parse other milestones' files or guess their APIs.
 safe hash/slug only; the host joins it using its platform's path API.
 The strict `playbookRecordSchema` validates round, design, note and settings
 lines. Finding references hold only id, file, optional line and known class.
-Raw review detail/file content/output fields are rejected. P owns retention,
+Redesign rounds also retain optional `resolution` entries (each prior id,
+outcome and reason) using the same review-resolution schema. Notes include an
+optional `workerId` for the offload decision. Raw review detail/file
+content/output fields are rejected. P owns retention,
 second scrubbing of all free text, canonical workspace identity, persistence,
 recovery, and append ordering. Schemas constrain shape; they do not claim to
 prevent a credential pasted into a reason from being retained without that
@@ -160,3 +163,35 @@ uses the existing first-charge three-choice consent naming its price and
 shared `museSpark.paidDailyBudgetUsd`, per the owner ruling. Editor bindings
 are shared-core/React/host-port work, with ACP/CLI equivalents; no feature in
 this lane depends on VS Code.
+
+## Strings delivered by lane 0
+
+The `playbook*` group in en.ts and all 14 UI tables includes the settings,
+reason/actor/date, lowerable limit, immutable safety rule, design decision
+fields, pending outcome, three resolution labels, eight class labels, nine
+rule labels, every note code and the plural strike badge. The existing
+manifest bundled-skills description is generalized in all 15 manifest
+tables for project quality workflows and first-party skills; its localized
+command reference matches the existing command title. No unused manifest
+key, registration or changed request prefix was introduced.
+
+U maps note module/laneId/workerId/round/classes/missing/actor/reason to the
+matching template slots; permission-laundering duration comes from
+PLAYBOOK_LAUNDER_WINDOW_MS through the Intl unit helper. Emit all fields
+needed by the selected note code. New manifest registrations, if U chooses
+to introduce any, need matching translated manifest keys with their binding
+in that lane; these per-team switches currently use the shared UI table.
+
+## W’s changelog handoff
+
+Suggested Unreleased wording for the integrated milestone: define shared
+playbook contracts, per-team settings, review rounds, design decisions,
+structured why-notes and acceptance fakes; add optional review classes,
+coverage and redesign answers without breaking old blocks; supply the
+playbook wording in all 14 languages and generalize the bundled-skills
+description for first-party skills. W should describe actual integrated
+policy and surfaces once those lanes certify.
+
+The first piece included a CHANGELOG entry under the general repository
+documentation rule. The ownership review found that region belongs to W;
+the final lane-0 diff restores CHANGELOG byte-exact to the supplied base.

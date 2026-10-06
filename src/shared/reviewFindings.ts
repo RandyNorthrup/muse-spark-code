@@ -32,7 +32,7 @@ const findingSchema = z.object({
   class: z.optional(textSchema.check(z.minLength(1))),
 })
 
-const resolutionSchema = z.strictObject({
+export const reviewResolutionSchema = z.strictObject({
   // The policy assigns this id to a prior finding, not the model's array index.
   findingId: textSchema.check(z.minLength(1)),
   outcome: z.enum(PLAYBOOK_RESOLUTIONS),
@@ -44,12 +44,12 @@ const findingsSchema = z.object({
   coverage: z.optional(
     z.array(textSchema.check(z.minLength(1))).check(z.maxLength(REVIEW_FINDINGS_MAX)),
   ),
-  resolution: z.optional(z.array(resolutionSchema).check(z.maxLength(REVIEW_FINDINGS_MAX))),
+  resolution: z.optional(z.array(reviewResolutionSchema).check(z.maxLength(REVIEW_FINDINGS_MAX))),
 })
 
 export type ReviewFinding = z.infer<typeof findingSchema>
 export type ReviewBlock = z.infer<typeof findingsSchema>
-export type ReviewResolution = z.infer<typeof resolutionSchema>
+export type ReviewResolution = z.infer<typeof reviewResolutionSchema>
 
 /** The additive M116 block; old M70 blocks remain valid without metadata. */
 export function parseReviewBlock(json: string): ReviewBlock | undefined {

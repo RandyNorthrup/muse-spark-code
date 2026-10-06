@@ -231,6 +231,32 @@ describe('M116 contracts', () => {
       false,
     )
   })
+  it.each(['impossible', 'caught', 'remains'] as const)(
+    'keeps each prior finding’s %s reason in the redesign round record',
+    (outcome) => {
+      const round = {
+        ...ROUND,
+        phase: 'redesign',
+        resolution: [{ findingId: 'store-claim', outcome, reason: 'One atomic claim.' }],
+      }
+      expect(playbookRecordSchema.parse({ kind: 'round', value: round })).toEqual({
+        kind: 'round',
+        value: round,
+      })
+      expect(
+        playbookRoundSchema.safeParse({
+          ...round,
+          resolution: [{ findingId: 'store-claim', outcome, reason: '' }],
+        }).success,
+      ).toBe(false)
+      expect(
+        playbookRoundSchema.safeParse({
+          ...round,
+          resolution: Array.from({ length: REVIEW_FINDINGS_MAX + 1 }, () => round.resolution[0]),
+        }).success,
+      ).toBe(false)
+    },
+  )
   it('bounds identifiers, paths, reasons and record arrays at their boundaries', () => {
     expect(() => defaultPlaybookSettings('x'.repeat(PLAYBOOK_ID_MAX_CHARS + 1))).toThrow()
     expect(
