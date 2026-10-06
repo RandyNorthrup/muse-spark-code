@@ -17752,6 +17752,18 @@ byte-exact red/restored drill per finding. No production listener/store,
 dependency or guard waiver is introduced; P/T/E own runtime isolation and
 journal proofs. PLAN §9 records the trusted-account residual.
 
+**FIXM100P review repair (2026-10-06).** Repair both RVM100P P2 findings
+and its P3 fixture setup failure within P's owned files. Grants share the
+UI mutation queue; a later Pause blocks them immediately, and they recheck
+pause/block/revocation and grant revisions after the secret read before
+persisting. Expected revoked, unpaired and grant policy refusals retain their
+named reason and leave unrelated pairs usable; genuine storage failures
+still latch fail-closed. Both filesystem suites own and clean their temporary
+parents under the OS temporary directory. Each repair gets a regression and
+byte-exact red/restored receipt in `docs/certification/m100-p.md`. No new
+dependency, listener, installed-host claim or paid/live call. The rig brief
+forbids merges and aggregate quality; the lead retains those joined-tree gates.
+
 - **Goal.** The owner explicitly links his four LAN devices, offers a bounded
   pool from each open extension, delegates independent lanes and checks from
   one board, and receives reviewable Git branches without moving credentials
@@ -18612,6 +18624,16 @@ I-owned and must be fixed on the joined tree before full quality or release.
 Regressions and six red/restored receipts for all three RVM100L0 P2 repairs
 are in `docs/certification/m100-0.md`. The lead retains the full quality,
 coverage, packaged-host and security gates.
+
+**FIXM100P pairing/storage review repair (2026-10-06).** The rig brief
+requires direct owning-file tests and byte-exact red/restored drills, normal
+hooks and no merges or aggregate quality. All RVM100P findings (two P2s,
+one P3) are repaired with no deferred review finding. Scoped static/build
+receipts are in `docs/certification/m100-p.md`. P's inherited generated host
+API record and `DEVICE_MODEL_TEXT` split registration remain I-owned;
+neither guard is weakened or bypassed. The lead must regenerate/review the
+joined host record, register the actual lazy bundle readers and pass full
+quality/coverage before proposing a product commit or release.
 
 **DEFLAKE3 test-only lane scope (2026-10-04).** The rig brief requires a
 complete Windows unit inventory in batches of at most three files and
