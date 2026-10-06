@@ -19,6 +19,8 @@ export class FakeScheduleDisk {
         const job = scheduleV2Schema.parse(structuredClone(schedule))
         const id = key(job.workspaceKey, job.id)
         if (this.jobs.has(id)) return Promise.reject(new Error('Schedule already exists'))
+        if (job.revision !== 0)
+          return Promise.reject(new Error('New schedule revision must be zero'))
         this.jobs.set(id, job)
         return Promise.resolve()
       },
@@ -31,8 +33,8 @@ export class FakeScheduleDisk {
       update: (schedule) => {
         const job = scheduleV2Schema.parse(structuredClone(schedule))
         const id = key(job.workspaceKey, job.id)
-        if (!this.jobs.has(id)) return Promise.resolve(false)
-        this.jobs.set(id, job)
+        if (this.jobs.get(id)?.revision !== job.revision) return Promise.resolve(false)
+        this.jobs.set(id, scheduleV2Schema.parse({ ...job, revision: job.revision + 1 }))
         return Promise.resolve(true)
       },
       remove: (workspace, id) => Promise.resolve(this.jobs.delete(key(workspace, id))),

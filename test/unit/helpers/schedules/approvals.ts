@@ -7,12 +7,14 @@ import { SCHEDULE_ACTION_CLASSES } from '../../../../src/shared/constants'
 
 /** Keeps pending requests visible, so an unattended test cannot quietly hang. */
 export class FakeScheduleApprovalStream {
+  private sequence = 0
   readonly pending = new Map<string, ScheduleApprovalAction>()
   readonly decisions: { id: string; allow: boolean; ruleId?: string }[] = []
   constructor(readonly backend: ScheduleSessionPort['backend']) {}
   request(actionClass: ScheduleApprovalAction['class']): ScheduleApprovalAction {
+    this.sequence += 1
     const action = scheduleApprovalActionSchema.parse({
-      id: actionClass,
+      id: `approval-${String(this.sequence)}`,
       class: actionClass,
       tool: actionClass,
       ...(actionClass === 'shell' && { command: 'npm test' }),

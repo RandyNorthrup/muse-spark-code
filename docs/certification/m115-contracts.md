@@ -26,6 +26,14 @@ used. Hooks exist at `.husky/_/pre-commit`.
   explicit host-owned permission; drafts cannot set it.
 - `ScheduleStoreV2`: `create`, `list(workspaceKey)`, `update`,
   `remove(workspaceKey, id)`, `claim(runId)`, `record`, `fires(workspaceKey)`.
+  Every record and panel snapshot carries a nonnegative integer `revision`.
+  Creation starts at zero. `update(snapshot)` atomically compares that revision
+  with the stored revision, replaces the record and increments the revision
+  only on a match; it returns false for a stale or missing record. S must use
+  a cross-process filesystem lock or equivalent atomic compare-and-swap;
+  timestamps never resolve conflicts. S/U/V re-read on conflict and merge only
+  the requested mutation, never attach a fresh revision to stale grants,
+  consent, pause state or other authority. Removed ids are never reused.
   A successful claim is permanent, including after crash, refusal or
   schedule removal. Record storage belongs to S; this file supplies no
   production filesystem implementation.
@@ -51,6 +59,10 @@ used. Hooks exist at `.husky/_/pre-commit`.
   collide, and Unicode identities are not truncated. S must hash or encode
   receipt filenames within filesystem limits while retaining the full run
   identity. Generated schedule ids must remain globally unique.
+  Lone UTF-16 surrogates in an event key are rejected by both the event schema
+  and run-id generator using the same validation. Valid astral characters and
+  the replacement character remain distinct; malformed keys are never silently
+  replaced into another event identity.
 - `src/shared/scheduleProtocol.ts`: request/result schemas and parsers for
   the lazy schedule surface. `src/shared/protocol.ts` re-exports its message
   types and shares its parser helper. Runtime schemas stay outside the main
@@ -76,6 +88,16 @@ copy → reopen/verify → remove and carries the old receipts' replay fence.
 The regression uses a freshly written and reopened real M52 store copy;
 nonzero counters are independently checked in direct mapping tests.
 
+M52's empty, corrupt or invalid crash receipts can recover a fractional
+filesystem `mtimeMs`. Migration rounds timestamps upward to the first integer
+millisecond, including the outstanding fire and its elapsed anchor together.
+Its integer interval is unchanged: the whole cadence shifts by less than one
+millisecond, never earlier, and the recovered count/last occurrence stay behind
+the replay fence. An exclusive end rounds upward too, preserving the same set
+of allowed integer instants. Tests reopen actual M52 stores with all three
+crashed receipt forms and fractional metadata; the source and receipt survive
+unchanged and the original occurrence still cannot be claimed.
+
 Migrated jobs pause with `migrationConsentRequired`, Manual mode, an empty
 grant, no paid consent and a zero cap. M52's Run approval is never upgraded
 to unattended authority. The private migration provenance and consent's
@@ -97,18 +119,18 @@ refusals. Report kinds remain strings until M113's registry is bound.
 
 ## Lane handoffs
 
-| Lane    | Binding                                                                                                                                                                   |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| T       | Time trigger/zone/end schemas, reference occurrence anchor; `FakeScheduleClock` with Los Angeles, Berlin and Sydney gap/fold cases and separate wall/monotonic jumps      |
-| S       | Store/host ports, durable run-id claim, fire record, pure v1 mapping, `FakeScheduleDisk` with independently reopened clients; migrate receipts and verify before deletion |
-| U       | Run context, action classes, grant/audit/consent shapes; empty authority on migration; both backend approval streams expose pending requests                              |
-| D       | Session port and recorder on both backends; interrupt's cancel uses the same adapter as Stop; queue ids are withdrawable                                                  |
-| E       | Source union, events/conditions/history, tainted block and full encoded event identity; fake polling source for every kind                                                |
-| G       | Creator, depth/explicit permission, grant matcher/no-escalation ports, orchestrator consent strings; lifetime follows the creator unless pinned                           |
-| V       | `scheduleDraftSchema`, safe projections, lazy channel parsers, `UI_TEXT.scheduleV2`; store private authority is never a draft field                                       |
-| X/M104  | Background consent/port/fake and `schedules/*` payloads; bind CLI, ACP, companion and bridges through the core; keep exec refusing schedules                              |
-| RA/M113 | Report action/destinations and destination-id grant; bind the deterministic report runner and source capabilities                                                         |
-| W       | Register manifest settings/commands; bind the lazy bundle/readers and channel, help, docs, report collection and full certification                                       |
+| Lane    | Binding                                                                                                                                                                            |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T       | Time trigger/zone/end schemas, reference occurrence anchor; `FakeScheduleClock` with Los Angeles, Berlin and Sydney gap/fold cases and separate wall/monotonic jumps               |
+| S       | Store/host ports, durable run-id claim, fire record, pure v1 mapping, `FakeScheduleDisk` with independently reopened clients; migrate receipts and verify before deletion          |
+| U       | Run context, action classes, grant/audit/consent shapes; empty authority on migration; both backend approval streams expose every request by unique id, including repeated classes |
+| D       | Session port and recorder on both backends; interrupt's cancel uses the same adapter as Stop; queue ids are withdrawable                                                           |
+| E       | Source union, events/conditions/history, tainted block and full encoded event identity; fake polling source for every kind                                                         |
+| G       | Creator, depth/explicit permission, grant matcher/no-escalation ports, orchestrator consent strings; lifetime follows the creator unless pinned                                    |
+| V       | `scheduleDraftSchema`, safe projections, lazy channel parsers, `UI_TEXT.scheduleV2`; store private authority is never a draft field                                                |
+| X/M104  | Background consent/port/fake and `schedules/*` payloads; bind CLI, ACP, companion and bridges through the core; keep exec refusing schedules                                       |
+| RA/M113 | Report action/destinations and destination-id grant; bind the deterministic report runner and source capabilities                                                                  |
+| W       | Register manifest settings/commands; bind the lazy bundle/readers and channel, help, docs, report collection and full certification                                                |
 
 M112's immediate question deferral, M107 admission, M108 thresholds, M109
 schedule-scoped vault grants/taint, M96 charters/targets and M110 node/webhook

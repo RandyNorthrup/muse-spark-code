@@ -6844,6 +6844,21 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### FIXM115L0 — Freeze corrected schedule contracts (2026-10-06)
+
+Repair all six RVM115L0 P2 findings before M115's wave lanes bind the
+contracts: revision-based compare-and-swap updates; integer migration of
+fractional crash-receipt times without an earlier fire; unique fake approval
+request ids; run-scoped final delivery settlements with complete fire details;
+versioned cross-editor audit, source/history and background status/removal
+messages; and event-key Unicode validation before identity encoding.
+Keep M52 and shipped behavior unchanged, add no dependency, and prove each
+fix with a failing regression and byte-exact restored red drill in
+`docs/certification/m115-0.md`. The rig brief reserves aggregate quality
+for W/lead and forbids branch merges; run the owned suites and local static
+and build checks with hooks on. Integration bindings are recorded in
+`docs/certification/m115-contracts.md`.
+
 ### BADGEFIX — Exact package versions on store pages (2026-10-05)
 
 - [x] Generate static Marketplace/Open VSX and npm/GitHub release version

@@ -128,6 +128,9 @@ describe('M115 deterministic fakes', () => {
     const job = fakeSchedule()
     await first.create(job)
     expect(await second.list(job.workspaceKey)).toEqual([job])
+    await expect(
+      second.create(fakeSchedule({ id: 'nonzero-revision', revision: 1 })),
+    ).rejects.toThrow('revision must be zero')
     expect(await second.list('other-workspace')).toEqual([])
     await expect(second.create(job)).rejects.toThrow('exists')
     const runId = scheduleTimeRunId(job.id, job.nextFireAtMs!)
@@ -178,6 +181,67 @@ describe('M115 deterministic fakes', () => {
     await disk.client().record(record)
     expect(await disk.client().fires(schedule.workspaceKey)).toEqual([record])
     expect(await disk.client().fires('other-workspace')).toEqual([])
+  })
+
+  it('rejects stale whole-record updates after grant, consent and pause revocation', async () => {
+    const disk = new FakeScheduleDisk()
+    const first = disk.client()
+    const second = disk.client()
+    const job = fakeSchedule({
+      grant: {
+        rules: [{ id: 'command-1', kind: 'command', prefix: 'npm' }],
+        destinationIds: [],
+        paidCapUsd: 1,
+      },
+      paidCapUsd: 1,
+      paidConsent: {
+        modelId: 'model-1',
+        accountId: 'digest',
+        priceTier: 'tier-1',
+        grantedAtMs: 0,
+        dailyCapUsd: 1,
+        sharedDailyBudgetUsd: 1,
+        extras: [],
+      },
+    })
+    await first.create(job)
+    const [stale] = await first.list(job.workspaceKey)
+    const { paidConsent: _consent, ...revoked } = job
+    expect(
+      await second.update({
+        ...revoked,
+        paused: true,
+        grant: { rules: [], destinationIds: [], paidCapUsd: 0 },
+        paidCapUsd: 0,
+      }),
+    ).toBe(true)
+    expect(
+      await first.update({ ...stale!, fireCount: 1, updatedAtMs: job.updatedAtMs + 100 }),
+    ).toBe(false)
+    const [current] = await disk.client().list(job.workspaceKey)
+    expect(current).toMatchObject({
+      revision: 1,
+      paused: true,
+      grant: { rules: [] },
+      paidCapUsd: 0,
+      fireCount: 0,
+    })
+    expect(current).not.toHaveProperty('paidConsent')
+    expect(await first.update({ ...current!, fireCount: 1 })).toBe(true)
+    const [afterRetry] = await second.list(job.workspaceKey)
+    expect(afterRetry).toMatchObject({
+      revision: 2,
+      paused: true,
+      grant: { rules: [] },
+      fireCount: 1,
+    })
+    const [fresh] = await first.list(job.workspaceKey)
+    expect(
+      await Promise.all([
+        first.update({ ...fresh!, name: 'First edit' }),
+        second.update({ ...fresh!, name: 'Second edit' }),
+      ]),
+    ).toEqual([true, false])
   })
 
   it.each(SCHEDULE_EVENT_KINDS)('provides a source, history and replay for %s', async (kind) => {
@@ -244,6 +308,25 @@ describe('M115 deterministic fakes', () => {
       expect(() => {
         approvals.decide('unknown', false)
       }).toThrow('Unknown')
+    },
+  )
+
+  it.each(['museCode', 'modelApi'] as const)(
+    'keeps repeated shell approvals pending independently on %s',
+    (backend) => {
+      const approvals = new FakeScheduleApprovalStream(backend)
+      const first = approvals.request('shell')
+      const second = approvals.request('shell')
+      expect(first.id).not.toBe(second.id)
+      expect(approvals.pending.size).toBe(2)
+      approvals.decide(first.id, false)
+      expect(approvals.pending.get(second.id)).toEqual(second)
+      expect(() => {
+        approvals.assertSettled()
+      }).toThrow('still pending')
+      approvals.decide(second.id, true, 'command-1')
+      approvals.assertSettled()
+      expect(approvals.request('shell').id).not.toBe(first.id)
     },
   )
 })

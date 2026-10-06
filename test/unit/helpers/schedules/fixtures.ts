@@ -11,6 +11,7 @@ export function fakeSchedule(overrides: Partial<ScheduleV2> = {}): ScheduleV2 {
   const now = Date.parse('2026-10-05T12:00:00Z')
   return scheduleV2Schema.parse({
     version: 2,
+    revision: 0,
     id: 'schedule-1',
     name: 'Check the build',
     workspaceKey: 'workspace-1',

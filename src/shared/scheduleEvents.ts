@@ -42,9 +42,15 @@ const eventValue = z.union([
   z.number(),
   z.boolean(),
 ])
+const eventKeySchema = z.string().check(
+  z.minLength(1),
+  z.maxLength(SCHEDULE_EVENT_FIELD_MAX_CHARS),
+  // In Unicode mode paired surrogates are one code point; lone ones fail.
+  z.refine((value) => !/[\uD800-\uDFFF]/u.test(value)),
+)
 export const scheduleEventSchema = z.strictObject({
   source: identifier,
-  eventKey: z.string().check(z.minLength(1), z.maxLength(SCHEDULE_EVENT_FIELD_MAX_CHARS)),
+  eventKey: eventKeySchema,
   kind: z.enum(SCHEDULE_EVENT_KINDS),
   fields: z
     .record(identifier, eventValue)
@@ -102,5 +108,6 @@ export function scheduleEventRunId(
   scheduleId: string,
   event: Pick<ScheduleEvent, 'source' | 'eventKey'>,
 ): string {
+  eventKeySchema.parse(event.eventKey)
   return `${encodeURIComponent(scheduleId)}:${encodeURIComponent(event.source)}:${encodeURIComponent(event.eventKey)}`
 }

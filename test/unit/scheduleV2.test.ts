@@ -1,4 +1,5 @@
 import { mkdtempSync } from 'node:fs'
+import { readFile, stat, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -110,6 +111,9 @@ describe('schedule v2 boundary contracts', () => {
       { end: {} },
       { end: { afterRuns: 0 } },
       { fireCount: -1 },
+      { revision: -1 },
+      { revision: 0.25 },
+      { revision: undefined },
       { paused: false, mystery: true },
     ]) {
       expect(scheduleV2Schema.safeParse({ ...fakeSchedule(), ...override }).success).toBe(false)
@@ -515,6 +519,32 @@ describe('schedule v2 boundary contracts', () => {
     expect(() => scheduleTimeRunId('schedule-1', -1)).toThrow()
   })
 
+  it('rejects unpaired surrogate event keys before run-id generation and preserves valid Unicode', () => {
+    const event = {
+      source: 'github',
+      eventKey: 'pr-1',
+      kind: 'pullRequestMerged',
+      observedAt: 0,
+      fields: {},
+    }
+    for (const eventKey of ['\u{D800}', '\u{DC00}', 'prefix\u{D800}suffix', '\u{D800}\u{D800}']) {
+      expect(scheduleEventSchema.safeParse({ ...event, eventKey }).success).toBe(false)
+      expect(() => scheduleEventRunId('schedule-1', { ...event, eventKey })).toThrow(
+        'Invalid input',
+      )
+    }
+    const keys = ['😀', '界', '�', 'a:b', 'a%3Ab', '\u{D7FF}', '\u{E000}']
+    const ids = keys.map((eventKey) => {
+      const parsed = scheduleEventSchema.parse({ ...event, eventKey })
+      const id = scheduleEventRunId('schedule-1', parsed)
+      expect(scheduleRunContextSchema.safeParse({ ...fakeRunContext(), runId: id }).success).toBe(
+        true,
+      )
+      return id
+    })
+    expect(new Set(ids).size).toBe(keys.length)
+  })
+
   it('audits action classes without arguments or file contents and validates fire outcomes', () => {
     const audit = {
       scheduleId: 'schedule-1',
@@ -576,6 +606,73 @@ describe('schedule v2 boundary contracts', () => {
 })
 
 describe('M52 migration mapping', () => {
+  it('maps fractional legacy clock timestamps on interval and cron jobs', () => {
+    for (const cadence of [
+      { kind: 'interval', everyMs: SCHEDULE_MIN_INTERVAL_MS },
+      { kind: 'cron', expression: '0 9 * * 1-5' },
+    ] as const) {
+      const old = fakeV1Schedule()
+      old.cadence = cadence
+      old.createdAtMs += 0.25
+      old.expiresAtMs += 0.25
+      old.nextFireAtMs += 0.25
+      old.lastFireAtMs! += 0.25
+      const mapped = scheduleV1ToV2(old, 'workspace-1', 'UTC')
+      expect(mapped).toMatchObject({
+        createdAtMs: Math.ceil(old.createdAtMs),
+        updatedAtMs: Math.ceil(old.createdAtMs),
+        end: { atMs: Math.ceil(old.expiresAtMs) },
+        nextFireAtMs: Math.ceil(old.nextFireAtMs),
+        lastFireAtMs: Math.ceil(old.lastFireAtMs!),
+      })
+    }
+  })
+
+  it('migrates fractional crash-receipt recovery without replay or an earlier cadence', async () => {
+    for (const receipt of ['', '{', '{}']) {
+      const old = { ...fakeV1Schedule(), fireCount: 0 }
+      old.expiresAtMs += 3 * SCHEDULE_MIN_INTERVAL_MS
+      const directory = path.join(root, `crash-receipt-${String(receipt.length)}`)
+      const makeStore = () =>
+        createFileScheduleStore({
+          directory,
+          now: () => old.createdAtMs,
+          log: new FakeLogOutputChannel(),
+        })
+      await makeStore().create(old)
+      const receiptPath = path.join(directory, `${old.id}.${String(old.nextFireAtMs)}.claim`)
+      await writeFile(receiptPath, receipt)
+      const admittedAtMs = old.createdAtMs + 100.25
+      await utimes(receiptPath, admittedAtMs / 1000, admittedAtMs / 1000)
+      const receiptStat = await stat(receiptPath)
+      expect(Number.isSafeInteger(receiptStat.mtimeMs)).toBe(false)
+      const [recovered] = await makeStore().list(old.sessionId)
+      expect(recovered).toMatchObject({
+        fireCount: 1,
+        lastFireAtMs: old.nextFireAtMs,
+        nextFireAtMs: receiptStat.mtimeMs + SCHEDULE_MIN_INTERVAL_MS,
+      })
+      const mapped = scheduleV1ToV2(recovered!, 'workspace-1', 'UTC')
+      expect(mapped).toMatchObject({
+        revision: 0,
+        fireCount: 1,
+        lastFireAtMs: old.nextFireAtMs,
+        paused: true,
+        nextFireAtMs: Math.ceil(recovered!.nextFireAtMs),
+      })
+      expect(mapped.trigger).toEqual({
+        kind: 'interval',
+        everyMs: SCHEDULE_MIN_INTERVAL_MS,
+        anchorMs: mapped.nextFireAtMs,
+      })
+      expect(mapped.nextFireAtMs! - recovered!.nextFireAtMs).toBeGreaterThanOrEqual(0)
+      expect(mapped.nextFireAtMs! - recovered!.nextFireAtMs).toBeLessThan(1)
+      expect(await readFile(receiptPath, 'utf8')).toBe(receipt)
+      expect(await makeStore().list(old.sessionId)).toEqual([recovered])
+      expect(await makeStore().claim(old, old.nextFireAtMs)).toBe(false)
+    }
+  })
+
   it('preserves every v1 field while requiring new unattended consent', () => {
     for (const cadence of [
       { kind: 'interval', everyMs: SCHEDULE_MIN_INTERVAL_MS },

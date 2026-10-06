@@ -233,6 +233,7 @@ export const scheduleEndSchema = z
 
 const scheduleShape = {
   version: z.literal(2),
+  revision: z.int().check(z.gte(0)),
   id: identifier,
   name: z.string().check(z.minLength(1), z.maxLength(SCHEDULE_NAME_MAX_CHARS)),
   workspaceKey: identifier,
@@ -354,8 +355,12 @@ export const scheduleFireRecordSchema = z.strictObject({
 export type ScheduleFireRecord = z.infer<typeof scheduleFireRecordSchema>
 
 export interface ScheduleStoreV2 {
+  /** New ids start at revision zero and are never reused after removal. */
   create(schedule: ScheduleV2): Promise<void>
   list(workspaceKey: string): Promise<readonly ScheduleV2[]>
+  /** Atomic compare-and-swap against schedule.revision; success increments it.
+   * False means missing or stale. Re-read and merge intent before retrying;
+   * never replay a stale authority snapshot against a fresh revision. */
   update(schedule: ScheduleV2): Promise<boolean>
   remove(workspaceKey: string, scheduleId: string): Promise<boolean>
   /** Atomic, durable, never rolled back after a crash or refusal. */
@@ -418,14 +423,17 @@ export function scheduleV1ToV2(
   zone: string,
 ): ScheduleV2 {
   const old = scheduledPromptSchema.parse(job)
+  // M52 can recover a crash receipt from fractional filesystem mtimeMs.
+  // Round forward: never replay that receipt or run its successor early.
+  const nextFireAtMs = Math.ceil(old.nextFireAtMs)
   return scheduleV2Schema.parse({
     version: 2,
+    revision: 0,
     id: old.id,
     name: old.id,
     workspaceKey,
     action: { kind: 'prompt', prompt: old.prompt },
-    trigger:
-      old.cadence.kind === 'cron' ? old.cadence : { ...old.cadence, anchorMs: old.nextFireAtMs },
+    trigger: old.cadence.kind === 'cron' ? old.cadence : { ...old.cadence, anchorMs: nextFireAtMs },
     target: { kind: 'conversation', sessionId: old.sessionId, backend: 'modelApi' },
     ...SCHEDULE_DEFAULT_POLICY,
     delivery: 'whenIdle',
@@ -433,14 +441,14 @@ export function scheduleV1ToV2(
     paidCapUsd: 0,
     creator: { kind: 'user' },
     zone,
-    end: { atMs: old.expiresAtMs },
+    end: { atMs: Math.ceil(old.expiresAtMs) },
     paused: true,
     pauseReason: 'migrationConsentRequired',
-    createdAtMs: old.createdAtMs,
-    updatedAtMs: old.createdAtMs,
-    nextFireAtMs: old.nextFireAtMs,
+    createdAtMs: Math.ceil(old.createdAtMs),
+    updatedAtMs: Math.ceil(old.createdAtMs),
+    nextFireAtMs,
     fireCount: old.fireCount,
-    ...(old.lastFireAtMs !== undefined && { lastFireAtMs: old.lastFireAtMs }),
+    ...(old.lastFireAtMs !== undefined && { lastFireAtMs: Math.ceil(old.lastFireAtMs) }),
     consecutiveFailures: 0,
     migration: {
       version: 1,
