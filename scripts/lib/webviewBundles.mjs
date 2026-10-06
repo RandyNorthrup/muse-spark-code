@@ -27,6 +27,21 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     entries: ['src/webview/components/HighlightedCode.tsx'],
     budgetKiB: 125,
   },
+  {
+    name: 'action dialogs',
+    entries: [
+      'src/webview/components/ShareView.tsx',
+      'src/webview/components/SessionBoardDialog.tsx',
+      'src/webview/components/HandoffDialog.tsx',
+      'src/webview/components/SecretPromptDialog.tsx',
+    ],
+    budgetKiB: 25,
+  },
+  {
+    name: 'tasks tab',
+    entries: ['src/webview/TasksApp.tsx'],
+    budgetKiB: 25,
+  },
 ]
 
 export function webviewDeferredBudgetGroups(meta) {

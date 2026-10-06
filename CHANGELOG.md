@@ -11,7 +11,9 @@ happened, not what was planned; superseded entries are kept.
 
 - Chat startup now loads syntax highlighting only for a closed supported code
   fence, leaving code text and Copy, Insert and Apply immediately available
-  while its engine loads. The 900 KiB startup budget stays unchanged.
+  while its engine loads. Action-only dialogs and the separate Tasks surface
+  also load on demand; the command palette reuses its shared list shell. The
+  900 KiB startup budget and existing deferred budget stay unchanged.
 
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
