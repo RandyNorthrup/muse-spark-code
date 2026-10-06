@@ -25,7 +25,7 @@
   "sources": [
     {
       "file": "src/webview/styles.css",
-      "sha256": "a6851035b174e2232f57b8798d97afdb4e9a21ec10e4e605c6a87abb8a2a2a5b"
+      "sha256": "abfd44f0b910f4eb7501025252ae9c49d9670ff96a1fd0f3cd12e64df3991951"
     },
     {
       "file": "src/webview/App.tsx",
@@ -125,7 +125,7 @@
     },
     {
       "file": "src/webview/components/Transcript.tsx",
-      "sha256": "fc97d381e5766cbaa8ecdb4adc1100bf7a5a0878763bebe78e1878acb797eef2"
+      "sha256": "825588e000b13c7527474d575ba8875ecbf13cb833ec94ea080f2790325eb81e"
     },
     {
       "file": "src/webview/components/UserShellRow.tsx",
@@ -147,8 +147,8 @@
       "width": 320,
       "height": 760,
       "file": "column/light/320.png",
-      "sha256": "9fffce75f1d792149f45ddde9c12e1b2dd0b5fde36f8a18d1d56519095330ba9",
-      "bytes": 45365,
+      "sha256": "4c83484b2ff90cb38ec61fed8228636fe8640a9196d8b41dca55b14b89b0b61d",
+      "bytes": 45368,
       "rendered": [
         {
           "file": "src/webview/App.tsx",
@@ -344,8 +344,8 @@
       "width": 320,
       "height": 760,
       "file": "chips/light/320.png",
-      "sha256": "395ced787e569a406a514bdb8576e9d3f42a039ae5194b8ea46367c442766ce4",
-      "bytes": 54794,
+      "sha256": "9eab03ad00077f2bce7394c00c3ecf9633c79d5586230d6ece693962a469714b",
+      "bytes": 54813,
       "rendered": [
         {
           "file": "src/webview/components/AttachmentChips.tsx",
@@ -558,8 +558,8 @@
       "width": 320,
       "height": 760,
       "file": "goal-edit/light/320.png",
-      "sha256": "6860e89179a92fbb53daa2cb5d672cabc40930275ba09e8663f48525928333cc",
-      "bytes": 65848,
+      "sha256": "bead7380d3c50869d92100ca1d55d110aa8cf332dbdebceaa28ec775e852e3d8",
+      "bytes": 65854,
       "rendered": [
         {
           "file": "src/webview/components/GoalPanel.tsx",
@@ -586,8 +586,8 @@
       "width": 320,
       "height": 760,
       "file": "goal/light/320.png",
-      "sha256": "42702c0e7dd06a7cb81ce350103543e0f858d1520cac5c95a8411892f8c40178",
-      "bytes": 47704,
+      "sha256": "3e1a9e2af46616ae6d59f6439dfc45a77c5959de4e005f5dc36a52b74ab8bf8c",
+      "bytes": 47699,
       "rendered": [
         {
           "file": "src/webview/components/GoalParts.tsx",
@@ -810,8 +810,8 @@
       "width": 320,
       "height": 760,
       "file": "paid/light/320.png",
-      "sha256": "a0580959795250fab2cbb0a6a20651b71d1803f527be591237cb256dbfabeb27",
-      "bytes": 35758,
+      "sha256": "e2f33f95f5d23f02e39df0286cd508f55c6a695513090a2d1876069d0e7c54b4",
+      "bytes": 35747,
       "rendered": [
         {
           "file": "src/webview/components/PaidBadge.tsx",
@@ -838,8 +838,8 @@
       "width": 320,
       "height": 760,
       "file": "thinking/light/320.png",
-      "sha256": "d9200441862229c1fc488c11d15c42662339d7c257b2a37f88d4a2a70c75398d",
-      "bytes": 48536,
+      "sha256": "d7ccf07446937dc0311d8aef6b5ff96b951c382aa546517d2cc56f8e50d74914",
+      "bytes": 48543,
       "rendered": [
         {
           "file": "src/webview/components/ReasoningRow.tsx",
@@ -1038,8 +1038,8 @@
       "width": 320,
       "height": 760,
       "file": "muse-tools/light/320.png",
-      "sha256": "8b8dbfc9eafde275fd526fbddd082e7a96e39bce7942894711cd7cb770fa5f0f",
-      "bytes": 56155,
+      "sha256": "9132c37b1cbde0780174ec6898488c635764eb130d8d01d1d7b6dac6d974f2a6",
+      "bytes": 56034,
       "rendered": [
         {
           "file": "src/webview/components/ToolBodies.tsx",
@@ -1247,8 +1247,8 @@
       "width": 690,
       "height": 760,
       "file": "column/light/690.png",
-      "sha256": "312e8e6f6bc0de8378f49f8ee3c71a6657dfc1a55de57df447f3b277a3aa0342",
-      "bytes": 50048,
+      "sha256": "572e6b9f6c13f33e3957545de7b7f17e9f929e95c26d0551dd02ea875dc50bd0",
+      "bytes": 50049,
       "rendered": [
         {
           "file": "src/webview/App.tsx",
@@ -1406,8 +1406,8 @@
       "width": 690,
       "height": 760,
       "file": "chips/light/690.png",
-      "sha256": "1acdda35e07b9e03be2dcedf822d65d658c826d991587de083af6ac3e156170c",
-      "bytes": 60429,
+      "sha256": "01ea8dacd4ba9fd312f7d8e828f214b05d93b52ba1990a944e68b07d18ae1a2c",
+      "bytes": 60423,
       "rendered": [
         {
           "file": "src/webview/components/AttachmentChips.tsx",
@@ -1716,8 +1716,8 @@
       "width": 690,
       "height": 760,
       "file": "judge-narrow/light/690.png",
-      "sha256": "16b97dae92417682310695de6adfad7d5c128c12ca3099407872dd49b0c0cd05",
-      "bytes": 69963,
+      "sha256": "eade730b66455d935a541e6cf6d99bb8d827d5739f0f1e3ea06002b95c0d1544",
+      "bytes": 69939,
       "rendered": [
         {
           "file": "src/webview/components/JudgeStatusLine.tsx",
@@ -1807,8 +1807,8 @@
       "width": 690,
       "height": 760,
       "file": "thinking/light/690.png",
-      "sha256": "8137915381be36d52854663d08ca05ee697edc1167158d5e7d14a3b3797162ae",
-      "bytes": 58763,
+      "sha256": "8d6727004e6864c8113ebb6f0c5deac88c9ebed0281eed79365475f78ed38c20",
+      "bytes": 58762,
       "rendered": [
         {
           "file": "src/webview/components/ReasoningRow.tsx",
@@ -1835,8 +1835,8 @@
       "width": 690,
       "height": 760,
       "file": "review-findings/light/690.png",
-      "sha256": "1a80358a09ef1063d8fbf0834d24e44fb2203118c07ad2d8c1f12981f5876658",
-      "bytes": 48616,
+      "sha256": "b2bdee1b9e1940b55ff42081af3caecbfb7854c21b40e1940d85e585741d722f",
+      "bytes": 48612,
       "rendered": [
         {
           "file": "src/webview/components/ReviewFindings.tsx",
@@ -1960,8 +1960,8 @@
       "width": 690,
       "height": 760,
       "file": "muse-tools/light/690.png",
-      "sha256": "11e9b8774d9260fea268c36d2ef723f9749062292d17692260385aafbe7941b0",
-      "bytes": 64904,
+      "sha256": "5dbb05e66ea15d1f1109e6919f26b17c83370165c67d34aad2c46ca8963f0d41",
+      "bytes": 64914,
       "rendered": [
         {
           "file": "src/webview/components/ToolBodies.tsx",
@@ -1988,8 +1988,8 @@
       "width": 690,
       "height": 760,
       "file": "tools-open/light/690.png",
-      "sha256": "03f6a1a36bdb33b4d0f6f855c8fad669794e804bae502d2f60c54cd492ab4513",
-      "bytes": 57302,
+      "sha256": "442a652b5aee0055b923223ae60ce0c9c8ea88b7a6c287907483ab0d883286fa",
+      "bytes": 57301,
       "rendered": [
         {
           "file": "src/webview/components/ToolRow.tsx",
@@ -2177,8 +2177,8 @@
       "width": 320,
       "height": 760,
       "file": "column/dark/320.png",
-      "sha256": "4c1ddca4916727f22b9ee33df8f8180c969ab245c8ee1eab045be9090a567260",
-      "bytes": 47113,
+      "sha256": "f29d8429490a8500743ab7c30189f1e3c30cab0cf255b7790aef3b0c4583d756",
+      "bytes": 47111,
       "rendered": [
         {
           "file": "src/webview/App.tsx",
@@ -2374,8 +2374,8 @@
       "width": 320,
       "height": 760,
       "file": "chips/dark/320.png",
-      "sha256": "7b272d8d90e2f6c84d819eb17ad56797d63eb10d503df57493a218048acf9397",
-      "bytes": 56592,
+      "sha256": "1cf4b79130c1b7412130b81af6136c1e47796cab1b069966896e8801f18604a9",
+      "bytes": 56600,
       "rendered": [
         {
           "file": "src/webview/components/AttachmentChips.tsx",
@@ -2402,8 +2402,8 @@
       "width": 320,
       "height": 760,
       "file": "markdown/dark/320.png",
-      "sha256": "55986dbfa1cc89b621f003aeb07adeef83128c183015850d851b914c26455123",
-      "bytes": 35858,
+      "sha256": "ddf30c7b4f64cbd527c74139aee9b44b43216c5d44ce8f460f6cb96c02a2f26f",
+      "bytes": 35882,
       "rendered": [
         {
           "file": "src/webview/components/CodeBlock.tsx",
@@ -2715,8 +2715,8 @@
       "width": 320,
       "height": 760,
       "file": "judge-narrow/dark/320.png",
-      "sha256": "e867e7c6240fb0c2f9f7a6f55e467df34204074836bb728aed97349c52800e9b",
-      "bytes": 58476,
+      "sha256": "e444af8201b245bad89cb86d1175eaaa2df94dcab8e3acbc3fb91960a4640bb3",
+      "bytes": 58481,
       "rendered": [
         {
           "file": "src/webview/components/JudgeStatusLine.tsx",
@@ -3068,8 +3068,8 @@
       "width": 320,
       "height": 760,
       "file": "muse-tools/dark/320.png",
-      "sha256": "f9220a4c62a321ae8ecce49c0f2475f96acc3c7b0504c6c165cdade7ea4272a2",
-      "bytes": 60241,
+      "sha256": "46c41dfc2d556d4b977482924e4fdf4ccf13d939d4ec69fb03a05589e88f6f57",
+      "bytes": 61516,
       "rendered": [
         {
           "file": "src/webview/components/ToolBodies.tsx",
@@ -3277,8 +3277,8 @@
       "width": 690,
       "height": 760,
       "file": "column/dark/690.png",
-      "sha256": "87b19b5420fc83dda7515e3b8af17fec07398bb9a8b0d072db9cc8c84866802f",
-      "bytes": 50916,
+      "sha256": "a6e31264b9d9670ff0f8efdc51f534b7a902e90749724c894e4765e96b8c6746",
+      "bytes": 50920,
       "rendered": [
         {
           "file": "src/webview/App.tsx",
@@ -3436,8 +3436,8 @@
       "width": 690,
       "height": 760,
       "file": "chips/dark/690.png",
-      "sha256": "3052b12425915be5078d6895958a4ed88f12e901d61895c287469c14233aba9c",
-      "bytes": 62656,
+      "sha256": "d98d7459ad852895d901d02379449b220d0091a0508011ee37fe45c5f065a1d1",
+      "bytes": 62657,
       "rendered": [
         {
           "file": "src/webview/components/AttachmentChips.tsx",
@@ -3647,8 +3647,8 @@
       "width": 690,
       "height": 760,
       "file": "goal/dark/690.png",
-      "sha256": "065ce09427def24e2d18bf1701003af8623b32371d178c3ab0a76c3b3f4a439c",
-      "bytes": 55781,
+      "sha256": "af593f36ff473f51b4883a1e2b2d4b1dacd0ea931ab4d1c6856c58fa7f509ba1",
+      "bytes": 55780,
       "rendered": [
         {
           "file": "src/webview/components/GoalParts.tsx",
@@ -3746,8 +3746,8 @@
       "width": 690,
       "height": 760,
       "file": "judge-narrow/dark/690.png",
-      "sha256": "5cdf4ae6341496111c876a20fd448c595257530cc66677ec3b1a8629327e8689",
-      "bytes": 73256,
+      "sha256": "70146cd2ee2380f7b953f0586f83da5a62370091fe4e7fe2ba7b560140235508",
+      "bytes": 73266,
       "rendered": [
         {
           "file": "src/webview/components/JudgeStatusLine.tsx",
@@ -3837,8 +3837,8 @@
       "width": 690,
       "height": 760,
       "file": "thinking/dark/690.png",
-      "sha256": "b9cd5a1c72b8aa89cbf25076ccf7670ebf5010d6731bac391be9bc6cf74011b5",
-      "bytes": 62310,
+      "sha256": "ef8a43b8312e126dc1b0a653bae6003a98ab42323fda916c87bb1f3b919ea777",
+      "bytes": 62315,
       "rendered": [
         {
           "file": "src/webview/components/ReasoningRow.tsx",
@@ -3865,8 +3865,8 @@
       "width": 690,
       "height": 760,
       "file": "review-findings/dark/690.png",
-      "sha256": "d2fb13cd5ea742596150a60fe77fa46ed7093acdfe54cd59229472351c3dbf8c",
-      "bytes": 49506,
+      "sha256": "f643a0cd59945f2eab342882005307a07edf1068329fad1306e8ac77c6d5e685",
+      "bytes": 49503,
       "rendered": [
         {
           "file": "src/webview/components/ReviewFindings.tsx",
@@ -3893,8 +3893,8 @@
       "width": 690,
       "height": 760,
       "file": "schedules-narrow/dark/690.png",
-      "sha256": "e115e340cf9f421cb4040a5f6251ae398005211a715ce6d4a35b8dfdbc8f93d1",
-      "bytes": 94011,
+      "sha256": "dd562eaa89c573c83cfef03956ab3b0f9a4867df8c24569f16a29ce83cf257df",
+      "bytes": 94004,
       "rendered": [
         {
           "file": "src/webview/components/SchedulePanel.tsx",
@@ -3921,8 +3921,8 @@
       "width": 690,
       "height": 760,
       "file": "todo/dark/690.png",
-      "sha256": "efce4278b9bf9d2eb5c3dd3a137a65d0844d9ff10cc78db90acc295a34d05ed6",
-      "bytes": 61089,
+      "sha256": "ad794757cfc7f1c1cab53f3141fd762133488d67498cd563e4d1d32d8ba9eef4",
+      "bytes": 61096,
       "rendered": [
         {
           "file": "src/webview/components/TodoPanel.tsx",
@@ -3990,8 +3990,8 @@
       "width": 690,
       "height": 760,
       "file": "muse-tools/dark/690.png",
-      "sha256": "6921e0bb2eee040049fe3b98b24cf8243d651af075302a86b1d9e425521ec026",
-      "bytes": 68861,
+      "sha256": "c878703c379a54341fb78a4d27dcf40fce08c70e633a86528072af11f6e6905b",
+      "bytes": 68867,
       "rendered": [
         {
           "file": "src/webview/components/ToolBodies.tsx",
@@ -4018,8 +4018,8 @@
       "width": 690,
       "height": 760,
       "file": "tools-open/dark/690.png",
-      "sha256": "c3360d009fe35ffb8a0491619aac02f677890a9f63ab594725565379b1cbde33",
-      "bytes": 60369,
+      "sha256": "94e15d7ce3fb976e63c941caee735d5326bc9e0563b82f51754ff4d9f7fbe1c4",
+      "bytes": 60368,
       "rendered": [
         {
           "file": "src/webview/components/ToolRow.tsx",
@@ -4102,8 +4102,8 @@
       "width": 690,
       "height": 760,
       "file": "verify/dark/690.png",
-      "sha256": "a888b1167fd35ec9579131dfc796f097fbddbc260b8f5b113bbcf794e43a8cfb",
-      "bytes": 68165,
+      "sha256": "0d9e36afc8ca92d17160ff5e56b7a62221f5efd5d28f7abe7ac0b900b981509d",
+      "bytes": 68163,
       "rendered": [
         {
           "file": "src/webview/components/VerifyParts.tsx",
@@ -4207,7 +4207,7 @@
       "width": 320,
       "height": 760,
       "file": "column/hc-dark/320.png",
-      "sha256": "809c45efa7dc36a91f7ef82b0332353523e9d1ae99dce79107118f9b18762e52",
+      "sha256": "578fa649e4431823502c2934f2b13487a1024f5f37709fcf984bf48a7a6c3844",
       "bytes": 44269,
       "rendered": [
         {
@@ -4404,8 +4404,8 @@
       "width": 320,
       "height": 760,
       "file": "chips/hc-dark/320.png",
-      "sha256": "17c47686a5aafc82b59c693f65463b834342c50ebe86afc50a4c55e8eb842d55",
-      "bytes": 51148,
+      "sha256": "e45dd92f81a577ac78d655f5ae1bb898f39dcaafa7b90a8504467dd2e6f85ba0",
+      "bytes": 51177,
       "rendered": [
         {
           "file": "src/webview/components/AttachmentChips.tsx",
@@ -4432,8 +4432,8 @@
       "width": 320,
       "height": 760,
       "file": "markdown/hc-dark/320.png",
-      "sha256": "d914b5d1620accdadef08b997b7e59be06a5fc92d4254b87aaec60199b8d4b78",
-      "bytes": 31954,
+      "sha256": "409544cf818177134869dc60f9a6d58e4cc36bf096178f672619d38779a5e803",
+      "bytes": 31897,
       "rendered": [
         {
           "file": "src/webview/components/CodeBlock.tsx",
@@ -4536,8 +4536,8 @@
       "width": 320,
       "height": 760,
       "file": "context-meter-full/hc-dark/320.png",
-      "sha256": "2bc15727db39eea85adc00da53cfa64867e79e4d1d3399ff3f51cc8ea1651294",
-      "bytes": 54063,
+      "sha256": "0682b3c3d2b1ab0a152fe9b06055bb5463ab922dda3a9fe8cd33312ec9c99e46",
+      "bytes": 54192,
       "rendered": [
         {
           "file": "src/webview/components/ContextMeter.tsx",
@@ -4618,8 +4618,8 @@
       "width": 320,
       "height": 760,
       "file": "goal-edit/hc-dark/320.png",
-      "sha256": "3688c62e1af061b959ea4eac8f635bc9a5ae3a48eb1664382041c6b797e1315a",
-      "bytes": 63236,
+      "sha256": "30dcdf6e91ae8e0ede852926832f147b94f6c1a24f114281b5e09388f938e76c",
+      "bytes": 63237,
       "rendered": [
         {
           "file": "src/webview/components/GoalPanel.tsx",
@@ -4646,8 +4646,8 @@
       "width": 320,
       "height": 760,
       "file": "goal/hc-dark/320.png",
-      "sha256": "1bd2f2eb3b90c240b109e1ff8c62de26a1e774df2fc2cece7ad3420c7a075bd9",
-      "bytes": 48769,
+      "sha256": "81ecc99d120fff8041a6861f646f0288df7a33c75f81b2f15915cbf47f0f69cb",
+      "bytes": 48775,
       "rendered": [
         {
           "file": "src/webview/components/GoalParts.tsx",
@@ -5001,8 +5001,8 @@
       "width": 320,
       "height": 760,
       "file": "todo/hc-dark/320.png",
-      "sha256": "8afd6fd84fb1216c639c5a570715f6217d3757c8d3f101bca133c54633fbdd62",
-      "bytes": 49563,
+      "sha256": "147fa04f7411d89a58a8c1c2b8ec159722d574e61265dc0e8b4eaf58352d5364",
+      "bytes": 49562,
       "rendered": [
         {
           "file": "src/webview/components/TodoPanel.tsx",
@@ -5098,8 +5098,8 @@
       "width": 320,
       "height": 760,
       "file": "muse-tools/hc-dark/320.png",
-      "sha256": "bef54465f6ef9cbc9239a7cae8fe7c40aa03e21bd5af8b6a7973dbdabe5530e5",
-      "bytes": 55292,
+      "sha256": "6b7abcc624ea08ff4d0ad7b84dbd2db388f0bfed7e36ecf65a6c76d09fc70e4f",
+      "bytes": 55129,
       "rendered": [
         {
           "file": "src/webview/components/ToolBodies.tsx",
@@ -5307,8 +5307,8 @@
       "width": 690,
       "height": 760,
       "file": "column/hc-dark/690.png",
-      "sha256": "ff0f5d77e365c6fdef8cb48125abfa2eb9f3eb745e2e1ae199c5520362d725ff",
-      "bytes": 47776,
+      "sha256": "a974f30851c6dd71ab14891a080767bf3ab7a9ba31405f5a756355e95b838556",
+      "bytes": 47778,
       "rendered": [
         {
           "file": "src/webview/App.tsx",
@@ -5363,8 +5363,8 @@
       "width": 690,
       "height": 760,
       "file": "approval-several/hc-dark/690.png",
-      "sha256": "4998c1164072c44facc3eb9dff0d8c3ae78c68644bbea71b6ff896da96afd942",
-      "bytes": 67073,
+      "sha256": "b77d45c0780faebd180f5dd2866808eecea011015f2d6f0d4962109c30e62b46",
+      "bytes": 67071,
       "rendered": [
         {
           "file": "src/webview/components/ApprovalDock.tsx",
@@ -5466,8 +5466,8 @@
       "width": 690,
       "height": 760,
       "file": "chips/hc-dark/690.png",
-      "sha256": "069a349657aba2747c019a93759651074118f4ae406a08c59acc1d25ca6c58fa",
-      "bytes": 55785,
+      "sha256": "8d792b0f1904723c62117b1136b27669e122654461d62c6cbca23689a6d2cb06",
+      "bytes": 55791,
       "rendered": [
         {
           "file": "src/webview/components/AttachmentChips.tsx",
@@ -5494,8 +5494,8 @@
       "width": 690,
       "height": 760,
       "file": "markdown/hc-dark/690.png",
-      "sha256": "56d2422e8a1c1af34a549e047c9cd037426fb169c0e39fcb98f7edc91e103ad3",
-      "bytes": 36459,
+      "sha256": "435aff31ceee0d38cf503cdd9aa9710f3fcf8f9ec69467cc7ca221b16c01ce4d",
+      "bytes": 36457,
       "rendered": [
         {
           "file": "src/webview/components/CodeBlock.tsx",
@@ -5567,8 +5567,8 @@
       "width": 690,
       "height": 760,
       "file": "context-meter-full/hc-dark/690.png",
-      "sha256": "13a6181387e3d55668e6ca79f62f7b9aa6a2906e2437856a2dcfc02c883460be",
-      "bytes": 59443,
+      "sha256": "e2580da871fd608d2696c580249e60c64e153afc3b2bcc5751ad657646789573",
+      "bytes": 59620,
       "rendered": [
         {
           "file": "src/webview/components/ContextMeter.tsx",
@@ -5649,8 +5649,8 @@
       "width": 690,
       "height": 760,
       "file": "goal-edit/hc-dark/690.png",
-      "sha256": "51b8b06c620915aac92577304503f0c871d0426cdb58770ce320cdfe83553ca1",
-      "bytes": 71498,
+      "sha256": "d14737a66cf08cc3b7d65f45623356f60614614dd4404f1891af5227cff65660",
+      "bytes": 71494,
       "rendered": [
         {
           "file": "src/webview/components/GoalPanel.tsx",
@@ -5677,8 +5677,8 @@
       "width": 690,
       "height": 760,
       "file": "goal/hc-dark/690.png",
-      "sha256": "aa3bfc5219e5a17ca79a1205aff1029a3fb28359c8a961d965962557a4ec1bd4",
-      "bytes": 53124,
+      "sha256": "5d3af9ed1b37e7da46a6491a669ca893b0c2b6a3d53d222f0bd9cc6b101d1bcb",
+      "bytes": 53122,
       "rendered": [
         {
           "file": "src/webview/components/GoalParts.tsx",
@@ -5867,8 +5867,8 @@
       "width": 690,
       "height": 760,
       "file": "thinking/hc-dark/690.png",
-      "sha256": "45f69b5aedcecde68671fa384b87e412310900ff79c16484da14f96fe9023b66",
-      "bytes": 57452,
+      "sha256": "bcace3c8aa9d9d5ac71b708441c365d1847121485d841dd337cdaf5da1a000bf",
+      "bytes": 57451,
       "rendered": [
         {
           "file": "src/webview/components/ReasoningRow.tsx",
@@ -5923,8 +5923,8 @@
       "width": 690,
       "height": 760,
       "file": "schedules-narrow/hc-dark/690.png",
-      "sha256": "3dd27c1e8ade49c8ab97a03b0f8ae967bdee8d0f5f4ec1cf309ea36d6565a128",
-      "bytes": 86713,
+      "sha256": "67b4248aa8d53b44d8cf1d8282fc9be193a628c232ac894838ac36d4c6ea2e60",
+      "bytes": 86709,
       "rendered": [
         {
           "file": "src/webview/components/SchedulePanel.tsx",
@@ -5951,8 +5951,8 @@
       "width": 690,
       "height": 760,
       "file": "todo/hc-dark/690.png",
-      "sha256": "a6f2ecb0a09cfef431d5f16514900297177351da2d50a4f851f7cac4bf8ede1c",
-      "bytes": 57833,
+      "sha256": "50a027cd055d62b655f8435ac8f2594febcdbb0865c9fb2bd7c2c0392d172a5c",
+      "bytes": 57834,
       "rendered": [
         {
           "file": "src/webview/components/TodoPanel.tsx",
@@ -6020,8 +6020,8 @@
       "width": 690,
       "height": 760,
       "file": "muse-tools/hc-dark/690.png",
-      "sha256": "e2bcba95cfd8c8d0be72618aadccef37f1e57982abbda96cd9b45dde548a434a",
-      "bytes": 62500,
+      "sha256": "a8d55bd659b77074b30a8e8ffd874352667066d77d35d2addcadc9d766520b48",
+      "bytes": 62509,
       "rendered": [
         {
           "file": "src/webview/components/ToolBodies.tsx",
@@ -6048,8 +6048,8 @@
       "width": 690,
       "height": 760,
       "file": "tools-open/hc-dark/690.png",
-      "sha256": "8b876989aa6ff438ac7402c70a2103dfa1542a7ba7d029696b6b6b5d66f573f5",
-      "bytes": 55886,
+      "sha256": "2304e688b96fbc976dd09be9cf40ceba8e8c6a955adc0607d509bea738a97cce",
+      "bytes": 55884,
       "rendered": [
         {
           "file": "src/webview/components/ToolRow.tsx",
@@ -6132,8 +6132,8 @@
       "width": 690,
       "height": 760,
       "file": "verify/hc-dark/690.png",
-      "sha256": "7299992422fe65e7b0063ed1ef58fa105f542f8b4fa46779e38435df0a865860",
-      "bytes": 66359,
+      "sha256": "5cf9ff0d5013c2057f7127698895ec3befd62d721933720c0f3e6732f0db93ab",
+      "bytes": 66362,
       "rendered": [
         {
           "file": "src/webview/components/VerifyParts.tsx",
@@ -6237,8 +6237,8 @@
       "width": 320,
       "height": 760,
       "file": "column/hc-light/320.png",
-      "sha256": "d9d0466ad3f0495a4b510c48d6f882246c962813943ea981ec90e0d837e81aa9",
-      "bytes": 46461,
+      "sha256": "8b68ab5e716b36604e86318c57e9bde85b15ad74254af079b9e6af6a7fddab6a",
+      "bytes": 46464,
       "rendered": [
         {
           "file": "src/webview/App.tsx",
@@ -6434,8 +6434,8 @@
       "width": 320,
       "height": 760,
       "file": "chips/hc-light/320.png",
-      "sha256": "dfe5b5786c926fdee4e88d9b13c0a13e91d80d7841a83661f6bf777f4fcf45af",
-      "bytes": 51434,
+      "sha256": "2c6f04ebaeb727ad386d290859db64f1981e77b69dfc37662c498f20cba1b6f0",
+      "bytes": 51431,
       "rendered": [
         {
           "file": "src/webview/components/AttachmentChips.tsx",
@@ -6462,8 +6462,8 @@
       "width": 320,
       "height": 760,
       "file": "markdown/hc-light/320.png",
-      "sha256": "ec437292bdaa149273640998b27d0ad05f07416194d335b6d40a9b96af60e98e",
-      "bytes": 35100,
+      "sha256": "926088f00a090d50f1ab1dbb6a5af6fc1ec84f4d3e611bcdd32a0777f4a332c4",
+      "bytes": 35076,
       "rendered": [
         {
           "file": "src/webview/components/CodeBlock.tsx",
@@ -6566,8 +6566,8 @@
       "width": 320,
       "height": 760,
       "file": "context-meter-full/hc-light/320.png",
-      "sha256": "2ef06efe6888b3261c0e04d6642c52cb8888ba93898e901a23484894d22931d3",
-      "bytes": 54858,
+      "sha256": "4c897591bcce48ee712d4acf52fc52754c0424da043c9fe5fbfec8eb5dfb3b8e",
+      "bytes": 54962,
       "rendered": [
         {
           "file": "src/webview/components/ContextMeter.tsx",
@@ -6648,8 +6648,8 @@
       "width": 320,
       "height": 760,
       "file": "goal-edit/hc-light/320.png",
-      "sha256": "b0f5e01e43d0655d7135e5f44fdd3f2be901342b1bd5d29989530448c83f32c6",
-      "bytes": 62411,
+      "sha256": "9f0f5d13e4403eedc2d53d929a940ef94921d1ef458f6184a5aad0f763c98629",
+      "bytes": 62480,
       "rendered": [
         {
           "file": "src/webview/components/GoalPanel.tsx",
@@ -6900,8 +6900,8 @@
       "width": 320,
       "height": 760,
       "file": "paid/hc-light/320.png",
-      "sha256": "09e2b4553a70abaf77bd105f1f0ab76a5aab487d833bcdf2289e166eb8d2e808",
-      "bytes": 35274,
+      "sha256": "b814a6ad95f005c929883d5d51380d0b7326f6471208650e01b6a1a808bdbfbd",
+      "bytes": 35273,
       "rendered": [
         {
           "file": "src/webview/components/PaidBadge.tsx",
@@ -6928,8 +6928,8 @@
       "width": 320,
       "height": 760,
       "file": "thinking/hc-light/320.png",
-      "sha256": "7e373a4171fd472a8ebace6e126690496c3b413f4b62d2893329b23390f813b7",
-      "bytes": 47997,
+      "sha256": "2d1f0ecdc488ee8151772bc78a4294b1c8a59f7dcd2700c114a4c1d137af42fc",
+      "bytes": 48002,
       "rendered": [
         {
           "file": "src/webview/components/ReasoningRow.tsx",
@@ -7031,8 +7031,8 @@
       "width": 320,
       "height": 760,
       "file": "todo/hc-light/320.png",
-      "sha256": "7986809d875bc9b7192948acd9072efb0456c60dc5be8433b7e5cbf49894febd",
-      "bytes": 48879,
+      "sha256": "f60f68812810ffb9d0b43ce13c5157ed1a16f6dd73e0189ea76498b8d0f120ef",
+      "bytes": 48870,
       "rendered": [
         {
           "file": "src/webview/components/TodoPanel.tsx",
@@ -7128,8 +7128,8 @@
       "width": 320,
       "height": 760,
       "file": "muse-tools/hc-light/320.png",
-      "sha256": "0fd9033eaa9b556f85802cbb79e40876b1a27ceb5e63e1dcbddadd7e7191172a",
-      "bytes": 56324,
+      "sha256": "d48f7bc178f76e4cc1d4ee4d042b7e964812d279cf862c3918d611b176491dc6",
+      "bytes": 56146,
       "rendered": [
         {
           "file": "src/webview/components/ToolBodies.tsx",
@@ -7212,8 +7212,8 @@
       "width": 320,
       "height": 760,
       "file": "muse-shell/hc-light/320.png",
-      "sha256": "57cfada073882c99c37c20e711b4e5a807bde1c44e0fb9759faafe587c5f5ebb",
-      "bytes": 46202,
+      "sha256": "a661db4d20790ff3ef2144b1abcca6338be8100d4bc8168ebf8f0ca616cd800d",
+      "bytes": 46200,
       "rendered": [
         {
           "file": "src/webview/components/UserShellRow.tsx",
@@ -7337,8 +7337,8 @@
       "width": 690,
       "height": 760,
       "file": "column/hc-light/690.png",
-      "sha256": "36d5f501a54684ff4ad5dc246bd74d2b32530fc5a79ebf73f91840f79b8c67a2",
-      "bytes": 50055,
+      "sha256": "1b88d22f80f866ecf73f6003f8d3d7a77fd11b3c5627c728b1d4d9c1ffe23560",
+      "bytes": 50060,
       "rendered": [
         {
           "file": "src/webview/App.tsx",
@@ -7393,8 +7393,8 @@
       "width": 690,
       "height": 760,
       "file": "approval-several/hc-light/690.png",
-      "sha256": "1d8f1c78a34234db4ddb7cc8f48447d5a5371976638fb106e46091f85f9d49ea",
-      "bytes": 67344,
+      "sha256": "9e0e0f9608cedc6de434b800307fd3b0bb466dc489999ee694abf4832ca15081",
+      "bytes": 67338,
       "rendered": [
         {
           "file": "src/webview/components/ApprovalDock.tsx",
@@ -7496,8 +7496,8 @@
       "width": 690,
       "height": 760,
       "file": "chips/hc-light/690.png",
-      "sha256": "36252b85a6451eac2d11b419600ced85c355932b1f507477c1d9a94031b2c26c",
-      "bytes": 56809,
+      "sha256": "1e60f856bf39268a3c1a287a64ce1d07196473fe3cc4f357372168b540a73c14",
+      "bytes": 56810,
       "rendered": [
         {
           "file": "src/webview/components/AttachmentChips.tsx",
@@ -7597,8 +7597,8 @@
       "width": 690,
       "height": 760,
       "file": "context-meter-full/hc-light/690.png",
-      "sha256": "998e09587766d9515a2c63faa81949a0dd5651d70e9b786706cba16c7c7f25ff",
-      "bytes": 60807,
+      "sha256": "d9fed38f9bda67455e0a13a1b2136c0a5ce0af061aeccaa1e6d42a4266d8c806",
+      "bytes": 60899,
       "rendered": [
         {
           "file": "src/webview/components/ContextMeter.tsx",
@@ -7679,8 +7679,8 @@
       "width": 690,
       "height": 760,
       "file": "goal-edit/hc-light/690.png",
-      "sha256": "4eef22a0f93a0a5c2ac360e8a3b070072d92761ffa8589521e92f7406554660b",
-      "bytes": 71871,
+      "sha256": "f9a86863bd4da5e625b14f2547009b4424044d0326832d74fb19e77d4caadd13",
+      "bytes": 71905,
       "rendered": [
         {
           "file": "src/webview/components/GoalPanel.tsx",
@@ -7707,8 +7707,8 @@
       "width": 690,
       "height": 760,
       "file": "goal/hc-light/690.png",
-      "sha256": "c5f8a78d194cc90cfadadf2b681aec81e586da2e79413003668356c53eed3049",
-      "bytes": 51724,
+      "sha256": "440dc83760ed1995b9f6e536bf084f17b81be37ed77a142cbb86ac092a879860",
+      "bytes": 51725,
       "rendered": [
         {
           "file": "src/webview/components/GoalParts.tsx",
@@ -7806,7 +7806,7 @@
       "width": 690,
       "height": 760,
       "file": "judge-narrow/hc-light/690.png",
-      "sha256": "ec337ad787928e2ffa24d240e9921eac591c3f7b8c685e2aad5d71b9528161d8",
+      "sha256": "bb79ef3dc276b6a5538996a06f092ac20aff0fc640c6a044b58d9afc476833c9",
       "bytes": 68768,
       "rendered": [
         {
@@ -7869,8 +7869,8 @@
       "width": 690,
       "height": 760,
       "file": "paid/hc-light/690.png",
-      "sha256": "c4e8749076c5ba5cdf877484833fef288e5cdca15cdfe573b1f7c70ae05bdc66",
-      "bytes": 40586,
+      "sha256": "9b6c834f60ad061f4542e31779fcfe434ada2698468009a86dac7f2b76bc7d73",
+      "bytes": 40590,
       "rendered": [
         {
           "file": "src/webview/components/PaidBadge.tsx",
@@ -7897,8 +7897,8 @@
       "width": 690,
       "height": 760,
       "file": "thinking/hc-light/690.png",
-      "sha256": "f4e9f594da0747d81db7ba7c33bbae68649e6499c88676d8ae9bf290e1997d27",
-      "bytes": 57335,
+      "sha256": "246399cb76eed0fa4aadd5f1967b383cd3c7dddfc1fc7bc46bc0c8daad0d7048",
+      "bytes": 57338,
       "rendered": [
         {
           "file": "src/webview/components/ReasoningRow.tsx",
@@ -7953,7 +7953,7 @@
       "width": 690,
       "height": 760,
       "file": "schedules-narrow/hc-light/690.png",
-      "sha256": "b41980a068d68aea98b54cfd7d3c28c5a050a4a783d73ae27fb35c7cbfaaf203",
+      "sha256": "f0fc78371261cd4c3bf10da61213f0bb510a46a96cc0e6a6710bb1885af1c2e3",
       "bytes": 85497,
       "rendered": [
         {
@@ -7981,8 +7981,8 @@
       "width": 690,
       "height": 760,
       "file": "todo/hc-light/690.png",
-      "sha256": "d2536859f10bb8f6c8bbc98583de12cc6699786f91b59229b636ccf0ddd22261",
-      "bytes": 56662,
+      "sha256": "c3724423fe63cb22dceccc79842ad9a02dd6fdd47486e844b4891fda231838b6",
+      "bytes": 56661,
       "rendered": [
         {
           "file": "src/webview/components/TodoPanel.tsx",
@@ -8050,8 +8050,8 @@
       "width": 690,
       "height": 760,
       "file": "muse-tools/hc-light/690.png",
-      "sha256": "6836e6924113337a3c1fdee147f3b65cdcc604c2a6ec15b4b1c3b25585a80ff7",
-      "bytes": 64094,
+      "sha256": "1b44af70f2bbe738b69cb6113998b0fe9765006932817e2ccd69649500ccbafb",
+      "bytes": 64106,
       "rendered": [
         {
           "file": "src/webview/components/ToolBodies.tsx",
@@ -8078,8 +8078,8 @@
       "width": 690,
       "height": 760,
       "file": "tools-open/hc-light/690.png",
-      "sha256": "be58e2bef5f514a0053c47c3c6f6329e3bdc7e67bb6f1fc9192ddacd5cbe1382",
-      "bytes": 55858,
+      "sha256": "36ec8eee79dc0677fa7e9e28e55ee2a39fb80363d03df3744fa786c745e884d5",
+      "bytes": 55854,
       "rendered": [
         {
           "file": "src/webview/components/ToolRow.tsx",
@@ -8267,8 +8267,8 @@
       "width": 320,
       "height": 760,
       "file": "column/one-dark-pro/320.png",
-      "sha256": "68acf7f746147e4f96831174c81b3adeff635278e559625ce4e101db987ba6c8",
-      "bytes": 49245,
+      "sha256": "b69a4d99efd64f0ba2998c4e637f7216394d9dde4be7e6c9fdbd53eac562d514",
+      "bytes": 49247,
       "rendered": [
         {
           "file": "src/webview/App.tsx",
@@ -8464,8 +8464,8 @@
       "width": 320,
       "height": 760,
       "file": "chips/one-dark-pro/320.png",
-      "sha256": "5d8962f28995536edd5d902101ff4e0a9abe333f587548a3dd778c51e723db56",
-      "bytes": 59955,
+      "sha256": "6b99277c400affabbc60e82b66b3885293a9771cb8e29f4acb71c4461bd1127d",
+      "bytes": 59952,
       "rendered": [
         {
           "file": "src/webview/components/AttachmentChips.tsx",
@@ -8930,8 +8930,8 @@
       "width": 320,
       "height": 760,
       "file": "paid/one-dark-pro/320.png",
-      "sha256": "2ee3d5cd714680799f8490140025225b25d5103ca292492ca47df424cad54733",
-      "bytes": 38396,
+      "sha256": "8a5718c388d931b9f5df8a906adcba956d4dada903ade052e93a31a8bb5db579",
+      "bytes": 38408,
       "rendered": [
         {
           "file": "src/webview/components/PaidBadge.tsx",
@@ -8958,8 +8958,8 @@
       "width": 320,
       "height": 760,
       "file": "thinking/one-dark-pro/320.png",
-      "sha256": "372d7072a80c673fcce69cb5896be0d36c7d768f8349ec476702cbdecfb63483",
-      "bytes": 53608,
+      "sha256": "0e37c9be9ee49a08d4f44290ca6a63bb641fbd3e48c44cd0755259ebb1246894",
+      "bytes": 53609,
       "rendered": [
         {
           "file": "src/webview/components/ReasoningRow.tsx",
@@ -9158,8 +9158,8 @@
       "width": 320,
       "height": 760,
       "file": "muse-tools/one-dark-pro/320.png",
-      "sha256": "b4c6b4905da88d90d504abcea80faba2b38f33b6b3e5a4803e018d8e6e57caa0",
-      "bytes": 62623,
+      "sha256": "07e3320a4c4d8b8e2a88e143be752d0763de2d62cc6306850e2b59a59519023a",
+      "bytes": 63864,
       "rendered": [
         {
           "file": "src/webview/components/ToolBodies.tsx",
@@ -9367,8 +9367,8 @@
       "width": 690,
       "height": 760,
       "file": "column/one-dark-pro/690.png",
-      "sha256": "77ebd2a872944225009362aa53ac358596e910ebc74580e9d986e85459e6c278",
-      "bytes": 53113,
+      "sha256": "ec415890fbd7fbbc7ddd8616e07dc495cc7efdb5c409f558ae035bf4823d6e9c",
+      "bytes": 53115,
       "rendered": [
         {
           "file": "src/webview/App.tsx",
@@ -9423,8 +9423,8 @@
       "width": 690,
       "height": 760,
       "file": "approval-several/one-dark-pro/690.png",
-      "sha256": "5b42e156b5c921fbde292432c36d769049c978ec6821e5c617db5f04e0e052de",
-      "bytes": 74816,
+      "sha256": "6dd5475b3e69a5d379f8dc034753e0baa58b00208679bdec3cc12552e14e91b3",
+      "bytes": 74789,
       "rendered": [
         {
           "file": "src/webview/components/ApprovalDock.tsx",
@@ -9526,8 +9526,8 @@
       "width": 690,
       "height": 760,
       "file": "chips/one-dark-pro/690.png",
-      "sha256": "289cae7e42af195968b16f3faccfd6fc9132a29d169e955d85c28d4bbb023152",
-      "bytes": 66645,
+      "sha256": "2056f54fc941a503d0757398919be2b330c6cfcb6ce120863d8655d9ef1905db",
+      "bytes": 66641,
       "rendered": [
         {
           "file": "src/webview/components/AttachmentChips.tsx",
@@ -9709,8 +9709,8 @@
       "width": 690,
       "height": 760,
       "file": "goal-edit/one-dark-pro/690.png",
-      "sha256": "2718fdec54d9bc7f101ccb1ff03890e67ac1314a62780af6812af28ca3791af2",
-      "bytes": 82743,
+      "sha256": "e33f0ce0d543d334cea2f917f02241a5052f7cbb75164841c1565d3dac2e6be9",
+      "bytes": 82742,
       "rendered": [
         {
           "file": "src/webview/components/GoalPanel.tsx",
@@ -9927,8 +9927,8 @@
       "width": 690,
       "height": 760,
       "file": "thinking/one-dark-pro/690.png",
-      "sha256": "c1333ea76bdd8ed1422f5f33449e346e5b6eb6c87b93ab19a88b6f1eb8af63ff",
-      "bytes": 64303,
+      "sha256": "c62704aa5970abf75f36506a39b029097c75da012d5ed9baca42f13bfffafaf4",
+      "bytes": 64300,
       "rendered": [
         {
           "file": "src/webview/components/ReasoningRow.tsx",
@@ -10080,8 +10080,8 @@
       "width": 690,
       "height": 760,
       "file": "muse-tools/one-dark-pro/690.png",
-      "sha256": "33fc4f45579985100aa00ae9ef0abbffcc0b894f18b930bbd6316a4fc4b3c8fe",
-      "bytes": 71293,
+      "sha256": "5ad42c634712daaaa70846f284204990509dfef7cbf1dee831afb05ead5f6d8f",
+      "bytes": 71304,
       "rendered": [
         {
           "file": "src/webview/components/ToolBodies.tsx",
@@ -10108,8 +10108,8 @@
       "width": 690,
       "height": 760,
       "file": "tools-open/one-dark-pro/690.png",
-      "sha256": "b99958ec0f659bc39e2d820ad17c4763de61f4d8195f2b44621ba6e8d4adced6",
-      "bytes": 62316,
+      "sha256": "9bff52b0133b5512c0cfbcee4aa8429bd8c2475e3e0630fd11f8f5dd80099c50",
+      "bytes": 62311,
       "rendered": [
         {
           "file": "src/webview/components/ToolRow.tsx",
@@ -10192,7 +10192,7 @@
       "width": 690,
       "height": 760,
       "file": "verify/one-dark-pro/690.png",
-      "sha256": "d0a7e6735eda4e9ee4f80d6c63c46b10dc8a19d0d23577d413f962f264be2c55",
+      "sha256": "8546a34e750cfb0dd744edf4064ab29d38d6b7c9040319285c747136d75c8902",
       "bytes": 70855,
       "rendered": [
         {
@@ -10297,8 +10297,8 @@
       "width": 320,
       "height": 760,
       "file": "column/dracula/320.png",
-      "sha256": "6699975d2e62f7ab404cc4e566021d42821516e4b24e52db06d584c4974e94a0",
-      "bytes": 49441,
+      "sha256": "45a62983337e96c2505700ea8adb68756acf2b774f874eb04ea1819f1936e08f",
+      "bytes": 49447,
       "rendered": [
         {
           "file": "src/webview/App.tsx",
@@ -10494,8 +10494,8 @@
       "width": 320,
       "height": 760,
       "file": "chips/dracula/320.png",
-      "sha256": "5c4ed28a99576c5d2000c7ba8f1f08c73384527ae909a558889ebb11d1a91a9a",
-      "bytes": 56181,
+      "sha256": "c336df98734e23902789792635cd1926d6da378dfe48ff6838e12bc9d0cb2647",
+      "bytes": 56178,
       "rendered": [
         {
           "file": "src/webview/components/AttachmentChips.tsx",
@@ -10736,8 +10736,8 @@
       "width": 320,
       "height": 760,
       "file": "goal/dracula/320.png",
-      "sha256": "2d764ff1de39022f2ee09049ff0413fd086c2b8c01355472fbf02dc46b46ff20",
-      "bytes": 52412,
+      "sha256": "d0310a31a7b1f809e0ff832f1819b54b26f4ab174d5abaf255a558362c7f5441",
+      "bytes": 52415,
       "rendered": [
         {
           "file": "src/webview/components/GoalParts.tsx",
@@ -11091,8 +11091,8 @@
       "width": 320,
       "height": 760,
       "file": "todo/dracula/320.png",
-      "sha256": "910958fa010b50840a33e3a2281e84a5760ed2df9126abbd1f1823a9d160acb4",
-      "bytes": 54487,
+      "sha256": "7ee3b92782d8ace3207775684ffb2c69942559f4dcb49597544c6bd1e53a3ffc",
+      "bytes": 54484,
       "rendered": [
         {
           "file": "src/webview/components/TodoPanel.tsx",
@@ -11188,8 +11188,8 @@
       "width": 320,
       "height": 760,
       "file": "muse-tools/dracula/320.png",
-      "sha256": "4e73173fa3bf474bcff7a92420d107a0559dcdf119e8b9259af5a55ccca9071e",
-      "bytes": 60839,
+      "sha256": "86be7f888da7de66949d52fa87902d189291e39d12278f9692bee3c59d5ac791",
+      "bytes": 60688,
       "rendered": [
         {
           "file": "src/webview/components/ToolBodies.tsx",
@@ -11272,8 +11272,8 @@
       "width": 320,
       "height": 760,
       "file": "muse-shell/dracula/320.png",
-      "sha256": "6e114bc9e6dbb3f1ac7978cb3ef72c3d59dfea2157e8995665be642ceb798ae9",
-      "bytes": 50131,
+      "sha256": "d60c3228a58685a0bbbfe7654730895269727ee805c71663763bd6e8dd484d11",
+      "bytes": 50127,
       "rendered": [
         {
           "file": "src/webview/components/UserShellRow.tsx",
@@ -11369,8 +11369,8 @@
       "width": 320,
       "height": 760,
       "file": "muse-workflow/dracula/320.png",
-      "sha256": "0b3744d536e9282acf75fcec05700d07f44678c84c09a3f751154916eb68e37c",
-      "bytes": 65092,
+      "sha256": "c940fd1a28d32a038041a9d97de4f46f24ec643529b6b33da0e62bf272c109c3",
+      "bytes": 65112,
       "rendered": [
         {
           "file": "src/webview/components/WorkflowRun.tsx",
@@ -11397,7 +11397,7 @@
       "width": 690,
       "height": 760,
       "file": "column/dracula/690.png",
-      "sha256": "15a01e74fb3a604d8f80c096caf16dec09ae85d0f6e2b9290a571844e5f4608a",
+      "sha256": "b7ef7a172b3d3196e9e24e94bc919e23c72f7cd2b9c9077f0670a1e3f85bcda2",
       "bytes": 53079,
       "rendered": [
         {
@@ -11453,8 +11453,8 @@
       "width": 690,
       "height": 760,
       "file": "approval-several/dracula/690.png",
-      "sha256": "e7f05cd0a1cf31a8cae3595703dc68331ddf51051347e7f3840b7e77ed37e775",
-      "bytes": 72997,
+      "sha256": "dbec14cdffb156658b2f3faf5beef89261c8b2b1cfada834993be79fe19bb0ac",
+      "bytes": 73006,
       "rendered": [
         {
           "file": "src/webview/components/ApprovalDock.tsx",
@@ -11556,8 +11556,8 @@
       "width": 690,
       "height": 760,
       "file": "chips/dracula/690.png",
-      "sha256": "85f8f6bae7d25c54a6dabdab254a047858e3f22865166272c732ee245e6a4389",
-      "bytes": 62365,
+      "sha256": "7e3fb2e32fd03f0811efebfa37a2d80ca42d7653bdc72ebdcddddf9ec236febf",
+      "bytes": 62343,
       "rendered": [
         {
           "file": "src/webview/components/AttachmentChips.tsx",
@@ -11957,8 +11957,8 @@
       "width": 690,
       "height": 760,
       "file": "thinking/dracula/690.png",
-      "sha256": "6ff65677652e8633452aee7ca892a6888a88c4e76e6bb528f05555c8f26b8215",
-      "bytes": 63136,
+      "sha256": "5e2e56e876f172ff483888315c46d0a74233c17350d22c0092d2106a178554fe",
+      "bytes": 63135,
       "rendered": [
         {
           "file": "src/webview/components/ReasoningRow.tsx",
@@ -11985,8 +11985,8 @@
       "width": 690,
       "height": 760,
       "file": "review-findings/dracula/690.png",
-      "sha256": "181e97899936da1d0b97e19e3655aaafea55be08ec74a5b38223badfec26253b",
-      "bytes": 52090,
+      "sha256": "d0ed1ecda5a8a6d8401861d9417523b9ecb9cec7affbff28f1bd63a952c577e7",
+      "bytes": 52092,
       "rendered": [
         {
           "file": "src/webview/components/ReviewFindings.tsx",
@@ -12013,8 +12013,8 @@
       "width": 690,
       "height": 760,
       "file": "schedules-narrow/dracula/690.png",
-      "sha256": "75707cd8ec1aaa0a164c7ca3426c7f0d5b54fa856ed32ffe5d644e72bda3a95e",
-      "bytes": 93688,
+      "sha256": "2e4b288155e616928ab5ac46a37022e598ee49749b1136e7114ac108ce97c42f",
+      "bytes": 93682,
       "rendered": [
         {
           "file": "src/webview/components/SchedulePanel.tsx",
@@ -12041,8 +12041,8 @@
       "width": 690,
       "height": 760,
       "file": "todo/dracula/690.png",
-      "sha256": "243847edca200a722486ee42b87540b302f6f82af2f2e70651bd7566ef8a3cca",
-      "bytes": 62801,
+      "sha256": "a7f2067eb131d0089bdae01a46f18e8822470c080960e943675e3ee54ab05370",
+      "bytes": 62796,
       "rendered": [
         {
           "file": "src/webview/components/TodoPanel.tsx",
@@ -12110,8 +12110,8 @@
       "width": 690,
       "height": 760,
       "file": "muse-tools/dracula/690.png",
-      "sha256": "9bd6936d9797f9f3975c73bc4812a7a50c9f6fa5fdff08d409ae655a2e8b085d",
-      "bytes": 69638,
+      "sha256": "fc18b71e6896a88f344191ca1cd8f17f013ae3d5000d83942a5a2346465db32d",
+      "bytes": 69641,
       "rendered": [
         {
           "file": "src/webview/components/ToolBodies.tsx",
@@ -12138,8 +12138,8 @@
       "width": 690,
       "height": 760,
       "file": "tools-open/dracula/690.png",
-      "sha256": "ea68d07a7516dac352a68050a8fda151f1ecf15b242a85bb851f19f16b294163",
-      "bytes": 61644,
+      "sha256": "2386479b8e612492c50b4844e6e7e3b93077b1661eb7c69a234e81967d8bae58",
+      "bytes": 61640,
       "rendered": [
         {
           "file": "src/webview/components/ToolRow.tsx",
@@ -12222,7 +12222,7 @@
       "width": 690,
       "height": 760,
       "file": "verify/dracula/690.png",
-      "sha256": "6d7e4474c7d553ba1b9ff4337adc2ec50deb9fa693c7925a028f1fb693dc8cd7",
+      "sha256": "32557f958440073720d934091429f0ed8e007d580719e8543a150308b10a304a",
       "bytes": 70155,
       "rendered": [
         {

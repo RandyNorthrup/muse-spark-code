@@ -27506,6 +27506,16 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
   static/build checks pass; the existing S-owned host-API record and changelog
   handoffs remain, with full quality still assigned to the lead by §7.
 
+- **P1 review repair scope (RVM114P1, 2026-10-06):** fix all three P2s
+  and both P3s within conversation styles/classes and test/certification
+  evidence. Preserve nested task/context colour roles during interaction;
+  distinguish hover/pressed in every theme with HC host contrast outlines;
+  give the hook rewrite toggle the shared focus class; measure the actual
+  attachment/tool/steps targets at 320 px; count all eager JavaScript chunks
+  in startup growth. Each finding gets a failing regression and a byte-exact
+  red drill in `docs/certification/m114-p1.md`. No new dependency or behaviour
+  port. S/lead retain integrated goldens, shared changelog and full quality.
+
 - **Lane A capture storage decision (lead, 2026-10-06):** keep the 804
   before PNGs outside git to bound repository size, at
   `/home/randy/archive/m114-a-before-17d7`. Commit only their manifest,
@@ -29571,6 +29581,13 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **RVM114P1 review repair (2026-10-06):** all three P2s and both P3s are
+  fixed, with regression tests and nine byte-exact red drills recorded in
+  `docs/certification/m114-p1.md`; no review finding is deferred. The
+  inherited lane 0/S imported-role inventories, shared changelog/goldens,
+  4 KiB startup-growth compaction target and lead aggregate quality keep
+  their existing owners. No guard, permission or paid-call scope changes.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting
