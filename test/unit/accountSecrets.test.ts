@@ -47,7 +47,81 @@ function harness() {
   return { storage, vault, secrets, revoke }
 }
 
+function loggerCapture() {
+  const output: string[] = []
+  const write = (line: string) => {
+    output.push(line)
+  }
+  return { output, log: createLogger({ trace: write, info: write, warn: write, error: write }) }
+}
+
 describe('M108 account credentials', () => {
+  it.each([
+    ['raw', (value: string) => value],
+    ['JSON', (value: string) => JSON.stringify(value).slice(1, -1)],
+    [
+      'JSON slash escapes',
+      (value: string) =>
+        JSON.stringify(value)
+          .slice(1, -1)
+          .replaceAll('/', String.raw`\/`),
+    ],
+    [
+      'JSON ASCII unicode',
+      (value: string) =>
+        JSON.stringify(value)
+          .slice(1, -1)
+          .replaceAll(
+            /[^ -~]/g,
+            (unit) => String.raw`\u${(unit.codePointAt(0) ?? 0).toString(16).padStart(4, '0')}`,
+          ),
+    ],
+    [
+      'JSON code units',
+      (value: string) =>
+        value.replaceAll(
+          /[\s\S]/g,
+          (unit) => String.raw`\u${(unit.codePointAt(0) ?? 0).toString(16).padStart(4, '0')}`,
+        ),
+    ],
+    ['URL', (value: string) => encodeURIComponent(value)],
+    [
+      'URL lowercase escapes',
+      (value: string) =>
+        encodeURIComponent(value).replaceAll(/%[\dA-F]{2}/g, (escape) => escape.toLowerCase()),
+    ],
+    [
+      'form URL',
+      (value: string) =>
+        new URLSearchParams({ message: value }).toString().slice('message='.length),
+    ],
+    ['base64', (value: string) => Buffer.from(value).toString('base64')],
+    [
+      'base64 unpadded',
+      (value: string) => Buffer.from(value).toString('base64').replaceAll('=', ''),
+    ],
+    ['base64url', (value: string) => Buffer.from(value).toString('base64url')],
+    ['hex', (value: string) => Buffer.from(value).toString('hex')],
+    ['hex uppercase', (value: string) => Buffer.from(value).toString('hex').toUpperCase()],
+  ] as const)(
+    'scrubs a registered opaque credential in %s output and scanning',
+    async (_encoding, encode) => {
+      const h = harness()
+      const secret = 'synthetic-opaque-"quote"-\\slash/ +\n雪🪿'
+      h.storage.values.set(
+        accountSecretKey(binding.provider, binding.account),
+        JSON.stringify({ ...record, secret }),
+      )
+      await h.secrets.read(binding)
+      const { output, log } = loggerCapture()
+      const line = `message=${encode(secret)}`
+      for (const method of ['trace', 'info', 'warn', 'error'] as const) log[method](line)
+      expect(output).toEqual(Array.from({ length: 4 }, () => 'message=[redacted]'))
+      expect(countSecretMatches(line, [])).toBe(1)
+      expect(redactSecrets(JSON.stringify({ message: secret }))).toBe('{"message":"[redacted]"}')
+    },
+  )
+
   it('keeps the legacy default names and isolates each additional account', () => {
     expect(accountSecretKey('openai')).toBe('museSpark.provider.openai')
     expect(accountSecretKey('openai', 'work')).toBe('museSpark.provider.openai.account.work')
@@ -209,10 +283,61 @@ describe('M108 account credentials', () => {
     expect(h.storage.values.size).toBe(1)
   })
 
+  it.each(['oauth', 'subscription'] as const)(
+    'revokes %s at the stored origin during endpoint cleanup',
+    async (auth) => {
+      const h = harness()
+      const signIn = { ...record, auth }
+      await h.secrets.write(binding, signIn)
+      await h.secrets.remove({ ...binding, origin: 'https://changed.invalid' })
+      expect(h.revoke).toHaveBeenCalledWith(binding, signIn)
+      expect(h.storage.values.size).toBe(0)
+    },
+  )
+
+  it.each([
+    'not-json',
+    '{}',
+    JSON.stringify({ ...record, v: 2 }),
+    JSON.stringify({ ...record, account: 'different', auth: 'oauth' }),
+  ])(
+    'deletes a malformed local credential without authorizing or guessing revocation: %s',
+    async (stored) => {
+      const h = harness()
+      h.storage.values.set(accountSecretKey(binding.provider, binding.account), stored)
+      await expect(h.secrets.read(binding)).rejects.toThrow()
+      await h.secrets.remove(binding)
+      expect(h.storage.values.size).toBe(0)
+      expect(h.revoke).not.toHaveBeenCalled()
+    },
+  )
+
+  it('retains a sign-in at its old origin when cleanup revocation fails', async () => {
+    const h = harness()
+    await h.secrets.write(binding, { ...record, auth: 'oauth' })
+    h.revoke.mockRejectedValue(new Error('synthetic revocation failure'))
+    await expect(
+      h.secrets.remove({ ...binding, origin: 'https://changed.invalid' }),
+    ).rejects.toThrow('unavailable')
+    expect(h.storage.values.size).toBe(1)
+    expect(h.revoke).toHaveBeenCalledWith(binding, { ...record, auth: 'oauth' })
+  })
+
+  it('retains a local credential when its storage cannot be read for cleanup', async () => {
+    const h = harness()
+    await h.secrets.write(binding, record)
+    vi.spyOn(h.vault, 'readForRemoval').mockRejectedValue(new Error('synthetic storage failure'))
+    await expect(h.secrets.remove(binding)).rejects.toThrow('unavailable')
+    expect(h.storage.values.size).toBe(1)
+  })
+
   it('sanitizes raw vault failures and registers an attempted write before a storage error', async () => {
     const h = harness()
     const vault = {
       read: vi.fn<AccountCredentialVault['read']>(() => Promise.reject(new Error(record.secret))),
+      readForRemoval: vi.fn<AccountCredentialVault['readForRemoval']>(() =>
+        Promise.resolve(undefined),
+      ),
       write: vi.fn(() => Promise.reject(new Error(record.secret))),
       remove: vi.fn(() => Promise.reject(new Error(record.secret))),
     }
@@ -282,11 +407,7 @@ describe('M108 account credentials', () => {
     const other = { ...binding, account: 'personal' }
     const otherSecret = 'synthetic-unprefixed-personal-canary'
     await h.secrets.write(other, { ...record, ...other, secret: otherSecret })
-    const output: string[] = []
-    const write = (line: string) => {
-      output.push(line)
-    }
-    const log = createLogger({ trace: write, info: write, warn: write, error: write })
+    const { output, log } = loggerCapture()
     const line = `echo ${record.secret} and ${otherSecret}`
     for (const method of ['trace', 'info', 'warn', 'error'] as const) log[method](line)
     expect(output).toEqual(Array.from({ length: 4 }, () => 'echo [redacted] and [redacted]'))
@@ -307,6 +428,14 @@ describe('M108 account credentials', () => {
     const empty = registerSecretValue('')
     expect(redactSecrets('safe')).toBe('safe')
     empty()
+  })
+
+  it('scrubs the union of overlapping registered credentials without leaving a tail', () => {
+    const first = registerSecretValue('abc')
+    const second = registerSecretValue('bcde')
+    disposals.push(first, second)
+    expect(redactSecrets('before abcde after')).toBe('before [redacted] after')
+    expect(countSecretMatches('before abcde after', [])).toBe(1)
   })
 
   it('keeps a registered multiline value intact across export chunks', () => {

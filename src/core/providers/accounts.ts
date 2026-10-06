@@ -12,6 +12,7 @@ import { ACCOUNT_DEFAULT_ID, UI_TEXT } from '../../shared/constants'
 import { accountPolicyFor } from './accountPolicy'
 import {
   accountBindingSchema,
+  accountSecretKey,
   boundCredential,
   AccountStoreError,
   type AccountBinding,
@@ -36,7 +37,11 @@ export interface AccountsMetadataPort {
 }
 
 export class AccountStore {
-  private writes: Promise<void> = Promise.resolve()
+  // All instances in the process share the mutation queue and removal fence,
+  // even when their metadata/vault adapters are separate objects.
+  private static writes: Promise<void> = Promise.resolve()
+  private static readonly generations = new Map<string, number>()
+  private static readonly removing = new Set<string>()
 
   public constructor(
     private readonly metadata: AccountsMetadataPort,
@@ -61,12 +66,12 @@ export class AccountStore {
 
   /** Serialize mutations, including revocation, so concurrent adds cannot lose rows. */
   private async mutate<T>(use: () => Promise<T>): Promise<T> {
-    const previous = this.writes
+    const previous = AccountStore.writes
     const operation = (async () => {
       await previous
       return await use()
     })()
-    this.writes = (async () => {
+    AccountStore.writes = (async () => {
       try {
         await operation
       } catch {
@@ -169,12 +174,45 @@ export class AccountStore {
   public async remove(provider: string, account: string): Promise<void> {
     await this.mutate(async () => {
       const binding = this.binding(await this.provider(provider), account)
-      // Revocation/deletion must finish before a successful metadata removal.
-      await this.credentials.remove(binding)
-      await this.metadata.writeAccounts(
-        provider,
-        this.pool(await this.provider(provider)).filter((row) => row.id !== account),
-      )
+      const key = accountSecretKey(provider, account)
+      AccountStore.generations.set(key, (AccountStore.generations.get(key) ?? 0) + 1)
+      AccountStore.removing.add(key)
+      try {
+        // Revocation/deletion must finish before a successful metadata removal.
+        await this.credentials.remove(binding)
+        await this.metadata.writeAccounts(
+          provider,
+          this.pool(await this.provider(provider)).filter((row) => row.id !== account),
+        )
+      } finally {
+        AccountStore.removing.delete(key)
+      }
+    })
+  }
+
+  /** Reuse the existing account only after the user confirms its new exact origin. */
+  public async rebindOrigin(
+    provider: string,
+    account: string,
+    isConfirmed: (previous: AccountBinding, next: AccountBinding) => Promise<boolean>,
+  ): Promise<void> {
+    await this.mutate(async () => {
+      const entry = await this.provider(provider)
+      this.assertCredentialsOffered(entry)
+      const binding = this.binding(entry, account)
+      const stored = await this.credentials.readForRemoval(binding)
+      if (stored === undefined) throw new AccountStoreError('invalidCredential')
+      const previous = { ...binding, origin: stored.origin }
+      const record = boundCredential(stored, previous)
+      if (previous.origin === binding.origin) return
+      if (!(await isConfirmed(previous, binding))) throw new AccountStoreError('originMismatch')
+      const current = await this.provider(provider)
+      if (this.binding(current, account).origin !== binding.origin || current.auth !== entry.auth) {
+        throw new AccountStoreError('originMismatch')
+      }
+      const key = accountSecretKey(provider, account)
+      AccountStore.generations.set(key, (AccountStore.generations.get(key) ?? 0) + 1)
+      await this.credentials.write(binding, { ...record, origin: binding.origin })
     })
   }
 
@@ -185,6 +223,14 @@ export class AccountStore {
     requestUrl: string,
     use: (binding: AccountBinding, credential: AccountCredential | undefined) => Promise<T>,
   ): Promise<T> {
+    if (
+      !accountIdSchema.safeParse(provider).success ||
+      !accountIdSchema.safeParse(account).success
+    ) {
+      throw new AccountStoreError('invalidAccount')
+    }
+    const key = accountSecretKey(provider, account)
+    const generation = AccountStore.generations.get(key) ?? 0
     const entry = await this.provider(provider)
     if (entry.auth !== 'none') this.assertCredentialsOffered(entry)
     const binding = this.binding(entry, account)
@@ -192,6 +238,15 @@ export class AccountStore {
     const stored = entry.auth === 'none' ? undefined : await this.credentials.read(binding)
     if (stored === undefined && entry.auth !== 'none') throw new AccountStoreError('unavailable')
     const credential = stored === undefined ? undefined : boundCredential(stored, binding)
+    const current = await this.provider(provider)
+    if (generation !== (AccountStore.generations.get(key) ?? 0) || AccountStore.removing.has(key)) {
+      throw new AccountStoreError('invalidAccount')
+    }
+    const currentBinding = this.binding(current, account)
+    if (currentBinding.origin !== binding.origin || current.auth !== entry.auth) {
+      throw new AccountStoreError('originMismatch')
+    }
+    // No await between the final fence and dispatch: removal linearizes here.
     return await use(binding, credential)
   }
 }

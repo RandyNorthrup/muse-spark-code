@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   AccountStore,
   accountClientLookup,
@@ -12,6 +12,13 @@ import type {
 } from '../../src/core/providers/credentialRecord'
 import type { Account } from '../../src/shared/accounts'
 import { UI_TEXT } from '../../src/shared/constants'
+import { AccountSecrets, secretStorageAccountVault } from '../../src/host/providers/accountSecrets'
+import { memorySecrets } from './helpers/fakes'
+
+const disposals: (() => void)[] = []
+afterEach(() => {
+  for (const dispose of disposals.splice(0)) dispose()
+})
 
 const work: Account = { id: 'work', label: 'Work', order: 1, thresholds: {} }
 const personal: Account = { id: 'personal', label: 'Personal', order: 2, thresholds: {} }
@@ -45,6 +52,7 @@ function harness(overrides: Partial<AccountProvider> = {}) {
     read: vi.fn<AccountCredentialVault['read']>((binding) =>
       Promise.resolve(secrets.get(binding.account)),
     ),
+    readForRemoval: (binding) => Promise.resolve(secrets.get(binding.account)),
     write: vi.fn<AccountCredentialVault['write']>((binding, record) => {
       secrets.set(binding.account, record)
       return Promise.resolve()
@@ -55,10 +63,220 @@ function harness(overrides: Partial<AccountProvider> = {}) {
     }),
   }
   const store = new AccountStore(metadata, vault)
-  return { store, metadata, vault, secrets, saved }
+  return {
+    store,
+    metadata,
+    vault,
+    secrets,
+    saved,
+    configure: (change: Partial<AccountProvider>) => {
+      provider = { ...provider, ...change }
+    },
+  }
+}
+
+function credentialHarness() {
+  const h = harness({ accounts: [work] })
+  const storage = memorySecrets()
+  const vault = secretStorageAccountVault(storage)
+  const credentials = new AccountSecrets({ vault, revokeSignIn: vi.fn(() => Promise.resolve()) })
+  disposals.push(() => {
+    credentials.dispose()
+  })
+  return {
+    ...h,
+    store: new AccountStore(h.metadata, credentials),
+    storage,
+    credentials,
+    rawVault: vault,
+  }
+}
+
+function holdCredentialRead(vault: AccountCredentialVault) {
+  const entered = Promise.withResolvers<undefined>()
+  const held = Promise.withResolvers<AccountCredential | undefined>()
+  vi.spyOn(vault, 'read').mockImplementationOnce(() => {
+    entered.resolve(undefined)
+    return held.promise
+  })
+  return { entered: entered.promise, held }
 }
 
 describe('M108 account metadata and clients', () => {
+  it('invalidates a pending credential dispatch across removal and re-addition', async () => {
+    const h = credentialHarness()
+    await h.store.setCredential('vendor', 'work', workRecord)
+    const { entered, held } = holdCredentialRead(h.rawVault)
+    const dispatch = vi.fn(() => Promise.resolve('dispatched'))
+    const pending = h.store.useCredential('vendor', 'work', origin, dispatch)
+    const outcome = (async () => {
+      try {
+        return await pending
+      } catch (error) {
+        return error
+      }
+    })()
+    await entered
+    const remover = new AccountStore(h.metadata, h.credentials)
+    await remover.remove('vendor', 'work')
+    expect(h.storage.values.size).toBe(0)
+    await h.store.add('vendor', work)
+    held.resolve(workRecord)
+    expect(await outcome).toMatchObject({ code: 'invalidAccount' })
+    expect(dispatch).not.toHaveBeenCalled()
+  })
+
+  it('refuses new credential dispatch while account deletion is still pending', async () => {
+    const h = credentialHarness()
+    await h.store.setCredential('vendor', 'work', workRecord)
+    const entered = Promise.withResolvers<undefined>()
+    const held = Promise.withResolvers<undefined>()
+    const remove = h.rawVault.remove.bind(h.rawVault)
+    vi.spyOn(h.rawVault, 'remove').mockImplementationOnce(async (binding) => {
+      entered.resolve(undefined)
+      await held.promise
+      await remove(binding)
+    })
+    const removing = h.store.remove('vendor', 'work')
+    await entered.promise
+    const dispatch = vi.fn(() => Promise.resolve())
+    try {
+      await expect(h.store.useCredential('vendor', 'work', origin, dispatch)).rejects.toThrow(
+        'invalidAccount',
+      )
+      expect(dispatch).not.toHaveBeenCalled()
+    } finally {
+      held.resolve(undefined)
+      await removing
+    }
+  })
+
+  it('serializes credential writes and removal across independent store instances', async () => {
+    const h = credentialHarness()
+    const otherCredentials = new AccountSecrets({
+      vault: secretStorageAccountVault(h.storage),
+      revokeSignIn: () => Promise.resolve(),
+    })
+    disposals.push(() => {
+      otherCredentials.dispose()
+    })
+    // Distinct port objects still name the same persisted provider and secret.
+    const other = new AccountStore(
+      {
+        read: (id) => h.metadata.read(id),
+        writeAccounts: (id, rows) => h.metadata.writeAccounts(id, rows),
+      },
+      otherCredentials,
+    )
+    const entered = Promise.withResolvers<undefined>()
+    const held = Promise.withResolvers<undefined>()
+    const store = h.storage.store.bind(h.storage)
+    vi.spyOn(h.storage, 'store').mockImplementationOnce(async (name, value) => {
+      entered.resolve(undefined)
+      await held.promise
+      await store(name, value)
+    })
+    const writing = h.store.setCredential('vendor', 'work', workRecord)
+    await entered.promise
+    let hasRemoved = false
+    const removing = (async () => {
+      await other.remove('vendor', 'work')
+      hasRemoved = true
+    })()
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve)
+    })
+    const wasRemovedBeforeWrite = hasRemoved
+    held.resolve(undefined)
+    await Promise.all([writing, removing])
+    expect(wasRemovedBeforeWrite).toBe(false)
+    expect(h.storage.values.size).toBe(0)
+    expect(await other.list('vendor')).toEqual([])
+    await other.add('vendor', work)
+    await expect(
+      other.useCredential('vendor', 'work', origin, () => Promise.resolve()),
+    ).rejects.toThrow('unavailable')
+  })
+
+  it('removes an account at its stored origin after the configured origin changes', async () => {
+    const h = credentialHarness()
+    await h.store.setCredential('vendor', 'work', workRecord)
+    h.configure({ origin: 'https://changed.invalid' })
+    const dispatch = vi.fn(() => Promise.resolve())
+    await expect(
+      h.store.useCredential('vendor', 'work', 'https://changed.invalid', dispatch),
+    ).rejects.toThrow('originMismatch')
+    await h.store.remove('vendor', 'work')
+    expect(h.storage.values.size).toBe(0)
+    expect(await h.store.list('vendor')).toEqual([])
+    expect(dispatch).not.toHaveBeenCalled()
+  })
+
+  it('rebinds the existing account to a changed origin only after explicit confirmation', async () => {
+    const h = credentialHarness()
+    await h.store.setCredential('vendor', 'work', workRecord)
+    const nextOrigin = 'https://changed.invalid'
+    h.configure({ origin: nextOrigin })
+    const deny = vi.fn(() => Promise.resolve(false))
+    await expect(h.store.rebindOrigin('vendor', 'work', deny)).rejects.toThrow('originMismatch')
+    expect(deny).toHaveBeenCalledWith(workBinding, { ...workBinding, origin: nextOrigin })
+    expect(h.storage.values).toEqual(
+      new Map([['museSpark.provider.vendor.account.work', JSON.stringify(workRecord)]]),
+    )
+    const allow = vi.fn(() => Promise.resolve(true))
+    await h.store.rebindOrigin('vendor', 'work', allow)
+    expect(allow).toHaveBeenCalledWith(workBinding, { ...workBinding, origin: nextOrigin })
+    expect(await h.store.list('vendor')).toEqual([work])
+    const use = vi.fn((_binding: AccountBinding, credential: AccountCredential | undefined) =>
+      Promise.resolve(credential),
+    )
+    expect(await h.store.useCredential('vendor', 'work', nextOrigin, use)).toEqual({
+      ...workRecord,
+      origin: nextOrigin,
+    })
+    await expect(h.store.useCredential('vendor', 'work', origin, use)).rejects.toThrow(
+      'originMismatch',
+    )
+  })
+
+  it('refuses a rebind when the configured endpoint changes during confirmation', async () => {
+    const h = credentialHarness()
+    await h.store.setCredential('vendor', 'work', workRecord)
+    h.configure({ origin: 'https://changed.invalid' })
+    await expect(
+      h.store.rebindOrigin('vendor', 'work', () => {
+        h.configure({ origin: 'https://changed-again.invalid' })
+        return Promise.resolve(true)
+      }),
+    ).rejects.toThrow('originMismatch')
+    expect(h.storage.values).toEqual(
+      new Map([['museSpark.provider.vendor.account.work', JSON.stringify(workRecord)]]),
+    )
+    await h.store.remove('vendor', 'work')
+    expect(h.storage.values.size).toBe(0)
+  })
+
+  it('checks the configured origin again immediately before a pending dispatch', async () => {
+    const h = credentialHarness()
+    await h.store.setCredential('vendor', 'work', workRecord)
+    const { entered, held } = holdCredentialRead(h.rawVault)
+    const dispatch = vi.fn(() => Promise.resolve())
+    const pending = h.store.useCredential('vendor', 'work', origin, dispatch)
+    const outcome = (async () => {
+      try {
+        await pending
+        return undefined
+      } catch (error) {
+        return error
+      }
+    })()
+    await entered
+    h.configure({ origin: 'https://changed.invalid' })
+    held.resolve(workRecord)
+    expect(await outcome).toMatchObject({ code: 'originMismatch' })
+    expect(dispatch).not.toHaveBeenCalled()
+  })
+
   it('validates provider ids before configuration reads', async () => {
     const h = harness()
     await expect(h.store.list('invalid/id')).rejects.toMatchObject({ code: 'invalidAccount' })

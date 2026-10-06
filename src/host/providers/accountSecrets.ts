@@ -5,6 +5,7 @@ import {
   accountBindingSchema,
   accountSecretKey,
   boundCredential,
+  credentialRecordSchema,
   AccountStoreError,
   type AccountBinding,
   type AccountCredential,
@@ -23,35 +24,44 @@ const legacyRecordSchema = z.strictObject({
 
 /** The interim vault is real SecretStorage/OS-store I/O, never a fake. */
 export function secretStorageAccountVault(secrets: SecretStore): AccountCredentialVault {
+  async function readStored(binding: AccountBinding): Promise<AccountCredential | undefined> {
+    accountBindingSchema.parse(binding)
+    const stored = await secrets.get(accountSecretKey(binding.provider, binding.account))
+    if (stored === undefined || stored === '') return
+    if (binding.provider === 'meta' && binding.account === ACCOUNT_DEFAULT_ID) {
+      // Meta's original entry is a raw key; its origin has always been fixed.
+      if (!isValidModelApiKey(stored)) throw new AccountStoreError('invalidCredential')
+      return {
+        ...binding,
+        origin: new URL(MODEL_API_BASE_URL).origin,
+        v: 1,
+        auth: 'apiKey',
+        secret: stored,
+      }
+    }
+    let value: unknown
+    try {
+      value = JSON.parse(stored)
+    } catch {
+      throw new AccountStoreError('invalidCredential')
+    }
+    // Only the legacy default name may omit account identity. Other names
+    // must carry it, so copying one account's record cannot authenticate another.
+    const legacy = legacyRecordSchema.safeParse(value)
+    const parsed = credentialRecordSchema.safeParse(
+      binding.account === ACCOUNT_DEFAULT_ID && legacy.success
+        ? { ...legacy.data, provider: binding.provider, account: binding.account }
+        : value,
+    )
+    if (!parsed.success) throw new AccountStoreError('invalidCredential')
+    return boundCredential(parsed.data, { ...binding, origin: parsed.data.origin })
+  }
   return {
     async read(binding) {
-      accountBindingSchema.parse(binding)
-      const stored = await secrets.get(accountSecretKey(binding.provider, binding.account))
-      if (stored === undefined || stored === '') return
-      if (binding.provider === 'meta' && binding.account === ACCOUNT_DEFAULT_ID) {
-        // Meta's original entry is a raw key; its origin has always been fixed.
-        if (binding.origin !== new URL(MODEL_API_BASE_URL).origin) {
-          throw new AccountStoreError('originMismatch')
-        }
-        if (!isValidModelApiKey(stored)) throw new AccountStoreError('invalidCredential')
-        return { ...binding, v: 1, auth: 'apiKey', secret: stored }
-      }
-      let value: unknown
-      try {
-        value = JSON.parse(stored)
-      } catch {
-        throw new AccountStoreError('invalidCredential')
-      }
-      // Only the legacy default name may omit account identity. Other names
-      // must carry it, so copying one account's record cannot authenticate another.
-      const legacy = legacyRecordSchema.safeParse(value)
-      return boundCredential(
-        binding.account === ACCOUNT_DEFAULT_ID && legacy.success
-          ? { ...legacy.data, provider: binding.provider, account: binding.account }
-          : value,
-        binding,
-      )
+      const stored = await readStored(binding)
+      return stored === undefined ? undefined : boundCredential(stored, binding)
     },
+    readForRemoval: readStored,
     async write(binding, value) {
       accountBindingSchema.parse(binding)
       const record = boundCredential(value, binding)
@@ -95,11 +105,15 @@ export class AccountSecrets implements AccountCredentialVault {
     }
   }
 
-  private check(binding: AccountBinding): void {
+  private available(binding: AccountBinding): void {
     if (this.isDisposed) throw new AccountStoreError('unavailable')
     if (!accountBindingSchema.safeParse(binding).success) {
       throw new AccountStoreError('invalidAccount')
     }
+  }
+
+  private check(binding: AccountBinding): void {
+    this.available(binding)
     if (binding.provider === 'meta' && binding.origin !== new URL(MODEL_API_BASE_URL).origin) {
       throw new AccountStoreError('originMismatch')
     }
@@ -137,16 +151,45 @@ export class AccountSecrets implements AccountCredentialVault {
   }
 
   public async remove(binding: AccountBinding): Promise<void> {
-    const record = await this.read(binding)
+    const record = await this.readForRemoval(binding)
     try {
       if (record !== undefined && record.auth !== 'apiKey') {
-        await this.deps.revokeSignIn(binding, record)
+        const storedBinding = {
+          provider: record.provider,
+          account: record.account,
+          origin: record.origin,
+        }
+        await this.deps.revokeSignIn(storedBinding, record)
       }
-      this.check(binding)
+      this.available(binding)
       await this.deps.vault.remove(binding)
     } catch {
       throw new AccountStoreError('unavailable')
     }
+  }
+
+  public async readForRemoval(binding: AccountBinding): Promise<AccountCredential | undefined> {
+    this.available(binding)
+    let value: AccountCredential | undefined
+    try {
+      value = await this.deps.vault.readForRemoval(binding)
+    } catch (error) {
+      // An unreadable/misbound local record can still be deleted by its own name.
+      // Storage failures retain it; no revocation is guessed from malformed data.
+      if (
+        error instanceof AccountStoreError &&
+        (error.code === 'invalidCredential' || error.code === 'originMismatch')
+      ) {
+        this.available(binding)
+        return undefined
+      }
+      throw new AccountStoreError('unavailable')
+    }
+    this.available(binding)
+    if (value === undefined) return undefined
+    const record = boundCredential(value, { ...binding, origin: value.origin })
+    this.register(record.secret)
+    return record
   }
 
   public dispose(): void {

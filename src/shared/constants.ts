@@ -4056,6 +4056,9 @@ export const MODEL_API_IMPORT_MAX_REPLAY_BYTES =
 export const SESSION_EXPORT_FIELD_PATH_MAX = 120
 // What the log redactor (and a session export) writes where a credential was.
 export const REDACTED_MARK = '[redacted]'
+/** Hexadecimal byte and JSON-unicode encodings in the shared scrubber. */
+export const REDACT_HEX_RADIX = 16
+export const REDACT_JSON_UNICODE_DIGITS = 4
 // An unnamed conversation's export takes its title from the first prompt, cut here.
 export const EXPORT_TITLE_MAX_CHARS = 60
 // How often the browser sign-in asks the sign-in host (`account/read`) and

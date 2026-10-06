@@ -96,6 +96,7 @@ describe('M108 Meta password flow and runtime OS binding', () => {
     const write = vi.fn(() => Promise.resolve())
     const h = harness({
       read: () => Promise.resolve(undefined),
+      readForRemoval: () => Promise.resolve(undefined),
       write,
       remove: () => Promise.resolve(),
     })

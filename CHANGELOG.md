@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Registered credentials are scrubbed from JSON, URL/form, base64/base64url
+  and hexadecimal diagnostic output. Account-store removal fences pending
+  lookups and writes across instances in one process; endpoint changes allow
+  confirmed rebinding or local cleanup at the credential's stored origin.
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.

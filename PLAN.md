@@ -19833,6 +19833,17 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
 
+**FIXM108K (2026-10-05):** repair all four RVM108K findings in lane K.
+Extend shared literal scrubbing to JSON, URL, base64/base64url and hexadecimal
+forms through one matcher; invalidate pending account dispatches by removal
+generation and serialize mutations across store instances in this process.
+Local maintenance reads retain the stored origin for revocation and cleanup;
+an explicit origin rebind asks the injected user-confirmation port before
+writing the same account's credential at the new origin. Certify regressions
+red before each fix and break each guard after fixing it, restoring byte-exact.
+No dependency, endpoint guard, paid default or budget changes. See
+`docs/certification/m108-k.md` for scoped rig receipts and integration limits.
+
 **Status 2026-10-05: planned.** The terms research is
 `docs/research/account-terms-2026-10-05.md`.
 
@@ -20032,6 +20043,12 @@ Each joins when its dependency merges, and none blocks the others.
         full gate green
 
 ## 7. Gates
+
+**FIXM108K bounded-lane certification.** The explicit rig brief and shared
+rules prohibit aggregate quality/full test runs, merges and network calls.
+Hook-on local commits use complete owning test files, mutation/restoration
+drills and scoped static/build checks. The lead retains integrated quality,
+coverage and editor/live certification; no gate is weakened.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
@@ -21205,6 +21222,28 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM108K-PROCESS-COMPOSITION (K-M95-FILE / K-M109-VAULT / W).** The
+  account store shares its mutation queue and removal generations across
+  instances of the shared module in one process. W must compose one parent-owned
+  account service for all lazy bundles and editor entry points; independent
+  processes/windows need M109's shared-vault lifecycle serialization. The
+  interim OS/SecretStorage adapter alone supplies no cross-process lock.
+  Safe for now: these account-store modules are absent from shipped bundles
+  and their integrated surfaces are not enabled on this base. Follow-up:
+  M109/W must certify the held-write/remove/re-add race through two installed
+  clients, sharing the broker's fence, before enabling multi-window accounts.
+  No RVM108K finding remains in the supplied in-process account ports.
+
+- **FIXM108K-ORIGIN-SURFACES (K / U / H / W).** The shared core offers
+  `rebindOrigin` with an explicit user-confirmation callback and a second
+  endpoint check; malformed/local cleanup and stored-origin revocation are
+  certified on the real adapters with fake storage. U/H must wire the same
+  exact-origin confirmation for every editor/terminal entry point. Until then
+  a changed origin refuses dispatch, and local removal remains available.
+  No automatic binding transfer or invented vendor revocation is permitted.
+  Follow-up: compose the callback and captured M95b revoker in the integrated
+  panel/native/ACP/runtime flows, with cancellation and endpoint-change tests.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the
