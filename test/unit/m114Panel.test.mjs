@@ -12,12 +12,13 @@ const runtime = {}
 const fixture = [
   "import React from 'react';",
   "import {createRoot} from 'react-dom/client';",
+  "import {SecretPromptDialog} from './src/webview/components/SecretPromptDialog';",
   "import {ApprovalCard} from './src/webview/components/ApprovalCard';",
   "const labels = ['Allow once', 'Always allow this very long command in this workspace', 'Reject with feedback'];",
   "const approval = {approvalId:'test',requirementId:{approvalId:'test',sourceIndex:0},",
   " subject:{kind:'shell',command:'npm run build'},rawArgs:'{}',isProtectedWrite:false,isJudgeEscalated:false,",
   " availableChoices:labels.map((label,i)=>({choiceId:String(i),label,decision:i===2?'abort':'approved',scope:'once',acceptsFeedback:i===2}))};",
-  'createRoot(globalThis.document.getElementById(\'actual\')).render(<ApprovalCard approval={approval} toolName="shell" onDecide={()=>{}}/>);',
+  'createRoot(globalThis.document.getElementById(\'actual\')).render(<><ApprovalCard approval={approval} toolName="shell" onDecide={()=>{}}/><SecretPromptDialog redactedText="[redacted]" onEdit={()=>{}} onSendAnyway={()=>{}}/></>);',
 ].join('\n')
 const markup = `<main>
 <div id="actual"></div>
@@ -185,11 +186,45 @@ describe('M114 P2 panel contract', () => {
   )
 
   it.each(themes)(
+    '%s: secret-prompt decisions keep equal size and emphasis at 320 px',
+    async (theme) => {
+      const page = await open(theme)
+      try {
+        const decisions = await page
+          .locator('#actual .modal .question-actions > button')
+          .evaluateAll((buttons) =>
+            buttons.map((button) => {
+              const box = button.getBoundingClientRect()
+              const s = globalThis.getComputedStyle(button)
+              return {
+                y: box.y,
+                width: box.width,
+                height: box.height,
+                color: s.color,
+                background: s.backgroundColor,
+              }
+            }),
+          )
+        expect(decisions.length).toBe(2)
+        expect(decisions[0]).toEqual(decisions[1])
+        expect(decisions[0].height).toBe(28)
+      } finally {
+        await page.close()
+      }
+    },
+  )
+
+  it.each(themes)(
     '%s: panel controls have readable hover, pressed, disabled and keyboard states',
     async (theme) => {
       const page = await open(theme)
       try {
         const canvas = await property(page, '.modal', 'backgroundColor')
+        // One protocol session avoids repeated domain/document setup per state.
+        const session = await page.context().newCDPSession(page)
+        await session.send('DOM.enable')
+        await session.send('CSS.enable')
+        const tree = await session.send('DOM.getDocument')
         for (const selector of [
           '.modal .icon-button',
           '.modal .button-primary',
@@ -200,36 +235,46 @@ describe('M114 P2 panel contract', () => {
           '.question-tab',
           '.gooey-menu-pill',
         ]) {
-          await page.locator(selector).focus()
+          await page.locator(selector).first().focus()
           const focused = await style(page, selector)
           expect(focused.outlineWidth, selector).toBe('2px')
           expect(focused.outlineOffset, selector).toBe('2px')
           expect(contrast(focused.outlineColor, canvas), selector).toBeGreaterThanOrEqual(3)
-          const session = await force(page, selector, ['hover'])
+          const { nodeId } = await session.send('DOM.querySelector', {
+            nodeId: tree.root.nodeId,
+            selector,
+          })
+          await session.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: ['hover'] })
           const hover = await style(page, selector)
           expect(
             contrast(hover.color, hover.backgroundColor, canvas),
             selector,
           ).toBeGreaterThanOrEqual(4.5)
-          await session.detach()
-          const active = await force(page, selector, ['hover', 'active'])
+          await session.send('CSS.forcePseudoState', {
+            nodeId,
+            forcedPseudoClasses: ['hover', 'active'],
+          })
           const pressed = await style(page, selector)
           expect(pressed.backgroundColor, selector).not.toBe('rgba(0, 0, 0, 0)')
           expect(contrast(pressed.color, pressed.backgroundColor), selector).toBeGreaterThanOrEqual(
             4.5,
           )
           if (selector !== '.gooey-menu-pill') {
-            await page.locator(selector).evaluate((el) => {
-              el.disabled = true
-            })
+            await page
+              .locator(selector)
+              .first()
+              .evaluate((el) => {
+                el.disabled = true
+              })
             const disabled = await style(page, selector)
             expect(disabled.color, selector).not.toBe(pressed.color)
             expect(disabled.opacity, selector).toBe('1')
           }
-          await active.detach()
+          await session.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: [] })
         }
+        await session.detach()
         for (const selector of ['.palette-filter', '.report-description']) {
-          await page.locator(selector).focus()
+          await page.locator(selector).first().focus()
           const input = await style(page, selector)
           const placeholder = await style(page, selector, '::placeholder')
           expect(input.outlineWidth).toBe('2px')
@@ -330,7 +375,7 @@ describe('M114 P2 panel contract', () => {
         expect(await property(page, 'code', 'fontFamily')).toBe('monospace')
         const canvas = await property(page, 'body', 'backgroundColor')
         for (const selector of ['button', 'a', 'input', 'pre']) {
-          await page.locator(selector).focus()
+          await page.locator(selector).first().focus()
           const s = await style(page, selector)
           expect(s.outlineWidth).toBe('2px')
           expect(contrast(s.outlineColor, canvas)).toBeGreaterThanOrEqual(3)

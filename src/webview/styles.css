@@ -1630,22 +1630,10 @@ body {
 
 /* Equal decisions keep one row at every width. The visible label ellipsizes;
    the button's text and title retain its complete accessible name. */
-.approval-choices {
+.approval-choices,
+.modal .question-actions {
   flex-wrap: nowrap;
   align-items: center;
-}
-
-.approval-choices > button {
-  flex: 1 1 0;
-  box-sizing: border-box;
-  min-width: 0;
-  height: var(--ms-button-height);
-  padding: 0 var(--ms-space-4);
-  overflow: hidden;
-  color: var(--ms-on-accent);
-  background: var(--ms-accent);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .question-header {
@@ -3782,6 +3770,20 @@ li:focus-within > .row-actions .row-actions-button,
 
 /* --- panel surface interaction states (M114 P2) --- */
 
+.approval-choices > button,
+.modal .question-actions > button {
+  flex: 1 1 0;
+  box-sizing: border-box;
+  min-width: 0;
+  height: var(--ms-button-height);
+  padding: 0 var(--ms-space-4);
+  overflow: hidden;
+  color: var(--ms-on-accent);
+  background: var(--ms-accent);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 :is(
   .modal,
   .palette,
@@ -3831,7 +3833,10 @@ li:focus-within > .row-actions .row-actions-button,
 }
 
 :is(.modal, .gate, .approval, .question) .button-primary:hover:enabled,
-.approval-choices > button:hover:enabled {
+.approval-choices > button:hover:enabled,
+.approval-choices > button:active:enabled,
+.modal .question-actions > button:hover:enabled,
+.modal .question-actions > button:active:enabled {
   color: var(--ms-on-accent);
   background: var(--ms-pressed);
 }
@@ -3873,11 +3878,6 @@ li:focus-within > .row-actions .row-actions-button,
   background: var(--ms-pressed);
 }
 
-.approval-choices > button:active:enabled {
-  color: var(--ms-on-accent);
-  background: var(--ms-pressed);
-}
-
 @media (forced-colors: active) {
   :is(.modal, .palette, .popover, .mention-menu, .approval, .question, .agent-node, .onboarding) {
     border-color: CanvasText;
@@ -3896,7 +3896,10 @@ li:focus-within > .row-actions .row-actions-button,
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  :is(.modal, .palette, .popover, .mention-menu) {
+  .modal,
+  .palette,
+  .popover,
+  .mention-menu {
     animation: panel-open var(--ms-motion-base) var(--ms-ease-standard);
   }
 
