@@ -2453,5 +2453,16 @@
   "shareBrowser": "Im Browser öffnen",
   "shareConfidential": "Das Teilen ist gesperrt, solange dieser Arbeitsbereich vertraulich ist.",
   "shareReviewPrivacy": "Prüfen Sie die genaue Vorschau vor dem Bestätigen auf private Inhalte. Bekannte und registrierte Geheimnisse werden entfernt; anderer privater Text kann verbleiben.",
-  "shareCancelled": "Teilen abgebrochen"
+  "shareCancelled": "Teilen abgebrochen",
+  "shareMode": "Freigabemodus",
+  "shareFormat": "Dateiformat",
+  "shareRangeFrom": "Ab Nachricht",
+  "shareRangeTo": "Bis einschließlich Nachricht",
+  "shareAllMessages": "Alle Nachrichten",
+  "shareAttachmentContents": "Inhalte ausgewählter Anhänge einschließen",
+  "shareRangeInvalid": "Wählen Sie einen geordneten Nachrichtenbereich aus dieser Unterhaltung.",
+  "shareTooLarge": "Diese Freigabe überschreitet die Grenze für Dateigröße oder Transkript.",
+  "shareAttachmentUnavailable": "Der ausgewählte Anhanginhalt ist in diesem Bereich nicht verfügbar.",
+  "sharePreviewExpired": "Die Vorschau hat sich geändert oder ist abgelaufen. Öffnen Sie sie vor der Freigabe erneut.",
+  "shareDecision": "Entscheidung"
 }

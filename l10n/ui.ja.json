@@ -2359,5 +2359,16 @@
   "shareBrowser": "ブラウザーで開く",
   "shareConfidential": "このワークスペースが機密扱いの間は共有できません。",
   "shareReviewPrivacy": "確定前に実際のプレビューで私的なテキストを確認してください。既知および登録済みの秘密情報は削除されますが、その他の私的なテキストが残る場合があります。",
-  "shareCancelled": "共有をキャンセルしました"
+  "shareCancelled": "共有をキャンセルしました",
+  "shareMode": "共有モード",
+  "shareFormat": "ファイル形式",
+  "shareRangeFrom": "開始メッセージ",
+  "shareRangeTo": "終了メッセージ（含む）",
+  "shareAllMessages": "すべてのメッセージ",
+  "shareAttachmentContents": "選択した添付ファイルの内容を含める",
+  "shareRangeInvalid": "この会話から順序どおりのメッセージ範囲を選択してください。",
+  "shareTooLarge": "共有内容がファイルサイズまたは会話記録の上限を超えています。",
+  "shareAttachmentUnavailable": "選択した添付ファイルの内容はこの範囲では利用できません。",
+  "sharePreviewExpired": "プレビューが変更されたか期限切れです。共有前にもう一度プレビューしてください。",
+  "shareDecision": "判断"
 }

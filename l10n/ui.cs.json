@@ -2641,5 +2641,16 @@
   "shareBrowser": "Otevřít v prohlížeči",
   "shareConfidential": "Sdílení je zablokováno, pokud je tento pracovní prostor důvěrný.",
   "shareReviewPrivacy": "Před potvrzením zkontrolujte přesný náhled, zda neobsahuje soukromý text. Známé a registrované tajné údaje jsou odstraněny; jiný soukromý text může zůstat.",
-  "shareCancelled": "Sdílení zrušeno"
+  "shareCancelled": "Sdílení zrušeno",
+  "shareMode": "Režim sdílení",
+  "shareFormat": "Formát souboru",
+  "shareRangeFrom": "Od zprávy",
+  "shareRangeTo": "Po zprávu včetně",
+  "shareAllMessages": "Všechny zprávy",
+  "shareAttachmentContents": "Zahrnout obsah vybraných příloh",
+  "shareRangeInvalid": "Vyberte správně seřazený rozsah zpráv z této konverzace.",
+  "shareTooLarge": "Sdílený obsah překračuje limit velikosti souboru nebo přepisu.",
+  "shareAttachmentUnavailable": "Obsah vybrané přílohy není v tomto rozsahu dostupný.",
+  "sharePreviewExpired": "Náhled se změnil nebo vypršel. Před sdílením jej zobrazte znovu.",
+  "shareDecision": "Rozhodnutí"
 }

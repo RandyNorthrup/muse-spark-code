@@ -2359,5 +2359,16 @@
   "shareBrowser": "브라우저에서 열기",
   "shareConfidential": "이 작업 영역이 기밀인 동안에는 공유가 차단됩니다.",
   "shareReviewPrivacy": "확인하기 전에 정확한 미리 보기에서 비공개 텍스트를 검토하세요. 알려진 비밀 정보와 등록된 비밀 정보는 제거되지만 다른 비공개 텍스트는 남을 수 있습니다.",
-  "shareCancelled": "공유 취소됨"
+  "shareCancelled": "공유 취소됨",
+  "shareMode": "공유 모드",
+  "shareFormat": "파일 형식",
+  "shareRangeFrom": "시작 메시지",
+  "shareRangeTo": "끝 메시지(포함)",
+  "shareAllMessages": "모든 메시지",
+  "shareAttachmentContents": "선택한 첨부 파일 내용 포함",
+  "shareRangeInvalid": "이 대화에서 순서에 맞는 메시지 범위를 선택하세요.",
+  "shareTooLarge": "공유 내용이 파일 크기 또는 대화 기록 제한을 초과합니다.",
+  "shareAttachmentUnavailable": "선택한 첨부 파일 내용을 이 범위에서 사용할 수 없습니다.",
+  "sharePreviewExpired": "미리보기가 변경되었거나 만료되었습니다. 공유하기 전에 다시 확인하세요.",
+  "shareDecision": "결정"
 }

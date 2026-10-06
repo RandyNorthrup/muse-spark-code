@@ -2359,5 +2359,16 @@
   "shareBrowser": "在浏览器中打开",
   "shareConfidential": "此工作区为机密时，分享功能被阻止。",
   "shareReviewPrivacy": "确认前请检查实际预览中的私密文本。已知及已注册的秘密信息会被移除，但其他私密文本可能仍然存在。",
-  "shareCancelled": "已取消分享"
+  "shareCancelled": "已取消分享",
+  "shareMode": "分享模式",
+  "shareFormat": "文件格式",
+  "shareRangeFrom": "起始消息",
+  "shareRangeTo": "结束消息（包含）",
+  "shareAllMessages": "所有消息",
+  "shareAttachmentContents": "包含所选附件内容",
+  "shareRangeInvalid": "请选择此对话中按顺序排列的消息范围。",
+  "shareTooLarge": "分享内容超出了文件大小或对话记录限制。",
+  "shareAttachmentUnavailable": "此范围内无法获取所选附件的内容。",
+  "sharePreviewExpired": "预览已更改或过期。分享前请重新预览。",
+  "shareDecision": "决定"
 }

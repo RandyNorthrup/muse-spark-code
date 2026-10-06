@@ -2547,5 +2547,16 @@
   "shareBrowser": "Ouvrir dans le navigateur",
   "shareConfidential": "Le partage est bloqué tant que cet espace de travail est confidentiel.",
   "shareReviewPrivacy": "Vérifiez l’aperçu exact pour repérer le texte privé avant de confirmer. Les secrets connus et enregistrés sont supprimés ; d’autres textes privés peuvent subsister.",
-  "shareCancelled": "Partage annulé"
+  "shareCancelled": "Partage annulé",
+  "shareMode": "Mode de partage",
+  "shareFormat": "Format du fichier",
+  "shareRangeFrom": "À partir du message",
+  "shareRangeTo": "Jusqu’au message inclus",
+  "shareAllMessages": "Tous les messages",
+  "shareAttachmentContents": "Inclure le contenu des pièces jointes sélectionnées",
+  "shareRangeInvalid": "Choisissez une plage de messages dans l’ordre de cette conversation.",
+  "shareTooLarge": "Ce partage dépasse la limite de taille du fichier ou de la transcription.",
+  "shareAttachmentUnavailable": "Le contenu de la pièce jointe sélectionnée est indisponible dans cette plage.",
+  "sharePreviewExpired": "L’aperçu a changé ou a expiré. Affichez-le à nouveau avant de partager.",
+  "shareDecision": "Décision"
 }

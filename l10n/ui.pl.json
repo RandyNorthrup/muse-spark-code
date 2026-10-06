@@ -2641,5 +2641,16 @@
   "shareBrowser": "Otwórz w przeglądarce",
   "shareConfidential": "Udostępnianie jest zablokowane, gdy ten obszar roboczy jest poufny.",
   "shareReviewPrivacy": "Przed potwierdzeniem sprawdź dokładny podgląd pod kątem prywatnego tekstu. Znane i zarejestrowane sekrety są usuwane; inny prywatny tekst może pozostać.",
-  "shareCancelled": "Udostępnianie anulowane"
+  "shareCancelled": "Udostępnianie anulowane",
+  "shareMode": "Tryb udostępniania",
+  "shareFormat": "Format pliku",
+  "shareRangeFrom": "Od wiadomości",
+  "shareRangeTo": "Do wiadomości włącznie",
+  "shareAllMessages": "Wszystkie wiadomości",
+  "shareAttachmentContents": "Dołącz zawartość wybranych załączników",
+  "shareRangeInvalid": "Wybierz uporządkowany zakres wiadomości z tej rozmowy.",
+  "shareTooLarge": "Udostępniana treść przekracza limit rozmiaru pliku lub zapisu rozmowy.",
+  "shareAttachmentUnavailable": "Treść wybranego załącznika jest niedostępna w tym zakresie.",
+  "sharePreviewExpired": "Podgląd zmienił się lub wygasł. Wyświetl go ponownie przed udostępnieniem.",
+  "shareDecision": "Decyzja"
 }

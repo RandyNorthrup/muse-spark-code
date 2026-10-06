@@ -48,6 +48,17 @@ export const EN = {
   shareReviewPrivacy:
     'Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.',
   shareCancelled: 'Sharing cancelled',
+  shareMode: 'Sharing mode',
+  shareDecision: 'Decision',
+  shareFormat: 'File format',
+  shareRangeFrom: 'From message',
+  shareRangeTo: 'Through message',
+  shareAllMessages: 'All messages',
+  shareAttachmentContents: 'Include selected attachment contents',
+  shareRangeInvalid: 'Choose an ordered range of messages from this conversation.',
+  shareTooLarge: 'This share exceeds the file size or transcript limit.',
+  shareAttachmentUnavailable: 'Selected attachment content is unavailable in this range.',
+  sharePreviewExpired: 'The preview changed or expired. Preview again before sharing.',
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
   paidDailyLedgerUnavailable:

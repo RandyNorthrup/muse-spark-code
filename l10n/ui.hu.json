@@ -2453,5 +2453,16 @@
   "shareBrowser": "Megnyitás böngészőben",
   "shareConfidential": "A megosztás le van tiltva, amíg ez a munkaterület bizalmas.",
   "shareReviewPrivacy": "Megerősítés előtt ellenőrizze a pontos előnézetet, hogy tartalmaz-e magánjellegű szöveget. Az ismert és regisztrált titkokat eltávolítjuk; más magánjellegű szöveg megmaradhat.",
-  "shareCancelled": "Megosztás megszakítva"
+  "shareCancelled": "Megosztás megszakítva",
+  "shareMode": "Megosztási mód",
+  "shareFormat": "Fájlformátum",
+  "shareRangeFrom": "Kezdő üzenet",
+  "shareRangeTo": "Záró üzenet, beleértve",
+  "shareAllMessages": "Minden üzenet",
+  "shareAttachmentContents": "A kiválasztott mellékletek tartalmának hozzáadása",
+  "shareRangeInvalid": "Válasszon időrendben következő üzenettartományt ebből a beszélgetésből.",
+  "shareTooLarge": "A megosztás meghaladja a fájlméret vagy az átirat korlátját.",
+  "shareAttachmentUnavailable": "A kiválasztott melléklet tartalma ebben a tartományban nem érhető el.",
+  "sharePreviewExpired": "Az előnézet megváltozott vagy lejárt. Megosztás előtt nyissa meg újra.",
+  "shareDecision": "Döntés"
 }

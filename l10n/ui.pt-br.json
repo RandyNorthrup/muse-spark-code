@@ -2547,5 +2547,16 @@
   "shareBrowser": "Abrir no navegador",
   "shareConfidential": "O compartilhamento é bloqueado enquanto este espaço de trabalho for confidencial.",
   "shareReviewPrivacy": "Revise a prévia exata em busca de texto privado antes de confirmar. Segredos conhecidos e registrados são removidos; outros textos privados podem permanecer.",
-  "shareCancelled": "Compartilhamento cancelado"
+  "shareCancelled": "Compartilhamento cancelado",
+  "shareMode": "Modo de compartilhamento",
+  "shareFormat": "Formato do arquivo",
+  "shareRangeFrom": "Da mensagem",
+  "shareRangeTo": "Até a mensagem inclusive",
+  "shareAllMessages": "Todas as mensagens",
+  "shareAttachmentContents": "Incluir o conteúdo dos anexos selecionados",
+  "shareRangeInvalid": "Escolha um intervalo ordenado de mensagens desta conversa.",
+  "shareTooLarge": "O conteúdo excede o limite de tamanho do arquivo ou da transcrição.",
+  "shareAttachmentUnavailable": "O conteúdo do anexo selecionado não está disponível neste intervalo.",
+  "sharePreviewExpired": "A prévia mudou ou expirou. Confira novamente antes de compartilhar.",
+  "shareDecision": "Decisão"
 }

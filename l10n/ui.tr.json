@@ -2453,5 +2453,16 @@
   "shareBrowser": "Tarayıcıda aç",
   "shareConfidential": "Bu çalışma alanı gizli olduğu sürece paylaşım engellenir.",
   "shareReviewPrivacy": "Onaylamadan önce özel metin için tam önizlemeyi inceleyin. Bilinen ve kayıtlı gizli bilgiler kaldırılır; diğer özel metinler kalabilir.",
-  "shareCancelled": "Paylaşım iptal edildi"
+  "shareCancelled": "Paylaşım iptal edildi",
+  "shareMode": "Paylaşım modu",
+  "shareFormat": "Dosya biçimi",
+  "shareRangeFrom": "Başlangıç mesajı",
+  "shareRangeTo": "Bitiş mesajı (dahil)",
+  "shareAllMessages": "Tüm mesajlar",
+  "shareAttachmentContents": "Seçilen eklerin içeriğini dahil et",
+  "shareRangeInvalid": "Bu konuşmadan sıralı bir mesaj aralığı seçin.",
+  "shareTooLarge": "Paylaşım, dosya boyutu veya döküm sınırını aşıyor.",
+  "shareAttachmentUnavailable": "Seçilen ekin içeriği bu aralıkta kullanılamıyor.",
+  "sharePreviewExpired": "Önizleme değişti veya süresi doldu. Paylaşmadan önce yeniden önizleyin.",
+  "shareDecision": "Karar"
 }
