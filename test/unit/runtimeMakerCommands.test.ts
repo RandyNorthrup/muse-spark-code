@@ -53,6 +53,12 @@ async function commands(isTrusted = true, isInteractive = true, lan?: MakerLanPo
     output,
     readSecret,
     openBrowser,
+    send(signal: AbortSignal) {
+      return service.dispatch(
+        { v: 1, type: 'makerSend', id: randomUUID(), machineId: 'printer', payload: 'M104 S100' },
+        signal,
+      )
+    },
     async run(args: readonly string[]) {
       const command = parseMakerCommand(args)
       if (command === undefined) throw new Error('missing-command')
@@ -184,10 +190,7 @@ describe('runtime maker command execution without a credential store or device',
       if (message.type === 'makerApproval') requested.resolve(undefined)
     })
     const controller = new AbortController()
-    const sending = fixture.service.dispatch(
-      { v: 1, type: 'makerSend', id: randomUUID(), machineId: 'printer', payload: 'M104 S100' },
-      controller.signal,
-    )
+    const sending = fixture.send(controller.signal)
     const outcome = (async () => {
       try {
         await sending
@@ -236,10 +239,7 @@ describe('runtime maker command execution without a credential store or device',
           })
       })
       const controller = new AbortController()
-      const sending = fixture.service.dispatch(
-        { v: 1, type: 'makerSend', id: randomUUID(), machineId: 'printer', payload: 'M104 S100' },
-        controller.signal,
-      )
+      const sending = fixture.send(controller.signal)
       const outcome = (async () => {
         try {
           await sending
