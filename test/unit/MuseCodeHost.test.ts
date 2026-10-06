@@ -26,6 +26,8 @@ import {
   UNQUEUED_NOTIFICATION,
 } from './helpers/m87Capture'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { fakeAccountHome } from './helpers/accountHome'
+import type { MuseCodeAccountHome } from '../../src/core/backends/musecode/accountHomes'
 import { countLogged } from './helpers/logText'
 import {
   fakeInitializeResult,
@@ -68,6 +70,7 @@ const ack = (params: Record<string, unknown>) => ({
 function setup(
   options: {
     timeouts?: CommandTimeouts
+    accountHome?: MuseCodeAccountHome
     /** What the handshake granted (M46: `userShell`); nothing by default. */
     grantedCapabilities?: readonly string[]
   } = {},
@@ -149,7 +152,7 @@ function setup(
       },
     ],
   }))
-  const host = new MuseCodeHost(handle.host, log, options.timeouts)
+  const host = new MuseCodeHost(handle.host, log, options.timeouts, options.accountHome)
   return { ...handle, log, host }
 }
 
@@ -899,6 +902,39 @@ describe('MuseCodeHost: subscription usage (M8)', () => {
     window: { usedPercent: 12, resetsAtMs: 1_800_000_900_000, windowDurationMins: 300 },
     weekly: { usedPercent: 3, resetsAtMs: 1_800_400_000_000 },
   }
+
+  it('attributes parsed usage/changed and usage/read only to the serving account', async () => {
+    const accountHome = fakeAccountHome()
+    const { host, server } = setup({ accountHome })
+    server.notify('usage/changed', usage)
+    server.notify('usage/changed', { tier: 'malformed' })
+    await settle()
+    expect(accountHome.observeUsage).toHaveBeenCalledExactlyOnceWith(usage)
+    server.handle('usage/read', () => ({ usage }))
+    await host.readUsage()
+    expect(accountHome.observeUsage).toHaveBeenCalledTimes(2)
+    server.handle('usage/read', () => ({}))
+    await host.readUsage()
+    expect(accountHome.observeUsage).toHaveBeenCalledTimes(2)
+  })
+
+  it('refuses revoked account observations before notifying usage listeners', async () => {
+    const accountHome = fakeAccountHome()
+    const { host, server, log } = setup({ accountHome })
+    const listener = vi.fn()
+    host.onUsageChanged(listener)
+    accountHome.assertCurrent.mockImplementation(() => {
+      throw new Error('revoked')
+    })
+    server.notify('usage/changed', usage)
+    await settle()
+    expect(accountHome.observeUsage).not.toHaveBeenCalled()
+    expect(listener).not.toHaveBeenCalled()
+    expect(log.error).toHaveBeenCalledOnce()
+    server.handle('usage/read', () => ({ usage }))
+    await expect(host.readUsage()).rejects.toThrow('revoked')
+    expect(accountHome.observeUsage).not.toHaveBeenCalled()
+  })
 
   it('reads usage/read, absent before the first observation', async () => {
     const { host, server } = setup()

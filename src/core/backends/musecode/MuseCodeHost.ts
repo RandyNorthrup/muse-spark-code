@@ -7,6 +7,7 @@
 // through a fake in-memory transport.
 
 import { Buffer } from 'node:buffer'
+import type { MuseCodeAccountHome } from './accountHomes'
 import { type Connection, MspError, ProtocolError } from '@muse-code/sdk'
 import * as z from 'zod/mini'
 import {
@@ -1291,6 +1292,7 @@ export class MuseCodeHost implements AgentHost {
     private readonly host: MspHost,
     private readonly log: CoreLogger,
     private readonly timeouts: CommandTimeouts = DEFAULT_TIMEOUTS,
+    private readonly accountHome?: MuseCodeAccountHome,
   ) {
     this.channel = {
       connection: host.connection,
@@ -1475,6 +1477,8 @@ export class MuseCodeHost implements AgentHost {
     if (method === USAGE_CHANGED) {
       const parsed = subscriptionUsageSchema.safeParse(params)
       if (parsed.success) {
+        this.accountHome?.assertCurrent()
+        this.accountHome?.observeUsage(parsed.data)
         for (const listener of this.usageListeners) {
           listener(parsed.data)
         }
@@ -1664,7 +1668,12 @@ export class MuseCodeHost implements AgentHost {
   /** The subscription window the CLI last observed; absent until a turn has run. */
   public async readUsage(): Promise<SubscriptionUsage | undefined> {
     const result = await this.command(USAGE_READ, {})
-    return usageReadResultSchema.parse(result).usage
+    const usage = usageReadResultSchema.parse(result).usage
+    if (usage !== undefined) {
+      this.accountHome?.assertCurrent()
+      this.accountHome?.observeUsage(usage)
+    }
+    return usage
   }
 
   public onUsageChanged(listener: (usage: SubscriptionUsage) => void): () => void {

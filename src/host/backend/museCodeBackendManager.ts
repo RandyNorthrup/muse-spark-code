@@ -17,6 +17,7 @@ import { homedir } from 'node:os'
 import path from 'node:path'
 import { type FingerprintWarning, spawnMspConnection } from '@muse-code/sdk'
 import type { CredentialFileVerdict } from '../../core/backends/musecode/credentialFile'
+import type { MuseCodeAccountHome } from '../../core/backends/musecode/accountHomes'
 import {
   type CommandTimeouts,
   MuseCodeHost,
@@ -86,6 +87,8 @@ export interface UnresponsiveHostDeps {
 }
 
 export interface BackendManagerDeps {
+  /** One manager per capture-gated CLI account. Absent preserves today's single account. */
+  readonly accountHome?: MuseCodeAccountHome
   /** Awaited before any agent host process can edit this workspace. */
   readonly beforeWorkspaceHostStart: () => Promise<void>
   /**
@@ -313,7 +316,13 @@ export class MuseCodeBackendManager {
     }
     let host: MuseCodeHost
     try {
-      host = new MuseCodeHost(mspHost, this.deps.log, this.deps.commandTimeouts)
+      this.deps.accountHome?.assertCurrent()
+      host = new MuseCodeHost(
+        mspHost,
+        this.deps.log,
+        this.deps.commandTimeouts,
+        this.deps.accountHome,
+      )
     } catch (error: unknown) {
       // An initialize result the wrapper cannot read: the process goes too.
       await spawned.close()
@@ -386,6 +395,7 @@ export class MuseCodeBackendManager {
         extraVariables: [...this.proxyVariables(), ...this.deps.getEnvironmentVariables()],
         systemRoot: process.env['SystemRoot'],
         programFiles: process.env['ProgramFiles'],
+        ...(this.deps.accountHome !== undefined && { accountHome: this.deps.accountHome }),
       }),
       process.platform,
     )
@@ -493,6 +503,13 @@ export class MuseCodeBackendManager {
 
   /** The running host, spawning it on first use. Rejects when the CLI is absent. */
   public ensureHost(): Promise<MuseCodeHost> {
+    try {
+      this.deps.accountHome?.assertCurrent()
+    } catch (error: unknown) {
+      return Promise.reject(
+        error instanceof Error ? error : new Error(UI_TEXT.accounts.invalidAccount),
+      )
+    }
     if (this.hostPromise !== undefined) {
       return this.hostPromise
     }
