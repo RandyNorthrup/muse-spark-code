@@ -19833,6 +19833,20 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
 
+**FIXM108M (2026-10-06):** repair both RVM108M P2 findings inside M's
+owned account-home, shared MSP command and test regions. Carry the immutable
+lease generation through every local request, check it before dispatch and
+retry and after awaiting a reply, and refuse pending requests when the lease
+is invalidated or its host starts closing. Keep generation/cancellation
+metadata local; no uncaptured MSP field is added. Prove an account-switch
+race, a retained session during manager disposal, and revocation during
+retry. Compare both credential paths with platform-aware separator and case
+normalization, including Windows-shaped paths on this rig. Each finding gets
+a named regression red and a byte-exact guard drill. No dependency, gate,
+timeout, credential, paid policy or installed-feature changes; Q-M108 and W's
+capture/bindings remain required. Receipts:
+`docs/certification/m108-m-muse-code-accounts.md`.
+
 **FIXM108P (2026-10-06):** fix all five RVM108P P2 findings inside P's
 owned core/paid ports. Serialize confirmation read/question/write ownership
 before starting I/O, discard stale reads/results by generation, and refresh
@@ -20077,6 +20091,14 @@ No dependency, endpoint guard, paid default or budget changes. See
         full gate green
 
 ## 7. Gates
+
+**FIXM108M bounded-lane certification (2026-10-06).** The overriding rig
+brief and shared rules prohibit aggregate quality/full unit runs, merges and
+network calls. Use complete owning test files, repository default timeouts,
+at most three files/workers per run, scoped static/build checks and normal
+hook-on local commits. The lead owns integrated quality/coverage and live
+editor/capture gates. W owns the pre-existing host-API record count drift and
+CHANGELOG integration; no gate is weakened.
 
 **FIXM108P bounded-lane certification (2026-10-06).** The rig brief and
 shared rules prohibit aggregate quality/full unit runs, merges and network
@@ -21270,6 +21292,16 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM108M-DISPATCHED-WORK (M-U-H-LIFETIME / W).** Revoking a Muse Code
+  lease refuses local pending commands and prevents subsequent dispatches
+  and retries. A request already written to the old CLI may have started
+  work; local cancellation cannot prove otherwise. Safe for now: installed
+  multi-account support stays off without Q-M108's capture and the named
+  adapters. Follow-up: W/U/H synchronously invalidate the old lease and await
+  its manager's process disposal before adopting another account, preserving
+  old-account usage/liability for already-dispatched work. No RVM108M finding
+  is accepted as an unresolved review residual.
 
 - **FIXM108P-PROFILE-OWNER (P-W-POLICY-STORE / M109 / W).** Compose one
   profile-owned pool and confirmation authority, and one account/tariff paid

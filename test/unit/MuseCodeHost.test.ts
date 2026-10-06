@@ -172,6 +172,19 @@ async function listeningSession(host: MuseCodeHost) {
   return { session, events }
 }
 
+/** Observe settlement without asserting until the racing lifecycle action has run. */
+async function recordOutcome(
+  result: Promise<unknown>,
+  accepted: (value: unknown) => void,
+  refused: (error: unknown) => void,
+): Promise<void> {
+  try {
+    accepted(await result)
+  } catch (error: unknown) {
+    refused(error)
+  }
+}
+
 describe('MuseCodeHost', () => {
   it('reads the server identity from the handshake result', () => {
     const { host } = setup()
@@ -892,6 +905,165 @@ describe('MuseCodeHost: stored sessions (M6)', () => {
     server.notify('session/closed', { sessionId: 'old', reason: 'idle', viewCursor: 'v' })
     await settle()
     expect(events).toHaveLength(2)
+  })
+})
+
+describe('MuseCodeHost: account command lease (FIXM108M)', () => {
+  it('refuses host and retained-session commands before dispatch after lease revocation', async () => {
+    const accountHome = fakeAccountHome()
+    const { host, server } = setup({ accountHome })
+    const session = await host.startSession(startOptions)
+    accountHome.assertCurrent.mockImplementation(() => {
+      throw new Error('revoked command lease')
+    })
+    try {
+      await expect(session.sendTurn([{ type: 'text', text: 'old account' }])).rejects.toThrow(
+        'revoked command lease',
+      )
+      await expect(host.listModels()).rejects.toThrow('revoked command lease')
+      expect(server.requestsFor('turn/start')).toHaveLength(0)
+      expect(server.requestsFor('model/list')).toHaveLength(0)
+    } finally {
+      await host.close()
+    }
+  })
+
+  it('refuses an in-flight old-account turn on a switch and ignores its late acknowledgement', async () => {
+    const accountHome = fakeAccountHome()
+    const old = setup({ accountHome })
+    const next = setup({ accountHome: { ...fakeAccountHome('personal'), generation: 1 } })
+    try {
+      const session = await old.host.startSession(startOptions)
+      old.server.silence('turn/start')
+      const accepted = vi.fn()
+      const refused = vi.fn()
+      const outcome = recordOutcome(
+        session.sendTurn([{ type: 'text', text: 'racing switch' }]),
+        accepted,
+        refused,
+      )
+      await settle()
+      const request = old.server.requestsFor('turn/start')[0]
+      expect(request).toBeDefined()
+      accountHome.invalidate()
+      await settle()
+      expect(refused).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ message: UI_TEXT.accounts.invalidAccount }),
+      )
+      await outcome
+      const replacement = await next.host.startSession(startOptions)
+      await expect(replacement.sendTurn([{ type: 'text', text: 'new account' }])).resolves.toEqual({
+        turnId: 'turn-1',
+        disposition: 'started',
+      })
+      old.server.incoming.push(
+        `${JSON.stringify({ jsonrpc: '2.0', id: request?.id, result: { ...ack(request?.params ?? {}), turnId: 'turn-1', disposition: 'started', startedNewTurn: true } })}\n`,
+      )
+      await settle()
+      expect(accepted).not.toHaveBeenCalled()
+      expect(refused).toHaveBeenCalledOnce()
+      expect(old.server.requestsFor('turn/start')).toHaveLength(1)
+      expect(next.server.requestsFor('turn/start')).toHaveLength(1)
+    } finally {
+      await old.host.close()
+      await next.host.close()
+    }
+  })
+
+  it('rechecks the lease after a reply before reporting a started turn', async () => {
+    const accountHome = fakeAccountHome()
+    const { host, server } = setup({ accountHome })
+    const session = await host.startSession(startOptions)
+    server.handle('turn/start', (params) => {
+      accountHome.assertCurrent.mockImplementation(() => {
+        throw new Error('revoked before acknowledgement')
+      })
+      return { ...ack(params), turnId: 'turn-1', disposition: 'started', startedNewTurn: true }
+    })
+    try {
+      await expect(session.sendTurn([{ type: 'text', text: 'racing reply' }])).rejects.toThrow(
+        'revoked before acknowledgement',
+      )
+      expect(server.requestsFor('turn/start')).toHaveLength(1)
+    } finally {
+      await host.close()
+    }
+  })
+
+  it('refuses retry dispatch when the lease is revoked during backoff', async () => {
+    const accountHome = fakeAccountHome()
+    const { host, server, log } = setup({ accountHome })
+    const session = await host.startSession(startOptions)
+    const enteredBackoff = Promise.withResolvers<undefined>()
+    log.warn.mockImplementation(() => {
+      enteredBackoff.resolve(undefined)
+    })
+    const refuse = refusalOf('overloaded', -32_001)
+    let calls = 0
+    server.handle('session/setModel', (params) => {
+      calls += 1
+      return calls === 1 ? refuse() : ack(params)
+    })
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0.5)
+    try {
+      const refused = vi.fn()
+      const pending = recordOutcome(session.setModel('muse-spark-1.2'), vi.fn(), refused)
+      await enteredBackoff.promise
+      accountHome.invalidate()
+      await vi.runAllTimersAsync()
+      await pending
+      expect(refused).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ message: UI_TEXT.accounts.invalidAccount }),
+      )
+      expect(server.requestsFor('session/setModel')).toHaveLength(1)
+      expect(session.modelId).toBe(startOptions.modelId)
+    } finally {
+      random.mockRestore()
+      vi.useRealTimers()
+      await host.close()
+    }
+  })
+
+  it('refuses pending and new commands as soon as host close starts', async () => {
+    const { host, server } = setup()
+    const session = await host.startSession(startOptions)
+    server.silence('session/setModel')
+    const close = vi.spyOn(server, 'close').mockImplementation(() => undefined)
+    const refused = vi.fn()
+    const pending = recordOutcome(session.setModel('muse-spark-1.2'), vi.fn(), refused)
+    try {
+      const closing = host.close()
+      await expect(session.sendTurn([{ type: 'text', text: 'closing host' }])).rejects.toThrow(
+        UI_TEXT.questionCancelled,
+      )
+      await settle()
+      expect(refused).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ message: UI_TEXT.questionCancelled }),
+      )
+      await pending
+      await closing
+      expect(server.requestsFor('turn/start')).toHaveLength(0)
+    } finally {
+      close.mockRestore()
+      server.close()
+      await pending
+    }
+  })
+
+  it('refuses a command whose captured lease generation no longer matches the host account', async () => {
+    const accountHome = fakeAccountHome()
+    const { host, server } = setup({ accountHome })
+    const session = await host.startSession(startOptions)
+    accountHome.generation += 1
+    try {
+      await expect(session.sendTurn([{ type: 'text', text: 'stale generation' }])).rejects.toThrow(
+        UI_TEXT.accounts.invalidAccount,
+      )
+      expect(server.requestsFor('turn/start')).toHaveLength(0)
+    } finally {
+      await host.close()
+    }
   })
 })
 

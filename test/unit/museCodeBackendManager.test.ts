@@ -16,6 +16,7 @@ import type {
   UnresponsiveHostDeps,
 } from '../../src/host/backend/museCodeBackendManager'
 import { readProxySettings } from '../../src/host/networkPosture'
+import { isSamePath } from '../../src/core/paths'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeMuseCodeManager } from './helpers/museCodeManager'
 import { fakeAccountHome } from './helpers/accountHome'
@@ -187,21 +188,30 @@ describe('MuseCodeBackendManager: immutable account launch (M108)', () => {
     vi.unstubAllEnvs()
   })
 
-  it('uses one account home for serve and credential inspection, ignoring account overrides', () => {
-    vi.stubEnv('META_API_KEY', 'shell-account-canary')
-    const accountHome = fakeAccountHome()
-    const manager = managerWith(
-      [{ name: 'XDG_CONFIG_HOME', value: '/different-home' }],
-      '',
-      new FakeLogOutputChannel(),
-      { accountHome },
-    )
-    expect(manager.childEnvironment()['XDG_CONFIG_HOME']).toBe(accountHome.configHome)
-    expect(manager.credentialFilePath().replaceAll('\\', '/')).toBe(
-      `${accountHome.configHome}/muse/auth.json`,
-    )
-    expect(manager.hasEnvironmentKey()).toBe(false)
-  })
+  it.each(['win32', 'darwin', 'linux'] as const)(
+    'uses one %s account home for serve and credential inspection, ignoring account overrides',
+    (platform) => {
+      vi.stubEnv('META_API_KEY', 'shell-account-canary')
+      const accountHome = fakeAccountHome(
+        'work',
+        platform === 'win32'
+          ? path.win32.resolve(String.raw`C:\fixtures\no-muse-config\work`)
+          : path.posix.resolve('/fixtures/no-muse-config/work'),
+      )
+      const manager = managerWith(
+        [{ name: 'XDG_CONFIG_HOME', value: '/different-home' }],
+        '',
+        new FakeLogOutputChannel(),
+        { accountHome },
+      )
+      expect(manager.childEnvironment()['XDG_CONFIG_HOME']).toBe(accountHome.configHome)
+      const actual = manager.credentialFilePath().replaceAll('\\', '/')
+      const expected = `${accountHome.configHome}/muse/auth.json`.replaceAll('\\', '/')
+      expect(isSamePath(actual, expected, platform)).toBe(true)
+      expect(isSamePath(actual, expected.toUpperCase(), platform)).toBe(platform === 'win32')
+      expect(manager.hasEnvironmentKey()).toBe(false)
+    },
+  )
 
   it('refuses revoked homes at ensureHost before native startup', async () => {
     const accountHome = fakeAccountHome()
@@ -281,6 +291,21 @@ describe('MuseCodeBackendManager: immutable account launch (M108)', () => {
       work.assertCurrent.mockImplementation(() => {
         throw new Error('revoked cached host')
       })
+      const releaseClose = Promise.withResolvers<undefined>()
+      const closeHost = hostA.close.bind(hostA)
+      vi.spyOn(hostA, 'close').mockImplementation(async () => {
+        await releaseClose.promise
+        await closeHost()
+      })
+      const disposing = a.dispose()
+      try {
+        await expect(
+          session.sendTurn([{ type: 'text', text: 'retained while switching' }]),
+        ).rejects.toThrow('revoked cached host')
+      } finally {
+        releaseClose.resolve(undefined)
+        await disposing
+      }
       await expect(a.ensureHost()).rejects.toThrow('revoked cached host')
       expect(await b.ensureHost()).toBe(hostB)
       expect(launches).toHaveLength(2)

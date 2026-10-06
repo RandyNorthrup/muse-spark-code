@@ -28,6 +28,9 @@ export interface MuseCodeAccountHome {
   readonly account: string
   /** The migrated default keeps the CLI's existing home and sign-in. */
   readonly configHome: string | undefined
+  /** Local request ownership; neither field is part of an MSP frame. */
+  readonly generation: number
+  readonly signal: AbortSignal
   readonly assertCurrent: () => void
   readonly observeUsage: (usage: SubscriptionUsage) => void
 }
@@ -61,6 +64,7 @@ interface AccountHomesDeps {
 
 export class MuseCodeAccountHomes implements AccountLimitsReader {
   private readonly generations = new Map<string, number>()
+  private readonly lifetimes = new Map<string, AbortController>()
   private readonly homes = new WeakSet<MuseCodeAccountHome>()
   private readonly usage = new Map<string, SubscriptionUsage>()
 
@@ -128,6 +132,11 @@ export class MuseCodeAccountHomes implements AccountLimitsReader {
         ? undefined
         : p.join(this.deps.storageRoot, 'muse-code-accounts', this.deps.provider, account)
     const generation = this.generations.get(account) ?? 0
+    let lifetime = this.lifetimes.get(account)
+    if (lifetime === undefined) {
+      lifetime = new AbortController()
+      this.lifetimes.set(account, lifetime)
+    }
     const assertCurrent = () => {
       if (JSON.stringify(this.evidence()) !== stamp)
         throw new Error(UI_TEXT.accounts.museCodeUnavailable)
@@ -147,6 +156,8 @@ export class MuseCodeAccountHomes implements AccountLimitsReader {
       provider: this.deps.provider,
       account,
       configHome,
+      generation,
+      signal: lifetime.signal,
       assertCurrent,
       observeUsage: (usage: SubscriptionUsage) => {
         assertCurrent()
@@ -177,6 +188,9 @@ export class MuseCodeAccountHomes implements AccountLimitsReader {
   public invalidate(account: string): void {
     this.generations.set(account, (this.generations.get(account) ?? 0) + 1)
     this.usage.delete(account)
+    const lifetime = this.lifetimes.get(account)
+    this.lifetimes.delete(account)
+    lifetime?.abort()
   }
 
   /** The raw captured subscription row; never clamp its displayed percentage. */

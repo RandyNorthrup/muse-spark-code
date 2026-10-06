@@ -235,6 +235,29 @@ describe('M108 Muse Code isolated account homes', () => {
     }).toThrow(UI_TEXT.accounts.invalidAccount)
   })
 
+  it('revokes all leases of one generation while keeping other accounts and replacement leases live', async () => {
+    const s = setup()
+    const work = await s.homes.prepare('work')
+    const sameGeneration = await s.homes.prepare('work')
+    const personal = await s.homes.prepare('personal')
+    expect(work.generation).toBe(0)
+    expect(work.signal).toBe(sameGeneration.signal)
+    s.homes.invalidate('work')
+    expect(work.signal.aborted).toBe(true)
+    expect(sameGeneration.signal.aborted).toBe(true)
+    expect(personal.signal.aborted).toBe(false)
+    const replacement = await s.homes.prepare('work')
+    expect(replacement.generation).toBe(1)
+    expect(replacement.signal.aborted).toBe(false)
+    expect(replacement.signal).not.toBe(work.signal)
+    expect(() => {
+      work.assertCurrent()
+    }).toThrow(UI_TEXT.accounts.invalidAccount)
+    expect(() => {
+      replacement.assertCurrent()
+    }).not.toThrow()
+  })
+
   it('rechecks capture and membership after asynchronous configuration copying', async () => {
     const s = setup()
     const ready = Promise.withResolvers<undefined>()

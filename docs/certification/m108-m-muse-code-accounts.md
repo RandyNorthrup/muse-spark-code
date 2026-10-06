@@ -1,5 +1,120 @@
 # M108 M — Muse Code accounts
 
+## FIXM108M review repairs (2026-10-06)
+
+Read the complete overriding rig brief, shared rules and RVM108M report at
+base `1d17d7c72`. No P1 or P3; both P2 findings are in scope. Repair the local
+command channel's lease generation, dispatch/retry/completion fences and
+in-flight refusal on invalidation/close, plus the platform-aware credential
+path assertion. Do not change captured wire shapes or enable multi-account
+support. Tests and byte-exact mutation/restoration receipts follow below.
+PLAN M108 and §7/§9 record this scope and the installed composition boundary.
+W retains CHANGELOG/reference/host-API ownership; its changelog entry should
+say that revoked Muse Code account sessions now refuse pending/new commands
+and retries, and credential-path validation respects Windows path rules.
+
+### Findings and resulting behavior
+
+| RVM108M finding                                                   | Disposition                                                                                                                                                                                                                                                                                                     | Regression                                                                                                                                                                                                                                                                                                 |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2: revoked accounts can still dispatch through retained sessions | **Fixed.** `MuseCodeAccountHome` exposes its immutable local generation and revocation signal. Every shared command/request carries that generation locally. `MuseCodeHost` checks account authority before dispatch/retry and after asynchronous replies, and refuses pending requests on revocation or close. | Host tests cover retained-session and host dispatch, a pending turn racing a switch with a late acknowledgement, reply-time revocation, retry backoff, close, and stale generation. The manager's two-account fake-CLI regression holds shutdown open and refuses submission through its retained session. |
+| P2: credential-path assertion fails with Windows separators       | **Fixed.** Normalize separators on both actual and expected paths, then use the existing `isSamePath` helper for platform-specific normalization/case.                                                                                                                                                          | `uses one win32 account home for serve and credential inspection, ignoring account overrides` reproduces Windows-native path shape on macmini; companion darwin/linux cases and case-sensitivity assertions pass.                                                                                          |
+
+The original source failed eight new/extended regression assertions: lease
+generation was absent, five host command lifecycle cases failed, the retained
+manager session reported a started turn, and the Windows-shaped credential
+comparison disagreed only on separators. This was a complete three-file run
+with the default timeout. Two early async assertion handlers also needed a
+test-harness correction; settlement is now recorded before asserting and
+cleanup awaits it, so failing guards produce named assertions without orphaned
+rejections. No test is skipped, filtered, or given a raised timeout.
+
+The additional generation mismatch regression is proved by the targeted red
+drill below. Host close preserves the existing unresponsive-host diagnostic
+while refusing all dispatch; the existing CLI-recovery tests pass unchanged.
+Generation/signal metadata never enters an MSP frame. No captured response
+shape, credential handling, paid gate, daily budget or installed feature
+availability changes. No RVM108M finding remains unresolved.
+
+### Executed FIXM108M guard drills
+
+Each drill ran the complete listed owning file(s), at most three workers,
+repository default timeout, no test-name filter. All nine exited **1** with
+named assertion failures. The runner saved bytes before each mutation,
+restored in `finally`, and verified both byte equality and SHA-256 after
+every run. The first authority drill also ran the complete manager file.
+
+| Drill                      | Deliberate break                                                        | Named failing regression                                                                                                                                                               |
+| -------------------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `M-COMMAND-AUTHORITY`      | Remove the shared channel's account-current check.                      | `refuses host and retained-session commands before dispatch after lease revocation`; manager `serves two accounts in separate fake CLI processes with their own environment and usage` |
+| `M-COMMAND-GENERATION`     | Remove generation matching.                                             | `refuses a command whose captured lease generation no longer matches the host account`                                                                                                 |
+| `M-PENDING-CANCELLATION`   | Stop subscribing pending requests to lease/host abort.                  | `refuses an in-flight old-account turn on a switch and ignores its late acknowledgement`                                                                                               |
+| `M-HOME-REVOKE-SIGNAL`     | Do not abort an invalidated home's lifetime.                            | `revokes all leases of one generation while keeping other accounts and replacement leases live`                                                                                        |
+| `M-HOME-FRESH-SIGNAL`      | Keep the revoked controller for replacement leases.                     | `revokes all leases of one generation while keeping other accounts and replacement leases live`                                                                                        |
+| `M-CLOSE-PENDING`          | Do not abort pending requests when close begins.                        | `refuses pending and new commands as soon as host close starts`                                                                                                                        |
+| `M-RETRY-DISPATCH`         | Remove the per-attempt fence at the shared request writer.              | `refuses retry dispatch when the lease is revoked during backoff`                                                                                                                      |
+| `M-REPLY-AUTHORITY`        | Remove the response/completion authority fences.                        | `rechecks the lease after a reply before reporting a started turn`                                                                                                                     |
+| `M-PATH-NATIVE-COMPARISON` | Restore actual-only separator normalization and strict string equality. | `uses one win32 account home for serve and credential inspection, ignoring account overrides`                                                                                          |
+
+Restored FIXM108M SHA-256 values:
+
+- `src/core/backends/musecode/MuseCodeHost.ts`: `5dbfdd0d7105f995b675a8855839c9b262c2e413218c7ce6a2e289598192dbb0`.
+- `src/core/backends/musecode/accountHomes.ts`: `fa19529b92fe10580bf3028dbdb91c3c8ff08989d981014748c1693f2c0bfd39`.
+- `test/unit/museCodeBackendManager.test.ts`: `dfba0795958cb7456810743a4c1427745effea26493292c2941b53286921ec3b`.
+
+Final direct macmini test verification after all mutations/restorations:
+
+- `npx vitest run test/unit/accountHomes.test.ts test/unit/MuseCodeHost.test.ts test/unit/museCodeBackendManager.test.ts --maxWorkers=3`: exit **0**, **179 passed** (51 homes, 104 host, 24 manager).
+- `npx vitest run test/unit/launch.test.ts --maxWorkers=3`: exit **0**, **26 passed**. **205 total**; default timeouts throughout.
+- Changed-file ESLint, six TypeScript files, `--max-warnings=0`: exit **0**, no suppression, cast, `any` or new dependency.
+
+### Final FIXM108M static/build receipts
+
+All checks ran directly on macmini. Source bytes are unchanged after the
+final tests and red-drill restorations.
+
+| Check                         | Result                                                                                                                                                                                                                                      |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck`           | Exit **0**, all five projects, after the final cancellation implementation.                                                                                                                                                                 |
+| `npm run deadcode`            | Exit **0**, only the existing vendor/axe-core configuration hints.                                                                                                                                                                          |
+| `npx jscpd`                   | Exit **0**, **1,191 files, zero clones**, unchanged zero threshold.                                                                                                                                                                         |
+| `node scripts/check-l10n.mjs` | Exit **0**, **14 tables, 164 manifest strings, 607 source files, zero problems**.                                                                                                                                                           |
+| `npm run check:host-api`      | Exit **1**, the existing W-owned `M-W-HOST-API` count drift only: crypto 46→47, path 84→85. **332 VS Code APIs, 31 vscode importers, 25 Node built-ins, 61 theme variables**; no boundary violation. PLAN §7 records this bounded deferral. |
+| `npm run build`               | Exit **0**: every size cap, split guard, host-global check and **83-package** notices check passed.                                                                                                                                         |
+
+Production sizes: activation **441.8/600 KiB**, Model API **450.1/475 KiB**,
+ACP **820.1/850 KiB**, checkpoint **76.9/225 KiB**, webview startup including
+static imports **897.3/900 KiB**, deferred webview JS **49.7/50 KiB**. No cap
+changed. The account-home owner remains outside shipped bundle graphs;
+existing imports of its lease port stay type-only. The command fence adds
+about **0.8 KiB** to activation and ACP without introducing a new bundle.
+
+The overriding rig/shared brief forbids full `quality`/coverage, merges,
+network, credential reads and live/paid calls. Those integrated gates and the
+real capture/editor qualifications stay with the lead/W. Native Windows and
+Linux were not run here; the three-platform path cases are injected on macmini.
+No review finding is deferred. W retains the existing count-record and
+CHANGELOG/help/capture/binding handoffs described above; no gate is weakened.
+
+### Composition boundary and named residual
+
+**FIXM108M-DISPATCHED-WORK (M-U-H-LIFETIME / W):** a request already written
+to the old CLI may have started work. Refusing its local promise does not
+prove that work stopped or erased its usage/liability. W/U/H must synchronously
+invalidate the old lease and await its manager's process disposal before
+adopting another account. The shared channel refuses later dispatch/retry and
+late success immediately; switching is still not bound in an installed
+surface. Safe for now: Q-M108's capture and the private-home/config-copy and
+editor/runtime bindings remain absent, and multi-account Muse Code stays
+disabled. Follow-up: certify the real account-switch/disposal boundary and
+already-dispatched usage attribution in every enabled editor/runtime. PLAN
+§9 records the same residual; this is an integration requirement, not an
+unfixed RVM108M finding.
+
+The remainder preserves the original implementation's receipts. The
+FIXM108M counts, hashes and command-lifetime behavior above supersede its
+pre-review values; the existing capture and integration handoffs still apply.
+
 Worktree `/Users/randy/lanes/M108M`, branch `m108/m`, base `291fc547a`,
 macmini, 2026-10-06. Read the rig brief, shared `codex/common.md`, AGENTS,
 PLAN D88 and M108 in full, Q-M108, the terms research, lane-0 policy source

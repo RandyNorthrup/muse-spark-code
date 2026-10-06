@@ -420,6 +420,9 @@ interface CommandChannel {
   readonly timeouts: CommandTimeouts
   readonly log: CoreLogger
   readonly liveness: HostLiveness
+  readonly generation: number
+  readonly signal: AbortSignal
+  readonly assertCurrent: (generation: number) => void
 }
 
 /** An MSP refusal that admitted nothing, so the same command may be sent again. */
@@ -489,6 +492,7 @@ function mspInput(parts: readonly TurnPart[]): readonly TurnPart[] {
  */
 async function sendCommand(
   channel: CommandChannel,
+  generation: number,
   method: string,
   params: Record<string, unknown>,
   commandId: string,
@@ -502,7 +506,7 @@ async function sendCommand(
   }
   for (let attempt = 1; ; attempt += 1) {
     try {
-      const ack = await answered(channel, method, commandParams)
+      const ack = await answered(channel, generation, method, commandParams)
       if (ack['commandId'] !== undefined && ack['commandId'] !== commandId) {
         throw new Error(`${method} ack did not echo its commandId ${commandId}`)
       }
@@ -527,14 +531,18 @@ async function sendCommand(
  */
 async function answered(
   channel: CommandChannel,
+  generation: number,
   method: string,
   params: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
+  channel.assertCurrent(generation)
   try {
     const answer = await channel.connection.request(method, params)
+    channel.assertCurrent(generation)
     channel.liveness.heard()
     return answer
   } catch (error: unknown) {
+    channel.assertCurrent(generation)
     if (error instanceof MspError) {
       channel.liveness.heard()
     }
@@ -548,6 +556,7 @@ async function answered(
  */
 async function requestWithin<T>(
   channel: CommandChannel,
+  generation: number,
   method: string,
   timeoutMs: number,
   request: () => Promise<T>,
@@ -556,17 +565,30 @@ async function requestWithin<T>(
     channel.log.info(`${method} was not sent: Muse Code is not answering`)
     throw new Error(UI_TEXT.museCodeNotAnswering)
   }
+  channel.assertCurrent(generation)
+  let onAbort: (() => void) | undefined
+  const cancelled = new Promise<never>((_resolve, reject) => {
+    onAbort = () => {
+      reject(new Error(UI_TEXT.questionCancelled))
+    }
+    channel.signal.addEventListener('abort', onAbort, { once: true })
+  })
   try {
-    return await withDeadline(
-      request(),
+    const answer = await withDeadline(
+      Promise.race([request(), cancelled]),
       timeoutMs,
       `Muse Code did not answer ${method} within ${String(Math.round(timeoutMs / MILLISECONDS_PER_SECOND))} s`,
     )
+    channel.assertCurrent(generation)
+    return answer
   } catch (error: unknown) {
+    channel.assertCurrent(generation)
     if (error instanceof DeadlineError) {
       channel.liveness.missed(method)
     }
     throw error
+  } finally {
+    if (onAbort !== undefined) channel.signal.removeEventListener('abort', onAbort)
   }
 }
 
@@ -577,6 +599,7 @@ async function requestWithin<T>(
  */
 async function commandWithin(
   channel: CommandChannel,
+  generation: number,
   method: string,
   params: Record<string, unknown>,
   commandId: string = channel.connection.mintCommandId(),
@@ -585,8 +608,8 @@ async function commandWithin(
   const timeoutMs = MSP_LONG_COMMANDS.has(method) ? timeouts.longMs : timeouts.normalMs
   const startedAt = Date.now()
   try {
-    const answer = await requestWithin(channel, method, timeoutMs, () =>
-      sendCommand(channel, method, params, commandId),
+    const answer = await requestWithin(channel, generation, method, timeoutMs, () =>
+      sendCommand(channel, generation, method, params, commandId),
     )
     log.trace(`${method} answered in ${String(Date.now() - startedAt)} ms`)
     return answer
@@ -659,6 +682,7 @@ export class MuseSession implements AgentSession {
   private readonly unqueuedTurns = new Set<string>()
   private readonly log: CoreLogger
   private readonly timeouts: CommandTimeouts
+  private readonly leaseGeneration: number
 
   public constructor(
     public readonly sessionId: string,
@@ -670,12 +694,16 @@ export class MuseSession implements AgentSession {
   ) {
     this.log = channel.log
     this.timeouts = channel.timeouts
+    this.leaseGeneration = channel.generation
   }
 
   /** One MSP command against this session with a freshly minted commandId. */
   private async command(method: string, params: Record<string, unknown>): Promise<unknown> {
     try {
-      return await commandWithin(this.channel, method, { sessionId: this.sessionId, ...params })
+      return await commandWithin(this.channel, this.leaseGeneration, method, {
+        sessionId: this.sessionId,
+        ...params,
+      })
     } catch (error: unknown) {
       this.noteLogFault(error)
       throw error
@@ -1271,6 +1299,7 @@ export class MuseCodeHost implements AgentHost {
   private readonly usageListeners = new Set<(usage: SubscriptionUsage) => void>()
   /** Set by `close()`: the exit that follows is the extension's, not a crash (D25). */
   private isClosing = false
+  private readonly commandLifetime = new AbortController()
   /**
    * Session starts, resumes and forks in flight (D26). The SDK hands every
    * frame of one read to the handlers before the awaiting command resumes,
@@ -1298,6 +1327,17 @@ export class MuseCodeHost implements AgentHost {
       connection: host.connection,
       timeouts,
       log,
+      generation: accountHome?.generation ?? 0,
+      signal:
+        accountHome === undefined
+          ? this.commandLifetime.signal
+          : AbortSignal.any([this.commandLifetime.signal, accountHome.signal]),
+      assertCurrent: (generation) => {
+        if (this.isClosing) throw new Error(UI_TEXT.questionCancelled)
+        if (generation !== (accountHome?.generation ?? 0))
+          throw new Error(UI_TEXT.accounts.invalidAccount)
+        accountHome?.assertCurrent()
+      },
       liveness: new HostLiveness(
         timeouts.unresponsiveSilenceMs ?? MSP_UNRESPONSIVE_SILENCE_MS,
         log,
@@ -1464,7 +1504,7 @@ export class MuseCodeHost implements AgentHost {
   }
 
   private async command(method: string, params: Record<string, unknown>): Promise<unknown> {
-    return await commandWithin(this.channel, method, params)
+    return await commandWithin(this.channel, this.channel.generation, method, params)
   }
 
   /**
@@ -1611,13 +1651,18 @@ export class MuseCodeHost implements AgentHost {
   private async goalFromView(sessionId: string): Promise<SessionGoal | null> {
     let cursor: string | undefined
     for (let page = 0; page < GOAL_RECOVERY_MAX_PAGES; page += 1) {
-      const raw = await requestWithin(this.channel, VIEW_PAGE, this.timeouts.normalMs, () =>
-        answered(this.channel, VIEW_PAGE, {
-          sessionId,
-          limit: GOAL_RECOVERY_PAGE_LIMIT,
-          direction: 'backward',
-          ...(cursor !== undefined && { cursor }),
-        }),
+      const raw = await requestWithin(
+        this.channel,
+        this.channel.generation,
+        VIEW_PAGE,
+        this.timeouts.normalMs,
+        () =>
+          answered(this.channel, this.channel.generation, VIEW_PAGE, {
+            sessionId,
+            limit: GOAL_RECOVERY_PAGE_LIMIT,
+            direction: 'backward',
+            ...(cursor !== undefined && { cursor }),
+          }),
       )
       const result = viewPageResultSchema.parse(raw)
       for (const frame of result.events.toReversed()) {
@@ -1820,6 +1865,7 @@ export class MuseCodeHost implements AgentHost {
   public async close(): Promise<void> {
     // The exit that follows is the extension's own (D25).
     this.isClosing = true
+    this.commandLifetime.abort()
     // Close the process first: the host emits session/statusChanged for every
     // loaded session on the way down, and those must still find their session.
     await this.host.close()
