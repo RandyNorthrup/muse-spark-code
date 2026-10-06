@@ -44,7 +44,57 @@
     "storageUnavailable": "無法儲存或讀取裝置狀態。新工作已遭封鎖；請保留未解決的工作並修復本機儲存空間。",
     "fingerprintChanged": "裝置指紋已變更。請重新配對；先前未解決的工作仍遭封鎖。",
     "settingsDescription": "在雙方確認指紋並明確選擇本機提供後，啟用配對的區域網路裝置。預設關閉。每台執行裝置保留自己的認證、核准及費用。",
-    "discoveryDescription": "為正在提供工作的配對接收方啟用選用的區域網路探索。預設關閉。僅公告不透明的服務識別碼、連接埠及協定版本；探索不會授予信任。"
+    "discoveryDescription": "為正在提供工作的配對接收方啟用選用的區域網路探索。預設關閉。僅公告不透明的服務識別碼、連接埠及協定版本；探索不會授予信任。",
+    "offHelp": "裝置功能預設關閉。配對與提供工作都需要各自明確的本機選擇。",
+    "importInvitation": "匯入邀請",
+    "importConfirmation": "匯入確認",
+    "peerFingerprint": "對方指紋",
+    "fingerprintMatches": "我已比較兩個螢幕，指紋一致",
+    "confirmFingerprint": "確認指紋",
+    "invalidMessage": "裝置訊息無效或要求失敗。現有工作與費用責任仍會保留。",
+    "localApprovalHelp": "核准與付費同意在執行裝置上要求。請在該裝置上回答；配對不授予核准。",
+    "capacityHelp": "接收資源池已達容量上限。請等待本機證實工作結束；不要重新分配不確定的工作。",
+    "grantHelp": "接收裝置必須核准儲存庫對應、基準快照與本機提供。",
+    "unknown": "未知",
+    "observationHelp": "狀態是最後一次觀察，不能證明工作已停止。",
+    "noOffers": "沒有已核准的提供",
+    "payer": "付款方",
+    "readiness": "模型就緒狀態",
+    "address": "私人位址",
+    "port": "TCP 連接埠",
+    "retryAddress": "儲存位址並以同一配對身分重試",
+    "capHelp": "限制僅適用於此提供視窗。縮小限制在下一個受控邊界生效。",
+    "saveOffer": "檢閱並儲存本機提供",
+    "confirmUnlink": "確認取消連結",
+    "cancel": "取消",
+    "costOwnership": "每台裝置保留自己的登入與費用。本機付費對話框在首次收費前詢問，顯示模型價格與共用每日預算。不轉移裝置群預算或訂閱權益。",
+    "working": "正在等候本機主機…",
+    "retainedLiability": "保留的費用責任：{amount}",
+    "payers": {
+      "subscription": "訂閱",
+      "apiKey": "API 金鑰",
+      "local": "本機",
+      "unknown": "未知"
+    },
+    "readinessStates": {
+      "ready": "就緒",
+      "unavailable": "無法使用",
+      "unknown": "未知"
+    },
+    "unresolvedCount": {
+      "other": "{count} 個未解決的嘗試"
+    },
+    "pool": "資源池",
+    "entry": "項目",
+    "usageKinds": {
+      "known": "已知用量",
+      "estimated": "估計用量",
+      "uncertain": "不確定用量"
+    },
+    "retry": "重試",
+    "renderUnavailable": "裝置無法顯示最新觀測。請重新載入以復原。",
+    "unpairedHelp": "此裝置尚未配對。提供工作前請將兩台裝置配對。",
+    "revokedHelp": "此配對已撤銷。請重新配對；先前未解決的工作仍被封鎖。"
   },
   "untitledConversation": "未命名",
   "crashTitle": "面板發生錯誤",

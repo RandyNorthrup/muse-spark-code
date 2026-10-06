@@ -20,6 +20,15 @@ import { restoredUiState } from './state/snapshot'
 import { createUiStore, listenToHost, persistStore, type UiStore } from './state/store'
 import './styles.css'
 
+const DevicesApp = lazy(async () => {
+  try {
+    const { DevicesApp } = await import('./models/sections/agents/DevicesApp')
+    return { default: DevicesApp }
+  } catch {
+    return { default: DevicesUnavailable }
+  }
+})
+
 const TasksApp = lazy(async () => {
   const { TasksApp } = await import('./TasksApp')
   return { default: TasksApp }
@@ -64,10 +73,56 @@ function CrashReportDialog({
   )
 }
 
-if (document.body.dataset['surface'] === 'tasks') {
+if (document.body.dataset['surface'] === 'devices') {
+  mountDevices(rootElement)
+} else if (document.body.dataset['surface'] === 'tasks') {
   mountTasks(rootElement)
 } else {
   mountChat(rootElement)
+}
+
+function DevicesUnavailable() {
+  return (
+    <main className="body">
+      <section className="gate" role="alert" aria-labelledby="devices-load-title">
+        <h1 id="devices-load-title" className="gate-title">
+          {UI_TEXT.devices.title}
+        </h1>
+        <p className="gate-detail">{UI_TEXT.devices.bundleUnavailable}</p>
+        <button
+          type="button"
+          className="button-primary"
+          onClick={() => {
+            window.location.reload()
+          }}
+        >
+          {UI_TEXT.crashReload}
+        </button>
+      </section>
+    </main>
+  )
+}
+
+function mountDevices(element: Element): void {
+  const api = acquireVsCodeApi()
+  const tableError = installEmbeddedTable(document)
+  if (tableError !== undefined) throw tableError
+  createRoot(element).render(
+    <Suspense
+      fallback={
+        <main>
+          <p role="status">{UI_TEXT.loadingOutput}</p>
+        </main>
+      }
+    >
+      <DevicesApp
+        messages={window}
+        postMessage={(message) => {
+          api.postMessage(message)
+        }}
+      />
+    </Suspense>,
+  )
 }
 
 function mountTasks(element: Element): void {

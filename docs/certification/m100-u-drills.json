@@ -1,0 +1,639 @@
+[
+  {
+    "index": 0,
+    "guard": "host request schema",
+    "source": "src/host/devices/deviceMessageHandler.ts",
+    "owningTest": "test/unit/deviceMessageHandler.test.ts",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/deviceMessageHandler.test.ts > M100 U local host handler > validates unknown incoming messages before calling the injected authority: {\"type\":\"sendMessage\",\"requestId\":\"22222222222222222222222222222222\",\"action\":{\"kind\":\"pair\"}}",
+      "FAIL  test/unit/deviceMessageHandler.test.ts > M100 U local host handler > validates unknown incoming messages before calling the injected authority: {\"type\":\"deviceRequest\",\"requestId\":\"22222222222222222222222222222222\",\"action\":{\"kind\":\"offer\",\"paidConsent\":true}}",
+      "FAIL  test/unit/deviceMessageHandler.test.ts > M100 U local host handler > validates unknown incoming messages before calling the injected authority: {\"type\":\"deviceRequest\",\"requestId\":\"22222222222222222222222222222222\",\"action\":{\"kind\":\"pair\"},\"secret\":\"private-sentinel\"}",
+      "FAIL  test/unit/deviceMessageHandler.test.ts > M100 U local host handler > validates unknown incoming messages before calling the injected authority: {\"type\":\"deviceRequest\",\"requestId\":\"invalid\",\"action\":{\"kind\":\"pair\"}}"
+    ],
+    "beforeSha256": "c1678cc2bdd958df9bc1cfb04e8c9146a646499ea53473f777ab5ed7389c1872",
+    "restoredSha256": "c1678cc2bdd958df9bc1cfb04e8c9146a646499ea53473f777ab5ed7389c1872",
+    "byteExact": true
+  },
+  {
+    "index": 1,
+    "guard": "host response schema",
+    "source": "src/host/devices/deviceMessageHandler.ts",
+    "owningTest": "test/unit/deviceMessageHandler.test.ts",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/deviceMessageHandler.test.ts > M100 U local host handler > rejects malformed or private response fields without reflecting them"
+    ],
+    "beforeSha256": "c1678cc2bdd958df9bc1cfb04e8c9146a646499ea53473f777ab5ed7389c1872",
+    "restoredSha256": "c1678cc2bdd958df9bc1cfb04e8c9146a646499ea53473f777ab5ed7389c1872",
+    "byteExact": true
+  },
+  {
+    "index": 2,
+    "guard": "host response correlation",
+    "source": "src/host/devices/deviceMessageHandler.ts",
+    "owningTest": "test/unit/deviceMessageHandler.test.ts",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/deviceMessageHandler.test.ts > M100 U local host handler > rejects a response bound to a different request"
+    ],
+    "beforeSha256": "c1678cc2bdd958df9bc1cfb04e8c9146a646499ea53473f777ab5ed7389c1872",
+    "restoredSha256": "c1678cc2bdd958df9bc1cfb04e8c9146a646499ea53473f777ab5ed7389c1872",
+    "byteExact": true
+  },
+  {
+    "index": 3,
+    "guard": "host failure scrub",
+    "source": "src/host/devices/deviceMessageHandler.ts",
+    "owningTest": "test/unit/deviceMessageHandler.test.ts",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/deviceMessageHandler.test.ts > M100 U local host handler > scrubs unexpected adapter failures to a fixed word"
+    ],
+    "beforeSha256": "c1678cc2bdd958df9bc1cfb04e8c9146a646499ea53473f777ab5ed7389c1872",
+    "restoredSha256": "c1678cc2bdd958df9bc1cfb04e8c9146a646499ea53473f777ab5ed7389c1872",
+    "byteExact": true
+  },
+  {
+    "index": 4,
+    "guard": "view state schema",
+    "source": "src/webview/models/sections/agents/DevicesView.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > rejects malformed observations before rendering controls or invoking a port"
+    ],
+    "beforeSha256": "156296f2f0c591d0131274532be91d597f97f30ad2a31eab2fd6a2f0ae2227cf",
+    "restoredSha256": "156296f2f0c591d0131274532be91d597f97f30ad2a31eab2fd6a2f0ae2227cf",
+    "byteExact": true
+  },
+  {
+    "index": 5,
+    "guard": "Devices off / unoffered visibility",
+    "source": "src/webview/models/sections/agents/DevicesView.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > keeps ordinary chat empty without an approved offer: {\"enabled\":false}",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > keeps ordinary chat empty without an approved offer: {\"enabled\":true,\"discoveryEnabled\":false,\"devices\":[]}",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > hides a paired but unoffered device and its discovery control"
+    ],
+    "beforeSha256": "156296f2f0c591d0131274532be91d597f97f30ad2a31eab2fd6a2f0ae2227cf",
+    "restoredSha256": "156296f2f0c591d0131274532be91d597f97f30ad2a31eab2fd6a2f0ae2227cf",
+    "byteExact": true
+  },
+  {
+    "index": 6,
+    "guard": "pending UI action guard",
+    "source": "src/webview/models/sections/agents/DevicesView.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > prevents a pending action from being superseded by a submitted pairing form"
+    ],
+    "beforeSha256": "156296f2f0c591d0131274532be91d597f97f30ad2a31eab2fd6a2f0ae2227cf",
+    "restoredSha256": "156296f2f0c591d0131274532be91d597f97f30ad2a31eab2fd6a2f0ae2227cf",
+    "byteExact": true
+  },
+  {
+    "index": 7,
+    "guard": "outgoing UI action schema",
+    "source": "src/webview/models/sections/agents/DevicesView.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > validates outgoing board identifiers before invoking the injected host"
+    ],
+    "beforeSha256": "156296f2f0c591d0131274532be91d597f97f30ad2a31eab2fd6a2f0ae2227cf",
+    "restoredSha256": "156296f2f0c591d0131274532be91d597f97f30ad2a31eab2fd6a2f0ae2227cf",
+    "byteExact": true
+  },
+  {
+    "index": 8,
+    "guard": "view response schema",
+    "source": "src/webview/models/sections/agents/DevicesView.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > rejects malformed adapter replies and preserves the previous caps and liabilities"
+    ],
+    "beforeSha256": "156296f2f0c591d0131274532be91d597f97f30ad2a31eab2fd6a2f0ae2227cf",
+    "restoredSha256": "156296f2f0c591d0131274532be91d597f97f30ad2a31eab2fd6a2f0ae2227cf",
+    "byteExact": true
+  },
+  {
+    "index": 9,
+    "guard": "view response correlation",
+    "source": "src/webview/models/sections/agents/DevicesView.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > never sends a second local action while a response is pending and rejects mismatched replies",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > prevents a pending action from being superseded by a submitted pairing form"
+    ],
+    "beforeSha256": "156296f2f0c591d0131274532be91d597f97f30ad2a31eab2fd6a2f0ae2227cf",
+    "restoredSha256": "156296f2f0c591d0131274532be91d597f97f30ad2a31eab2fd6a2f0ae2227cf",
+    "byteExact": true
+  },
+  {
+    "index": 10,
+    "guard": "retained occupancy blocks Resume",
+    "source": "src/webview/models/sections/agents/DeviceCard.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > renders observed connected status without a liveness claim",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > renders observed paused status without a liveness claim"
+    ],
+    "beforeSha256": "d8e60bd094642f2ae01416cc1093348c75a991c0b67e2f435a6e2b23d0729455",
+    "restoredSha256": "d8e60bd094642f2ae01416cc1093348c75a991c0b67e2f435a6e2b23d0729455",
+    "byteExact": true
+  },
+  {
+    "index": 11,
+    "guard": "offline/uncertain status blocks Resume",
+    "source": "src/webview/models/sections/agents/DeviceCard.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > does not resume offline merely because its occupancy count is zero",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > does not resume uncertain merely because its occupancy count is zero",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > does not resume incompatible merely because its occupancy count is zero",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > does not resume blocked-or-unreachable merely because its occupancy count is zero"
+    ],
+    "beforeSha256": "d8e60bd094642f2ae01416cc1093348c75a991c0b67e2f435a6e2b23d0729455",
+    "restoredSha256": "d8e60bd094642f2ae01416cc1093348c75a991c0b67e2f435a6e2b23d0729455",
+    "byteExact": true
+  },
+  {
+    "index": 12,
+    "guard": "reconciled board binding blocks Resume",
+    "source": "src/webview/models/sections/agents/DeviceCard.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > requires the saved reconciled board and never resumes offline or uncertain work"
+    ],
+    "beforeSha256": "d8e60bd094642f2ae01416cc1093348c75a991c0b67e2f435a6e2b23d0729455",
+    "restoredSha256": "d8e60bd094642f2ae01416cc1093348c75a991c0b67e2f435a6e2b23d0729455",
+    "byteExact": true
+  },
+  {
+    "index": 13,
+    "guard": "unsupported host refuses Offer",
+    "source": "src/webview/models/sections/agents/DeviceCard.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > refuses Offer lanes on an unsupported host"
+    ],
+    "beforeSha256": "d8e60bd094642f2ae01416cc1093348c75a991c0b67e2f435a6e2b23d0729455",
+    "restoredSha256": "d8e60bd094642f2ae01416cc1093348c75a991c0b67e2f435a6e2b23d0729455",
+    "byteExact": true
+  },
+  {
+    "index": 14,
+    "guard": "private address schema",
+    "source": "src/webview/models/sections/agents/DeviceCard.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > validates private addresses at the component boundary before sending"
+    ],
+    "beforeSha256": "d8e60bd094642f2ae01416cc1093348c75a991c0b67e2f435a6e2b23d0729455",
+    "restoredSha256": "d8e60bd094642f2ae01416cc1093348c75a991c0b67e2f435a6e2b23d0729455",
+    "byteExact": true
+  },
+  {
+    "index": 15,
+    "guard": "cap range / integer schema",
+    "source": "src/webview/models/sections/agents/DeviceCard.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > validates editable caps at the component boundary before sending: {\"workers\":33}",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > validates editable caps at the component boundary before sending: {\"processes\":1.5}",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > validates editable caps at the component boundary before sending: {\"spendUsd\":501}",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > validates editable caps at the component boundary before sending: {\"artifactBytes\":67108865}"
+    ],
+    "beforeSha256": "d8e60bd094642f2ae01416cc1093348c75a991c0b67e2f435a6e2b23d0729455",
+    "restoredSha256": "d8e60bd094642f2ae01416cc1093348c75a991c0b67e2f435a6e2b23d0729455",
+    "byteExact": true
+  },
+  {
+    "index": 16,
+    "guard": "nonempty and executable offer guard",
+    "source": "src/webview/models/sections/agents/DeviceCard.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > edits caps locally, requires a nonempty offer and lets the host select the repository"
+    ],
+    "beforeSha256": "d8e60bd094642f2ae01416cc1093348c75a991c0b67e2f435a6e2b23d0729455",
+    "restoredSha256": "d8e60bd094642f2ae01416cc1093348c75a991c0b67e2f435a6e2b23d0729455",
+    "byteExact": true
+  },
+  {
+    "index": 17,
+    "guard": "explicit fingerprint comparison",
+    "source": "src/webview/models/sections/agents/DevicePairing.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > pairs by keyboard text, focuses comparison and requires the full explicit fingerprint check"
+    ],
+    "beforeSha256": "9af09b04f709db50b12dec413562a1c8088566edd6559eb0655e16877130a61c",
+    "restoredSha256": "9af09b04f709db50b12dec413562a1c8088566edd6559eb0655e16877130a61c",
+    "byteExact": true
+  },
+  {
+    "index": 18,
+    "guard": "fingerprint comparison focus",
+    "source": "src/webview/models/sections/agents/DevicePairing.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > pairs by keyboard text, focuses comparison and requires the full explicit fingerprint check"
+    ],
+    "beforeSha256": "9af09b04f709db50b12dec413562a1c8088566edd6559eb0655e16877130a61c",
+    "restoredSha256": "9af09b04f709db50b12dec413562a1c8088566edd6559eb0655e16877130a61c",
+    "byteExact": true
+  },
+  {
+    "index": 19,
+    "guard": "pairing failure refuses progress",
+    "source": "src/webview/models/sections/agents/DevicePairing.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > does not advance pairing when the local host reports a failure"
+    ],
+    "beforeSha256": "9af09b04f709db50b12dec413562a1c8088566edd6559eb0655e16877130a61c",
+    "restoredSha256": "9af09b04f709db50b12dec413562a1c8088566edd6559eb0655e16877130a61c",
+    "byteExact": true
+  },
+  {
+    "index": 20,
+    "guard": "pasted confirmation schema",
+    "source": "src/webview/models/sections/agents/DevicePairing.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > validates a pasted confirmation before calling the local action boundary"
+    ],
+    "beforeSha256": "9af09b04f709db50b12dec413562a1c8088566edd6559eb0655e16877130a61c",
+    "restoredSha256": "9af09b04f709db50b12dec413562a1c8088566edd6559eb0655e16877130a61c",
+    "byteExact": true
+  },
+  {
+    "index": 21,
+    "guard": "blank invitation refuses request",
+    "source": "src/webview/models/sections/agents/DevicePairing.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > refuses a blank invitation at the component boundary"
+    ],
+    "beforeSha256": "9af09b04f709db50b12dec413562a1c8088566edd6559eb0655e16877130a61c",
+    "restoredSha256": "9af09b04f709db50b12dec413562a1c8088566edd6559eb0655e16877130a61c",
+    "byteExact": true
+  },
+  {
+    "index": 22,
+    "guard": "task view schema",
+    "source": "src/webview/models/sections/agents/DeviceTaskDetails.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > rejects invalid task boundaries rather than rendering a fake success"
+    ],
+    "beforeSha256": "7cf46201d58f41b0e6e69977a670eb00eb4f4b3286223d5cdf47057778e21f31",
+    "restoredSha256": "7cf46201d58f41b0e6e69977a670eb00eb4f4b3286223d5cdf47057778e21f31",
+    "byteExact": true
+  },
+  {
+    "index": 23,
+    "guard": "peer task text rendered inert",
+    "source": "src/webview/models/sections/agents/DeviceTaskDetails.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > renders peer labels and branch/usage as inert text with route attribution"
+    ],
+    "beforeSha256": "7cf46201d58f41b0e6e69977a670eb00eb4f4b3286223d5cdf47057778e21f31",
+    "restoredSha256": "7cf46201d58f41b0e6e69977a670eb00eb4f4b3286223d5cdf47057778e21f31",
+    "byteExact": true
+  },
+  {
+    "index": 24,
+    "guard": "task pair/device binding",
+    "source": "src/webview/models/sections/agents/DevicesView.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > shows tasks only for their exact saved device and pair"
+    ],
+    "beforeSha256": "156296f2f0c591d0131274532be91d597f97f30ad2a31eab2fd6a2f0ae2227cf",
+    "restoredSha256": "156296f2f0c591d0131274532be91d597f97f30ad2a31eab2fd6a2f0ae2227cf",
+    "byteExact": true
+  },
+  {
+    "index": 25,
+    "guard": "blocked status mapping",
+    "source": "src/webview/models/sections/agents/devicePresentation.ts",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > renders observed blocked-or-unreachable status without a liveness claim"
+    ],
+    "beforeSha256": "37ef41b2a3ea553c9465cc4bdb864d63116d6d4c01801743eb9c81590ee8e0b1",
+    "restoredSha256": "37ef41b2a3ea553c9465cc4bdb864d63116d6d4c01801743eb9c81590ee8e0b1",
+    "byteExact": true
+  },
+  {
+    "index": 26,
+    "guard": "storage recovery mapping",
+    "source": "src/webview/models/sections/agents/devicePresentation.ts",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > does not advance pairing when the local host reports a failure",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > maps storage to fixed local recovery text"
+    ],
+    "beforeSha256": "37ef41b2a3ea553c9465cc4bdb864d63116d6d4c01801743eb9c81590ee8e0b1",
+    "restoredSha256": "37ef41b2a3ea553c9465cc4bdb864d63116d6d4c01801743eb9c81590ee8e0b1",
+    "byteExact": true
+  },
+  {
+    "index": 27,
+    "guard": "unreachable OS/admin recovery",
+    "source": "src/webview/models/sections/agents/DeviceCard.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > shows the actual listener, interface and endpoint with usable OS/admin recovery"
+    ],
+    "beforeSha256": "d8e60bd094642f2ae01416cc1093348c75a991c0b67e2f435a6e2b23d0729455",
+    "restoredSha256": "d8e60bd094642f2ae01416cc1093348c75a991c0b67e2f435a6e2b23d0729455",
+    "byteExact": true
+  },
+  {
+    "index": 28,
+    "guard": "unlink warns before revoke",
+    "source": "src/webview/models/sections/agents/DeviceCard.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > warns before unlink, cancels with Escape and restores focus to the opener"
+    ],
+    "beforeSha256": "d8e60bd094642f2ae01416cc1093348c75a991c0b67e2f435a6e2b23d0729455",
+    "restoredSha256": "d8e60bd094642f2ae01416cc1093348c75a991c0b67e2f435a6e2b23d0729455",
+    "byteExact": true
+  },
+  {
+    "index": 29,
+    "guard": "unlink Escape restores focus",
+    "source": "src/webview/models/sections/agents/DeviceCard.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > warns before unlink, cancels with Escape and restores focus to the opener"
+    ],
+    "beforeSha256": "d8e60bd094642f2ae01416cc1093348c75a991c0b67e2f435a6e2b23d0729455",
+    "restoredSha256": "d8e60bd094642f2ae01416cc1093348c75a991c0b67e2f435a6e2b23d0729455",
+    "byteExact": true
+  },
+  {
+    "index": 30,
+    "guard": "bridge incoming schema",
+    "source": "src/webview/models/sections/agents/DevicesApp.tsx",
+    "owningTest": "test/unit/DevicesApp.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesApp.test.tsx > M100 U explicit webview bridge > subscribes without a ready/probe request and validates unsolicited observations"
+    ],
+    "beforeSha256": "8009efdf2ba0b0f515798d8df337b67d587f3c0eb92e934194a8fa97be471469",
+    "restoredSha256": "8009efdf2ba0b0f515798d8df337b67d587f3c0eb92e934194a8fa97be471469",
+    "byteExact": true
+  },
+  {
+    "index": 31,
+    "guard": "bridge rejects foreign correlated replies",
+    "source": "src/webview/models/sections/agents/DevicesApp.tsx",
+    "owningTest": "test/unit/DevicesApp.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesApp.test.tsx > M100 U explicit webview bridge > ignores foreign correlated replies until the matching request returns"
+    ],
+    "beforeSha256": "8009efdf2ba0b0f515798d8df337b67d587f3c0eb92e934194a8fa97be471469",
+    "restoredSha256": "8009efdf2ba0b0f515798d8df337b67d587f3c0eb92e934194a8fa97be471469",
+    "byteExact": true
+  },
+  {
+    "index": 32,
+    "guard": "bridge unsubscribe",
+    "source": "src/webview/models/sections/agents/DevicesApp.tsx",
+    "owningTest": "test/unit/DevicesApp.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesApp.test.tsx > M100 U explicit webview bridge > subscribes without a ready/probe request and validates unsolicited observations"
+    ],
+    "beforeSha256": "8009efdf2ba0b0f515798d8df337b67d587f3c0eb92e934194a8fa97be471469",
+    "restoredSha256": "8009efdf2ba0b0f515798d8df337b67d587f3c0eb92e934194a8fa97be471469",
+    "byteExact": true
+  },
+  {
+    "index": 33,
+    "guard": "explicit Devices surface",
+    "source": "src/webview/main.tsx",
+    "owningTest": "test/unit/DevicesApp.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesApp.test.tsx > M100 U explicit webview bridge > keeps the Devices import lazy and confines its mount to the explicit surface"
+    ],
+    "beforeSha256": "684956f7b73cf41060d38f7e3582b65a88fffe022a1ef64980a2b0b781e8cc34",
+    "restoredSha256": "684956f7b73cf41060d38f7e3582b65a88fffe022a1ef64980a2b0b781e8cc34",
+    "byteExact": true
+  },
+  {
+    "index": 34,
+    "guard": "Devices lazy factory",
+    "source": "src/webview/main.tsx",
+    "owningTest": "test/unit/DevicesApp.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesApp.test.tsx > M100 U explicit webview bridge > keeps the Devices import lazy and confines its mount to the explicit surface"
+    ],
+    "beforeSha256": "684956f7b73cf41060d38f7e3582b65a88fffe022a1ef64980a2b0b781e8cc34",
+    "restoredSha256": "684956f7b73cf41060d38f7e3582b65a88fffe022a1ef64980a2b0b781e8cc34",
+    "byteExact": true
+  },
+  {
+    "index": 35,
+    "guard": "installed language at render",
+    "source": "src/webview/models/sections/agents/DevicesView.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > reads the installed language at render and names local prices/budget before consent"
+    ],
+    "beforeSha256": "156296f2f0c591d0131274532be91d597f97f30ad2a31eab2fd6a2f0ae2227cf",
+    "restoredSha256": "156296f2f0c591d0131274532be91d597f97f30ad2a31eab2fd6a2f0ae2227cf",
+    "byteExact": true
+  },
+  {
+    "index": 36,
+    "guard": "address accessible label",
+    "source": "src/webview/models/sections/agents/DeviceCard.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > refuses public/manual address mutations and retains debt through an unsuccessful paired retry",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > validates private addresses at the component boundary before sending"
+    ],
+    "beforeSha256": "d8e60bd094642f2ae01416cc1093348c75a991c0b67e2f435a6e2b23d0729455",
+    "restoredSha256": "d8e60bd094642f2ae01416cc1093348c75a991c0b67e2f435a6e2b23d0729455",
+    "byteExact": true
+  },
+  {
+    "index": 37,
+    "guard": "QR-text fallback selection",
+    "source": "src/webview/models/sections/agents/DevicePairing.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > selects public text when copying is unavailable and sends validated confirmation only"
+    ],
+    "beforeSha256": "9af09b04f709db50b12dec413562a1c8088566edd6559eb0655e16877130a61c",
+    "restoredSha256": "9af09b04f709db50b12dec413562a1c8088566edd6559eb0655e16877130a61c",
+    "byteExact": true
+  },
+  {
+    "index": 38,
+    "guard": "axe must wait for the requested Devices scene",
+    "source": "test/harness/index.html",
+    "owningTest": "node scripts/a11y.mjs devices-connected",
+    "exitCode": 1,
+    "namedFailures": [
+      "dark/devices-connected: no result: Error: scenario devices-connected never became ready within 10 s",
+      "hc-light/devices-connected: no result: Error: scenario devices-connected never became ready within 10 s",
+      "hc-dark/devices-connected: no result: Error: scenario devices-connected never became ready within 10 s",
+      "light/devices-connected: no result: Error: scenario devices-connected never became ready within 10 s"
+    ],
+    "beforeSha256": "b2510633114de83e78142360af9f5f67b69d5ea395f01d26a0f828b15d0f7287",
+    "restoredSha256": "b2510633114de83e78142360af9f5f67b69d5ea395f01d26a0f828b15d0f7287",
+    "byteExact": true
+  },
+  {
+    "index": 39,
+    "guard": "request identity failure is explicit",
+    "source": "src/webview/models/sections/agents/DevicesView.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > shows each model entry cap as well as the offered window cap",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > reports an unavailable request identity source without an unhandled rejection or host call"
+    ],
+    "beforeSha256": "cd32f78fc8af17531332edf4b192d9c4f30d5e38a153fc8383b70d73ba1131d6",
+    "restoredSha256": "cd32f78fc8af17531332edf4b192d9c4f30d5e38a153fc8383b70d73ba1131d6",
+    "byteExact": true
+  },
+  {
+    "index": 40,
+    "guard": "per-model advertised caps visible",
+    "source": "src/webview/models/sections/agents/DeviceCard.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > shows each model entry cap as well as the offered window cap"
+    ],
+    "beforeSha256": "f9ab26df36f26fe0e18598bc03313ebe9e09a458299e440f2edf20c1b4bad445",
+    "restoredSha256": "f9ab26df36f26fe0e18598bc03313ebe9e09a458299e440f2edf20c1b4bad445",
+    "byteExact": true
+  },
+  {
+    "index": 41,
+    "guard": "setup facts bound to their pair",
+    "source": "src/webview/models/sections/agents/DevicesView.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > never attributes one pair’s listener or interface facts to another pair"
+    ],
+    "beforeSha256": "92a24dc655d735530adf30f70b9884217cf7d69512cee94c38f924a3ac46e06e",
+    "restoredSha256": "92a24dc655d735530adf30f70b9884217cf7d69512cee94c38f924a3ac46e06e",
+    "byteExact": true
+  },
+  {
+    "index": 42,
+    "guard": "global unsupported host refuses every offer",
+    "source": "src/webview/models/sections/agents/DevicesView.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > refuses Offer lanes on an unsupported host"
+    ],
+    "beforeSha256": "92a24dc655d735530adf30f70b9884217cf7d69512cee94c38f924a3ac46e06e",
+    "restoredSha256": "92a24dc655d735530adf30f70b9884217cf7d69512cee94c38f924a3ac46e06e",
+    "byteExact": true
+  },
+  {
+    "index": 43,
+    "guard": "public text label association",
+    "source": "src/webview/models/sections/agents/DevicePairing.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > pairs by keyboard text, focuses comparison and requires the full explicit fingerprint check",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > selects public text when copying is unavailable and sends validated confirmation only",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > passes only public invitation text to the optional qualified QR renderer"
+    ],
+    "beforeSha256": "162fea86b2ea081647344e1957df196283920322922fb8c78f1a31efb5fb06f0",
+    "restoredSha256": "162fea86b2ea081647344e1957df196283920322922fb8c78f1a31efb5fb06f0",
+    "byteExact": true
+  },
+  {
+    "index": 44,
+    "guard": "pasted text label association",
+    "source": "src/webview/models/sections/agents/DevicePairing.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > pairs by keyboard text, focuses comparison and requires the full explicit fingerprint check",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > keeps the invitation input label independent of pasted public bytes",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > selects public text when copying is unavailable and sends validated confirmation only",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > prevents a pending action from being superseded by a submitted pairing form",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > validates a pasted confirmation before calling the local action boundary",
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > handles malformed pasted JSON as a local error without a request"
+    ],
+    "beforeSha256": "162fea86b2ea081647344e1957df196283920322922fb8c78f1a31efb5fb06f0",
+    "restoredSha256": "162fea86b2ea081647344e1957df196283920322922fb8c78f1a31efb5fb06f0",
+    "byteExact": true
+  },
+  {
+    "index": 45,
+    "guard": "missing lazy Devices asset recovery",
+    "source": "src/webview/main.tsx",
+    "owningTest": "test/unit/DevicesApp.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesApp.test.tsx > M100 U explicit webview bridge > keeps the Devices import lazy and confines its mount to the explicit surface"
+    ],
+    "beforeSha256": "4e5d8d76795beec345f14f2402c0be2cbe6b62d8aed166fa286c5c9a033972a0",
+    "restoredSha256": "4e5d8d76795beec345f14f2402c0be2cbe6b62d8aed166fa286c5c9a033972a0",
+    "byteExact": true
+  },
+  {
+    "index": 46,
+    "guard": "setup facts bound to their request id",
+    "source": "src/webview/models/sections/agents/DevicesView.tsx",
+    "owningTest": "test/unit/DevicesView.test.tsx",
+    "exitCode": 1,
+    "namedFailures": [
+      "FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > does not reuse a prior action’s binding for a foreign setup request id"
+    ],
+    "beforeSha256": "92a24dc655d735530adf30f70b9884217cf7d69512cee94c38f924a3ac46e06e",
+    "restoredSha256": "92a24dc655d735530adf30f70b9884217cf7d69512cee94c38f924a3ac46e06e",
+    "byteExact": true
+  }
+]

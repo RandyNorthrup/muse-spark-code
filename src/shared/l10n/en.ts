@@ -18,6 +18,55 @@ import { forms } from './forms'
 export const EN = {
   // M100/D80: lazy Devices setup, observations and recovery.
   devices: {
+    pool: 'Pool',
+    entry: 'Entry',
+    usageKinds: {
+      known: 'Known usage',
+      estimated: 'Estimated usage',
+      uncertain: 'Uncertain usage',
+    },
+    offHelp:
+      'Devices is off by default. Pairing and offering work each require an explicit local choice.',
+    importInvitation: 'Import invitation',
+    importConfirmation: 'Import confirmation',
+    peerFingerprint: 'Peer fingerprint',
+    fingerprintMatches: 'I compared both screens and the fingerprint matches',
+    confirmFingerprint: 'Confirm fingerprint',
+    invalidMessage:
+      'The device message is invalid or the request failed. Existing work and liability are kept.',
+    retry: 'Retry',
+    renderUnavailable: 'Devices could not display the latest observation. Reload to recover.',
+    unpairedHelp: 'This device is not paired. Pair both devices before offering work.',
+    revokedHelp: 'This pair was revoked. Pair again; previous unresolved work remains blocked.',
+    localApprovalHelp:
+      'Approvals and paid consent are requested on the executing device. Open that device to answer; pairing grants no approval.',
+    capacityHelp:
+      'The receiving pool is at capacity. Wait for locally proved retirement; do not reassign uncertain work.',
+    grantHelp:
+      'The receiving device must approve the repository mapping, base snapshot and local offer.',
+    unknown: 'Unknown',
+    observationHelp: 'Status is the last observation, not proof that work has stopped.',
+    noOffers: 'No approved offers',
+    payer: 'Payer',
+    readiness: 'Model readiness',
+    address: 'Private address',
+    port: 'TCP port',
+    retryAddress: 'Save address and retry paired identity',
+    capHelp:
+      'Caps apply to this offered window only. Narrowing a cap takes effect at the next controlled boundary.',
+    saveOffer: 'Review and save local offer',
+    confirmUnlink: 'Confirm unlink',
+    cancel: 'Cancel',
+    costOwnership:
+      'Each device keeps its own sign-ins and charges. Its local paid modal asks before the first charge, showing the model price and shared daily budget. No fleet budget or subscription entitlement is transferred.',
+    working: 'Waiting for local host…',
+    retainedLiability: 'Retained spending liability: {amount}',
+    payers: { subscription: 'Subscription', apiKey: 'API key', local: 'Local', unknown: 'Unknown' },
+    readinessStates: { ready: 'Ready', unavailable: 'Unavailable', unknown: 'Unknown' },
+    unresolvedCount: forms({
+      one: '{count} unresolved attempt',
+      other: '{count} unresolved attempts',
+    }),
     title: 'Devices',
     pair: 'Pair device',
     offer: 'Offer lanes',

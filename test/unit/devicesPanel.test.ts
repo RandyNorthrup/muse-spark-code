@@ -47,6 +47,59 @@ const row = {
 const state: DevicesPanelState = { enabled: true, discoveryEnabled: false, devices: [row] }
 
 describe('M100 Devices panel and shared bridge', () => {
+  it('requires the view identity, request identity and initiating snapshot revision on every request', () => {
+    const request = {
+      type: 'deviceRequest',
+      viewId: ID,
+      requestId: ID,
+      revision: 3,
+      action: { kind: 'pair' },
+    }
+    expect(parseDeviceWebviewRequest(request).ok).toBe(true)
+    for (const change of [
+      { viewId: undefined },
+      { viewId: '' },
+      { viewId: ID + '\n' },
+      { requestId: undefined },
+      { revision: undefined },
+      { revision: -1 },
+      { revision: 1.5 },
+    ])
+      expect(parseDeviceWebviewRequest({ ...request, ...change }).ok).toBe(false)
+    expect(
+      parseDeviceHostMessage({
+        type: 'deviceState',
+        revision: 3,
+        state: { enabled: false },
+        setup: { requestId: ID },
+      }).ok,
+    ).toBe(false)
+  })
+
+  it('requires an ordered snapshot revision, including off observations and action replies', () => {
+    const message = { type: 'deviceState', state: { enabled: false } }
+    for (const revision of [undefined, -1, 1.5, Number.MAX_SAFE_INTEGER + 1])
+      expect(parseDeviceHostMessage({ ...message, revision }).ok).toBe(false)
+    for (const revision of [0, 1, 2])
+      expect(parseDeviceHostMessage({ ...message, revision }).ok).toBe(true)
+  })
+  it('rejects MAX_SAFE_INTEGER and out-of-range observation dates at the host boundary', () => {
+    for (const lastObservedAt of [Number.MAX_SAFE_INTEGER, DEVICE_LIMITS.observationMaxMs + 1])
+      expect(
+        parseDeviceHostMessage({
+          type: 'deviceState',
+          revision: 1,
+          state: { ...state, devices: [{ ...row, lastObservedAt }] },
+        }).ok,
+      ).toBe(false)
+    expect(
+      parseDeviceHostMessage({
+        type: 'deviceState',
+        revision: 1,
+        state: { ...state, devices: [{ ...row, lastObservedAt: DEVICE_LIMITS.observationMaxMs }] },
+      }).ok,
+    ).toBe(true)
+  })
   it('supplies exact translated manifest handoffs without registering unused production keys', () => {
     const handoffSchema = z.record(
       z.string(),
@@ -95,19 +148,28 @@ describe('M100 Devices panel and shared bridge', () => {
     expect(
       devicesPanelStateSchema.safeParse({ enabled: false, discoveryEnabled: true }).success,
     ).toBe(false)
-    expect(parseDeviceHostMessage({ type: 'deviceState', state: { enabled: false } }).ok).toBe(true)
+    expect(
+      parseDeviceHostMessage({ type: 'deviceState', revision: 1, state: { enabled: false } }).ok,
+    ).toBe(true)
   })
   it('keeps Devices off the ordinary chat route', () => {
-    expect(parseHostToWebviewMessage({ type: 'deviceState', state: { enabled: false } }).ok).toBe(
-      false,
-    )
     expect(
-      parseWebviewToHostMessage({ type: 'deviceRequest', requestId: ID, action: { kind: 'pair' } })
-        .ok,
+      parseHostToWebviewMessage({ type: 'deviceState', revision: 1, state: { enabled: false } }).ok,
+    ).toBe(false)
+    expect(
+      parseWebviewToHostMessage({
+        type: 'deviceRequest',
+        revision: 1,
+        viewId: ID,
+        requestId: ID,
+        action: { kind: 'pair' },
+      }).ok,
     ).toBe(false)
     expect(
       parseDeviceWebviewRequest({
         type: 'deviceRequest',
+        revision: 1,
+        viewId: ID,
         requestId: ID,
         action: { kind: 'pair', detail: '/private/fixture' },
       }),
@@ -121,8 +183,10 @@ describe('M100 Devices panel and shared bridge', () => {
     }
     const message: DeviceHostMessage = {
       type: 'deviceState',
+      revision: 1,
       state,
       setup: {
+        viewId: ID,
         requestId: ID,
         listenerApplication: 'Test extension host',
         interfaceLabel: 'Test LAN',
@@ -134,7 +198,7 @@ describe('M100 Devices panel and shared bridge', () => {
     expect(
       deviceHostMessageSchema.safeParse({
         ...message,
-        setup: { requestId: ID, error: '/private/fixture' },
+        setup: { viewId: ID, requestId: ID, error: '/private/fixture' },
       }).success,
     ).toBe(false)
     expect(
@@ -168,7 +232,13 @@ describe('M100 Devices panel and shared bridge', () => {
       { kind: 'resumeQueue', pairId: ID, boardId: ID },
     ]
     for (const action of actions) {
-      const message: DeviceWebviewRequest = { type: 'deviceRequest', requestId: ID, action }
+      const message: DeviceWebviewRequest = {
+        type: 'deviceRequest',
+        revision: 1,
+        viewId: ID,
+        requestId: ID,
+        action,
+      }
       expect(deviceWebviewRequestSchema.parse(message)).toEqual(message)
       expect(parseDeviceWebviewRequest(message)).toEqual({ ok: true, message })
     }
@@ -178,6 +248,8 @@ describe('M100 Devices panel and shared bridge', () => {
     (field) => {
       const message = {
         type: 'deviceRequest',
+        revision: 1,
+        viewId: ID,
         requestId: ID,
         action: {
           kind: 'offer',
@@ -202,6 +274,8 @@ describe('M100 Devices panel and shared bridge', () => {
     expect(
       parseDeviceWebviewRequest({
         type: 'deviceRequest',
+        revision: 1,
+        viewId: ID,
         requestId: ID,
         action: {
           kind: 'importInvitation',
@@ -252,8 +326,13 @@ describe('M100 Devices panel and shared bridge', () => {
         devicesPanelStateSchema.safeParse({ ...state, devices: [{ ...row, ...change }] }).success,
       ).toBe(false)
     expect(
-      parseDeviceWebviewRequest({ type: 'deviceRequest', requestId: '', action: { kind: 'pair' } })
-        .ok,
+      parseDeviceWebviewRequest({
+        type: 'deviceRequest',
+        revision: 1,
+        viewId: ID,
+        requestId: '',
+        action: { kind: 'pair' },
+      }).ok,
     ).toBe(false)
   })
   it('allows a host to inject the validated portable bridge with explicit unsupported-host failure', async () => {
@@ -262,14 +341,21 @@ describe('M100 Devices panel and shared bridge', () => {
         Promise.resolve(
           deviceHostMessageSchema.parse({
             type: 'deviceState',
+            revision: 1,
             state: { enabled: false },
-            setup: { requestId: message.requestId, failure: 'unsupported-host' },
+            setup: {
+              viewId: message.viewId,
+              requestId: message.requestId,
+              failure: 'unsupported-host',
+            },
           }),
         ),
     }
     const response = await port.request(
       deviceWebviewRequestSchema.parse({
         type: 'deviceRequest',
+        revision: 1,
+        viewId: ID,
         requestId: ID,
         action: { kind: 'pair' },
       }),
