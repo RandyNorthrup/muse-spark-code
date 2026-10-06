@@ -3455,6 +3455,13 @@ results and what is still open.
 
 ## Development
 
+M104's portable panel foundation is under development. Its browser modules
+provide VS Code, native `window.museHost` and companion fetch/SSE bridges,
+with common React host-service fallbacks and manager page components loaded
+through `PanelBridge.loadFallbacks()`. Native fallback request routing,
+authenticated companion module loading and bundle acceptance still need
+integration; these modules do not qualify a new editor as supported.
+
 The additive MHP 1.1.0 panel contract for native and companion adapters is
 [documented here](docs/ide-compatibility/host-api-panel-1.1.md). Its JSON
 Schemas reuse the shared panel payload validators and preserve frozen v1.

@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- M104's shared browser UI foundation: VS Code, native `window.museHost`
+  and companion fetch/SSE bridges for chat, Tasks and What's New; portable
+  `--ms-*` theme tokens; a lazy React host-service adapter and settings,
+  walkthrough, diff, terminal and five manager page components. This lane
+  is not qualified for integration: the fallback carrier route, companion
+  authenticated module loading and bundle acceptance remain open.
+
 - MHP 1.1.0 panel carrier contract: validated shared payloads, ordered
   session-bound surface envelopes and lifecycle, the `window.museHost`
   API, and multiplexed NDJSON/companion HTTP/SSE framing. Native consumers

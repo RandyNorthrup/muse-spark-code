@@ -2120,5 +2120,16 @@
   "paidDailyReachedDetail": "La limite d’aujourd’hui est {budget}. Cette requête et les réservations existantes nécessitent {needed}. Augmentez la limite pour aujourd’hui ou arrêtez les options payantes jusqu’à demain.",
   "paidDailyRaise": "Augmenter pour aujourd’hui",
   "paidDailyStop": "Arrêter jusqu’à demain",
-  "paidDailyRaisePrompt": "Saisissez la limite d’aujourd’hui en USD (0.50–500), suffisante pour les réservations en attente."
+  "paidDailyRaisePrompt": "Saisissez la limite d’aujourd’hui en USD (0.50–500), suffisante pour les réservations en attente.",
+  "fallbackContinue": "Continuer",
+  "fallbackNoMatches": "Aucun élément correspondant",
+  "fallbackNotifications": "Notifications reçues",
+  "fallbackStatus": "État",
+  "fallbackSettings": "Paramètres",
+  "fallbackTerminal": "Sortie du terminal",
+  "fallbackBefore": "Avant",
+  "fallbackAfter": "Après",
+  "fallbackEmpty": "Aucune entrée",
+  "fallbackWorktrees": "Arbres de travail",
+  "fallbackActionFailed": "L’action a échoué. Réessayez."
 }

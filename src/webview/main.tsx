@@ -8,14 +8,17 @@
 
 import { createRoot } from 'react-dom/client'
 import { WEBVIEW_ROOT_ELEMENT_ID } from '../shared/constants'
+import { hostToWebviewMessageSchema, webviewToHostMessageSchema } from '../shared/protocol'
 import { App } from './App'
-import { TasksApp } from './TasksApp'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { type ErrorReporter, webviewErrorReport } from './errorReport'
-import { vsCodeHostBridge } from './hostBridge'
+import type { PanelBridge } from './bridges/types'
+import { vscodeBridge } from './bridges/vscode'
+import { showBridgeFailure } from './bridges/failure'
 import { installEmbeddedTable } from './installTable'
 import { restoredUiState } from './state/snapshot'
 import { createUiStore, listenToHost, persistStore } from './state/store'
+import './tokens.css'
 import './styles.css'
 
 const rootElement = document.querySelector(`#${WEBVIEW_ROOT_ELEMENT_ID}`)
@@ -23,30 +26,82 @@ if (rootElement === null) {
   throw new Error(`Webview root element #${WEBVIEW_ROOT_ELEMENT_ID} is missing`)
 }
 
-if (document.body.dataset['surface'] === 'tasks') {
-  const api = acquireVsCodeApi()
-  const tableError = installEmbeddedTable(document)
-  if (tableError !== undefined) {
-    throw tableError
+async function mount(rootElement: Element): Promise<void> {
+  const isTasks = document.body.dataset['surface'] === 'tasks'
+  const { selectBridge } = await import('./bridges/select')
+  const tasks = isTasks ? await import('../shared/tasksProtocol') : undefined
+  const host = await selectBridge(
+    {
+      outgoing: tasks?.tasksWebviewMessageSchema ?? webviewToHostMessageSchema,
+      incoming: tasks?.tasksHostMessageSchema ?? hostToWebviewMessageSchema,
+    },
+    (error) => {
+      reportBridgeFailure(error)
+    },
+  )
+  connect(rootElement, host, isTasks)
+}
+
+function connect(rootElement: Element, host: PanelBridge, isTasks: boolean): void {
+  window.addEventListener(
+    'pagehide',
+    () => {
+      host.dispose()
+    },
+    { once: true },
+  )
+  if (isTasks) {
+    void mountTasks(rootElement, host).catch(reportBridgeFailure)
+  } else {
+    mountChat(rootElement, host)
   }
+}
+
+async function mountTasks(rootElement: Element, host: PanelBridge): Promise<void> {
+  const tableError = installEmbeddedTable(document)
+  if (tableError !== undefined) throw tableError
+  const { TasksApp } = await import('./TasksApp')
   createRoot(rootElement).render(
     <TasksApp
-      messages={window}
+      messages={host.messages}
       postMessage={(message) => {
-        api.postMessage(message)
+        host.post(message)
       }}
     />,
   )
+}
+if (
+  window.museHost !== undefined ||
+  document.body.dataset['bridge'] === 'companion' ||
+  document.body.dataset['surface'] === 'tasks'
+) {
+  void mount(rootElement).catch((error: unknown) => {
+    reportBridgeFailure(error)
+  })
 } else {
-  mountChat(rootElement)
+  // VS Code's chat mounts in the same task, preserving its startup and host timing.
+  const host = vscodeBridge(
+    window,
+    {
+      outgoing: webviewToHostMessageSchema,
+      incoming: hostToWebviewMessageSchema,
+    },
+    (error) => {
+      host.post(webviewErrorReport('hostMessage', error))
+    },
+  )
+  connect(rootElement, host, false)
 }
 
-function mountChat(element: Element): void {
-  const host = vsCodeHostBridge(window)
+function mountChat(element: Element, host: PanelBridge): void {
   // What throws here reaches the host's log (M39): a render the boundary
   // caught, an error or a rejected promise nothing handled, a host message.
   const report: ErrorReporter = (source, error) => {
-    host.post(webviewErrorReport(source, error))
+    try {
+      host.post(webviewErrorReport(source, error))
+    } catch {
+      showBridgeFailure(document)
+    }
   }
   window.addEventListener('error', (event) => {
     const error: unknown = event.error ?? event.message
@@ -93,4 +148,8 @@ function mountChat(element: Element): void {
       />
     </ErrorBoundary>,
   )
+}
+
+function reportBridgeFailure(_error: unknown): void {
+  showBridgeFailure(document)
 }

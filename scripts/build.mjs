@@ -104,6 +104,8 @@ const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
 const PAGE_WORKER_OUTFILE = 'dist/pageWorker.js'
 const WEBVIEW_ENTRY = 'src/webview/main.tsx'
+const FALLBACKS_ENTRY = 'src/webview/fallbacks/index.ts'
+const BRIDGE_ENTRY = 'src/webview/bridges/select.ts'
 const WEBVIEW_OUTDIR = 'dist/webview'
 const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
 const WHATS_NEW_PAGE_NAME = 'whatsNew'
@@ -389,7 +391,7 @@ const pageWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const webviewOptions = {
   ...common,
-  entryPoints: [WEBVIEW_ENTRY],
+  entryPoints: { main: WEBVIEW_ENTRY, fallbacks: FALLBACKS_ENTRY, bridge: BRIDGE_ENTRY },
   outdir: WEBVIEW_OUTDIR,
   platform: 'browser',
   format: 'esm',
@@ -407,6 +409,16 @@ const whatsNewPageOptions = {
   format: 'iife',
   splitting: false,
   entryPoints: { [WHATS_NEW_PAGE_NAME]: WHATS_NEW_PAGE_ENTRY },
+  plugins: [
+    {
+      name: 'whats-new-bridge',
+      setup(build) {
+        build.onResolve({ filter: /\/bridges\/select$/ }, (args) =>
+          args.kind === 'dynamic-import' ? { path: './bridge.js', external: true } : undefined,
+        )
+      },
+    },
+  ],
 }
 
 function listIntegrationTests() {

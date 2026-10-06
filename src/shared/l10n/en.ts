@@ -16,6 +16,17 @@
 import { forms } from './forms'
 
 export const EN = {
+  fallbackContinue: 'Continue',
+  fallbackNoMatches: 'No matching items',
+  fallbackNotifications: 'Notifications',
+  fallbackStatus: 'Status',
+  fallbackSettings: 'Settings',
+  fallbackTerminal: 'Terminal output',
+  fallbackBefore: 'Before',
+  fallbackAfter: 'After',
+  fallbackEmpty: 'No entries',
+  fallbackWorktrees: 'Worktrees',
+  fallbackActionFailed: 'The action failed. Try again.',
   companionLaunchFailed:
     'Could not open the panel. Return to your editor and open Muse Spark Code again to get a fresh launch link.',
   paidDailyBudgetLine:

@@ -2196,5 +2196,16 @@
   "paidDailyReachedDetail": "Dnešní limit je {budget}. Tento požadavek a stávající rezervace potřebují {needed}. Zvyšte dnešní limit, nebo zastavte placené doplňky do zítřka.",
   "paidDailyRaise": "Zvýšit pro dnešek",
   "paidDailyStop": "Zastavit do zítřka",
-  "paidDailyRaisePrompt": "Zadejte dnešní limit v USD (0.50–500), který pokryje čekající rezervace."
+  "paidDailyRaisePrompt": "Zadejte dnešní limit v USD (0.50–500), který pokryje čekající rezervace.",
+  "fallbackContinue": "Pokračovat",
+  "fallbackNoMatches": "Žádné odpovídající položky",
+  "fallbackNotifications": "Oznámení",
+  "fallbackStatus": "Stav",
+  "fallbackSettings": "Nastavení",
+  "fallbackTerminal": "Výstup terminálu",
+  "fallbackBefore": "Před",
+  "fallbackAfter": "Po",
+  "fallbackEmpty": "Žádné položky",
+  "fallbackWorktrees": "Pracovní stromy",
+  "fallbackActionFailed": "Akce selhala. Zkuste to znovu."
 }

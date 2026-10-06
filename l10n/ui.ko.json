@@ -1968,5 +1968,16 @@
   "paidDailyReachedDetail": "오늘 한도는 {budget}입니다. 이 요청과 기존 예약에는 {needed}이 필요합니다. 오늘 한도를 높이거나 유료 기능을 내일까지 중지하세요.",
   "paidDailyRaise": "오늘 한도 높이기",
   "paidDailyStop": "내일까지 중지",
-  "paidDailyRaisePrompt": "대기 중인 예약을 충족하는 오늘의 USD 한도를 입력하세요(0.50–500)."
+  "paidDailyRaisePrompt": "대기 중인 예약을 충족하는 오늘의 USD 한도를 입력하세요(0.50–500).",
+  "fallbackContinue": "계속",
+  "fallbackNoMatches": "일치하는 항목 없음",
+  "fallbackNotifications": "알림",
+  "fallbackStatus": "상태",
+  "fallbackSettings": "설정",
+  "fallbackTerminal": "터미널 출력",
+  "fallbackBefore": "변경 전",
+  "fallbackAfter": "변경 후",
+  "fallbackEmpty": "항목 없음",
+  "fallbackWorktrees": "작업 트리",
+  "fallbackActionFailed": "작업에 실패했습니다. 다시 시도하세요."
 }

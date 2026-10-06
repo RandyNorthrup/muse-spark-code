@@ -2196,5 +2196,16 @@
   "paidDailyReachedDetail": "Сегодняшний предел — {budget}. Этот запрос и существующие резервы требуют {needed}. Увеличьте предел на сегодня или остановите платные дополнения до завтра.",
   "paidDailyRaise": "Увеличить на сегодня",
   "paidDailyStop": "Остановить до завтра",
-  "paidDailyRaisePrompt": "Введите сегодняшний предел в USD (0.50–500), достаточный для ожидающих резервов."
+  "paidDailyRaisePrompt": "Введите сегодняшний предел в USD (0.50–500), достаточный для ожидающих резервов.",
+  "fallbackContinue": "Продолжить",
+  "fallbackNoMatches": "Нет совпадающих элементов",
+  "fallbackNotifications": "Уведомления",
+  "fallbackStatus": "Состояние",
+  "fallbackSettings": "Настройки",
+  "fallbackTerminal": "Вывод терминала",
+  "fallbackBefore": "До",
+  "fallbackAfter": "После",
+  "fallbackEmpty": "Нет записей",
+  "fallbackWorktrees": "Рабочие деревья",
+  "fallbackActionFailed": "Действие не удалось. Повторите попытку."
 }

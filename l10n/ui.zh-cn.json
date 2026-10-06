@@ -1968,5 +1968,16 @@
   "paidDailyReachedDetail": "今天的上限为 {budget}。此请求和现有预留需要 {needed}。请提高今天的上限，或将付费附加功能停止至明天。",
   "paidDailyRaise": "提高今天的上限",
   "paidDailyStop": "停止至明天",
-  "paidDailyRaisePrompt": "请输入足以覆盖待处理预留的今日美元上限（0.50–500）。"
+  "paidDailyRaisePrompt": "请输入足以覆盖待处理预留的今日美元上限（0.50–500）。",
+  "fallbackContinue": "继续",
+  "fallbackNoMatches": "没有匹配项",
+  "fallbackNotifications": "通知",
+  "fallbackStatus": "状态",
+  "fallbackSettings": "设置",
+  "fallbackTerminal": "终端输出",
+  "fallbackBefore": "之前",
+  "fallbackAfter": "之后",
+  "fallbackEmpty": "没有条目",
+  "fallbackWorktrees": "工作树",
+  "fallbackActionFailed": "操作失败。请重试。"
 }

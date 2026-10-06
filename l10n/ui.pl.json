@@ -2196,5 +2196,16 @@
   "paidDailyReachedDetail": "Dzisiejszy limit to {budget}. To żądanie i istniejące rezerwacje wymagają {needed}. Zwiększ limit na dziś lub wstrzymaj płatne dodatki do jutra.",
   "paidDailyRaise": "Zwiększ na dziś",
   "paidDailyStop": "Wstrzymaj do jutra",
-  "paidDailyRaisePrompt": "Wpisz dzisiejszy limit w USD (0.50–500), wystarczający na oczekujące rezerwacje."
+  "paidDailyRaisePrompt": "Wpisz dzisiejszy limit w USD (0.50–500), wystarczający na oczekujące rezerwacje.",
+  "fallbackContinue": "Kontynuuj",
+  "fallbackNoMatches": "Brak pasujących elementów",
+  "fallbackNotifications": "Powiadomienia",
+  "fallbackStatus": "Stan",
+  "fallbackSettings": "Ustawienia",
+  "fallbackTerminal": "Wyjście terminala",
+  "fallbackBefore": "Przed",
+  "fallbackAfter": "Po",
+  "fallbackEmpty": "Brak wpisów",
+  "fallbackWorktrees": "Drzewa robocze",
+  "fallbackActionFailed": "Działanie nie powiodło się. Spróbuj ponownie."
 }

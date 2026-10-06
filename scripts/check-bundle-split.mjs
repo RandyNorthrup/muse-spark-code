@@ -798,6 +798,30 @@ for (const key of modelTextKeys) {
 // emitted JS chunk must be reachable and packaged; stale output is refused.
 const webviewMeta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
 const eagerWebview = new Set(webviewStartupOutputs(webviewMeta))
+const BRIDGE_ENTRIES = new Set([
+  'src/webview/bridges/native.ts',
+  'src/webview/bridges/companion.ts',
+  'src/webview/bridges/select.ts',
+  'src/webview/fallbacks/index.ts',
+  'src/webview/TasksApp.tsx',
+  'src/shared/tasksProtocol.ts',
+  'src/shared/whatsNewMessages.ts',
+  'src/shared/hostApi/panel.ts',
+])
+const FALLBACK_COMPONENTS = [
+  'Confirm',
+  'Picker',
+  'Input',
+  'Dialog',
+  'Toasts',
+  'StatusStrip',
+  'SettingsPage',
+  'Walkthrough',
+  'DiffPage',
+  'TerminalOutput',
+  'ManagerPage',
+  'services',
+]
 const reachableWebview = new Set()
 const visitWebview = (file) => {
   if (reachableWebview.has(file)) return
@@ -810,8 +834,12 @@ const visitWebview = (file) => {
   for (const imported of output.imports) if (!imported.external) visitWebview(imported.path)
 }
 visitWebview('dist/webview/main.js')
-for (const surface of DEFERRED_WEBVIEW_SURFACES) {
-  const source = `src/webview/components/${surface}.tsx`
+for (const source of [
+  ...DEFERRED_WEBVIEW_SURFACES.map((surface) => `src/webview/components/${surface}.tsx`),
+  ...FALLBACK_COMPONENTS.map((component) => `src/webview/fallbacks/${component}.tsx`),
+  'src/webview/bridges/native.ts',
+  'src/webview/bridges/companion.ts',
+]) {
   const outputs = Object.entries(webviewMeta.outputs).filter(([, output]) =>
     Object.hasOwn(output.inputs, source),
   )
@@ -826,6 +854,7 @@ for (const [file, output] of Object.entries(webviewMeta.outputs)) {
   if (
     output.entryPoint &&
     output.entryPoint !== 'src/webview/main.tsx' &&
+    !BRIDGE_ENTRIES.has(output.entryPoint) &&
     DEFERRED_WEBVIEW_SURFACES.every(
       (name) => output.entryPoint !== `src/webview/components/${name}.tsx`,
     )

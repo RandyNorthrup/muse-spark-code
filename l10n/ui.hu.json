@@ -2044,5 +2044,16 @@
   "paidDailyReachedDetail": "A mai korlát {budget}. Ez a kérés és a meglévő foglalások {needed} összeget igényelnek. Emelje a mai korlátot, vagy állítsa le a fizetős extrákat holnapig.",
   "paidDailyRaise": "Emelés mára",
   "paidDailyStop": "Leállítás holnapig",
-  "paidDailyRaisePrompt": "Adja meg a mai USD-korlátot (0.50–500), amely fedezi a függő foglalásokat."
+  "paidDailyRaisePrompt": "Adja meg a mai USD-korlátot (0.50–500), amely fedezi a függő foglalásokat.",
+  "fallbackContinue": "Folytatás",
+  "fallbackNoMatches": "Nincs egyező elem",
+  "fallbackNotifications": "Értesítések",
+  "fallbackStatus": "Állapot",
+  "fallbackSettings": "Beállítások",
+  "fallbackTerminal": "Terminálkimenet",
+  "fallbackBefore": "Előtte",
+  "fallbackAfter": "Utána",
+  "fallbackEmpty": "Nincsenek bejegyzések",
+  "fallbackWorktrees": "Munkafák",
+  "fallbackActionFailed": "A művelet nem sikerült. Próbálja újra."
 }
