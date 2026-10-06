@@ -3944,6 +3944,12 @@ results and what is still open.
 
 ## Development
 
+After a production build, `node test/e2e/webviewDiet.mjs` checks optional UI
+surfaces in Chrome against a fake host: no startup requests, first-use loading
+under the shared CSP, and recovery from actual failed entry/static-dependency
+fetches. Retry reloads the panel with its saved conversation and draft. Cold
+menus remain dismissible and cannot take focus after dismissal.
+
 After every complete four-channel release, the workflow runs
 `scripts/refresh-badges.mjs` to refresh these README badges and purge GitHub's
 image-proxy copies. It needs no secret; stale caches or network failures warn

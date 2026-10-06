@@ -82,7 +82,8 @@ import {
 } from './icons'
 import { MENTION_OPTION_ID_PREFIX, MentionMenu, mentionOptionId } from './MentionMenu'
 import { modeIcon } from './modeIcons'
-import { PALETTE_LISTBOX_ID, type PaletteKeys } from './Palette'
+import type { PaletteKeys } from './Palette'
+import { PALETTE_LISTBOX_ID } from '../../shared/constants'
 import { SLASH_LISTBOX_ID, SLASH_OPTION_ID_PREFIX, SlashMenu, slashOptionId } from './SlashMenu'
 
 export interface ImageData {
@@ -788,14 +789,23 @@ export function Composer(props: ComposerProps) {
   } {
     if (isMentionOpen) {
       const active = mentionItems.length > 0 ? mentionOptionId(mentionIndex) : undefined
-      return { controls: 'mention-listbox', activeDescendant: active }
+      return {
+        controls: active === undefined ? undefined : 'mention-listbox',
+        activeDescendant: active,
+      }
     }
     if (slashMenu === 'palette') {
-      return { controls: PALETTE_LISTBOX_ID, activeDescendant: paletteRowId }
+      return {
+        controls: paletteRowId === undefined ? undefined : PALETTE_LISTBOX_ID,
+        activeDescendant: paletteRowId,
+      }
     }
     if (slashMenu === 'commands') {
       const active = slashItems.length > 0 ? slashOptionId(activeSlash) : undefined
-      return { controls: SLASH_LISTBOX_ID, activeDescendant: active }
+      return {
+        controls: active === undefined ? undefined : SLASH_LISTBOX_ID,
+        activeDescendant: active,
+      }
     }
     return { controls: undefined, activeDescendant: undefined }
   }

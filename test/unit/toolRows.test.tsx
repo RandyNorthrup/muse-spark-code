@@ -3,9 +3,17 @@
 // result below is the shape Muse Code 1.3.0 sent on 2026-09-25
 // (docs/certification/m43.md), trimmed to what the row reads.
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { Clipped } from '../../src/webview/components/ToolBlocks'
-import { renderSteps, renderTranscript, tool, userShell } from './helpers/transcriptFixtures'
+import {
+  renderSteps,
+  renderTranscript,
+  tool,
+  userShell,
+  warmRowMenus,
+} from './helpers/transcriptFixtures'
+
+beforeAll(warmRowMenus)
 
 const GOAL = {
   session_id: 's',

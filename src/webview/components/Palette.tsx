@@ -18,7 +18,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { UI_TEXT } from '../../shared/constants'
+import { UI_TEXT, PALETTE_LISTBOX_ID } from '../../shared/constants'
 import { effortAt, effortIndex } from '../../shared/effort'
 import {
   contextWindowLabel,
@@ -80,7 +80,6 @@ export type PaletteEntry =
   | { readonly kind: 'row'; readonly key: string; readonly index: number }
 
 const ROW_ID_PREFIX = 'palette-row-'
-export const PALETTE_LISTBOX_ID = 'palette-listbox'
 
 function rowFor(item: PaletteItem, onAction: (action: PaletteAction) => void): PaletteRow {
   const { action, widget } = item

@@ -5238,12 +5238,8 @@ export const EVAL_COST_DECIMALS = 4
 
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'
-// Inclusive integer range used to check whether a locale's `one` needs a count.
-export const L10N_COMPACT_FRAGMENT_WORDS = 6
-// Build-only English dictionary: two UTF-8 bytes per token. The codec rejects
-// a canonical key/value in this reserved range before encoding it.
-export const L10N_COMPACT_TOKEN_FIRST = 0x01_00
-export const L10N_COMPACT_TOKEN_LAST = 0x05_ff
+// Build-only inline browser fallback compression.
+export const L10N_BROWSER_COMPRESSION_LEVEL = 9
 export const L10N_TABLE_ARCHIVE_FILE = 'ui.tables.json.br'
 export const L10N_COMPRESSION_QUALITY = 11
 export const L10N_TABLE_MAX_BYTES = 1024 * 1024
@@ -5313,3 +5309,6 @@ export const CONVERSATION_MODEL_TEXT = {
   exportRedactedPath: '[redacted path]',
   exportRedactedAccount: '[redacted account]',
 } as const
+
+// Shared by the eager composer and the optional command palette.
+export const PALETTE_LISTBOX_ID = 'palette-listbox'

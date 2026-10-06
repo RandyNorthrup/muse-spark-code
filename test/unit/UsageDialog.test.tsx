@@ -4,7 +4,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { EMPTY_PAID_TALLY } from '../../src/shared/paid'
-import { UsageDialog, type UsageDialogProps } from '../../src/webview/components/UsageDialog'
+import {
+  UsageDialogContent as UsageDialog,
+  type UsageDialogProps,
+} from '../../src/webview/components/UsageDialogContent'
 
 const HOUR = 60 * 60 * 1000
 const DAY = 24 * HOUR

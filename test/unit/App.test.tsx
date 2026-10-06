@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { SHARE_VIEW_PAGE_ITEMS, UI_TEXT } from '../../src/shared/constants'
 import { EMPTY_PAID_TALLY } from '../../src/shared/paid'
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../../src/shared/protocol'
@@ -192,6 +192,24 @@ function storeWithSavedConversation(sessionId: string | undefined, title: string
   return createUiStore(restoredUiState(saved))
 }
 
+// Behaviour assertions share the first-open imports. Dedicated lazy-boundary
+// and production browser tests exercise cold loading, failure and retry.
+beforeAll(async () => {
+  renderReady()
+  fireEvent.click(screen.getByLabelText('Commands'))
+  fireEvent.keyDown(await screen.findByRole('combobox'), { key: 'Escape' })
+  fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
+  fireEvent.keyDown(await screen.findByRole('menu', { name: 'Permission modes' }), {
+    key: 'Escape',
+  })
+  loadHistory([historyUser('u1', 't1', 'first'), historyUser('u2', 't2', 'second')])
+  fireEvent.click(userMenuButtons()[1]!)
+  fireEvent.keyDown(await screen.findByRole('menu', { name: UI_TEXT.rewindMenuLabel }), {
+    key: 'Escape',
+  })
+  cleanup()
+})
+
 describe('App shell', () => {
   afterEach(() => {
     vi.restoreAllMocks()
@@ -252,7 +270,7 @@ describe('App shell', () => {
     },
   )
 
-  it('reveals a saved conversation only after both sign-in and same-session confirmation', () => {
+  it('reveals a saved conversation only after both sign-in and same-session confirmation', async () => {
     const store = storeWithSavedConversation('old', 'Restored title', 'Restored answer')
     render(<App postMessage={vi.fn()} store={store} />)
     act(() => {
@@ -274,7 +292,7 @@ describe('App shell', () => {
     })
     expect(screen.getByText('Restored title')).toBeInTheDocument()
     expect(screen.getByText('Restored answer')).toBeInTheDocument()
-    expect(screen.getByText('Restored title goal')).toBeInTheDocument()
+    expect(await screen.findByText('Restored title goal')).toBeInTheDocument()
     expect(screen.getByText('Restored title todo')).toBeInTheDocument()
   })
 
@@ -2675,7 +2693,7 @@ describe('App: Model API scheduled prompts (M52)', () => {
     expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'sendMessage' }))
   })
 
-  it('shows a due job, opens the paid gate, and only sends Run after it is on', () => {
+  it('shows a due job, opens the paid gate, and only sends Run after it is on', async () => {
     const postMessage = renderReady()
     deliver({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
     deliver({
@@ -2694,7 +2712,7 @@ describe('App: Model API scheduled prompts (M52)', () => {
       },
     })
     fireEvent.click(
-      screen.getByRole('button', { name: 'Enable paid runs for scheduled prompt job-a' }),
+      await screen.findByRole('button', { name: 'Enable paid runs for scheduled prompt job-a' }),
     )
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'setPaidFeature',

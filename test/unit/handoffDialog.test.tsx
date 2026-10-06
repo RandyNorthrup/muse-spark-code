@@ -80,9 +80,9 @@ function modalRoots() {
 }
 
 /** Opens a modal through the palette, as a user does. */
-function openFromPalette(command: string) {
+async function openFromPalette(command: string) {
   fireEvent.click(screen.getByLabelText('Commands'))
-  const filter = screen.getByRole('combobox')
+  const filter = await screen.findByRole('combobox')
   fireEvent.change(filter, { target: { value: command } })
   fireEvent.keyDown(filter, { key: 'Enter' })
 }
@@ -223,7 +223,7 @@ describe('/handoff (M74)', () => {
       const postMessage = renderPanel()
       submitCommand('/handoff')
       admit()
-      openFromPalette(command)
+      await openFromPalette(command)
       const open = await screen.findByRole('dialog', { name: title })
       deliver(READY)
       // The open dialog keeps the screen and the focus; the brief's dialog,

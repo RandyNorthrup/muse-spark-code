@@ -105,10 +105,10 @@ describe('/review in the composer (M70)', () => {
     )
   })
 
-  it('runs a palette preset with the command as its card', () => {
+  it('runs a palette preset with the command as its card', async () => {
     const postMessage = renderReady()
     fireEvent.click(screen.getByRole('button', { name: 'Commands' }))
-    fireEvent.click(screen.getByRole('option', { name: /Security review/ }))
+    fireEvent.click(await screen.findByRole('option', { name: /Security review/ }))
     expect(posted(postMessage, 'startReview')).toEqual([
       {
         type: 'startReview',

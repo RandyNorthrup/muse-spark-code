@@ -683,6 +683,8 @@
   "showMore": "자세히 표시",
   "showLess": "간단히 표시",
   "loadingOutput": "로드하는 중…",
+  "surfaceLoadFailed": "이 패널을 불러올 수 없습니다.",
+  "surfaceLoadRetry": "다시 시도",
   "toolFailed": "실패",
   "toolRejected": "거부됨",
   "toolStopped": "중지됨",

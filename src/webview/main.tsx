@@ -16,6 +16,7 @@ import { DeferredReportDialog } from './components/DeferredReportDialog'
 import { type ErrorReporter, reportWebviewErrorMessage, webviewErrorReport } from './errorReport'
 import { vsCodeHostBridge } from './hostBridge'
 import { installEmbeddedTable } from './installTable'
+import { installSurfaceRetry, retrySurface } from './surfaceRetry'
 import { restoredUiState } from './state/snapshot'
 import { createUiStore, listenToHost, persistStore, type UiStore } from './state/store'
 import './styles.css'
@@ -129,6 +130,14 @@ function mountChat(element: Element): void {
   const persister = persistStore(store, (state) => {
     host.saveState(state)
   })
+  installSurfaceRetry(
+    () => {
+      persister.flush(store.hasRendered())
+    },
+    () => {
+      host.post({ type: 'hostAction', action: 'reload' })
+    },
+  )
   // The document goes away (a reload, the panel closing): save what is shown.
   window.addEventListener('pagehide', () => {
     persister.flush(store.hasRendered())
@@ -150,12 +159,7 @@ function mountChat(element: Element): void {
           // the host builds the report from its journal alone.
           host.post({ type: 'openReport' })
         }}
-        onReload={() => {
-          // A state that crashed the very first render would crash the reloaded
-          // one too: it is saved without its transcript then.
-          persister.flush(store.hasRendered())
-          host.post({ type: 'hostAction', action: 'reload' })
-        }}
+        onReload={retrySurface}
       >
         <App store={store} postMessage={postMessage} />
       </ErrorBoundary>

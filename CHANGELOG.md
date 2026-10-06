@@ -14,6 +14,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Retry after a failed optional panel reloads its complete module graph with
+  the conversation and draft saved. Cold menus respect outside dismissal and
+  late imports cannot take focus; failed menus accept Escape and return focus
+  to their trigger.
+
 - The release-artifact check validates complete ACP help, including its reference
   hint, in English and every installed language using the CLI's shared formatter.
 
@@ -27,6 +32,13 @@ happened, not what was planned; superseded entries are kept.
   stdio checks include the localized Help reference hint.
 
 ### Performance
+
+- Optional menus, sign-in, goals, schedules, Account & usage and Agent map
+  content load on first use with accessible loading and retry after a failed
+  chunk request. A lossless native encoding keeps the complete English fallback
+  inline while reducing webview startup from 794.1 to 733.8 KiB (60.3 KiB).
+  The original deferred group drops from 50.0 to 32.1 KiB; existing size caps
+  stay unchanged.
 
 - Reference tests share unchanged setup and keyboard analysis, keeping
   catalogue mutation checks within the normal test timeout.
