@@ -39,9 +39,10 @@ export function teamResources() {
   async function read(changes: Partial<ResourceSample>) {
     steps.push({
       atMs: clock.now(),
-      cpuPercent: 20,
-      memoryUsedPercent: 40,
-      memoryAvailableBytes: 8 * RESOURCE_GIB_BYTES,
+      // Capacity drills need only scripted memory readings; other metrics stay unknown.
+      cpuPercent: null,
+      memoryUsedPercent: null,
+      memoryAvailableBytes: null,
       memoryTotalBytes: 16 * RESOURCE_GIB_BYTES,
       gpuPercent: null,
       diskBusyPercent: null,

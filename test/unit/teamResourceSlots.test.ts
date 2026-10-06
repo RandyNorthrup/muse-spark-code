@@ -94,6 +94,7 @@ describe('C2 adds the governor to existing team and heavy-check slots', () => {
     expect(h.scheduler.acquire).toHaveBeenCalledTimes(2)
     expect(order).toEqual([])
     first.release()
+    expect(h.queue.counts()).toEqual([{ kind: 'worker', class: 'background', count: 2 }])
     const admittedUrgent = await urgent
     expect(order).toEqual(['urgent'])
     admittedUrgent.release()
@@ -167,8 +168,10 @@ describe('C2 adds the governor to existing team and heavy-check slots', () => {
     h.governor.updateSettings(resourceSettingsSchema.parse({}))
     h.clock.advance(RESOURCE_MIN_DWELL_MS)
     await h.throttle()
-    const following = await h.slots.request({ kind: 'worker', priority: 0 }).ready
-    following.release()
+    const following = h.slots.request({ kind: 'worker', priority: 0 })
+    expect(h.queue.counts()).toEqual([])
+    const slot = await following.ready
+    slot.release()
   })
 
   it('releases admission when existing slot acquisition fails', async () => {
@@ -176,8 +179,10 @@ describe('C2 adds the governor to existing team and heavy-check slots', () => {
     await h.throttle()
     h.scheduler.acquire.mockRejectedValueOnce(new Error('Slot unavailable'))
     await expect(requestCheckSlot(h.slots, 0).ready).rejects.toThrow('Slot unavailable')
-    const following = await requestCheckSlot(h.slots, 0).ready
-    following.release()
+    const following = requestCheckSlot(h.slots, 0)
+    expect(h.queue.counts()).toEqual([])
+    const slot = await following.ready
+    slot.release()
   })
 
   it('cancels queued background work immediately at pause without acquiring a slot', async () => {
@@ -186,6 +191,7 @@ describe('C2 adds the governor to existing team and heavy-check slots', () => {
     const waiting = requestCheckSlot(h.slots, 0)
     const rejected = expect(waiting.ready).rejects.toMatchObject({ name: 'AbortError' })
     waiting.cancel()
+    expect(h.queue.counts()).toEqual([])
     await rejected
     expect(h.scheduler.acquire).not.toHaveBeenCalled()
     expect(h.queue.counts()).toEqual([])
@@ -237,6 +243,7 @@ describe('C2 adds the governor to existing team and heavy-check slots', () => {
     expect(h.scheduler.acquire).toHaveBeenCalledTimes(1)
     expect(h.release).not.toHaveBeenCalled()
     held.release()
+    expect(h.queue.counts()).toEqual([])
     held.release()
     const next = await following.ready
     expect(h.release).toHaveBeenCalledTimes(1)
@@ -253,7 +260,9 @@ describe('C2 adds the governor to existing team and heavy-check slots', () => {
     expect(() => {
       held.release()
     }).toThrow('Cleanup failed')
-    const next = await requestCheckSlot(h.slots, 0).ready
+    const following = requestCheckSlot(h.slots, 0)
+    expect(h.queue.counts()).toEqual([])
+    const next = await following.ready
     next.release()
   })
 })

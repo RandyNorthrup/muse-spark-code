@@ -89,3 +89,120 @@ raised test timeout. The final async/style edits received the complete
 owning coverage run above and a fresh unit-project compiler check before
 the early hooked commit. Guard drills and aggregate scoped gate receipts
 are recorded in the next piece.
+
+## Red/restored drills
+
+All **28** deliberate mutations ran a complete owning file directly with
+`npx vitest run <file> --maxWorkers=3 --reporter=json --outputFile=<scratch>`
+and the repository default timeout. Each exited **1** with the named
+failure below; no test filter, skip, timeout, gate or threshold changed.
+Every source was restored in `finally` from saved bytes and verified
+SHA-256-identical after each mutation. The check-kind mutation also
+deadlocks an intentionally misclassified check until the default test
+timeout; the parent test below fails directly on same-kind refusal.
+The removed initial child preflight also leaves an expected unhandled
+refusal in the deliberately broken implementation; its named assertion
+fails before accepting the impossible wait. Neither outcome remains after
+restoration.
+
+| Mutation                                     | Named failing test                                                                    |
+| -------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Ignore the existing configured cap           | preserves existing caps at normal and narrows them at throttle without widening zero  |
+| Accept an already full scheduler             | preserves existing caps at normal and narrows them at throttle without widening zero  |
+| Block normal available capacity              | preserves existing caps at normal and narrows them at throttle without widening zero  |
+| Treat unknown registry occupancy as free     | refuses unknown or occupied registry counts even when scheduler slots are free        |
+| Accept the registry capacity boundary        | refuses unknown or occupied registry counts even when scheduler slots are free        |
+| Reverse the eligible picker order            | preserves eligible-task order while allowing another kind past a busy worker          |
+| Change team admission to foreground          | runs one background item per kind and keeps priority/FIFO order through recovery      |
+| Remove preflight before waiting              | refuses a delegating parent before it waits on all existing scheduler slots at normal |
+| Remove preflight after governor admission    | rechecks child preflight after governor waiting and releases a rejected reservation   |
+| Remove the pre-acquisition abort check       | honors a caller abort before local acquisition begins                                 |
+| Remove the post-acquisition abort check      | cleans up both slots when cancellation races a cancellation-ignoring acquisition      |
+| Keep a rejected admission reservation        | rechecks child preflight after governor waiting and releases a rejected reservation   |
+| Release a retired slot twice                 | retains granted occupancy after cancel and releases it only once on retirement        |
+| Keep the permit after scheduler release      | runs one background item per kind and keeps priority/FIFO order through recovery      |
+| Do not abort pending local acquisition       | cleans up both slots when cancellation races a cancellation-ignoring acquisition      |
+| Do not cancel queued work                    | cancels queued background work immediately at pause without acquiring a slot          |
+| Drop the registry retirement callback        | attaches the exact reserved permit before launch and retains root-exit uncertainty    |
+| Keep the reservation after failed binding    | releases a failed registry attachment before any process can spawn                    |
+| Propose relocation for a running attempt     | leaves running attempts alone even at pause                                           |
+| Ignore Keep here                             | honors Keep here without consulting runners                                           |
+| Ignore relocation off                        | does no runner activity with relocation off                                           |
+| Consult runners at normal                    | leaves normal routing unchanged without consulting runners                            |
+| Consult runners at throttle                  | leaves throttle routing unchanged without consulting runners                          |
+| Return a proposal without an approved runner | marks Ask as a confirmation proposal and never turns a missing runner into success    |
+| Remove Ask confirmation                      | marks Ask as a confirmation proposal and never turns a missing runner into success    |
+| Charge heavy checks to the worker kind       | passes the exact parent and refuses same-kind child waiting at throttle               |
+| Drop the exact check parent permit           | passes the exact parent and refuses same-kind child waiting at throttle               |
+| Disable runner proposals at relocate/pause   | proposes only an already approved matching runner at relocate                         |
+
+Saved/restored production hashes, also unchanged from the early code commit:
+
+- `src/core/runners/routing.ts`: `9b58a25f89df7ed4052970c66c6e064e3acd015cab300e4e1302b99c5bca4fa6`
+- `src/core/team/scheduler/pick.ts`: `fad5cac42e24185497e122ac7eb0ffaa21af42ae22dd18853f17e45d4e1d573e`
+- `src/core/team/scheduler/slots.ts`: `e3575dc284698915fd5da0ec7d4c896c4b975aa8d5274c9593f9f2fa0dc54d94`
+- `src/host/team/checkSlots.ts`: `a758121c5b25f64f192fea507b75e9590282d364073a1615b21b5639dede40ee`
+- `src/host/team/processLifetime.ts`: `c4db5b993d2271fe819e5ccbafe01b01a36de8886a84b4e2e26f9bcf0a9cee35`
+
+The post-commit assertion refinements check queue occupancy immediately
+after cleanup, so the release/cancel drills fail promptly on an assertion
+instead of depending on a subsequent pending admission timing out. No
+production behavior changed after the first commit. `SchedulerSlotPort`
+preflight must be read-only: M96c owns child reservations made at delegate;
+its acquire method atomically consumes the existing/reserved slot and obeys
+the supplied cancellation signal. No second reservation in preflight.
+
+The first duplication run found a 14-line clone of C1's general healthy
+reading in the new test helper. C2 tests now supply only their scripted
+memory readings and leave other metrics unknown, rather than copying a
+whole-machine healthy scenario. This also exercises capacity changes while
+other readings are unknown. The next duplication run has **1,243 files,
+zero clones**, exit 0, with no ignore/threshold change. The complete owning
+coverage run remains **24/24, 100%** in every dimension. All 28 drills are
+repeated against the final fixture and restore the same production hashes.
+
+## Scoped delivery checks (Kubuntu)
+
+| Check                                                        | Result                                                                                                                                      |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck`                                          | All five projects exit 0; later async/style and final fixture edits receive fresh unit-project checks, which include the production sources |
+| Scoped ESLint on all nine source/test/helper files           | Exit 0, zero warnings                                                                                                                       |
+| `npm run deadcode`                                           | Exit 0; only the unchanged vendor/axe-core configuration hints                                                                              |
+| `npx jscpd`                                                  | Exit 0 after the fixture correction; 1,243 files, zero clones                                                                               |
+| `node scripts/check-l10n.mjs`                                | Exit 0; 14 tables, 164 manifest strings, 639 source files, zero problems                                                                    |
+| `npm run check:host-api`                                     | Exit 0; 336 VS Code APIs, 32 vscode importers, 26 Node built-ins, 61 theme variables, zero problems; inventory not edited                   |
+| `npm run cycles -- <C2 picker/check/lifetime/routing roots>` | Exit 0; repository roots plus all C2 modules, 598 files, no cycle                                                                           |
+| `npm run build`                                              | Exit 0; existing artifact caps, bundle/model-text split, host globals and 83-package notices all pass                                       |
+
+Measured production sizes (KiB): extension **446.2/600**, Model API
+**449.4/475**, checkpoint store **77.3/225**, ACP **837.9/850**, shared
+English **48.7/125**, startup webview **894.8/900** and deferred webview
+JavaScript **49.7/50**. The existing resource governor is **61.0** and its
+admission shim **1.5**; this base has no dedicated size-gate row for those
+two artifacts. Their final budget remains W's existing ownership. No cap
+or build graph changes in C2. The absent M96 team bundle's incremental
+size must be measured when its ports are joined.
+
+C2 is staged against the missing M96/M96c dependency, so these modules
+are not claimed as shipped behavior. Build metafiles confirm none is in
+the current shipping graph; there is no new activation/webview import.
+The full `npm run quality`, native/editor matrix, fifteen-heavy-check
+responsiveness/second-window measurements, joined single-model goldens,
+M96 load-guard removal/caller replacement, hints, registry attachment and
+R dispatch/surfaces remain the named lead/W/dependency handoffs above.
+The lane brief forbids aggregate quality and other-lane edits here.
+No failing scoped gate, threshold waiver or production fake is accepted.
+
+## Final restored receipt
+
+The early code commit is **637448a3d**, with ordinary serial lint-staged
+and staged redacted gitleaks (29.92 KB, zero leaks). Only this record and
+the two test assertion/fixture files change in the finishing commit.
+All five production hashes above remain identical to that code commit.
+The repeated 28-drill run exits 1 for every mutation and restores each file;
+the final complete restored coverage run exits **0**, **24/24 tests**, with
+the repository's default timeout and **100%** statements, branches,
+functions and lines. The fresh final unit-project compiler and scoped
+ESLint exit 0; explicit-path Prettier and `git diff --check` pass. Shipping
+metafile inspection finds **zero C2 inputs across 38 metafiles**.
+The finishing explicit-path commit uses the repository's unmodified hooks.
