@@ -192,6 +192,7 @@ import { loadUiTable, readUiTableFile } from './host/l10n'
 import { createInsightsReader } from './host/usage/traceLogs'
 import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
 import { voiceLoader } from './host/voice/voiceBundle'
+import { RECORDING_COMMAND_IDS, screenRecordLoader } from './host/media/screenRecordBundle'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { createPaidFeatures } from './host/paid/paidHost'
 import { createPaidDailyBudget } from './host/paid/paidDailyBudget'
@@ -3439,6 +3440,28 @@ async function activateWindow(
       forActiveConversation(async (controller) => {
         await controller.handle({ type: 'hostAction', action: 'openTasksTab' })
       }),
+    ),
+    ...Object.entries(RECORDING_COMMAND_IDS).map(([kind, id]) =>
+      registerLoggedCommand(
+        log,
+        id,
+        forActiveConversation(async (controller) => {
+          if (vscode.env.remoteName !== undefined) {
+            await vscode.window.showInformationMessage(UI_TEXT.media.recordingRemote)
+            return
+          }
+          const deps = await controller.recordingCommandDeps()
+          if (deps === undefined) {
+            await vscode.window.showInformationMessage(UI_TEXT.media.recordingUserOnly)
+            return
+          }
+          const load = screenRecordLoader(
+            path.join(context.extensionPath, 'dist', 'screenRecord.js'),
+            log,
+          )
+          await load().runScreenRecordingCommand(deps, kind === 'latest')
+        }),
+      ),
     ),
     registerLoggedCommand(log, COMMAND_IDS.newConversation, async () => {
       const surface = registry.active

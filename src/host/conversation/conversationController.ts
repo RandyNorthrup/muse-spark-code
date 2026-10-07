@@ -7,6 +7,8 @@ import { startApprovalJudge } from '../../core/judge/use'
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import { AttachmentStore } from '../../core/attachments'
+import type { MediaAttachmentPort } from '../media/mediaAttach'
+import type { RecordingCommandDeps } from '../media/screenRecordBundle'
 import { isProtectedPath } from '../../core/protectedPaths'
 import {
   type AgentHost,
@@ -291,7 +293,9 @@ export interface PickedFile {
 
 export interface FileAccess {
   /** Native open dialog; resolves to [] when cancelled. */
-  showOpenDialog(): Promise<readonly PickedFile[]>
+  showOpenDialog(
+    filters?: Readonly<Record<string, readonly string[]>>,
+  ): Promise<readonly PickedFile[]>
   /** Reads no file that is already over the attachment limit. */
   readFile(
     fsPath: string,
@@ -375,6 +379,10 @@ export interface ConversationDeps {
   readonly openSideChat?: (sessionId: string) => void
   readonly mentions: MentionSearch
   readonly files: FileAccess
+  /** Lazy E1/M1/M2 binding; no media implementation enters conversation startup. */
+  readonly mediaAttachments?: () => Promise<MediaAttachmentPort>
+  /** R1–R3 and the Files lifecycle supply this window's user recording port. */
+  readonly recordingCommandDeps?: () => Promise<RecordingCommandDeps>
   /** The `allowDangerouslySkipPermissions` setting: whether Bypass is offered. */
   readonly isBypassAllowed: () => boolean
   /**
@@ -1285,6 +1293,8 @@ export class ConversationController {
    * open for this surface's conversation.
    */
   private tasksTabFor: { readonly sessionId: string | undefined } | undefined
+  private mediaAttachments: MediaAttachmentPort | undefined
+  private mediaLoading: Promise<MediaAttachmentPort> | undefined
 
   public constructor(private readonly deps: ConversationDeps) {
     this.modelId = deps.modelId
@@ -1698,6 +1708,7 @@ export class ConversationController {
    */
   private dropSession(isTurnCancelled = true, isOwnedRecovery = false): void {
     this.attachmentGeneration += 1
+    this.mediaAttachments?.clear()
     this.sessionOpening = undefined
     // A review's Plan mode goes with its session (M70): the next session
     // starts, resumes or is adopted in the mode the user had.
@@ -7572,7 +7583,21 @@ export class ConversationController {
     const generation = this.attachmentGeneration
     let picked: readonly PickedFile[]
     try {
-      picked = await this.deps.files.showOpenDialog()
+      picked = await this.deps.files.showOpenDialog({
+        [UI_TEXT.attachTitle]: [
+          ...Object.keys(IMAGE_EXTENSIONS).map((extension) => extension.slice(1)),
+          'pdf',
+          'mp4',
+          'mov',
+          'webm',
+          'mkv',
+          'mp3',
+          'wav',
+          'm4a',
+          ...Array.from(TEXT_ATTACHMENT_EXTENSIONS, (extension) => extension.slice(1)),
+        ],
+        [UI_TEXT.mentionFile]: ['*'],
+      })
     } catch (error: unknown) {
       if (!this.isCurrentAttachmentGeneration(generation)) {
         return
@@ -7582,13 +7607,24 @@ export class ConversationController {
     if (!this.isCurrentAttachmentGeneration(generation)) {
       return
     }
+    await this.attachPickedFiles(picked, generation)
+  }
+
+  private async attachPickedFiles(
+    picked: readonly PickedFile[],
+    generation: number,
+  ): Promise<void> {
     for (const file of picked) {
       if (!this.isCurrentAttachmentGeneration(generation)) {
         return
       }
-      const extension = path.extname(file.name).toLowerCase()
+      const extension = path.extname(file.name.replaceAll('\\', '/')).toLowerCase()
       if (isPrivateFileName(file.name)) {
         this.post({ type: 'attachmentRejected', name: file.name, reason: UI_TEXT.textFilePrivate })
+        continue
+      }
+      if (this.isMediaExtension(extension)) {
+        await this.addMediaAttachment(file, generation)
         continue
       }
       const isTextFile = TEXT_ATTACHMENT_EXTENSIONS.has(extension)
@@ -7676,6 +7712,79 @@ export class ConversationController {
     }
   }
 
+  private isMediaExtension(extension: string): boolean {
+    return ['.mp4', '.mov', '.webm', '.mkv', '.mp3', '.wav', '.m4a'].includes(extension)
+  }
+
+  private async addMediaAttachment(
+    file: PickedFile | undefined,
+    generation: number,
+    token?: string,
+    requestId?: string,
+    requestEpoch?: number,
+  ): Promise<void> {
+    const isCurrent = () =>
+      this.isCurrentAttachmentGeneration(generation) &&
+      (requestEpoch === undefined || requestEpoch === this.webviewAttachmentEpoch)
+    const rejected = (reason: string) => {
+      if (isCurrent())
+        this.post({
+          type: 'attachmentRejected',
+          name: file?.name ?? UI_TEXT.attachTitle,
+          reason,
+          ...(requestId !== undefined && { requestId }),
+        })
+    }
+    if (!isCurrent()) return
+    try {
+      const host = await this.deps.ensureHost()
+      if (!isCurrent()) return
+      if (host.info.kind !== 'modelApi') {
+        rejected(UI_TEXT.media.museCodeRefusal)
+        return
+      }
+      const loading =
+        this.mediaAttachments === undefined
+          ? (this.mediaLoading ?? this.deps.mediaAttachments?.())
+          : undefined
+      this.mediaLoading = loading
+      let port: MediaAttachmentPort | undefined
+      try {
+        port = this.mediaAttachments ?? (await loading)
+      } finally {
+        if (this.mediaLoading === loading) this.mediaLoading = undefined
+      }
+      if (!isCurrent()) return
+      if (port === undefined) {
+        rejected(UI_TEXT.attachmentUnreadable)
+        return
+      }
+      this.mediaAttachments = port
+      const pathToken = token ?? (file === undefined ? undefined : port.issue(file))
+      if (pathToken === undefined) {
+        rejected(UI_TEXT.attachmentUnreadable)
+        return
+      }
+      const prepared = await port.prepare(pathToken, host.info.kind, this.modelId)
+      if (!isCurrent()) return
+      if (!prepared.ok) {
+        rejected(prepared.reason)
+        return
+      }
+      this.attachments.installMediaPort(prepared.attachment.store)
+      const result = this.attachments.addMedia(prepared.attachment.name, prepared.attachment.info)
+      if (result.ok)
+        this.post({
+          type: 'attachmentAdded',
+          attachment: result.attachment,
+          ...(requestId !== undefined && { requestId }),
+        })
+      else rejected(result.reason)
+    } catch {
+      rejected(UI_TEXT.attachmentUnreadable)
+    }
+  }
+
   private async pickMentionFile(): Promise<void> {
     const generation = this.attachmentGeneration
     let relativePath: string | undefined
@@ -7692,11 +7801,55 @@ export class ConversationController {
     }
   }
 
-  private droppedUris(uris: readonly string[]): void {
-    const mentions = uris
-      .map((uri) => this.deps.files.toRelativePath(uri))
-      .filter((relativePath) => relativePath !== undefined)
-      .map((relativePath) => `${formatMention(relativePath)} `)
+  private async droppedUris(uris: readonly string[]): Promise<void> {
+    const generation = this.attachmentGeneration
+    const mentions: string[] = []
+    for (const uri of uris) {
+      if (!this.isCurrentAttachmentGeneration(generation)) return
+      const relativePath = this.deps.files.toRelativePath(uri)
+      let name: string
+      try {
+        name = path.posix.basename(decodeURIComponent(new URL(uri).pathname).replaceAll('\\', '/'))
+      } catch {
+        continue
+      }
+      const extension = path.extname(name).toLowerCase()
+      const isMedia =
+        this.isMediaExtension(extension) ||
+        extension === PDF_EXTENSION ||
+        Object.hasOwn(IMAGE_EXTENSIONS, extension)
+      if (!isMedia) {
+        if (relativePath !== undefined) mentions.push(`${formatMention(relativePath)} `)
+        continue
+      }
+      if (relativePath === undefined || this.deps.workspaceRoot === undefined) {
+        this.post({ type: 'attachmentRejected', name, reason: UI_TEXT.attachmentUnreadable })
+        continue
+      }
+      let checked: Awaited<ReturnType<FileAccess['canonicalRelativePath']>>
+      try {
+        checked = await this.deps.files.canonicalRelativePath(
+          path.join(this.deps.workspaceRoot, relativePath),
+        )
+      } catch {
+        if (this.isCurrentAttachmentGeneration(generation))
+          this.post({ type: 'attachmentRejected', name, reason: UI_TEXT.attachmentUnreadable })
+        continue
+      }
+      if (!this.isCurrentAttachmentGeneration(generation)) return
+      if (
+        checked === undefined ||
+        isProtectedPath(checked.canonical) ||
+        isPrivateFileName(checked.canonical)
+      ) {
+        this.post({ type: 'attachmentRejected', name, reason: UI_TEXT.textFilePrivate })
+        continue
+      }
+      await this.attachPickedFiles(
+        [{ name, fsPath: checked.checkedAbsolute, relativePath }],
+        generation,
+      )
+    }
     if (mentions.length > 0) {
       this.post({ type: 'insertText', text: mentions.join('') })
     }
@@ -8685,12 +8838,26 @@ export class ConversationController {
         )
         break
       }
+      case 'attachMedia': {
+        if (message.attachmentEpoch !== undefined) {
+          if (message.attachmentEpoch < this.webviewAttachmentEpoch) break
+          this.webviewAttachmentEpoch = message.attachmentEpoch
+        }
+        await this.addMediaAttachment(
+          undefined,
+          this.attachmentGeneration,
+          message.pathToken,
+          message.requestId,
+          message.attachmentEpoch,
+        )
+        break
+      }
       case 'removeAttachment': {
         this.attachments.remove(message.id)
         break
       }
       case 'droppedUris': {
-        this.droppedUris(message.uris)
+        await this.droppedUris(message.uris)
         break
       }
       case 'hostAction': {
@@ -9261,6 +9428,7 @@ export class ConversationController {
       this.deps.pendingPrompts.clear()
       if (isConversationEnding) {
         this.attachmentGeneration += 1
+        this.mediaAttachments?.clear()
         this.webviewAttachmentEpoch += 1
         this.attachments.clear()
         this.post({ type: 'conversationCleared', accountBoundary: true })
@@ -9325,6 +9493,14 @@ export class ConversationController {
    */
   public async openReport(): Promise<void> {
     await this.handleReportMessage({ type: 'openReport' })
+  }
+
+  /** Loader-only command seam; no tool or model event calls this. */
+  public async recordingCommandDeps(): Promise<RecordingCommandDeps | undefined> {
+    if (this.isDisposed) return
+    const generation = this.attachmentGeneration
+    const deps = await this.deps.recordingCommandDeps?.()
+    return this.isCurrentAttachmentGeneration(generation) ? deps : undefined
   }
 
   /**
