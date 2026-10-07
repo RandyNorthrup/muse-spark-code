@@ -2916,9 +2916,9 @@
       "historyUnavailable": "Brak historii do podglądu.",
       "eventUntrusted": "Treść zdarzenia jest niezaufaną daną i nie może zmieniać zezwoleń, narzędzi ani celów.",
       "backgroundQuestion": "Uruchamiać harmonogramy przy zamkniętych edytorach?",
-      "backgroundYes": "Tak, dodaj wpis w tle",
+      "backgroundYes": "Tak",
       "backgroundNotNow": "Nie teraz",
-      "backgroundNever": "Nie pytaj ponownie",
+      "backgroundNever": "Nigdy",
       "backgroundRemove": "Usuń wpis w tle",
       "backgroundRemoved": "Usunięto wpis w tle.",
       "agentConsent": "Czy pozwolić {agent} utworzyć harmonogram w ramach własnych uprawnień i budżetu?",
@@ -2952,6 +2952,46 @@
       "enabled": "Włącz harmonogramy w dostępnych silnikach. Domyślnie włączone; każde uruchomienie działa bez nadzoru w ramach stałego zezwolenia.",
       "defaultDelivery": "Domyślne dostarczenie nowych harmonogramów. Domyślnie rozpocznij nową turę po przejściu w bezczynność.",
       "agentCreation": "Domyślne uprawnienie agentów do tworzenia harmonogramów: pytaj, zawsze w ramach limitów lub nigdy. Domyślnie pytaj."
+    },
+    "editor": {
+      "edit": "Edytuj harmonogram",
+      "audit": "Audyt uprawnień",
+      "invalid": "Przed zapisaniem sprawdź pola harmonogramu, dostępność celu i stałe uprawnienia.",
+      "loadFailed": "Nie udało się wczytać harmonogramów. Spróbuj ponownie.",
+      "empty": "Brak harmonogramów w tym obszarze roboczym.",
+      "dateTimeUtc": "Data i godzina (UTC)",
+      "minutes": "Odstęp w minutach",
+      "everyDays": "Co N dni",
+      "times": "Godziny (HH:MM, oddzielone przecinkami)",
+      "cronExpression": "Wyrażenie cron z pięcioma polami",
+      "source": "Źródło zdarzeń",
+      "conditions": "Warunki (pole=wartość, jeden na wiersz)",
+      "endDate": "Data i godzina zakończenia (UTC)",
+      "afterRuns": "Zakończ po N uruchomieniach",
+      "sent": "Wysłano zgodnie z harmonogramem",
+      "cost": "Koszt",
+      "grantHelp": "Jeden wpis na wiersz. Ścieżki pozostają w tym obszarze roboczym; chronione ścieżki i narzędzia wymagające człowieka są zawsze odrzucane.",
+      "auditKinds": {
+        "created": "Utworzono",
+        "changed": "Zmieniono",
+        "revoked": "Cofnięto",
+        "used": "Użyto"
+      },
+      "user": "Ty",
+      "liability": "Pozostałe zobowiązanie płatnicze",
+      "certainty": {
+        "exact": "Dokładne",
+        "estimated": "Szacunkowe",
+        "unknown": "Nieznane"
+      },
+      "tips": {
+        "list": "Sprawdź harmonogramy i ich stałe uprawnienia w tym obszarze roboczym.",
+        "create": "Wybierz, kiedy, dokąd i z jakimi uprawnieniami wysłać ten monit.",
+        "timeline": "Zobacz nadchodzące uruchomienia i kolizje dotyczące tego samego celu."
+      },
+      "anchorDate": "Data odniesienia (w strefie czasowej harmonogramu)",
+      "stateUnknown": "Stan nieznany — Ponów",
+      "retry": "Ponów"
     }
   }
 }

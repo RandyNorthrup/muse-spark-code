@@ -2820,9 +2820,9 @@
       "historyUnavailable": "Nessuna cronologia da mostrare in anteprima.",
       "eventUntrusted": "Il contenuto dell’evento è un dato non attendibile e non può modificare autorizzazioni, strumenti o destinazioni.",
       "backgroundQuestion": "Eseguire le pianificazioni quando gli editor sono chiusi?",
-      "backgroundYes": "Sì, aggiungi la voce in background",
+      "backgroundYes": "Sì",
       "backgroundNotNow": "Non ora",
-      "backgroundNever": "Non chiedere più",
+      "backgroundNever": "Mai",
       "backgroundRemove": "Rimuovi la voce in background",
       "backgroundRemoved": "Voce in background rimossa.",
       "agentConsent": "Consentire a {agent} di creare questa pianificazione entro i propri permessi e budget?",
@@ -2854,6 +2854,46 @@
       "enabled": "Abilita le pianificazioni sui backend disponibili. Attive per impostazione predefinita; ogni esecuzione è autonoma entro la sua autorizzazione permanente.",
       "defaultDelivery": "Consegna predefinita per le nuove pianificazioni. Per impostazione predefinita, avvia un nuovo turno quando inattivo.",
       "agentCreation": "Permesso predefinito degli agenti per creare pianificazioni: chiedi, sempre entro i limiti o mai. Chiedi per impostazione predefinita."
+    },
+    "editor": {
+      "edit": "Modifica pianificazione",
+      "audit": "Registro delle autorizzazioni",
+      "invalid": "Prima di salvare, controlla i campi, la disponibilità della destinazione e le autorizzazioni permanenti.",
+      "loadFailed": "Impossibile caricare le pianificazioni. Riprova.",
+      "empty": "Nessuna pianificazione in questa area di lavoro.",
+      "dateTimeUtc": "Data e ora (UTC)",
+      "minutes": "Intervallo in minuti",
+      "everyDays": "Ogni N giorni",
+      "times": "Orari (HH:MM, separati da virgole)",
+      "cronExpression": "Espressione cron a cinque campi",
+      "source": "Origine degli eventi",
+      "conditions": "Condizioni (campo=valore, una per riga)",
+      "endDate": "Data e ora di fine (UTC)",
+      "afterRuns": "Termina dopo N esecuzioni",
+      "sent": "Inviato secondo la pianificazione",
+      "cost": "Costo",
+      "grantHelp": "Una voce per riga. I percorsi restano in questa area di lavoro; i percorsi protetti e gli strumenti che richiedono una persona vengono sempre rifiutati.",
+      "auditKinds": {
+        "created": "Creato",
+        "changed": "Modificato",
+        "revoked": "Revocato",
+        "used": "Usato"
+      },
+      "user": "Tu",
+      "liability": "Obbligo di pagamento residuo",
+      "certainty": {
+        "exact": "Esatto",
+        "estimated": "Stimato",
+        "unknown": "Sconosciuto"
+      },
+      "tips": {
+        "list": "Controlla le pianificazioni e le loro autorizzazioni permanenti in questa area di lavoro.",
+        "create": "Scegli quando, dove e con quali autorizzazioni inviare questa istruzione.",
+        "timeline": "Visualizza le prossime esecuzioni e le sovrapposizioni sulla stessa destinazione."
+      },
+      "anchorDate": "Data di riferimento (nel fuso orario della pianificazione)",
+      "stateUnknown": "Stato sconosciuto — Riprova",
+      "retry": "Riprova"
     }
   }
 }

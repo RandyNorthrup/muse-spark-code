@@ -2724,9 +2724,9 @@
       "historyUnavailable": "Kein Verlauf für die Vorschau.",
       "eventUntrusted": "Ereignisinhalte sind nicht vertrauenswürdige Daten und können Freigaben, Werkzeuge oder Ziele nicht ändern.",
       "backgroundQuestion": "Zeitpläne ausführen, wenn Editoren geschlossen sind?",
-      "backgroundYes": "Ja, Hintergrundeintrag hinzufügen",
+      "backgroundYes": "Ja",
       "backgroundNotNow": "Jetzt nicht",
-      "backgroundNever": "Nicht mehr fragen",
+      "backgroundNever": "Nie",
       "backgroundRemove": "Hintergrundeintrag entfernen",
       "backgroundRemoved": "Hintergrundeintrag entfernt.",
       "agentConsent": "Darf {agent} diesen Zeitplan innerhalb seiner eigenen Berechtigungen und seines Budgets erstellen?",
@@ -2756,6 +2756,46 @@
       "enabled": "Zeitpläne auf verfügbaren Backends aktivieren. Standardmäßig an; jede Ausführung läuft unbeaufsichtigt innerhalb ihrer dauerhaften Freigabe.",
       "defaultDelivery": "Standardzustellung für neue Zeitpläne. Standardmäßig einen neuen Durchgang bei Leerlauf starten.",
       "agentCreation": "Standardberechtigung für Agenten zum Erstellen von Zeitplänen: fragen, immer innerhalb der Grenzen oder nie. Standardmäßig fragen."
+    },
+    "editor": {
+      "edit": "Zeitplan bearbeiten",
+      "audit": "Berechtigungsprotokoll",
+      "invalid": "Prüfen Sie vor dem Speichern die Zeitplanfelder, die Verfügbarkeit des Ziels und die dauerhafte Berechtigung.",
+      "loadFailed": "Zeitpläne konnten nicht geladen werden. Versuchen Sie es erneut.",
+      "empty": "Keine Zeitpläne in diesem Arbeitsbereich.",
+      "dateTimeUtc": "Datum und Uhrzeit (UTC)",
+      "minutes": "Intervall in Minuten",
+      "everyDays": "Alle N Tage",
+      "times": "Uhrzeiten (HH:MM, durch Kommas getrennt)",
+      "cronExpression": "Cron-Ausdruck mit fünf Feldern",
+      "source": "Ereignisquelle",
+      "conditions": "Bedingungen (Feld=Wert, eine pro Zeile)",
+      "endDate": "Enddatum und Uhrzeit (UTC)",
+      "afterRuns": "Nach N Ausführungen beenden",
+      "sent": "Nach Zeitplan gesendet",
+      "cost": "Kosten",
+      "grantHelp": "Ein Eintrag pro Zeile. Pfade bleiben in diesem Arbeitsbereich; geschützte Pfade und Werkzeuge, die eine Person benötigen, werden immer abgelehnt.",
+      "auditKinds": {
+        "created": "Erstellt",
+        "changed": "Geändert",
+        "revoked": "Widerrufen",
+        "used": "Verwendet"
+      },
+      "user": "Sie",
+      "liability": "Verbleibende Zahlungsverpflichtung",
+      "certainty": {
+        "exact": "Genau",
+        "estimated": "Geschätzt",
+        "unknown": "Unbekannt"
+      },
+      "tips": {
+        "list": "Prüfe Zeitpläne und ihre dauerhaften Berechtigungen in diesem Arbeitsbereich.",
+        "create": "Wähle, wann, wohin und mit welchen Berechtigungen dieser Prompt gesendet wird.",
+        "timeline": "Sieh bevorstehende Ausführungen und Überschneidungen am selben Ziel."
+      },
+      "anchorDate": "Bezugsdatum (in der Zeitzone des Zeitplans)",
+      "stateUnknown": "Status unbekannt — Erneut versuchen",
+      "retry": "Erneut versuchen"
     }
   }
 }

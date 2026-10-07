@@ -13,12 +13,23 @@ export const scheduleWebviewMessageSchema = z.strictObject({
   requestId: z.string().check(z.minLength(1)),
   request: scheduleRequestSchema,
 })
-export const scheduleHostMessageSchema = z.strictObject({
+const scheduleResponseMessageSchema = z.strictObject({
   type: z.literal('schedulesResponse'),
   version: z.literal(SCHEDULE_PROTOCOL_VERSION),
   requestId: z.string().check(z.minLength(1)),
   response: scheduleResponseSchema,
 })
+/** W/S broadcast the durable workspace store revision after every write. */
+export const scheduleChangedMessageSchema = z.strictObject({
+  type: z.literal('scheduleChanged'),
+  version: z.literal(SCHEDULE_PROTOCOL_VERSION),
+  workspaceKey: z.string().check(z.minLength(1), z.regex(/^[\w-][\w.-]*$/)),
+  revision: z.int().check(z.gte(0)),
+})
+export const scheduleHostMessageSchema = z.discriminatedUnion('type', [
+  scheduleResponseMessageSchema,
+  scheduleChangedMessageSchema,
+])
 export type ScheduleWebviewMessage = z.infer<typeof scheduleWebviewMessageSchema>
 export type ScheduleHostMessage = z.infer<typeof scheduleHostMessageSchema>
 export function parseScheduleWebviewMessage(input: unknown): ParseResult<ScheduleWebviewMessage> {

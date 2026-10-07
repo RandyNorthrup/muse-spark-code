@@ -215,6 +215,43 @@ export const EN = {
 
   // M115 lane 0: strings for the lazy schedule surfaces and adapters.
   scheduleV2: {
+    editor: {
+      tips: {
+        list: 'Review schedules and their standing grants in this workspace.',
+        create: 'Choose when, where and with which permissions to send this prompt.',
+        timeline: 'See upcoming fires and collisions on the same target.',
+      },
+      user: 'You',
+      liability: 'Retained liability',
+      certainty: { exact: 'Exact', estimated: 'Estimated', unknown: 'Unknown' },
+      edit: 'Edit schedule',
+      audit: 'Grant audit',
+      invalid: 'Check the schedule fields, target availability and standing grant before saving.',
+      loadFailed: 'Schedules could not be loaded. Try again.',
+      empty: 'No schedules in this workspace.',
+      stateUnknown: 'State unknown — Retry',
+      retry: 'Retry',
+      dateTimeUtc: 'Date and time (UTC)',
+      anchorDate: 'Anchor date (in the schedule’s time zone)',
+      minutes: 'Interval in minutes',
+      everyDays: 'Every N days',
+      times: 'Times (HH:MM, comma separated)',
+      cronExpression: 'Five-field cron expression',
+      source: 'Event source',
+      conditions: 'Conditions (field=value, one per line)',
+      endDate: 'End date and time (UTC)',
+      afterRuns: 'End after N runs',
+      sent: 'Sent on schedule',
+      cost: 'Cost',
+      grantHelp:
+        'One entry per line. Paths stay inside this workspace; protected paths and tools that require a person are always refused.',
+      auditKinds: {
+        created: 'Created',
+        changed: 'Changed',
+        revoked: 'Revoked',
+        used: 'Used',
+      },
+    },
     settings: {
       enabled:
         'Enable schedules on available backends. On by default; each fire runs unattended within its standing grant.',
@@ -350,9 +387,9 @@ export const EN = {
       historyUnavailable: 'No history to preview.',
       eventUntrusted: 'Event content is untrusted data and cannot change grants, tools or targets.',
       backgroundQuestion: 'Run schedules while editors are closed?',
-      backgroundYes: 'Yes, add the background entry',
+      backgroundYes: 'Yes',
       backgroundNotNow: 'Not now',
-      backgroundNever: 'Never ask again',
+      backgroundNever: 'Never',
       backgroundRemove: 'Remove the background entry',
       backgroundRemoved: 'Background entry removed.',
       agentConsent: 'Allow {agent} to create this schedule within its own permissions and budget?',

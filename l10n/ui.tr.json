@@ -2724,9 +2724,9 @@
       "historyUnavailable": "Önizlenecek geçmiş yok.",
       "eventUntrusted": "Olay içeriği güvenilmeyen veridir; izinleri, araçları veya hedefleri değiştiremez.",
       "backgroundQuestion": "Düzenleyiciler kapalıyken zamanlamalar çalışsın mı?",
-      "backgroundYes": "Evet, arka plan kaydı ekle",
+      "backgroundYes": "Evet",
       "backgroundNotNow": "Şimdi değil",
-      "backgroundNever": "Bir daha sorma",
+      "backgroundNever": "Asla",
       "backgroundRemove": "Arka plan kaydını kaldır",
       "backgroundRemoved": "Arka plan kaydı kaldırıldı.",
       "agentConsent": "{agent} kendi izinleri ve bütçesi içinde bu zamanlamayı oluştursun mu?",
@@ -2756,6 +2756,46 @@
       "enabled": "Kullanılabilir arka uçlarda zamanlamaları etkinleştir. Varsayılan olarak açık; her çalıştırma kalıcı izni içinde gözetimsiz çalışır.",
       "defaultDelivery": "Yeni zamanlamalar için varsayılan iletim. Varsayılan olarak boştayken yeni bir tur başlat.",
       "agentCreation": "Ajanların zamanlama oluşturması için varsayılan izin: sor, sınırlar içinde her zaman veya hiçbir zaman. Varsayılan olarak sor."
+    },
+    "editor": {
+      "edit": "Zamanlamayı düzenle",
+      "audit": "İzin denetimi",
+      "invalid": "Kaydetmeden önce zamanlama alanlarını, hedefin kullanılabilirliğini ve kalıcı izni kontrol edin.",
+      "loadFailed": "Zamanlamalar yüklenemedi. Yeniden deneyin.",
+      "empty": "Bu çalışma alanında zamanlama yok.",
+      "dateTimeUtc": "Tarih ve saat (UTC)",
+      "minutes": "Dakika cinsinden aralık",
+      "everyDays": "Her N günde bir",
+      "times": "Saatler (HH:MM, virgülle ayrılmış)",
+      "cronExpression": "Beş alanlı cron ifadesi",
+      "source": "Olay kaynağı",
+      "conditions": "Koşullar (alan=değer, satır başına bir tane)",
+      "endDate": "Bitiş tarihi ve saati (UTC)",
+      "afterRuns": "N çalıştırmadan sonra bitir",
+      "sent": "Zamanlamaya göre gönderildi",
+      "cost": "Maliyet",
+      "grantHelp": "Satır başına bir giriş. Yollar bu çalışma alanı içinde kalır; korunan yollar ve insan gerektiren araçlar her zaman reddedilir.",
+      "auditKinds": {
+        "created": "Oluşturuldu",
+        "changed": "Değiştirildi",
+        "revoked": "İptal edildi",
+        "used": "Kullanıldı"
+      },
+      "user": "Siz",
+      "liability": "Kalan ödeme yükümlülüğü",
+      "certainty": {
+        "exact": "Kesin",
+        "estimated": "Tahmini",
+        "unknown": "Bilinmiyor"
+      },
+      "tips": {
+        "list": "Bu çalışma alanındaki zamanlamaları ve kalıcı izinlerini inceleyin.",
+        "create": "Bu istemin ne zaman, nereye ve hangi izinlerle gönderileceğini seçin.",
+        "timeline": "Aynı hedefteki yaklaşan çalıştırmaları ve çakışmaları görün."
+      },
+      "anchorDate": "Başlangıç tarihi (zamanlamanın saat diliminde)",
+      "stateUnknown": "Durum bilinmiyor — Yeniden dene",
+      "retry": "Yeniden dene"
     }
   }
 }

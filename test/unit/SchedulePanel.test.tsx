@@ -2,7 +2,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { ScheduleView } from '../../src/shared/schedule'
-import { SchedulePanel } from '../../src/webview/components/SchedulePanel'
+import { SchedulePanel, type SchedulePanelProps } from '../../src/webview/components/SchedulePanel'
 
 const due: ScheduleView = {
   id: 'job-a',
@@ -12,7 +12,11 @@ const due: ScheduleView = {
   fireCount: 0,
 }
 
-function show(isPaidOn: boolean, jobs: readonly ScheduleView[] = [due]) {
+function show(
+  isPaidOn: boolean,
+  jobs: readonly ScheduleView[] = [due],
+  overrides: Partial<SchedulePanelProps> = {},
+) {
   const onRun = vi.fn()
   const onCancel = vi.fn()
   const onEnable = vi.fn()
@@ -25,12 +29,23 @@ function show(isPaidOn: boolean, jobs: readonly ScheduleView[] = [due]) {
       onRun={onRun}
       onCancel={onCancel}
       onEnable={onEnable}
+      {...overrides}
     />,
   )
   return { onRun, onCancel, onEnable, ...view }
 }
 
 describe('SchedulePanel (M52)', () => {
+  it.each([true, false])('renders the injected schedule list and preserves inert=%s', (isInert) => {
+    const { container, onRun, onEnable } = show(false, [due], {
+      surface: <section aria-label="Bound schedule list">Prepared schedules</section>,
+      isInert,
+    })
+    expect(container.textContent).toBe('Prepared schedules')
+    expect(container.firstElementChild?.hasAttribute('inert')).toBe(isInert)
+    expect(onRun).not.toHaveBeenCalled()
+    expect(onEnable).not.toHaveBeenCalled()
+  })
   it('shows only extension-owned jobs with accessible run and cancel controls', () => {
     const { onRun, onCancel } = show(true)
     const panel = screen.getByRole('region', { name: 'Scheduled prompts for this conversation' })

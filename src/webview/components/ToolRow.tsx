@@ -9,12 +9,14 @@
 import { memo, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import {
   IO_PREVIEW_LINES,
+  MODEL_API_SCHEDULED_TOOL,
   PATCH_DOCUMENT_MAX_PAGES,
   TOOL_STATUS_IN_PROGRESS,
   TOOL_STATUS_INTERRUPTED,
   UI_TEXT,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { ScheduleRunBody } from '../schedules/ScheduleRunBody'
 import { PaidBadge } from './PaidBadge'
 import type { LineRange } from '../../shared/protocol'
 import { type DiffRow, type FileDiff, parsePatchDocument, parseUnifiedText } from '../diff'
@@ -388,7 +390,14 @@ function ToolRowView({
   quoteMenu,
 }: ToolRowProps) {
   const attention = useAttentionSurface()
-  const presentation = useMemo(() => describeTool(entry.tool, entry.args), [entry.tool, entry.args])
+  const settlementOutput = entry.tool === MODEL_API_SCHEDULED_TOOL ? entry.output : undefined
+  const presentation = useMemo(
+    () => describeTool(entry.tool, entry.args, settlementOutput),
+    [entry.tool, entry.args, settlementOutput],
+  )
+  let dotStatus = entry.status
+  if (presentation.settlementOutcome !== undefined)
+    dotStatus = presentation.settlementOutcome === 'ran' ? 'completed' : 'failed'
   const imagePaths = imagePathsOf(entry, presentation.imagePath)
   const isQuestionOpen =
     entry.question !== undefined &&
@@ -534,7 +543,12 @@ function ToolRowView({
       break
     }
     case 'schedule': {
-      body = <ScheduleBody entry={entry} />
+      body =
+        entry.tool === MODEL_API_SCHEDULED_TOOL ? (
+          <ScheduleRunBody entry={entry} />
+        ) : (
+          <ScheduleBody entry={entry} />
+        )
       break
     }
     case 'web': {
@@ -632,7 +646,7 @@ function ToolRowView({
           disabled={!hasBody}
           onClick={toggle}
         >
-          <span className={statusDotClass(entry.status)} aria-hidden="true" />
+          <span className={statusDotClass(dotStatus)} aria-hidden="true" />
           <span className="tool-label">{presentation.label}</span>
           {entry.isBackground ? <span className="badge">{UI_TEXT.backgroundBadge}</span> : null}
           {entry.paid === undefined ? null : <PaidBadge feature={entry.paid} />}

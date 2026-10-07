@@ -2628,9 +2628,9 @@
       "historyUnavailable": "沒有可預覽的歷程。",
       "eventUntrusted": "事件內容是不受信任的資料，不能變更授權、工具或目標。",
       "backgroundQuestion": "編輯器關閉時仍執行排程嗎？",
-      "backgroundYes": "是，新增背景項目",
+      "backgroundYes": "是",
       "backgroundNotNow": "暫時不要",
-      "backgroundNever": "不再詢問",
+      "backgroundNever": "永不",
       "backgroundRemove": "移除背景項目",
       "backgroundRemoved": "背景項目已移除。",
       "agentConsent": "允許{agent}在自身權限和預算範圍內建立此排程嗎？",
@@ -2658,6 +2658,46 @@
       "enabled": "在可用後端上啟用排程。預設開啟，每次執行均在長期授權範圍內無人值守執行。",
       "defaultDelivery": "新排程的預設傳送方式。預設在閒置時開始新回合。",
       "agentCreation": "代理建立排程的預設權限：詢問、在上限內一律允許或永不允許。預設詢問。"
+    },
+    "editor": {
+      "edit": "編輯排程",
+      "audit": "授權稽核",
+      "invalid": "儲存前請檢查排程欄位、目標可用性和長期授權。",
+      "loadFailed": "無法載入排程。請重試。",
+      "empty": "此工作區沒有排程。",
+      "dateTimeUtc": "日期和時間 (UTC)",
+      "minutes": "間隔（分鐘）",
+      "everyDays": "每 N 天",
+      "times": "時間（HH:MM，以逗號分隔）",
+      "cronExpression": "五欄位 cron 運算式",
+      "source": "事件來源",
+      "conditions": "條件（欄位=值，每行一項）",
+      "endDate": "結束日期和時間 (UTC)",
+      "afterRuns": "執行 N 次後結束",
+      "sent": "依排程傳送",
+      "cost": "費用",
+      "grantHelp": "每行一項。路徑必須位於此工作區內；受保護的路徑和需要人工操作的工具一律會被拒絕。",
+      "auditKinds": {
+        "created": "已建立",
+        "changed": "已變更",
+        "revoked": "已撤銷",
+        "used": "已使用"
+      },
+      "user": "你",
+      "liability": "保留的付款責任",
+      "certainty": {
+        "exact": "準確",
+        "estimated": "估算",
+        "unknown": "未知"
+      },
+      "tips": {
+        "list": "檢視此工作區中的排程及其長期授權。",
+        "create": "選擇何時、向何處以及使用哪些權限傳送此提示詞。",
+        "timeline": "檢視同一目標即將發生的執行及衝突。"
+      },
+      "anchorDate": "基準日期（排程的時區）",
+      "stateUnknown": "狀態未知 — 重試",
+      "retry": "重試"
     }
   }
 }
