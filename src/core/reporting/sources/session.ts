@@ -97,7 +97,13 @@ export function sessionSource(
         backend: read.source.backend,
         usage: scrubUsage(read.usage, scrub),
         checkRuns: checkRuns.toSorted(
-          (a, b) => codeUnitCompare(a.at, b.at) || codeUnitCompare(a.check, b.check),
+          // Total order: two records sharing every field are identical rows.
+          (a, b) =>
+            codeUnitCompare(a.at, b.at) ||
+            codeUnitCompare(a.check, b.check) ||
+            codeUnitCompare(a.outcome, b.outcome) ||
+            codeUnitCompare(a.commit, b.commit) ||
+            a.durationMs - b.durationMs,
         ),
       },
       observedAt: read.observedAt,
