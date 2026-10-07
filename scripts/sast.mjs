@@ -20,6 +20,10 @@ const SEMGREP_ARGS = [
   '--config',
   'auto',
   '--error',
+  // Large TypeScript taint analyses contend for the shared heap in parallel;
+  // serial scanning completes every rule at the unchanged default deadline.
+  '--jobs',
+  '1',
   '--exclude=dist',
   '--exclude=coverage',
   '--exclude=node_modules',

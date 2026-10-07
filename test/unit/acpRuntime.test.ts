@@ -17,7 +17,7 @@ import { PassThrough } from 'node:stream'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { LaunchResolution } from '../../src/core/backends/musecode/launch'
 import { authClear, authSet, authStatus, login } from '../../src/runtime/authCommands'
-import { createRuntimeBackend } from '../../src/runtime/backends'
+import { createRuntimeBackend, type ExecRuntimeOptions } from '../../src/runtime/backends'
 import { WorkspaceEdits } from '../../src/core/verify/workspaceEdits'
 import { VerifyLedger } from '../../src/core/backends/modelapi/verifyLedger'
 import { isSamePath } from '../../src/core/paths'
@@ -46,13 +46,15 @@ import { stderrLogger } from '../../src/runtime/stderrLog'
 import { webReadable } from '../../src/runtime/webStreams'
 import {
   FILE_REFUSAL_MODEL_TEXT,
+  MODEL_API_TOOLS,
   SECRET_KEYS,
   UI_TEXT,
   PAID_FEATURES,
 } from '../../src/shared/constants'
-import { watchSessionTurns } from './helpers/sessionTurns'
 import { memorySecrets } from './helpers/fakes'
-import { FAKE_MODEL_API_KEY, fakeModelApi } from './helpers/fakeModelApi'
+import { FAKE_MODEL_API_KEY, fakeModelApi, responseOutputsByCall } from './helpers/fakeModelApi'
+import { watchSessionTurns } from './helpers/sessionTurns'
+import { recalledParts } from './helpers/recalledOutput'
 import { buildModelApiBundle } from './helpers/modelApiBundle'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -141,6 +143,7 @@ const DEFAULTS: ServeOptions = {
   paidFeatures: [],
   isVerbose: false,
   questionsDeferAfterSeconds: 60,
+  autoCompaction: true,
 }
 
 function fakeKeyring() {
@@ -233,6 +236,7 @@ describe('parseCommandLine', () => {
         shellSandbox: 'off',
         canBypass: true,
         allowsContributorModels: true,
+        autoCompaction: true,
         paidFeatures: ['webSearch', 'imageGeneration'],
         isVerbose: true,
         questionsDeferAfterSeconds: 60,
@@ -475,6 +479,16 @@ describe('login', () => {
 })
 
 describe('walkFiles', () => {
+  it('rejects an aborted directory listing before opening a native directory', async () => {
+    const abort = new AbortController()
+    abort.abort()
+    const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+    await expect(walkFiles(folder(), 10, log, abort.signal)).rejects.toMatchObject({
+      name: 'AbortError',
+    })
+    expect(log.warn).not.toHaveBeenCalled()
+  })
+
   it('lists the tree breadth first, skipping .git, node_modules and links, up to the limit', async () => {
     const root = folder()
     mkdirSync(path.join(root, 'src', 'deep'), { recursive: true })
@@ -561,9 +575,11 @@ describe('createRuntimeBackend', () => {
     env: NodeJS.ProcessEnv = {},
     distDir = dist.folder,
     fetch: typeof globalThis.fetch = fakeModelApi().fetch,
+    exec?: ExecRuntimeOptions,
   ) {
     return createRuntimeBackend({
       options: { ...DEFAULTS, ...options },
+      ...(exec !== undefined && { exec }),
       version: '0.0.0-test',
       distDir,
       platform: process.platform,
@@ -577,6 +593,79 @@ describe('createRuntimeBackend', () => {
       log,
     })
   }
+
+  it.each(['ACP', 'headless'] as const)(
+    '%s packs outputs and recalls exact literal matches through the runtime bundle',
+    async (surface) => {
+      const secrets = memorySecrets()
+      secrets.values.set(SECRET_KEYS.modelApiKey, FAKE_MODEL_API_KEY)
+      const api = fakeModelApi()
+      const root = folder()
+      const literal = 'line 200 .* [needle]'
+      writeFileSync(path.join(root, 'small.txt'), 'one\n')
+      writeFileSync(
+        path.join(root, 'big.txt'),
+        Array.from(
+          { length: 400 },
+          (_, index) => `line ${String(index)} .* [needle] ${'x'.repeat(20)}`,
+        ).join('\n'),
+      )
+      const runtime = backend(
+        { backend: 'modelApi', trustWorkspace: true },
+        secrets,
+        {},
+        dist.folder,
+        api.fetch,
+        surface === 'headless'
+          ? { isEphemeral: true, headlessPaid: () => Promise.resolve(false), streamIdleMs: 1000 }
+          : undefined,
+      )
+      try {
+        const host = await runtime.backend.hostFor(root)
+        const session = await host.startSession({
+          workspaceRoot: root,
+          modelId: 'muse-spark-1.3',
+          approvalMode: 'promptUnmatched',
+        })
+        const { turnDone } = watchSessionTurns(session)
+        api.script(
+          { calls: [{ name: 'read_file', arguments: '{"path":"big.txt"}', callId: 'read' }] },
+          { calls: [{ name: 'read_file', arguments: '{"path":"small.txt"}', callId: 'small1' }] },
+          { calls: [{ name: 'read_file', arguments: '{"path":"small.txt"}', callId: 'small2' }] },
+          {
+            calls: [
+              {
+                name: 'recall_output',
+                arguments: JSON.stringify({ id: 'read', search: literal }),
+                callId: 'recall',
+              },
+            ],
+          },
+          { text: 'recalled' },
+        )
+        // Headless exec owns one user turn; packing and recall must work
+        // within that turn's tool loop as they do in an ACP editor.
+        await session.sendTurn([{ type: 'text', text: 'Read big.txt and find the literal' }])
+        await turnDone()
+        expect(JSON.stringify(api.responseBodies()[0]?.['tools'])).toContain(
+          MODEL_API_TOOLS.recallOutput,
+        )
+        const original = responseOutputsByCall(api, 1).get('read')
+        const packed = responseOutputsByCall(api, 3).get('read')
+        expect(original).toContain(literal)
+        expect(responseOutputsByCall(api, 2).get('read')).toBe(original)
+        expect(packed).toContain('Packed output')
+        expect(responseOutputsByCall(api, 4).get('read')).toBe(packed)
+        const page = recalledParts(responseOutputsByCall(api, 4).get('recall') ?? '').page
+        const offset = original?.indexOf(literal) ?? -1
+        expect(offset).toBeGreaterThan(-1)
+        expect(page).toBe(original?.slice(offset, offset + page.length))
+        expect(page.startsWith(literal)).toBe(true)
+      } finally {
+        await runtime.close()
+      }
+    },
+  )
 
   it('asks for a key the Model API backend does not have, and reports a store it cannot read', async () => {
     const secrets = memorySecrets()

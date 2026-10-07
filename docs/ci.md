@@ -125,12 +125,14 @@ Stderr holds redacted diagnostics and status/requests/settled/uncertain/image
 summary. No cwd or raw tool text appears in the result. Changed/denied paths are
 relative with forward slashes; input names are basenames.
 
-The complete machine contracts are [result v1](schemas/exec-result-v1.schema.json)
-and [event v2](schemas/exec-event-v2.schema.json), shipped in npm `schemas/`
-beside the frozen [event v1](schemas/exec-event-v1.schema.json).
+The complete machine contracts are [result v2](schemas/exec-result-v2.schema.json)
+and [event v2](schemas/exec-event-v2.schema.json), shipped in npm `schemas/`.
 Required fields and numeric/status invariants are validated by the runtime;
 `x-runtime-invariants` records arithmetic/sequencing that JSON Schema alone
 cannot express. `npm run schema:exec -- --check` checks deterministic bytes.
+In v2 every USD field is a canonical decimal string, exactly representable in
+micro-USD. Numeric v1 output is historical and the current Action refuses it.
+Budgets still require explicit flags and obey the same hard bounds.
 The runtime zod schemas (`src/runtime/exec/execProtocol.ts`) are normative.
 The shipped event schema also enforces the update egress rule itself:
 `$defs.execSafeUpdateValue` refuses chunk/tool `sessionUpdate` values and
@@ -156,7 +158,7 @@ event variant against a structural mirror of the event schema, parity-tested.
 | usage.costUsd                                               | {settled,uncertain,reserved,total,isUpperBound}, or null on Muse Code. total includes retained full reservations. isUpperBound iff uncertainty, a pending reservation or any latched stop.                                                |
 | usage.paid                                                  | {imageAttempts,imagesReturned,imagesRefunded,imagesUncertain,settledUsd,uncertainUsd}. Zero on Muse Code.                                                                                                                                 |
 | ledger                                                      | {capUsd,breach,refusal,lastResponse}, or null on Muse Code. lastResponse carries n, terminal, incompleteReason, endedWithoutTerminal, httpStatus, transportError, usage (valid/missing/invalid) and settlement (priced/full-reservation). |
-| limits                                                      | {budgetUsd:number\|null,maxRequests:number\|null,timeoutSeconds:number}.                                                                                                                                                                  |
+| limits                                                      | {budgetUsd:string\|null,maxRequests:number\|null,timeoutSeconds:number}.                                                                                                                                                                  |
 | durationMs                                                  | Nonnegative finite elapsed time from process start.                                                                                                                                                                                       |
 | error                                                       | null for completed; otherwise {kind,message}, whole-redacted.                                                                                                                                                                             |
 
@@ -709,10 +711,10 @@ permission or paid grant is introduced.
 
 The package ships `schemas/exec-event-v2.schema.json` beside frozen
 `exec-event-v1.schema.json` and `exec-result-v1.schema.json`. The resource sink
-uses event envelope version 2 with a `resource` variant; nested results remain
-version 1. It validates the entire union, keeps the existing update-egress
-restrictions, monotonic sequence and output backpressure. The M80 runner uses this v2 sink; the Action accepts both event versions,
-validates each resource variant and preserves the nested v1 result invariants.
+uses event envelope version 2 with a `resource` variant; nested results use
+M106’s version 2 contract with decimal USD and optional structured output. It validates the entire union, keeps the existing update-egress
+restrictions, monotonic sequence and output backpressure. The M80 runner uses this v2 sink; the Action accepts version 2,
+validates each resource variant and the nested v2 result invariants.
 Active runtime spawn leases and complete resource enforcement remain a named
 integration binding; event validation alone does not certify that enforcement.
 
@@ -722,3 +724,38 @@ Resource pressure does not delay Stop, cancel, approvals or paid admission,
 and it never kills work. Critical-volume write checks, all watched volumes,
 retained journal and native containment remain qualification handoffs in
 [M107](certification/m107.md). M80's existing live-acceptance limits still apply.
+
+## Structured headless answers
+
+`exec --output-schema <file>` reads a bounded JSON Schema file through an open
+file descriptor, verifies its identity and confines its real path to the
+workspace. `--output-schema-outside` explicitly permits an external path.
+The strict subset supports bounded local `$defs`/`$ref` references. It rejects
+external references, reference-only cycles and unsupported constraints such as
+regular expressions. Objects are closed and require every declared property;
+arrays declare their item type. Recursive object definitions are permitted.
+Both schemas and answers have byte, depth, node and validation work limits. Its closed schema and digest are fixed before session dispatch;
+a changed model, active session or repeated configuration is refused.
+
+The captured `muse-spark-1.3-contributor` record selects provider strict JSON
+Schema. An unknown model uses the explicitly announced local validator with
+the schema appended outside the reusable prefix. The runtime does not invent
+a forced-tool codec. This is a local wiring receipt, not release qualification
+for providers whose transports/capability records are absent from this base.
+
+Successful version-2 results add `output.value` and `output.validation`
+(`provider` or `local`), paired with `ledger.outputSchemaSha256`. Event and result
+readers validate the same canonical contract; schema mismatch or validation
+budget exhaustion exits 10, retaining incurred spend and the schema digest.
+No repair call runs for the final answer. Partial invalid JSON is withheld,
+secret scanning still precedes output, and calls without these flags retain
+the ordinary request and result bytes. The schema body is not stored in the
+ledger. The attached schema does not change headless paid-feature opt-ins,
+consent exclusions or the conditional budget theorem above.
+
+The portable core shares strict declarations, safe parallel reads, bounded
+retry/idle waits, fresh repeat witnesses and output continuation with the
+extension. Provider-specific evidence is injected at the backend factory;
+unknown capabilities stay off. Native Muse Code effort, deletion and feedback
+remain unavailable until their captured feature ports are supplied. These
+limits apply equally to every ACP editor and to headless execution.

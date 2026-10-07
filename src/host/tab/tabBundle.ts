@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../shared/usd'
 // Tab completions as the activation bundle sees them (M94, PLAN.md D73):
 // dist/tab.js, built from tabEntry.ts and required on the first Tab request
 // (PLAN.md D6). Only types cross from the lazy side into activation: a value
@@ -119,7 +120,7 @@ export type TabReportedUsage = TabEngineUsage
  */
 export interface TabReservation {
   readonly model: string
-  readonly worstCaseUsd: number
+  readonly worstCaseUsd: UsdAmount
   /** The admission's local day (`YYYY-MM-DD`), as the ledger named it. */
   readonly date: string
 }
@@ -136,7 +137,7 @@ export interface TabReservation {
 export interface TabSpendGate {
   reserve(facts: TabSpendFacts): Promise<TabReservation | undefined>
   settle(reservation: TabReservation, usage: TabReportedUsage): void
-  todayTotalUsd(): number
+  todayTotalUsd(): UsdAmount
   todayRequests(): number
 }
 
@@ -385,11 +386,11 @@ export interface TabStatusDeps {
   /** What Tab does where GitHub Copilot also suggests (`yield` or `both`). */
   readonly tabWithCopilot: () => 'yield' | 'both'
   /** Today's ledger total and request count (lane L, via the shim). */
-  readonly todaySpend: () => { readonly totalUsd: number; readonly requests: number }
+  readonly todaySpend: () => { readonly totalUsd: UsdAmount; readonly requests: number }
   /** Whether the day's budget is reached (lane L, via the shim). */
   readonly isBudgetReached: () => boolean
   readonly model: () => string
-  readonly budgetUsd: () => number
+  readonly budgetUsd: () => UsdAmount
   /** The snooze tabStatus.ts keeps (timed across windows, until-restart here). */
   readonly snooze: TabSnooze
   /** Writes a machine-scoped setting (Global target, never the workspace). */
@@ -464,7 +465,7 @@ export interface TabServicesDeps {
   /** This window's ledger file name: letters, digits, `_` and `-` only. */
   readonly windowId: string
   /** `museSpark.tabDailyBudgetUsd`, read at each request. */
-  readonly budgetUsd: () => number
+  readonly budgetUsd: () => UsdAmount
   /** A request is about to be sent (PaidUsage counts it). */
   readonly onSent: (model: string) => void
   /** A request reported its usage (PaidUsage prices it). */
@@ -750,7 +751,7 @@ export interface TabActivationDeps {
     readonly tabMultiline: 'auto' | 'onInvoke' | 'never'
     readonly tabTrigger: 'automatic' | 'onInvoke'
     readonly tabWithCopilot: 'yield' | 'both'
-    readonly tabDailyBudgetUsd: number
+    readonly tabDailyBudgetUsd: UsdAmount
   }
   /** The paid gate's answer for `tab`: the setting on and the price accepted. */
   readonly isPaidOn: () => boolean
@@ -841,7 +842,7 @@ export interface TabActivation {
   /** Whether the one provider registration stands (the setting is on). */
   readonly isRegistered: () => boolean
   /** Today's cross-window ledger total once the bundle runs; undefined before (RVM94HU 23). */
-  readonly todayTotalUsd: () => number | undefined
+  readonly todayTotalUsd: () => UsdAmount | undefined
   dispose(): void
 }
 
@@ -867,11 +868,13 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
     isCopilotExtensionPresent: deps.isCopilotExtensionPresent,
     tabWithCopilot: () => deps.tabSettings().tabWithCopilot,
     todaySpend: () => ({
-      totalUsd: active?.spend.todayTotalUsd() ?? 0,
+      totalUsd: active?.spend.todayTotalUsd() ?? Usd.from(0).toAmount(),
       requests: active?.spend.todayRequests() ?? 0,
     }),
     isBudgetReached: () =>
-      (active?.spend.todayTotalUsd() ?? 0) >= deps.tabSettings().tabDailyBudgetUsd,
+      Usd.from(active?.spend.todayTotalUsd() ?? 0).compare(
+        Usd.from(deps.tabSettings().tabDailyBudgetUsd),
+      ) >= 0,
     model: () => deps.tabSettings().tabModel,
     budgetUsd: () => deps.tabSettings().tabDailyBudgetUsd,
     snooze,

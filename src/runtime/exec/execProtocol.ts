@@ -1,3 +1,5 @@
+import { USD_DECIMAL_ZERO } from '../../shared/usdConstants'
+import { Usd, sumUsd, nonnegativeUsdSchema, type UsdAmount } from '../../shared/usd'
 // M80 result/event contract; no engine or lifecycle dependency.
 import * as z from 'zod/mini'
 import {
@@ -16,6 +18,7 @@ import {
   EXEC_MAX_TIMEOUT_SECONDS,
   RESOURCE_EXEC_EVENT_VERSION,
 } from '../../shared/constants'
+import { outputJsonSchema, parseExecRecord } from './outputSchema'
 import type { AcpBackendKind } from '../../shared/constants'
 import type { ExecMode, ExecPaidFeature } from './execArgs'
 import { resourceExecEventSchema, type ResourceEvent } from '../../shared/resources'
@@ -57,22 +60,22 @@ export interface PaidTotals {
   imagesReturned: number
   imagesRefunded: number
   imagesUncertain: number
-  settledUsd: number
-  uncertainUsd: number
+  settledUsd: UsdAmount
+  uncertainUsd: UsdAmount
 }
 export interface CostTotals {
-  settled: number
-  uncertain: number
-  reserved: number
-  total: number
+  settled: UsdAmount
+  uncertain: UsdAmount
+  reserved: UsdAmount
+  total: UsdAmount
   isUpperBound: boolean
 }
 export interface LedgerTotals {
-  capUsd: number
-  settledUsd: number
-  uncertainUsd: number
-  reservedUsd: number
-  remainingUsd: number
+  capUsd: UsdAmount
+  settledUsd: UsdAmount
+  uncertainUsd: UsdAmount
+  reservedUsd: UsdAmount
+  remainingUsd: UsdAmount
   requests: number
   tokens: TokenTotals
   paid: PaidTotals
@@ -81,7 +84,7 @@ export interface LedgerTotals {
   lastResponse: LastResponse | null
 }
 export interface ExecLimits {
-  budgetUsd: number | null
+  budgetUsd: UsdAmount | null
   maxRequests: number | null
   timeoutSeconds: number
 }
@@ -98,7 +101,7 @@ export interface ExecDenial {
   paths: string[]
 }
 export interface ExecResult {
-  v: 1
+  v: 2
   status: ExecStatus
   exitCode: number
   signal: ExecSignal | null
@@ -111,6 +114,7 @@ export interface ExecResult {
   sessionId: string | null
   ephemeral: boolean
   finalMessage: string
+  output?: { value: z.core.util.JSONType; validation: 'provider' | 'local' } | undefined
   filesChanged: string[]
   denials: ExecDenial[]
   questionsDeclined: number
@@ -125,7 +129,8 @@ export interface ExecResult {
     paid: PaidTotals
   }
   ledger: {
-    capUsd: number
+    outputSchemaSha256?: string | undefined
+    capUsd: UsdAmount
     breach: boolean
     refusal: Refusal | null
     lastResponse: LastResponse | null
@@ -170,9 +175,9 @@ export type ExecEventBody =
       endpoint: AttemptEndpoint
       phase: 'admitted' | 'settled'
       maxOutputTokens?: number
-      reservedUsd: number
+      reservedUsd: UsdAmount
       outcome?: 'priced' | 'full-reservation'
-      chargedUsd?: number
+      chargedUsd?: UsdAmount
       terminal?: string | null
       totals: LedgerTotals
     }
@@ -182,7 +187,7 @@ export type ExecEventBody =
       n: number | null
       phase: 'admitted' | 'returned' | 'refunded' | 'uncertain' | 'refused'
       units: number
-      usd: number
+      usd: UsdAmount
       reason?: string
     }
   | {
@@ -192,7 +197,7 @@ export type ExecEventBody =
     }
   | { type: 'signal'; signal: ExecSignal }
   | { type: 'result'; result: ExecResult }
-export type ExecEvent = ExecEventBody & { v: 1; seq: number; time: string }
+export type ExecEvent = ExecEventBody & { v: 2; seq: number; time: string }
 export type ResourceExecEvent = (ExecEventBody | { type: 'resource'; event: ResourceEvent }) & {
   v: typeof RESOURCE_EXEC_EVENT_VERSION
   seq: number
@@ -219,9 +224,13 @@ const ENDPOINTS = ['responses', 'images.generations', 'images.edits'] as const
 const PROHIBITED_UPDATE = new RegExp(EXEC_PROHIBITED_UPDATE_PATTERN)
 const RAW_TOOL_FIELDS = new Set<string>(EXEC_RAW_TOOL_FIELDS)
 const counter = z.number().check(z.gte(0), z.int(), z.lte(Number.MAX_SAFE_INTEGER))
-const amount = z.number().check(
-  z.gte(0),
-  z.refine((value) => microUsd(value) !== undefined),
+const amount = nonnegativeUsdSchema.check(z.refine((value) => microUsd(value) !== undefined))
+const capAmount = amount.check(
+  z.refine(
+    (value) =>
+      Usd.from(value).compare(Usd.from(0)) > 0 &&
+      Usd.from(value).compare(Usd.from(EXEC_MAX_BUDGET_USD)) <= 0,
+  ),
 )
 const nullableText = z.nullable(z.string())
 const relativePath = z.string().check(
@@ -268,7 +277,7 @@ const costSchema = z
     z.refine(
       (value) =>
         isSumEqual(value.total, [value.settled, value.uncertain, value.reserved]) &&
-        (!(value.uncertain > 0 || value.reserved > 0) || value.isUpperBound),
+        ((value.uncertain === '0' && value.reserved === '0') || value.isUpperBound),
     ),
   )
 const lastResponseSchema = z
@@ -293,12 +302,13 @@ const lastResponseSchema = z
     ),
   )
 const limitsSchema = z.strictObject({
-  budgetUsd: z.nullable(amount.check(z.gt(0), z.lte(EXEC_MAX_BUDGET_USD))),
+  budgetUsd: z.nullable(capAmount),
   maxRequests: z.nullable(counter.check(z.gte(1), z.lte(EXEC_MAX_REQUESTS))),
   timeoutSeconds: counter.check(z.gte(EXEC_MIN_TIMEOUT_SECONDS), z.lte(EXEC_MAX_TIMEOUT_SECONDS)),
 })
 const ledgerSchema = z.strictObject({
-  capUsd: amount.check(z.gt(0), z.lte(EXEC_MAX_BUDGET_USD)),
+  outputSchemaSha256: z.optional(z.string().check(z.regex(/^[a-f\d]{64}$/u))),
+  capUsd: capAmount,
   breach: z.boolean(),
   refusal: z.nullable(z.enum(REFUSALS)),
   lastResponse: z.nullable(lastResponseSchema),
@@ -328,21 +338,17 @@ const totalsSchema = z
     ),
   )
 
-/** USD is a serialization only. Recover canonical micro-USD before any comparison. */
-function microUsd(value: number): number | undefined {
-  if (!Number.isFinite(value) || value < 0) return undefined
-  const raw = value.toFixed(EXEC_USD_DECIMALS)
-  if (Number(raw) !== value) return undefined
-  const units = Number(raw.replace('.', ''))
-  return Number.isSafeInteger(units) ? units : undefined
+/** Fixed-unit boundaries refuse a decimal that cannot be represented exactly. */
+function microUsd(value: UsdAmount): bigint | undefined {
+  try {
+    const units = Usd.from(value).units(EXEC_USD_DECIMALS)
+    return units >= USD_DECIMAL_ZERO && units <= BigInt(Number.MAX_SAFE_INTEGER) ? units : undefined
+  } catch {
+    return undefined
+  }
 }
-
-function isSumEqual(total: number, values: readonly number[]): boolean {
-  const expected = microUsd(total)
-  const units = values.map((value) => microUsd(value))
-  if (expected === undefined || units.includes(undefined)) return false
-  const sum = units.reduce<number>((acc, value) => acc + (value ?? 0), 0)
-  return Number.isSafeInteger(sum) && expected === sum
+function isSumEqual(total: UsdAmount, values: readonly UsdAmount[]): boolean {
+  return total === sumUsd(...values)
 }
 
 /** Reject nested raw tool fields as well as future tool updates. */
@@ -384,7 +390,9 @@ function isBackendAccountingValid(value: ExecResult): boolean {
       value.usage.requests === null &&
       value.limits.budgetUsd === null &&
       value.limits.maxRequests === null &&
-      Object.values(value.usage.paid).every((total) => total === 0)
+      Object.entries(value.usage.paid).every(
+        ([key, total]) => total === (key.endsWith('Usd') ? '0' : 0),
+      )
     )
   }
   // An early failed setup may have no accounting yet; completion always does.
@@ -406,7 +414,11 @@ function isBackendAccountingValid(value: ExecResult): boolean {
   )
 }
 
-export function exitCodeFor(status: ExecStatus, signal: ExecSignal | null): number {
+export function exitCodeFor(
+  status: ExecStatus,
+  signal: ExecSignal | null,
+  errorKind?: string,
+): number {
   switch (status) {
     case 'completed': {
       return EXEC_EXIT.ok
@@ -419,7 +431,10 @@ export function exitCodeFor(status: ExecStatus, signal: ExecSignal | null): numb
       return EXEC_EXIT.auth
     }
     case 'failed': {
-      return EXEC_EXIT.failed
+      return errorKind === 'output_schema_mismatch' ||
+        errorKind === 'output_schema_validation_budget'
+        ? EXEC_EXIT.outputSchemaMismatch
+        : EXEC_EXIT.failed
     }
     case 'budget_exceeded':
     case 'request_cap': {
@@ -458,6 +473,9 @@ export const execResultSchema: z.ZodMiniType<ExecResult> = z
     sessionId: nullableText,
     ephemeral: z.boolean(),
     finalMessage: z.string(),
+    output: z.optional(
+      z.strictObject({ value: outputJsonSchema, validation: z.enum(['provider', 'local']) }),
+    ),
     filesChanged: paths,
     denials: z.array(
       z.strictObject({ toolCallId: z.string(), title: z.string(), kind: z.string(), paths }),
@@ -493,7 +511,9 @@ export const execResultSchema: z.ZodMiniType<ExecResult> = z
       (value) =>
         hasCompletionEvidence(value) &&
         isBackendAccountingValid(value) &&
-        value.exitCode === exitCodeFor(value.status, value.signal) &&
+        value.exitCode === exitCodeFor(value.status, value.signal, value.error?.kind) &&
+        (value.output !== undefined) ===
+          (value.ledger?.outputSchemaSha256 !== undefined && value.status === 'completed') &&
         (value.status === 'cancelled') === (value.signal !== null) &&
         (value.status === 'completed') === (value.error === null) &&
         (value.usage.cachedTokens === null ||
@@ -598,7 +618,7 @@ export const execEventSchema: z.ZodMiniType<ExecEvent> = z.union([
   z.extend(eventSchemas[10], envelope),
 ])
 
-// Freeze the v1 boundary for M80's sink; H's adapter adopts the complete v2 union.
+// The v2 union includes both structured results and resource events.
 export const execEventV2Schema: z.ZodMiniType<ResourceExecEvent> = z.union([
   ...eventSchemas.map((schema) =>
     z.extend(schema, { ...envelope, v: z.literal(RESOURCE_EXEC_EVENT_VERSION) }),
@@ -607,5 +627,5 @@ export const execEventV2Schema: z.ZodMiniType<ResourceExecEvent> = z.union([
 ])
 
 export function validateResult(value: unknown): ExecResult {
-  return execResultSchema.parse(value)
+  return execResultSchema.parse(parseExecRecord(value))
 }

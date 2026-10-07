@@ -178,5 +178,15 @@
   "config.resourceRelocate.enumDescriptions.off": "Ponechá práci na tomto počítači.",
   "command.nextOpenQuestion.title": "Další otevřená otázka",
   "command.previousOpenQuestion.title": "Předchozí otevřená otázka",
-  "config.questions.deferAfterSeconds.description": "Počet sekund, po kterých se nezodpovězená otázka odloží, aby Muse mohl pokračovat v práci. Výchozí hodnota je 60; 0 znamená nikdy; 1–9 se čtou jako 10; maximum je 3 600. Otázka zůstává otevřená a můžete na ni odpovědět později. Použije se pouze nastavení tohoto počítače."
+  "config.questions.deferAfterSeconds.description": "Počet sekund, po kterých se nezodpovězená otázka odloží, aby Muse mohl pokračovat v práci. Výchozí hodnota je 60; 0 znamená nikdy; 1–9 se čtou jako 10; maximum je 3 600. Otázka zůstává otevřená a můžete na ni odpovědět později. Použije se pouze nastavení tohoto počítače.",
+  "command.startWithOwnModel.title": "Začít s vlastním modelem",
+  "command.modelsAndAgents.title": "Modely a agenti",
+  "command.addModelProvider.title": "Přidat poskytovatele modelů…",
+  "config.suggestedProvider.description": "Pracovní prostor smí navrhnout jednu předvolbu poskytovatele modelů podle id; panel nabídne otevření Modelů a agentů s touto předvolbou. Prázdné nenavrhuje nic. Pracovní prostor nemůže nastavit adresu ani údaj.",
+  "walkthrough.gettingStarted.step.ownModel.title": "Začněte s vlastním modelem",
+  "walkthrough.gettingStarted.step.ownModel.description": "Nemáte předplatné Muse ani klíč Meta API? Přidejte vlastního poskytovatele modelů — OpenRouter, Anthropic, OpenAI nebo místní server — a vyberte model.\n[Začít s vlastním modelem](command:museSpark.startWithOwnModel)",
+  "config.modelApiAutoCompaction.description": "Automaticky zhušťovat dlouhé konverzace Model API. Výchozí nastavení je zapnuto, ale funkce zůstává neaktivní do úspěšného párového vyhodnocení. Každé další placené volání vyžaduje souhlas s cenou a denním rozpočtem.",
+  "config.modelApiStrictTools.description": "Používat striktní schémata nástrojů, pokud je vybraný model podporuje. Vypnutím zachováte předchozí deklarace nástrojů.",
+  "config.modelApiParallelReads.description": "Spouštět bezpečná volání nástrojů pouze pro čtení souběžně, nejvýše čtyři najednou. Ostatní volání se provádějí v pořadí.",
+  "config.webSearchMaxPerRequest.description": "Maximální počet hostovaných webových vyhledávání na odpověď (1–20; výchozí 5). Cena a sdílený denní rozpočet se zobrazí před prvním účtováním."
 }

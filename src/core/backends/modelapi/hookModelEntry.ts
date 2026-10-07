@@ -1,10 +1,13 @@
+import { Usd, isPositiveUsd } from '../../../shared/usd'
 // A prompt/agent hook's own model call (M91, PLAN.md D70, lane H): loaded
-// only after the paid-use popup allows it. One attempt, no retry, hooks off,
+// only after the paid-use popup allows it. No transport retry, hooks off,
 // billed to the Model API key on the hookModels tally line, apart from the
 // conversation. `prompt` asks with no tools; `agent` loops over read-only
 // tools (read, grep, list, code intelligence) at most HOOK_AGENT_MAX_STEPS
-// requests. A failure fails the hook; the caller parses the answer.
+// requests per answer attempt. Invalid structured answers get one repair,
+// then the existing text path. Every request is admitted and settled.
 // Session-owned fences and journal observers are passed through unchanged.
+import * as z from 'zod/mini'
 import type { ModelApiHostDeps, DirectResponseBudget } from './ModelApiHost'
 import type { reviewPaidCall } from './reviewerEntry'
 import type { ConfirmedModelRequest, ResponseAttemptGuard } from './client'
@@ -29,6 +32,9 @@ import {
   MODEL_API_EFFORT_OFF,
   MODEL_API_MAX_RETRIES,
 } from '../../../shared/constants'
+import { hookDecisionSchema } from '../../../shared/sideCallSchemas'
+import { setUiText } from '../../../shared/l10n/text'
+import { sideCallBody, structuredSideCall, type SideCallAttempt } from './structuredOutput'
 
 const IN_PROGRESS = 'inProgress'
 const CANCELLED = 'cancelled'
@@ -50,11 +56,26 @@ export interface HookModelTurnResult {
 
 export interface HookModelContext extends Pick<
   Parameters<typeof reviewPaidCall>[0],
-  'keyed' | 'guard' | 'isCountedUsage' | 'abortError' | 'isRefused' | 'emit' | 'record'
+  | 'keyed'
+  | 'guard'
+  | 'isCountedUsage'
+  | 'abortError'
+  | 'isRefused'
+  | 'emit'
+  | 'record'
+  | 'table'
+  | 'locale'
 > {
   readonly deps: Pick<
     ModelApiHostDeps,
-    'client' | 'workspaceRoot' | 'platform' | 'newId' | 'log' | 'hookModelDailyBudget'
+    | 'client'
+    | 'workspaceRoot'
+    | 'platform'
+    | 'newId'
+    | 'log'
+    | 'hookModelDailyBudget'
+    | 'sideCallFormats'
+    | 'forceSideCallTool'
   >
   /** The read-only defs for `agent`; empty for `prompt`. */
   readonly tools: readonly ToolDefinition[]
@@ -110,6 +131,7 @@ export async function runHookModelTurn(
   budgetScope: OwnedSessionBudgetScope | undefined,
   isCurrent: () => boolean,
 ): Promise<HookModelTurnResult> {
+  setUiText(context.table, context.locale)
   const started: ItemSnapshot = {
     itemId: context.deps.newId(),
     kind: 'toolCall',
@@ -123,7 +145,7 @@ export async function runHookModelTurn(
   context.emit({ type: 'itemStarted', item: started })
   let result: HookModelTurnResult
   try {
-    result = await callHookModel(context, input, signal, confirmed, budgetScope)
+    result = await callHookModel(context, input, event, signal, confirmed, budgetScope)
   } catch (error: unknown) {
     const completed: ItemSnapshot = { ...started, status: signal.aborted ? CANCELLED : FAILED }
     context.emit({ type: 'itemCompleted', item: completed })
@@ -139,62 +161,92 @@ export async function runHookModelTurn(
   return result
 }
 
-/** One attempt for `prompt`, a bounded read-only loop for `agent`. */
+/** One request for `prompt`, a bounded read-only loop for each `agent` attempt. */
 async function callHookModel(
   context: HookModelContext,
   input: HookModelTurnInput,
+  event: string,
   signal: AbortSignal,
   confirmed: ConfirmedModelRequest,
   budgetScope: OwnedSessionBudgetScope | undefined,
 ): Promise<HookModelTurnResult> {
-  const history: InputItem[] = [
-    { type: 'message', role: 'user', content: [{ type: 'input_text', text: input.user }] },
-  ]
-  let text = ''
   let inputTokens = 0
   let outputTokens = 0
   let cachedTokens = 0
   const usages: Usage[] = []
-  const steps = input.kind === 'agent' ? HOOK_AGENT_MAX_STEPS : 1
-  for (let step = 0; step < steps; step += 1) {
-    text = ''
-    const calls = await requestHookStep(
-      context,
-      input,
-      history,
-      confirmed,
-      budgetScope,
-      signal,
-      (stepText, stepUsage) => {
-        text += stepText
-        if (stepUsage === null || stepUsage === undefined) {
-          return
-        }
+  const text = await structuredSideCall({
+    formats: context.deps.sideCallFormats?.(confirmed.modelId),
+    name: 'hook_decision',
+    schema: z.pipe(
+      hookDecisionSchema,
+      z.transform((answer) =>
+        JSON.stringify({
+          ...(answer.decision === 'block' && { decision: 'block', reason: answer.reason }),
+          ...(answer.additionalContext !== null && {
+            hookSpecificOutput: {
+              hookEventName: event,
+              additionalContext: answer.additionalContext,
+            },
+          }),
+        }),
+      ),
+    ),
+    signal,
+    fallback: (text) => text,
+    notice: (text) => {
+      context.emit({ type: 'backendNotice', level: 'warning', text })
+    },
+    request: async (attempt) => {
+      const history: InputItem[] = [
+        { type: 'message', role: 'user', content: [{ type: 'input_text', text: input.user }] },
+      ]
+      const steps = input.kind === 'agent' ? HOOK_AGENT_MAX_STEPS : 1
+      let text = ''
+      for (let step = 0; step < steps; step += 1) {
+        text = ''
+        const calls = await requestHookStep(
+          context,
+          input,
+          history,
+          confirmed,
+          budgetScope,
+          signal,
+          attempt,
+          (stepText, stepUsage) => {
+            text += stepText
+            if (stepUsage === null || stepUsage === undefined) {
+              return
+            }
 
-        if (!context.isCountedUsage(stepUsage)) {
-          throw new Error('Invalid hook model usage')
+            if (!context.isCountedUsage(stepUsage)) {
+              throw new Error('Invalid hook model usage')
+            }
+            usages.push(stepUsage)
+            inputTokens += stepUsage.input_tokens
+            outputTokens += stepUsage.output_tokens
+            cachedTokens += stepUsage.input_tokens_details?.cached_tokens ?? 0
+          },
+        )
+        if (calls.length === 0) {
+          break
         }
-        usages.push(stepUsage)
-        inputTokens += stepUsage.input_tokens
-        outputTokens += stepUsage.output_tokens
-        cachedTokens += stepUsage.input_tokens_details?.cached_tokens ?? 0
-      },
-    )
-    if (calls.length === 0) {
-      break
-    }
-    if (input.kind !== 'agent' || step === steps - 1) {
-      throw new Error('the hook model exceeded its tool allowance')
-    }
-    for (const call of calls) {
-      signal.throwIfAborted()
-      if (context.tools.every((tool) => !(tool.type === 'function' && tool.name === call.name))) {
-        throw new Error('the hook model requested an unavailable tool')
+        if (input.kind !== 'agent' || step === steps - 1) {
+          throw new Error('the hook model exceeded its tool allowance')
+        }
+        for (const call of calls) {
+          signal.throwIfAborted()
+          if (
+            context.tools.every((tool) => !(tool.type === 'function' && tool.name === call.name))
+          ) {
+            throw new Error('the hook model requested an unavailable tool')
+          }
+          const output = await context.executeReadOnlyTool(call.name, call.arguments, signal)
+          history.push(call, { type: 'function_call_output', call_id: call.call_id, output })
+        }
       }
-      const output = await context.executeReadOnlyTool(call.name, call.arguments, signal)
-      history.push(call, { type: 'function_call_output', call_id: call.call_id, output })
-    }
-  }
+      return text
+    },
+  })
   if (usages.length === 0) {
     throw new Error('the hook model call reported no usable usage')
   }
@@ -210,36 +262,44 @@ async function requestHookStep(
   confirmed: ConfirmedModelRequest,
   budgetScope: OwnedSessionBudgetScope | undefined,
   signal: AbortSignal,
+  attempt: SideCallAttempt,
   onPart: (text: string, usage: Usage | null | undefined) => void,
 ): Promise<readonly FunctionCallItem[]> {
   const modelId = confirmed.modelId
-  let body = context.keyed({
-    model: modelId,
-    input: history,
-    instructions: input.system,
-    tools: input.kind === 'agent' ? [...context.tools] : [],
-    tool_choice: 'auto',
-    reasoning: { effort: MODEL_API_EFFORT_OFF, summary: 'auto' },
-    stream: true,
-    store: false,
-    include: ['reasoning.encrypted_content'],
-    max_output_tokens: HOOK_MODEL_MAX_OUTPUT_TOKENS,
-  })
+  let body = context.keyed(
+    sideCallBody(
+      context.keyed({
+        model: modelId,
+        input: history,
+        instructions: input.system,
+        tools: input.kind === 'agent' ? [...context.tools] : [],
+        tool_choice: 'auto',
+        reasoning: { effort: MODEL_API_EFFORT_OFF, summary: 'auto' },
+        stream: true,
+        store: false,
+        include: ['reasoning.encrypted_content'],
+        max_output_tokens: HOOK_MODEL_MAX_OUTPUT_TOKENS,
+      }),
+      attempt,
+      context.deps.forceSideCallTool,
+    ),
+  )
   let claim: SessionBudgetClaim | undefined
   let directBudget: DirectResponseBudget | undefined
-  let reservedUsd = 0
+  let reservedUsd = Usd.from(0).toAmount()
   let wasRefused = false
   let usage: Usage | null | undefined
   let dailyClaim:
     | Awaited<ReturnType<NonNullable<HookModelContext['deps']['hookModelDailyBudget']>['reserve']>>
     | undefined
   const calls: FunctionCallItem[] = []
+  let hasCompleted = false
   try {
     if (budgetScope !== undefined) {
       const total = await budgetScope.journal.read(budgetScope.sessionId, budgetScope.accountId)
       const capUsd = budgetScope.capUsd()
       const estimated = estimateInput(requestParts(body), undefined).inputTokens
-      if (capUsd > 0) {
+      if (isPositiveUsd(capUsd)) {
         const reservation = reserveRequest({
           capUsd,
           spentUsd: total.spentUsd,
@@ -259,7 +319,7 @@ async function requestHookStep(
         budgetScope.sessionId,
         budgetScope.accountId,
         reservedUsd,
-        { isUnbounded: capUsd === 0 },
+        { isUnbounded: !isPositiveUsd(capUsd) },
       )
     }
     const estimatedInputTokens = estimateInput(requestParts(body), undefined).inputTokens
@@ -267,7 +327,8 @@ async function requestHookStep(
       { inputTokens: estimatedInputTokens, outputTokens: body.max_output_tokens, cachedTokens: 0 },
       modelId,
     )
-    reservedUsd = Math.max(reservedUsd, reservationUsd)
+    reservedUsd =
+      Usd.from(reservedUsd).compare(Usd.from(reservationUsd)) > 0 ? reservedUsd : reservationUsd
     dailyClaim = await context.deps.hookModelDailyBudget?.reserve(
       modelId,
       estimatedInputTokens,
@@ -293,7 +354,7 @@ async function requestHookStep(
       body,
       AbortSignal.any([signal, AbortSignal.timeout(HOOK_MODEL_TIMEOUT_MS)]),
       undefined,
-      // Its one attempt: a failed hook run fails the hook, it is never sent again.
+      // No transport retry; structured repair has its own admission and settlement.
       { retriesUsed: MODEL_API_MAX_RETRIES },
       admission,
       {
@@ -304,6 +365,7 @@ async function requestHookStep(
       },
     )
     for await (const event of events) {
+      if (event.type === 'response.completed') hasCompleted = true
       const part = hookPart(event)
       onPart(part.text, part.usage)
       if (part.usage !== undefined) {
@@ -313,12 +375,18 @@ async function requestHookStep(
         }
       }
       for (const call of part.calls) {
-        calls.push(call)
+        if (attempt.mode === 'forced_tool' && call.name === attempt.name) {
+          onPart(call.arguments, undefined)
+        } else {
+          calls.push(call)
+        }
       }
       if (part.failure !== undefined) {
         throw new Error(`the hook model call ended with ${part.failure}`)
       }
     }
+    if (!hasCompleted && attempt.mode !== 'text')
+      throw new Error('the structured hook has no completed response')
   } catch (error: unknown) {
     wasRefused = context.isRefused(error)
     if (signal.aborted) {

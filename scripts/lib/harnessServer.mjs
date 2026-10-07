@@ -5,10 +5,16 @@
 import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import path from 'node:path'
+import { performance } from 'node:perf_hooks'
 import { chromium } from 'playwright-core'
 
 export const LOOPBACK = '127.0.0.1'
 export const HARNESS_PATH = 'test/harness/index.html'
+// The bundle a scenario plays in: the Models & Agents panel's own
+// (`?bundle=models`, M95 lane M) for its scenarios, the chat's otherwise.
+export function bundleFor(scenario) {
+  return scenario !== 'models-byo' && scenario.startsWith('models-') ? 'models' : 'main'
+}
 // Real time for one page; a hung browser fails rather than producing an empty result.
 export const PAGE_TIMEOUT_MS = 120_000
 // Every `?scenario=` test/harness/index.html plays.
@@ -21,6 +27,9 @@ export const SCENARIOS = [
   'signin-error',
   'signin-history',
   'signin-history-narrow',
+  // M95: the first-run screen with its own-model choice, in both states.
+  'signin-byo',
+  'signin-nocli-byo',
   'usage-install',
   'usage-install-narrow',
   'palette',
@@ -33,6 +42,8 @@ export const SCENARIOS = [
   'slash-tips',
   'stop-running',
   'models',
+  // M95: the picker grouped by provider, pinned first, with its rows.
+  'models-byo',
   'pill-toggle',
   'mention',
   'chips',
@@ -114,6 +125,8 @@ export const SCENARIOS = [
   'agents',
   'agents-off',
   'usage-api',
+  // M95: Account & usage with per-provider rows and key usage.
+  'usage-providers',
   'reply-usage',
   'banner',
   'jump',
@@ -191,6 +204,29 @@ export const SCENARIOS = [
   'review-pane',
   'review-pane-narrow',
   'review-comment',
+  // M95 lane M: the Models & Agents panel (`?bundle=models`), one per state.
+  'models-empty',
+  'models-pick',
+  'models-configure',
+  'models-errors',
+  'models-credential',
+  'models-test',
+  'models-test-cost',
+  'models-test-failed',
+  'models-models',
+  'models-privacy',
+  'models-suggestions',
+  'models-confirm',
+  'models-providers',
+  'models-edit',
+  'models-scanning',
+  'models-scan-failed',
+  'models-scan-diff',
+  'models-table',
+  'models-table-filtered',
+  'models-undo',
+  'models-import',
+  'models-narrow',
   'report',
   'report-narrow',
 ]
@@ -272,18 +308,24 @@ const VIEWPORT_HEIGHT = 760
 
 /** Chrome's CLI clamps windows to 500 px: a sized scenario gets a real viewport of its width. */
 export async function withSizedPage(chrome, profileDir, url, sized, run) {
+  const deadline = performance.now() + PAGE_TIMEOUT_MS
+  const remaining = () => Math.max(1, deadline - performance.now())
   const browser = await chromium.launchPersistentContext(profileDir, {
     ...(path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' }),
     ...(sized.hasScrollbars === true && { ignoreDefaultArgs: ['--hide-scrollbars'] }),
     viewport: { width: sized.width, height: VIEWPORT_HEIGHT },
-    timeout: PAGE_TIMEOUT_MS,
+    timeout: remaining(),
   })
   try {
+    browser.setDefaultTimeout(remaining())
+    browser.setDefaultNavigationTimeout(remaining())
     const page = await browser.newPage()
-    page.setDefaultTimeout(PAGE_TIMEOUT_MS)
-    page.setDefaultNavigationTimeout(PAGE_TIMEOUT_MS)
+    page.setDefaultTimeout(remaining())
+    page.setDefaultNavigationTimeout(remaining())
     await page.goto(url)
-    return await run(page)
+    page.setDefaultTimeout(remaining())
+    page.setDefaultNavigationTimeout(remaining())
+    return await run(page, remaining)
   } finally {
     await browser.close()
   }

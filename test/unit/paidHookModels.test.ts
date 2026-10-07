@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // M91 prompt/agent hook handlers (PLAN.md D70, lane H): the paid feature
 // `hookModels` is available by default (OWNER RULING 2026-10-04): no turn-on
 // confirmation, and the first charge asks once in the paid-use popup. Its
@@ -100,9 +101,9 @@ describe('hookModels asks once per run in the paid-use popup (M91, D48)', () => 
     expect(detail).toContain('prompt')
     expect(detail).toContain(MODEL_ID)
     expect(detail).toContain(hookModelPrice(MODEL_ID))
-    expect(paidUseQuestion({ ...hookRequest(), dailyBudgetUsd: 2 }).detail).toContain(
-      'Shared daily paid budget: $2.00',
-    )
+    expect(
+      paidUseQuestion({ ...hookRequest(), dailyBudgetUsd: Usd.from(2).toAmount() }).detail,
+    ).toContain('Shared daily paid budget: $2.00')
   })
 
   it('denies without asking when the feature is off', async () => {
@@ -148,8 +149,8 @@ describe('hookModels is tallied on its own usage line (M91)', () => {
     const usage = new PaidUsage(new FakeLogOutputChannel())
     usage.addHookModelRun()
     expect(usage.current).toMatchObject({ hookModelRuns: 1, hookModelUnknownRequests: 1 })
-    expect(paidCostUsd('hookModels', usage.current)).toBe(0)
-    expect(paidTotalUsd(usage.current)).toBe(0)
+    expect(paidCostUsd('hookModels', usage.current)).toBe(Usd.from(0).toAmount())
+    expect(paidTotalUsd(usage.current)).toBe(Usd.from(0).toAmount())
     expect(listedPaidFeatures([], usage.current)).toEqual(['hookModels'])
     expect(paidFeatureName('hookModels')).toBe(UI_TEXT.paidHookModelName)
   })
@@ -168,8 +169,8 @@ describe('hookModels is tallied on its own usage line (M91)', () => {
       hookModelUnknownRequests: 1,
       hookModelTokens: 1_100_000,
     })
-    expect(paidCostUsd('hookModels', usage.current)).toBeCloseTo(1.455)
-    expect(paidTotalUsd(usage.current)).toBeCloseTo(1.455)
+    expect(Number(paidCostUsd('hookModels', usage.current))).toBeCloseTo(1.455)
+    expect(Number(paidTotalUsd(usage.current))).toBeCloseTo(1.455)
     expect(() => {
       usage.addHookModelUsage(MODEL_ID, { inputTokens: 1, cachedTokens: 2, outputTokens: 0 })
     }).toThrow('valid nonnegative token counts')

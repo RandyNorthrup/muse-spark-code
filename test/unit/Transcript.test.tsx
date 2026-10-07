@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -152,7 +153,7 @@ describe('Transcript', () => {
       text: 'done',
       isStreaming: false,
       usage: { inputTokens: 12_300, outputTokens: 678, cachedTokens: 10_000, reasoningTokens: 0 },
-      costUsd: 0.018,
+      costUsd: Usd.from(0.018).toAmount(),
     }
     const { rerender } = mountTranscript([reply])
     expect(screen.queryByText('12.3K in · 678 out · estimated $0.0180')).toBeNull()
@@ -362,7 +363,7 @@ describe('Transcript', () => {
     // Focus view folds a single step too, as before, now under its summary (M87).
     const summaries = screen.getAllByRole('button', { name: 'Read a file' })
     expect(summaries).toHaveLength(2)
-    expect(screen.getByRole('radio', { name: 'Red' })).toBeInTheDocument()
+    expect(await screen.findByRole('radio', { name: 'Red' })).toBeInTheDocument()
     fireEvent.click(summaries[0]!)
     expect(summaries[0]).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getAllByText('Read')).toHaveLength(1)

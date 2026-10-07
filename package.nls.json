@@ -178,5 +178,15 @@
   "config.resourceRelocate.enumDescriptions.off": "Keep work on this machine.",
   "command.nextOpenQuestion.title": "Next open question",
   "command.previousOpenQuestion.title": "Previous open question",
-  "config.questions.deferAfterSeconds.description": "Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used."
+  "config.questions.deferAfterSeconds.description": "Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used.",
+  "command.startWithOwnModel.title": "Start with Your Own Model",
+  "command.modelsAndAgents.title": "Models & Agents",
+  "command.addModelProvider.title": "Add Model Provider…",
+  "config.suggestedProvider.description": "A workspace may suggest one model-provider preset by id; the panel offers to open Models & Agents with that preset chosen. Empty suggests nothing. A workspace cannot set an address or a credential.",
+  "walkthrough.gettingStarted.step.ownModel.title": "Start with your own model",
+  "walkthrough.gettingStarted.step.ownModel.description": "No Muse subscription or Meta API key? Add your own model provider — OpenRouter, Anthropic, OpenAI or a local server — and pick a model.\n[Start with your own model](command:museSpark.startWithOwnModel)",
+  "config.modelApiAutoCompaction.description": "Automatically compact long Model API conversations. Defaults on, but remains inactive until a paired evaluation passes. Additional paid calls require consent to the price and daily budget.",
+  "config.modelApiStrictTools.description": "Use strict tool schemas where the selected model supports them. Disable to keep the previous tool declarations.",
+  "config.modelApiParallelReads.description": "Run safe read-only tool calls concurrently, up to four at a time. Other tool calls run in order.",
+  "config.webSearchMaxPerRequest.description": "Maximum hosted web searches per response (1–20; default 5). The price and shared daily budget are shown before the first charge."
 }

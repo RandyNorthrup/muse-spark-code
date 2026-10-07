@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import { admittedModelApiJudge } from '../../src/host/judge/judgeTransport'
 import { JudgeUsageRows } from '../../src/host/judge/judgeUsage'
@@ -33,10 +34,10 @@ function setup() {
     consent: 'granted',
   }
   const stop = new AbortController()
-  const settle = vi.fn<(cost: number) => Promise<undefined>>().mockResolvedValue(undefined)
+  const settle = vi.fn<(cost: UsdAmount) => Promise<undefined>>().mockResolvedValue(undefined)
   const check = vi.fn()
   const ledger: JudgeDailyLedger = {
-    remainingUsd: vi.fn(() => Promise.resolve(1)),
+    remainingUsd: vi.fn(() => Promise.resolve(Usd.from(1).toAmount())),
     reserve: vi.fn((reservedUsd) =>
       Promise.resolve({ claimId: 'call', reservedUsd, check, settle }),
     ),
@@ -122,7 +123,7 @@ describe('M98 admitted dispatch integration', () => {
     expect(rig.check.mock.invocationCallOrder.at(-1)).toBeLessThan(
       rig.fetched.mock.invocationCallOrder[0] ?? 0,
     )
-    expect(rig.settle).toHaveBeenCalledWith(0.0000199)
+    expect(rig.settle).toHaveBeenCalledWith(Usd.from(0.0000199).toAmount())
     expect(rig.events.map((event) => event.type)).toEqual(['itemStarted', 'itemCompleted'])
     expect(rig.events[0]).toHaveProperty('item.paid', 'judge')
     expect(rig.usage.current.judgeCalls).toBe(1)
@@ -162,7 +163,7 @@ describe('M98 admitted dispatch integration', () => {
       waiting.resolve(undefined)
       await rejected
       expect(rig.fetched).not.toHaveBeenCalled()
-      expect(rig.settle).toHaveBeenCalledWith(0)
+      expect(rig.settle).toHaveBeenCalledWith(Usd.from(0).toAmount())
       expect(rig.events).toEqual([])
     },
   )
@@ -175,7 +176,7 @@ describe('M98 admitted dispatch integration', () => {
         rig.noReceipt()
         const result = await rig.transport.send(BODY, new AbortController().signal)
         expect(result.settledCostUsd).toBeUndefined()
-        expect(result.reservedCostUsd).toBeGreaterThan(0)
+        expect(Number(result.reservedCostUsd)).toBeGreaterThan(0)
       } else {
         rig.loseResponse()
         await expect(rig.transport.send(BODY, new AbortController().signal)).rejects.toThrow(

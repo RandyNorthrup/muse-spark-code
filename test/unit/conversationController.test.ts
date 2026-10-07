@@ -3,6 +3,11 @@ import { FakeQuestionClock } from './helpers/questions/clock'
 import { FakeQuestionStore } from './helpers/questions/store'
 import { questionFixture } from './helpers/questions/fixtures'
 import { QUESTION_CLARIFIED } from './helpers/m46Capture'
+import { metaSideCallFormats } from '../../src/core/backends/modelapi/modelCapabilities'
+import { M106_CAPTURED_META_MODEL } from '../../src/shared/constants'
+import { conversationGitFactory } from '../../src/host/git/conversationGitBundle'
+import * as gitEntry from '../../src/host/git/conversationGitEntry'
+import { Usd } from '../../src/shared/usd'
 import { MspError } from '@muse-code/sdk'
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
@@ -23,6 +28,7 @@ import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type {
   AgentHost,
+  ModelSummary,
   QueuedMessageRef,
   SessionEventListener,
   SessionMcpHttpServer,
@@ -109,7 +115,7 @@ import {
   eventLogFault,
 } from './helpers/cliRecoveryCapture'
 import { judgeUseRig } from './helpers/judgeUseRig'
-import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
+import { FakeLogOutputChannel, type FakeSurface, fakeSurface } from './helpers/fakes'
 import { change, type FakeGitWindowOptions, fakeGitWindow, fakeRepository } from './helpers/fakeGit'
 import { ConversationGit } from '../../src/host/git/conversationGit'
 import {
@@ -670,7 +676,7 @@ function setup(
     createGit: (gitSurface) => new ConversationGit(gitFake.window, gitSurface),
     onForegroundTasksChanged: vi.fn<() => void>(),
     museVoice: options.museVoice ?? (() => undefined),
-    modelApiSessionBudgetUsd: () => options.modelApiSessionBudgetUsd ?? 0,
+    modelApiSessionBudgetUsd: () => Usd.from(options.modelApiSessionBudgetUsd ?? 0).toAmount(),
     voiceAccountId: options.voiceAccountId ?? (() => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID)),
     ownedVoiceBudgetScope: options.ownedVoiceBudgetScope ?? (() => Promise.resolve(undefined)),
     allowsPaidUse: options.allowsPaidUse ?? (() => Promise.resolve(true)),
@@ -6618,6 +6624,9 @@ const bareHostDeps = {
 function modelApiController(
   t: ReturnType<typeof setup>,
   options: {
+    readonly modelId?: string
+    readonly sideCallFormats?: ModelApiHostDeps['sideCallFormats']
+    readonly createGit?: ConversationDeps['createGit']
     readonly workspaceRoot?: string
     readonly platform?: NodeJS.Platform
     readonly io?: ModelApiHostDeps['io']
@@ -6632,6 +6641,7 @@ function modelApiController(
   const api = fakeModelApi()
   const host = new ModelApiHost({
     client: fakeModelApiClient(api, t.log),
+    ...(options.sideCallFormats !== undefined && { sideCallFormats: options.sideCallFormats }),
     workspaceRoot: options.workspaceRoot ?? '/ws',
     platform: options.platform ?? 'linux',
     io: options.io ?? noopToolIo,
@@ -6645,7 +6655,7 @@ function modelApiController(
     getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
     ...disabledPaidFeatures,
     promptCacheRetention: () => 'in_memory',
-    sessionBudgetUsd: () => 0,
+    sessionBudgetUsd: () => Usd.from(0).toAmount(),
     showReplyUsage: () => false,
     ...(options.extensionHooks !== undefined && {
       loadExtensionHooks: () => Promise.resolve(options.extensionHooks ?? []),
@@ -6656,6 +6666,8 @@ function modelApiController(
   })
   const controller = new ConversationController({
     ...t.deps,
+    ...(options.modelId !== undefined && { modelId: options.modelId }),
+    ...(options.createGit !== undefined && { createGit: options.createGit }),
     ensureHost: async () => {
       await options.beforeEnsureHost?.()
       return host
@@ -8579,7 +8591,7 @@ function noFolderVoice(
   t.auth.snapshot = { status: 'signedIn', backend: 'modelApi', detail: undefined }
   const controller = new ConversationController({
     ...t.deps,
-    modelApiSessionBudgetUsd: () => state.capUsd,
+    modelApiSessionBudgetUsd: () => Usd.from(state.capUsd).toAmount(),
   })
   const capture = () => {
     const current = captures[0]
@@ -9781,7 +9793,7 @@ describe('ConversationController: scheduled prompts (M52)', () => {
       ...bareHostDeps,
       describeEnvironment: () => Promise.resolve({ git: undefined }),
       promptCacheRetention: () => 'in_memory',
-      sessionBudgetUsd: () => 0,
+      sessionBudgetUsd: () => Usd.from(0).toAmount(),
       showReplyUsage: () => false,
       isPaidFeatureOn: () => isPaidOn,
       notePaidUse: () => undefined,
@@ -10135,6 +10147,127 @@ describe('ConversationController: git and pull requests (M71)', () => {
       expect(boardGit()).toContainEqual(expect.stringContaining('worktree list --porcelain'))
     } finally {
       t.controller.dispose()
+    }
+  })
+
+  it.each(['valid', 'repair', 'fallback'] as const)(
+    'binds the production Git draft to the capable session and its guarded %s path',
+    async (reply) => {
+      const t = setup({
+        git: { repository: fakeRepository({ indexChanges: [change('src/a.ts')] }) },
+      })
+      const { api, host, controller } = modelApiController(t, {
+        modelId: M106_CAPTURED_META_MODEL,
+        sideCallFormats: metaSideCallFormats,
+        createGit: conversationGitFactory(
+          () => gitEntry,
+          () => ({
+            window: t.gitFake.window,
+            openPullRequestInConversation: () => Promise.resolve(),
+          }),
+        ),
+      })
+      api.script(
+        { text: reply === 'valid' ? '{"message":"Fix parser"}' : 'invalid' },
+        ...(reply === 'valid'
+          ? []
+          : [{ text: reply === 'repair' ? '{"message":"Fix parser"}' : 'invalid' }]),
+        ...(reply === 'fallback' ? [{ text: 'Fix parser' }] : []),
+      )
+      try {
+        await controller.handle({
+          type: 'sendMessage',
+          localId: 'git-draft',
+          text: UI_TEXT.gitAskCommitMessage,
+          attachmentIds: [],
+          gitDraft: 'commitMessage',
+        })
+        await vi.waitFor(() => {
+          expect(t.surface.posted).toContainEqual({
+            type: 'gitDraft',
+            draft: { kind: 'commitMessage', message: 'Fix parser' },
+          })
+        })
+        const bodies = api.responseBodies()
+        expect(bodies).toHaveLength({ valid: 1, repair: 2, fallback: 3 }[reply])
+        expect(bodies[0]?.['text']).toMatchObject({
+          format: { name: 'commit_draft', strict: true },
+        })
+        if (reply === 'fallback') expect(bodies[2]).not.toHaveProperty('text')
+        const started = t.surface.posted.filter(
+          (message) => message.type === 'agentEvent' && message.event.type === 'turnStarted',
+        )
+        expect(started).toHaveLength(1)
+        api.script({ text: 'Ordinary answer' })
+        await controller.handle({
+          type: 'sendMessage',
+          localId: 'ordinary',
+          text: 'hello',
+          attachmentIds: [],
+        })
+        await vi.waitFor(() => {
+          expect(api.responseBodies()).toHaveLength(bodies.length + 1)
+        })
+        expect(api.responseBodies().at(-1)).not.toHaveProperty('text')
+      } finally {
+        controller.dispose()
+        t.controller.dispose()
+        await host.close()
+      }
+    },
+  )
+
+  it('keeps the prepared Git format on its own submission while another message overtakes autosave', async () => {
+    const t = setup({
+      isAutosaveEnabled: true,
+      git: { repository: fakeRepository({ indexChanges: [change('src/a.ts')] }) },
+    })
+    const held = Promise.withResolvers<undefined>()
+    t.saveAll.mockImplementationOnce(() => held.promise)
+    let nextId = 0
+    const { api, host, controller } = modelApiController(t, {
+      modelId: M106_CAPTURED_META_MODEL,
+      sideCallFormats: metaSideCallFormats,
+      newId: () => `git-race-${String(++nextId)}`,
+    })
+    api.script({ text: 'Ordinary reply' }, { text: '{"message":"Own draft"}' })
+    try {
+      const draft = controller.handle({
+        type: 'sendMessage',
+        localId: 'draft',
+        text: UI_TEXT.gitAskCommitMessage,
+        attachmentIds: [],
+        gitDraft: 'commitMessage',
+      })
+      await vi.waitFor(() => {
+        expect(t.saveAll).toHaveBeenCalledOnce()
+      })
+      await controller.handle({
+        type: 'sendMessage',
+        localId: 'ordinary-race',
+        text: 'ordinary',
+        attachmentIds: [],
+      })
+      await vi.waitFor(() => {
+        expect(api.responseBodies()).toHaveLength(1)
+      })
+      expect(api.responseBodies()[0]).not.toHaveProperty('text')
+      held.resolve(undefined)
+      await draft
+      await vi.waitFor(() => {
+        expect(t.surface.posted).toContainEqual({
+          type: 'gitDraft',
+          draft: { kind: 'commitMessage', message: 'Own draft' },
+        })
+      })
+      expect(api.responseBodies()[1]?.['text']).toMatchObject({
+        format: { name: 'commit_draft', strict: true },
+      })
+    } finally {
+      held.resolve(undefined)
+      controller.dispose()
+      t.controller.dispose()
+      await host.close()
     }
   })
 
@@ -15139,6 +15272,239 @@ describe('ConversationController: the Auto reviewer on Muse Code (M90, PLAN.md D
   })
 })
 
+describe('ConversationController: BYO models (M95, PLAN.md D74)', () => {
+  const BYO_MODELS: readonly ModelSummary[] = [
+    {
+      modelId: 'muse-spark-1.3',
+      displayLabel: 'Muse Spark 1.3',
+      contextLimit: 1_007_997,
+      isDefault: false,
+      isActive: false,
+    },
+    {
+      modelId: 'openrouter/deepseek/deepseek-v3',
+      displayLabel: 'DeepSeek V3',
+      contextLimit: 64_000,
+      isDefault: true,
+      isActive: false,
+      providerId: 'openrouter',
+      providerLabel: 'OpenRouter',
+      pricing: 'priced',
+      inputUsdPerMTokens: 0.27,
+      outputUsdPerMTokens: 1.1,
+      isPinned: true,
+    },
+    {
+      modelId: 'ollama/qwen3:8b',
+      displayLabel: 'qwen3:8b',
+      contextLimit: 32_768,
+      isDefault: false,
+      isActive: false,
+      providerId: 'ollama',
+      providerLabel: 'Ollama',
+      pricing: 'local',
+    },
+    {
+      modelId: 'openrouter/any/model',
+      displayLabel: 'Any',
+      contextLimit: undefined,
+      isDefault: false,
+      isActive: false,
+      providerId: 'openrouter',
+      providerLabel: 'OpenRouter',
+      pricing: 'unpriced',
+      trainsOnContent: true,
+    },
+  ]
+
+  /** A panel whose host lists the BYO catalogue instead of the CLI's. */
+  function byoPanel(isConfidential: boolean) {
+    const t = setup({ isConfidentialWorkspace: isConfidential })
+    vi.spyOn(t.host, 'listModels').mockResolvedValue(BYO_MODELS)
+    return t
+  }
+
+  async function listedModels(
+    controller: ConversationController,
+    surface: FakeSurface,
+  ): Promise<HostToWebviewMessage> {
+    controller.surfaceReady()
+    await vi.waitFor(() => {
+      expect(surface.posted.some((message) => message.type === 'modelList')).toBe(true)
+    })
+    const found = surface.posted.find((message) => message.type === 'modelList')
+    if (found === undefined) {
+      throw new Error('the host never listed its models')
+    }
+    return found
+  }
+
+  it('passes provider fields through to the picker', async () => {
+    const t = byoPanel(false)
+    expect(await listedModels(t.controller, t.surface)).toEqual({
+      type: 'modelList',
+      models: [
+        {
+          modelId: 'muse-spark-1.3',
+          displayLabel: 'Muse Spark 1.3',
+          contextLimit: 1_007_997,
+          isDefault: false,
+        },
+        {
+          modelId: 'openrouter/deepseek/deepseek-v3',
+          displayLabel: 'DeepSeek V3',
+          contextLimit: 64_000,
+          isDefault: true,
+          providerId: 'openrouter',
+          providerLabel: 'OpenRouter',
+          pricing: 'priced',
+          inputUsdPerMTokens: 0.27,
+          outputUsdPerMTokens: 1.1,
+          isPinned: true,
+        },
+        {
+          modelId: 'ollama/qwen3:8b',
+          displayLabel: 'qwen3:8b',
+          contextLimit: 32_768,
+          isDefault: false,
+          providerId: 'ollama',
+          providerLabel: 'Ollama',
+          pricing: 'local',
+        },
+        {
+          modelId: 'openrouter/any/model',
+          displayLabel: 'Any',
+          isDefault: false,
+          providerId: 'openrouter',
+          providerLabel: 'OpenRouter',
+          pricing: 'unpriced',
+          trainsOnContent: true,
+        },
+      ],
+    })
+  })
+
+  it('hides a training model where the workspace is confidential', async () => {
+    const t = byoPanel(true)
+    const listed = await listedModels(t.controller, t.surface)
+    expect(listed).toMatchObject({ type: 'modelList' })
+    const ids = listed.type === 'modelList' ? listed.models.map((model) => model.modelId) : []
+    expect(ids).toEqual(['muse-spark-1.3', 'openrouter/deepseek/deepseek-v3', 'ollama/qwen3:8b'])
+  })
+
+  it('refuses a training model where confidential, and still switches it elsewhere', async () => {
+    const t = byoPanel(true)
+    await listedModels(t.controller, t.surface)
+    await t.controller.handle({ type: 'setModel', modelId: 'openrouter/any/model' })
+    const notice = t.surface.posted.findLast((message) => message.type === 'notice')
+    expect(notice).toMatchObject({ level: 'warning', text: UI_TEXT.trainingBlocked })
+    const info = t.surface.posted.findLast((message) => message.type === 'sessionInfo')
+    expect(info).toMatchObject({ modelId: 'muse-spark-1.3' })
+
+    const open = byoPanel(false)
+    await listedModels(open.controller, open.surface)
+    await open.controller.handle({ type: 'setModel', modelId: 'openrouter/any/model' })
+    expect(open.surface.posted.findLast((message) => message.type === 'sessionInfo')).toMatchObject(
+      { modelId: 'openrouter/any/model' },
+    )
+  })
+
+  it.each([
+    {
+      name: 'refuses a training model before the first listing in a confidential workspace',
+      modelId: 'openrouter/any/model',
+      doesListingFail: false,
+    },
+    {
+      name: 'refuses an unknown model where confidential on the wizard’s first save',
+      modelId: 'openrouter/brand/new',
+      doesListingFail: false,
+    },
+    {
+      name: 'refuses confidential admission when privacy resolution fails',
+      modelId: 'ollama/qwen3:8b',
+      doesListingFail: true,
+    },
+  ])('$name', async ({ modelId, doesListingFail }) => {
+    const t = byoPanel(true)
+    if (doesListingFail) {
+      vi.mocked(t.host.listModels).mockRejectedValue(new Error('listing unavailable'))
+    }
+    await t.controller.handle({ type: 'setModel', modelId })
+    expect(t.host.listModels).toHaveBeenCalled()
+    expect(t.surface.posted.findLast((message) => message.type === 'notice')).toMatchObject({
+      level: 'warning',
+      text: UI_TEXT.trainingBlocked,
+    })
+    expect(t.surface.posted.findLast((message) => message.type === 'sessionInfo')).toMatchObject({
+      modelId: 'muse-spark-1.3',
+    })
+  })
+
+  it('resolves a safe model before confidential first-save admission', async () => {
+    const t = byoPanel(true)
+    await t.controller.handle({ type: 'setModel', modelId: 'ollama/qwen3:8b' })
+    expect(t.host.listModels).toHaveBeenCalled()
+    expect(t.surface.posted.findLast((message) => message.type === 'sessionInfo')).toMatchObject({
+      modelId: 'ollama/qwen3:8b',
+    })
+    expect(t.surface.posted.some((message) => message.type === 'notice')).toBe(false)
+  })
+
+  it.each([
+    {
+      name: 'rechecks privacy when a listed safe route changes to training',
+      doesTrain: true,
+      modelId: 'openrouter/deepseek/deepseek-v3',
+      selected: 'muse-spark-1.3',
+    },
+    {
+      name: 'admits a route that current metadata now marks safe',
+      doesTrain: false,
+      modelId: 'openrouter/any/model',
+      selected: 'openrouter/any/model',
+    },
+  ])('$name', async ({ doesTrain, modelId, selected }) => {
+    const t = byoPanel(true)
+    await listedModels(t.controller, t.surface)
+    vi.mocked(t.host.listModels).mockResolvedValue(
+      BYO_MODELS.map((model) => ({
+        ...model,
+        trainsOnContent: doesTrain && model.providerId === 'openrouter',
+      })),
+    )
+    await t.controller.handle({ type: 'setModel', modelId })
+    expect(t.surface.posted.findLast((message) => message.type === 'sessionInfo')).toMatchObject({
+      modelId: selected,
+    })
+  })
+
+  it('does not admit a model after disposal during privacy resolution', async () => {
+    const t = byoPanel(true)
+    const listing = Promise.withResolvers<readonly ModelSummary[]>()
+    vi.mocked(t.host.listModels).mockReturnValue(listing.promise)
+    const choosing = t.controller.handle({ type: 'setModel', modelId: 'ollama/qwen3:8b' })
+    await vi.waitFor(() => {
+      expect(t.host.listModels).toHaveBeenCalled()
+    })
+    t.controller.dispose()
+    listing.resolve(BYO_MODELS)
+    await choosing
+    expect(
+      t.surface.posted.some(
+        (message) => message.type === 'sessionInfo' && message.modelId === 'ollama/qwen3:8b',
+      ),
+    ).toBe(false)
+  })
+
+  it('runs startWithOwnModel for the byo sign-in, never the credential flows', async () => {
+    const t = setup()
+    await t.controller.handle({ type: 'signIn', method: 'byo' })
+    expect(t.hostActions).toEqual(['startWithOwnModel'])
+    expect(t.auth.calls).toEqual([])
+  })
+})
+
 /** The controller over `t`'s deps, with a recorder that keeps what it was told. */
 function withReports(
   t: ReturnType<typeof setup>,
@@ -15744,4 +16110,21 @@ it('requires current sign-in for open answers and dismissals before marking or s
   const saved = await t.questionStore.load('s1')
   expect(saved[0]?.state).toBe('open')
   await t.host.close()
+})
+
+it('shows a fixed Meta service-failure notice with a status action only on that backend', () => {
+  const modelApi = setup()
+  modelApi.auth.snapshot = { status: 'signedIn', backend: 'modelApi', detail: undefined }
+  modelApi.controller.modelApiServiceFailed()
+  expect(modelApi.surface.posted).toContainEqual({
+    type: 'notice',
+    level: 'warning',
+    text: UI_TEXT.modelApiServiceFailure,
+    actions: ['openModelApiStatus'],
+  })
+  const museCode = setup()
+  museCode.controller.modelApiServiceFailed()
+  expect(museCode.surface.posted).not.toContainEqual(
+    expect.objectContaining({ actions: ['openModelApiStatus'] }),
+  )
 })

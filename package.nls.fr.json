@@ -178,5 +178,15 @@
   "config.resourceRelocate.enumDescriptions.off": "Garde le travail sur cette machine.",
   "command.nextOpenQuestion.title": "Question en attente suivante",
   "command.previousOpenQuestion.title": "Question en attente précédente",
-  "config.questions.deferAfterSeconds.description": "Nombre de secondes avant de reporter une question sans réponse pour que Muse puisse poursuivre son travail. 60 par défaut ; 0 signifie jamais ; 1–9 sont interprétés comme 10 ; maximum 3 600. La question reste en attente et peut recevoir une réponse plus tard. Seul le réglage de cet ordinateur est utilisé."
+  "config.questions.deferAfterSeconds.description": "Nombre de secondes avant de reporter une question sans réponse pour que Muse puisse poursuivre son travail. 60 par défaut ; 0 signifie jamais ; 1–9 sont interprétés comme 10 ; maximum 3 600. La question reste en attente et peut recevoir une réponse plus tard. Seul le réglage de cet ordinateur est utilisé.",
+  "command.startWithOwnModel.title": "Commencer avec votre propre modèle",
+  "command.modelsAndAgents.title": "Modèles et agents",
+  "command.addModelProvider.title": "Ajouter un fournisseur de modèles…",
+  "config.suggestedProvider.description": "Un espace de travail peut suggérer un préréglage de fournisseur de modèles par son id ; le panneau propose d’ouvrir Modèles et agents avec ce préréglage. Vide ne suggère rien. Un espace de travail ne peut définir ni adresse ni identifiant.",
+  "walkthrough.gettingStarted.step.ownModel.title": "Commencez avec votre propre modèle",
+  "walkthrough.gettingStarted.step.ownModel.description": "Pas d’abonnement Muse ni de clé API Meta ? Ajoutez votre propre fournisseur de modèles — OpenRouter, Anthropic, OpenAI ou un serveur local — et choisissez un modèle.\n[Commencer avec votre propre modèle](command:museSpark.startWithOwnModel)",
+  "config.modelApiAutoCompaction.description": "Compacter automatiquement les longues conversations Model API. Activé par défaut, mais inactif jusqu’à la réussite d’une évaluation appariée. Chaque appel payant supplémentaire exige un consentement au prix et au budget quotidien.",
+  "config.modelApiStrictTools.description": "Utiliser des schémas d’outils stricts lorsque le modèle sélectionné les prend en charge. Désactivez cette option pour conserver les déclarations précédentes.",
+  "config.modelApiParallelReads.description": "Exécuter simultanément les appels d’outils sûrs en lecture seule, jusqu’à quatre à la fois. Les autres appels sont exécutés dans l’ordre.",
+  "config.webSearchMaxPerRequest.description": "Nombre maximal de recherches web hébergées par réponse (1–20 ; valeur par défaut 5). Le tarif et le budget quotidien partagé sont affichés avant la première facturation."
 }

@@ -14,6 +14,8 @@ export interface ScriptedCall {
   readonly name: string
   readonly arguments: string
   readonly callId?: string
+  /** A call the reply left uncompleted (M101 item 8): never run, answered with an error. */
+  readonly status?: 'completed' | 'incomplete'
 }
 
 /** One hosted web search in a reply (M33), streamed before the text. */
@@ -280,7 +282,7 @@ export function streamFor(
       call_id: callId,
       name: call.name,
       arguments: call.arguments,
-      status: 'completed',
+      status: call.status ?? 'completed',
     }
     text += frame({ type: 'response.output_item.done', output_index: index, item: done })
     output.push(done)
@@ -446,11 +448,15 @@ export const FAKE_MODEL_API_BASE_URL = 'https://api.example.test/v1'
 
 /** Everything a client on the fake API needs but its `fetch` (M75 wraps that in its trace). */
 export function fakeModelApiClientSettings(log: CoreLogger): Omit<ModelApiClientDeps, 'fetch'> {
+  let clock = 0
   return {
     baseUrl: FAKE_MODEL_API_BASE_URL,
     apiKey: () => Promise.resolve(FAKE_MODEL_API_KEY),
-    sleep: () => Promise.resolve(),
-    now: () => 0,
+    sleep: (ms) => {
+      clock += ms
+      return Promise.resolve()
+    },
+    now: () => clock,
     random: () => 0,
     log,
   }

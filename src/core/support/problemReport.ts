@@ -72,6 +72,12 @@ const SETTING_NAME_MAX_CHARS = 80
 const EXTRA_LITERAL_MIN_CHARS = 3
 
 const problemReportFactsSchema = z.strictObject({
+  modelApiStatus: z.optional(
+    z.strictObject({
+      isAlive: z.boolean(),
+      status: z.enum(['operational', 'unknown']),
+    }),
+  ),
   extensionVersion: z.string().check(z.minLength(1), z.maxLength(REPORT_VERSION_MAX_CHARS)),
   /**
    * The editor's VS Code version; absent for the standalone agent, which
@@ -390,6 +396,11 @@ function factLines(facts: ProblemReportFacts): readonly string[] {
     `node: ${facts.nodeVersion}`,
     `platform: ${facts.platform}`,
     `backend: ${facts.backend}`,
+    ...(facts.modelApiStatus === undefined
+      ? []
+      : [
+          `model api service: ${facts.modelApiStatus.status}; alive: ${facts.modelApiStatus.isAlive ? YES : NO}`,
+        ]),
     `cli: ${cli}; signed in: ${facts.cliSignIn ? YES : NO}`,
     `stored model api key: ${facts.hasStoredApiKey ? YES : NO}; META_API_KEY in environment: ${facts.hasEnvironmentApiKey ? YES : NO}`,
     `shell sandbox: ${facts.sandbox}`,

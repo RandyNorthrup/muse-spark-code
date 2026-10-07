@@ -51,10 +51,14 @@
         "paidSettings": ["museSpark.modelApiBestOfN"],
         "configuredDefaults": { "museSpark.modelApiBestOfN": true },
         "defaultState": { "type": "boolean", "value": true },
-        "pricesUsd": { "webSearchPerThousand": 2.5, "imageGeneration": 0.01, "voicePerHour": 0.18 },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
         "tokenRatesPerMillion": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -186,6 +190,213 @@
         "pdfPageImages": 50,
         "pdfBackend": "modelApi"
       },
+      "editors": ["vscode"]
+    },
+    {
+      "id": "providers",
+      "name": { "command": "museSpark.modelsAndAgents" },
+      "summary": { "setting": "suggestedProvider" },
+      "description": { "setting": "suggestedProvider" },
+      "commands": [
+        "museSpark.startWithOwnModel",
+        "museSpark.modelsAndAgents",
+        "museSpark.addModelProvider"
+      ],
+      "settings": ["museSpark.suggestedProvider"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#models-and-providers",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode"]
+    },
+    {
+      "id": "strict-tools",
+      "name": { "setting": "modelApiStrictTools" },
+      "summary": {
+        "conditions": [
+          { "when": "conversationStart&tools.strict", "text": { "setting": "modelApiStrictTools" } }
+        ]
+      },
+      "description": {
+        "conditions": [
+          { "when": "conversationStart&tools.strict", "text": { "setting": "modelApiStrictTools" } }
+        ]
+      },
+      "commands": [],
+      "settings": ["museSpark.modelApiStrictTools"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
+      "id": "parallel-reads",
+      "name": { "setting": "modelApiParallelReads" },
+      "summary": {
+        "conditions": [
+          { "when": "conversationStart", "text": { "setting": "modelApiParallelReads" } }
+        ]
+      },
+      "description": {
+        "conditions": [
+          { "when": "conversationStart", "text": { "setting": "modelApiParallelReads" } }
+        ]
+      },
+      "commands": [],
+      "settings": ["museSpark.modelApiParallelReads"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
+      "id": "auto-compaction",
+      "name": { "setting": "modelApiAutoCompaction" },
+      "summary": {
+        "conditions": [
+          {
+            "when": "conversationStart&modelPricing",
+            "text": { "setting": "modelApiAutoCompaction" }
+          }
+        ]
+      },
+      "description": {
+        "conditions": [
+          {
+            "when": "conversationStart&modelPricing",
+            "text": { "setting": "modelApiAutoCompaction" }
+          }
+        ]
+      },
+      "commands": [],
+      "settings": ["museSpark.modelApiAutoCompaction"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
+      "id": "argument-preview",
+      "name": { "ui": "toolArgumentPreviewLabel" },
+      "summary": { "ui": "toolArgumentPreviewPending" },
+      "description": { "ui": "toolArgumentPreviewPending" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode"]
+    },
+    {
+      "id": "cut-short-tools",
+      "name": { "ui": "incompleteToolCallsNotRun" },
+      "summary": { "ui": "incompleteToolCallsNotRun" },
+      "description": { "ui": "incompleteToolCallsNotRun" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
+      "id": "structured-side-calls",
+      "name": { "ui": "structuredOutputRepair" },
+      "summary": { "ui": "structuredOutputFallback" },
+      "description": { "ui": "structuredOutputFallback" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [{ "ui": "structuredOutputRepair" }, { "ui": "structuredOutputFallback" }],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
+      "id": "output-schema",
+      "name": { "cli": "output-schema" },
+      "summary": { "cli": "output-schema" },
+      "description": { "cli": "output-schema" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#headless-runs",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["acp"]
+    },
+    {
+      "id": "service-status",
+      "name": { "ui": "modelApiStatusLabel" },
+      "summary": { "ui": "modelApiStatusOpen" },
+      "description": { "ui": "modelApiStatusOpen" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode"]
+    },
+    {
+      "id": "native-feedback",
+      "name": { "ui": "feedbackTitle" },
+      "summary": {
+        "conditions": [
+          { "when": "feedbackCapture&feedbackCapability", "text": { "ui": "feedbackPrivacy" } }
+        ]
+      },
+      "description": {
+        "conditions": [
+          { "when": "feedbackCapture&feedbackCapability", "text": { "ui": "feedbackPrivacy" } }
+        ]
+      },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["museCode"],
+      "paid": false,
+      "surfaces": ["vscode:museCode"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode"]
+    },
+    {
+      "id": "native-deletion",
+      "name": { "ui": "memoryDeleteAction" },
+      "summary": { "ui": "historyLabel" },
+      "description": { "ui": "historyLabel" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["museCode"],
+      "paid": false,
+      "surfaces": ["vscode:museCode"],
+      "details": [],
+      "facts": {},
       "editors": ["vscode"]
     },
     {
@@ -707,7 +918,7 @@
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["vscode:museCode", "vscode:modelApi"],
-      "details": [],
+      "details": [{ "ui": "structuredOutputRepair" }, { "ui": "structuredOutputFallback" }],
       "facts": {},
       "editors": ["vscode"]
     },
@@ -930,10 +1141,14 @@
         "paidSettings": ["museSpark.modelApiVoice"],
         "configuredDefaults": { "museSpark.modelApiVoice": true },
         "defaultState": { "type": "boolean", "value": true },
-        "pricesUsd": { "webSearchPerThousand": 2.5, "imageGeneration": 0.01, "voicePerHour": 0.18 },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
         "tokenRatesPerMillion": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -954,7 +1169,7 @@
       "summary": { "tip": "paid:webSearch" },
       "description": { "tip": "paid:webSearch" },
       "commands": [],
-      "settings": ["museSpark.modelApiWebSearch"],
+      "settings": ["museSpark.modelApiWebSearch", "museSpark.webSearchMaxPerRequest"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#paid-features",
       "backends": ["modelApi"],
       "paid": true,
@@ -965,17 +1180,21 @@
         "paidSettings": ["museSpark.modelApiWebSearch"],
         "configuredDefaults": { "museSpark.modelApiWebSearch": true },
         "defaultState": { "type": "boolean", "value": true },
-        "pricesUsd": { "webSearchPerThousand": 2.5, "imageGeneration": 0.01, "voicePerHour": 0.18 },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
         "tokenRatesPerMillion": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
           "vscode:modelApi": {
             "defaultState": { "type": "boolean", "value": true },
             "key": "SecretStorage",
-            "consent": "use",
+            "consent": "window",
             "ledger": "paidDailyBudgetUsd"
           },
           "acp:modelApi": {
@@ -1005,10 +1224,14 @@
         "paidSettings": ["museSpark.modelApiImageGeneration"],
         "configuredDefaults": { "museSpark.modelApiImageGeneration": true },
         "defaultState": { "type": "boolean", "value": true },
-        "pricesUsd": { "webSearchPerThousand": 2.5, "imageGeneration": 0.01, "voicePerHour": 0.18 },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
         "tokenRatesPerMillion": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1058,10 +1281,14 @@
         "paidSettings": ["museSpark.modelApiScheduledPrompts"],
         "configuredDefaults": { "museSpark.modelApiScheduledPrompts": true },
         "defaultState": { "type": "boolean", "value": true },
-        "pricesUsd": { "webSearchPerThousand": 2.5, "imageGeneration": 0.01, "voicePerHour": 0.18 },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
         "tokenRatesPerMillion": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1092,10 +1319,14 @@
         "paidSettings": ["museSpark.modelApiSubagents"],
         "configuredDefaults": { "museSpark.modelApiSubagents": true },
         "defaultState": { "type": "boolean", "value": true },
-        "pricesUsd": { "webSearchPerThousand": 2.5, "imageGeneration": 0.01, "voicePerHour": 0.18 },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
         "tokenRatesPerMillion": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1126,10 +1357,14 @@
         "paidSettings": ["museSpark.modelApiAutoReviewer"],
         "configuredDefaults": { "museSpark.modelApiAutoReviewer": true },
         "defaultState": { "type": "boolean", "value": true },
-        "pricesUsd": { "webSearchPerThousand": 2.5, "imageGeneration": 0.01, "voicePerHour": 0.18 },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
         "tokenRatesPerMillion": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1160,10 +1395,14 @@
         "paidSettings": ["museSpark.modelApiHookModels"],
         "configuredDefaults": { "museSpark.modelApiHookModels": true },
         "defaultState": { "type": "boolean", "value": true },
-        "pricesUsd": { "webSearchPerThousand": 2.5, "imageGeneration": 0.01, "voicePerHour": 0.18 },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
         "tokenRatesPerMillion": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1239,17 +1478,21 @@
         "ledger": "tabDailyBudgetUsd",
         "budgetUsd": 1,
         "rates": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "paidFeature": "tab",
         "paidSettings": ["museSpark.modelApiTab"],
         "configuredDefaults": { "museSpark.modelApiTab": true },
         "defaultState": { "type": "boolean", "value": true },
-        "pricesUsd": { "webSearchPerThousand": 2.5, "imageGeneration": 0.01, "voicePerHour": 0.18 },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
         "tokenRatesPerMillion": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1281,7 +1524,7 @@
       "backends": ["modelApi"],
       "paid": true,
       "surfaces": ["vscode:modelApi"],
-      "details": [],
+      "details": [{ "ui": "structuredOutputRepair" }, { "ui": "structuredOutputFallback" }],
       "facts": {
         "paidFeature": "judge",
         "paidSettings": ["museSpark.judge.engine"],
@@ -1301,10 +1544,14 @@
             ]
           }
         },
-        "pricesUsd": { "webSearchPerThousand": 2.5, "imageGeneration": 0.01, "voicePerHour": 0.18 },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
         "tokenRatesPerMillion": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1846,6 +2093,36 @@
       "categoryKey": "command.category",
       "description": "Previous open question",
       "text": { "ui": "questionPreviousOpen" },
+      "canRun": false
+    },
+    {
+      "id": "museSpark.startWithOwnModel",
+      "name": "Start with Your Own Model",
+      "nameKey": "command.startWithOwnModel.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Start with Your Own Model",
+      "text": { "command": "museSpark.startWithOwnModel" },
+      "canRun": false
+    },
+    {
+      "id": "museSpark.modelsAndAgents",
+      "name": "Models & Agents",
+      "nameKey": "command.modelsAndAgents.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Models & Agents",
+      "text": { "command": "museSpark.modelsAndAgents" },
+      "canRun": true
+    },
+    {
+      "id": "museSpark.addModelProvider",
+      "name": "Add Model Provider…",
+      "nameKey": "command.addModelProvider.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Add Model Provider…",
+      "text": { "command": "museSpark.addModelProvider" },
       "canRun": false
     }
   ],
@@ -3088,6 +3365,87 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "integer", "default": 60, "minimum": 0, "maximum": 3600 }
+    },
+    {
+      "id": "museSpark.suggestedProvider",
+      "name": "museSpark.suggestedProvider",
+      "description": "A workspace may suggest one model-provider preset by id; the panel offers to open Models & Agents with that preset chosen. Empty suggests nothing. A workspace cannot set an address or a credential.",
+      "descriptionKey": "config.suggestedProvider.description",
+      "type": "string",
+      "default": "",
+      "scope": "window",
+      "refinements": [],
+      "schema": { "type": "string", "default": "" }
+    },
+    {
+      "text": {
+        "conditions": [
+          {
+            "when": "conversationStart&modelPricing",
+            "text": { "setting": "modelApiAutoCompaction" }
+          }
+        ]
+      },
+      "id": "museSpark.modelApiAutoCompaction",
+      "name": "museSpark.modelApiAutoCompaction",
+      "description": "Automatically compact long Model API conversations. Defaults on, but remains inactive until a paired evaluation passes. Additional paid calls require consent to the price and daily budget.",
+      "descriptionKey": "config.modelApiAutoCompaction.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "conversationStart&tools.strict", "text": { "setting": "modelApiStrictTools" } }
+        ]
+      },
+      "id": "museSpark.modelApiStrictTools",
+      "name": "museSpark.modelApiStrictTools",
+      "description": "Use strict tool schemas where the selected model supports them. Disable to keep the previous tool declarations.",
+      "descriptionKey": "config.modelApiStrictTools.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "conversationStart", "text": { "setting": "modelApiParallelReads" } }
+        ]
+      },
+      "id": "museSpark.modelApiParallelReads",
+      "name": "museSpark.modelApiParallelReads",
+      "description": "Run safe read-only tool calls concurrently, up to four at a time. Other tool calls run in order.",
+      "descriptionKey": "config.modelApiParallelReads.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "text": {
+        "conditions": [
+          {
+            "when": "conversationStart&hosted.webSearch",
+            "text": { "setting": "webSearchMaxPerRequest" }
+          }
+        ]
+      },
+      "id": "museSpark.webSearchMaxPerRequest",
+      "name": "museSpark.webSearchMaxPerRequest",
+      "description": "Maximum hosted web searches per response (1–20; default 5). The price and shared daily budget are shown before the first charge.",
+      "descriptionKey": "config.webSearchMaxPerRequest.description",
+      "type": "number",
+      "default": 5,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "number", "default": 5, "minimum": 1, "maximum": 20 }
     }
   ],
   "slash": [
@@ -3462,6 +3820,13 @@
     },
     {
       "route": "serve",
+      "name": "serve: --no-auto-compaction",
+      "description": "Disable automatic compaction",
+      "text": { "cli": "no-auto-compaction" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "serve",
       "name": "serve: --trust-workspace",
       "description": "--trust-workspace                Load the folder’s rules, skills and memory",
       "text": { "cli": "trust-workspace" },
@@ -3559,6 +3924,18 @@
         "repeatable": false,
         "enum": ["museCode", "modelApi"],
         "default": "museCode",
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "login",
+      "name": "login: --no-auto-compaction",
+      "description": "Disable automatic compaction",
+      "text": { "cli": "no-auto-compaction" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
         "purpose": "acceptedUnused"
       }
     },
@@ -3698,6 +4075,18 @@
     },
     {
       "route": "setup",
+      "name": "setup: --no-auto-compaction",
+      "description": "Disable automatic compaction",
+      "text": { "cli": "no-auto-compaction" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "setup",
       "name": "setup: --trust-workspace",
       "description": "--trust-workspace                Load the folder’s rules, skills and memory",
       "text": { "cli": "trust-workspace" },
@@ -3821,6 +4210,18 @@
         "repeatable": false,
         "enum": ["museCode", "modelApi"],
         "default": "museCode",
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authSet",
+      "name": "authSet: --no-auto-compaction",
+      "description": "Disable automatic compaction",
+      "text": { "cli": "no-auto-compaction" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
         "purpose": "acceptedUnused"
       }
     },
@@ -3965,6 +4366,18 @@
     },
     {
       "route": "authStatus",
+      "name": "authStatus: --no-auto-compaction",
+      "description": "Disable automatic compaction",
+      "text": { "cli": "no-auto-compaction" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authStatus",
       "name": "authStatus: --trust-workspace",
       "description": "--trust-workspace                Load the folder’s rules, skills and memory",
       "text": { "cli": "trust-workspace" },
@@ -4099,6 +4512,18 @@
         "repeatable": false,
         "enum": ["museCode", "modelApi"],
         "default": "museCode",
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authClear",
+      "name": "authClear: --no-auto-compaction",
+      "description": "Disable automatic compaction",
+      "text": { "cli": "no-auto-compaction" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
         "purpose": "acceptedUnused"
       }
     },
@@ -4243,6 +4668,18 @@
     },
     {
       "route": "exec",
+      "name": "exec: --no-auto-compaction",
+      "description": "Disable automatic compaction",
+      "text": { "cli": "no-auto-compaction" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "no-auto-compaction"
+      }
+    },
+    {
+      "route": "exec",
       "name": "exec: --cwd <value>",
       "description": "Use this directory as the workspace.",
       "text": { "cli": "cwd" },
@@ -4258,6 +4695,25 @@
         "repeatable": false,
         "maximumBytes": 262144,
         "purpose": "prompt"
+      }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --output-schema <value>",
+      "description": "Validate the final answer against a bounded JSON schema file (Model API only).",
+      "text": { "cli": "output-schema" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "output-schema" }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --output-schema-outside",
+      "description": "Allow the output schema file to resolve outside the workspace.",
+      "text": { "cli": "output-schema-outside" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "output-schema-outside"
       }
     },
     {
@@ -4657,6 +5113,18 @@
       "key": "ctrl+alt+shift+j",
       "mac": "cmd+alt+shift+j",
       "when": "activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'"
+    },
+    {
+      "command": "models.grid",
+      "key": "Escape / ArrowDown / ArrowUp / Home / End / Enter",
+      "when": "models.grid",
+      "text": { "ui": "referenceMenuKeys" }
+    },
+    {
+      "command": "models.select",
+      "key": "ArrowDown / ArrowUp / Enter / Escape",
+      "when": "models.select",
+      "text": { "ui": "referenceMenuKeys" }
     },
     {
       "command": "composer.send",

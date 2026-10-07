@@ -1,4 +1,6 @@
 import { PAID_USE_REGISTRY } from '../../shared/paid'
+import type { SearchSettlement } from '../../shared/paid'
+import { Usd, sumUsd, type UsdAmount } from '../../shared/usd'
 // The paid Model API features (M33–M35, PLAN.md D30), "opt in and loud":
 // which are on, and what this window has used of them.
 //
@@ -14,7 +16,12 @@ import { PAID_USE_REGISTRY } from '../../shared/paid'
 // No `vscode` here: the host injects the settings, the store, the modal and
 // the window focus.
 
-import { PAID_FEATURES, type PaidFeature } from '../../shared/constants'
+import {
+  PAID_FEATURES,
+  PAID_PRICES_USD,
+  SEARCHES_PER_PRICE_UNIT,
+  type PaidFeature,
+} from '../../shared/constants'
 import {
   EMPTY_PAID_TALLY,
   modelApiPaidTier,
@@ -24,6 +31,13 @@ import {
 } from '../../shared/paid'
 import type { CoreLogger } from '../logging'
 import { estimateCostUsd } from '../usage/insights'
+
+/** A verified per-call search tariff; other providers must inject their own price. */
+export function webSearchPriceUsd(modelId: string): UsdAmount | undefined {
+  return modelApiPaidTier(modelId) === undefined
+    ? undefined
+    : Usd.from(PAID_PRICES_USD.webSearchPerThousand).divide(SEARCHES_PER_PRICE_UNIT).toAmount()
+}
 
 export interface PaidFeatureGateDeps {
   /** Whether the feature's `museSpark.*` setting is on. */
@@ -248,15 +262,40 @@ export class PaidUsage {
   }
 
   /** Counts `units` uses: searches, images, or whole seconds of audio. */
-  public add(feature: PaidFeature, units: number): void {
+  public add(
+    feature: PaidFeature,
+    units: number,
+    searchPriceUsd?: UsdAmount | SearchSettlement,
+  ): void {
+    if (typeof searchPriceUsd === 'object') searchPriceUsd = searchPriceUsd.quote.tariffUsd
     if (units <= 0) {
       return
     }
     const { tally } = this
-    const entry = PAID_USE_REGISTRY[feature]
-    this.tally = { ...tally, [entry.tally]: (tally[entry.tally] ?? 0) + units }
-    if ('unknown' in entry) {
-      this.tally = { ...this.tally, [entry.unknown]: (tally[entry.unknown] ?? 0) + units }
+    if (feature === 'webSearch') {
+      if (searchPriceUsd === undefined || Usd.from(searchPriceUsd).compare(Usd.from(0)) < 0) {
+        throw new Error('Search use needs a verified tariff')
+      }
+      searchPriceUsd = Usd.from(searchPriceUsd).toAmount()
+      const charges = tally.webSearchCharges ?? []
+      const hasTariff = charges.some((charge) => charge.priceUsd === searchPriceUsd)
+      this.tally = {
+        ...tally,
+        webSearches: tally.webSearches + units,
+        webSearchCharges: hasTariff
+          ? charges.map((charge) =>
+              charge.priceUsd === searchPriceUsd
+                ? { ...charge, units: charge.units + units }
+                : charge,
+            )
+          : [...charges, { units, priceUsd: Usd.from(searchPriceUsd).toAmount() }],
+      }
+    } else {
+      const entry = PAID_USE_REGISTRY[feature]
+      this.tally = { ...tally, [entry.tally]: (tally[entry.tally] ?? 0) + units }
+      if ('unknown' in entry) {
+        this.tally = { ...this.tally, [entry.unknown]: (tally[entry.unknown] ?? 0) + units }
+      }
     }
     this.log.info(`Paid use: ${feature} +${String(units)}`)
     for (const listener of this.listeners) {
@@ -273,7 +312,7 @@ export class PaidUsage {
       ...this.tally,
       judgeUnknownRequests: unknown - 1,
       judgeTokens: (this.tally.judgeTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      judgeCostUsd: (this.tally.judgeCostUsd ?? 0) + cost,
+      judgeCostUsd: sumUsd(this.tally.judgeCostUsd ?? Usd.from(0).toAmount(), cost),
     }
     for (const listener of this.listeners) listener()
   }
@@ -288,7 +327,7 @@ export class PaidUsage {
       ...tally,
       autoReviewUnknownRequests: unknown - 1,
       autoReviewTokens: (tally.autoReviewTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      autoReviewCostUsd: (tally.autoReviewCostUsd ?? 0) + cost,
+      autoReviewCostUsd: sumUsd(tally.autoReviewCostUsd ?? Usd.from(0).toAmount(), cost),
     }
     for (const listener of this.listeners) {
       listener()
@@ -311,7 +350,10 @@ export class PaidUsage {
       ...tally,
       subagentUnknownRequests: (tally.subagentUnknownRequests ?? 0) - 1,
       subagentTokens: (tally.subagentTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      subagentCostUsd: (tally.subagentCostUsd ?? 0) + estimateCostUsd(usage, modelId),
+      subagentCostUsd: sumUsd(
+        tally.subagentCostUsd ?? Usd.from(0).toAmount(),
+        estimateCostUsd(usage, modelId),
+      ),
     }
     for (const listener of this.listeners) {
       listener()
@@ -349,7 +391,10 @@ export class PaidUsage {
       ...this.tally,
       hookModelUnknownRequests: unknown - 1,
       hookModelTokens: (this.tally.hookModelTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      hookModelCostUsd: (this.tally.hookModelCostUsd ?? 0) + estimateCostUsd(usage, modelId),
+      hookModelCostUsd: sumUsd(
+        this.tally.hookModelCostUsd ?? Usd.from(0).toAmount(),
+        estimateCostUsd(usage, modelId),
+      ),
     }
     for (const listener of this.listeners) listener()
   }
@@ -386,7 +431,10 @@ export class PaidUsage {
       tabUnknownRequests: unknown - 1,
       tabTokens: (this.tally.tabTokens ?? 0) + usage.inputTokens + usage.outputTokens,
       tabCachedTokens: (this.tally.tabCachedTokens ?? 0) + usage.cachedTokens,
-      tabCostUsd: (this.tally.tabCostUsd ?? 0) + estimateCostUsd(usage, modelId),
+      tabCostUsd: sumUsd(
+        this.tally.tabCostUsd ?? Usd.from(0).toAmount(),
+        estimateCostUsd(usage, modelId),
+      ),
     }
     for (const listener of this.listeners) listener()
   }
@@ -408,14 +456,17 @@ export class PaidUsage {
       ...this.tally,
       bestOfNUnknownRequests: unknown - 1,
       bestOfNTokens: (this.tally.bestOfNTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      bestOfNCostUsd: (this.tally.bestOfNCostUsd ?? 0) + estimateCostUsd(usage, modelId),
+      bestOfNCostUsd: sumUsd(
+        this.tally.bestOfNCostUsd ?? Usd.from(0).toAmount(),
+        estimateCostUsd(usage, modelId),
+      ),
     }
     for (const listener of this.listeners) listener()
   }
 }
 
 /** One Auto review's tokens (M78): its cost, at the model's published rates. */
-function reviewerCost(modelId: string, usage: SubagentUsage): number {
+function reviewerCost(modelId: string, usage: SubagentUsage): UsdAmount {
   if (modelApiPaidTier(modelId) === undefined) {
     throw new Error('Cannot estimate an Auto review on an unpriced model')
   }

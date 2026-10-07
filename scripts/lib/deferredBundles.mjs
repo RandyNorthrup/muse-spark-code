@@ -6,8 +6,19 @@ export const BUNDLES = {
   activation: { output: 'dist/extension.js', metafile: 'dist/meta/extension.json' },
   modelApi: { output: 'dist/modelApi.js', metafile: 'dist/meta/modelApi.json' },
   acp: { output: 'dist/acp.js', metafile: 'dist/meta-acp/acp.json' },
+  providers: { output: 'dist/providers.js', metafile: 'dist/meta/providers.json' },
 }
 const MODEL_API_DIR = 'src/core/backends/modelapi'
+export const MODEL_API_OPTIONAL_ONLY = [
+  'codeIntelEntry.ts',
+  'codeIntelCalls.ts',
+  'mcpPoolEntry.ts',
+  'mcp/connection.ts',
+  'mcp/http.ts',
+  'mcp/pool.ts',
+  'mcp/servers.ts',
+  'mcp/stdio.ts',
+]
 export const DEFERRED_ONLY = ['reviewerEntry.ts', 'hookModelEntry.ts']
 
 export const FOREIGN_HOOKS_ONLY = [
@@ -33,6 +44,30 @@ export const PLUGIN_HOOKS_ONLY = [
   'pluginFormats.ts',
 ]
 export const DEFERRED = [
+  {
+    output: 'dist/mcpPool.js',
+    metafile: 'dist/meta/mcpPool.json',
+    files: ['src/core/backends/modelapi/mcpPoolEntry.ts', 'src/core/backends/modelapi/mcp/pool.ts'],
+  },
+  {
+    output: 'dist/exec.js',
+    metafile: 'dist/meta-acp/exec.json',
+    files: ['src/runtime/exec/execEntry.ts', 'src/runtime/exec/runExec.ts'],
+  },
+  {
+    output: 'dist/modelApiCodeIntel.js',
+    metafile: 'dist/meta/modelApiCodeIntel.json',
+    files: [
+      'src/core/backends/modelapi/codeIntelEntry.ts',
+      'src/core/backends/modelapi/codeIntelCalls.ts',
+    ],
+  },
+  {
+    output: 'dist/structuredSchema.js',
+    metafile: 'dist/meta/structuredSchema.json',
+    files: ['src/shared/structuredSchemaEntry.ts'],
+  },
+
   {
     output: 'dist/reference.js',
     metafile: 'dist/meta/reference.json',
@@ -296,6 +331,14 @@ export function checkDeferredBundles(inputsOf) {
       if (!inputs.has(file)) problems.push(`${bundle.output} no longer carries ${file}`)
     }
   }
+  // Session export remains available to the conversation and ACP front ends;
+  // the backend loads its import sanitizer only from the existing lazy runtime.
+  const transfer = 'src/core/export/sessionTransfer.ts'
+  if (inputsOf(BUNDLES.modelApi).has(transfer))
+    problems.push(`${BUNDLES.modelApi.output} carries ${transfer}, which loads only on import`)
+  const importRuntime = DEFERRED.find((bundle) => bundle.output === 'dist/foreignHooks.js')
+  if (!inputsOf(importRuntime).has(transfer))
+    problems.push(`${importRuntime.output} no longer carries ${transfer}`)
   // The plugin host loads only on the first plugin hook: the adapters' bundle
   // requires it rather than carry it (M91b).
   {
@@ -322,6 +365,60 @@ export function checkDeferredBundles(inputsOf) {
     for (const bundle of [...Object.values(BUNDLES), ...DEFERRED, ...ON_FIRST_USE]) {
       if (inputsOf(bundle).has(file))
         problems.push(`${bundle.output} duplicates shared wire schemas in ${file}`)
+    }
+  }
+  // M95 remains isolated in the combined release graph; drills use these same checks.
+  const providerFiles = ['anthropic', 'chat', 'gemini', 'ollama', 'responses'].map(
+    (name) => `${MODEL_API_DIR}/codecs/${name}.ts`,
+  )
+  const providers = inputsOf(BUNDLES.providers)
+  for (const file of providerFiles) {
+    if (!providers.has(file)) problems.push(`${BUNDLES.providers.output} no longer carries ${file}`)
+  }
+  for (const bundle of [
+    ...Object.values(BUNDLES).filter((entry) => entry !== BUNDLES.providers),
+    ...DEFERRED,
+    ...ON_FIRST_USE,
+    { output: 'dist/modelsPanel.js', metafile: 'dist/meta/modelsPanel.json' },
+    { output: 'dist/pageWorker.js', metafile: 'dist/meta/pageWorker.json' },
+  ]) {
+    for (const file of inputsOf(bundle).keys()) {
+      if (file.startsWith(`${MODEL_API_DIR}/codecs/`) || file.startsWith('src/core/providers/')) {
+        problems.push(`${bundle.output} carries ${file}, which loads only in dist/providers.js`)
+      }
+    }
+  }
+  const imageWorker = {
+    output: 'dist/imageResizeWorker.js',
+    metafile: 'dist/meta/imageResizeWorker.json',
+  }
+  const rasterOnly = [
+    'src/core/imageResizeWorker.ts',
+    'node_modules/jpeg-js/',
+    'node_modules/pngjs/',
+  ]
+  for (const prefix of rasterOnly) {
+    if (
+      inputsOf(imageWorker)
+        .keys()
+        .every((file) => !file.startsWith(prefix))
+    )
+      problems.push(`${imageWorker.output} no longer carries ${prefix}`)
+    for (const bundle of [
+      ...Object.values(BUNDLES),
+      ...DEFERRED,
+      ...ON_FIRST_USE,
+      { output: 'dist/modelsPanel.js', metafile: 'dist/meta/modelsPanel.json' },
+      { output: 'dist/pageWorker.js', metafile: 'dist/meta/pageWorker.json' },
+    ]) {
+      if (
+        inputsOf(bundle)
+          .keys()
+          .some((file) => file.startsWith(prefix))
+      )
+        problems.push(
+          `${bundle.output} carries ${prefix}, which runs only on the image resize worker`,
+        )
     }
   }
   return problems
@@ -382,6 +479,9 @@ export const sharedValidation = {
 const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/resources/resourceGovernorEntry.ts'), 'dist/resourceGovernor.js'],
   [path.resolve('src/core/questions/deferralEntry.ts'), 'dist/questionNotes.js'],
+  [path.resolve('src/core/backends/modelapi/mcpPoolEntry.ts'), 'dist/mcpPool.js'],
+  [path.resolve('src/runtime/exec/execEntry.ts'), 'dist/exec.js'],
+  [path.resolve('src/core/backends/modelapi/codeIntelEntry.ts'), 'dist/modelApiCodeIntel.js'],
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
   [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],
@@ -398,7 +498,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:resourceGovernorEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (args.kind !== 'dynamic-import') return
@@ -437,5 +537,16 @@ export const sharedResourceAdmission = {
         ? { path: './resourceAdmission.js', external: true }
         : undefined
     })
+  },
+}
+
+/** Keep schema conversion out of each feature's request code. */
+export const sharedStructuredSchema = {
+  name: 'shared-structured-schema',
+  setup(build) {
+    build.onResolve({ filter: /^zod\/v4\/core$/ }, () => ({
+      path: './structuredSchema.js',
+      external: true,
+    }))
   },
 }

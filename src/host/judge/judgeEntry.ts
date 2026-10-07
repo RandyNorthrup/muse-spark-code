@@ -175,6 +175,8 @@ export function createWindowJudge(
               return new ModelApiSameJudge({
                 ...runner,
                 source: connection.source,
+                sideCallFormats: connection.sideCallFormats,
+                forceSideCallTool: connection.forceSideCallTool,
                 transport: admittedModelApiJudge({
                   connection,
                   ledger: deps.ledger,

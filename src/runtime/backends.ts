@@ -1,3 +1,4 @@
+import { Usd } from '../shared/usd'
 // The ACP agent's backend (PLAN.md D62): the panel's backend managers,
 // given in this process what VS Code gives them in the extension, one per
 // workspace folder. Muse Code signs in on its own and the subscription
@@ -97,6 +98,12 @@ export interface RuntimeBackendDeps {
 export interface RuntimeBackend {
   readonly backend: AcpBackend
   /** Muse Code's launch and environment, for `login`. */
+  readonly configureOutputSchema?: (
+    sessionId: string,
+    model: string,
+    mode: 'strict_schema' | 'json_schema',
+    schema: Readonly<Record<string, unknown>>,
+  ) => Promise<void>
   readonly museCode: MuseCodeBackendManager
   /** The flagged paid features and their questions, shared with the agent (M63c, M58). */
   readonly paid: AcpPaidUse
@@ -171,7 +178,7 @@ function modelApiManager(
       respectGitIgnore: () => SETTING_DEFAULTS.respectGitIgnore,
       isWorkspaceTrusted,
       runGit: deps.runGit,
-      findFiles: () => walkFiles(root, MENTION_INDEX_LIMIT, log),
+      findFiles: (signal) => walkFiles(root, MENTION_INDEX_LIMIT, log, signal),
       log,
     })
   const listFiles = filesIn(workspaceRoot)
@@ -250,7 +257,7 @@ function modelApiManager(
     assertWorkspaceCurrent,
     workspaceEdits,
     io,
-    listAttemptFiles: (attemptRoot) => filesIn(attemptRoot)(),
+    listAttemptFiles: (attemptRoot, signal) => filesIn(attemptRoot)(signal),
     contextIo: fileContextIo,
     webFetch: createWebFetcher(log, pageConverter(path.join(deps.distDir, PAGE_WORKER_FILE), log)),
     fetch: deps.fetch,
@@ -295,13 +302,23 @@ function modelApiManager(
     },
     // The panel's default (M56); the agent has no setting for the longer retention.
     promptCacheRetention: () => SETTING_DEFAULTS.modelApiPromptCacheRetention,
+    // ACP and headless share the panel's packing/recall engine. Without a
+    // VS Code setting here, use D81.6's enabled policy in every editor.
+    isObservationPackingOn: () => true,
     // M82's cap and reply line are VS Code settings; ACP exposes neither.
-    sessionBudgetUsd: () => SETTING_DEFAULTS.modelApiSessionBudgetUsd,
+    sessionBudgetUsd: () => Usd.from(SETTING_DEFAULTS.modelApiSessionBudgetUsd).toAmount(),
+    pacingOwner: deps,
+    strictTools: () => SETTING_DEFAULTS.modelApiStrictTools,
+    parallelReads: () => SETTING_DEFAULTS.modelApiParallelReads,
+    webSearchMaxPerRequest: () => SETTING_DEFAULTS.webSearchMaxPerRequest,
+    isAutoCompactionOn: () =>
+      deps.options.autoCompaction ?? SETTING_DEFAULTS.modelApiAutoCompaction,
     // D78 changes only VS Code's display default; ACP remains unchanged.
     showReplyUsage: () => false,
     // Each use asked in the editor's session (M58, PLAN.md D48). Child tasks
     // are paid (M48, D45) and the agent's paid features are its two flags
     // (D62), so `subagents` is never on here and every task is denied.
+    paidAuthority: paid.authorityFor(),
     allowsPaidUse: (request, requiresAsking, sessionId) =>
       paid.allows(storedWorkspaceRoot, sessionId, request, requiresAsking),
     isPaidUseRemembered: (feature) => paid.isRemembered(storedWorkspaceRoot, feature),
@@ -470,6 +487,14 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       readiness: (isRecheck) =>
         deps.options.backend === 'modelApi' ? modelApiReadiness() : museCodeReadiness(isRecheck),
       hostFor,
+    },
+    configureOutputSchema: async (sessionId, model, mode, schema) => {
+      if (deps.options.backend !== 'modelApi') throw new Error(UI_TEXT.execRequestShape)
+      for (const { manager } of modelApiHosts.values()) {
+        const host = await manager.ensureHost()
+        if (host.configureOutputSchema(sessionId, model, mode, schema)) return
+      }
+      throw new Error(UI_TEXT.execRequestShape)
     },
     museCode,
     paid,

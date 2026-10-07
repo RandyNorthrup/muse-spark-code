@@ -429,3 +429,11 @@ and package guards need a deliberate red run and byte-exact restoration in
 the [W record](<docs/certification/m107-w-wiring,-docs-and-gates-(last).md>).
 The lead still runs full quality on the final candidate. Neither integration
 handoffs nor a scoped lane receipt reduce the release gates.
+
+M106 keeps optional work behind built entry points. The Model API loads code
+intelligence from `dist/modelApiCodeIntel.js` and MCP transport from
+`dist/mcpPool.js`; schema conversion uses `dist/structuredSchema.js`.
+`dist/exec.js` belongs only to the standalone package and its notices inventory.
+Install the caller's language before using a lazy Node factory. New artifacts
+use their measured size plus 15%, rounded up to 25 KiB; the activation, Model
+API, ACP, startup and original deferred caps stay fixed.

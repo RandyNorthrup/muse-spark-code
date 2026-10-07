@@ -651,35 +651,35 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
       [
         'Subagents (paid)',
         'muse-spark-1.3: $1.250 input, $0.150 cached input, $4.250 output per million tokens; up to 4 requests per task, including retries.\n' +
-          'muse-spark-1.3-contributor: $0.100 input, $0.002 cached input, $0.200 output per million tokens; up to 4 requests per task, including retries.',
+          'muse-spark-1.3-contributor: $0.100 input, $0.0020 cached input, $0.200 output per million tokens; up to 4 requests per task, including retries.',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'subagents', isOn: true },
       ],
       [
         'Scheduled prompts (paid)',
         'muse-spark-1.1, muse-spark-1.2, muse-spark-1.3: $1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
-          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.002/1M cached input, $0.200/1M output tokens',
+          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'scheduledPrompts', isOn: true },
       ],
       [
         'Auto reviewer (paid)',
         'muse-spark-1.1, muse-spark-1.2, muse-spark-1.3: $1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
-          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.002/1M cached input, $0.200/1M output tokens',
+          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'autoReviewer', isOn: true },
       ],
       [
         'Best of N (paid)',
         'muse-spark-1.3: $1.250 input, $0.150 cached input, $4.250 output per million tokens; 3 attempts with up to 20 requests each, including retries.\n' +
-          'muse-spark-1.3-contributor: $0.100 input, $0.002 cached input, $0.200 output per million tokens; 3 attempts with up to 20 requests each, including retries.',
+          'muse-spark-1.3-contributor: $0.100 input, $0.0020 cached input, $0.200 output per million tokens; 3 attempts with up to 20 requests each, including retries.',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'bestOfN', isOn: true },
       ],
       [
         'Tab completions (paid)',
         'muse-spark-1.1, muse-spark-1.2, muse-spark-1.3: $1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
-          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.002/1M cached input, $0.200/1M output tokens',
+          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'tab', isOn: true },
       ],
@@ -687,14 +687,14 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
       [
         'Model hooks (paid)',
         '$1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
-          '$0.100/1M input, $0.002/1M cached input, $0.200/1M output tokens',
+          '$0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'hookModels', isOn: true },
       ],
       [
         'Judge (paid)',
         'muse-spark-1.1, muse-spark-1.2, muse-spark-1.3: $1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
-          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.002/1M cached input, $0.200/1M output tokens',
+          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'judge', isOn: true },
       ],

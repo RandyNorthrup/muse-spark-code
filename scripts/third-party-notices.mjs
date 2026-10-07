@@ -35,6 +35,10 @@ const ACP_METAFILES = [
   path.join('dist', 'meta-acp', 'acpQuestions.json'),
   path.join('dist', 'meta-acp', 'runtimeQuestions.json'),
   path.join(METAFILE_DIR, 'questionNotes.json'),
+  path.join('dist', 'meta-acp', 'exec.json'),
+  ...['mcpPool', 'modelApiCodeIntel', 'structuredSchema', 'reference', 'imageResizeWorker'].map(
+    (name) => path.join(METAFILE_DIR, `${name}.json`),
+  ),
   path.join(METAFILE_DIR, 'modelApi.json'),
   path.join(METAFILE_DIR, 'resourceGovernor.json'),
   path.join(METAFILE_DIR, 'resourceAdmission.json'),
@@ -74,7 +78,8 @@ dist/conversation.js, dist/whatsNew.js, dist/report.js, dist/recorder.js, dist/u
 dist/webview/main.js, dist/webview/resourceSurface.js, dist/webview/resourceHistory.js, dist/webview/resourceHistory.css, its ESM chunks, dist/webview/main.css, dist/webview/whatsNew.js and dist/webview/whatsNew.css)
 include code from the packages below, each under its own licence,
 reproduced here as the package ships it. The vendored
-high-quality-projects-skill workflow package is also included below.
+high-quality-projects-skill workflow package and the vendored models.dev
+provider catalogue are also included below.
 The macOS dictation helper links
 only Apple's system frameworks and the Windows helper is a PowerShell
 script of this project; neither includes third-party code.
@@ -195,12 +200,23 @@ const metafiles =
 const problems = []
 const packages = shippedPackageDirs(metafiles).map((dir) => describePackage(dir, problems))
 if (acpOutput === undefined) {
-  packages.push({
-    name: 'high-quality-projects-skill',
-    licence: 'MIT',
-    url: 'https://github.com/RandyNorthrup/high-quality-projects-skill',
-    text: normalise(readFileSync('vendor/high-quality-projects-skill/LICENSE', 'utf8')),
-  })
+  packages.push(
+    {
+      name: 'high-quality-projects-skill',
+      licence: 'MIT',
+      url: 'https://github.com/RandyNorthrup/high-quality-projects-skill',
+      text: normalise(readFileSync('vendor/high-quality-projects-skill/LICENSE', 'utf8')),
+    },
+    // M95 (PLAN.md D74): the provider catalogue is models.dev data, vendored
+    // with its MIT notice. Whether the ACP agent's package ships the catalogue
+    // is lane X's decision; until it does, only the extension's notices name it.
+    {
+      name: 'models.dev',
+      licence: 'MIT',
+      url: 'https://models.dev',
+      text: normalise(readFileSync('vendor/models-dev/LICENSE', 'utf8')),
+    },
+  )
 }
 if (problems.length > 0) {
   console.error(`third-party notices: ${String(problems.length)} package(s) need a review:`)

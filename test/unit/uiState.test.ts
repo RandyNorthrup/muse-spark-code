@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import { scrubSecretApproval } from '../../src/core/agent/approvalSecrets'
 import type { AgentEvent, ItemSnapshot } from '../../src/shared/agentEvents'
@@ -3118,7 +3119,13 @@ function replyUpdated(
 ): AgentEvent {
   return {
     type: 'itemUpdated',
-    item: { itemId: 'm', kind: 'agentMessage', status: 'completed', text: 'A', ...extra },
+    item: {
+      itemId: 'm',
+      kind: 'agentMessage',
+      status: 'completed',
+      text: 'A',
+      ...('costUsd' in extra ? { ...extra, costUsd: Usd.from(extra.costUsd).toAmount() } : extra),
+    },
   }
 }
 
@@ -3166,7 +3173,7 @@ describe('uiReducer: paid features (M33, PLAN.md D30)', () => {
       agent(replyCompleted()),
       agent(replyUpdated({ usage, costUsd: 0.01 })),
     ])
-    expect(entryOf(state, 'm')).toMatchObject({ usage, costUsd: 0.01 })
+    expect(entryOf(state, 'm')).toMatchObject({ usage, costUsd: '0.01' })
   })
 
   it('says which engine the microphone uses', () => {
@@ -3563,6 +3570,7 @@ describe('uiReducer: the session goal (M45)', () => {
         backend: 'museCode',
         subscription: undefined,
         account: { signInMethod: 'cli' },
+        providers: undefined,
         insights: undefined,
       },
       editorContext: { relativePath: 'private-a.ts', startLine: 1, endLine: 2, isEmpty: false },
@@ -4081,6 +4089,67 @@ describe('uiReducer: share files read-only (M84)', () => {
     const other = host({ type: 'historyLoaded', sessionId: 'old', items: [], todos: [] })
     expect(reduceAll([imported, other]).isImported).toBe(false)
     expect(uiReducer(reduceAll([imported]), { type: 'conversationCleared' }).isImported).toBe(false)
+  })
+})
+
+describe('uiReducer: finished provider setup (M95)', () => {
+  const finished = host({
+    type: 'setupComplete',
+    provider: 'OpenRouter',
+    model: 'openrouter/deepseek/deepseek-v3',
+  })
+
+  it('confirms once with the provider and model, announces it, and dismisses', () => {
+    const state = reduceAll([finished])
+    expect(state.setupComplete).toEqual({
+      provider: 'OpenRouter',
+      model: 'openrouter/deepseek/deepseek-v3',
+    })
+    expect(state.announcement?.text).toContain('OpenRouter')
+    expect(state.announcement?.text).toContain('openrouter/deepseek/deepseek-v3')
+    const dismissed = uiReducer(state, { type: 'setupCompleteDismissed' })
+    expect(dismissed.setupComplete).toBeUndefined()
+  })
+
+  it('drops the confirmation with the account', () => {
+    const state = reduceAll([
+      host({ type: 'authState', status: 'signedIn', backend: 'modelApi' }),
+      finished,
+    ])
+    expect(state.setupComplete).toBeDefined()
+    expect(
+      uiReducer(state, host({ type: 'authState', status: 'signedOut' })).setupComplete,
+    ).toBeUndefined()
+  })
+
+  it('keeps per-provider tallies from the usage report', () => {
+    const providers = [
+      {
+        providerId: 'openrouter',
+        providerLabel: 'OpenRouter',
+        pricing: 'priced' as const,
+        inputTokens: 1200,
+        outputTokens: 300,
+        costUsd: 0.001,
+      },
+    ]
+    const state = reduceAll([host({ type: 'usageReport', backend: 'modelApi', providers })])
+    expect(state.usageReport?.providers).toEqual(providers)
+  })
+
+  it('stores provider fields on the listed models', () => {
+    const models = [
+      {
+        modelId: 'openrouter/deepseek/deepseek-v3',
+        displayLabel: 'DeepSeek V3',
+        isDefault: true,
+        providerId: 'openrouter',
+        providerLabel: 'OpenRouter',
+        pricing: 'priced' as const,
+        isPinned: true,
+      },
+    ]
+    expect(reduceAll([host({ type: 'modelList', models })]).models).toEqual(models)
   })
 })
 

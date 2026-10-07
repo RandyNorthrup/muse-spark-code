@@ -1,0 +1,51 @@
+{
+  "provider": "gemini",
+  "step": "error-invalid-model",
+  "capturedAt": "2026-10-04",
+  "billed": false,
+  "request": {
+    "method": "POST",
+    "url": "https://generativelanguage.googleapis.com/v1beta/models/no-such-model-m95:streamGenerateContent?alt=sse",
+    "headers": {
+      "x-goog-api-key": "<redacted>",
+      "content-type": "application/json"
+    },
+    "body": {
+      "contents": [
+        {
+          "role": "user",
+          "parts": [
+            {
+              "text": "hi"
+            }
+          ]
+        }
+      ],
+      "generationConfig": {
+        "maxOutputTokens": 16
+      }
+    }
+  },
+  "response": {
+    "status": 404,
+    "headers": {
+      "alt-svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "content-length": "279",
+      "content-type": "text/event-stream",
+      "date": "Sun, 04 Oct 2026 22:54:42 GMT",
+      "server": "scaffolding on HTTPServer2",
+      "server-timing": "gfet4t7; dur=101",
+      "vary": "Origin, X-Origin, Referer",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "SAMEORIGIN",
+      "x-xss-protection": "0"
+    },
+    "body": {
+      "error": {
+        "code": 404,
+        "message": "models/no-such-model-m95 is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.",
+        "status": "NOT_FOUND"
+      }
+    }
+  }
+}

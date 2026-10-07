@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // M77 consumes M82 through the production manager and a real parent-owned
 // file journal. Temporary hosts never write a transcript under the parent ID.
 import { mkdtemp, readdir, realpath, rm } from 'node:fs/promises'
@@ -56,7 +57,7 @@ async function setup(initialCap = 0.1) {
       workspaceRoot: directory,
       store,
       getApiKey: () => Promise.resolve(key),
-      sessionBudgetUsd: () => cap,
+      sessionBudgetUsd: () => Usd.from(cap).toAmount(),
       isWorkspaceTrusted: () => isTrusted,
       newId: () => `offline-${String(++ids)}`,
       bundlePath: 'src/host/backend/modelApiEntry.ts',
@@ -138,7 +139,7 @@ describe('production best-of-N parent budget binding (M77/M82)', () => {
         expect(t.started).toEqual(['first'])
       })
       const pending = await t.scope.journal.read(t.scope.sessionId, t.scope.accountId)
-      expect(pending.spentUsd).toBeGreaterThan(0.09)
+      expect(Number(pending.spentUsd)).toBeGreaterThan(0.09)
       await second.session.sendTurn([{ type: 'text', text: 'second attempt' }])
       await second.done()
       expect(t.api.responseBodies()).toHaveLength(1)
@@ -155,7 +156,7 @@ describe('production best-of-N parent budget binding (M77/M82)', () => {
       expect(t.started).toEqual(['first', 'third'])
       const total = await t.scope.journal.read(t.scope.sessionId, FAKE_MODEL_API_ACCOUNT_ID)
       expect(total.hasUnknownHistoricalFees).toBe(false)
-      expect(total.spentUsd).toBeCloseTo((2 * (10 * 1.25 + 5 * 4.25)) / 1_000_000, 12)
+      expect(Number(total.spentUsd)).toBeCloseTo((2 * (10 * 1.25 + 5 * 4.25)) / 1_000_000, 12)
       await t.close()
       const saved = await t.store.load(t.parentSession.sessionId)
       expect(JSON.stringify(saved?.transcript)).not.toContain('attempt')
@@ -214,7 +215,7 @@ describe('production best-of-N parent budget binding (M77/M82)', () => {
         expect(t.api.responseBodies()).toEqual([])
         expect(t.started).toEqual([])
         const total = await t.scope.journal.read(t.scope.sessionId, t.scope.accountId)
-        expect(total.spentUsd).toBe(0)
+        expect(total.spentUsd).toBe(Usd.from(0).toAmount())
         expect(total.hasUnknownHistoricalFees).toBe(false)
       } finally {
         held.resolve(undefined)

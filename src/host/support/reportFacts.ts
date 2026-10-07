@@ -1,5 +1,6 @@
 // The report dialog's facts and scrub context in the extension (M93, PLAN.md
-// D72), gathered locally: versions, the platform, the backend and sandbox
+// D72), gathered from local state and an optional public status read: versions,
+// the platform, the backend and sandbox
 // settings, the CLI's presence and the version its installer recorded, the
 // sign-in from the credential file's structure alone, whether a key is
 // stored or set, and the names (never values) of the settings the user
@@ -13,6 +14,7 @@ import {
   type CredentialFileVerdict,
 } from '../../core/backends/musecode/credentialFile'
 import type { ReportScrubContext } from '../../core/support/problemReport'
+import { modelApiStatusSchema } from '../../shared/serviceStatus'
 import { SETTINGS_SECTION, type BackendMode, type ShellSandboxMode } from '../../shared/constants'
 
 const manifestSettingsSchema = z.object({
@@ -55,6 +57,8 @@ export function changedSettingNames(
 }
 
 export interface ExtensionReportFactsDeps {
+  /** Public status response read by the host; no account data or model inference. */
+  readonly serviceStatus?: unknown
   readonly extensionVersion: string
   readonly vscodeVersion: string
   readonly nodeVersion: string
@@ -75,7 +79,17 @@ export interface ExtensionReportFactsDeps {
  * CLI wrote it; the builder drops it when it is not a version.
  */
 export function extensionReportFacts(deps: ExtensionReportFactsDeps): unknown {
+  const status =
+    deps.serviceStatus === undefined ? undefined : modelApiStatusSchema.parse(deps.serviceStatus)
   return {
+    ...(status !== undefined && {
+      modelApiStatus: {
+        isAlive: status.is_alive,
+        // M93 forbids service prose in support facts. Only the captured
+        // operational word is allowlisted; future statuses remain unknown here.
+        status: status.service_status === 'operational' ? 'operational' : 'unknown',
+      },
+    }),
     extensionVersion: deps.extensionVersion,
     vscodeVersion: deps.vscodeVersion,
     nodeVersion: deps.nodeVersion,

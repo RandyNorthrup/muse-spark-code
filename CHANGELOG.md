@@ -7,6 +7,55 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Remove the obsolete source-map-js audit exception once the locked tree no
+  longer reports its advisory; retain the existing audit policy.
+- Restore queued late-question answers before ACP manual compaction, so the
+  next ordinary prompt delivers each answer once.
+- Count the shared chat/resource browser graph once in the split guard while
+  preserving independent-graph and model-text leak checks.
+- Forward the resource-wrapped headless result exit code after structured-output
+  validation, retaining schema mismatch code 10 and its accounted spend.
+
+### Changed
+
+- Avoid retaining unused exact-money schemas in unrelated lazy bundles while
+  preserving runtime validation of every used price and schema.
+
+- M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
+  reads and writes, and 1-hour cache writes settle at their own price.
+  The shared retry classifier refuses known quota codes and excessive
+  `Retry-After` waits; provider transport binding remains pending.
+  One-shot OAuth callbacks retain every parameter and destroy keep-alive
+  connections on settlement. Custom servers accept validated compatibility
+  overrides. Session saves coalesce into one in-flight write plus the latest;
+  parallel save failures are observed immediately while other sessions drain.
+  History listing validates headers without replay/transcript validation.
+- M101 lane P1 (BYO codecs): one bad history item no longer breaks later
+  requests. Blank text is dropped, empty tool results ride as
+  `(no tool output)`, non-JSON tool arguments ride as `{}` (Ollama keeps its
+  documented raw-text fallback), PDFs ride as Anthropic `document` blocks,
+  and images for a model without image input ride as an
+  image-omitted placeholder. Tool-call ids are mapped per target format
+  (Anthropic charset, chat length, Mistral preset 9-alphanumeric even under
+  provider aliases) with unique
+  per-response Gemini fallback ids. Responses replays send the call `id`
+  only for the same model with an `fc_` prefix. Gemini replays thought
+  signatures on text parts (empty ones included), counts omitted usage as
+  zero, sends vision-gated tool-result images inside `functionResponse.parts`
+  and full tool schemas through `parametersJsonSchema` on Gemini 3.
+  Gemini rejects proxy-null usage and explicitly rejects negative usage
+  counters instead of retaining an earlier tally. Signed blank parts replay;
+  late response ids salt fallback call ids; `$ref` siblings stay constrained
+  through `allOf`. The Anthropic decoder tolerates
+  proxy-null usage and tool payloads cut off at `max_tokens`, and thinking
+  requests `display: summarized` so newer models stream thinking text.
+  Lone surrogates are removed from every BYO encoder; parsed JSON retains
+  own `__proto__` keys as data, including Anthropic tool arguments.
+  Fakes only; no live
+  or paid model call.
+
 ### Documentation
 
 - A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists
@@ -16,7 +65,7 @@ happened, not what was planned; superseded entries are kept.
 
 ## [0.16.0] - 2026-10-06
 
-> Release draft: M106 and the 0.14.4/0.15.0 main sync are pending; the package
+> Release draft: the 0.14.4/0.15.0 main sync is pending; M106 and M107 are joined. The package
 > version has not been promoted. M107's remaining qualifications are recorded
 > in [the release certification](docs/certification/rel0160.md).
 
@@ -36,8 +85,21 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- M106 loop-guarantee notes are drafted above; implementation, final settings,
-  captured-wire receipts and Help coverage wait on `sync/m106-final`.
+- M106 strict tool contracts and parallel reads have machine-scoped switches;
+  previews load on first use, completed calls remain the execution boundary,
+  cut-short tool replies fail without running tools, and repeat/continuation
+  guards bound the loop.
+- Hosted search has a per-request bound, immutable consent quotes and exact
+  decimal USD accounting. Captured rate-limit headers pace background fan-out;
+  transport idle/retry waits remain bounded and cancellable.
+- Structured side calls validate their answers, permit one repair and retain
+  the text fallback. Headless `--output-schema` validates a bounded schema
+  through a held file handle and withholds an invalid final answer.
+- The headless v2 result/event contract carries canonical decimal USD and
+  structured output alongside resource events; frozen v1 schemas stay shipped.
+- Optional Meta status and the Models & Agents panel have independent lazy
+  bundles. SDK 1.4.2 is pinned; native effort, feedback and deletion remain
+  unavailable until their captured feature readers are bound.
 - M107's portable resource governor, machine-scoped settings, process-tree
   admission and independent lazy control/history artifacts. Active editor,
   journal, paired-device and native-platform qualifications remain explicit in
@@ -977,6 +1039,7 @@ happened, not what was planned; superseded entries are kept.
   required check names and the release artifacts are unchanged. In a merge
   group, gitleaks runs its pinned, checksum-checked CLI, because the gitleaks
   action refuses that event.
+
 - **The extension loads less at startup**: `dist/extension.js` is
   552.6 KiB, down from 590.6 KiB, under its unchanged 600 KiB budget
   (PLAN.md D6, 2026-10-03 and 2026-10-04). Model text that only a lazily
@@ -1323,7 +1386,7 @@ happened, not what was planned; superseded entries are kept.
   - **Results and schemas:** the result and events are versioned (v1) and
     validated, and their JSON Schemas ship in the package's `schemas/`;
     `npm run schema:exec` regenerates them. `muse-spark-code-acp
-    scan-secrets <file>` counts likely secrets in one file and prints only
+scan-secrets <file>` counts likely secrets in one file and prints only
     the number.
   - **The Action:** `action/` reviews, or proposes a fix for, a
     same-repository pull request on GitHub-hosted runners (a private
@@ -1394,7 +1457,7 @@ happened, not what was planned; superseded entries are kept.
   shows the generic failure card. A
   command covered by an always-allow rule could run in the empty folder
   before cancellation lands. On
-  ALLOW the approval is answered *Allow once* (never an "always" choice) for
+  ALLOW the approval is answered _Allow once_ (never an "always" choice) for
   each stage while subject and user request stay the same, and the tool row says "Decided: approved (Auto
   reviewer)" with its reason; on ASK, an unreadable answer, no answer
   within 45 seconds, an error, a busy side session or a tripped breaker,
@@ -1810,6 +1873,7 @@ happened, not what was planned; superseded entries are kept.
     Muse Code refused the decision and still waits on that very step.
   - The log names the step each answer was for: a multi-step command
     decided step by step had read as repeated answers.
+
 - **A step Muse Code moved without saying so no longer strands its
   card.** After **Always allow in this workspace**, Muse Code 1.4.2 can
   show a step its new rule already allows, refuse the decision for it as
@@ -2432,6 +2496,7 @@ happened, not what was planned; superseded entries are kept.
   presence rather than enabling restore. Native/old/unknown uncertainty
   survives window close, PID death and age. Explicit confirmed recovery removes
   only the exact stale presence marker, preserving checkpoints and history.
+
 - **Checkpoints never touch the workspace's `.git`.** They live in a shadow
   repository under the extension profile's canonical-root global storage, run with hooks,
   fsmonitor, your git configuration and the workspace's filters all off,
@@ -3759,7 +3824,7 @@ The first community fix, and the README brought up to date with the panel.
   drill's budget and measurements are current, and the three upstream Muse
   Code issues are linked from Troubleshooting. Its eleven screenshots are
   rendered from the shipped panel by the UI harness (`npm run
-  harness:shots`) and say so; the 0.1.1 captures are gone.
+harness:shots`) and say so; the 0.1.1 captures are gone.
 
 ## [0.5.1] - 2026-09-23
 
@@ -4192,7 +4257,7 @@ certified per milestone under `docs/certification/`.
   a chat opens, `muse sandbox windows check` runs once per extension host and
   a `setup_required` result raises a notification with _Set up now_ / _Not
   now_ / _Don't ask again_; _Set up now_ relaunches `muse sandbox windows
-  setup` through the UAC prompt, re-checks, and reports. The new command
+setup` through the UAC prompt, re-checks, and reports. The new command
   **Muse Spark: Set Up Shell Sandbox** runs the same flow on demand, and a
   shell tool failing with `sandbox enforcement unavailable` re-offers it. The
   transcript notice now names that command instead of a terminal recipe.

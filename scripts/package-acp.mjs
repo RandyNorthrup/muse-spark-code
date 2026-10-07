@@ -34,6 +34,10 @@ const BUNDLES = [
   'acpQuestions.js',
   'runtimeQuestions.js',
   'questionNotes.js',
+  'mcpPool.js',
+  'exec.js',
+  'modelApiCodeIntel.js',
+  'structuredSchema.js',
   'modelApi.js',
   'resourceAdmission.js',
   'resourceGovernor.js',
@@ -51,6 +55,7 @@ const BUNDLES = [
   'wire.js',
   'searchWorker.js',
   'pageWorker.js',
+  'imageResizeWorker.js',
 ]
 // The C# of the shell tool's Windows job (M27), compiled on first use, as
 // the extension ships it (PLAN.md D6): its own file and the half it shares.
@@ -75,6 +80,7 @@ const NOTICES = 'THIRD_PARTY_NOTICES.txt'
 const SCHEMAS = [
   'exec-result-v1.schema.json',
   'exec-event-v1.schema.json',
+  'exec-result-v2.schema.json',
   'exec-event-v2.schema.json',
 ]
 

@@ -8,6 +8,7 @@ export { EN } from '../l10n/en'
 export { permissionModeDetail } from '../permissionModes'
 export { referenceText } from './text'
 export { fill } from '../l10n/text'
+export { Usd } from '../usd'
 export {
   ACP_AGENT_NAME,
   PAID_FEATURE_SETTINGS,
@@ -59,6 +60,23 @@ export { parseHandoffPrompt } from '../handoff'
 // The tooling gate also checks tool/action coverage and host admission witnesses.
 const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['resources', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  ['providers', ['vscode:museCode', 'vscode:modelApi']],
+  ...[
+    'strict-tools',
+    'parallel-reads',
+    'auto-compaction',
+    'cut-short-tools',
+    'structured-side-calls',
+  ].map((id): [string, readonly string[]] => [id, ['vscode:modelApi', 'acp:modelApi']]),
+  ...['argument-preview', 'service-status'].map((id): [string, readonly string[]] => [
+    id,
+    ['vscode:modelApi'],
+  ]),
+  ...['native-feedback', 'native-deletion'].map((id): [string, readonly string[]] => [
+    id,
+    ['vscode:museCode'],
+  ]),
+  ['output-schema', ['acp:modelApi']],
   ['custom-agents', ['vscode:modelApi']],
   ['mcp-elicitation', ['vscode:modelApi']],
   ...[
@@ -126,6 +144,9 @@ export const REFERENCE_CAPABILITIES = Object.fromEntries<readonly string[]>(capa
 export const REFERENCE_FEATURE_IDS = Object.keys(REFERENCE_CAPABILITIES)
 export { referenceKeyboardActions, WEBVIEW_KEYBINDINGS, webviewKey } from '../keybindings'
 export const REFERENCE_ACTION_FEATURES = {
+  startWithOwnModel: 'providers',
+  addModelProvider: 'providers',
+  manageModels: 'providers',
   openSettings: 'support',
   openKeybindings: 'support',
   openLog: 'support',
@@ -144,6 +165,7 @@ export const REFERENCE_ACTION_FEATURES = {
   removeWorktree: 'git',
   openPullRequestInConversation: 'git',
   restartMuseCode: 'chat',
+  openModelApiStatus: 'service-status',
   openTasksTab: 'chat',
   installBundledSkills: 'skills',
   updateBundledSkills: 'skills',

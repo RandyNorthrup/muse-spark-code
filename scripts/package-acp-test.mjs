@@ -28,6 +28,10 @@ for (const file of [
     : []),
   ...[
     'acp.js',
+    'mcpPool.js',
+    'exec.js',
+    'modelApiCodeIntel.js',
+    'structuredSchema.js',
     'modelApi.js',
     'recorder.js',
     'uiText.js',
@@ -39,9 +43,12 @@ for (const file of [
     'resourceGovernor.js',
     'resourceAdmission.js',
   ].map((name) => path.join(SOURCE, 'dist', name)),
-  ...['exec-result-v1.schema.json', 'exec-event-v1.schema.json', 'exec-event-v2.schema.json'].map(
-    (name) => path.join(SOURCE, 'schemas', name),
-  ),
+  ...[
+    'exec-result-v1.schema.json',
+    'exec-event-v1.schema.json',
+    'exec-result-v2.schema.json',
+    'exec-event-v2.schema.json',
+  ].map((name) => path.join(SOURCE, 'schemas', name)),
 ]) {
   if (!statSync(file).isFile()) {
     throw new Error('the test launcher and production bundles/schemas must be regular files')

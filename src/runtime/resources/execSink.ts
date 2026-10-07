@@ -4,7 +4,7 @@ import { createExecSink, type ExecSink } from '../exec/execOutput'
 import { execEventSchema, execEventV2Schema } from '../exec/execProtocol'
 import type { FdWriter } from '../exec/fdWriter'
 
-/** Upgrade only the envelope after M80 validates/redacts the existing event body. */
+/** Interleave resource events after M80 validates and redacts each ordinary v2 body. */
 export function createResourceExecSink(input: Parameters<typeof createExecSink>[0]): ExecSink & {
   resource(event: ResourceEvent): boolean
 } {
@@ -38,6 +38,9 @@ export function createResourceExecSink(input: Parameters<typeof createExecSink>[
     ...sink,
     get isStalled() {
       return sink.isStalled
+    },
+    get resultExitCode() {
+      return sink.resultExitCode
     },
     resource(event) {
       if (isFinished || sink.isStalled) return false

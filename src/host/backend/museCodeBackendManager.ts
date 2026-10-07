@@ -20,6 +20,7 @@ import { type FingerprintWarning } from '@muse-code/sdk'
 import type { CredentialFileVerdict } from '../../core/backends/musecode/credentialFile'
 import {
   type CommandTimeouts,
+  type MuseCodeFeaturePorts,
   MuseCodeHost,
   type MspHost,
 } from '../../core/backends/musecode/MuseCodeHost'
@@ -118,6 +119,7 @@ export interface BackendManagerDeps {
   /** The whole wait for a slow start whose process still runs; likewise. */
   readonly slowHandshakeTimeoutMs?: number
   /** The commands' deadlines and the watchdog's silence; the constants unless a test shortens them. */
+  readonly featurePorts?: MuseCodeFeaturePorts | undefined
   readonly commandTimeouts?: CommandTimeouts
 }
 
@@ -327,7 +329,12 @@ export class MuseCodeBackendManager {
     }
     let host: MuseCodeHost
     try {
-      host = new MuseCodeHost(mspHost, this.deps.log, this.deps.commandTimeouts)
+      host = new MuseCodeHost(
+        mspHost,
+        this.deps.log,
+        this.deps.commandTimeouts,
+        this.deps.featurePorts,
+      )
     } catch (error: unknown) {
       // An initialize result the wrapper cannot read: the process goes too.
       await spawned.close()

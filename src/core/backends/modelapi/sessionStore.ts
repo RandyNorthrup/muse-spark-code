@@ -1,3 +1,5 @@
+import { legacyUsdSchema } from '../../../shared/usd'
+import type { UsdAmount } from '../../../shared/usd'
 // What a Model API session is when the window is gone (PLAN.md D14): the
 // replayed conversation, the transcript, the patches behind Open diff and
 // Revert, and the row the history list shows. The host keeps one file per
@@ -25,7 +27,6 @@ import type { SessionBudgetJournal } from './sessionBudget'
 import {
   functionCallItemSchema,
   type InputItem,
-  MESSAGE_PHASES,
   reasoningItemSchema,
   webSearchActionSchema,
 } from './schemas'
@@ -105,6 +106,8 @@ export interface StoredSession {
   readonly agent?: AgentRuntime
   readonly name?: string
   readonly createdAt: string
+  /** Local calendar date frozen at session start (M101); absent on older files. */
+  readonly promptDate?: string
   readonly lastActivityAt: string
   readonly turnIds: readonly string[]
   /** Last completed turn covered by the accepted compaction summary (M53). */
@@ -120,7 +123,7 @@ export interface StoredSession {
   readonly outputs: Readonly<Record<string, string>>
   readonly usage: StoredUsage
   /** Dollars the session's own requests spent (M82); absent when none. */
-  readonly budgetSpentUsd?: number
+  readonly budgetSpentUsd?: UsdAmount
   /** Controlled first fork snapshot: copied history predates this conversation's zero spend. */
   readonly budgetIsFreshFork?: true
   /**
@@ -130,6 +133,8 @@ export interface StoredSession {
    */
   readonly packedTokensAvoided?: number
   readonly hookTokensAdded?: number
+  /** Sticky packing swaps (M101), with originals retained in replay; absent on old files. */
+  readonly packedCallIds?: readonly string[]
   /** Children are nested in the parent's file; they do not appear in History. */
   readonly children?: readonly StoredChild[]
   /** Completed children whose results have not entered the next model request. */
@@ -198,7 +203,7 @@ const outputTextPartSchema = z.object({ type: z.literal('output_text'), text: z.
 const inputMessageSchema = z.object({
   type: z.literal('message'),
   role: z.enum(['user', 'assistant', 'developer']),
-  phase: z.optional(z.enum(MESSAGE_PHASES)),
+  phase: z.optional(z.nullable(z.string())),
   content: z.array(
     z.union([inputTextPartSchema, inputImagePartSchema, inputFilePartSchema, outputTextPartSchema]),
   ),
@@ -255,6 +260,7 @@ const storedSessionFields = {
   ),
   name: z.optional(z.string()),
   createdAt: z.string(),
+  promptDate: z.optional(z.string().check(z.regex(/^\d{4}-\d{2}-\d{2}$/))),
   lastActivityAt: z.string(),
   turnIds: z.array(z.string()),
   compactedThroughTurnId: z.optional(z.string()),
@@ -278,8 +284,9 @@ const storedSessionFields = {
       turnId: z.string(),
       item: z.object({
         ...itemSnapshotFields,
+        // Only the disk boundary accepts historical numeric transcript fees.
         usage: z.optional(storedUsageSchema),
-        costUsd: z.optional(z.number().check(z.nonnegative())),
+        costUsd: z.optional(legacyUsdSchema),
       }),
     }),
   ),
@@ -287,12 +294,13 @@ const storedSessionFields = {
   usage: storedUsageSchema,
   // Optional, so a session saved before M82 still reads; never below zero,
   // which would give the cap room it does not have.
-  budgetSpentUsd: z.optional(z.number().check(z.nonnegative())),
+  budgetSpentUsd: z.optional(legacyUsdSchema),
   budgetIsFreshFork: z.optional(z.literal(true)),
   // Optional, so a session saved before M73 kept its ledger still reads; a
   // corrupt value is dropped before validation (withoutCorruptEstimate).
   packedTokensAvoided: z.optional(z.int().check(z.nonnegative())),
   hookTokensAdded: z.optional(z.int().check(z.nonnegative())),
+  packedCallIds: z.optional(z.array(z.string())),
 } as const
 
 export const storedSessionSchema = z.object({
@@ -382,6 +390,8 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     agent,
     packedTokensAvoided,
     hookTokensAdded,
+    packedCallIds,
+    promptDate,
     ...rest
   } = result.data
   const replay = rest.replay.map(({ backgroundTaskId, userMessageId, ...entry }) => ({
@@ -444,6 +454,8 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
       ...(agent !== undefined && { agent }),
       ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
       ...(hookTokensAdded !== undefined && { hookTokensAdded }),
+      ...(packedCallIds !== undefined && { packedCallIds }),
+      ...(promptDate !== undefined && { promptDate }),
     },
   }
 }

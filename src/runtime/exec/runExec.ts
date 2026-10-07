@@ -1,27 +1,36 @@
+import { Usd, sumUsd, type UsdAmount } from '../../shared/usd'
 import * as acp from '@agentclientprotocol/sdk'
-import { stat } from 'node:fs/promises'
+import { constants as fileFlags, stat, realpath, open, type FileHandle } from 'node:fs/promises'
 import path from 'node:path'
 import type { Readable } from 'node:stream'
+import {
+  handleIdentity,
+  lstatIdentity,
+  sameFile,
+  type FileIdentity,
+} from '../../core/fs/fileIdentity'
 import { createAcpAgent } from '../../acp/agent'
 import { isValidModelApiKey, type SecretStore } from '../../host/auth/credentialStore'
 import type { Logger } from '../../host/logger'
 import type { AgentEvent } from '../../shared/agentEvents'
 import {
   ACP_AGENT_NAME,
+  ACP_COMPACT_COMMAND,
   ACP_CONFIG_IDS,
   EXEC_EXIT,
   EXEC_ENDPOINTS,
   EXEC_PROMPT_MAX_BYTES,
+  EXEC_MODEL_TEXT,
   EXEC_PROTOCOL_VERSION,
   EXEC_MAX_BUDGET_USD,
   EXEC_STOP_GRACE_MS,
   EXEC_STREAM_IDLE_MS,
   EXEC_USD_DECIMALS,
-  EXEC_USD_UNITS,
   HTTP_STATUS,
   HTTP_UNAUTHORIZED,
   MILLISECONDS_PER_SECOND,
   MODEL_API_MAX_OUTPUT_TOKENS,
+  NO_COMPACTABLE_HISTORY,
   MODEL_API_PRICES_PER_MILLION,
   PAID_PRICES_USD,
   SECRET_KEYS,
@@ -53,6 +62,45 @@ import { memorySecretStore, type MemorySecretStore, readKeyLine, readPromptStdin
 import { createRunLedger } from './runLedger'
 import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
+import { metaSideCallFormats } from '../../core/backends/modelapi/modelCapabilities'
+import { compileOutputSchema, type OutputSchema } from './outputSchema'
+
+/** Bind to M95's selected output.formats and the backend's session-fixed encoder at integration. */
+export interface ExecOutputSchemaPort {
+  /** Only values from an evidence-bearing `state: 'yes'` capability record. */
+  formatsFor(model: string): Promise<readonly ('strict_schema' | 'json_schema' | 'forced_tool')[]>
+  /** Set the session's format only: no dispatch, permission change or cached-prefix mutation. */
+  configure(input: {
+    runtime: RuntimeBackend
+    sessionId: string
+    model: string
+    mode: 'strict_schema' | 'json_schema' | 'forced_tool'
+    schema: Readonly<Record<string, unknown>>
+    signal: AbortSignal
+  }): Promise<void>
+}
+
+/** Production binding: captured selected formats, or the documented local-validation arm. */
+export const execOutputSchemaPort: ExecOutputSchemaPort = {
+  formatsFor: (model) => {
+    const formats = metaSideCallFormats(model)
+    return Promise.resolve(
+      formats.state === 'yes'
+        ? (formats.value ?? []).filter(
+            (format): format is 'strict_schema' | 'json_schema' | 'forced_tool' =>
+              ['strict_schema', 'json_schema', 'forced_tool'].includes(format),
+          )
+        : [],
+    )
+  },
+  configure: async ({ runtime, sessionId, model, mode, schema, signal }) => {
+    signal.throwIfAborted()
+    if (mode === 'forced_tool' || runtime.configureOutputSchema === undefined)
+      throw new Error(UI_TEXT.execRequestShape)
+    await runtime.configureOutputSchema(sessionId, model, mode, schema)
+    signal.throwIfAborted()
+  },
+}
 
 export interface ExecDeps {
   options: ExecOptions
@@ -77,6 +125,56 @@ export interface ExecDeps {
   /** Construction is lazy; W/C1 inject this same host into runtime spawn adapters. */
   createResources?: (overrides: Partial<ResourceSettings>) => RuntimeResources
   resourceOverrides?: Partial<ResourceSettings>
+  outputSchema?: ExecOutputSchemaPort
+  /** Filesystem seam for races and Windows junctions; production uses the native filesystem. */
+  schemaFileIo?: {
+    open: (file: string, flags: number) => Promise<FileHandle>
+    realpath: (file: string) => Promise<string>
+    lstat: (file: string) => Promise<FileIdentity>
+  }
+}
+
+/** Open first, verify the held target, then read exclusively through that handle. */
+async function readSchemaFile(
+  deps: ExecDeps,
+  cwd: string,
+  signal: AbortSignal,
+  log: Logger,
+): Promise<Uint8Array> {
+  signal.throwIfAborted()
+  const io = deps.schemaFileIo ?? { open, realpath, lstat: lstatIdentity }
+  const file = path.resolve(cwd, deps.options.outputSchema ?? '')
+  // Windows has no O_NOFOLLOW; handle identity and realpath confinement still apply.
+  const flags = fileFlags.O_RDONLY | (deps.platform === 'win32' ? 0 : fileFlags.O_NOFOLLOW)
+  const handle = await io.open(file, flags)
+  try {
+    signal.throwIfAborted()
+    const [info, target, workspace] = await Promise.all([
+      handleIdentity(handle),
+      io.realpath(file),
+      io.realpath(cwd),
+    ])
+    const paths = deps.platform === 'win32' ? path.win32 : path
+    const relative = paths.relative(workspace, target).replaceAll('\\', '/')
+    const isOutside = relative === '..' || relative.startsWith('../') || paths.isAbsolute(relative)
+    if (isOutside && deps.options.outputSchemaOutside !== true)
+      throw new Error(UI_TEXT.outputSchemaOutsideRefused)
+    const current = await io.lstat(target)
+    if (!info.isFile() || !sameFile(info, current)) throw new Error(UI_TEXT.execFileUnreadable)
+    if (isOutside) log.info(UI_TEXT.outputSchemaOutsideAllowed)
+    if (info.size > BigInt(EXEC_PROMPT_MAX_BYTES)) throw new Error(UI_TEXT.execFileTooLarge)
+    const bytes = new Uint8Array(EXEC_PROMPT_MAX_BYTES + 1)
+    let offset = 0
+    for (;;) {
+      signal.throwIfAborted()
+      const part = await handle.read(bytes, offset, bytes.length - offset, null)
+      offset += part.bytesRead
+      if (offset > EXEC_PROMPT_MAX_BYTES) throw new Error(UI_TEXT.execFileTooLarge)
+      if (part.bytesRead === 0) return bytes.subarray(0, offset)
+    }
+  } finally {
+    await handle.close()
+  }
 }
 
 function stopMessage(cause: StopCause, maxRequests: number): string {
@@ -117,8 +215,8 @@ function stopMessage(cause: StopCause, maxRequests: number): string {
 }
 const ZERO_MICRO_USD = 0n
 
-function microUsd(value: number): bigint {
-  return BigInt(value.toFixed(EXEC_USD_DECIMALS).replace('.', ''))
+function microUsd(value: UsdAmount): bigint {
+  return Usd.from(value).units(EXEC_USD_DECIMALS)
 }
 
 function relativePaths(cwd: string, paths: readonly string[]): string[] {
@@ -170,10 +268,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   }
   const ledger =
     options.backend === 'modelApi' &&
-    options.budgetMicroUsd !== undefined &&
+    options.budgetUsd !== undefined &&
     options.maxRequests !== undefined
       ? createRunLedger({
-          capUsd: options.budgetMicroUsd / EXEC_USD_UNITS,
+          capUsd: options.budgetUsd,
           maxRequests: options.maxRequests,
         })
       : undefined
@@ -188,6 +286,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let model: string | null = null
   let effort: string | null = null
   let stopReason: string | null = null
+  let isCompactionPrompt = false
   let terminal: string | null = null
   let incompleteReason: string | null = null
   let backendErrorKind: string | undefined
@@ -202,6 +301,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let closeSession: (() => Promise<unknown>) | undefined
   let cancelSession: (() => void) | undefined
   let latestTokens: Partial<TokenTotals> | undefined
+  let outputSchema: OutputSchema | undefined
+  let outputValidation: 'provider' | 'local' = 'provider'
   const emitted = new Set<string>()
   const sink = createResourceExecSink({
     format: options.output,
@@ -214,6 +315,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     onStalled: () => {
       lifecycle.latch({ kind: 'output_stalled' })
     },
+    outputSchema: () => outputSchema,
+    outputValidation: () => outputValidation,
   })
   const resources = deps.createResources?.({ ...deps.resourceOverrides, relocate: 'off' })
   const unsubscribeResources = resources?.subscribeEvents((event, _status, text) => {
@@ -310,6 +413,19 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   try {
     const folder = await lifecycle.race(stat(cwd))
     if (!folder.isDirectory()) throw new Error(UI_TEXT.execFileUnreadable)
+    if (options.outputSchema !== undefined) {
+      let bytes: Uint8Array
+      try {
+        bytes = await lifecycle.race(readSchemaFile(deps, cwd, lifecycle.signal, log))
+      } catch (error: unknown) {
+        if (error instanceof Error && error.message === UI_TEXT.outputSchemaOutsideRefused)
+          throw error
+        throw new Error(fill(UI_TEXT.outputSchemaReadFailed, { detail: 'file' }), { cause: error })
+      }
+      outputSchema = compileOutputSchema(bytes)
+      if (deps.outputSchema === undefined)
+        throw new Error(fill(UI_TEXT.outputSchemaInvalid, { detail: 'backend binding' }))
+    }
     let prompt: string
     try {
       if (options.prompt.kind === 'text') prompt = options.prompt.text
@@ -340,6 +456,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       inputs = [...attachments.records]
       // A resource travels via ACP's existing resource conversion, with its
       // entire instruction envelope fitting before that converter's cap.
+      isCompactionPrompt =
+        attachments.resources.length === 0 && prompt.trim() === `/${ACP_COMPACT_COMMAND}`
       const blocks: acp.ContentBlock[] = [
         { type: 'text', text: prompt },
         ...attachments.resources.map((resource): acp.ContentBlock => ({
@@ -426,8 +544,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               options.mode === 'acceptEdits' &&
               !requiresAsking &&
               !lifecycle.signal.aborted &&
-              microUsd(ledger?.totals().remainingUsd ?? 0) >=
-                microUsd(PAID_PRICES_USD.imageGeneration)
+              microUsd(ledger?.totals().remainingUsd ?? Usd.from(0).toAmount()) >=
+                microUsd(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount())
             if (!isAllowed && !isFinishing && request.feature === 'imageGeneration')
               sink.emit({
                 type: 'paid_use',
@@ -435,7 +553,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 n: null,
                 phase: 'refused',
                 units: 1,
-                usd: 0,
+                usd: Usd.from(0).toAmount(),
                 reason: requiresAsking ? 'requires_asking' : 'policy',
               })
             return Promise.resolve(isAllowed)
@@ -553,6 +671,36 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               effort = options.effort
             }
             const tier = modelApiPaidTier(model ?? '')
+            if (outputSchema !== undefined) {
+              setup.isUsageError = true
+              const port = deps.outputSchema
+              if (port === undefined || runtime === undefined || model === null)
+                throw new Error(fill(UI_TEXT.outputSchemaInvalid, { detail: 'backend binding' }))
+              const formats = await lifecycle.race(port.formatsFor(model))
+              const mode = (['strict_schema', 'json_schema', 'forced_tool'] as const).find(
+                (candidate) => formats.includes(candidate),
+              )
+              if (mode === undefined) {
+                outputValidation = 'local'
+                blocks.push({
+                  type: 'text',
+                  text: fill(EXEC_MODEL_TEXT.execOutputSchema, {
+                    schema: JSON.stringify(outputSchema.schema),
+                  }),
+                })
+              } else
+                await lifecycle.race(
+                  port.configure({
+                    runtime,
+                    sessionId: created.sessionId,
+                    model,
+                    mode,
+                    schema: outputSchema.schema,
+                    signal: lifecycle.signal,
+                  }),
+                )
+              setup.isUsageError = false
+            }
             if (ledger !== undefined) {
               if (tier === undefined) {
                 setup.isUsageError = true
@@ -562,7 +710,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               // Ask the ledger's exact arithmetic for the start reservation, in a
               // separate un-dispatched ledger. No request belongs to this run yet.
               const preview = createRunLedger({
-                capUsd: EXEC_MAX_BUDGET_USD,
+                capUsd: Usd.from(EXEC_MAX_BUDGET_USD).toAmount(),
                 maxRequests: 1,
               }).admitResponse({
                 model: model ?? '',
@@ -573,11 +721,11 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               const minimum =
                 microUsd(preview.reserveUsd) +
                 (options.paidFeatures.includes('imageGeneration')
-                  ? microUsd(PAID_PRICES_USD.imageGeneration)
+                  ? microUsd(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount())
                   : ZERO_MICRO_USD)
-              if (BigInt(options.budgetMicroUsd ?? 0) < minimum) {
+              if (microUsd(options.budgetUsd ?? Usd.from(0).toAmount()) < minimum) {
                 error = fill(UI_TEXT.execBudgetMinimum, {
-                  minimum: formatUsd(Number(minimum) / EXEC_USD_UNITS, EXEC_USD_DECIMALS),
+                  minimum: formatUsd(Usd.fromUnits(minimum, EXEC_USD_DECIMALS), EXEC_USD_DECIMALS),
                 })
                 latch({ kind: 'budget' })
                 return
@@ -598,6 +746,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               limits,
             })
             try {
+              // ACP dispatches an exact /compact through AgentSession.compact,
+              // sharing editor guards and the same bounded exec transport ledger.
               const answer = await lifecycle.race(
                 connection.request('session/prompt', {
                   sessionId: created.sessionId,
@@ -648,6 +798,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       terminal = last.terminal
       incompleteReason = last.incompleteReason
     }
+    // A successful command NOOP has no model response or turn terminal to
+    // verify. Keep those fields null and account for exactly zero requests.
+    const isEmptyCompaction =
+      isCompactionPrompt &&
+      stopReason === 'end_turn' &&
+      terminal === null &&
+      (last === null || last === undefined) &&
+      totals?.requests === 0
     if (lifecycle.cause !== null) {
       status = statusForStop(lifecycle.cause)
       if (lifecycle.cause.kind !== 'budget' || error === UI_TEXT.execIncomplete)
@@ -667,7 +825,9 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         status = 'failed'
       else if (terminal !== 'completed' || last?.endedWithoutTerminal === true) {
         status = 'incomplete'
-        incompleteReason ??= terminal === null ? 'no_completion' : null
+        const reason = terminal === null ? 'no_completion' : null
+        incompleteReason ??= isEmptyCompaction ? NO_COMPACTABLE_HISTORY : reason
+        if (isEmptyCompaction) error = UI_TEXT.nothingToCompact
       } else if (
         options.backend === 'modelApi' &&
         (last?.usage !== 'valid' || last.settlement !== 'priced')
@@ -719,21 +879,17 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 settled: totals.settledUsd,
                 uncertain: totals.uncertainUsd,
                 reserved: totals.reservedUsd,
-                total:
-                  Number(
-                    microUsd(totals.settledUsd) +
-                      microUsd(totals.uncertainUsd) +
-                      microUsd(totals.reservedUsd),
-                  ) / EXEC_USD_UNITS,
-                isUpperBound: totals.uncertainUsd > 0 || totals.reservedUsd > 0 || cause !== null,
+                total: sumUsd(totals.settledUsd, totals.uncertainUsd, totals.reservedUsd),
+                isUpperBound:
+                  totals.uncertainUsd !== '0' || totals.reservedUsd !== '0' || cause !== null,
               },
         paid: totals?.paid ?? {
           imageAttempts: 0,
           imagesReturned: 0,
           imagesRefunded: 0,
           imagesUncertain: 0,
-          settledUsd: 0,
-          uncertainUsd: 0,
+          settledUsd: Usd.from(0).toAmount(),
+          uncertainUsd: Usd.from(0).toAmount(),
         },
       },
       ledger:
@@ -803,7 +959,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       )
       const code =
         lifecycle.cause === null
-          ? result.exitCode
+          ? (sink.resultExitCode ?? result.exitCode)
           : exitCodeFor(
               statusForStop(lifecycle.cause),
               lifecycle.cause.kind === 'signal' ? lifecycle.cause.signal : null,

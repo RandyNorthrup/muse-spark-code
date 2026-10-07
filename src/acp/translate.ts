@@ -23,6 +23,7 @@ import type {
   ToolKind,
 } from '@agentclientprotocol/sdk'
 import type { SessionMcpServer, TurnPart } from '../core/agent/agentBackend'
+import { resolveWorkspacePath } from '../core/workspacePath'
 import { readImageInfo } from '../core/imageDimensions'
 import type {
   AgentEvent,
@@ -44,7 +45,7 @@ import {
   type PaidFeature,
   UI_TEXT,
 } from '../shared/constants'
-import { fill } from '../shared/l10n/text'
+import { fill, formatBytes } from '../shared/l10n/text'
 import { formatMention } from '../shared/mentions'
 import { paidFeaturePrice } from '../shared/paid'
 
@@ -171,7 +172,9 @@ export function toolKind(tool: string): ToolKind {
 /** The file a call names, as the absolute path ACP asks for. */
 function toolLocations(args: Arguments | undefined, cwd: string): ToolCallLocation[] {
   const file = stringField(args, 'path')
-  return file === undefined ? [] : [{ path: path.resolve(cwd, file) }]
+  if (file === undefined) return []
+  const resolved = resolveWorkspacePath(cwd, file, process.platform)
+  return resolved.ok ? [{ path: resolved.absolute }] : []
 }
 
 function clippedOutput(text: string): string {
@@ -188,7 +191,9 @@ function editDiff(tool: string, args: Arguments | undefined, cwd: string): ToolC
   if (file === undefined || args === undefined || !FILE_EDIT_TOOLS.has(tool)) {
     return []
   }
-  const absolute = path.resolve(cwd, file)
+  const resolved = resolveWorkspacePath(cwd, file, process.platform)
+  if (!resolved.ok) return []
+  const absolute = resolved.absolute
   const oldText = args['old_str'] ?? args['old_string']
   const newText = args['new_str'] ?? args['new_string'] ?? args['content']
   if (typeof newText !== 'string') {
@@ -251,6 +256,7 @@ export class UpdateTranslator {
   private readonly summaryParts = new Map<string, number>()
   private readonly toolOutput = new Map<string, string>()
   private readonly announced = new Set<string>()
+  private readonly previewing = new Set<string>()
   /** Each item's kind, so a delta is routed by what it belongs to. */
   private readonly kinds = new Map<string, string>()
 
@@ -303,7 +309,31 @@ export class UpdateTranslator {
       item.kind === 'subagent'
         ? `${toolName('subagent_spawn')}: ${item.objective ?? item.role ?? ''}`
         : withPrice(toolTitle(tool, args), item.paid)
-    const status = toolStatus(item.status, isCompleted)
+    const preview = item.argumentPreview
+    const wasPreview = this.previewing.has(item.itemId)
+    if (preview === undefined) this.previewing.delete(item.itemId)
+    else this.previewing.add(item.itemId)
+    const status = preview === undefined ? toolStatus(item.status, isCompleted) : 'pending'
+    const previewContent: ToolCallContent[] | undefined =
+      preview === undefined
+        ? undefined
+        : [
+            {
+              type: 'content',
+              content: {
+                type: 'text',
+                text: [
+                  UI_TEXT.toolArgumentPreviewLabel,
+                  preview.text,
+                  preview.frozen === true
+                    ? UI_TEXT.toolArgumentPreviewPreparing
+                    : UI_TEXT.toolArgumentPreviewPending,
+                  ...(preview.bytes === undefined ? [] : [formatBytes(preview.bytes)]),
+                  ...(preview.truncated ? [UI_TEXT.toolArgumentPreviewTruncated] : []),
+                ].join(PART_SEPARATOR),
+              },
+            },
+          ]
     const updates: SessionUpdate[] = []
     if (!this.announced.has(item.itemId)) {
       this.announced.add(item.itemId)
@@ -315,19 +345,24 @@ export class UpdateTranslator {
         status,
         locations: toolLocations(args, this.cwd),
         rawInput: args ?? item.args,
+        ...(previewContent !== undefined && { content: previewContent }),
       })
       if (!isCompleted) {
         return updates
       }
     }
-    const content = isCompleted
-      ? toolContent(item, this.toolOutput.get(item.itemId) ?? '', this.cwd)
-      : undefined
+    let content = previewContent
+    if (content === undefined && isCompleted) {
+      content = toolContent(item, this.toolOutput.get(item.itemId) ?? '', this.cwd)
+    } else if (content === undefined && wasPreview) {
+      content = []
+    }
     updates.push({
       sessionUpdate: 'tool_call_update',
       toolCallId: item.itemId,
       status,
       ...(content !== undefined && { content }),
+      ...(wasPreview && preview === undefined && { rawInput: args ?? item.args, title }),
       ...(item.kind === 'subagent' && item.result !== undefined && { rawOutput: item.result }),
     })
     if (isCompleted) {
@@ -340,6 +375,9 @@ export class UpdateTranslator {
     switch (event.type) {
       case 'itemStarted':
       case 'itemUpdated': {
+        return this.itemUpdates(event.item, false)
+      }
+      case 'toolArgumentPreview': {
         return this.itemUpdates(event.item, false)
       }
       case 'itemCompleted': {

@@ -1,3 +1,7 @@
+import { notify } from './core/events/notify'
+import { PAID_APPROVAL_ORDER_DIRECTORY } from './shared/constants'
+import { PaidAuthority } from './core/paid/paidAuthority'
+import { Usd } from './shared/usd'
 import { judgeWindowPort } from './host/judge/judgeBundle'
 import { storeErrorCode } from './host/backend/storeErrors'
 import { isReferenceRequest, referenceLoader } from './host/referenceLoader'
@@ -43,7 +47,7 @@ import { AccountHosts, connectAccountSession } from './host/auth/accountHost'
 import { AuthService } from './host/auth/authService'
 import { CliAccount, isCliSignedIn } from './host/auth/cliAccount'
 import { runDeviceSignIn } from './host/auth/deviceSignIn'
-import { CredentialStore, isValidModelApiKey } from './host/auth/credentialStore'
+import { isValidModelApiKey } from './host/auth/credentialStore'
 import { ModelApiBackendManager } from './host/backend/modelApiBackendManager'
 import { createFileScheduleStore } from './host/backend/fileScheduleStore'
 import { MuseCodeBackendManager } from './host/backend/museCodeBackendManager'
@@ -199,6 +203,13 @@ import { voiceLoader } from './host/voice/voiceBundle'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { createPaidFeatures } from './host/paid/paidHost'
 import { isActivationPaidSettingOn } from './host/paid/paidActivation'
+import {
+  modelsPanelLoader,
+  providersSeamLoader,
+  providerCredentials,
+  recoverProviderRemovals,
+} from './host/models/modelsPanelBundle'
+import type { ModelsPanelFeatures } from './host/models/modelsPanelEntry'
 import { createPaidDailyBudget } from './host/paid/paidDailyBudget'
 import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
 import {
@@ -220,6 +231,7 @@ import {
   FIND_FILES_GLOB,
   MODEL_API_BASE_URL,
   MODEL_API_BUNDLE_FILE,
+  MODEL_API_STATUS_READ_TIMEOUT_MS,
   REVIEW_BUNDLE_FILE,
   PLAN_MARKDOWN_BUNDLE_FILE,
   AGENT_IMPORT_BUNDLE_FILE,
@@ -235,6 +247,8 @@ import {
   BROWSER_CHECK_BUNDLE_FILE,
   BROWSER_RUNTIME_BUNDLE_FILE,
   CODE_INTEL_BUNDLE_FILE,
+  MODELS_PANEL_BUNDLE_FILE,
+  PROVIDERS_BUNDLE_FILE,
   WEB_FETCH_BUNDLE_FILE,
   VOICE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
@@ -892,9 +906,14 @@ async function activateWindow(
   })
   void checkpoints.maintain().catch(logRejection(log, 'checkpoint cleanup'))
   const insights = createInsightsReader({ homeDir: homedir(), now: () => Date.now() })
-  const credentials = new CredentialStore(context.secrets, (message) => {
-    log.warn(message)
+
+  const providersSeamBundle = providersSeamLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', PROVIDERS_BUNDLE_FILE).fsPath,
+    log,
   })
+  const credentials = providerCredentials(context.secrets, log, () =>
+    providersSeamBundle().store.list(),
+  )
   // The paid Model API features (M33–M35, PLAN.md D30): on only with the
   // setting on and the price accepted; every panel shows which are on.
   // Whether a Model API key is stored (M44): the Muse Code backend then
@@ -906,7 +925,9 @@ async function activateWindow(
     vscode.workspace
       .getConfiguration(SETTINGS_SECTION)
       .inspect<boolean>(PAID_FEATURE_SETTINGS[feature])?.globalValue === undefined
+  const paidAuthority = new PaidAuthority()
   const dailyPaid = createPaidDailyBudget({
+    authority: paidAuthority,
     directory: path.join(context.globalStorageUri.fsPath, PAID_DAILY_BUDGET.directory),
     now: Date.now,
     capUsd: () => currentSettings().paidDailyBudgetUsd,
@@ -917,6 +938,8 @@ async function activateWindow(
       }),
   })
   const paid = createPaidFeatures({
+    authority: paidAuthority,
+    orderDirectory: path.join(context.globalStorageUri.fsPath, PAID_APPROVAL_ORDER_DIRECTORY),
     globalState: context.globalState,
     workspaceState: context.workspaceState,
     isSettingOn: (feature) => isActivationPaidSettingOn(feature, currentSettings()),
@@ -1763,10 +1786,12 @@ async function activateWindow(
   })
   // Images for Muse Code (M44, PLAN.md D37): made here with the stored key,
   // never by `muse serve`, each one confirmed with its price.
+  const requestPacingOwner = {}
   const keyClient = modelApiClientLoader({
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODEL_API_BUNDLE_FILE).fsPath,
     log,
     client: {
+      pacingOwner: requestPacingOwner,
       fetch: liveFetch,
       baseUrl: MODEL_API_BASE_URL,
       apiKey: () => credentials.getApiKey(),
@@ -1892,7 +1917,7 @@ async function activateWindow(
             ? undefined
             : { workspaceRoot, platform: process.platform, io: checkpointedIo },
         client: keyClient,
-        confirm: async (plan) => await paid.consent.allows(imageUseRequest(plan)),
+        confirm: async (plan) => (await paid.consent.allows(imageUseRequest(plan))) === true,
         onBilled: () => {
           paid.usage.add('imageGeneration', 1)
         },
@@ -2183,6 +2208,16 @@ async function activateWindow(
           }),
         })
   const modelApi = new ModelApiBackendManager({
+    onServiceFailure: () => {
+      notify(
+        Array.from(controllers.values(), (controller) => () => {
+          controller.modelApiServiceFailed()
+        }),
+        undefined,
+        log,
+        'modelApi.serviceFailure',
+      )
+    },
     judge,
     log,
     // Each Model API turn's unit (M86): its record before it runs, its own
@@ -2308,14 +2343,34 @@ async function activateWindow(
         now: Date.now,
       }),
     isPaidFeatureOn: (feature) => paid.gate.isOn(feature),
-    notePaidUse: (feature, units) => {
-      paid.usage.add(feature, units)
+    notePaidUse: (feature, units, searchPriceUsd) => {
+      paid.usage.add(feature, units, searchPriceUsd)
     },
     promptCacheRetention: () => currentSettings().modelApiPromptCacheRetention,
     // The session budget cap and the per-reply usage line (M82), read per
     // request and per reply so a changed setting applies at once.
     sessionBudgetUsd: () => currentSettings().modelApiSessionBudgetUsd,
-    reservePaidRequest: dailyPaid.reserve,
+    paidAuthority: paid.consent.authority,
+    reservePaidRequest: async (body, feature, estimatedInputTokens, signal, reservationUsd) => {
+      if (reservationUsd === undefined) {
+        return await dailyPaid.reserve(body, feature, estimatedInputTokens, signal)
+      }
+      signal?.throwIfAborted()
+      const claim = await dailyPaid.reserveExact(reservationUsd)
+      try {
+        signal?.throwIfAborted()
+        return {
+          ...claim,
+          check: () => {
+            signal?.throwIfAborted()
+            claim.check()
+          },
+        }
+      } catch (error: unknown) {
+        await claim.settle(Usd.from(0).toAmount())
+        throw error
+      }
+    },
     showReplyUsage: () => currentSettings().modelApiReplyUsage,
     // Muse Code's MCP servers, run by this window for the Model API backend
     // (M50, PLAN.md D42): started in a trusted workspace only, stopped with
@@ -2342,6 +2397,11 @@ async function activateWindow(
     codeIntel: languageServices,
     isRepoMapInPrompt: () => currentSettings().modelApiRepoMap,
     isObservationPackingOn: () => currentSettings().modelApiObservationPacking,
+    pacingOwner: requestPacingOwner,
+    isAutoCompactionOn: () => currentSettings().modelApiAutoCompaction,
+    strictTools: () => currentSettings().modelApiStrictTools,
+    parallelReads: () => currentSettings().modelApiParallelReads,
+    webSearchMaxPerRequest: () => currentSettings().webSearchMaxPerRequest,
     isShellKeepsDirectoryOn: () => currentSettings().modelApiShellKeepsDirectory,
     allowsPaidUse: async (request, requiresAsking) =>
       await paid.consent.allows(request, requiresAsking),
@@ -2431,14 +2491,26 @@ async function activateWindow(
     log,
   })
   // The report dialog's facts, journal and scrub context (M93, PLAN.md D72):
-  // local reads only. The CLI's sign-in comes from its credential file's
+  // Local facts plus an optional unauthenticated public status read. The CLI's
+  // sign-in comes from its credential file's
   // structure (no `account/read`), the key's presence from the secret store.
   const reportSource: ReportDataSource = {
     readFacts: async () => {
       const settings = currentSettings()
       const resolution = backend.resolveLaunch()
       const configuration = vscode.workspace.getConfiguration()
+      let serviceStatus
+      if (settings.backend === 'modelApi') {
+        try {
+          serviceStatus = await keyClient().readServiceStatus(
+            AbortSignal.timeout(MODEL_API_STATUS_READ_TIMEOUT_MS),
+          )
+        } catch {
+          // An optional public status read cannot prevent the local report.
+        }
+      }
       return extensionReportFacts({
+        ...(serviceStatus !== undefined && { serviceStatus }),
         extensionVersion: version,
         vscodeVersion: vscode.version,
         nodeVersion: process.versions.node,
@@ -2491,7 +2563,8 @@ async function activateWindow(
           setting: currentSettings().backend,
           hasCli: backend.resolveLaunch().ok,
           hasCliSession,
-          hasStoredKey: async () => (await credentials.getApiKey()) !== undefined,
+          // A provider's secret counts as a Model API credential (M95, D74).
+          hasStoredKey: async () => await credentials.hasModelApiCredential(),
         }),
       async (kind): Promise<AgentHost> =>
         kind === 'modelApi' ? await modelApi.ensureHost() : await backend.ensureHost(),
@@ -2666,6 +2739,10 @@ async function activateWindow(
         await openPullRequestInConversation(gitFeatures, gitPopups.showError)
         break
       }
+      case 'openModelApiStatus': {
+        await vscode.env.openExternal(vscode.Uri.parse(`${MODEL_API_BASE_URL}/status`))
+        break
+      }
       case 'restartMuseCode': {
         // A notice's Restart (a D26 fault, or Muse Code not answering): the
         // next message continues the conversation (D25).
@@ -2680,6 +2757,21 @@ async function activateWindow(
       }
       case 'declineBundledSkills': {
         await bundledSkillsOffer.decline()
+        break
+      }
+      // M95 (PLAN.md D74, lane U): the first-run screen, the picker's rows
+      // and the setup confirmation reach lane K's Models & Agents commands
+      // through the registered ids (an explicit error until lane K lands).
+      case 'startWithOwnModel': {
+        await vscode.commands.executeCommand(COMMAND_IDS.startWithOwnModel)
+        break
+      }
+      case 'addModelProvider': {
+        await vscode.commands.executeCommand(COMMAND_IDS.addModelProvider)
+        break
+      }
+      case 'manageModels': {
+        await vscode.commands.executeCommand(COMMAND_IDS.modelsAndAgents)
         break
       }
       case 'showWhatsNew': {
@@ -2965,6 +3057,8 @@ async function activateWindow(
           newAttachmentId: () => crypto.randomUUID(),
           sessions,
           // The usage modal's Account section and insights (M14).
+          readServiceStatus: () =>
+            keyClient().readServiceStatus(AbortSignal.timeout(MODEL_API_STATUS_READ_TIMEOUT_MS)),
           accountFacts: async (kind) => {
             const resolution = backend.resolveLaunch()
             const isCliSession = await hasCliSession()
@@ -3112,8 +3206,8 @@ async function activateWindow(
           runGit,
           runBestOfNGit,
           isPaidFeatureOn: (feature) => paid.gate.isOn(feature),
-          notePaidUse: (feature, units) => {
-            paid.usage.add(feature, units)
+          notePaidUse: (feature, units, searchPriceUsd) => {
+            paid.usage.add(feature, units, searchPriceUsd)
           },
           buildAttemptHost: (worktreeRoot, admitRequest, noteUsage, budgetScope) =>
             modelApi.buildAttemptHost(worktreeRoot, admitRequest, noteUsage, budgetScope),
@@ -3297,6 +3391,70 @@ async function activateWindow(
     }
     void withHookRunner((runner) => runner.reload(), false).catch(logRejection(log, 'hook reload'))
   }
+
+  // Models & Agents (M95 lane K, PLAN.md D74, D6): the panel bundle and the
+  // lane-P/T seam load on the first Models action; activation keeps only
+  // these registrations and the loaders. Until lanes P and I merge, the
+  // seam load refuses and each command says the panel is unavailable.
+  const modelsPanelBundle = modelsPanelLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODELS_PANEL_BUNDLE_FILE).fsPath,
+    log,
+  })
+  /** Asks the conversation to set the composer's model (its refusal stands). */
+  const setComposerModel = async (modelRef: string): Promise<void> => {
+    if (registry.active === undefined) {
+      await openConversation()
+    }
+    const surface = registry.active
+    const confirm = modelsPanelBundle().setComposerModelConfirmed
+    if (surface === undefined || confirm === undefined) {
+      throw new Error(UI_TEXT.actionFailed)
+    }
+    await confirm(surface, modelRef, () =>
+      controllerFor(surface).handle({ type: 'setModel', modelId: modelRef }),
+    )
+  }
+  /** `museSpark.suggestedProvider` as written: a preset id at most. */
+  const suggestedProviderSetting = (): string => {
+    const raw: unknown = vscode.workspace
+      .getConfiguration(SETTINGS_SECTION)
+      .get('suggestedProvider')
+    return typeof raw === 'string' ? raw : ''
+  }
+  let modelsFeatures: ModelsPanelFeatures | undefined
+  const ensureModelsFeatures = (): ModelsPanelFeatures => {
+    if (modelsFeatures === undefined) {
+      const bundle = modelsPanelBundle()
+      const seam = providersSeamBundle()
+      modelsFeatures = bundle.createModelsPanelFeatures(
+        {
+          secrets: context.secrets,
+          extensionUri: context.extensionUri,
+          l10n,
+          log,
+          globalState: context.globalState,
+          suggestedProviderSetting,
+          isRemote: vscode.env.remoteName !== undefined,
+          setComposerModel,
+          onWizardSaved: async (outcome) => {
+            await auth.refresh()
+            const surface = registry.active
+            if (surface !== undefined) {
+              bundle.publishProviderSetup?.(outcome, surface)
+            }
+          },
+        },
+        seam,
+      )
+    }
+    return modelsFeatures
+  }
+
+  void recoverProviderRemovals(
+    context.globalState.get(GLOBAL_STATE_KEYS.providerPendingRemovals),
+    ensureModelsFeatures,
+    log,
+  )
 
   editorContext.update(editorSnapshot)
   // A setting turned on while VS Code was closed, or in another window, is
@@ -3780,6 +3938,24 @@ async function activateWindow(
       COMMAND_IDS.openShareFile,
       forActiveConversation((controller) => controller.handle({ type: 'openShareFile' })),
     ),
+    // M95 (PLAN.md D74) lane K: the wizard opened at "Pick a provider" (with
+    // the workspace's suggested preset chosen, when it names one), the panel,
+    // and the quick-pick fast path. Loading a missing bundle refuses with an
+    // explicit error, never an empty success.
+    registerLoggedCommand(log, COMMAND_IDS.startWithOwnModel, () => {
+      const features = ensureModelsFeatures()
+      features.openPanel({
+        wizard: true,
+        section: 'providers',
+        presetId: features.suggestedPreset(),
+      })
+    }),
+    registerLoggedCommand(log, COMMAND_IDS.modelsAndAgents, () => {
+      ensureModelsFeatures().openPanel()
+    }),
+    registerLoggedCommand(log, COMMAND_IDS.addModelProvider, async () => {
+      await ensureModelsFeatures().runQuickPick()
+    }),
     // Setup and Manual hooks (M91 lane E): the user starts them, on both
     // backends. Observation; the bounded output is shown in the hooks
     // channel, a failure as a warning with the hook's reason.

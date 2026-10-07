@@ -178,5 +178,15 @@
   "config.resourceRelocate.enumDescriptions.off": "Behält die Arbeit auf diesem Rechner.",
   "command.nextOpenQuestion.title": "Nächste offene Frage",
   "command.previousOpenQuestion.title": "Vorherige offene Frage",
-  "config.questions.deferAfterSeconds.description": "Sekunden, nach denen eine unbeantwortete Frage zurückgestellt wird, damit Muse weiterarbeiten kann. Standard: 60; 0 bedeutet nie; 1–9 werden als 10 gelesen; höchstens 3.600. Die Frage bleibt offen und kann später beantwortet werden. Nur die Einstellung dieses Computers wird verwendet."
+  "config.questions.deferAfterSeconds.description": "Sekunden, nach denen eine unbeantwortete Frage zurückgestellt wird, damit Muse weiterarbeiten kann. Standard: 60; 0 bedeutet nie; 1–9 werden als 10 gelesen; höchstens 3.600. Die Frage bleibt offen und kann später beantwortet werden. Nur die Einstellung dieses Computers wird verwendet.",
+  "command.startWithOwnModel.title": "Mit eigenem Modell starten",
+  "command.modelsAndAgents.title": "Modelle & Agenten",
+  "command.addModelProvider.title": "Modellanbieter hinzufügen…",
+  "config.suggestedProvider.description": "Ein Arbeitsbereich kann genau eine Modellanbieter-Vorlage per ID vorschlagen; das Panel bietet an, Modelle & Agenten mit dieser Vorlage zu öffnen. Leer schlägt nichts vor. Ein Arbeitsbereich kann keine Adresse und keine Anmeldedaten festlegen.",
+  "walkthrough.gettingStarted.step.ownModel.title": "Mit eigenem Modell starten",
+  "walkthrough.gettingStarted.step.ownModel.description": "Kein Muse-Abonnement und kein Meta-API-Schlüssel? Fügen Sie Ihren eigenen Modellanbieter hinzu — OpenRouter, Anthropic, OpenAI oder einen lokalen Server — und wählen Sie ein Modell.\n[Mit eigenem Modell starten](command:museSpark.startWithOwnModel)",
+  "config.modelApiAutoCompaction.description": "Lange Model-API-Unterhaltungen automatisch komprimieren. Standardmäßig aktiviert, aber bis zu einer erfolgreichen gepaarten Auswertung inaktiv. Jeder zusätzliche kostenpflichtige Aufruf erfordert die Zustimmung zu Preis und Tagesbudget.",
+  "config.modelApiStrictTools.description": "Strikte Werkzeugschemas verwenden, wenn das gewählte Modell sie unterstützt. Deaktivieren, um die bisherigen Werkzeugdeklarationen beizubehalten.",
+  "config.modelApiParallelReads.description": "Sichere, nur lesende Werkzeugaufrufe gleichzeitig ausführen, höchstens vier auf einmal. Andere Werkzeugaufrufe werden der Reihe nach ausgeführt.",
+  "config.webSearchMaxPerRequest.description": "Maximale Anzahl gehosteter Websuchen pro Antwort (1–20; Standard 5). Preis und gemeinsames Tagesbudget werden vor der ersten Belastung angezeigt."
 }

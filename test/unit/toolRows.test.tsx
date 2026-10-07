@@ -2,7 +2,7 @@
 // The rows of Muse Code's own tools (M43, PLAN.md D36). Every argument and
 // result below is the shape Muse Code 1.3.0 sent on 2026-09-25
 // (docs/certification/m43.md), trimmed to what the row reads.
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { Clipped } from '../../src/webview/components/ToolBlocks'
 import {
@@ -13,7 +13,20 @@ import {
   warmRowMenus,
 } from './helpers/transcriptFixtures'
 
-beforeAll(warmRowMenus)
+beforeAll(async () => {
+  await warmRowMenus()
+  renderTranscript([
+    tool({
+      tool: 'add_memory',
+      args: '{"content":"Warm body.","path":"warm.md","scope":"personal_project"}',
+      output:
+        '{"success":true,"scope":"personal_project","path":"warm.md","operation":"add","message":"memory note written"}',
+    }),
+  ])
+  openRow('Save memory')
+  await screen.findByText('Warm body.')
+  cleanup()
+})
 
 const GOAL = {
   session_id: 's',
@@ -184,7 +197,7 @@ describe('memory rows (M43)', () => {
 })
 
 describe('goal rows (M43)', () => {
-  it('shows the goal, its status, progress, current and next work, and the tokens', () => {
+  it('shows the goal, its status, progress, current and next work, and the tokens', async () => {
     renderTranscript([
       tool({
         tool: 'report_progress',
@@ -194,7 +207,7 @@ describe('goal rows (M43)', () => {
     ])
     expect(screen.getAllByText('Saying hello')).toHaveLength(1)
     const row = openRow('Goal progress')
-    expect(within(row).getByText('Say hello in one word')).toBeTruthy()
+    expect(await within(row).findByText('Say hello in one word')).toBeTruthy()
     expect(within(row).getByText('Active · 50% done')).toBeTruthy()
     const bar = within(row).getByRole('progressbar', { name: 'Goal progress' })
     expect(bar.getAttribute('value')).toBe('50')
@@ -232,7 +245,7 @@ describe('goal rows (M43)', () => {
 })
 
 describe('schedule rows (M43)', () => {
-  it('shows the prompt, its schedule and that it runs once', () => {
+  it('shows the prompt, its schedule and that it runs once', async () => {
     renderTranscript([
       tool({
         tool: 'cron_create',
@@ -241,6 +254,7 @@ describe('schedule rows (M43)', () => {
       }),
     ])
     const row = openRow('Schedule prompt')
+    await within(row).findByText('59 23 31 12 * · Once')
     expect(within(row).getAllByText('say hi').length).toBeGreaterThan(0)
     expect(within(row).getByText('59 23 31 12 * · Once')).toBeTruthy()
     expect(within(row).getByText('Scheduled 2ef46218 (59 23 31 12 *, once)')).toBeTruthy()
@@ -286,7 +300,7 @@ describe('schedule rows (M43)', () => {
 })
 
 describe('web search rows (M43)', () => {
-  it('lists the results as links that open in the browser, with their snippets', () => {
+  it('lists the results as links that open in the browser, with their snippets', async () => {
     const props = renderTranscript([
       tool({
         tool: 'web_search',
@@ -296,7 +310,7 @@ describe('web search rows (M43)', () => {
     ])
     expect(screen.getByText('Keep a Changelog 1.1.0')).toBeTruthy()
     const row = openRow('Web search')
-    fireEvent.click(within(row).getByRole('link', { name: 'Keep a Changelog' }))
+    fireEvent.click(await within(row).findByRole('link', { name: 'Keep a Changelog' }))
     expect(props.onOpenLink).toHaveBeenCalledWith('https://keepachangelog.com/en/1.1.0/')
     expect(within(row).getByText(/dump git logs/)).toBeTruthy()
     expect(within(row).queryByText(/page_last_modified/)).toBeNull()
@@ -439,7 +453,7 @@ describe('labels (M43)', () => {
 })
 
 describe('pictures a tool read or made (M43)', () => {
-  it('asks the host once for the picture a completed read names, then shows it', () => {
+  it('asks the host once for the picture a completed read names, then shows it', async () => {
     const entry = tool({
       id: 'r1',
       tool: 'read_file',
@@ -448,7 +462,9 @@ describe('pictures a tool read or made (M43)', () => {
     })
     const onReadImage = vi.fn()
     renderTranscript([entry], { onReadImage })
-    expect(onReadImage).toHaveBeenCalledExactlyOnceWith('r1', 'dot.png')
+    await waitFor(() => {
+      expect(onReadImage).toHaveBeenCalledExactlyOnceWith('r1', 'dot.png')
+    })
     expect(screen.getByText('Loading…')).toBeTruthy()
   })
 

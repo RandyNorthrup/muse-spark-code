@@ -55,7 +55,6 @@ import { webReadable } from './webStreams'
 import { createLifecycle } from './exec/execLimits'
 import { createFdWriter } from './exec/fdWriter'
 import { createExecLogger, redactWhole } from './exec/execOutput'
-import { runExec } from './exec/runExec'
 import { runSecretScan } from './exec/scanSecrets'
 import { extensionHooksBundle } from '../host/extensionHooksBundle'
 import { fileContextIo } from '../host/backend/contextIo'
@@ -273,7 +272,7 @@ async function setupHooks(
   const systemRoot = process.env['SystemRoot']
   const io = createToolIo({
     platform: process.platform,
-    listFiles: () => walkFiles(workspaceRoot, 1, log),
+    listFiles: (signal) => walkFiles(workspaceRoot, 1, log, signal),
     systemRoot,
     searchWorkerPath: path.join(distDir, SEARCH_WORKER_FILE),
     env: () => process.env,
@@ -505,29 +504,35 @@ async function main(): Promise<number> {
           return headlessCode
         }
       }
-      headlessCode = await runExec(lifecycle, {
-        options: command.options,
-        version: packageVersion(),
-        distDir,
-        platform: process.platform,
-        env: process.env,
-        homeDir: homedir(),
-        processCwd: process.cwd(),
-        stdin: process.stdin,
-        stdout,
-        stderr,
-        storeSecrets: secrets,
-        runGit: processGitRunner(),
-        museCodeCredentials,
-        fetch: globalThis.fetch.bind(globalThis),
-        sleep,
-        now,
-        readFile: readBoundedFile,
-        randomHex: (bytes) => randomBytes(bytes).toString('hex'),
-        log,
-        resourceOverrides: command.resourceOverrides,
-        createResources: (overrides) => resourcesFor(log, overrides),
-      })
+      const { runHeadless } = await import('./exec/execEntry.js')
+      headlessCode = await runHeadless(
+        lifecycle,
+        {
+          options: command.options,
+          version: packageVersion(),
+          distDir,
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+          processCwd: process.cwd(),
+          stdin: process.stdin,
+          stdout,
+          stderr,
+          storeSecrets: secrets,
+          runGit: processGitRunner(),
+          museCodeCredentials,
+          fetch: globalThis.fetch.bind(globalThis),
+          sleep,
+          now,
+          readFile: readBoundedFile,
+          randomHex: (bytes) => randomBytes(bytes).toString('hex'),
+          log,
+          resourceOverrides: command.resourceOverrides,
+          createResources: (overrides) => resourcesFor(log, overrides),
+        },
+        referenceTable,
+        uiLocale(),
+      )
       return headlessCode
     } catch (error: unknown) {
       log.error(error instanceof Error ? (error.stack ?? error.message) : String(error))

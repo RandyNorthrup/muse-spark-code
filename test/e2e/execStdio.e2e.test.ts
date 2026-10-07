@@ -135,7 +135,11 @@ function packagingFixture() {
     'acpQuestions',
     'runtimeQuestions',
     'questionNotes',
+    'exec',
     'modelApi',
+    'mcpPool',
+    'modelApiCodeIntel',
+    'structuredSchema',
     'reviewer',
     // M91: the adapters, the hook and MCP-form runtime, the window's hook runner.
     'foreignHooks',
@@ -150,6 +154,7 @@ function packagingFixture() {
     'wire',
     'validation',
     'searchWorker',
+    'imageResizeWorker',
     'pageWorker',
     'resourceGovernor',
     'resourceAdmission',
@@ -187,6 +192,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     for (const schema of [
       'exec-result-v1.schema.json',
       'exec-event-v1.schema.json',
+      'exec-result-v2.schema.json',
       'exec-event-v2.schema.json',
     ]) {
       expect(readFileSync(path.join(stage, 'schemas', schema))).toEqual(
@@ -211,7 +217,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     'refuses %s schema before replacing stage',
     (fault) => {
       const dir = packagingFixture()
-      const schema = path.join(dir, 'docs', 'schemas', 'exec-result-v1.schema.json')
+      const schema = path.join(dir, 'docs', 'schemas', 'exec-result-v2.schema.json')
       rmSync(schema)
       if (fault === 'directory') mkdirSync(schema)
       else if (fault === 'invalid-json') writeFileSync(schema, '{')
@@ -244,8 +250,8 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     expect(
       readFileSync(path.join(dir, 'dist', 'acp-package', 'package.json'), 'utf8'),
     ).not.toContain('exec-test-launcher')
-    expect(readFileSync(path.join(testStage, 'schemas', 'exec-event-v1.schema.json'))).toEqual(
-      readFileSync(path.join(ROOT, 'docs', 'schemas', 'exec-event-v1.schema.json')),
+    expect(readFileSync(path.join(testStage, 'schemas', 'exec-event-v2.schema.json'))).toEqual(
+      readFileSync(path.join(ROOT, 'docs', 'schemas', 'exec-event-v2.schema.json')),
     )
   })
 
@@ -271,13 +277,17 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
       expect(existsSync(path.join(dir, 'dist', 'acp-test-package'))).toBe(false)
     },
   )
-
   it.each([
-    'exec-result-v1.schema.json',
-    'exec-event-v1.schema.json',
-    'exec-event-v2.schema.json',
-    'resourceGovernor.js',
-    'resourceAdmission.js',
+    'schemas/exec-result-v1.schema.json',
+    'schemas/exec-event-v1.schema.json',
+    'schemas/exec-result-v2.schema.json',
+    'schemas/exec-event-v2.schema.json',
+    'dist/resourceGovernor.js',
+    'dist/resourceAdmission.js',
+    'dist/exec.js',
+    'dist/mcpPool.js',
+    'dist/modelApiCodeIntel.js',
+    'dist/structuredSchema.js',
   ])('build tarball guard rejects missing %s', (missing) => {
     const dir = packagingFixture()
     expect(command(path.join(dir, 'scripts', 'package-acp.mjs'), dir).status).toBe(0)
@@ -307,8 +317,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     cpSync(path.join(dir, 'dist', 'acp-package'), path.join(staging, 'package'), {
       recursive: true,
     })
-    const folder = missing.endsWith('.js') ? 'dist' : 'schemas'
-    rmSync(path.join(staging, 'package', folder, missing))
+    rmSync(path.join(staging, 'package', missing))
     const packed = path.join(dir, 'dist', 'muse-spark-code-acp-0.0.0.tgz')
     expect(
       spawnSync(TAR, ['-czf', packed, '-C', staging, 'package'], { timeout: TIMEOUT }).status,
@@ -316,7 +325,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     const refused = check()
     expect(refused.error, refused.stderr).toBeUndefined()
     expect(refused.status).toBe(1)
-    expect(refused.stderr).toContain(`package/${folder}/${missing} is missing`)
+    expect(refused.stderr).toContain(`package/${missing} is missing`)
   })
 
   it.each(['name', 'bin', 'version'])(
@@ -338,7 +347,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
   it('refuses a directory in place of a required test-package schema', () => {
     const dir = packagingFixture()
     expect(command(path.join(dir, 'scripts', 'package-acp.mjs'), dir).status).toBe(0)
-    const schema = path.join(dir, 'dist', 'acp-package', 'schemas', 'exec-result-v1.schema.json')
+    const schema = path.join(dir, 'dist', 'acp-package', 'schemas', 'exec-result-v2.schema.json')
     rmSync(schema)
     mkdirSync(schema)
     expect(command(path.join(dir, 'scripts', 'package-acp-test.mjs'), dir).status).not.toBe(0)
@@ -410,18 +419,18 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     switch (state) {
       case 'schema-drift':
       case 'schema-required': {
-        const schema = path.join(stage, 'schemas', 'exec-result-v1.schema.json')
+        const schema = path.join(stage, 'schemas', 'exec-result-v2.schema.json')
         const original = readFileSync(schema, 'utf8')
         writeFileSync(
           schema,
           state === 'schema-drift'
-            ? original.replace('"const": 1', '"const": 2')
+            ? original.replace('"const": 2', '"const": 3')
             : original.replace('    "status",\n', ''),
         )
         break
       }
       case 'schema-empty': {
-        writeFileSync(path.join(stage, 'schemas', 'exec-event-v1.schema.json'), '{"anyOf":[]}')
+        writeFileSync(path.join(stage, 'schemas', 'exec-event-v2.schema.json'), '{"anyOf":[]}')
         break
       }
     }
@@ -630,16 +639,16 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
     expect(run.code).toBe(0)
     expect(run.stdout).toContain('exec')
     expect(run.stdout).toContain('scan-secrets')
-    for (const schema of ['exec-result-v1', 'exec-event-v1']) {
+    for (const schema of ['exec-result-v2', 'exec-event-v2']) {
       const parsed: unknown = JSON.parse(
         readFileSync(path.join(PACKAGE, 'schemas', `${schema}.schema.json`), 'utf8'),
       )
-      if (schema === 'exec-result-v1') expect(parsed).toHaveProperty('properties.v.const', 1)
+      if (schema === 'exec-result-v2') expect(parsed).toHaveProperty('properties.v.const', 2)
       else
         expect(parsed).toMatchObject({
           anyOf: expect.arrayContaining([
             expect.objectContaining({
-              properties: expect.objectContaining({ v: expect.objectContaining({ const: 1 }) }),
+              properties: expect.objectContaining({ v: expect.objectContaining({ const: 2 }) }),
             }),
           ]),
         })

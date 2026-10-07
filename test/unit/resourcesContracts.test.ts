@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import execV1 from '../../docs/schemas/exec-event-v1.schema.json'
 import execV2 from '../../docs/schemas/exec-event-v2.schema.json'
+import resultV2 from '../../docs/schemas/exec-result-v2.schema.json'
 import * as constants from '../../src/shared/constants'
 import {
   deviceResourceSchema,
@@ -292,16 +293,16 @@ describe('M107 resource contracts', () => {
       type: { const: 'resource' },
     })
   })
-  it('freezes v1 and adds the strict resource variant to the complete v2 event schema', () => {
+  it('retains frozen v1 and adds the strict resource variant beside structured v2 events', () => {
     const resourceJson = z.toJSONSchema(resourceExecEventSchema)
     delete resourceJson.$schema
-    const expected = structuredClone(execV1)
-    for (const variant of expected.anyOf) variant.properties.v.const = 2
-    expect(execV2.anyOf.slice(0, -1)).toEqual(expected.anyOf)
+    expect(execV2.anyOf.slice(0, -1).map((variant) => variant.properties.type.const)).toEqual(
+      execV1.anyOf.map((variant) => variant.properties.type.const),
+    )
     expect(execV2.anyOf.at(-1)).toEqual(resourceJson)
     expect(execV1.anyOf.every((variant) => variant.properties.v.const === 1)).toBe(true)
-    expect(execV2.$defs).toEqual(execV1.$defs)
+    expect(execV2.$defs.execSafeUpdateValue).toEqual(execV1.$defs.execSafeUpdateValue)
     const result = execV2.anyOf.find((variant) => variant.properties.type.const === 'result')
-    expect(result?.properties).toMatchObject({ result: { properties: { v: { const: 1 } } } })
+    expect(result?.properties.result).toEqual(resultV2)
   })
 })

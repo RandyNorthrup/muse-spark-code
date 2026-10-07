@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { buildLinuxHelper } from './build-linux-helper.mjs'
 import { resourceBrowserValidation } from './lib/webviewBundles.mjs'
-import { compactNodeReference } from './lib/referenceBundle.mjs'
 // Bundles the extension host entry, the Model API backend, the review, the search worker,
 // web fetch's page converter worker (M69: parse5 and the HTML converter,
 // loaded on a worker thread started for each page, never at activation), the
@@ -61,14 +60,18 @@ import {
   compressedEnglish,
   compactBrowserEnglish,
 } from './lib/uiTextRegions.mjs'
+import { compressedReference } from './lib/compressedReference.mjs'
+import { compressedModelText } from './lib/compressedModelText.mjs'
 import { loadL10n } from './lib/l10nSource.mjs'
 import * as esbuild from 'esbuild'
+import { copyCatalogToDist } from './sync-provider-catalog.mjs'
 import {
   sharedUiText,
   sharedValidation,
   deferredCohort,
   sharedWire,
   sharedResourceAdmission,
+  sharedStructuredSchema,
 } from './lib/deferredBundles.mjs'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
@@ -99,6 +102,8 @@ const RESOURCE_ENTRY = 'src/core/resources/resourceGovernorEntry.ts'
 const RESOURCE_OUTFILE = 'dist/resourceGovernor.js'
 const RESOURCE_ADMISSION_ENTRY = 'src/core/resources/admission.ts'
 const RESOURCE_ADMISSION_OUTFILE = 'dist/resourceAdmission.js'
+const PROVIDERS_ENTRY = 'src/host/backend/providersEntry.ts'
+const PROVIDERS_OUTFILE = 'dist/providers.js'
 const SESSION_BOARD_ENTRY = 'src/host/sessionBoardEntry.ts'
 const SESSION_BOARD_OUTFILE = 'dist/sessionBoard.js'
 const REVIEWER_ENTRY = 'src/core/backends/modelapi/reviewerEntry.ts'
@@ -142,12 +147,16 @@ const WEB_FETCH_ENTRY = 'src/host/web/webFetchEntry.ts'
 const WEB_FETCH_OUTFILE = 'dist/webFetch.js'
 const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
+const MODELS_PANEL_ENTRY = 'src/host/models/modelsPanelEntry.ts'
+const MODELS_PANEL_OUTFILE = 'dist/modelsPanel.js'
 const EXTENSION_HOOKS_ENTRY = 'src/host/extensionHooksEntry.ts'
 const EXTENSION_HOOKS_OUTFILE = 'dist/extensionHooks.js'
 const WHATS_NEW_ENTRY = 'src/host/whatsNew/whatsNewEntry.ts'
 const WHATS_NEW_OUTFILE = 'dist/whatsNew.js'
 const JUDGE_ENTRY = 'src/host/judge/judgeEntry.ts'
 const JUDGE_OUTFILE = 'dist/judge.js'
+const IMAGE_RESIZE_WORKER_ENTRY = 'src/core/imageResizeWorker.ts'
+const IMAGE_RESIZE_WORKER_OUTFILE = 'dist/imageResizeWorker.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const REPORT_ENTRY = 'src/host/support/reportEntry.ts'
@@ -157,6 +166,8 @@ const RECORDER_OUTFILE = 'dist/recorder.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
 const PAGE_WORKER_OUTFILE = 'dist/pageWorker.js'
 const WEBVIEW_ENTRY = 'src/webview/main.tsx'
+// The Models & Agents panel's own app (M95 lane M), beside the chat.
+const MODELS_WEBVIEW_ENTRY = 'src/webview/models/models.tsx'
 const WEBVIEW_OUTDIR = 'dist/webview'
 const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
 const WHATS_NEW_PAGE_NAME = 'whatsNew'
@@ -169,6 +180,8 @@ const RUNTIME_QUESTIONS_ENTRY = 'src/runtime/questions/questionRegistryEntry.ts'
 const RUNTIME_QUESTIONS_OUTFILE = 'dist/runtimeQuestions.js'
 const INTEGRATION_TEST_DIR = 'test/integration'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
+// M95 (PLAN.md D74): the vendored provider catalogue ships as data, not code.
+const PROVIDER_CATALOG_OUTFILE = 'dist/providerCatalog.json'
 // The extension host of the oldest VS Code the manifest accepts: 1.99 runs
 // Node 20.18 (PLAN.md M62). The ACP agent runs on the user's own Node 22.
 const HOST_NODE_TARGET = 'node20.18'
@@ -211,7 +224,15 @@ const conversationOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const modelApiOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, sharedResourceAdmission],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedStructuredSchema,
+    compressedModelText(isProduction),
+  ],
   entryPoints: [MODEL_API_ENTRY],
   outfile: MODEL_API_OUTFILE,
   platform: 'node',
@@ -221,7 +242,7 @@ const modelApiOptions = {
 
 const referenceOptions = {
   ...modelApiOptions,
-  plugins: [...modelApiOptions.plugins, compactNodeReference],
+  plugins: [...modelApiOptions.plugins, compressedReference],
   entryPoints: ['src/shared/reference/referenceEntry.ts'],
   outfile: 'dist/reference.js',
 }
@@ -236,6 +257,11 @@ const resourceAdmissionOptions = {
   ...modelApiOptions,
   entryPoints: [RESOURCE_ADMISSION_ENTRY],
   outfile: RESOURCE_ADMISSION_OUTFILE,
+}
+const providersOptions = {
+  ...modelApiOptions,
+  entryPoints: [PROVIDERS_ENTRY],
+  outfile: PROVIDERS_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -276,7 +302,14 @@ const pluginHooksOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const reviewOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire, sharedResourceAdmission],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedStructuredSchema,
+  ],
   entryPoints: [REVIEW_ENTRY],
   outfile: REVIEW_OUTFILE,
   platform: 'node',
@@ -290,7 +323,14 @@ const reviewOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const reportOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire, sharedResourceAdmission],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedStructuredSchema,
+  ],
   entryPoints: [REPORT_ENTRY],
   outfile: REPORT_OUTFILE,
   platform: 'node',
@@ -303,7 +343,14 @@ const reportOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const recorderOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire, sharedResourceAdmission],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedStructuredSchema,
+  ],
   entryPoints: [RECORDER_ENTRY],
   outfile: RECORDER_OUTFILE,
   platform: 'node',
@@ -314,7 +361,14 @@ const recorderOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const planMarkdownOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire, sharedResourceAdmission],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedStructuredSchema,
+  ],
   entryPoints: [PLAN_MARKDOWN_ENTRY],
   outfile: PLAN_MARKDOWN_OUTFILE,
   platform: 'node',
@@ -357,7 +411,14 @@ const museCodeReviewerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const whatsNewOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire, sharedResourceAdmission],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedStructuredSchema,
+  ],
   entryPoints: [WHATS_NEW_ENTRY],
   outfile: WHATS_NEW_OUTFILE,
   platform: 'node',
@@ -381,9 +442,28 @@ const judgeOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const modelsPanelOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: [MODELS_PANEL_ENTRY],
+  outfile: MODELS_PANEL_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const agentImportOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire, sharedResourceAdmission],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedStructuredSchema,
+  ],
   entryPoints: [AGENT_IMPORT_ENTRY],
   outfile: AGENT_IMPORT_OUTFILE,
   platform: 'node',
@@ -402,7 +482,14 @@ const tabOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const bundledSkillsOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire, sharedResourceAdmission],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedStructuredSchema,
+  ],
   entryPoints: [BUNDLED_SKILLS_ENTRY],
   outfile: BUNDLED_SKILLS_OUTFILE,
   platform: 'node',
@@ -422,9 +509,24 @@ const searchWorkerOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const imageResizeWorkerOptions = {
+  ...searchWorkerOptions,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: [IMAGE_RESIZE_WORKER_ENTRY],
+  outfile: IMAGE_RESIZE_WORKER_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const conversationGitOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire, sharedResourceAdmission],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedStructuredSchema,
+  ],
   entryPoints: [CONVERSATION_GIT_ENTRY],
   outfile: CONVERSATION_GIT_OUTFILE,
   platform: 'node',
@@ -436,7 +538,14 @@ const conversationGitOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const checkpointStoreOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire, sharedResourceAdmission],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedStructuredSchema,
+  ],
   entryPoints: [CHECKPOINT_STORE_ENTRY],
   outfile: CHECKPOINT_STORE_OUTFILE,
   platform: 'node',
@@ -447,7 +556,14 @@ const checkpointStoreOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const browserCheckOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire, sharedResourceAdmission],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedStructuredSchema,
+  ],
   entryPoints: [BROWSER_CHECK_ENTRY],
   outfile: BROWSER_CHECK_OUTFILE,
   platform: 'node',
@@ -458,7 +574,14 @@ const browserCheckOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const browserRuntimeOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire, sharedResourceAdmission],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedStructuredSchema,
+  ],
   entryPoints: [BROWSER_RUNTIME_ENTRY],
   outfile: BROWSER_RUNTIME_OUTFILE,
   platform: 'node',
@@ -469,7 +592,16 @@ const browserRuntimeOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const acpOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, sharedResourceAdmission],
+  // These artifacts run only in Node; the SDK's browser sniff must not touch its navigator getter.
+  define: { ...common.define, navigator: 'undefined' },
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedStructuredSchema,
+  ],
   entryPoints: [ACP_ENTRY],
   outfile: ACP_OUTFILE,
   platform: 'node',
@@ -490,6 +622,28 @@ const runtimeQuestionsOptions = {
   ...acpQuestionsOptions,
   entryPoints: [RUNTIME_QUESTIONS_ENTRY],
   outfile: RUNTIME_QUESTIONS_OUTFILE,
+}
+const mcpPoolOptions = {
+  ...modelApiOptions,
+  entryPoints: ['src/core/backends/modelapi/mcpPoolEntry.ts'],
+  outfile: 'dist/mcpPool.js',
+}
+const execOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/exec/execEntry.ts'],
+  outfile: 'dist/exec.js',
+  banner: {},
+}
+const modelApiCodeIntelOptions = {
+  ...modelApiOptions,
+  entryPoints: ['src/core/backends/modelapi/codeIntelEntry.ts'],
+  outfile: 'dist/modelApiCodeIntel.js',
+}
+const structuredSchemaOptions = {
+  ...modelApiOptions,
+  plugins: [sharedValidation],
+  entryPoints: ['src/shared/structuredSchemaEntry.ts'],
+  outfile: 'dist/structuredSchema.js',
 }
 
 // Keep the production Node fallback under its existing cap; runtime values
@@ -590,6 +744,14 @@ const referencePageOptions = {
   tsconfigRaw: { compilerOptions: { jsx: 'react', jsxFactory: 'React.createElement' } },
 }
 
+const modelsWebviewOptions = {
+  ...webviewOptions,
+  entryPoints: { models: MODELS_WEBVIEW_ENTRY },
+  format: 'esm',
+  splitting: false,
+  outdir: WEBVIEW_OUTDIR,
+}
+
 // What's New's page script and stylesheet (M99): dist/webview/whatsNew.js
 // and whatsNew.css, beside the panel's, loaded by that page alone.
 /** @type {import('esbuild').BuildOptions} */
@@ -623,6 +785,7 @@ function reportSize(path) {
   console.log(`  ${path}  ${kib} KiB`)
 }
 
+copyCatalogToDist()
 // Content-hashed chunks from an earlier build must never enter a package.
 rmSync(path.join(WEBVIEW_OUTDIR, 'chunks'), { recursive: true, force: true })
 const whatsNewContent = writeWhatsNewContent()
@@ -632,12 +795,17 @@ console.log(
 
 if (isWatch) {
   const contexts = await Promise.all([
+    esbuild.context(mcpPoolOptions),
+    esbuild.context(execOptions),
+    esbuild.context(modelApiCodeIntelOptions),
+    esbuild.context(structuredSchemaOptions),
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
     esbuild.context(tabOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(resourceGovernorOptions),
     esbuild.context(resourceAdmissionOptions),
+    esbuild.context(providersOptions),
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
     esbuild.context(referenceOptions),
@@ -674,9 +842,12 @@ if (isWatch) {
     esbuild.context(browserRuntimeOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
+    esbuild.context(imageResizeWorkerOptions),
     esbuild.context(webviewOptions),
     esbuild.context(referencePageOptions),
     esbuild.context(whatsNewPageOptions),
+    esbuild.context(modelsPanelOptions),
+    esbuild.context(modelsWebviewOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -687,12 +858,16 @@ if (isWatch) {
       entryPoints: ['src/core/questions/deferralEntry.ts'],
       outfile: 'dist/questionNotes.js',
     }),
+    mcpPool: esbuild.build(mcpPoolOptions),
+    modelApiCodeIntel: esbuild.build(modelApiCodeIntelOptions),
+    structuredSchema: esbuild.build(structuredSchemaOptions),
     extension: esbuild.build(hostOptions),
     conversation: esbuild.build(conversationOptions),
     tab: esbuild.build(tabOptions),
     modelApi: esbuild.build(modelApiOptions),
     resourceGovernor: esbuild.build(resourceGovernorOptions),
     resourceAdmission: esbuild.build(resourceAdmissionOptions),
+    providers: esbuild.build(providersOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
     reference: esbuild.build(referenceOptions),
@@ -727,19 +902,25 @@ if (isWatch) {
     browserRuntime: esbuild.build(browserRuntimeOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
+    imageResizeWorker: esbuild.build(imageResizeWorkerOptions),
     webview: esbuild.build(webviewOptions),
     referencePage: esbuild.build(referencePageOptions),
     whatsNewPage: esbuild.build(whatsNewPageOptions),
+    modelsPanel: esbuild.build(modelsPanelOptions),
+    modelsWebview: esbuild.build(modelsWebviewOptions),
   }
   const acp = esbuild.build(acpOptions)
   const acpQuestions = esbuild.build(acpQuestionsOptions)
   const runtimeQuestions = esbuild.build(runtimeQuestionsOptions)
-  const builds = [...Object.values(shipped), acp, acpQuestions, runtimeQuestions]
+  const exec = esbuild.build(execOptions)
+  const builds = [...Object.values(shipped), acp, exec, acpQuestions, runtimeQuestions]
   if (!isProduction) {
     builds.push(esbuild.build(integrationTestOptions))
   }
   await Promise.all(builds)
   if (isProduction) {
+    rmSync(METAFILE_DIR, { recursive: true, force: true })
+    rmSync(ACP_METAFILE_DIR, { recursive: true, force: true })
     mkdirSync(METAFILE_DIR, { recursive: true })
     for (const [name, build] of Object.entries(shipped)) {
       const { metafile } = await build
@@ -758,6 +939,8 @@ if (isWatch) {
       path.join(ACP_METAFILE_DIR, 'acpQuestions.json'),
       JSON.stringify(questionsMetafile),
     )
+    const execBuild = await exec
+    writeFileSync(path.join(ACP_METAFILE_DIR, 'exec.json'), JSON.stringify(execBuild.metafile))
   }
   console.log('bundle sizes:')
   reportSize(ACP_QUESTIONS_OUTFILE)
@@ -767,6 +950,7 @@ if (isWatch) {
   reportSize(MODEL_API_OUTFILE)
   reportSize(RESOURCE_OUTFILE)
   reportSize(RESOURCE_ADMISSION_OUTFILE)
+  reportSize(PROVIDERS_OUTFILE)
   reportSize(REVIEW_OUTFILE)
   reportSize(SESSION_BOARD_OUTFILE)
   reportSize('dist/reference.js')
@@ -793,10 +977,15 @@ if (isWatch) {
   reportSize(VALIDATION_OUTFILE)
   reportSize(BROWSER_CHECK_OUTFILE)
   reportSize(BROWSER_RUNTIME_OUTFILE)
+  reportSize(MODELS_PANEL_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)
+  reportSize(IMAGE_RESIZE_WORKER_OUTFILE)
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.js'))
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.css'))
+  reportSize(path.join(WEBVIEW_OUTDIR, 'models.js'))
+  reportSize(path.join(WEBVIEW_OUTDIR, 'models.css'))
+  reportSize(PROVIDER_CATALOG_OUTFILE)
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.js`))
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.css`))
   reportSize(ACP_OUTFILE)

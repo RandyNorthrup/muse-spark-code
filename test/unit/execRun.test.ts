@@ -1,31 +1,43 @@
+import { Usd } from '../../src/shared/usd'
 import {
+  constants as fileFlags,
   mkdtempSync,
   mkdirSync,
   readFileSync,
   readdirSync,
   existsSync,
   writeFileSync,
+  symlinkSync,
+  renameSync,
+  unlinkSync,
 } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { open, readFile, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
 import childProcess from 'node:child_process'
 import { syncBuiltinESMExports } from 'node:module'
+import { handleIdentity, lstatIdentity as lstat } from '../../src/core/fs/fileIdentity'
 import * as runtimeBackends from '../../src/runtime/backends'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { buildSync } from 'esbuild'
 import * as acp from '@agentclientprotocol/sdk'
-import { runExec, type ExecDeps } from '../../src/runtime/exec/runExec'
+import { runExec, type ExecDeps, type ExecOutputSchemaPort } from '../../src/runtime/exec/runExec'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { createLifecycle } from '../../src/runtime/exec/execLimits'
 import {
   validateResult,
-  execEventV2Schema,
+  type ExecEvent,
   type ResourceExecEvent,
   type ExecResult,
 } from '../../src/runtime/exec/execProtocol'
-import { SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
+import {
+  EXEC_EXIT,
+  EXEC_PROMPT_MAX_BYTES,
+  NO_COMPACTABLE_HISTORY,
+  SECRET_KEYS,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import { paidGrantsFile, workspaceSessionsFolder } from '../../src/runtime/dataFolder'
 import { memorySecrets } from './helpers/fakes'
 import {
@@ -39,7 +51,12 @@ import { outputWriter } from './helpers/execContract'
 import { removeFolder } from './helpers/temporaryFolders'
 import { acpMspHost } from './helpers/acpMsp'
 import { createExecClient } from '../../src/runtime/exec/execClient'
-import { createExecSink } from '../../src/runtime/exec/execOutput'
+import {
+  createExecSink,
+  validateSchemaEvent,
+  validateSchemaResult,
+} from '../../src/runtime/exec/execOutput'
+import { compileOutputSchema } from '../../src/runtime/exec/outputSchema'
 import * as keyInput from '../../src/runtime/exec/keyInput'
 
 const actualMemoryStore = keyInput.memorySecretStore
@@ -79,7 +96,6 @@ function useMuseOptions(deps: ExecDeps): void {
     backend: 'museCode',
     model: undefined,
     budgetUsd: undefined,
-    budgetMicroUsd: undefined,
     maxRequests: undefined,
   }
 }
@@ -208,13 +224,13 @@ async function harness(
         chunk
           .trim()
           .split('\n')
-          .map((line): ResourceExecEvent => execEventV2Schema.parse(JSON.parse(line))),
+          .map((line): ExecEvent => validateSchemaEvent(JSON.parse(line))),
       )
       const records = events.filter((event) => event.type === 'result')
       const result =
         records.length === 0
           ? undefined
-          : validateResult(records[0]?.type === 'result' ? records[0].result : undefined)
+          : validateSchemaResult(records[0]?.type === 'result' ? records[0].result : undefined)
       return { code, events, result }
     } finally {
       life.dispose()
@@ -222,6 +238,386 @@ async function harness(
   }
   return { api, deps, cwd, homeDir, out, err, life, store, run, clock }
 }
+
+function recordBodies(deps: ExecDeps): string[] {
+  const bodies: string[] = []
+  const fetch = deps.fetch
+  deps.fetch = async (url, init) => {
+    if (typeof init?.body === 'string') bodies.push(init.body)
+    return await fetch(url, init)
+  }
+  return bodies
+}
+
+const outputSchemaBytes = new TextEncoder().encode(
+  JSON.stringify({
+    type: 'object',
+    properties: { ok: { type: 'boolean' } },
+    required: ['ok'],
+    additionalProperties: false,
+  }),
+)
+
+function strictSchemaBinding(): ExecOutputSchemaPort {
+  return {
+    formatsFor: () => Promise.resolve(['strict_schema']),
+    configure: () => Promise.resolve(),
+  }
+}
+async function outsideSchemaHarness(
+  kind: 'symlink' | 'traversal' | 'absolute',
+  isAllowed: boolean,
+) {
+  const h = await harness([], [{ text: '{"ok":true}' }])
+  const outside = path.join(h.homeDir, 'answer.json')
+  writeFileSync(outside, outputSchemaBytes)
+  symlinkSync(h.homeDir, path.join(h.cwd, 'linked'), 'junction')
+  const given = {
+    symlink: path.join('linked', 'answer.json'),
+    traversal: path.relative(h.cwd, outside),
+    absolute: outside,
+  }[kind]
+  h.deps.options = {
+    ...h.deps.options,
+    outputSchema: given,
+    ...(isAllowed && { outputSchemaOutside: true }),
+  }
+  h.deps.readFile = vi.fn(h.deps.readFile)
+  h.deps.outputSchema = strictSchemaBinding()
+  return { h, outside }
+}
+
+async function expectPreflightRefusal(h: Awaited<ReturnType<typeof harness>>): Promise<void> {
+  h.deps.fetch = vi.fn(h.deps.fetch)
+  const create = vi.spyOn(runtimeBackends, 'createRuntimeBackend')
+  try {
+    const run = await h.run()
+    expect(run.code).toBe(2)
+    expect(run.result).toBeUndefined()
+    expect(h.deps.fetch).not.toHaveBeenCalled()
+    expect(create).not.toHaveBeenCalled()
+  } finally {
+    create.mockRestore()
+  }
+}
+
+async function schemaSwapHarness(
+  swap: (h: Awaited<ReturnType<typeof harness>>, file: string) => void,
+  phase: 'before' | 'after',
+) {
+  const h = await harness([], [{ text: '{"ok":true}' }])
+  const inside = path.join(h.cwd, 'parent', 'answer.json')
+  mkdirSync(path.dirname(inside))
+  writeFileSync(inside, outputSchemaBytes)
+  h.deps.options = { ...h.deps.options, outputSchema: inside }
+  h.deps.outputSchema = strictSchemaBinding()
+  const reads = vi.fn()
+  const opener = vi.fn(async (file: string, flags: number) => {
+    if (phase === 'before') swap(h, file)
+    const handle = await open(file, flags)
+    if (phase === 'after') swap(h, file)
+    vi.spyOn(handle, 'read').mockImplementation(reads)
+    return handle
+  })
+  h.deps.schemaFileIo = { open: opener, realpath, lstat }
+  return { h, opener, reads }
+}
+
+describe('M106 output schema runtime binding', () => {
+  it('refuses a final symlink swapped immediately before open without reading the outside file', async () => {
+    const { h, opener, reads } = await schemaSwapHarness((fixture, file) => {
+      const outside = path.join(fixture.homeDir, 'answer.json')
+      writeFileSync(outside, outputSchemaBytes)
+      unlinkSync(file)
+      symlinkSync(outside, file)
+    }, 'before')
+    await expectPreflightRefusal(h)
+    expect(opener).toHaveBeenCalledOnce()
+    if (process.platform !== 'win32')
+      expect((opener.mock.calls[0]?.[1] ?? 0) & fileFlags.O_NOFOLLOW).toBe(fileFlags.O_NOFOLLOW)
+    expect(reads).not.toHaveBeenCalled()
+  })
+  it('refuses a symlink parent swapped before open without reading outside the workspace', async () => {
+    const { h, opener, reads } = await schemaSwapHarness((fixture, file) => {
+      writeFileSync(path.join(fixture.homeDir, 'answer.json'), outputSchemaBytes)
+      const parent = path.dirname(file)
+      renameSync(parent, path.join(fixture.cwd, 'saved'))
+      symlinkSync(fixture.homeDir, parent, 'junction')
+    }, 'before')
+    await expectPreflightRefusal(h)
+    expect(opener).toHaveBeenCalledOnce()
+    expect(reads).not.toHaveBeenCalled()
+    expect(h.err.chunks.join('')).toContain('--output-schema-outside')
+  })
+  it('refuses a replaced inside pathname when its inode differs from the open handle', async () => {
+    const { h, opener, reads } = await schemaSwapHarness((fixture, file) => {
+      renameSync(file, path.join(fixture.cwd, 'saved.json'))
+      writeFileSync(file, outputSchemaBytes)
+    }, 'after')
+    await expectPreflightRefusal(h)
+    expect(opener).toHaveBeenCalledOnce()
+    expect(reads).not.toHaveBeenCalled()
+  })
+  it.each([false, true])(
+    'verifies Windows junction containment through the open-handle seam (inside=%s)',
+    async (isInside) => {
+      const h = await harness([], [{ text: '{"ok":true}' }])
+      const inside = path.join(h.cwd, 'answer.json')
+      writeFileSync(inside, outputSchemaBytes)
+      h.deps.platform = 'win32'
+      h.deps.options = { ...h.deps.options, outputSchema: inside }
+      h.deps.outputSchema = strictSchemaBinding()
+      const handles: Awaited<ReturnType<typeof open>>[] = []
+      const opener = vi.fn(async (file: string, flags: number) => {
+        const handle = await open(file, flags)
+        handles.push(handle)
+        vi.spyOn(handle, 'read')
+        return handle
+      })
+      const target = isInside
+        ? String.raw`C:\workspace\linked\answer.json`
+        : String.raw`C:\outside\answer.json`
+      h.deps.schemaFileIo = {
+        open: opener,
+        realpath: (file) => Promise.resolve(file === h.cwd ? String.raw`C:\workspace` : target),
+        lstat: async () => {
+          const handle = handles[0]
+          if (handle === undefined) throw new Error('open must precede verification')
+          // The filesystem seam is Windows; the backend still runs on this rig.
+          h.deps.platform = process.platform
+          return await handleIdentity(handle)
+        },
+      }
+      // Record reads through the held handle without replacing its implementation.
+      if (isInside) {
+        const run = await h.run()
+        expect(run.code).toBe(0)
+        expect(handles[0]?.read).toHaveBeenCalled()
+      } else {
+        await expectPreflightRefusal(h)
+        expect(handles[0]?.read).not.toHaveBeenCalled()
+      }
+      expect(opener).toHaveBeenCalledOnce()
+      expect(opener.mock.calls[0]?.[1]).toBe(0)
+    },
+  )
+
+  it.each(['device', 'nonregular', 'stat-size', 'growth'] as const)(
+    'refuses a schema handle with invalid %s and closes it before backend creation',
+    async (kind) => {
+      const h = await harness()
+      const inside = path.join(h.cwd, 'answer.json')
+      writeFileSync(inside, outputSchemaBytes)
+      h.deps.options = { ...h.deps.options, outputSchema: inside }
+      h.deps.outputSchema = strictSchemaBinding()
+      const handles: Awaited<ReturnType<typeof open>>[] = []
+      h.deps.schemaFileIo = {
+        open: async (file, flags) => {
+          const handle = await open(file, flags)
+          handles.push(handle)
+          const info = await handleIdentity(handle)
+          switch (kind) {
+            case 'device': {
+              info.dev += 1n
+              break
+            }
+            case 'nonregular': {
+              vi.spyOn(info, 'isFile').mockReturnValue(false)
+              break
+            }
+            case 'stat-size': {
+              info.size = BigInt(EXEC_PROMPT_MAX_BYTES + 1)
+              break
+            }
+            case 'growth': {
+              writeFileSync(inside, ' '.repeat(EXEC_PROMPT_MAX_BYTES + 1))
+              break
+            }
+          }
+          vi.spyOn(handle, 'stat').mockResolvedValue(info)
+          vi.spyOn(handle, 'read')
+          vi.spyOn(handle, 'close')
+          return handle
+        },
+        realpath,
+        lstat,
+      }
+      await expectPreflightRefusal(h)
+      expect(handles[0]?.close).toHaveBeenCalledOnce()
+      expect(h.err.chunks.join('')).toContain(
+        UI_TEXT.outputSchemaReadFailed.replace('{detail}', 'file'),
+      )
+      if (kind === 'growth') expect(handles[0]?.read).toHaveBeenCalled()
+      else expect(handles[0]?.read).not.toHaveBeenCalled()
+    },
+  )
+
+  it('refuses invalid/unreadable schemas and an absent binding before backend creation or HTTP', async () => {
+    for (const phase of ['invalid', 'unreadable', 'unbound']) {
+      const h = await harness()
+      h.deps.options = { ...h.deps.options, outputSchema: 'answer.json' }
+      if (phase !== 'unreadable')
+        writeFileSync(
+          path.join(h.cwd, 'answer.json'),
+          phase === 'invalid' ? '{}' : outputSchemaBytes,
+        )
+      if (phase !== 'unbound') h.deps.outputSchema = strictSchemaBinding()
+      await expectPreflightRefusal(h)
+    }
+  })
+  it.each([
+    [['forced_tool', 'json_schema', 'strict_schema'], 'strict_schema'],
+    [['forced_tool', 'json_schema'], 'json_schema'],
+    [['forced_tool'], 'forced_tool'],
+  ] as const)(
+    'selects the strongest captured format %j before the prompt',
+    async (formats, mode) => {
+      const h = await harness([], [{ text: '{"ok":true}' }])
+      h.deps.options = { ...h.deps.options, outputSchema: 'answer.json' }
+      writeFileSync(path.join(h.cwd, 'answer.json'), outputSchemaBytes)
+      h.deps.readFile = vi.fn(h.deps.readFile)
+      const configure = vi.fn(() => {
+        expect(h.api.responseBodies()).toHaveLength(0)
+        return Promise.resolve()
+      })
+      h.deps.outputSchema = { formatsFor: vi.fn(() => Promise.resolve(formats)), configure }
+      const run = await h.run()
+      expect(configure).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: 'muse-spark-1.3-contributor',
+          mode,
+          schema: compileOutputSchema(outputSchemaBytes).schema,
+          signal: h.life.signal,
+        }),
+      )
+      expect(run.code).toBe(0)
+      expect(run.result).toMatchObject({
+        output: { value: { ok: true }, validation: 'provider' },
+        ledger: {
+          outputSchemaSha256: compileOutputSchema(outputSchemaBytes).sha256,
+        },
+      })
+    },
+  )
+  it('uses prompt-text schema fallback and discloses local validation when no wire format is supported', async () => {
+    const h = await harness([], [{ text: '{"ok":true}' }])
+    writeFileSync(path.join(h.cwd, 'answer.json'), outputSchemaBytes)
+    h.deps.options = { ...h.deps.options, outputSchema: 'answer.json' }
+    const configure = vi.fn(() => Promise.resolve())
+    h.deps.outputSchema = { formatsFor: () => Promise.resolve([]), configure }
+    const run = await h.run()
+    expect(run.code).toBe(0)
+    expect(configure).not.toHaveBeenCalled()
+    expect(h.api.responseBodies()).toHaveLength(1)
+    expect(JSON.stringify(h.api.responseBodies()[0]?.['input'])).toContain(
+      JSON.stringify(new TextDecoder().decode(outputSchemaBytes)).slice(1, -1),
+    )
+    expect(run.result).toMatchObject({
+      output: { value: { ok: true }, validation: 'local' },
+      usage: { requests: 1 },
+      ledger: { outputSchemaSha256: compileOutputSchema(outputSchemaBytes).sha256 },
+    })
+    expect(h.err.chunks.join('')).toContain(UI_TEXT.outputSchemaLocalValidation)
+  })
+  it('fails a text-fallback schema mismatch locally without a repair or extra billable request', async () => {
+    const h = await harness([], [{ text: '{"ok":"wrong"}' }])
+    writeFileSync(path.join(h.cwd, 'answer.json'), outputSchemaBytes)
+    h.deps.options = { ...h.deps.options, outputSchema: 'answer.json' }
+    h.deps.outputSchema = {
+      formatsFor: () => Promise.resolve([]),
+      configure: vi.fn(() => Promise.resolve()),
+    }
+    const run = await h.run()
+    expect(run.code).toBe(10)
+    expect(run.result).toMatchObject({
+      status: 'failed',
+      error: { kind: 'output_schema_mismatch' },
+      usage: { requests: 1 },
+    })
+    expect(Object.hasOwn(run.result ?? {}, 'output')).toBe(false)
+    expect(h.api.responseBodies()).toHaveLength(1)
+    expect(h.err.chunks.join('')).toContain(UI_TEXT.outputSchemaLocalValidation)
+  })
+  it('normalises Windows separators before the schema containment comparison', async () => {
+    const h = await harness()
+    writeFileSync(path.join(h.cwd, 'answer.json'), outputSchemaBytes)
+    h.deps.options = { ...h.deps.options, outputSchema: 'answer.json' }
+    h.deps.readFile = vi.fn(h.deps.readFile)
+    const relative = vi.spyOn(path, 'relative').mockReturnValue(String.raw`..\outside\answer.json`)
+    try {
+      const run = await h.run()
+      expect(run.code).toBe(2)
+      expect(h.deps.readFile).not.toHaveBeenCalled()
+      expect(h.err.chunks.join('')).toContain('--output-schema-outside')
+    } finally {
+      relative.mockRestore()
+    }
+  })
+  it.each(['symlink', 'traversal', 'absolute'] as const)(
+    'refuses an outside schema target through %s before reading or creating a backend',
+    async (kind) => {
+      const { h } = await outsideSchemaHarness(kind, false)
+      await expectPreflightRefusal(h)
+      expect(h.deps.readFile).not.toHaveBeenCalled()
+      expect(h.err.chunks.join('')).toContain('--output-schema-outside')
+    },
+  )
+  it.each(['symlink', 'traversal', 'absolute'] as const)(
+    'reads and reports an explicitly authorised outside schema through %s',
+    async (kind) => {
+      const { h, outside } = await outsideSchemaHarness(kind, true)
+      const run = await h.run()
+      expect(run.code).toBe(0)
+      expect(h.deps.readFile).not.toHaveBeenCalled()
+      expect(run.result?.output).toMatchObject({ value: { ok: true }, validation: 'provider' })
+      expect(h.err.chunks.join('')).toContain(UI_TEXT.outputSchemaOutsideAllowed)
+      expect(JSON.stringify(run.result?.ledger)).not.toContain(outside)
+    },
+  )
+  it('accepts an absolute inside schema and a symlinked workspace by their real paths', async () => {
+    const h = await harness([], [{ text: '{"ok":true}' }])
+    const inside = path.join(h.cwd, 'answer.json')
+    writeFileSync(inside, outputSchemaBytes)
+    const alias = path.join(h.homeDir, 'workspace')
+    symlinkSync(h.cwd, alias, 'junction')
+    h.deps.options = { ...h.deps.options, cwd: alias, outputSchema: inside }
+    h.deps.outputSchema = strictSchemaBinding()
+    const run = await h.run()
+    expect(run.code).toBe(0)
+    expect(h.err.chunks.join('')).not.toContain('--output-schema-outside')
+  })
+  it('propagates a final schema mismatch to the process code while retaining spend and digest', async () => {
+    const h = await harness([], [{ text: '{"ok":"wrong"}' }])
+    h.deps.options = { ...h.deps.options, outputSchema: 'answer.json' }
+    writeFileSync(path.join(h.cwd, 'answer.json'), outputSchemaBytes)
+    h.deps.outputSchema = strictSchemaBinding()
+    const run = await h.run()
+    expect(run.code).toBe(10)
+    expect(run.result).toMatchObject({
+      status: 'failed',
+      exitCode: 10,
+      error: { kind: 'output_schema_mismatch' },
+      ledger: { outputSchemaSha256: compileOutputSchema(outputSchemaBytes).sha256 },
+      usage: { requests: 1 },
+    })
+    expect(Object.hasOwn(run.result ?? {}, 'output')).toBe(false)
+  })
+  it('does not read capabilities or change request bytes without a schema', async () => {
+    const baseline = await harness()
+    const baselineBodies = recordBodies(baseline.deps)
+    await baseline.run()
+    const enhanced = await harness([], [{ text: 'done' }], { processCwd: baseline.cwd })
+    const enhancedBodies = recordBodies(enhanced.deps)
+    const formatsFor = vi.fn(() => Promise.resolve(['strict_schema'] as const))
+    const configure = vi.fn(() => Promise.resolve())
+    enhanced.deps.outputSchema = { formatsFor, configure }
+    await enhanced.run()
+    expect(formatsFor).not.toHaveBeenCalled()
+    expect(configure).not.toHaveBeenCalled()
+    expect(enhancedBodies).toHaveLength(1)
+    expect(enhancedBodies).toEqual(baselineBodies)
+  })
+})
 function result(r: { result: ExecResult | undefined }) {
   if (r.result === undefined) throw new Error('no result')
   return r.result
@@ -666,7 +1062,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
         requests: 1,
         inputTokens: 10,
         outputTokens: 5,
-        costUsd: { settled: 0.000002, total: 0.000002 },
+        costUsd: { settled: Usd.from(0.000002).toAmount(), total: Usd.from(0.000002).toAmount() },
       },
     })
     expect(h.api.responseBodies()).toHaveLength(1)
@@ -772,7 +1168,10 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     h.life.latch({ kind: 'timeout' })
     const r = await running
     expect(r.code).toBe(6)
-    expect(result(r).usage.costUsd).toMatchObject({ uncertain: 0.108135, isUpperBound: true })
+    expect(result(r).usage.costUsd).toMatchObject({
+      uncertain: Usd.from(0.108135).toAmount(),
+      isUpperBound: true,
+    })
     expect(result(r).finalMessage).toBe(UI_TEXT.execMessageWithheld)
   })
   it.each([false, true])(
@@ -795,7 +1194,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     const h = await harness([], [{ httpError: { status } }])
     const r = await h.run()
     expect(r.code).toBe(3)
-    expect(result(r).usage.costUsd?.uncertain).toBe(0.108135)
+    expect(result(r).usage.costUsd?.uncertain).toBe(Usd.from(0.108135).toAmount())
   })
   it('D13 catalogue authentication failure is auth/3 before any billable request', async () => {
     const h = await harness()
@@ -830,7 +1229,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     const r = await h.run()
     expect(r.code).toBe(4)
     expect(result(r).usage.requests).toBe(5)
-    expect(result(r).usage.costUsd?.uncertain).toBe(0.540675)
+    expect(result(r).usage.costUsd?.uncertain).toBe(Usd.from(0.540675).toAmount())
   })
   it('D15 reply/key-shaped stderr are redacted; missing terminal prefix withheld whole', async () => {
     const h = await harness([], [{ text: `reply ${FAKE_MODEL_API_KEY}` }])
@@ -966,7 +1365,10 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     expect(r.code).toBe(4)
     expect(result(r).terminal).toBeNull()
     expect(result(r).finalMessage).toBe(UI_TEXT.execMessageWithheld)
-    expect(result(r).usage.costUsd).toMatchObject({ settled: 0.000002, uncertain: 0.540675 })
+    expect(result(r).usage.costUsd).toMatchObject({
+      settled: Usd.from(0.000002).toAmount(),
+      uncertain: Usd.from(0.540675).toAmount(),
+    })
   })
   it.each([
     [false, false, 0],
@@ -990,7 +1392,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
       expect(r.code).toBe(code)
       expect(result(r).finalMessage).toBe('final')
       expect(result(r).usage.costUsd?.uncertain).toBe(
-        (Number(earlyMissing) + Number(lateMissing)) * 0.108135,
+        Usd.from((Number(earlyMissing) + Number(lateMissing)) * 0.108135).toAmount(),
       )
     },
   )
@@ -1016,7 +1418,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     expect(result(r).usage.paid).toMatchObject({
       imageAttempts: 1,
       imagesReturned: 1,
-      settledUsd: 0.01,
+      settledUsd: Usd.from(0.01).toAmount(),
     })
     expect(existsSync(path.join(h.cwd, 'image.png'))).toBe(true)
     expect(r.events.filter((e) => e.type === 'paid_use').map((e) => e.phase)).toEqual([
@@ -1050,7 +1452,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     )
     const bad = await invalid.run()
     expect(bad.code).toBe(9)
-    expect(result(bad).usage.costUsd?.uncertain).toBe(0.108135)
+    expect(result(bad).usage.costUsd?.uncertain).toBe(Usd.from(0.108135).toAmount())
     expect(result(bad).finalMessage).toBe(UI_TEXT.execMessageWithheld)
     const imageRun = await imageHarness('image.png', 'must not run')
     imageRun.api.images.push({ count: 2 })
@@ -1071,8 +1473,26 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
         imageAttempts: status === 429 ? 2 : 1,
         imagesReturned: status === 429 ? 1 : 0,
         imagesUncertain: 1,
-        uncertainUsd: 0.01,
+        uncertainUsd: Usd.from(0.01).toAmount(),
       })
     },
   )
+})
+
+describe('FIXM101C1 headless compaction', () => {
+  it('routes /compact through ACP and returns NOOP without a model prompt on empty history (R6)', async () => {
+    const h = await harness()
+    h.deps.options = { ...h.deps.options, prompt: { kind: 'text', text: '/compact' } }
+    const r = await h.run()
+    expect(r.code).toBe(EXEC_EXIT.incomplete)
+    expect(result(r)).toMatchObject({
+      status: 'incomplete',
+      stopReason: 'end_turn',
+      terminal: null,
+      incompleteReason: NO_COMPACTABLE_HISTORY,
+      usage: { requests: 0 },
+      error: { message: UI_TEXT.nothingToCompact },
+    })
+    expect(h.api.responseBodies()).toHaveLength(0)
+  })
 })

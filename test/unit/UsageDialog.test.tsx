@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -28,6 +29,7 @@ function modelApiCostCase(): Partial<UsageDialogProps> {
       subscription: undefined,
       account: { signInMethod: 'apiKey' },
       insights: undefined,
+      providers: undefined,
     },
     usage: { inputTokens: 1_000_000, outputTokens: 100_000, cachedTokens: 200_000 },
     modelId: 'muse-spark-1.3',
@@ -40,6 +42,7 @@ function renderDialog(overrides: Partial<UsageDialogProps> = {}) {
       backend: 'museCode',
       subscription,
       account: { signInMethod: 'cli', cliVersion: '1.3.0', delegationMode: 'off' },
+      providers: undefined,
       insights: {
         day: {
           attempts: 40,
@@ -60,6 +63,7 @@ function renderDialog(overrides: Partial<UsageDialogProps> = {}) {
     usage: { inputTokens: 12_345, outputTokens: 678, cachedTokens: 10_000 },
     context: { usedTokens: 21_014, windowTokens: 1_007_997, pressure: 'normal' },
     modelId: 'muse-spark-1.3',
+    modelPricing: undefined,
     paid: { features: [], tally: EMPTY_PAID_TALLY, isKeyStored: false, alwaysAllowed: [] },
     auth: {
       status: 'signedIn',
@@ -81,7 +85,91 @@ function renderDialog(overrides: Partial<UsageDialogProps> = {}) {
   return { ...props, unmount: view.unmount }
 }
 
+function providersReport(): Partial<UsageDialogProps> {
+  return {
+    report: {
+      backend: 'modelApi',
+      subscription: undefined,
+      account: { signInMethod: 'apiKey' },
+      insights: undefined,
+      providers: [
+        {
+          providerId: 'openrouter',
+          providerLabel: 'OpenRouter',
+          pricing: 'priced',
+          inputTokens: 1200,
+          outputTokens: 300,
+          costUsd: 0.001,
+          keyUsage: { todayUsd: 0.4, monthUsd: 2.1, limitUsd: 10, remainingUsd: 7.9 },
+        },
+        {
+          providerId: 'ollama',
+          providerLabel: 'Ollama',
+          pricing: 'local',
+          inputTokens: 800,
+          outputTokens: 100,
+        },
+        {
+          providerId: 'mystery',
+          providerLabel: 'Mystery',
+          pricing: 'unpriced',
+          inputTokens: 50,
+          outputTokens: 5,
+        },
+      ],
+    },
+  }
+}
+
 describe('UsageDialog', () => {
+  it('shows validated service status and opens its public page', async () => {
+    const readServiceStatus = vi.fn((_signal: AbortSignal) =>
+      Promise.resolve({
+        is_alive: true,
+        service_status: 'operational',
+        service_message: '<img src=x onerror=alert(1)>',
+        updated_at: '',
+        model_statuses: [],
+      }),
+    )
+    const view = renderDialog({ readServiceStatus })
+    expect(await screen.findByText('operational')).toBeVisible()
+    expect(screen.getByText('<img src=x onerror=alert(1)>')).toBeVisible()
+    expect(screen.getByRole('dialog').querySelector('img')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: EN.modelApiStatusOpen }))
+    expect(view.onOpenExternal).toHaveBeenCalledWith('https://api.meta.ai/v1/status')
+    view.unmount()
+    expect(readServiceStatus.mock.calls[0]?.[0]).toMatchObject({ aborted: true })
+  })
+
+  it.each(['invalid', 'offline'])(
+    'shows unavailable for %s status instead of trusting an envelope',
+    async (failure) => {
+      renderDialog({
+        readServiceStatus: () =>
+          failure === 'invalid'
+            ? Promise.resolve({ service_status: 'operational' })
+            : Promise.reject(new Error('offline')),
+      })
+      expect(await screen.findByText(EN.modelApiStatusUnavailable)).toBeVisible()
+      expect(screen.queryByText('operational')).toBeNull()
+    },
+  )
+
+  it.each([
+    { service_status: true, service_message: '' },
+    { service_status: 'operational', service_message: { text: 'unsafe' } },
+  ])('rejects non-text captured service fields: %j', async (value) => {
+    renderDialog({ readServiceStatus: () => Promise.resolve(value) })
+    expect(await screen.findByText(EN.modelApiStatusUnavailable)).toBeVisible()
+    expect(screen.queryByText('operational')).toBeNull()
+  })
+
+  it('keeps the service row absent without a selected-provider status port', () => {
+    renderDialog()
+    expect(screen.queryByText(EN.modelApiStatusLabel)).toBeNull()
+  })
+
   it('shows hook additions separately without subtracting them from packing savings', () => {
     renderDialog({
       usage: {
@@ -141,6 +229,7 @@ describe('UsageDialog', () => {
           backend: 'museCode',
           account: undefined,
           insights: undefined,
+          providers: undefined,
           subscription: {
             ...subscription,
             weekly: { ...subscription.weekly, resetsAtMs: NOW + HOUR + 60_000 },
@@ -168,6 +257,7 @@ describe('UsageDialog', () => {
         backend: 'museCode',
         account: undefined,
         insights: undefined,
+        providers: undefined,
         subscription: {
           ...subscription,
           window: { ...subscription.window, resetsAtMs: NOW - 1 },
@@ -188,6 +278,7 @@ describe('UsageDialog', () => {
         backend: 'museCode',
         account: undefined,
         insights: undefined,
+        providers: undefined,
         subscription: {
           ...subscription,
           weekly: { ...subscription.weekly, resetsAtMs: NOW - 1 },
@@ -206,6 +297,7 @@ describe('UsageDialog', () => {
         backend: 'museCode',
         account: undefined,
         insights: undefined,
+        providers: undefined,
         subscription: {
           ...subscription,
           tier: '27681393394859588',
@@ -274,6 +366,7 @@ describe('UsageDialog', () => {
         subscription: undefined,
         account: { signInMethod: 'apiKey' },
         insights: undefined,
+        providers: undefined,
       },
       usage: undefined,
       context: undefined,
@@ -293,6 +386,7 @@ describe('UsageDialog', () => {
         subscription: undefined,
         account: { signInMethod: 'cli' },
         insights: undefined,
+        providers: undefined,
       },
       usage: undefined,
       context: { usedTokens: 500, windowTokens: undefined, pressure: 'normal' },
@@ -372,6 +466,7 @@ describe('UsageDialog in another display language (M40)', () => {
         backend: 'museCode',
         subscription: undefined,
         account: { signInMethod: 'cli' },
+        providers: undefined,
         insights: {
           day: {
             attempts: 1000,
@@ -404,6 +499,7 @@ describe('UsageDialog insights fallback (M18)', () => {
         backend: 'museCode',
         subscription,
         account: { signInMethod: 'cli', cliVersion: '1.3.0', delegationMode: 'off' },
+        providers: undefined,
         insights: undefined,
       },
     })
@@ -418,6 +514,7 @@ describe('UsageDialog insights fallback (M18)', () => {
         backend: 'modelApi',
         subscription: undefined,
         account: { signInMethod: 'apiKey' },
+        providers: undefined,
         insights: undefined,
       },
     })
@@ -432,6 +529,7 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
         backend: 'modelApi',
         subscription: undefined,
         account: undefined,
+        providers: undefined,
         insights: undefined,
       },
       paid: {
@@ -454,6 +552,7 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     subscription: undefined,
     account: { signInMethod: 'apiKey' as const },
     insights: undefined,
+    providers: undefined,
   }
 
   it('tallies this window’s paid use with each feature’s state and estimated cost', () => {
@@ -539,7 +638,7 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
           scheduledRuns: 0,
           autoReviews: 3,
           autoReviewTokens: 3000,
-          autoReviewCostUsd: 0.0042,
+          autoReviewCostUsd: Usd.from(0.0042).toAmount(),
         },
         isKeyStored: true,
         alwaysAllowed: ['autoReviewer'],
@@ -586,11 +685,51 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     expect(dialog).toHaveTextContent('Web search (off)4 searches · $0.0100')
     expect(dialog).toHaveTextContent('Estimated paid total$0.0400')
   })
+
+  it('lists this window’s tallies per provider with settled costs (M95)', () => {
+    renderDialog(providersReport())
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Providers')
+    expect(dialog).toHaveTextContent('OpenRouter1.2K / 300 · $0.0010')
+    expect(dialog).toHaveTextContent('Ollama800 / 100 · $0.00')
+    expect(dialog).toHaveTextContent('Mystery50 / 5 · unpriced')
+  })
+
+  it('shows an account-connected key’s usage, limit and remainder (M95)', () => {
+    renderDialog(providersReport())
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('API key usage')
+    expect(dialog).toHaveTextContent('Today$0.40')
+    expect(dialog).toHaveTextContent('This month$2.10')
+    expect(dialog).toHaveTextContent('Limit$10.00')
+    expect(dialog).toHaveTextContent('Remaining$7.90')
+  })
+
+  it('counts only tokens for the unpriced current model (M95)', () => {
+    renderDialog({
+      ...modelApiCostCase(),
+      usage: { inputTokens: 500, outputTokens: 50 },
+      modelId: 'openrouter/mystery/model',
+      modelPricing: 'unpriced',
+    })
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent(
+      'This model has no price card, so only its tokens are counted.',
+    )
+    expect(screen.queryByText('Estimated cost')).toBeNull()
+  })
+
+  it('offers the own-model choice in its setup rows (M95)', () => {
+    const props = renderDialog()
+    fireEvent.click(screen.getByRole('button', { name: 'Start with your own model' }))
+    expect(props.onSetupSignIn).toHaveBeenCalledWith('byo')
+  })
 })
 
 describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
   const tabReport = {
     backend: 'modelApi' as const,
+    providers: undefined,
     subscription: undefined,
     account: { signInMethod: 'apiKey' as const },
     insights: undefined,
@@ -610,12 +749,12 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
           tabUnknownRequests: 0,
           tabTokens: 45_000,
           tabCachedTokens: 3000,
-          tabCostUsd: 0.12,
+          tabCostUsd: Usd.from(0.12).toAmount(),
         },
         isKeyStored: true,
         alwaysAllowed: [],
         // Another window spent too: the ledger's day is not this window's cost.
-        tab: { budgetUsd: 1, todayUsd: 0.62 },
+        tab: { budgetUsd: Usd.from(1).toAmount(), todayUsd: Usd.from(0.62).toAmount() },
       },
     })
     const dialog = screen.getByRole('dialog')
@@ -644,12 +783,12 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
           tabUnknownRequests: 0,
           tabTokens: 900,
           tabCachedTokens: 0,
-          tabCostUsd: 0.01,
+          tabCostUsd: Usd.from(0.01).toAmount(),
         },
         isKeyStored: true,
         alwaysAllowed: [],
         // The ledger has not been read in this window yet.
-        tab: { budgetUsd: 5 },
+        tab: { budgetUsd: Usd.from(5).toAmount() },
       },
     })
     const dialog = screen.getByRole('dialog')
@@ -673,7 +812,7 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
           tabRequests: 1,
           tabTokens: 1200,
           tabCachedTokens: 400,
-          tabCostUsd: 0.004,
+          tabCostUsd: Usd.from(0.004).toAmount(),
         },
         isKeyStored: true,
         alwaysAllowed: [],
@@ -698,7 +837,7 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
           tabUnknownRequests: 2,
           tabTokens: 900,
           tabCachedTokens: 0,
-          tabCostUsd: 0.001,
+          tabCostUsd: Usd.from(0.001).toAmount(),
         },
         isKeyStored: true,
         alwaysAllowed: [],
@@ -736,7 +875,7 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
           tabRequests: 3,
           tabTokens: 9000,
           tabCachedTokens: 1000,
-          tabCostUsd: 0.02,
+          tabCostUsd: Usd.from(0.02).toAmount(),
         },
         isKeyStored: true,
         alwaysAllowed: [],
@@ -762,7 +901,7 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
           tabRequests: 2,
           tabTokens: 2000,
           tabCachedTokens: 500,
-          tabCostUsd: 0.005,
+          tabCostUsd: Usd.from(0.005).toAmount(),
         },
         isKeyStored: true,
         alwaysAllowed: ['tab'],
@@ -787,7 +926,7 @@ describe('M98 Judge usage row', () => {
           judgeCalls: 2,
           judgeUnknownRequests: 1,
           judgeTokens: 1100,
-          judgeCostUsd: 0.001125,
+          judgeCostUsd: Usd.from(0.001125).toAmount(),
         },
       },
     })

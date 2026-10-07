@@ -58,7 +58,7 @@ function hang() {
 }
 
 function envelope(seq, body) {
-  return JSON.stringify({ v: 1, seq, time: new Date(0).toISOString(), ...body })
+  return JSON.stringify({ v: 2, seq, time: new Date(0).toISOString(), ...body })
 }
 
 function execOutput() {

@@ -50,6 +50,7 @@ import type { AgentEvent } from '../shared/agentEvents'
 import {
   ACP_AGENT_NAME,
   ACP_AGENT_TITLE,
+  ACP_COMPACT_COMMAND,
   ACP_CONFIG_IDS,
   ACP_PAID_TOOL_CALL_PREFIX,
   ACP_QUESTIONS_BUNDLE_FILE,
@@ -407,11 +408,14 @@ class AcpSession {
       sessionUpdate: 'available_commands_update',
       availableCommands: [
         { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
+        { name: ACP_COMPACT_COMMAND, description: UI_TEXT.compactDetail, input: null },
         ...(this.deps.resources === undefined ? [] : resourceCommands()),
         ...this.skills
           .filter(
             (skill) =>
-              ![SLASH_COMMAND_NAMES.help, 'answer', 'questions'].includes(skill.selector) &&
+              ![SLASH_COMMAND_NAMES.help, 'answer', 'questions', ACP_COMPACT_COMMAND].includes(
+                skill.selector,
+              ) &&
               (this.deps.resources === undefined ||
                 !['resources', 'usage'].includes(skill.selector)),
           )
@@ -509,6 +513,14 @@ class AcpSession {
     }
     this.earlyFinishes.delete(turnId)
     this.settle(pending, early)
+  }
+
+  private finishCompaction(status: string): void {
+    const pending = this.pending
+    this.pending = undefined
+    pending?.resolve(
+      status === CANCELLED_TERMINAL || pending.isCancelled ? 'cancelled' : 'end_turn',
+    )
   }
 
   private finishTurn(event: TurnCompleted): void {
@@ -1019,18 +1031,31 @@ class AcpSession {
       }
     })
     try {
-      const starting = this.session.sendTurn(
-        [...queued, ...this.withSkill(parsed.parts)],
-        parsed.displayText,
-      )
-      this.starting = starting
-      const submission = await starting
-      this.noteTurnId(submission.turnId)
-      try {
-        await this.questionRegistry?.acknowledgeQueued('taken')
-        if (queued.length > 0) this.getQuestions().sentQueued()
-      } catch {
-        throw RequestError.internalError(undefined, UI_TEXT.questionAnswerUncertain)
+      const [part] = parsed.parts
+      if (
+        parsed.parts.length === 1 &&
+        part?.type === 'text' &&
+        part.text.trim() === `/${ACP_COMPACT_COMMAND}`
+      ) {
+        // The same AgentSession core serves interactive ACP and runExec. A
+        // compact starts synchronously, so cancellation need not wait for it.
+        await this.questionRegistry?.acknowledgeQueued('notTaken')
+        const outcome = await this.session.compact()
+        this.finishCompaction(outcome.status)
+      } else {
+        const starting = this.session.sendTurn(
+          [...queued, ...this.withSkill(parsed.parts)],
+          parsed.displayText,
+        )
+        this.starting = starting
+        const submission = await starting
+        this.noteTurnId(submission.turnId)
+        try {
+          await this.questionRegistry?.acknowledgeQueued('taken')
+          if (queued.length > 0) this.getQuestions().sentQueued()
+        } catch {
+          throw RequestError.internalError(undefined, UI_TEXT.questionAnswerUncertain)
+        }
       }
     } catch (error: unknown) {
       try {

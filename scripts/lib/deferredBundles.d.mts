@@ -30,3 +30,6 @@ export const sharedResourceAdmission: Plugin
 export const sharedWire: Plugin
 export const sharedValidation: Plugin
 export const deferredCohort: Plugin
+
+export const MODEL_API_OPTIONAL_ONLY: readonly string[]
+export const sharedStructuredSchema: Plugin

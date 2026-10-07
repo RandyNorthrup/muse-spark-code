@@ -1,0 +1,59 @@
+{
+  "provider": "deepseek",
+  "capturedAt": "2026-10-04",
+  "totalRequests": 5,
+  "billedRequests": 3,
+  "freeRequests": 2,
+  "expected": {
+    "billed": 3,
+    "free": 2
+  },
+  "models": ["deepseek-flash"],
+  "calls": [
+    {
+      "seq": 1,
+      "name": "models-list",
+      "method": "GET",
+      "url": "https://api.deepseek.com/models",
+      "status": 200,
+      "billed": false,
+      "ms": 1017
+    },
+    {
+      "seq": 2,
+      "name": "tool-call-stream",
+      "method": "POST",
+      "url": "https://api.deepseek.com/chat/completions",
+      "status": 200,
+      "billed": true,
+      "ms": 977
+    },
+    {
+      "seq": 3,
+      "name": "followup-without-reasoning",
+      "method": "POST",
+      "url": "https://api.deepseek.com/chat/completions",
+      "status": 200,
+      "billed": true,
+      "ms": 711
+    },
+    {
+      "seq": 4,
+      "name": "tool-result-stream",
+      "method": "POST",
+      "url": "https://api.deepseek.com/chat/completions",
+      "status": 200,
+      "billed": true,
+      "ms": 839
+    },
+    {
+      "seq": 5,
+      "name": "error-invalid-model",
+      "method": "POST",
+      "url": "https://api.deepseek.com/chat/completions",
+      "status": 400,
+      "billed": false,
+      "ms": 305
+    }
+  ]
+}

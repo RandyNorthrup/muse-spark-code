@@ -7,6 +7,10 @@ import type {
   QuestionDeliveryOutcome,
   QuestionStore,
 } from '../../shared/questions'
+import { modelApiStatusSchema } from '../../shared/serviceStatus'
+import { Usd } from '../../shared/usd'
+import type { PaidUseDecision, SearchSettlement } from '../../shared/paid'
+import type { UsdAmount } from '../../shared/usd'
 import { startApprovalJudge } from '../../core/judge/use'
 // One conversation per surface: owns the MSP session for that surface, turns
 // webview requests into backend calls, and streams AgentEvents back. Also the
@@ -148,6 +152,7 @@ import {
 import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
 import type { AgentEvent, ApprovalChoice, ItemSnapshot, TodoItem } from '../../shared/agentEvents'
 import { fill, plural } from '../../shared/l10n/text'
+import type { GitDraftOutputPort } from '../../core/git/gitText'
 import type { GitAction, GitDraftKind } from '../../shared/git'
 import { backendLabel } from '../../shared/palette'
 import type { PaidUseRequest } from '../../shared/paid'
@@ -205,6 +210,7 @@ export interface GitSurface {
   /** Dynamic program details stay in the panel. */
   say(level: 'warning' | 'error', text: string): void
   sessionId(): string | undefined
+  readonly draftOutput?: () => GitDraftOutputPort | undefined
 }
 
 /** The pull request form as the user pressed Create on it. */
@@ -435,6 +441,7 @@ export interface ConversationDeps {
   /** Session history (M6). */
   readonly sessions: SessionMemory
   /** The usage modal's Account section (M14). */
+  readonly readServiceStatus?: (() => Promise<unknown>) | undefined
   readonly accountFacts: (backend: BackendKind) => Promise<AccountFacts>
   /** The usage modal's insights from the CLI's trace logs (M14); undefined without logs. */
   readonly usageInsights: () => Promise<UsageInsightsReport | undefined>
@@ -448,7 +455,7 @@ export interface ConversationDeps {
    * the free engine is.
    */
   readonly museVoice: () => DictationSetup | undefined
-  readonly modelApiSessionBudgetUsd: () => number
+  readonly modelApiSessionBudgetUsd: () => UsdAmount
   /** Digest only; available before a conversation or workspace exists. */
   readonly voiceAccountId: () => Promise<string | undefined>
   readonly ownedVoiceBudgetScope: (
@@ -493,7 +500,7 @@ export interface ConversationDeps {
   readonly confirmScheduledRun?: (job: ScheduledPrompt, modelId: string) => Promise<boolean>
   readonly isScheduledPaidOn?: () => boolean
   /** The paid-use popup (M58, PLAN.md D48): before each Muse Voice recording. */
-  readonly allowsPaidUse: (request: PaidUseRequest) => Promise<boolean>
+  readonly allowsPaidUse: (request: PaidUseRequest) => Promise<PaidUseDecision>
   /** Turn checkpoints (M72): captured around each turn, restored from a user card. */
   readonly checkpoints: CheckpointPort
   /** Files open with unsaved changes, absolute (M72: a restore leaves them). */
@@ -531,7 +538,11 @@ export interface ConversationDeps {
   /** Whether a paid feature's setting is on and its price accepted (M77). */
   readonly isPaidFeatureOn: (feature: PaidFeature) => boolean
   /** Counts a paid use in the window's tally (M77). */
-  readonly notePaidUse: (feature: PaidFeature, units: number) => void
+  readonly notePaidUse: (
+    feature: PaidFeature,
+    units: number,
+    searchPriceUsd?: UsdAmount | SearchSettlement,
+  ) => void
   /** A Model API host rooted in a best-of-N worktree (M77). */
   readonly buildAttemptHost: (
     worktreeRoot: string,
@@ -1038,10 +1049,18 @@ export class ConversationController {
   private revertsInFlight = 0
   private turnSubmissionsInFlight = 0
   private turnStartEpoch = 0
+  private gitDraftSubmission:
+    { readonly session: AgentSession; readonly port: GitDraftOutputPort } | undefined
   private session: AgentSession | undefined
   private readonly questionApprovals = new Set<string>()
   private unsubscribe: (() => void) | undefined
   private models: readonly ModelOption[] | undefined
+  /**
+   * Models the host flagged as training on the content, from the unfiltered
+   * listing (M95): the picker never sees them where confidential, and neither
+   * does a stale `setModel`. Refreshed with every listing, forgotten with it.
+   */
+  private readonly trainingModelIds = new Set<string>()
   private modelListing: Promise<void> | undefined
   /** The backend the model catalogue was listed from; a new backend or sign-in starts a new one. */
   private modelGeneration = 0
@@ -1351,6 +1370,13 @@ export class ConversationController {
         }
       },
       sessionId: () => this.session?.sessionId,
+      draftOutput: () => {
+        this.gitDraftSubmission = undefined
+        const session = this.session
+        const port = session?.gitDraftOutput
+        if (session !== undefined && port !== undefined) this.gitDraftSubmission = { session, port }
+        return port
+      },
     })
   }
 
@@ -2184,6 +2210,9 @@ export class ConversationController {
   }
 
   private onEvent(event: AgentEvent): void {
+    // Draft parsing reads the original reply before asynchronous display hooks;
+    // its turn can finish while the presentation rewrite is still waiting.
+    this.git.onEvent(event)
     if (event.type === 'itemCompleted' && this.holdForMessageDisplay(event)) {
       return
     }
@@ -2334,7 +2363,6 @@ export class ConversationController {
         : event
     this.forward(shown)
     this.track(shown)
-    this.git.onEvent(shown)
   }
 
   /**
@@ -3475,6 +3503,7 @@ export class ConversationController {
     const didHaveModels = this.models !== undefined
     this.modelGeneration += 1
     this.models = undefined
+    this.trainingModelIds.clear()
     this.modelListing = undefined
     if (didHaveModels && !this.isDisposed) {
       this.post({ type: 'modelList', models: [] })
@@ -3502,14 +3531,36 @@ export class ConversationController {
     if (this.isDisposed || this.modelGeneration !== generation) {
       return
     }
+    // A confidential workspace hides the contributor tier and any BYO model
+    // whose provider or route may train on the content (M95, PLAN.md D74).
+    // The refused ids stay known for a stale `setModel` naming one.
+    this.trainingModelIds.clear()
+    for (const model of listed) {
+      if (model.trainsOnContent === true) {
+        this.trainingModelIds.add(model.modelId)
+      }
+    }
     const models = this.deps.isConfidentialWorkspace()
-      ? listed.filter((model) => !isContributorModel(model.modelId))
+      ? listed.filter(
+          (model) => !isContributorModel(model.modelId) && model.trainsOnContent !== true,
+        )
       : listed
     this.models = models.map((model) => ({
       modelId: model.modelId,
       displayLabel: model.displayLabel,
       ...(model.contextLimit !== undefined && { contextLimit: model.contextLimit }),
       isDefault: model.isDefault,
+      ...(model.providerId !== undefined && { providerId: model.providerId }),
+      ...(model.providerLabel !== undefined && { providerLabel: model.providerLabel }),
+      ...(model.pricing !== undefined && { pricing: model.pricing }),
+      ...(model.inputUsdPerMTokens !== undefined && {
+        inputUsdPerMTokens: model.inputUsdPerMTokens,
+      }),
+      ...(model.outputUsdPerMTokens !== undefined && {
+        outputUsdPerMTokens: model.outputUsdPerMTokens,
+      }),
+      ...(model.isPinned === true && { isPinned: model.isPinned }),
+      ...(model.trainsOnContent === true && { trainsOnContent: model.trainsOnContent }),
     }))
     this.post({ type: 'modelList', models: [...this.models] })
   }
@@ -4130,7 +4181,7 @@ export class ConversationController {
         contextId: () =>
           `${String(this.sendInvalidationEpoch)}:${this.session?.sessionId ?? ''}:${String(this.isDisposed)}`,
         isBestOfNOn: () => this.deps.isPaidFeatureOn('bestOfN'),
-        allowsPaidUse: (request) => this.deps.allowsPaidUse(request),
+        allowsPaidUse: async (request) => (await this.deps.allowsPaidUse(request)) === true,
         notePaidUse: (attempts) => {
           this.deps.notePaidUse('bestOfN', attempts)
         },
@@ -5969,6 +6020,7 @@ export class ConversationController {
     isCurrent: () => boolean,
     dispatchState?: (outcome: QuestionDeliveryOutcome) => void,
     canStartTurn = true,
+    draft?: typeof this.gitDraftSubmission,
   ): Promise<TurnSubmission> {
     const registry = sessionQuestions.get(session)
     const notes = registry === undefined ? undefined : await registry.takeDismissals()
@@ -5986,6 +6038,7 @@ export class ConversationController {
         isCurrent,
         dispatch,
         canStartTurn,
+        draft,
       )
       outcome = 'taken'
       dispatchState?.(outcome)
@@ -6003,6 +6056,7 @@ export class ConversationController {
     isCurrent: () => boolean,
     dispatchState: (outcome: QuestionDeliveryOutcome) => void,
     canStartTurn: boolean,
+    draft?: typeof this.gitDraftSubmission,
   ): Promise<TurnSubmission> {
     if (!isCurrent()) {
       throw new Error(UI_TEXT.turnStoppedByRestart)
@@ -6042,6 +6096,10 @@ export class ConversationController {
     if (!canStartTurn) throw new Error(UI_TEXT.questionDismissFailed)
     dispatchState('uncertain')
     try {
+      if (draft !== undefined) {
+        if (draft.session !== session) throw new Error(UI_TEXT.gitDraftFailed)
+        if (draft.port.submit !== undefined) return await draft.port.submit(parts, displayText)
+      }
       return await session.sendTurn(parts, displayText)
     } catch (error: unknown) {
       if (isSessionNotLoadedError(error)) dispatchState('notTaken')
@@ -6147,7 +6205,8 @@ export class ConversationController {
     let seededSession: AgentSession | undefined
     // The running mark this message's turn takes over (M72), dropped if it is not sent.
     let checkpoint: PendingMark | undefined
-    const gitGeneration = gitDraft === undefined ? undefined : this.git.generationStarting(gitDraft)
+    let gitGeneration: number | undefined
+    let gitSubmission: typeof this.gitDraftSubmission
     let isGitSubmitted = false
     let hasSubmittedHandoff = false
     try {
@@ -6178,6 +6237,11 @@ export class ConversationController {
       }
       if (question !== undefined && question.session !== session)
         throw new Error(UI_TEXT.turnStoppedByRestart)
+      if (gitDraft !== undefined) {
+        gitGeneration = this.git.generationStarting(gitDraft)
+        gitSubmission = this.gitDraftSubmission
+        this.gitDraftSubmission = undefined
+      }
       this.turnSubmissionsInFlight += 1
       isCountedSubmission = true
       let expectedGeneration = this.attachmentGeneration
@@ -6318,7 +6382,9 @@ export class ConversationController {
           current,
           parts,
           displayText,
-          handoff !== undefined || (host.info.kind === 'museCode' && textFileNames.length > 0),
+          gitDraft !== undefined ||
+            handoff !== undefined ||
+            (host.info.kind === 'museCode' && textFileNames.length > 0),
           () =>
             !this.isDisposed &&
             this.sendInvalidationEpoch === sendEpoch &&
@@ -6329,6 +6395,8 @@ export class ConversationController {
             : (outcome) => {
                 question.outcome = outcome
               },
+          true,
+          gitSubmission,
         )
       })
       // A Git form may close while the submitted model call finishes. Its
@@ -7402,13 +7470,47 @@ export class ConversationController {
     }
   }
 
-  /** Whether a contributor-tier model may be used here: blocked, or confirmed once. */
+  /**
+   * Whether the model may be used here: a contributor-tier model is blocked
+   * or confirmed once, and a BYO model the listing flagged as training on
+   * the content is refused in a confidential workspace (M95, PLAN.md D74).
+   * Confidential BYO selection resolves current host privacy facts, even
+   * before the wizard's first save or after a saved route changes.
+   */
   private async allowsModel(modelId: string): Promise<boolean> {
-    // The confidential check runs before the confirmation shortcut: a
-    // workspace turned confidential after an earlier yes still never sends
-    // to a contributor (training) model.
     if (this.deps.isConfidentialWorkspace() && isContributorModel(modelId)) {
       this.notice('warning', UI_TEXT.contributorBlocked)
+      return false
+    }
+    if (this.deps.isConfidentialWorkspace() && modelId.includes('/')) {
+      const generation = this.modelGeneration
+      const actionGeneration = this.sendInvalidationEpoch
+      try {
+        const host = await this.deps.ensureHost()
+        const listed = await host.listModels()
+        if (
+          this.isDisposed ||
+          this.modelGeneration !== generation ||
+          this.sendInvalidationEpoch !== actionGeneration
+        ) {
+          return false
+        }
+        const model = listed.find((entry) => entry.modelId === modelId)
+        if (model === undefined || model.trainsOnContent === true) {
+          this.notice('warning', UI_TEXT.trainingBlocked)
+          return false
+        }
+      } catch {
+        this.notice('warning', UI_TEXT.trainingBlocked)
+        return false
+      }
+      return true
+    }
+    const isTraining =
+      this.models?.find((model) => model.modelId === modelId)?.trainsOnContent === true ||
+      this.trainingModelIds.has(modelId)
+    if (isTraining && this.deps.isConfidentialWorkspace()) {
+      this.notice('warning', UI_TEXT.trainingBlocked)
       return false
     }
     if (!isContributorModel(modelId) || this.confirmedContributor === modelId) {
@@ -8074,6 +8176,14 @@ export class ConversationController {
     this.latestUsage = subscription
     const shown = subscription
     const account = await this.deps.accountFacts(host.info.kind)
+    let serviceStatus
+    if (host.info.kind === 'modelApi' && this.deps.readServiceStatus !== undefined) {
+      try {
+        serviceStatus = modelApiStatusSchema.parse(await this.deps.readServiceStatus())
+      } catch {
+        // Public health is optional; unavailable health never replaces usage or breaks the dialog.
+      }
+    }
     const insights = host.info.kind === 'museCode' ? await this.deps.usageInsights() : undefined
     // An older read or a stopped host must not replace a newer observation.
     if (!this.canPostUsage(host) || this.latestUsage !== shown) {
@@ -8081,6 +8191,7 @@ export class ConversationController {
     }
     this.post({
       type: 'usageReport',
+      ...(serviceStatus !== undefined && { serviceStatus }),
       backend: host.info.kind,
       account,
       ...(shown !== undefined && { subscription: shown }),
@@ -8388,7 +8499,7 @@ export class ConversationController {
     if (
       museVoice !== undefined &&
       this.voiceIsModelApi() &&
-      this.deps.modelApiSessionBudgetUsd() > 0
+      Usd.from(this.deps.modelApiSessionBudgetUsd()).compare(Usd.from(0)) > 0
     ) {
       return {
         engine: 'museVoice',
@@ -8412,7 +8523,7 @@ export class ConversationController {
     if (!this.voiceIsModelApi()) {
       return undefined
     }
-    if (this.deps.modelApiSessionBudgetUsd() > 0) {
+    if (Usd.from(this.deps.modelApiSessionBudgetUsd()).compare(Usd.from(0)) > 0) {
       throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
     }
     const workspaceRoot = this.deps.workspaceRoot
@@ -8561,7 +8672,7 @@ export class ConversationController {
           throw new Error(UI_TEXT.sessionBudgetVoiceContextChanged)
         }
         if (!isSending) return
-        if (isModelApi && this.deps.modelApiSessionBudgetUsd() > 0) {
+        if (isModelApi && Usd.from(this.deps.modelApiSessionBudgetUsd()).compare(Usd.from(0)) > 0) {
           throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
         }
         const current = this.dictationChoice()
@@ -8575,7 +8686,7 @@ export class ConversationController {
       }
       consentFence(accountId, true)
       // Each Muse Voice recording is paid: the popup first (M58, PLAN.md D48).
-      const isAllowed = await this.deps.allowsPaidUse({ feature: 'voice' })
+      const isAllowed = (await this.deps.allowsPaidUse({ feature: 'voice' })) === true
       if (!isAllowed || !isCurrent() || scope?.isStillAllowed(accountId) === false) {
         this.postDictationState()
         return
@@ -8701,6 +8812,13 @@ export class ConversationController {
         break
       }
       case 'signIn': {
+        // The first-run screen's third choice (M95): not a credential but
+        // the Models & Agents wizard at "Pick a provider" (lane K's
+        // `museSpark.startWithOwnModel`; an explicit error until it lands).
+        if (message.method === 'byo') {
+          await this.runHostAction('startWithOwnModel')
+          break
+        }
         await this.deps.auth.signIn(message.method)
         this.readWaitingBrief()
         void this.warmModels()
@@ -9454,6 +9572,18 @@ export class ConversationController {
    * panel on it: restarted already when no turn ran, or, in a panel whose
    * turn runs, the offer to restart it (D26's Restart, which stops the turn).
    */
+  /** A final Meta 5xx has a fixed, translated status action; no service prose. */
+  public modelApiServiceFailed(): void {
+    if ((this.sessionKind ?? this.resumeTarget?.kind ?? this.deps.auth.backend) !== 'modelApi')
+      return
+    this.post({
+      type: 'notice',
+      level: 'warning',
+      text: UI_TEXT.modelApiServiceFailure,
+      actions: ['openModelApiStatus'],
+    })
+  }
+
   public museCodeStoppedAnswering(isRestarted: boolean): void {
     if ((this.sessionKind ?? this.resumeTarget?.kind ?? this.deps.auth.backend) !== 'museCode') {
       return

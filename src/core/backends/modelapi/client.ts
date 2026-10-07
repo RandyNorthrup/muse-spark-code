@@ -1,31 +1,35 @@
-// A thin, schema-validated client for the four Model API endpoints the
-// backend uses (PLAN.md D2): `GET /models`, `POST /responses/input_tokens`,
-// the streamed `POST /responses` and `POST /images/generations` (M34).
+import { notify } from '../../events/notify'
+import { PaidAuthority } from '../../paid/paidAuthority'
+// A thin, schema-validated Model API client (PLAN.md D2, M34, D86.6):
+// models, token counts, streamed responses, generated/edited images and
+// public service health.
 // Errors follow the documented envelope and retry policy
-// (dev.meta.ai/docs/error-handling): 429 / 500 / 503 are
+// (PLAN.md D86.6): 429 / 500 / 502 / 503 / 504 are
 // retried with exponential backoff and jitter, honouring `Retry-After`,
 // before any of the response has been read; everything else surfaces as a
 // `ModelApiError`. `fetch`, the clock and the key are injected.
 
 import { createHash } from 'node:crypto'
 import type { PaidFeature } from '../../../shared/constants'
-import type { SessionBudgetClaim } from './sessionBudget'
+import { estimateInput, requestParts, searchAllowanceUsd } from './sessionBudget'
 
 import {
   MODEL_API_MAX_RETRIES,
+  MODEL_API_BASE_URL,
   HTTP_TOO_MANY_REQUESTS,
   HTTP_STATUS,
   IMAGE_REQUEST_TIMEOUT_MS,
   MODEL_API_RETRY_BASE_MS,
   MODEL_API_RETRY_JITTER_MS,
   MODEL_API_RETRY_MAX_MS,
-  MODEL_API_RETRYABLE_STATUSES,
   MODEL_API_REQUEST_TIMEOUT_MS,
   MODEL_API_STREAM_IDLE_MS,
   MILLISECONDS_PER_SECOND,
   UI_TEXT,
+  PACING_ADMISSION_TIMEOUT_MS,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
+import { classifyRetry, RETRY_TABLES } from '../../../shared/retryPolicy'
 import { DeadlineError, withDeadline } from '../../timeouts'
 import type { CoreLogger } from '../../logging'
 import {
@@ -43,20 +47,62 @@ import {
   imagesResponseSchema,
   inputTokensSchema,
   modelListSchema,
+  modelApiStatusSchema,
   type StreamEvent,
   streamEventSchema,
 } from './schemas'
 import { parseSse } from './sse'
-import { estimateCostUsd } from '../../usage/insights'
+import { estimateCostUsd, formatUsd, type BillableUsage } from '../../usage/insights'
+import { webSearchPriceUsd } from '../../paid/paidFeatures'
+import { modelApiPaidTier, type PaidQuote, type SearchSettlement } from '../../../shared/paid'
+import { Usd, sumUsd, multiplyUsd, usdAmountSchema, type UsdAmount } from '../../../shared/usd'
+
+/** The client needs admission and settlement, not the ledger's internal totals. */
+interface PaidRequestClaim {
+  readonly reservedUsd: UsdAmount
+  check(capUsd: UsdAmount): void
+  settle(actualCostUsd: UsdAmount): Promise<unknown>
+}
+
+import {
+  ModelApiPacing,
+  metaPacingLimits,
+  type PacingClass,
+  type PacingProvider,
+  type RequestPacer,
+} from './pacing'
+import { fanOutPacingClass } from './subagentTools'
+import { redactSecrets } from '../../redact'
 
 export interface ModelApiClientDeps {
+  readonly paidAuthority?: PaidAuthority
+  /** Share across clients for one process; omitted clients own a bucket themselves. */
+  readonly pacing?: RequestPacer
+  /** One owner shares limits across its normal and best-of-N clients. */
+  readonly pacingOwner?: object
+  /** M95 binding: project the selected record's provider and captured header interpreter. */
+  readonly pacingProvider?: (modelId: string | undefined) => PacingProvider
+  /** M101 binding: FormatQuirks.retry's classification, after its quota fences. */
+  readonly isRetryableFailure?: (
+    failure: ModelApiError,
+    retryAfterMs: number | undefined,
+  ) => boolean
+  /** The host presents a 5xx banner with this public link; no response text crosses this port. */
+  readonly onServiceFailure?: (status: number, statusUrl: string) => void
   /** Interactive VS Code extras only; ACP/headless clients omit this port. */
   readonly reservePaidRequest?: (
     body: CreateResponseBody | CreateImageBody,
     feature: PaidFeature,
     estimatedInputTokens?: number,
     signal?: AbortSignal,
-  ) => Promise<SessionBudgetClaim | undefined>
+    /** M106: tokens plus the verified hosted-call allowance, computed in this bundle. */
+    reservationUsd?: UsdAmount,
+  ) => Promise<PaidRequestClaim | undefined>
+  /** M95 integration: a provider's verified hosted-search tariff, never a fallback estimate. */
+  readonly providerId?: ((modelId: string) => string) | undefined
+  readonly webSearchPriceUsd?: (modelId: string) => UsdAmount | undefined
+  /** M95's verified token pricing; an unpriced provider cannot spend under a search cap. */
+  readonly searchTokenCostUsd?: (usage: BillableUsage, modelId: string) => UsdAmount | undefined
   readonly fetch: typeof fetch
   readonly baseUrl: string
   /** Read per request so a key pasted later applies without a restart. */
@@ -67,7 +113,7 @@ export interface ModelApiClientDeps {
   /** 0 ≤ n < 1, for the retry jitter; injected so tests are deterministic. */
   readonly random: () => number
   readonly log: CoreLogger
-  /** How long a reply stream may send nothing; the constant unless a test shortens it. */
+  /** Idle limit for headers and all response-body reads; tests may shorten it. */
   readonly streamIdleMs?: number
   /**
    * Whose settings a request that never reached Meta names (M56): VS Code's
@@ -137,6 +183,8 @@ const EVENT_STREAM_MEDIA_TYPE = 'text/event-stream'
 const RETRY_AFTER_HEADER = 'retry-after'
 const NETWORK_FAILURE_STATUS = 0
 const SSE_DONE_SENTINEL = '[DONE]'
+/** HTTP's gateway timeout code, not an inferred vendor error kind. */
+const HTTP_GATEWAY_TIMEOUT = 504
 
 /** Closing a parser that already failed rejects with that failure, which the stream reported. */
 function ignoreClosingError(): void {
@@ -148,7 +196,8 @@ async function describeFailure(response: Response): Promise<ModelApiError> {
   let body: unknown
   try {
     body = await response.json()
-  } catch {
+  } catch (error: unknown) {
+    if (error instanceof ModelApiError) throw error
     body = undefined
   }
   const parsed = errorBodySchema.safeParse(body)
@@ -187,6 +236,8 @@ export function retryAfterMs(header: string | null, now: number): number | undef
 
 /** One retry the client is about to make, for the transcript's notice. */
 export interface RetryNotice {
+  /** A local admission wait is neither a failed attempt nor a billed retry. */
+  readonly phase?: 'pacing'
   readonly attempt: number
   readonly maxAttempts: number
   readonly delayMs: number
@@ -214,11 +265,17 @@ export interface ConfirmedModelRequest {
 
 /** Owned synchronous admission and attempt observation; no fields cross the HTTP wire. */
 export interface ResponseAttemptGuard {
+  readonly pacingClass?: PacingClass
   readonly paidFeature?: PaidFeature
   readonly paidEstimatedInputTokens?: number
   (keyDigest: string | undefined): void
   /** After every final fence and request build, adjacent to the actual fetch call. */
   readonly onRequestStarted?: () => void
+  /** Terminal hosted-call count, also on failed responses whose item events were omitted. */
+  readonly searchQuote?: PaidQuote
+  readonly onSearchesReturned?: (settlement: SearchSettlement) => void
+  /** A capped owner retains the old liability and reserves the next try before admitting it. */
+  readonly prepareRetry?: (keyDigest: string, signal: AbortSignal) => Promise<void>
 }
 
 function isAborted(signal: AbortSignal | undefined): boolean {
@@ -244,11 +301,33 @@ function whenAborted(signal: AbortSignal): { readonly promise: Promise<never>; d
   }
 }
 
+const ownerPacers = new WeakMap<object, RequestPacer>()
+
 export class ModelApiClient {
+  private searchClaimSequence = 0
   /** Stream event types already logged as ignored (M39). */
   private readonly ignoredEventTypes = new Set<string>()
+  private readonly pacing: RequestPacer
 
-  public constructor(private readonly deps: ModelApiClientDeps) {}
+  public constructor(private readonly deps: ModelApiClientDeps) {
+    this.pacing =
+      deps.pacing ??
+      (deps.pacingOwner === undefined ? undefined : ownerPacers.get(deps.pacingOwner)) ??
+      new ModelApiPacing({
+        now: deps.now,
+        wait: (ms, signal) => this.pause(ms, signal),
+      })
+    if (deps.pacingOwner !== undefined) ownerPacers.set(deps.pacingOwner, this.pacing)
+  }
+
+  private pacingProvider(modelId: string | undefined): PacingProvider {
+    return (
+      this.deps.pacingProvider?.(modelId) ?? {
+        identity: { provider: 'meta' },
+        readLimits: metaPacingLimits,
+      }
+    )
+  }
 
   /** The retry delay, cut short by the turn's Stop. */
   private async pause(ms: number, signal: AbortSignal | undefined): Promise<void> {
@@ -287,6 +366,71 @@ export class ModelApiClient {
     return Math.min((suggestedMs ?? exponential) + jitter, MODEL_API_RETRY_MAX_MS)
   }
 
+  /** Bound headers and every body read, without timing local admission, backoff or consumers. */
+  private async fetchWithIdleDeadline(url: string, init: RequestInit): Promise<Response> {
+    const idleMs = this.deps.streamIdleMs ?? MODEL_API_STREAM_IDLE_MS
+    const stalled = fill(UI_TEXT.modelApiStalled, {
+      seconds: Math.round(idleMs / MILLISECONDS_PER_SECOND),
+    })
+    const stall = new AbortController()
+    const active = AbortSignal.any([
+      stall.signal,
+      ...(init.signal === undefined || init.signal === null ? [] : [init.signal]),
+    ])
+    const within = async <T>(waiting: Promise<T>): Promise<T> => {
+      if (active.aborted) {
+        void waiting.catch(ignoreClosingError)
+        throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
+      }
+      const aborted = whenAborted(active)
+      try {
+        return await withDeadline(Promise.race([waiting, aborted.promise]), idleMs, stalled)
+      } catch (error: unknown) {
+        if (error instanceof DeadlineError) {
+          stall.abort()
+          throw new ModelApiError(stalled, NETWORK_FAILURE_STATUS, undefined, undefined)
+        }
+        throw error
+      } finally {
+        aborted.dispose()
+      }
+    }
+    const response = await within(this.deps.fetch(url, { ...init, signal: active }))
+    if (response.body === null) return response
+    const reader: ReadableStreamDefaultReader<Uint8Array> = response.body.getReader()
+    const cancel = (reason: unknown) => {
+      stall.abort()
+      void reader.cancel(reason).catch(ignoreClosingError)
+      reader.releaseLock()
+    }
+    const body = new ReadableStream<Uint8Array>(
+      {
+        async pull(controller) {
+          try {
+            const next = await within(reader.read())
+            if (next.done) {
+              reader.releaseLock()
+              controller.close()
+            } else {
+              controller.enqueue(next.value)
+            }
+          } catch (error: unknown) {
+            controller.error(error)
+            cancel(error)
+          }
+        },
+        cancel,
+      },
+      // Read only when a consumer asks; local event handling has no provider idle timer.
+      { highWaterMark: 0 },
+    )
+    return new Response(body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    })
+  }
+
   /**
    * One request with the documented retry policy. The response is handed
    * back unread on success; a non-2xx status becomes a `ModelApiError`.
@@ -296,6 +440,9 @@ export class ModelApiClient {
     init: {
       readonly method: 'GET' | 'POST'
       readonly body?: unknown
+      readonly modelId?: string
+      readonly pacingClass?: PacingClass
+      readonly estimatedTokens?: number
       readonly accept: string
       /**
        * `rateLimitOnly` for a request that bills per call (M34, the review
@@ -305,7 +452,7 @@ export class ModelApiClient {
        */
       readonly retries?: 'all' | 'rateLimitOnly'
       readonly paid?: {
-        readonly claim: SessionBudgetClaim
+        readonly claim: PaidRequestClaim
         isSent: boolean
       }
     },
@@ -333,6 +480,7 @@ export class ModelApiClient {
     }
     // How long the answer took, retries included, at trace level (M39).
     const startedAt = this.deps.now()
+    const provider = this.pacingProvider(init.modelId)
     for (let attempt = budget?.retriesUsed ?? 0; ; attempt += 1) {
       let credentials: Awaited<ReturnType<ModelApiClient['headers']>>
       try {
@@ -355,11 +503,53 @@ export class ModelApiClient {
       ) {
         throw new Error(UI_TEXT.scheduleConfirmationExpired)
       }
+      const account = `${provider.identity.provider}:${this.deps.baseUrl}:${credentials.keyDigest}`
+      const kind = init.pacingClass ?? 'foreground'
+      if (path === '/responses' && init.method === 'POST') {
+        const admission = new AbortController()
+        try {
+          await withDeadline(
+            this.pacing.acquire(
+              account,
+              kind,
+              init.estimatedTokens ?? 0,
+              AbortSignal.any([signal ?? new AbortController().signal, admission.signal]),
+              (delayMs) =>
+                onRetry?.({
+                  phase: 'pacing',
+                  attempt,
+                  maxAttempts: MODEL_API_MAX_RETRIES + 1,
+                  delayMs,
+                  reason: UI_TEXT.modelApiPacingWaiting,
+                }),
+            ),
+            PACING_ADMISSION_TIMEOUT_MS,
+            UI_TEXT.modelApiPacingExpired,
+          )
+        } finally {
+          admission.abort()
+        }
+        // Waiting yields: key, consent, Stop and budget fences still run
+        // immediately before dispatch, never only before joining the bucket.
+        if (kind !== 'foreground' && credentials.keyDigest !== (await this.currentKeyDigest())) {
+          throw new Error(UI_TEXT.notSignedInReason)
+        }
+      }
+      if (isAborted(signal)) {
+        throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
+      }
       // Local consent refusal is outside the transport retry catch: it never
       // becomes another billable attempt.
       if (init.paid !== undefined) {
         if (init.paid.isSent) throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
-        init.paid.claim.check(0)
+        init.paid.claim.check(Usd.from(0).toAmount())
+      }
+      if (
+        admitAttempt?.searchQuote !== undefined &&
+        this.deps.paidAuthority !== undefined &&
+        !this.deps.paidAuthority.canSpend(admitAttempt.searchQuote)
+      ) {
+        throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
       }
       admitAttempt?.(credentials.keyDigest)
       if (isAborted(signal)) {
@@ -378,9 +568,10 @@ export class ModelApiClient {
       confirmed?.onRequestStarted()
       admitAttempt?.onRequestStarted?.()
       if (init.paid !== undefined) init.paid.isSent = true
+      const sent = this.pacing.snapshot(account)
       let response: Response
       try {
-        response = await this.deps.fetch(url, requestInit)
+        response = await this.fetchWithIdleDeadline(url, requestInit)
       } catch (error: unknown) {
         if (error instanceof ModelApiError || signal?.aborted === true) {
           throw error instanceof ModelApiError
@@ -405,6 +596,19 @@ export class ModelApiClient {
         await retry(attempt, delay, reason)
         continue
       }
+      const suggestedDelayMs = retryAfterMs(
+        response.headers.get(RETRY_AFTER_HEADER),
+        this.deps.now(),
+      )
+      this.pacing.observe(
+        account,
+        provider.readLimits?.(response.headers),
+        response.status === HTTP_TOO_MANY_REQUESTS
+          ? (suggestedDelayMs ??
+              Math.min(MODEL_API_RETRY_BASE_MS * 2 ** attempt, MODEL_API_RETRY_MAX_MS))
+          : undefined,
+        sent,
+      )
       if (response.ok) {
         this.deps.log.trace(
           `Model API ${init.method} ${path} answered ${String(response.status)} in ${String(this.deps.now() - startedAt)} ms`,
@@ -417,20 +621,60 @@ export class ModelApiClient {
         (response.status === HTTP_TOO_MANY_REQUESTS || response.status === HTTP_STATUS.badRequest)
       )
         init.paid.isSent = false
-      const isRetryable = isRateLimitOnly
-        ? response.status === HTTP_TOO_MANY_REQUESTS
-        : MODEL_API_RETRYABLE_STATUSES.has(response.status)
+      // Retry classification per format (M101 BYO 5): Meta reads the
+      // responses table. Quota never retries, whatever the status; a
+      // `Retry-After` past the cap fails at once and names the wait.
+      const waitMs = suggestedDelayMs
+      const decision = classifyRetry(RETRY_TABLES.responses, {
+        status: response.status,
+        kind: failure.kind,
+        code: failure.code,
+        message: failure.message,
+        retryAfterMs: waitMs,
+      })
+      if (!decision.retry && decision.reason === 'retry-after-cap') {
+        throw new ModelApiError(
+          fill(UI_TEXT.modelApiRetryAfterTooLong, {
+            wait: Math.ceil((waitMs ?? 0) / MILLISECONDS_PER_SECOND),
+            cap: RETRY_TABLES.responses.retryAfterCapMs / MILLISECONDS_PER_SECOND,
+          }),
+          response.status,
+          failure.kind,
+          failure.code,
+        )
+      }
+      const isRetryable =
+        (this.deps.isRetryableFailure?.(failure, waitMs) ?? decision.retry) &&
+        (!isRateLimitOnly || response.status === HTTP_TOO_MANY_REQUESTS)
       if (!isRetryable || attempt >= MODEL_API_MAX_RETRIES) {
+        if (
+          response.status >= HTTP_STATUS.internalServerError &&
+          provider.identity.provider === 'meta'
+        ) {
+          notify(
+            [
+              () => {
+                this.deps.onServiceFailure?.(response.status, `${MODEL_API_BASE_URL}/status`)
+              },
+            ],
+            undefined,
+            this.deps.log,
+            'modelApi.serviceFailure',
+          )
+        }
         throw failure
       }
-      const delay = this.backoffMs(
-        attempt,
-        retryAfterMs(response.headers.get(RETRY_AFTER_HEADER), this.deps.now()),
-      )
+      const delay = this.backoffMs(attempt, waitMs)
       this.deps.log.warn(
         `Model API answered ${String(response.status)} (${failure.message}); retrying in ${String(delay)} ms`,
       )
       await retry(attempt, delay, `HTTP ${String(response.status)}: ${failure.message}`)
+      if (response.status === HTTP_GATEWAY_TIMEOUT && admitAttempt?.prepareRetry !== undefined) {
+        await admitAttempt.prepareRetry(
+          credentials.keyDigest,
+          signal ?? new AbortController().signal,
+        )
+      }
     }
   }
 
@@ -450,6 +694,7 @@ export class ModelApiClient {
         {
           method: 'POST',
           body,
+          modelId: body.model,
           accept: JSON_MEDIA_TYPE,
           retries: 'rateLimitOnly',
           ...(paid !== undefined && { paid }),
@@ -461,16 +706,74 @@ export class ModelApiClient {
       )
       const result = imagesResponseSchema.parse(await response.json())
       // The request asks for exactly one image; retain its flat fee on any ambiguous result.
-      if (claim !== undefined) await claim.settle(result.data.length === 0 ? 0 : claim.reservedUsd)
+      if (claim !== undefined)
+        await claim.settle(Usd.from(result.data.length === 0 ? 0 : claim.reservedUsd).toAmount())
       return result
     } finally {
-      if (paid?.isSent === false) await paid.claim.settle(0)
+      if (paid?.isSent === false) await paid.claim.settle(Usd.from(0).toAmount())
     }
+  }
+
+  private searchTokenCostUsd(
+    usage: BillableUsage,
+    modelId: string,
+    unknownChargeUsd?: UsdAmount,
+  ): UsdAmount {
+    const knownCost =
+      modelApiPaidTier(modelId) === undefined ? undefined : estimateCostUsd(usage, modelId)
+    const cost =
+      this.deps.searchTokenCostUsd === undefined
+        ? knownCost
+        : this.deps.searchTokenCostUsd(usage, modelId)
+    if (
+      cost === undefined ||
+      !usdAmountSchema.safeParse(cost).success ||
+      Usd.from(cost).compare(Usd.from(0)) < 0
+    ) {
+      throw new Error(
+        unknownChargeUsd === undefined
+          ? fill(UI_TEXT.sessionBudgetUnpriced, { model: modelId })
+          : fill(UI_TEXT.sessionBudgetUnknownCharge, { amount: formatUsd(unknownChargeUsd) }),
+      )
+    }
+    return Usd.from(cost).toAmount()
+  }
+
+  /** Children inherit their parent's token through the same authority. */
+  public inheritSearchQuote(parent: PaidQuote, quote: PaidQuote): boolean {
+    return this.deps.paidAuthority?.inherit(parent, quote) ?? true
+  }
+
+  public releaseSearchQuotes(
+    conversationId: string,
+    retainedQuoteIds: readonly string[] = [],
+  ): void {
+    this.deps.paidAuthority?.releaseConversation(conversationId, retainedQuoteIds)
   }
 
   /** Whether interactive extras have a finite daily admission port (D78). */
   public get hasPaidDailyBudget(): boolean {
     return this.deps.reservePaidRequest !== undefined
+  }
+
+  public providerId(modelId: string): string {
+    return this.deps.providerId?.(modelId) ?? new URL(this.deps.baseUrl).origin
+  }
+
+  public searchPriceUsd(modelId: string): UsdAmount | undefined {
+    try {
+      const price =
+        this.deps.webSearchPriceUsd === undefined
+          ? webSearchPriceUsd(modelId)
+          : this.deps.webSearchPriceUsd(modelId)
+      return price !== undefined &&
+        usdAmountSchema.safeParse(price).success &&
+        !price.startsWith('-')
+        ? price
+        : undefined
+    } catch {
+      return undefined
+    }
   }
 
   /** Bind a one-use child consent to the stored key without retaining it. */
@@ -501,12 +804,53 @@ export class ModelApiClient {
     return parsed.data.map((model) => model.id)
   }
 
+  /** Public, non-inference health read. The status capture required no authentication. */
+  public async readServiceStatus(
+    signal?: AbortSignal,
+  ): Promise<ReturnType<typeof modelApiStatusSchema.parse>> {
+    if (this.pacingProvider(undefined).identity.provider !== 'meta') {
+      throw new Error(UI_TEXT.modelApiStatusUnavailable)
+    }
+    let status = NETWORK_FAILURE_STATUS
+    let retryAfter: number | undefined
+    try {
+      const response = await this.fetchWithIdleDeadline(`${MODEL_API_BASE_URL}/status`, {
+        method: 'GET',
+        headers: { Accept: JSON_MEDIA_TYPE },
+        signal: AbortSignal.any([
+          AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+          ...(signal === undefined ? [] : [signal]),
+        ]),
+      })
+      status = response.status
+      retryAfter = retryAfterMs(response.headers.get(RETRY_AFTER_HEADER), this.deps.now())
+      if (!response.ok) {
+        void response.body?.cancel().catch(ignoreClosingError)
+        throw new Error(UI_TEXT.modelApiStatusUnavailable)
+      }
+      return modelApiStatusSchema.parse(await response.json())
+    } catch {
+      // Shared scrubber plus an allowlist: provider prose, identifiers, stack and causes never cross.
+      const failure = new ModelApiError(
+        redactSecrets(UI_TEXT.modelApiStatusUnavailable),
+        status,
+        'service_status',
+        undefined,
+      )
+      throw Object.assign(failure, { retryAfterMs: retryAfter })
+    }
+  }
+
   /** Tokens the rendered input would occupy; not billed (dev.meta.ai/docs/token-counting). */
-  public async countInputTokens(body: Omit<CreateResponseBody, 'stream'>): Promise<number> {
+  public async countInputTokens(
+    body: Omit<CreateResponseBody, 'stream'>,
+    signal?: AbortSignal,
+  ): Promise<number> {
+    const deadline = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
     const response = await this.request(
       '/responses/input_tokens',
-      { method: 'POST', body, accept: JSON_MEDIA_TYPE },
-      AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+      { method: 'POST', body, modelId: body.model, accept: JSON_MEDIA_TYPE },
+      signal === undefined ? deadline : AbortSignal.any([signal, deadline]),
     )
     return inputTokensSchema.parse(await response.json()).input_tokens
   }
@@ -552,28 +896,28 @@ export class ModelApiClient {
     ) {
       throw new Error(UI_TEXT.scheduleConfirmationExpired)
     }
-    // Nothing from the server for this long, headers or a frame, ends the
-    // turn (M39); the request is aborted too, which frees the connection.
-    const idleMs = this.deps.streamIdleMs ?? MODEL_API_STREAM_IDLE_MS
-    const stalled = fill(UI_TEXT.modelApiStalled, {
-      seconds: Math.round(idleMs / MILLISECONDS_PER_SECOND),
-    })
-    const stall = new AbortController()
-    const within = async <T>(waiting: Promise<T>): Promise<T> => {
-      try {
-        return await withDeadline(waiting, idleMs, stalled)
-      } catch (error: unknown) {
-        if (error instanceof DeadlineError) {
-          stall.abort()
-          throw new ModelApiError(stalled, NETWORK_FAILURE_STATUS, undefined, undefined)
-        }
-        throw error
-      }
-    }
     let feature = admitAttempt?.paidFeature
     if (feature === undefined && confirmed !== undefined) feature = 'scheduledPrompts'
     if (feature === undefined && body.tools.some((tool) => tool.type === 'web_search'))
       feature = 'webSearch'
+    const hasSearch = body.tools.some((tool) => tool.type === 'web_search')
+    const searchQuote = admitAttempt?.searchQuote
+    const searchPrice =
+      searchQuote?.tariffUsd ?? (hasSearch ? this.searchPriceUsd(body.model) : undefined)
+    let reservationUsd: UsdAmount | undefined
+    if (hasSearch && this.hasPaidDailyBudget) {
+      if (body.max_tool_calls === undefined) throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+      const inputTokens =
+        admitAttempt?.paidEstimatedInputTokens ??
+        estimateInput(requestParts(body), undefined).inputTokens
+      reservationUsd = sumUsd(
+        this.searchTokenCostUsd(
+          { inputTokens, outputTokens: body.max_output_tokens, cachedTokens: 0 },
+          body.model,
+        ),
+        searchAllowanceUsd(body.max_tool_calls, searchPrice),
+      )
+    }
     const claim =
       feature === undefined
         ? undefined
@@ -582,24 +926,88 @@ export class ModelApiClient {
             feature,
             admitAttempt?.paidEstimatedInputTokens,
             signal,
+            reservationUsd,
           )
     const paid = claim === undefined ? undefined : { claim, isSent: false }
+    const authority = this.deps.paidAuthority ?? new PaidAuthority()
+    const claimId =
+      searchQuote === undefined
+        ? undefined
+        : `${searchQuote.id}:${String(this.searchClaimSequence++)}`
+    const searchItems = new Set<string>()
+    let returnedSearches = 0
+    let searchCharge: SearchSettlement | undefined
+    const returnedFees = () =>
+      searchCharge?.costUsd ?? multiplyUsd(searchPrice ?? Usd.from(0).toAmount(), returnedSearches)
+    const returnedLiability = (reservedUsd: UsdAmount, shouldKeepAllowance: boolean) =>
+      sumUsd(
+        reservedUsd,
+        shouldKeepAllowance && returnedSearches <= (body.max_tool_calls ?? 0)
+          ? Usd.from(0).toAmount()
+          : Usd.from(returnedFees())
+              .subtract(
+                Usd.from(
+                  multiplyUsd(searchPrice ?? Usd.from(0).toAmount(), body.max_tool_calls ?? 0),
+                ),
+              )
+              .toAmount(),
+      )
+    const noteReturned = (isTerminal: boolean) => {
+      if (searchQuote === undefined || claimId === undefined) return
+      const effects = authority.dispatch({
+        type: 'settle',
+        claimId,
+        returnedCalls: returnedSearches,
+        isTerminal,
+      })
+      for (const effect of effects) {
+        if (effect.type === 'settled') searchCharge = effect.settlement
+      }
+      if (searchCharge !== undefined) admitAttempt?.onSearchesReturned?.(searchCharge)
+    }
+    let hasTerminal = false
+    let hasTerminalSearchCount = false
+    const noteSearchAnomaly = () => {
+      if (body.max_tool_calls !== undefined && returnedSearches > body.max_tool_calls) {
+        this.deps.log.warn(
+          `Hosted search returned ${String(returnedSearches)} calls above its bound of ${String(body.max_tool_calls)}; all calls are charged`,
+        )
+      }
+    }
     try {
-      const response = await within(
-        this.request(
-          '/responses',
-          {
-            method: 'POST',
-            body,
-            accept: EVENT_STREAM_MEDIA_TYPE,
-            ...(paid !== undefined && { paid }),
-          },
-          AbortSignal.any([signal, stall.signal]),
-          onRetry,
-          budget,
-          admitAttempt,
-          confirmed,
-        ),
+      if (searchQuote !== undefined && claimId !== undefined) {
+        if (this.deps.paidAuthority === undefined) {
+          const grant = { quote: searchQuote, generation: 'caller' }
+          authority.dispatch({ type: 'quote', ...grant, ask: true })
+          authority.dispatch({ type: 'answer', grant, answer: 'once' })
+        } else if (!authority.canSpend(searchQuote))
+          throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+        authority.dispatch({
+          type: 'reserve',
+          claimId,
+          quote: searchQuote,
+          reservedUsd: claim?.reservedUsd ?? searchAllowanceUsd(body.max_tool_calls, searchPrice),
+        })
+      }
+      const response = await this.request(
+        '/responses',
+        {
+          method: 'POST',
+          body,
+          accept: EVENT_STREAM_MEDIA_TYPE,
+          modelId: body.model,
+          pacingClass: admitAttempt?.pacingClass ?? fanOutPacingClass(feature),
+          estimatedTokens:
+            (admitAttempt?.paidEstimatedInputTokens ??
+              new TextEncoder().encode(JSON.stringify([body.input, body.instructions, body.tools]))
+                .length) + body.max_output_tokens,
+          ...(paid !== undefined && { paid }),
+        },
+        signal,
+        onRetry,
+        budget,
+        admitAttempt,
+        confirmed,
       )
       if (response.body === null) {
         throw new ModelApiError('The response had no body', response.status, undefined, undefined)
@@ -607,7 +1015,7 @@ export class ModelApiClient {
       const frames = parseSse(response.body)[Symbol.asyncIterator]()
       try {
         for (;;) {
-          const next = await within(frames.next())
+          const next = await frames.next()
           if (next.done === true) {
             return
           }
@@ -633,15 +1041,35 @@ export class ModelApiClient {
           const known = streamEventSchema.safeParse(json)
           if (known.success) {
             if (
-              claim !== undefined &&
+              known.data.type === 'response.output_item.done' &&
+              known.data.item.type === 'web_search_call'
+            ) {
+              searchItems.add(
+                known.data.item.id ??
+                  (known.data.output_index === undefined
+                    ? `unidentified:${String(searchItems.size)}`
+                    : `index:${String(known.data.output_index)}`),
+              )
+              returnedSearches = searchItems.size
+              noteReturned(false)
+            }
+            if (
               ['response.completed', 'response.incomplete', 'response.failed'].includes(
                 known.data.type,
               ) &&
               'response' in known.data
             ) {
+              returnedSearches = Math.max(
+                returnedSearches,
+                known.data.response.output.filter((item) => item.type === 'web_search_call').length,
+              )
+              hasTerminalSearchCount = true
+              noteReturned(true)
+              noteSearchAnomaly()
               const usage = known.data.response.usage
               const cached = usage?.input_tokens_details?.cached_tokens ?? 0
               if (
+                claim !== undefined &&
                 usage !== null &&
                 usage !== undefined &&
                 Number.isSafeInteger(usage.input_tokens) &&
@@ -652,17 +1080,27 @@ export class ModelApiClient {
                 cached >= 0 &&
                 cached <= usage.input_tokens
               ) {
+                const billable = {
+                  inputTokens: usage.input_tokens,
+                  outputTokens: usage.output_tokens,
+                  cachedTokens: cached,
+                }
                 await claim.settle(
-                  estimateCostUsd(
-                    {
-                      inputTokens: usage.input_tokens,
-                      outputTokens: usage.output_tokens,
-                      cachedTokens: cached,
-                    },
-                    body.model,
+                  sumUsd(
+                    hasSearch
+                      ? this.searchTokenCostUsd(
+                          billable,
+                          body.model,
+                          returnedLiability(claim.reservedUsd, false),
+                        )
+                      : estimateCostUsd(billable, body.model),
+                    returnedFees(),
                   ),
                 )
+              } else if (claim !== undefined && hasSearch && body.max_tool_calls !== undefined) {
+                await claim.settle(returnedLiability(claim.reservedUsd, false))
               }
+              hasTerminal = true
             }
             yield known.data
             continue
@@ -690,7 +1128,11 @@ export class ModelApiClient {
         void frames.return(undefined).catch(ignoreClosingError)
       }
     } finally {
-      if (paid?.isSent === false) await paid.claim.settle(0)
+      if (!hasTerminal) noteSearchAnomaly()
+      if (paid?.isSent === false) await paid.claim.settle(Usd.from(0).toAmount())
+      else if (paid !== undefined && hasSearch && !hasTerminal) {
+        await paid.claim.settle(returnedLiability(paid.claim.reservedUsd, !hasTerminalSearchCount))
+      }
     }
   }
 }

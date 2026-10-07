@@ -26,6 +26,15 @@ transport is Node's `https` implementation: VS Code proxy/PAC settings do
 not apply. Its proxy and certificate behavior follows the installed Node
 version and environment, rather than VS Code's network patch.
 
+On the Model API backend, ACP and headless conversations pack long tool
+outputs by default for tool-capable models: an output over 8,000 characters
+is sent whole twice, then as a stable placeholder. `recall_output` reads exact
+original pages, with optional case-sensitive literal `search`. Reopened
+conversations keep their sticky placeholders, including after a crash while
+Manual approval is pending. Recall continues the ordinary billed model turn;
+it makes no separate paid-feature request. The VS Code packing setting does
+not apply to this process.
+
 The configuration below names the command and its arguments. Where each
 editor keeps its agent settings is in that editor's documentation, linked
 from [the compatibility plan](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/ide-compatibility.md#32-ides-and-editors-reached-through-a-shared-acp-agent);
@@ -212,18 +221,19 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 
 ## Interactive ACP options
 
-| Argument                               | Effect                                                                                                                  |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `--backend museCode\|modelApi`         | Which backend, and so who pays (default `museCode`)                                                                     |
-| `--trust-workspace`                    | Load the folder's rules, skills and memory, as Muse Code's own flag does. Without it the folder is treated as untrusted |
-| `--muse-binary <path>`                 | The Muse Code CLI to run; by default the agent looks where the VS Code extension looks                                  |
-| `--shell-sandbox auto\|muse\|off`      | Muse Code's shell sandbox, as the extension's `museSpark.shellSandbox` setting                                          |
-| `--questions-defer-after <seconds>`    | M112: 60 by default; 0 waits indefinitely; 1–9 become 10; maximum 3600. Clients without forms defer immediately.        |
-| `--allow-dangerously-skip-permissions` | Offer the Bypass permissions mode                                                                                       |
-| `--allow-contributor-models`           | List contributor-tier models, whose content Meta may train on; they are hidden otherwise                                |
-| `--web-search`                         | Offer paid web search (Model API backend only); each prompt asks in the editor first, naming the price                  |
-| `--image-generation`                   | Offer paid image generation (Model API backend only); each image asks in the editor first, naming the price             |
-| `--verbose`                            | Log every detail to stderr (the editor's agent log)                                                                     |
+| Argument                               | Effect                                                                                                                            |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `--backend museCode\|modelApi`         | Which backend, and so who pays (default `museCode`)                                                                               |
+| `--trust-workspace`                    | Load the folder's rules, skills and memory, as Muse Code's own flag does. Without it the folder is treated as untrusted           |
+| `--muse-binary <path>`                 | The Muse Code CLI to run; by default the agent looks where the VS Code extension looks                                            |
+| `--shell-sandbox auto\|muse\|off`      | Muse Code's shell sandbox, as the extension's `museSpark.shellSandbox` setting                                                    |
+| `--questions-defer-after <seconds>`    | M112: 60 by default; 0 waits indefinitely; 1–9 become 10; maximum 3600. Clients without forms defer immediately.                  |
+| `--allow-dangerously-skip-permissions` | Offer the Bypass permissions mode                                                                                                 |
+| `--allow-contributor-models`           | List contributor-tier models, whose content Meta may train on; they are hidden otherwise                                          |
+| `--web-search`                         | Offer paid web search (Model API backend only); each prompt asks in the editor first, naming the price                            |
+| `--image-generation`                   | Offer paid image generation (Model API backend only); each image asks in the editor first, naming the price                       |
+| `--verbose`                            | Log every detail to stderr (the editor's agent log)                                                                               |
+| `--no-auto-compaction`                 | Disable automatic compaction in the shared Model API core (also accepted by exec); production is awaiting evaluation and inactive |
 
 ## What the editor sees
 
@@ -465,13 +475,26 @@ known patterns and the exact key literal, not every unknown secret.
 
 Read [the complete CLI/CI guide](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/ci.md)
 for all options, limits, conditional billing theorem, Action lifecycle and
-workflow templates. Schemas ship as `schemas/exec-result-v1.schema.json`
-and `schemas/exec-event-v1.schema.json`; canonical
-[result](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/schemas/exec-result-v1.schema.json),
-[event](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/schemas/exec-event-v1.schema.json)
+workflow templates. Schemas ship as `schemas/exec-result-v2.schema.json`
+and `schemas/exec-event-v2.schema.json`; canonical
+[result](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/schemas/exec-result-v2.schema.json),
+[event](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/schemas/exec-event-v2.schema.json)
 and [receipts](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/certification/m80.md)
-use absolute links because npm does not resolve relative links. Registry Action
+use absolute links because npm does not resolve relative links. Version 2 is the
+canonical contract: USD amounts are exact decimal strings. The historical v1
+numeric-money schemas and reader are legacy compatibility only; current output
+and Action validation require v2. Registry Action
 support still requires post-release LR, beyond unsigned candidate acceptance.
+
+ACP advertises `/compact` alongside skills. An exact text-only `/compact`
+prompt calls the backend's shared compaction core and waits for its updates
+before returning. Cancellation stops the compaction; another prompt is refused
+while it runs. The headless runtime uses this same ACP dispatch and its existing
+request/budget ledger. On an empty headless session, `/compact` is a no-op and
+sends no model request. Its exec result retains the response-proof contract:
+`incomplete` (exit 8), null terminal and `no_compactable_history`, rather than
+claiming a completed model response. Attachments or additional arguments remain ordinary
+prompts, rather than being silently discarded as command input.
 
 ## Report a problem (M93)
 
@@ -564,3 +587,38 @@ are neither a fabricated zero nor evidence of recovery. No resource action
 changes model capabilities, paid consent or the shared budget. Runtime spawn,
 native control, journal and relocation bindings remain named in
 [M107's integration record](certification/m107.md).
+
+## Structured headless answers
+
+`exec --output-schema <file>` reads a bounded JSON Schema file through an open
+file descriptor, verifies its identity and confines its real path to the
+workspace. `--output-schema-outside` explicitly permits an external path.
+The strict subset supports bounded local `$defs`/`$ref` references. It rejects
+external references, reference-only cycles and unsupported constraints such as
+regular expressions. Objects are closed and require every declared property;
+arrays declare their item type. Recursive object definitions are permitted.
+Both schemas and answers have byte, depth, node and validation work limits. Its closed schema and digest are fixed before session dispatch;
+a changed model, active session or repeated configuration is refused.
+
+The captured `muse-spark-1.3-contributor` record selects provider strict JSON
+Schema. An unknown model uses the explicitly announced local validator with
+the schema appended outside the reusable prefix. The runtime does not invent
+a forced-tool codec. This is a local wiring receipt, not release qualification
+for providers whose transports/capability records are absent from this base.
+
+Successful version-2 results add `output.value` and `output.validation`
+(`provider` or `local`), paired with `ledger.outputSchemaSha256`. Event and result
+readers validate the same canonical contract; schema mismatch or validation
+budget exhaustion exits 10, retaining incurred spend and the schema digest.
+No repair call runs for the final answer. Partial invalid JSON is withheld,
+secret scanning still precedes output, and calls without these flags retain
+the ordinary request and result bytes. The schema body is not stored in the
+ledger. The attached schema does not change headless paid-feature opt-ins,
+consent exclusions or the conditional budget theorem above.
+
+The portable core shares strict declarations, safe parallel reads, bounded
+retry/idle waits, fresh repeat witnesses and output continuation with the
+extension. Provider-specific evidence is injected at the backend factory;
+unknown capabilities stay off. Native Muse Code effort, deletion and feedback
+remain unavailable until their captured feature ports are supplied. These
+limits apply equally to every ACP editor and to headless execution.

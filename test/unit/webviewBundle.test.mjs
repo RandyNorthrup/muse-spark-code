@@ -141,6 +141,12 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(overflow.status).toBe(1)
     expect(overflow.stdout).toContain('OVER dist/webview question UI:')
   })
+  it.each(['dist/acp.js', 'dist/exec.js'])(
+    'keeps standalone Node %s free of browser navigator probes',
+    (file) => {
+      expect(readFileSync(file, 'utf8')).not.toMatch(/\bnavigator\b/)
+    },
+  )
 
   it('keeps all initial JavaScript within the unchanged 900 KiB cap', () => {
     const bytes = [...initialOutputs()].reduce((sum, output) => sum + statSync(output).size, 0)
@@ -186,6 +192,8 @@ describe('the production webview chunks (FIX78W)', () => {
     'GooeyMenuContent',
     'UsageDialogContent',
     'AgentMapContent',
+    'ToolArgumentPreview',
+    'ServiceStatusRow',
   ])('loads %s only through its dynamic import', (name) => {
     const source = `src/webview/components/${name}.tsx`
     const owners = Object.entries(built.outputs).filter(([, output]) =>
@@ -223,6 +231,26 @@ describe('the production webview chunks (FIX78W)', () => {
       )
     },
   )
+  it('keeps the substantive preview UI in its lazy chunk', () => {
+    const source = 'src/webview/components/ToolArgumentPreview.tsx'
+    const [file] = Object.entries(built.outputs).find(([, output]) =>
+      Object.hasOwn(output.inputs, source),
+    )
+    const chunk = readFileSync(file, 'utf8')
+    for (const key of [
+      'toolArgumentPreviewLabel',
+      'toolArgumentPreviewPending',
+      'toolArgumentPreviewPreparing',
+      'toolArgumentPreviewTruncated',
+    ]) {
+      expect(chunk).toContain(key)
+    }
+    const row = readFileSync('src/webview/components/ToolRow.tsx', 'utf8')
+    expect(row).not.toContain('toolArgumentPreviewLabel')
+    expect(row).not.toContain('toolArgumentPreviewPending')
+    expect(row).not.toContain('toolArgumentPreviewPreparing')
+    expect(row).not.toContain('toolArgumentPreviewTruncated')
+  })
 
   it.each([
     'src/shared/l10n/en.ts',
@@ -230,10 +258,52 @@ describe('the production webview chunks (FIX78W)', () => {
     'node_modules/react/cjs/react.production.js',
   ])('shares one copy of %s with both panels', (source) => {
     const owners = Object.entries(built.outputs).filter(([, output]) =>
-      Object.hasOwn(output.inputs, source),
+      Object.keys(output.inputs).some((file) => file.replaceAll('\\', '/') === source),
     )
     expect(owners).toHaveLength(1)
     expect(initialOutputs().has(owners[0][0])).toBe(true)
+  })
+
+  it('refuses resource policy leaking into activation’s emitted inputs', () => {
+    const file = 'dist/meta/extension.json'
+    const original = readFileSync(file)
+    try {
+      const meta = JSON.parse(original.toString('utf8'))
+      const output = Object.entries(meta.outputs).find(
+        ([file]) => file.replaceAll('\\', '/') === 'dist/extension.js',
+      )?.[1]
+      if (output === undefined) throw new Error('Missing activation output')
+      output.inputs['src/core/resources/governor.ts'] = { bytesInOutput: 1 }
+      writeFileSync(file, JSON.stringify(meta))
+      const result = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
+        encoding: 'utf8',
+      })
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain(
+        'dist/extension.js carries resource policy src/core/resources/governor.ts outside the lazy governor',
+      )
+    } finally {
+      writeFileSync(file, original)
+    }
+    expect(readFileSync(file).equals(original)).toBe(true)
+  })
+
+  it('keeps provider pacing in its lazy Model API inventory', () => {
+    const result = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
+      encoding: 'utf8',
+    })
+    expect(result.status, result.stdout + result.stderr).toBe(0)
+    const source = 'src/core/backends/modelapi/pacing.ts'
+    for (const [meta, present] of [
+      ['dist/meta/modelApi.json', true],
+      ['dist/meta/extension.json', false],
+      ['dist/meta-acp/acp.json', false],
+    ]) {
+      const inputs = Object.keys(JSON.parse(readFileSync(meta, 'utf8')).inputs).map((file) =>
+        file.replaceAll('\\', '/'),
+      )
+      expect(inputs.includes(source)).toBe(present)
+    }
   })
 
   it('packages every emitted browser script, with no stale browser chunks', async () => {
@@ -245,6 +315,7 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(listed).toEqual(
       [
         ...Object.keys(built.outputs),
+        ...Object.keys(JSON.parse(readFileSync('dist/meta/modelsWebview.json', 'utf8')).outputs),
         ...Object.keys(JSON.parse(readFileSync('dist/meta/whatsNewPage.json', 'utf8')).outputs),
         ...Object.keys(JSON.parse(readFileSync('dist/meta/referencePage.json', 'utf8')).outputs),
       ]

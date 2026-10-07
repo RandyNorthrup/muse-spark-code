@@ -26,7 +26,7 @@
           "properties": {
             "budgetUsd": {
               "anyOf": [
-                { "type": "number", "exclusiveMinimum": 0, "maximum": 20 },
+                { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
                 { "type": "null" }
               ]
             },
@@ -173,18 +173,18 @@
         },
         "phase": { "type": "string", "enum": ["admitted", "settled"] },
         "maxOutputTokens": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
-        "reservedUsd": { "type": "number", "minimum": 0 },
+        "reservedUsd": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
         "outcome": { "type": "string", "enum": ["priced", "full-reservation"] },
-        "chargedUsd": { "type": "number", "minimum": 0 },
+        "chargedUsd": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
         "terminal": { "type": ["string", "null"] },
         "totals": {
           "type": "object",
           "properties": {
-            "capUsd": { "type": "number", "minimum": 0 },
-            "settledUsd": { "type": "number", "minimum": 0 },
-            "uncertainUsd": { "type": "number", "minimum": 0 },
-            "reservedUsd": { "type": "number", "minimum": 0 },
-            "remainingUsd": { "type": "number", "minimum": 0 },
+            "capUsd": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
+            "settledUsd": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
+            "uncertainUsd": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
+            "reservedUsd": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
+            "remainingUsd": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
             "requests": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
             "tokens": {
               "type": "object",
@@ -204,8 +204,11 @@
                 "imagesReturned": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
                 "imagesRefunded": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
                 "imagesUncertain": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
-                "settledUsd": { "type": "number", "minimum": 0 },
-                "uncertainUsd": { "type": "number", "minimum": 0 }
+                "settledUsd": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
+                "uncertainUsd": {
+                  "type": "string",
+                  "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                }
               },
               "required": [
                 "imageAttempts",
@@ -304,7 +307,7 @@
           "enum": ["admitted", "returned", "refunded", "uncertain", "refused"]
         },
         "units": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
-        "usd": { "type": "number", "minimum": 0 },
+        "usd": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
         "reason": { "type": "string" },
         "v": { "type": "number", "const": 2 },
         "seq": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
@@ -368,7 +371,7 @@
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "type": "object",
           "properties": {
-            "v": { "type": "number", "const": 1 },
+            "v": { "type": "number", "const": 2 },
             "status": {
               "type": "string",
               "enum": [
@@ -399,6 +402,15 @@
             "sessionId": { "type": ["string", "null"] },
             "ephemeral": { "type": "boolean" },
             "finalMessage": { "type": "string" },
+            "output": {
+              "type": "object",
+              "properties": {
+                "value": { "$ref": "#/$defs/__schema0" },
+                "validation": { "type": "string", "enum": ["provider", "local"] }
+              },
+              "required": ["value", "validation"],
+              "additionalProperties": false
+            },
             "filesChanged": { "type": "array", "items": { "type": "string", "minLength": 1 } },
             "denials": {
               "type": "array",
@@ -467,10 +479,22 @@
                     {
                       "type": "object",
                       "properties": {
-                        "settled": { "type": "number", "minimum": 0 },
-                        "uncertain": { "type": "number", "minimum": 0 },
-                        "reserved": { "type": "number", "minimum": 0 },
-                        "total": { "type": "number", "minimum": 0 },
+                        "settled": {
+                          "type": "string",
+                          "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                        },
+                        "uncertain": {
+                          "type": "string",
+                          "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                        },
+                        "reserved": {
+                          "type": "string",
+                          "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                        },
+                        "total": {
+                          "type": "string",
+                          "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                        },
                         "isUpperBound": { "type": "boolean" }
                       },
                       "required": ["settled", "uncertain", "reserved", "total", "isUpperBound"],
@@ -502,8 +526,14 @@
                       "minimum": 0,
                       "maximum": 9007199254740991
                     },
-                    "settledUsd": { "type": "number", "minimum": 0 },
-                    "uncertainUsd": { "type": "number", "minimum": 0 }
+                    "settledUsd": {
+                      "type": "string",
+                      "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                    },
+                    "uncertainUsd": {
+                      "type": "string",
+                      "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                    }
                   },
                   "required": [
                     "imageAttempts",
@@ -532,7 +562,8 @@
                 {
                   "type": "object",
                   "properties": {
-                    "capUsd": { "type": "number", "exclusiveMinimum": 0, "maximum": 20 },
+                    "outputSchemaSha256": { "type": "string", "pattern": "^[a-f\\d]{64}$" },
+                    "capUsd": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
                     "breach": { "type": "boolean" },
                     "refusal": {
                       "anyOf": [
@@ -592,7 +623,7 @@
               "properties": {
                 "budgetUsd": {
                   "anyOf": [
-                    { "type": "number", "exclusiveMinimum": 0, "maximum": 20 },
+                    { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
                     { "type": "null" }
                   ]
                 },
@@ -642,6 +673,18 @@
             "error"
           ],
           "additionalProperties": false,
+          "$defs": {
+            "__schema0": {
+              "anyOf": [
+                { "type": "string" },
+                { "type": "number" },
+                { "type": "boolean" },
+                { "type": "null" },
+                { "type": "array", "items": { "$ref": "#/$defs/__schema0" } },
+                {}
+              ]
+            }
+          },
           "allOf": [
             {
               "if": { "properties": { "status": { "const": "completed" } } },
@@ -669,7 +712,7 @@
               "if": { "properties": { "status": { "const": "failed" } } },
               "then": {
                 "properties": {
-                  "exitCode": { "const": 4 },
+                  "exitCode": { "enum": [4, 10] },
                   "signal": { "type": "null" },
                   "error": { "type": "object" }
                 }
@@ -756,6 +799,41 @@
               }
             },
             {
+              "if": { "properties": { "exitCode": { "const": 10 } } },
+              "then": {
+                "properties": {
+                  "status": { "const": "failed" },
+                  "error": {
+                    "properties": {
+                      "kind": {
+                        "enum": ["output_schema_mismatch", "output_schema_validation_budget"]
+                      }
+                    },
+                    "required": ["kind"]
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "error": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "enum": ["output_schema_mismatch", "output_schema_validation_budget"]
+                      }
+                    },
+                    "required": ["kind"]
+                  }
+                },
+                "required": ["error"]
+              },
+              "then": {
+                "properties": { "status": { "const": "failed" }, "exitCode": { "const": 10 } }
+              }
+            },
+            {
               "if": { "properties": { "status": { "const": "cancelled" } } },
               "then": {
                 "properties": { "error": { "type": "object" } },
@@ -768,12 +846,32 @@
                   }
                 ]
               }
+            },
+            {
+              "if": { "required": ["output"] },
+              "then": {
+                "properties": {
+                  "status": { "const": "completed" },
+                  "ledger": { "type": "object", "required": ["outputSchemaSha256"] }
+                },
+                "required": ["ledger"]
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "status": { "const": "completed" },
+                  "ledger": { "type": "object", "required": ["outputSchemaSha256"] }
+                },
+                "required": ["ledger"]
+              },
+              "then": { "required": ["output"] }
             }
           ],
           "x-runtime-invariants": [
             "Muse Code has null requests/cost/ledger/budget/request limit and zero paid totals; completed Model API results have accounting. Available cap matches limits and bounds total in micro-USD.",
             "Completed Model API results require latest completed, valid, priced settlement with no transport failure.",
-            "USD fields are safe integer micro-USD conversions; total = settled + uncertain + reserved in micro-USD.",
+            "USD fields are canonical decimal strings exactly representable in micro-USD; total = settled + uncertain + reserved in micro-USD.",
             "Cached tokens <= input tokens; reasoning tokens <= output tokens; counters are safe nonnegative integers.",
             "Paid returned + refunded + uncertain units <= admitted image attempts.",
             "Workspace-relative forward-slash paths are deduplicated; input names are basenames."
@@ -913,6 +1011,16 @@
     }
   ],
   "$defs": {
+    "__schema0": {
+      "anyOf": [
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "boolean" },
+        { "type": "null" },
+        { "type": "array", "items": { "$ref": "#/$defs/__schema0" } },
+        {}
+      ]
+    },
     "execSafeUpdateValue": {
       "anyOf": [
         { "type": ["string", "number", "boolean", "null"] },
@@ -936,6 +1044,6 @@
     "ACP chunk/tool variants and nested rawInput/rawOutput/toolCallId are prohibited in update ($defs.execSafeUpdateValue enforces it).",
     "Tool events contain name, status and durationMs only; incomplete message text is withheld whole.",
     "Ledger cap = settledUsd + uncertainUsd + reservedUsd + remainingUsd in safe integer micro-USD.",
-    "Event envelope v2 adds resource events; nested exec results retain the v1 result contract. Resource events never carry process identity, commands, paths or environment."
+    "Event envelope v2 adds resource events; nested exec results use the v2 structured-output result contract. Resource events never carry process identity, commands, paths or environment."
   ]
 }

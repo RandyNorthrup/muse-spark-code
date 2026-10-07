@@ -566,6 +566,13 @@ async function openQuestion(h: ReturnType<typeof agentHarness>, client: acp.Clie
   return started
 }
 
+async function queueIdleAnswer(h: ReturnType<typeof agentHarness>, client: acp.ClientContext) {
+  const { response } = await openQuestion(h, client)
+  h.finish()
+  await response
+  await h.prompt(client, '/answer 1 Blue')
+}
+
 async function resumeActiveTurn(h: ReturnType<typeof agentHarness>, client: acp.ClientContext) {
   const resume = h.host.resumeSession.getMockImplementation()!
   h.host.resumeSession.mockImplementationOnce(async (...args) => ({
@@ -819,10 +826,7 @@ describe('M112 through the pinned ACP SDK client', () => {
   it('an idle answer announces queued until the next prompt sends it', async () => {
     const h = agentHarness()
     await h.run(async (client) => {
-      const { response } = await openQuestion(h, client)
-      h.finish()
-      await response
-      await h.prompt(client, '/answer 1 Blue')
+      await queueIdleAnswer(h, client)
       const notices = h.updates.filter((update) => update.sessionUpdate === 'agent_message_chunk')
       expect(notices).toContainEqual({
         sessionUpdate: 'agent_message_chunk',
@@ -837,6 +841,30 @@ describe('M112 through the pinned ACP SDK client', () => {
       h.finish('turn-2')
       await next
       expect(JSON.stringify(h.updates)).toContain(UI_TEXT.announceLateAnswerSent)
+      expect(h.registries[0]?.queued).toHaveLength(0)
+    })
+  })
+
+  it('manual compaction returns a leased late answer for the next ordinary prompt', async () => {
+    const h = agentHarness()
+    await h.run(async (client) => {
+      await queueIdleAnswer(h, client)
+      await h.prompt(client, '/compact')
+      expect(h.session.compact).toHaveBeenCalledOnce()
+      expect(h.session.sendTurn).toHaveBeenCalledTimes(1)
+      expect(h.registries[0]?.acknowledgeQueued).toHaveBeenLastCalledWith('notTaken')
+      expect(h.registries[0]?.queued).toHaveLength(1)
+      const next = h.prompt(client, 'continue')
+      await until(() => h.session.sendTurn.mock.calls.length === 2)
+      expect(h.session.sendTurn.mock.calls[1]?.[0]?.[0]).toMatchObject({
+        type: 'text',
+        text: expect.stringContaining('Answer to your earlier question q-1'),
+      })
+      expect(h.session.sendTurn.mock.calls[1]?.[0]?.[0]).toMatchObject({
+        text: expect.stringContaining('Blue'),
+      })
+      h.finish('turn-2')
+      await next
       expect(h.registries[0]?.queued).toHaveLength(0)
     })
   })
@@ -915,9 +943,15 @@ describe('M112 through the pinned ACP SDK client', () => {
       const commands = h.updates.flatMap((update) =>
         update.sessionUpdate === 'available_commands_update' ? update.availableCommands : [],
       )
-      expect(commands.map((command) => command.name)).toEqual(['help', 'answer', 'questions'])
+      expect(commands.map((command) => command.name)).toEqual([
+        'help',
+        'compact',
+        'answer',
+        'questions',
+      ])
       expect(commands.map((command) => command.description)).toEqual([
         UI_TEXT.referenceIntro,
+        UI_TEXT.compactDetail,
         UI_TEXT.acpAnswerHelp,
         UI_TEXT.acpQuestionsHelp,
       ])

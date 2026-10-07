@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // MCP elicitation on a live Model API session (M91 lane M): the form in
 // every approval mode including Bypass, accept/decline/cancel, refused
 // answers, declined schemas, the hook seam, timeouts and stops, and values
@@ -111,7 +112,7 @@ function setup(
     isPaidFeatureOn: (feature) => feature === 'subagents' && options.hasSubagentForm === true,
     notePaidUse: vi.fn(),
     promptCacheRetention: () => 'in_memory',
-    sessionBudgetUsd: () => 0,
+    sessionBudgetUsd: () => Usd.from(0).toAmount(),
     showReplyUsage: () => false,
     getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
     allowsPaidUse: () => Promise.resolve(true),

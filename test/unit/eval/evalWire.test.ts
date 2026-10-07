@@ -1,3 +1,4 @@
+import { Usd } from '../../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { EVAL_BUDGET_USD, EVAL_MODEL_ID } from '../../../src/shared/constants'
@@ -33,7 +34,7 @@ function wireOn(fetch: typeof globalThis.fetch, budget?: EvalBudget) {
   return createEvalWire({
     fetch,
     baseUrl: FAKE_MODEL_API_BASE_URL,
-    budget: budget ?? { spentUsd: 0 },
+    budget: budget ?? { spentUsd: Usd.from(0).toAmount() },
   })
 }
 
@@ -72,7 +73,7 @@ async function refusalOf(response: Response): Promise<string> {
 
 async function expectUnpricedUsage(wire: EvalWire, budget: EvalBudget, api: FakeModelApi) {
   await wire.settle()
-  expect(budget).toEqual({ spentUsd: 0, hasUnknownUsage: true })
+  expect(budget).toEqual({ spentUsd: Usd.from(0).toAmount(), hasUnknownUsage: true })
   expect(wireTotals(wire)).toMatchObject({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 })
   const sent = api.requests.length
   const later = wireOn(api.fetch, budget)
@@ -85,7 +86,7 @@ describe('eval wire', () => {
   it('counts a model call and the usage Meta returned, and charges the budget', async () => {
     const api = fakeModelApi()
     api.script({ text: 'ok', usage: { input: 1000, output: 100, cached: 400 } })
-    const budget = { spentUsd: 0 }
+    const budget = { spentUsd: Usd.from(0).toAmount() }
     const wire = wireOn(api.fetch, budget)
     const response = await wire.fetch(RESPONSES_URL, modelCall())
     await response.text()
@@ -114,7 +115,11 @@ describe('eval wire', () => {
     const response = await wire.fetch(`${FAKE_MODEL_API_BASE_URL}/models`, { headers: HEADERS })
     await response.json()
     await wire.settle()
-    expect(wireTotals(wire)).toMatchObject({ attempts: 0, requests: 1, costUsd: 0 })
+    expect(wireTotals(wire)).toMatchObject({
+      attempts: 0,
+      requests: 1,
+      costUsd: Usd.from(0).toAmount(),
+    })
   })
 
   it('counts a refused and a failed model call as attempts, with no usage', async () => {
@@ -261,7 +266,7 @@ describe('eval wire', () => {
 
   it('refuses everything once the budget is spent', async () => {
     const api = fakeModelApi()
-    const wire = wireOn(api.fetch, { spentUsd: EVAL_BUDGET_USD })
+    const wire = wireOn(api.fetch, { spentUsd: Usd.from(EVAL_BUDGET_USD).toAmount() })
     expect(await refusalOf(await wire.fetch(RESPONSES_URL, modelCall()))).toBe(
       `the evaluation's budget of $${EVAL_BUDGET_USD.toFixed(2)} is spent`,
     )
@@ -297,7 +302,7 @@ describe('eval wire', () => {
   ])('refuses later arms after invalid usage %j', async (usage) => {
     const api = fakeModelApi()
     api.script({ text: 'ok', usage }, { text: 'a later call must not be sent' })
-    const budget: EvalBudget = { spentUsd: 0 }
+    const budget: EvalBudget = { spentUsd: Usd.from(0).toAmount() }
     const first = wireOn(api.fetch, budget)
     const response = await first.fetch(RESPONSES_URL, modelCall())
     await response.text()
@@ -318,7 +323,7 @@ describe('eval wire', () => {
       const send: typeof fetch = () =>
         Promise.resolve(new Response(raw, { headers: { 'content-type': 'text/event-stream' } }))
       const api = fakeModelApi()
-      const budget: EvalBudget = { spentUsd: 0 }
+      const budget: EvalBudget = { spentUsd: Usd.from(0).toAmount() }
       const first = wireOn(send, budget)
       const response = await first.fetch(RESPONSES_URL, modelCall())
       await response.text()
@@ -332,7 +337,7 @@ describe('eval wire', () => {
     async (kind) => {
       const api = fakeModelApi()
       api.script({ networkError: 'the network is down' })
-      const budget: EvalBudget = { spentUsd: 0 }
+      const budget: EvalBudget = { spentUsd: Usd.from(0).toAmount() }
       const nonStreamSend =
         kind === 'network'
           ? api.fetch
@@ -363,7 +368,7 @@ describe('eval wire', () => {
   it.each(['unknown', 'spent'])('rechecks %s budget after a held request body', async (kind) => {
     const api = fakeModelApi()
     api.script({ text: 'ok' })
-    const budget: EvalBudget = { spentUsd: 0 }
+    const budget: EvalBudget = { spentUsd: Usd.from(0).toAmount() }
     const wire = wireOn(api.fetch, budget)
     const held = Promise.withResolvers<undefined>()
     const entered = Promise.withResolvers<undefined>()
@@ -381,7 +386,7 @@ describe('eval wire', () => {
     if (kind === 'unknown') {
       budget.hasUnknownUsage = true
     } else {
-      budget.spentUsd = EVAL_BUDGET_USD
+      budget.spentUsd = Usd.from(EVAL_BUDGET_USD).toAmount()
     }
     held.resolve(undefined)
     expect(await refusalOf(await waiting)).toContain(kind === 'unknown' ? 'unknown usage' : 'spent')

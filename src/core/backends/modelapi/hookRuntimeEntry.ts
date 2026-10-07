@@ -4,10 +4,10 @@
 //
 // - lane E's spark-hooks.json reader and its extension-event dispatcher;
 // - lane H's typed handlers (http, mcp_tool, prompt and agent);
-// - lane M's checks on an MCP server's form request and on the answer to it.
+// - lane M's checks on an MCP server's form request and on the answer to it;
 //
 // It loads only when a spark-hooks.json exists, a typed handler runs or a
-// server asks for a form, so most sessions never load it. dist/modelApi.js
+// server asks for a form, or a session is imported. dist/modelApi.js
 // keeps the modules' types, field builders and constants; esbuild leaves out
 // what only this entry reaches.
 

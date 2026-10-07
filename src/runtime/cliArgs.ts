@@ -40,6 +40,7 @@ export interface ServeOptions {
   readonly isVerbose: boolean
   /** Interactive ACP questions; no forms still defer at once. */
   readonly questionsDeferAfterSeconds?: number
+  readonly autoCompaction?: boolean | undefined
 }
 
 /** What `report` prints: the scrubbed draft as text, or its exact bytes in a file. */
@@ -162,6 +163,7 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
     paidFeatures,
     isVerbose: values.verbose === true,
     questionsDeferAfterSeconds,
+    autoCompaction: values['no-auto-compaction'] !== true,
   }
   const [first, second, ...rest] = positionals
   if (first === 'setup' && second === undefined) {

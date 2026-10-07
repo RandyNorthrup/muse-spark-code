@@ -115,6 +115,10 @@ async function packageTree(): Promise<void> {
       recorder: path.join(ROOT, 'src/host/support/recorderEntry.ts'),
       resourceGovernor: path.join(ROOT, 'src/core/resources/resourceGovernorEntry.ts'),
       resourceAdmission: path.join(ROOT, 'src/core/resources/admission.ts'),
+      exec: path.join(ROOT, 'src/runtime/exec/execEntry.ts'),
+      mcpPool: path.join(ROOT, 'src/core/backends/modelapi/mcpPoolEntry.ts'),
+      modelApiCodeIntel: path.join(ROOT, 'src/core/backends/modelapi/codeIntelEntry.ts'),
+      structuredSchema: path.join(ROOT, 'src/shared/structuredSchemaEntry.ts'),
       wire: path.join(ROOT, 'src/shared/wireEntry.ts'),
       uiTextRuntime: UI_TEXT_ENTRY,
       uiTextHooks: UI_TEXT_ENTRY,
@@ -160,7 +164,14 @@ async function packageTree(): Promise<void> {
     // This private fake-only package never executes another architecture's helper.
     writeFileSync(path.join(native, 'muse-created'), 'test-owned inert helper\n')
   }
-  cpSync(path.join(ROOT, 'docs', 'schemas'), path.join(STAGE, 'schemas'), { recursive: true })
+  mkdirSync(path.join(STAGE, 'schemas'))
+  for (const schema of [
+    'exec-result-v1.schema.json',
+    'exec-event-v1.schema.json',
+    'exec-result-v2.schema.json',
+    'exec-event-v2.schema.json',
+  ])
+    cpSync(path.join(ROOT, 'docs', 'schemas', schema), path.join(STAGE, 'schemas', schema))
   writeFileSync(
     path.join(STAGE, 'package.json'),
     `${JSON.stringify({ name: 'muse-spark-code-acp', version: VERSION, bin: { 'muse-spark-code-acp': 'dist/acp.js' } }, null, 2)}\n`,
@@ -263,6 +274,7 @@ describe('M80 W fake-only test package', { timeout: TIMEOUT }, () => {
       'exec-event-v1.schema.json',
       'exec-event-v2.schema.json',
       'exec-result-v1.schema.json',
+      'exec-result-v2.schema.json',
     ])
     expect(readFileSync(path.join(STAGE, 'package.json'), 'utf8')).not.toContain('exec-test')
     expect(readFileSync(LAUNCHER, 'utf8')).toContain('w-report-')

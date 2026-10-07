@@ -1,3 +1,5 @@
+import { defaultSettings } from './helpers/defaultSettings'
+import { Usd } from '../../src/shared/usd'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { permissionSettingsOf, readSettings, toSettingsSnapshot } from '../../src/host/settings'
@@ -39,7 +41,7 @@ describe('readSettings', () => {
       expect(readSettings(fakeSettingsSource({ [key]: false }), log)[key], key).toBe(false)
     }
     expect(defaults.modelApiRepoMap).toBe(false)
-    expect(defaults.paidDailyBudgetUsd).toBe(5)
+    expect(defaults.paidDailyBudgetUsd).toBe(Usd.from(5).toAmount())
     expect(defaults.dictationEngine).toBe('system')
   })
 
@@ -48,17 +50,35 @@ describe('readSettings', () => {
     for (const value of [0.5, 5, 500]) {
       expect(
         readSettings(fakeSettingsSource({ paidDailyBudgetUsd: value }), log).paidDailyBudgetUsd,
-      ).toBe(value)
+      ).toBe(Usd.from(value).toAmount())
     }
     for (const value of [0, 0.49, 500.01, NaN, '5']) {
       expect(
         readSettings(fakeSettingsSource({ paidDailyBudgetUsd: value }), log).paidDailyBudgetUsd,
+      ).toBe(Usd.from(5).toAmount())
+    }
+  })
+  it('bounds hosted search to integral counts from one through twenty', () => {
+    const log = new FakeLogOutputChannel()
+    for (const value of [1, 5, 20]) {
+      expect(
+        readSettings(fakeSettingsSource({ webSearchMaxPerRequest: value }), log)
+          .webSearchMaxPerRequest,
+      ).toBe(value)
+    }
+    for (const value of [0, 21, 1.5, '5']) {
+      expect(
+        readSettings(fakeSettingsSource({ webSearchMaxPerRequest: value }), log)
+          .webSearchMaxPerRequest,
       ).toBe(5)
     }
   })
+
   it('returns the documented defaults when nothing is configured', () => {
     const log = new FakeLogOutputChannel()
-    expect(readSettings(fakeSettingsSource({}), log)).toEqual(SETTING_DEFAULTS)
+    expect(readSettings(fakeSettingsSource({}), log)).toEqual({
+      ...defaultSettings(),
+    })
     expect(log.warn).not.toHaveBeenCalled()
   })
 
@@ -72,6 +92,7 @@ describe('readSettings', () => {
         environmentVariables: [{ name: 'MUSE_HOME', value: 'D:/muse' }],
         shellSandbox: 'off',
         backend: 'modelApi',
+        suggestedProvider: 'openrouter',
         sandboxNetwork: 'restricted',
         modelApiPromptCacheRetention: '24h',
         modelApiHooks: true,
@@ -111,6 +132,7 @@ describe('readSettings', () => {
     expect(settings.environmentVariables).toEqual([{ name: 'MUSE_HOME', value: 'D:/muse' }])
     expect(settings.shellSandbox).toBe('off')
     expect(settings.backend).toBe('modelApi')
+    expect(settings.suggestedProvider).toBe('openrouter')
     expect(settings.modelApiHooks).toBe(true)
     // D78: observation packing is on by default.
     expect(settings.modelApiObservationPacking).toBe(true)
@@ -137,7 +159,7 @@ describe('readSettings', () => {
     )
     expect(settings.notifyOnBackgroundTurn).toBe(false)
     expect(settings.modelApiReplyUsage).toBe(true)
-    expect(settings.modelApiSessionBudgetUsd).toBe(2.5)
+    expect(settings.modelApiSessionBudgetUsd).toBe(Usd.from(2.5).toAmount())
   })
 
   it('falls back to no cap for a negative or non-numeric budget (M82)', () => {
@@ -145,11 +167,11 @@ describe('readSettings', () => {
     expect(
       readSettings(fakeSettingsSource({ modelApiSessionBudgetUsd: -1 }), log)
         .modelApiSessionBudgetUsd,
-    ).toBe(0)
+    ).toBe(Usd.from(0).toAmount())
     expect(
-      readSettings(fakeSettingsSource({ modelApiSessionBudgetUsd: '5' }), log)
+      readSettings(fakeSettingsSource({ modelApiSessionBudgetUsd: 'not-money' }), log)
         .modelApiSessionBudgetUsd,
-    ).toBe(0)
+    ).toBe(Usd.from(0).toAmount())
     expect(log.warn).toHaveBeenCalledTimes(2)
   })
 
@@ -283,6 +305,7 @@ describe('toSettingsSnapshot', () => {
     expect(snapshot).not.toHaveProperty('shellSandbox')
     expect(snapshot).not.toHaveProperty('enableNewConversationShortcut')
     expect(snapshot).not.toHaveProperty('backend')
+    expect(snapshot).not.toHaveProperty('suggestedProvider')
     expect(snapshot).not.toHaveProperty('modelApiHooks')
     expect(snapshot).not.toHaveProperty('notifyOnBackgroundTurn')
     expect(snapshot).not.toHaveProperty('modelApiSessionBudgetUsd')

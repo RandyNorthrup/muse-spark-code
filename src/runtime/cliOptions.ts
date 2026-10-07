@@ -33,6 +33,7 @@ import { ACP_PAID_FLAGS } from '../shared/constants'
 
 const COMMON_OPTIONS = {
   backend: { type: 'string' },
+  'no-auto-compaction': { type: 'boolean' },
   'trust-workspace': { type: 'boolean' },
   maintenance: { type: 'boolean' },
   'muse-binary': { type: 'string' },
@@ -49,8 +50,11 @@ const COMMON_OPTIONS = {
 
 const EXEC_OPTIONS = {
   backend: { type: 'string' },
+  'no-auto-compaction': { type: 'boolean' },
   cwd: { type: 'string' },
   'prompt-file': { type: 'string' },
+  'output-schema': { type: 'string' },
+  'output-schema-outside': { type: 'boolean' },
   'untrusted-file': { type: 'string', multiple: true },
   'permission-mode': { type: 'string' },
   model: { type: 'string' },
@@ -106,6 +110,7 @@ export const CLI_OPTION_REGISTRY = {
 // chooses an English usage line or a failure message by matching its contents.
 export const CLI_OPTION_TEXT = {
   backend: 'backend',
+  'no-auto-compaction': 'no-auto-compaction',
   'trust-workspace': 'trust-workspace',
   maintenance: 'maintenance',
   'muse-binary': 'muse-binary',
@@ -120,6 +125,8 @@ export const CLI_OPTION_TEXT = {
   version: 'version',
   cwd: 'cwd',
   'prompt-file': 'prompt-file',
+  'output-schema': 'output-schema',
+  'output-schema-outside': 'output-schema-outside',
   'untrusted-file': 'untrusted-file',
   'permission-mode': 'permission-mode',
   model: 'model',

@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // The code intelligence tools on the Model API backend (M67, PLAN.md D49),
 // through the host on the fake Model API: reads that run in every mode
 // (Restricted Mode included), a rename that asks and writes like an edit
@@ -141,7 +142,7 @@ async function start(options: StartOptions = {}) {
     isWorkspaceTrusted: () => options.isTrusted ?? true,
     describeEnvironment: () => Promise.resolve({ git: undefined }),
     promptCacheRetention: () => 'in_memory',
-    sessionBudgetUsd: () => 0,
+    sessionBudgetUsd: () => Usd.from(0).toAmount(),
     showReplyUsage: () => false,
     getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
     memory: undefined,

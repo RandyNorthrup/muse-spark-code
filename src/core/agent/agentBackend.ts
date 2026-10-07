@@ -13,7 +13,7 @@ import type {
   SessionGoal,
   TodoItem,
 } from '../../shared/agentEvents'
-import type { GoalCommandVerb, SubagentAction } from '../../shared/constants'
+import type { GoalCommandVerb, ModelPricing, SubagentAction } from '../../shared/constants'
 import type { SubscriptionUsage } from '../../shared/usage'
 export type { QuestionDeferralPort } from '../../shared/questions'
 import type {
@@ -23,6 +23,7 @@ import type {
 } from '../../shared/schedule'
 import type { ApprovalMode } from '../../shared/permissionModes'
 import type { SessionExport } from '../export/sessionTransfer'
+import type { GitDraftOutputPort } from '../git/gitText'
 import type { ExtensionHookDispatch, ExtensionHookEvent } from '../backends/modelapi/extensionHooks'
 
 export type BackendKind = 'museCode' | 'modelApi'
@@ -256,6 +257,20 @@ export interface ModelSummary {
   readonly contextLimit: number | undefined
   readonly isDefault: boolean
   readonly isActive: boolean
+  /**
+   * A BYO provider's fields (M95, PLAN.md D74): set by the Model API
+   * backend's lane from the provider registry; absent on Meta's own models.
+   * `pricing` tells the picker and usage how the price reads; per-M-token
+   * prices only where the provider prices the model; `trainsOnContent`
+   * hides the model in a confidential workspace.
+   */
+  readonly providerId?: string | undefined
+  readonly providerLabel?: string | undefined
+  readonly pricing?: ModelPricing | undefined
+  readonly inputUsdPerMTokens?: number | undefined
+  readonly outputUsdPerMTokens?: number | undefined
+  readonly isPinned?: boolean | undefined
+  readonly trainsOnContent?: boolean | undefined
 }
 
 export interface SkillSummary {
@@ -470,6 +485,8 @@ export interface AgentSession {
    * the prompt, used when the parts carry more than the user typed (M5).
    */
   sendTurn(parts: readonly TurnPart[], displayText?: string): Promise<TurnSubmission>
+  /** Formats and repairs a user-requested Git draft in this session, under its live guards. */
+  readonly gitDraftOutput?: GitDraftOutputPort
   /**
    * A `/review` turn run as the built-in Reviewer, with its own prompt and
    * only the tools that read (M70, PLAN.md D49). The Model API backend has

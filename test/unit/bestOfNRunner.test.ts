@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // The best-of-N run (M77, PLAN.md D49): one popup, N worktrees, diffs per
 // attempt, and a take that merges only the taken branch.
 
@@ -18,6 +19,7 @@ import { WorkspaceEdits } from '../../src/core/verify/workspaceEdits'
 import type { PaidUseRequest } from '../../src/shared/paid'
 import { awaitCompletedRun, awaitRunStatus, bestOfNCommandArgs } from './helpers/bestOfN'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import type { ResponseAttemptGuard } from '../../src/core/backends/modelapi/client'
 
 interface ScriptedDriver {
   onEvent: (event: BestOfNAttemptEvent) => void
@@ -156,6 +158,26 @@ const START: BestOfNStart = {
   approvalMode: 'onRequest',
   isCurrent: () => true,
 }
+
+it('M106 tags every best-of-N attempt for shared request pacing', async () => {
+  const guards: ResponseAttemptGuard[] = []
+  const t = runnerWith({
+    deps: {
+      startAttempt: (start) => {
+        guards.push(start.admitRequest)
+        return Promise.resolve({
+          sessionId: start.attemptId,
+          cancel: () => Promise.resolve(),
+          dispose: () => undefined,
+        })
+      },
+    },
+  })
+  await t.runner.start(START)
+  expect(guards).toHaveLength(3)
+  expect(guards.map((guard) => guard.pacingClass)).toEqual(['bestOfN', 'bestOfN', 'bestOfN'])
+  await t.runner.cancel()
+})
 
 class OtherBundleError extends Error {
   public constructor(public readonly refusal: string) {
@@ -362,7 +384,7 @@ describe('BestOfNRunner guards', () => {
           Promise.resolve({
             sessionId: 'parent-1',
             accountId: 'account-1',
-            capUsd: () => 1,
+            capUsd: () => Usd.from(1).toAmount(),
             isStillAllowed: () => isCurrent,
             journal: {
               read: () => Promise.reject(new Error('scope journal is not called by runner')),

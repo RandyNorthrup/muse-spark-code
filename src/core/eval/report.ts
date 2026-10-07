@@ -1,9 +1,11 @@
+import { Usd, legacyUsdSchema, type UsdAmount } from '../../shared/usd'
 // The M75 report (PLAN.md D49): per-task results per arm, per-split
 // summaries with attempts, tokens, cost and pass rate, the capability floors
 // with the verdict, and the JSON and Markdown the live run writes to
 // docs/certification/.
 
 import * as z from 'zod/mini'
+import { formatUsd } from '../../shared/l10n/text'
 import { EVAL_COST_DECIMALS, EVAL_REPORT_VERSION, EVAL_SPLITS } from '../../shared/constants'
 
 export const EVAL_VERDICTS = ['pass', 'fail', 'incomplete'] as const
@@ -19,7 +21,7 @@ const evalCountFields = {
   inputTokens: z.number(),
   cachedTokens: z.number(),
   outputTokens: z.number(),
-  costUsd: z.number(),
+  costUsd: legacyUsdSchema,
 }
 
 const evalTaskFields = {
@@ -147,8 +149,8 @@ function formatRate(rate: number): string {
   return `${String(Math.round(rate * 100))}%`
 }
 
-function formatCost(costUsd: number): string {
-  return `$${costUsd.toFixed(EVAL_COST_DECIMALS)}`
+function formatCost(costUsd: UsdAmount): string {
+  return formatUsd(costUsd, EVAL_COST_DECIMALS)
 }
 
 /** The mechanism's change against the baseline, as a signed percentage. */
@@ -242,7 +244,7 @@ function comparisonLines(baseline: ReportArm, mechanism: ReportArm): string[] {
       continue
     }
     lines.push(
-      `| ${summary.split} | ${formatRate(base.passRate)} → ${formatRate(summary.passRate)} | ${formatChange(base.attempts, summary.attempts)} | ${formatChange(base.inputTokens, summary.inputTokens)} | ${formatChange(base.outputTokens, summary.outputTokens)} | ${formatChange(base.costUsd, summary.costUsd)} |`,
+      `| ${summary.split} | ${formatRate(base.passRate)} → ${formatRate(summary.passRate)} | ${formatChange(base.attempts, summary.attempts)} | ${formatChange(base.inputTokens, summary.inputTokens)} | ${formatChange(base.outputTokens, summary.outputTokens)} | ${formatCostChange(base.costUsd, summary.costUsd)} |`,
     )
   }
   lines.push(``)
@@ -291,4 +293,13 @@ export function formatEvalReportMarkdown(report: EvalReport): string {
     )
   }
   return lines.join('\n')
+}
+
+function formatCostChange(before: UsdAmount, after: UsdAmount): string {
+  const base = Usd.from(before)
+  const change = Usd.from(after).subtract(base)
+  if (base.compare(Usd.from(0)) === 0) return change.compare(Usd.from(0)) === 0 ? '±0%' : 'from 0'
+  // Only a dimensionless rounded percentage crosses to Number. Money stays exact.
+  const rounded = Number(change.times(100).times(2).add(base).floorDivide(base.times(2)))
+  return rounded === 0 ? '±0%' : `${rounded > 0 ? '+' : ''}${String(rounded)}%`
 }

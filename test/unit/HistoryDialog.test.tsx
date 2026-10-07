@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import type { SessionRow } from '../../src/shared/sessions'
 import {
   HistoryDialog,
@@ -53,6 +53,14 @@ function renderDialog(overrides: Partial<HistoryDialogProps> = {}) {
   return { props, search: screen.getByRole('combobox') }
 }
 
+// Exercise the real first lazy render once; subsequent cases test settled interaction.
+beforeAll(async () => {
+  renderDialog()
+  expect(document.querySelector('[data-deferred-loading]')).not.toBeNull()
+  await screen.findByRole('option', { name: /Fix the parser/ })
+  cleanup()
+})
+
 function optionTitles(): string[] {
   return screen
     .getAllByRole('option')
@@ -77,6 +85,43 @@ describe('layoutHistory', () => {
       'Yesterday',
       2,
     ])
+  })
+})
+
+describe('HistoryDialog: injected Muse Code deletion', () => {
+  it('offers deletion only with the host callback and keeps archive separate', () => {
+    const onDelete = vi.fn()
+    const { props, search } = renderDialog({ onDelete })
+    fireEvent.keyDown(search, { key: 'Delete', shiftKey: true })
+    expect(onDelete).toHaveBeenCalledExactlyOnceWith('now')
+    expect(props.onSetArchived).not.toHaveBeenCalled()
+    fireEvent.keyDown(search, { key: 'Delete' })
+    expect(props.onSetArchived).toHaveBeenCalledWith('now', true)
+  })
+
+  it('supports the mouse delete affordance without resuming or archiving the row', () => {
+    const onDelete = vi.fn()
+    const { props } = renderDialog({ onDelete })
+    const mark = screen.getAllByTitle('Delete (Shift+Delete)')[0]!
+    fireEvent.click(mark)
+    expect(onDelete).toHaveBeenCalledExactlyOnceWith('now')
+    expect(props.onResume).not.toHaveBeenCalled()
+    expect(props.onSetArchived).not.toHaveBeenCalled()
+  })
+
+  it('keeps today’s behavior without deletion and never deletes while editing search text', () => {
+    const { props, search } = renderDialog()
+    expect(screen.queryByTitle('Delete (Shift+Delete)')).not.toBeInTheDocument()
+    fireEvent.keyDown(search, { key: 'Delete', shiftKey: true })
+    expect(props.onSetArchived).toHaveBeenCalledWith('now', true)
+  })
+
+  it('never deletes a highlighted session while the user is editing search text', () => {
+    const onDelete = vi.fn()
+    const { search } = renderDialog({ onDelete })
+    fireEvent.change(search, { target: { value: 'Fix' } })
+    fireEvent.keyDown(search, { key: 'Delete', shiftKey: true })
+    expect(onDelete).not.toHaveBeenCalled()
   })
 })
 

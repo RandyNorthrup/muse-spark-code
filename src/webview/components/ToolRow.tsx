@@ -6,7 +6,7 @@
 // picture a tool read or made, plus the approval or question card when the
 // host is waiting.
 
-import { memo, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, memo, type ReactNode, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import {
   IO_PREVIEW_LINES,
   PATCH_DOCUMENT_MAX_PAGES,
@@ -48,15 +48,7 @@ import type { ElicitationCardProps } from './ElicitationCard'
 import { deferred } from './DeferredSurface'
 
 import { Clipped, DiffTable } from './ToolBlocks'
-import {
-  GoalBody,
-  ImageBody,
-  MemoryBody,
-  ScheduleBody,
-  ToolImage,
-  WebBody,
-  WorkflowBody,
-} from './ToolBodies'
+
 import { verifySummaryText } from '../../shared/verifyText'
 import { ThenRunBlock, VerifyBody } from './VerifyParts'
 
@@ -72,8 +64,41 @@ const ElicitationCard = deferred(
     </div>
   ),
 )
+const GoalBody = deferred(async () => {
+  const entry = await import('./ToolBodies')
+  return { default: entry.GoalBody }
+}, false)
+const ImageBody = deferred(async () => {
+  const entry = await import('./ToolBodies')
+  return { default: entry.ImageBody }
+}, false)
+const MemoryBody = deferred(async () => {
+  const entry = await import('./ToolBodies')
+  return { default: entry.MemoryBody }
+}, false)
+const ScheduleBody = deferred(async () => {
+  const entry = await import('./ToolBodies')
+  return { default: entry.ScheduleBody }
+}, false)
+const ToolImage = deferred(async () => {
+  const entry = await import('./ToolBodies')
+  return { default: entry.ToolImage }
+}, false)
+const WebBody = deferred(async () => {
+  const entry = await import('./ToolBodies')
+  return { default: entry.WebBody }
+}, false)
+const WorkflowBody = deferred(async () => {
+  const entry = await import('./ToolBodies')
+  return { default: entry.WorkflowBody }
+}, false)
 
 type ToolEntry = Extract<TranscriptEntry, { kind: 'tool' }>
+
+const ToolArgumentPreview = lazy(async () => {
+  const module = await import('./ToolArgumentPreview')
+  return { default: module.ToolArgumentPreview }
+})
 
 export interface ToolRowProps {
   readonly entry: ToolEntry
@@ -388,7 +413,10 @@ function ToolRowView({
   quoteMenu,
 }: ToolRowProps) {
   const attention = useAttentionSurface()
-  const presentation = useMemo(() => describeTool(entry.tool, entry.args), [entry.tool, entry.args])
+  const presentation = useMemo(
+    () => describeTool(entry.tool, entry.args, entry.argumentPreview !== undefined),
+    [entry.tool, entry.args, entry.argumentPreview],
+  )
   const imagePaths = imagePathsOf(entry, presentation.imagePath)
   const isQuestionOpen =
     entry.question !== undefined &&
@@ -398,7 +426,10 @@ function ToolRowView({
   // Shell and edit rows show their body from the start, as Claude Code's do,
   // and so does a row with a picture (M43); the others open on click (M16).
   const [isOpen, setIsOpen] = useState(
-    presentation.body === 'shell' || presentation.body === 'edit' || imagePaths.length > 0,
+    presentation.body === 'preview' ||
+      presentation.body === 'shell' ||
+      presentation.body === 'edit' ||
+      imagePaths.length > 0,
   )
   // An edit's lines, or a fetched page's size (M69).
   const change =
@@ -500,6 +531,14 @@ function ToolRowView({
   const menu = useRowMenu(items, UI_TEXT.messageActions, quoteMenu)
   let body: ReactNode
   switch (presentation.body) {
+    case 'preview': {
+      body = (
+        <Suspense fallback={null}>
+          <ToolArgumentPreview preview={entry.argumentPreview} />
+        </Suspense>
+      )
+      break
+    }
     case 'shell': {
       body = <ShellBody entry={entry} command={presentation.command} onOpen={openOutput} />
       break

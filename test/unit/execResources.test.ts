@@ -124,7 +124,7 @@ describe('M107 H headless flags and v2 egress', () => {
     })
   })
 
-  it('sequences ordinary and resource events together as v2 with the result payload frozen at v1', async () => {
+  it('sequences ordinary and resource events together with the structured v2 result', async () => {
     const { sink, out } = sinkScene()
     sink.emit({ type: 'tool', name: 'shell', status: 'completed', durationMs: 1 })
     sink.resource({ type: 'deferred', atMs: 0, kind: 'check', class: 'background' })
@@ -141,9 +141,10 @@ describe('M107 H headless flags and v2 egress', () => {
       Array.from({ length: 4 }, () => RESOURCE_EXEC_EVENT_VERSION),
     )
     expect(events.map((event) => event.type)).toEqual(['tool', 'resource', 'message', 'result'])
-    expect(events.at(-1)).toMatchObject({ result: { v: 1 } })
+    expect(events.at(-1)).toMatchObject({ result: { v: 2 } })
     expect(out.chunks.join('')).not.toContain('private-canary')
-    expect(execEventSchema.safeParse(events[0]).success).toBe(false)
+    expect(execEventSchema.safeParse(events[0]).success).toBe(true)
+    expect(execEventSchema.safeParse(events[1]).success).toBe(false)
     const count = out.chunks.length
     sink.resource({ type: 'override', atMs: 0, untilMs: 1 })
     expect(out.chunks).toHaveLength(count)

@@ -7,6 +7,7 @@
 
 import * as z from 'zod/mini'
 import type { PromptCacheRetention } from '../../../shared/constants'
+import { TOOL_SCHEMA_MAX_DEPTH } from '../../../shared/constants'
 import { webResultSchema } from '../../../shared/webResults'
 
 /** A source the reply cites (`url_citation`, search-grounding); offsets are not used. */
@@ -22,6 +23,12 @@ export const outputTextPartSchema = z.object({
   type: z.literal('output_text'),
   text: z.string(),
   annotations: z.optional(z.array(z.union([urlCitationSchema, otherAnnotationSchema]))),
+  /**
+   * M101 lane P1 (BYO item 4): a thought signature Gemini attached to this
+   * text part. Only the Gemini codec reads it; every other reader renders
+   * the text and ignores the signature.
+   */
+  thoughtSignature: z.optional(z.string()),
 })
 
 const refusalPartSchema = z.object({ type: z.literal('refusal'), refusal: z.string() })
@@ -165,7 +172,17 @@ export const usageSchema = z.object({
   input_tokens: z.number(),
   output_tokens: z.number(),
   total_tokens: z.optional(z.number()),
-  input_tokens_details: z.optional(z.nullable(z.object({ cached_tokens: z.optional(z.number()) }))),
+  input_tokens_details: z.optional(
+    z.nullable(
+      z.object({
+        cached_tokens: z.optional(z.number()),
+        // M95: writes are a disjoint subset of total input; 1h is a subset
+        // of writes. Absent TTL information stays unknown, never guessed.
+        cache_write_tokens: z.optional(z.number()),
+        cache_write_tokens_1h: z.optional(z.number()),
+      }),
+    ),
+  ),
   output_tokens_details: z.optional(
     z.nullable(z.object({ reasoning_tokens: z.optional(z.number()) })),
   ),
@@ -246,6 +263,8 @@ export const modelListSchema = z.object({
   data: z.array(z.object({ id: z.string() })),
 })
 
+export { modelApiStatusSchema } from '../../../shared/serviceStatus'
+
 // A count below zero is no count: it would lower the session budget's base (M82).
 export const inputTokensSchema = z.object({ input_tokens: z.number().check(z.nonnegative()) })
 
@@ -257,15 +276,13 @@ export const inputTokensSchema = z.object({ input_tokens: z.number().check(z.non
  * replayed as such: replayed as a final answer before a `function_call`
  * it is a 400. `final_answer` is accepted on input only.
  */
-export const MESSAGE_PHASES = ['commentary', 'final_answer'] as const
-export type MessagePhase = (typeof MESSAGE_PHASES)[number]
 
 /** A user or assistant message in the replayed conversation. */
 export interface InputMessageItem {
   readonly type: 'message'
   readonly role: 'user' | 'assistant' | 'developer'
   readonly content: readonly InputContentPart[]
-  readonly phase?: MessagePhase | undefined
+  readonly phase?: string | null | undefined
 }
 
 /**
@@ -283,7 +300,17 @@ export type InputContentPart =
   | InputFilePart
   | { readonly type: 'input_text'; readonly text: string }
   | { readonly type: 'input_image'; readonly image_url: string; readonly detail: 'auto' }
-  | { readonly type: 'output_text'; readonly text: string }
+  | {
+      readonly type: 'output_text'
+      readonly text: string
+      /**
+       * M101 lane P1 (BYO item 4): a thought signature Gemini attached to
+       * this text part, empty parts included (Pi #7356). Only the Gemini
+       * codec reads it, replaying the part with its signature; every other
+       * codec renders the text and ignores the signature.
+       */
+      readonly thoughtSignature?: string | undefined
+    }
 
 /**
  * A part of a function's output given as content (the Responses schema's
@@ -322,12 +349,270 @@ export type InputItem =
   | ReasoningItem
   | WebSearchCallInputItem
 
+/** MCP conversion evidence stays off the wire and survives copying a declaration. */
+export const NON_STRICT_TOOL = Symbol.for('muse-spark-code.nonStrictTool')
+const ORIGINAL_TOOL_PARAMETERS = Symbol.for('muse-spark-code.originalToolParameters')
+
 export interface FunctionToolDefinition {
   readonly type: 'function'
   readonly name: string
   readonly description: string
   readonly parameters: Record<string, unknown>
-  readonly strict: false
+  // Set through M101's rewrite only while the session enables strict tools
+  // and the selected model's capability record supports them (M106).
+  readonly strict: boolean
+  /** The original MCP schema cannot convert losslessly; never auto-promote its fitted schema. */
+  readonly [NON_STRICT_TOOL]?: true
+  /** Preserve omission semantics through repeated strict encodings; also absent from JSON. */
+  readonly [ORIGINAL_TOOL_PARAMETERS]?: Record<string, unknown>
+}
+
+/**
+ * Flags function tools strict where the model takes it (M101 item 24);
+ * search tools pass through. Off returns the same definitions, so the
+ * canonical body (and the golden bytes) stays `strict: false` when the
+ * session setting or capability is off. Unconvertible MCP tools retain
+ * their declaration; harness schema failures still refuse the request.
+ */
+export function withStrictTools(
+  tools: readonly FunctionToolDefinition[],
+  shouldUseStrict: boolean,
+): readonly FunctionToolDefinition[]
+export function withStrictTools(
+  tools: readonly ToolDefinition[],
+  shouldUseStrict: boolean,
+): readonly ToolDefinition[]
+export function withStrictTools(
+  tools: readonly ToolDefinition[],
+  shouldUseStrict: boolean,
+): readonly ToolDefinition[] {
+  return shouldUseStrict
+    ? tools.map((tool) => {
+        if (tool.type !== 'function' || tool[NON_STRICT_TOOL] === true) return tool
+        if (tool.parameters['type'] !== 'object') {
+          throw new Error('strict_tool_schema_unsupported')
+        }
+        return {
+          ...tool,
+          parameters: strictToolSchema(tool.parameters),
+          strict: true,
+          [ORIGINAL_TOOL_PARAMETERS]: tool[ORIGINAL_TOOL_PARAMETERS] ?? tool.parameters,
+        }
+      })
+    : tools
+}
+
+/** Strict optional properties are nullable on the wire; restore omission for tool parsers. */
+export function restoreOptionalToolArguments(json: string, tool: FunctionToolDefinition): string {
+  if (tool[NON_STRICT_TOOL] === true) return json
+  let value: unknown
+  try {
+    value = JSON.parse(json)
+  } catch {
+    return json
+  }
+  const restore = (input: unknown, schema: Record<string, unknown>): unknown => {
+    const items = schemaRecord.safeParse(schema['items'])
+    if (Array.isArray(input) && items.success)
+      return input.map((item: unknown) => restore(item, items.data))
+    const record = schemaRecord.safeParse(input)
+    const properties = schemaRecord.safeParse(schema['properties'])
+    const required = z.array(z.string()).safeParse(schema['required'] ?? [])
+    if (!record.success || !properties.success || !required.success) return input
+    return Object.fromEntries(
+      Object.entries(record.data).flatMap(([key, item]) => {
+        const child = schemaRecord.safeParse(properties.data[key])
+        if (!child.success) return [[key, item]]
+        const type = child.data['type']
+        const canAcceptNull = type === 'null' || (Array.isArray(type) && type.includes('null'))
+        return item === null && !canAcceptNull && !required.data.includes(key)
+          ? []
+          : [[key, restore(item, child.data)]]
+      }),
+    )
+  }
+  return JSON.stringify(restore(value, tool[ORIGINAL_TOOL_PARAMETERS] ?? tool.parameters))
+}
+
+// Conservative common strict subset. Unknown/unsupported constraints refuse
+// the request rather than disappearing or changing their meaning silently.
+const STRICT_SCHEMA_KEYS = new Set([
+  'type',
+  'description',
+  'enum',
+  'properties',
+  'required',
+  'additionalProperties',
+  'items',
+  'minLength',
+  'maxLength',
+  'minItems',
+  'maxItems',
+])
+const schemaRecord = z.record(z.string(), z.unknown())
+
+function strictToolSchema(node: unknown, isOptional = false, depth = 0): Record<string, unknown> {
+  const parsed = schemaRecord.safeParse(node)
+  if (!parsed.success || depth > TOOL_SCHEMA_MAX_DEPTH) {
+    throw new Error('strict_tool_schema_unsupported')
+  }
+  const schema = parsed.data
+  const type = schema['type']
+  if (!isGrammarType(type) || Object.keys(schema).some((key) => !STRICT_SCHEMA_KEYS.has(key))) {
+    throw new Error('strict_tool_schema_unsupported')
+  }
+  if (schema['description'] !== undefined && typeof schema['description'] !== 'string') {
+    throw new Error('strict_tool_schema_unsupported')
+  }
+  const types = typeof type === 'string' ? [type] : type
+  // isGrammarType verified the union; parse again to narrow without a cast.
+  const parsedTypes = z.array(z.string()).parse(types)
+  for (const [kind, lowerKey, upperKey] of [
+    ['string', 'minLength', 'maxLength'],
+    ['array', 'minItems', 'maxItems'],
+  ] as const) {
+    for (const bound of [lowerKey, upperKey]) {
+      const value = schema[bound]
+      if (
+        value !== undefined &&
+        (typeof value !== 'number' ||
+          value < 0 ||
+          !Number.isSafeInteger(value) ||
+          !parsedTypes.includes(kind))
+      ) {
+        throw new Error('strict_tool_schema_unsupported')
+      }
+    }
+    const lower = schema[lowerKey]
+    const upper = schema[upperKey]
+    if (typeof lower === 'number' && typeof upper === 'number' && lower > upper) {
+      throw new Error('strict_tool_schema_unsupported')
+    }
+  }
+  const result = { ...schema }
+  if (isOptional && !parsedTypes.includes('null')) {
+    result['type'] = [...parsedTypes, 'null']
+  }
+  const values = schema['enum']
+  if (values !== undefined) {
+    const enumeration = z
+      .array(z.union([z.string(), z.number(), z.boolean(), z.null()]))
+      .safeParse(values)
+    if (!enumeration.success || enumeration.data.length === 0) {
+      throw new Error('strict_tool_schema_unsupported')
+    }
+    result['enum'] =
+      isOptional && !enumeration.data.includes(null)
+        ? [...enumeration.data, null]
+        : [...enumeration.data]
+  }
+  if (parsedTypes.includes('object')) {
+    if (schema['additionalProperties'] !== undefined && schema['additionalProperties'] !== false) {
+      throw new Error('strict_tool_schema_unsupported')
+    }
+    const properties = schemaRecord.safeParse(
+      schema['properties'] === undefined ? {} : schema['properties'],
+    )
+    const required = z
+      .array(z.string())
+      .safeParse(schema['required'] === undefined ? [] : schema['required'])
+    if (
+      !properties.success ||
+      !required.success ||
+      required.data.some((key) => !Object.hasOwn(properties.data, key))
+    ) {
+      throw new Error('strict_tool_schema_unsupported')
+    }
+    result['properties'] = Object.fromEntries(
+      Object.entries(properties.data).map(([key, value]) => [
+        key,
+        strictToolSchema(value, !required.data.includes(key), depth + 1),
+      ]),
+    )
+    result['required'] = Object.keys(properties.data)
+    result['additionalProperties'] = false
+  } else if (
+    ['properties', 'required', 'additionalProperties'].some((key) => Object.hasOwn(schema, key))
+  ) {
+    throw new Error('strict_tool_schema_unsupported')
+  }
+  if (parsedTypes.includes('array')) {
+    result['items'] = strictToolSchema(schema['items'], false, depth + 1)
+  } else if (Object.hasOwn(schema, 'items')) {
+    throw new Error('strict_tool_schema_unsupported')
+  }
+  return result
+}
+
+/** JSON-schema keywords no constrained-decoding grammar takes (llama.cpp server, SoL-Pi #59/#65). */
+const GRAMMAR_UNSAFE_KEYS: ReadonlySet<string> = new Set([
+  '$ref',
+  '$defs',
+  'definitions',
+  'oneOf',
+  'anyOf',
+  'allOf',
+  'not',
+  'if',
+  'then',
+  'else',
+  'dependentSchemas',
+  'patternProperties',
+  'propertyNames',
+  'contains',
+])
+
+/** The primitive types a constrained-decoding grammar converts. */
+const GRAMMAR_SAFE_TYPES: ReadonlySet<string> = new Set([
+  'object',
+  'array',
+  'string',
+  'integer',
+  'number',
+  'boolean',
+  'null',
+])
+
+function isGrammarType(value: unknown): boolean {
+  return typeof value === 'string'
+    ? GRAMMAR_SAFE_TYPES.has(value)
+    : Array.isArray(value) &&
+        value.length > 0 &&
+        value.every((type: unknown) => typeof type === 'string' && GRAMMAR_SAFE_TYPES.has(type))
+}
+
+/**
+ * Whether a tool parameter schema converts to a constrained-decoding
+ * grammar (M101 item 24): known primitive types only, no references or
+ * combinators, bounded depth. Structural, not a byte limit: the byte
+ * budget beside it is a regression tripwire, and the exact upstream
+ * grammar limit stays a residual until a live capture names it.
+ */
+export function isToolSchemaGrammarSafe(node: unknown, depth = 0): boolean {
+  if (depth > TOOL_SCHEMA_MAX_DEPTH) {
+    return false
+  }
+  if (
+    node === null ||
+    typeof node === 'string' ||
+    typeof node === 'number' ||
+    typeof node === 'boolean'
+  ) {
+    return true
+  }
+  if (typeof node !== 'object') {
+    return false
+  }
+  if (Array.isArray(node)) {
+    return node.every((item: unknown) => isToolSchemaGrammarSafe(item, depth + 1))
+  }
+  const entries: readonly [string, unknown][] = Object.entries(node)
+  return entries.every(
+    ([key, value]) =>
+      !GRAMMAR_UNSAFE_KEYS.has(key) &&
+      (key !== 'type' || isGrammarType(value)) &&
+      isToolSchemaGrammarSafe(value, depth + 1),
+  )
 }
 
 /** Meta's hosted search (search-grounding, M33): the model decides when to search. */
@@ -339,6 +624,14 @@ export type ToolDefinition = FunctionToolDefinition | WebSearchToolDefinition
 
 /** What the response adds beyond its defaults: reasoning to replay, search results to show. */
 export type IncludeField = 'reasoning.encrypted_content' | 'web_search_call.results'
+
+/** U10 (2026-10-05): structured answers coexist with function tools. */
+export interface JsonSchemaTextFormat {
+  readonly type: 'json_schema'
+  readonly name: string
+  readonly schema: Record<string, unknown>
+  readonly strict: boolean
+}
 
 export interface CreateResponseBody {
   readonly model: string
@@ -354,6 +647,10 @@ export interface CreateResponseBody {
   readonly store: false
   readonly include: readonly IncludeField[]
   readonly max_output_tokens: number
+  /** U8: bounds hosted tool calls, not the harness's function calls. */
+  readonly max_tool_calls?: number
+  /** Omitted on today's text path; lane O1 selects this per session. */
+  readonly text?: { readonly format: JsonSchemaTextFormat }
   /** One key per shared prefix, not per session (promptCache.ts, M56). */
   readonly prompt_cache_key: string
   /** How long Meta is asked to keep the cached prefix; a hint (M56). */

@@ -1,0 +1,198 @@
+// Import and export (M95 lane K, PLAN.md D74): the non-secret
+// configuration exports and imports as JSON for a team; credentials are
+// never in it, and an imported file is untrusted (validated, previewed as
+// a diff, each address shown and confirmed, every provider marked
+// "needs a key").
+
+import * as z from 'zod/mini'
+import {
+  customCompatSchema,
+  modelLimitsSchema,
+  openRouterRoutingSchema,
+} from '../../shared/providerRouting'
+import type { AddressCheck, AddressPolicy, ProviderEntry, ProvidersStore } from './providerPorts'
+
+/**
+ * One provider entry as the file and the panel's wizard draft both hold it
+ * (the draft's provider is validated against this same shape).
+ */
+export const providerEntrySchema = z
+  .object({
+    id: z.string().check(
+      z.regex(/^[a-z][a-z0-9-]{0,31}$/),
+      z.refine((id) => id !== 'meta'),
+    ),
+    preset: z.string(),
+    address: z.optional(z.string()),
+    auth: z.enum(['apiKey', 'none']),
+    models: z.array(z.string()),
+    privateNetwork: z.optional(z.boolean()),
+    format: z.optional(z.enum(['responses', 'chat', 'anthropic', 'gemini', 'ollama'])),
+    pinned: z.optional(z.array(z.string())),
+    prices: z.optional(
+      z.record(
+        z.string(),
+        z.object({
+          input: z.number(),
+          output: z.number(),
+          cachedInput: z.optional(z.number()),
+          cacheWrite: z.optional(z.number()),
+          cacheWrite1h: z.optional(z.number()),
+          request: z.optional(z.number()),
+          image: z.optional(z.number()),
+        }),
+      ),
+    ),
+    compat: z.optional(customCompatSchema),
+    modelLimits: z.optional(z.record(z.string(), modelLimitsSchema)),
+    routing: z.optional(openRouterRoutingSchema),
+    numCtx: z.optional(z.record(z.string(), z.number())),
+  })
+  .check(z.refine((entry) => entry.compat === undefined || entry.preset === 'custom'))
+
+const providersDocumentSchema = z.object({
+  v: z.literal(1),
+  defaultModel: z.optional(z.string()),
+  providers: z.array(providerEntrySchema),
+})
+
+export interface ProvidersDocument {
+  readonly v: 1
+  readonly defaultModel?: string | undefined
+  readonly providers: ProviderEntry[]
+}
+
+/** Whether a parsed value is a providers document. */
+export function parseProvidersDocument(
+  raw: unknown,
+  presetAddress?: (preset: string) => string | undefined,
+): ProvidersDocument {
+  const parsed = providersDocumentSchema.safeParse(raw)
+  if (!parsed.success) {
+    throw new Error(`The providers file is not valid: ${z.prettifyError(parsed.error)}`)
+  }
+  const providers = parsed.data.providers.map((entry) => {
+    const address = entry.address ?? presetAddress?.(entry.preset) ?? ''
+    if (entry.id.trim() === '' || entry.preset.trim() === '' || address.trim() === '') {
+      throw new Error(`The providers file names a provider with an empty id, preset or address`)
+    }
+    return { ...entry, address }
+  })
+  return { ...parsed.data, providers }
+}
+
+function parseDocumentText(
+  text: string,
+  presetAddress?: (preset: string) => string | undefined,
+): ProvidersDocument {
+  let raw: unknown
+  try {
+    raw = JSON.parse(text)
+  } catch {
+    throw new Error('The providers file is not valid JSON')
+  }
+  return parseProvidersDocument(raw, presetAddress)
+}
+
+/**
+ * The non-secret configuration as JSON for a team. Credentials are never
+ * in it: only what `ProvidersStore.list` holds (lane P's file holds no
+ * secret either, D74).
+ */
+export async function exportProviders(store: ProvidersStore): Promise<string> {
+  const entries = await store.list()
+  const document: ProvidersDocument = {
+    v: 1,
+    defaultModel: await store.defaultModel(),
+    providers: entries.map((entry) => ({
+      ...providerEntrySchema.parse(entry),
+      address: entry.address,
+    })),
+  }
+  return `${JSON.stringify(document, undefined, 2)}\n`
+}
+
+export interface ImportPreviewRow {
+  readonly change: 'added' | 'changed' | 'removed'
+  readonly entry: ProviderEntry
+  /** Every imported provider needs its key entered again. */
+  readonly needsKey: boolean
+  /** The address check for an added or changed entry; undefined for removals. */
+  readonly address: AddressCheck | undefined
+}
+
+export interface ImportPreview {
+  readonly rows: readonly ImportPreviewRow[]
+}
+
+function isSameEntry(left: ProviderEntry, right: ProviderEntry): boolean {
+  return (
+    JSON.stringify(providerEntrySchema.parse(left)) ===
+    JSON.stringify(providerEntrySchema.parse(right))
+  )
+}
+
+/**
+ * Previews an import as a diff against the current file. Throws on an
+ * unreadable file, an unknown shape, or a refused address: an import never
+ * skips the address check (M95 acceptance 6, Tests).
+ */
+export function previewProvidersImport(
+  current: readonly ProviderEntry[],
+  text: string,
+  policy: AddressPolicy,
+  presetAddress?: (preset: string) => string | undefined,
+): ImportPreview {
+  const incoming = parseDocumentText(text, presetAddress).providers
+  const present = new Map(current.map((entry) => [entry.id, entry]))
+  const rows: ImportPreviewRow[] = []
+  for (const entry of incoming) {
+    const old = present.get(entry.id)
+    if (old === undefined) {
+      const address = policy.check(entry.address)
+      if (address.kind === 'refused') {
+        throw new Error(`Provider ${entry.id} cannot be imported: ${address.detail}`)
+      }
+      rows.push({ change: 'added', entry, needsKey: entry.auth !== 'none', address })
+    } else if (!isSameEntry(old, entry)) {
+      const address = policy.check(entry.address)
+      if (address.kind === 'refused') {
+        throw new Error(`Provider ${entry.id} cannot be imported: ${address.detail}`)
+      }
+      rows.push({ change: 'changed', entry, needsKey: entry.auth !== 'none', address })
+    }
+    present.delete(entry.id)
+  }
+  for (const entry of present.values()) {
+    rows.push({ change: 'removed', entry, needsKey: false, address: undefined })
+  }
+  return { rows }
+}
+
+export interface ProvidersImportDeps {
+  readonly store: ProvidersStore
+  readonly policy: AddressPolicy
+  readonly presetAddress?: (preset: string) => string | undefined
+  /**
+   * Shows the preview (every address, every "needs a key") and asks to go
+   * on. False, or a dismissal, imports nothing.
+   */
+  readonly confirm: (preview: ImportPreview) => Promise<boolean>
+}
+
+/**
+ * Imports a confirmed file, replacing the whole configuration. Returns the
+ * imported providers' count; an unconfirmed, unreadable or refused import
+ * writes nothing.
+ */
+export async function importProviders(deps: ProvidersImportDeps, text: string): Promise<number> {
+  const current = await deps.store.list()
+  const preview = previewProvidersImport(current, text, deps.policy, deps.presetAddress)
+  if (!(await deps.confirm(preview))) {
+    return 0
+  }
+  const incoming = parseDocumentText(text, deps.presetAddress).providers
+  await deps.store.replaceAll(incoming)
+  await deps.store.setDefaultModel(parseDocumentText(text, deps.presetAddress).defaultModel)
+  return incoming.length
+}

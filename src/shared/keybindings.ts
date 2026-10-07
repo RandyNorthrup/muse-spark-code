@@ -15,6 +15,20 @@ interface KeyBinding {
   readonly when?: { readonly setting: 'useCtrlEnterToSend'; readonly value: boolean }
 }
 export const WEBVIEW_KEYBINDINGS = {
+  'models.grid': {
+    close: { keys: [{ key: 'Escape' }], text: { ui: 'referenceMenuKeys' } },
+    next: { keys: [{ key: 'ArrowDown' }], text: { ui: 'referenceMenuKeys' } },
+    previous: { keys: [{ key: 'ArrowUp' }], text: { ui: 'referenceMenuKeys' } },
+    first: { keys: [{ key: 'Home' }], text: { ui: 'referenceMenuKeys' } },
+    last: { keys: [{ key: 'End' }], text: { ui: 'referenceMenuKeys' } },
+    accept: { keys: [{ key: 'Enter' }], text: { ui: 'referenceMenuKeys' } },
+  },
+  'models.select': {
+    next: { keys: [{ key: 'ArrowDown' }], text: { ui: 'referenceMenuKeys' } },
+    previous: { keys: [{ key: 'ArrowUp' }], text: { ui: 'referenceMenuKeys' } },
+    accept: { keys: [{ key: 'Enter' }], text: { ui: 'referenceMenuKeys' } },
+    close: { keys: [{ key: 'Escape' }], text: { ui: 'referenceMenuKeys' } },
+  },
   'composer.send': {
     send: {
       when: { setting: 'useCtrlEnterToSend', value: false },

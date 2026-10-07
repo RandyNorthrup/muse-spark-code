@@ -880,10 +880,10 @@ function decisionsPosted(postMessage: ReturnType<typeof renderReady>) {
 }
 
 describe('App approval card: one decision per stage (D26)', () => {
-  it('keeps every button disabled after a click until the host settles the decision', () => {
+  it('keeps every button disabled after a click until the host settles the decision', async () => {
     const postMessage = renderReady()
     deliver({ type: 'agentEvent', event: twoStepApproval('approvalRequested', 0) })
-    const allow = screen.getByRole('button', { name: 'Allow once' })
+    const allow = await screen.findByRole('button', { name: 'Allow once' })
     // Two clicks in one frame, before the locked card renders.
     act(() => {
       allow.click()
@@ -917,10 +917,10 @@ describe('App approval card: one decision per stage (D26)', () => {
     ])
   })
 
-  it('docks the waiting card above the composer and leaves the decision in its row', () => {
+  it('docks the waiting card above the composer and leaves the decision in its row', async () => {
     renderReady()
     deliver({ type: 'agentEvent', event: twoStepApproval('approvalRequested', 0) })
-    const dock = screen.getByRole('region', { name: UI_TEXT.approvalDockLabel })
+    const dock = await screen.findByRole('region', { name: UI_TEXT.approvalDockLabel })
     // Outside the scrolled transcript, before the composer in Tab order.
     expect(screen.getByRole('main')).not.toContainElement(dock)
     expect(dock.compareDocumentPosition(textarea()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -941,10 +941,10 @@ describe('App approval card: one decision per stage (D26)', () => {
     expect(screen.queryByText(UI_TEXT.approvalDockedNote)).toBeNull()
   })
 
-  it('re-arms only when the host reopens the stage, and says a step that moved on on the card', () => {
+  it('re-arms only when the host reopens the stage, and says a step that moved on on the card', async () => {
     const postMessage = renderReady()
     deliver({ type: 'agentEvent', event: twoStepApproval('approvalRequested', 0) })
-    fireEvent.click(screen.getByRole('button', { name: 'Allow once' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Allow once' }))
     deliver({ type: 'approvalReopened', approvalId: 'a1' })
     expect(screen.getByRole('button', { name: 'Allow once' })).toBeEnabled()
     fireEvent.click(screen.getByRole('button', { name: 'Allow once' }))
@@ -989,7 +989,7 @@ describe('App transcript (M4)', () => {
         isProtectedWrite: false,
       },
     })
-    fireEvent.change(screen.getByPlaceholderText(/what to do instead/), {
+    fireEvent.change(await screen.findByPlaceholderText(/what to do instead/), {
       target: { value: 'no' },
     })
     fireEvent.click(screen.getByText('Reject'))
@@ -3382,6 +3382,68 @@ describe('App: a refused best-of-N start (M77, the RV78 review)', () => {
     expect(
       postMessage.mock.calls.filter(([message]) => message.type === 'startBestOfN'),
     ).toHaveLength(2)
+  })
+})
+
+describe('App BYO picker and setup (M95)', () => {
+  const byoModels = [
+    ...models,
+    {
+      modelId: 'openrouter/deepseek/deepseek-v3',
+      displayLabel: 'DeepSeek V3',
+      contextLimit: 64_000,
+      isDefault: true,
+      providerId: 'openrouter',
+      providerLabel: 'OpenRouter',
+      pricing: 'priced',
+      inputUsdPerMTokens: 0.27,
+      outputUsdPerMTokens: 1.1,
+    },
+  ]
+
+  it('names the provider in the composer pill', () => {
+    renderReady()
+    deliver({ type: 'modelList', models: byoModels })
+    deliver({
+      type: 'sessionInfo',
+      modelId: 'openrouter/deepseek/deepseek-v3',
+      contextLimit: 64_000,
+    })
+    expect(screen.getByLabelText('Model')).toHaveTextContent('OpenRouter · DeepSeek V3 High')
+  })
+
+  it('keeps the bare pill for Meta models', () => {
+    renderReady()
+    deliver({ type: 'modelList', models })
+    deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_007_997 })
+    expect(screen.getByLabelText('Model')).toHaveTextContent('muse-spark-1.3 High')
+  })
+
+  it('opens the provider quick-pick from the picker footer', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'modelList', models: byoModels })
+    fireEvent.click(screen.getByLabelText('Model'))
+    fireEvent.click(screen.getByRole('option', { name: 'Add a model provider…' }))
+    expect(postMessage).toHaveBeenCalledWith({
+      type: 'hostAction',
+      action: 'addModelProvider',
+    })
+  })
+
+  it('confirms the finished setup once, then manages and dismisses', async () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'setupComplete',
+      provider: 'OpenRouter',
+      model: 'openrouter/deepseek/deepseek-v3',
+    })
+    await screen.findByRole('button', { name: 'Manage providers' })
+    expect(screen.getByRole('status')).toHaveTextContent('OpenRouter')
+    expect(screen.getByRole('status')).toHaveTextContent('openrouter/deepseek/deepseek-v3')
+    fireEvent.click(screen.getByRole('button', { name: 'Manage providers' }))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'hostAction', action: 'manageModels' })
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    expect(screen.queryByRole('button', { name: 'Manage providers' })).toBeNull()
   })
 })
 

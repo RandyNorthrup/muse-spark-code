@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { fill } from '../../src/shared/l10n/text'
 import * as acp from '@agentclientprotocol/sdk'
 import { MspError } from '@muse-code/sdk'
@@ -691,6 +692,7 @@ describe('the ACP agent (M63)', () => {
       sessionUpdate: 'available_commands_update',
       availableCommands: [
         { name: 'help', description: UI_TEXT.referenceIntro, input: null },
+        { name: 'compact', description: UI_TEXT.compactDetail, input: null },
         { name: 'review', description: 'Review', input: { hint: '<path>' } },
         { name: 'answer', description: UI_TEXT.acpAnswerHelp, input: { hint: '<n> <text>' } },
         { name: 'questions', description: UI_TEXT.acpQuestionsHelp, input: null },
@@ -1713,7 +1715,7 @@ function choose(optionId: string): PermissionAnswer {
   return () => ({ outcome: { outcome: 'selected', optionId } })
 }
 
-const WEB_SEARCH = { feature: 'webSearch' } as const
+const WEB_SEARCH = { feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() } as const
 const IMAGE = {
   feature: 'imageGeneration',
   kind: 'generate',
@@ -1735,7 +1737,7 @@ async function answersInOneSession(
     const { sessionId } = await start(client)
     const answers: boolean[] = []
     for (const request of requests) {
-      answers.push(await h.paid.allows(CWD, sessionId, request, false))
+      answers.push(Boolean(await h.paid.allows(CWD, sessionId, request, false)))
     }
     return answers
   })
@@ -1753,11 +1755,11 @@ describe('paid features in the agent (M63c, M58)', () => {
         await until(() => h.permissions.length === 1)
         await finishRunningPrompt(client, active, terminal)
         answer.resolve({ outcome: { outcome: 'selected', optionId: 'paid-allow-always' } })
-        expect(await paid).toBe(false)
+        expect(Boolean(await paid)).toBe(false)
         expect(h.paid.isRemembered(CWD, 'webSearch')).toBe(false)
         expect(h.grants.byFolder.size).toBe(0)
         // A fresh use still asks and can be allowed; only the stale answer was refused.
-        expect(await h.paid.allows(CWD, sessionId, WEB_SEARCH, false)).toBe(true)
+        expect(Boolean(await h.paid.allows(CWD, sessionId, WEB_SEARCH, false))).toBe(true)
         expect(h.permissions).toHaveLength(2)
       })
     },
@@ -1770,7 +1772,7 @@ describe('paid features in the agent (M63c, M58)', () => {
       const session = h.host.sessions[0]!
       let isAllowed = true
       session.listSkills.mockImplementation(async () => {
-        isAllowed = await h.paid.allows(CWD, sessionId, WEB_SEARCH, false)
+        isAllowed = Boolean(await h.paid.allows(CWD, sessionId, WEB_SEARCH, false))
         return []
       })
       const response = prompt(client, sessionId)
@@ -1793,7 +1795,7 @@ describe('paid features in the agent (M63c, M58)', () => {
   it('denies a paid use answered after its session closed (Grok on 78a74430)', async () => {
     const answer = Promise.withResolvers<acp.RequestPermissionResponse>()
     const h = harness({ kind: 'modelApi', paid: ['webSearch'], answer: () => answer.promise })
-    const isAllowed = await h.run(async (client) => {
+    const decision = await h.run(async (client) => {
       const { sessionId } = await start(client)
       const asked = h.paid.allows(CWD, sessionId, WEB_SEARCH, false)
       await until(() => h.permissions.length === 1)
@@ -1801,7 +1803,7 @@ describe('paid features in the agent (M63c, M58)', () => {
       answer.resolve({ outcome: { outcome: 'selected', optionId: 'paid-allow-once' } })
       return await asked
     })
-    expect(isAllowed).toBe(false)
+    expect(Boolean(decision)).toBe(false)
     // Nothing more reaches the editor for a session it closed (Grok on ca263c53).
     expect(h.updates.filter((update) => update.sessionUpdate === 'tool_call_update')).toEqual([])
   })
@@ -1859,7 +1861,7 @@ describe('paid features in the agent (M63c, M58)', () => {
       'allow_always',
       'reject_once',
     ])
-    expect(h.grants.byFolder.get(CWD)).toEqual(new Set(['webSearch', 'imageGeneration']))
+    expect(h.grants.read(CWD)).toEqual(new Set(['webSearch', 'imageGeneration']))
     expect(h.paid.isRemembered(CWD, 'webSearch')).toBe(true)
   })
 
@@ -1889,7 +1891,7 @@ describe('paid features in the agent (M63c, M58)', () => {
       },
     })
     expect(await answersInOneSession(h, [WEB_SEARCH])).toEqual([false])
-    expect(await h.paid.allows(CWD, 'not-a-session', WEB_SEARCH, false)).toBe(false)
+    expect(await h.paid.allows(CWD, 'not-a-session', WEB_SEARCH, false)).toBeFalsy()
     expect(h.permissions).toHaveLength(1)
     expect(h.log.warn).toHaveBeenCalledWith(
       expect.stringContaining('the paid-use question failed, denying'),
@@ -2226,6 +2228,70 @@ describe('ACP session ownership across asynchronous releases', () => {
         client.request('session/resume', { sessionId: 'old-1', cwd: CWD }),
       ).rejects.toThrow()
       await expect(client.request('session/close', { sessionId: 'old-1' })).rejects.toThrow()
+    })
+  })
+})
+
+describe('FIXM101C1 ACP compaction', () => {
+  it('routes /compact to the shared backend and advertises it through the SDK (R6)', async () => {
+    const h = harness({ kind: 'modelApi' })
+    const response = await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      h.host.sessions[0]?.compact.mockResolvedValue({ status: 'accepted', reason: undefined })
+      const response = client.request('session/prompt', {
+        sessionId,
+        prompt: [{ type: 'text', text: '/compact' }],
+      })
+      await until(
+        () =>
+          (h.host.sessions[0]?.compact.mock.calls.length ?? 0) > 0 ||
+          (h.host.sessions[0]?.sendTurn.mock.calls.length ?? 0) > 0,
+      )
+      h.host.sessions[0]?.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
+      return await response
+    })
+    expect(response.stopReason).toBe('end_turn')
+    expect(h.host.sessions[0]?.compact).toHaveBeenCalledOnce()
+    expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    expect(h.updates).toContainEqual(expectedQuestionCommandsUpdate())
+  })
+
+  it('cancels an in-flight compact and refuses concurrent ACP prompts (R6)', async () => {
+    const h = harness({ kind: 'modelApi' })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      const session = h.host.sessions[0]
+      const held = Promise.withResolvers<{ status: string; reason: undefined }>()
+      session?.compact.mockReturnValue(held.promise)
+      session?.cancel.mockImplementation(() => {
+        held.resolve({ status: 'cancelled', reason: undefined })
+        return Promise.resolve()
+      })
+      const response = client.request('session/prompt', {
+        sessionId,
+        prompt: [{ type: 'text', text: '/compact' }],
+      })
+      await until(
+        () =>
+          (session?.compact.mock.calls.length ?? 0) > 0 ||
+          (session?.sendTurn.mock.calls.length ?? 0) > 0,
+      )
+      if ((session?.sendTurn.mock.calls.length ?? 0) > 0) {
+        session?.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
+        await response
+      }
+      expect(session?.compact).toHaveBeenCalledOnce()
+      await expect(
+        client.request('session/prompt', {
+          sessionId,
+          prompt: [{ type: 'text', text: 'concurrent' }],
+        }),
+      ).rejects.toThrow(UI_TEXT.acpPromptBusy)
+      await client.notify('session/cancel', { sessionId })
+      const answer = await response
+      expect(answer.stopReason).toBe('cancelled')
+      expect(session?.cancel).toHaveBeenCalledOnce()
+      expect(session?.sendTurn).not.toHaveBeenCalled()
     })
   })
 })

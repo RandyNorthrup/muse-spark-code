@@ -312,6 +312,21 @@
         "command": "museSpark.previousOpenQuestion",
         "title": "%command.previousOpenQuestion.title%",
         "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.startWithOwnModel",
+        "title": "%command.startWithOwnModel.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.modelsAndAgents",
+        "title": "%command.modelsAndAgents.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.addModelProvider",
+        "title": "%command.addModelProvider.title%",
+        "category": "%command.category%"
       }
     ],
     "keybindings": [
@@ -1232,6 +1247,37 @@
           "maximum": 3600,
           "description": "%config.questions.deferAfterSeconds.description%",
           "scope": "machine"
+        },
+        "museSpark.suggestedProvider": {
+          "type": "string",
+          "default": "",
+          "description": "%config.suggestedProvider.description%"
+        },
+        "museSpark.modelApiAutoCompaction": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.modelApiAutoCompaction.description%",
+          "scope": "machine"
+        },
+        "museSpark.modelApiStrictTools": {
+          "type": "boolean",
+          "default": true,
+          "scope": "machine",
+          "description": "%config.modelApiStrictTools.description%"
+        },
+        "museSpark.modelApiParallelReads": {
+          "type": "boolean",
+          "default": true,
+          "scope": "machine",
+          "description": "%config.modelApiParallelReads.description%"
+        },
+        "museSpark.webSearchMaxPerRequest": {
+          "type": "number",
+          "default": 5,
+          "scope": "machine",
+          "description": "%config.webSearchMaxPerRequest.description%",
+          "minimum": 1,
+          "maximum": 20
         }
       }
     },
@@ -1283,6 +1329,17 @@
             "completionEvents": [
               "onCommand:museSpark.createRulesFile"
             ]
+          },
+          {
+            "id": "ownModel",
+            "title": "%walkthrough.gettingStarted.step.ownModel.title%",
+            "description": "%walkthrough.gettingStarted.step.ownModel.description%",
+            "media": {
+              "markdown": "resources/walkthrough/own-model.md"
+            },
+            "completionEvents": [
+              "onCommand:museSpark.startWithOwnModel"
+            ]
           }
         ]
       }
@@ -1300,6 +1357,7 @@
     "test:a11y": "node scripts/a11y.mjs",
     "check:badges": "node scripts/check-badges.mjs",
     "check:l10n": "node scripts/check-l10n.mjs",
+    "check:reference": "node scripts/gen-reference.mjs --check",
     "check:host-api": "node scripts/check-host-api.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -1314,7 +1372,7 @@
     "typecheck:e2e": "tsc -p test/e2e/tsconfig.json --noEmit",
     "typecheck:integration": "tsc -p test/integration/tsconfig.json --noEmit",
     "deadcode": "knip",
-    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/shared/wireEntry.ts src/extension.ts src/host/conversation/conversationEntry.ts src/host/judge/judgeEntry.ts src/host/tab/tabEntry.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/core/backends/modelapi/foreignHooksEntry.ts src/core/backends/modelapi/pluginHooksEntry.ts src/core/backends/modelapi/hookRuntimeEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts src/host/browser/browserCheckEntry.ts src/host/browser/browserRuntimeEntry.ts src/host/whatsNew/whatsNewEntry.ts src/webview/whatsNew/main.ts src/host/git/conversationGitEntry.ts src/core/resources/admission.ts src/core/resources/resourceGovernorEntry.ts src/webview/resources/ResourceSurface.tsx src/webview/usage/ResourcesSection.tsx",
+    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/shared/wireEntry.ts src/extension.ts src/host/conversation/conversationEntry.ts src/host/judge/judgeEntry.ts src/host/tab/tabEntry.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/core/backends/modelapi/foreignHooksEntry.ts src/core/backends/modelapi/pluginHooksEntry.ts src/core/backends/modelapi/hookRuntimeEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts src/host/browser/browserCheckEntry.ts src/host/browser/browserRuntimeEntry.ts src/host/whatsNew/whatsNewEntry.ts src/webview/whatsNew/main.ts src/host/git/conversationGitEntry.ts src/core/resources/admission.ts src/core/resources/resourceGovernorEntry.ts src/webview/resources/ResourceSurface.tsx src/webview/usage/ResourcesSection.tsx src/host/backend/providersEntry.ts src/shared/validationEntry.ts src/host/models/modelsPanelEntry.ts src/webview/models/models.tsx",
     "duplication": "jscpd",
     "test": "run-s test:unit test:integration",
     "test:unit": "vitest run --coverage",
@@ -1335,8 +1393,7 @@
     "prepare": "husky",
     "security:sast": "node scripts/sast.mjs",
     "schema:exec": "node scripts/exec-schema.mjs",
-    "reference:generate": "node scripts/gen-reference.mjs",
-    "check:reference": "node scripts/gen-reference.mjs --check"
+    "reference:generate": "node scripts/gen-reference.mjs"
   },
   "lint-staged": {
     "{*.{ts,tsx,mjs},!(vendor)/**/*.{ts,tsx,mjs}}": [
@@ -1352,13 +1409,14 @@
   "devDependencies": {
     "@agentclientprotocol/sdk": "1.5.0",
     "@eslint/js": "10.0.1",
-    "@muse-code/sdk": "1.3.0",
+    "@muse-code/sdk": "1.4.2",
     "@napi-rs/keyring": "2.1.0",
     "@testing-library/dom": "10.4.2",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.3",
     "@types/mocha": "10.0.10",
     "@types/node": "22.20.4",
+    "@types/pngjs": "6.0.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@types/vscode": "1.99.0",
@@ -1394,16 +1452,19 @@
   },
   "overrides": {
     "serialize-javascript": "7.1.1",
-    "diff": "8.0.3"
+    "diff": "8.0.3",
+    "source-map-js": "1.2.2"
   },
   "dependencies": {
     "highlight.js": "11.12.0",
+    "html-encoding-sniffer": "7.0.0",
+    "jpeg-js": "0.4.4",
     "mdast-util-from-markdown": "2.0.3",
     "mdast-util-gfm": "3.1.0",
     "mdast-util-to-markdown": "2.1.3",
     "micromark-extension-gfm": "3.0.0",
-    "html-encoding-sniffer": "7.0.0",
     "parse5": "8.0.1",
+    "pngjs": "7.0.0",
     "react-markdown": "10.1.0",
     "remark-gfm": "4.0.1",
     "smol-toml": "1.9.0"

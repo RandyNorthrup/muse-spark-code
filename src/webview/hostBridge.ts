@@ -5,6 +5,7 @@
 // (a JCEF or WebView2 panel) supplies a bridge of its own and the app does
 // not change.
 
+import type { PanelToHostMessage } from '../shared/modelsPanel'
 import type { WebviewToHostMessage } from '../shared/protocol'
 import type { WebviewState } from './state/snapshot'
 
@@ -12,7 +13,11 @@ import type { WebviewState } from './state/snapshot'
 export type MessageSource = Pick<Window, 'addEventListener' | 'removeEventListener'>
 
 export interface HostBridge {
-  post(message: WebviewToHostMessage): void
+  /**
+   * Posts to the host. The chat panel's messages and the Models & Agents
+   * panel's (M95) share this bridge; each side validates what it receives.
+   */
+  post(message: WebviewToHostMessage | PanelToHostMessage): void
   /** The state saved before the document last went away, unvalidated (`restoredUiState` checks it). */
   savedState(): unknown
   saveState(state: WebviewState): void

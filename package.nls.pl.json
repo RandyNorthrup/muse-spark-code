@@ -178,5 +178,15 @@
   "config.resourceRelocate.enumDescriptions.off": "Pozostawia pracę na tym komputerze.",
   "command.nextOpenQuestion.title": "Następne otwarte pytanie",
   "command.previousOpenQuestion.title": "Poprzednie otwarte pytanie",
-  "config.questions.deferAfterSeconds.description": "Liczba sekund, po których pytanie bez odpowiedzi zostaje odroczone, aby Muse mógł kontynuować pracę. Domyślnie 60; 0 oznacza nigdy; 1–9 są odczytywane jako 10; maksimum 3600. Pytanie pozostaje otwarte i można odpowiedzieć później. Używane jest tylko ustawienie tego komputera."
+  "config.questions.deferAfterSeconds.description": "Liczba sekund, po których pytanie bez odpowiedzi zostaje odroczone, aby Muse mógł kontynuować pracę. Domyślnie 60; 0 oznacza nigdy; 1–9 są odczytywane jako 10; maksimum 3600. Pytanie pozostaje otwarte i można odpowiedzieć później. Używane jest tylko ustawienie tego komputera.",
+  "command.startWithOwnModel.title": "Zacznij od własnego modelu",
+  "command.modelsAndAgents.title": "Modele i agenci",
+  "command.addModelProvider.title": "Dodaj dostawcę modeli…",
+  "config.suggestedProvider.description": "Obszar roboczy może zasugerować jeden preset dostawcy modeli według id; panel proponuje otwarcie Modeli i agentów z tym presetem. Pusty nie sugeruje nic. Obszar roboczy nie może ustawić adresu ani poświadczenia.",
+  "walkthrough.gettingStarted.step.ownModel.title": "Zacznij od własnego modelu",
+  "walkthrough.gettingStarted.step.ownModel.description": "Brak subskrypcji Muse lub klucza API Meta? Dodaj własnego dostawcę modeli — OpenRouter, Anthropic, OpenAI albo serwer lokalny — i wybierz model.\n[Zacznij od własnego modelu](command:museSpark.startWithOwnModel)",
+  "config.modelApiAutoCompaction.description": "Automatycznie kompaktuj długie rozmowy Model API. Domyślnie włączone, ale nieaktywne do zaliczenia oceny porównawczej. Każde dodatkowe płatne wywołanie wymaga zgody na cenę i dzienny budżet.",
+  "config.modelApiStrictTools.description": "Używaj ścisłych schematów narzędzi, gdy wybrany model je obsługuje. Wyłącz, aby zachować poprzednie deklaracje narzędzi.",
+  "config.modelApiParallelReads.description": "Uruchamiaj bezpieczne wywołania narzędzi tylko do odczytu równolegle, maksymalnie cztery naraz. Pozostałe wywołania są wykonywane w kolejności.",
+  "config.webSearchMaxPerRequest.description": "Maksymalna liczba wyszukiwań internetowych po stronie usługi na odpowiedź (1–20; domyślnie 5). Cena i wspólny budżet dzienny są wyświetlane przed pierwszą opłatą."
 }

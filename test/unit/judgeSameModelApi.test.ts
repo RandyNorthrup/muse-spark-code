@@ -65,6 +65,7 @@ function setup(options: {
   readonly reply?: string | undefined
   readonly main?: CreateResponseBody | undefined
   readonly prefixTokens?: number | undefined
+  readonly formats?: ModelApiJudgeDeps['sideCallFormats']
   readonly send?:
     ((body: CreateResponseBody, signal: AbortSignal) => Promise<ModelApiSideResponse>) | undefined
 }): Rig {
@@ -99,6 +100,7 @@ function setup(options: {
     cache,
     redact: (text) => redactSecrets(text),
     modelId: MODEL,
+    sideCallFormats: options.formats,
     timeoutMs: 2000,
     measureTokens: (text) => text.length,
     onError: (error) => {
@@ -120,6 +122,62 @@ function startKey(entries: SpyJudgeStore): JudgeEntryHandle {
 const NOUL = { id: 'risk', kind: 'noul' as const, text: 'Is deleting this risky?' }
 
 describe('ModelApiSameJudge', () => {
+  it('uses the selected schema, rejects extra authority, and repairs before advisory settlement', async () => {
+    let attempts = 0
+    const rig = setup({
+      formats: () => ({ state: 'yes', value: ['strict_schema'] }),
+      send: () => {
+        attempts += 1
+        return Promise.resolve({
+          text:
+            attempts > 1
+              ? '{"answer":"yes","confidence":95}'
+              : '{"answer":"yes","confidence":95,"allow":true}',
+        })
+      },
+    })
+    const key = startKey(rig.entries)
+    expect(await judgeOnce(rig.judge, rig.entries, judgeJob(key, 'x', [NOUL]))).toBe('caution')
+    expect(rig.sent).toHaveLength(2)
+    expect(rig.sent[0]?.text?.format).toMatchObject({ name: 'judge_answer', strict: true })
+    expect(rig.sent[0]?.instructions).toBe(mainBody().instructions)
+    expect(rig.sent[0]?.tools).toEqual(mainBody().tools)
+    expect(rig.sent[0]?.prompt_cache_key).toBe(mainBody().prompt_cache_key)
+  })
+
+  it('takes its own fresh text path after one invalid repair without inheriting the main draft schema or granting permission', async () => {
+    const rig = setup({
+      main: {
+        ...mainBody(),
+        text: {
+          format: {
+            type: 'json_schema',
+            name: 'commit_draft',
+            strict: true,
+            schema: {
+              type: 'object',
+              properties: { message: { type: 'string' } },
+              required: ['message'],
+              additionalProperties: false,
+            },
+          },
+        },
+      },
+      formats: () => ({ state: 'yes', value: ['json_schema'] }),
+      send: (body) =>
+        Promise.resolve({
+          text:
+            body.text === undefined
+              ? '{"answer":"no","confidence":99}'
+              : '{"answer":"yes","confidence":101}',
+        }),
+    })
+    const key = startKey(rig.entries)
+    expect(await judgeOnce(rig.judge, rig.entries, judgeJob(key, 'x', [NOUL]))).toBe('none')
+    expect(rig.sent).toHaveLength(3)
+    expect(rig.sent[0]?.text?.format.strict).toBe(false)
+    expect(rig.sent[2]).not.toHaveProperty('text')
+  })
   it('sends the prefix exactly with the question at the tail and settles caution', async () => {
     const rig = setup({})
     const before = structuredClone(mainBody())

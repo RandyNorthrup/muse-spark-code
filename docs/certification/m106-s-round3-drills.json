@@ -1,0 +1,78 @@
+[
+  {
+    "name": "dispatch-registry",
+    "source": "src/core/backends/musecode/MuseCodeHost.ts",
+    "suite": "test/unit/museCodeSdk142.test.ts",
+    "mutation": [
+      {
+        "before": "const note = this.previewFeedbackNote(request.note)",
+        "after": "const note = request.note"
+      }
+    ],
+    "exitCode": 1,
+    "failedTests": [
+      "refuses a literal registered during the async submission gap and accepts only its refreshed preview",
+      "dispatches the SDK feedback request in the same tick as the current literal scrub"
+    ],
+    "sha256Before": "ea600b3bd9cf0ea4c095d9f2beb42e98b4969664c7870f33aea4db4209d5d209",
+    "sha256After": "ea600b3bd9cf0ea4c095d9f2beb42e98b4969664c7870f33aea4db4209d5d209",
+    "restoredByteExact": true
+  },
+  {
+    "name": "dispatch-tick",
+    "source": "src/core/backends/musecode/MuseCodeHost.ts",
+    "suite": "test/unit/museCodeSdk142.test.ts",
+    "mutation": [
+      {
+        "before": "await requestWithin(this.channel, 'feedback/submit', this.timeouts.normalMs, () => {",
+        "after": "await requestWithin(this.channel, 'feedback/submit', this.timeouts.normalMs, async () => {"
+      },
+      {
+        "before": "              return answered(this.channel, 'feedback/submit', { ...request, note })",
+        "after": "              await Promise.resolve()\n              return answered(this.channel, 'feedback/submit', { ...request, note })"
+      }
+    ],
+    "exitCode": 1,
+    "failedTests": [
+      "dispatches the SDK feedback request in the same tick as the current literal scrub"
+    ],
+    "sha256Before": "ea600b3bd9cf0ea4c095d9f2beb42e98b4969664c7870f33aea4db4209d5d209",
+    "sha256After": "ea600b3bd9cf0ea4c095d9f2beb42e98b4969664c7870f33aea4db4209d5d209",
+    "restoredByteExact": true
+  },
+  {
+    "name": "refresh-preview",
+    "source": "src/webview/components/FeedbackDialog.tsx",
+    "suite": "test/unit/FeedbackDialog.test.tsx",
+    "mutation": [
+      {
+        "before": "      if (previewed) {\n        try {\n          setNote(await scrubMuseFeedbackNote(note, port))\n        } catch {\n          setPreviewed(false)\n        }\n      }\n",
+        "after": ""
+      }
+    ],
+    "exitCode": 1,
+    "failedTests": [
+      "shows a refreshed preview after the host refuses a literal registered during submission",
+      "invalidates the preview when refreshing the host scrub fails"
+    ],
+    "sha256Before": "7e2bfa12ff127f63e326ad16f18c2fe8ac092f1fad96acce4e6a04b7c633fc86",
+    "sha256After": "7e2bfa12ff127f63e326ad16f18c2fe8ac092f1fad96acce4e6a04b7c633fc86",
+    "restoredByteExact": true
+  },
+  {
+    "name": "refresh-failure",
+    "source": "src/webview/components/FeedbackDialog.tsx",
+    "suite": "test/unit/FeedbackDialog.test.tsx",
+    "mutation": [
+      {
+        "before": "        } catch {\n          setPreviewed(false)\n        }",
+        "after": "        } catch {\n          setFailed(true)\n        }"
+      }
+    ],
+    "exitCode": 1,
+    "failedTests": ["invalidates the preview when refreshing the host scrub fails"],
+    "sha256Before": "7e2bfa12ff127f63e326ad16f18c2fe8ac092f1fad96acce4e6a04b7c633fc86",
+    "sha256After": "7e2bfa12ff127f63e326ad16f18c2fe8ac092f1fad96acce4e6a04b7c633fc86",
+    "restoredByteExact": true
+  }
+]

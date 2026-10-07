@@ -178,7 +178,12 @@ describe('M107 H ACP resources', () => {
         ({ update }) => update.sessionUpdate === 'available_commands_update',
       )?.update
       expect(commands).toMatchObject({
-        availableCommands: [{ name: 'help' }, { name: 'resources' }, { name: 'usage' }],
+        availableCommands: [
+          { name: 'help' },
+          { name: 'compact' },
+          { name: 'resources' },
+          { name: 'usage' },
+        ],
       })
     })
   })
@@ -200,6 +205,7 @@ describe('M107 H ACP resources', () => {
         throw new Error('missing commands')
       expect(commands.availableCommands.map((command) => command.name)).toEqual([
         'help',
+        'compact',
         'resources',
         'usage',
         'custom',

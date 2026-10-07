@@ -1,3 +1,4 @@
+import { legacyUsdSchema } from '../../shared/usd'
 // The transcript rows the webview keeps, as zod schemas with the types
 // inferred from them (M25, PLAN.md D28). The schemas exist because the rows
 // outlive the document: the panel saves its conversation in VS Code's webview
@@ -20,6 +21,7 @@ import {
   requirementRefSchema,
   thenRunResultSchema,
   tokenUsageSchema,
+  toolArgumentPreviewSchema,
   verifySummarySchema,
   workflowRunFields,
 } from '../../shared/agentEvents'
@@ -189,7 +191,7 @@ const assistantEntrySchema = z.object({
   citations: z.optional(z.readonly(z.array(citationSchema))),
   /** The response's tokens and dollar estimate (M82, Model API only). */
   usage: z.optional(tokenUsageSchema),
-  costUsd: z.optional(z.number()),
+  costUsd: z.optional(legacyUsdSchema),
   /**
    * When it was received (M87): the backend's recorded time, or the moment
    * it began arriving until that time comes with its completion.
@@ -213,6 +215,7 @@ const toolEntrySchema = z.object({
   id: z.string(),
   tool: z.string(),
   args: z.string(),
+  argumentPreview: z.optional(toolArgumentPreviewSchema),
   status: z.string(),
   /** Transcript-visible output (`output` deltas / `visibleOutput`). */
   output: z.string(),

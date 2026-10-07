@@ -178,5 +178,15 @@
   "config.resourceRelocate.enumDescriptions.off": "將工作保留在此電腦上。",
   "command.nextOpenQuestion.title": "下一個待回答的問題",
   "command.previousOpenQuestion.title": "上一個待回答的問題",
-  "config.questions.deferAfterSeconds.description": "在多少秒後暫緩未回答的問題，讓 Muse 繼續工作。預設值為 60；0 表示永不；1–9 按 10 處理；最大值為 3,600。問題會維持待回答狀態，可稍後回答。僅使用此電腦的設定。"
+  "config.questions.deferAfterSeconds.description": "在多少秒後暫緩未回答的問題，讓 Muse 繼續工作。預設值為 60；0 表示永不；1–9 按 10 處理；最大值為 3,600。問題會維持待回答狀態，可稍後回答。僅使用此電腦的設定。",
+  "command.startWithOwnModel.title": "使用自己的模型開始",
+  "command.modelsAndAgents.title": "模型與代理",
+  "command.addModelProvider.title": "新增模型提供者…",
+  "config.suggestedProvider.description": "工作區最多可按 id 推薦一個模型提供者預設；面板會提供使用該預設開啟「模型與代理」。為空則不推薦。工作區不能設定位址或憑證。",
+  "walkthrough.gettingStarted.step.ownModel.title": "使用自己的模型開始",
+  "walkthrough.gettingStarted.step.ownModel.description": "沒有 Muse 訂閱或 Meta API 金鑰？新增您自己的模型提供者（OpenRouter、Anthropic、OpenAI 或本機伺服器）並選擇模型。\n[使用自己的模型開始](command:museSpark.startWithOwnModel)",
+  "config.modelApiAutoCompaction.description": "自動壓縮較長的 Model API 對話。預設開啟，但在配對評估通過前維持停用。每次額外付費呼叫都需要同意價格與每日預算。",
+  "config.modelApiStrictTools.description": "當所選模型支援時，使用嚴格的工具結構描述。關閉後保留原有工具宣告。",
+  "config.modelApiParallelReads.description": "並行執行安全的唯讀工具呼叫，每次最多四個。其他工具呼叫依序執行。",
+  "config.webSearchMaxPerRequest.description": "每次回答允許的服務端網頁搜尋次數上限（1–20，預設 5）。首次收費前會顯示價格和共用每日預算。"
 }
