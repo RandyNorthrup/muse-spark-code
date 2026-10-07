@@ -3121,6 +3121,33 @@ export const EN = {
       other: '{count} requests',
     }),
   },
+  // M108 X: machine-local testing options; read after table installation.
+  developer: {
+    title: 'Developer options',
+    badge: 'Developer mode',
+    allowMultiple: 'Allow several accounts of one provider on this PC',
+    unlockWarning:
+      'Local testing options, off by default. Account limits, vendor terms and paid confirmations still apply.',
+    multipleWarning:
+      'Allow isolated local profiles for testing several accounts of one provider on this PC? This choice stays on this machine.',
+    resetWarning:
+      'Reset Developer options? Local profiles will stop and their credential slots and state folders will be deleted.',
+    locked: 'Developer options are locked.',
+    unavailable: 'Developer options are unavailable.',
+    invalidRequest: 'Check the Developer options request.',
+    expires: 'Developer mode expires {time}.',
+    reset: 'Reset Developer options',
+    profiles: 'Local profiles',
+    profileInfo:
+      'Each profile has its own credential slot, state folder and runtime process. Expiry stops profiles; Reset deletes them.',
+    provider: 'Provider id',
+    account: 'Account id',
+    addProfile: 'Add local profile',
+    helpUnlock: 'Click the version seven times or use the Developer options command to unlock.',
+    helpTerminal: 'Run `developer` to unlock; `developer status` shows this machine’s options.',
+    commandUsage:
+      'Usage: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]',
+  },
 }
 
 /** The shape every table has: English's keys, with any language's plural forms. */

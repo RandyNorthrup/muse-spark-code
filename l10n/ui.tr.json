@@ -2490,5 +2490,26 @@
       "one": "{count} istek",
       "other": "{count} istek"
     }
+  },
+  "developer": {
+    "title": "Geliştirici seçenekleri",
+    "badge": "Geliştirici modu",
+    "allowMultiple": "Bu bilgisayarda bir sağlayıcının birden fazla hesabına izin ver",
+    "unlockWarning": "Yerel test seçenekleri varsayılan olarak kapalıdır. Hesap sınırları, sağlayıcı koşulları ve ücretli kullanım onayları geçerliliğini korur.",
+    "multipleWarning": "Bu bilgisayarda bir sağlayıcının birden fazla hesabını test etmek için yalıtılmış yerel profillere izin verilsin mi? Bu seçim bu makinede kalır.",
+    "resetWarning": "Geliştirici seçenekleri sıfırlansın mı? Yerel profiller durdurulur, kimlik bilgisi alanları ve durum klasörleri silinir.",
+    "locked": "Geliştirici seçenekleri kilitli.",
+    "unavailable": "Geliştirici seçenekleri kullanılamıyor.",
+    "invalidRequest": "Geliştirici seçenekleri isteğini kontrol edin.",
+    "expires": "Geliştirici modunun süresi {time} tarihinde dolar.",
+    "reset": "Geliştirici seçeneklerini sıfırla",
+    "profiles": "Yerel profiller",
+    "profileInfo": "Her profilin kendi kimlik bilgisi alanı, durum klasörü ve çalışma süreci vardır. Süre dolunca profiller durur; sıfırlama onları siler.",
+    "provider": "Sağlayıcı kimliği",
+    "account": "Hesap kimliği",
+    "addProfile": "Yerel profil ekle",
+    "helpUnlock": "Kilidi açmak için sürüme yedi kez tıklayın veya Geliştirici seçenekleri komutunu kullanın.",
+    "helpTerminal": "Kilidi açmak için `developer` çalıştırın; `developer status` bu makinenin seçeneklerini gösterir.",
+    "commandUsage": "Kullanım: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   }
 }

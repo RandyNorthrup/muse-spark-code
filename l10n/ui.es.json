@@ -2585,5 +2585,26 @@
       "many": "{count} solicitudes",
       "other": "{count} solicitudes"
     }
+  },
+  "developer": {
+    "title": "Opciones de desarrollador",
+    "badge": "Modo de desarrollador",
+    "allowMultiple": "Permitir varias cuentas de un proveedor en este PC",
+    "unlockWarning": "Opciones de prueba locales, desactivadas por defecto. Se siguen aplicando los límites de las cuentas, los términos del proveedor y las confirmaciones de pago.",
+    "multipleWarning": "¿Permitir perfiles locales aislados para probar varias cuentas de un proveedor en este PC? Esta elección permanece en este equipo.",
+    "resetWarning": "¿Restablecer las opciones de desarrollador? Los perfiles locales se detendrán y se eliminarán sus espacios de credenciales y carpetas de estado.",
+    "locked": "Las opciones de desarrollador están bloqueadas.",
+    "unavailable": "Las opciones de desarrollador no están disponibles.",
+    "invalidRequest": "Revise la solicitud de opciones de desarrollador.",
+    "expires": "El modo de desarrollador caduca {time}.",
+    "reset": "Restablecer opciones de desarrollador",
+    "profiles": "Perfiles locales",
+    "profileInfo": "Cada perfil tiene su propio espacio de credenciales, carpeta de estado y proceso de ejecución. La caducidad detiene los perfiles; el restablecimiento los elimina.",
+    "provider": "Id. del proveedor",
+    "account": "Id. de la cuenta",
+    "addProfile": "Añadir perfil local",
+    "helpUnlock": "Haga clic siete veces en la versión o use el comando Opciones de desarrollador para desbloquear.",
+    "helpTerminal": "Ejecute `developer` para desbloquear; `developer status` muestra las opciones de este equipo.",
+    "commandUsage": "Uso: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   }
 }

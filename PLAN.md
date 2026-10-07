@@ -7278,6 +7278,30 @@ It builds on:
     by account (labels resolved locally), shows each account's thresholds as
     meters, and lists swaps, spreads and stops as events.
 
+**Placement amendment — lane X (2026-10-06 brief / owner ruling).**
+One account per provider per device is the default. Developer options exist
+for testing, are clearly labelled and off by default. The visible option is
+“Allow several accounts of one provider on this PC”; enabling it requires
+its own confirmation. Seven clicks on the version, the palette command and
+`developer` in a terminal unlock the same machine-local Developer options
+page. A local profile has an isolated credential slot, state folder and
+runtime process, and registers with the account pool as a local device.
+Developer mode is badged on every surface. Expiry and Reset revoke authority
+immediately; an audit file holds fixed action words and opaque profile ids,
+never credentials, labels, origins or paths. None of this changes vendor
+policy, paid consent, budgets, replay, capability checks or Muse Code's
+capture requirement.
+
+The placement amendment itself is absent from this base; the lane brief is
+the supplied authority. Conservative lane defaults: a 24-hour unlock, seven
+version clicks within ten seconds per surface, at most eight local profiles.
+Expiry/disable stops and unregisters profiles but retains their local state
+and credential slots; Reset confirms before deleting only recorded profiles.
+Reset never deletes ordinary accounts. Restored grants bind this machine,
+reject future unlocks and invalid dates, and do not extend their expiry.
+These constants are named, not settings. All editors use the same core
+owner and validated bridge, with terminal/ACP adapters and shared React UI.
+
 ## 3. Open questions (need the owner)
 
 - **Q-M108 — Second credentials for M108's live captures (2026-10-05).**
@@ -19946,6 +19970,22 @@ No dependency, endpoint guard, paid default or budget changes. See
 | J The usage page                               | D88.11: the account dimension, per-account meters, swap and stop events, the text summary                                                                                                                                                                                                                                          | new `src/core/usage/accountUsage.ts`, `src/webview/usage/AccountsSection.tsx`                                                                                                        | `aggregate.ts` (group by account); `usageText.ts`; `UsageApp.tsx` (the mount)                                                                                                                                                                                                                                                                                                                   | after 0, with M102 merged                    |
 | W Wiring, docs and gates (last)                | Bundles, budgets, `package.json`, docs, registry rows, certification, the full gate                                                                                                                                                                                                                                                | `docs/certification/m108*.md`                                                                                                                                                        | `scripts/build.mjs`; the bundle-size and split gates; the host API record; README; PRIVACY; SECURITY; CHANGELOG; `docs/acp.md`; `docs/ci.md`; `docs/ide-compatibility/**`; PLAN                                                                                                                                                                                                                 | last                                         |
 
+- **Lane X — Developer options and local profiles** (2026-10-06 brief).
+  Owns new `src/shared/developerOptions.ts`, `src/core/developer/**`,
+  `src/runtime/developer/**`, `src/webview/developer/**`, its tests and
+  `docs/certification/m108-x-developer-options-and-local-profiles.md`.
+  Shared regions: `constants.ts`, `en.ts` and every translated UI table,
+  this plan and the minimal Unreleased note. The visible setting, palette
+  command, version click binding, `/help` rows and badges are supplied as
+  host-neutral ports and metadata. W/H/U/D own the actual entry points.
+  X never edits their handlers, package manifest or build/gate scripts.
+  Acceptance: off by default; unlock paths converge; confirmation cannot
+  be bypassed; expiry/Reset fences pending I/O; each profile gets distinct
+  resources and local-device admission; no key crosses UI/audit/process
+  boundaries; cleanup touches recorded profiles only; all 14 languages;
+  lazy UI measured against its own 25 KiB cap, with React and installed
+  localization supplied by the existing webview. Each guard is drilled red.
+
 - **Steps.**
   1. Lane 0, including the record's byte-checked quotes.
   2. K, T, U and J against the fakes; then P and H.
@@ -20088,6 +20128,13 @@ No dependency, endpoint guard, paid default or budget changes. See
         full gate green
 
 ## 7. Gates
+
+**M108-X bounded-lane certification.** The rig brief prohibits aggregate
+quality/full-unit runs, merges and network calls. Complete owning test files
+run directly on Kubuntu with repository timeouts and at most three files and
+workers. Scoped static/build checks and normal hooks certify local commits;
+W retains full integrated quality, coverage, installed editor and packaging
+checks. No threshold or gate is weakened.
 
 **FIXM108P / FIXM108P2 bounded-lane certification (2026-10-06).** The rig brief and
 shared rules prohibit aggregate quality/full unit runs, merges and network
@@ -21184,6 +21231,10 @@ Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemg
 | ------------------------------------------------------------ | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/runtime/main.ts`, `exitHeadless`                        | `eslint-disable-next-line unicorn/no-process-exit`   | A standalone headless command owns its process. It must end within the deadline/grace/force bounds even if a pipe or late backend setup never closes, including usage errors. Writes remain async and bounded before exit.                                                                                                                                                                                                                                                                                                                                             | 2026-10-02 |
 | `src/runtime/exec/execClient.ts`, constructor session router | Reflection of SDK 1.4.0's private `builder.handlers` | The SDK's constructor-installed session router validates a closed union before custom notification parsers, dropping future variants. This headless instance uses `request()` and no active-session helpers; remove only its single constructor handler after validating the exact descriptor `client-session-update-router`. The SDK's original builder and public handler/request/connection APIs remain in use. Structural checking fails closed if this pinned seam changes; real JSON-RPC and real-engine tests cover it. No dependency or SDK source is patched. | 2026-10-02 |
+
+| M108 lane X location                                  | Escape hatch                                                     | Reason                                                                                                                                                                                                                                                                    | Date       |
+| ----------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/core/developer/developerOptions.ts`, `serialize` | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | The extension host runs Node 20 (VS Code 1.99), which lacks `Promise.withResolvers`; the deferred gate uses `new Promise` with a synchronously assigned resolver instead. Every other lane (M62 pattern) does the same. Remove if the minimum host gains `withResolvers`. | 2026-10-06 |
 
 **M91 provisional budget (lead decision, 2026-10-05).** `dist/uiText.js`,
 the English fallback on the startup path, is at 126.8 KiB with M91's strings

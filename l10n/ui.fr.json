@@ -2585,5 +2585,26 @@
       "many": "{count} requêtes",
       "other": "{count} requêtes"
     }
+  },
+  "developer": {
+    "title": "Options de développement",
+    "badge": "Mode développeur",
+    "allowMultiple": "Autoriser plusieurs comptes d’un fournisseur sur ce PC",
+    "unlockWarning": "Options de test locales, désactivées par défaut. Les limites des comptes, les conditions des fournisseurs et les confirmations payantes restent applicables.",
+    "multipleWarning": "Autoriser des profils locaux isolés pour tester plusieurs comptes d’un fournisseur sur ce PC ? Ce choix reste sur cette machine.",
+    "resetWarning": "Réinitialiser les options de développement ? Les profils locaux seront arrêtés et leurs emplacements d’identifiants et dossiers d’état seront supprimés.",
+    "locked": "Les options de développement sont verrouillées.",
+    "unavailable": "Les options de développement sont indisponibles.",
+    "invalidRequest": "Vérifiez la demande d’options de développement.",
+    "expires": "Le mode développeur expire {time}.",
+    "reset": "Réinitialiser les options de développement",
+    "profiles": "Profils locaux",
+    "profileInfo": "Chaque profil possède son emplacement d’identifiants, son dossier d’état et son processus d’exécution. L’expiration arrête les profils ; la réinitialisation les supprime.",
+    "provider": "Identifiant du fournisseur",
+    "account": "Identifiant du compte",
+    "addProfile": "Ajouter un profil local",
+    "helpUnlock": "Cliquez sept fois sur la version ou utilisez la commande Options de développement pour déverrouiller.",
+    "helpTerminal": "Exécutez `developer` pour déverrouiller ; `developer status` affiche les options de cette machine.",
+    "commandUsage": "Utilisation : developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   }
 }

@@ -2395,5 +2395,26 @@
     "requestCount": {
       "other": "{count} 次请求"
     }
+  },
+  "developer": {
+    "title": "开发者选项",
+    "badge": "开发者模式",
+    "allowMultiple": "允许在这台电脑上使用同一提供商的多个账号",
+    "unlockWarning": "本地测试选项，默认关闭。账号限额、提供商条款和付费使用确认仍然适用。",
+    "multipleWarning": "允许使用隔离的本地配置文件，在这台电脑上测试同一提供商的多个账号吗？此选择仅保存在本机。",
+    "resetWarning": "重置开发者选项吗？本地配置文件将停止，其凭据存储槽和状态文件夹将被删除。",
+    "locked": "开发者选项已锁定。",
+    "unavailable": "开发者选项不可用。",
+    "invalidRequest": "请检查开发者选项请求。",
+    "expires": "开发者模式将于 {time} 到期。",
+    "reset": "重置开发者选项",
+    "profiles": "本地配置文件",
+    "profileInfo": "每个配置文件都有独立的凭据存储槽、状态文件夹和运行进程。到期时停止配置文件，重置时将其删除。",
+    "provider": "提供商 ID",
+    "account": "账号 ID",
+    "addProfile": "添加本地配置文件",
+    "helpUnlock": "点击版本号七次，或使用开发者选项命令解锁。",
+    "helpTerminal": "运行 `developer` 解锁；`developer status` 显示本机的选项。",
+    "commandUsage": "用法：developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   }
 }

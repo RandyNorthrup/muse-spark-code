@@ -2585,5 +2585,26 @@
       "many": "{count} richieste",
       "other": "{count} richieste"
     }
+  },
+  "developer": {
+    "title": "Opzioni sviluppatore",
+    "badge": "Modalità sviluppatore",
+    "allowMultiple": "Consenti più account di un fornitore su questo PC",
+    "unlockWarning": "Opzioni di test locali, disattivate per impostazione predefinita. Restano validi i limiti degli account, i termini dei fornitori e le conferme per l’uso a pagamento.",
+    "multipleWarning": "Consentire profili locali isolati per testare più account di un fornitore su questo PC? Questa scelta resta su questo computer.",
+    "resetWarning": "Reimpostare le opzioni sviluppatore? I profili locali saranno arrestati e i relativi spazi per le credenziali e cartelle di stato saranno eliminati.",
+    "locked": "Le opzioni sviluppatore sono bloccate.",
+    "unavailable": "Le opzioni sviluppatore non sono disponibili.",
+    "invalidRequest": "Controlla la richiesta delle opzioni sviluppatore.",
+    "expires": "La modalità sviluppatore scade {time}.",
+    "reset": "Reimposta opzioni sviluppatore",
+    "profiles": "Profili locali",
+    "profileInfo": "Ogni profilo ha il proprio spazio per le credenziali, cartella di stato e processo di esecuzione. La scadenza arresta i profili; la reimpostazione li elimina.",
+    "provider": "ID fornitore",
+    "account": "ID account",
+    "addProfile": "Aggiungi profilo locale",
+    "helpUnlock": "Fai clic sette volte sulla versione o usa il comando Opzioni sviluppatore per sbloccare.",
+    "helpTerminal": "Esegui `developer` per sbloccare; `developer status` mostra le opzioni di questo computer.",
+    "commandUsage": "Utilizzo: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   }
 }

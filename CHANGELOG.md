@@ -7,6 +7,15 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Developer options for local multi-account testing, off by default: unlock
+  with seven version clicks, the Developer options command or `developer` in
+  a terminal, then allow isolated local profiles of one provider on this PC
+  after a separate confirmation. Grants expire after 24 hours; Reset stops
+  profiles and deletes only recorded profile state. No vendor, paid, budget
+  or replay behaviour changes.
+
 ### Fixed
 
 - Account threshold evaluation and paid token reservations use exact nano-USD

@@ -2680,5 +2680,26 @@
       "many": "{count} požadavku",
       "other": "{count} požadavků"
     }
+  },
+  "developer": {
+    "title": "Možnosti pro vývojáře",
+    "badge": "Vývojářský režim",
+    "allowMultiple": "Povolit více účtů jednoho poskytovatele na tomto počítači",
+    "unlockWarning": "Místní možnosti testování, ve výchozím stavu vypnuté. Nadále platí limity účtů, podmínky poskytovatelů a potvrzení placeného použití.",
+    "multipleWarning": "Povolit izolované místní profily pro testování více účtů jednoho poskytovatele na tomto počítači? Tato volba zůstává na tomto zařízení.",
+    "resetWarning": "Obnovit možnosti pro vývojáře? Místní profily se zastaví a jejich úložiště přihlašovacích údajů a složky stavu se odstraní.",
+    "locked": "Možnosti pro vývojáře jsou zamčené.",
+    "unavailable": "Možnosti pro vývojáře nejsou dostupné.",
+    "invalidRequest": "Zkontrolujte požadavek na možnosti pro vývojáře.",
+    "expires": "Vývojářský režim vyprší {time}.",
+    "reset": "Obnovit možnosti pro vývojáře",
+    "profiles": "Místní profily",
+    "profileInfo": "Každý profil má vlastní úložiště přihlašovacích údajů, složku stavu a běhový proces. Vypršení profily zastaví; obnovení je odstraní.",
+    "provider": "ID poskytovatele",
+    "account": "ID účtu",
+    "addProfile": "Přidat místní profil",
+    "helpUnlock": "Klikněte sedmkrát na verzi nebo použijte příkaz Možnosti pro vývojáře k odemknutí.",
+    "helpTerminal": "Spusťte `developer` pro odemknutí; `developer status` zobrazí možnosti tohoto počítače.",
+    "commandUsage": "Použití: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   }
 }

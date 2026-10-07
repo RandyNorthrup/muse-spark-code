@@ -2490,5 +2490,26 @@
       "one": "{count} Anfrage",
       "other": "{count} Anfragen"
     }
+  },
+  "developer": {
+    "title": "Entwickleroptionen",
+    "badge": "Entwicklermodus",
+    "allowMultiple": "Mehrere Konten eines Anbieters auf diesem PC zulassen",
+    "unlockWarning": "Lokale Testoptionen, standardmäßig deaktiviert. Kontolimits, Anbieterbedingungen und Bestätigungen kostenpflichtiger Nutzung gelten weiterhin.",
+    "multipleWarning": "Isolierte lokale Profile zum Testen mehrerer Konten eines Anbieters auf diesem PC zulassen? Diese Auswahl bleibt auf diesem Rechner.",
+    "resetWarning": "Entwickleroptionen zurücksetzen? Lokale Profile werden beendet und ihre Zugangsdatenplätze und Zustandsordner gelöscht.",
+    "locked": "Die Entwickleroptionen sind gesperrt.",
+    "unavailable": "Die Entwickleroptionen sind nicht verfügbar.",
+    "invalidRequest": "Prüfen Sie die Anfrage für Entwickleroptionen.",
+    "expires": "Der Entwicklermodus läuft {time} ab.",
+    "reset": "Entwickleroptionen zurücksetzen",
+    "profiles": "Lokale Profile",
+    "profileInfo": "Jedes Profil hat einen eigenen Zugangsdatenplatz, Zustandsordner und Laufzeitprozess. Bei Ablauf werden Profile beendet; Zurücksetzen löscht sie.",
+    "provider": "Anbieter-ID",
+    "account": "Konto-ID",
+    "addProfile": "Lokales Profil hinzufügen",
+    "helpUnlock": "Klicken Sie siebenmal auf die Version oder verwenden Sie den Befehl Entwickleroptionen zum Entsperren.",
+    "helpTerminal": "Führen Sie `developer` zum Entsperren aus; `developer status` zeigt die Optionen dieses Rechners.",
+    "commandUsage": "Aufruf: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   }
 }

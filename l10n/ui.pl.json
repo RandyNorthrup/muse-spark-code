@@ -2680,5 +2680,26 @@
       "many": "{count} żądań",
       "other": "{count} żądania"
     }
+  },
+  "developer": {
+    "title": "Opcje programisty",
+    "badge": "Tryb programisty",
+    "allowMultiple": "Zezwalaj na kilka kont jednego dostawcy na tym komputerze",
+    "unlockWarning": "Lokalne opcje testowe, domyślnie wyłączone. Nadal obowiązują limity kont, warunki dostawców i potwierdzenia płatnego użycia.",
+    "multipleWarning": "Zezwolić na izolowane profile lokalne do testowania kilku kont jednego dostawcy na tym komputerze? Ten wybór pozostaje na tym urządzeniu.",
+    "resetWarning": "Zresetować opcje programisty? Profile lokalne zostaną zatrzymane, a ich miejsca na dane uwierzytelniające i foldery stanu usunięte.",
+    "locked": "Opcje programisty są zablokowane.",
+    "unavailable": "Opcje programisty są niedostępne.",
+    "invalidRequest": "Sprawdź żądanie opcji programisty.",
+    "expires": "Tryb programisty wygasa {time}.",
+    "reset": "Zresetuj opcje programisty",
+    "profiles": "Profile lokalne",
+    "profileInfo": "Każdy profil ma własne miejsce na dane uwierzytelniające, folder stanu i proces wykonawczy. Wygaśnięcie zatrzymuje profile; reset je usuwa.",
+    "provider": "Identyfikator dostawcy",
+    "account": "Identyfikator konta",
+    "addProfile": "Dodaj profil lokalny",
+    "helpUnlock": "Kliknij wersję siedem razy lub użyj polecenia Opcje programisty, aby odblokować.",
+    "helpTerminal": "Uruchom `developer`, aby odblokować; `developer status` pokazuje opcje tego komputera.",
+    "commandUsage": "Użycie: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   }
 }
