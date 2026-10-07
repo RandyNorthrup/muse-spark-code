@@ -40836,6 +40836,20 @@ large-taint-analysis rationale requires; do not change rules, excludes,
 severity or scan deadlines. Certify the actual local launcher against the
 pinned scanner as well as CI's direct command.
 
+The next full shard's cold package still crosses 60 seconds under concurrent
+job load. Profile its unchanged production build, compression, fifteen
+language-help processes and isolated native-loader checks. Remove remaining
+serialized independent work or repeated setup while retaining every language,
+export/call comparison and the existing cold setup deadline; then rerun the
+complete Linux job set. The interrupted wave is not a passing receipt.
+The measured post-archive validation through staged Help takes 13.2 seconds
+of a 41.8-second cold fixture, including localization and badge gates. Run
+Help's independent commands in bounded batches of three,
+settling each batch before reporting a failure. Keep all fifteen language
+checks, each original command/environment/output bound and every package
+assertion. Final fresh-clone jobs run one at a time, as hosted jobs receive
+independent machines; no test launch delay or product priority change.
+
 ### CI0150A — Clean-shard artifacts and portable certification (2026-10-07)
 
 Scope: six owning suites in the CI0150A brief. Clean hosted shards have no

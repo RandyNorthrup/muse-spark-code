@@ -2020,6 +2020,26 @@ push, rebase, merge, credential output or disabled hook.
   This is not a passing receipt; the complete final job set starts again from
   the new committed repair without adding a retry to tests or workflow.
 
+- Shard 1 at `ac358446d` still exposes a 61.6-second cold ChatGPT setup
+  against its unchanged 60-second hook; 205 other files pass. Shard 2 passes.
+  The rest of that wave is interrupted and its clones removed; no partial
+  wave is accepted. Temporary phase instrumentation is restored byte-exact.
+  The isolated cold fixture takes 41.81 seconds: package archive preparation
+  and compression end at 10.37 seconds, localization/badge/Help validation at
+  23.54 seconds, npm pack at 24.29 seconds, and all 38 native-export checks
+  at 31.42 seconds, plus production build and fixture preparation. Fifteen
+  staged Help commands are independent but serial. They now run in bounded
+  batches of three with unchanged commands, environments and output bounds;
+  every batch settles before any child failure is reported. ChatGPT and VSIX
+  package suites pass all 77 tests together on three CPUs (52.75 seconds),
+  with default timers and the same 60-second cold hook. Final jobs run one
+  at a time to reproduce hosted jobs' independent machines; no test launch
+  delay or product priority change is introduced. Deliberately making only
+  the German help child exit 9 fails the successful-package assertion; the
+  existing missing-bundle refusal still passes. The script is restored
+  byte-exact. The drill uses pinned Node 22 and default test timers. The
+  restored ChatGPT file passes both tests in 36.37 seconds.
+
 ### Fresh-clone job verification
 
 The first committed repair (`02fd30fe9`) passes all four Linux shards, the

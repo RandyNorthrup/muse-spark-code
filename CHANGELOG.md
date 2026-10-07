@@ -7,6 +7,9 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Check every staged ACP help language in bounded parallel batches, keeping
+  cold package certification within its existing deadline.
+
 ### Fixed
 
 - Pass one serial worker limit to the local Semgrep launcher so aggregate
