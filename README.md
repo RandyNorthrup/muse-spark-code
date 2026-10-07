@@ -154,8 +154,9 @@ repair requires every relevant writer to have stopped. No automatic deletion
 is attempted.
 
 `museSpark.reports.network` is machine-scoped: `whenSignedIn` (default) reads
-GitHub using the editor's existing sign-in, `always` also permits public reads,
-and `off` forbids network collection. Reports never open a sign-in prompt.
+GitHub using the editor's existing sign-in, `always` also reads GitHub without
+requiring sign-in, and `off` forbids network collection. Reports never open a
+sign-in prompt.
 The terminal requires `--network` on every collection, and uses `gh`'s own
 identity. CI egress remains denied. Cache reads and writes use confined,
 owner-only storage, validated decoded data and ETags; interrupted requests

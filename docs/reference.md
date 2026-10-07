@@ -2555,7 +2555,7 @@ Type: `"integer"`. Default: `60`. Scope: `machine`.
 
 ### museSpark.reports.network
 
-reportsNetwork&githubSignIn: Choose when reports may read GitHub and public release channels. Terminal reports use the network only with --network.
+reportsNetwork&githubSignIn: Choose when reports may read GitHub. Terminal reports use the network only with --network.
 
 Type: `"string"`. Default: `"whenSignedIn"`. Scope: `machine`.
 
@@ -2567,7 +2567,7 @@ Type: `"string"`. Default: `"whenSignedIn"`. Scope: `machine`.
 }
 ```
 
-- `"whenSignedIn"`: reportsNetwork&githubSignIn: Read GitHub while signed in to GitHub, and public release channels.
+- `"whenSignedIn"`: reportsNetwork&githubSignIn: Read GitHub while signed in to GitHub.
 - `"always"`: Allow network sources for reports.
 - `"off"`: Read local sources only.
 

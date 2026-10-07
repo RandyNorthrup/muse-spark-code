@@ -2962,13 +2962,13 @@
       },
       "id": "museSpark.reports.network",
       "name": "museSpark.reports.network",
-      "description": "Choose when reports may read GitHub and public release channels. Terminal reports use the network only with --network.",
+      "description": "Choose when reports may read GitHub. Terminal reports use the network only with --network.",
       "descriptionKey": "config.reports.network.description",
       "type": "string",
       "default": "whenSignedIn",
       "enum": ["whenSignedIn", "always", "off"],
       "enumDescriptions": [
-        "Read GitHub while signed in to GitHub, and public release channels.",
+        "Read GitHub while signed in to GitHub.",
         "Allow network sources for reports.",
         "Read local sources only."
       ],
@@ -2984,7 +2984,7 @@
               "when": "reportsNetwork&githubSignIn",
               "text": {
                 "fallbackKey": "config.reports.network.enumDescriptions.whenSignedIn",
-                "fallback": "Read GitHub while signed in to GitHub, and public release channels."
+                "fallback": "Read GitHub while signed in to GitHub."
               }
             }
           ]

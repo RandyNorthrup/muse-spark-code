@@ -12,6 +12,10 @@ happened, not what was planned; superseded entries are kept.
 - Deterministic `/report` commands and a local report tab with Markdown, HTML, JSON and text exports, saved history and comparisons. The composer, palette and Account & usage open the same lazy engine without starting a model turn. Sources retain their reasons and freshness when evidence is unavailable.
 - A checked plan grammar and report-v1 schema; pure collectors, bounded local readers, canonical redaction and shared report contracts for CLI, ACP and native host adapters.
 
+### Fixed
+
+- The `museSpark.reports.network` setting no longer promises public release-channel reads: only GitHub reads are wired, and store, workflow and release adapters stay unavailable until their approved live captures land.
+- The reporting bundle split check now also fails when a reporting bundle carries the paid gate (`src/core/paid/**`), as D93 requires.
 
 ### Documentation
 
