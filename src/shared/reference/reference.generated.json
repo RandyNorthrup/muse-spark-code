@@ -2974,7 +2974,12 @@
     },
     {
       "text": {
-        "conditions": [{ "when": "agentFence", "text": { "setting": "vault.agentFence" } }]
+        "conditions": [
+          {
+            "when": "shellOrigin=interactive&agentFence",
+            "text": { "setting": "vault.agentFence" }
+          }
+        ]
       },
       "id": "museSpark.vault.agentFence",
       "name": "museSpark.vault.agentFence",

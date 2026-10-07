@@ -1,5 +1,5 @@
 import { Buffer } from 'node:buffer'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { decodeTotpSeed, totpCode } from '../../../src/core/vault/web/totp'
 import { observeByteOwners } from './webFixture'
 import { VAULT_LIMITS } from '../../../src/shared/constants'
@@ -13,6 +13,31 @@ const vectors = {
 const lengths = { sha1: 20, sha256: 32, sha512: 64 }
 
 describe('vault RFC 6238 codes', () => {
+  it('W-L3 observes and proves erasure of the native HMAC digest buffer', () => {
+    const read = Buffer.alloc(0).readUInt32BE
+    const digests: Buffer[] = []
+    const probe = vi.spyOn(Buffer.prototype, 'readUInt32BE').mockImplementation(function (
+      this: Buffer,
+      offset,
+    ) {
+      digests.push(this)
+      if (offset !== undefined && typeof offset !== 'number') throw new Error('invalid offset')
+      return read.call(this, offset)
+    })
+    const seed = Buffer.alloc(20, 1)
+    try {
+      const code = totpCode(seed, 59_000, { algorithm: 'sha1', digits: 6, periodSeconds: 30 })
+      const bytes = digests[0]
+      expect(Buffer.isBuffer(bytes)).toBe(true)
+      if (!Buffer.isBuffer(bytes)) throw new Error('native digest missing')
+      expect(bytes.every((byte) => byte === 0)).toBe(true)
+      code.fill(0)
+    } finally {
+      probe.mockRestore()
+      seed.fill(0)
+    }
+  })
+
   it('erases owned key and counter buffers while transferring the current code to its caller', () => {
     const seed = Buffer.alloc(20, 1)
     const owners = observeByteOwners()

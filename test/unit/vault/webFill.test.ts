@@ -25,6 +25,23 @@ afterEach(async () => {
 })
 
 describe('vault web fill boundaries', () => {
+  it('W-L1 closes a browser when fill starts with an already-aborted signal', async () => {
+    const f = await webFixture()
+    f.controller.abort()
+    await expect(f.fill.fill(f.approved, f.use, f.controller.signal)).rejects.toThrow('useChanged')
+    expect(f.browser.close).toHaveBeenCalledOnce()
+    expect(f.browser.send).not.toHaveBeenCalled()
+  })
+  it.each(['certificate error', { valid: true }, 1])(
+    'W-L2 refuses a truthy nonboolean certificate observation: %s',
+    async (certificateValid) => {
+      const f = await webFixture()
+      Object.assign(f.browser.facts, { certificateValid })
+      await expect(f.fill.describe(WEB_ORIGIN, 'password')).rejects.toThrow('useChanged')
+      expect(f.browser.send).not.toHaveBeenCalled()
+    },
+  )
+
   it('erases every owned fill buffer after both insertion and a CDP failure', async () => {
     for (const shouldFail of [false, true]) {
       const f = await webFixture()

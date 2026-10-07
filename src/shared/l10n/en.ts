@@ -3474,3 +3474,8 @@ export const EN = {
 
 /** The shape every table has: English's keys, with any language's plural forms. */
 export type UiText = typeof EN
+
+/** Browser lazy-region installer; Node consumers already have the canonical vault group. */
+export function setVaultEnglish(english: UiText['vault']): void {
+  EN.vault = english
+}

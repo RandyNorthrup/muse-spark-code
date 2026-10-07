@@ -67,7 +67,7 @@ const SETTING_CONDITIONS: Readonly<Partial<Record<keyof typeof SETTING_DEFAULTS,
   bundledSkills: 'backend&skillInstallation',
   // M109: the fence description names the off state (workers stay fenced),
   // and the screen-lock description the reported-lock state.
-  'vault.agentFence': 'agentFence',
+  'vault.agentFence': 'shellOrigin=interactive&agentFence',
   'vault.lockOnScreenLock': 'screenLock',
 }
 

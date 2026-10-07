@@ -10,9 +10,10 @@ export function webOrigin(url: string): string {
 
 export function assertWebTarget(target: WebTargetLease, origin: string): void {
   target.assertCurrent()
+  const certificate: unknown = target.facts.certificateValid
   if (
+    certificate !== true ||
     origin !== webOrigin(origin) ||
-    !target.facts.certificateValid ||
     webOrigin(target.facts.topUrl) !== origin ||
     webOrigin(target.facts.frameUrl) !== origin
   )

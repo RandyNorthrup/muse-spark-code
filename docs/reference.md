@@ -2558,7 +2558,7 @@ Type: `"string"`. Default: `"auto"`. Scope: `machine`.
 
 ### museSpark.vault.agentFence
 
-agentFence: Fence agent processes from ambient credential routes. Workers remain fenced when this is off.
+shellOrigin=interactive&agentFence: Fence agent processes from ambient credential routes. Workers remain fenced when this is off.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 

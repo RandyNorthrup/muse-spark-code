@@ -8,8 +8,9 @@ describe('M109 O rotation and generation', () => {
     await f.client.signIn(f.binding, f.signal)
     f.advance()
     const controller = new AbortController()
+    let tokenAdmissions = 0
     f.allowEndpoint.mockImplementation((url) => {
-      if (url === f.metadata.token_endpoint) controller.abort()
+      if (url === f.metadata.token_endpoint && ++tokenAdmissions === 2) controller.abort()
       return Promise.resolve(true)
     })
     await expect(

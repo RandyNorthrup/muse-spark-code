@@ -238,6 +238,19 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**FIXM109W (2026-10-07): lazy vault English.** The vault's canonical English
+and all translated tables retain every key. Browser startup packs only chat
+English; an enumerable vault accessor refuses use until the vault surface
+loads its canonical group. Startup validates the chat groups, then the lazy
+surface validates the installed vault group before rendering and uses English
+if that group is damaged. Integration builds retain the complete inline table;
+Node places vault English in the existing optional-surface region. App reads a
+scalar reviewer default rather than retaining the whole settings object and
+its vault constants in chat startup. This amends DIET1's complete-inline
+browser rule for the vault only. No budget increases or new shipped bundle.
+Measure and prove cold English, installed-language preservation, damaged-group
+fallback and unchanged startup/deferred regression caps in the M109 record.
+
 **DIET1 (2026-10-06, main `e56b795a`).** The production baseline is
 813,180 B (794.1 KiB) for chat startup and 51,157 B (49.96 KiB) for the original
 deferred aggregate. After DIET1, startup is 751,392 B (733.8 KiB), down

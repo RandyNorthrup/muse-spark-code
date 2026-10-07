@@ -3215,7 +3215,11 @@ export function referenceModel(): ReferenceModel {
           '~9': { type: '~6', enum: '~7l', '~1': 'auto' },
         },
         {
-          text: { '~t': [{ when: 'agentFence', text: { '~13': 'vault.agentFence' } }] },
+          text: {
+            '~t': [
+              { when: 'shellOrigin=interactive&agentFence', text: { '~13': 'vault.agentFence' } },
+            ],
+          },
           id: '~6p',
           name: '~6p',
           '~0': 'Fence agent processes from ambient credential routes. Workers remain fenced when this is off.',

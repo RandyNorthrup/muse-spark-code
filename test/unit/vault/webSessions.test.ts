@@ -52,6 +52,16 @@ function restore(f: Awaited<ReturnType<typeof webFixture>>, use: WebSessionUse) 
 }
 
 describe('vault web sessions', () => {
+  it('W-L1 closes a browser when restore starts with an already-aborted signal', async () => {
+    const f = await webFixture()
+    f.controller.abort()
+    await expect(
+      restore(f, { kind: 'session', origin: WEB_ORIGIN, browserId: f.browser.browserId }),
+    ).rejects.toThrow('useChanged')
+    expect(f.browser.close).toHaveBeenCalledOnce()
+    expect(f.browser.restoreCookies).not.toHaveBeenCalled()
+  })
+
   it.each(['future', 'metadata', 'cap', 'cookie'])(
     'refuses incoherent %s expiry at restore',
     async (failure) => {

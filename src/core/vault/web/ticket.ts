@@ -35,6 +35,7 @@ async function runTicket(
     if (hasClosed || signal.aborted) throw new Error('useChanged')
   }
   signal.addEventListener('abort', close, { once: true })
+  if (signal.aborted) close()
   const settle = async (): Promise<void> => {
     try {
       await broker.finish(ticket.id, hasSucceeded)

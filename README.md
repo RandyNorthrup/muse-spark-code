@@ -4065,6 +4065,16 @@ Allow for this session where permitted, and Deny; ACP's `allow_always` means
 that session choice only. Bypass does not grant a secret. Lock can interrupt
 an active turn or permission question.
 
+Lock, cancel and expiry withdraw a pending vault permission and settle its
+card. Command-bound TOTP consent says that the process sees the code. Agent
+audit replies include only currently visible items. Headless refusals retain
+their reason; only a missing unattended grant recommends creating one.
+
+Turning `museSpark.vault.agentFence` off applies only to an interactive shell.
+Workers, schedules, checks and hooks retain the credential and Git-helper
+fence. Approved environment injection cannot restore loader or startup
+variables.
+
 Local headless `exec --vault` requires existing unattended grants and never
 prompts. Missing grants, presence, taint, unavailable bindings or a failed
 vault use end the run with `denied` (exit 7), independently of

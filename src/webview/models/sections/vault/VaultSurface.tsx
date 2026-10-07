@@ -1,3 +1,4 @@
+import { installVaultEnglish } from '../../../../shared/l10n/vaultEnglish'
 import { lazy, Suspense } from 'react'
 import { UI_TEXT } from '../../../../shared/constants'
 import {
@@ -27,6 +28,7 @@ export function VaultSurface({
   readonly onManage: () => void
   readonly cardsOnly?: boolean
 }) {
+  installVaultEnglish()
   const parsed = vaultHostMessageSchema.safeParse(raw)
   if (!parsed.success) return <p role="alert">{UI_TEXT.vault.operationFailed}</p>
   const state = parsed.data.state

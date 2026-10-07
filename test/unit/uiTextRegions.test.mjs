@@ -3,6 +3,7 @@ import { Buffer } from 'node:buffer'
 import { readFileSync, mkdtempSync } from 'node:fs'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
+import { pathToFileURL } from 'node:url'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import { build } from 'esbuild'
@@ -65,6 +66,22 @@ beforeAll(async () => {
     ],
   })
   built.textSource = result.outputFiles[0].text
+  await build({
+    entryPoints: {
+      english: 'src/shared/l10n/en.ts',
+      text: 'src/shared/l10n/text.ts',
+      vault: 'src/shared/l10n/vaultEnglish.ts',
+      install: 'src/webview/installTable.ts',
+    },
+    outdir: path.join(built.folder, 'browser'),
+    outExtension: { '.js': '.mjs' },
+    bundle: true,
+    splitting: true,
+    minify: true,
+    platform: 'browser',
+    format: 'esm',
+    plugins: [compactBrowserEnglish],
+  })
 })
 
 afterAll(() => removeFolder(built.folder))
@@ -165,12 +182,40 @@ describe('regional Node English fallback', () => {
   })
 })
 
-it('round-trips every browser English key, value and plural form inline', async () => {
+it('round-trips chat English inline and vault English after its lazy install', async () => {
   const bundle = await import(
     `data:text/javascript;base64,${Buffer.from(built.browserSource).toString('base64')}`
   )
+  expect(() => bundle.EN.vault).toThrow('Deferred vault English is not loaded')
+  bundle.setVaultEnglish(EN.vault)
   expect(bundle.EN).toEqual(EN)
   expect(JSON.stringify(bundle.EN)).toBe(JSON.stringify(EN))
   expect(built.browserSource).toContain('DecompressionStream')
   expect(built.browserSource).not.toContain('import(')
+})
+
+function loadBrowserRegion(name) {
+  return import(pathToFileURL(path.join(built.folder, 'browser', `${name}.mjs`)).href)
+}
+
+it('W startup validates vault translations on first use and loads actual English lazily', async () => {
+  const english = await loadBrowserRegion('english')
+  const text = await loadBrowserRegion('text')
+  expect(() => english.EN.vault).toThrow('Deferred vault English is not loaded')
+  expect(() => text.UI_TEXT.vault).toThrow('Deferred vault English is not loaded')
+  const table = globalThis.structuredClone(EN)
+  table.vault.policy = 'Richtlinie'
+  const install = await loadBrowserRegion('install')
+  expect(
+    install.installEmbeddedTable({
+      querySelector: () => ({ textContent: JSON.stringify({ locale: 'de', table }) }),
+    }),
+  ).toBeUndefined()
+  const vault = await loadBrowserRegion('vault')
+  vault.installVaultEnglish()
+  expect(english.EN.vault).toEqual(EN.vault)
+  expect(text.UI_TEXT.vault.policy).toBe('Richtlinie')
+  text.setUiText({ ...table, vault: { policy: null } }, 'de')
+  vault.installVaultEnglish()
+  expect(text.UI_TEXT.vault).toEqual(EN.vault)
 })

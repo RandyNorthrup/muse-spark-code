@@ -24,7 +24,7 @@ import {
   type GoalCommandVerb,
   MUSE_DELEGATION_ENABLED,
   REVIEW_SLASH_COMMAND,
-  SETTING_DEFAULTS,
+  IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT,
   type SubagentAction,
   UI_TEXT,
   SLASH_COMMAND_NAMES,
@@ -415,7 +415,7 @@ export function App({
   // The Auto reviewer on Muse Code (M90), as its setting says, and the paid
   // one on the Model API (M78), on with its price accepted.
   const hasMuseCodeReviewer =
-    state.settings?.museCodeAutoReviewer ?? SETTING_DEFAULTS.museCodeAutoReviewer
+    state.settings?.museCodeAutoReviewer ?? IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT
   const hasModelApiReviewer = state.paid.features.includes('autoReviewer')
 
   // The transcript follows new entries while the reader is at its end; once

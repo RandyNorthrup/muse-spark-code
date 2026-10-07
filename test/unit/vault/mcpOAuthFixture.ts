@@ -104,7 +104,9 @@ export function oauthFixture() {
       url === metadata.token_endpoint ? reply() : original(url, init),
     )
   }
-  const allowEndpoint = vi.fn(() => Promise.resolve(true))
+  const allowEndpoint = vi.fn<
+    ConstructorParameters<typeof McpOAuthClient>[0]['network']['allowEndpoint']
+  >(() => Promise.resolve(true))
   const finish = vi.fn(() => Promise.resolve())
   const authorize = vi.fn<ConstructorParameters<typeof McpOAuthClient>[0]['authorize']>(() =>
     Promise.resolve({ assertCurrent: () => undefined, finish }),

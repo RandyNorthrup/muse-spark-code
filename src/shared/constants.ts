@@ -334,6 +334,9 @@ export const BACKEND_MODES = ['auto', 'museCode', 'modelApi'] as const
 export type BackendMode = (typeof BACKEND_MODES)[number]
 export const BACKEND_SETTING = 'museSpark.backend'
 
+// The composer reads this scalar without carrying the optional settings table.
+export const IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT = true
+
 export const SETTING_DEFAULTS = {
   preferredLocation: 'panel' as PreferredLocation,
   initialPermissionMode: 'manual' as PermissionMode,
@@ -455,7 +458,7 @@ export const SETTING_DEFAULTS = {
   // Code backend, an approval Muse Code raises goes to one short turn of a
   // hidden side session before the user. On until turned off; machine scoped,
   // since a repository must not choose what is approved or spent.
-  museCodeAutoReviewer: true,
+  museCodeAutoReviewer: IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT,
   // Inline completions (M94, PLAN.md D73): the paid feature's own setting,
   // on by default (owner, 2026-10-04). The first request waits for D48's
   // paid-use answer naming the price and daily budget; no dispatch before it.

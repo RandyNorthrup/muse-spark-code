@@ -24,6 +24,7 @@ describe('explicit credential-file decoders', () => {
       expect(drafts).toHaveLength(1)
       const material = drafts[0]?.material
       if (material?.kind !== 'password') throw new Error('expected password')
+      if (material.username === null) throw new Error('expected username')
       expect(Buffer.from(material.username).toString()).toBe(username)
       expect(Buffer.from(material.password).toString()).toBe(value)
       material.username.fill(0)

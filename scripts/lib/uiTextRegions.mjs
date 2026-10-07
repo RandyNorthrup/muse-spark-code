@@ -1,5 +1,5 @@
 // Node English fallback regions, generated from the one canonical table.
-// Browser and integration builds keep en.ts unchanged. Accessors retain the
+// Integration builds keep en.ts unchanged; browser vault English is lazy. Accessors retain the
 // complete enumerable shape, while an English Node consumer loads only the
 // regions whose values it reads. Serializing a full table reads every region.
 import { Buffer } from 'node:buffer'
@@ -25,7 +25,7 @@ export const UI_TEXT_REGIONS = [
   {
     name: 'surfaces',
     output: 'dist/uiTextSurfaces.js',
-    keys: /^(?:tab|paid\w*Tab|usagePaidTab|report(?!Usage$)|whatsNew)/,
+    keys: /^(?:tab|paid\w*Tab|usagePaidTab|report(?!Usage$)|whatsNew|vault$)/,
   },
 ]
 
@@ -133,19 +133,35 @@ export function compressedEnglish(file, isProduction, compressionQuality) {
   }
 }
 
-/** The browser carries complete English in an inline native-DEFLATE payload. */
+/** Chat English stays inline; the vault group arrives with its first-use surface. */
 export const compactBrowserEnglish = {
   name: 'compact-browser-english',
   setup(build) {
+    build.onLoad({ filter: /[/\\]l10n[/\\]vaultEnglish\.ts$/ }, (args) => {
+      const property = uiTextProperties().find((property) => property.key === 'vault')
+      if (property === undefined) throw new Error('Missing canonical vault English')
+      return {
+        contents:
+          "import { forms } from './forms';\n" +
+          readFileSync(args.path, 'utf8').replace(
+            'const english = EN.vault',
+            () => `const english = ${property.source.slice('vault:'.length)}`,
+          ),
+        loader: 'ts',
+        resolveDir: path.dirname(args.path),
+        watchFiles: [TABLE, args.path],
+      }
+    })
     build.onLoad({ filter: /[/\\]l10n[/\\]en\.ts$/ }, async (args) => {
       if (path.resolve(args.path) !== path.resolve(TABLE)) return
       const { EN, L10N_BROWSER_COMPRESSION_LEVEL } = await loadL10n(process.cwd())
-      // DIET1: the complete fallback stays inline. Native DEFLATE decoding
-      // completes before dependent ESM modules run (Chrome 128 and later).
+      // Native DEFLATE decoding finishes before dependent ESM modules run.
+      // Vault English is a separate first-use region, without placeholder labels.
       const alphabet =
         '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+,-./:;<=>?@[]^'
+      const chat = Object.fromEntries(Object.entries(EN).filter(([key]) => key !== 'vault'))
       const compressed = deflateSync(
-        JSON.stringify([Object.keys(EN).join('|'), Object.values(EN)]),
+        JSON.stringify([Object.keys(chat).join('|'), Object.values(chat)]),
         { level: L10N_BROWSER_COMPRESSION_LEVEL },
       )
       let packed = ''
@@ -163,7 +179,10 @@ export const compactBrowserEnglish = {
 const bytes=new Uint8Array(${compressed.length});
 for(let offset=0;offset<packed.length;offset+=5){let word=0;for(let digit=0;digit<5;digit++)word=word*85+alphabet.indexOf(packed[offset+digit]);for(let byte=3;byte>=0;byte--){bytes[offset/5*4+byte]=word%256;word=Math.floor(word/256)}}
 const [keys,values]=await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'))).json();
-export const EN=Object.fromEntries(keys.split('|').map((key,index)=>[key,values[index]]));`
+export const EN=Object.fromEntries(keys.split('|').map((key,index)=>[key,values[index]]));
+let vault;
+Object.defineProperty(EN,'vault',{enumerable:true,configurable:true,get(){if(vault===undefined)throw new Error('Deferred vault English is not loaded');return vault}});
+export function setVaultEnglish(english){vault=english}`
       return {
         contents,
         loader: 'js',

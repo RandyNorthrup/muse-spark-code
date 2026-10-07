@@ -7,10 +7,6 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-- Vault refusals preserve their reason; TOTP approvals state that the command
-  sees the code. ACP cancels stale permission dialogs and filters hidden
-  credential audit rows from local command replies.
-
 ### Documentation
 
 - A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists
@@ -74,6 +70,27 @@ happened, not what was planned; superseded entries are kept.
   command or change credential storage yet.
 
 ### Fixed
+
+- Vault refusals preserve their reason; TOTP approvals state that the command
+  sees the code. ACP withdraws stale permission dialogs, settles their cards
+  and excludes hidden credential audit rows from agent replies.
+- Fleet teardown retires descendant authority, retries failed route closure
+  and releases closed socket reservations. Ticket receipts expose no bearer.
+- Interrupted credential rotations recover the prior usable item. Imports
+  verify staged copies before the atomic batch/receipt commit; durable private
+  receipts survive reload. Retirement notices retry after callback failure,
+  repeated deletes are idempotent and legacy AWS session tokens are imported.
+- Fence-off applies only to interactive shells. Workers and hooks keep Git
+  helpers and common password variables fenced; approved environment names
+  cannot restore loader or startup variables.
+- MCP OAuth preserves refresh tokens cancelled before dispatch, refuses queued
+  reuse after uncertain dispatch and closes the callback before committing
+  sign-in. Credentialed HTTP checks workspace admission and live trust.
+- Cancelled browser fill/restore closes the route even when already aborted;
+  web certificate observations must be the boolean `true`.
+- Vault English loads with its lazy surface and validates the installed
+  language before rendering. Chat avoids retaining the full settings object,
+  bringing startup below its unchanged regression cap.
 
 - M109's Windows vault helper now rejects null DACLs, maps generic file rights
   and respects deny/allow ACE order through native handle-based ACL checks.
