@@ -6,6 +6,7 @@
 
 import { EN, type UiText } from './en'
 import type { PluralForms } from './forms'
+import { Usd } from '../usd'
 
 export const BASE_LOCALE = 'en'
 const PERCENT_DIVISOR = 100
@@ -87,13 +88,32 @@ export function formatPercent(percent: number): string {
 }
 
 /** An amount of US dollars as the language writes money: $1.46 / 1,46 $ / US$1.46. */
-export function formatUsd(amount: number, fractionDigits: number): string {
-  return numberFormat(`usd:${String(fractionDigits)}`, {
+export function formatUsd(amount: number | string | Usd, fractionDigits = 2): string {
+  const exact = amount instanceof Usd ? amount : Usd.from(amount)
+  const decimal = exact.toString()
+  const leadingZeros = /^0\.(0*)[1-9]/.exec(decimal)?.[1]?.length
+  const precision = Math.max(
+    fractionDigits,
+    leadingZeros === undefined || leadingZeros < 2 ? 0 : leadingZeros + 2,
+  )
+  const rounded = exact.ceiling(precision).toString()
+  const [whole = '0', fraction = ''] = rounded.split('.', 2)
+  const formatter = numberFormat(`usd:${String(precision)}`, {
     style: 'currency',
     currency: 'USD',
-    minimumFractionDigits: fractionDigits,
-    maximumFractionDigits: fractionDigits,
-  }).format(amount)
+    minimumFractionDigits: precision,
+    maximumFractionDigits: precision,
+  })
+  // Intl accepts bigint exactly; substitute the exact fractional digits in its locale pattern.
+  const digits = fraction
+    .padEnd(precision, '0')
+    .replaceAll(/\d/g, (digit) =>
+      numberFormat('digit', { useGrouping: false }).format(Number(digit)),
+    )
+  return formatter
+    .formatToParts(BigInt(whole))
+    .map((part) => (part.type === 'fraction' ? digits : part.value))
+    .join('')
 }
 
 // Decimal sizes, as Intl's byte units are named (kB, MB).

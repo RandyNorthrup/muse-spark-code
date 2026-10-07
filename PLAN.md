@@ -25268,6 +25268,19 @@ local expiry timestamps alone cannot prove unavailability under provider clock
 skew. Each of the four findings gets a regression and byte-exact red drill in
 `docs/certification/m105-f.md`; existing lane W integration blockers remain.
 
+**FIXM105C review repair (2026-10-06).** Fix all four P2 findings and P3
+from `RVM105C`: canonical exact USD for media admission, bills and chips;
+one token reservation per request when a paid feature also applies;
+ceiling currency display with at least two significant sub-cent digits;
+calibration-cache write failures warn without replacing successful replies;
+and concurrent settlement/finalization shares one selected bill and one
+in-flight write, with retries limited to failed ledger writes. Add regressions,
+property checks and byte-exact red drills in
+`docs/certification/m105-c-cost-(b).md`. The absent shared USD helper is
+copied with the identical API from `m106/h` for the M106H/M108T handoff.
+No dependency, guard threshold, provider wire or paid/live call is added.
+The existing W-owned bundle and binding handoffs remain release blockers.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §2. The work lands in four
 deliveries, in order:
@@ -29713,6 +29726,19 @@ the bundle-split check, and the generated Node crypto importer count 46 → 48.
 No gate, ignore or budget is changed. W must close these before integration;
 §9 records the named residuals and why this unmerged lane remains safe.
 
+**FIXM105C rig lane (2026-10-06).** The fix brief/common rules reserve the
+full quality/coverage/accessibility run for the lead; this lane runs all
+five typecheck projects, changed-file lint/format checks, owned whole-file
+tests at default timeouts, localization/host-API/deadcode/duplication and a
+production build. The pre-existing W-owned deferred-webview size and
+unlisted lazy chip split failures remain explicit integration deferrals;
+no cap, check, ignore or timeout is weakened. Exact money also introduces
+the shared USD helper used by M106H/M108T. The final production build reports
+903.1/900 KiB browser startup and 50.6/50 KiB deferred JS; the helper adds
+about 3.8 KiB to startup on this pre-diet base. W's existing diet and lazy
+surface registration are required before release. Final sizes, gate results and red
+drills are in `docs/certification/m105-c-cost-(b).md`.
+
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
 scoped tests. Typecheck, changed-file lint/format, localization (source and staged),
@@ -31084,6 +31110,19 @@ before a repaired one loads (2026-09-30).
   clock. Follow-up: W/M2/E2/E3 bind the documented ports across editors, and the
   lead supplies the capture provenance and billing decision before enabling
   M105. No live Meta expiry claim follows from the synthetic skew regression.
+
+- **FIXM105C-W-integration (2026-10-06).** The four RVM105C P2 findings
+  and P3 are repaired in lane C; release still waits on W's existing lazy
+  surface registration/bundle fitting, real calibration/tariff/store and
+  editor bindings. Money now crosses media ledger and chip ports as
+  canonical decimal strings with the identical M106H/M108T `Usd` API.
+  Follow-up: W binds exact authoritative journal amounts and independently
+  admitted hosted fees, fits the unchanged bundle caps, runs the full gate
+  and captures the remaining receipts. Safe for now: this base constructs
+  media accounting only in tests and does not enable paid uploads, hosted
+  fees, headless media or a new production dispatch. These are explicit
+  integration handoffs, not accepted unfixed review defects. Certification:
+  `docs/certification/m105-c-cost-(b).md`.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

@@ -1,6 +1,7 @@
 // Portable M105 metadata and UI contracts (PLAN.md D85). No provider wire,
 // file bytes, keys or host APIs belong here. Unknown duration/sound stays null.
 import * as z from 'zod/mini'
+import { legacyUsdSchema } from './usd'
 import {
   MEDIA_AUDIO_ACTIONS,
   MEDIA_CONTRIBUTOR_CHOICES,
@@ -14,7 +15,6 @@ import {
 
 const count = z.int().check(z.gte(0))
 const positiveCount = z.int().check(z.gt(0))
-const nonnegative = z.number().check(z.gte(0))
 const positive = z.number().check(z.gt(0))
 const id = z.string().check(z.minLength(1), z.maxLength(MEDIA_ID_MAX_CHARS))
 const name = z.string().check(z.minLength(1), z.maxLength(MEDIA_NAME_MAX_CHARS))
@@ -69,8 +69,8 @@ export const mediaEstimateSchema = z
   .strictObject({
     estimatedInputTokens: count,
     upperBoundInputTokens: count,
-    standardCostUsd: nonnegative,
-    contributorCostUsd: z.optional(nonnegative),
+    standardCostUsd: legacyUsdSchema,
+    contributorCostUsd: z.optional(legacyUsdSchema),
   })
   .check(z.refine((value) => value.upperBoundInputTokens >= value.estimatedInputTokens))
 

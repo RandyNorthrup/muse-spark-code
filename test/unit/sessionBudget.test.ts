@@ -62,6 +62,30 @@ describe('estimateInput', () => {
   })
 })
 
+describe('calibrated media budget parts', () => {
+  it('uses the upper bound independently of encoded size and a 170-token count base', () => {
+    const media = { mediaIdentity: 'uploaded-clip', upperBoundInputTokens: 5502 }
+    expect(estimateInput(['hi', media], undefined).inputTokens).toBe(5504)
+    const parts = estimateInput(['hi', media], undefined).parts
+    expect(estimateInput(['hi', media], { inputTokens: 170, parts }).inputTokens).toBe(5672)
+    expect(estimateInput([media], { inputTokens: 2751, parts }).inputTokens).toBe(8253)
+  })
+
+  it('keeps a media identity from hiding a newly added text part with the same text', () => {
+    const media = { mediaIdentity: 'same', upperBoundInputTokens: 5502 }
+    const parts = estimateInput([media], undefined).parts
+    expect(estimateInput(['same'], { inputTokens: 170, parts }).inputTokens).toBe(174)
+  })
+
+  it('rejects an unsafe calibrated token allowance', () => {
+    for (const upperBoundInputTokens of [-1, 0.1, NaN, Infinity]) {
+      expect(() =>
+        estimateInput([{ mediaIdentity: 'clip', upperBoundInputTokens }], undefined),
+      ).toThrow()
+    }
+  })
+})
+
 describe('reserveRequest', () => {
   it('lowers max_output_tokens so input plus output at list price fits what is left', () => {
     // Input $0.125 (100k × $1.25/M); $0.005 left pays 1,176 output tokens at $4.25/M.
