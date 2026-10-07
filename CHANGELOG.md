@@ -13,6 +13,10 @@ happened, not what was planned; superseded entries are kept.
   what went wrong while a fleet of agents built this project. For each one it
   gives the rule that prevents it and the milestone that will enforce that
   rule in the app's own orchestrator (D100).
+- New orchestration docs: `docs/orchestration/ssh-limits.md` (SSH connection
+  limits, how they apply, per-platform handling) backing gotchas G29–G31, and
+  `docs/orchestration/playbook-placement.md` (placement, load balancing and
+  moving work) for the M116 playbook skill to adopt.
 
 ## [0.14.3] - 2026-10-06
 

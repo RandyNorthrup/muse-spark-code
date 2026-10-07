@@ -12771,7 +12771,9 @@ test that fails without the rule:
    after merging current main; G6 no duplication on unreachability
    (re-dispatch only after lease expiry, under a new epoch); G21 a new verdict
    re-runs the whole workflow; G26 the full suite after every merge into a
-   release candidate.
+   release candidate; G29 a handshake refusal or reset reports the device as
+   throttled (unknown since a time) with jittered backoff, never a duplicated
+   lane (test `handshakeRefusalIsThrottled`).
 2. **M96 (team and board):** G3 structural rendering of briefs (no text
    substitution; the rendered brief is checked and hashed before dispatch);
    G5 three job states (running, finished, unknown since a time); G7
@@ -12781,13 +12783,23 @@ test that fails without the rule:
    also bind device lanes. Also G1 and G2 on dispatch, G12 transport-health
    signals, G14 an explicit recorded environment and preflight of hook tools,
    and G15 Windows per-process policy, closed stdin and structured results.
+   Also G28 key installs that add a missing final newline before appending and
+   verify each entry parses as its own line (test `keyInstallKeepsEntriesSeparate`);
+   G29 throttled-not-down handshake handling (test `handshakeRefusalIsThrottled`);
+   G30 Windows workers outside the transport session with a desktop-heap
+   diagnostic on `STATUS_DLL_INIT_FAILED` (test `windowsHeapDiagnostic`); G31 no
+   port probes, and one failed authentication stops and asks the user, never a
+   retry loop (tests `noPortProbes`, `authFailureStopsAfterOne`).
 4. **M107 (governor):** G10 a temp root per job, removed at its end; G11
    ledger-only cleanup with an identity re-check, never by name pattern; G12
    OS-service pressure and transport failure as signals; G13 spawn-rate and
    process-count caps per job tree; G16 reparse points unlinked, never
-   recursed into.
+   recursed into; G30 transport resets and refusals lower a device's slot cap
+   automatically (test `transportHealthLowersCap`).
 5. **M110 (Muse Node):** G1, G2, G10, G11, G14 to G16 for the tool host and
-   sandboxes.
+   sandboxes. Also the M100 rules above for G28 to G31 on its SSH route
+   (tests `keyInstallKeepsEntriesSeparate`, `handshakeRefusalIsThrottled`,
+   `windowsHeapDiagnostic`, `noPortProbes`, `authFailureStopsAfterOne`).
 6. **M115 (scheduled prompts):** G8 one serialized owner plus a lease, never
    process-name matching; G22 every unattended delivery verified where it
    landed.
