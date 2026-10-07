@@ -17,7 +17,7 @@
 
 import { existsSync } from 'node:fs'
 import { spawn } from 'node:child_process'
-import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
@@ -37,6 +37,13 @@ export const README_FILE = 'README.md'
 export const DEFAULT_OUT_DIR = 'media/readme'
 export const BUNDLE_PATH = 'dist/webview/main.js'
 export const THEMES = new Set(['dark', 'light', 'hc-dark', 'hc-light'])
+export const README_MEDIA_BUDGET = 2 * 1024 * 1024
+export function checkReadmeBudget(sizes) {
+  const total = sizes.reduce((sum, size) => sum + size, 0)
+  if (total > README_MEDIA_BUDGET)
+    throw new Error(`README media exceeds its 2 MiB budget: ${total} bytes`)
+  return total
+}
 const LANG_ID = /^[a-z]{2,3}(?:-[a-z\d]+)*$/
 const SHOT_IMAGE = /^media\/readme\/[^/]+\.png$/
 const README_IMAGE = /media\/readme\/[A-Za-z0-9][\w.-]*\.png/g
@@ -212,11 +219,18 @@ export async function captureShot(chrome, port, shot, outDir, profileDir) {
       await page.setViewportSize({ width: shot.width, height: shot.height })
       const session = await page.context().newCDPSession(page)
       await session.send('Emulation.setFocusEmulationEnabled', { enabled: true })
-      const result = page.locator('#axe-result')
-      await result.waitFor({ state: 'attached' })
-      const scan = JSON.parse(await result.textContent())
-      if (scan.error !== undefined || scan.harnessErrors?.length > 0) {
-        throw new Error(`${shot.file}: ${scan.error ?? scan.harnessErrors.join('; ')}`)
+      if (shot.scenario === 'deterministic-report') {
+        await page.locator('.reporting-document').waitFor({ state: 'attached' })
+        const inner = page.frameLocator('.reporting-document')
+        await inner.locator('.table').first().waitFor({ state: 'attached' })
+        await inner.locator('body').evaluate(() => globalThis.document.fonts.ready)
+      } else {
+        const result = page.locator('#axe-result')
+        await result.waitFor({ state: 'attached' })
+        const scan = JSON.parse(await result.textContent())
+        if (scan.error !== undefined || scan.harnessErrors?.length > 0) {
+          throw new Error(`${shot.file}: ${scan.error ?? scan.harnessErrors.join('; ')}`)
+        }
       }
       await page.screenshot({ path: file, animations: 'disabled' })
     },
@@ -289,6 +303,15 @@ async function shootShots(list, { only, out }) {
       const file = await captureShot(chrome, port, shot, outDir, profileDir)
       console.log(`${shot.scenario}: ${path.relative(repoRoot, file)}`)
     }
+    const sizes = await Promise.all(
+      readmeImageRefs(await readFile(path.join(repoRoot, README_FILE), 'utf8')).map(
+        async (file) => {
+          const facts = await stat(path.join(repoRoot, file))
+          return facts.size
+        },
+      ),
+    )
+    console.log(`README media: ${checkReadmeBudget(sizes)} / ${README_MEDIA_BUDGET} bytes`)
   } finally {
     server.close()
     await rm(profileDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })

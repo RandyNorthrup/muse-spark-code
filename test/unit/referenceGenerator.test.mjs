@@ -1117,6 +1117,7 @@ describe('RVHELPREF2 runtime truth regressions', () => {
           command = ['providers', 'add', '--preset', name === 'privacy' ? 'openrouter' : 'custom']
         else if (route.startsWith('auth'))
           command = ['auth', { authSet: 'set', authStatus: 'status', authClear: 'clear' }[route]]
+        else if (route === 'fontsInstall') command = ['fonts', 'install']
         let args = [...command]
         if (route === 'usage' && name === 'stdio') args.push('serve')
         if (route === 'usage' && name === 'from') args.push('--to', samples.to)

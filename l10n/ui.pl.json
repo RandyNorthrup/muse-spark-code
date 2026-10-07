@@ -4166,7 +4166,7 @@
     "private-ok": "--private-ok: {origin} jest w sieci prywatnej; uruchom ponownie z --private-ok, aby potwierdzić.",
     "range": "--range today|7d|30d|90d|custom: Zakres",
     "by": "--by provider|model|kind|client: Grupuj według",
-    "from": "--from YYYY-MM-DD: Od",
+    "from": "--from <value>: Od",
     "to": "--to YYYY-MM-DD: Do",
     "json": "--json: Wersjonowany JSON",
     "csv": "--csv: CSV podsumowania",
@@ -4520,5 +4520,13 @@
     "disabled": "To źródło użycia agenta nie jest włączone.",
     "unbound": "Integracja tego źródła nie jest jeszcze dostępna.",
     "history": "Historia wybranej sesji jest niedostępna."
-  }
+  },
+  "acpFontUi": "Czcionka interfejsu",
+  "acpFontCode": "Czcionka kodu",
+  "acpFontLigatures": "Ligatury w kodzie",
+  "acpFontSystem": "Czcionka systemowa",
+  "acpFontInstalled": "Zainstalowano pakiet czcionek: {directory}",
+  "acpFontIntegrity": "Weryfikacja pliku czcionki nie powiodła się: {file}",
+  "acpFontInstallFailed": "Nie udało się zainstalować pakietu czcionek.",
+  "acpFontsUsage": "Użycie: {command} fonts install [--from <directory>]"
 }

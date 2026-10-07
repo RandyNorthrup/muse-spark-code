@@ -27,6 +27,20 @@ const BUNDLE_SAFE_ERRORS = {
     'A host error may come from the Model API bundle, whose classes are its own copies: use isSessionNotLoadedError, isPromptSettledError, isGoalRefusedError, isMuseCodeFaultError, isDecisionNotAppliedError or isSteerRefusedError (src/core/agent/agentBackend.ts).',
 }
 
+// D94: all surface colours come from the token source, including SVG paint.
+// Keep this in both syntax-rule blocks: later rule arrays replace earlier ones.
+const COLOUR_PATTERN = String.raw`(?:^|[\s:,('"])(?:#[\da-f]{3,8}(?=[^\da-f]|$)|(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|color-mix|light-dark|device-cmyk)\s*\()`
+const COLOUR_LITERALS = [
+  {
+    selector: `Literal[value=/${COLOUR_PATTERN}/i]`,
+    message: 'Raw colours belong in design/tokens/muse.tokens.json; read a --ms-* token.',
+  },
+  {
+    selector: `TemplateElement:matches([value.raw=/${COLOUR_PATTERN}/i], [value.cooked=/${COLOUR_PATTERN}/i])`,
+    message: 'Raw colours belong in design/tokens/muse.tokens.json; read a --ms-* token.',
+  },
+]
+
 export default tseslint.config(
   js.configs.recommended,
 
@@ -134,7 +148,7 @@ export default tseslint.config(
 
   {
     files: ['src/**/*.{ts,tsx}'],
-    rules: { 'no-restricted-syntax': ['error', BUNDLE_SAFE_ERRORS] },
+    rules: { 'no-restricted-syntax': ['error', BUNDLE_SAFE_ERRORS, ...COLOUR_LITERALS] },
   },
 
   {
@@ -153,6 +167,7 @@ export default tseslint.config(
             'Native file identity belongs to src/core/fs/fileIdentity.ts; use its exact BigInt samples and sameFile.',
         },
         BUNDLE_SAFE_ERRORS,
+        ...COLOUR_LITERALS,
       ],
     },
   },

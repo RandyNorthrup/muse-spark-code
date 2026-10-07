@@ -3882,7 +3882,7 @@
     "private-ok": "--private-ok: {origin} özel bir ağda; onaylamak için --private-ok ile yeniden çalıştırın.",
     "range": "--range today|7d|30d|90d|custom: Aralık",
     "by": "--by provider|model|kind|client: Gruplandır",
-    "from": "--from YYYY-MM-DD: Başlangıç",
+    "from": "--from <value>: Başlangıç",
     "to": "--to YYYY-MM-DD: Bitiş",
     "json": "--json: Sürümlü JSON",
     "csv": "--csv: Özet CSV",
@@ -4230,5 +4230,13 @@
     "disabled": "Bu aracı kullanım kaynağı etkin değil.",
     "unbound": "Bu kaynak tümleştirmesi henüz kullanılamıyor.",
     "history": "Seçili oturumun geçmişi kullanılamıyor."
-  }
+  },
+  "acpFontUi": "Arayüz yazı tipi",
+  "acpFontCode": "Kod yazı tipi",
+  "acpFontLigatures": "Kod ligatürleri",
+  "acpFontSystem": "Sistem yazı tipi",
+  "acpFontInstalled": "Yazı tipi paketi yüklendi: {directory}",
+  "acpFontIntegrity": "Yazı tipi dosyası doğrulanamadı: {file}",
+  "acpFontInstallFailed": "Yazı tipi paketi yüklenemedi.",
+  "acpFontsUsage": "Kullanım: {command} fonts install [--from <directory>]"
 }

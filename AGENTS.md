@@ -60,6 +60,16 @@ them, the milestone plan, and the certification checklist.
      an honest chunk-load failure and retry, and a measured budget of their own.
      Startup and the original deferred aggregate retain their existing caps;
      reserve first-paint bytes for chat and its first turn.
+   - **Design tokens (M114, D94).** Colours, radius, elevation, alpha,
+     spacing, typography and motion come from `design/tokens/muse.tokens.json`.
+     Read `design/tokens/README.md`; regenerate with `npm run build:tokens`
+     and pass `npm run check:tokens`. Raw CSS/TypeScript paint is guarded;
+     generated token files alone contain it. Meaningful motion uses the
+     120/180/240 ms scale under the no-preference reduced-motion guard.
+     Every visual change passes `npm run check:visual`; reviewed baseline
+     updates name their review. Full PNG sets stay outside git (512 MiB);
+     track only their source revision, hashes, dimensions and coverage.
+     README screenshots use `scripts/readme-shots.mjs` (2 MiB curated set).
 6. **No dead code, no placeholders.** No commented-out code, unused exports,
    unused dependencies, TODO stubs, fake implementations, or mock data outside
    `test/**`. A function that cannot do its job throws or returns an explicit
@@ -270,6 +280,17 @@ src/webview/**        React 19 app (browser project, own tsconfig);
                       pure geometry for its fanned column of labelled
                       pills; diffTally.ts and
                       components/DiffTally.tsx add up the conversation's edits
+src/webview/bridges/theme/**
+                      the native hosts' theme colours onto the token roles
+                      through MHP's theme message (M114 lane C, with M104)
+design/tokens/**      the W3C design-token source (muse.tokens.json, M114
+                      D94) and its generated CSS/JSON consumers
+                      (scripts/build-tokens.mjs); design/fonts/ holds the
+                      pinned OFL pack's manifest, subsets and licences
+                      (never in the VSIX)
+src/runtime/fonts/**  the pinned font pack's verified installer
+                      (`fonts install`) and the portable UI/code font and
+                      ligature preferences (M114 lane F)
 native/windows/**     dictate.ps1, the Windows dictation helper; capture.ps1,
                       Muse Voice's recorder; the job helpers' C#
                       (MuseSparkJob.cs, MuseSparkMcpLauncher.cs and the
@@ -288,11 +309,15 @@ test/integration/**   @vscode/test-cli, runs inside VS Code, over the workspace
                       project its language service reads)
 test/harness/         the webview behind a fake host, for screenshots and the
                       accessibility gate; themes/ holds VS Code's four themes
+                      plus One Dark Pro and Dracula; goldens/ holds the
+                      visual-regression manifest and shot lists (M114;
+                      full PNG sets stay outside git)
 test/hosts/           the extension and the ACP agent in other editors
                       against the fake CLI, one script per host (hosts.yml)
 scripts/**            esbuild build; bundle-size, bundle-split, host-globals,
                       notices, audit, PSScriptAnalyzer, semgrep, accessibility,
-                      localization and host API gates; theme capture, the
+                      localization, tokens, visual regression, reference
+                      and host API gates; theme capture, the
                       pseudo-locale, harness screenshots, image rendering,
                       changelog notes, What's New's content (lib/), VS Code
                       versions for CI, the ACP
@@ -318,25 +343,27 @@ media/                icons, banner, social preview, README screenshots
 
 ## Commands
 
-| Task                           | Command                                   |
-| ------------------------------ | ----------------------------------------- |
-| All gates (local)              | `npm run quality`                         |
-| The gates CI runs everywhere   | `npm run quality:gates`                   |
-| Accessibility gate             | `npm run test:a11y`                       |
-| Reference gate                 | `npm run check:reference`                 |
-| Localization gate              | `npm run check:l10n`                      |
-| Host API record (D60)          | `npm run check:host-api` (`-- --write`)   |
-| Panel in the pseudo-locale     | `npm run harness:shots -- --lang=pseudo`  |
-| Unit tests with coverage       | `npm run test:unit`                       |
-| Integration tests              | `npm run test:integration`                |
-| Dev build / watch              | `npm run build:dev` / `npm run watch`     |
-| Production build + size budget | `npm run build`                           |
-| Package `.vsix`                | `npm run package`                         |
-| Package the ACP agent (D62)    | `npm run package:acp`                     |
-| Exec schemas (M80)             | `npm run schema:exec` (`-- --check`)      |
-| Fake-only test package (M80)   | `node scripts/package-acp-test.mjs`       |
-| Scan staged text (M80)         | `muse-spark-code-acp scan-secrets <file>` |
-| Host checks (hosts.yml)        | `sh test/hosts/run-<host>.sh`             |
+| Task                           | Command                                         |
+| ------------------------------ | ----------------------------------------------- |
+| All gates (local)              | `npm run quality`                               |
+| The gates CI runs everywhere   | `npm run quality:gates`                         |
+| Accessibility gate             | `npm run test:a11y`                             |
+| Token generation / gate        | `npm run build:tokens` / `npm run check:tokens` |
+| Visual regression              | `npm run check:visual`                          |
+| Reference gate                 | `npm run check:reference`                       |
+| Localization gate              | `npm run check:l10n`                            |
+| Host API record (D60)          | `npm run check:host-api` (`-- --write`)         |
+| Panel in the pseudo-locale     | `npm run harness:shots -- --lang=pseudo`        |
+| Unit tests with coverage       | `npm run test:unit`                             |
+| Integration tests              | `npm run test:integration`                      |
+| Dev build / watch              | `npm run build:dev` / `npm run watch`           |
+| Production build + size budget | `npm run build`                                 |
+| Package `.vsix`                | `npm run package`                               |
+| Package the ACP agent (D62)    | `npm run package:acp`                           |
+| Exec schemas (M80)             | `npm run schema:exec` (`-- --check`)            |
+| Fake-only test package (M80)   | `node scripts/package-acp-test.mjs`             |
+| Scan staged text (M80)         | `muse-spark-code-acp scan-secrets <file>`       |
+| Host checks (hosts.yml)        | `sh test/hosts/run-<host>.sh`                   |
 
 M80's lanes are integrated and their fake-only suites pass on the rigs; do not
 call exec, the scanner or the Action supported until the hosted action-check

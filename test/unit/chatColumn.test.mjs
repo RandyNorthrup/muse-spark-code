@@ -19,8 +19,13 @@ function declarationsOf(css, selector, { isOwn = false } = {}) {
   )?.body
 }
 
-const css = readFileSync(new URL('../../src/webview/styles.css', import.meta.url), 'utf8')
+// D94 moves the layout definitions into the stylesheet's generated import;
+// the same geometry assertions still apply to the actual combined stylesheet.
+const css = ['tokens.css', 'styles.css']
+  .map((name) => readFileSync(new URL(`../../src/webview/${name}`, import.meta.url), 'utf8'))
+  .join('\n')
   .replaceAll(/\/\*[\s\S]*?\*\//g, '')
+
   .replaceAll(/^@import[^;]+;\s*/gm, '')
 const harness = readFileSync(new URL('../harness/index.html', import.meta.url), 'utf8')
 
@@ -50,9 +55,19 @@ describe('the chat column (the owner’s requests of 2026-10-04)', () => {
     }
     expect(declarationsOf(css, '.todo')).toMatch(/margin\s*:\s*0 var\(--ms-column-gutter\)\s*;/)
     expect(declarationsOf(css, '.local-schedules')).toMatch(
-      /margin\s*:\s*0 var\(--ms-column-gutter\) 4px\s*;/,
+      /margin\s*:\s*0 var\(--ms-column-gutter\) var\(--ms-space-4\)\s*;/,
     )
     expect(declarationsOf(css, '.diff-tally')).toMatch(/padding\s*:[^;]*var\(--ms-column-inset\)/)
+  })
+
+  it('keeps the shared hover rule covering the task buttons (no per-button override)', () => {
+    // The task buttons carry chat-control, and the shared :hover rule wins
+    // over their base surface by specificity and source order — so no
+    // per-button hover background may exist to fight it.
+    expect(css).not.toMatch(/\.todo-open:hover:enabled/)
+    expect(css).not.toMatch(/\.todo-window:hover:enabled/)
+    const shared = css.match(/\.chat-control:not\(([^)]*)\)\s*:hover/)
+    expect(shared?.[1] ?? '').not.toMatch(/todo-open|todo-window/)
   })
 })
 

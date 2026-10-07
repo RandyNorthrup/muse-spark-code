@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -6,6 +7,7 @@ import { SCENARIOS, withSizedPage } from '../../scripts/lib/harnessServer.mjs'
 import {
   captureShot,
   checkCoverage,
+  checkReadmeBudget,
   describeShot,
   parseArgs,
   parseShotList,
@@ -17,6 +19,14 @@ vi.mock('../../scripts/lib/harnessServer.mjs', async (importOriginal) => ({
   ...(await importOriginal()),
   withSizedPage: vi.fn(),
 }))
+function fingerprint(files) {
+  const hash = createHash('sha256')
+  for (const file of files) {
+    hash.update(`${file}\0`)
+    hash.update(readFileSync(file))
+  }
+  return hash.digest('hex')
+}
 
 const list = parseShotList(readFileSync('scripts/readme-shots.json', 'utf8'))
 const readme = readFileSync('README.md', 'utf8')
@@ -70,6 +80,9 @@ function pageFor(scan) {
     setViewportSize: vi.fn(),
     context: () => ({ newCDPSession: async () => ({ send: vi.fn() }) }),
     locator: () => ({ waitFor, textContent: async () => JSON.stringify(scan) }),
+    frameLocator: () => ({
+      locator: () => ({ first: () => ({ waitFor }), evaluate: async () => null }),
+    }),
     screenshot,
   }
   vi.mocked(withSizedPage).mockImplementation(async (_chrome, _profile, _url, _sized, run) =>
@@ -79,17 +92,26 @@ function pageFor(scan) {
 }
 
 describe('readme capture readiness', () => {
-  it('keeps the capture pending while the harness is not ready', async () => {
-    const { waitFor, screenshot } = pageFor({ harnessErrors: [] })
-    const readiness = Promise.withResolvers()
-    waitFor.mockReturnValue(readiness.promise)
-    const capture = captureShot('chrome', 1234, list.shots[0], captureDir, 'profile')
-    await vi.waitFor(() => expect(waitFor).toHaveBeenCalled())
-    expect(screenshot).not.toHaveBeenCalled()
-    readiness.resolve()
-    await capture
-    expect(screenshot).toHaveBeenCalled()
-  })
+  it.each([list.shots[0].scenario, 'deterministic-report'])(
+    '%s capture stays pending until its document is ready',
+    async (scenario) => {
+      const { waitFor, screenshot } = pageFor({ harnessErrors: [] })
+      const readiness = Promise.withResolvers()
+      waitFor.mockReturnValue(readiness.promise)
+      const capture = captureShot(
+        'chrome',
+        1234,
+        { ...list.shots[0], scenario },
+        captureDir,
+        'profile',
+      )
+      await vi.waitFor(() => expect(waitFor).toHaveBeenCalled())
+      expect(screenshot).not.toHaveBeenCalled()
+      readiness.resolve()
+      await capture
+      expect(screenshot).toHaveBeenCalled()
+    },
+  )
 
   it('captures the declared viewport after the harness scan settles', async () => {
     const { page, waitFor, screenshot } = pageFor({ harnessErrors: [] })
@@ -116,6 +138,14 @@ describe('readme capture readiness', () => {
       /never/,
     )
     expect(screenshot).not.toHaveBeenCalled()
+  })
+})
+
+describe('M114 bounded README media', () => {
+  it('keeps the actual curated set below 2 MiB and fails an oversized set', () => {
+    const sizes = readmeImageRefs(readme).map((file) => readFileSync(file).length)
+    expect(checkReadmeBudget(sizes)).toBeGreaterThan(0)
+    expect(() => checkReadmeBudget([2 * 1024 * 1024 + 1])).toThrow('2 MiB budget')
   })
 })
 
@@ -202,5 +232,31 @@ describe('readme-shots list validation', () => {
     expect(unreferenced).toEqual([])
     const swapped = checkCoverage({ shots: [], excluded: [] }, ['media/readme/turn.png'])
     expect(swapped.missingEntries).toEqual(['media/readme/turn.png'])
+  })
+})
+
+describe('README shot pixel inputs', () => {
+  // Grok M114W P2: check:visual never renders the README scenes and the
+  // budget test only sums bytes, so a token, stylesheet, or harness change
+  // could silently stale the published PNGs. This fingerprint trips on any
+  // change to those global pixel inputs; per-component drift stays with
+  // check:visual's scene pixel gate. When it trips legitimately, recapture
+  // with `npm run harness:shots` and refresh README_INPUTS_DIGEST below.
+  // The digest hashes raw bytes; .gitattributes pins eol=lf, so it is
+  // identical on Windows checkouts.
+  const README_PIXEL_INPUTS = [
+    'design/tokens/generated/host-roles.css',
+    'design/tokens/muse.tokens.json',
+    'scripts/lib/harnessServer.mjs',
+    'scripts/readme-shots.json',
+    'src/webview/bridges/theme/themeSurface.css',
+    'src/webview/styles.css',
+    'src/webview/tokens.css',
+    'test/harness/index.html',
+  ]
+  const README_INPUTS_DIGEST = '57e81142ec5231dd2eb3a52949d3de44626f0ae0831740911b9f75e25c2b2c6b'
+
+  it('fails when a pixel-determining input changes without a recapture', () => {
+    expect(fingerprint(README_PIXEL_INPUTS)).toBe(README_INPUTS_DIGEST)
   })
 })

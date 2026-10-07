@@ -104,3 +104,12 @@
 !dist/webview/reportingDestinations.js
 !dist/webview/reportingDestinations.css
 !dist/reportingNetwork.js
+
+# M114 F: optional WOFF2 pack and runtime installer belong to standalone installs.
+design/fonts/**
+dist/fontsInstall.js
+**/*.woff
+**/*.woff2
+**/*.ttf
+**/*.otf
+**/*.eot

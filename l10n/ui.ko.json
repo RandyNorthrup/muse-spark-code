@@ -3740,7 +3740,7 @@
     "private-ok": "--private-ok: {origin}은(는) 사설 네트워크에 있습니다. 확인하려면 --private-ok를 붙여 다시 실행하세요.",
     "range": "--range today|7d|30d|90d|custom: 기간",
     "by": "--by provider|model|kind|client: 그룹화 기준",
-    "from": "--from YYYY-MM-DD: 시작일",
+    "from": "--from <value>: 시작일",
     "to": "--to YYYY-MM-DD: 종료일",
     "json": "--json: 버전별 JSON",
     "csv": "--csv: 요약 CSV",
@@ -4085,5 +4085,13 @@
     "disabled": "이 에이전트 사용량 원본은 활성화되지 않았습니다.",
     "unbound": "이 원본 통합은 아직 사용할 수 없습니다.",
     "history": "선택한 세션의 기록을 사용할 수 없습니다."
-  }
+  },
+  "acpFontUi": "UI 글꼴",
+  "acpFontCode": "코드 글꼴",
+  "acpFontLigatures": "코드 합자",
+  "acpFontSystem": "시스템 글꼴",
+  "acpFontInstalled": "글꼴 팩 설치됨: {directory}",
+  "acpFontIntegrity": "글꼴 파일 검증 실패: {file}",
+  "acpFontInstallFailed": "글꼴 팩을 설치할 수 없습니다.",
+  "acpFontsUsage": "사용법: {command} fonts install [--from <directory>]"
 }

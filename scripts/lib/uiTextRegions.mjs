@@ -379,6 +379,12 @@ ${inlineBrowserTable(Object.fromEntries(data.helpKeys.map((key) => [key, data.EN
 installSurfaceEnglish(EN);`,
       loader: 'js',
     }))
+    build.onLoad({ filter: /[/\\]paletteRegistry\.ts$/ }, (args) => ({
+      contents: "await import('browser-surface-english');\n" + readFileSync(args.path, 'utf8'),
+      loader: 'ts',
+      resolveDir: path.dirname(args.path),
+      watchFiles: [args.path],
+    }))
     build.onLoad({ filter: /[/\\]webview[/\\].*\.tsx$/ }, (args) => {
       const source = readFileSync(args.path, 'utf8')
       if (!source.includes('lazy') && !source.includes('ReferencePage')) return

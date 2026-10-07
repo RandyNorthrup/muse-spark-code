@@ -3900,6 +3900,12 @@
       "text": { "ui": "reportCliUsage" }
     },
     {
+      "route": "fontsInstall",
+      "name": "fonts install [--from <directory>]",
+      "description": "Usage: {command} fonts install [--from <directory>]",
+      "text": { "ui": "acpFontsUsage" }
+    },
+    {
       "route": "help",
       "name": "help --all",
       "description": "Commands, settings and features, with descriptions and documentation.",
@@ -4056,7 +4062,7 @@
     {
       "route": "usage",
       "name": "usage: --from <value>",
-      "description": "--from YYYY-MM-DD: From",
+      "description": "--from <value>: From",
       "text": { "cli": "from" },
       "contract": { "type": "string", "repeatable": false, "format": "YYYY-MM-DD" }
     },
@@ -5893,6 +5899,20 @@
     {
       "route": "report",
       "name": "report: --help / -h",
+      "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
+      "text": { "cli": "help" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "fontsInstall",
+      "name": "fontsInstall: --from <value>",
+      "description": "--from <value>: From",
+      "text": { "cli": "from" },
+      "contract": { "type": "string", "repeatable": false, "format": "YYYY-MM-DD" }
+    },
+    {
+      "route": "fontsInstall",
+      "name": "fontsInstall: --help / -h",
       "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "cli": "help" },
       "contract": { "type": "boolean", "repeatable": false, "default": false }

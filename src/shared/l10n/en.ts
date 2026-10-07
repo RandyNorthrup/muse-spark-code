@@ -123,7 +123,7 @@ export const EN = {
       '--private-ok: {origin} is on a private network; re-run with --private-ok to confirm.',
     range: '--range today|7d|30d|90d|custom: Range',
     by: '--by provider|model|kind|client: Group by',
-    from: '--from YYYY-MM-DD: From',
+    from: '--from <value>: From',
     to: '--to YYYY-MM-DD: To',
     json: '--json: Versioned JSON',
     csv: '--csv: Summary CSV',
@@ -3283,6 +3283,14 @@ export const EN = {
   // {argument}: the paid feature's flag as typed.
   acpPaidNeedsModelApi: '{argument} needs --backend modelApi: paid features bill a Model API key.',
   // {command}: the executable's name. The options and values stay as typed.
+  acpFontUi: 'UI font',
+  acpFontCode: 'Code font',
+  acpFontLigatures: 'Code ligatures',
+  acpFontSystem: 'System font',
+  acpFontInstalled: 'Font pack installed: {directory}',
+  acpFontIntegrity: 'Font asset failed verification: {file}',
+  acpFontInstallFailed: 'The font pack could not be installed.',
+  acpFontsUsage: 'Usage: {command} fonts install [--from <directory>]',
   acpUsage: [
     'Usage:',
     '  {command} [options]              Serve the Agent Client Protocol on stdin and stdout',
@@ -3294,6 +3302,7 @@ export const EN = {
     '  {command} scan-secrets <file> [--key-stdin]  Count likely secrets in one file (prints only the number)',
     '  {command} report [options]  Print a scrubbed problem report (starts no backend, opens no browser)',
     '  {command} legal [options]  Run the read-only legal scan (no backend, no sign-in)',
+    '  {command} fonts install [--from <directory>]  Install the optional fonts for standalone surfaces',
     'Options:',
     '  --backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key',
     '  --trust-workspace                Load the folder’s rules, skills and memory',

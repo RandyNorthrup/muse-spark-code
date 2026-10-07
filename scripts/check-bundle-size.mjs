@@ -204,6 +204,8 @@ const BUDGETS = [
   { path: 'dist/acp.js', budgetKiB: 850 },
   // TRAIN15E: headless preflight before the lazy engine; 77.9 KiB +15%.
   { path: 'dist/headless.js', budgetKiB: 100 },
+  // M114 F: runtime-only installer, measured with the shared validation API.
+  { path: 'dist/fontsInstall.js', budgetKiB: 25 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus

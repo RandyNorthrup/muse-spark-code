@@ -249,6 +249,8 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     'acpQuestions',
     'runtimeQuestions',
     'questionNotes',
+    // M114 F: the runtime-only font installer.
+    'fontsInstall',
     'modelApi',
     'modelApiHooks',
     'modelApiMcp',
@@ -315,6 +317,14 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     path.join(dir, 'dist/meta/usageWebview.json'),
   )
   cpSync(path.join(ROOT, 'native/runner'), path.join(dir, 'native/runner'), { recursive: true })
+  // M114 F: the packager stages the committed font manifest beside the
+  // runtime-only installer bundle; the fixture carries the real file, as
+  // it does the schemas, so a missing manifest still fails packaging.
+  mkdirSync(path.join(dir, 'design', 'fonts'), { recursive: true })
+  cpSync(
+    path.join(ROOT, 'design', 'fonts', 'manifest.json'),
+    path.join(dir, 'design', 'fonts', 'manifest.json'),
+  )
   writeFileSync(path.join(dir, 'LICENSE'), 'test-owned licence\n')
   writeFileSync(path.join(dir, 'docs', 'acp.md'), '# Test-owned guide\n')
   for (const file of ['README.md', 'docs/npm-readme.md', 'docs/marketplace-readme.md'])

@@ -3740,7 +3740,7 @@
     "private-ok": "--private-ok: {origin} はプライベート ネットワーク上にあります。確認するには --private-ok を付けて再実行してください。",
     "range": "--range today|7d|30d|90d|custom: 期間",
     "by": "--by provider|model|kind|client: グループ化",
-    "from": "--from YYYY-MM-DD: 開始",
+    "from": "--from <value>: 開始",
     "to": "--to YYYY-MM-DD: 終了",
     "json": "--json: バージョン付きJSON",
     "csv": "--csv: サマリーCSV",
@@ -4085,5 +4085,13 @@
     "disabled": "このエージェント使用量ソースは有効になっていません。",
     "unbound": "このソースの統合はまだ利用できません。",
     "history": "選択したセッションの履歴は利用できません。"
-  }
+  },
+  "acpFontUi": "UI のフォント",
+  "acpFontCode": "コードのフォント",
+  "acpFontLigatures": "コードの合字",
+  "acpFontSystem": "システムフォント",
+  "acpFontInstalled": "フォントパックをインストールしました: {directory}",
+  "acpFontIntegrity": "フォントファイルの検証に失敗しました: {file}",
+  "acpFontInstallFailed": "フォントパックをインストールできませんでした。",
+  "acpFontsUsage": "使用方法: {command} fonts install [--from <directory>]"
 }

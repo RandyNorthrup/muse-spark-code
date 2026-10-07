@@ -2807,7 +2807,7 @@ export function App({
           {hasNewBelow ? (
             <button
               type="button"
-              className="jump-latest"
+              className="jump-latest chat-control"
               title={UI_TEXT.jumpToLatestTitle}
               onClick={scrollToEnd}
             >

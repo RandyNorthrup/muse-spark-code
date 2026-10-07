@@ -38,6 +38,7 @@ const BUNDLES = [
   'acpQuestions.js',
   'runtimeQuestions.js',
   'questionNotes.js',
+  'fontsInstall.js',
   'modelApi.js',
   'modelApiHooks.js',
   'modelApiMcp.js',
@@ -206,6 +207,8 @@ execFileSync(process.execPath, ['scripts/check-l10n.mjs', '--packaged-acp', STAG
   stdio: 'inherit',
 })
 for (const file of NLS_FILES) copyFileSync(file, path.join(STAGE, file))
+mkdirSync(path.join(STAGE, 'design', 'fonts'), { recursive: true })
+copyFileSync('design/fonts/manifest.json', path.join(STAGE, 'design', 'fonts', 'manifest.json'))
 copyFileSync('LICENSE', path.join(STAGE, 'LICENSE'))
 writeFileSync(
   path.join(STAGE, 'README.md'),
@@ -247,7 +250,17 @@ const agentManifest = {
     'llm',
   ],
   bin: { [PACKAGE_NAME]: 'dist/acp.js' },
-  files: ['dist', 'native', 'l10n', 'schemas', ...NLS_FILES, 'README.md', 'LICENSE', NOTICES],
+  files: [
+    'dist',
+    'design',
+    'native',
+    'l10n',
+    'schemas',
+    ...NLS_FILES,
+    'README.md',
+    'LICENSE',
+    NOTICES,
+  ],
   engines: { node: manifest.engines.node },
   dependencies: { [NATIVE_DEPENDENCY]: keyringVersion },
 }

@@ -4166,7 +4166,7 @@
     "private-ok": "--private-ok: {origin} в частной сети; перезапустите с --private-ok для подтверждения.",
     "range": "--range today|7d|30d|90d|custom: Период",
     "by": "--by provider|model|kind|client: Группировать по",
-    "from": "--from YYYY-MM-DD: От",
+    "from": "--from <value>: От",
     "to": "--to YYYY-MM-DD: До",
     "json": "--json: Версионированный JSON",
     "csv": "--csv: Сводный CSV",
@@ -4520,5 +4520,13 @@
     "disabled": "Этот источник использования агента не включён.",
     "unbound": "Интеграция этого источника пока недоступна.",
     "history": "История выбранного сеанса недоступна."
-  }
+  },
+  "acpFontUi": "Шрифт интерфейса",
+  "acpFontCode": "Шрифт кода",
+  "acpFontLigatures": "Лигатуры в коде",
+  "acpFontSystem": "Системный шрифт",
+  "acpFontInstalled": "Пакет шрифтов установлен: {directory}",
+  "acpFontIntegrity": "Не удалось проверить файл шрифта: {file}",
+  "acpFontInstallFailed": "Не удалось установить пакет шрифтов.",
+  "acpFontsUsage": "Использование: {command} fonts install [--from <directory>]"
 }

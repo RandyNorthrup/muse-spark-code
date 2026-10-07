@@ -3740,7 +3740,7 @@
     "private-ok": "--private-ok: {origin} 在私人網路上；請用 --private-ok 重新執行以確認。",
     "range": "--range today|7d|30d|90d|custom: 時間範圍",
     "by": "--by provider|model|kind|client: 分組方式",
-    "from": "--from YYYY-MM-DD: 開始日期",
+    "from": "--from <value>: 開始日期",
     "to": "--to YYYY-MM-DD: 結束日期",
     "json": "--json: 版本化 JSON",
     "csv": "--csv: 彙總 CSV",
@@ -4085,5 +4085,13 @@
     "disabled": "此代理程式用量來源未啟用。",
     "unbound": "此來源整合尚無法使用。",
     "history": "所選工作階段的歷程記錄無法使用。"
-  }
+  },
+  "acpFontUi": "介面字型",
+  "acpFontCode": "程式碼字型",
+  "acpFontLigatures": "程式碼連字",
+  "acpFontSystem": "系統字型",
+  "acpFontInstalled": "字型套件已安裝：{directory}",
+  "acpFontIntegrity": "字型檔案驗證失敗：{file}",
+  "acpFontInstallFailed": "無法安裝字型套件。",
+  "acpFontsUsage": "用法：{command} fonts install [--from <directory>]"
 }

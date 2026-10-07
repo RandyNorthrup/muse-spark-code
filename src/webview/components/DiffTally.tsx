@@ -43,7 +43,7 @@ export function DiffTally({ counts, onReview }: DiffTallyProps) {
       </span>
       {onReview !== undefined && (
         <button
-          className="button-secondary diff-tally-review"
+          className="button-secondary diff-tally-review chat-control"
           type="button"
           title={UI_TEXT.diffTallyReviewTitle}
           onClick={() => {

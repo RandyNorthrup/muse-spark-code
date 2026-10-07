@@ -27,6 +27,8 @@ import {
   EXEC_FORCE_WRITE_MS,
   MEMORY_STAGE_FILE_MODE,
   EXTENSION_HOOKS_BUNDLE_FILE,
+  FONT_INSTALL_BUNDLE_FILE,
+  FONT_PACK_SUBFOLDER,
   SEARCH_WORKER_FILE,
   SECRET_KEYS,
   EXEC_STOP_GRACE_MS,
@@ -72,6 +74,7 @@ import { isProcessAlive } from '../host/checkpoints/windowPresence'
 import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
 import { agentDataFolder } from './dataFolder'
+import { fontsBundle } from './fonts/bundle'
 import { runReportCommand } from './reportCommand'
 import { readSecretLine } from './hiddenInput'
 import { credentialStoreName, keyringSecretStore, StoreUnavailableError } from './keyStore'
@@ -944,6 +947,29 @@ async function main(): Promise<number> {
   })
   setProviderPolicyText(UI_TEXT, uiLocale())
   switch (command.command) {
+    case 'fontsInstall': {
+      const manifest: unknown = JSON.parse(
+        readFileSync(path.join(packageRoot, 'design', 'fonts', 'manifest.json'), 'utf8'),
+      )
+      const installed = await fontsBundle(
+        path.join(distDir, FONT_INSTALL_BUNDLE_FILE),
+        log,
+      )().installFonts(
+        {
+          manifest,
+          directory: path.join(
+            agentDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
+            FONT_PACK_SUBFOLDER,
+          ),
+          sourceDirectory: command.sourceDirectory,
+          fetch: globalThis.fetch.bind(globalThis),
+        },
+        UI_TEXT,
+        uiLocale(),
+      )
+      writeLine(process.stdout, fill(UI_TEXT.acpFontInstalled, { directory: installed }))
+      return 0
+    }
     case 'usage': {
       const usage = usageFor(log)
       const lines =

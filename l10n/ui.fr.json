@@ -4024,7 +4024,7 @@
     "private-ok": "--private-ok: {origin} est sur un réseau privé ; relancez avec --private-ok pour confirmer.",
     "range": "--range today|7d|30d|90d|custom: Période",
     "by": "--by provider|model|kind|client: Grouper par",
-    "from": "--from YYYY-MM-DD: Du",
+    "from": "--from <value>: Du",
     "to": "--to YYYY-MM-DD: Au",
     "json": "--json: JSON versionné",
     "csv": "--csv: CSV récapitulatif",
@@ -4375,5 +4375,13 @@
     "disabled": "Cette source d’utilisation de l’agent n’est pas activée.",
     "unbound": "L’intégration de cette source n’est pas encore disponible.",
     "history": "L’historique de la session sélectionnée n’est pas disponible."
-  }
+  },
+  "acpFontUi": "Police de l’interface",
+  "acpFontCode": "Police du code",
+  "acpFontLigatures": "Ligatures dans le code",
+  "acpFontSystem": "Police système",
+  "acpFontInstalled": "Pack de polices installé : {directory}",
+  "acpFontIntegrity": "La vérification du fichier de police a échoué : {file}",
+  "acpFontInstallFailed": "Le pack de polices n’a pas pu être installé.",
+  "acpFontsUsage": "Utilisation : {command} fonts install [--from <directory>]"
 }

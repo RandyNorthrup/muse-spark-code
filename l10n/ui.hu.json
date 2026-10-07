@@ -3882,7 +3882,7 @@
     "private-ok": "--private-ok: A(z) {origin} magánhálózaton van; a megerősítéshez futtassa újra --private-ok kapcsolóval.",
     "range": "--range today|7d|30d|90d|custom: Időszak",
     "by": "--by provider|model|kind|client: Csoportosítás",
-    "from": "--from YYYY-MM-DD: Tól",
+    "from": "--from <value>: Tól",
     "to": "--to YYYY-MM-DD: Ig",
     "json": "--json: Verziózott JSON",
     "csv": "--csv: Összegző CSV",
@@ -4230,5 +4230,13 @@
     "disabled": "Ez az ügynökhasználati forrás nincs bekapcsolva.",
     "unbound": "A forrás integrációja még nem érhető el.",
     "history": "A kiválasztott munkamenet előzményei nem érhetők el."
-  }
+  },
+  "acpFontUi": "Felület betűtípusa",
+  "acpFontCode": "Kód betűtípusa",
+  "acpFontLigatures": "Ligatúrák a kódban",
+  "acpFontSystem": "Rendszer betűtípusa",
+  "acpFontInstalled": "Betűtípuscsomag telepítve: {directory}",
+  "acpFontIntegrity": "A betűtípusfájl ellenőrzése sikertelen: {file}",
+  "acpFontInstallFailed": "A betűtípuscsomag nem telepíthető.",
+  "acpFontsUsage": "Használat: {command} fonts install [--from <directory>]"
 }

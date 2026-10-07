@@ -3740,7 +3740,7 @@
     "private-ok": "--private-ok: {origin} 在专用网络上；请用 --private-ok 重新运行以确认。",
     "range": "--range today|7d|30d|90d|custom: 时间范围",
     "by": "--by provider|model|kind|client: 分组方式",
-    "from": "--from YYYY-MM-DD: 开始日期",
+    "from": "--from <value>: 开始日期",
     "to": "--to YYYY-MM-DD: 结束日期",
     "json": "--json: 版本化 JSON",
     "csv": "--csv: 汇总 CSV",
@@ -4085,5 +4085,13 @@
     "disabled": "此代理用量来源未启用。",
     "unbound": "此来源集成尚不可用。",
     "history": "所选会话的历史记录不可用。"
-  }
+  },
+  "acpFontUi": "界面字体",
+  "acpFontCode": "代码字体",
+  "acpFontLigatures": "代码连字",
+  "acpFontSystem": "系统字体",
+  "acpFontInstalled": "字体包已安装：{directory}",
+  "acpFontIntegrity": "字体文件验证失败：{file}",
+  "acpFontInstallFailed": "无法安装字体包。",
+  "acpFontsUsage": "用法：{command} fonts install [--from <directory>]"
 }

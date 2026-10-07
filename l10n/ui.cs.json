@@ -4166,7 +4166,7 @@
     "private-ok": "--private-ok: {origin} je v privátní síti; pro potvrzení spusťte znovu s --private-ok.",
     "range": "--range today|7d|30d|90d|custom: Období",
     "by": "--by provider|model|kind|client: Seskupit podle",
-    "from": "--from YYYY-MM-DD: Od",
+    "from": "--from <value>: Od",
     "to": "--to YYYY-MM-DD: Do",
     "json": "--json: Verzované JSON",
     "csv": "--csv: Souhrnné CSV",
@@ -4520,5 +4520,13 @@
     "disabled": "Tento zdroj využití agenta není zapnutý.",
     "unbound": "Integrace tohoto zdroje zatím není dostupná.",
     "history": "Historie vybrané relace není dostupná."
-  }
+  },
+  "acpFontUi": "Písmo rozhraní",
+  "acpFontCode": "Písmo kódu",
+  "acpFontLigatures": "Ligatury v kódu",
+  "acpFontSystem": "Systémové písmo",
+  "acpFontInstalled": "Balíček písem nainstalován: {directory}",
+  "acpFontIntegrity": "Ověření souboru písma selhalo: {file}",
+  "acpFontInstallFailed": "Balíček písem se nepodařilo nainstalovat.",
+  "acpFontsUsage": "Použití: {command} fonts install [--from <directory>]"
 }

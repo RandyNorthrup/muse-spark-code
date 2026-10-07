@@ -4024,7 +4024,7 @@
     "private-ok": "--private-ok: {origin} è su una rete privata; esegui di nuovo con --private-ok per confermare.",
     "range": "--range today|7d|30d|90d|custom: Intervallo",
     "by": "--by provider|model|kind|client: Raggruppa per",
-    "from": "--from YYYY-MM-DD: Da",
+    "from": "--from <value>: Da",
     "to": "--to YYYY-MM-DD: A",
     "json": "--json: JSON con versione",
     "csv": "--csv: CSV di riepilogo",
@@ -4375,5 +4375,13 @@
     "disabled": "Questa origine di utilizzo dell’agente non è abilitata.",
     "unbound": "L’integrazione di questa origine non è ancora disponibile.",
     "history": "La cronologia della sessione selezionata non è disponibile."
-  }
+  },
+  "acpFontUi": "Carattere dell’interfaccia",
+  "acpFontCode": "Carattere del codice",
+  "acpFontLigatures": "Legature nel codice",
+  "acpFontSystem": "Carattere di sistema",
+  "acpFontInstalled": "Pacchetto di caratteri installato: {directory}",
+  "acpFontIntegrity": "Verifica del file di carattere non riuscita: {file}",
+  "acpFontInstallFailed": "Impossibile installare il pacchetto di caratteri.",
+  "acpFontsUsage": "Uso: {command} fonts install [--from <directory>]"
 }

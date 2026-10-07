@@ -3882,7 +3882,7 @@
     "private-ok": "--private-ok: {origin} liegt in einem privaten Netzwerk; rufen Sie den Befehl mit --private-ok erneut auf, um dies zu bestätigen.",
     "range": "--range today|7d|30d|90d|custom: Zeitraum",
     "by": "--by provider|model|kind|client: Gruppieren nach",
-    "from": "--from YYYY-MM-DD: Von",
+    "from": "--from <value>: Von",
     "to": "--to YYYY-MM-DD: Bis",
     "json": "--json: Versioniertes JSON",
     "csv": "--csv: CSV-Zusammenfassung",
@@ -4230,5 +4230,13 @@
     "disabled": "Diese Quelle für die Agentennutzung ist nicht aktiviert.",
     "unbound": "Diese Quellenintegration ist noch nicht verfügbar.",
     "history": "Der Verlauf der ausgewählten Sitzung ist nicht verfügbar."
-  }
+  },
+  "acpFontUi": "Schrift der Oberfläche",
+  "acpFontCode": "Schrift für Code",
+  "acpFontLigatures": "Ligaturen im Code",
+  "acpFontSystem": "Systemschrift",
+  "acpFontInstalled": "Schriftpaket installiert: {directory}",
+  "acpFontIntegrity": "Überprüfung der Schriftdatei fehlgeschlagen: {file}",
+  "acpFontInstallFailed": "Das Schriftpaket konnte nicht installiert werden.",
+  "acpFontsUsage": "Verwendung: {command} fonts install [--from <directory>]"
 }

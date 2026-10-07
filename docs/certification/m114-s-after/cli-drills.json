@@ -1,0 +1,51 @@
+{
+  "restoredHelperSha256": "531abc48c98466386b0d48cdb53aa2b4065f9c9f0c9c843ee7a3de550a68e2a3",
+  "restoredManifestSha256": "548a7d33462495c131cc524b927ade317983c2c8238191d03274117b9a6fe7c0",
+  "drills": [
+    {
+      "drill": "review",
+      "exit": 1,
+      "requiredFailure": "Visual updates require --review="
+    },
+    {
+      "drill": "archive-required",
+      "exit": 1,
+      "requiredFailure": "Visual updates require --archive="
+    },
+    {
+      "drill": "archive-external",
+      "exit": 1,
+      "requiredFailure": "Visual baseline PNGs must stay outside"
+    },
+    {
+      "drill": "archive-existing",
+      "exit": 1,
+      "requiredFailure": "Use a new archive directory"
+    },
+    {
+      "drill": "source-dirty",
+      "exit": 1,
+      "requiredFailure": "Commit capture inputs"
+    },
+    {
+      "drill": "archive-missing",
+      "exit": 1,
+      "requiredFailure": "Requested visual archive is missing"
+    },
+    {
+      "drill": "capture-missing",
+      "exit": 1,
+      "requiredFailure": "ENOENT"
+    },
+    {
+      "drill": "source-missing",
+      "exit": 1,
+      "requiredFailure": "not a tree object"
+    },
+    {
+      "drill": "one-pixel",
+      "exit": 1,
+      "requiredFailure": "panel/agents-details/default/light/320: Visual regression: 1 changed pixel(s)"
+    }
+  ]
+}
