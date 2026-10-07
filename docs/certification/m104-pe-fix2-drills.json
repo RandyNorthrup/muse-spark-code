@@ -1,0 +1,44 @@
+{
+  "base": "5adb76f3865ab9bdbc5c424c873eebff0bf12463",
+  "modelAttempts": 0,
+  "allRestorationsComparedSha256": true,
+  "drills": [
+    {
+      "guard": "typescript",
+      "base": "5adb76f38",
+      "restored": {
+        "src/runtime/features/verify.ts": "c7277555a8d60c1154df23b4b45a79fd2da1f7a90b3a7a91cd3ef4e6f7209bbc",
+        "src/runtime/panel/backendEntry.ts": "e8a4d96a0db2d5657337591f87f1dfad456acd62ed6f559d97a404c3059423ff"
+      },
+      "exit": 1
+    },
+    {
+      "guard": "eclipse",
+      "base": "5adb76f38",
+      "restored": {
+        "hosts/eclipse/plugin/src/io/musespark/eclipse/NativeUi.java": "93af38e4d7eb9fbd912f215ed0187654bfb512cf843dfa7a369bb6cccad8a53f",
+        "hosts/eclipse/plugin/src/io/musespark/eclipse/OpenHandler.java": "e312f65450c7d476f54d6c25898a0df8236b593c73f97c090cff262732ab2eef",
+        "hosts/eclipse/plugin/src/io/musespark/eclipse/WindowSession.java": "436f9fac79b6e5849188496254906b1f4d3c90a0ed533f31de28d78cba588531"
+      },
+      "exit": 1
+    },
+    {
+      "guard": "jetbrains",
+      "base": "5adb76f38",
+      "restored": {
+        "hosts/jetbrains/src/main/kotlin/io/github/randynorthrup/musespark/NativeHostServices.kt": "98567e50a2ebd56e8bbf20467fc9c6d7b7864c8e5cf30fd4043aff210e3b6e21",
+        "hosts/jetbrains/src/main/kotlin/io/github/randynorthrup/musespark/EmbeddedPanel.kt": "97bfe940fdb0a7c9ee92c80f4d2d7668f132ca61855b9e1996d27aa6df803503"
+      },
+      "exit": 1
+    },
+    {
+      "guard": "jetbrains",
+      "base": "5adb76f38",
+      "restored": {
+        "hosts/jetbrains/src/main/kotlin/io/github/randynorthrup/musespark/NativeHostServices.kt": "d0799a7b57a20f0e75befa126eeee900266b73d50cb4b8e292a62a30af1c9b2a",
+        "hosts/jetbrains/src/main/kotlin/io/github/randynorthrup/musespark/EmbeddedPanel.kt": "8efb802c27d13409f5818653d68eecc35546c520a7fa4308a85db10431ce7dff"
+      },
+      "exit": 1
+    }
+  ]
+}
