@@ -26,9 +26,10 @@
 // import from `vscode`, Node, or the DOM.
 
 import * as z from 'zod/mini'
+import { judgePanelSnapshotSchema } from './judgePanel'
 
 /** The panel's sections; M96 registers `roles` and `agents` beside these. */
-export const modelsPanelSectionSchema = z.enum(['providers', 'models'])
+export const modelsPanelSectionSchema = z.enum(['providers', 'models', 'judge'])
 export type ModelsPanelSection = z.infer<typeof modelsPanelSectionSchema>
 
 /** The add-provider wizard's steps, in order (mirrors lane P's `WizardStep`). */
@@ -334,6 +335,8 @@ export const modelsPanelStateSchema = z.strictObject({
   notice: z.optional(z.string()),
   subscriptionsAvailable: z.optional(z.boolean()),
   copilotAvailable: z.optional(z.boolean()),
+  /** The Judge section. Absent only on a host that has not reported one yet. */
+  judge: z.optional(judgePanelSnapshotSchema),
 })
 export type ModelsPanelState = z.infer<typeof modelsPanelStateSchema>
 
@@ -451,6 +454,9 @@ export const panelToHostMessageSchema = z.discriminatedUnion('type', [
     modelRef: z.optional(z.string()),
     usd: z.optional(z.number()),
   }),
+  // The Judge section's first-charge button. The host ignores it unless the
+  // current snapshot says a paid source still needs consent.
+  z.strictObject({ type: z.literal('judge/askConsent') }),
 ])
 export type PanelToHostMessage = z.infer<typeof panelToHostMessageSchema>
 

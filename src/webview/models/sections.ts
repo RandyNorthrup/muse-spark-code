@@ -11,7 +11,8 @@ import type {
   ModelsPanelState,
   PanelToHostMessage,
 } from '../../shared/modelsPanel'
-import { CodeIcon, PlusIcon } from '../components/icons'
+import { BoltIcon, CodeIcon, PlusIcon } from '../components/icons'
+import { JudgeSection } from './sections/judge/JudgeSection'
 import { ModelsSection } from './ModelsSection'
 import { ProvidersSection } from './ProvidersSection'
 import type { PanelUiAction, PanelUiState } from './reducer'
@@ -75,6 +76,10 @@ function reduceModels(state: PanelUiState, _action: PanelUiAction): PanelUiState
   return state
 }
 
+function reduceJudge(state: PanelUiState, _action: PanelUiAction): PanelUiState {
+  return state
+}
+
 export const MODEL_SECTIONS: readonly PanelSectionDef[] = [
   {
     id: 'providers',
@@ -89,6 +94,13 @@ export const MODEL_SECTIONS: readonly PanelSectionDef[] = [
     icon: CodeIcon,
     Component: ModelsSection,
     reduceSection: reduceModels,
+  },
+  {
+    id: 'judge',
+    getTitle: () => UI_TEXT.paidJudgeName,
+    icon: BoltIcon,
+    Component: JudgeSection,
+    reduceSection: reduceJudge,
   },
 ]
 

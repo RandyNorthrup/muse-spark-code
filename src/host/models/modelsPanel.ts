@@ -34,6 +34,11 @@ import type {
 import type { ProvidersHost } from '../providers/providersHost'
 import type { WizardSaveOutcome } from '../providers/wizardSave'
 import { OPENROUTER_ORIGIN } from '../providers/openRouter'
+import {
+  projectJudgePanel,
+  unavailableJudgePanel,
+  type JudgePanelPort,
+} from '../../shared/judgePanel'
 
 export interface ModelsPanelDeps {
   readonly connectChatGpt?: (() => Promise<void>) | undefined
@@ -49,6 +54,8 @@ export interface ModelsPanelDeps {
   readonly readImportFile: () => Promise<string | undefined>
   readonly confirmImport: (preview: ImportPreview) => Promise<boolean>
   readonly onWizardSaved: (outcome: WizardSaveOutcome) => void
+  /** Source lanes fill this. Absent means the section says the judge is unavailable. */
+  readonly judge?: JudgePanelPort | undefined
 }
 export interface ModelsPanelNavigate {
   readonly section?: string | undefined
@@ -98,6 +105,10 @@ function newDraft(preset?: PresetInfo): PanelDraft {
   }
 }
 /** One panel and ordered host edits; a disposed tab discards its draft. */
+function panelSection(section: string | undefined): 'providers' | 'models' | 'judge' {
+  return section === 'models' || section === 'judge' ? section : 'providers'
+}
+
 export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   const { providers, log } = deps
   const panel = vscode.window.createWebviewPanel(
@@ -150,7 +161,20 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     }
     void panel.webview.postMessage(parsed.message)
   }
+  const readJudge = (): ModelsPanelState['judge'] => {
+    if (deps.judge === undefined) {
+      return unavailableJudgePanel()
+    }
+    try {
+      return projectJudgePanel(deps.judge.read())
+    } catch {
+      log.warn('Judge panel status could not be read')
+      return unavailableJudgePanel()
+    }
+  }
   const publish = (): void => {
+    // Refresh on every post. Opening the panel never asks for a charge.
+    state.judge = readJudge()
     post({ type: 'modelsPanel/state', state })
   }
   const fail = (): void => {
@@ -406,11 +430,21 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         if (navigation !== undefined) {
           post({
             type: 'modelsPanel/navigate',
-            section: navigation.section === 'models' ? 'models' : 'providers',
+            section: panelSection(navigation.section),
             itemId: navigation.presetId,
           })
         }
         return
+      }
+      case 'judge/askConsent': {
+        // Subscription-only and already-granted snapshots say askFirstCharge
+        // is false. A webview that asks anyway does not open the question.
+        const current = readJudge()
+        state.judge = current
+        if (current?.askFirstCharge === true && deps.judge !== undefined) {
+          await deps.judge.requestFirstCharge()
+        }
+        break
       }
       case 'openExternal': {
         const url = new URL(message.url)
@@ -814,7 +848,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       if (navigate !== undefined) {
         post({
           type: 'modelsPanel/navigate',
-          section: navigate.section === 'models' ? 'models' : 'providers',
+          section: panelSection(navigate.section),
           itemId: navigate.presetId,
         })
       }

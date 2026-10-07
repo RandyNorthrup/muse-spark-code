@@ -10,6 +10,13 @@ happened, not what was planned; superseded entries are kept.
 - Keep every long-reply accessibility delta while yielding through a task port,
   avoiding nested timer throttling within the existing readiness deadline.
 
+- **M98 phase 2 Judge panel review fixes.** Judge prices and liabilities
+  print exact ($0.042 shows as $0.042, tiny amounts never round to zero);
+  a verified local System One source is kept in a confidential workspace;
+  a paid source on Muse Code reads Paid with its price after consent;
+  Account & usage keeps the experimental warning beside any other status
+  and renders the facts list the narrow grid expects.
+
 - **M98 phase 2 on the 0.15.0 train.** The phase-2 judge libraries merged
   so far (contract, calibration, loopback serve boundary, sampling and
   contrastive framing, CLI/MCP, lint, local proofs, advisory uses and the
