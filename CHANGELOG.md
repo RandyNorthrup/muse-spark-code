@@ -14,6 +14,40 @@ happened, not what was planned; superseded entries are kept.
   gives the rule that prevents it and the milestone that will enforce that
   rule in the app's own orchestrator (D100).
 
+### Added
+
+- M109's credential-vault contracts, canonical use digest, translated panel
+  labels and warnings, test-only broker and route harnesses, and threat and
+  capture plan. This prepares the runtime lanes; it does not enable a vault
+  command or change credential storage yet.
+
+### Fixed
+
+- M109's preparation contracts now accept complete HTTPS OAuth issuer
+  identifiers, including tenant paths and trailing slashes, while preserving
+  exact issuer identity in grants, token material and use digests.
+- M109's broker port now returns auditable approval, ticket or denial results,
+  including tickets after UI approval. Pending test approvals own their input
+  snapshots, so caller mutation cannot change their host or resolved use.
+- ACP help and argument errors now use one complete localized usage table,
+  including the Setup hooks command, so the installed package passes the
+  release job's strict English fallback check.
+- Windows shell directory tracking now uses the native long workspace path
+  when starting or resetting a command, so 8.3 aliases keep the correct cwd
+  and workspace-relative directory tail.
+- Production bundle regression tests now build their own compressed English and
+  shared wire fixtures, so macOS CI's test job works without a prior build.
+- Windows CI hook fixtures now use the platform their captured paths describe;
+  Cline discovery exercises both POSIX and Windows path handling on every OS.
+  Deferred-bundle checks load their in-memory builds without requiring stale
+  or pre-existing files in `dist`.
+- Cline hook quoting is checked through native PowerShell on Windows and the
+  POSIX shell on Unix, without requiring a Windows Bash installation.
+- Fake-only headless tests recognize MinGit's verified GNU Bash `sh.exe`, and
+  missing-browser-chunk checks accept Windows filesystem error paths.
+- Fake-child plugin dispatch fixtures use drive-qualified plugin paths on
+  Windows while retaining native-platform parsing and containment checks.
+
 ## [0.14.3] - 2026-10-06
 
 ### Added

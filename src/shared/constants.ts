@@ -5355,3 +5355,52 @@ export const CONVERSATION_MODEL_TEXT = {
 
 // Shared by the eager composer and the optional command palette.
 export const PALETTE_LISTBOX_ID = 'palette-listbox'
+// M109 lane 0: vault format, limits and budgets (D89).
+export const VAULT_FORMAT_VERSION = 1
+export const VAULT_PROTOCOL_VERSION = 1
+export const VAULT_APPROVAL_TTL_MS = 120_000
+export const VAULT_ASKPASS_USES = 3
+export const VAULT_ASKPASS_TTL_MS = 600_000
+export const VAULT_SESSION_MAX_DAYS = 30
+export const VAULT_AUDIT_MAX_BYTES = 8 * 1024 * 1024
+export const VAULT_LEGACY_RETAIN_RELEASES = 2
+export const VAULT_FIRST_SEND_SLACK_MS = 25
+export const VAULT_SIGN_P95_MS = 20
+export const VAULT_FEEDER_START_MS = 200
+export const VAULT_SCRUB_MIN_MBPS = 50
+export const VAULT_IDLE_MINUTES = 240
+export const VAULT_KEY_BYTES = 32
+export const VAULT_NONCE_BYTES = 12
+export const VAULT_TAG_BYTES = 16
+export const VAULT_RECOVERY_BYTES = 20
+export const VAULT_KDF = {
+  argon2: { memoryKiB: 65_536, iterations: 3, parallelism: 4 },
+  scrypt: { N: 131_072, r: 8, p: 1 },
+  saltBytes: 16,
+}
+export const VAULT_LIMITS = {
+  name: 48,
+  label: 256,
+  text: 4096,
+  valueBytes: 1024 * 1024,
+  items: 10_000,
+  grants: 10_000,
+  argv: 256,
+  names: 128,
+  cookies: 1000,
+  reasons: 128,
+  frameBytes: 4 * 1024 * 1024,
+  day: 6,
+  hour: 24,
+  idBytes: 16,
+  sha256Hex: 64,
+}
+export const VAULT_DEFAULTS = {
+  enabled: true,
+  protection: 'auto',
+  agentFence: true,
+  lockOnScreenLock: true,
+} as const
+
+export const VAULT_TOTP_DIGITS = { standard: 6, extended: 8 } as const
+export const VAULT_BASE64_GROUP_CHARS = 4
