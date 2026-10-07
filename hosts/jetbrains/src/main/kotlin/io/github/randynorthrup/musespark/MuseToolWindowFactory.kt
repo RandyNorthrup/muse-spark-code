@@ -131,7 +131,7 @@ class JetBrainsPanelHost(
     val services =
       NativeHostServices(project, { method, params ->
         surfaceRequest(method, params, checkEpoch)
-      }, widgets, checkEpoch = checkEpoch, workspaceRoot = process.workspaceRoot)
+      }, widgets, NativeHostOptions(checkEpoch = checkEpoch, workspaceRoot = process.workspaceRoot))
     NativeTheme.install(project, lifetime) { if (!disposed) panels.values.forEach(EmbeddedPanel::updateTheme) }
     owner =
       RuntimeConnection(

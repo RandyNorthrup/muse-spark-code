@@ -11,7 +11,9 @@ happened, not what was planned; superseded entries are kept.
   atomic cross-thread close admission. Cleanup failures are logged and isolated;
   runtime-tree termination always runs. Window-menu opening scans all restored
   views, replaces unbound and uncreated placeholders, and activates the owned chat.
-  Descendant-cleanup tests distinguish startup, zombies and reaping.
+  Descendant-cleanup tests distinguish startup, zombies and reaping. JetBrains
+  native services use an options object and a separate UI collaborator; the
+  constructor, dispatcher and class function count pass unchanged Detekt rules.
 
 - Close the six findings in the M104PE follow-up review: Eclipse preserves
   absolute file-dialog paths and replaces unbound restored views; diagnostics

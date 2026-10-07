@@ -108,7 +108,13 @@ class NativeDialogsTest : BasePlatformTestCase() {
     val widgets = JetBrainsPanelHost.onEdt { NativeWidgets(project, JsonBoundary()) {} }
     try {
       val opened = mutableListOf<String>()
-      val services = NativeHostServices(project, { _, _ -> error("fixture-unused") }, widgets, opened::add)
+      val services =
+        NativeHostServices(
+          project,
+          { _, _ -> error("fixture-unused") },
+          widgets,
+          NativeHostOptions(openBrowser = opened::add),
+        )
       val target = "http://127.0.0.1:43123/#k=fixture-only"
       val frame =
         json(

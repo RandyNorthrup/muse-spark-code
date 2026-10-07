@@ -109,7 +109,7 @@ class NativeHostServicesTest : BasePlatformTestCase() {
       project,
       { _, _ -> error("fixture-unused") },
       widgets,
-      chooseFile = { _, _, _ -> choice },
+      options = NativeHostOptions(chooseFile = { _, _, _ -> choice }),
     )
   }
 
