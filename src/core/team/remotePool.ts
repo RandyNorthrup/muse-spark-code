@@ -168,8 +168,14 @@ export function sendToDeviceLabel(device: string): string {
   return fill(UI_TEXT.accounts.sendToDevice, { device })
 }
 
+const HEADROOM_RANK: Readonly<Record<z.infer<typeof accountHeadroomSchema>, number>> = {
+  ample: 2,
+  some: 1,
+  none: 0,
+}
+
 function headroomRank(value: z.infer<typeof accountHeadroomSchema> | undefined): number {
-  return value === 'ample' ? 2 : value === 'some' ? 1 : 0
+  return value === undefined ? 0 : HEADROOM_RANK[value]
 }
 
 export class RemoteAccountPool {
