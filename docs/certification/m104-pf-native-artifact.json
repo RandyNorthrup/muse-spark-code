@@ -1,16 +1,17 @@
 {
   "rig": "macmini",
   "date": "2026-10-06",
-  "macOS": "15.7.4 (24G517)",
-  "xcode": "26.3 (17C529)",
+  "sourceCheckpoint": "ff8a5056d8749784a6c6160616dd791697f9e380",
+  "macOS": "15.7.4",
+  "xcode": "Xcode 26.3; Build version 17C529",
   "executedArchitecture": "x86_64",
   "version": "0.14.1",
-  "protocol": "mhp/1.2.0",
-  "snapshotSha256": "a3e69a78f4ac934373b6e17b0de753f1c76e1a9fa85fdee5cf169f166c9b7fd4",
+  "protocol": "mhp/1.3.0",
+  "snapshotSha256": "a0eef8e84e54f045db5dc59a30664dd9fea9e6a9836b986cc7abb7113f15d421",
   "zip": {
     "name": "Muse-Spark-for-Xcode.zip",
-    "bytes": 1168152,
-    "sha256": "e1c2dff2ed78d461b9844fb0ccf93607aa71d20ade94c9328cb70c43d4705ba3"
+    "bytes": 1183786,
+    "sha256": "be0b0831726751a7ec5432f8e76b300acd0507a1a9ae911cef062e87e3527591"
   },
   "architectures": [
     {
@@ -23,20 +24,20 @@
     }
   ],
   "signing": "ad-hoc",
-  "qualifiedScope": "Final Release build, product/schema/table identity, architectures and code-signature verification only. Final 57-test XCTest uses the Debug app; installed XcodeKit enablement, bundled production runtime, notarization and backend/provider qualification are missing. Exact ZIP extracted; all 39 file hashes match the verified build and extracted signatures pass.",
+  "qualifiedScope": "Release product/schema/table/linked-description identity, architectures and strict extracted-signature verification only. All 41 file hashes match the build. The complete 63-test XCTest uses the Debug app. Installed XcodeKit enablement, official bundled runtime, notarization and backend/provider qualification remain missing.",
   "sourceFiles": {
     "hosts/xcode/.gitignore": "8e7c931e9d4dafaff13166c6a660d102910cc774401bffd5c71f7ae92d5e70f4",
     "hosts/xcode/App/MuseSparkApp.swift": "b5d969185922c043e9c3f5774edd9c0aa102a394b9d751db0ce97beddd15c69e",
-    "hosts/xcode/App/NativeUi.swift": "8108733278284504928aca8da042dcd2ae2095e47c8b93684b9fdfb2d23259ed",
+    "hosts/xcode/App/NativeUi.swift": "def8ec2092db8e6450d8c7a56f9dcf61a87d1a5acdc899615841679e5f130fb8",
     "hosts/xcode/App/PanelModel.swift": "624b0c7706455b7cbf60301761c0f312cb4e4c26506ff9b001918abe7214703c",
     "hosts/xcode/App/PanelWebView.swift": "5489dc17eb4f2c66463b53b0a831594dc933123cfa65fd77c9d35d7f5cd14519",
     "hosts/xcode/Extension/Editor.entitlements": "4538cf1d8849d318c97f301873bc2f4c84fd10a5f90793618c4f120738bf9b13",
     "hosts/xcode/Extension/SourceEditorCommand.swift": "7fb921210ff44de0c28db1d574c4ec8613c99eb7849a93ed157ce2641efd694d",
     "hosts/xcode/Extension/SourceEditorExtension.swift": "53bbe088267a6dbbc38005c17e58b0faa52d383eda9e62ed0c7a9d7df7fc4630",
-    "hosts/xcode/MuseSpark.xcodeproj/project.pbxproj": "0d0c3f0e7a91de23cba2fac76f97f3ad8019d1463021330ea68130bb8d77c3ab",
+    "hosts/xcode/MuseSpark.xcodeproj/project.pbxproj": "9947d1e81505db8d129de429c72b50aff3f52ebaf04a394061877adce1255e3b",
     "hosts/xcode/MuseSpark.xcodeproj/xcshareddata/xcschemes/MuseSpark.xcscheme": "8c42beee1c70d70e63c63159db758a54dd20e957bbcfdc1bd742a420dc02b5ad",
     "hosts/xcode/MuseSpark.xcodeproj/xcshareddata/xcschemes/NativeCore.xcscheme": "d52f478d1b672f9082008a58893b2b7771f83bc882e2ed118498b8b7ef5fd6a6",
-    "hosts/xcode/README.md": "73a3fd0ee1264c0c08729a536a0b4752068bd5464829256c8582c0210d00d26b",
+    "hosts/xcode/README.md": "d59b29a1efa9e73333649a72563be43695e282143668a2b9d3ecd5128460f85a",
     "hosts/xcode/Scripts/build.sh": "f6a95e639939001346dabd655b3a40890378b7fadb18042fb2c183271729208f",
     "hosts/xcode/Scripts/generate.mjs": "d6fafe6d11ec4f539b017da4c06cc8f3ff15dfe0a7d4a4296b8ef51ce995ecba",
     "hosts/xcode/Scripts/nativeTables.ts": "92d02493942f27929415352a956b9ae9681f4a0cf5fb31e900eb9c8dfd044f2b",
@@ -50,15 +51,17 @@
     "hosts/xcode/Shared/NativeText.swift": "cfd2b40578fd193ad4e85a7ae14a2339eee497b5b659119098872765e399eccc",
     "hosts/xcode/Shared/RuntimeLauncher.swift": "26417b92265087b3e22dac677e96e642016621ca7c16df5093a02ec9eafc3f46",
     "hosts/xcode/apple-feedback.md": "6ecc6ff3130050f56dbea082f1a0a61fd8dddc6e96107a99c689ec45efea76cd",
+    "hosts/xcode/description.html": "2bacb26e6e08a16ab25e2bc4a0cf8b7f438e01a56deb99cf8cb1fd1d480456e4",
     "hosts/xcode/tsconfig.json": "c6bf7f0c1c76d332a1c203ac816ed34c19420067fa39ffdc0f3d3f0ffdc4b37b"
   },
   "files": {
     "Contents/Info.plist": "ad3901f97f7bd0436c163e740bba5861637eb5cb0af73cf8c2537a582453cb5f",
-    "Contents/MacOS/Muse Spark for Xcode": "3435de5977cad7c42a70d5a2c325da58171bc4438475fb05e2392c1ecc3e6339",
+    "Contents/MacOS/Muse Spark for Xcode": "0955a6f0e97cc36ed6d939167f5ee4e81f57e73f18fe136e22378471bf11c44c",
     "Contents/PkgInfo": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0",
     "Contents/PlugIns/MuseSparkEditor.appex/Contents/Info.plist": "2bff3661e87ebc29835d3cac1da41690abba730431fc364e89e7c79f25ee91db",
-    "Contents/PlugIns/MuseSparkEditor.appex/Contents/MacOS/MuseSparkEditor": "a67828adc8e566db18c1c90e8c9beca4bae3102e34da0bc0ce31af2e6e499e6f",
-    "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/mhp.json": "a3e69a78f4ac934373b6e17b0de753f1c76e1a9fa85fdee5cf169f166c9b7fd4",
+    "Contents/PlugIns/MuseSparkEditor.appex/Contents/MacOS/MuseSparkEditor": "3a7cb368b7e31c53c39f494cfc1315ec0ef998d6792b8ac5f4f86e8e0692d55a",
+    "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/description.html": "2bacb26e6e08a16ab25e2bc4a0cf8b7f438e01a56deb99cf8cb1fd1d480456e4",
+    "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/mhp.json": "a0eef8e84e54f045db5dc59a30664dd9fea9e6a9836b986cc7abb7113f15d421",
     "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.cs.json": "66c41ae5e49d3acb90d76155288ee80b8d4e72daf3ed0dc77106309382617a86",
     "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.de.json": "af349aa3b697675b792abdb46291de4bb6b03119bb051195dc2cfda34ef7f206",
     "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.en.json": "8b609e67da554d2b38bb970bf1ff53e1090e78862d5e7ee6641e5ac80651d60c",
@@ -74,8 +77,9 @@
     "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.tr.json": "037f4a45dbc9aa9c90927ddf76e25c36179eb7452c11d71335ef1a707b1b63bb",
     "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.zh-cn.json": "e2368a2dbc8e044037debaa143d9899d59f75ab318878029c09972734d45e399",
     "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.zh-tw.json": "b6572239c6325fe11d44d10f2b4027cbc174e5977727c5acd4fd2ead2cecc7fc",
-    "Contents/PlugIns/MuseSparkEditor.appex/Contents/_CodeSignature/CodeResources": "e2339734fd32b47ee52898f4a4695e6277f292e089da31317e25521c4e3dfa77",
-    "Contents/Resources/mhp.json": "a3e69a78f4ac934373b6e17b0de753f1c76e1a9fa85fdee5cf169f166c9b7fd4",
+    "Contents/PlugIns/MuseSparkEditor.appex/Contents/_CodeSignature/CodeResources": "93d1a59e2004cfc3658076e00a092faa6109342282f486549a8092c5c596a5c8",
+    "Contents/Resources/description.html": "2bacb26e6e08a16ab25e2bc4a0cf8b7f438e01a56deb99cf8cb1fd1d480456e4",
+    "Contents/Resources/mhp.json": "a0eef8e84e54f045db5dc59a30664dd9fea9e6a9836b986cc7abb7113f15d421",
     "Contents/Resources/ui.cs.json": "66c41ae5e49d3acb90d76155288ee80b8d4e72daf3ed0dc77106309382617a86",
     "Contents/Resources/ui.de.json": "af349aa3b697675b792abdb46291de4bb6b03119bb051195dc2cfda34ef7f206",
     "Contents/Resources/ui.en.json": "8b609e67da554d2b38bb970bf1ff53e1090e78862d5e7ee6641e5ac80651d60c",
@@ -91,6 +95,6 @@
     "Contents/Resources/ui.tr.json": "037f4a45dbc9aa9c90927ddf76e25c36179eb7452c11d71335ef1a707b1b63bb",
     "Contents/Resources/ui.zh-cn.json": "e2368a2dbc8e044037debaa143d9899d59f75ab318878029c09972734d45e399",
     "Contents/Resources/ui.zh-tw.json": "b6572239c6325fe11d44d10f2b4027cbc174e5977727c5acd4fd2ead2cecc7fc",
-    "Contents/_CodeSignature/CodeResources": "37b2fc2537eaa01a5babb3e998f4541c10b06adb13e70c7396a724b9259f3beb"
+    "Contents/_CodeSignature/CodeResources": "5ad6e8e537180b481d9645b583b1159c61a720b26ca2f3220957de180150fbc6"
   }
 }

@@ -130,3 +130,12 @@ The per-command XcodeKit snapshot still lacks a disclosed physical file URL
 and background document version/freshness. Complete documents/editor/LSP,
 Tab and voice admission/drain remain the earlier B/E/A-owned prerequisites.
 No live/paid or owner security-setting action is authorized in this lane.
+
+Final continuation verification: repository and both Xcode TypeScript projects,
+ESLint/Prettier, strict changed-Swift lint, duplication, localization, host API,
+frozen MHP, production build and 92 owning Vitest/63 native tests pass. Plain
+Knip still identifies only the standalone `nativeDrills.mjs` entry; its A
+request is current, not a waived or weakened gate. Real offline ACP/Release
+Xcode extraction receipts now identify 1.3 bytes at `ff8a5056d`; neither
+receipt supplies the still-missing installed editor/provider or licence closure
+qualification. The refreshed row inventory supersedes old unadopted/1.2 notes.

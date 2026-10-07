@@ -1,13 +1,12 @@
 {
   "schema": "m104-pf-qualification/1",
   "date": "2026-10-06",
-  "worktreeBase": "74b99c4a",
-  "adoptedNativeCheckpoint": "545f2cc18",
-  "availableUnadoptedIntegration": "97d15be17",
+  "worktreeBase": "e6942cc59",
+  "adoptedNativeCheckpoint": "ff8a5056d8749784a6c6160616dd791697f9e380",
   "source": {
     "file": "src/shared/hostApi/mhp-v1.schema.json",
-    "protocol": "mhp/1.2.0",
-    "sha256": "a3e69a78f4ac934373b6e17b0de753f1c76e1a9fa85fdee5cf169f166c9b7fd4"
+    "protocol": "mhp/1.3.0",
+    "sha256": "a0eef8e84e54f045db5dc59a30664dd9fea9e6a9836b986cc7abb7113f15d421"
   },
   "counts": {
     "featureRows": 56,
@@ -261,9 +260,9 @@
       "id": "F1",
       "name": "streaming-chat",
       "sharedOwner": "A",
-      "nativeComponentEvidence": "Native bootstrap and authenticated fake browser container only",
+      "nativeComponentEvidence": "Native bootstrap and authenticated fake browser container only; MHP 1.3 exact snapshot and legacy refusal",
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -281,7 +280,7 @@
       "sharedOwner": "A",
       "nativeComponentEvidence": null,
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -290,7 +289,7 @@
       "sharedOwner": "A",
       "nativeComponentEvidence": null,
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -299,7 +298,7 @@
       "sharedOwner": "A",
       "nativeComponentEvidence": null,
       "requiredCapabilities": ["workspace"],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -315,7 +314,7 @@
       "id": "F7",
       "name": "inline-diffs",
       "sharedOwner": "C",
-      "nativeComponentEvidence": null,
+      "nativeComponentEvidence": "Exact packaged shared presentation/auxiliary closure; native surface identity contract pending",
       "requiredCapabilities": ["diff"],
       "remainingNative": "Shared diff rendering and navigation",
       "installedReceipt": "missing"
@@ -360,18 +359,18 @@
       "id": "F12",
       "name": "history",
       "sharedOwner": "A",
-      "nativeComponentEvidence": "Generation rebinding infrastructure only",
+      "nativeComponentEvidence": "Generation rebinding infrastructure only; MHP 1.3 exact snapshot and legacy refusal",
       "requiredCapabilities": ["storage"],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
       "id": "F13",
       "name": "fork-and-side-chat",
       "sharedOwner": "A",
-      "nativeComponentEvidence": "Fresh same-origin launch infrastructure only",
+      "nativeComponentEvidence": "Fresh same-origin launch infrastructure only; MHP 1.3 exact snapshot and legacy refusal",
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -380,7 +379,7 @@
       "sharedOwner": "A",
       "nativeComponentEvidence": null,
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -396,9 +395,9 @@
       "id": "F16",
       "name": "attachments",
       "sharedOwner": "A",
-      "nativeComponentEvidence": null,
+      "nativeComponentEvidence": "Real file chooser with cancellation, overlap and invocation ownership tests",
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -407,7 +406,7 @@
       "sharedOwner": "B",
       "nativeComponentEvidence": null,
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -416,16 +415,16 @@
       "sharedOwner": "B",
       "nativeComponentEvidence": null,
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
       "id": "F19",
       "name": "tasks",
       "sharedOwner": "C",
-      "nativeComponentEvidence": null,
+      "nativeComponentEvidence": "Exact packaged shared presentation/auxiliary closure; native surface identity contract pending",
       "requiredCapabilities": ["surfaces"],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -434,16 +433,16 @@
       "sharedOwner": "B",
       "nativeComponentEvidence": null,
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
       "id": "F21",
       "name": "plan-files",
       "sharedOwner": "C",
-      "nativeComponentEvidence": null,
+      "nativeComponentEvidence": "Exact packaged shared presentation/auxiliary closure; native surface identity contract pending",
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -452,7 +451,7 @@
       "sharedOwner": "A",
       "nativeComponentEvidence": null,
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -470,7 +469,7 @@
       "sharedOwner": "B",
       "nativeComponentEvidence": null,
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -479,7 +478,7 @@
       "sharedOwner": "B",
       "nativeComponentEvidence": null,
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -488,7 +487,7 @@
       "sharedOwner": "C",
       "nativeComponentEvidence": null,
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -497,7 +496,7 @@
       "sharedOwner": "A",
       "nativeComponentEvidence": null,
       "requiredCapabilities": ["workspace", "ui"],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -506,7 +505,7 @@
       "sharedOwner": "B",
       "nativeComponentEvidence": null,
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -515,7 +514,7 @@
       "sharedOwner": "B",
       "nativeComponentEvidence": null,
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -533,7 +532,7 @@
       "sharedOwner": "B",
       "nativeComponentEvidence": null,
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -542,7 +541,7 @@
       "sharedOwner": "B",
       "nativeComponentEvidence": null,
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -551,16 +550,16 @@
       "sharedOwner": "B",
       "nativeComponentEvidence": null,
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
       "id": "F34",
       "name": "session-import-export-share",
       "sharedOwner": "B",
-      "nativeComponentEvidence": null,
-      "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "nativeComponentEvidence": "Real open-file URI and atomic Save export, denial/failure/late replacement tests",
+      "requiredCapabilities": ["ui"],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -586,8 +585,8 @@
       "name": "cli-install-and-login",
       "sharedOwner": "B",
       "nativeComponentEvidence": null,
-      "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "requiredCapabilities": ["auth"],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -596,7 +595,7 @@
       "sharedOwner": "B",
       "nativeComponentEvidence": null,
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -605,16 +604,16 @@
       "sharedOwner": "B",
       "nativeComponentEvidence": "Native opaque priced Deny and cancelled sheet tests",
       "requiredCapabilities": ["ui"],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
       "id": "F40",
       "name": "daily-paid-budget",
       "sharedOwner": "B",
-      "nativeComponentEvidence": "Native price/budget message display only; runtime ledger pending",
+      "nativeComponentEvidence": "Native price/budget message display; adopted shared ledger requires assembled native qualification",
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -640,15 +639,15 @@
       "name": "settings",
       "sharedOwner": "A",
       "nativeComponentEvidence": "Default-off native trust metadata and transition tests",
-      "requiredCapabilities": ["settings"],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "requiredCapabilities": ["settings", "ui"],
+      "remainingNative": "Runtime-owned ui/showSetting route contract; full settings/UI group qualification and installed scenario",
       "installedReceipt": "missing"
     },
     {
       "id": "F44",
       "name": "walkthrough",
       "sharedOwner": "C",
-      "nativeComponentEvidence": null,
+      "nativeComponentEvidence": "Exact packaged shared presentation/auxiliary closure; native surface identity contract pending",
       "requiredCapabilities": [],
       "remainingNative": "Walkthrough surface",
       "installedReceipt": "missing"
@@ -657,8 +656,8 @@
       "id": "F45",
       "name": "whats-new",
       "sharedOwner": "C",
-      "nativeComponentEvidence": null,
-      "requiredCapabilities": [],
+      "nativeComponentEvidence": "Exact packaged shared presentation/auxiliary closure; native surface identity contract pending",
+      "requiredCapabilities": ["surfaces"],
       "remainingNative": "What’s New surface",
       "installedReceipt": "missing"
     },
@@ -668,7 +667,7 @@
       "sharedOwner": "C",
       "nativeComponentEvidence": "Native locale and all four appearance kinds; English plus 14 translated resources",
       "requiredCapabilities": ["lifecycle"],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -686,7 +685,7 @@
       "sharedOwner": "C",
       "nativeComponentEvidence": "Process-group Stop, descriptor/environment and EOF cleanup tests",
       "requiredCapabilities": ["ui", "window"],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -695,14 +694,14 @@
       "sharedOwner": "C",
       "nativeComponentEvidence": "Five existing XcodeKit command implementations; owner enablement missing",
       "requiredCapabilities": ["commands"],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
       "id": "F50",
       "name": "problem-report",
       "sharedOwner": "C",
-      "nativeComponentEvidence": null,
+      "nativeComponentEvidence": "Actual atomic text export service; shared scrubbed report closure packaged",
       "requiredCapabilities": [],
       "remainingNative": "Scrubbed report dialog/export surface",
       "installedReceipt": "missing"
@@ -713,16 +712,16 @@
       "sharedOwner": "A",
       "nativeComponentEvidence": null,
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
       "id": "F52",
       "name": "roles-and-traffic",
       "sharedOwner": "C",
-      "nativeComponentEvidence": null,
+      "nativeComponentEvidence": "Exact packaged shared presentation/auxiliary closure; native surface identity contract pending",
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -740,7 +739,7 @@
       "sharedOwner": "B",
       "nativeComponentEvidence": null,
       "requiredCapabilities": [],
-      "remainingNative": "Integrated A/B/C feature binding and installed Xcode scenario",
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
     },
     {
@@ -814,5 +813,10 @@
       "productionManifest": "missing",
       "required": "Real exact-runtime embedding and observed native harness; Xcode additionally awaits official Node pin inputs"
     }
-  ]
+  ],
+  "adoptedIntegration": {
+    "laneA": "fa60c3763",
+    "merge": "0b643f521",
+    "includes": ["737196296", "739cf1771"]
+  }
 }

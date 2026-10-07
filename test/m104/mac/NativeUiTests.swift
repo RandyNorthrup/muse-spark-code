@@ -79,7 +79,8 @@ final class NativeUiTests: XCTestCase {
       ui.close()
       window.close()
     }
-    var replies: [Any] = []  // Foundation service results are checked at the owning MHP boundary (§8).
+    // Foundation service results are checked at the owning MHP boundary (§8).
+    var replies: [Any] = []
     ui.handle("ui/openFile", params: ["title": "Import"], token: MhpCancellation(), window: window)
     {
       if case .success(let result) = $0 {

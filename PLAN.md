@@ -20432,7 +20432,25 @@ OS versions and backend/provider receipts are explicit deferrals pending
 their named inputs/authorization, not accepted support. The complete row,
 editor-family and channel inventory is `docs/certification/m104-pf-inventory.md`;
 concrete dependencies are `m104-pf-requests.md`. A's integrated B/C commit is
-available but unadopted until the lead supplies the planned merge instruction.
+available but was unadopted at that initial checkpoint. Continuation 2's explicit
+instruction is now satisfied by merge `0b643f521` of A `fa60c3763`; the current
+1.3 receipts and inventory supersede the old merge-wait/artifact notes.
+
+**M104PF continuation 2 final scoped gates (2026-10-06).** Functional
+checkpoint `ff8a5056d` passes 63 complete native tests, 92 owning Vitest tests
+at default timeouts, repository/Xcode typechecks, scoped ESLint/Prettier,
+strict lint of the changed Swift files, zero-clone duplication, localization,
+host API, frozen MHP and production build. Exact extracted ACP (129 files,
+69 portable modules) and universal ad-hoc Xcode (41 files) receipts are refreshed
+under `docs/certification/m104-pf-*-artifact.json`. Three new distribution,
+six owned listing and six native file-service controls fire and restore exact
+source, plus the native bundled-description control and two existing controls
+redrilled at 1.3. Plain Knip still exits 1 only for the standalone native drill
+entry below; A owns its registration. A's split P1/notice/discovery/reference,
+A/C settings/auxiliary ownership, D/E per-file STAR listings, official Node pin,
+production manifests and installed/backend/provider receipts are named requests.
+Full quality remains the lead's gate under the explicit bounded-lane rule;
+no threshold, hook, support status or qualification cell changes.
 
 **M104PF discovery deferral (2026-10-06).** Plain Knip initially reported
 the actual fake CLI export hidden in a generated import string plus the
