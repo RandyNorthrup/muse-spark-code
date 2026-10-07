@@ -995,6 +995,10 @@ class AcpSession {
       return 'cancelled'
     }
     if (local !== undefined) {
+      // The local command consumed no model turn, so the leased answers are
+      // restored: the next prompt re-leases them instead of failing on the
+      // outstanding lease (and a restart keeps them durable).
+      await this.questionRegistry?.acknowledgeQueued('notTaken')
       this.send({
         sessionUpdate: 'agent_message_chunk',
         content: { type: 'text', text: local.text },

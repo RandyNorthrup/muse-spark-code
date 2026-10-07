@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { type AcpAgentDeps, type BackendReadiness, createAcpAgent } from '../../src/acp/agent'
 import * as questionFactories from '../../src/acp/questionDeferralEntry'
 import { AcpPaidUse } from '../../src/acp/paid'
+import type { AcpQuestionRegistryFactory } from '../../src/acp/questionDeferral'
 import type { AgentHost, AgentSession, ModelSummary } from '../../src/core/agent/agentBackend'
 import type {
   AgentEvent,
@@ -21,7 +22,7 @@ import { FAKE_MODELS, FakeAgentHost, type FakeAgentSession } from './helpers/fak
 import { memoryPaidGrants } from './helpers/paidGrants'
 import { commandApproval, until } from './helpers/acpWaits'
 import { acpMspHost, acpResumeEnvelope, answerMsp } from './helpers/acpMsp'
-import { fakeAcpQuestions } from './helpers/questions/acpRegistry'
+import { FakeAcpQuestionRegistry, fakeAcpQuestions } from './helpers/questions/acpRegistry'
 import { expectedQuestionCommandsUpdate } from './helpers/questions/fixtures'
 
 // M63 (PLAN.md D62): the agent driven by the ACP SDK's own client, in
@@ -76,6 +77,7 @@ interface HarnessOptions {
   /** `--trust-workspace`: "Allow always" is offered and kept (M58). */
   readonly isTrusted?: boolean
   readonly questionPolicy?: 'decline'
+  readonly questions?: AcpQuestionRegistryFactory
 }
 
 function harness(options: HarnessOptions = {}): Harness {
@@ -121,7 +123,7 @@ function harness(options: HarnessOptions = {}): Harness {
     defaultCwd: CWD,
     paid,
     log,
-    questions: options.questionPolicy ?? fakeAcpQuestions,
+    questions: options.questions ?? options.questionPolicy ?? fakeAcpQuestions,
   }
   const agent = createAcpAgent(deps)
   const client = acp
@@ -709,6 +711,57 @@ describe('the ACP agent (M63)', () => {
         ]),
       })
       expect(factory).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  it('restores a leased late answer across a local /playbook command', async () => {
+    // The runtime registry leases durable queued answers into exactly one
+    // prompt: a second lease while one is outstanding rejects, and the lease
+    // is restored only by acknowledging it `notTaken`. A local /playbook
+    // command starts no model turn, so it must restore the lease it took.
+    let registry: FakeAcpQuestionRegistry | undefined
+    let held: { readonly text: string }[] = []
+    const h = harness({
+      playbookFor: () => surfacePort(),
+      questions: (input) => {
+        const inner = fakeAcpQuestions(input)
+        if (!(inner instanceof FakeAcpQuestionRegistry))
+          throw new Error('Expected the fake registry')
+        inner.queuedParts.mockImplementation(() => {
+          if (held.length > 0) return Promise.reject(new Error(UI_TEXT.questionAnswerUncertain))
+          held = [...inner.queued]
+          inner.queued.length = 0
+          return Promise.resolve(
+            held.map((message) => ({ type: 'text' as const, text: message.text })),
+          )
+        })
+        inner.acknowledgeQueued.mockImplementation((outcome) => {
+          if (outcome === 'notTaken') inner.queued.unshift(...held)
+          held = []
+          return Promise.resolve()
+        })
+        registry = inner
+        return registry
+      },
+    })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      expect(
+        await registry!.queue({
+          sessionId,
+          userInputId: 'q-1',
+          text: 'late: blue',
+          displayText: undefined,
+        }),
+      ).toBe('taken')
+      expect(await prompt(client, sessionId, '/playbook status')).toEqual({
+        stopReason: 'end_turn',
+      })
+      expect(h.host.sessions.at(-1)?.sendTurn).not.toHaveBeenCalled()
+      // The answer survived the local command: the next prompt leases it again.
+      await turn(h, client, sessionId, () => undefined)
+      const parts = h.host.sessions.at(-1)?.sendTurn.mock.calls.at(-1)?.[0]
+      expect(parts).toContainEqual({ type: 'text', text: 'late: blue' })
     })
   })
 
