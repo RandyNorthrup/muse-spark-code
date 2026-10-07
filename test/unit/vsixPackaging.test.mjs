@@ -223,6 +223,11 @@ beforeAll(async () => {
 }, ARCHIVE_SETUP_TIMEOUT_MS)
 afterAll(() => rmSync(fixture.root, { recursive: true, force: true }))
 
+// The oversized-archive case packages a real runtime archive past its decoded
+// bound; a hosted runner with coverage took 4.0 s, near the default deadline.
+// PLAN.md §8 (2026-10-07).
+const REAL_OVERSIZED_PACKAGE_TIMEOUT_MS = 30_000
+
 describe('VSIX packaging', () => {
   it('recompresses real VSCE output with unchanged members and the standard CRC', async () => {
     const archive = path.join(fixture.root, 'compact.vsix')
@@ -422,18 +427,22 @@ describe('VSIX packaging', () => {
       readFileSync(path.join(fixture.root, 'dist/uiText.js')).byteLength,
     )
   })
-  it('refuses packaging a runtime archive over the existing decoded bound', async () => {
-    const root = mkdtempSync(path.join(ROOT, 'temp', 'oversized-package-'))
-    try {
-      cpSync(fixture.root, root, { recursive: true })
-      writeFileSync(path.join(root, 'dist/tab.js'), ' '.repeat(15 * 1024 * 1024))
-      await expect(stageVsix(root, path.join(root, 'dist/vsix-package'))).rejects.toThrow(
-        'Runtime archive exceeds decoded bound',
-      )
-    } finally {
-      rmSync(root, { recursive: true, force: true })
-    }
-  })
+  it(
+    'refuses packaging a runtime archive over the existing decoded bound',
+    async () => {
+      const root = mkdtempSync(path.join(ROOT, 'temp', 'oversized-package-'))
+      try {
+        cpSync(fixture.root, root, { recursive: true })
+        writeFileSync(path.join(root, 'dist/tab.js'), ' '.repeat(15 * 1024 * 1024))
+        await expect(stageVsix(root, path.join(root, 'dist/vsix-package'))).rejects.toThrow(
+          'Runtime archive exceeds decoded bound',
+        )
+      } finally {
+        rmSync(root, { recursive: true, force: true })
+      }
+    },
+    REAL_OVERSIZED_PACKAGE_TIMEOUT_MS,
+  )
   it.each(ARCHIVE_PATHS)('retains the synchronous production Brotli bytes: %s', (file) => {
     const packed = readFileSync(path.join(fixture.stage, file))
     expect(packed.equals(fixture.brotliBaseline.get(file))).toBe(true)

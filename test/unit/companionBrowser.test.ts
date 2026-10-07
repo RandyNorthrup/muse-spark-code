@@ -20,6 +20,10 @@ try {
 }
 const SESSION_CLOCK_MS = Date.UTC(2026, 9, 7)
 const BROWSER_CLOSE_GRACE_MS = 5000
+// Each case drives a real Chrome page through the companion's authenticated
+// server; three took 3.1 to 3.7 s on hosted runners with coverage.
+// PLAN.md §8 (2026-10-07).
+const REAL_BROWSER_CASE_TIMEOUT_MS = 20_000
 
 /** Runs in the browser; both fetch overloads must retain the private bearer. */
 async function postFromPage(isRequest: boolean): Promise<number> {
@@ -46,7 +50,7 @@ async function openPage(page: Page, launch: string): Promise<void> {
   expect(page.url()).toBe(root.href)
 }
 
-describe('companion browser security', () => {
+describe('companion browser security', { timeout: REAL_BROWSER_CASE_TIMEOUT_MS }, () => {
   // Only the server's credential clock is controlled. Browser navigation and
   // socket deadlines stay real, while runner load cannot expire a valid bearer.
   beforeEach(() => {
