@@ -326,3 +326,31 @@ projects pass; changed-source ESLint and Prettier pass. Final complete
 run: **25 passed**. Separate complete `accountUsageBundle.test.mjs`: **1 passed**,
 including its unchanged 25 KiB cap and lazy graph guard. Both final runs used
 the repository's default deadlines and three workers on Kubuntu.
+
+### Repair completion receipt
+
+Repair commit **`1cb94ece3`** ran the unmodified repository hooks:
+lint-staged's ESLint/Prettier and staged gitleaks passed, with zero leaks.
+The committed source hash still matches the restoration receipt above.
+Heavy tools ran serially; independent formatting/localization/host-record
+checks were batched. No dependency install, full quality/coverage run, paid
+or live call, push, merge, rebase, timeout override or weakened gate.
+
+| Final check                                                                    | Result                                                                                     |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| All four complete J test files, in batches of at most three files/workers      | 26 passed; default deadlines; restored source                                              |
+| `npm run typecheck`                                                            | All five projects passed                                                                   |
+| Changed TS/TSX ESLint; changed-file `npx prettier --check`; `git diff --check` | Exit 0                                                                                     |
+| `npm run deadcode`; `npx jscpd`                                                | Exit 0; same two configuration hints; zero clones                                          |
+| `npm run check:l10n`                                                           | Exit 0; 14 tables, 164 manifest strings, 610 source files; zero problems                   |
+| `npm run check:host-api`                                                       | Exit 1; exactly the existing **J-W-HOST-API-RECORD** handoff, unchanged by this repair     |
+| `npm run build`                                                                | Exit 0; all existing budgets/split/global/notice guards passed; 83 bundled-package notices |
+| Three deliberate guard-break drills                                            | Each exited 1 at a named regression; every restoration hash matched                        |
+
+Production KiB/cap remains: activation **440.3/600**, Model API **450.1/475**,
+checkpoint store **76.9/225**, webview plus static imports **897.7/900**,
+existing deferred webview **49.7/50**, ACP **818.6/850**. The J bundle test
+still enforces its independent 25 KiB cap. The host record still needs only
+`node:crypto` **46 → 47** and `AccountsSection.css` added to its theme-source
+list; API/import/built-in/theme counts remain **332/31/25/61**. That W-owned
+record stays untouched, and aggregate quality is not claimed green.
