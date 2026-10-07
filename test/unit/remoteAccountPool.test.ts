@@ -197,6 +197,7 @@ describe('M108 D routing by the pinned device', () => {
     rig.accounts.rows[0]!.limitGroup = 'shared'
     rig.accounts.rows[1]!.limitGroup = 'shared'
     expect(await rig.run({ trigger: vendorLimit })).toBe('device-2')
+    expect(await rig.run()).toBe('device-2')
     rig.accounts.rows.shift()
     rig.state.placement.rows.shift()
     const restarted = new RemoteAccountPool(rig.deps)
@@ -309,14 +310,6 @@ describe('M108 D routing by the pinned device', () => {
     const rig = remoteDeviceRig()
     await expect(rig.run({ account: 'unknown' })).rejects.toThrow(UI_TEXT.accounts.invalidAccount)
     expect(rig.deps.admit).not.toHaveBeenCalled()
-  })
-
-  it('skips the whole limit group on a vendor-limit trigger and stays out of it', async () => {
-    const rig = remoteDeviceRig()
-    rig.accounts.rows[0]!.limitGroup = 'shared'
-    rig.accounts.rows[1]!.limitGroup = 'shared'
-    expect(await rig.run({ trigger: vendorLimit })).toBe('device-2')
-    expect(await rig.run()).toBe('device-2')
   })
 
   it('skips only the live account on a non-vendor trigger inside a shared group', async () => {
