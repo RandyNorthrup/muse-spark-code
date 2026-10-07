@@ -239,10 +239,37 @@ describe('Linux portal recorder', () => {
         break
       }
     }
-    expect(await run.result).toMatchObject({ ok: false })
+    expect(await run.result).toEqual({
+      ok: false,
+      reason: kind === 'exit' ? UI_TEXT.media.recordingFailed : UI_TEXT.execStatus.cancelled,
+    })
     expect(h.remove).toHaveBeenCalledTimes(1)
     expect(h.close).toHaveBeenCalledTimes(1)
   })
+
+  it.each(['recording', 'Stop', 'duration limit', 'failed duration-limit Stop'])(
+    'reports an unsuccessful encoder exit during %s as failure, not cancellation',
+    async (phase) => {
+      vi.useFakeTimers()
+      const h = setup()
+      h.stop.mockImplementation(() => {
+        if (phase === 'failed duration-limit Stop')
+          return Promise.reject(new Error('private encoder failure'))
+        h.exited.resolve(false)
+        return Promise.resolve()
+      })
+      const run = await h.driver.start(OPTIONS, vi.fn())
+      if (phase === 'recording') h.exited.resolve(false)
+      else if (phase === 'Stop') await run.stop()
+      else await vi.advanceTimersByTimeAsync(10_000)
+      expect(await run.result).toEqual({ ok: false, reason: UI_TEXT.media.recordingFailed })
+      expect(h.cancel).toHaveBeenCalledTimes(phase === 'failed duration-limit Stop' ? 1 : 0)
+      expect(h.port.sniff).not.toHaveBeenCalled()
+      expect(h.remove).toHaveBeenCalledTimes(1)
+      expect(h.close).toHaveBeenCalledTimes(1)
+      expect(vi.getTimerCount()).toBe(0)
+    },
+  )
 
   it('deletes a completed preview when its owner closes', async () => {
     const h = setup()

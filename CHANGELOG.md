@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Linux encoder exits and automatic Stop failures now show the translated
+  recording-failure guidance; only requested cancellation uses the cancelled
+  result. Failed recordings still close the portal and delete private output.
 - Linux recorder cancellation during portal closure now refuses the preview;
   close and setup cleanup failures release private-file ownership and busy
   state. Companion sound selections reset for each recording, and recorder

@@ -19097,6 +19097,15 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M105 — Multimodal input: video, audio, documents, screen recordings and the Files API (D85)
 
+**R3 final review repair, 2026-10-06 (RVM105R3B).** Fix the remaining P2:
+an unsuccessful encoder exit uses `media.recordingFailed`, already translated
+in all 14 tables, unless cancellation was requested. Stop and the duration
+limit do not imply cancellation; an encoder stop failure must terminate the
+writer without setting the cancellation flag. Regressions cover spontaneous,
+Stop and duration-limit failures alongside genuine cancellation, with
+byte-exact restored red drills in the R3 certification. Scope and the named
+native/editor and host API count handoffs remain unchanged.
+
 **R3 review repair, 2026-10-06 (RVM105R3).** Fix all five P2 findings in
 the owned Linux/companion recorder files: defer preview publication until
 portal closure and the final cancellation check; dispose on close failure;
@@ -20050,6 +20059,14 @@ the 11 byte-exact restored red drills, all-project typecheck, changed-file
 lint/format, dead-code, duplication, localization and production build here.
 The lead retains integrated full quality/coverage/native/editor gates.
 No gate, threshold, test filter, timeout or hook is changed.
+
+**FIXM105R3B final repair certification (2026-10-06).** The same bounded
+gate scope applies. The remaining encoder-exit P2 has regressions for
+spontaneous, Stop and duration-limit exits, including failed automatic Stop,
+and two byte-exact restored red drills. Existing genuine cancellation
+assertions now check the exact reason. The existing failure message is used
+at runtime and retains its translations in all 14 tables. No review finding
+is deferred; the two named integration/gate residuals below remain.
 
 **M105-R3-host-api-count deferral.** `npm run check:host-api` exits 1 on
 the same pre-existing generated count as the original R3 receipt:
@@ -21252,6 +21269,10 @@ before a repaired one loads (2026-09-30).
   shared driver/companion path. Removal can fail at the OS; the fake cleanup
   regressions certify attempts and busy/listener release, not guaranteed
   physical deletion. See the R3 certification record for the 11 repair drills.
+  RVM105R3B's remaining encoder-exit P2 is also fixed: failed exits and
+  internal Stop failures return the translated failure guidance, while the
+  explicit cancellation/lifecycle flag determines cancellation. Two further
+  red drills prove that distinction; no RVM105R3B finding is deferred.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

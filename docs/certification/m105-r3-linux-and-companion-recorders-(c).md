@@ -417,3 +417,84 @@ upload, equal-editor paths and lazy budgets. Full quality/coverage, native
 OS receipts and captions stay with those owners; this repair leaves no
 review finding for them to fix. No paid/live calls, credentials, OS settings,
 installs, dependency changes, merges, rebases or pushes were used.
+
+## RVM105R3B final repair receipt (2026-10-06, Kubuntu)
+
+Read the complete RVM105R3B review, rig brief and shared rules. The single
+remaining P2 is fixed; there are no deferred review findings. An encoder's
+`false` exit now preserves `media.recordingFailed` unless the run's explicit
+cancellation/lifecycle flag is set. Neither Stop nor the duration limit sets
+that flag. A rejected automatic Stop terminates the writer directly without
+pretending the user cancelled. Genuine Cancel, owner closure and portal
+closure retain their cancellation result and cleanup behavior.
+
+The failure guidance already has real translations in English and all 14
+`l10n/ui.*.json` tables; the driver reads it at runtime. No new text, command,
+setting, feature, dependency, escape hatch, guard widening or timeout was
+introduced. Shared core behavior applies to every editor through the existing
+R3-W/portal binding. README/reference and native/caption/upload/editor handoffs
+remain as recorded above.
+
+| Finding                                               | Resolution                                                                                            | Regression                                                                                                                                  | Red drill                                                                                                                 |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| RVM105R3B P2: failed encoder exit claims cancellation | Fixed: cancellation depends on the cancellation flag; unsuccessful exit keeps translated failure text | reports an unsuccessful encoder exit during recording / Stop / duration limit as failure, not cancellation; cleans files and portal on exit | `R3B-encoder-exit`: restore the condition combining unsuccessful exit with cancellation; **5 failed / 65 passed**, exit 1 |
+| Same P2, internal duration-limit Stop failure         | Fixed: terminate the writer without setting the cancellation flag                                     | reports an unsuccessful encoder exit during failed duration-limit Stop as failure, not cancellation                                         | `R3B-internal-stop`: restore `stop().catch(abort)`; **1 failed / 69 passed**, exit 1                                      |
+
+The regressions first ran against unchanged production source: **5 failed /
+65 passed (70)**, exit 1. Fixed source then passed **70/70**. The duplication
+gate found one repeated cleanup assertion block; the four exit scenarios now
+share one parameterized regression without changing their assertions.
+Both red drills ran the complete Linux test file with `--maxWorkers=3` and
+the repository-default timeout. The named regressions failed and each
+mutation was restored in finally, followed by a SHA-256 comparison:
+
+`src/core/media/record/linux.ts`:
+`542b2dfb6beb4f2e61a6f4c74a36522a37d7a3b293e51d6d388a3849146437cd`.
+
+Logs and the restoration script are in gitignored `temp/r3b-*` and
+`temp/R3B-*`. Final bounded gate receipts follow. Aggregate quality/coverage
+remain the lead's integration responsibility under the rig/shared rules.
+The pre-existing **M105-R3-host-api-count** and **M105-R3-native-bindings**
+residuals retain their stated safety reasons and follow-ups in PLAN §7/§9;
+neither is an unfixed review finding.
+
+### Final repair gates
+
+- `npm run typecheck`: **exit 0**, all five projects on final restored source.
+- `npx vitest run test/unit/linuxScreenRecording.test.ts test/unit/browserScreenRecording.test.ts test/unit/browserCapture.test.ts --maxWorkers=3`:
+  **123/123 passed**. `npx vitest run test/unit/CompanionRecorder.test.tsx --maxWorkers=3`:
+  **11/11 passed**. Total **134/134**, repository-default timeout and at most
+  three files per invocation. Failed exits do not sniff or publish a preview;
+  cleanup closes the portal, removes the private file and clears the timer.
+- Changed-file ESLint, Prettier and diff whitespace: **exit 0**.
+  Dead-code: **exit 0**. Duplication: **1,175 files, zero clones, exit 0**.
+- Localization: **14 tables, 164 manifest strings, 596 source files;
+  zero problems**. A separate table inspection confirmed that every
+  `media.recordingFailed` translation is present and distinct from both the
+  English fallback and its locale's cancellation text.
+- Host API: **exit 1**, exactly the pre-existing `node:path` importer count
+  **84 → 85**; **332 APIs, 31 importing files** unchanged. The existing
+  M105-R3-host-api-count deferral applies; no generated record was edited.
+- `npm run build`: **exit 0**, production compilation, unchanged hard size
+  budgets, bundle split checks, host globals and third-party notices.
+
+| Shipped bundle                   | Size      | Unchanged hard budget |
+| -------------------------------- | --------- | --------------------- |
+| `dist/extension.js`              | 436.7 KiB | 600 KiB               |
+| `dist/modelApi.js`               | 446.7 KiB | 475 KiB               |
+| `dist/checkpointStore.js`        | 77.0 KiB  | 225 KiB               |
+| `dist/uiText.js`                 | 49.3 KiB  | 125 KiB               |
+| webview main plus static imports | 899.0 KiB | 900 KiB               |
+| webview deferred JS              | 49.7 KiB  | 50 KiB                |
+
+Two early drill invocations briefly overlapped the first typecheck; the final
+verification runner was corrected to execute checks sequentially, and a
+separate all-project typecheck was rerun on the final restored source.
+No source mutation overlapped the final checks.
+
+Final isolated measurements used `write: false`: Linux **13,477 bytes**
+with the repository's shared-English/validation plugins, companion **7,436
+JS bytes + 188 CSS bytes** with page-shared inputs external. These remain
+module measurements awaiting R3-W's registered lazy bundles; no cap or
+startup import changed. No installs, live/paid calls, credential access,
+OS settings changes, merges, rebases or pushes occurred.

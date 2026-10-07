@@ -314,7 +314,15 @@ function recordingRun(
       options.maxSeconds - Math.floor((performance.now() - started) / MILLISECONDS_PER_SECOND),
     )
     onCountdown(remaining)
-    if (remaining === 0) void stop().catch(abort)
+    if (remaining === 0)
+      void stop().catch(async () => {
+        try {
+          // A failed automatic Stop terminates the writer, not the user's consent.
+          await recording.cancel()
+        } catch {
+          /* The encoder result still owns cleanup after termination fails. */
+        }
+      })
   }
   const timer = setInterval(update, MILLISECONDS_PER_SECOND)
   const result: Promise<ScreenRecordingResult> = (async () => {
@@ -324,8 +332,8 @@ function recordingRun(
       update()
       if (port.signal.aborted) abort()
       const isSuccess = await recording.result
-      if (!isSuccess || wasCancelled()) reason = UI_TEXT.execStatus.cancelled
-      else {
+      if (wasCancelled()) reason = UI_TEXT.execStatus.cancelled
+      else if (isSuccess) {
         const info = mediaInfoSchema.parse(await port.sniff(file.path))
         if (
           wasCancelled() ||
