@@ -14,6 +14,7 @@ import {
   type ScheduleDraft,
   type ScheduleRequest,
 } from '../../shared/scheduleV2'
+import { CapabilityOptions } from './CapabilityOptions'
 import { GrantFields } from './GrantFields'
 import {
   schedulePreviewSchema,
@@ -321,12 +322,7 @@ export function ScheduleEditor({
             <option value="" disabled>
               {UI_TEXT.scheduleV2.labels.unavailable}
             </option>
-            {context.targets.map((item) => (
-              <option key={item.id} value={item.id} disabled={!item.capability.available}>
-                {item.label}
-                {item.capability.available ? '' : `: ${item.capability.reason}`}
-              </option>
-            ))}
+            <CapabilityOptions items={context.targets} />
           </select>
         </label>
         <label>

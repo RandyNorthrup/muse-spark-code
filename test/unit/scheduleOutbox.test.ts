@@ -1,4 +1,3 @@
-import { setTimeout as delay } from 'node:timers/promises'
 import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import { createScheduler } from '../../src/core/schedules/scheduler'
@@ -18,7 +17,11 @@ import {
   SCHEDULE_FENCE_GRACE_MS,
 } from '../../src/shared/constants'
 import type { ScheduleFireRecord, ScheduleV2 } from '../../src/shared/scheduleV2'
-import { MemoryScheduleFs, scheduleStateFile } from './helpers/schedules/storage'
+import {
+  memoryScheduleQueue,
+  MemoryScheduleFs,
+  scheduleStateFile,
+} from './helpers/schedules/storage'
 import { fakeSchedule } from './helpers/schedules/fixtures'
 import { FakeScheduleClock } from './helpers/schedules/clock'
 import { FakeScheduleHost } from './helpers/schedules/host'
@@ -39,14 +42,7 @@ async function fixture() {
     store,
     runs: store,
     host,
-    queue: {
-      serialize: async (key: string, work: () => Promise<void>) => {
-        await delay(0)
-        await fs.lock(key, async () => {
-          await work()
-        })
-      },
-    },
+    queue: memoryScheduleQueue(fs),
     time: {
       plan: (schedule: typeof job) => ({
         missed: false,

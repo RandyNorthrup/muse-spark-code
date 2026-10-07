@@ -1,8 +1,7 @@
-import { setTimeout as delay } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
 import { parseScheduleCommand } from '../../src/runtime/schedules/args'
 import { createScheduleEngine } from '../../src/runtime/schedules/engine'
-import { MemoryScheduleFs } from './helpers/schedules/storage'
+import { memoryScheduleQueue, MemoryScheduleFs } from './helpers/schedules/storage'
 import { fakeSchedule } from './helpers/schedules/fixtures'
 
 const cwd = '/probe/workspace'
@@ -47,19 +46,19 @@ function draft(nowMs: number, overrides: Record<string, unknown> = {}) {
   }
 }
 
+function paidDraft(nowMs: number, paidCapUsd: number) {
+  return draft(nowMs, {
+    paidCapUsd,
+    grant: { rules: [], destinationIds: [], paidCapUsd },
+  })
+}
+
 function fixture(input: { fs?: MemoryScheduleFs; clock?: { nowMs: number } } = {}) {
   const fs = input.fs ?? new MemoryScheduleFs()
   const clock = input.clock ?? { nowMs: START_MS }
   const engine = createScheduleEngine({
     fs,
-    queue: {
-      serialize: async (key: string, work: () => Promise<void>) => {
-        await delay(0)
-        await fs.lock(key, async () => {
-          await work()
-        })
-      },
-    },
+    queue: memoryScheduleQueue(fs),
     now: () => clock.nowMs,
     verifyWake: () => Promise.resolve({ scheduledPrompts: false }),
     platform: 'linux',
@@ -112,10 +111,7 @@ describe('schedule runtime entry over the real store', () => {
 
   it('refuses a paid draft without flags and accepts it with flag and budget', async () => {
     const { run, clock } = fixture()
-    const paid = draft(clock.nowMs, {
-      paidCapUsd: 5,
-      grant: { rules: [], destinationIds: [], paidCapUsd: 5 },
-    })
+    const paid = paidDraft(clock.nowMs, 5)
     const refused = await run(['add', '--draft', JSON.stringify(paid)])
     expect(refused.exitCode).toBe(1)
     expect(refused.output).toContain('--max-budget-usd')
@@ -154,10 +150,7 @@ describe('schedule runtime entry over the real store', () => {
 
   it('leaves an over-budget paid draft refused without spending', async () => {
     const { run, clock } = fixture()
-    const paid = draft(clock.nowMs, {
-      paidCapUsd: 5,
-      grant: { rules: [], destinationIds: [], paidCapUsd: 5 },
-    })
+    const paid = paidDraft(clock.nowMs, 5)
     const refused = await run([
       'add',
       '--draft',

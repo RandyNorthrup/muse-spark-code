@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
+import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
 import type { ScheduleFsPort } from '../../../../src/core/schedules/journal'
+import type { ScheduleQueuePort } from '../../../../src/core/schedules/store'
 import type { ScheduleV2 } from '../../../../src/shared/scheduleV2'
 import { scheduleStorageHash } from '../../../../src/core/schedules/store'
 import { SCHEDULE_JOURNAL_MAX_OPS } from '../../../../src/shared/constants'
@@ -70,6 +72,18 @@ export class MemoryScheduleFs implements ScheduleFsPort {
     return [...this.files]
       .filter(([file]) => file.startsWith(prefix))
       .reduce((total, [, content]) => total + Buffer.byteLength(content), 0)
+  }
+}
+
+/** The scheduler queue over the fake fs lease, shared by the store tests. */
+export function memoryScheduleQueue(fs: MemoryScheduleFs): ScheduleQueuePort {
+  return {
+    serialize: async (key: string, work: () => Promise<void>) => {
+      await delay(0)
+      await fs.lock(key, async () => {
+        await work()
+      })
+    },
   }
 }
 

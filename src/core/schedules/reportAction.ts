@@ -1,4 +1,5 @@
 import { UI_TEXT } from '../../shared/constants'
+import { isRunContextOf } from './runIdentity'
 import { scheduleEventSchema, type ScheduleEvent } from '../../shared/scheduleEvents'
 import {
   scheduleV2Schema,
@@ -75,12 +76,7 @@ export class ScheduleReportActionRunner implements ScheduleReportDeliveryPort {
       !Number.isSafeInteger(occurrenceMs) ||
       occurrenceMs < 0 ||
       !Number.isFinite(new Date(occurrenceMs).getTime()) ||
-      c.scheduleId !== s.id ||
-      c.mode !== s.mode ||
-      c.depth !== s.depth ||
-      c.allowAgentReschedule !== s.allowAgentReschedule ||
-      JSON.stringify(c.grant) !== JSON.stringify(s.grant) ||
-      JSON.stringify(c.creator) !== JSON.stringify(s.creator)
+      !isRunContextOf(s, c)
     )
       throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
     const e = event === undefined ? undefined : scheduleEventSchema.parse(event)

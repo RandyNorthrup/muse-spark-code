@@ -1,4 +1,3 @@
-import { setTimeout as delay } from 'node:timers/promises'
 import { describe, expect, it, vi } from 'vitest'
 import {
   ScheduleDelivery,
@@ -11,8 +10,8 @@ import { createScheduler } from '../../src/core/schedules/scheduler'
 import { createScheduleStore, type ScheduleRunIntent } from '../../src/core/schedules/store'
 import type { ScheduleFireRecord, ScheduleV2 } from '../../src/shared/scheduleV2'
 import { fakeSchedule } from './helpers/schedules/fixtures'
-import { FakeScheduleSession } from './helpers/schedules/session'
-import { MemoryScheduleFs } from './helpers/schedules/storage'
+import { IdleScheduleSession } from './helpers/schedules/session'
+import { memoryScheduleQueue, MemoryScheduleFs } from './helpers/schedules/storage'
 
 const occurrenceMs = Date.parse('2026-10-06T12:00:00Z')
 const settlement: ScheduleRunSettlement = {
@@ -21,32 +20,7 @@ const settlement: ScheduleRunSettlement = {
   cost: { usd: 0.1, certainty: 'estimated', retainedLiabilityUsd: 0.2 },
 }
 
-class RecoverySession extends FakeScheduleSession implements ScheduleDeliverySession {
-  private readonly idle = new Set<(isIdle: boolean) => void>()
-  waitUntilIdle(signal: AbortSignal): Promise<boolean> {
-    if (signal.aborted || !this.open) return Promise.resolve(false)
-    if (!this.running) return Promise.resolve(true)
-    return new Promise((resolve) => {
-      const done = (isIdle: boolean): void => {
-        this.idle.delete(done)
-        signal.removeEventListener('abort', aborted)
-        resolve(isIdle)
-      }
-      const aborted = (): void => {
-        done(false)
-      }
-      this.idle.add(done)
-      signal.addEventListener('abort', aborted, { once: true })
-    })
-  }
-  queueWhenIdle(
-    prompt: string,
-    context: Parameters<FakeScheduleSession['queue']>[1],
-    signal: AbortSignal,
-  ): Promise<string | undefined> {
-    return signal.aborted ? Promise.resolve(undefined) : this.queue(prompt, context)
-  }
-}
+class RecoverySession extends IdleScheduleSession implements ScheduleDeliverySession {}
 
 function failedFire(intent: ScheduleRunIntent, now: number): ScheduleFireRecord {
   return {
@@ -91,6 +65,13 @@ function deliveryRig() {
   return { delivery, runs, release }
 }
 
+const settleDeps = {
+  time: { plan: () => ({ missed: false }) },
+  failureSettlement: (failed: ScheduleRunIntent) =>
+    Promise.resolve(failedFire(failed, occurrenceMs)),
+  deferEvent: () => Promise.resolve(),
+}
+
 async function fixture() {
   const fs = new MemoryScheduleFs()
   const store = createScheduleStore(fs)
@@ -108,18 +89,8 @@ async function fixture() {
     store,
     runs: store,
     host: first.delivery,
-    queue: {
-      serialize: async (key: string, work: () => Promise<void>) => {
-        await delay(0)
-        await fs.lock(key, async () => {
-          await work()
-        })
-      },
-    },
-    time: { plan: () => ({ missed: false }) },
-    failureSettlement: (failed: ScheduleRunIntent) =>
-      Promise.resolve(failedFire(failed, occurrenceMs)),
-    deferEvent: () => Promise.resolve(),
+    queue: memoryScheduleQueue(fs),
+    ...settleDeps,
   }
   return {
     fs,
@@ -136,6 +107,26 @@ async function fixture() {
     },
     restartScheduler: () => createScheduler(deps),
   }
+}
+
+type RecoveryFixture = Awaited<ReturnType<typeof fixture>>
+
+async function failFirstAck(
+  setup: Pick<RecoveryFixture, 'store' | 'job' | 'intent' | 'scheduler' | 'first'>,
+): Promise<void> {
+  vi.spyOn(setup.store, 'acknowledge').mockRejectedValueOnce(new Error('ack down'))
+  await setup.store.admit(setup.intent)
+  await expect(setup.scheduler.recover(setup.job.workspaceKey)).rejects.toThrow('ack down')
+  expect(setup.first.runs.run).toHaveBeenCalledTimes(1)
+}
+
+async function expectSingleRanFire(
+  setup: Pick<RecoveryFixture, 'store' | 'job' | 'intent'>,
+): Promise<void> {
+  const fires = await setup.store.fires(setup.job.workspaceKey)
+  expect(fires).toHaveLength(1)
+  expect(fires[0]).toMatchObject({ runId: setup.intent.runId, outcome: 'ran' })
+  expect(await setup.store.pending(setup.job.workspaceKey)).toEqual([])
 }
 
 describe('schedule restart recovery through the real delivery ledger', () => {
@@ -155,29 +146,22 @@ describe('schedule restart recovery through the real delivery ledger', () => {
   })
 
   it('recovers a lost acknowledgement through the admitted ledger without a second run', async () => {
-    const { store, job, intent, first, scheduler, restartScheduler } = await fixture()
-    vi.spyOn(store, 'acknowledge').mockRejectedValueOnce(new Error('ack down'))
-    await store.admit(intent)
-    await expect(scheduler.recover(job.workspaceKey)).rejects.toThrow('ack down')
-    expect(first.runs.run).toHaveBeenCalledTimes(1)
+    const setup = await fixture()
+    const { store, job, intent, first, restartScheduler } = setup
+    await failFirstAck(setup)
     expect(await store.fires(job.workspaceKey)).toEqual([])
     expect(await store.pending(job.workspaceKey)).toHaveLength(1)
     expect(await first.delivery.lookupRun(intent.runId)).toMatchObject({ status: 'settled' })
 
     await restartScheduler().recover(job.workspaceKey)
     expect(first.runs.run).toHaveBeenCalledTimes(1)
-    const fires = await store.fires(job.workspaceKey)
-    expect(fires).toHaveLength(1)
-    expect(fires[0]).toMatchObject({ runId: intent.runId, outcome: 'ran' })
-    expect(await store.pending(job.workspaceKey)).toEqual([])
+    await expectSingleRanFire(setup)
   })
 
   it('re-runs at most once when both the acknowledgement and the ledger are lost, still recording one fire', async () => {
-    const { store, job, intent, first, scheduler } = await fixture()
-    vi.spyOn(store, 'acknowledge').mockRejectedValueOnce(new Error('ack down'))
-    await store.admit(intent)
-    await expect(scheduler.recover(job.workspaceKey)).rejects.toThrow('ack down')
-    expect(first.runs.run).toHaveBeenCalledTimes(1)
+    const setup = await fixture()
+    const { store, job } = setup
+    await failFirstAck(setup)
 
     // A new process loses the in-memory ledger; the store owns durability.
     const fresh = deliveryRig()
@@ -190,16 +174,10 @@ describe('schedule restart recovery through the real delivery ledger', () => {
           await work()
         },
       },
-      time: { plan: () => ({ missed: false }) },
-      failureSettlement: (failed: ScheduleRunIntent) =>
-        Promise.resolve(failedFire(failed, occurrenceMs)),
-      deferEvent: () => Promise.resolve(),
+      ...settleDeps,
     })
     await crossProcess.recover(job.workspaceKey)
     expect(fresh.runs.run).toHaveBeenCalledTimes(1)
-    const fires = await store.fires(job.workspaceKey)
-    expect(fires).toHaveLength(1)
-    expect(fires[0]).toMatchObject({ runId: intent.runId, outcome: 'ran' })
-    expect(await store.pending(job.workspaceKey)).toEqual([])
+    await expectSingleRanFire(setup)
   })
 })

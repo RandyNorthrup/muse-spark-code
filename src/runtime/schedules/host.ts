@@ -2,6 +2,7 @@ import { performance } from 'node:perf_hooks'
 import { UI_TEXT } from '../../shared/constants'
 import { scheduleEventSchema, type ScheduleEvent } from '../../shared/scheduleEvents'
 import type { ScheduleReportDeliveryPort } from '../../core/schedules/reportAction'
+import { isRunContextOf } from '../../core/schedules/runIdentity'
 import {
   scheduleV2Schema,
   scheduleRunContextSchema,
@@ -67,12 +68,7 @@ export class RuntimeScheduleHost implements ScheduleHostPort {
     const c = scheduleRunContextSchema.parse(context)
     if (
       !this.holds(s.workspaceKey) ||
-      c.scheduleId !== s.id ||
-      c.mode !== s.mode ||
-      c.depth !== s.depth ||
-      c.allowAgentReschedule !== s.allowAgentReschedule ||
-      JSON.stringify(c.grant) !== JSON.stringify(s.grant) ||
-      JSON.stringify(c.creator) !== JSON.stringify(s.creator) ||
+      !isRunContextOf(s, c) ||
       !Number.isSafeInteger(occurrenceMs) ||
       occurrenceMs < 0
     )

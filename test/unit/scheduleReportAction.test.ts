@@ -146,6 +146,15 @@ describe('scheduled report action', () => {
     expect(f.report.mock.calls[0]?.[2]).toBe('2026-10-05T12:00:00.000Z')
     expect(f.schedule.action).toEqual(action)
   })
+  type ReportFixture = Awaited<ReturnType<typeof setup>>
+
+  async function expectRefusedReport(setup: ReportFixture): Promise<void> {
+    expect(
+      await setup.runner.run(setup.schedule, setup.context, setup.schedule.nextFireAtMs!),
+    ).toMatchObject({ outcome: 'refused' })
+    expect(setup.report).not.toHaveBeenCalled()
+  }
+
   it('refuses missing, revoked, changed and paused grants before report generation', async () => {
     for (const change of ['missing', 'revoked', 'changed', 'paused'] as const) {
       const f = await setup()
@@ -157,10 +166,7 @@ describe('scheduled report action', () => {
       expect(f.audit).not.toHaveBeenCalled()
     }
     const f = await setup({ grant: { rules: [], destinationIds: [], paidCapUsd: 0 } })
-    expect(await f.runner.run(f.schedule, f.context, f.schedule.nextFireAtMs!)).toMatchObject({
-      outcome: 'refused',
-    })
-    expect(f.report).not.toHaveBeenCalled()
+    await expectRefusedReport(f)
   })
   it('refuses planned destinations and missing runner bindings without a prompt fallback', async () => {
     const f = await setup({
@@ -193,10 +199,7 @@ describe('scheduled report action', () => {
     f.audit.mockImplementation(() =>
       f.store.update({ ...f.schedule, grant: { ...f.schedule.grant, destinationIds: [] } }),
     )
-    expect(await f.runner.run(f.schedule, f.context, f.schedule.nextFireAtMs!)).toMatchObject({
-      outcome: 'refused',
-    })
-    expect(f.report).not.toHaveBeenCalled()
+    await expectRefusedReport(f)
   })
   it.each([
     ['delivered', 'ran'],

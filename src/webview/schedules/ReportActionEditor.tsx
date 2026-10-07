@@ -1,4 +1,5 @@
 import { useId, type ComponentType } from 'react'
+import { CapabilityOptions } from './CapabilityOptions'
 import './reportAction.css'
 import { SCHEDULE_REPORT_FORMATS, UI_TEXT } from '../../shared/constants'
 import type {
@@ -110,12 +111,7 @@ export function ReportActionEditor({
                 {action.reportKind}
               </option>
             )}
-            {kinds.map((item) => (
-              <option key={item.id} value={item.id} disabled={!item.capability.available}>
-                {item.label}
-                {item.capability.available ? '' : `: ${item.capability.reason}`}
-              </option>
-            ))}
+            <CapabilityOptions items={kinds} />
           </select>
           {!selected?.capability.available && (
             <p role="status">

@@ -12,6 +12,7 @@ import {
   type scheduleResponseSchema,
   scheduleV2Schema,
   scheduleViewV2Of,
+  type ScheduleDraft,
   type ScheduleRequest,
   type ScheduleStoreV2,
   type ScheduleV2,
@@ -24,6 +25,30 @@ type ScheduleResponse = ReturnType<typeof scheduleResponseSchema.parse>
 
 function refused(reason: string): ScheduleResponse {
   return { kind: 'refused', reason }
+}
+
+/** Host-owned identity no draft may supply: ids, creators, depth and pause. */
+interface AdmittedIdentity {
+  readonly id: string
+  readonly revision: number
+  readonly workspaceKey: string
+  readonly creator: ScheduleV2['creator']
+  readonly depth: number
+  readonly allowAgentReschedule: boolean
+  readonly paused: boolean
+}
+
+function admittedDraft(
+  draft: ScheduleDraft,
+  identity: AdmittedIdentity,
+  firstFire: number | undefined,
+): ScheduleDraft & AdmittedIdentity & { readonly version: 2; readonly nextFireAtMs?: number } {
+  return {
+    ...draft,
+    version: 2,
+    ...identity,
+    ...(firstFire !== undefined && { nextFireAtMs: firstFire }),
+  }
 }
 
 export interface ScheduleControlDeps {
@@ -86,34 +111,45 @@ export function createScheduleControl(deps: ScheduleControlDeps): ScheduleContro
       : refused(UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired)
   }
 
+  const admitTiming = (
+    draft: ScheduleDraft,
+    caller?: ScheduleCallerContext,
+  ): ScheduleResponse | { now: number; firstFire: number | undefined } => {
+    const gate = paidGate(draft, caller)
+    if (gate !== undefined) return gate
+    const now = deps.now()
+    const firstFire = firstFireAtMs(draft)
+    return firstFire === undefined &&
+      draft.trigger.kind !== 'event' &&
+      draft.trigger.kind !== 'afterEvent'
+      ? refused(UI_TEXT.scheduleV2.runtime.invalidRequest)
+      : { now, firstFire }
+  }
+
   const create = async (
     workspaceKey: string,
     draft: ScheduleRequest & { method: 'schedules/create' },
     caller?: ScheduleCallerContext,
   ): Promise<ScheduleResponse> => {
-    const gate = paidGate(draft.draft, caller)
-    if (gate !== undefined) return gate
-    const now = deps.now()
-    const firstFire = firstFireAtMs(draft.draft)
-    if (
-      firstFire === undefined &&
-      draft.draft.trigger.kind !== 'event' &&
-      draft.draft.trigger.kind !== 'afterEvent'
-    )
-      return refused(UI_TEXT.scheduleV2.runtime.invalidRequest)
+    const admitted = admitTiming(draft.draft, caller)
+    if ('kind' in admitted) return admitted
+    const { now, firstFire } = admitted
     const schedule = scheduleV2Schema.parse({
-      ...draft.draft,
-      version: 2,
-      id: randomUUID(),
-      revision: 0,
-      workspaceKey,
-      creator: { kind: 'user' },
-      depth: 0,
-      allowAgentReschedule: false,
-      paused: false,
+      ...admittedDraft(
+        draft.draft,
+        {
+          id: randomUUID(),
+          revision: 0,
+          workspaceKey,
+          creator: { kind: 'user' },
+          depth: 0,
+          allowAgentReschedule: false,
+          paused: false,
+        },
+        firstFire,
+      ),
       createdAtMs: now,
       updatedAtMs: now,
-      ...(firstFire !== undefined && { nextFireAtMs: firstFire }),
       fireCount: 0,
       consecutiveFailures: 0,
     })
@@ -134,29 +170,27 @@ export function createScheduleControl(deps: ScheduleControlDeps): ScheduleContro
     if (gate !== undefined) return gate
     const current = await deps.authority.read(workspaceKey, id)
     if (current?.revision !== revision) return refused(UI_TEXT.scheduleV2.runtime.invalidRequest)
-    const now = deps.now()
-    const firstFire = firstFireAtMs(draft.draft)
-    if (
-      firstFire === undefined &&
-      draft.draft.trigger.kind !== 'event' &&
-      draft.draft.trigger.kind !== 'afterEvent'
-    )
-      return refused(UI_TEXT.scheduleV2.runtime.invalidRequest)
+    const admitted = admitTiming(draft.draft, caller)
+    if ('kind' in admitted) return admitted
+    const { now, firstFire } = admitted
     const next = scheduleV2Schema.parse({
-      ...draft.draft,
-      version: 2,
-      id: current.id,
-      revision: current.revision,
-      workspaceKey: current.workspaceKey,
-      creator: current.creator,
-      depth: current.depth,
-      allowAgentReschedule: current.allowAgentReschedule,
-      paused: current.paused,
+      ...admittedDraft(
+        draft.draft,
+        {
+          id: current.id,
+          revision: current.revision,
+          workspaceKey: current.workspaceKey,
+          creator: current.creator,
+          depth: current.depth,
+          allowAgentReschedule: current.allowAgentReschedule,
+          paused: current.paused,
+        },
+        firstFire,
+      ),
       ...(current.pauseReason !== undefined && { pauseReason: current.pauseReason }),
       ...(current.migration !== undefined && { migration: current.migration }),
       createdAtMs: current.createdAtMs,
       updatedAtMs: now,
-      ...(firstFire !== undefined && { nextFireAtMs: firstFire }),
       fireCount: current.fireCount,
       consecutiveFailures: current.consecutiveFailures,
       ...(current.lastFireAtMs !== undefined && { lastFireAtMs: current.lastFireAtMs }),

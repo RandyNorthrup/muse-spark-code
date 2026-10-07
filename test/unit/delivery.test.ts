@@ -16,7 +16,7 @@ import type {
   ScheduleV2,
 } from '../../src/shared/scheduleV2'
 import { fakeRunContext, fakeSchedule } from './helpers/schedules/fixtures'
-import { FakeScheduleSession } from './helpers/schedules/session'
+import { IdleScheduleSession } from './helpers/schedules/session'
 
 const occurrenceMs = Date.parse('2026-10-06T12:00:00Z')
 const facts: ScheduleRunSettlement = {
@@ -25,35 +25,7 @@ const facts: ScheduleRunSettlement = {
   cost: { usd: 0.1, certainty: 'estimated', retainedLiabilityUsd: 0.2 },
 }
 
-class DeliverySession extends FakeScheduleSession implements ScheduleDeliverySession {
-  private readonly idle = new Set<(isIdle: boolean) => void>()
-  waitUntilIdle(signal: AbortSignal): Promise<boolean> {
-    if (signal.aborted || !this.open) return Promise.resolve(false)
-    if (!this.running) return Promise.resolve(true)
-    return new Promise((resolve) => {
-      const done = (isIdle: boolean): void => {
-        this.idle.delete(done)
-        signal.removeEventListener('abort', aborted)
-        resolve(isIdle)
-      }
-      const aborted = (): void => {
-        done(false)
-      }
-      this.idle.add(done)
-      signal.addEventListener('abort', aborted, { once: true })
-    })
-  }
-  idleNow(): void {
-    this.running = false
-    for (const done of this.idle) done(this.open)
-  }
-  queueWhenIdle(
-    prompt: string,
-    context: ScheduleRunContext,
-    signal: AbortSignal,
-  ): Promise<string | undefined> {
-    return signal.aborted ? Promise.resolve(undefined) : this.queue(prompt, context)
-  }
+class DeliverySession extends IdleScheduleSession implements ScheduleDeliverySession {
   override cancel(): Promise<void> {
     this.calls.push({ kind: 'cancel' })
     return Promise.resolve(undefined)
