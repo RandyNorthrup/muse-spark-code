@@ -135,6 +135,23 @@ describe('local Git report source', () => {
     expect(result.data?.worktrees[0]?.path).toBe('~/worktrees/child')
     expect(JSON.stringify(result.data?.worktrees)).not.toContain('Private')
   })
+  it('resolves a workspace alias through git before displaying worktree paths', async () => {
+    const fake: ReportGitIo = {
+      run: async (args, signal) => {
+        if (args.includes('--show-toplevel'))
+          return { code: 0, stdout: '/private/var/fixture/repository\n' }
+        if (args.includes('worktree'))
+          return {
+            code: 0,
+            stdout: `worktree /private/var/fixture/repository\0HEAD ${repo.head}\0branch refs/heads/main\0\0worktree /private/var/fixture/sibling\0HEAD ${repo.head}\0branch refs/heads/m12/s\0\0`,
+          }
+        return await io.run(args, signal)
+      },
+    }
+    const result = await gitSource(fake, redactSecrets, ['/var/fixture/repository']).read(context())
+    expect(result.record.status).toBe('ok')
+    expect(result.data?.worktrees.map((row) => row.path)).toEqual(['.', '../sibling'])
+  })
   it('names a missing or enclosing repository rather than empty success', async () => {
     const missing = gitSource(
       { run: () => Promise.resolve({ stdout: '', code: 1 }) },
