@@ -296,9 +296,8 @@ class AcpSession {
             deliver: (message) => this.getQuestions().deliver(message),
           })
     this.translator = new UpdateTranslator(cwd, false)
-    this.unsubscribe = session.onEvent((event) => {
-      this.onEvent(event)
-    })
+    // The session subscribes in loadQuestions (M112): subscribing here too
+    // would deliver every backend event twice.
     this.accounts =
       deps.accounts === undefined
         ? undefined

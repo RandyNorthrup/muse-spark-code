@@ -21,6 +21,8 @@ function connectedAccounts(isBound = true) {
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   const deps: AcpAgentDeps = {
     ...(isBound && { accounts: h.port }),
+    // M112 made the question binding required; these rigs never ask one.
+    questions: 'decline',
     backend: {
       kind: 'modelApi',
       readiness: () => Promise.resolve({ state: 'ready' }),
@@ -801,10 +803,15 @@ describe('M108 companion through the shared panel', () => {
     const subscribe = vi.fn<AccountsPanelPort['subscribe']>(() => vi.fn())
     const panel = companionAccountsPanel({ dispatch, subscribe })
     expect(await panel.dispatch({ type: 'accounts/list', provider: 'meta' })).toEqual(state)
+    // Confirmations carry the pending policy question (M108/U): the shape,
+    // not a machine id, fences them; the host answers only its pending
+    // question (accountsPanelHost's policy dialog cases).
     await panel.dispatch({
       type: 'accounts/confirm',
       provider: 'meta',
       product: 'model-api',
+      questionId: '123e4567-e89b-12d3-a456-426614174000',
+      providerGeneration: 1,
       choice: 'confirm',
     })
     expect(dispatch).toHaveBeenCalledTimes(2)
@@ -817,10 +824,14 @@ describe('M108 companion through the shared panel', () => {
       type: 'accounts/error',
       code: 'invalidAccount',
     })
+    // A grant from another machine cannot quote this panel's pending
+    // question; anything outside the strict shape is refused unheard.
     const grant = {
       type: 'accounts/confirm' as const,
       provider: 'meta',
       product: 'model-api',
+      questionId: '123e4567-e89b-12d3-a456-426614174000',
+      providerGeneration: 1,
       choice: 'confirm' as const,
       machineId: 'other-machine',
     }
