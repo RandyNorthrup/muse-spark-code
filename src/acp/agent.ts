@@ -92,6 +92,7 @@ import type { QuestionClock } from '../shared/questions'
 import {
   approvalToolCall,
   decidedChoice,
+  isMediaLink,
   mcpServersFrom,
   permissionOptions,
   permissionResponse,
@@ -455,8 +456,12 @@ class AcpSession {
     const attach = /^\/attach(?:\s+(.+))?$/su.exec(text)
     const isRecord = text === '/record'
     if (attach === null && !isRecord) return false
-    if (isRecord && this.deps.options.isHeadless === true)
-      throw RequestError.invalidParams(undefined, UI_TEXT.media.recordingUserOnly)
+    if (this.deps.options.isHeadless === true) {
+      // A queued headless attachment never sends: no second turn carries
+      // it. /record is refused the same way (M105 E2 review).
+      if (isRecord) throw RequestError.invalidParams(undefined, UI_TEXT.media.recordingUserOnly)
+      throw RequestError.invalidParams(undefined, UI_TEXT.media.attachHeadless)
+    }
     if (this.attachments.length >= MAX_ATTACHMENTS_PER_MESSAGE)
       throw RequestError.invalidParams(undefined, UI_TEXT.attachmentLimit)
     const given = attach?.[1]?.trim()
@@ -481,19 +486,25 @@ class AcpSession {
       throw RequestError.resourceNotFound(this.sessionId)
     }
     this.attachments.push(attachment)
+    // Only video and audio have a duration; other kinds ack without one
+    // (M105 E2 review).
+    const metadata =
+      'durationSeconds' in attachment.info
+        ? fill(UI_TEXT.media.replayMetadata, {
+            name: attachment.name,
+            duration:
+              attachment.info.durationSeconds === null
+                ? UI_TEXT.media.durationUnknown
+                : formatUnit(attachment.info.durationSeconds, 'second'),
+            size: formatBytes(attachment.info.sizeBytes),
+          })
+        : fill(UI_TEXT.media.replayMetadataNoDuration, {
+            name: attachment.name,
+            size: formatBytes(attachment.info.sizeBytes),
+          })
     this.send({
       sessionUpdate: 'agent_message_chunk',
-      content: {
-        type: 'text',
-        text: fill(UI_TEXT.media.replayMetadata, {
-          name: attachment.name,
-          duration:
-            'durationSeconds' in attachment.info && attachment.info.durationSeconds !== null
-              ? formatUnit(attachment.info.durationSeconds, 'second')
-              : UI_TEXT.media.durationUnknown,
-          size: formatBytes(attachment.info.sizeBytes),
-        }),
-      },
+      content: { type: 'text', text: metadata },
     })
     return true
   }
@@ -1019,10 +1030,12 @@ class AcpSession {
         await this.outbox
         return preparing.isCancelled ? 'cancelled' : 'end_turn'
       }
+      // Only media links need the port: ordinary links stay mentions even
+      // when the factory binds (M105 E2 review).
       const isNeedsMedia = blocks.some(
         (block) =>
           block.type === 'audio' ||
-          block.type === 'resource_link' ||
+          (block.type === 'resource_link' && isMediaLink(block)) ||
           (block.type === 'resource' &&
             'blob' in block.resource &&
             !/^(?:image\/|application\/pdf$)/u.test(block.resource.mimeType ?? '')),

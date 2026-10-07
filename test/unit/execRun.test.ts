@@ -1103,6 +1103,16 @@ describe('M105 headless attachment entry', () => {
     const refusedRecording = await recording.run()
     expect(refusedRecording.code).toBe(2)
     expect(recording.api.responseBodies()).toHaveLength(0)
+    // A typed headless /attach is a usage error too: no turn sends the queue.
+    const typed = await harness()
+    typed.deps.options = {
+      ...typed.deps.options,
+      prompt: { kind: 'text', text: '/attach clip.mp4' },
+    }
+    const refusedAttach = await typed.run()
+    expect(refusedAttach.code).toBe(2)
+    expect(typed.api.responseBodies()).toHaveLength(0)
+    expect(typed.err.chunks.join('')).toContain(UI_TEXT.media.attachHeadless)
   })
   it('returns usage/2 for an escaped path or an unbound media route before an API attempt', async () => {
     for (const given of ['../private.mp4', 'clip.mp4']) {

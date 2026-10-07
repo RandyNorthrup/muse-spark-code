@@ -9,6 +9,7 @@ import {
   type StoredMediaPart,
   type UploadedMediaRef,
 } from '../../shared/media'
+import type { MediaFileInfo } from './limits'
 import type { TurnPart } from '../agent/agentBackend'
 import type { UploadSource } from '../backends/modelapi/files'
 import type { InputContentPart, InputItem } from '../backends/modelapi/schemas'
@@ -68,6 +69,8 @@ export interface MediaReplayPort {
   readonly beginRequest: ReplayMedia['beginRequest']
   readonly pending: ReplayMedia['pending']
   readonly assertPendingFits: ReplayMedia['assertPendingFits']
+  readonly adopt: ReplayMedia['adopt']
+  readonly upload: ReplayMedia['upload']
   readonly content: ReplayMedia['content']
   readonly restore: ReplayMedia['restore']
   readonly prepare: ReplayMedia['prepare']
@@ -165,6 +168,58 @@ export class ReplayMedia {
 
   public beginRequest(): void {
     this.replacements.clear()
+  }
+
+  /**
+   * Admit an already-uploaded file (read_file's mediaFile) as managed replay
+   * media: the same metadata text and budget note content() registers, minus
+   * the token resolution. prepare() authorizes, rechecks the source and
+   * reuses the file id through the shared ledger before project() encodes
+   * the file reference. Throws the gate reason when the model cannot take it.
+   */
+  /**
+   * Reserve a tool-read file on the session upload ledger (M105 E2 review):
+   * the gate and the C/A authorization run before any upload, and the
+   * ledger dedups by digest. The returned reference is what adopt() later
+   * replays as a file-id without re-uploading.
+   */
+  public async upload(
+    file: {
+      readonly name: string
+      readonly info: MediaFileInfo
+      readonly sha256: string
+      readonly source: UploadSource
+    },
+    modelId: string,
+    signal: AbortSignal,
+  ): Promise<UploadedMediaRef> {
+    const media = storedMediaPartSchema.parse({
+      name: file.name,
+      info: file.info,
+      sha256: file.sha256,
+    })
+    const model = this.model(modelId)
+    const gate = modalityGate(media.info, model, undefined, 'upload')
+    if (!gate.ok) throw new Error(gate.reason)
+    await this.deps.authorize(media, model, gate, signal)
+    return await this.deps
+      .ledger(model.provider)
+      .ensure(this.sessionId, media.sha256, file.source, signal)
+  }
+
+  public adopt(
+    media: StoredMediaPart,
+    modelId: string,
+    budget: MediaBudget,
+  ): Extract<InputContentPart, { type: 'input_text' }> {
+    const parsed = storedMediaPartSchema.parse(media)
+    const model = this.model(modelId)
+    const content = metadataPart(parsed)
+    const gate = modalityGate(parsed.info, model, parsed.fps, this.route(parsed, model, content))
+    if (!gate.ok) throw new Error(gate.reason)
+    this.parts.set(content, parsed)
+    budget.noteMedia(content, parsed.info, 0, content.text)
+    return content
   }
 
   public content(

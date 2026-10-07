@@ -9,6 +9,7 @@ import {
   BYTES_PER_MIB,
   MAX_IMAGE_BYTES,
   MEDIA_MAX_UPLOAD_DEFAULT_MIB,
+  UI_TEXT,
 } from '../../src/shared/constants'
 import { AcpMedia } from '../../src/acp/media'
 import { mediaModel } from './helpers/media/replay'
@@ -133,6 +134,14 @@ describe('checked media reads', () => {
     const controller = new AbortController()
     controller.abort()
     await expect(io.readMedia?.(target, maximum, canonical, controller.signal)).rejects.toThrow()
+  })
+
+  it('names an empty file empty instead of over the limit', async () => {
+    const target = path.join(root, 'empty.mp4')
+    await writeFile(target, new Uint8Array())
+    await expect(io.readMedia?.(target, maximum, await canonicalPath(target))).rejects.toThrow(
+      UI_TEXT.execFileEmpty,
+    )
   })
 
   it('refuses a changed same-size source digest before a stream can finish', async () => {

@@ -2314,6 +2314,44 @@ describe('M105 ACP attachment commands', () => {
     expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
   })
 
+  it('refuses a headless /attach instead of queueing a file no turn sends', async () => {
+    const { h, factory, port } = mediaHarness(true)
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await expect(prompt(client, sessionId, '/attach clip.mp4')).rejects.toThrow(
+        UI_TEXT.media.attachHeadless,
+      )
+    })
+    expect(factory).not.toHaveBeenCalled()
+    expect(port.attach).not.toHaveBeenCalled()
+    expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+  })
+
+  it('acks a queued non-video attachment without a duration', async () => {
+    const { h, port } = mediaHarness()
+    const pdf = '/ws/notes.pdf'
+    vi.mocked(port.attach).mockResolvedValueOnce({
+      part: { type: 'text', text: 'registered-media' },
+      name: 'notes.pdf',
+      info: { kind: 'document', mediaType: 'application/pdf', sizeBytes: 12 },
+      dispose: () => Promise.resolve(),
+    })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      expect(await prompt(client, sessionId, `/attach ${pdf}`)).toEqual({ stopReason: 'end_turn' })
+    })
+    expect(JSON.stringify(h.updates)).not.toContain('Duration unknown')
+    expect(h.updates).toContainEqual(
+      expect.objectContaining({
+        sessionUpdate: 'agent_message_chunk',
+        content: expect.objectContaining({
+          type: 'text',
+          text: expect.stringContaining('notes.pdf'),
+        }),
+      }),
+    )
+  })
+
   it('is busy during media preparation and discards a late cancelled preview', async () => {
     const { h, port, dispose } = mediaHarness()
     const attachment = await port.record(new AbortController().signal)

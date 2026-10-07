@@ -623,7 +623,9 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               if (
                 error_ instanceof acp.RequestError &&
                 error_.code === JSON_RPC_ERRORS.invalidParams &&
-                ((options.attachFiles?.length ?? 0) > 0 || prompt.trim() === '/record')
+                ((options.attachFiles?.length ?? 0) > 0 ||
+                  prompt.trim() === '/record' ||
+                  /^\/attach(?:\s|$)/u.test(prompt.trim()))
               )
                 setup.isUsageError = true
             }

@@ -390,6 +390,7 @@ import {
   type FormatTarget,
   executeTool,
   parseQuestions,
+  type ReadMediaFile,
   readSkillArgs,
   webFetchArgs,
   type ShellResult,
@@ -2081,6 +2082,12 @@ export class ModelApiSession implements AgentSession {
    * round's outputs in a user message, where Meta reads them.
    */
   private readonly readFiles: VisibleFile[] = []
+  /**
+   * The videos and audio `read_file` read this round (M105 E2): their
+   * file-ids follow the round's outputs through M2 replay, where Meta
+   * reads media only in user messages.
+   */
+  private readonly readMediaFiles: NonNullable<ToolOutcome['mediaFile']>[] = []
   /** Synthetic tool-read media still waiting for a completed model request. */
   private readonly readFileMessages = new WeakMap<ReplayItem, readonly PendingReadFile[]>()
   /** Function-output images awaiting their first completed model request. */
@@ -5315,6 +5322,64 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  /**
+   * The videos and audio `read_file` read this round, in one user message
+   * after the round's outputs: the tool's file-ids enter M2 replay here, so
+   * the success claim the model already read ("the file follows") actually
+   * delivers (M105 E2 review). A file the gate refuses, or a round that
+   * never completed, is named as not delivered instead.
+   */
+  private appendReadMediaFiles(turnId: string, isRoundComplete: boolean): void {
+    const files = this.readMediaFiles.splice(0)
+    if (files.length === 0) {
+      return
+    }
+    const media = this.media
+    if (!isRoundComplete || media === undefined) {
+      const replay: ReplayItem = {
+        turnId,
+        item: {
+          type: 'message',
+          role: 'user',
+          content: files.map((file): InputContentPart => ({
+            type: 'input_text',
+            text: file.notDelivered,
+          })),
+        },
+      }
+      this.replay.push(replay)
+      return
+    }
+    const pending: PendingReadFile[] = []
+    const content = files.flatMap((file): InputContentPart[] => {
+      let adopted: InputContentPart
+      try {
+        adopted = media.adopt(
+          { name: file.name, info: file.info, sha256: file.file.sha256, file: file.file },
+          this.modelId,
+          this.budget,
+        )
+      } catch {
+        return [{ type: 'input_text', text: file.notDelivered }]
+      }
+      const lead: InputContentPart = { type: 'input_text', text: file.lead }
+      // A file-id reference carries no bytes and one media slot.
+      pending.push({
+        notDelivered: file.notDelivered,
+        lead,
+        media: adopted,
+        encodedChars: 0,
+        slots: 1,
+      })
+      return [lead, adopted]
+    })
+    const replay: ReplayItem = { turnId, item: { type: 'message', role: 'user', content } }
+    this.replay.push(replay)
+    if (pending.length > 0) {
+      this.readFileMessages.set(replay, pending)
+    }
+  }
+
   /** Only media present in a completed request has reached the model. */
   private markReadFileMediaDelivered(turnId: string, input: readonly InputItem[]): void {
     const sent = new Set(
@@ -5424,6 +5489,8 @@ export class ModelApiSession implements AgentSession {
       chars += turnMediaEncodedChars(file.part)
       slots += turnMediaSlots(file.part)
     }
+    // Queued file-id media carries no bytes and one media slot each.
+    slots += this.readMediaFiles.length
     for (const replay of this.replay) {
       const pending = this.readFileMessages.get(replay) ?? []
       for (const file of pending) {
@@ -6065,6 +6132,11 @@ export class ModelApiSession implements AgentSession {
 
   /** One read-only tool call of a hook's agent turn; any other name is refused. */
   private fileToolContext(signal: AbortSignal) {
+    // read_file's media reserve runs through the session replay port: the
+    // gate and authorization bind before any upload, and finishCall adopts
+    // the returned file-id after the round (M105 E2 review). No port, no
+    // prepare: the tool fails closed instead.
+    const media = this.media
     return {
       workspaceRoot: this.deps.workspaceRoot,
       platform: this.deps.platform,
@@ -6072,6 +6144,21 @@ export class ModelApiSession implements AgentSession {
       signal,
       seen: this.seenFiles,
       files: this.policy().files,
+      ...(media !== undefined && {
+        media: {
+          prepare: (file: ReadMediaFile, toolSignal?: AbortSignal) =>
+            media.upload(
+              {
+                name: file.source.name,
+                info: file.info,
+                sha256: file.sha256,
+                source: file.source,
+              },
+              this.modelId,
+              toolSignal ?? signal,
+            ),
+        },
+      }),
     }
   }
 
@@ -9254,6 +9341,9 @@ export class ModelApiSession implements AgentSession {
     if (outcome.visibleFile !== undefined) {
       this.readFiles.push(outcome.visibleFile)
     }
+    if (outcome.mediaFile !== undefined) {
+      this.readMediaFiles.push(outcome.mediaFile)
+    }
     return replay
   }
 
@@ -9307,12 +9397,17 @@ export class ModelApiSession implements AgentSession {
       this.replay.splice(index)
     }
     this.pendingOutputMedia.delete(replay)
-    if (outcome.visibleFile === undefined) {
-      return
+    if (outcome.visibleFile !== undefined) {
+      const queued = this.readFiles.lastIndexOf(outcome.visibleFile)
+      if (queued !== -1) {
+        this.readFiles.splice(queued, 1)
+      }
     }
-    const queued = this.readFiles.lastIndexOf(outcome.visibleFile)
-    if (queued !== -1) {
-      this.readFiles.splice(queued, 1)
+    const mediaFile = outcome.mediaFile
+    if (mediaFile === undefined) return
+    const queuedMedia = this.readMediaFiles.lastIndexOf(mediaFile)
+    if (queuedMedia !== -1) {
+      this.readMediaFiles.splice(queuedMedia, 1)
     }
   }
 
@@ -10254,6 +10349,9 @@ export class ModelApiSession implements AgentSession {
         // A stopped or failed round names its read files without replaying
         // bytes that no model request saw (M54).
         this.appendReadFiles(turn.turnId, isRoundComplete && !isAbortRequested(signal))
+        // Read-file media joins the same user message through M2 replay, so
+        // the file the tool said follows actually follows (M105 E2 review).
+        this.appendReadMediaFiles(turn.turnId, isRoundComplete && !isAbortRequested(signal))
       }
       const afterBatch = await this.runHooks(
         'PostToolBatch',

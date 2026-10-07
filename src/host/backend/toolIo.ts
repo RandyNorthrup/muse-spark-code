@@ -539,8 +539,10 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         )
         const metadata = await file.stat()
         const { size } = metadata
-        if (!Number.isSafeInteger(size) || size <= 0 || size > maxBytes)
+        // An empty file is empty, not over the limit (M105 E2 review).
+        if (!Number.isSafeInteger(size) || size < 0 || size > maxBytes)
           throw new Error(UI_TEXT.execFileTooLarge)
+        if (size === 0) throw new Error(UI_TEXT.execFileEmpty)
         let isPdfFile = false
         const sniffed = await media.sniffMedia({
           sizeBytes: size,

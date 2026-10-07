@@ -597,10 +597,13 @@ async function blockPart(
       return imagePart(block.data, block.mimeType)
     }
     case 'resource_link': {
+      // Only media links reach the port: an ordinary context link must not
+      // become a file open once the factory binds (M105 E2 review).
+      if (!isMediaLink(block)) return { type: 'text', text: linkText(block.uri, cwd) }
       if (media !== undefined) return await media.block(block, signal)
-      return isMediaLink(block)
-        ? UI_TEXT.media.museCodeRefusal
-        : { type: 'text', text: linkText(block.uri, cwd) }
+      // No port on the Model API backend is an unbound pipeline, not a
+      // reason to switch backends (M105 E2 review).
+      return canAcceptDocuments ? UI_TEXT.media.uploadStorageUnknown : UI_TEXT.media.museCodeRefusal
     }
     case 'resource': {
       const { resource } = block
@@ -640,7 +643,8 @@ async function blockPart(
         : await media.block(block, signal)
     }
     case 'audio': {
-      return media === undefined ? UI_TEXT.media.museCodeRefusal : await media.block(block, signal)
+      if (media !== undefined) return await media.block(block, signal)
+      return canAcceptDocuments ? UI_TEXT.media.uploadStorageUnknown : UI_TEXT.media.museCodeRefusal
     }
     default: {
       return fill(UI_TEXT.media.attachmentUnknownType, { type: 'content' })
@@ -657,7 +661,12 @@ export function resourceName(uri: string): string {
   }
 }
 
-function isMediaLink(block: Extract<ContentBlock, { type: 'resource_link' }>): boolean {
+/**
+ * Whether a prompt link names media (M105 E2 review): only these route to
+ * the media port. Ordinary context links and URLs stay mentions/text even
+ * when the port is bound; binding the port must not file-open them.
+ */
+export function isMediaLink(block: Extract<ContentBlock, { type: 'resource_link' }>): boolean {
   return (
     /^(?:image|audio|video)\//u.test(block.mimeType ?? '') ||
     block.mimeType === PDF_MEDIA_TYPE ||

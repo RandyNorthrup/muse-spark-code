@@ -247,6 +247,46 @@ describe('ACP media admission', () => {
     expect(h.prepare).not.toHaveBeenCalled()
   })
 
+  it('names a missing recorder, not a missing converter', async () => {
+    await expect(harness().media.record(signal)).rejects.toThrow(
+      fill(UI_TEXT.media.recordingUnavailable, { reason: UI_TEXT.media.recorderUnavailable }),
+    )
+  })
+
+  it('suffixes embedded audio blocks by their sniffed bytes', async () => {
+    const m4a = Buffer.from(videoFixture({ brand: 'M4A ' }))
+    m4a.write('free', m4a.indexOf('trak'))
+    const h = harness({
+      model: () => {
+        const model = mediaModel()
+        return {
+          ...model,
+          modalities: {
+            ...model.modalities,
+            audio: {
+              ...model.modalities.audio,
+              formats: [...model.modalities.audio.formats, 'audio/mp4'],
+              hearsStandaloneAudio: 'yes' as const,
+            },
+          },
+        }
+      },
+    })
+    for (const [mimeType, bytes, name] of [
+      ['audio/wav', wavFixture(), 'audio.wav'],
+      ['audio/mpeg', mp3Fixture(), 'audio.mp3'],
+      ['audio/mp4', m4a, 'audio.m4a'],
+    ] as const) {
+      h.prepare.mockClear()
+      const part = await h.media.block(
+        { type: 'audio', mimeType, data: Buffer.from(bytes).toString('base64') },
+        signal,
+      )
+      expect(part).toEqual({ type: 'text', text: 'registered-media' })
+      expect(h.prepare.mock.calls[0]?.[0]).toMatchObject({ name })
+    }
+  })
+
   it('never starts a recording in headless mode and disposes a refused preview', async () => {
     const recordAndPreview = vi.fn(() => Promise.resolve(undefined))
     await expect(

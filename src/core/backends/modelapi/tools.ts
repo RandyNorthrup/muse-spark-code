@@ -470,6 +470,7 @@ export interface ToolOutcome {
   readonly visibleFile?: VisibleFile
   /** Metadata only. W feeds this file-id into M2 replay and its shared media budget after the round. */
   readonly mediaFile?: {
+    readonly name: string
     readonly info: MediaFileInfo
     readonly file: UploadedMediaRef
     readonly lead: string
@@ -1039,11 +1040,13 @@ async function readMediaFile(
   file: { readonly relative: string; readonly checkedAbsolute: string },
   context: ToolContext,
 ): Promise<ToolOutcome> {
-  if (context.io.readMedia === undefined || context.media === undefined)
-    return failure(UI_TEXT.media.uploadStorageUnknown)
+  // The confined read and sniff run before any billing words: a renamed
+  // text file is an unknown type, not an unverified account (M105 E2 review).
+  const readMedia = context.io.readMedia
+  if (readMedia === undefined) return failure(UI_TEXT.media.uploadStorageUnknown)
   try {
     context.signal?.throwIfAborted()
-    const read = await context.io.readMedia(
+    const read = await readMedia(
       file.checkedAbsolute,
       MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB,
       file.checkedAbsolute,
@@ -1055,6 +1058,9 @@ async function readMediaFile(
         fill(UI_TEXT.toolVisualFileMissing, { path: file.relative }),
       )
     if ('kind' in read) return failure(read.reason)
+    // Real media with no upload binding: the pipeline is unbound, and only now
+    // is the billing sentence honest.
+    if (context.media === undefined) return failure(UI_TEXT.media.uploadStorageUnknown)
     const uploaded = uploadedMediaRefSchema.parse(await context.media.prepare(read, context.signal))
     context.signal?.throwIfAborted()
     if (
@@ -1074,7 +1080,12 @@ async function readMediaFile(
     return {
       output: fill(MODEL_API_MODEL_TEXT.toolFileFollows, { path: file.relative }),
       visibleOutput,
-      mediaFile: { ...readFileLines(file.relative), info: read.info, file: uploaded },
+      mediaFile: {
+        ...readFileLines(file.relative),
+        name: file.relative,
+        info: read.info,
+        file: uploaded,
+      },
     }
   } catch (error: unknown) {
     if (context.signal?.aborted === true) throw error

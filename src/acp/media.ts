@@ -83,6 +83,13 @@ function unknown(type: string): Error {
   return new Error(fill(UI_TEXT.media.attachmentUnknownType, { type }))
 }
 
+/** Embedded audio bytes keep the suffix their sniff earned. */
+const AUDIO_BLOB_SUFFIX: Readonly<Record<string, string>> = {
+  'audio/wav': 'wav',
+  'audio/mp4': 'm4a',
+  'audio/mpeg': 'mp3',
+}
+
 function bytesInput(name: string, info: MediaInfo, bytes: Uint8Array): AcpMediaInput {
   const chunk = Promise.resolve(bytes)
   return {
@@ -235,10 +242,11 @@ export class AcpMedia implements AcpMediaPort {
       if (info === undefined || (mime != null && mime !== info.mediaType))
         throw unknown(mime ?? 'blob')
       if (block.type === 'audio' && info.kind !== 'audio') throw unknown(mime ?? 'audio')
-      const name =
-        block.type === 'resource'
-          ? resourceName(block.resource.uri)
-          : `audio.${info.mediaType === 'audio/wav' ? 'wav' : 'mp3'}`
+      // The suffix names the sniffed bytes, never a default (M105 E2 review).
+      // Audio blocks are audio-kind by the check above; the fallback is for
+      // the type alone and cannot fire on this path.
+      const suffix = AUDIO_BLOB_SUFFIX[info.mediaType] ?? 'mp3'
+      const name = block.type === 'resource' ? resourceName(block.resource.uri) : `audio.${suffix}`
       const attachment = await this.accepted(bytesInput(name, info, bytes), signal)
       return attachment.part
     } catch (error: unknown) {
@@ -249,9 +257,11 @@ export class AcpMedia implements AcpMediaPort {
 
   public async record(signal: AbortSignal): Promise<AcpAttachment | undefined> {
     if (!this.deps.interactive) throw new Error(UI_TEXT.media.recordingUserOnly)
+    // No recorder bound: name it, not the converter (M105 E2 review). No
+    // converter was probed on this path.
     if (this.deps.recordAndPreview === undefined)
       throw new Error(
-        fill(UI_TEXT.media.recordingUnavailable, { reason: UI_TEXT.media.converterUnavailable }),
+        fill(UI_TEXT.media.recordingUnavailable, { reason: UI_TEXT.media.recorderUnavailable }),
       )
     const preview = await this.deps.recordAndPreview(signal)
     if (preview === undefined) return undefined

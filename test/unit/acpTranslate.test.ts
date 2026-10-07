@@ -12,6 +12,7 @@ import {
   permissionOptions,
   permissionResponse,
   promptParts,
+  type PromptMediaPort,
   toolKind,
   toolName,
   UpdateTranslator,
@@ -508,6 +509,60 @@ describe('promptParts', () => {
       ok: false,
       reason: UI_TEXT.media.museCodeRefusal,
     })
+    // On the Model API backend an unbound port is an unbound pipeline, not a
+    // reason to switch backends (M105 E2 review).
+    expect(
+      await promptParts(
+        [{ type: 'resource_link', uri: 'file:///clip.mp4', name: 'clip' }],
+        CWD,
+        undefined,
+        true,
+      ),
+    ).toEqual({ ok: false, reason: UI_TEXT.media.uploadStorageUnknown })
+    expect(
+      await promptParts(
+        [{ type: 'audio', data: 'AAAA', mimeType: 'audio/wav' }],
+        CWD,
+        undefined,
+        true,
+      ),
+    ).toEqual({ ok: false, reason: UI_TEXT.media.uploadStorageUnknown })
+  })
+
+  it('keeps ordinary links as mentions even when the media port is bound', async () => {
+    const block = vi.fn<PromptMediaPort['block']>(() =>
+      Promise.resolve({ type: 'text', text: 'opened' }),
+    )
+    const inside = pathToFileURL(path.join(CWD, 'src', 'app.ts')).href
+    const result = await promptParts(
+      [
+        { type: 'text', text: 'Look at' },
+        { type: 'resource_link', uri: inside, name: 'app.ts' },
+        { type: 'resource_link', uri: 'https://example.com/doc', name: 'doc' },
+      ],
+      CWD,
+      { block },
+    )
+    expect(result).toMatchObject({
+      ok: true,
+      parts: [
+        { type: 'text', text: 'Look at' },
+        { type: 'text', text: '@src/app.ts' },
+        { type: 'text', text: 'https://example.com/doc' },
+      ],
+    })
+    // Binding the port must not file-open context links (M105 E2 review).
+    expect(block).not.toHaveBeenCalled()
+    const mediaBlock = vi.fn<PromptMediaPort['block']>(() =>
+      Promise.resolve({ type: 'text', text: 'opened' }),
+    )
+    const media = await promptParts(
+      [{ type: 'resource_link', uri: 'file:///clip.mp4', name: 'clip' }],
+      CWD,
+      { block: mediaBlock },
+    )
+    expect(media).toMatchObject({ ok: true, parts: [{ type: 'text', text: 'opened' }] })
+    expect(mediaBlock).toHaveBeenCalledOnce()
   })
   it('reads a file whose name begins with two dots as inside the folder', async () => {
     const dotted = pathToFileURL(path.join(CWD, '..cache')).href

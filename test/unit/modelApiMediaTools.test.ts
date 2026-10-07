@@ -27,7 +27,10 @@ function harness(bytes = videoFixture()) {
     },
   }
   const io = memoryToolIo({}, '/ws')
-  const readMedia = vi.fn(() => Promise.resolve(file))
+  const readMedia = vi.fn(
+    (): Promise<ReadMediaFile | { readonly kind: 'other'; readonly reason: string } | undefined> =>
+      Promise.resolve(file),
+  )
   const prepare = vi.fn(() =>
     Promise.resolve({
       fileId: 'file-test',
@@ -87,11 +90,33 @@ describe('media read_file', () => {
     }
   })
 
-  it('refuses missing bindings, policy-denied paths and escapes before upload', async () => {
+  it('sniffs before billing: unknown types refuse, real media without a binding bills', async () => {
     const h = harness()
-    const { media: _media, ...withoutMedia } = h.ctx
-    const missing = await executeTool('read_file', '{"path":"clip.mp4"}', withoutMedia)
+    // A renamed text file is an unknown type even with no upload binding.
+    const renamed = harness()
+    renamed.readMedia.mockResolvedValueOnce({ kind: 'other', reason: 'not media' })
+    const { media: _media, ...withoutMedia } = renamed.ctx
+    const unknown = await executeTool('read_file', '{"path":"notes.mp4"}', withoutMedia)
+    expect(unknown.failureReason).toBe('not media')
+    expect(renamed.prepare).not.toHaveBeenCalled()
+    // Real media with no upload binding is the only billing refusal.
+    const { media: _dropped, ...withoutBinding } = h.ctx
+    const missing = await executeTool('read_file', '{"path":"clip.mp4"}', withoutBinding)
     expect(missing.failureReason).toBe(UI_TEXT.media.uploadStorageUnknown)
+    expect(h.readMedia).toHaveBeenCalled()
+    expect(h.prepare).not.toHaveBeenCalled()
+    // No confined reader at all still bills without sniffing.
+    const { io, ...withoutIo } = h.ctx
+    const { readMedia: _read, ...bareIo } = io
+    const blind = await executeTool('read_file', '{"path":"clip.mp4"}', {
+      ...withoutIo,
+      io: bareIo,
+    })
+    expect(blind.failureReason).toBe(UI_TEXT.media.uploadStorageUnknown)
+  })
+
+  it('refuses policy-denied paths and escapes before upload', async () => {
+    const h = harness()
     const denied = await executeTool('read_file', '{"path":"clip.mp4"}', {
       ...h.ctx,
       files: { denyGlobs: [], extraRoots: [], isDenyAll: true, isDenied: () => true },

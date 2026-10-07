@@ -308,6 +308,7 @@ export const EN = {
     recordingUserOnly: 'Only an interactive user can start a screen recording.',
     recordingNoRecent: 'No recent screen recording was found.',
     recorderUnavailable: 'No screen recorder is available on this host.',
+    attachHeadless: 'Refused for headless runs: pass the file with --attach instead.',
     uploadStorageUnknown:
       'Storage billing has not been verified. Uploads are unavailable until it is recorded.',
     attachmentUnknownType: 'Unsupported attachment type: {type}',
@@ -316,6 +317,7 @@ export const EN = {
     uploadDeleteFailed: 'Could not delete {name}: {reason}',
     conversionFailed: 'Conversion failed: {reason}',
     replayMetadata: 'Media: {name} ({duration}, {size})',
+    replayMetadataNoDuration: 'Media: {name} ({size})',
   },
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
@@ -2715,6 +2717,7 @@ export const EN = {
   execKeyTooLong: 'The key exceeds the byte limit.',
   execFileUnreadable: 'The input file cannot be read.',
   execFileTooLarge: 'The input exceeds the byte limit.',
+  execFileEmpty: 'The input file is empty.',
   execTooManyChunks: 'The input exceeds the chunk limit.',
   execUnknownModel: 'This model is not available for this run.',
   execEffortUnavailable: 'This effort is not available for this model.',

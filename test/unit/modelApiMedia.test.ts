@@ -542,6 +542,58 @@ describe('Model API media integration through injected ports', () => {
     }
   })
 
+  it('delivers a read_file video through replay as its file-id', async () => {
+    const h = await setup()
+    try {
+      const media = videoMedia()
+      const chunk = Promise.resolve(new Uint8Array([1, 2, 3]))
+      Object.assign(h.deps.io, {
+        readMedia: () =>
+          Promise.resolve({
+            info: media.info,
+            sha256: media.sha256,
+            source: {
+              name: media.name,
+              mime: media.info.mediaType,
+              bytes: media.info.sizeBytes,
+              open: async function* () {
+                yield await chunk
+              },
+            },
+          }),
+      })
+      h.api.script(
+        { calls: [{ name: 'read_file', arguments: '{"path":"clip.mp4"}', callId: 'call_read' }] },
+        { text: 'A ten-second clip.' },
+      )
+      const done = h.turnDone()
+      await h.session.sendTurn([{ type: 'text', text: 'what is in clip.mp4?' }])
+      await done
+      // The tool said the file follows; the next request carries its
+      // file-id instead of dropping it (M105 E2 review).
+      expect(h.api.responseBodies()).toHaveLength(2)
+      expect(JSON.stringify(h.api.responseBodies()[1])).toContain(
+        `test-upload:${uploaded(media).fileId}:${media.info.mediaType}:`,
+      )
+      const saved = h.session
+        .snapshot()
+        .replay.flatMap((entry) => entry.media ?? [])
+        .map(({ media: stored }) => stored)
+      expect(saved).toContainEqual(expect.objectContaining({ name: 'clip.mp4' }))
+      expect(
+        saved.flatMap((stored) => [
+          ...(stored.files ?? []),
+          ...(stored.file === undefined ? [] : [stored.file]),
+        ]),
+      ).toContainEqual(expect.objectContaining({ fileId: uploaded(media).fileId }))
+      expect(h.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'completed',
+      })
+    } finally {
+      await h.host.close()
+    }
+  })
+
   it('rechecks a model change during admission and never sends media to the new unsupported model', async () => {
     const admission = Promise.withResolvers<undefined>()
     const blocked = Promise.withResolvers<undefined>()
