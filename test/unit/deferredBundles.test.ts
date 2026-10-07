@@ -14,6 +14,7 @@ import { L10N_COMPRESSION_QUALITY } from '../../src/shared/constants'
 import {
   UI_TEXT_REGIONS,
   compressedEnglish,
+  compactBrowserEnglish,
   regionalUiText,
 } from '../../scripts/lib/uiTextRegions.mjs'
 import {
@@ -49,6 +50,14 @@ const parserSchema = z.object({
   string: z.custom<typeof validation.string>((value) => typeof value === 'function'),
 })
 const parsers: z.infer<typeof parserSchema>[] = []
+const browserBuild: { meta?: z.infer<typeof metafileSchema> } = {}
+
+function normalized(file: string): string {
+  return file.replaceAll('\\', '/')
+}
+function outputName(file: string): string {
+  return path.basename(normalized(file), '.js')
+}
 
 beforeAll(async () => {
   const common = {
@@ -72,6 +81,8 @@ beforeAll(async () => {
         reference: 'src/shared/reference/referenceEntry.ts',
         conversation: 'src/host/conversation/conversationEntry.ts',
         verifyEditor: 'src/host/editor/verifyEditor.ts',
+        makerHost: 'src/host/maker/makerEntry.ts',
+        makerPreviewHost: 'src/host/maker/makerPreviewEntry.ts',
         modelApi: 'src/host/backend/modelApiEntry.ts',
         sessionBoard: 'src/host/sessionBoardEntry.ts',
         reviewer: 'src/core/backends/modelapi/reviewerEntry.ts',
@@ -119,6 +130,19 @@ beforeAll(async () => {
       outdir: 'dist',
       entryPoints: { validation: 'src/shared/validationEntry.ts' },
     }),
+    build({
+      ...common,
+      entryPoints: ['src/webview/main.tsx'],
+      outdir: 'dist/webview',
+      platform: 'browser',
+      format: 'esm',
+      splitting: true,
+      chunkNames: 'chunks/[hash]',
+      target: 'chrome128',
+      jsx: 'automatic',
+      charset: 'utf8',
+      plugins: [compactBrowserEnglish],
+    }),
     ...[{ name: undefined, output: 'dist/uiText.js' }, ...UI_TEXT_REGIONS].map((region) =>
       build({
         ...common,
@@ -132,10 +156,13 @@ beforeAll(async () => {
     ),
   ])
   for (const { metafile, outputFiles } of builds) {
-    for (const output of outputFiles)
-      bundleTexts.set(path.basename(output.path, '.js'), output.text)
+    if (Object.keys(metafile.outputs).some((file) => outputName(file) === 'main')) {
+      browserBuild.meta = metafileSchema.parse(metafile)
+      continue
+    }
+    for (const output of outputFiles) bundleTexts.set(outputName(output.path), output.text)
     for (const [output, details] of Object.entries(metafile.outputs)) {
-      const name = path.basename(output, '.js')
+      const name = outputName(output)
       const meta = metafileSchema.parse({
         inputs: Object.fromEntries(
           Object.keys(details.inputs).map((file) => [file, metafile.inputs[file]]),
@@ -214,10 +241,15 @@ function bundleInputs({ output, metafile }: { output: string; metafile: string }
 }
 
 function outputInputs(meta: z.infer<typeof metafileSchema>, output: string) {
-  const built = meta.outputs[output]
+  const built = Object.entries(meta.outputs).find(
+    ([file]) => outputName(file) === outputName(output),
+  )?.[1]
   if (built === undefined) throw new Error(`Missing bundle output: ${output}`)
   return new Map(
-    Object.entries(built.inputs).map(([file, { bytesInOutput }]) => [file, bytesInOutput]),
+    Object.entries(built.inputs).map(([file, { bytesInOutput }]) => [
+      normalized(file),
+      bytesInOutput,
+    ]),
   )
 }
 
@@ -250,6 +282,88 @@ describe('deferred cohort bundles', () => {
       )
     }
   })
+})
+
+function windowsPaths(meta: z.infer<typeof metafileSchema>): z.infer<typeof metafileSchema> {
+  return metafileSchema.parse({
+    ...meta,
+    outputs: Object.fromEntries(
+      Object.entries(meta.outputs).map(([file, details]) => [
+        `${String.raw`C:\repo`}\\${file.replaceAll('/', '\\')}`,
+        {
+          ...details,
+          inputs: Object.fromEntries(
+            Object.entries(details.inputs).map(([input, value]) => [
+              input.replaceAll('/', '\\'),
+              value,
+            ]),
+          ),
+          imports: details.imports.map((dependency) => ({
+            ...dependency,
+            path: dependency.path.replaceAll('/', '\\'),
+          })),
+        },
+      ]),
+    ),
+  })
+}
+
+function startupOutputs(meta: z.infer<typeof metafileSchema>): Set<string> {
+  const startup = new Set<string>()
+  const visit = (requested: string) => {
+    const entry = Object.entries(meta.outputs).find(
+      ([file]) => outputName(file) === outputName(requested),
+    )
+    if (entry === undefined) throw new Error(`Missing startup output: ${requested}`)
+    const [file, details] = entry
+    if (startup.has(file)) return
+    startup.add(file)
+    for (const dependency of details.imports)
+      if (!dependency.external && dependency.kind !== 'dynamic-import') visit(dependency.path)
+  }
+  visit('dist/webview/main.js')
+  return startup
+}
+
+describe('deferred cohort bundles', () => {
+  it('keeps maker preview modules deferred outside all activation and browser startup inputs', () => {
+    const meta = browserBuild.meta
+    if (meta === undefined) throw new Error('Missing production browser metafile')
+    const startup = startupOutputs(meta)
+    for (const file of [
+      'src/host/maker/makerPreviewEntry.ts',
+      'src/host/maker/makerPreviewPanel.ts',
+      'src/host/maker/makerApprovalReceipt.ts',
+    ]) {
+      expect(inputs('makerPreviewHost')).toContain(file)
+      for (const name of ['extension', 'makerHost']) expect(inputs(name)).not.toContain(file)
+      for (const output of startup) expect(outputInputs(meta, output).has(file)).toBe(false)
+    }
+  })
+
+  it('matches production output and input paths with Windows separators', () => {
+    const meta = fixture('dist/meta/makerPreviewHost.json').meta
+    const windows = windowsPaths(meta)
+    expect(outputInputs(windows, 'dist/makerPreviewHost.js')).toEqual(
+      outputInputs(meta, 'dist/makerPreviewHost.js'),
+    )
+    expect(outputName(String.raw`C:\repo\dist\extension.js`)).toBe('extension')
+    const browser = browserBuild.meta
+    if (browser === undefined) throw new Error('Missing production browser metafile')
+    const windowsBrowser = windowsPaths(browser)
+    expect(
+      [...startupOutputs(windowsBrowser)]
+        .map((file) => outputName(file))
+        .toSorted((left, right) => left.localeCompare(right)),
+    ).toEqual(
+      [...startupOutputs(browser)]
+        .map((file) => outputName(file))
+        .toSorted((left, right) => left.localeCompare(right)),
+    )
+    for (const output of startupOutputs(windowsBrowser))
+      expect(outputInputs(windowsBrowser, output)).toEqual(outputInputs(browser, output))
+  })
+
   it('decodes the complete production English fallback without changing any value', () => {
     expect(bundleText('uiText')).toContain('brotliDecompressSync')
     expect(loadSupportBundle('uiText')).toHaveProperty('EN', EN)
@@ -472,6 +586,9 @@ describe('deferred cohort bundles', () => {
       'src/acp/questionDeferralEntry.ts',
       'on the first ACP question, elicitation or question command',
     ],
+    ['extension', 'src/host/maker/vscodeMakerHost.ts', 'on the first maker UI or device tool'],
+    ['extension', 'src/host/maker/makerPreviewPanel.ts', 'on the first maker preview'],
+    ['makerHost', 'src/host/maker/makerPreviewPanel.ts', 'on the first maker preview'],
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
     ['extension', 'src/host/conversation/conversationController.ts', 'on the first chat surface'],
     ['acp', 'src/host/support/recorderEntry.ts', 'from the recorder bundle'],

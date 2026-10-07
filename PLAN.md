@@ -13441,6 +13441,13 @@ D90.25, D96, D88 and D97.
 
   The owner, 2026-10-06: "i accept your recommendations and yes i think to all of the questions."
 
+**Q-M103V-REFERENCE (integration handoff, 2026-10-05).** The shared lane
+rules require `src/shared/featureCatalog.ts`, `scripts/gen-reference.mjs`
+and `check:reference`; none exists on the specified `c0e6c146` trunk. V
+records its command/tool facts in README and certification. W must merge
+the canonical help-reference infrastructure and add these facts before
+exposing the commands; V does not invent a competing catalogue or weaken a gate.
+
 - **Q-TRAIN14 universal helper artifact (2026-10-05).** The worktree has no
   `native/darwin/muse-dictate`. The lane's shared rules forbid network except
   `npm ci` and reads from other worktrees without authorization. An existing
@@ -29836,6 +29843,21 @@ outstanding receipt: 628 pages (157 scenarios × four themes), exit 0, zero
 violations, zero undecided rules, zero exemptions and zero missing results.
 No timeout, exemption, worker policy or accessibility rule changed. The lead
 still owns integrated aggregate quality and actual host/release certification.
+**M103V bounded adapter lane (2026-10-05, Kubuntu).** The explicit rig
+brief prohibits full quality and main/release merges. Run owning suites in
+groups of at most three, typecheck, changed-file lint/format, localization,
+plain Knip, duplication, host API inventory and production build/caps/split.
+Native UI/device/physical qualification and aggregate quality remain E/W/lead
+obligations. No existing cap, threshold, hook or rule changes. V adds two
+lazy host entries with 25 KiB caps. FIXM103V restores every changed existing
+source input at `c0e6c1467` in memory with identical production options:
+browser startup **813,602 → 813,739 bytes (+137)**, activation
+**444,439 → 444,439 bytes (+0)**. The reviewed unused multiplication added
+another 14 bytes; the literal initializer removes it. The remaining browser
+growth is entirely three required English fallback keys; no maker UI/engine
+source enters startup. M103V-STARTUP-FALLBACK in §9 is waived by lead 2026-10-06, +137 B, cap unchanged.
+Aggregate and native/editor qualification remain explicit W/E handoffs;
+the inline complete English browser fallback is retained as D6 requires.
 
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
@@ -30142,6 +30164,63 @@ ledger-format check remains deferred for this established plan format.
 Current receipts: `docs/certification/star-line.md`.
 
 ### M103 — Makers: boards, firmware and machines (D83)
+
+**REDM103V redesign (2026-10-06, Kubuntu; lead design).** Replace V's
+approval receipt booleans with one small state machine per approval UUID:
+awaiting-render → rendered(digest) → decided or revoked, with both terminal
+states latched. Bind a valid acknowledgement once; same-digest repeats are
+idempotent. Changed or invalid acknowledgements, preview close/reload,
+Stop, expiry, caller cancellation and owner disposal revoke pending approval.
+Accept Send once only by synchronously checking the rendered request digest
+and live signal and changing state to decided. Show the localized withdrawal
+notice and ignore any late modal answer. Prove the exact 34-line G1 X1 →
+G1 X200 scenario denies and cannot consume an engine binding; exercise the
+whole transition table and red-drill changed-digest and terminal-latch guards.
+Replace the historical-commit unit regression with production-metafile
+structural checks for deferred preview inputs outside activation/browser
+startup, retaining numeric caps. Normalize output paths and test Windows
+separators. Add the missing type declaration for the existing production
+browser English plugin so the regression uses the real browser options.
+Regenerate the host API inventory for the preview withdrawal notice site.
+Record the lead's existing fallback waiver in §9. No new
+dependency, portable protocol change or widened guard; U/W/R/E handoffs stay.
+
+**Lane U rendered-preview handoff (REDM103V).** U's renderer must post
+`makerPreviewRendered` with the digest of the displayed bytes every time those
+bytes change, after each committed render, not only on first paint. Serial hex
+hashes decoded bytes. A withdrawn receipt cannot rebind; asking again needs a
+new approval UUID. U is absent from V's branch and remains an integration
+qualification obligation.
+
+**FIXM103V review repair (2026-10-06, Kubuntu).** Address all four
+RVM103V findings inside V's adapter files: verify the digest of the actual
+displayed bytes; require delivered/rendered acknowledgement before offering
+native Send once for long payloads; keep a separate immutable preview per
+approval UUID and cancel on close/reload; detach passive notices from tool
+outcomes and failed Stop; compare production startup against every changed
+source input at `c0e6c1467`, removing the unused constant initializer growth.
+The portable MakerHost and versioned maker protocol remain unchanged. V's
+native preview handshake is host-owned; U/W must implement its rendered-byte
+acknowledgement before wiring long approvals (otherwise they expire refused).
+Add pre-fix regression failures and byte-exact red drills, preserve caps and
+hooks, and record any remaining startup bytes for the lead's waiver in §9.
+
+**Lane V scope (2026-10-05, Kubuntu).** Implement the VS Code `MakerHost`
+adapter, canonical host storage and SecretStorage, native single-use approval
+display, independent status-bar/command Stop, host-owned hardware and machine
+commands, the restricted preview tab and validated `ide` wrappers. All engine
+operations remain behind required injected ports; V does not implement G4's
+classifier, hardware latch, serial opener or machine transport. A separate
+lazy host entry is handed to W, which owns activation, manifest, build entries
+and shared U preview wiring. V also builds `dist/makerHost.js` and, only on
+its first preview, `dist/makerPreviewHost.js`, each with shared Node
+fallback/validation, a 25 KiB cap and the production split guard. This makes
+the adapter reviewable before W joins. OctoPrint registration requires W's
+captured Read-only Access appkeys callback and never accepts a pasted key.
+Certify fakes, every new guard's deliberate
+failure, static gates and unchanged production caps; no live/paid calls or
+physical hardware. Runtime/ACP/companion equivalents belong to R; native MHP
+surfaces reuse that runtime and shared protocol. Full quality remains lead-owned.
 
 **M103INT integration and lanes I/0 (2026-10-05, Kubuntu).** Merge only
 m103/sfix, m103/dfix, m103/pfix2, m103/mfix3, m103/x, m103/afix and
@@ -32110,6 +32189,21 @@ before a repaired one loads (2026-09-30).
   adapter is claimed as newly shipped. HELPREF's absent catalogue/reference,
   aggregate quality and the installed editor/backend matrix remain lead
   handoffs, with no live or paid call in this rig lane.
+- **M103V-STARTUP-FALLBACK (FIXM103V / RVM103V P3, 2026-10-06).**
+  Full-base production comparison against `c0e6c1467`: browser startup
+  813,602 → 813,739 bytes (**+137**), activation 444,439 → 444,439 (**+0**).
+  The unintended 14-byte unused maker constant has been removed. The remaining
+  bytes are the three translated UI labels' complete English fallback, required
+  by D6; no maker implementation enters startup and all caps stay unchanged.
+  Lead disposition: **waived by lead 2026-10-06, +137 B, cap unchanged**
+  (M103 acceptance 17). This records the lead's decision for the measured
+  fallback; no waiver implementation or cap change. Both P1s and the P2 are fixed; no safety
+  finding is deferred. U/W's existing unexposed page handoff must implement the
+  host-owned rendered-byte handshake; until then long approvals expire refused.
+  REDM103V's required translated withdrawal label adds 50 B to the browser's
+  complete inline English fallback (current 813,789 B, +187 B from recorded
+  full base). The historical waiver covers exactly +137 B; no further waiver
+  is claimed. Numeric caps and structural startup isolation stay unchanged.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

@@ -15,6 +15,12 @@ happened, not what was planned; superseded entries are kept.
   rule in the app's own orchestrator (D100).
 ### Added
 
+- A lazy VS Code maker host adapter with native per-action approval, canonical
+  host storage and SecretStorage, independent status-bar Stop, hardware and
+  machine command handlers, a restricted preview tab and validated `ide` tool
+  wrappers. It preserves uncertain send outcomes. Activation, shared preview
+  assets and protected engine wiring remain with M103's wiring lane.
+
 - A consolidated maker text region for approvals, hardware admission and
   physical-stop warnings, target/payload analysis, logs, previews and device
   counts, with real translations in all fourteen UI languages. Maker commands
@@ -36,6 +42,20 @@ happened, not what was planned; superseded entries are kept.
   recorded, so Arduino qualification is incomplete.
 
 ### Fixed
+
+- Maker preview approval receipts now latch a decision or withdrawal. Changed
+  or invalid rendered-byte acknowledgements revoke approval and ignore late
+  Send once answers. Asking again requires a new approval ID. The deferred
+  preview regression uses production bundle inputs without historical Git
+  objects and covers Windows output paths.
+
+
+- Maker approvals verify the digest of displayed bytes and wait for delivered,
+  rendered payloads before offering Send once. Each pending approval has its
+  own immutable preview; closing or reloading it cancels approval. Passive
+  notices no longer hold tool outcomes or failed Stop, and the maker-only
+  modal limit no longer adds unused code to startup bundles. Shared preview
+  page rendering remains with M103's wiring lane.
 
 - The maker emulator lease consumer now reads P's version-2 record and
   immutable generation, verified against a live lease-only child without

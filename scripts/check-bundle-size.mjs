@@ -27,6 +27,9 @@ const BUDGETS = [
   { path: 'dist/tab.js', budgetKiB: 75 },
   // M103A3: editor verification and JSON fallback, deferred until first use.
   { path: 'dist/verifyEditor.js', budgetKiB: 25 },
+  // M103 V: native maker host UI and wrappers, loaded only on first use.
+  { path: 'dist/makerHost.js', budgetKiB: 25 },
+  { path: 'dist/makerPreviewHost.js', budgetKiB: 25 },
   // The Model API backend, loaded when it first starts (M57). Revisited on
   // purpose after M77, M78 and M82 (2026-10-02): 402.8 KiB measured, plus 15%,
   // rounded up to 25 KiB (PLAN.md D6).

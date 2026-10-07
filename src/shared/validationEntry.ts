@@ -29,6 +29,7 @@ export {
   nullable,
   number,
   object,
+  omit,
   optional,
   pipe,
   positive,

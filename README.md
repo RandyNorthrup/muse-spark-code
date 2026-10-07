@@ -4077,6 +4077,57 @@ surfaces in Chrome against a fake host: no startup requests, first-use loading
 under the shared CSP, and recovery from actual failed entry/static-dependency
 fetches. Retry reloads the panel with its saved conversation and draft. Cold
 menus remain dismissible and cannot take focus after dismissal.
+M103 lane V supplies the lazy VS Code maker adapter in `dist/makerHost.js`.
+Its factories install the caller's display language and require protected
+engine callbacks; the wiring lane still owns activation, manifest entries,
+the shared device wizard and `makerPreview.js`/`makerPreview.css`. These
+handlers are not yet exposed as installed extension commands:
+
+| Command ID                  | Host behavior                                                                                                                                 |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `museSpark.enableHardware`  | Native reason input in a trusted, attended workspace; calls the guard's audited hardware latch.                                               |
+| `museSpark.disableHardware` | Cancels pending approval and calls the guard to revoke hardware.                                                                              |
+| `museSpark.addMachine`      | Opens the shared wizard; registration confirms the target and LAN HTTP warning, then collects an optional key privately in SecretStorage.     |
+| `museSpark.removeMachine`   | Native selection and confirmation; removes the exact registration generation through the engine.                                              |
+| `museSpark.stopMachine`     | Stops all held machines immediately, including in untrusted, disabled and unattended contexts. The status-bar Stop invokes this same handler. |
+| `museSpark.openDeviceLog`   | Opens the explicit, scrubbed local log view.                                                                                                  |
+
+The `ide` wrappers are `device_list`, `serial_read`, `serial_write`,
+`machine_status`, `machine_send` and `machine_stop`. They depend on the selected
+model's tool capability. Hardware off hides device operations; registered
+machines keep Stop available. Tools cannot supply credentials, addresses,
+approval tokens or a hardware-enable reason. Serial opening and every send
+use the engine's single-use target binding and native Send once / Reject
+modal. Each long payload has its own read-only preview, keyed by approval UUID.
+Send once is offered only after delivery and a rendered-byte acknowledgement
+matching the request's digest. A changed or invalid acknowledgement, close,
+reload, Stop, cancellation or expiry withdraws that approval permanently.
+A late native Send once is ignored; asking again needs a new approval UUID.
+Another request cannot replace its preview. A lost acknowledgement remains
+`sentOutcomeUnknown`; passive notices never delay the tool result or a failed
+Stop. Read status before considering another send.
+
+W binds `openApprovalPreview(request, signal)` to the preview adapter's
+`openApproval`. U's owned page validates the host-only `makerApprovalPreview`
+message (`v: 1`, `request`), renders the complete exact payload, then sends
+`makerPreviewRendered` (`v: 1`, approval `id`, SHA-256 `digest` computed from
+the displayed bytes, decoding serial hex) after every change to those bytes,
+not only on first paint. The receipt binds once; a same-digest repeat has no
+effect and a different digest revokes it. Ready or successful `postMessage`
+alone cannot enable Send once. The host checks and consumes the rendered
+receipt synchronously when accepting the native decision. This handshake is separate from the portable
+maker protocol; missing renderer support expires refused. The shared preview
+page assets remain U/W's integration handoff.
+
+OctoPrint registration uses the engine's Read-only Access appkeys flow instead
+of a pasted key. This trunk has no captured appkeys implementation; wiring must
+supply that required callback before offering OctoPrint registration.
+
+A software stop does not replace a machine's physical emergency stop.
+Runtime/ACP clients and the companion page receive equivalent engine operations
+through lane R. Native MHP plugins use that runtime and shared maker protocol.
+USB ports belong to the machine running the engine, including remote hosts.
+No hardware, paid calls or live models are needed for the adapter's fake tests.
 
 After every complete four-channel release, the workflow runs
 `scripts/refresh-badges.mjs` to refresh these README badges and purge GitHub's

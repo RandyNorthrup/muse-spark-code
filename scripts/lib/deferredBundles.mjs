@@ -104,6 +104,24 @@ export const ON_FIRST_USE = [
     files: ['src/acp/questionDeferralEntry.ts', 'src/acp/questionDeferral.ts'],
   },
   {
+    output: 'dist/makerHost.js',
+    metafile: 'dist/meta/makerHost.json',
+    use: 'the first maker UI or device tool',
+    files: [
+      'src/host/maker/makerEntry.ts',
+      'src/host/maker/vscodeMakerHost.ts',
+      'src/host/maker/makerCommands.ts',
+      'src/host/ide/makerTools.ts',
+      'src/shared/makerProtocol.ts',
+    ],
+  },
+  {
+    output: 'dist/makerPreviewHost.js',
+    metafile: 'dist/meta/makerPreviewHost.json',
+    use: 'the first maker preview',
+    files: ['src/host/maker/makerPreviewEntry.ts', 'src/host/maker/makerPreviewPanel.ts'],
+  },
+  {
     output: 'dist/verifyEditor.js',
     metafile: 'dist/meta/verifyEditor.json',
     use: 'the first diagnostics or formatting request',
@@ -265,6 +283,16 @@ export const ON_FIRST_USE = [
 /** The same parent exclusions and destination requirements used by the CLI. */
 export function checkDeferredBundles(inputsOf) {
   const problems = []
+  const makerHost = inputsOf(ON_FIRST_USE.find((bundle) => bundle.output === 'dist/makerHost.js'))
+  for (const file of [
+    'src/host/maker/makerPreviewEntry.ts',
+    'src/host/maker/makerPreviewPanel.ts',
+  ]) {
+    if (makerHost.has(file))
+      problems.push(
+        `dist/makerHost.js carries ${file}, which loads only on the first maker preview`,
+      )
+  }
   for (const bundle of [...DEFERRED, ...ON_FIRST_USE]) {
     const inputs = inputsOf(bundle)
     const parents =
@@ -346,6 +374,8 @@ export const sharedValidation = {
 /** @type {import('esbuild').Plugin} */
 const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/questions/deferralEntry.ts'), 'dist/questionNotes.js'],
+  [path.resolve('src/host/maker/makerEntry.ts'), 'dist/makerHost.js'],
+  [path.resolve('src/host/maker/makerPreviewEntry.ts'), 'dist/makerPreviewHost.js'],
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
   [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],
@@ -362,7 +392,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry)(?:\.[jt]s)?$/,
+          /\/(?:makerEntry|makerPreviewEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (args.kind !== 'dynamic-import') return

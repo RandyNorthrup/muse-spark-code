@@ -12,3 +12,5 @@ export function compressedEnglish(
   isProduction: boolean,
   compressionQuality: number,
 ): Plugin
+
+export const compactBrowserEnglish: Plugin

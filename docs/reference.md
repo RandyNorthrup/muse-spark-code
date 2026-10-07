@@ -474,7 +474,21 @@ backend: Bundled skills: project_setup, feature_delivery, quality_retrofit. muse
   "resumeAvailability": "installedMuseCodeSkills",
   "bundled": {
     "museCode": ["feature_delivery", "project_setup", "quality_retrofit"],
-    "modelApi": ["feature_delivery", "project_setup", "quality_retrofit", "muse_gadgets"]
+    "modelApi": [
+      "feature_delivery",
+      "project_setup",
+      "quality_retrofit",
+      "maker_cad",
+      "maker_cnc",
+      "maker_firmware",
+      "maker_kicad",
+      "maker_micropython",
+      "maker_pi",
+      "maker_printers",
+      "maker_ros2",
+      "maker_simulation",
+      "muse_gadgets"
+    ]
   }
 }
 ```

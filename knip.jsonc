@@ -17,6 +17,9 @@
     "src/extension.ts",
     "src/host/conversation/conversationEntry.ts",
     "src/host/editor/verifyEditor.ts",
+    // M103 V's lazy VS Code maker host; W supplies the engine and activation.
+    "src/host/maker/makerEntry.ts",
+    "src/host/maker/makerPreviewEntry.ts",
     "src/shared/validationEntry.ts",
     // Help data: separate lazy runtime and generator build entries.
     "src/shared/reference/referenceEntry.ts",
