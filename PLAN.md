@@ -28802,7 +28802,7 @@ core.hooksPath`, an edit under `.husky/`, a delegate re-asking a refused
 
 ### M117 — The capacity estimator (D97)
 
-**FIXM117I integration review repair (2026-10-07, in progress).** Address
+**FIXM117I integration review repair (2026-10-07, scoped repair complete).** Address
 C-RVM117W findings 1–14 with failing regressions against integration
 `7b89ea37afc4bffe77d43670e3f224ec4043d91e` (the rig's copy of
 `refs/rigs/macmini/m117/w`; that symbolic ref is absent locally). Ship the
@@ -28818,16 +28818,18 @@ and honest public/internal handoffs; per-node duration evidence is assessed
 separately. No live/paid calls, merges, pushes, dependencies or cap changes.
 Each finished piece commits with hooks; final verification uses a fresh clone,
 `CI=true`, complete owning files three times at repository timeouts, five
-TypeScript projects and the scoped lane gates. Browser gates unavailable on
-this rig remain named lead-owned commands in `docs/certification/m117.md`.
+TypeScript projects and the scoped lane gates. Integrated quality, remote badges,
+Windows lint and installed-editor/cross-rig checks remain lead-owned commands
+in `docs/certification/m117.md`.
 
 Repair plan: [x] packaging; [x] engine/evidence; [x] UI/session/CLI;
-[x] size/portable tests; [~] fresh-clone verification and certification.
+[x] size/portable tests; [x] fresh-clone verification and certification.
 
-The complete accessibility matrix exposed a stale fake-host initialization:
-its settings omit the required `estimator.optimize`. Update the harness
-fixture and add a real-fixture initialization protocol regression before
-restarting the committed-source final verification; keep validation strict.
+The complete accessibility matrix exposed stale fake-host initialization:
+its settings omitted required `estimator.optimize`. The corrected fixture and
+real-fixture initialization regression keep production validation strict.
+Fresh committed-source verification passes the full 716-page matrix.
+Final receipts are in `docs/certification/m117.md`.
 
 **Lane P implementation plan (2026-10-06; partial, corrected 2026-10-07).** After the explicitly required
 `m117/s` and `m117/c` no-fast-forward merges, implement D97.7 only in
@@ -29437,6 +29439,19 @@ Authority: the rig brief and lead decisions, refining D92/M112 from
       Q/A/editor integration handoffs. No merge, push, dependency or gate widening.
 
 ## 7. Gates
+
+**FIXM117I scoped rig certification (2026-10-07, linuxlt).** The specific
+lane/shared brief prohibits aggregate quality, full-unit runs, merges and
+pushes. Fresh committed source `c129da97` with `CI=true npm ci` passes 42
+complete owning files three times (1,806 tests each), default timeouts, five
+typechecks, scoped lint/format, plain Knip, duplication, unchanged build caps,
+reference, localization and host-API gates. Browser e2e: 11 passed; accessibility:
+716 pages, zero violations/undecided rules/exemptions/missing results. Three
+unpacked packages pass fake-only engine/wire/first-wave smoke; installed CLI
+help passes. Remote badges, Windows PowerShell lint, integrated quality and
+installed-editor/cross-rig receipts remain lead-owned. No P1/P2 deferral;
+per-node duration evidence and P Slice 2 remain explicit internal work, and
+production handoffs remain unavailable. Evidence: `docs/certification/m117.md`.
 
 **REL0143F release CI repair (2026-10-06, Kubuntu).** The complete configured
 Vitest matrix passes at repository default timeouts (532 files, 11,430 passing
