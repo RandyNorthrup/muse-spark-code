@@ -1,0 +1,167 @@
+{
+  "en": {
+    "config.mediaUploadExpiryDays.description": "Days before uploaded media expire (1–30). Deleting a session also deletes uploads when no session still uses them.",
+    "config.mediaMaxUploadMiB.description": "Maximum media upload size in MiB (up to 1,024), also limited by the selected model and provider.",
+    "config.screenRecordingMaxSeconds.description": "Maximum screen recording duration in seconds (10–600). Microphone and system audio are off unless selected for each recording.",
+    "config.mediaAudioAction.description": "Default action when the selected model cannot hear audio. Transcription asks once before the first charge, with its price and the shared daily budget.",
+    "config.mediaAudioAction.enumDescriptions.transcribe": "Transcribe with Muse Voice ($0.18 per audio hour; asks once before the first charge).",
+    "config.mediaAudioAction.enumDescriptions.sendAudio": "Send audio only when the selected model is verified to hear it.",
+    "command.attachScreenRecording.title": "Attach screen recording…",
+    "command.attachLatestScreenRecording.title": "Attach latest screen recording",
+    "command.deleteUploadedFiles.title": "Delete uploaded files…"
+  },
+  "cs": {
+    "config.mediaUploadExpiryDays.description": "Počet dní do vypršení nahraných médií (1–30). Smazání relace smaže i nahrané soubory, pokud je již nepoužívá jiná relace.",
+    "config.mediaMaxUploadMiB.description": "Maximální velikost nahraných médií v MiB (nejvýše 1 024), dále omezená vybraným modelem a poskytovatelem.",
+    "config.screenRecordingMaxSeconds.description": "Maximální délka záznamu obrazovky v sekundách (10–600). Mikrofon a systémový zvuk jsou vypnuté, pokud je uživatel nezvolí pro daný záznam.",
+    "config.mediaAudioAction.description": "Výchozí akce, když vybraný model neslyší zvuk. Přepis se před prvním zpoplatněním jednou zeptá a uvede cenu a sdílený denní rozpočet.",
+    "config.mediaAudioAction.enumDescriptions.transcribe": "Přepsat pomocí Muse Voice (0,18 USD za hodinu zvuku; jednou se zeptá před prvním zpoplatněním).",
+    "config.mediaAudioAction.enumDescriptions.sendAudio": "Odeslat zvuk pouze tehdy, když je ověřeno, že jej vybraný model slyší.",
+    "command.attachScreenRecording.title": "Přiložit záznam obrazovky…",
+    "command.attachLatestScreenRecording.title": "Přiložit poslední záznam obrazovky",
+    "command.deleteUploadedFiles.title": "Smazat nahrané soubory…"
+  },
+  "de": {
+    "config.mediaUploadExpiryDays.description": "Tage bis zum Ablauf hochgeladener Medien (1–30). Beim Löschen einer Sitzung werden auch Uploads gelöscht, die keine Sitzung mehr verwendet.",
+    "config.mediaMaxUploadMiB.description": "Maximale Medien-Uploadgröße in MiB (bis 1.024), zusätzlich durch das gewählte Modell und den Anbieter begrenzt.",
+    "config.screenRecordingMaxSeconds.description": "Maximale Bildschirmaufnahmedauer in Sekunden (10–600). Mikrofon und Systemaudio bleiben aus, sofern sie nicht für die jeweilige Aufnahme gewählt werden.",
+    "config.mediaAudioAction.description": "Standardaktion, wenn das gewählte Modell Audio nicht hört. Die Transkription fragt einmal vor der ersten Belastung und nennt Preis und gemeinsames Tagesbudget.",
+    "config.mediaAudioAction.enumDescriptions.transcribe": "Mit Muse Voice transkribieren (0,18 USD pro Audiostunde; fragt einmal vor der ersten Belastung).",
+    "config.mediaAudioAction.enumDescriptions.sendAudio": "Audio nur senden, wenn bestätigt ist, dass das gewählte Modell es hört.",
+    "command.attachScreenRecording.title": "Bildschirmaufnahme anhängen…",
+    "command.attachLatestScreenRecording.title": "Neueste Bildschirmaufnahme anhängen",
+    "command.deleteUploadedFiles.title": "Hochgeladene Dateien löschen…"
+  },
+  "es": {
+    "config.mediaUploadExpiryDays.description": "Días hasta que caduquen los archivos multimedia subidos (1–30). Al eliminar una sesión también se eliminan las subidas que ninguna sesión siga usando.",
+    "config.mediaMaxUploadMiB.description": "Tamaño máximo de subida multimedia en MiB (hasta 1024), también limitado por el modelo y proveedor seleccionados.",
+    "config.screenRecordingMaxSeconds.description": "Duración máxima de grabación de pantalla en segundos (10–600). El micrófono y el audio del sistema están desactivados salvo que se seleccionen para cada grabación.",
+    "config.mediaAudioAction.description": "Acción predeterminada cuando el modelo seleccionado no oye audio. La transcripción pregunta una vez antes del primer cargo e indica su precio y el presupuesto diario compartido.",
+    "config.mediaAudioAction.enumDescriptions.transcribe": "Transcribir con Muse Voice (0,18 USD por hora de audio; pregunta una vez antes del primer cargo).",
+    "config.mediaAudioAction.enumDescriptions.sendAudio": "Enviar audio solo cuando se haya verificado que el modelo seleccionado lo oye.",
+    "command.attachScreenRecording.title": "Adjuntar grabación de pantalla…",
+    "command.attachLatestScreenRecording.title": "Adjuntar la última grabación de pantalla",
+    "command.deleteUploadedFiles.title": "Eliminar archivos subidos…"
+  },
+  "fr": {
+    "config.mediaUploadExpiryDays.description": "Nombre de jours avant l’expiration des médias envoyés (1–30). Supprimer une session supprime aussi les fichiers envoyés qu’aucune session n’utilise encore.",
+    "config.mediaMaxUploadMiB.description": "Taille maximale d’envoi de médias en Mio (jusqu’à 1 024), également limitée par le modèle et le fournisseur choisis.",
+    "config.screenRecordingMaxSeconds.description": "Durée maximale d’enregistrement d’écran en secondes (10–600). Le microphone et l’audio système sont désactivés sauf s’ils sont sélectionnés pour cet enregistrement.",
+    "config.mediaAudioAction.description": "Action par défaut lorsque le modèle choisi n’entend pas l’audio. La transcription demande une fois avant la première facturation, en indiquant son prix et le budget quotidien partagé.",
+    "config.mediaAudioAction.enumDescriptions.transcribe": "Transcrire avec Muse Voice (0,18 USD par heure audio ; demande une fois avant la première facturation).",
+    "config.mediaAudioAction.enumDescriptions.sendAudio": "Envoyer l’audio uniquement si la capacité du modèle choisi à l’entendre est vérifiée.",
+    "command.attachScreenRecording.title": "Joindre un enregistrement d’écran…",
+    "command.attachLatestScreenRecording.title": "Joindre le dernier enregistrement d’écran",
+    "command.deleteUploadedFiles.title": "Supprimer les fichiers envoyés…"
+  },
+  "hu": {
+    "config.mediaUploadExpiryDays.description": "A feltöltött média lejáratáig hátralévő napok száma (1–30). Egy munkamenet törlése a feltöltéseket is törli, ha más munkamenet már nem használja őket.",
+    "config.mediaMaxUploadMiB.description": "A médiafeltöltés maximális mérete MiB-ban (legfeljebb 1024), a választott modell és szolgáltató korlátaival együtt.",
+    "config.screenRecordingMaxSeconds.description": "A képernyőfelvétel maximális időtartama másodpercben (10–600). A mikrofon és a rendszerhang ki van kapcsolva, hacsak az adott felvételhez nem választják ki őket.",
+    "config.mediaAudioAction.description": "Alapértelmezett művelet, ha a választott modell nem hallja a hangot. Az átírás az első díj felszámítása előtt egyszer rákérdez, feltüntetve az árat és a közös napi keretet.",
+    "config.mediaAudioAction.enumDescriptions.transcribe": "Átírás a Muse Voice segítségével (0,18 USD hangóránként; az első díj előtt egyszer rákérdez).",
+    "config.mediaAudioAction.enumDescriptions.sendAudio": "Hang küldése csak akkor, ha igazolt, hogy a választott modell hallja azt.",
+    "command.attachScreenRecording.title": "Képernyőfelvétel csatolása…",
+    "command.attachLatestScreenRecording.title": "A legutóbbi képernyőfelvétel csatolása",
+    "command.deleteUploadedFiles.title": "Feltöltött fájlok törlése…"
+  },
+  "it": {
+    "config.mediaUploadExpiryDays.description": "Giorni prima della scadenza dei contenuti multimediali caricati (1–30). Eliminare una sessione elimina anche i caricamenti che nessuna sessione usa più.",
+    "config.mediaMaxUploadMiB.description": "Dimensione massima dei caricamenti multimediali in MiB (fino a 1024), limitata anche dal modello e dal fornitore selezionati.",
+    "config.screenRecordingMaxSeconds.description": "Durata massima della registrazione dello schermo in secondi (10–600). Microfono e audio di sistema sono disattivati salvo se selezionati per la singola registrazione.",
+    "config.mediaAudioAction.description": "Azione predefinita quando il modello selezionato non sente l’audio. La trascrizione chiede una volta prima del primo addebito, indicando prezzo e budget giornaliero condiviso.",
+    "config.mediaAudioAction.enumDescriptions.transcribe": "Trascrivi con Muse Voice (0,18 USD per ora di audio; chiede una volta prima del primo addebito).",
+    "config.mediaAudioAction.enumDescriptions.sendAudio": "Invia audio solo quando è verificato che il modello selezionato lo senta.",
+    "command.attachScreenRecording.title": "Allega una registrazione dello schermo…",
+    "command.attachLatestScreenRecording.title": "Allega l’ultima registrazione dello schermo",
+    "command.deleteUploadedFiles.title": "Elimina i file caricati…"
+  },
+  "ja": {
+    "config.mediaUploadExpiryDays.description": "アップロードしたメディアの有効期限までの日数（1～30）。セッションを削除すると、ほかのセッションで使用されていないアップロードも削除されます。",
+    "config.mediaMaxUploadMiB.description": "メディアの最大アップロードサイズ（MiB、最大 1,024）。選択したモデルとプロバイダーの制限も適用されます。",
+    "config.screenRecordingMaxSeconds.description": "画面録画の最長時間（秒、10～600）。マイクとシステム音声は、各録画で選択しない限りオフです。",
+    "config.mediaAudioAction.description": "選択したモデルが音声を聞き取れない場合の既定の操作。文字起こしは初回課金前に一度確認し、料金と共有の 1 日予算を表示します。",
+    "config.mediaAudioAction.enumDescriptions.transcribe": "Muse Voice で文字起こし（音声 1 時間あたり 0.18 米ドル、初回課金前に一度確認）。",
+    "config.mediaAudioAction.enumDescriptions.sendAudio": "選択したモデルが音声を聞き取れると確認された場合のみ送信します。",
+    "command.attachScreenRecording.title": "画面録画を添付…",
+    "command.attachLatestScreenRecording.title": "最新の画面録画を添付",
+    "command.deleteUploadedFiles.title": "アップロード済みファイルを削除…"
+  },
+  "ko": {
+    "config.mediaUploadExpiryDays.description": "업로드된 미디어가 만료될 때까지의 일수 (1~30). 세션을 삭제하면 다른 세션에서 사용하지 않는 업로드도 삭제됩니다.",
+    "config.mediaMaxUploadMiB.description": "최대 미디어 업로드 크기 (MiB, 최대 1,024). 선택한 모델과 공급자의 한도도 적용됩니다.",
+    "config.screenRecordingMaxSeconds.description": "최대 화면 녹화 길이 (초, 10~600). 마이크와 시스템 오디오는 각 녹화에서 선택하지 않는 한 꺼져 있습니다.",
+    "config.mediaAudioAction.description": "선택한 모델이 오디오를 듣지 못할 때의 기본 동작. 전사는 첫 과금 전에 한 번 확인하고 가격과 공유 일일 예산을 표시합니다.",
+    "config.mediaAudioAction.enumDescriptions.transcribe": "Muse Voice로 전사 (오디오 시간당 0.18 USD, 첫 과금 전에 한 번 확인).",
+    "config.mediaAudioAction.enumDescriptions.sendAudio": "선택한 모델이 오디오를 듣는다고 확인된 경우에만 전송합니다.",
+    "command.attachScreenRecording.title": "화면 녹화 첨부…",
+    "command.attachLatestScreenRecording.title": "최근 화면 녹화 첨부",
+    "command.deleteUploadedFiles.title": "업로드된 파일 삭제…"
+  },
+  "pl": {
+    "config.mediaUploadExpiryDays.description": "Liczba dni do wygaśnięcia przesłanych multimediów (1–30). Usunięcie sesji usuwa też przesłane pliki, których nie używa już żadna sesja.",
+    "config.mediaMaxUploadMiB.description": "Maksymalny rozmiar przesyłanych multimediów w MiB (do 1024), ograniczony również przez wybrany model i dostawcę.",
+    "config.screenRecordingMaxSeconds.description": "Maksymalny czas nagrywania ekranu w sekundach (10–600). Mikrofon i dźwięk systemowy są wyłączone, chyba że zostaną wybrane dla danego nagrania.",
+    "config.mediaAudioAction.description": "Domyślne działanie, gdy wybrany model nie słyszy dźwięku. Transkrypcja pyta raz przed pierwszą opłatą, podając cenę i wspólny dzienny budżet.",
+    "config.mediaAudioAction.enumDescriptions.transcribe": "Transkrybuj za pomocą Muse Voice (0,18 USD za godzinę dźwięku; pyta raz przed pierwszą opłatą).",
+    "config.mediaAudioAction.enumDescriptions.sendAudio": "Wyślij dźwięk tylko wtedy, gdy potwierdzono, że wybrany model go słyszy.",
+    "command.attachScreenRecording.title": "Dołącz nagranie ekranu…",
+    "command.attachLatestScreenRecording.title": "Dołącz ostatnie nagranie ekranu",
+    "command.deleteUploadedFiles.title": "Usuń przesłane pliki…"
+  },
+  "pt-br": {
+    "config.mediaUploadExpiryDays.description": "Dias até a expiração da mídia enviada (1–30). Excluir uma sessão também exclui os envios que nenhuma sessão ainda utiliza.",
+    "config.mediaMaxUploadMiB.description": "Tamanho máximo de envio de mídia em MiB (até 1.024), também limitado pelo modelo e provedor selecionados.",
+    "config.screenRecordingMaxSeconds.description": "Duração máxima da gravação de tela em segundos (10–600). Microfone e áudio do sistema ficam desativados, salvo se selecionados para cada gravação.",
+    "config.mediaAudioAction.description": "Ação padrão quando o modelo selecionado não ouve áudio. A transcrição pergunta uma vez antes da primeira cobrança, informando o preço e o orçamento diário compartilhado.",
+    "config.mediaAudioAction.enumDescriptions.transcribe": "Transcrever com Muse Voice (US$ 0,18 por hora de áudio; pergunta uma vez antes da primeira cobrança).",
+    "config.mediaAudioAction.enumDescriptions.sendAudio": "Enviar áudio somente quando for verificado que o modelo selecionado o ouve.",
+    "command.attachScreenRecording.title": "Anexar gravação de tela…",
+    "command.attachLatestScreenRecording.title": "Anexar a última gravação de tela",
+    "command.deleteUploadedFiles.title": "Excluir arquivos enviados…"
+  },
+  "ru": {
+    "config.mediaUploadExpiryDays.description": "Число дней до истечения срока хранения загруженных медиа (1–30). Удаление сессии также удаляет загрузки, которые больше не используются другими сессиями.",
+    "config.mediaMaxUploadMiB.description": "Максимальный размер загрузки медиа в МиБ (до 1024), также ограниченный выбранной моделью и поставщиком.",
+    "config.screenRecordingMaxSeconds.description": "Максимальная длительность записи экрана в секундах (10–600). Микрофон и системный звук выключены, если не выбраны для конкретной записи.",
+    "config.mediaAudioAction.description": "Действие по умолчанию, когда выбранная модель не слышит аудио. Расшифровка спрашивает один раз до первой оплаты, показывая цену и общий дневной бюджет.",
+    "config.mediaAudioAction.enumDescriptions.transcribe": "Расшифровать с Muse Voice (0,18 USD за час аудио; спрашивает один раз до первой оплаты).",
+    "config.mediaAudioAction.enumDescriptions.sendAudio": "Отправлять аудио только при подтверждении, что выбранная модель его слышит.",
+    "command.attachScreenRecording.title": "Прикрепить запись экрана…",
+    "command.attachLatestScreenRecording.title": "Прикрепить последнюю запись экрана",
+    "command.deleteUploadedFiles.title": "Удалить загруженные файлы…"
+  },
+  "tr": {
+    "config.mediaUploadExpiryDays.description": "Yüklenen medyanın süresinin dolmasına kalan gün sayısı (1–30). Bir oturumu silmek, başka oturumun kullanmadığı yüklemeleri de siler.",
+    "config.mediaMaxUploadMiB.description": "MiB cinsinden azami medya yükleme boyutu (1.024'e kadar); seçilen model ve sağlayıcının sınırları da geçerlidir.",
+    "config.screenRecordingMaxSeconds.description": "Saniye cinsinden azami ekran kaydı süresi (10–600). Her kayıt için seçilmedikçe mikrofon ve sistem sesi kapalıdır.",
+    "config.mediaAudioAction.description": "Seçilen model sesi duyamadığında varsayılan işlem. Yazıya dökme, ilk ücret öncesinde fiyatı ve ortak günlük bütçeyi belirterek bir kez sorar.",
+    "config.mediaAudioAction.enumDescriptions.transcribe": "Muse Voice ile yazıya dök (ses saati başına 0,18 USD; ilk ücret öncesinde bir kez sorar).",
+    "config.mediaAudioAction.enumDescriptions.sendAudio": "Yalnızca seçilen modelin sesi duyduğu doğrulandığında ses gönder.",
+    "command.attachScreenRecording.title": "Ekran kaydı ekle…",
+    "command.attachLatestScreenRecording.title": "En son ekran kaydını ekle",
+    "command.deleteUploadedFiles.title": "Yüklenen dosyaları sil…"
+  },
+  "zh-cn": {
+    "config.mediaUploadExpiryDays.description": "上传媒体的有效期天数（1–30）。删除会话时，也会删除其他会话不再使用的上传文件。",
+    "config.mediaMaxUploadMiB.description": "媒体上传大小上限（MiB，最多 1,024），同时受所选模型和提供商的限制。",
+    "config.screenRecordingMaxSeconds.description": "屏幕录制的最长时间（秒，10–600）。除非为此次录制选中，否则麦克风和系统音频均关闭。",
+    "config.mediaAudioAction.description": "所选模型无法听到音频时的默认操作。转录会在首次收费前询问一次，并显示价格和共享的每日预算。",
+    "config.mediaAudioAction.enumDescriptions.transcribe": "使用 Muse Voice 转录（每音频小时 0.18 美元，首次收费前询问一次）。",
+    "config.mediaAudioAction.enumDescriptions.sendAudio": "仅在确认所选模型能够听到音频时发送。",
+    "command.attachScreenRecording.title": "附加屏幕录制…",
+    "command.attachLatestScreenRecording.title": "附加最新的屏幕录制",
+    "command.deleteUploadedFiles.title": "删除已上传的文件…"
+  },
+  "zh-tw": {
+    "config.mediaUploadExpiryDays.description": "上傳媒體的有效期天數（1–30）。刪除工作階段時，也會刪除其他工作階段不再使用的上傳檔案。",
+    "config.mediaMaxUploadMiB.description": "媒體上傳大小上限（MiB，最多 1,024），同時受所選模型和供應商的限制。",
+    "config.screenRecordingMaxSeconds.description": "螢幕錄製的最長時間（秒，10–600）。除非為此次錄製選取，否則麥克風和系統音訊均關閉。",
+    "config.mediaAudioAction.description": "所選模型無法聽到音訊時的預設操作。轉錄會在首次收費前詢問一次，並顯示價格與共用的每日預算。",
+    "config.mediaAudioAction.enumDescriptions.transcribe": "使用 Muse Voice 轉錄（每音訊小時 0.18 美元，首次收費前詢問一次）。",
+    "config.mediaAudioAction.enumDescriptions.sendAudio": "僅在確認所選模型能夠聽到音訊時傳送。",
+    "command.attachScreenRecording.title": "附加螢幕錄製…",
+    "command.attachLatestScreenRecording.title": "附加最新的螢幕錄製",
+    "command.deleteUploadedFiles.title": "刪除已上傳的檔案…"
+  }
+}
