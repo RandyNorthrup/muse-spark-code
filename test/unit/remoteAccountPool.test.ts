@@ -200,11 +200,12 @@ describe('M108 D routing by the pinned device', () => {
     rig.accounts.rows.shift()
     rig.state.placement.rows.shift()
     const restarted = new RemoteAccountPool(rig.deps)
-    const request = routeRequest({ account: 'c', destination: 'device-1' })
+    const request = routeRequest({ account: 'a', destination: 'device-1' })
     await expect(restarted.run(request, rig.dispatch)).rejects.toMatchObject({
       code: 'routeUnavailable',
     })
     expect(rig.limitStore.write).toHaveBeenCalledTimes(1)
+    expect(await restarted.run(routeRequest({ account: 'a' }), rig.dispatch)).toBe('device-2')
     const [stored] = rig.blocks.values()
     expect(stored).toMatchObject({ account: 'a', limitGroup: 'shared', scope: 'group' })
     // The default is a bounded minute, rather than renewed by route decisions.

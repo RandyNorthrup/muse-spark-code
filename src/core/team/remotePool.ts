@@ -243,11 +243,6 @@ export class RemoteAccountPool {
     const owner = this.owner(request)
     const held = this.sticky.get(owner)
     const current = held?.id ?? request.account
-    const account =
-      accountPoolSchema
-        .parse(this.deps.accounts(request.provider))
-        .find((row) => row.id === current) ?? held
-    if (account === undefined) throw new Error(UI_TEXT.accounts.invalidAccount)
     if (!this.limits.has(owner)) {
       const stored = await this.deps.limitStore.read(owner)
       this.limits.set(
@@ -255,6 +250,16 @@ export class RemoteAccountPool {
         stored === undefined ? undefined : Object.freeze(accountLimitBlockSchema.parse(stored)),
       )
     }
+    const retained = this.limits.get(owner)
+    const account =
+      accountPoolSchema
+        .parse(this.deps.accounts(request.provider))
+        .find((row) => row.id === current) ??
+      held ??
+      (retained?.account === current
+        ? { id: retained.account, limitGroup: retained.limitGroup }
+        : undefined)
+    if (account === undefined) throw new Error(UI_TEXT.accounts.invalidAccount)
     // A retry/later threshold cannot erase the original live group by moving
     // the sticky route. Once it expires, a new trigger captures a new block.
     const previous = this.block(owner)
