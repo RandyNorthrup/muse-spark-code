@@ -110,7 +110,7 @@
   "config.modelApiPromptCacheRetention.enumDescriptions.24h": "最多 24 小時，因此暫停後回來的對話仍可從快取讀取。價格與保留在記憶體中相同。",
   "config.modelApiPromptCacheRetention.enumDescriptions.inMemory": "Meta 的預設值：保留在記憶體中，在負載較高或一段時間閒置後會提早移除。",
   "config.turnCheckpoints.description": "預設開啟：儲存模型自身的檔案、影像、工作區記憶和符號重新命名工具的寫入，以便在已連線的 Model API 工作階段中進行還原與重做，而且只有檔案仍與模型留下的內容完全一致時才會操作。命令、鉤子、MCP 工具的變更、你自己的編輯以及其他視窗的寫入均不會還原；副本保存在擴充功能儲存空間中，不會寫入工作區的 .git。需要 PATH 中有 git，且工作區受信任。",
-  "config.bundledSkills.description": "預設開啟：Muse Spark 隨附的技能（high-quality-projects 套件中的 project_setup、feature_delivery 和 quality_retrofit）可在 Model API 後端使用，優先順序低於任何同名的專案技能或個人技能。Muse Code 只讀取自己的資料夾，因此需要透過「Muse Spark: 為 Muse Code 安裝隨附技能」為其安裝，Muse Code 對話會在每個視窗中提示一次，直到您安裝它們或選擇「現在不要」。其交付輔助指令碼需要 Python 3.12 或更新版本。",
+  "config.bundledSkills.description": "預設開啟：隨附的專案品質工作流程與自有技能可用於 Model API 後端，同名專案或個人技能優先。Muse Code 僅讀取自己的資料夾，因此請使用 Muse Spark：為 Muse Code 安裝隨附技能來安裝；每個視窗提示一次，直到安裝或選擇「暫不」。品質工作流程的交付輔助工具需要 Python 3.12 或更新版本。",
   "config.diagnosticsAfterEdits.description": "每次編輯後，把 VS Code 語言伺服器回報的最多 8 個已編輯檔案錯誤與警告，連同自上次檢查以來的變化，交給模型 (Model API 後端；一旦模型寫入了編輯器會當作程式碼執行的檔案，在您傳送下一則訊息之前不再提供)，或提示 Muse Code 自行檢查。預設開啟。",
   "config.checkCommands.description": "Model API 後端在每次編輯後、模型下一個要求之前執行的 lint、測試或型別檢查命令；模型也可以用 run_checks 執行它們，並提示 Muse Code 自行執行。每個命令都像 shell 工具執行命令那樣執行，包括你的工具鉤子：在 shell 命令會詢問的地方都會詢問 (「手動」、「自動編輯」和「自動」模式，你的命令規則允許的除外)，在代理編輯了決定其執行內容的檔案後會再次詢問 (命令規則允許的除外)，在規劃模式和限制模式下絕不執行，並在時間限制處停止。連續三次失敗後，在你傳送下一則訊息之前不再執行。",
   "config.checkCommands.name.description": "檢查的簡短名稱，例如 lint 或 test。",
