@@ -50,6 +50,43 @@ function sealedTail(): Pick<ProblemReportInput, 'recordingUnavailable' | 'nowMs'
   }
 }
 
+/** A client whose credentials resolve through a gate, recording every send. */
+async function gatedClient() {
+  const service = new VaultScrubService()
+  await service.unlock(() => Promise.resolve([]))
+  const secret = `opaque:${randomBytes(24).toString('base64url')}`
+  const scrubbed = Promise.withResolvers<undefined>()
+  const innerScrub = service.scrub.bind(service)
+  vi.spyOn(service, 'scrub').mockImplementation(async (text: string) => {
+    const out = await innerScrub(text)
+    scrubbed.resolve(undefined)
+    return out
+  })
+  const keyGate = Promise.withResolvers<string>()
+  const sent: string[] = []
+  const created = `data: ${JSON.stringify({ type: 'response.created', response: { id: 'r1' } })}\n\n`
+  const client = new ModelApiClient({
+    ...fakeModelApiClientSettings(new FakeLogOutputChannel()),
+    apiKey: () => keyGate.promise,
+    vaultScrub: service,
+    fetch: (_url, init) => {
+      if (typeof init?.body !== 'string') throw new Error('expected JSON request body')
+      sent.push(init.body)
+      return Promise.resolve(new Response(new TextEncoder().encode(created), { status: 200 }))
+    },
+  })
+  return { service, secret, scrubbed, keyGate, sent, client }
+}
+
+/** Starts one gated turn, resolving once its first scrub ran. */
+function startGatedTurn(t: Awaited<ReturnType<typeof gatedClient>>) {
+  const stop = new AbortController()
+  const result = Array.fromAsync(
+    t.client.streamResponse(body(t.secret), stop.signal, undefined, undefined, () => undefined),
+  )
+  return { result, started: t.scrubbed.promise }
+}
+
 describe('vault scrub boundaries', () => {
   it('scrubs the complete Model API body before every HTTP try, including token counting', async () => {
     const t = await vault(),
@@ -122,77 +159,32 @@ describe('vault scrub boundaries', () => {
     expect(started).not.toHaveBeenCalled()
   })
   it('rebuilds the body when the vault rotates while credentials resolve (RVM109T-3)', async () => {
-    const service = new VaultScrubService()
-    await service.unlock(() => Promise.resolve([]))
-    const secret = `opaque:${randomBytes(24).toString('base64url')}`
-    const scrubbed = Promise.withResolvers<undefined>()
-    const innerScrub = service.scrub.bind(service)
-    vi.spyOn(service, 'scrub').mockImplementation(async (text: string) => {
-      const out = await innerScrub(text)
-      scrubbed.resolve(undefined)
-      return out
-    })
-    const keyGate = Promise.withResolvers<string>()
-    const sent: string[] = []
-    const created = `data: ${JSON.stringify({ type: 'response.created', response: { id: 'r1' } })}\n\n`
-    const client = new ModelApiClient({
-      ...fakeModelApiClientSettings(new FakeLogOutputChannel()),
-      apiKey: () => keyGate.promise,
-      vaultScrub: service,
-      fetch: (_url, init) => {
-        if (typeof init?.body !== 'string') throw new Error('expected JSON request body')
-        sent.push(init.body)
-        return Promise.resolve(new Response(new TextEncoder().encode(created), { status: 200 }))
-      },
-    })
+    const t = await gatedClient()
     try {
-      const stop = new AbortController()
-      const result = Array.fromAsync(
-        client.streamResponse(body(secret), stop.signal, undefined, undefined, () => undefined),
-      )
-      await scrubbed.promise
+      const turn = startGatedTurn(t)
+      await turn.started
       // The value lands in the vault only after the first scrub ran.
-      await service.unlock(() => Promise.resolve([Buffer.from(secret)]))
-      keyGate.resolve(FAKE_MODEL_API_KEY)
-      await result
-      expect(sent).toHaveLength(1)
-      expect(sent[0]).not.toContain(secret)
-      expect(sent[0]).toContain(REDACTED_MARK)
+      await t.service.unlock(() => Promise.resolve([Buffer.from(t.secret)]))
+      t.keyGate.resolve(FAKE_MODEL_API_KEY)
+      await turn.result
+      expect(t.sent).toHaveLength(1)
+      expect(t.sent[0]).not.toContain(t.secret)
+      expect(t.sent[0]).toContain(REDACTED_MARK)
     } finally {
-      service.lock()
+      t.service.lock()
     }
   })
   it('refuses the send when Lock lands while credentials resolve (RVM109T-3)', async () => {
-    const service = new VaultScrubService()
-    await service.unlock(() => Promise.resolve([]))
-    const secret = `opaque:${randomBytes(24).toString('base64url')}`
-    const scrubbed = Promise.withResolvers<undefined>()
-    const innerScrub = service.scrub.bind(service)
-    vi.spyOn(service, 'scrub').mockImplementation(async (text: string) => {
-      const out = await innerScrub(text)
-      scrubbed.resolve(undefined)
-      return out
-    })
-    const keyGate = Promise.withResolvers<string>()
-    const fetch = vi.fn<typeof globalThis.fetch>()
-    const client = new ModelApiClient({
-      ...fakeModelApiClientSettings(new FakeLogOutputChannel()),
-      apiKey: () => keyGate.promise,
-      vaultScrub: service,
-      fetch,
-    })
+    const t = await gatedClient()
     try {
-      const stop = new AbortController()
-      const result = Array.fromAsync(
-        client.streamResponse(body(secret), stop.signal, undefined, undefined, () => undefined),
-      )
-      await scrubbed.promise
-      service.lock()
-      keyGate.resolve(FAKE_MODEL_API_KEY)
-      await expect(result).rejects.toThrow()
-      expect(fetch).not.toHaveBeenCalled()
+      const turn = startGatedTurn(t)
+      await turn.started
+      t.service.lock()
+      t.keyGate.resolve(FAKE_MODEL_API_KEY)
+      await expect(turn.result).rejects.toThrow()
+      expect(t.sent).toHaveLength(0)
     } finally {
-      service.lock()
+      t.service.lock()
     }
   })
   it('removes vault values from portable JSON even when full export is selected', async () => {
