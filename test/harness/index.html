@@ -4568,6 +4568,23 @@
             whenFound('.palette-header .button-secondary', (control) => control.click())
           })
         },
+        'readme-open-question': () => {
+          transcriptFixture()
+          questionScene('open')
+          whenFound('.open-questions-chip > button', (answer) => {
+            answer.click()
+            whenFound('.attention-dock .question-open:not([hidden]) .question-input', (input) =>
+              input.focus(),
+            )
+          })
+        },
+        'readme-help': () => {
+          steps.help()
+          whenFound('#reference-search', (search) => {
+            setValue(search, HTMLInputElement.prototype, 'Next open question')
+            whenFound('#reference-commands article', () => search.focus())
+          })
+        },
       }
       for (const name of [
         'questions-waiting',

@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Documentation
+
+- README screenshots refreshed for the question dock, Git actions, slash
+  commands and paid usage; added open-question and Help & Reference
+  views, with matching captions on both landing pages.
+
 ### Fixed
 
 - Problem reports retain frames from the shipped question deferral bundle.

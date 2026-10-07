@@ -193,6 +193,8 @@ export const SCENARIOS = [
   'review-comment',
   'report',
   'report-narrow',
+  'readme-open-question',
+  'readme-help',
 ]
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
