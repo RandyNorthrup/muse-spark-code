@@ -12802,6 +12802,35 @@ test that fails without the rule:
 Rows marked **covered** keep their existing decision as the owner: D87.14,
 D90.25, D96, D88 and D97.
 
+### D101 — Evidence-backed agent activity, outcomes and recovery (M119, owner 2026-10-06)
+
+The Agent map and ACP listing separate activity (Active, Waiting with a reason,
+Inactive) from ended outcomes (Complete, Incomplete, Failed, Cancelled,
+Ended, unverified). Structured evidence alone decides outcomes: normal stop,
+budget exhaustion, final check exits, unfinished items, required checks and
+worktree state. Missing evidence is unverified; a final message is never parsed
+for claims of completeness. Active means an in-flight call/tool or output in a
+named short window. Silence does not certify success.
+
+| Source                               | Available evidence                                                                                                                                   | Limits and recovery                                                                                                                                                                                                                                                                              |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Muse Code subagents / child sessions | Captured M14/M18 item/control states, child-session transcript, tool calls, result and turn terminals                                                | No captured end reason, required-check declaration or private-worktree/checkpoint report. Ended normal agents remain unverified. Continue uses captured followupTask on the same child when supported. Retry refuses without a verified isolated checkpoint. No new MSP fields or verbs guessed. |
+| Model API subagents                  | Owned child session, queued/running/interrupted/result/closed states, owned request/step budgets, tool exits and verification reports, final message | Children share the workspace; it is not their own worktree. Continue keeps the session and edits, obtains fresh paid consent and obeys current permissions/budgets. Retry refuses: resetting a shared workspace could destroy another agent's edits.                                             |
+| M47 workflow agents                  | Captured child ID, attempt, status, terminal, duration and usage; reconciled run report                                                              | No per-child session, commands, files or resumable checkpoint. Receipt explicitly marks missing evidence. Both recovery actions refuse with a reason.                                                                                                                                            |
+| Background tasks                     | Owned/captured tool arguments, output, exit and duration where reported                                                                              | Commands are tasks, not objective-completion proof. Missing exit evidence stays unverified. No resumable agent session/checkpoint; recovery refuses.                                                                                                                                             |
+| ACP / other editors                  | Same portable evidence mapping and receipts from session events/history                                                                              | Local /agents listing, receipt and explicitly confirmed Continue/Retry expose identical evidence and refusals; no model request for local inspection.                                                                                                                                            |
+
+Receipts are bounded, redacted using existing tool-output redaction and read on
+selection within the lazy Agent map budget. They list linked files and line
+counts where supplied, commands/check results with exit/duration where supplied,
+stop reason and final message. Missing fields are labelled unavailable, never
+empty success. Attempts retain prior receipts; recovery never happens
+implicitly. Continue includes the receipt's structured reason/unfinished items
+followed by the original objective unchanged. Retry starts only from a verified
+last commit/start checkpoint in an isolated worktree; otherwise explicit refusal.
+All UI strings ship in every translated table. Activity/outcome are text and
+outcome changes have a polite announcement. Harness states run in four themes.
+
 ## 3. Open questions (need the owner)
 
 - **Q-M115 — What M115 needs from the owner (2026-10-06).** Nothing here
@@ -29496,6 +29525,21 @@ Authority: the rig brief and lead decisions, refining D92/M112 from
       scoped rig gates and hooks-on local commits; record in
       `docs/certification/m112-u.md`. Lead retains aggregate quality and existing
       Q/A/editor integration handoffs. No merge, push, dependency or gate widening.
+
+### M119 — Agent activity, honest outcomes and receipts (D101)
+
+- [x] Record backend evidence and recovery limits before implementation.
+- [ ] Portable structured outcome/activity mapping and bounded receipt evidence.
+- [ ] Live Agent map, workflow and background task activity/outcomes; lazy receipts.
+- [ ] Owner-confirmed Continue and Retry with honest unsupported refusals,
+      preserved original objective/session/edits and numbered attempt history.
+- [ ] ACP /agents inspection, receipt and recovery parity for all editors.
+- [ ] Fourteen translations, Help & Reference/feature catalog, README screenshots.
+- [ ] Owning unit tests at default timeouts, intentional mapping failure with
+      byte-exact restoration, five typechecks, lint, prettier, plain knip,
+      duplication, localization/reference/host gates and unchanged production caps.
+- [ ] Four-theme zero-violation harness scenes, CHANGELOG and certification record
+      in docs/certification/agent-outcomes.md with completed/blocked evidence.
 
 ## 7. Gates
 
