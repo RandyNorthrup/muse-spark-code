@@ -13,6 +13,7 @@ import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { FakeAgentHost } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
+import { testAgentBase } from './helpers/acpAgentBase'
 import { until } from './helpers/acpWaits'
 import { FakeQuestionAcpClient } from './helpers/questions/acpClient'
 import { acpQuestionEvent, FakeAcpQuestionRegistry } from './helpers/questions/acpRegistry'
@@ -472,18 +473,12 @@ function agentHarness(
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   const questionBundle = vi.fn(() => questionFactories)
   const agent = createAcpAgent({
-    backend: {
-      kind: 'museCode',
-      readiness: () => Promise.resolve({ state: 'ready' }),
-      hostFor: () => Promise.resolve(host),
-    },
-    version: 'test',
-    options: {
+    ...testAgentBase(host, {
       canBypass: false,
       allowsContributorModels: false,
       initialMode: 'manual',
       questionsDeferAfterSeconds: 10,
-    },
+    }),
     signIn: { id: 'test', name: 'test', description: 'test', command: 'test', args: [] },
     defaultCwd: CWD,
     paid: new AcpPaidUse({

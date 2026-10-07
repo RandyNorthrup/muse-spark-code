@@ -40,6 +40,23 @@ async function start(port: EstimatorPanelPort) {
   await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
 }
 
+/** A mounted panel whose adapter already forecasts, ready to spin up. */
+async function mountReady(
+  spinUp: (section: EstimateSection, setup: EstimateSection['setups'][number]) => Promise<void>,
+) {
+  const first = harness()
+  const initial = fakeEstimate().inputs.request
+  const mounted = render(
+    <EstimatorPanel
+      port={{ ...first.port, provision: { state: 'ready', spinUp } }}
+      initial={initial}
+    />,
+  )
+  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateRun }))
+  await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
+  return { first, initial, mounted }
+}
+
 async function refuseForecast() {
   fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateRun }))
   await waitFor(() => {
@@ -283,15 +300,7 @@ describe('M117 Estimator panel', () => {
   })
 
   it('does not provision an old adapter forecast through a replacement adapter', async () => {
-    const first = harness()
-    const firstReady: EstimatorPanelPort = {
-      ...first.port,
-      provision: { state: 'ready', spinUp: vi.fn(() => Promise.resolve()) },
-    }
-    const initial = fakeEstimate().inputs.request
-    const mounted = render(<EstimatorPanel port={firstReady} initial={initial} />)
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateRun }))
-    await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
+    const { initial, mounted } = await mountReady(vi.fn(() => Promise.resolve()))
     const second = harness()
     const secondSpin = vi.fn(() => Promise.resolve())
     const secondReady: EstimatorPanelPort = {
@@ -311,21 +320,10 @@ describe('M117 Estimator panel', () => {
   })
 
   it('ignores a late provisioning failure from a replaced adapter', async () => {
-    const first = harness()
     const gate = Promise.withResolvers<undefined>()
-    const firstReady: EstimatorPanelPort = {
-      ...first.port,
-      provision: {
-        state: 'ready',
-        spinUp: vi.fn(async () => {
-          await gate.promise
-        }),
-      },
-    }
-    const initial = fakeEstimate().inputs.request
-    const mounted = render(<EstimatorPanel port={firstReady} initial={initial} />)
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateRun }))
-    await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
+    const { initial, mounted } = await mountReady(async () => {
+      await gate.promise
+    })
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateSpinUp }))
     const second = harness()
     mounted.rerender(<EstimatorPanel port={second.port} initial={initial} />)

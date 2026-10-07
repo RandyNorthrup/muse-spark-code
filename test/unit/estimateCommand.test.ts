@@ -41,6 +41,22 @@ function runner(): EstimateRunPort {
   return { estimate: vi.fn((request: EstimateRequest) => Promise.resolve(result(request))) }
 }
 
+interface PendingRun {
+  request: EstimateRequest
+  signal: AbortSignal
+  resolve: (value: unknown) => void
+}
+
+/** Resolve the newer of two pending runs after the older was superseded. */
+function settleSuperseded(pending: PendingRun[]): { older: PendingRun; newer: PendingRun } {
+  const older = pending[0],
+    newer = pending[1]
+  if (older === undefined || newer === undefined) throw new Error('missing pending runs')
+  expect(older.signal.aborted).toBe(true)
+  newer.resolve(result(newer.request))
+  return { older, newer }
+}
+
 describe('M117 estimate command', () => {
   it('renders byte-identical terminal output across process time zones and languages', () => {
     const compiled = buildSync({
@@ -396,11 +412,7 @@ describe('M117 re-estimation and TUI', () => {
     if (laneId === undefined) throw new Error('missing fixture lane')
     event({ laneId, asOf: '2026-10-06T12:30:00.000Z' })
     expect(pending).toHaveLength(2)
-    const older = pending[0],
-      newer = pending[1]
-    if (!older || !newer) throw new Error('missing pending runs')
-    expect(older.signal.aborted).toBe(true)
-    newer.resolve(result(newer.request))
+    const { older } = settleSuperseded(pending)
     await vi.waitFor(() => {
       expect(publish).toHaveBeenCalledTimes(1)
     })
@@ -435,11 +447,7 @@ describe('M117 re-estimation and TUI', () => {
     )
     const first = view.refresh()
     const second = view.refresh('2026-10-06T12:30:00.000Z')
-    const older = pending[0],
-      newer = pending[1]
-    if (!older || !newer) throw new Error('missing pending runs')
-    expect(older.signal.aborted).toBe(true)
-    newer.resolve(result(newer.request))
+    const { older } = settleSuperseded(pending)
     await second
     older.resolve(result(older.request))
     await first

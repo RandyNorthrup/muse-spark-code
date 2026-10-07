@@ -540,8 +540,9 @@ const disclosureSchema = z
 /** Cover numbers in inputs and results, and dates predicting a finish.
  * Evidence metadata is covered too; only this index's own metadata is excluded
  * to avoid infinite self-description. JSON Pointer makes coverage unambiguous.
+ * Shared with the lazy estimator entry so the walk cannot drift between them.
  */
-function disclosureTargets(value: unknown, pointer = ''): Map<string, number | string> {
+export function disclosureTargets(value: unknown, pointer = ''): Map<string, number | string> {
   if (typeof value === 'number') return new Map([[pointer, value]])
   if (typeof value === 'string' && /\/(?:p50|p90)$/.test(pointer))
     return new Map([[pointer, value]])

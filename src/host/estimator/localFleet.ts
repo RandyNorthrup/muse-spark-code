@@ -15,6 +15,7 @@ import {
 } from '../../shared/constants'
 import { fill, UI_TEXT } from '../../shared/l10n/text'
 import { fleetSnapshotSchema, type EstimateLane, type FleetSnapshot } from '../../shared/estimate'
+import type { EstimatorSourcePorts } from './estimatorBundle'
 
 export interface LocalHost {
   readonly platform: string
@@ -92,6 +93,38 @@ export function fleetFromHost(
     slots: [{ id: 'local-0', machineId: 'local', roleId: 'local', accountId: 'local' }],
     ci: [],
   })
+}
+
+/** A milestone binding that refuses with its handoff name until it merges. */
+function missingEstimateBinding(dependency: string): never {
+  throw new Error(fill(UI_TEXT.estimateWaiting, { dependency }))
+}
+
+/**
+ * The refusing milestone bindings every shell assembles (M117, PLAN.md D97):
+ * this machine measured as the fleet; the snapshot, board, broker and catalog
+ * bindings refuse with their handoff names until those merge; history appends
+ * arrive with M115's lane-finished trigger. Only the price lookup differs.
+ */
+export function estimatorSourcePorts(
+  priceLookup: EstimatorSourcePorts['priceLookup'],
+): EstimatorSourcePorts {
+  return {
+    snapshot: () => missingEstimateBinding('M117-W-M113-plan-reader'),
+    fleet: (lanes) => Promise.resolve(localFleet(lanes)),
+    history: () => Promise.resolve([]),
+    candidatePool: (lanes) => Promise.resolve(localFleet(lanes)),
+    board: () => ({
+      audit: () => missingEstimateBinding('M117-W-M96-board'),
+      start: () => missingEstimateBinding('M117-W-M96-board'),
+    }),
+    prices: () => ({
+      cached: () => missingEstimateBinding('M117-W-M113-catalog'),
+      store: () => missingEstimateBinding('M117-W-M113-catalog'),
+      fetchPublic: () => missingEstimateBinding('M117-W-M113-catalog'),
+    }),
+    priceLookup,
+  }
 }
 
 /** This machine's fleet now. Read at call time: hot-plugged cores count. */

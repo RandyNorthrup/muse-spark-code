@@ -2,9 +2,11 @@ import dags from '../../../fixtures/estimator/dags.json'
 import {
   estimateLaneSchema,
   estimateSectionSchema,
+  type EstimateLane,
   type EstimateSection,
   type HistoryRecord,
 } from '../../../../src/shared/estimate'
+import type { EstimateGoalSnapshot } from '../../../../src/core/estimator/goal'
 import { ESTIMATE_RUNS } from '../../../../src/shared/constants'
 import { ESTIMATOR_AS_OF, fakeFleet } from './fakes'
 
@@ -39,6 +41,34 @@ export function fakeDisclosures(value: unknown, pointer = ''): EstimateSection['
           ? []
           : fakeDisclosures(child, `${pointer}/${key.replaceAll('~', '~0').replaceAll('/', '~1')}`),
       )
+}
+
+/** The `chain` dag with M117 lane ids, contracts first: one copy for every suite. */
+export function chainLanes(): EstimateLane[] {
+  const chain = dags.find((fixture) => fixture.name === 'chain')
+  if (chain === undefined) throw new Error('missing chain fixture')
+  return chain.lanes.map((input, index) =>
+    estimateLaneSchema.parse({
+      ...input,
+      id: `M117:${input.id}`,
+      kind: index === 0 ? 'contracts' : input.kind,
+      dependencies: input.dependencies.map((id) => `M117:${id}`),
+    }),
+  )
+}
+
+/** The chain lanes as a goal snapshot for the M117 milestone. */
+export function chainSnapshot(asOf = ESTIMATOR_AS_OF): EstimateGoalSnapshot {
+  const lanes = chainLanes().map((lane) => ({ lane }))
+  return {
+    asOf,
+    lanes,
+    milestones: [{ id: 'M117', laneIds: lanes.map(({ lane }) => lane.id) }],
+    pullRequests: [],
+    issues: [],
+    releases: [],
+    rigs: [],
+  }
 }
 
 export function fakeHistoryRecord(laneId = 'M117:core'): HistoryRecord {

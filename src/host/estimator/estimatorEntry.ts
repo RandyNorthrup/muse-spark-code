@@ -24,6 +24,7 @@ import { setUiText, fill, formatUsd } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 import { ESTIMATE_ENGINES, UI_TEXT } from '../../shared/constants'
 import {
+  disclosureTargets,
   estimateInputsSchema,
   estimateRequestSchema,
   estimateSectionSchema,
@@ -77,23 +78,6 @@ const assumed: Omit<Disclosure, 'path'> = {
   basis: 'assumption',
   samples: 0,
   uncertainty: { kind: 'unknown' },
-}
-
-/** Same walk as the section's own coverage rule: every number, and p50/p90 dates. */
-function disclosureTargets(value: unknown, pointer = ''): Map<string, number | string> {
-  if (typeof value === 'number') return new Map([[pointer, value]])
-  if (typeof value === 'string' && /\/(?:p50|p90)$/.test(pointer))
-    return new Map([[pointer, value]])
-  const targets = new Map<string, number | string>()
-  if (value !== null && typeof value === 'object') {
-    for (const [key, child] of Object.entries(value)) {
-      if (pointer === '' && key === 'disclosures') continue
-      const segment = key.replaceAll('~', '~0').replaceAll('/', '~1')
-      for (const [path, target] of disclosureTargets(child, `${pointer}/${segment}`))
-        targets.set(path, target)
-    }
-  }
-  return targets
 }
 
 function atPath(value: unknown, path: string): unknown {

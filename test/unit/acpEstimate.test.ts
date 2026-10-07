@@ -7,6 +7,7 @@ import { UI_TEXT } from '../../src/shared/l10n/text'
 import { fakeEstimate } from './helpers/estimator/fixtures'
 import { FakeAgentHost } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
+import { testAgentBase } from './helpers/acpAgentBase'
 import { until } from './helpers/acpWaits'
 
 const CWD = process.platform === 'win32' ? String.raw`C:\work\estimator` : '/work/estimator'
@@ -15,13 +16,7 @@ function harness(estimate?: AcpEstimatePort) {
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   const updates: acp.SessionUpdate[] = []
   const deps: AcpAgentDeps = {
-    backend: {
-      kind: 'museCode',
-      readiness: () => Promise.resolve({ state: 'ready' }),
-      hostFor: () => Promise.resolve(host),
-    },
-    version: 'test',
-    options: { canBypass: false, allowsContributorModels: false, initialMode: 'manual' },
+    ...testAgentBase(host),
     signIn: { id: 'test', name: 'Test', description: '', args: [], command: 'test' },
     questions: 'decline',
     defaultCwd: CWD,

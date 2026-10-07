@@ -2,12 +2,7 @@
 // from injected sources, deterministically, with an honest first wave.
 // Repository default timeout; no skips.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import dags from '../fixtures/estimator/dags.json'
-import {
-  estimateLaneSchema,
-  estimateSectionSchema,
-  type EstimateInputs,
-} from '../../src/shared/estimate'
+import { estimateSectionSchema, type EstimateInputs } from '../../src/shared/estimate'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import {
@@ -15,31 +10,9 @@ import {
   type EstimatorSourcePorts,
 } from '../../src/host/estimator/estimatorEntry'
 import { isEstimatorBundle } from '../../src/host/estimator/estimatorBundle'
-import type { EstimateGoalSnapshot } from '../../src/core/estimator/goal'
 import { ESTIMATOR_AS_OF, FakeEstimateStart } from './helpers/estimator/fakes'
+import { chainSnapshot } from './helpers/estimator/fixtures'
 import { scheduleFleet, simulationInputs } from './helpers/estimatorScheduleFixtures'
-
-function chainSnapshot(): EstimateGoalSnapshot {
-  const chain = dags.find((fixture) => fixture.name === 'chain')
-  if (chain === undefined) throw new Error('missing chain fixture')
-  const lanes = chain.lanes.map((input, index) => ({
-    lane: estimateLaneSchema.parse({
-      ...input,
-      id: `M117:${input.id}`,
-      kind: index === 0 ? 'contracts' : input.kind,
-      dependencies: input.dependencies.map((id) => `M117:${id}`),
-    }),
-  }))
-  return {
-    asOf: ESTIMATOR_AS_OF,
-    lanes,
-    milestones: [{ id: 'M117', laneIds: lanes.map(({ lane }) => lane.id) }],
-    pullRequests: [],
-    issues: [],
-    releases: [],
-    rigs: [],
-  }
-}
 
 function ports(
   board = new FakeEstimateStart(),

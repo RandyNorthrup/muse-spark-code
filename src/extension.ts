@@ -145,7 +145,7 @@ import {
 import { WindowHold, WorktreeRegistry } from './host/git/worktreeRegistry'
 import { lazyReview } from './host/review/reviewBundle'
 import { lazyEstimator } from './host/estimator/estimatorBundle'
-import { localFleet } from './host/estimator/localFleet'
+import { estimatorSourcePorts } from './host/estimator/localFleet'
 import { PendingPrompts, type BoardSession } from './core/sessionBoard'
 import { BestOfNCoordinator } from './core/bestOfN/bestOfNCoordinator'
 import { createMemoryFeatures } from './host/memoryFeatures'
@@ -462,11 +462,6 @@ const folderLookup: FolderLookup<vscode.Uri> = {
 /** Relative to the first folder; undefined for a file anywhere else, a second folder included. */
 function relativePathInWorkspace(uri: vscode.Uri): string | undefined {
   return rootRelativePath(uri, folderLookup)
-}
-
-/** An estimator binding that refuses with its handoff name until it merges (M117). */
-function missingEstimateBinding(dependency: string): never {
-  throw new Error(fill(UI_TEXT.estimateWaiting, { dependency }))
 }
 
 /** VS Code's file search, the first folder's files only (D27). */
@@ -2004,28 +1999,13 @@ async function activateWindow(
     log,
     ports: () => {
       const settings = currentSettings()
-      return {
-        snapshot: () => missingEstimateBinding('M117-W-M113-plan-reader'),
-        fleet: (lanes) => Promise.resolve(localFleet(lanes)),
-        history: () => Promise.resolve([]),
-        candidatePool: (lanes) => Promise.resolve(localFleet(lanes)),
-        board: () => ({
-          audit: () => missingEstimateBinding('M117-W-M96-board'),
-          start: () => missingEstimateBinding('M117-W-M96-board'),
-        }),
-        prices: () => ({
-          cached: () => missingEstimateBinding('M117-W-M113-catalog'),
-          store: () => missingEstimateBinding('M117-W-M113-catalog'),
-          fetchPublic: () => missingEstimateBinding('M117-W-M113-catalog'),
-        }),
-        priceLookup: () => ({
-          // No catalogs are pinned until M113 merges its Reports catalogs.
-          enabled: settings['estimator.priceLookup'],
-          networkAllowed: settings.sandboxNetwork !== SANDBOX_NETWORK_DENIED,
-          maxAgeMs: 0,
-          catalogUrls: [],
-        }),
-      }
+      return estimatorSourcePorts(() => ({
+        // No catalogs are pinned until M113 merges its Reports catalogs.
+        enabled: settings['estimator.priceLookup'],
+        networkAllowed: settings.sandboxNetwork !== SANDBOX_NETWORK_DENIED,
+        maxAgeMs: 0,
+        catalogUrls: [],
+      }))
     },
   })
 

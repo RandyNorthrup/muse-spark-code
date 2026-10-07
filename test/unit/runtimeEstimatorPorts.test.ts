@@ -3,24 +3,13 @@
 // price lookups off, and answer `/estimate --help` without loading the engine.
 // Repository default timeout; no skips.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import dags from '../fixtures/estimator/dags.json'
-import { estimateLaneSchema, fleetSnapshotSchema } from '../../src/shared/estimate'
+import { fleetSnapshotSchema } from '../../src/shared/estimate'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, fill, setUiText, UI_TEXT } from '../../src/shared/l10n/text'
 import { createRuntimeEstimate, runtimeEstimatorPorts } from '../../src/runtime/estimator/ports'
+import { chainLanes } from './helpers/estimator/fixtures'
 
-function lanes() {
-  const chain = dags.find((fixture) => fixture.name === 'chain')
-  if (chain === undefined) throw new Error('missing chain fixture')
-  return chain.lanes.map((input, index) =>
-    estimateLaneSchema.parse({
-      ...input,
-      id: `M117:${input.id}`,
-      kind: index === 0 ? 'contracts' : input.kind,
-      dependencies: input.dependencies.map((id) => `M117:${id}`),
-    }),
-  )
-}
+const lanes = chainLanes
 
 const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 

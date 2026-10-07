@@ -9,6 +9,25 @@ function insecureOrigin(): string {
   return origin.origin
 }
 
+type ProvisionFixture = ReturnType<typeof provisionProvider>
+
+/** The brokered provider with one operation's endpoint path replaced. */
+function connectWithPath(
+  fixture: ProvisionFixture,
+  operation: 'create' | 'status',
+  path: string,
+): () => unknown {
+  const endpoints = fixture.fake.endpoints.map((entry) =>
+    entry.operation === operation ? { ...entry, path } : entry,
+  )
+  return () =>
+    brokeredEstimateProvider(
+      { id: fixture.fake.id, apiOrigin: fixture.fake.apiOrigin, endpoints },
+      fixture.broker,
+      fixture.codec,
+    )
+}
+
 describe('M117 connected vault-brokered provider operations', () => {
   it('exposes exactly five operations and pins the origin before broker dispatch', async () => {
     const fixture = provisionProvider()
@@ -60,16 +79,7 @@ describe('M117 connected vault-brokered provider operations', () => {
     '/SIGN_UP',
   ])('refuses forbidden allow-list path %s before any request', (path) => {
     const fixture = provisionProvider()
-    const endpoints = fixture.fake.endpoints.map((entry) =>
-      entry.operation === 'create' ? { ...entry, path } : entry,
-    )
-    expect(() =>
-      brokeredEstimateProvider(
-        { id: fixture.fake.id, apiOrigin: fixture.fake.apiOrigin, endpoints },
-        fixture.broker,
-        fixture.codec,
-      ),
-    ).toThrow()
+    expect(connectWithPath(fixture, 'create', path)).toThrow()
     expect(fixture.requests).toEqual([])
   })
 
@@ -84,16 +94,7 @@ describe('M117 connected vault-brokered provider operations', () => {
     '/servers/{id}/extra',
   ])('refuses noncanonical endpoint %s', (path) => {
     const fixture = provisionProvider()
-    const endpoints = fixture.fake.endpoints.map((entry) =>
-      entry.operation === 'create' ? { ...entry, path } : entry,
-    )
-    expect(() =>
-      brokeredEstimateProvider(
-        { id: fixture.fake.id, apiOrigin: fixture.fake.apiOrigin, endpoints },
-        fixture.broker,
-        fixture.codec,
-      ),
-    ).toThrow()
+    expect(connectWithPath(fixture, 'create', path)).toThrow()
     expect(fixture.requests).toEqual([])
   })
 
@@ -145,16 +146,7 @@ describe('M117 connected vault-brokered provider operations', () => {
   it('requires the server ID as exactly one final status/delete segment', () => {
     const fixture = provisionProvider()
     for (const path of ['/servers', '/servers/{id}/{id}', '/servers/{id}/extra']) {
-      const endpoints = fixture.fake.endpoints.map((entry) =>
-        entry.operation === 'status' ? { ...entry, path } : entry,
-      )
-      expect(() =>
-        brokeredEstimateProvider(
-          { id: fixture.fake.id, apiOrigin: fixture.fake.apiOrigin, endpoints },
-          fixture.broker,
-          fixture.codec,
-        ),
-      ).toThrow('allow-list')
+      expect(connectWithPath(fixture, 'status', path)).toThrow('allow-list')
     }
   })
 

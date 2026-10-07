@@ -1,25 +1,12 @@
 // M117 W: the local fleet measures this machine and refuses platforms it
 // cannot name. Repository default timeout; no skips.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import dags from '../fixtures/estimator/dags.json'
-import { estimateLaneSchema } from '../../src/shared/estimate'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import { fleetFromHost } from '../../src/host/estimator/localFleet'
+import { chainLanes } from './helpers/estimator/fixtures'
 
 const AS_OF = '2026-10-06T12:00:00.000Z'
-function lanes() {
-  const chain = dags.find((fixture) => fixture.name === 'chain')
-  if (chain === undefined) throw new Error('missing chain fixture')
-  return chain.lanes.map((input, index) =>
-    estimateLaneSchema.parse({
-      ...input,
-      id: `M117:${input.id}`,
-      kind: index === 0 ? 'contracts' : input.kind,
-      dependencies: input.dependencies.map((id) => `M117:${id}`),
-    }),
-  )
-}
 
 beforeEach(() => {
   setUiText(EN, BASE_LOCALE)
@@ -32,7 +19,7 @@ describe('M117 local fleet', () => {
   it('measures this machine with one serial slot per lane kind', () => {
     const fleet = fleetFromHost(
       { platform: 'darwin', arch: 'arm64', cores: 8, ramGiB: 16 },
-      lanes(),
+      chainLanes(),
       AS_OF,
     )
     expect(fleet.asOf).toBe(AS_OF)
@@ -59,7 +46,7 @@ describe('M117 local fleet', () => {
   it('leaves disks unknown instead of guessing headroom', () => {
     const fleet = fleetFromHost(
       { platform: 'linux', arch: 'x64', cores: 4, ramGiB: 7.75 },
-      lanes(),
+      chainLanes(),
       AS_OF,
     )
     expect(fleet.machines[0]?.classId).toBe('linux-x64')
@@ -68,7 +55,7 @@ describe('M117 local fleet', () => {
     ])
   })
   it('refuses platforms, architectures and measurements it cannot name', () => {
-    const kinds = lanes()
+    const kinds = chainLanes()
     for (const host of [
       { platform: 'freebsd', arch: 'x64', cores: 8, ramGiB: 16 },
       { platform: 'linux', arch: 'mips', cores: 8, ramGiB: 16 },
