@@ -30,7 +30,12 @@ export function questionFixture(overrides: Partial<OpenQuestion> = {}): OpenQues
 }
 
 /** The ACP-local commands announced without invoking the conversation model. */
-export function expectedQuestionCommandsUpdate(): SessionUpdate {
+export function expectedQuestionCommandsUpdate(
+  skillCommands: Extract<
+    SessionUpdate,
+    { sessionUpdate: 'available_commands_update' }
+  >['availableCommands'] = [],
+): SessionUpdate {
   return {
     sessionUpdate: 'available_commands_update',
     availableCommands: [
@@ -41,6 +46,7 @@ export function expectedQuestionCommandsUpdate(): SessionUpdate {
         description: UI_TEXT.referenceAgentOutcomes,
         input: { hint: '[receipt|continue|retry] [ID]' },
       },
+      ...skillCommands,
       { name: 'answer', description: UI_TEXT.acpAnswerHelp, input: { hint: '<n> <text>' } },
       { name: 'questions', description: UI_TEXT.acpQuestionsHelp, input: null },
     ],

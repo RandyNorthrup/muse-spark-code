@@ -1,5 +1,6 @@
 import * as acp from '@agentclientprotocol/sdk'
 import { describe, expect, it, vi } from 'vitest'
+import { UI_TEXT } from '../../src/shared/constants'
 import { createAcpAgent } from '../../src/acp/agent'
 import { AcpPaidUse } from '../../src/acp/paid'
 import { FakeAgentHost } from './helpers/fakeAgent'
@@ -111,6 +112,11 @@ describe('ACP local usage command', () => {
           description: 'Show usage and cost across models, or open the usage page.',
           input: null,
         },
+        {
+          name: 'agents',
+          description: UI_TEXT.referenceAgentOutcomes,
+          input: { hint: '[receipt|continue|retry] [ID]' },
+        },
       ],
     })
     expect(h.updates).toContainEqual({
@@ -186,6 +192,7 @@ describe('ACP local usage command', () => {
           'help',
           'compact',
           'usage',
+          'agents',
         ])
   })
 

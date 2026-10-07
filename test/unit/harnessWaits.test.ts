@@ -155,49 +155,46 @@ function readinessPage(now: () => number) {
 
 function longStream() {
   const timers: ScheduledEvent[] = []
-  let receive: (() => void) | undefined
-  const port1 = {
-    get onmessage() {
-      return receive
-    },
-    set onmessage(callback: (() => void) | undefined) {
+  let receive: ((message: { readonly data: unknown }) => void) | undefined
+  const window = {
+    addEventListener: vi.fn((_type: string, callback: NonNullable<typeof receive>) => {
       receive = callback
-    },
-    close: vi.fn(),
-  }
-  const port2 = {
-    postMessage: vi.fn(() => {
-      if (receive === undefined) throw new Error('Missing stream continuation')
-      timers.push({ delay: 0, run: receive })
     }),
-    close: vi.fn(),
+    removeEventListener: vi.fn(() => {
+      receive = undefined
+    }),
   }
-  const event = vi.fn<(message: unknown) => void>()
+  const event = vi.fn<(message: unknown) => void>((message) => {
+    timers.push({
+      delay: 0,
+      run: () => {
+        if (receive === undefined) throw new Error('Missing stream receiver')
+        receive({ data: { type: 'agentEvent', event: message } })
+      },
+    })
+  })
   const report = vi.fn()
   const context = {
     pendingScenarioEvents: 0,
-    window: {},
+    window,
     setDraft: vi.fn(),
     key: vi.fn(),
     event,
     report,
     longReply: () => 'x'.repeat(250),
-    MessageChannel: function () {
-      return { port1, port2 }
-    },
   }
   const start = () => {
     const source = harnessSection('long: () => {', 'focus: () => {')
     runInNewContext(`const steps = {${source}}; steps.long();`, context)
   }
-  return { timers, context, event, report, port1, port2, start }
+  return { timers, context, event, report, window, start }
 }
 
 describe('harness scenario event readiness', () => {
   it('yields between every long-stream delta, retaining their order and final completion', () => {
     const fixture = longStream()
     fixture.start()
-    expect(fixture.event).toHaveBeenCalledTimes(2)
+    expect(fixture.event).toHaveBeenCalledTimes(1)
     expect(fixture.context.pendingScenarioEvents).toBe(1)
     while (fixture.timers.length > 0) runNext(fixture.timers)
     expect(fixture.event.mock.calls.map(([message]) => message)).toEqual([
@@ -217,13 +214,28 @@ describe('harness scenario event readiness', () => {
       },
     ])
     expect(fixture.context.pendingScenarioEvents).toBe(0)
-    expect(fixture.port2.postMessage).toHaveBeenCalledTimes(3)
     expect(fixture.report).toHaveBeenCalledWith('long: 3 deltas rendered')
-    expect(fixture.port1.close).toHaveBeenCalledOnce()
-    expect(fixture.port2.close).toHaveBeenCalledOnce()
+    expect(fixture.window.removeEventListener).toHaveBeenCalledOnce()
   })
 
-  it('releases the long-stream continuation and both ports when a delta fails', () => {
+  it('keeps readiness pending until the completion frame is delivered', () => {
+    const fixture = longStream()
+    fixture.start()
+    for (let frame = 0; frame < 4; frame += 1) runNext(fixture.timers)
+    expect(fixture.event).toHaveBeenLastCalledWith({
+      type: 'itemCompleted',
+      item: { itemId: 'long', kind: 'agentMessage', status: 'completed' },
+    })
+    expect(fixture.context.pendingScenarioEvents).toBe(1)
+    expect(fixture.report).not.toHaveBeenCalled()
+    expect(fixture.window.removeEventListener).not.toHaveBeenCalled()
+    runNext(fixture.timers)
+    expect(fixture.context.pendingScenarioEvents).toBe(0)
+    expect(fixture.report).toHaveBeenCalledOnce()
+    expect(fixture.window.removeEventListener).toHaveBeenCalledOnce()
+  })
+
+  it('releases the long-stream receiver when a delta fails', () => {
     const fixture = longStream()
     fixture.start()
     fixture.event.mockImplementation(() => {
@@ -235,8 +247,7 @@ describe('harness scenario event readiness', () => {
     expect(fixture.context.pendingScenarioEvents).toBe(0)
     expect(fixture.timers).toHaveLength(0)
     expect(fixture.report).not.toHaveBeenCalled()
-    expect(fixture.port1.close).toHaveBeenCalledOnce()
-    expect(fixture.port2.close).toHaveBeenCalledOnce()
+    expect(fixture.window.removeEventListener).toHaveBeenCalledOnce()
   })
 
   it('requires timing reasons for readiness timers too', () => {

@@ -995,21 +995,11 @@ describe('the ACP agent (M63)', () => {
       session?.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
       await response
     })
-    expect(h.updates[0]).toEqual({
-      sessionUpdate: 'available_commands_update',
-      availableCommands: [
-        { name: 'help', description: UI_TEXT.referenceIntro, input: null },
-        { name: 'compact', description: UI_TEXT.compactDetail, input: null },
-        {
-          name: 'agents',
-          description: UI_TEXT.referenceAgentOutcomes,
-          input: { hint: '[receipt|continue|retry] [ID]' },
-        },
+    expect(h.updates[0]).toEqual(
+      expectedQuestionCommandsUpdate([
         { name: 'review', description: 'Review', input: { hint: '<path>' } },
-        { name: 'answer', description: UI_TEXT.acpAnswerHelp, input: { hint: '<n> <text>' } },
-        { name: 'questions', description: UI_TEXT.acpQuestionsHelp, input: null },
-      ],
-    })
+      ]),
+    )
     expect(h.host.sessions[0]?.sendTurn).toHaveBeenCalledWith(
       [{ type: 'skill', selector: 'review', arguments: 'src/app.ts' }],
       '/review src/app.ts',

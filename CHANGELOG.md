@@ -18,6 +18,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Load packed runtime and English regions through explicit CommonJS requires
+  under Node 22 loader hooks, preserving archive digest checks and fallback.
+
+- Keep the GitHub-only badge authorization spread compliant with the existing
+  lint gate, retaining unauthenticated requests when no job token is supplied.
+
+- Deliver every long-reply harness frame before advancing the stream, keeping
+  readiness pending through completion within its existing deadline.
+
 - ACP cancellation stops the running model turn while local agent inspection
   waits, and a late cancelled read preserves newer command preparation.
 - Agent receipts read patch references through the child that owns them and

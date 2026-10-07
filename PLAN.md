@@ -18881,13 +18881,50 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
       current team, question and agent-map behavior and all localized keys.
 - [x] Audit the older agent-outcomes changes against current runtime paths;
       add regression tests and prove any repair with a byte-restored red drill.
-- [ ] Verify committed code in a fresh clone after `npm ci`, with `CI=true`:
-      five typechecks, lint, formatting, plain knip, duplication, reference,
-      localization, unchanged production budgets and four default-timeout
-      coverage shards with merged thresholds.
+- [~] Verify committed code in a fresh clone after `npm ci`, with `CI=true`:
+  five typechecks, lint, formatting, plain knip, duplication, reference,
+  localization, unchanged production budgets and four default-timeout
+  coverage shards with merged thresholds.
 - [ ] Run the accessibility harness; regenerate README screenshots and replace
       only images changed by these features. Record commands, counts, drills
       and blockers in `docs/certification/int0160ux.md`.
+
+Fresh-clone lint reproduced an unchanged release-base violation in
+`scripts/check-badges.mjs`: its conditional job-token object spread violates
+`unicorn/consistent-conditional-object-spread`. INT0160UX's requirement to fix
+all verification failures includes this syntax-only gate repair. Preserve
+GitHub-only authorization and add empty/absent-token boundary coverage.
+The merged compact/agents command expectation also exposes one duplication:
+reuse the existing ACP command fixture with optional skill commands, keeping
+all ordering and command assertions intact. Update the existing ACP usage
+inventory assertions for the new local `/agents` command, retaining all usage
+routing/cancellation/no-model-call checks. The legal cap drill's fixture must
+use production's existing model-text compression plugin; its budget stays
+150 KiB and the real production build already passes. Add the plugin
+factory's minimal declaration so the fixture is checked without a suppression. Whole-shard verification
+also requires current App tests to answer in the attention dock, the warmer
+and bundle test to follow QPIN's single question/elicitation chunk, and every
+harness map opener to distinguish the Agent map pill from Side chat.
+Transcript folding tests must assert the unfurled marker; submitted markers
+and dock controls keep their lock checks. Crash/reload must restore exactly
+one interactive dock card and its transcript marker. Approval-first App
+fixtures must deliver host resolution before answering a question: approval
+priority remains intact. Share the five dock button queries inside the
+existing App test file to avoid duplicating long accessible-region selectors.
+Investigate the long-stream harness readiness failure
+without increasing its deadline; preserve every delta and completion. A real
+Chrome probe shows MessageChannel completion can precede delivery of queued
+window messages, leaving only a partial reply when readiness reports done.
+Advance the stream from delivery of its own window message instead, removing
+the second task per delta and keeping readiness pending through completion.
+
+Packaged exec reproduces a release-base Node 22 loader-hook failure before
+any dispatch: native CommonJS import lacks implicit `require.cache`. A small
+real Node 22 probe confirms explicit `createRequire(__filename).cache` remains
+available. Generate both archive wrappers with that explicit require, preserving
+member digests, bounded decoding, inline English fallback and named exports.
+Extend the existing native-import packaging regression to synchronous hooks;
+retain all built-engine, credential isolation and signal assertions/deadlines.
 
 Version remains 0.15.0. Entries belong under Unreleased. The rig brief permits
 these two merges and full fresh-clone verification; no other merge, push,

@@ -3203,51 +3203,48 @@
           window.harnessSilent = true
           setDraft('Explain the whole codebase')
           key({ key: 'Enter' })
-          event({
-            type: 'itemStarted',
-            item: { itemId: 'long', kind: 'agentMessage', status: 'inProgress', text: '' },
-          })
           const chunks = longReply().match(/[\s\S]{1,100}/g)
           let index = 0
-          // Zero-delay timers clamp nested continuations to at least 4 ms.
-          // A port task still yields between every delta without that throttle.
-          const continuation = new MessageChannel()
-          const close = () => {
-            continuation.port1.close()
-            continuation.port2.close()
-          }
-          const pump = () => {
-            const chunk = chunks[index]
-            index += 1
-            if (chunk === undefined) {
-              event({
-                type: 'itemCompleted',
-                item: { itemId: 'long', kind: 'agentMessage', status: 'completed' },
-              })
+          // Advance only after the webview received the previous frame. A
+          // separate MessageChannel can outrun queued window messages and
+          // declare readiness while the reply is still only partly delivered.
+          const close = () => window.removeEventListener('message', continueStream)
+          const continueStream = ({ data }) => {
+            if (
+              data?.type !== 'agentEvent' ||
+              (data.event?.itemId ?? data.event?.item?.itemId) !== 'long'
+            )
+              return
+            if (data.event.type === 'itemCompleted') {
+              pendingScenarioEvents -= 1
               report(`long: ${String(chunks.length)} deltas rendered`)
               close()
               return
             }
-            event({ type: 'textDelta', itemId: 'long', field: 'text', delta: chunk })
-            pendingScenarioEvents += 1
-            continuation.port2.postMessage(null)
-          }
-          const run = () => {
+            if (data.event.type !== 'itemStarted' && data.event.type !== 'textDelta') return
             try {
-              pump()
+              const chunk = chunks[index]
+              index += 1
+              event(
+                chunk === undefined
+                  ? {
+                      type: 'itemCompleted',
+                      item: { itemId: 'long', kind: 'agentMessage', status: 'completed' },
+                    }
+                  : { type: 'textDelta', itemId: 'long', field: 'text', delta: chunk },
+              )
             } catch (error) {
+              pendingScenarioEvents -= 1
               close()
               throw error
             }
           }
-          continuation.port1.onmessage = () => {
-            try {
-              run()
-            } finally {
-              pendingScenarioEvents -= 1
-            }
-          }
-          run()
+          pendingScenarioEvents += 1
+          window.addEventListener('message', continueStream)
+          event({
+            type: 'itemStarted',
+            item: { itemId: 'long', kind: 'agentMessage', status: 'inProgress', text: '' },
+          })
         },
         focus: () => {
           send({ type: 'settingsChanged', settings: { ...settings, focusView: true } })
@@ -3644,7 +3641,7 @@
                   result: ended ? { summary: 'The parser change was reviewed.' } : undefined,
                 },
               })
-              whenFound('.agents-pill', (pill) => pill.click())
+              whenFound('.agents-pill[title]', (pill) => pill.click())
               if (ended) whenFound('.agent-node-clickable', (node) => node.click())
             },
           ]),
