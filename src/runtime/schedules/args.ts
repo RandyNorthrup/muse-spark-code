@@ -1,6 +1,6 @@
 // M115 X: parsing does not load the schedule engine into ACP's startup bundle.
 import { parseArgs } from 'node:util'
-import { SCHEDULE_TIMELINE_HOURS, UI_TEXT } from '../../shared/constants'
+import { SCHEDULE_REPORT_FORMATS, SCHEDULE_TIMELINE_HOURS, UI_TEXT } from '../../shared/constants'
 
 export interface ScheduleCommandOptions {
   readonly operation:
@@ -20,6 +20,10 @@ export interface ScheduleCommandOptions {
   readonly isJson: boolean
   readonly id?: string
   readonly draft?: string
+  readonly reportKind?: string
+  readonly reportArgs?: readonly string[]
+  readonly reportFormat?: string
+  readonly reportTo?: readonly string[]
   readonly hours?: string
   readonly scheduledPrompts?: boolean
   readonly maxBudgetUsd?: number
@@ -59,6 +63,9 @@ export function parseScheduleCommand(argv: readonly string[]): ScheduleCommandPa
         cwd: { type: 'string' },
         json: { type: 'boolean' },
         draft: { type: 'string' },
+        report: { type: 'string' },
+        to: { type: 'string', multiple: true },
+        format: { type: 'string' },
         hours: { type: 'string' },
         'scheduled-prompts': { type: 'boolean' },
         'max-budget-usd': { type: 'string' },
@@ -66,7 +73,18 @@ export function parseScheduleCommand(argv: readonly string[]): ScheduleCommandPa
       },
     })
     const [operation, argument, ...extra] = positionals
-    if (extra.length > 0 || values.cwd === '') return refused()
+    if ((extra.length > 0 && values.report === undefined) || values.cwd === '') return refused()
+    if (
+      (values.report !== undefined &&
+        (operation !== 'add' ||
+          values.report === '' ||
+          values.to === undefined ||
+          values.to.length === 0)) ||
+      (values.report === undefined && (values.to !== undefined || values.format !== undefined)) ||
+      values.to?.some((item) => item !== 'browser' && !/^(?:save|email):[^\p{Cc}]+$/u.test(item)) ||
+      (values.format !== undefined && !['md', ...SCHEDULE_REPORT_FORMATS].includes(values.format))
+    )
+      return refused()
     if (
       values.registration !== undefined &&
       (operation !== 'run-due' ||
@@ -84,7 +102,7 @@ export function parseScheduleCommand(argv: readonly string[]): ScheduleCommandPa
           ? undefined
           : scheduleBudgetUsd(values['max-budget-usd'])
       if (budget === undefined && values['max-budget-usd'] !== undefined) return refused()
-      return argument !== undefined ||
+      return (argument !== undefined && values.report === undefined) ||
         values.draft === undefined ||
         values.draft === '' ||
         values.hours !== undefined
@@ -95,6 +113,12 @@ export function parseScheduleCommand(argv: readonly string[]): ScheduleCommandPa
               ...common,
               operation,
               draft: values.draft,
+              ...(values.report !== undefined && {
+                reportKind: values.report,
+                reportArgs: argument === undefined ? [] : [argument, ...extra],
+                reportTo: values.to,
+                reportFormat: values.format ?? 'markdown',
+              }),
               ...(values['scheduled-prompts'] !== undefined && {
                 scheduledPrompts: values['scheduled-prompts'],
               }),

@@ -2799,7 +2799,7 @@
       "retry": "Újra"
     },
     "runtime": {
-      "usage": "Használat: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Kilépési kódok: 0 siker, 1 elutasítás, 2 használati hiba, 3 takarítási figyelmeztetés.",
+      "usage": "Használat: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Kilépési kódok: 0 siker, 1 elutasítás, 2 használati hiba, 3 takarítási figyelmeztetés.",
       "accepted": "Ütemezési kérés elfogadva",
       "empty": "Nincsenek ütemezések vagy közelgő futtatások.",
       "unavailable": "Ezen a gazdagépen az ütemezések nem érhetők el. A futtatókörnyezet ütemezőjének csatlakoztatása szükséges.",
@@ -2813,6 +2813,22 @@
       "cleanupFailed": "Az ütemezési kérés befejeződött, de a takarítás sikertelen. Őrizze meg az elfogadott azonosítót; a 3-as kilépési kód takarítási problémát jelez.",
       "hostUnavailable": "Az ütemező gazdafolyamata nem indult el ehhez a munkaterülethez. Az ütemezési vezérlők nem érhetők el; a szokásos csevegés továbbra is elérhető.",
       "wakeBarrierTimeout": "Az ütemezett indítás túllépte a háttérbeli egyeztetésre várás időkorlátját. Nem indult el ütemezett munka."
+    },
+    "reportAction": {
+      "unavailable": "A jelentések kézbesítése ezen a gépen nem érhető el. A determinisztikus jelentésfuttató szükséges.",
+      "grantRequired": "Ez a jelentéscél kívül esik az ütemezés jelenlegi engedélyén.",
+      "failed": "A jelentés kézbesítése sikertelen, vagy az eredménye bizonytalan.",
+      "invalidResult": "A jelentésfuttató érvénytelen kézbesítési visszaigazolást adott.",
+      "kind": "Jelentéstípus",
+      "format": "Formátum",
+      "args": "Argumentumok",
+      "destinations": "Célok",
+      "formats": {
+        "markdown": "Markdown-dokumentum",
+        "html": "HTML-dokumentum",
+        "json": "JSON-dokumentum",
+        "text": "Egyszerű szöveg"
+      }
     }
   }
 }

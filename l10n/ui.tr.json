@@ -2799,7 +2799,7 @@
       "retry": "Yeniden dene"
     },
     "runtime": {
-      "usage": "Kullanım: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Çıkış kodları: 0 başarı, 1 ret, 2 kullanım hatası, 3 temizlik uyarısı.",
+      "usage": "Kullanım: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Çıkış kodları: 0 başarı, 1 ret, 2 kullanım hatası, 3 temizlik uyarısı.",
       "accepted": "Zamanlama isteği kabul edildi",
       "empty": "Zamanlama veya yaklaşan çalıştırma yok.",
       "unavailable": "Bu ana makinede zamanlamalar kullanılamıyor. Çalışma zamanı zamanlayıcısının bağlantısı gerekiyor.",
@@ -2813,6 +2813,22 @@
       "cleanupFailed": "Zamanlama isteği tamamlandı ancak temizlik başarısız oldu. Kabul edilen kimliği saklayın; çıkış kodu 3, temizliğin müdahale gerektirdiğini belirtir.",
       "hostUnavailable": "Bu çalışma alanı için zamanlama sunucusu başlatılamadı. Zamanlama denetimleri kullanılamıyor; normal sohbet kullanılabilir.",
       "wakeBarrierTimeout": "Zamanlanmış çalıştırma, arka plan eşitlemesini beklerken zaman aşımına uğradı. Hiçbir zamanlanmış iş başlatılmadı."
+    },
+    "reportAction": {
+      "unavailable": "Bu ana makinede rapor teslimi kullanılamıyor. Deterministik rapor çalıştırıcısı gerekiyor.",
+      "grantRequired": "Bu rapor hedefi, zamanlamanın mevcut izninin dışında.",
+      "failed": "Rapor teslimi başarısız oldu veya sonucu belirsiz.",
+      "invalidResult": "Rapor çalıştırıcısı geçersiz bir hedef teslim kaydı döndürdü.",
+      "kind": "Rapor türü",
+      "format": "Biçim",
+      "args": "Bağımsız değişkenler",
+      "destinations": "Hedefler",
+      "formats": {
+        "markdown": "Markdown belgesi",
+        "html": "HTML belgesi",
+        "json": "JSON belgesi",
+        "text": "Düz metin"
+      }
     }
   }
 }

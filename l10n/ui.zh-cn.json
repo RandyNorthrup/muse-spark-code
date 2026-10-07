@@ -2701,7 +2701,7 @@
       "retry": "重试"
     },
     "runtime": {
-      "usage": "用法: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] 退出代码：0 成功，1 拒绝，2 用法错误，3 清理警告。",
+      "usage": "用法: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] 退出代码：0 成功，1 拒绝，2 用法错误，3 清理警告。",
       "accepted": "已接受计划请求",
       "empty": "没有计划或即将运行的任务。",
       "unavailable": "此主机无法使用计划任务。需要连接运行时调度器。",
@@ -2715,6 +2715,22 @@
       "cleanupFailed": "计划请求已完成，但清理失败。请保留已接受的 ID；退出代码 3 表示清理需要处理。",
       "hostUnavailable": "无法为此工作区启动计划服务。计划控制不可用；普通聊天仍可使用。",
       "wakeBarrierTimeout": "计划执行在等待后台同步时超时。未启动任何计划任务。"
+    },
+    "reportAction": {
+      "unavailable": "此主机不支持报告交付，需要确定性报告运行器。",
+      "grantRequired": "此报告目标不在计划当前的授权范围内。",
+      "failed": "报告交付失败或结果不确定。",
+      "invalidResult": "报告运行器返回了无效的目标回执。",
+      "kind": "报告类型",
+      "format": "格式",
+      "args": "参数",
+      "destinations": "目标",
+      "formats": {
+        "markdown": "Markdown 文档",
+        "html": "HTML 文档",
+        "json": "JSON 文档",
+        "text": "纯文本"
+      }
     }
   }
 }

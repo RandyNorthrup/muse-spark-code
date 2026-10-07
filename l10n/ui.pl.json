@@ -2995,7 +2995,7 @@
       "retry": "Ponów"
     },
     "runtime": {
-      "usage": "Użycie: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Kody wyjścia: 0 sukces, 1 odmowa, 2 błąd użycia, 3 ostrzeżenie o sprzątaniu.",
+      "usage": "Użycie: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Kody wyjścia: 0 sukces, 1 odmowa, 2 błąd użycia, 3 ostrzeżenie o sprzątaniu.",
       "accepted": "Przyjęto żądanie harmonogramu",
       "empty": "Brak harmonogramów lub nadchodzących uruchomień.",
       "unavailable": "Harmonogramy są niedostępne na tym hoście. Wymagane jest połączenie z harmonogramem środowiska wykonawczego.",
@@ -3009,6 +3009,22 @@
       "cleanupFailed": "Żądanie harmonogramu zakończono, ale sprzątanie nie powiodło się. Zachowaj przyjęty identyfikator; kod wyjścia 3 oznacza problem ze sprzątaniem.",
       "hostUnavailable": "Nie udało się uruchomić hosta harmonogramów dla tego obszaru roboczego. Sterowanie harmonogramami jest niedostępne; zwykły czat pozostaje dostępny.",
       "wakeBarrierTimeout": "Zaplanowane uruchomienie przekroczyło limit oczekiwania na synchronizację w tle. Żadna zaplanowana praca nie została rozpoczęta."
+    },
+    "reportAction": {
+      "unavailable": "Dostarczanie raportów jest niedostępne na tym hoście. Wymagany jest deterministyczny moduł raportów.",
+      "grantRequired": "Ten cel raportu wykracza poza bieżące uprawnienia harmonogramu.",
+      "failed": "Dostarczenie raportu nie powiodło się lub jego wynik jest niepewny.",
+      "invalidResult": "Moduł raportów zwrócił nieprawidłowe potwierdzenie dostarczenia.",
+      "kind": "Rodzaj raportu",
+      "format": "Format raportu",
+      "args": "Argumenty",
+      "destinations": "Cele",
+      "formats": {
+        "markdown": "Dokument Markdown",
+        "html": "Dokument HTML",
+        "json": "Dokument JSON",
+        "text": "Zwykły tekst"
+      }
     }
   }
 }
