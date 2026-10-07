@@ -12802,6 +12802,13 @@ test that fails without the rule:
    residual register per milestone that must be empty or accepted before
    release.
 8. **M117 (estimator):** G4 base age as a schedule risk.
+9. **M105 (multimodal integration):** G28 a producer→consumer delivery test
+   through the real port before a handoff closes (named test:
+   modelApiMedia 'delivers a read_file video through replay as its
+   file-id', which fails with the consumer stashed); G29 budget findings
+   quote the repository gate's command and numbers, re-measured on the
+   integration tree (the startup gate `node scripts/check-bundle-size.mjs`
+   itself is the enforcing test).
 
 Rows marked **covered** keep their existing decision as the owner: D87.14,
 D90.25, D96, D88 and D97.
