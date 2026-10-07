@@ -29087,6 +29087,13 @@ packer, and retain existing missing-artifact guards. Existing built exec rows
 validate the writer's actual v2 envelope. Record before-fix failures and
 byte-exact guard mutations; no new command, dependency, timeout or cap.
 
+**M107-W native fixture deadline repair (2026-10-06).** The final complete
+run exposes default-deadline native fixture pressure.
+Keep every assertion and all 32 real PID-reuse births; bound that test's Linux
+numerical discovery to its own real child PIDs while leaving native stat,
+membership, signalling and the separate full-discovery descendant tests intact.
+No production reader, timeout or attempt count changes.
+
 **M107-W continuation qualification (2026-10-06).** The new rig brief
 explicitly authorizes the final DK no-fast-forward merge and a complete
 unit/e2e suite in batches of at most three files, `--maxWorkers=3`, with the

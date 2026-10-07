@@ -93,10 +93,14 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
     })
     it('attempts PID reuse across fast births and never signals a later process through an old ticket', async () => {
       const folder = await mkdtemp(path.join(tmpdir(), 'm107-t2-reuse-'))
+      const fixturePids = new Set<number>()
       const reader =
         process.platform === 'darwin'
           ? new MacResourceTreeReader({ helperPath })
-          : new LinuxResourceTreeReader()
+          : new LinuxResourceTreeReader({
+              // Discover our real births; native stat/membership/signals still verify each one.
+              list: () => Promise.resolve([...fixturePids].map(String)),
+            })
       let prior: { registry: ResourceTreeRegistry; ticket: ResourceTicket } | undefined
       const births = new Set<string>()
       try {
@@ -113,6 +117,7 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
             stdio: ['pipe', 'pipe', 'pipe'],
           })
           const death = once(child, 'exit')
+          fixturePids.add(child.pid!)
           try {
             await once(child.stdout, 'data')
             const root = await reader.identity(child.pid!)

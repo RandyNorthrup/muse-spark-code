@@ -22,6 +22,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Native PID-reuse verification bounds discovery to its real fixture processes,
+  retaining all 32 births and native identity, membership and signal checks at
+  the default test deadline.
+
 - Complete M107 verification restores session-board change counts when Git has
   no filters, keeps resource bundle frames in scrubbed reports, and validates
   exec v2 resource events in the Action while preserving v1 results. Production
