@@ -72,6 +72,8 @@
     var(--vscode-editor-background, var(--ms-surface)) 55%,
     transparent
   );
+  --ms-usage-purple: #b180d7;
+  --ms-usage-orange: #d18616;
   --ms-radius-xs: 3px;
   --ms-radius-sm: 4px;
   --ms-radius-md: 6px;
@@ -200,6 +202,8 @@
     var(--vscode-editor-background, var(--ms-surface)) 55%,
     transparent
   );
+  --ms-usage-purple: #652d90;
+  --ms-usage-orange: #ba6800;
   --ms-radius-xs: 3px;
   --ms-radius-sm: 4px;
   --ms-radius-md: 6px;
@@ -324,6 +328,8 @@
   --ms-contrast-border: var(--ms-border);
   --ms-danger-legacy: #f14c4c;
   --ms-modal-scrim: #fff;
+  --ms-usage-purple: var(--ms-text);
+  --ms-usage-orange: var(--ms-text);
   --ms-radius-xs: 3px;
   --ms-radius-sm: 4px;
   --ms-radius-md: 6px;
@@ -448,6 +454,8 @@
   --ms-contrast-border: var(--ms-border);
   --ms-danger-legacy: #f14c4c;
   --ms-modal-scrim: #000;
+  --ms-usage-purple: var(--ms-text);
+  --ms-usage-orange: var(--ms-text);
   --ms-radius-xs: 3px;
   --ms-radius-sm: 4px;
   --ms-radius-md: 6px;

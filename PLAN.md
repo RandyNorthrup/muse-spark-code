@@ -19450,6 +19450,8 @@ as required by the rig brief; do not run full quality or merge in this lane.
 
 ### INT0170B — Complete 0.17.0 integration certification (2026-10-07)
 
+CSS repair: usage and report pages import the generated palettes. Usage chart colours gain explicit source roles with UI contrast pairs; no raw fallback survives in hand-edited CSS. Native host variables retain precedence; standalone pages use the Muse fallback.
+
 First-paint repair: load complete tool rows on their first rendered tool, using DeferredSurface for accessible loading, failure and retry. Give that new closure its own measured D6 budget; retain the 733.8 KiB startup and 32.1 KiB original-deferred ratchets. Schedule fallback bodies themselves retain dynamic imports.
 
 Integration decisions: preserve M95/M96/M102 provider resolution, usage recording, compaction cache metadata and the M101 stable ordinary prefix while adding M115 fire authority. Scheduled requests use the local fire date; their compaction summaries record the exact instructions and input delivered. Schedule settlements load through the existing deferred tool-body closure and its unchanged 25 KiB cap. The shared wire entry also carries scheduleProtocol so validation is shared rather than duplicated in conversation.js.

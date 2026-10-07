@@ -1,3 +1,5 @@
+@import url('../tokens.css');
+
 /* M113 V: the independently loaded report page. */
 body {
   margin: 0;
@@ -28,7 +30,7 @@ body {
   min-height: 32px;
   max-width: 100%;
   padding: 4px 8px;
-  border: 1px solid var(--vscode-contrastBorder, var(--vscode-button-border, #808080));
+  border: 1px solid var(--vscode-contrastBorder, var(--vscode-button-border, var(--ms-border)));
   background: var(--vscode-button-secondaryBackground, var(--vscode-editor-background));
   color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
   font: inherit;

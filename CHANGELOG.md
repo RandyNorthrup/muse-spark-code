@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
+
+- Read report borders and usage-chart fallbacks from generated design tokens;
+  retain native theme overrides and the 4 KiB core token budget.
 - Limit context recording to fixed reader-only builders, reject unbranded and
   copied content at the type boundary, and forbid direct or dynamic native
   filesystem, Git and skill-store imports in builder modules. Sealed scopes

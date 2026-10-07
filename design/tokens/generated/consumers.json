@@ -424,6 +424,26 @@
         "css": "color-mix(in srgb, var(--vscode-editor-background, var(--ms-surface)) 55%, transparent)",
         "variable": "--ms-modal-scrim"
       },
+      "colour.usage-purple": {
+        "type": "color",
+        "value": {
+          "colorSpace": "srgb",
+          "components": [0.396078431372549, 0.17647058823529413, 0.5647058823529412],
+          "alpha": 1
+        },
+        "css": "#652d90",
+        "variable": "--ms-usage-purple"
+      },
+      "colour.usage-orange": {
+        "type": "color",
+        "value": {
+          "colorSpace": "srgb",
+          "components": [0.7294117647058823, 0.40784313725490196, 0],
+          "alpha": 1
+        },
+        "css": "#ba6800",
+        "variable": "--ms-usage-orange"
+      },
       "radius.xs": {
         "type": "dimension",
         "value": { "value": 3, "unit": "px" },
@@ -1208,6 +1228,26 @@
         "css": "color-mix(in srgb, var(--vscode-editor-background, var(--ms-surface)) 55%, transparent)",
         "variable": "--ms-modal-scrim"
       },
+      "colour.usage-purple": {
+        "type": "color",
+        "value": {
+          "colorSpace": "srgb",
+          "components": [0.6941176470588235, 0.5019607843137255, 0.8431372549019608],
+          "alpha": 1
+        },
+        "css": "#b180d7",
+        "variable": "--ms-usage-purple"
+      },
+      "colour.usage-orange": {
+        "type": "color",
+        "value": {
+          "colorSpace": "srgb",
+          "components": [0.8196078431372549, 0.5254901960784314, 0.08627450980392157],
+          "alpha": 1
+        },
+        "css": "#d18616",
+        "variable": "--ms-usage-orange"
+      },
       "radius.xs": {
         "type": "dimension",
         "value": { "value": 3, "unit": "px" },
@@ -1972,6 +2012,18 @@
         "css": "#ffffff",
         "variable": "--ms-modal-scrim"
       },
+      "colour.usage-purple": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 1 },
+        "css": "var(--ms-text)",
+        "variable": "--ms-usage-purple"
+      },
+      "colour.usage-orange": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 1 },
+        "css": "var(--ms-text)",
+        "variable": "--ms-usage-orange"
+      },
       "radius.xs": {
         "type": "dimension",
         "value": { "value": 3, "unit": "px" },
@@ -2712,6 +2764,18 @@
         "css": "#000000",
         "variable": "--ms-modal-scrim"
       },
+      "colour.usage-purple": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [1, 1, 1], "alpha": 1 },
+        "css": "var(--ms-text)",
+        "variable": "--ms-usage-purple"
+      },
+      "colour.usage-orange": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [1, 1, 1], "alpha": 1 },
+        "css": "var(--ms-text)",
+        "variable": "--ms-usage-orange"
+      },
       "radius.xs": {
         "type": "dimension",
         "value": { "value": 3, "unit": "px" },
@@ -3204,6 +3268,14 @@
       "variable": "--ms-contrast-border",
       "vscode": ["--vscode-contrastBorder"]
     },
+    "colour.usage-purple": {
+      "variable": "--ms-usage-purple",
+      "vscode": ["--vscode-charts-purple"]
+    },
+    "colour.usage-orange": {
+      "variable": "--ms-usage-orange",
+      "vscode": ["--vscode-charts-orange"]
+    },
     "typography.font-ui": { "variable": "--ms-font-ui", "vscode": ["--vscode-font-family"] },
     "typography.font-code": {
       "variable": "--ms-font-code",
@@ -3334,6 +3406,8 @@
     { "foreground": "colour.danger-legacy", "background": "colour.raised", "usage": "ui" },
     { "foreground": "colour.danger-legacy", "background": "colour.hover", "usage": "ui" },
     { "foreground": "colour.control-border", "background": "colour.surface", "usage": "ui" },
-    { "foreground": "colour.control-border", "background": "colour.raised", "usage": "ui" }
+    { "foreground": "colour.control-border", "background": "colour.raised", "usage": "ui" },
+    { "foreground": "colour.usage-purple", "background": "colour.editor-surface", "usage": "ui" },
+    { "foreground": "colour.usage-orange", "background": "colour.editor-surface", "usage": "ui" }
   ]
 }

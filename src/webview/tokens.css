@@ -37,6 +37,8 @@
     var(--vscode-editor-background, var(--ms-surface)) 55%,
     transparent
   );
+  --ms-usage-purple: var(--vscode-charts-purple, #b180d7);
+  --ms-usage-orange: var(--vscode-charts-orange, #d18616);
   --ms-radius-xs: 3px;
   --ms-radius-sm: 4px;
   --ms-radius-md: 6px;
