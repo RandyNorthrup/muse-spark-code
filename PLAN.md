@@ -284,47 +284,52 @@ unchanged. Verify exact
 round-trip values, loading/retry/localization and client dispatch, drill these
 properties, and retain all existing caps. No new artifact or dependency.
 
-| Artifact                              | Budget (minified, uncompressed)                                                                                                                                                                                                                                                                                                                                                                        |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `dist/conversation.js`                | ≤ 250 KiB (ACTDIET: first chat surface, 216.0 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                                                         |
-| `dist/tab.js`                         | ≤ 75 KiB (M94: first request/menu; status/provider registration stays eager)                                                                                                                                                                                                                                                                                                                           |
-| `dist/extension.js`                   | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                                                                                                                                                                                                            |
-| `dist/modelApi.js`                    | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b; M91 brought it to 486.1 KiB, and moving the hook and MCP-form runtime and the imported records' reader out took it to 463.7 KiB, 466.8 KiB on 0.13.0, 2026-10-05: the cap held)                                                                                              |
-| `dist/review.js`                      | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                                                                                                                                                                                                        |
-| `dist/searchWorker.js`                | ≤ 50 KiB                                                                                                                                                                                                                                                                                                                                                                                               |
-| `dist/pageWorker.js`                  | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                                                                                                                                                                                                             |
-| `dist/webview/main.js`                | ≤ 900 KiB including React, Markdown and highlighting; all transitively eager ESM chunks count                                                                                                                                                                                                                                                                                                          |
-| Webview original deferred surfaces    | ≤ 50 KiB aggregate for the original seven surfaces and unclassified/shared deferred helpers (TRAIN13B; unchanged in STARTDIET)                                                                                                                                                                                                                                                                         |
-| Webview highlighting import closure   | ≤ 125 KiB (STARTDIET: HighlightedCode.tsx, engine and eighteen grammars; 93.1 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                         |
-| Webview action-dialog import closures | ≤ 25 KiB aggregate (STARTDIET: ShareView, SessionBoardDialog, HandoffDialog, SecretPromptDialog; first split 11.2 KiB by the same rule)                                                                                                                                                                                                                                                                |
-| Webview question UI import closure    | ≤ 25 KiB (FIXM112U: first question; 10.8 KiB +15%, rounded up to 25 KiB; separate from the unchanged unclassified deferred group)                                                                                                                                                                                                                                                                      |
-| Webview Tasks import closure          | ≤ 25 KiB (STARTDIET: TasksApp.tsx and its boundary; first split 1.4 KiB by the same rule)                                                                                                                                                                                                                                                                                                              |
-| `.vsix`                               | ≤ 2400 KiB compressed (REL0142 round 3, 2026-10-06: 2,325,575-byte universal package after removing duplicate reference Markdown, +5%, rounded up to 25 KiB; owner-authorized 0.14.2 Help reference rule; `check-vsix-size.mjs` in the package job)                                                                                                                                                    |
-| `dist/acp.js`                         | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                                                                      |
-| `dist/planMarkdown.js`                | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                                                                                                                        |
-| `dist/checkpointStore.js`             | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                   |
-| `dist/uiText.js`                      | ≤ 125 KiB (original cap retained; ACTDIET regional core 116,791 bytes)                                                                                                                                                                                                                                                                                                                                 |
-| `dist/wire.js`                        | ≤ 50 KiB (TRAIN14B: shared existing Node protocol and agent-event schemas; 41,370 bytes plus 15%, rounded to 25 KiB; browser and integration parsers stay inline)                                                                                                                                                                                                                                      |
-| `dist/uiTextRuntime.js`               | ≤ 25 KiB (ACTDIET: ACP/headless English, 8,338 bytes plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                                                      |
-| `dist/uiTextHooks.js`                 | ≤ 25 KiB (ACTDIET: hooks/import English, 12,176 bytes by the same rule)                                                                                                                                                                                                                                                                                                                                |
-| `dist/uiTextSurfaces.js`              | ≤ 25 KiB (ACTDIET: Tab/report/What's New English, 5,893 bytes by the same rule)                                                                                                                                                                                                                                                                                                                        |
-| `dist/sessionBoard.js`                | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                        |
-| `dist/reviewer.js`                    | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                      |
-| `dist/foreignHooks.js`                | ≤ 100 KiB (M91 lane W: the adapters for hooks imported from other agents, lane P's contracts and engine, loaded the first time a session holding one runs a hook; measured 64.9 KiB, 68.0 KiB with lane X's Cline contract, 85.7 KiB once the imported records' reader moved in from `dist/modelApi.js`; 2026-10-05 on 0.13.0's shared `dist/validation.js`: 65.4 KiB, plus 15%, rounded up to 25 KiB) |
-| `dist/hookRuntime.js`                 | ≤ 50 KiB (M91: the hook and MCP-form runtime, lane E's spark-hooks.json reader and dispatcher, lane H's typed handlers and lane M's form checks, moved out of `dist/modelApi.js` and loaded when a spark-hooks.json exists, a typed handler runs or a server asks for a form; 67.1 KiB when split out, 41.7 KiB on 0.13.0's shared `dist/validation.js` (2026-10-05), plus 15%, rounded up to 25 KiB)  |
-| `dist/pluginHooks.js`                 | ≤ 50 KiB (M91b: the Amp and OpenCode plugin host, loaded on the first plugin hook; 51.6 KiB when split out, 33.8 KiB on 0.13.0's shared `dist/validation.js` (2026-10-05), plus 15%, rounded up to 25 KiB)                                                                                                                                                                                             |
-| `dist/agentImport.js`                 | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import; M91 lane I's readers for every agent's hooks: 147.7 KiB on 2026-10-04, 108.1 KiB on 0.13.0's shared `dist/validation.js` on 2026-10-05, within the unchanged budget)                                                                                                                            |
-| `dist/bundledSkills.js`               | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                             |
-| `dist/codeIntel.js`                   | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                  |
-| `dist/voice.js`                       | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                    |
-| `dist/museCodeReviewer.js`            | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                  |
-| `dist/extensionHooks.js`              | ≤ 75 KiB (M91 E: both-backend window hooks, loaded on first use; Kubuntu measured 48.8 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
-| `dist/browserCheck.js`                | ≤ 75 KiB (M81: the browser check's pipe, run, proxy, canaries and processes, loaded on the first check; 50.5 KiB after A1's first review round plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                         |
-| `dist/browserRuntime.js`              | ≤ 50 KiB (M81 A1: the browser check runtime's pin, download, ZIP reader and store, loaded only to prepare it; 37.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                 |
-| `dist/whatsNew.js`                    | ≤ 50 KiB (M99, D79: What's New's renderer, content schema and tab, loaded on the first page or notice; measured 34.8 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                               |
-| `dist/whatsNew.json`                  | ≤ 40 KiB on-disk JSON, independent of ZIP compression; bounded lossless envelope with 75 KiB decoded maximum (M99, D79: newest two releases' full notes and the newest earlier Highlights when needed; hard content cap independent of VSIX compression)                                                                                                                                               |
-| `dist/webview/whatsNew.js`            | ≤ 25 KiB (M99: What's New's page script, which only passes clicks back; 0.7 KiB when made, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
-| `dist/tab.js`                         | ≤ 75 KiB (M94: provider, completion engine and daily ledger, loaded on first request or menu; status item stays in activation)                                                                                                                                                                                                                                                                         |
+| Artifact                                 | Budget (minified, uncompressed)                                                                                                                                                                                                                                                                                                                                                                        |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `dist/resourceGovernor.js`               | ≤ 125 KiB (M107 W: 89.5 KiB +15%, rounded to 25 KiB; policy only on first governed use)                                                                                                                                                                                                                                                                                                                |
+| `dist/resourceAdmission.js`              | ≤ 25 KiB (M107 W: 1.8 KiB, shared process admission)                                                                                                                                                                                                                                                                                                                                                   |
+| Resource controls/history                | ≤ 25 KiB physical entries; ≤ 50 KiB each lazy closure; history CSS included (35.9/42.2 KiB closures); original deferred cap stays 50 KiB                                                                                                                                                                                                                                                               |
+| `docs/schemas/exec-event-v2.schema.json` | ≤ 50 KiB (M107 W: 37.7 KiB +15%, rounded to 25 KiB; v1 result/event unchanged)                                                                                                                                                                                                                                                                                                                         |
+| `dist/conversation.js`                   | ≤ 250 KiB (ACTDIET: first chat surface, 216.0 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                                                         |
+| `dist/tab.js`                            | ≤ 75 KiB (M94: first request/menu; status/provider registration stays eager)                                                                                                                                                                                                                                                                                                                           |
+| `dist/extension.js`                      | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                                                                                                                                                                                                            |
+| `dist/modelApi.js`                       | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b; M91 brought it to 486.1 KiB, and moving the hook and MCP-form runtime and the imported records' reader out took it to 463.7 KiB, 466.8 KiB on 0.13.0, 2026-10-05: the cap held)                                                                                              |
+| `dist/review.js`                         | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                                                                                                                                                                                                        |
+| `dist/searchWorker.js`                   | ≤ 50 KiB                                                                                                                                                                                                                                                                                                                                                                                               |
+| `dist/pageWorker.js`                     | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                                                                                                                                                                                                             |
+| `dist/webview/main.js`                   | ≤ 900 KiB including React, Markdown and highlighting; all transitively eager ESM chunks count                                                                                                                                                                                                                                                                                                          |
+| Webview original deferred surfaces       | ≤ 50 KiB aggregate for the original seven surfaces and unclassified/shared deferred helpers (TRAIN13B; unchanged in STARTDIET)                                                                                                                                                                                                                                                                         |
+| Webview highlighting import closure      | ≤ 125 KiB (STARTDIET: HighlightedCode.tsx, engine and eighteen grammars; 93.1 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                         |
+| Webview action-dialog import closures    | ≤ 25 KiB aggregate (STARTDIET: ShareView, SessionBoardDialog, HandoffDialog, SecretPromptDialog; first split 11.2 KiB by the same rule)                                                                                                                                                                                                                                                                |
+| Webview Tasks import closure             | ≤ 25 KiB (STARTDIET: TasksApp.tsx and its boundary; first split 1.4 KiB by the same rule)                                                                                                                                                                                                                                                                                                              |
+| `.vsix`                                  | ≤ 2400 KiB compressed (REL0142 round 3, 2026-10-06: 2,325,575-byte universal package after removing duplicate reference Markdown, +5%, rounded up to 25 KiB; owner-authorized 0.14.2 Help reference rule; `check-vsix-size.mjs` in the package job)                                                                                                                                                    |
+| `dist/acp.js`                            | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                                                                      |
+| `dist/planMarkdown.js`                   | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                                                                                                                        |
+| `dist/checkpointStore.js`                | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                   |
+| `dist/uiText.js`                         | ≤ 125 KiB (original cap retained; ACTDIET regional core 116,791 bytes)                                                                                                                                                                                                                                                                                                                                 |
+| `dist/wire.js`                           | ≤ 50 KiB (TRAIN14B: shared existing Node protocol and agent-event schemas; 41,370 bytes plus 15%, rounded to 25 KiB; browser and integration parsers stay inline)                                                                                                                                                                                                                                      |
+| `dist/uiTextRuntime.js`                  | ≤ 25 KiB (ACTDIET: ACP/headless English, 8,338 bytes plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                                                      |
+| `dist/uiTextHooks.js`                    | ≤ 25 KiB (ACTDIET: hooks/import English, 12,176 bytes by the same rule)                                                                                                                                                                                                                                                                                                                                |
+| `dist/uiTextSurfaces.js`                 | ≤ 25 KiB (ACTDIET: Tab/report/What's New English, 5,893 bytes by the same rule)                                                                                                                                                                                                                                                                                                                        |
+| `dist/sessionBoard.js`                   | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                        |
+| `dist/reviewer.js`                       | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                      |
+| `dist/foreignHooks.js`                   | ≤ 100 KiB (M91 lane W: the adapters for hooks imported from other agents, lane P's contracts and engine, loaded the first time a session holding one runs a hook; measured 64.9 KiB, 68.0 KiB with lane X's Cline contract, 85.7 KiB once the imported records' reader moved in from `dist/modelApi.js`; 2026-10-05 on 0.13.0's shared `dist/validation.js`: 65.4 KiB, plus 15%, rounded up to 25 KiB) |
+| `dist/hookRuntime.js`                    | ≤ 50 KiB (M91: the hook and MCP-form runtime, lane E's spark-hooks.json reader and dispatcher, lane H's typed handlers and lane M's form checks, moved out of `dist/modelApi.js` and loaded when a spark-hooks.json exists, a typed handler runs or a server asks for a form; 67.1 KiB when split out, 41.7 KiB on 0.13.0's shared `dist/validation.js` (2026-10-05), plus 15%, rounded up to 25 KiB)  |
+| `dist/pluginHooks.js`                    | ≤ 50 KiB (M91b: the Amp and OpenCode plugin host, loaded on the first plugin hook; 51.6 KiB when split out, 33.8 KiB on 0.13.0's shared `dist/validation.js` (2026-10-05), plus 15%, rounded up to 25 KiB)                                                                                                                                                                                             |
+| `dist/agentImport.js`                    | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import; M91 lane I's readers for every agent's hooks: 147.7 KiB on 2026-10-04, 108.1 KiB on 0.13.0's shared `dist/validation.js` on 2026-10-05, within the unchanged budget)                                                                                                                            |
+| `dist/bundledSkills.js`                  | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                             |
+| `dist/codeIntel.js`                      | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                  |
+| `dist/voice.js`                          | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                    |
+| `dist/museCodeReviewer.js`               | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                  |
+| `dist/extensionHooks.js`                 | ≤ 75 KiB (M91 E: both-backend window hooks, loaded on first use; Kubuntu measured 48.8 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
+| `dist/browserCheck.js`                   | ≤ 75 KiB (M81: the browser check's pipe, run, proxy, canaries and processes, loaded on the first check; 50.5 KiB after A1's first review round plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                         |
+| `dist/browserRuntime.js`                 | ≤ 50 KiB (M81 A1: the browser check runtime's pin, download, ZIP reader and store, loaded only to prepare it; 37.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                 |
+| `dist/whatsNew.js`                       | ≤ 50 KiB (M99, D79: What's New's renderer, content schema and tab, loaded on the first page or notice; measured 34.8 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                               |
+| `dist/whatsNew.json`                     | ≤ 40 KiB on-disk JSON, independent of ZIP compression; bounded lossless envelope with 75 KiB decoded maximum (M99, D79: newest two releases' full notes and the newest earlier Highlights when needed; hard content cap independent of VSIX compression)                                                                                                                                               |
+| `dist/webview/whatsNew.js`               | ≤ 25 KiB (M99: What's New's page script, which only passes clicks back; 0.7 KiB when made, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
+| `dist/tab.js`                            | ≤ 75 KiB (M94: provider, completion engine and daily ledger, loaded on first request or menu; status item stays in activation)                                                                                                                                                                                                                                                                         |
+| -------------------------------------    | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Webview question UI import closure       | ≤ 25 KiB (FIXM112U: first question; 10.8 KiB +15%, rounded up to 25 KiB; separate from the unchanged unclassified deferred group)                                                                                                                                                                                                                                                                      |
 
 **TRAIN13B (2026-10-05):** `dist/validation.js` shares only the used
 Node zod/mini runtime exports (40,416 bytes measured; new 50 KiB cap by
@@ -7002,6 +7007,12 @@ one governor for everything the harness starts.
      - on macOS it is stated as unavailable (it needs root).
    - **Disk,** only when a threshold is set: Linux's `/proc/diskstats`, and
      the platform counters on Windows and macOS, at 15 seconds.
+   - **D100 G12 signals:** Linux PSI service stalls and real paired/SSH probe
+     outcomes also feed admission while CPU/RAM are healthy. A 20% stall or
+     failure rate held for 30 seconds throttles with the existing hysteresis.
+     Transport rates use one minute, at least five outcomes and at most 100;
+     no endpoint or error text is retained. Missing/expired metrics never clear
+     pressure. Windows/macOS service adapters remain named qualifications.
    - **Its own cost** stays under 0.5% of one core, measured on the rigs.
    - **A failed reading is "unknown", never 0.** An unknown reading neither
      trips nor clears a level.
@@ -7013,9 +7024,13 @@ one governor for everything the harness starts.
      recovery. Relocate is skipped when no target exists.
    - **Critical** (CPU at least 97% for 60 seconds, or available memory below
      half the floor) goes straight to pause.
-   - **Exit** one level at a time, once every reading has stayed below its
-     threshold less `RESOURCE_HYSTERESIS_POINTS` (10 points; memory 0.5 GiB
-     above the floor) for `RESOURCE_EXIT_MS` (60 seconds).
+   - **Exit** one level at a time, once every enabled reading has stayed
+     inside its recovery band for `RESOURCE_EXIT_MS` (60 seconds). Percentage
+     recovery is strictly below the limit less `max(0.5, 0.1 × limit)` points.
+     Available memory is strictly above its floor plus
+     `min(0.5 GiB, max(1 byte, 0.1 × total RAM), 0.5 × total RAM)`.
+     These FIXM107G margins remain reachable at every valid setting and
+     machine size; entry thresholds and unknown-reading rules are unchanged.
    - **Dwell.** Each level is held for at least `RESOURCE_MIN_DWELL_MS` (60
      seconds), so a load near a threshold never flaps.
 
@@ -7088,6 +7103,11 @@ one governor for everything the harness starts.
    - It never raises a priority above normal and never uses elevated
      rights.
    - Stop, cancel, approvals and the paid popup never wait on it.
+   - **D100 G13:** independent per-job fork protection uses the registered-tree
+     Stop authority for only the offending job, after more than 128 observed
+     members or 64 observed births in 15 seconds. It retains occupancy until
+     whole-tree exit proof. This is separate from pressure/priority actuation;
+     unobserved native births remain a named acceptance blocker in §9.
 
 10. **Every editor shows it** (D84):
 
@@ -25731,7 +25751,350 @@ FIXM101P2; everything else starts against lane 0's contracts.
 
 ---
 
+**M107 W delivery (2026-10-06, Kubuntu).** Apply the six merges explicitly
+listed in the W rig brief in order, preserving every lane repair. W finishes
+manifest/reference registry coverage, measured resource artifact budgets,
+portable/split/package guards, generated host inventory and delivery docs.
+Resolve the startup baseline's credential-fence/resource-admission API overlap
+additively, retain its compact Help/reference contract, and adapt the merged
+resource Escape action to its keyboard registry. C2/R consume their injected
+ports until M96/M96c/M100 join; unbound production UI/actuator/runtime/history
+ports and the separately assigned DK re-review repairs remain named handoffs.
+The shared brief prohibits aggregate quality here; scoped default-timeout
+suites and hook-on local commits certify W, with full qualification by the lead.
+
+**W startup-regression recovery.** The new independent resource entries share
+React/text with chat, but their extra zod/mini exports otherwise enlarge the
+eager parser chunk. Keep that parser in a resource-only browser namespace,
+charge its full closure to each resource entry's measured 50 KiB budget, and
+assert it never enters startup. Production browser bundles remove duplicate
+inline legal banners; every licence remains in the gated/shipped 83-package
+THIRD_PARTY_NOTICES. Front-code only English key names inside the existing
+inline native-DEFLATE payload, reconstructing the identical enumerable table
+and order before dependent modules run. Preserve the tighter FIXDIET1
+733.8/32.1 KiB regressions as well as the 900/50 KiB caps; no existing cap rises.
+
+**W delivery completion record.** Manifest and machine-only runtime/default/
+nullable-bound reference checks cover all eight resource settings. The
+six ordered merges and three named T3 P3 repairs are committed with hooks.
+Independent Node policy/admission and browser controls/history entries are
+packaged with measured caps; no existing cap or gate changes. Generated host
+inventory, privacy/security/editor docs and the versioned schema/package
+checks are W-owned. Scoped final receipts and red drills are recorded in
+`docs/certification/m107-w-wiring,-docs-and-gates-(last).md`; the integration
+and remaining production bindings are `docs/certification/m107.md`.
+Full M107 acceptance remains unchecked until those bindings and lead gates pass.
+
+**W reference-size recovery.** The eight settings and CLI rows put the Node
+reference above its inherited 100 KiB cap. Pack only that lazy Node entry's
+generated JSON with native DEFLATE; retain its generated zod boundary and
+prove the decoded model equals every generated fact. Browser reference data
+and the complete localized Help remain unchanged. No dependency or cap rises.
+
+**FIXM107W review repair (2026-10-06, Kubuntu).** Merge the explicitly
+assigned `sync/main-0170` (`8c6351d73`) without dropping M107 or M112 behavior.
+Deliver the Linux created-path helper in both packages, build it from the
+existing reviewed native source and qualify the actual archive. D100 G10/G11/G16
+retain per-job temp roots, ledger/identity cleanup and unlink-only links with
+named regressions. G12 consumes OS pressure stalls and bounded transport-result
+rates in the existing governor. G13 independently caps registered-tree process
+count and observed births, stopping only the offending registered job tree;
+it does not change ordinary governor pause/priority rules. Each guard receives
+a byte-exact mutation drill. Run every configured unit/e2e file in batches of
+at most three with default deadlines, plus delivery gates and packaging.
+No dependency, budget increase, paid/live request, push or rebase. Full aggregate
+quality/coverage and non-Linux native receipts remain the lead's release gate.
+
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
+
+**FIXM107J review repair (2026-10-06, Kubuntu).** Repair both RVM107J P2s
+and its P3 inside J's collector, aggregate, history boundary and shared view.
+Read-time flushes retain the active minute and its per-tree CPU baselines;
+cumulative minute snapshots merge idempotently by their segment timestamp,
+including final tree accounting against the same cached machine sample.
+Reject non-finite or unrepresentable history timestamps and override deadlines
+before formatting, using one shared history date helper for page and text.
+Keep at most seven days/10,080 minute segments and 1,000 recent events, evicting
+oldest first while preserving exact retained-input work/event totals. Page
+charts, bands and detail tables in batches of 60 entries. Add before-fix
+regressions and byte-exact red drills for every guard in J's certification.
+No dependency, guard widening, merge, full quality or paid/live call. M102
+journal/route binding and W's reference/delivery/full gates remain integration
+handoffs; the absent feature catalog is not replaced in this lane.
+**FIXM107C2 review repair (2026-10-06, Kubuntu).** Repair RVM107C2's
+one P2 in the team slot adapter: after local acquisition waits, use the
+same live capacity helper as the picker before returning runnable work.
+Exclude only the newly acquired local reservation from that check. If
+capacity has fallen, release both unstarted reservations and return to
+the governor queue with the original kind, priority and parent; never hold
+a scheduler slot while waiting again. Preserve child preflight,
+cancellation and retirement rules. Add pause and throttle transitions
+during local acquisition, prove the regressions red before the fix, then
+break the final guard and restore it byte-exact. Record scoped gates in
+`docs/certification/m107-c2-the-team-and-runners.md`; the rig brief leaves
+aggregate quality and the existing M96/M96c production joins with the lead.
+The correction is now proved by 29/29 owning tests, 100% scoped coverage,
+two red/restored guard drills and all required scoped delivery checks.
+The sole reviewed P2 is closed; §9 names the remaining dependency binding.
+**FIXM107R review repair (2026-10-06, Kubuntu).** Fix all three RVM107R
+P2 findings in the portable relocation coordinator and its owning suite:
+evaluate the final synchronous offer callback before the last policy/cancel
+check and send without an await; probe offered targets concurrently with
+`RESOURCE_RELOCATION_PROBE_MS` (5 seconds), treating deadline/abort as
+unknown headroom without changing post-dispatch uncertainty; and retain a
+per-conversation round-robin cursor among equally eligible headroom peers.
+Prove each regression red before repair and each guard with byte-exact
+mutation/restoration receipts in `docs/certification/m107-r-relocation.md`.
+No new dependency, permission, receiver frame or production binding. The
+rig/common brief prohibits aggregate quality and merges; the lead retains
+the existing M100/C2/W integration and full-gate handoffs.
+
+All three RVM107R P2 findings are fixed; none is an accepted review
+residual. The portable relocator retains its last automatic target across
+attempts (including concurrent selections), rotates within the best known
+headroom class, and leaves that cursor unchanged for an explicit choice or
+an unavailable pool. Certification records default-timeout regressions,
+deliberate guard failures and scoped/static/build results. Existing unbound
+production delivery and aggregate qualification remain named in §9.
+
+**M107INT round 3 (2026-10-06, Win11).** Join T2, U and H with the three
+listed no-fast-forward merges. Resolve shared records additively, preserve
+C1's native launch/retirement and Linux path repairs, and adopt T2's exact
+member signal/tree-stop authority at every governed shutdown. Audit all raw
+signals and route governed payloads through their registered leases; trusted
+probe/holder infrastructure and zero-signal liveness queries are separate.
+Run each lane's owning complete suites after its merge, then merged resource,
+launch and request regressions plus scoped gates, generated host inventory
+and every existing build cap. No full quality, disk-space implementation,
+paid/live calls, push or rebase. Record conflicts, audit and measured sizes
+in `docs/certification/m107-int.md`; W retains final delivery qualification.
+**FIXM107DK4 (2026-10-06, Kubuntu; final review repair).** Close RVM107DK3G's
+rename-overwrite, empty-name replacement and creation-adoption findings. All
+POSIX quarantine/restore renames use the existing native helper's Linux
+RENAME_NOREPLACE or Darwin RENAME_EXCL. Manifest publication links a staged
+file without replacement, exchanges an existing manifest atomically where
+supported, verifies displaced identity and rolls back/refuses a mismatch.
+Creation records the identity returned by the native mkdir/open port, which
+also rejects a birth timestamp older than the mkdir call. Every final
+empty-directory removal immediately compares a no-follow name stat against
+the held descriptor. Windows retains FILE_CREATE and no-replace handle
+renames. Keep native delivery within W's existing qualification handoff;
+missing helpers refuse without a Node rename fallback. Add regression tests,
+byte-exact red drills and the precise final same-user empty-directory residual
+to the DK certification and §9. No dependency, merge, live call or aggregate
+quality run; final tests use repository-default timeouts.
+
+**FIXM107DK2 (2026-10-06, Kubuntu).** Repair every RVM107DK2G finding.
+Replace pathname recursion with an identity-checked directory-handle walk:
+Linux uses pinned `/proc/self/fd` paths, Darwin uses openat/unlinkat/fstatat,
+and Windows uses relative native opens and handle disposition. Every directory
+is opened without following links and checked against the sampled identity;
+refuse a different device and on Linux a different held-descriptor mount ID
+(including a bind mount on the same device). Remove the final quarantine entry
+empty-only.
+Null stored identity is report-only, including an interrupted pending intent.
+Create through the pinned base, immediately open the random child, require
+empty/current-user ownership, write its marker through that handle, and record
+fstat identity. Registration can only reclassify this instance's own creations.
+Native implementations use the helper port; absent helpers refuse instead of
+falling back to pathname operations. Linux runs here; foreign native builds and
+race receipts are owed to the platform lead. Add interleaving regressions,
+positive controls and byte-exact red drills to `docs/certification/m107-dk.md`.
+No dependency, paid/live call, merge or aggregate quality run.
+
+**FIXM107DK (2026-10-06, Kubuntu).** Repair all eight RVM107DK findings.
+Constrain creation records to direct random children of one verified private
+base, require an ownership marker and fresh tree-exit proof after reload,
+persist creation intent before mkdir, and quarantine before recursive removal.
+Resolve initial OS temp ancestor aliases once to the verified canonical base;
+later operations remain bound to that identity and never follow the alias.
+Linux pins the base by fd; macOS/Windows verify its identity around rename.
+Keep per-entry refusals protected while continuing cleanup. Checkpoints use
+a separate admission class without temp allocation and check their destination;
+race sampling against abort/disposal and bound statfs; project Muse child
+environments at the shared spawn boundary and retain failed SDK exits.
+Regression tests and byte-exact red drills go in `docs/certification/m107-dk.md`.
+No dependency, merge, paid/live call or full quality run; lead runs aggregate
+gates and native foreign-platform receipts. FIXM107DK2 supersedes this first
+repair's ancestor-swap qualification in §9.
+
+**Lane DK (2026-10-06, Kubuntu).** Implement D87.14 from
+`docs/plan-owner-answers-1006` against the integrated S/T/G/A/C1 trunk.
+Extend the existing sample/settings/device contracts with disk inputs; keep
+G's hysteresis, dwell, events and queue. Add `disk.ts`, `createdRegistry.ts`
+and portable `host/resources/tempRoots.ts`, plus the allowed sampler,
+governor and spawn-environment regions. Disk-heavy admission, safe points
+and critical-write checks use explicit ports; absent M100/M110 bindings and
+U/H/W surfaces remain named handoffs. No live calls, real disk filling,
+new dependency or full quality run. Every guard gets a byte-exact red drill
+in `docs/certification/m107-dk.md`; only registered, exited, eligible and
+identity-unchanged paths may be cleaned. The brief delegates aggregate
+quality and foreign-platform receipts to the lead.
+
+**FIXM107INT review repair (2026-10-06, Win11).** Fix all four RVM107INT
+findings on the merged G/A/C1 tree: bounded SDK shutdown with a registry-
+verified Windows whole-job kill, foreground admission for queued user turns,
+schedule-id/generation-owned leases, and governed/native-registered short
+window CLI commands. Add a before-fix regression and byte-exact red drill per
+finding, Windows native receipts, scoped static/build gates and hooked local
+commits. No dependency, guard widening, paid/live call or full quality run;
+the rig brief delegates aggregate qualification to the lead. Record receipts
+in `docs/certification/m107-c1.md`; name any residual in §9.
+The complete spawn inventory also routes the plugin runtime's default version
+probe through its existing native tree port. Session cleanup runs in finally
+when bounded SDK close rejects. Native initialized-close testing proves the
+CLI must inherit the SDK's handles directly: PowerShell's native pipeline can
+close MSP input before initialization. Reuse the existing suspended MCP job
+launcher, its owner/nonce handshake and native argv quoting for that launch;
+no protocol field or model request changes.
+
+**M107INT2 continuation (2026-10-06, Win11).** Merge the G review repairs
+(`6bd4b74a`) and A controllers/review repairs (`9501f9cf`) into C1's
+`83f5b458` tree with the two listed no-fast-forward merges. Preserve additive
+docs and both native helper regions. Run A's six Windows-native cases,
+strengthening its OS restoration receipt to compare the actual job/process
+priority snapshots and CPU-control flags. Recheck complete merged S/T/G/A
+and C1 resource suites plus scoped static/build gates; no full quality.
+G/A agree on transitions, scans and restore-before-unregister, but A explicitly
+requires T2's registered member-state binding before shipped G/C wiring. That
+API is absent here: keep the controllers unbound and hand the complete
+lifecycle/native-port join to W, with no disappearance-based substitute.
+Record receipts and exact remaining seams in `docs/certification/m107-int2.md`.
+
+**M107INT integration and C1 (2026-10-05, Win11).** Merge `m107/s` and
+`m107/g` into lane T's repaired tree, preserving additive records. Wire C1's
+Model API/window launches to one lazy admission host and the tree registry:
+shells (including moved background work), checks, MCP, hooks, browser,
+best-of-N, subagents, schedules and Muse Code, plus D87.2's `other` voice
+and recording helpers. Admission precedes the final
+workspace/permission recheck; cancellation and kills bypass admission.
+Keep reservations until proved retirement, and failed identity/accounting
+unknown. Windows-native integration also repairs Linux reader path semantics
+and the sampler's libuv Windows environment inheritance exposed by the
+complete owning suites. Add only the lazy entry/build graph needed for C1;
+W retains final manifest, budgets, packaging and delivery. C2/A/R/U/H/J stay
+outside this lane. Run scoped suites and static/build checks, no full quality
+or paid/live calls. Certification: `docs/certification/m107-c1.md`.
+
+**Lane A review repair (FIXM107A, 2026-10-05).** Fix all three RVM107A
+P2s within the actuator modules and owning suites: release per-member controls
+only on explicit exited state, keeping absent/unknown membership conservative;
+retry unavailable Linux control opens on later scans with bounded backoff;
+and distinguish a pending mutation from OS-confirmed application, including
+irreversible recovery and renewed dispatch. Lane T2's exited/zombie state is
+not on this base: consume its registered identity-bound state through an
+explicit injected port, with no guessed PID/disappearance fallback. Document
+that binding for integration. Every finding gets a before-fix failing test
+and a byte-exact red drill in `docs/certification/m107-a.md`. No dependency,
+guard widening, other-lane code edit, merge or full quality run is authorized.
+**Lane T3 review repair (FIXM107T3, 2026-10-06).** Fix both RVM107T3G
+P2s, with no reviewed residual: pin each private cgroup's open directory and
+(dev, ino) before GO, use its /proc/self/fd path for all later file accesses,
+refuse replacement/removal, and retire empty trees after root exit. Pin the
+harness home too; reassert its placement before scans and immediately before
+kill/freeze, retry a named bounded count, and retain ownership with an explicit
+localized harness_in_tree status on exhaustion. Keep Linux handles behind the
+existing tree port; Darwin/Windows/fake ports stay unchanged. Regression tests
+and byte-exact guard-break receipts belong in docs/certification/m107-t3.md.
+The sub-millisecond final reassert/write window and same-user kill(2) authority
+are recorded honestly in §9. No dependency or aggregate quality/merge.
+
+**Lane T3 Linux containment (2026-10-06).** Close RVM104L3 finding 2's
+same-tick PID alias with a private cgroup per governed Linux launch. No M96 K
+scope implementation exists on this base. Detect cgroup v2/user delegation
+without root; launch a gated workload inside a delegated systemd user scope
+(or a writable subtree already containing this harness), create its own child
+cgroup, bind its ticket before GO, and retain the outer scope until cleanup.
+Cgroup membership alone enrolls descendants; old birth/parent witnesses never
+admit an outside replacement. Stop uses cgroup.kill, or freezes and signals
+all recursively enumerated cgroup.procs members before thawing. Completion
+requires cgroup.events populated 0, followed by removal; unknown/timeout reads
+refuse completion and retain ownership. Accounting uses that same cgroup's
+lifetime CPU and its current members' RSS. Group fallback reads pid_max and
+CLK_TCK, refuses authority below LINUX_PID_IDENTITY_MIN_PID_MAX, and freshly
+checks observed membership before each signal. Its bounded identity assumption
+and final read-to-signal race stay explicit in §9. Darwin identities and
+Windows jobs are unchanged. All editor/ACP/headless launch consumers share the
+portable API; C1/C2/W still own all-spawn and lazy-bundle integration. No new
+user command, setting, paid call, dependency or wire shape. Certify the 711/712
+same-tick replacement, launch-before-GO, freeze fallback, populated-zero wait,
+low-pid_max refusal and a native forked-grandchild Stop with deliberate red
+mutations in docs/certification/m107-t3.md. Direct bounded owning suites and
+static/build gates only; the brief forbids aggregate quality and branch merges.
+
+**Lane T2 process authority (2026-10-05).** Before M104 LSP supervision
+resumes, add registered, freshly identity-verified `signal` and snapshot-based
+`kill` to the tree registry. These are Stop/cancel services, never governor
+actions (D87.9). POSIX actions re-read exact birth identity immediately before
+the synchronous signal; Windows proves creation, live state and job membership
+and terminates through the same retained process handle. Preserve honest done,
+gone, identity-changed and refused results, including retirement during awaits.
+Enroll observed descendants by exact ancestry and retain their birth identities
+after reparenting/group changes; zombies are exited. Unobserved double forks
+remain unavailable without kernel containment, never guessed from a PID.
+Extend the already shipped/ad-hoc-signed Darwin Swift helper with read-only
+`proc-identity <pid…>` before any audio/privacy setup; bind `proc_pidinfo`'s
+microsecond start, parent, group and state in the portable Mac reader. No new
+dependency or binary/package route. T2 owns the action seam; lane A's priority
+and CPU controls remain separate. All editor/runtime callers share these APIs.
+Native macOS lifecycle receipts, Linux/Windows seams and guard-break drills
+go in `docs/certification/m107-t2.md`; native Linux/Windows reruns and integrated
+full quality remain the lead's qualification. The rig brief forbids branch
+merges and aggregate quality and authorizes the larger tree/native change.
+
+Windows' existing T-owned `MuseSparkJob.cs` gains only the live-state query
+and verified signal region required by that port; A's priority/rate region
+is untouched. SIGTERM and SIGKILL both terminate on Windows, as Node's
+Windows signals do; POSIX sends the named signal. A successful send is not
+an exit receipt. POSIX ancestry records cover observed edges, not a fork and
+reparent wholly between samples; launch sites must enroll before losing that
+edge. Linux has no existing pidfd binding, so the authorized final `/proc`
+birth read is followed directly by synchronous kill with no new dependency.
+Root launch authority is a targeted native scope/birth proof; a missing global
+accounting table does not deny that proof or the verified root signal. An
+optional initial scan enrolls descendants when available. Tree kill still
+requires a fresh descendant snapshot and refuses unknown enumeration. A recycled
+PID is admitted only by current kernel containment or a freshly proved parent
+birth/child edge; it never inherits its earlier birth authority. Recorded
+descendants can witness the tree after the original root PID is reused.
+Inaccessible native rows that could belong to the tree make enumeration unknown.
+
+**Lane T review repair (FIXM107T, 2026-10-05).** Address all three P2s in
+RVM107T within the tree readers and their owning suites: freshly revalidate
+the root or an existing orphan witness before committing POSIX witnesses;
+invalidate in-flight reader epochs when a ticket retires; and treat a Linux
+process row that disappears between stat and cgroup reads as absent while
+keeping other read failures unknown. Add a failing regression and a deliberate
+guard-break drill for each finding, restoring SHA-256-identical source.
+Record receipts in `docs/certification/m107-t.md`; no dependency, new surface,
+guard relaxation, branch merge or full quality run in this rig lane. The
+integration lead retains the existing W/native/full-gate handoffs.
+All three RVM107T P2s are now fixed and proved by the owning regressions and
+byte-exact guard drills; no reviewed finding is left as an accepted residual.
+
+**FIXM107S review correction (2026-10-05).** RVM107S found four P2s in
+lane S. Fix all four in the sampler and its owning tests: honour cgroup v1
+memory limits instead of combining container headroom with host capacity;
+preserve missing/null Windows CIM counters until validation; query Nvidia
+independently of Linux DRM readings and merge the busiest valid device;
+reject noncanonical cgroup paths and normalize the ancestor walk's boundary.
+Every finding gets a before-fix regression and a deliberate red/restored
+drill in `docs/certification/m107-s.md`. No new dependency, settings or
+surface. The rig brief forbids merges, pushes and aggregate quality here;
+the lead retains W's integration/platform gates and shared delivery docs.
+All four RVM107S findings are fixed with before-fix regressions and 13
+red/restored source drills; none is deferred. The inherited platform/delivery
+qualifications are named in §9 and the certification record.
+**FIXM107H review repair, 2026-10-06.** Repair RVM107H's two findings in
+H-owned runtime/ACP files: explicitly forward the injected machine store's
+methods with their receiver intact, and remember the full pause warning
+per ACP conversation. Later pause transitions still deliver current status
+and structured event metadata. Add class-store and repeated-pause regression
+tests, prove both fail on the review base and under deliberate mutations,
+and record exact restoration in `docs/certification/m107-h.md`. No new
+dependency, wire shape, setting, command or translated copy. W/lead retains
+joined wiring and full quality; the rig brief prohibits merges and full
+quality in this lane.
 
 **Status 2026-10-05: planned.** No model call is needed anywhere in this
 milestone. Lanes S, T, G, A, C1, U and H depend only on main and lane 0's
@@ -29424,8 +29787,207 @@ Regression tests and byte-exact red drills certify each fix. Keep startup at mos
 733.8 KiB, the original deferred group at most 32.1 KiB and each moved
 surface within 25 KiB. No dependency, gate relaxation, model call or merge.
 
+**M107-W complete-suite compatibility repairs (2026-10-06).** The first
+complete run exposes M80 package fixtures missing resource artifacts/event v2
+and the Action extractor rejecting H's v2 event envelopes. Keep frozen v1
+schemas and result payloads, accept both strictly validated event versions in
+the Action with resource variants mirrored from the existing zod contract,
+and prove parity/refusal with malformed/private-field cases. Restore metadata
+Git's empty-filter handling for its new typed exit error; include the four
+resource artifacts in the verified report-frame vocabulary. Keep manifest
+coverage exact using both runtime default tables and await admitted voice
+launch failures before asserting credential-free native environments. Refresh production
+and fake-only package fixtures, require the new artifacts/schema in the test
+packer, and retain existing missing-artifact guards. Existing built exec rows
+validate the writer's actual v2 envelope. Record before-fix failures and
+byte-exact guard mutations; no new command, dependency, timeout or cap.
+
+**M107-W native fixture deadline repair (2026-10-06).** The final complete
+run exposes default-deadline native fixture pressure.
+Keep every assertion and all 32 real PID-reuse births; bound that test's Linux
+numerical discovery to its own real child PIDs while leaving native stat,
+membership, signalling and the separate full-discovery descendant tests intact.
+No production reader, timeout or attempt count changes.
+
+**M107-W continuation qualification (2026-10-06).** The new rig brief
+explicitly authorizes the final DK no-fast-forward merge and a complete
+unit/e2e suite in batches of at most three files, `--maxWorkers=3`, with the
+repository's default test timeout. Recheck the latest locally supplied main,
+run all requested static/build/package/reference/localization/host-API gates,
+fix merge failures without relaxing gates, and update the final integration
+record. Aggregate quality/coverage, hosted OS/editor/native and performance
+qualification remain with the lead; the prior scoped-only W restriction below
+is historical to the first delivery brief. No push or unlisted merge.
+
+**M107-W lane qualification (2026-10-06).** The rig brief explicitly forbids
+aggregate quality/whole-unit coverage in this lane. Run scoped complete files
+with default deadlines, all five typechecks and the required static/build/
+reference/schema/package checks; record exact exits and red/restored hashes.
+The lead owns full quality, hosted/native/editor checks and owner performance
+receipts on the final joined tree. This is a named qualification deferral,
+not a weakened gate or permission to release before those gates pass.
+
 ## 7. Gates
 
+**FIXM107J scoped qualification (2026-10-06).** The rig brief forbids full
+quality/full-suite runs here and assigns them to W/lead. Run complete J suites
+at repository-default deadlines, all five typechecks, changed-file lint/format,
+plain Knip, duplication, localization, host API and production build. The
+existing host-API stylesheet-source inventory lacks J's stylesheet; W owns
+that generated delivery record and its regeneration at the M102 join. Record
+this exact non-green check without editing another lane's generated file or
+weakening a gate. The absent feature catalog/reference generator remains
+M107-J-M102-history-binding in §9. See J's certification for scoped results
+and red/restored guards; neither shared check is represented as green.
+**FIXM107R bounded review certification (2026-10-06).** The rig/common
+brief prohibits aggregate quality, whole-unit/coverage runs and merges.
+Run the complete relocation suite with default test timeouts, before-fix
+regressions and byte-exact red drills, all-project typecheck, scoped
+lint/format, localization, host API, plain knip, duplication, cycles and
+production build under unchanged caps. The lead retains joined aggregate
+quality and M100/C2/W's delivery qualification. Exact repair receipts are
+in `docs/certification/m107-r-relocation.md`; no gate is weakened.
+
+**M107INT round-3 certification (2026-10-06).** The rig brief authorizes
+only the listed T2/U/H merges, scoped complete-file runs (at most three,
+three workers), all-project typecheck, lint/format, localization, generated
+host inventory, cycles, plain knip and production build with every unchanged
+cap. Full quality and aggregate coverage remain the lead's work. The shutdown
+audit repairs have before-fix failures and fourteen byte-exact red/restored
+mutations. The lazy factory regression covers both window and runtime exports;
+the split inventory excludes the runtime implementation from parent bundles.
+See `docs/certification/m107-int.md` for exact receipts and final sizes.
+**M107 DK scoped qualification.** The rig brief expressly forbids aggregate
+`quality`/full unit/coverage here and assigns them to the integration lead.
+DK runs complete owned test files (at most three per invocation), all
+project typechecks, changed-source lint/format, localization, deadcode,
+duplication, cycle, host-API and production build checks. No gate is weakened.
+Scoped results and deliberate failures are in `m107-dk.md`.
+`check:host-api` is deliberately left red only for W's generated Node import
+counts (crypto 47→49, fs 33→34, fs/promises 51→54, os 12→13, path 92→96); DK's ownership
+rule forbids editing that record. W regenerates and reviews it at integration.
+
+**FIXM107INT bounded review certification (2026-10-06).** The user's rig
+brief/common rules prohibit full quality and aggregate unit/coverage runs.
+Run complete owning files in serial groups of at most three, before-fix
+regressions and byte-exact red drills, native Windows receipts, all-project
+typecheck, scoped lint/format, localization, host API regeneration/review,
+cycles, plain knip, duplication and production build/caps. The lead owns
+aggregate quality and the remaining platform/editor qualification. No gate,
+threshold, cap or existing skip changes. See `docs/certification/m107-c1.md`.
+
+**M107INT2 bounded continuation certification (2026-10-06).** The rig
+brief requires the two named G/A merges, six native Windows cases and the
+complete merged resource suites (at most three files per invocation),
+typecheck, scoped lint/format, localization, regenerated/reviewed host API,
+cycles, plain knip, duplication and production build/caps. Full quality
+and aggregate coverage remain prohibited here and owned by the lead.
+Native restoration assertions receive deliberate false-success helper
+mutations and byte-exact source restoration. See `m107-int2.md` for results;
+the member-state/native-port production binding remains W's named handoff.
+
+**M107INT/C1 bounded integration certification (2026-10-05).** The rig
+brief prohibits aggregate quality and full-unit runs. Run S/T/G's complete
+owning files and complete touched spawn suites in serial groups of at most
+three, with deliberate new-guard failures, all-project typecheck, scoped
+lint/format, localization, host API regeneration/review, cycles, plain knip,
+duplication and production build/caps. The lead owns aggregate quality,
+coverage and the remaining platform/editor receipts. No gate or cap changes.
+The generated host API is updated here, closing the S/T/G snapshot handoff;
+their original drift records below remain historical. See
+`docs/certification/m107-c1.md` for actual outcomes and lane handoffs.
+
+**FIXM107A bounded-lane certification (2026-10-05).** The rig brief and
+shared rules delegate aggregate quality/coverage to the lead. Hook-on local
+commits require complete owning suites, deliberate guard-break drills,
+typecheck, scoped lint/format and the required static/build checks. The
+existing W-owned host-API record and native/editor/integrated-governor receipts
+remain integration handoffs; no gate is weakened.
+
+**FIXM107T bounded-lane certification (2026-10-05).** The rig brief/shared
+rules prohibit aggregate `npm run quality` and full tests in this worktree.
+Hook-on commits use complete owning files, deliberate guard-break drills,
+typecheck, scoped lint/format and the required static/build checks. The lead
+retains full integrated quality, coverage, native platform and editor receipts.
+No threshold, timeout, rule, skip policy or guard is weakened.
+
+**FIXM107T3 review certification (2026-10-06).** Both RVM107T3G P2s
+are fixed; no reviewed finding is deferred. Direct complete owning batches
+pass 173 tests with eight existing platform skips using repository-default
+5 s timeouts, and 13 deliberate guard mutations fail and restore source
+byte-exact. All five TypeScript projects, scoped lint/format, deadcode,
+cycles, duplication (zero clones), localization (14 tables, zero problems)
+and production build/caps pass. After final ticket normalization, host/unit
+types, the 38 owning Linux tests, lint, duplication and build pass again.
+The host-API record still exits 1 only for the same six W-owned import counts
+listed below; its generated file is untouched. No aggregate quality, model
+call, dependency, threshold or hook change. See docs/certification/m107-t3.md.
+
+**M107 T3 scoped certification (2026-10-06).** The rig/shared brief forbids
+aggregate quality and branch merges. T3 certifies complete owning files,
+native cgroup launch/Stop on Kubuntu, deliberate guard mutations and serial
+static/build gates. Full integrated quality/coverage and all editor/spawn
+wiring remain the lead's handoff. No gate configuration or dependency changes.
+The existing W-owned host-API snapshot must include the new Linux launcher
+and timer imports on integration: node:child_process 13→15, node:crypto 46→47,
+node:fs/promises 47→49, node:path 84→87, node:process 1→3 and
+node:timers/promises 3→5. Its gate exits 1 for those six counts; the generated
+file is untouched. W regenerates and reviews the record after integration.
+All other required scoped checks pass, with 161 tests, eight existing platform
+skips and 17 deliberately failing/restored drills; exact receipts are in
+docs/certification/m107-t3.md. This is the existing deferral, not a green
+host-API or full-quality claim.
+
+**M107 T2 scoped certification (2026-10-06).** The rig brief prohibits
+aggregate quality and merges; the lead retains integrated quality/coverage
+and native Linux/Windows qualification. T2 runs complete owning test files,
+serial typecheck/lint/build checks and 31 action/enrollment guard mutations
+plus the native microsecond precision drill. Its production Mac binding adds
+one `node:path` import, so the existing W-owned host-API snapshot handoff now
+requires 84→87 for that row; the other original rows remain 13→14, 47→48
+and 1→2. No VS Code API changes. The shared rules mention `check:reference`,
+but this base has neither that script nor `featureCatalog.ts`/the generator;
+T2 introduces only an internal native mode/API, no public feature. The attempted
+command reports missing script, not a passing gate. See
+`docs/certification/m107-t2.md` for exact receipts and reruns.
+
+**M107-T-host-api-record (W handoff).** `npm run check:host-api` still exits 1
+for the original lane's Node import counts: `node:child_process` 13→14,
+`node:fs/promises` 47→48, `node:path` 84→86, `node:process` 1→2. FIXM107T adds
+no production import or host API. W owns the generated file; after integration
+run `npm run check:host-api -- --write`, review those four rows and rerun the
+gate. This is the named existing snapshot deferral, not an unfixed review
+finding or a green host-API claim. See `docs/certification/m107-t.md`.
+
+**FIXM107S bounded review certification (2026-10-05).** The rig brief and
+shared lane rules prohibit aggregate `npm run quality` and whole-unit runs.
+Run the three complete sampler owning files, typecheck, changed-file
+lint/format and static/build checks directly on Kubuntu with normal hooks.
+The pre-existing host-API importer-count drift stays W's responsibility;
+the gate remains red until its generated record is updated at integration.
+No gate, timeout, threshold, ignore or bundle cap is weakened. Receipts
+and deliberate failures are in `docs/certification/m107-s.md`.
+**FIXM107H bounded repair certification (2026-10-06).** The explicit rig
+brief and shared lane rules prohibit aggregate `npm run quality` and full
+test suites here, and prohibit merges. Local hook-on commits use the owning
+resource regressions, byte-exact guard drills, scoped lint/format and all
+five typecheck projects. The final repair receipt also runs the ACP/runtime
+compatibility tests, dead-code, duplication, localization, host API and
+production build checks. W/lead retains the joined full quality, coverage,
+cross-platform and native surface certification. No gate is weakened;
+exact results and inherited integration failures are recorded in
+`docs/certification/m107-h.md`.
+
+**FIXM107H inherited wiring deferrals.** The fresh production build passes
+all existing caps (ACP 827.2/850 KiB) but exits 1 at the unchanged seven
+`src/shared/resources.ts` reads of `zod/mini._default`, absent from
+`dist/validation.js`. W owns exporting that mini-parser member and the
+resource bundle's split/package wiring. The host API check also exits 1:
+generated Node-importer counts require child_process 13 → 14, fs/promises
+47 → 49, os 9 → 10 and path 84 → 89. Neither repair adds a Node import;
+W owns refreshing/reviewing the integrated host record. The gates remain
+red, with no ignore, cap change or release approval. Named integration
+residuals and follow-up are in §9 and `docs/certification/m107-h.md`.
 **REL0143M bounded integration certification (2026-10-06, Kubuntu).** The
 specific rig brief authorizes only the main diet merge and local hooks-on
 commit. Shared rig rules prohibit aggregate `npm run quality`; the lead owns
@@ -30701,14 +31263,18 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
-| Location                                                                                                            | Escape hatch                                               | Reason                                                                                                                                                                                                                                                   |
-| ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/acp/questionDeferralBundle.ts` (FIXM112A)                                                                      | `isAcpQuestionBundle` trusts the checked factory signature | The entry, loader and ACP package come from the same build; the export is checked as a function and loader tests reject missing/malformed modules. The factory installs the caller's language table before constructing a session's question controller. |
-| `src/runtime/questions/questionRegistryBundle.ts`, `src/host/conversation/conversationBundle.ts` (M112 integration) | Checked same-build function signatures                     | Loader guards validate each required export as a function; entries and callers ship from the same build. Registry and host store factories install or inherit the caller's language before use; loader and real-disk tests exercise their signatures.    |
+| Location                                               | Escape hatch                  | Reason                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------------ | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `native/darwin/MuseSparkCreated.c` (Linux branch only) | `OPENSSL_SUPPRESS_DEPRECATED` | OpenSSL 3 marks the stable low-level SHA-256 primitives deprecated, while they remain supported. Static primitive linkage keeps the required helper small and removes runtime OpenSSL/provider acquisition. Only the three SHA calls use this declaration-level suppression; `-Wall -Wextra -Werror`, identity and cleanup guards stay active. Native/provider migration remains a future qualification, not a warning-level change. |
 
-| Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
-| ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
+| Location                                                                                                            | Escape hatch                                               | Reason                                                                                                                                                                                                                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/l10n/text.ts` (ACTDIET)                                                                                 | `as UiText` on the descriptor clone                        | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement.                                                               |
+| `src/runtime/resources/load.ts:isResourceModule` (M107 H/INT)                                                       | Typed lazy factory predicate                               | Checks the loaded object's callable `createResources`; JavaScript cannot inspect its parameter/return types. The loader and factory ship from the same build. The complete `deferredBundles` test loads and calls the actual production factory; `runtimeResources` checks load failure and locale installation. |
+| ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                                                         |
+| `src/acp/questionDeferralBundle.ts` (FIXM112A)                                                                      | `isAcpQuestionBundle` trusts the checked factory signature | The entry, loader and ACP package come from the same build; the export is checked as a function and loader tests reject missing/malformed modules. The factory installs the caller's language table before constructing a session's question controller.                                                         |
+| `src/runtime/questions/questionRegistryBundle.ts`, `src/host/conversation/conversationBundle.ts` (M112 integration) | Checked same-build function signatures                     | Loader guards validate each required export as a function; entries and callers ship from the same build. Registry and host store factories install or inherit the caller's language before use; loader and real-disk tests exercise their signatures.                                                            |
+| -----------------------------------                                                                                 | -----------------------------------                        | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                                                               |
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
@@ -30786,11 +31352,12 @@ before a repaired one loads (2026-09-30).
 
 | File                                        | Construct                                                                                               | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/resources/resourceJobHolder.ts`   | `nosemgrep` on `spawn` (`detect-child-process`)                                                         | M107 C1's absolute Windows PowerShell runs only the verified packaged job DLL's fixed Hold entry and a fresh generated job name, in the projected helper environment. No model/workspace command or credential; it holds a query handle until owned job membership is empty. It is sampling infrastructure outside the governed job, and never sets limits or kills work.                                                                                                                                                                                                              | 2026-10-05 |
 | `src/host/backend/toolIo.ts`                | `nosemgrep` on `spawn`, in `startProcess` (`detect-child-process`)                                      | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string. The comment moved with the call into `startProcess` (M72, 2026-09-30), which catches `spawn`'s synchronous throw and reports an unstarted shell; no suppression was added.                                                                                                                                                                                                                                         | 2026-09-22 |
 | `src/host/backend/searchWorker.ts`          | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`)                                      | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host.                                                                                                                                                                                                                                                                                                                                                             | 2026-09-22 |
-| `src/host/voice/dictationHost.ts`           | `nosemgrep` on two `spawn` calls (`detect-child-process`)                                               | The dictation and capture helpers' command lines are fixed by `helperLocation.ts` (Windows PowerShell under `%SystemRoot%` with a bundled script, or the bundled macOS binary with VS Code's own app name (`--app-name`)); M35's Linux recorder is `arecord` or `parec` found by absolute path on PATH, with fixed arguments. Argument arrays; no user, model or workspace input reaches them.                                                                                                                                                                                         | 2026-09-25 |
+| `src/host/voice/voiceProcesses.ts`          | `nosemgrep` on the shared admitted `spawn` call (`detect-child-process`)                                | The dictation and capture helpers' command lines are fixed by `helperLocation.ts` (Windows PowerShell under `%SystemRoot%` with a bundled script, or the bundled macOS binary with VS Code's own app name (`--app-name`)); M35's Linux recorder is `arecord` or `parec` found by absolute path on PATH, with fixed arguments. Argument arrays; no user, model or workspace input reaches them.                                                                                                                                                                                         | 2026-09-25 |
 | `native/darwin/Dictation.swift`             | `unsafeBitCast(symbol, to: SetDisclaim.self)`                                                           | `responsibility_spawnattrs_setdisclaim` is a private libsystem call with no header, so it is resolved with `dlsym` and cast to its C signature, `int (posix_spawnattr_t *, int)`, the one Chromium and Qt declare (M28). A missing symbol is handled before the cast (the helper then asks as before); the signature has been stable since macOS 10.14.                                                                                                                                                                                                                                | 2026-09-23 |
-| `src/host/backend/shellJob.ts`              | `catch { }` in the join statement each Windows command starts with                                      | A command whose job cannot be joined (the assembly removed since the self-test, a policy change) must still run as it would without one; its kill then finds no job, logs that, and falls back to taskkill and the sweep (M27), so the failure is reported where it matters.                                                                                                                                                                                                                                                                                                           | 2026-09-23 |
+| `src/host/backend/shellJob.ts`              | `catch { }` in the join statement each Windows command starts with                                      | An unconfigured command whose job cannot be joined (the assembly removed since the self-test, a policy change) runs as it would without one; governed C1 commands instead exit before their payload; its kill then finds no job, logs that, and falls back to taskkill and the sweep (M27), so the failure is reported where it matters.                                                                                                                                                                                                                                               | 2026-09-23 |
 | `test/unit/App.test.tsx`                    | `as unknown as Selection` (four stubs)                                                                  | jsdom offers no usable `Selection`; the quote-menu tests stub the two members the code reads (`toString`, `anchorNode`) and nothing else, so a structural cast is the honest shape. Test-only.                                                                                                                                                                                                                                                                                                                                                                                         | 2026-09-23 |
 | `scripts/capture-themes.mjs`                | `nosemgrep` on `spawn` (`detect-child-process`)                                                         | A developer script (M37): it starts the VS Code build `@vscode/test-electron` downloaded, with its own fixed arguments, as an argument array with no shell. Nothing from a user, the model or a workspace reaches it, and it never ships.                                                                                                                                                                                                                                                                                                                                              | 2026-09-24 |
 | `scripts/sast.mjs`                          | `nosemgrep` on two `spawnSync` calls (`detect-child-process`)                                           | The SAST gate's own launcher (M40): it runs `semgrep` or the semgrep executable found in a Python's user Scripts folder, and asks the interpreters in a fixed list (`python`, `python3`, `py`) where that folder is. Every command and argument is the script's own, passed as an argument array with no shell; nothing from a user, the model or a workspace reaches them, and the script never ships.                                                                                                                                                                                | 2026-09-25 |
@@ -30829,6 +31396,384 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **M107-D100-native-birth-enforcement (FIXM107W; qualification blocker).**
+  G13 now stops only the offending registered job after more than 128 observed
+  members or 64 observed births in a rolling 15 seconds, retaining occupancy
+  until whole-tree exit proof. The native scan is periodic: short-lived children
+  born and gone between scans cannot be counted, and an unproved tree cannot
+  be signalled. Closing that gap needs per-platform pre-exec/native birth
+  accounting and hard fork admission in T/C1, beyond this bounded integration
+  pass and its existing reader contract. The guarded stop is safe for observed
+  members and unrelated jobs; it is **not complete fork-bomb containment**.
+  Keep this named blocker visible before M107 acceptance; T/C1/lead owns native
+  creation caps plus Windows/macOS/Linux stress receipts. No owner acceptance
+  of the remaining gap is implied.
+- **M107-D100-service-probes (FIXM107W; qualification blocker).** G12 now
+  consumes Linux PSI service stalls and existing relocation headroom-probe outcomes
+  through the portable governor. The one-minute transport window requires five
+  results and retains at most 100; at least 20% failures or 20% PSI stalls held
+  for 30 seconds throttles with existing recovery/dwell. No endpoint/error text
+  is stored. Missing/expired readings are unknown and cannot clear a level.
+  Windows/macOS native OS-service counters and transport producers outside the
+  existing relocator require their owning adapters and native receipts. The
+  signal policy and real relocator producer are implemented; wider platform
+  coverage remains a named acceptance blocker, with no guessed measurements.
+- **M107-W-Linux-archive-qualification (FIXM107W).** Both x64 and arm64
+  helpers are built from reviewed source and required in every VSIX/ACP stage;
+  SHA is static and runtime dependencies are system libc/loader only. Kubuntu
+  exercises the default factory natively on x64 and ARM create/cleanup under
+  QEMU; actual archives contain both real binaries. The hosted Ubuntu 24.04
+  x64/ARM runners must qualify native execution and the macOS builder must
+  supply its signed/disclaimed helper before universal acceptance. Qualify
+  the CI libc baseline against older supported Linux hosts. Missing helpers
+  refuse packaging and runtime allocation. Existing caps stay unchanged;
+  no binary placeholder substitutes for an unbuilt architecture.
+
+**M107-W-production-bindings (2026-10-06).** W scope does not authorize
+editing A/C1/U/H/J production code to invent joins. U–C1 must supply the
+checked cached source, window status/commands, lazy entry loader and disposal;
+A–C1 must bind registered member-state/native controls, G events and restore
+before unregister; H–C1 must share the active spawn lease and resource-v2 sink
+with the runtime rather than create a second governor. DK needs all-volume
+`diskTargets`, `registryFile`, archive-clean and safe-point/pre-write adapters,
+plus trusted native helpers. M96/M96c consume C2's required `TeamCapacityPort`
+and exact reserved permit; M100 consumes R's offer/receiver/retirement ports;
+M102 binds J's journal retention/collector-scoped reads and usage mount.
+M104 B/b–d supplies native/companion status and settings. These ports remain
+unbound on this base; no shipped fake stands in. See the exact handoff matrix
+in `docs/certification/m107.md`.
+
+**M107-W-DK4-review-block (resolved in W continuation, 2026-10-06).**
+The explicitly authorized no-fast-forward merge of final DK `bf84f179c`
+supersedes the requested `54194ed2f` snapshot. Preserve T3's `48e3b63c1`
+repairs and qualify no-replace renames, immediate held/name identity checks
+and native birth-time creation checks with the complete owning suites.
+The final empty-directory-name window is documented separately below;
+manifest-artifact growth/recovery and native delivery/platform receipts remain
+named qualifications, not clearance of production disk cleanup.
+
+**M107-W-T3-empty-removal-window (2026-10-06).** The cgroup and its parent
+are pinned, final removal resolves the leaf through the parent descriptor,
+and both pathname and pinned-parent leaf identities are checked before
+removal. Linux has no directory unlink by fd: a same-user racer can still
+substitute an empty leaf after the identity read and before rmdir. Populated
+substitutes are refused and no recursive file content is removed. Keep this
+bounded residual until a kernel identity-bound removal primitive is available.
+The harness-placement dispatch and PID/tick assumptions below remain unchanged.
+
+- **M107-J-M102-history-binding (FIXM107J, 2026-10-06).** RVM107J's
+  review findings are repaired, with scoped receipts in J's certification.
+  M102 still must bind consent, retention/rollups, atomic/idempotent append
+  and collector-scoped reads: a minute segment's latest cumulative snapshot
+  replaces its earlier snapshots before totals, while different collectors
+  retain M102's source scope. Bind final tree samples, the shared usage page
+  and ACP/CLI text routes; W owns the absent help reference, generated
+  stylesheet inventory and full integrated/platform gates. Safe for now:
+  J has no durable journal or shipped usage mount on this base, never exports
+  tree identities, and failed appends remain explicit/retryable. Follow-up:
+  W/M102 performs and certifies that complete join; no reviewed P2/P3 is
+  silently left as an accepted residual.
+
+- **M107-J-browser-rig-qualification (FIXM107J, 2026-10-06).** The
+  installed Chrome exits with SIGTRAP before page creation, both under the
+  unchanged history harness and a minimal headless about:blank probe. Fresh
+  browser scenes cannot be certified here; prior J scenes remain historical
+  receipts. Safe for this unmounted component: full-week paging, date/bridge
+  validation, unit axe and the independent page budget/split all pass, with
+  red/restored guards. Follow-up: W/lead reruns four themes at 320/690 px,
+  including large-history paging and keyboard/axe checks, on a working rig
+  before the M102 page join ships. No harness gate or production policy is
+  weakened to work around the browser installation.
+- **M107-C2-live-capacity-binding (FIXM107C2, 2026-10-06).** RVM107C2's
+  sole P2 is fixed in the portable adapter, with pause/throttle regressions
+  and byte-exact guard drills. No reviewed finding is accepted as a residual.
+  M96/M96c and the C1/T reserved-permit registry attachment remain absent on
+  this base. Safe for now: C2 is outside every shipped bundle, and rejected
+  unstarted local/governor reservations are withdrawn before requeue; running
+  work is never released by a capacity change. Follow-up: M96c/W must supply
+  the new required `TeamCapacityPort` using the queue's same live governor
+  and registry, existing configured caps, and scheduler occupancy including
+  the newly acquired reservation; bind the exact final permit to C1/T, then
+  certify joined fairness/child rules, runner dispatch, responsiveness,
+  bundle sizes and all editors. The rig forbids aggregate quality here;
+  the lead runs it before integration. See `m107-c2-the-team-and-runners.md`.
+- **M107-R-integration-binding (FIXM107R, 2026-10-06).** The portable
+  relocation coordinator remains unbound in production on this base.
+  M100 supplies task-bound offer/dispatch and final normal-level receiver
+  admission; C2 supplies exclusive ownership and complete local retirement;
+  U/J/W bind rows, notices, Traffic, journal and lazy delivery/help. The
+  tests qualify injected fake ports, not paired-device behavior. Safe for
+  now because no shipped caller can dispatch through this coordinator;
+  follow-up is the existing dependency join, two paired-rig receipts,
+  joined bundle budgets and full quality. The review repairs retain every
+  existing permission and post-dispatch uncertainty guard. See
+  `docs/certification/m107-r-relocation.md` for each RVM107R finding.
+
+- **M107 round-3 delivery qualification (2026-10-06).** T2/U/H are joined
+  into C1/G/A/S. Every repository-owned governed payload stop uses its registered
+  lease; raw legacy paths are guarded by absence of a lease, and failed stop
+  proof never grants a fallback or releases occupied work. Infrastructure and
+  zero-signal probes remain excluded. Both governor factories share the lazy
+  artifact and the ACP package includes its admission/governor files. The
+  shared UI and runtime command implementations are present, while W still
+  owns manifest/reference delivery, active runtime spawn/occupancy binding,
+  A's registered member-state/lifecycle join, native helper selection in all
+  editors and cross-platform/performance/full-gate qualification. C2/R/J and
+  their dependency joins remain separate. The parallel D87.14 disk lane is
+  deliberately untouched. The SDK's private POSIX group/Windows launcher
+  shutdown ladder has no public signal callback and remains a qualified
+  dependency/containment boundary for W/lead, not a registered member action.
+  Historical T/U/H snapshot/factory handoffs below
+  are superseded only where the round-3 receipts explicitly close them.
+
+**M107 DK integration qualifications.** Disk sampling and admission extend
+S/G/C1, without guessing external leftover locations. U/H/W must supply the
+remaining workspace/worktree/data/log/node-state watch targets, persisted
+per-harness registry discovery/recovery, safe-point and pre-write adapter
+bindings, manifest setting and surfaces. C1/C2/H mark install/build/worktree/
+download admissions disk-heavy through the explicit fourth admission argument;
+checks/browser checks are marked by default. W installs its table/locale
+through the lazy factory port. M100/R consumes validated disk
+headroom and refuses unknown/below-floor disk-heavy placement. M96c/M109
+supplies archived/merged-and-clean proof for worktrees/dependency copies.
+Lane 0 must measure OS leftovers on macOS/Windows; DK cannot certify the
+Mac mini killed-browser receipt from Kubuntu. Cleanup requires a private, canonical base, a stored native directory identity
+and marker hash, the marker read through the held root, and fresh tree-exit
+proof. Null or absent identity/hash is report-only, including interrupted
+creation intents. Creation uses the native mkdir/open port, requires empty/current-user
+ownership and a birth timestamp at or after its pre-mkdir clock sample,
+and returns fstat identity. Linux uses CLOCK_REALTIME_COARSE (the filesystem's
+clock) and statx STATX_BTIME; absent birth metadata refuses. The Node marker
+writer opens only that returned identity through the pinned base; a swap
+between the helper and Node open refuses. `recordCreated` only reclassifies creations
+made by this registry instance; an external proof cannot authorize adoption.
+Every descended directory is opened without following links and compared with
+its observed native identity and root device; Linux also compares the kernel
+mount ID read through each held descriptor, so a same-device bind mount is
+refused. Linux uses pinned fd paths;
+Darwin uses openat/fstatat/unlinkat; Windows uses relative NtCreateFile and
+handle disposition in the existing job helper. Final removal immediately compares the no-follow name identity with the
+held descriptor and is empty-only.
+No pathname recursive deletion or foreign-platform pathname fallback remains.
+A refused walk can have removed some genuine tree content before discovering
+an obstruction; it retains/reports the root or quarantine, never recursively
+removes a replacement. All manifest stages and displaced manifests are retained: even their names
+can be exchanged after creation/open. Publication is a no-replace hard link;
+POSIX updates use atomic exchange and verify the displaced identity, exchanging
+back and refusing a mismatch. Unsupported exchange refuses, without overwrite.
+Windows links through the held stage with NtSetInformationFile
+(FileLinkInformation, ReplaceIfExists=0), moving the held previous manifest to
+a no-replace backup name first and restoring it on failed publication when
+possible. That Windows two-step update is safe from overwrites but is not
+crash-atomic; an interruption can leave the previous manifest in its backup.
+See the named artifact/delivery qualification below.
+
+**M107-DK-tree-content (FIXM107DK2, owner rule).** Content a same-user process
+moves **into an already harness-created root** is treated as that tree's
+content. This includes moved ordinary directories, files and symlink entries;
+symlink targets are never followed and a different-device directory is refused.
+A replacement of the root, quarantine or ancestor is not content moved into
+that held root. The owner accepts this single content-ownership rule; no
+reviewed P1/P2/P3 finding from FIXM107DK2 was left as a residual; the final
+FIXM107DK4 qualification below supersedes that earlier claim.
+
+- **M107-DK-empty-name-final-window (FIXM107DK4, lead-approved residual).**
+  Inside the harness's private 0700 base, a same-user process racing the
+  cleaner (for example with inotify) can still replace the exact random trash
+  name between the final no-follow identity recheck and rmdir/unlinkat. Only
+  an EMPTY substitute can be removed: non-empty substitutes are refused and
+  no-replace quarantine/restore renames never overwrite a file or directory.
+  No file content can be lost through this remaining directory-name window.
+  Same-user processes are not a security boundary, consistent with M104 L.
+  Follow-up: the platform lead qualifies the kernel interleaving receipts;
+  stronger isolation would require a distinct OS identity or private mount
+  namespace, outside this final lane's scope.
+- **M107-DK-manifest-artifacts (FIXM107DK4 operational qualification).**
+  Keeping staging/displaced names avoids a file-loss race at POSIX unlink:
+  an identity recheck cannot bind a subsequent name-based file deletion.
+  These are small registry metadata artifacts, never credentials or user
+  content. They can accumulate; no bounded reclamation or crash recovery of
+  Windows' two-step publication is claimed. Follow-up: W qualifies storage
+  growth and interrupted-publication recovery before shipping, and any
+  reclamation requires an isolated owner or equivalent safe deletion port.
+  Safety now: no unlink of these external names, no overwritten destination,
+  and missing/uncertain manifests refuse cleanup or leave identity-less intent
+  report-only; they never grant deletion authority.
+- **M107-DK-Windows-owner (updated FIXM107DK2).** The native helper now
+  checks base/root/marker owner SID through their held handles. Node's
+  manifest stat remains no Windows owner/DACL proof; no ACL is changed and
+  POSIX-equivalent private ACL validation is not claimed. W/T must qualify
+  inherited ACLs and the manifest's owner before making that wider claim.
+- **M107-DK-native-qualification (FIXM107DK2).** The previous
+  `M107-DK-non-Linux-ancestor-window` is closed by the native handle port;
+  missing helpers refuse allocation/cleanup rather than use path recursion.
+  Windows uses the existing source-digested job assembly, Darwin the existing
+  universal helper's `--created-directory` mode before any voice setup.
+  Kubuntu runs the POSIX walk and C# 5 syntax compilation only. macOS universal
+  build/sign/disclaim and native interleaving receipts, Windows PowerShell 5.1
+  compilation plus NT identity/reparse/empty-directory race receipts, and
+  foreign editor/runtime delivery remain the platform lead's qualification.
+  Standalone callers on every platform must install the trusted file helper
+  port (`files`, or the full `directories` helper). Linux's default governor
+  binding now selects `native/linux/{x64,arm64}/muse-created`, compiled from
+  the reviewed `native/darwin/MuseSparkCreated.c` with MUSE_CREATED_STANDALONE.
+  W's FIXM107W build statically links the low-level SHA routines and ships the
+  helper in both packages; CI builds each architecture and checks both archive
+  entries. The resource bundles are already delivered. The local Kubuntu
+  archive qualifies x64 only; hosted arm64/macOS acquisition remains required. Missing helpers, unsupported no-replace/exchange operations
+  or absent Linux birth metadata refuse; Node fs.rename is never a fallback.
+  Kubuntu's shared test helper compiles once in beforeAll. Windows publication
+  now checks held stage/previous-manifest owner SIDs too; its kernel hard-link
+  receipt and interrupted-update recovery remain owed to W. No editor-specific
+  alternative or unsupported shipping claim is made.
+
+- **FIXM107INT qualification (2026-10-06).** The four RVM107INT findings
+  are repaired at their launch, queue and ownership boundaries; none is
+  accepted as a reviewed residual. Explicit owner shutdown alone invokes
+  registry-verified job termination. Native birth identity and membership
+  are checked through the same job handle before termination; governor policy
+  still kills nothing. Failed proof retains unknown capacity and rejects
+  close within its bound. Windows receipts and deliberate failures are in
+  `docs/certification/m107-c1.md`. The rig forbids full quality/coverage and
+  non-Windows/editor delivery qualification here; those existing W/lead
+  handoffs remain, along with the separate T2 actuator binding below.
+
+- **M107-INT2-actuator-lifecycle-binding (2026-10-06).** G and A's reviewed
+  implementations are merged; all six Windows-native cases pass, including
+  exact same-root OS policy restoration. A explicitly requires T2's
+  registered birth-bound member-state port before shipped G/C lifecycle
+  wiring, and that API is still absent. Actuators stay unbound, so they
+  cannot mutate a production tree. W binds that state, G events/tree scans,
+  live-tree recovery and independently proved completed-tree release as one
+  join; K/W supplies later-member priority baselines and POSIX native ports.
+  No failed/empty membership query becomes exit proof. C1's admission/lifetime
+  behavior remains unchanged. Native late-member churn, integrated actuator
+  size/performance and platform/editor/full-gate qualification remain W's.
+  `docs/certification/m107-int2.md` supersedes the earlier pending Win11
+  six-case receipt; the other A/C1 handoffs below remain explicit.
+
+- **M107-C1-lane-handoffs (Win11, 2026-10-05).** This lane installs
+  admission at the Model API/window call sites, the process-wide lazy loader
+  and native Windows launch proofs. C2 still owns team workers, check slots
+  and runner/load-guard integration; A owns OS priority/rate changes; R owns
+  relocation/retirement routing; U owns resource controls and notices; H owns
+  runtime/ACP/headless settings and loader installation; J owns usage records;
+  W owns manifest settings, packaging, aggregate quality/coverage and editor/
+  Linux/macOS certification. A missing macOS native binding returns unknown;
+  W/H must supply T's exact native identity port, never a seconds-resolution
+  guess. New jobs hold a query handle outside their own tree until empty;
+  holder failure retains unknown work rather than claiming disappearance.
+  No UI status/priority/relocation is implemented by C1. The unconfigured
+  runtime shim stays dormant until H configures it. See `m107-c1.md`.
+
+- **M107-A-T2-member-state-binding (FIXM107A integration handoff).**
+  The controller now drops per-member controls only after the injected
+  `ResourceMemberStatePort.state(ticket, identity)` reports `exited`
+  (including zombies). T2's state API is absent on this base; W/T2 must bind
+  its registered birth-identity state as the controller's third argument.
+  Until that binding lands, missing members retain their controls and can
+  block live-tree retirement; independent complete-tree proof can still
+  release them. Safe for this unmerged, unwired lane: absence/failure never
+  becomes exit proof, no unproven PID is mutated, and no completion fallback
+  claims success. Follow-up: adapt T2's exact exit-state API, rerun the new
+  exited/zombie/unknown/close-failure suites and certify live member churn in
+  the combined G/C lifecycle on all rigs. The three review findings have
+  controller/adapter fixes and regressions; this remaining binding is named,
+  not claimed as a production receipt.
+
+- **M107-A-native-and-integrated-gates (existing handoff, FIXM107A).**
+  Real Windows/macOS policy mutation/readback/restoration, M96 K's native
+  identity-bound ports, the W-owned generated host-API record, lazy governor
+  wiring/budgets and full quality/coverage remain with the integration lead.
+  Safe for now: no shipped entry reaches these unmerged actuators, existing
+  identity/ownership/cgroup confinement gates are unchanged, and failing
+  controls report unknown. Follow-up: bind and certify the integrated
+  governor in every editor and on Win11/Mac/Kubuntu, then run the unchanged
+  full gate. Detailed scoped receipts are in `docs/certification/m107-a.md`.
+- **M107-T3 harness placement dispatch window (FIXM107T3, 2026-10-06).**
+  Both RVM107T3G P2s are fixed, with no reviewed finding deferred. Directory
+  identity is an open read-only handle with exact BigInt (dev, ino), retained
+  through unregister; all cgroup file reads/writes use /proc/self/fd. Stop
+  reasserts a separately pinned harness home before scanning and immediately
+  before kill/freeze. Repeated insertion exhausts three attempts into the
+  distinct localized harness_in_tree outcome, retaining ticket and keeper for
+  a later Stop. The final reassert and control-file write remain adjacent
+  user-space operations: the remaining normally sub-millisecond window is
+  not atomic, and scheduler preemption can extend it. Same-user code can
+  already signal the harness directly with kill(2); this is not a new
+  privilege boundary. On the rig's root-owned login home, a no-op placement
+  write is denied: accept only EACCES/EPERM followed by confirmation that
+  /proc/self/cgroup still names the pinned home, and still perform the member
+  scan. A moved harness or any other home-write/read failure refuses dispatch.
+  Native and injected receipts are in docs/certification/m107-t3.md. The
+  existing C1/C2/W all-editor/spawn and full-gate handoffs remain unchanged.
+
+- **M107-T3 Linux fallback identity bound (2026-10-06).** Private cgroup
+  launches use current kernel containment for enrollment and cgroup.kill for
+  forced Stop; completion is cgroup.events populated 0 followed by removal.
+  Without delegation, admission and every signal require pid_max at least
+  LINUX_PID_IDENTITY_MIN_PID_MAX (4,194,304), with a valid observed CLK_TCK.
+  The rig reads 100 Hz, so a starttime bucket is 10 ms (generally 1/CLK_TCK
+  seconds). This is an explicit assumption that a numerical PID cannot be
+  reused inside that bucket, not a uniqueness theorem derived from pid_max:
+  allocator wrap, occupied slots and churn are not bounded by this code.
+  A same-tick reuse can still alias an observed group identity despite fresh
+  parent/birth proofs in this fallback. Below the bound, unknown pid_max or
+  unavailable clock units refuse authority. No native same-tick reuse was
+  forced. Individual POSIX signals (including the specified freeze fallback)
+  still have a final membership/read-to-signal race; only cgroup.kill avoids
+  numerical PID action. User-space group observation also cannot reconstruct
+  an unobserved fork/reparent edge. All-spawn and lazy-bundle integration stay
+  C1/C2/W handoffs; Darwin and Windows authority is unchanged. See
+  docs/certification/m107-t3.md for native and deliberate guard-fire receipts.
+
+- **M107-T-native-and-integration (existing W/native handoff, FIXM107T).**
+  The three RVM107T P2 findings are fixed; native Windows job execution,
+  the combined lazy governor bundle,
+  all-spawn/editor wiring and full integrated quality remain the original
+  integration handoffs. Safe for this unmerged lane: exact identity/scope
+  proofs stay mandatory, unavailable reads refuse authority, and there is
+  no native fallback or release certification claim. Follow-up: W/M96 K bind
+  the readers, Win11 runs the existing native test, and the lead certifies
+  the integrated governor, including the host-API record above. Detailed
+  receipts and the six original named handoffs are in
+  `docs/certification/m107-t.md`. T2 supplies the production macOS
+  `proc-identity` binding and native lifecycle receipts; installed-helper path
+  selection and all-editor launch integration remain W/M96 K work. POSIX
+  final birth read and signal are adjacent user-space operations, not an atomic
+  handle-bound action. Unobserved fork/reparent edges cannot be reconstructed;
+  no real PID reuse was forced on macOS. See `docs/certification/m107-t2.md`.
+
+- **M107-S-platform-qualification.** The sampler's measured costs qualify
+  Kubuntu's default/Linux disk paths and unavailable-GPU discovery only.
+  Native Windows CIM/hardware counters and child CPU, Mac cost, and hardware
+  GPU cost remain unqualified. Safe for now: S is staged and unwired, and
+  failed/unavailable counters stay unknown. Follow-up: lead/W collect the
+  missing platform and optional-hardware receipts before full M107 acceptance.
+- **M107-S-Darwin-disk.** No qualified unprivileged disk duty-cycle counter
+  exists on this lane's base. Safe for now: Darwin disk explicitly returns
+  unknown, performs no root probe, and cannot clear pressure with a fabricated
+  zero. Follow-up: lead/W qualify a counter or formally defer Darwin disk in
+  the integrated milestone; do not claim supported Mac disk utilization.
+- **M107-S-shipping-gates.** W has not bound the sampler into the lazy
+  resourceGovernor bundle or every editor/runtime, and the generated host-API
+  record has the documented Node-importer drift. Safe for now: S is unshipped
+  and the checks continue to reject unsupported integration. Follow-up: W
+  wires all runtimes, updates its owned record and certifies the joined size,
+  full quality/coverage and editor matrix. These are inherited qualification
+  handoffs, not deferred RVM107S findings.
+- **M107-H-W-integration (FIXM107H).** Both RVM107H findings are fixed;
+  no P2/P3 finding is deferred. Existing W-owned validation-bundle and
+  host-API-record failures remain: seven missing `zod/mini._default` reads,
+  and the generated Node-importer counts recorded in §7. Safe only as an
+  unmerged, unshipped lane: unchanged split/record gates still reject the
+  joined feature. Follow-up: W exports the existing mini-parser member,
+  wires/packages the resource bundle, refreshes/reviews the host record,
+  incorporates H's supplied Unreleased fix entry, and runs joined full
+  quality with the C1/T, J, R and M104 bindings named in H's certification.
+  The ACP bundle fits its unchanged 850 KiB hard cap but remains above
+  M107's ≤2 KiB addition target already handed to W; W reviews shared/lazy
+  factoring without weakening resource boundary validation or a budget.
 - **M112 integration (2026-10-06, Windows rig).** Bind the real question store and registry to the extension and ACP launcher, with an owner-only bounded durable late-answer queue and session removal. ACP owns its deadline timer; the registry accepts its frozen arrival timing without another timer. History carries per-session counts from authenticated listed sessions. Move question UI and runtime implementation to guarded lazy closures; preserve every existing cap. Reconcile model-text readers with actual lazy ownership, prove changed guards with red controls, and record all acceptance evidence in docs/certification/m112.md. Round 2 integrates U's authoritative open set, retained history and newest-waiting dock priority while preserving session-generation delivery guards and settled outcomes. HELPREF and M104 sources are absent on this base: their named handoffs stay explicit; no substitute protocol or full catalog is invented. Live checks and hosted full quality remain with the lead; the startup growth waiver follows below.
 
 - **FIXM112Q (2026-10-06).** All six RVM112Q findings are corrected; none is

@@ -529,3 +529,38 @@ keep secrets out of it.
 ## Help and reference
 
 Send `/help` in an ACP session for its local command list and the [generated reference](reference.md). Run `muse-spark-code-acp help --all` in a terminal for the complete reference. Help starts no backend and makes no model request.
+
+## Resource status and resume
+
+M107's candidate package carries the same lazy governor as the extension.
+It uses portable machine settings, never a workspace setting or credential.
+The runtime data folder's `resources.json` is a JSON object whose keys are the
+full `museSpark.resource…` setting names in the [README table](../README.md#keeping-your-machine-responsive).
+A missing file uses defaults. Malformed, oversized or inaccessible settings
+fail explicitly. Native editors can inject `ResourceMachineStore` for their
+own machine store; they must not substitute project configuration.
+
+```sh
+muse-spark-code-acp resources status --json
+muse-spark-code-acp resources resume --json
+```
+
+Text output omits `--json`. Status samples this new command process; it cannot
+observe a separately running editor session's queue. Resume writes
+`resource-resume.json` with a fifteen-minute deadline. Running runtime hosts
+apply it on refresh without extending that deadline; explicit OFF stays off.
+Neither command signs in or makes a model call.
+
+The shared session adapter registers `/resources`, `/resources resume` and
+`/usage resources`, delivers notices for affected work and validates deferred
+tool `_meta`. It needs the injected runtime resource port. `resources history`
+and `usage resources` return an explicit unavailable error while no retained
+journal is bound. Zed, Xcode, Neovim, Emacs, Sublime and native editor plugins
+have equivalent routes; see the [resource matrix](ide-compatibility/resources.md).
+These component receipts do not certify installed-editor resource behavior.
+
+Stop and permission/paid prompts remain responsive at pause. Unknown readings
+are neither a fabricated zero nor evidence of recovery. No resource action
+changes model capabilities, paid consent or the shared budget. Runtime spawn,
+native control, journal and relocation bindings remain named in
+[M107's integration record](certification/m107.md).

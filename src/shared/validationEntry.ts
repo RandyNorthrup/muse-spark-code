@@ -2,6 +2,8 @@
 // Browser and integration builds retain their inline parser. The split gate
 // checks new member reads against these exports before the package can ship.
 export {
+  // M107's lazily loaded machine settings use the pinned mini defaults API.
+  _default,
   array,
   boolean,
   discriminatedUnion,

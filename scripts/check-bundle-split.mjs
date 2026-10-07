@@ -82,9 +82,12 @@ import {
   HOOK_RUNTIME_ONLY,
   PLUGIN_HOOKS_ONLY,
   checkDeferredBundles,
+  checkResourceBundles,
 } from './lib/deferredBundles.mjs'
 import {
   ADDITIONAL_WEBVIEW_BUDGETS,
+  RESOURCE_WEBVIEW_ENTRIES,
+  checkResourceWebview,
   DEFERRED_WEBVIEW_SURFACES,
   webviewStartupOutputs,
 } from './lib/webviewBundles.mjs'
@@ -180,12 +183,17 @@ function inputsOf({ output, metafile }) {
     throw new Error(`${metafile} is missing: run "node scripts/build.mjs --production" first`)
   }
   const parsed = JSON.parse(readFileSync(metafile, 'utf8'))
-  const bundle = parsed.outputs[output]
+  const bundle = Object.entries(parsed.outputs).find(
+    ([file]) => file.replaceAll('\\', '/') === output,
+  )?.[1]
   if (bundle === undefined) {
     throw new Error(`${metafile} does not describe ${output}`)
   }
   return new Map(
-    Object.entries(bundle.inputs).map(([input, { bytesInOutput }]) => [input, bytesInOutput]),
+    Object.entries(bundle.inputs).map(([input, { bytesInOutput }]) => [
+      input.replaceAll('\\', '/'),
+      bytesInOutput,
+    ]),
   )
 }
 
@@ -480,6 +488,7 @@ for (const bundle of [
   }
   const { outputs } = JSON.parse(readFileSync(bundle.metafile, 'utf8'))
   if (
+    bundle.uiText !== false &&
     outputs[bundle.output].imports.every((entry) => entry.path !== './uiText.js' || !entry.external)
   ) {
     problems.push(`${bundle.output} no longer loads the shared English table`)
@@ -679,6 +688,7 @@ function shippedBundles() {
   )
 }
 const SHIPPED = shippedBundles()
+problems.push(...checkResourceBundles(inputsOf, SHIPPED))
 // ESM splitting moves shared constants to one common browser chunk. Identify
 // that chunk by its source, so hashes may change without loosening the text gate.
 const webviewConstants = SHIPPED.filter(
@@ -890,6 +900,22 @@ for (const key of modelTextKeys) {
 // All optional surfaces must remain behind dynamic imports. Every
 // emitted JS chunk must be reachable and packaged; stale output is refused.
 const webviewMeta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
+webviewMeta.outputs = Object.fromEntries(
+  Object.entries(webviewMeta.outputs).map(([file, output]) => [
+    file.replaceAll('\\', '/'),
+    {
+      ...output,
+      entryPoint: output.entryPoint?.replaceAll('\\', '/'),
+      inputs: Object.fromEntries(
+        Object.entries(output.inputs).map(([source, details]) => [
+          source.replaceAll('\\', '/'),
+          details,
+        ]),
+      ),
+      imports: output.imports.map((item) => ({ ...item, path: item.path.replaceAll('\\', '/') })),
+    },
+  ]),
+)
 const eagerWebview = new Set(webviewStartupOutputs(webviewMeta))
 for (const file of eagerWebview) {
   const sources = Object.keys(webviewMeta.outputs[file].inputs)
@@ -910,6 +936,8 @@ const visitWebview = (file) => {
   for (const imported of output.imports) if (!imported.external) visitWebview(imported.path)
 }
 visitWebview('dist/webview/main.js')
+problems.push(...checkResourceWebview(webviewMeta))
+for (const file of Object.keys(RESOURCE_WEBVIEW_ENTRIES)) visitWebview(file)
 const deferredWebviewSources = [
   ...DEFERRED_WEBVIEW_SURFACES.map((surface) => `src/webview/components/${surface}.tsx`),
   ...ADDITIONAL_WEBVIEW_BUDGETS.flatMap(({ entries }) => entries),

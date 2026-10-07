@@ -33,6 +33,9 @@ export async function stageVsix(root, stage) {
     if (!file.endsWith('.js')) continue
     if (!files.includes(file)) throw new Error(`Webview output excluded from VSIX: ${file}`)
   }
+  for (const arch of ['x64', 'arm64'])
+    if (files.every((file) => file.replaceAll('\\', '/') !== `native/linux/${arch}/muse-created`))
+      throw new Error(`Required Linux created-path helper excluded from VSIX: ${arch}`)
   if (!files.includes('dist/validation.js'))
     throw new Error('Shared validation runtime excluded from VSIX')
   rmSync(stage, { recursive: true, force: true })

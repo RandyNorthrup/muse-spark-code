@@ -80,6 +80,25 @@ export const DEFERRED = [
 // The Model API backend keeps its own copy of code intelligence.
 export const ON_FIRST_USE = [
   {
+    output: 'dist/resourceGovernor.js',
+    metafile: 'dist/meta/resourceGovernor.json',
+    use: 'the first governed spawn',
+    files: [
+      'src/core/resources/resourceGovernorEntry.ts',
+      'src/core/resources/launchHost.ts',
+      'src/core/resources/governor.ts',
+      'src/core/resources/queue.ts',
+      'src/core/resources/events.ts',
+      'src/core/resources/disk.ts',
+      'src/core/resources/createdRegistry.ts',
+      'src/core/resources/sampler/system.ts',
+      'src/core/resources/trees/registry.ts',
+      'src/runtime/resources/entry.ts',
+      'src/runtime/resources/host.ts',
+      'src/runtime/resources/settings.ts',
+    ],
+  },
+  {
     output: 'dist/questionNotes.js',
     metafile: 'dist/meta/questionNotes.json',
     use: 'the first backend question deferral',
@@ -263,7 +282,7 @@ export function checkDeferredBundles(inputsOf) {
     const inputs = inputsOf(bundle)
     const parents =
       bundle.parents ??
-      (DEFERRED.includes(bundle)
+      (DEFERRED.includes(bundle) || bundle.output === 'dist/resourceGovernor.js'
         ? [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]
         : [BUNDLES.activation])
     for (const file of bundle.files) {
@@ -308,6 +327,28 @@ export function checkDeferredBundles(inputsOf) {
   return problems
 }
 
+/** Resource policy is shared through one lazy governor and one admission shim. */
+export function checkResourceBundles(inputsOf, bundles) {
+  const problems = []
+  for (const bundle of bundles) {
+    const output = bundle.output.replaceAll('\\', '/')
+    for (const raw of inputsOf(bundle).keys()) {
+      const file = raw.replaceAll('\\', '/')
+      if (!file.startsWith('src/core/resources/')) continue
+      if (file === 'src/core/resources/admission.ts') {
+        if (output !== 'dist/resourceAdmission.js')
+          problems.push(`${output} duplicates resource admission`)
+      } else if (
+        output !== 'dist/resourceGovernor.js' &&
+        !['src/core/resources/launch.ts', 'src/core/resources/trees/processTable.ts'].includes(file)
+      ) {
+        problems.push(`${output} carries resource policy ${file} outside the lazy governor`)
+      }
+    }
+  }
+  return problems
+}
+
 /** @type {import('esbuild').Plugin} */
 export const sharedUiText = {
   name: 'shared-ui-text',
@@ -339,6 +380,7 @@ export const sharedValidation = {
 // Keep dynamic imports dynamic: these entries run only on their first action.
 /** @type {import('esbuild').Plugin} */
 const DEFERRED_OUTFILES = new Map([
+  [path.resolve('src/core/resources/resourceGovernorEntry.ts'), 'dist/resourceGovernor.js'],
   [path.resolve('src/core/questions/deferralEntry.ts'), 'dist/questionNotes.js'],
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
@@ -356,7 +398,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry)(?:\.[jt]s)?$/,
+          /\/(?:resourceGovernorEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (args.kind !== 'dynamic-import') return
@@ -380,6 +422,20 @@ export const sharedWire = {
     build.onResolve({ filter: /(?:^|\/)(?:protocol|agentEvents)(?:\.ts)?$/ }, (args) => {
       const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
       return WIRE_SOURCES.has(source) ? { path: './wire.js', external: true } : undefined
+    })
+  },
+}
+
+// One process-wide admission configuration, shared by every lazy Node bundle.
+export const sharedResourceAdmission = {
+  name: 'shared-resource-admission',
+  setup(build) {
+    build.onResolve({ filter: /(?:^|\/)admission(?:\.[jt]s)?$/ }, (args) => {
+      if (args.kind === 'entry-point') return
+      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+      return source === path.resolve('src/core/resources/admission.ts')
+        ? { path: './resourceAdmission.js', external: true }
+        : undefined
     })
   },
 }

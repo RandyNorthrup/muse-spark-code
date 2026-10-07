@@ -70,6 +70,12 @@ export function cliCommands() {
       text: { ui: 'referenceBriefHelp' },
     },
     {
+      route: 'resources',
+      name: 'resources [status|history|resume] [--json]; usage resources [--json]',
+      description: UI_TEXT.resourceGovernorDescription,
+      text: { ui: 'resourceGovernorDescription' },
+    },
+    {
       route: 'version',
       name: '--version / -v',
       description: UI_TEXT.referenceVersion,

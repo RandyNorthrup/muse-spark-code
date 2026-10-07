@@ -14,9 +14,11 @@ import {
   EXEC_MAX_REQUESTS,
   EXEC_MIN_TIMEOUT_SECONDS,
   EXEC_MAX_TIMEOUT_SECONDS,
+  RESOURCE_EXEC_EVENT_VERSION,
 } from '../../shared/constants'
 import type { AcpBackendKind } from '../../shared/constants'
 import type { ExecMode, ExecPaidFeature } from './execArgs'
+import { resourceExecEventSchema, type ResourceEvent } from '../../shared/resources'
 
 export type ExecStatus =
   | 'completed'
@@ -191,6 +193,11 @@ export type ExecEventBody =
   | { type: 'signal'; signal: ExecSignal }
   | { type: 'result'; result: ExecResult }
 export type ExecEvent = ExecEventBody & { v: 1; seq: number; time: string }
+export type ResourceExecEvent = (ExecEventBody | { type: 'resource'; event: ResourceEvent }) & {
+  v: typeof RESOURCE_EXEC_EVENT_VERSION
+  seq: number
+  time: string
+}
 
 const STATUSES = [
   'completed',
@@ -589,6 +596,14 @@ export const execEventSchema: z.ZodMiniType<ExecEvent> = z.union([
   z.extend(eventSchemas[8], envelope),
   z.extend(eventSchemas[9], envelope),
   z.extend(eventSchemas[10], envelope),
+])
+
+// Freeze the v1 boundary for M80's sink; H's adapter adopts the complete v2 union.
+export const execEventV2Schema: z.ZodMiniType<ResourceExecEvent> = z.union([
+  ...eventSchemas.map((schema) =>
+    z.extend(schema, { ...envelope, v: z.literal(RESOURCE_EXEC_EVENT_VERSION) }),
+  ),
+  resourceExecEventSchema,
 ])
 
 export function validateResult(value: unknown): ExecResult {

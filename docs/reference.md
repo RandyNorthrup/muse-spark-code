@@ -6,6 +6,14 @@ Open `/help` in the panel or **Muse Spark: Open Help & Reference**. Search the r
 
 ## Features
 
+### Resources
+
+Resource, service and transport pressure reduce admission. Each job has observed process and birth limits; cleanup removes only recorded temp roots.
+
+Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: `museSpark.resourceGovernor`, `museSpark.resourceCpuMaxPercent`, `museSpark.resourceMemoryMaxPercent`, `museSpark.resourceMemoryMinFreeGiB`, `museSpark.resourceGpuMaxPercent`, `museSpark.resourceDiskBusyMaxPercent`, `museSpark.resourceDiskMinFreeGiB`, `museSpark.resourceRelocate`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#keeping-your-machine-responsive)
+
 ### Best of N
 
 Best of N Apply and stage exactly the selected preview. No commit is created; ignored files are excluded.
@@ -255,7 +263,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### Help & Reference
 
-Installed skills add dynamic slash commands. This static reference does not list them. ACP handles only local /help, /questions, /answer and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
+Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /questions, /answer, /resources, /resources resume, /usage resources and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
 
 ```json
 {
@@ -1214,7 +1222,7 @@ Commands: —. Settings: `museSpark.judge.engine`. [Documentation](https://githu
 
 Report an issue.
 
-Installed skills add dynamic slash commands. This static reference does not list them. ACP handles only local /help, /questions, /answer and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
+Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /questions, /answer, /resources, /resources resume, /usage resources and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -2525,6 +2533,126 @@ Type: `"array"`. Default: `[]`. Scope: `machine`.
 }
 ```
 
+### museSpark.resourceGovernor
+
+Keep this machine responsive by slowing or deferring work started by the harness. On by default.
+
+Type: `"boolean"`. Default: `true`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": true
+}
+```
+
+### museSpark.resourceCpuMaxPercent
+
+resourceThreshold: Throttle when machine CPU use stays above this percentage for 30 seconds.
+
+Type: `"number"`. Default: `85`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 85,
+  "minimum": 30,
+  "maximum": 100
+}
+```
+
+### museSpark.resourceMemoryMaxPercent
+
+resourceThreshold: Throttle when memory in use stays above this percentage for two samples.
+
+Type: `"number"`. Default: `90`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 90,
+  "minimum": 40,
+  "maximum": 98
+}
+```
+
+### museSpark.resourceMemoryMinFreeGiB
+
+Minimum available memory in GiB, capped at 15% of this machine’s RAM.
+
+Type: `"number"`. Default: `2`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 2,
+  "minimum": 0.5,
+  "maximum": 64
+}
+```
+
+### museSpark.resourceGpuMaxPercent
+
+resourceThreshold: Optional GPU use limit in percent. Unset means no GPU probe.
+
+Type: `["number","null"]`. Default: `null`. Scope: `machine`.
+
+```json
+{
+  "type": ["number", "null"],
+  "default": null,
+  "minimum": 1,
+  "maximum": 100
+}
+```
+
+### museSpark.resourceDiskBusyMaxPercent
+
+resourceThreshold: Optional disk busy limit in percent. Unset means no disk probe.
+
+Type: `["number","null"]`. Default: `null`. Scope: `machine`.
+
+```json
+{
+  "type": ["number", "null"],
+  "default": null,
+  "minimum": 1,
+  "maximum": 100
+}
+```
+
+### museSpark.resourceDiskMinFreeGiB
+
+resourceDiskThreshold: Free disk space floor in GiB. The default is 10 GiB or 10% of the volume, whichever is smaller, with a minimum of 2 GiB.
+
+Type: `["number","null"]`. Default: `null`. Scope: `machine`.
+
+```json
+{
+  "type": ["number", "null"],
+  "default": null,
+  "minimum": 2
+}
+```
+
+### museSpark.resourceRelocate
+
+resourceRelocation: Where queued team tasks and checks may move when this machine is busy. Existing device consent and offers still apply.
+
+Type: `"string"`. Default: `"paired"`. Scope: `machine`.
+
+```json
+{
+  "type": "string",
+  "default": "paired",
+  "enum": ["paired", "ask", "off"]
+}
+```
+
+- `"paired"`: resourceRelocation: Use an already approved paired device with normal resource load.
+- `"ask"`: Ask before moving queued work.
+- `"off"`: Keep work on this machine.
+
 ### museSpark.questions.deferAfterSeconds
 
 Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used.
@@ -2597,6 +2725,7 @@ These are defaults; editor customizations take precedence.
   --no-events Leave the recent events out
 - `help --all`: Commands, settings and features, with descriptions and documentation.
 - `help / --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.
+- `resources [status|history|resume] [--json]; usage resources [--json]`: Keep this machine responsive by slowing or deferring work started by the harness. On by default.
 - `--version / -v`: Print the installed agent version.
 - `serve: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode"}`
 - `serve: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false}`
@@ -2698,6 +2827,9 @@ These are defaults; editor customizations take precedence.
 - `exec: --trust-workspace`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. `{"type":"boolean","repeatable":false,"default":false,"refused":true,"purpose":"trust-workspace"}`
 - `exec: --allow-dangerously-skip-permissions`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. `{"type":"boolean","repeatable":false,"default":false,"refused":true,"purpose":"allow-dangerously-skip-permissions"}`
 - `exec: --web-search`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. `{"type":"boolean","repeatable":false,"default":false,"refused":true,"purpose":"web-search"}`
+- `exec: --resource-governor <value>`: --resource-governor on|off: Keep this machine responsive by throttling or deferring harness work. On by default. `{"type":"string","repeatable":false,"purpose":"resource-governor"}`
+- `exec: --cpu-max <value>`: resourceThreshold: --cpu-max &lt;percent&gt;: Throttle when CPU stays above this percentage for 30 seconds. `{"type":"string","repeatable":false,"purpose":"cpu-max"}`
+- `exec: --memory-max <value>`: resourceThreshold: --memory-max &lt;percent&gt;: Throttle when used memory stays above this percentage for two samples. `{"type":"string","repeatable":false,"purpose":"memory-max"}`
 - `exec: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false,"purpose":"help"}`
 - `scan-secrets: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"default":false}`
 - `scan-secrets: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
@@ -2706,6 +2838,8 @@ These are defaults; editor customizations take precedence.
 - `report: --no-facts`: --no-facts Leave the support facts out `{"type":"boolean","repeatable":false,"default":false}`
 - `report: --no-events`: --no-events Leave the recent events out `{"type":"boolean","repeatable":false,"default":false}`
 - `report: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
+- `resources: --json`: JSON: Resources `{"type":"boolean","repeatable":false,"default":false}`
+- `resources: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `exec <prompt> | exec - | exec --prompt-file <file>`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.
 - `scan-secrets <file> [--key-stdin]`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.
 

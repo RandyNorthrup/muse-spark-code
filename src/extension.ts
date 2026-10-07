@@ -5,7 +5,6 @@ import { REFERENCE_BUNDLE_FILE } from './shared/constants'
 // Extension host entry point. Kept to registration and adapter wiring; the
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
-import { execFile, type ExecFileException } from 'node:child_process'
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { homedir, hostname, userInfo } from 'node:os'
 import path from 'node:path'
@@ -28,7 +27,7 @@ import { memoryDataRoot } from './core/memory/memoryLocation'
 import { isSamePath } from './core/paths'
 import { terminalArgument } from './core/shellQuote'
 import { renderSupportReport } from './core/support/report'
-import { type CliInvocation, isSandboxNetworkApplied } from './core/backends/musecode/sandbox'
+import { isSandboxNetworkApplied } from './core/backends/musecode/sandbox'
 import { DIAGNOSTIC_SEVERITIES, type DiagnosticEntry, diagnosticsTool } from './core/diagnostics'
 import type { EditorContext } from './core/editorContext'
 import type { MentionSource } from './core/mention'
@@ -49,7 +48,7 @@ import { ModelApiBackendManager } from './host/backend/modelApiBackendManager'
 import { createFileScheduleStore } from './host/backend/fileScheduleStore'
 import { MuseCodeBackendManager } from './host/backend/museCodeBackendManager'
 import { chooseAuthorizedHost } from './host/backend/selectedHost'
-import { type ProcessResult, SandboxSetup } from './host/backend/sandboxSetup'
+import { SandboxSetup } from './host/backend/sandboxSetup'
 import { fileContextIo } from './host/backend/contextIo'
 import { describeEnvironment } from './host/backend/environment'
 import { createFileSessionStore } from './host/backend/fileSessionStore'
@@ -67,6 +66,7 @@ import {
 import { type ShellJobDeps, shellJobAssembly } from './host/backend/shellJob'
 import {
   createToolIo,
+  runResourceCommand as runProcess,
   readPickedFile,
   toolImagePreviewIo,
   hookEnvironment,
@@ -153,6 +153,7 @@ import { extensionHooksBundle, type ExtensionHooksModule } from './host/extensio
 import type { ExtensionHookRunner } from './host/extensionHooksEntry'
 import { showPickOne } from './host/quickPick'
 import { processGitLocator, processGitProcess, processGitRunner } from './host/git'
+import { configureResources } from './core/resources/admission'
 import {
   createCheckpointPort,
   finishCheckpointTurn,
@@ -211,7 +212,6 @@ import {
   HAS_APPROVAL_UI,
   CHAT_PANEL_VIEW_TYPE,
   CHAT_VIEW_ID,
-  CLI_OUTPUT_MAX_BYTES,
   COMMAND_IDS,
   CONTEXT_KEYS,
   DEFAULT_MODEL_ID,
@@ -481,40 +481,6 @@ function findWorkspaceFiles(): Promise<readonly string[]> {
 const runGit = processGitRunner()
 const automaticBestOfNGit = processGitRunner({ isAutomatic: true })
 
-// A failed spawn or a timeout kill has no exit code; report it as negative so
-// the caller can tell "the CLI said no" from "the CLI never ran".
-const NO_EXIT_CODE = -1
-
-function exitCodeOf(error: ExecFileException | null): number {
-  if (error === null) {
-    return 0
-  }
-  return typeof error.code === 'number' ? error.code : NO_EXIT_CODE
-}
-
-/**
- * Runs a short CLI command to completion without a shell; never rejects.
- * `env` replaces the inherited environment (`muse serve`'s, so the CLI reads
- * the same config root, M30).
- */
-function runProcess(
-  invocation: CliInvocation,
-  timeoutMs: number,
-  cwd?: string,
-  env?: NodeJS.ProcessEnv,
-): Promise<ProcessResult> {
-  return new Promise((resolve) => {
-    execFile(
-      invocation.command,
-      [...invocation.args],
-      { timeout: timeoutMs, windowsHide: true, maxBuffer: CLI_OUTPUT_MAX_BYTES, cwd, env },
-      (error, stdout, stderr) => {
-        resolve({ exitCode: exitCodeOf(error), stdout, stderr })
-      },
-    )
-  })
-}
-
 /**
  * A tested Windows job helper, compiled once from the shared C# (`jobSource.ts`):
  * the shell tool's job assembly (M27) or the direct MCP stdio launcher (M50).
@@ -643,6 +609,34 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const activationStartedAt = performance.now()
   const channel = vscode.window.createOutputChannel(PRODUCT_NAME, { log: true })
   const log = createLogger(channel)
+  const resourceJobSource = jobSourceReader(context.extensionPath)
+  const resourceAssembly = windowsJobHelper(
+    shellJobAssembly,
+    context.globalStorageUri.fsPath,
+    resourceJobSource,
+    log,
+  )
+  const resourceMcpJob = windowsJobHelper(
+    mcpJobExecutable,
+    context.globalStorageUri.fsPath,
+    resourceJobSource,
+    log,
+  )
+  context.subscriptions.push({
+    dispose: configureResources({
+      inspect: (key) => vscode.workspace.getConfiguration('museSpark').inspect(key),
+      onError: () => {
+        log.warn('Resource tree or sampler reading is unavailable')
+      },
+      windowsJob: async () => {
+        const assemblyPath = await resourceAssembly?.()
+        const executablePath = await resourceMcpJob?.()
+        return assemblyPath === undefined || executablePath === undefined
+          ? undefined
+          : { assemblyPath, executablePath }
+      },
+    }),
+  })
   const { version } = packageManifestSchema.parse(context.extension.packageJSON)
   // The flight recorder (M93, PLAN.md D6, D72): this window's journal and
   // activation marker under global storage. Its front answers from here on;
@@ -1270,6 +1264,7 @@ async function activateWindow(
     voice,
   )
   const backend = new MuseCodeBackendManager({
+    shellJobAssembly: () => windowsJobAssembly?.() ?? Promise.resolve(undefined),
     beforeWorkspaceHostStart: async () => {
       await checkpoints.markNativeBackend()
     },
@@ -1457,6 +1452,8 @@ async function activateWindow(
                 timeoutMs,
                 workspaceRoot,
                 backend.childEnvironment(),
+                nativeStarts.signal,
+                backend.workspaceActionGuard(nativeStarts.signal),
               ),
             nativeStarts.signal,
           )
@@ -1517,7 +1514,15 @@ async function activateWindow(
     resolveLaunch: () => backend.resolveLaunch(),
     run: async (invocation, timeoutMs) =>
       await backend.startWorkspaceCommand(
-        async () => await runProcess(invocation, timeoutMs),
+        async () =>
+          await runProcess(
+            invocation,
+            timeoutMs,
+            undefined,
+            undefined,
+            nativeStarts.signal,
+            backend.workspaceActionGuard(nativeStarts.signal),
+          ),
         nativeStarts.signal,
       ),
     showWarning: async (message, ...choices) =>
@@ -1695,6 +1700,7 @@ async function activateWindow(
   // Amp and OpenCode plugin children (M91b): on Windows, M50's kill-on-close
   // job launcher, prepared afresh after a failure.
   const pluginJobs = pluginContainment({
+    shellJobAssembly: windowsJobAssembly,
     platform: process.platform,
     newJobExecutable: () => windowsJobHelper(mcpJobExecutable, storageRoot, readJobSource, log),
     now: () => Date.now(),
@@ -2324,6 +2330,7 @@ async function activateWindow(
           clientVersion: version,
           platform: process.platform,
           jobExecutablePath: await windowsMcpJob?.(),
+          shellJobAssembly: windowsJobAssembly,
           env: () => process.env,
           fetch: globalThis.fetch.bind(globalThis),
           log,
@@ -3537,6 +3544,9 @@ async function activateWindow(
                   { command: resolution.launch.command, args: MUSE_INIT_ARGS },
                   MUSE_INIT_TIMEOUT_MS,
                   workspaceRoot,
+                  backend.childEnvironment(),
+                  nativeStarts.signal,
+                  check,
                 )
               }, nativeStarts.signal)
             : undefined
@@ -3598,6 +3608,8 @@ async function activateWindow(
                 MUSE_CONFIG_STATUS_TIMEOUT_MS,
                 workspaceRoot,
                 backend.childEnvironment(),
+                nativeStarts.signal,
+                backend.workspaceActionGuard(nativeStarts.signal),
               )
           : undefined,
       )
@@ -3608,6 +3620,10 @@ async function activateWindow(
           ? await runProcess(
               { command: MACOS_SECURITY_TOOL, args: MACOS_KEYCHAIN_LOOKUP_ARGS },
               MACOS_KEYCHAIN_LOOKUP_TIMEOUT_MS,
+              undefined,
+              undefined,
+              nativeStarts.signal,
+              backend.workspaceActionGuard(nativeStarts.signal),
             )
           : undefined
       log.info(

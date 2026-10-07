@@ -49,6 +49,8 @@ describe('bundled What’s New content budget', () => {
     ['code highlighting', 125, 'src/webview/components/HighlightedCode.tsx'],
     ['action dialogs', 25, 'src/webview/components/ShareView.tsx'],
     ['tasks tab', 25, 'src/webview/TasksApp.tsx'],
+    ['resource controls', 50, 'src/webview/resources/ResourceSurface.tsx'],
+    ['resource history', 50, 'src/webview/usage/ResourcesSection.tsx'],
     ['SignIn', 25, 'src/webview/components/SignIn.tsx'],
     ['GoalPanel', 25, 'src/webview/components/GoalPanel.tsx'],
     ['SchedulePanel', 25, 'src/webview/components/SchedulePanel.tsx'],
@@ -79,6 +81,22 @@ describe('bundled What’s New content budget', () => {
       await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
     },
   )
+
+  it.each([
+    ['dist/resourceGovernor.js', 125],
+    ['dist/resourceAdmission.js', 25],
+    ['dist/webview/resourceSurface.js', 25],
+    ['dist/webview/resourceHistory.js', 25],
+    ['dist/webview/resourceHistory.css', 25],
+    ['docs/schemas/exec-event-v2.schema.json', 50],
+  ])('M107 refuses missing or oversized %s without widening existing caps', async (file, cap) => {
+    existsSync.mockImplementation((entry) => entry !== file)
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+    vi.resetModules()
+    existsSync.mockReturnValue(true)
+    statSync.mockImplementation((entry) => ({ size: entry === file ? cap * 1024 + 1 : 0 }))
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+  })
 
   it('admits exactly 40 KiB of raw JSON', async () => {
     await import('../../scripts/check-bundle-size.mjs')

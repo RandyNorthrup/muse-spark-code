@@ -113,6 +113,8 @@ async function packageTree(): Promise<void> {
   await build({
     entryPoints: {
       recorder: path.join(ROOT, 'src/host/support/recorderEntry.ts'),
+      resourceGovernor: path.join(ROOT, 'src/core/resources/resourceGovernorEntry.ts'),
+      resourceAdmission: path.join(ROOT, 'src/core/resources/admission.ts'),
       wire: path.join(ROOT, 'src/shared/wireEntry.ts'),
       uiTextRuntime: UI_TEXT_ENTRY,
       uiTextHooks: UI_TEXT_ENTRY,
@@ -126,6 +128,38 @@ async function packageTree(): Promise<void> {
     plugins: [sharedUiText],
     logLevel: 'silent',
   })
+  if (process.platform === 'linux') {
+    const native = path.join(STAGE, 'native', 'linux', process.arch)
+    mkdirSync(native, { recursive: true })
+    const compiled = spawnSync(
+      '/usr/bin/cc',
+      [
+        '-Os',
+        '-s',
+        '-Wall',
+        '-Wextra',
+        '-Werror',
+        '-DMUSE_CREATED_STANDALONE',
+        path.join(ROOT, 'native', 'darwin', 'MuseSparkCreated.c'),
+        '-Wl,--gc-sections',
+        '-Wl,-Bstatic',
+        '-lcrypto',
+        '-Wl,-Bdynamic',
+        '-o',
+        path.join(native, 'muse-created'),
+      ],
+      { env: { PATH: '/usr/bin:/bin' }, encoding: 'utf8' },
+    )
+    if (compiled.status !== 0)
+      throw new Error(`Linux fixture helper build failed: ${compiled.stderr}`)
+  }
+  for (const arch of ['x64', 'arm64']) {
+    if (process.platform === 'linux' && arch === process.arch) continue
+    const native = path.join(STAGE, 'native', 'linux', arch)
+    mkdirSync(native, { recursive: true })
+    // This private fake-only package never executes another architecture's helper.
+    writeFileSync(path.join(native, 'muse-created'), 'test-owned inert helper\n')
+  }
   cpSync(path.join(ROOT, 'docs', 'schemas'), path.join(STAGE, 'schemas'), { recursive: true })
   writeFileSync(
     path.join(STAGE, 'package.json'),
@@ -225,7 +259,11 @@ describe('M80 W fake-only test package', { timeout: TIMEOUT }, () => {
       readdirSync(path.join(INSTALLED, 'schemas')).toSorted((left, right) =>
         left.localeCompare(right),
       ),
-    ).toEqual(['exec-event-v1.schema.json', 'exec-result-v1.schema.json'])
+    ).toEqual([
+      'exec-event-v1.schema.json',
+      'exec-event-v2.schema.json',
+      'exec-result-v1.schema.json',
+    ])
     expect(readFileSync(path.join(STAGE, 'package.json'), 'utf8')).not.toContain('exec-test')
     expect(readFileSync(LAUNCHER, 'utf8')).toContain('w-report-')
   })

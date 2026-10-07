@@ -340,6 +340,30 @@ describe('M80 schemas (A15/A16/F1)', () => {
       expect(raw).toMatchObject({ $schema: 'https://json-schema.org/draft/2020-12/schema' })
     }
   })
+  it('M107 publishes the complete v2 event envelope alongside the frozen v1 result and update privacy rule', async () => {
+    const raw: unknown = JSON.parse(
+      await readFile('docs/schemas/exec-event-v2.schema.json', 'utf8'),
+    )
+    expect(raw).toMatchObject({
+      $defs: { execSafeUpdateValue: expect.any(Object) },
+      anyOf: expect.arrayContaining([
+        expect.objectContaining({
+          properties: expect.objectContaining({
+            v: { type: 'number', const: 2 },
+            type: { type: 'string', const: 'resource' },
+          }),
+        }),
+        expect.objectContaining({
+          properties: expect.objectContaining({
+            type: { type: 'string', const: 'result' },
+            result: expect.objectContaining({
+              properties: expect.objectContaining({ v: { type: 'number', const: 1 } }),
+            }),
+          }),
+        }),
+      ]),
+    })
+  })
   it('npm run package:acp checks schema freshness before it packs', async () => {
     const manifest = await readFile('package.json', 'utf8')
     const steps = (/"package:acp": "([^"]*)"/.exec(manifest)?.[1] ?? '').split(' && ')

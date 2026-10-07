@@ -286,6 +286,7 @@ export class ShadowGit {
         ],
         {
           cwd: storageDir,
+          checkpointDestination: storageDir,
           env: this.baseEnv,
           timeoutMs: CHECKPOINT_GIT_TIMEOUT_MS,
           signal: this.deps.signal,
@@ -466,6 +467,7 @@ export class ShadowGit {
       ],
       {
         cwd: this.isRelative ? this.layout.storageDir : this.layout.top,
+        checkpointDestination: this.layout.storageDir,
         env,
         timeoutMs: CHECKPOINT_GIT_TIMEOUT_MS,
         signal: command.signal ?? this.deps.signal,

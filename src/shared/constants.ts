@@ -6,6 +6,94 @@
 
 import type { BrowserRuntimeMode } from './browserCheckConstants'
 
+// M107 / D87: portable resource contracts. Nothing is sampled at module load.
+export const RESOURCE_SAMPLE_MS = 5000
+// D87.14: free-space policy and owned-tree retention.
+export const RESOURCE_DISK_SAMPLE_MS = 30_000
+export const RESOURCE_DISK_FAST_SAMPLE_MS = 5000
+export const RESOURCE_DISK_DEFAULT_FREE_GIB = 10
+export const RESOURCE_DISK_MIN_FREE_GIB = 2
+export const RESOURCE_DISK_FLOOR_FRACTION = 0.1
+export const RESOURCE_DISK_CRITICAL_GIB = 1
+export const RESOURCE_DISK_CRITICAL_FRACTION = 0.01
+export const RESOURCE_DISK_HYSTERESIS_GIB = 2
+export const RESOURCE_DISK_TREND_MS = 5 * 60_000
+export const RESOURCE_DISK_ETA_MS = 10 * 60_000
+export const RESOURCE_TEMP_KEEP_MS = 24 * 60 * 60_000
+export const RESOURCE_TEMP_PREFIX = 'muse-tree-'
+export const RESOURCE_PRIVATE_DIR_MODE = 0o700
+export const RESOURCE_PRIVATE_FILE_MODE = 0o600
+export const RESOURCE_UNSAFE_WRITE_MODE = 0o022
+export const RESOURCE_TEMP_MARKER = '.muse-owner.json'
+export const RESOURCE_TEMP_TOKEN_BYTES = 16
+export const RESOURCE_DISK_READ_TIMEOUT_MS = 1000
+export const RESOURCE_BIGINT_ZERO = 0n
+export const RESOURCE_TREE_SAMPLE_MS = 15_000
+export const RESOURCE_CPU_WINDOW_MS = 30_000
+export const RESOURCE_MEMORY_ENTER_SAMPLES = 2
+export const RESOURCE_ESCALATE_MS = 60_000
+export const RESOURCE_CRITICAL_CPU_PERCENT = 97
+export const RESOURCE_CRITICAL_CPU_WINDOW_MS = 60_000
+export const RESOURCE_CRITICAL_MEMORY_FLOOR_FRACTION = 0.5
+export const RESOURCE_HYSTERESIS_POINTS = 10
+export const RESOURCE_MEMORY_HYSTERESIS_GIB = 0.5
+export const RESOURCE_EXIT_MS = 60_000
+export const RESOURCE_MIN_DWELL_MS = 60_000
+export const RESOURCE_FOREGROUND_WAIT_MS = 20_000
+export const RESOURCE_RELOCATION_PROBE_MS = 5000
+export const RESOURCE_OVERRIDE_MS = 15 * 60_000
+export const RESOURCE_MEMORY_FLOOR_MAX_FRACTION = 0.15
+export const RESOURCE_JOB_CPU_RATE_PERCENT = 50
+export const RESOURCE_SAMPLER_MAX_CORE_PERCENT = 0.5
+export const RESOURCE_GIB_BYTES = 1_073_741_824
+export const RESOURCE_HISTORY_MINUTE_MS = 60_000
+// ECMAScript TimeClip's inclusive upper bound; existing resource timestamps are nonnegative.
+export const RESOURCE_HISTORY_MAX_TIMESTAMP_MS = 8_640_000_000_000_000
+export const RESOURCE_HISTORY_DETAIL_DAYS = 7
+export const RESOURCE_HISTORY_RETENTION_MS =
+  RESOURCE_HISTORY_DETAIL_DAYS * 24 * 60 * RESOURCE_HISTORY_MINUTE_MS
+export const RESOURCE_HISTORY_MAX_MINUTES =
+  RESOURCE_HISTORY_RETENTION_MS / RESOURCE_HISTORY_MINUTE_MS
+export const RESOURCE_HISTORY_MAX_EVENTS = 1000
+export const RESOURCE_HISTORY_MAX_EVENT_TOTALS = 65
+export const RESOURCE_HISTORY_MAX_WORK_KINDS = 12
+export const RESOURCE_HISTORY_PAGE_SIZE = 60
+export const RESOURCE_CPU_DEFAULT_PERCENT = 85
+export const RESOURCE_CPU_MIN_PERCENT = 30
+export const RESOURCE_MEMORY_DEFAULT_PERCENT = 90
+export const RESOURCE_MEMORY_MIN_PERCENT = 40
+export const RESOURCE_MEMORY_MAX_PERCENT = 98
+export const RESOURCE_MEMORY_DEFAULT_FREE_GIB = 2
+export const RESOURCE_MEMORY_MIN_FREE_GIB = 0.5
+export const RESOURCE_MEMORY_MAX_FREE_GIB = 64
+export const RESOURCE_OPTIONAL_MIN_PERCENT = 1
+export const RESOURCE_ID_MAX_LENGTH = 256
+export const RESOURCE_LAUNCH_POLL_MS = 100
+export const RESOURCE_MUSE_SHUTDOWN_MS = 30_000
+export const RESOURCE_MUSE_CLOSE_GRACE_MS = 10_000
+export const RESOURCE_TIMER_MAX_MS = 2_147_483_647
+// libuv fills missing Windows mandatory variables from the parent; blank them explicitly.
+export const RESOURCE_PROBE_EMPTY_ENV_KEYS = [
+  'HOMEDRIVE',
+  'HOMEPATH',
+  'LOGONSERVER',
+  'PATH',
+  'SYSTEMDRIVE',
+  'TEMP',
+  'USERDOMAIN',
+  'USERNAME',
+  'USERPROFILE',
+  'NODE_V8_COVERAGE',
+] as const
+// Group fallback assumes a PID cannot cycle through this namespace within one CLK_TCK.
+export const LINUX_PID_IDENTITY_MIN_PID_MAX = 4_194_304
+export const RESOURCE_TREE_STOP_TIMEOUT_MS = 5000
+export const RESOURCE_TREE_STOP_POLL_MS = 10
+export const RESOURCE_HARNESS_PLACEMENT_ATTEMPTS = 3
+export const RESOURCE_TREE_EXIT_POLL_MS = 100
+// Resource-bearing exec events need a new envelope; M80's v1 stays frozen.
+export const RESOURCE_EXEC_EVENT_VERSION = 2
+
 export const PRODUCT_NAME = 'Muse Spark'
 
 // Must match package.json `publisher` and `name`; test/unit/manifest.test.ts
@@ -4438,6 +4526,10 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/uiTextHooks.js',
   'dist/uiTextSurfaces.js',
   'dist/wire.js',
+  'dist/resourceGovernor.js',
+  'dist/resourceAdmission.js',
+  'dist/webview/resourceSurface.js',
+  'dist/webview/resourceHistory.js',
 ])
 // One window journals at most this many failures in REPORT_RECORD_WINDOW_MS
 // (M93): a render or reconnect loop cannot turn every frame into a disk
@@ -5355,3 +5447,13 @@ export const CONVERSATION_MODEL_TEXT = {
 
 // Shared by the eager composer and the optional command palette.
 export const PALETTE_LISTBOX_ID = 'palette-listbox'
+
+// D100: service stalls, rolling transport outcomes and per-job fork protection.
+export const RESOURCE_SERVICE_PRESSURE_PERCENT = 20
+export const RESOURCE_TRANSPORT_FAILURE_PERCENT = 20
+export const RESOURCE_TRANSPORT_MIN_RESULTS = 5
+export const RESOURCE_TRANSPORT_WINDOW_MS = 60_000
+export const RESOURCE_TRANSPORT_MAX_RESULTS = 100
+export const RESOURCE_TREE_PROCESS_CAP = 128
+export const RESOURCE_TREE_SPAWN_CAP = 64
+export const RESOURCE_TREE_SPAWN_WINDOW_MS = 15_000

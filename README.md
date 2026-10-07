@@ -4006,13 +4006,80 @@ See the [ACP guide](docs/acp.md), the [CI guide](docs/ci.md) and the
 [M80 record](docs/certification/m80.md) for tests, deliberate breaks, platform
 results and what is still open.
 
+## Keeping your machine responsive
+
+M107's integration candidate adds one portable governor per harness process.
+It is on by default and loads on the first governed launch. It delays new
+background work when the machine is busy; running work continues. The governor
+never kills or suspends a process, never imposes a hard memory limit, and never
+controls your own terminals, editor or other applications. Model requests,
+Tab, approvals, paid consent and Stop do not wait for it. It does not change
+provider capabilities, permissions, paid consent or budgets.
+
+These settings are machine-scoped; workspace values are ignored. Settings
+names below start with `museSpark.`.
+
+| Setting                      | Default  | Range or meaning                                                                                       |
+| ---------------------------- | -------- | ------------------------------------------------------------------------------------------------------ |
+| `resourceGovernor`           | `true`   | Enable this machine's governor                                                                         |
+| `resourceCpuMaxPercent`      | `85`     | 30–100%; sustained for 30 seconds                                                                      |
+| `resourceMemoryMaxPercent`   | `90`     | 40–98% in use                                                                                          |
+| `resourceMemoryMinFreeGiB`   | `2`      | 0.5–64 GiB; effective floor at most 15% of RAM                                                         |
+| `resourceGpuMaxPercent`      | `null`   | 1–100%; no GPU probe until configured                                                                  |
+| `resourceDiskBusyMaxPercent` | `null`   | 1–100%; no disk-busy probe until configured                                                            |
+| `resourceDiskMinFreeGiB`     | `null`   | Adaptive floor: smaller of 10 GiB and 10% of the volume, at least 2 GiB; explicit floor at least 2 GiB |
+| `resourceRelocate`           | `paired` | `paired`, `ask` or `off`; requires the existing approved device/runner route                           |
+
+Levels are **normal**, **throttle**, **relocate** and **pause**. At throttle,
+background capacity narrows to one per kind; at pause, new background work
+waits. Foreground work has a twenty-second maximum wait at pause. **Run now**
+releases that wait; **Resume now** overrides pressure for fifteen minutes,
+without turning on an explicitly disabled governor. Unknown readings are shown
+as unknown: they neither trip nor clear a level. Recovery has hysteresis and a
+minimum dwell, so near-threshold readings do not flicker between levels.
+
+Free disk space is sampled even with the optional disk-busy probe unset.
+Disk-heavy launches wait below the floor; critical-volume writes refuse with a
+reason. The temporary-root registry confines cleanup to recorded harness roots,
+requires fresh exit and ownership proof, and retains failed-run roots for 24
+hours. Native cleanup and all-volume watch bindings still need qualification;
+the integration record names the remaining native delivery and storage qualifications.
+
+The CLI accepts `muse-spark-code-acp resources status --json` and
+`muse-spark-code-acp resources resume --json`. Status describes that command
+process, rather than another running session's queue. Resume writes the
+machine's bounded marker, read by loaded runtime hosts on their next refresh.
+`resources history` and `usage resources` report unavailable until the durable
+journal is supplied. ACP's shared command adapter provides `/resources`,
+`/resources resume` and `/usage resources` through its injected runtime port.
+See the [ACP guide](docs/acp.md#resource-status-and-resume) and
+[CI guide](docs/ci.md#resource-governor-in-headless-runs).
+
+The shared chip/popover and usage-history section ship as separate artifacts.
+Their window/native/companion mounts, actuator lifecycle, runtime spawn binding,
+M96/M96c slots and M100 paired-device dispatch remain explicit integration
+handoffs. Relocation can move only eligible queued tasks/checks, or a running
+check after explicit **Move to** and proven retirement. Pairing, offers,
+repository mapping, receiver permissions and paid consent remain required;
+headless relocation is refused. **Keep here** cancels before receiver admission.
+The [M107 integration record](docs/certification/m107.md) and
+[editor resource matrix](docs/ide-compatibility/resources.md) distinguish
+component receipts from installed-editor acceptance.
+
 ## Development
+
+Resource admission is shared through `dist/resourceAdmission.js`; sampler,
+queue, tree accounting and disk policy stay in lazy `dist/resourceGovernor.js`.
+The controls and history have their own closure budgets, including history CSS,
+without raising the 900 KiB startup or original 50 KiB deferred caps. The split
+and packaging gates cover both VSIX and ACP delivery. See
+[W's gate-fire record](<docs/certification/m107-w-wiring,-docs-and-gates-(last).md>).
 
 After a production build, `node test/e2e/webviewDiet.mjs` checks optional UI
 surfaces in Chrome against a fake host: no startup requests, first-use loading
-under the shared CSP, and recovery from actual failed entry/static-dependency
-fetches. Retry reloads the panel with its saved conversation and draft. Cold
-menus remain dismissible and cannot take focus after dismissal.
+under the shared CSP, and recovery from failed entry/static-dependency fetches.
+Retry reloads the panel with its saved conversation and draft. Cold menus remain
+dismissible and cannot take focus after dismissal.
 
 After every complete four-channel release, the workflow runs
 `scripts/refresh-badges.mjs` to refresh these README badges and purge GitHub's
@@ -4083,6 +4150,12 @@ require the shared English fallback (`dist/uiText.js`), and each keeps
 its own installed-language state. The webview is React 19 bundled to one IIFE with
 its stylesheet; `zod/mini` validates every host ⇄ webview message; the voice
 helpers are Windows PowerShell and Swift with no dependencies.
+
+The macOS helper also serves the internal, read-only `proc-identity <pid…>`
+mode. Resource-tree launchers use its exact kernel start microseconds, parent,
+group and exited state before authorizing process actions; this mode runs
+before any audio or privacy setup. Native tests build and sign the production
+helper in private fixtures, so they work in a clean checkout.
 
 The session board and best-of-N implementation loads on its first action
 from `dist/sessionBoard.js`. Paid Auto reviewer execution loads only after
@@ -4297,6 +4370,14 @@ without rebuilding.
 
 ### How this extension is built
 
+The portable Linux resource-tree launcher pins its private cgroup before
+starting the workload. Stop reports a removed or replaced cgroup explicitly.
+If the harness has been moved into the workload's tree, Stop moves it home
+and retries up to three times; exhaustion keeps ownership and returns a
+localized status row asking the caller to retry Stop. Empty trees retire
+automatically after their root exits. The governor's all-spawn/editor wiring
+remains an M107 integration task; these are the launch port's guarantees.
+
 The conversation implementation loads when the first chat surface needs it. The
 first opening includes that local load; commands and backend restart handling
 remain registered at activation.
@@ -4371,3 +4452,13 @@ The shared production Node English fallback uses the same built-in compression.
 The conversation implementation loads when the first chat surface needs it. The
 first opening includes that local load; commands and backend restart handling
 remain registered at activation.
+
+Linux builds compile the resource cleanup helper from the reviewed native source
+with `/usr/bin/cc` and OpenSSL development headers/static archive. Released VSIX
+and ACP packaging requires both x64 and arm64 helpers from the CI build matrix;
+users need no compiler or OpenSSL installation. A local build compiles its
+current architecture; packaging also needs the other architecture's build
+artifact. Linux runtime compatibility still depends on the builder's libc
+baseline. Transport failures and OS pressure stalls also reduce admission.
+Per-job tree limits stop an offending job at more than 128 observed processes
+or 64 observed births in 15 seconds; unrelated jobs keep their own leases.

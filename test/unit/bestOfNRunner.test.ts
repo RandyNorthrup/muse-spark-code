@@ -2,6 +2,7 @@
 // attempt, and a take that merges only the taken branch.
 
 import { describe, expect, it, vi } from 'vitest'
+import * as resourceAdmission from '../../src/core/resources/admission'
 import {
   BestOfNError,
   BestOfNRunner,
@@ -211,6 +212,28 @@ function completeAll(
 }
 
 describe('BestOfNRunner guards', () => {
+  it('starts no attempt if cancellation outlives its resource wait', async () => {
+    const lease = { register: vi.fn(), complete: vi.fn(), background: vi.fn() }
+    const hold = Promise.withResolvers<typeof lease>()
+    const admission = vi.spyOn(resourceAdmission, 'admitResource').mockReturnValue(hold.promise)
+    const t = runnerWith()
+    try {
+      const pending = t.runner.start(START)
+      const cancelled = expect(pending).rejects.toMatchObject({ refusal: 'contextChanged' })
+      await vi.waitFor(() => {
+        expect(admission).toHaveBeenCalledWith('bestOfN', expect.any(AbortSignal), 'background')
+      })
+      await t.runner.cancel()
+      hold.resolve(lease)
+      await cancelled
+      expect(t.startCalls).toEqual([])
+      expect(lease.complete).toHaveBeenCalledWith(true)
+    } finally {
+      hold.resolve(lease)
+      admission.mockRestore()
+      t.runner.dispose()
+    }
+  })
   it('cannot republish a disposed account run when its old popup settles', async () => {
     const entered = Promise.withResolvers<undefined>()
     const consent = Promise.withResolvers<boolean>()

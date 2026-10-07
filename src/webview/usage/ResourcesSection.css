@@ -1,0 +1,103 @@
+.usage-resources {
+  color: var(--vscode-foreground);
+  min-width: 0;
+}
+
+.usage-resource-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 12px;
+}
+
+.usage-resource-chart {
+  margin: 0;
+  min-width: 0;
+}
+
+.usage-resource-chart svg {
+  display: block;
+  width: 100%;
+  height: 120px;
+  border: 1px solid var(--vscode-panel-border);
+}
+
+.usage-resource-chart path {
+  fill: none;
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+}
+
+.usage-resource-reading {
+  stroke: var(--vscode-progressBar-background, currentColor);
+}
+
+.usage-resource-limit {
+  stroke: var(--vscode-editorWarning-foreground, currentColor);
+  stroke-dasharray: 4 3;
+}
+
+.usage-resource-legend {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.9em;
+}
+
+.usage-resource-limit-label {
+  border-top: 2px dashed var(--vscode-editorWarning-foreground, currentColor);
+}
+
+.usage-resource-band {
+  position: relative;
+  height: 12px;
+  margin-block: 8px;
+}
+
+.usage-resource-band span {
+  position: absolute;
+  height: 100%;
+  border: 1px solid var(--vscode-contrastBorder, transparent);
+  box-sizing: border-box;
+  background: var(--vscode-testing-iconPassed, currentColor);
+}
+
+.usage-resource-band [data-level='throttle'],
+.usage-resource-band [data-level='relocate'] {
+  background: var(--vscode-editorWarning-foreground, currentColor);
+}
+
+.usage-resource-band [data-level='pause'] {
+  background: var(--vscode-charts-red, currentColor);
+}
+
+.usage-resource-table {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.usage-resource-pages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-block: 8px;
+}
+
+.usage-resource-table table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-block: 12px;
+}
+
+.usage-resource-table caption {
+  text-align: start;
+  font-weight: bold;
+}
+
+.usage-resource-table th,
+.usage-resource-table td {
+  text-align: start;
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}

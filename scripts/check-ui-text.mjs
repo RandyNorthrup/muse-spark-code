@@ -58,7 +58,15 @@ loadBundle(path.resolve(packageRoot, 'dist/modelApi.js'), 'createModelApiHost')
 const agent = path.resolve(packageRoot, 'dist/acp.js')
 const table = createRequire(agent)('./uiText.js').EN
 const { ACP_AGENT_NAME, formatAcpUsage } = await loadL10n(process.cwd())
-const usageTable = z.object({ acpUsage: z.string(), helpReferenceTitle: z.string() })
+const usageTable = z.object({
+  acpUsage: z.string(),
+  helpReferenceTitle: z.string(),
+  referenceCliOptions: z.object({
+    'resource-governor': z.string(),
+    'cpu-max': z.string(),
+    'memory-max': z.string(),
+  }),
+})
 // --help takes no backend or credential-store action. An English locale
 // variable, because with none the agent takes the runtime's own locale.
 function checkUsage(table, locale) {

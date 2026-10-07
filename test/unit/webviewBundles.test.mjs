@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   webviewDeferredBudgetGroups,
   webviewStartupOutputs,
+  checkResourceWebview,
 } from '../../scripts/lib/webviewBundles.mjs'
 
 const MAIN = 'dist/webview/main.js'
@@ -136,6 +137,70 @@ describe('webview import budgets', () => {
     expect(webviewDeferredBudgetGroups(meta)).toEqual(webviewDeferredBudgetGroups(metafile()))
   })
 
+  it('M107 charges controls and history CSS independently and refuses missing, eager or duplicate surfaces', () => {
+    const meta = metafile()
+    const entries = {
+      'dist/webview/resourceSurface.js': 'src/webview/resources/ResourceSurface.tsx',
+      'dist/webview/resourceHistory.js': 'src/webview/usage/ResourcesSection.tsx',
+    }
+    for (const [file, entryPoint] of Object.entries(entries))
+      meta.outputs[file] = { ...output([edge(CORE)], entryPoint), inputs: { [entryPoint]: {} } }
+    const css = 'dist/webview/resourceHistory.css'
+    meta.outputs['dist/webview/resourceHistory.js'].cssBundle = css
+    meta.outputs[css] = output()
+    expect(checkResourceWebview(meta)).toEqual([])
+    const parser = 'resource-validation:/project/node_modules/zod/v4/core/schemas.js'
+    const leaked = globalThis.structuredClone(meta)
+    leaked.outputs[CORE].inputs = { [parser]: {} }
+    expect(checkResourceWebview(leaked)).toContain(
+      `Resource browser validation must stay deferred: ${parser}`,
+    )
+    expect(
+      webviewDeferredBudgetGroups(meta).find(({ name }) => name === 'resource history').outputs,
+    ).toContain(css)
+    for (const [file, source] of Object.entries(entries)) {
+      const changed = globalThis.structuredClone(meta)
+      Reflect.deleteProperty(changed.outputs, file)
+      expect(checkResourceWebview(changed)).toContain(`Missing resource webview entry ${file}`)
+      const eager = globalThis.structuredClone(meta)
+      eager.outputs[MAIN].imports.push(edge(file))
+      expect(checkResourceWebview(eager)).toContain(
+        `${source} must occur in exactly one deferred webview chunk`,
+      )
+      const duplicate = globalThis.structuredClone(meta)
+      duplicate.outputs['dist/webview/chunks/duplicate.js'] = {
+        ...output(),
+        inputs: { [source]: {} },
+      }
+      expect(checkResourceWebview(duplicate)).toContain(
+        `${source} must occur in exactly one deferred webview chunk`,
+      )
+    }
+    const windows = {
+      outputs: Object.fromEntries(
+        Object.entries(meta.outputs).map(([file, entry]) => [
+          file.replaceAll('/', '\\'),
+          {
+            ...entry,
+            entryPoint: entry.entryPoint?.replaceAll('/', '\\'),
+            cssBundle: entry.cssBundle?.replaceAll('/', '\\'),
+            inputs: Object.fromEntries(
+              Object.entries(entry.inputs ?? {}).map(([file, input]) => [
+                file.replaceAll('/', '\\'),
+                input,
+              ]),
+            ),
+            imports: entry.imports.map((item) => ({
+              ...item,
+              path: item.path.replaceAll('/', '\\'),
+            })),
+          },
+        ]),
+      ),
+    }
+    expect(checkResourceWebview(windows)).toEqual([])
+    expect(webviewDeferredBudgetGroups(windows)).toEqual(webviewDeferredBudgetGroups(meta))
+  })
   it('refuses an incomplete static import graph', () => {
     const meta = metafile()
     Reflect.deleteProperty(meta.outputs, CORE)

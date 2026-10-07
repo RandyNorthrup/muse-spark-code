@@ -7,6 +7,7 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import { build } from 'esbuild'
+import { compactNodeReference } from '../../scripts/lib/referenceBundle.mjs'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { EN } from '../../src/shared/l10n/en'
@@ -18,12 +19,17 @@ import {
 } from '../../scripts/lib/uiTextRegions.mjs'
 import {
   checkDeferredBundles,
+  checkResourceBundles,
   deferredCohort,
   sharedUiText,
   sharedValidation,
   sharedWire,
+  sharedResourceAdmission,
 } from '../../scripts/lib/deferredBundles.mjs'
 import type * as validation from '../../src/shared/validationEntry'
+import type * as resourceGovernor from '../../src/core/resources/resourceGovernorEntry'
+import type * as runtimeResources from '../../src/runtime/resources/entry'
+import { resourceSettingsSchema } from '../../src/shared/resources'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const metafileSchema = z.looseObject({
@@ -91,8 +97,17 @@ beforeAll(async () => {
         checkpointStore: 'src/host/checkpoints/checkpointStoreEntry.ts',
         pageWorker: 'src/host/web/pageWorker.ts',
         searchWorker: 'src/host/backend/searchWorker.ts',
+        resourceGovernor: 'src/core/resources/resourceGovernorEntry.ts',
+        resourceAdmission: 'src/core/resources/admission.ts',
       },
-      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+      plugins: [
+        compactNodeReference,
+        sharedUiText,
+        sharedValidation,
+        deferredCohort,
+        sharedWire,
+        sharedResourceAdmission,
+      ],
       external: ['vscode', '@napi-rs/keyring'],
     }),
     build({
@@ -104,7 +119,13 @@ beforeAll(async () => {
         acpQuestions: 'src/acp/questionDeferralEntry.ts',
         runtimeQuestions: 'src/runtime/questions/questionRegistryEntry.ts',
       },
-      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+      plugins: [
+        sharedUiText,
+        sharedValidation,
+        deferredCohort,
+        sharedWire,
+        sharedResourceAdmission,
+      ],
       external: ['@napi-rs/keyring'],
     }),
     build({
@@ -229,6 +250,72 @@ function inputs(name: string): string[] {
 }
 
 describe('deferred cohort bundles', () => {
+  it('keeps governor execution in its lazy bundle and shares the admission shim', () => {
+    for (const name of ['extension', 'modelApi', 'acp', 'browserCheck']) {
+      expect(inputs(name)).not.toContain('src/core/resources/governor.ts')
+      expect(inputs(name)).not.toContain('src/core/resources/admission.ts')
+      expect(bundleText(name)).toContain('./resourceAdmission.js')
+    }
+    expect(inputs('resourceGovernor')).toContain('src/core/resources/governor.ts')
+    expect(bundleText('resourceAdmission')).toContain('./resourceGovernor.js')
+    expect(inputs('resourceAdmission')).not.toContain('src/core/resources/governor.ts')
+    const original = bundleInputs({
+      output: 'dist/modelApi.js',
+      metafile: 'dist/meta/modelApi.json',
+    })
+    const changed = new Map(original)
+    changed.set('src/core/resources/governor.ts', 1)
+    expect(
+      checkDeferredBundles((bundle) =>
+        bundle.output === 'dist/modelApi.js' ? changed : bundleInputs(bundle),
+      ),
+    ).toContain(
+      'dist/modelApi.js carries src/core/resources/governor.ts, which loads only on the first governed spawn',
+    )
+    expect(checkDeferredBundles(bundleInputs)).toEqual([])
+  })
+  it('M107 keeps every policy module and admission state out of other shipped cohorts, including Windows paths', () => {
+    const bundles = Array.from(fixtures.keys(), (metafile) => ({
+      metafile,
+      output: `dist/${path.basename(metafile, '.json')}.js`,
+    }))
+    expect(checkResourceBundles(bundleInputs, bundles)).toEqual([])
+    for (const file of [
+      'src/core/resources/sampler/system.ts',
+      'src/core/resources/actuators/controller.ts',
+      'src/core/resources/relocate.ts',
+      'src/core/resources/createdRegistry.ts',
+    ]) {
+      expect(
+        checkResourceBundles(
+          () => new Map([[file.replaceAll('/', '\\'), 1]]),
+          [{ output: path.win32.join('dist', 'voice.js'), metafile: 'unused' }],
+        ),
+      ).toEqual([`dist/voice.js carries resource policy ${file} outside the lazy governor`])
+    }
+    expect(
+      checkResourceBundles(
+        () => new Map([['src/core/resources/admission.ts', 1]]),
+        [{ output: 'dist/pluginHooks.js', metafile: 'unused' }],
+      ),
+    ).toEqual(['dist/pluginHooks.js duplicates resource admission'])
+  })
+  it.each(['src/core/resources/disk.ts', 'src/core/resources/createdRegistry.ts'])(
+    'M107 requires %s in the governor artifact',
+    (file) => {
+      const bundle = {
+        output: 'dist/resourceGovernor.js',
+        metafile: 'dist/meta/resourceGovernor.json',
+      }
+      const changed = new Map(bundleInputs(bundle))
+      changed.delete(file)
+      expect(
+        checkDeferredBundles((entry) =>
+          entry.output === bundle.output ? changed : bundleInputs(entry),
+        ),
+      ).toContain(`${bundle.output} no longer carries ${file}`)
+    },
+  )
   it('keeps M112 registry and deferral helpers lazy and rejects inline copies', () => {
     for (const [source, destination] of [
       ['src/runtime/questions/acpRegistry.ts', 'runtimeQuestions'],
@@ -515,4 +602,44 @@ describe('deferred cohort bundles', () => {
       expect(check()).toEqual([])
     },
   )
+})
+
+it('loads both governor factories with shared validation without probing at construction', async () => {
+  const module = z
+    .object({
+      resourceGovernorHost: z.custom<typeof resourceGovernor.resourceGovernorHost>(
+        (value) => typeof value === 'function',
+      ),
+      createResources: z.custom<typeof runtimeResources.createResources>(
+        (value) => typeof value === 'function',
+      ),
+    })
+    .parse(loadSupportBundle('resourceGovernor'))
+  const host = module.resourceGovernorHost({
+    inspect: () => undefined,
+    onError: () => {
+      throw new Error('Unexpected resource probe')
+    },
+  })
+  expect(host.tickets()).toEqual([])
+  host.dispose()
+  const runtime = await module.createResources(
+    {
+      machineDir: fixtureRoot,
+      sleep: () => Promise.resolve(),
+      onError: () => {
+        throw new Error('Unexpected runtime resource probe')
+      },
+      machine: {
+        readSettings: () => Promise.resolve(resourceSettingsSchema.parse({ enabled: false })),
+        readResumeUntil: () => Promise.resolve(null),
+        writeResumeUntil: () => Promise.resolve(),
+      },
+    },
+    EN,
+    'en',
+  )
+  const status = await runtime.status()
+  expect(status.settings.enabled).toBe(false)
+  runtime.dispose()
 })

@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Deliver Linux resource cleanup helpers in VSIX and ACP packages, including
+  architecture-specific CI builds and missing-helper package refusal.
+- Resource admission now responds to transport failures and OS service pressure;
+  per-job process and observed spawn-rate caps stop only the offending tree.
+- Correct the security guide to reflect the joined disk-registry race repairs.
+
 ### Documentation
 
 - A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists
@@ -113,7 +119,182 @@ happened, not what was planned; superseded entries are kept.
 - Update the dev-only shell-quote lock entry to fix GHSA-pqg4-j6r4-53mv
   within npm-run-all2's existing dependency range.
 
+### Added
+
+- M107 delivery candidate: eight machine-scoped resource settings and generated
+  Help coverage; independent governor/admission/control/history artifacts with
+  measured budgets, split/package guards and exec-event-v2 schema packaging.
+  Editor/runtime/actuator, native delivery/storage and M96/M96c/M100/M102 bindings remain
+  explicitly pending in the integration certification.
+
 ### Fixed
+
+- Native PID-reuse verification bounds discovery to its real fixture processes,
+  retaining all 32 births and native identity, membership and signal checks at
+  the default test deadline.
+
+- Complete M107 verification restores session-board change counts when Git has
+  no filters, keeps resource bundle frames in scrubbed reports, and validates
+  exec v2 resource events in the Action while preserving v1 results. Production
+  and fake-only package checks cover the resource artifacts and all three schemas.
+
+- M107's deferred resource parser preserves the startup size regression;
+  lossless English-key and Node reference packing retain complete content
+  under existing caps. Notices resolve deferred parser package paths on
+  Windows and POSIX without omitting their licences.
+
+- Linux resource Stop retains cgroup and parent descriptors until direct
+  registry kills settle, removes empty scopes through a pinned parent and
+  reports late harness insertion explicitly while thawing safely.
+
+- Resource history keeps known minute readings and merges final tree accounting
+  idempotently after a read-time flush, including the same cached sample timestamp.
+- Resource history rejects dates outside the supported formatter range, including
+  override deadlines. Its shared page and text summary use one date formatter.
+- Resource-history detail retains at most seven recorded days/10,080 minute
+  segments and 1,000 events, with charts and tables paged in groups of 60.
+  Work and event totals still include every retained journal record.
+
+- The staged team/check slot adapter rechecks live governor capacity after
+  local slot waiting. Work remains queued at pause or when throttle is full,
+  releasing unstarted reservations before waiting again.
+- The staged resource relocator rechecks policy and cancellation after the
+  final offer callback, preventing dispatch after synchronous revocation.
+- Its headroom probes run concurrently with a five-second bound, and Keep
+  here cancels discovery without waiting for an unresponsive peer.
+- Automatic relocation rotates among equal-headroom peers across attempts,
+  preserving ample-before-some priority and explicit Move to choices.
+
+- Governed shell, MCP, browser, Git, voice and plugin cleanup uses registered
+  member stops, including descendants after root exit. Refused stops retain
+  unknown occupancy and never fall back to a bare process or job kill.
+- The lazy governor artifact exports both the window and runtime factories
+  and ships with the admission shim in the ACP package.
+
+- Runtime resource settings preserve injected class stores' methods. ACP
+  shows one full pause warning per conversation while continuing level updates.
+- Temp quarantine and restore use native no-replace renames. Manifest
+  publication links without replacement and verifies/rolls back POSIX exchanges;
+  stages and displaced manifests are retained to protect exchanged names.
+  Cleanup rechecks each directory name against its held identity immediately
+  before empty-only removal. Creation rejects an older directory swapped into
+  mkdir/open and binds the marker writer to the native creation identity.
+  The final same-user empty-trash-name window and native delivery/artifact
+  qualifications are recorded in PLAN §9 and the M107 DK certification.
+
+- Temp cleanup now walks identity-checked directory handles on Linux and in
+  the native macOS/Windows helpers, refuses filesystem and Linux mount boundaries
+  (including same-device bind mounts), and removes
+  trash entries empty-only. Interrupted or legacy records without stored
+  identity/marker hash are report-only. Creation requires an empty owned handle;
+  registration cannot adopt existing folders. Manifest stage replacements are
+  retained instead of being unlinked by name.
+
+- Disk cleanup rejects forged or public manifests, requires private-base
+  confinement and an ownership marker, and quarantines roots before removal.
+  Linux pins the base directory during cleanup. Creation intent is saved before
+  mkdir, and a refused root no longer blocks cleanup of other eligible roots.
+  Initial OS temp ancestor aliases resolve to the verified canonical base,
+  supporting macOS temp paths without following those aliases during cleanup.
+- Checkpoint Git checks its storage volume and stays available at critical temp
+  pressure without allocating a temp root. Admission abort/disposal no longer
+  waits for sampling; stalled statfs publishes unknown readings within a bound.
+- Account/sign-in Muse children receive the same owned temp environment as chat
+  children. Nonzero/signal exits and SDK initialization/spawn failures retain
+  their temp roots for 24 hours after proved tree exit.
+
+- Staged disk-space protection samples harness write volumes with `fs.statfs`,
+  uses the existing governor's levels and recovery, and blocks disk-heavy
+  admission before the foreground deadline can bypass it. Owned-tree temp
+  environments and a persisted creation registry provide guarded cleanup
+  after proved exit, with 24-hour retention for failed runs and idempotent
+  cleanup when tree exit and disk pressure coincide. Remaining host/device/platform bindings are
+  tracked in the M107 DK certification.
+
+- Windows Muse Code shutdown stops the verified registered job, bounds all
+  SDK close surfaces, reports forced or unproved shutdown honestly, and
+  disposes session handles even when close reports a failure. The CLI inherits
+  the SDK's stdio handles directly instead of PowerShell's native pipeline.
+- User turns queued behind scheduled work keep foreground admission and its
+  20-second wait bound. Rejected concurrent schedules release only their own
+  lease; completion is matched to the running schedule's generation and turn.
+- Short window CLI commands, including rules initialization and diagnostics,
+  and plugin runtime version probes enter resource admission and register
+  native process trees. CLI commands recheck their owner after admission,
+  preserve argument boundaries and stop their tree on cancellation.
+- Resource-governor recovery uses margins scaled to the configured limit
+  and machine memory, so low GPU/disk limits and small containers can recover.
+  Resume override expiry drains older pending reads and waits for a fresh
+  sample before deciding the level.
+- Windows actuator integration verifies the real job's below-normal/idle
+  priority, 50% CPU cap, birth-identity refusal and exact priority/rate
+  restoration alongside the merged governor and actuator review repairs.
+- Staged resource-governor integration admits the window's tool shells,
+  checks, MCP servers, hooks, browser checks, Git, voice/recording and Muse Code hosts, and the
+  Model API's background attempts, children and scheduled runs. Windows
+  launches register named jobs, including the browser's binary CDP pipes;
+  orphan children retain a queryable job until empty, and failed holders or
+  unproved tree readings retain their reservations. The governor loads in
+  its own bundle on the first governed launch.
+- Resource sampler probes prevent libuv from filling missing Windows
+  environment variables from the parent; Linux resource-tree paths retain
+  POSIX semantics when their complete fixtures run on Windows.
+
+- Resource actuators release controls for members explicitly proved exited,
+  including zombies, so the living tree can recover and retire. Unavailable
+  Linux cgroup controls retry opening on later scans with bounded backoff,
+  preserving usable handles and their original policy snapshots.
+- Resource actuators keep unconfirmed irreversible writes unknown during
+  recovery and retirement, verify confirmed policy again, and require a fresh
+  prior-state reading before attempting another irreversible change.
+
+- Linux resource trees pin their cgroup directory before the workload runs.
+  Stop and accounting refuse a removed or replaced directory, and an empty
+  tree retires automatically after its root exits. Stop also reasserts the
+  harness's pinned home placement before kill or freeze; bounded retry failure
+  keeps ownership with an explicit localized status for a later Stop retry.
+
+- Linux resource trees launch behind a gate in their own delegated cgroup.
+  Stop waits for the kernel's empty-cgroup receipt before cleanup, preventing
+  an outside same-tick PID replacement from inheriting tree authority.
+  Undelegated groups refuse small PID namespaces and recheck identity bounds.
+- Registered resource trees expose verified signal and tree-kill actions, with
+  exact birth checks and honest outcomes. Observed descendants retain authority
+  after reparenting or starting another session; recycled PIDs need new proof.
+- Resource trees use the shipped macOS helper's kernel microsecond identities
+  and classify zombie processes as exited instead of live members.
+- Resource-tree readers revalidate an existing POSIX authority anchor before
+  retaining new witnesses, preventing a mixed-time scan from admitting a
+  process in a reused group. Ticket retirement also invalidates pending reads
+  so they cannot restore accounting or overwrite a newer registration. Linux
+  cgroup scans omit vanished rows while keeping genuine read failures unknown.
+- The staged resource-governor sampler honours cgroup v1 memory capacity
+  and enforced ancestor limits, and rejects noncanonical cgroup paths
+  before walking the mount hierarchy.
+- Its optional probes preserve missing/null Windows counters as unknown
+  and combine Linux DRM and Nvidia readings so the busiest GPU is counted.
+- ACP help and argument errors now use one complete localized usage table,
+  including the Setup hooks command, so the installed package passes the
+  release job's strict English fallback check.
+- Windows shell directory tracking now uses the native long workspace path
+  when starting or resetting a command, so 8.3 aliases keep the correct cwd
+  and workspace-relative directory tail.
+- Production bundle regression tests now build their own compressed English and
+  shared wire fixtures, so macOS CI's test job works without a prior build.
+- Windows CI hook fixtures now use the platform their captured paths describe;
+  Cline discovery exercises both POSIX and Windows path handling on every OS.
+  Deferred-bundle checks load their in-memory builds without requiring stale
+  or pre-existing files in `dist`.
+- Cline hook quoting is checked through native PowerShell on Windows and the
+  POSIX shell on Unix, without requiring a Windows Bash installation.
+- Fake-only headless tests recognize MinGit's verified GNU Bash `sh.exe`, and
+  missing-browser-chunk checks accept Windows filesystem error paths.
+- Fake-child plugin dispatch fixtures use drive-qualified plugin paths on
+  Windows while retaining native-platform parsing and containment checks.
+- Retry after a failed optional panel reloads its complete module graph with
+  the conversation and draft saved. Cold menus respect outside dismissal and
+  late imports cannot take focus; failed menus accept Escape and return focus
+  to their trigger.
 
 - The release-artifact check validates complete ACP help, including its reference
   hint, in English and every installed language using the CLI's shared formatter.

@@ -1,3 +1,4 @@
+import { resourceEnvironment } from '../../resources/launch'
 // M91 lane X: the plugin host. Amp and OpenCode plugins run OUT OF PROCESS
 // in a short-lived child under the user's own runtime (pluginChild.ts is the
 // entry; the host writes one JSON request line on stdin and reads one JSON
@@ -24,11 +25,12 @@
 // - bounds: PLUGIN_HOOK_TIMEOUT_MS per call, PLUGIN_CHILD_MAX_HEAP_MB heap
 //   for node, PLUGIN_RESPONSE_MAX_BYTES UTF-8 bytes per answer frame [14].
 import { Buffer } from 'node:buffer'
-import { type ChildProcess, execFile as nodeExecFile, spawn as nodeSpawn } from 'node:child_process'
+import { admitResource, stopResourceTree } from '../../resources/admission'
+import type { ResourceLease } from '../../resources/launch'
+import { type ChildProcess, spawn as nodeSpawn } from 'node:child_process'
 import { withoutCredentials } from '../../credentialEnvironment'
 import { statSync } from 'node:fs'
 import path from 'node:path'
-import { promisify } from 'node:util'
 import * as z from 'zod/mini'
 import {
   PLUGIN_CHILD_MAX_HEAP_MB,
@@ -59,6 +61,7 @@ export interface PluginCall {
 }
 
 export interface PluginSpawnOptions {
+  readonly resource?: ResourceLease | undefined
   /** The child's whole environment: already allowlisted by the caller. */
   readonly env: NodeJS.ProcessEnv
   readonly cwd: string
@@ -70,7 +73,7 @@ export interface PluginChildHandle {
   /** Writes the request and closes stdin; a write error reaches `onError`. */
   write(text: string): void
   onStdout(listener: (chunk: Buffer) => void): void
-  onClose(listener: () => void): void
+  onClose(listener: (code?: number | null) => void): void
   /** A spawn error, or a stdin error such as EPIPE. */
   onError(listener: () => void): void
 }
@@ -86,7 +89,7 @@ export interface PluginProcessTree {
     args: readonly string[],
     options: PluginSpawnOptions,
   ): Promise<PluginChildHandle>
-  killTree(child: PluginChildHandle): void
+  killTree(child: PluginChildHandle): void | Promise<void>
 }
 
 export interface PluginRunDeps {
@@ -120,15 +123,66 @@ export type RuntimeResolution =
   | { readonly ok: true; readonly command: string; readonly args: readonly string[] }
   | { readonly ok: false; readonly reason: string }
 
-const execFileAsync = promisify(nodeExecFile)
-
-async function defaultRunVersion(command: string, env: NodeJS.ProcessEnv): Promise<string> {
-  const { stdout } = await execFileAsync(command, ['--version'], {
-    env,
-    timeout: PLUGIN_RUNTIME_PROBE_TIMEOUT_MS,
-    windowsHide: true,
+async function defaultRunVersion(
+  command: string,
+  env: NodeJS.ProcessEnv,
+  deps: PluginRunDeps,
+  signal?: AbortSignal,
+): Promise<string> {
+  const tree = treeFor(deps, deps.platform ?? process.platform)
+  if (tree === undefined) throw new Error('Plugin runtime probe has no process tree')
+  const resource = await admitResource('hook', signal)
+  let child: PluginChildHandle
+  try {
+    if (signal?.aborted === true) throw new Error('Plugin runtime probe cancelled')
+    child = await tree.spawn(command, ['--version'], {
+      env: resourceEnvironment(env, resource),
+      cwd: path.dirname(command),
+      ...(resource !== undefined && { resource }),
+    })
+  } catch (error: unknown) {
+    resource?.complete(true)
+    throw error
+  }
+  return await new Promise<string>((resolve, reject) => {
+    const chunks: Buffer[] = []
+    let bytes = 0
+    let isDone = false
+    const finish = (error?: Error) => {
+      if (isDone) return
+      isDone = true
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', abort)
+      endTree(tree, child)
+      if (error === undefined) resolve(Buffer.concat(chunks).toString('utf8'))
+      else reject(error)
+    }
+    const abort = () => {
+      finish(new Error('Plugin runtime probe cancelled'))
+    }
+    const timer = setTimeout(() => {
+      finish(new Error('Plugin runtime probe timed out'))
+    }, PLUGIN_RUNTIME_PROBE_TIMEOUT_MS)
+    signal?.addEventListener('abort', abort, { once: true })
+    child.onError(() => {
+      finish(new Error('Plugin runtime probe failed'))
+    })
+    child.onClose((code) => {
+      finish(
+        code === undefined || code === 0
+          ? undefined
+          : new Error('Plugin runtime probe exited unsuccessfully'),
+      )
+    })
+    child.onStdout((chunk) => {
+      if (isDone) return
+      bytes += chunk.byteLength
+      if (bytes > PLUGIN_RESPONSE_MAX_BYTES)
+        finish(new Error('Plugin runtime probe output exceeded its bound'))
+      else chunks.push(chunk)
+    })
+    if (signal?.aborted === true) abort()
   })
-  return stdout
 }
 
 function isExistingFile(filePath: string): boolean {
@@ -170,10 +224,13 @@ function isAtLeast(have: readonly [number, number, number], want: string): boole
 export async function resolvePluginRuntime(
   system: PluginSystem,
   deps: PluginRunDeps,
+  signal?: AbortSignal,
 ): Promise<RuntimeResolution> {
   const platform = deps.platform ?? process.platform
   const env = withoutCredentials(deps.env)
-  const runVersion = deps.runVersion ?? defaultRunVersion
+  const runVersion =
+    deps.runVersion ??
+    ((command: string, env: NodeJS.ProcessEnv) => defaultRunVersion(command, env, deps, signal))
   const name = system === 'amp' ? 'node' : 'bun'
   const command = resolveExecutable(name, {
     platform,
@@ -285,8 +342,8 @@ export function nodeChildHandle(child: ChildProcess): PluginChildHandle {
       })
     },
     onClose: (listener) => {
-      child.on('close', () => {
-        listener()
+      child.on('close', (code) => {
+        listener(code)
       })
     },
     onError: (listener) => {
@@ -295,21 +352,39 @@ export function nodeChildHandle(child: ChildProcess): PluginChildHandle {
   }
 }
 
+const resources = new WeakMap<PluginChildHandle, ResourceLease>()
+
+async function didStopRegisteredPlugin(child: PluginChildHandle): Promise<boolean> {
+  const resource = resources.get(child)
+  if (resource === undefined) return false
+  await stopResourceTree(resource)
+  return true
+}
+
 /** POSIX: the child leads a process group of its own, killed as one. */
 export const posixProcessTree: PluginProcessTree = {
-  spawn: (command, args, options) =>
-    Promise.resolve(
-      nodeChildHandle(
-        nodeSpawn(command, [...args], {
-          env: options.env,
-          cwd: options.cwd,
-          detached: true,
-          stdio: ['pipe', 'pipe', 'pipe'],
-        }),
-      ),
-    ),
-  killTree: (child) => {
-    if (child.pid === undefined) return
+  spawn: (command, args, options) => {
+    const child = nodeSpawn(command, [...args], {
+      env: options.env,
+      cwd: options.cwd,
+      detached: true,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    })
+    options.resource?.register({ pid: child.pid, group: true })
+    child.once('exit', (code) => {
+      if (code !== 0) options.resource?.failed?.()
+      options.resource?.complete(false)
+    })
+    child.once('error', () => {
+      options.resource?.failed?.()
+      options.resource?.complete(child.pid === undefined)
+    })
+    const handle = nodeChildHandle(child)
+    if (options.resource !== undefined) resources.set(handle, options.resource)
+    return Promise.resolve(handle)
+  },
+  killTree: async (child) => {
+    if ((await didStopRegisteredPlugin(child)) || child.pid === undefined) return
     try {
       process.kill(-child.pid, 'SIGKILL')
     } catch {
@@ -337,9 +412,11 @@ export function jobProcessTree(launch: PluginJobLaunch): PluginProcessTree {
       const launcher = launch(command, args, options)
       const handle = nodeChildHandle(launcher)
       launchers.set(handle, launcher)
+      if (options.resource !== undefined) resources.set(handle, options.resource)
       return Promise.resolve(handle)
     },
-    killTree: (child) => {
+    killTree: async (child) => {
+      if (await didStopRegisteredPlugin(child)) return
       try {
         launchers.get(child)?.kill()
       } catch {
@@ -487,7 +564,9 @@ const NEWLINE = 0x0a
 /** A tree's end, which must never throw out of an event listener. */
 function endTree(tree: PluginProcessTree, child: PluginChildHandle): void {
   try {
-    tree.killTree(child)
+    void Promise.resolve(tree.killTree(child)).catch(() => {
+      // A refused registered stop retains unknown occupancy; the bounded hook still settles.
+    })
   } catch {
     // The tree's own fault: the call still settles.
   }
@@ -521,17 +600,24 @@ async function runInScope(
       transportFailure(call, 'plugin children run only in a job object, which is unavailable here'),
     )
   }
-  const runtime = await resolvePluginRuntime(call.system, deps)
+  const runtime = await resolvePluginRuntime(call.system, deps, scope?.signal)
   if (scope?.isClosed() === true) return closed()
   if (!runtime.ok) return settled(call, transportFailure(call, runtime.reason))
   const source = deps.childSource ?? pluginChildSource()
+  const resource = await admitResource('hook', scope?.signal)
+  if (scope?.isClosed() === true) {
+    resource?.complete(true)
+    return closed()
+  }
   let child: PluginChildHandle
   try {
     child = await tree.spawn(runtime.command, [...runtime.args, source], {
-      env: withoutCredentials(deps.env),
+      env: resourceEnvironment(withoutCredentials(deps.env), resource),
       cwd: path.dirname(call.pluginPath),
+      ...(resource !== undefined && { resource }),
     })
   } catch {
+    resource?.complete(true)
     return settled(call, transportFailure(call, 'the plugin child could not start'))
   }
   if (scope?.isClosed() === true) {
@@ -615,6 +701,7 @@ export async function runPluginHook(
 
 /** One session's plugin children: dispose ends every live child's tree. */
 export class PluginSession {
+  private readonly resourceStop = new AbortController()
   private readonly owned = new Set<PluginChildHandle>()
   private isDisposed = false
 
@@ -625,16 +712,21 @@ export class PluginSession {
    * A stopped turn (`signal`) ends the child and answers nothing.
    */
   public async run(call: PluginCall, signal?: AbortSignal): Promise<ForeignHookAnswer> {
+    const stop =
+      signal === undefined
+        ? this.resourceStop.signal
+        : AbortSignal.any([signal, this.resourceStop.signal])
     return await runInScope(call, this.deps, {
       owned: this.owned,
       isClosed: () => this.isDisposed || signal?.aborted === true,
-      signal,
+      signal: stop,
     })
   }
 
   /** End every live child's tree; later calls are refused. */
   public dispose(): void {
     this.isDisposed = true
+    this.resourceStop.abort()
     const tree = treeFor(this.deps, this.deps.platform ?? process.platform)
     if (tree !== undefined) for (const child of this.owned) endTree(tree, child)
     this.owned.clear()

@@ -1475,6 +1475,77 @@ body {
   height: 1.5em;
 }
 
+/* M107 U: shared resources chip, popover and Traffic/task row. */
+.resource-surface {
+  min-width: 0;
+  color: var(--vscode-foreground);
+}
+
+.resource-chip {
+  max-width: 100%;
+  min-height: 24px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--ms-radius);
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  cursor: pointer;
+  font: inherit;
+  overflow-wrap: anywhere;
+}
+
+.resource-surface[data-resource-level='pause'] .resource-chip {
+  border-color: var(--vscode-editorWarning-foreground);
+}
+
+.resource-popover {
+  position: fixed;
+  z-index: 10;
+  inset-inline: var(--ms-gap);
+  bottom: var(--ms-gap);
+  max-width: 30em;
+  max-height: 80vh;
+  overflow: auto;
+  padding: var(--ms-gap);
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: var(--ms-radius);
+  background: var(--vscode-editorWidget-background);
+  color: var(--vscode-foreground);
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow);
+}
+
+.resource-popover header,
+.resource-popover footer,
+.resource-task-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ms-gap);
+  align-items: center;
+  overflow-wrap: anywhere;
+}
+
+.resource-popover header {
+  justify-content: space-between;
+}
+
+.resource-readings > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--ms-gap);
+}
+
+.resource-readings dd {
+  margin-inline-start: 0;
+}
+
+.resource-queue code {
+  overflow-wrap: anywhere;
+}
+
+.resource-queue li {
+  line-height: 1.5;
+}
+
 @container (width < 260px) {
   .heartbeat-trace {
     display: none;

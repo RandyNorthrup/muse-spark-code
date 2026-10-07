@@ -1,6 +1,7 @@
 import { JudgeStatusLine } from './components/JudgeStatusLine'
 import {
   type ReactNode,
+  Suspense,
   createElement,
   Fragment,
   useCallback,
@@ -100,8 +101,9 @@ import {
 } from './state/uiState'
 import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
-import { Modal } from './components/Modal'
 import { deferred } from './components/DeferredSurface'
+import { Modal } from './components/Modal'
+import type { ResourceSurfaceLoader } from './resources/resourcePort'
 
 const SignIn = deferred(async () => {
   const module = await import('./components/SignIn')
@@ -193,6 +195,8 @@ export interface AppProps {
   readonly newLocalId?: () => string
   /** Injected so tests get deterministic timestamps. */
   readonly now?: () => number
+  /** U/W: bind the separate resources delivery entry after the first governed spawn. */
+  readonly resources?: ResourceSurfaceLoader
 }
 
 type RewindConversationRequest = Extract<WebviewToHostMessage, { type: 'rewindConversation' }>
@@ -393,7 +397,9 @@ export function App({
   store: externalStore,
   newLocalId = defaultLocalId,
   now = defaultNow,
+  resources,
 }: AppProps) {
+  const ResourceView = resources?.View
   // Callbacks read the store's current state when they run instead of
   // closing over it, so they keep their identity across renders and the
   // memoised transcript rows skip a keystroke or a delta elsewhere (M25).
@@ -2534,6 +2540,11 @@ export function App({
         <div className="composer-area" inert={isModalOpen}>
           {floating}
           <JudgeStatusLine status={state.judge} />
+          {ResourceView === undefined || resources === undefined ? null : (
+            <Suspense fallback={null}>
+              <ResourceView port={resources.port} isInert={isModalOpen} />
+            </Suspense>
+          )}
           <Composer
             draft={state.draft}
             placeholder={state.composerPlaceholder}

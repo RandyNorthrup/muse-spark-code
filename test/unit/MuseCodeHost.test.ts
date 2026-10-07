@@ -170,6 +170,20 @@ async function listeningSession(host: MuseCodeHost) {
 }
 
 describe('MuseCodeHost', () => {
+  it('disposes every session even when bounded process close reports a forced stop', async () => {
+    const handle = fakeMspHost()
+    handle.server.handle('session/start', () => ({
+      session: { sessionId: 'forced-close-session', modelId: 'muse-spark-1.3', status: 'idle' },
+      viewCursor: '',
+    }))
+    handle.host.close = () => Promise.reject(new Error('forced tree stop'))
+    const host = new MuseCodeHost(handle.host, new FakeLogOutputChannel())
+    const session = await host.startSession(startOptions)
+    const dispose = vi.spyOn(session, 'disposeAll')
+    await expect(host.close()).rejects.toThrow('forced tree stop')
+    expect(dispose).toHaveBeenCalledExactlyOnceWith()
+    handle.server.close()
+  })
   it('reads the server identity from the handshake result', () => {
     const { host } = setup()
     expect(host.info).toEqual({

@@ -76,6 +76,9 @@ import {
   untrustedStartMode,
 } from '../shared/permissionModes'
 import { type AcpPaidUse, paidUseAnswer, paidUseOptions } from './paid'
+import { acpResourceCommand, acpResourceUpdates, resourceCommands } from './resources'
+import type { RuntimeResources } from '../runtime/resources/port'
+import { resourceStatusText } from '../runtime/resources/text'
 import type {
   AcpQuestionDeferral,
   AcpQuestionRegistry,
@@ -146,6 +149,8 @@ export interface AcpAgentDeps {
   /** The flagged paid features; the agent asks before each use (M63c, M58). */
   readonly paid: AcpPaidUse
   readonly log: CoreLogger
+  /** The process-wide lazy governor; subscriptions do not start it. */
+  readonly resources?: RuntimeResources
   /** Required Q/runtime binding: portable registry plus durable idle-answer queue. */
   readonly questions: AcpQuestionRegistryFactory | 'decline'
   readonly questionClock?: QuestionClock
@@ -238,6 +243,7 @@ class AcpSession {
   private readonly questionBundle: () => AcpQuestionBundle
   private readonly translator: UpdateTranslator
   private unsubscribe: (() => void) | undefined
+  private readonly unsubscribeResources: (() => void) | undefined
   private readonly approvals = new Map<string, ApprovalRequest>()
   private readonly earlyFinishes = new Map<string, TurnCompleted>()
   private outbox: Promise<void> = Promise.resolve()
@@ -249,6 +255,7 @@ class AcpSession {
   private preparing: PreparingPrompt | undefined
   private skills: readonly SkillSummary[] = []
   private areCommandsAnnounced = false
+  private hasShownResourcePause = false
   private effort: EffortLevel = DEFAULT_EFFORT
   /** Let go (closed, loaded again, or never set up): the editor's late answers decide nothing. */
   private isDisposed = false
@@ -285,6 +292,16 @@ class AcpSession {
             deliver: (message) => this.getQuestions().deliver(message),
           })
     this.translator = new UpdateTranslator(cwd, false)
+    this.unsubscribeResources = deps.resources?.subscribe(this.sessionId, (notice) => {
+      const updates = acpResourceUpdates(notice)
+      const isPause = notice.event.type === 'levelChanged' && notice.event.to === 'pause'
+      for (const update of updates) {
+        if (isPause && this.hasShownResourcePause && update.sessionUpdate === 'agent_message_chunk')
+          update.content = { type: 'text', text: resourceStatusText(notice.status) }
+        this.send(update)
+      }
+      if (isPause) this.hasShownResourcePause = true
+    })
   }
 
   private getQuestions(): AcpQuestionDeferral {
@@ -390,9 +407,13 @@ class AcpSession {
       sessionUpdate: 'available_commands_update',
       availableCommands: [
         { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
+        ...(this.deps.resources === undefined ? [] : resourceCommands()),
         ...this.skills
           .filter(
-            (skill) => ![SLASH_COMMAND_NAMES.help, 'answer', 'questions'].includes(skill.selector),
+            (skill) =>
+              ![SLASH_COMMAND_NAMES.help, 'answer', 'questions'].includes(skill.selector) &&
+              (this.deps.resources === undefined ||
+                !['resources', 'usage'].includes(skill.selector)),
           )
           .map((skill) => ({
             name: skill.selector,
@@ -904,6 +925,15 @@ class AcpSession {
 
   public async prompt(blocks: readonly ContentBlock[]): Promise<StopReason> {
     this.ensureHeld()
+    if (this.deps.resources !== undefined) {
+      const update = await acpResourceCommand(blocks, this.deps.resources)
+      this.ensureHeld()
+      if (update !== undefined) {
+        this.send(update)
+        await this.outbox
+        return 'end_turn'
+      }
+    }
     const [first] = blocks
     if (
       this.questionRegistry !== undefined &&
@@ -1094,6 +1124,7 @@ class AcpSession {
     this.pending?.resolve('cancelled')
     this.pending = undefined
     this.unsubscribe?.()
+    this.unsubscribeResources?.()
     if (wasRunning) {
       // Stopped once its start is answered, even a start that failed: one
       // past its deadline (Muse Code's `turn/start`) may still start.

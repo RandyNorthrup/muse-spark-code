@@ -279,6 +279,8 @@ import { postModelCallFields, preModelCallFields } from './modelCallHooks'
 import type { HookMcpOutcome, HookModelTurn, HookModelDailyBudget } from './hookHandlers'
 import { ObservationPack, estimatePackTokens } from './observationPack'
 import { nextScheduleFire } from './schedules'
+import { admitResource, inResourceClass } from '../../resources/admission'
+import type { ResourceLease } from '../../resources/launch'
 import {
   type BudgetBase,
   type BudgetReservation,
@@ -707,6 +709,8 @@ interface TranscriptItem {
 
 /** One Model API child: a private session with its own replay and transcript. */
 interface ChildRecord {
+  resourceStop?: AbortController | undefined
+  resourceLease?: ResourceLease | undefined
   readonly id: string
   readonly role: string
   readonly objective: string
@@ -762,6 +766,7 @@ interface ChildTaskGrant {
 }
 
 interface QueuedTurn {
+  readonly resourceClass?: 'foreground' | 'background'
   readonly turnId: string
   readonly parts: readonly TurnPart[]
   readonly displayText: string | undefined
@@ -2073,6 +2078,16 @@ export class ModelApiSession implements AgentSession {
   private goalCommandRevision = 0
   /** Model calls since the goal last moved: the step probe's count (D38). */
   private goalSteps = 0
+  private resourceAdmissionStop = new AbortController()
+  private scheduledResource:
+    | {
+        readonly id: string
+        readonly generation: number
+        readonly lease: ResourceLease | undefined
+        turnId?: string
+      }
+    | undefined
+  private scheduleResourceGeneration = 0
   private scheduleTimer: ReturnType<typeof setInterval> | undefined
   private usage = { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 }
   /**
@@ -6237,6 +6252,9 @@ export class ModelApiSession implements AgentSession {
       return
     }
     if (event.type === 'turnCompleted') {
+      child.resourceLease?.complete(true)
+      child.resourceLease = undefined
+      child.resourceStop = undefined
       child.chargedGoalId = undefined
       child.session.childTaskGrant = undefined
       if (child.nextTaskGrant !== undefined) {
@@ -6759,6 +6777,52 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** Starts queued children in spawn order, bounded by the Model API capacity. */
+  private async startResourceChild(child: ChildRecord, task: string): Promise<void> {
+    const stop = new AbortController()
+    child.resourceStop = stop
+    try {
+      const resource = await admitResource('subagent', stop.signal, 'background')
+      const grant = child.session.childTaskGrant
+      if (
+        grant === undefined ||
+        this.isDisposed ||
+        child.state !== 'running' ||
+        stop.signal.aborted ||
+        child.resourceStop !== stop ||
+        this.childGrantRefusal(grant, grant.keyDigest, child.session.modelId) !== undefined
+      ) {
+        resource?.complete(true)
+        throw new Error('Subagent admission expired')
+      }
+      child.resourceLease = resource
+      await inResourceClass(
+        'background',
+        async () =>
+          await child.session.sendTurn(
+            [{ type: 'text', text: `${MODEL_API_MODEL_TEXT.subagentObjective}\n\n${task}` }],
+            task,
+          ),
+      )
+    } catch {
+      if (child.resourceStop !== stop) return
+      child.resourceLease?.complete(true)
+      child.resourceLease = undefined
+      child.resourceStop = undefined
+      if (child.state === 'interrupted' && child.followupAfterStop !== undefined) {
+        child.pendingMessages.push(child.followupAfterStop)
+        child.followupAfterStop = undefined
+        child.state = 'queued'
+        this.startQueuedChildren()
+      }
+      if (child.state === 'running') {
+        child.state = 'closed'
+        child.terminal = CANCELLED
+        this.updateChild(child)
+        this.startQueuedChildren()
+      }
+    }
+  }
+
   private startQueuedChildren(): void {
     if (this.isDisposed) {
       return
@@ -6807,10 +6871,7 @@ export class ModelApiSession implements AgentSession {
       const additions = child.pendingMessages.splice(0)
       const task = this.queuedChildTask(child, additions)
       this.updateChild(child)
-      void child.session.sendTurn(
-        [{ type: 'text', text: `${MODEL_API_MODEL_TEXT.subagentObjective}\n\n${task}` }],
-        task,
-      )
+      void this.startResourceChild(child, task)
     }
   }
 
@@ -7111,6 +7172,7 @@ export class ModelApiSession implements AgentSession {
       if (parsed.data.interrupt === true && child.state === 'running') {
         child.followupAfterStop = parsed.data.message
         child.state = 'interrupted'
+        child.resourceStop?.abort()
         await child.session.cancel()
       } else if (child.state === 'running') {
         const activeTurnId = child.session.activeTurnId
@@ -7157,6 +7219,7 @@ export class ModelApiSession implements AgentSession {
       child.session.childTaskGrant = undefined
       child.terminal ??= CANCELLED
       child.state = 'closed'
+      child.resourceStop?.abort()
       await child.session.cancel()
       this.updateChild(child)
       this.startQueuedChildren()
@@ -7678,6 +7741,8 @@ export class ModelApiSession implements AgentSession {
         signal,
         undefined,
         assertCanRun,
+        false,
+        'check',
       )
     } catch (error: unknown) {
       return {
@@ -10487,6 +10552,10 @@ export class ModelApiSession implements AgentSession {
         }),
       })
     }
+    if (this.scheduledResource?.turnId === turn.turnId) {
+      this.scheduledResource.lease?.complete(true)
+      this.scheduledResource = undefined
+    }
     this.emit({
       type: 'turnCompleted',
       turnId: turn.turnId,
@@ -10521,7 +10590,15 @@ export class ModelApiSession implements AgentSession {
         })
         continue
       }
-      this.track(this.runTurn(next), false)
+      this.track(
+        inResourceClass(
+          next.resourceClass ?? (this.isSubagent ? 'background' : 'foreground'),
+          async () => {
+            await this.runTurn(next)
+          },
+        ),
+        false,
+      )
       return
     }
   }
@@ -10860,6 +10937,39 @@ export class ModelApiSession implements AgentSession {
     occurrenceMs: number,
     confirmed: ScheduleRunConfirmation,
   ): Promise<TurnSubmission> {
+    if (this.isSideChat) throw new Error(UI_TEXT.sideChatPlanOnly)
+    if (confirmed.sessionId !== this.sessionId || confirmed.modelId !== this.modelId)
+      throw new Error(UI_TEXT.scheduleConfirmationExpired)
+    if (!this.deps.isPaidFeatureOn('scheduledPrompts')) throw new Error(UI_TEXT.schedulePaidOff)
+    if (this.isDisposed || this.isScheduleBusy()) throw new Error(UI_TEXT.scheduleBusy)
+    const generation = ++this.scheduleResourceGeneration
+    const resource = await admitResource(
+      'schedule',
+      this.resourceAdmissionStop.signal,
+      'background',
+    )
+    try {
+      return await inResourceClass(
+        'background',
+        async () =>
+          await this.runAdmittedSchedule(id, occurrenceMs, confirmed, resource, generation),
+      )
+    } catch (error: unknown) {
+      resource?.complete(true)
+      if (this.scheduledResource?.id === id && this.scheduledResource.generation === generation) {
+        this.scheduledResource = undefined
+      }
+      throw error
+    }
+  }
+
+  private async runAdmittedSchedule(
+    id: string,
+    occurrenceMs: number,
+    confirmed: ScheduleRunConfirmation,
+    resource: ResourceLease | undefined,
+    generation: number,
+  ): Promise<TurnSubmission> {
     if (this.isSideChat) {
       throw new Error(UI_TEXT.sideChatPlanOnly)
     }
@@ -10896,6 +11006,9 @@ export class ModelApiSession implements AgentSession {
     // The request carries only the confirmed model and a digest of the key.
     // The client checks the actual SecretStorage key just before HTTP.
     const requestFor = (turnId: string): ConfirmedModelRequest => {
+      if (this.scheduledResource?.id === id && this.scheduledResource.generation === generation) {
+        this.scheduledResource.turnId = turnId
+      }
       let hasStarted = false
       return {
         modelId: confirmed.modelId,
@@ -10928,6 +11041,7 @@ export class ModelApiSession implements AgentSession {
     }
     // No await between this check and sendTurn: a new turn cannot slip in and
     // turn a confirmed scheduled prompt into a silently queued later run.
+    this.scheduledResource = { id, generation, lease: resource }
     const submission = await this.sendTurn(
       [{ type: 'text', text: job.prompt }],
       job.prompt,
@@ -10961,6 +11075,8 @@ export class ModelApiSession implements AgentSession {
     const userMessageId = this.deps.newId()
     const confirmedRequest = requestFor?.(turnId)
     const queued: QueuedTurn = {
+      resourceClass:
+        confirmedRequest !== undefined || this.isSubagent ? 'background' : 'foreground',
       turnId,
       parts,
       displayText,
@@ -11250,6 +11366,8 @@ export class ModelApiSession implements AgentSession {
    * is ended with a reason instead of vanishing (D26).
    */
   public cancel(): Promise<void> {
+    this.resourceAdmissionStop.abort()
+    this.resourceAdmissionStop = new AbortController()
     this.deps.judge?.discardSession(this.sessionId)
     for (const dropped of this.queuedTurns.splice(0)) {
       this.emit({
@@ -11545,6 +11663,7 @@ export class ModelApiSession implements AgentSession {
           throw new Error('subagent is not running')
         }
         child.state = 'interrupted'
+        child.resourceStop?.abort()
         await child.session.cancel()
 
         break
@@ -11559,6 +11678,7 @@ export class ModelApiSession implements AgentSession {
         child.nextTaskGrant = undefined
         child.session.childTaskGrant = undefined
         child.state = 'closed'
+        child.resourceStop?.abort()
         await child.session.cancel()
         this.startQueuedChildren()
       }
@@ -11759,6 +11879,9 @@ export class ModelApiSession implements AgentSession {
       return
     }
     this.isDisposed = true
+    this.resourceAdmissionStop.abort()
+    this.scheduledResource?.lease?.complete(true)
+    this.scheduledResource = undefined
     if (this.shellSidecarFile !== undefined) {
       // The session's side file goes with it; a tracked call still running
       // reads back "no report" and keeps the previous directory.
@@ -11785,6 +11908,8 @@ export class ModelApiSession implements AgentSession {
       stop.abort()
     }
     for (const child of this.children.values()) {
+      child.resourceStop?.abort()
+      child.resourceLease?.complete(true)
       child.session.disposeAll()
     }
     // Plugin children still running for an imported hook end with it (M91b).

@@ -19,6 +19,9 @@ import {
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
 import { parseExec, type ExecOptions } from './exec/execArgs'
+import { resourceFlagOverrides } from './resources/args'
+import type { ResourceSettings } from '../shared/resources'
+import type { ResourceCommandAction } from './resources/port'
 import { questionDeferSeconds } from '../shared/questionDeadline'
 
 export interface ServeOptions {
@@ -52,7 +55,16 @@ export interface ReportOptions {
 
 export type RuntimeCommand =
   | { readonly command: 'setup'; readonly options: ServeOptions; readonly maintenance: boolean }
-  | { readonly command: 'exec'; readonly options: ExecOptions }
+  | {
+      readonly command: 'exec'
+      readonly options: ExecOptions
+      readonly resourceOverrides: Partial<ResourceSettings>
+    }
+  | {
+      readonly command: 'resources'
+      readonly action: ResourceCommandAction
+      readonly json: boolean
+    }
   | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
   | { readonly command: 'report'; readonly options: ReportOptions }
   | { readonly command: 'serve'; readonly options: ServeOptions }
@@ -83,7 +95,7 @@ function isOneOf<T extends string>(allowed: readonly T[], value: string | undefi
   return value !== undefined && (allowed as readonly string[]).includes(value)
 }
 
-function invalid(argument: string): RuntimeCommand {
+function invalid(argument: string): Extract<RuntimeCommand, { command: 'invalid' }> {
   return { command: 'invalid', reason: fill(UI_TEXT.acpUnknownArgument, { argument }) }
 }
 
@@ -93,6 +105,9 @@ function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeatu
 }
 
 export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
+  if (argv[0] === 'resources') return parseResources(argv.slice(1))
+  if (argv[0] === 'usage' && argv[1] === 'resources')
+    return parseResources(['history', ...argv.slice(2)])
   if (argv[0] === 'help') {
     return argv.length === 1 || (argv.length === 2 && argv[1] === '--all')
       ? { command: 'help', all: argv[1] === '--all' }
@@ -185,10 +200,15 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
             keyFromStdin: values['key-stdin'] === true,
           }
         : { command: 'invalid', reason: UI_TEXT.execScanUsage, exitCode: 2 }
-    const { help: _help, ...options } = values
+    const resourceOverrides = resourceFlagOverrides(values)
+    const options = Object.fromEntries(
+      Object.entries(values).filter(
+        ([key]) => !['help', 'resource-governor', 'cpu-max', 'memory-max'].includes(key),
+      ),
+    )
     const parsed = parseExec(options, positionals)
     return parsed.ok
-      ? { command: 'exec', options: parsed.options }
+      ? { command: 'exec', options: parsed.options, resourceOverrides }
       : { command: 'invalid', reason: parsed.reason, exitCode: 2 }
   } catch (error: unknown) {
     return {
@@ -196,6 +216,25 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
       reason: error instanceof Error ? error.message : String(error),
       exitCode: 2,
     }
+  }
+}
+
+function parseResources(argv: readonly string[]): RuntimeCommand {
+  try {
+    const { values, positionals } = parseArgs({
+      args: [...argv],
+      strict: true,
+      allowPositionals: true,
+      options: CLI_OPTION_REGISTRY.resources.options,
+    })
+    if (values.help === true) return { command: 'help' }
+    const action = positionals[0] ?? 'status'
+    return positionals.length > 1 ||
+      (action !== 'status' && action !== 'history' && action !== 'resume')
+      ? { ...invalid(`resources ${positionals.join(' ')}`), exitCode: 2 }
+      : { command: 'resources', action, json: values.json === true }
+  } catch {
+    return { ...invalid('resources'), exitCode: 2 }
   }
 }
 

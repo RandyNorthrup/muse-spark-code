@@ -7,6 +7,7 @@
 
 import { Buffer } from 'node:buffer'
 import path from 'node:path'
+import type { ResourceKind } from '../../../shared/resources'
 import * as z from 'zod/mini'
 import {
   type PatchSummary,
@@ -236,6 +237,7 @@ export interface ToolIo {
     assertCanRun?: () => void,
     /** D89.5: only an interactive top-level shell may use named credential pass-through. */
     isInteractive?: boolean,
+    resourceKind?: ResourceKind,
   ): Promise<ShellResult>
   /** An explicitly enabled M51 hook, with JSON stdin and a cleared environment. */
   runHook?(

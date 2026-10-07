@@ -58,6 +58,7 @@ export { parseHandoffPrompt } from '../handoff'
 // Reviewed host capability inventory: pairs are explicit, never a Cartesian claim.
 // The tooling gate also checks tool/action coverage and host admission witnesses.
 const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
+  ['resources', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['custom-agents', ['vscode:modelApi']],
   ['mcp-elicitation', ['vscode:modelApi']],
   ...[

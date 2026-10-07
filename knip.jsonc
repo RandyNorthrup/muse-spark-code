@@ -15,6 +15,8 @@
 
   "entry": [
     "src/extension.ts",
+    "src/core/resources/resourceGovernorEntry.ts",
+    "src/core/resources/admission.ts",
     "src/host/conversation/conversationEntry.ts",
     "src/shared/validationEntry.ts",
     // Help data: separate lazy runtime and generator build entries.
@@ -66,6 +68,8 @@
     // Web fetch's page converter (M69), a worker bundle started by path.
     "src/host/web/pageWorker.ts",
     "src/webview/main.tsx",
+    "src/webview/resources/ResourceSurface.tsx",
+    "src/webview/usage/ResourcesSection.tsx",
     "src/runtime/main.ts",
     // M112 A: same-build ACP question factory, loaded by path on first use.
     "src/acp/questionDeferralEntry.ts",

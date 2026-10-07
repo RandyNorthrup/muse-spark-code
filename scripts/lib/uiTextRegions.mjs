@@ -144,10 +144,20 @@ export const compactBrowserEnglish = {
       // completes before dependent ESM modules run (Chrome 128 and later).
       const alphabet =
         '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+,-./:;<=>?@[]^'
-      const compressed = deflateSync(
-        JSON.stringify([Object.keys(EN).join('|'), Object.values(EN)]),
-        { level: L10N_BROWSER_COMPRESSION_LEVEL },
-      )
+      // Keep canonical order; front coding removes only repeated key prefixes.
+      let previous = ''
+      const keys = Object.keys(EN)
+        .map((key) => {
+          let prefix = 0
+          while (prefix < previous.length && key[prefix] === previous[prefix]) prefix++
+          const encoded = `${prefix}:${key.slice(prefix)}`
+          previous = key
+          return encoded
+        })
+        .join('|')
+      const compressed = deflateSync(JSON.stringify([keys, Object.values(EN)]), {
+        level: L10N_BROWSER_COMPRESSION_LEVEL,
+      })
       let packed = ''
       for (let offset = 0; offset < compressed.length; offset += 4) {
         let word = 0
@@ -163,7 +173,8 @@ export const compactBrowserEnglish = {
 const bytes=new Uint8Array(${compressed.length});
 for(let offset=0;offset<packed.length;offset+=5){let word=0;for(let digit=0;digit<5;digit++)word=word*85+alphabet.indexOf(packed[offset+digit]);for(let byte=3;byte>=0;byte--){bytes[offset/5*4+byte]=word%256;word=Math.floor(word/256)}}
 const [keys,values]=await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'))).json();
-export const EN=Object.fromEntries(keys.split('|').map((key,index)=>[key,values[index]]));`
+let previous='';
+export const EN=Object.fromEntries(keys.split('|').map((entry,index)=>{const split=entry.indexOf(':');previous=previous.slice(0,Number(entry.slice(0,split)))+entry.slice(split+1);return[previous,values[index]]}));`
       return {
         contents,
         loader: 'js',

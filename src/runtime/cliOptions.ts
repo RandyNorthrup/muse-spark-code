@@ -3,10 +3,23 @@ import { fill } from '../shared/l10n/text'
 
 /** Compact CLI help, also checked against the installed package's tables. */
 export function formatAcpUsage(
-  table: Pick<UiText, 'acpUsage' | 'helpReferenceTitle'>,
+  table: Pick<UiText, 'acpUsage' | 'helpReferenceTitle'> & {
+    readonly referenceCliOptions: Pick<
+      UiText['referenceCliOptions'],
+      'resource-governor' | 'cpu-max' | 'memory-max'
+    >
+  },
   command: string,
 ): string {
-  return `${fill(table.acpUsage, { command })}\n${table.helpReferenceTitle}: ${command} help --all`
+  return [
+    fill(table.acpUsage, { command }),
+    `${command} resources [status|history|resume] [--json]`,
+    `${command} usage resources [--json]`,
+    ...(['resource-governor', 'cpu-max', 'memory-max'] as const).map(
+      (flag) => table.referenceCliOptions[flag],
+    ),
+    `${table.helpReferenceTitle}: ${command} help --all`,
+  ].join('\n')
 }
 
 // One parseArgs definition per runtime route, also read by the lazy reference.
@@ -57,6 +70,9 @@ const EXEC_OPTIONS = {
   'trust-workspace': { type: 'boolean' },
   'allow-dangerously-skip-permissions': { type: 'boolean' },
   'web-search': { type: 'boolean' },
+  'resource-governor': { type: 'string' },
+  'cpu-max': { type: 'string' },
+  'memory-max': { type: 'string' },
   help: { type: 'boolean', short: 'h' },
 } as const satisfies CliParserOptions
 
@@ -83,6 +99,7 @@ export const CLI_OPTION_REGISTRY = {
   exec: { options: EXEC_OPTIONS },
   'scan-secrets': { options: SCAN_OPTIONS },
   report: { options: REPORT_OPTIONS },
+  resources: { options: { json: { type: 'boolean' }, help: { type: 'boolean', short: 'h' } } },
 } as const
 
 // The description map is exhaustive over the parser's option names. It never
@@ -114,6 +131,10 @@ export const CLI_OPTION_TEXT = {
   'fail-on-denial': 'fail-on-denial',
   ephemeral: 'ephemeral',
   'key-stdin': 'key-stdin',
+  'resource-governor': 'resource-governor',
+  'cpu-max': 'cpu-max',
+  'memory-max': 'memory-max',
+  json: 'json',
   out: 'out',
   description: 'description',
   'no-facts': 'no-facts',
@@ -123,7 +144,8 @@ export const CLI_OPTION_TEXT = {
     | keyof typeof COMMON_OPTIONS
     | keyof typeof EXEC_OPTIONS
     | keyof typeof SCAN_OPTIONS
-    | keyof typeof REPORT_OPTIONS,
+    | keyof typeof REPORT_OPTIONS
+    | 'json',
     keyof UiText['referenceCliOptions']
   >
 >

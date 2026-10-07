@@ -138,12 +138,14 @@ export function newShellJob(assemblyPath: string): ShellJob {
  * assembly gone, a policy) is swallowed: the command runs as it would
  * without one, and its kill finds no job and falls back.
  *
+ * Governed launches stop before running a payload if membership cannot be proved.
+ *
  * It names no cmdlet (`loadJobAssembly`): a hook runs in a narrow
  * environment without `PSModuleAnalysisCachePath`, and on GitHub's Windows
  * runner the module analysis an `Add-Type` here set off took 20 s or more
  * and, on a fresh runner, ran past the hook test's 60 s budget before the
  * hook began.
  */
-export function joinStatement(job: ShellJob): string {
-  return `try { ${loadJobAssembly(job.assemblyPath)}; [${SHELL_JOB_TYPE_NAME}]::Join(${powerShellQuoted(job.name)}) } catch { }; `
+export function joinStatement(job: ShellJob, isGoverned = false): string {
+  return `try { ${loadJobAssembly(job.assemblyPath)}; [${SHELL_JOB_TYPE_NAME}]::Join(${powerShellQuoted(job.name)}) } catch {${isGoverned ? ' exit 1' : ''} }; `
 }

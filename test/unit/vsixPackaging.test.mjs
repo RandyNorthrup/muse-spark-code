@@ -62,10 +62,17 @@ beforeAll(async () => {
   writeFileSync(path.join(fixture.root, 'PLAN.md'), 'must not ship')
   for (const file of [
     'dist/extension.js',
+    'dist/resourceGovernor.js',
+    'dist/resourceAdmission.js',
+    'dist/webview/resourceSurface.js',
+    'dist/webview/resourceHistory.js',
+    'dist/webview/resourceHistory.css',
     'dist/validation.js',
     'dist/webview/main.js',
     'dist/webview/main.css',
     'dist/webview/chunks/UsageDialog-test.js',
+    'native/linux/x64/muse-created',
+    'native/linux/arm64/muse-created',
     'native/darwin/muse-dictate',
     'l10n/ui.de.json.br',
   ]) {
@@ -93,13 +100,35 @@ describe('VSIX packaging', () => {
     expect(packaged).toEqual(
       expect.arrayContaining([
         'dist/validation.js',
+        'dist/resourceGovernor.js',
+        'dist/resourceAdmission.js',
+        'dist/webview/resourceSurface.js',
+        'dist/webview/resourceHistory.js',
+        'dist/webview/resourceHistory.css',
         'dist/webview/chunks/UsageDialog-test.js',
+        'native/linux/x64/muse-created',
+        'native/linux/arm64/muse-created',
         'native/darwin/muse-dictate',
         'l10n/ui.tables.json.br',
       ]),
     )
     expect(packaged).not.toContain('docs/marketplace-readme.md')
   })
+  it.each(['x64', 'arm64'])(
+    'P1 refuses a VSIX with the Linux helper %s absent before replacing its stage',
+    async (arch) => {
+      const file = path.join(fixture.root, 'native', 'linux', arch, 'muse-created')
+      const original = readFileSync(file)
+      try {
+        rmSync(file)
+        await expect(stageVsix(fixture.root, fixture.stage)).rejects.toThrow(
+          'Required Linux created-path helper',
+        )
+      } finally {
+        writeFileSync(file, original)
+      }
+    },
+  )
   it('compacts translations with identical values and leaves the source byte-exact', () => {
     const source = path.join(fixture.root, 'l10n/ui.de.json')
     const before = readFileSync(path.join(ROOT, 'l10n/ui.de.json'))

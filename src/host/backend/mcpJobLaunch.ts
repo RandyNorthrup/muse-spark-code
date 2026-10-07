@@ -10,6 +10,8 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer } from 'node:net'
 import { setEnvironmentVariable } from '../../core/backends/musecode/launch'
 import { redactSecrets } from '../../core/redact'
+import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
+import { stopResourceTree } from '../../core/resources/admission'
 import {
   MCP_JOB_CONFIG_VARIABLE,
   MCP_JOB_HANDSHAKE_MAX_CHARS,
@@ -17,6 +19,10 @@ import {
 } from '../../shared/constants'
 
 export interface McpJobLaunch {
+  /** Only the pinned browser uses the fixed additional CDP pipe pair. */
+  readonly debugPipes?: boolean | undefined
+  readonly resource?: ResourceLease | undefined
+  readonly resourceAssembly?: string | undefined
   readonly executablePath: string
   readonly file: string
   readonly args: readonly string[]
@@ -29,12 +35,12 @@ export interface McpJobLaunch {
   readonly jobMemoryLimit?: number | undefined
 }
 
-/** The raw pipes belong to this ChildProcess; no text relay touches MCP frames. */
-export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStreams {
+/** The SDK and our process adapters share the same suspended native launch boundary. */
+export function prepareMcpJobLaunch(launch: McpJobLaunch) {
   const controlPipe = `muse-spark-mcp-${randomUUID()}`
   const controlNonce = randomBytes(MCP_JOB_NONCE_BYTES).toString('hex')
   let isClosed = false
-  let child: ChildProcessWithoutNullStreams | undefined
+  let stop: (() => void) | undefined
   const control = createServer((socket) => {
     let request = ''
     let isAuthorized = false
@@ -71,7 +77,7 @@ export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStream
   })
   control.on('error', (error) => {
     launch.log(`the MCP job control pipe could not listen: ${redactSecrets(error.message)}`)
-    child?.kill()
+    stop?.()
   })
   control.listen(`\\\\.\\pipe\\${controlPipe}`)
   control.unref()
@@ -80,34 +86,79 @@ export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStream
       file: launch.file,
       args: [...launch.args],
       cwd: launch.cwd,
-      env: launch.env,
+      env: resourceEnvironment(launch.env, launch.resource),
       parentPid: process.pid,
       isVerbatim: launch.isVerbatim,
       controlPipe,
       controlNonce,
       ...(launch.jobMemoryLimit !== undefined && { jobMemoryLimit: launch.jobMemoryLimit }),
+      ...(launch.debugPipes === true && { debugPipes: true }),
     }),
     'utf8',
   ).toString('base64')
-  const helperEnv = { ...launch.env }
+  const helperEnv = resourceEnvironment(launch.env, launch.resource)
   setEnvironmentVariable(helperEnv, 'win32', MCP_JOB_CONFIG_VARIABLE, payload)
+  return {
+    env: helperEnv,
+    closeControl,
+    stopWith: (action: () => void) => {
+      stop = action
+    },
+    register: () => {
+      launch.resource?.register({
+        job:
+          launch.resourceAssembly === undefined
+            ? undefined
+            : {
+                name: `Local\\${controlPipe}`,
+                assemblyPath: launch.resourceAssembly,
+              },
+      })
+    },
+  }
+}
+
+/** The raw pipes belong to this ChildProcess; no text relay touches MCP frames. */
+export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStreams {
+  const prepared = prepareMcpJobLaunch(launch)
   try {
-    child = spawn(
+    const child = spawn(
       // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- this executable is compiled from the packaged native/windows/MuseSparkMcpLauncher.cs and MuseSparkMcpJob.cs into a digest-named file in extension storage; configured MCP input stays in a private environment value (PLAN.md §8).
       launch.executablePath,
       [],
       {
         cwd: launch.cwd,
-        env: helperEnv,
-        stdio: ['pipe', 'pipe', 'pipe'],
+        env: prepared.env,
+        stdio:
+          launch.debugPipes === true
+            ? ['pipe', 'pipe', 'pipe', 'pipe', 'pipe']
+            : ['pipe', 'pipe', 'pipe'],
         windowsHide: true,
       },
     )
-    child.once('exit', closeControl)
-    child.once('error', closeControl)
+    prepared.stopWith(() => {
+      if (launch.resource === undefined) child.kill()
+      else
+        void stopResourceTree(launch.resource).catch(() => {
+          launch.log('the registered MCP tree could not be stopped')
+        })
+    })
+    child.once('exit', prepared.closeControl)
+    child.once('error', prepared.closeControl)
+    prepared.register()
+    child.once('exit', (code) => {
+      if (code !== 0) launch.resource?.failed?.()
+      launch.resource?.complete(false)
+    })
+    child.once('error', () => {
+      launch.resource?.failed?.()
+      launch.resource?.complete(child.pid === undefined)
+    })
     return child
   } catch (error: unknown) {
-    closeControl()
+    launch.resource?.failed?.()
+    launch.resource?.complete(true)
+    prepared.closeControl()
     throw error
   }
 }

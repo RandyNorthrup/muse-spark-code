@@ -1828,9 +1828,12 @@ export class MuseCodeHost implements AgentHost {
     this.isClosing = true
     // Close the process first: the host emits session/statusChanged for every
     // loaded session on the way down, and those must still find their session.
-    await this.host.close()
-    for (const session of this.sessions.values()) {
-      session.disposeAll()
+    try {
+      await this.host.close()
+    } finally {
+      for (const session of this.sessions.values()) {
+        session.disposeAll()
+      }
     }
   }
 }

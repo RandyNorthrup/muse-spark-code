@@ -27,6 +27,8 @@ const UI_CONDITIONS: Readonly<
   Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
 > = {
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
+  resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
+  resourceMemoryMaxPercentDescription: 'resourceMemoryThreshold',
   referenceSandbox: 'platform=win32&shellSandbox',
   referenceBrowser: 'workspaceTrust',
   referenceBestOfNRequirements: 'bestOfNAdmission',
@@ -43,12 +45,26 @@ const UI_CONDITIONS: Readonly<
 }
 const NLS_CONDITIONS: Readonly<Partial<Record<string, string>>> = {
   'config.backend.enumDescriptions.auto': 'backendAvailability',
+  'config.resourceRelocate.enumDescriptions.paired': 'resourceRelocation',
   'config.browserCheckRuntime.enumDescriptions.download': 'browserRuntimeAcquisition',
   'config.tabMultiline.enumDescriptions.auto': 'multilineMode',
   'config.tabTrigger.enumDescriptions.onInvoke': 'tabTrigger',
   'config.judge.engine.enumDescriptions.auto': 'judgeEngine',
 }
-const SETTING_CONDITIONS: Readonly<Partial<Record<keyof typeof SETTING_DEFAULTS, string>>> = {
+const SETTING_CONDITIONS: Readonly<
+  Partial<
+    Record<
+      | keyof typeof SETTING_DEFAULTS
+      | 'resourceCpuMaxPercent'
+      | 'resourceMemoryMaxPercent'
+      | 'resourceGpuMaxPercent'
+      | 'resourceDiskBusyMaxPercent'
+      | 'resourceDiskMinFreeGiB'
+      | 'resourceRelocate',
+      string
+    >
+  >
+> = {
   preferredLocation: 'activeConversation',
   archiveInactiveSessions: 'sessionIdle',
   cleanupPeriodDays: 'sessionList',
@@ -63,6 +79,12 @@ const SETTING_CONDITIONS: Readonly<Partial<Record<keyof typeof SETTING_DEFAULTS,
   tabMultiline: 'multilineMode',
   tabTrigger: 'tabTrigger',
   'shell.passEnvironmentVariables': 'backend=modelApi&shellOrigin=interactive',
+  resourceCpuMaxPercent: 'resourceThreshold',
+  resourceMemoryMaxPercent: 'resourceThreshold',
+  resourceGpuMaxPercent: 'resourceThreshold',
+  resourceDiskBusyMaxPercent: 'resourceThreshold',
+  resourceDiskMinFreeGiB: 'resourceDiskThreshold',
+  resourceRelocate: 'resourceRelocation',
   modelApiVoice: 'voiceAdmission',
   bundledSkills: 'backend&skillInstallation',
 }
@@ -76,6 +98,7 @@ export function referenceDescription(text: ReferenceText): ReferenceText {
   else if ('fallbackKey' in text) when = NLS_CONDITIONS[text.fallbackKey]
   else if ('setting' in text) when = settingConditions[text.setting]
   else if ('cli' in text && text.cli === 'fail-on-denial') when = 'permission=denied'
+  else if ('cli' in text && ['cpu-max', 'memory-max'].includes(text.cli)) when = 'resourceThreshold'
   return when === undefined ? text : { conditions: [{ when, text }] }
 }
 
@@ -181,6 +204,26 @@ function feature(
 
 export function featureCatalog(): readonly Feature[] {
   return [
+    feature(
+      'resources',
+      { ui: 'resourceTitle' },
+      { ui: 'referenceResources' },
+      [],
+      [
+        'resourceGovernor',
+        'resourceCpuMaxPercent',
+        'resourceMemoryMaxPercent',
+        'resourceMemoryMinFreeGiB',
+        'resourceGpuMaxPercent',
+        'resourceDiskBusyMaxPercent',
+        'resourceDiskMinFreeGiB',
+        'resourceRelocate',
+      ],
+      'keeping-your-machine-responsive',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
     feature(
       'best-of-n',
       { ui: 'bestOfNTitle' },

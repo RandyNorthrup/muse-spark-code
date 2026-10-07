@@ -16,6 +16,85 @@
 import { forms } from './forms'
 
 export const EN = {
+  // M107 / D87: resource surfaces and manifest-ready settings text.
+  resourceTitle: 'Resources',
+  resourceHarnessInTree:
+    'Stop paused: the harness is still in this tree. Ownership is retained; retry Stop.',
+  resourceCgroupChanged:
+    'Stop refused: this tree’s cgroup was removed or replaced. Ownership is retained.',
+  resourceNormal: 'Normal',
+  resourceThrottle: 'Throttling',
+  resourceRelocate: 'Relocating',
+  resourcePause: 'Paused',
+  resourceUnknown: 'Unknown',
+  resourceWaiting: 'Waiting: machine busy',
+  resourceResumeNow: 'Resume now',
+  resourceRunNow: 'Run now',
+  resourceShow: 'Show resources',
+  resourceMoveTo: 'Move to {device}',
+  resourceKeepHere: 'Keep here',
+  resourcePauseNotice:
+    'Machine busy: {metric} is {reading} (limit {threshold}). New background work is paused.',
+  resourceOverrideNotice: 'Work resumed until {time}.',
+  resourceRelocatedNotice: 'Queued work moved to {device} because this machine is busy.',
+  resourceUnavailable: 'This reading is unavailable on this machine.',
+  resourceTransport: 'Transport failures',
+  resourceOsService: 'OS service pressure',
+  resourceCpu: 'CPU use',
+  resourceMemory: 'Memory in use',
+  resourceAvailableMemory: 'Available memory',
+  resourceGpu: 'GPU use',
+  resourceDisk: 'Disk busy',
+  resourceDiskFree: 'Free disk space',
+  resourceDiskWriteRefused: 'Cannot write to {volume}: critically low free disk space.',
+  resourceDiskMinFreeGiBDescription:
+    'Free disk space floor in GiB. The default is 10 GiB or 10% of the volume, whichever is smaller, with a minimum of 2 GiB.',
+  resourceHistory: 'Resource history',
+  resourceHarness: 'Harness work',
+  resourceCpuTime: 'CPU time',
+  resourcePeakMemory: 'Peak memory',
+  resourceHistoryEmpty: 'No resource history recorded yet.',
+  resourceHistoryInvalid: 'Resource history could not be read.',
+  resourceHistoryObserved:
+    'Minute averages and observed harness work. Missing readings stay unknown; unobserved work is not estimated.',
+  resourceHistoryThreshold: 'Limit',
+  resourceHistoryLevel: 'Level',
+  resourceHistoryEvents: 'Resource events',
+  resourceHistoryTime: 'Time',
+  resourceHistoryKind: 'Work kind',
+  resourceHistoryCount: 'Event totals',
+  resourceHistoryLevelChanged: 'Level changed',
+  resourceHistoryDeferred: 'Deferred',
+  resourceHistoryRelocated: 'Relocated',
+  resourceHistoryPaused: 'Paused work',
+  resourceHistoryOverrides: 'Resume override',
+  resourceHistoryOlder: 'Older',
+  resourceHistoryNewer: 'Newer',
+  resourceHistoryPage: 'Page {page} of {pages}',
+  resourceHistoryDetailNotice:
+    'Detail is limited to recent history. Totals include all retained journal records.',
+  resourceMemoryBelowFloor: 'Below the memory floor',
+  resourceMemoryLow: 'Low headroom',
+  resourceMemoryAmple: 'Ample headroom',
+  referenceResources:
+    'Resource, service and transport pressure reduce admission. Each job has observed process and birth limits; cleanup removes only recorded temp roots.',
+  resourceGovernorDescription:
+    'Keep this machine responsive by slowing or deferring work started by the harness. On by default.',
+  resourceCpuMaxPercentDescription:
+    'Throttle when machine CPU use stays above this percentage for 30 seconds.',
+  resourceMemoryMaxPercentDescription:
+    'Throttle when memory in use stays above this percentage for two samples.',
+  resourceMemoryMinFreeGiBDescription:
+    'Minimum available memory in GiB, capped at 15% of this machine’s RAM.',
+  resourceGpuMaxPercentDescription: 'Optional GPU use limit in percent. Unset means no GPU probe.',
+  resourceDiskBusyMaxPercentDescription:
+    'Optional disk busy limit in percent. Unset means no disk probe.',
+  resourceRelocateDescription:
+    'Where queued team tasks and checks may move when this machine is busy. Existing device consent and offers still apply.',
+  resourceRelocatePairedDescription:
+    'Use an already approved paired device with normal resource load.',
+  resourceRelocateAskDescription: 'Ask before moving queued work.',
+  resourceRelocateOffDescription: 'Keep work on this machine.',
   referenceAgentControls:
     'Agent controls; Interrupt; Stop; Resume; Close agent; Reopen agent; Mark result read; Send message; Follow-up task',
 
@@ -38,6 +117,12 @@ export const EN = {
   referenceExecImages:
     'Headless images require --image-generation, acceptEdits and an affordable hard budget. No price question is shown; requests requiring permission are refused.',
   referenceCliOptions: {
+    json: 'JSON: Resources',
+    'resource-governor':
+      '--resource-governor on|off: Keep this machine responsive by throttling or deferring harness work. On by default.',
+    'cpu-max': '--cpu-max <percent>: Throttle when CPU stays above this percentage for 30 seconds.',
+    'memory-max':
+      '--memory-max <percent>: Throttle when used memory stays above this percentage for two samples.',
     backend:
       '--backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key',
     'trust-workspace':
@@ -172,7 +257,7 @@ export const EN = {
   referencePaidContexts:
     'Interactive Model API extras ask before spending and use the shared daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; that daily ledger does not cover them. ACP paid features default off, require Model API flags and editor permission; ordinary ACP has no mandatory hard budget. Headless images require acceptEdits, the flag and a hard budget. Account & usage can forget workspace paid-use grants.',
   referenceAcp:
-    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles only local /help, /questions, /answer and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
+    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /questions, /answer, /resources, /resources resume, /usage resources and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
   referenceWebFetchTitle: 'Web fetch',
   referenceWebFetchDetail:
     'Fetch public web pages as readable text, with permission and network checks.',

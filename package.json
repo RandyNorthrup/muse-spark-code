@@ -1147,6 +1147,84 @@
           "description": "%config.shell.passEnvironmentVariables.description%",
           "scope": "machine"
         },
+        "museSpark.resourceGovernor": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.resourceGovernor.description%",
+          "scope": "machine"
+        },
+        "museSpark.resourceCpuMaxPercent": {
+          "type": "number",
+          "default": 85,
+          "minimum": 30,
+          "maximum": 100,
+          "description": "%config.resourceCpuMaxPercent.description%",
+          "scope": "machine"
+        },
+        "museSpark.resourceMemoryMaxPercent": {
+          "type": "number",
+          "default": 90,
+          "minimum": 40,
+          "maximum": 98,
+          "description": "%config.resourceMemoryMaxPercent.description%",
+          "scope": "machine"
+        },
+        "museSpark.resourceMemoryMinFreeGiB": {
+          "type": "number",
+          "default": 2,
+          "minimum": 0.5,
+          "maximum": 64,
+          "description": "%config.resourceMemoryMinFreeGiB.description%",
+          "scope": "machine"
+        },
+        "museSpark.resourceGpuMaxPercent": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": null,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "%config.resourceGpuMaxPercent.description%",
+          "scope": "machine"
+        },
+        "museSpark.resourceDiskBusyMaxPercent": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": null,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "%config.resourceDiskBusyMaxPercent.description%",
+          "scope": "machine"
+        },
+        "museSpark.resourceDiskMinFreeGiB": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": null,
+          "minimum": 2,
+          "description": "%config.resourceDiskMinFreeGiB.description%",
+          "scope": "machine"
+        },
+        "museSpark.resourceRelocate": {
+          "type": "string",
+          "default": "paired",
+          "enum": [
+            "paired",
+            "ask",
+            "off"
+          ],
+          "description": "%config.resourceRelocate.description%",
+          "scope": "machine",
+          "enumDescriptions": [
+            "%config.resourceRelocate.enumDescriptions.paired%",
+            "%config.resourceRelocate.enumDescriptions.ask%",
+            "%config.resourceRelocate.enumDescriptions.off%"
+          ]
+        },
         "museSpark.questions.deferAfterSeconds": {
           "type": "integer",
           "default": 60,
@@ -1236,7 +1314,7 @@
     "typecheck:e2e": "tsc -p test/e2e/tsconfig.json --noEmit",
     "typecheck:integration": "tsc -p test/integration/tsconfig.json --noEmit",
     "deadcode": "knip",
-    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/shared/wireEntry.ts src/extension.ts src/host/conversation/conversationEntry.ts src/host/judge/judgeEntry.ts src/host/tab/tabEntry.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/core/backends/modelapi/foreignHooksEntry.ts src/core/backends/modelapi/pluginHooksEntry.ts src/core/backends/modelapi/hookRuntimeEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts src/acp/questionDeferralEntry.ts src/host/browser/browserCheckEntry.ts src/host/browser/browserRuntimeEntry.ts src/host/whatsNew/whatsNewEntry.ts src/webview/whatsNew/main.ts src/host/git/conversationGitEntry.ts src/runtime/questions/questionRegistryEntry.ts",
+    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/shared/wireEntry.ts src/extension.ts src/host/conversation/conversationEntry.ts src/host/judge/judgeEntry.ts src/host/tab/tabEntry.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/core/backends/modelapi/foreignHooksEntry.ts src/core/backends/modelapi/pluginHooksEntry.ts src/core/backends/modelapi/hookRuntimeEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts src/host/browser/browserCheckEntry.ts src/host/browser/browserRuntimeEntry.ts src/host/whatsNew/whatsNewEntry.ts src/webview/whatsNew/main.ts src/host/git/conversationGitEntry.ts src/core/resources/admission.ts src/core/resources/resourceGovernorEntry.ts src/webview/resources/ResourceSurface.tsx src/webview/usage/ResourcesSection.tsx",
     "duplication": "jscpd",
     "test": "run-s test:unit test:integration",
     "test:unit": "vitest run --coverage",
