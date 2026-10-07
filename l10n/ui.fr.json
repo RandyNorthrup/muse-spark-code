@@ -2776,6 +2776,13 @@
     "filesEmpty": "Aucun fichier téléversé.",
     "fileNoExpiry": "Aucune expiration définie",
     "fileSessions": "Sessions : {sessions}",
-    "filesInUse": "Retirez ce fichier de ses sessions avant de le supprimer."
+    "filesInUse": "Retirez ce fichier de ses sessions avant de le supprimer.",
+    "nativeMicrophonePurpose": "Muse Spark Code utilise le microphone pour saisir vos paroles dans la zone de rédaction. Si la fonction payante Muse Voice est activée, le son est envoyé à Muse Voice Transcribe de Meta ; sinon, macOS le reconnaît. Les enregistrements d’écran incluent le son du microphone uniquement si vous le sélectionnez. Vous prévisualisez chaque enregistrement d’écran avant de le joindre.",
+    "nativeScreenPurpose": "Muse Spark Code enregistre votre écran uniquement lorsque vous lancez un enregistrement d’écran. Celui-ci peut inclure tout ce qui apparaît sur l’écran sélectionné. Vous prévisualisez l’enregistrement et choisissez Joindre ou Supprimer avant tout envoi.",
+    "nativeSpeechPurpose": "Muse Spark Code transforme vos paroles en texte avec le système de reconnaissance vocale intégré à macOS.",
+    "recordingScreenPermissionRequired": "L’autorisation d’enregistrement de l’écran n’a pas été accordée.",
+    "recordingMicrophonePermissionDenied": "L’autorisation du microphone a été refusée.",
+    "recordingMicrophonePermissionRestricted": "L’accès au microphone est restreint par la politique du système.",
+    "recordingMicrophonePermissionPending": "L’autorisation du microphone n’a pas encore été décidée. Lancez un enregistrement pour demander l’accès."
   }
 }

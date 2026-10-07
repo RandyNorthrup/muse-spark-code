@@ -4043,6 +4043,21 @@ Press **F5** to launch the Extension Development Host with a fresh build.
 [CONTRIBUTING.md](CONTRIBUTING.md) has the rules for a pull request;
 [SECURITY.md](SECURITY.md) the way to report a vulnerability.
 
+The macOS screen-recorder implementation can be checked without screen or
+microphone access. These commands build the signed, localized screen-helper
+bundle and exercise synthetic H.264/AAC media, bounds, sleep events,
+signature rejection, native localization and the responsibility relay:
+
+```bash
+bash native/darwin/build.sh
+bash test/native/darwin/run-screen-record.sh
+bash test/native/darwin/check-screen-resources.sh
+bash native/darwin/check-disclaim.sh --screen-only
+```
+
+Recorder entry points and packaging remain under M105 integration; the
+certification record lists the outstanding real-capture/editor checks.
+
 **Bundled workflow package (M89).** `vendor/high-quality-projects-skill/`
 contains the pinned v0.7.0 workflow assets and their MIT licence. To refresh
 the pin, run `node scripts/sync-bundled-skills.mjs --tag v0.7.0` (substitute

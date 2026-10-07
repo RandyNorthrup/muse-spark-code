@@ -2873,6 +2873,13 @@
     "filesEmpty": "Brak przesłanych plików.",
     "fileNoExpiry": "Nie ustawiono terminu wygaśnięcia",
     "fileSessions": "Sesje: {sessions}",
-    "filesInUse": "Przed usunięciem usuń ten plik z jego sesji."
+    "filesInUse": "Przed usunięciem usuń ten plik z jego sesji.",
+    "nativeMicrophonePurpose": "Muse Spark Code używa mikrofonu, aby wpisywać wypowiedź w polu wiadomości. Gdy płatna funkcja Muse Voice jest włączona, wysyła dźwięk do usługi Muse Voice Transcribe firmy Meta; w przeciwnym razie rozpoznaje go macOS. Nagrania ekranu zawierają dźwięk mikrofonu tylko po jego wybraniu. Przed dołączeniem każdego nagrania ekranu zobaczysz jego podgląd.",
+    "nativeScreenPurpose": "Muse Spark Code nagrywa ekran tylko wtedy, gdy rozpoczniesz nagrywanie ekranu. Nagranie może zawierać dowolną treść z wybranego wyświetlacza. Zanim cokolwiek zostanie wysłane, oglądasz podgląd nagrania i wybierasz Dołącz lub Odrzuć.",
+    "nativeSpeechPurpose": "Muse Spark Code zamienia wypowiedź na tekst za pomocą mechanizmu rozpoznawania mowy wbudowanego w macOS.",
+    "recordingScreenPermissionRequired": "Nie udzielono uprawnienia do nagrywania ekranu.",
+    "recordingMicrophonePermissionDenied": "Odmówiono uprawnienia do mikrofonu.",
+    "recordingMicrophonePermissionRestricted": "Dostęp do mikrofonu jest ograniczony przez zasady systemu.",
+    "recordingMicrophonePermissionPending": "Nie podjęto jeszcze decyzji o uprawnieniu do mikrofonu. Rozpocznij nagrywanie, aby poprosić o dostęp."
   }
 }

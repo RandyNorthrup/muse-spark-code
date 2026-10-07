@@ -2582,6 +2582,13 @@
     "filesEmpty": "没有已上传的文件。",
     "fileNoExpiry": "未设置有效期",
     "fileSessions": "会话：{sessions}",
-    "filesInUse": "删除前，请先从引用此文件的会话中移除它。"
+    "filesInUse": "删除前，请先从引用此文件的会话中移除它。",
+    "nativeMicrophonePurpose": "Muse Spark Code 使用麦克风将您的语音输入到消息编辑框中。启用付费功能 Muse Voice 后，音频会发送到 Meta 的 Muse Voice Transcribe；否则由 macOS 识别。仅当您选择麦克风音频时，屏幕录制才会包含该音频。您可以在附加每段屏幕录制前预览它。",
+    "nativeScreenPurpose": "Muse Spark Code 仅在您开始屏幕录制时录制屏幕。录制内容可能包括所选显示器上的任何内容。在发送任何内容之前，您会预览录制并选择“附加”或“丢弃”。",
+    "nativeSpeechPurpose": "Muse Spark Code 使用 macOS 内置的语音识别功能将您的语音转换为文字。",
+    "recordingScreenPermissionRequired": "尚未授予屏幕录制权限。",
+    "recordingMicrophonePermissionDenied": "麦克风权限被拒绝。",
+    "recordingMicrophonePermissionRestricted": "系统策略限制了麦克风访问。",
+    "recordingMicrophonePermissionPending": "麦克风权限尚未确定。请开始录制以请求访问权限。"
   }
 }

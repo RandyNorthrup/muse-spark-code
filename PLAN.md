@@ -25295,6 +25295,22 @@ in `docs/certification/m105-a-audio-(b).md`. Existing captured-adapter,
 converter, UI-budget and production-ledger bindings remain with their named
 integration owners. No guard, cap, paid default or credential path changes.
 
+**R1 review corrections (2026-10-06, FIXM105R1).** Fix all five
+RVM105R1 findings inside R1: keep one size/duration monitor alive through
+capture, writer close, soundtrack export and avconvert, killing owned work
+before refusal; require REDM104L3's trusted installed-path port and a pinned
+code-signature requirement before every helper launch (absent binding
+refuses); stop/finalize on native workspace sleep/display-sleep and injected
+host suspend; probe screen/microphone authorization and usable encoders
+without requesting permission; build localized InfoPlist.strings resources
+for all fourteen languages into the screen helper's signed application
+bundle. E1/E2/E3/W bind the trusted path, release signature requirement,
+host suspend and bundle packaging at integration. Each correction gets a
+regression and byte-exact restored red drill in
+`docs/certification/m105-r1-macos-recorder-(c).md`. No privacy changes,
+dependency, model call, guard widening, merge or push. Full quality belongs
+to the integrating lead under the lane rules; this rig runs owned checks.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §2. The work lands in four
 deliveries, in order:
@@ -29753,6 +29769,16 @@ about 3.8 KiB to startup on this pre-diet base. W's existing diet and lazy
 surface registration are required before release. Final sizes, gate results and red
 drills are in `docs/certification/m105-c-cost-(b).md`.
 
+**FIXM105R1 gate ownership (2026-10-06).** The rig brief/common rules
+reserve full `npm run quality`, coverage and integration/package certification
+for the integrating lead and prohibit running that aggregate in this lane.
+R1 runs the five typecheck projects, changed-file lint/format, its entire
+owned unit file at the repository timeout, native permission-free suites,
+localization, deadcode, duplication, host API and the production build.
+The pre-existing generated host API record drift from R1's four Node imports
+remains W-owned; refresh it at integration, without weakening the gate.
+See `docs/certification/m105-r1-macos-recorder-(c).md` for exact receipts.
+
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
 scoped tests. Typecheck, changed-file lint/format, localization (source and staged),
@@ -31149,6 +31175,29 @@ before a repaired one loads (2026-09-30).
   cannot become a new arithmetic boundary. Repeat the $0.50 / 1000-bill
   regression through the real ledger when binding it. Captures and existing
   converter/UI/editor handoffs remain required; this repair claims none.
+
+- **M105-R1-integration (FIXM105R1, 2026-10-06).** No RVM105R1 P2/P3
+  finding is accepted unfixed. R1's portable driver requires the trusted-root
+  verifier from REDM104L3, trusted release code-signature requirements for
+  the entire helper bundle, and the host suspend subscription. It refuses
+  recording when a binding is absent. W/E1/E2/E3 must bind these ports,
+  package `native/darwin/muse-dictate-screen.app` with all signed resources,
+  and use its `Contents/MacOS/muse-dictate` path. The existing bare dictation
+  helper is retained for existing dictation bindings. With today's ad-hoc
+  universal build, trusted release metadata must pin **both** architecture
+  CDHashes in the designated requirement; a future Team ID requirement
+  must name the expected team and identifier. A requirement derived from
+  the file under test is not a trust anchor. Safe for now: no recorder entry
+  point or unverified helper can launch from this lane. Follow-up: W's
+  exact-package tests and all editor bindings before recorder reachability.
+- **M105-R1-live-validation (FIXM105R1, 2026-10-06).** Actual capture,
+  permission prompts, sleep/wake and macOS 12.0–12.2 remain uncertified on
+  this permission-free rig. These are validation residuals, not findings
+  left unfixed. Safe for now: native and portable guards have injected-event
+  and synthetic-encoder regressions; integration keeps recording unreachable
+  until the named live/editor/package receipts pass. Follow-up: W completes
+  the live cases in `docs/certification/m105-r1-macos-recorder-(c).md` on
+  authorized rigs without changing this rig's privacy settings.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

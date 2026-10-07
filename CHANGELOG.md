@@ -50,6 +50,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The macOS screen-recorder implementation keeps size and duration bounds
+  active through conversion, verifies the installed helper and its pinned
+  signature before each launch, and finalizes on sleep. Its read-only probe
+  reports permissions and encoders, and the signed screen-helper bundle has
+  permission descriptions in all 14 languages. Editor binding and packaging
+  remain part of M105 integration.
+
 - M105 batch audio preparation now finishes a stopped turn while its paid
   consent popup is unanswered.
   Valid batch bills settle once even for rejected transcript text or a failed

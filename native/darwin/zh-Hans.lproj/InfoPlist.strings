@@ -1,0 +1,3 @@
+"NSMicrophoneUsageDescription" = "Muse Spark Code 使用麦克风将您的语音输入到消息编辑框中。启用付费功能 Muse Voice 后，音频会发送到 Meta 的 Muse Voice Transcribe；否则由 macOS 识别。仅当您选择麦克风音频时，屏幕录制才会包含该音频。您可以在附加每段屏幕录制前预览它。";
+"NSScreenCaptureUsageDescription" = "Muse Spark Code 仅在您开始屏幕录制时录制屏幕。录制内容可能包括所选显示器上的任何内容。在发送任何内容之前，您会预览录制并选择“附加”或“丢弃”。";
+"NSSpeechRecognitionUsageDescription" = "Muse Spark Code 使用 macOS 内置的语音识别功能将您的语音转换为文字。";

@@ -7,8 +7,30 @@
 	<key>CFBundleName</key>
 	<string>muse-dictate</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Muse Spark Code records your voice while the microphone button is held or on, to type what you say into the composer. With Muse Voice turned on (a paid option), the recording is sent to Meta's Muse Voice Transcribe instead of the recogniser built into macOS.</string>
+	<string>Muse Spark Code uses the microphone to type your speech into the composer. With paid Muse Voice enabled, it sends the audio to Meta's Muse Voice Transcribe; otherwise macOS recognizes it. Screen recordings include microphone audio only when you select it. You preview each screen recording before attaching it.</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>Muse Spark Code records your screen only when you start a screen recording. It may include anything on the selected display. You preview the recording and choose Attach or Discard before anything is sent.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Muse Spark Code turns what you say into text with the speech recogniser built into macOS.</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>cs</string>
+		<string>de</string>
+		<string>es</string>
+		<string>fr</string>
+		<string>hu</string>
+		<string>it</string>
+		<string>ja</string>
+		<string>ko</string>
+		<string>pl</string>
+		<string>pt-BR</string>
+		<string>ru</string>
+		<string>tr</string>
+		<string>zh-Hans</string>
+		<string>zh-Hant</string>
+	</array>
 </dict>
 </plist>

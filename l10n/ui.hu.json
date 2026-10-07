@@ -2679,6 +2679,13 @@
     "filesEmpty": "Nincsenek feltöltött fájlok.",
     "fileNoExpiry": "Nincs lejárat beállítva",
     "fileSessions": "Munkamenetek: {sessions}",
-    "filesInUse": "Törlés előtt távolítsa el ezt a fájlt a munkameneteiből."
+    "filesInUse": "Törlés előtt távolítsa el ezt a fájlt a munkameneteiből.",
+    "nativeMicrophonePurpose": "A Muse Spark Code a mikrofon segítségével írja be a beszédét az üzenetszerkesztőbe. Ha a fizetős Muse Voice be van kapcsolva, a hangot a Meta Muse Voice Transcribe szolgáltatásának küldi el; egyébként a macOS ismeri fel. A képernyőfelvételek csak akkor tartalmazzák a mikrofon hangját, ha azt kiválasztja. Minden képernyőfelvételt megtekinthet a csatolás előtt.",
+    "nativeScreenPurpose": "A Muse Spark Code csak akkor rögzíti a képernyőjét, amikor elindít egy képernyőfelvételt. A felvétel a kiválasztott kijelző bármely tartalmát tartalmazhatja. Küldés előtt megtekinti a felvételt, és a Csatolás vagy az Elvetés lehetőséget választja.",
+    "nativeSpeechPurpose": "A Muse Spark Code a macOS beépített beszédfelismerőjével alakítja szöveggé a beszédét.",
+    "recordingScreenPermissionRequired": "A képernyőfelvétel engedélye nincs megadva.",
+    "recordingMicrophonePermissionDenied": "A mikrofon engedélyét megtagadták.",
+    "recordingMicrophonePermissionRestricted": "A rendszerházirend korlátozza a mikrofonhoz való hozzáférést.",
+    "recordingMicrophonePermissionPending": "A mikrofon engedélyéről még nincs döntés. A hozzáférés kéréséhez indítson felvételt."
   }
 }
