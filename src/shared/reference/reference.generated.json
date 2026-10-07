@@ -3,8 +3,8 @@
     {
       "id": "prompt-library",
       "name": { "ui": "promptLibrary" },
-      "summary": { "ui": "promptSecretsNote" },
-      "description": { "ui": "promptSecretsNote" },
+      "summary": { "ui": "referencePromptMenu" },
+      "description": { "ui": "referencePromptMenu" },
       "commands": [
         "museSpark.savePrompt",
         "museSpark.useSavedPrompt",

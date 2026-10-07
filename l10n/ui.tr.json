@@ -2428,6 +2428,7 @@
   "promptSave": "İstemi kaydet",
   "promptUseSaved": "Kayıtlı istemi kullan…",
   "promptLibrary": "İstem kitaplığı",
+  "referencePromptMenu": "Mesaj araç çubuğu veya sağ tıklama: Kaydet, Paylaş, Kayıtlı istemi kullan. VS Code dışında Shift ile sağ tıklama, ana uygulamanın pano işlemlerini korur. İstemler düz metindir; gizli bilgileri kaydetmeyin.",
   "promptCopyToUser": "İstemlerime kopyala",
   "promptTitle": "Başlık",
   "promptBody": "İstem metni",

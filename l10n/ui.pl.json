@@ -2616,6 +2616,7 @@
   "promptSave": "Zapisz prompt",
   "promptUseSaved": "Użyj zapisanego promptu…",
   "promptLibrary": "Biblioteka promptów",
+  "referencePromptMenu": "Pasek pola wiadomości lub prawy przycisk myszy: Zapisz, Udostępnij, Użyj zapisanego. Poza VS Code Shift i prawy przycisk myszy zachowują menu schowka hosta. Prompty są zwykłym tekstem; nie zapisuj sekretów.",
   "promptCopyToUser": "Kopiuj do moich promptów",
   "promptTitle": "Tytuł",
   "promptBody": "Tekst promptu",

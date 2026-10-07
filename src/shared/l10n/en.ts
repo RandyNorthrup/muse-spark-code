@@ -38,6 +38,8 @@ export const EN = {
   promptSave: 'Save prompt',
   promptUseSaved: 'Use saved prompt…',
   promptLibrary: 'Prompt library',
+  referencePromptMenu:
+    'Composer toolbar or right-click: Save, Share, Use saved. Outside VS Code, Shift-right-click keeps native clipboard actions. Prompts are plain text; save no secrets.',
   promptCopyToUser: 'Copy to my prompts',
   promptTitle: 'Title',
   promptBody: 'Prompt text',

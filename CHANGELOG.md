@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Shared-panel hosts without VS Code's native context menu open the compact
+  Prompt library menu at the pointer when right-clicking the composer input.
+  Save, Share and Use saved keep the toolbar's conditions and exact draft;
+  Escape returns focus. Shift-right-click preserves the host's clipboard menu.
+
 ## [0.14.5] - 2026-10-06
 
 ### Fixed

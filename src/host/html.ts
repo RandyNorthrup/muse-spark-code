@@ -70,7 +70,7 @@ export function buildWebviewHtml(options: WebviewHtmlOptions): string {
 <link rel="stylesheet" href="${options.styleUri}" nonce="${options.nonce}">
 <title>${PRODUCT_NAME}</title>
 </head>
-<body${options.surface === 'tasks' ? ' data-surface="tasks"' : ''}>
+<body data-native-context-menu="true"${options.surface === 'tasks' ? ' data-surface="tasks"' : ''}>
 <div id="${WEBVIEW_ROOT_ELEMENT_ID}"></div>
 <script type="application/json" id="${WEBVIEW_L10N_ELEMENT_ID}">${scriptSafeJson({ locale, table })}</script>
 <script type="module" nonce="${options.nonce}" src="${options.scriptUri}"></script>

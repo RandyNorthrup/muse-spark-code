@@ -8,7 +8,7 @@ Open `/help` in the panel or **Muse Spark: Open Help & Reference**. Search the r
 
 ### Prompt library
 
-Prompts are stored as plain text. Do not save passwords or keys.
+Composer toolbar or right-click: Save, Share, Use saved. Outside VS Code, Shift-right-click keeps native clipboard actions. Prompts are plain text; save no secrets.
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 

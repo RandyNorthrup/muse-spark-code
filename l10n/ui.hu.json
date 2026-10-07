@@ -2428,6 +2428,7 @@
   "promptSave": "Prompt mentése",
   "promptUseSaved": "Mentett prompt használata…",
   "promptLibrary": "Promptkönyvtár",
+  "referencePromptMenu": "Az üzenet eszköztára vagy jobb kattintás: Mentés, Megosztás, Mentett használata. A VS Code-on kívül a Shift és jobb kattintás megőrzi a gazda vágólapműveleteit. A promptok egyszerű szövegek; ne mentsen titkos adatokat.",
   "promptCopyToUser": "Másolás a saját promptjaimba",
   "promptTitle": "Cím",
   "promptBody": "Prompt szövege",

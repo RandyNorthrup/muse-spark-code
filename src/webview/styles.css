@@ -745,6 +745,15 @@ body {
   left: auto;
 }
 
+.popover-pointer {
+  position: fixed;
+  right: auto;
+  bottom: auto;
+  max-width: calc(100vw - var(--ms-gap) * 2);
+  max-height: 100vh;
+  overflow-y: auto;
+}
+
 .popover-header {
   display: flex;
   gap: var(--ms-gap);

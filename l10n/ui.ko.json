@@ -2334,6 +2334,7 @@
   "promptSave": "프롬프트 저장",
   "promptUseSaved": "저장된 프롬프트 사용…",
   "promptLibrary": "프롬프트 라이브러리",
+  "referencePromptMenu": "입력 도구 모음 또는 오른쪽 클릭: 저장, 공유, 저장된 프롬프트 사용. VS Code 외에서는 Shift를 누른 채 오른쪽 클릭하면 호스트의 클립보드 메뉴를 사용할 수 있습니다. 프롬프트는 일반 텍스트입니다. 비밀 정보를 저장하지 마세요.",
   "promptCopyToUser": "내 프롬프트로 복사",
   "promptTitle": "제목",
   "promptBody": "프롬프트 텍스트",

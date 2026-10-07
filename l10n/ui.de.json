@@ -2428,6 +2428,7 @@
   "promptSave": "Prompt speichern",
   "promptUseSaved": "Gespeicherten Prompt verwenden…",
   "promptLibrary": "Prompt-Bibliothek",
+  "referencePromptMenu": "Symbolleiste oder Rechtsklick im Nachrichtenfeld: Speichern, Teilen, gespeicherten Prompt verwenden. Außerhalb von VS Code öffnet Umschalt+Rechtsklick die Zwischenablageaktionen des Hosts. Prompts sind Klartext; speichern Sie keine Geheimnisse.",
   "promptCopyToUser": "In meine Prompts kopieren",
   "promptTitle": "Titel",
   "promptBody": "Prompt-Text",

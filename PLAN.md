@@ -13453,6 +13453,36 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### PROMPTMENU2 — Composer context menu across panel hosts (2026-10-06)
+
+Scope: reuse the compact Prompt library popover at the pointer in panel hosts
+without VS Code's contributed context menu. The VS Code HTML marks its native
+menu capability before React mounts; the browser harness does not. Save, Share
+and Use retain the toolbar's conditions and exact draft callbacks. Escape closes
+the popover and returns focus to the input; placement stays inside the viewport.
+Shift-right-click retains the browser's own clipboard menu. The existing
+`copyText` bridge is write-only: no clipboard-read/paste port exists, so no
+clipboard rows or new wire methods are invented.
+
+- [x] Inventory actual panel mounts and native/MHP dependency evidence.
+- [x] Shared composer fallback, pointer placement and native-menu guard.
+- [ ] Complete owning tests at default timeouts; deliberate failures with
+      byte-exact restoration; five typechecks, lint, formatting, plain knip,
+      duplication, localization/reference/host checks and capped build.
+- [x] Composer accessibility scenes and visual inspection in four themes.
+- [x] Certification, changelog and Help & Reference updated; local hooked commit.
+
+Status: 210 unique tests pass at default timeouts; eight drills restore exact
+bytes; all five types, full lint/format, plain knip, localization/reference/host
+checks and capped build pass. Accessibility is 32/32 pages and all twelve
+screenshots are visually checked. The third checkbox remains open only for
+the inherited ACP duplication deferral in §7; no prompt-menu clone was reported.
+
+Next slice: repair the inherited ACP fixture duplication, then integrate this
+fix into the release branch and run full quality/hosted CI. Native and companion panel mounting remains M104 work;
+ACP/editor-owned chat UIs do not render this composer and retain their editor's
+context menus. Evidence lives in `docs/certification/promptmenu-hosts.md`.
+
 ### REL0144 — Release 0.14.4 preparation (2026-10-06)
 
 **Hosted CI repair (run 37558466658, 2026-10-06).** Fast-forward the rig to
@@ -30458,6 +30488,17 @@ aggregate certification record.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
 ## 7. Gates
+
+**PROMPTMENU2 inherited duplication deferral (2026-10-06).** The unchanged
+zero-clone `npm run duplication` gate exits 1 on three clones between
+`test/e2e/acpRegistryAuth.e2e.test.ts` and `test/e2e/acpStdio.e2e.test.ts`
+(8/18/8 lines, 50/94/52 tokens). Both files are byte-identical to the lane's
+`4ca230efc` base; the prompt-menu changes introduce no clone. The shared lane
+rules prohibit unrelated refactoring, so ACPREG's existing fixture duplication
+remains a named release-integration repair for the lead. No threshold, ignore,
+rule, timeout or test is changed. Full quality cannot be claimed green until
+that repair passes the unchanged gate. Evidence and all other requested rig
+receipts: `docs/certification/promptmenu-hosts.md`.
 
 **FIXM112Q bounded-lane certification (2026-10-06).** The rig/shared brief
 forbids aggregate quality and full-suite runs; full integrated quality remains

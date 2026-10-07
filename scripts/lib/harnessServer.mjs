@@ -13,6 +13,9 @@ export const HARNESS_PATH = 'test/harness/index.html'
 export const PAGE_TIMEOUT_MS = 120_000
 // Every `?scenario=` test/harness/index.html plays.
 export const SCENARIOS = [
+  'prompt-menu',
+  'prompt-menu-narrow',
+  'prompt-menu-toolbar',
   'prompt-library',
   'prompt-library-narrow',
   'chat-sharing',
@@ -242,6 +245,7 @@ export function serveRepo(repoRoot) {
  * scrollbars headless Chrome otherwise hides, as its check measures one.
  */
 export const SIZED_SCENARIOS = {
+  'prompt-menu-narrow': { width: 320, ready: '.popover-pointer' },
   'prompt-library-narrow': { width: 320, ready: '.prompt-library' },
   'chat-sharing-narrow': { width: 320, ready: '.chat-share-preview' },
   'questions-waiting-narrow': { width: 320, ready: '.attention-dock, .question' },
