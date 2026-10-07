@@ -63,6 +63,10 @@ class RuntimeConnection(
         }
       },
       events.copy(
+        initialized = {
+          runtime.snapshotDescendants()
+          events.initialized()
+        },
         diagnostic = { events.diagnostic(safeDiagnostic(it)) },
         failed = ::stop,
         completion = completion,

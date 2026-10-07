@@ -41,7 +41,7 @@ class RuntimeProcess private constructor(
       }
     }, "Muse runtime descendants").apply { isDaemon = true }
 
-  private fun snapshotDescendants() {
+  internal fun snapshotDescendants() {
     descendants.entries.removeIf { it.value.current()?.isAlive != true }
     val parents = if (root.isAlive) listOf(root) else descendants.values.mapNotNull(Identity::current)
     for (parent in parents) {

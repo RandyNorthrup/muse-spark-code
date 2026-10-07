@@ -2,6 +2,7 @@ package io.github.randynorthrup.musespark
 
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
+import com.google.gson.JsonPrimitive
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -24,9 +25,15 @@ class NativeWidgets(
   private val boundary: JsonBoundary,
   private val execute: (String) -> Unit,
 ) : Disposable {
-  private val statuses = mutableMapOf<String, RegisteredStatus>()
-  private val progresses = mutableMapOf<String, ProgressWindow>()
+  private val statuses = mutableMapOf<JsonPrimitive, RegisteredStatus>()
+  private val progresses = mutableMapOf<JsonPrimitive, ProgressWindow>()
   private val commands = mutableSetOf<String>()
+
+  private fun noticeId(params: JsonObject): JsonPrimitive {
+    val id = params["id"].asJsonPrimitive
+    // Keep JSON types distinct and give equivalent integer spellings one native lifetime.
+    return if (id.isString) id else JsonPrimitive(id.asLong)
+  }
 
   fun register(
     params: JsonObject,
@@ -64,7 +71,7 @@ class NativeWidgets(
   ): JsonElement {
     checkCurrent()
     val bar = requireNotNull(WindowManager.getInstance().getStatusBar(project)) { "MHP_UI_UNAVAILABLE" }
-    val id = params["id"].asString
+    val id = noticeId(params)
     val widgetId = "MuseSpark.$id"
     if (!params["visible"].asBoolean) {
       statuses.remove(id)?.let { Disposer.dispose(it.lifetime) }
@@ -87,7 +94,7 @@ class NativeWidgets(
     checkCurrent: () -> Unit = {},
   ): JsonElement {
     checkCurrent()
-    val id = params["id"].asString
+    val id = noticeId(params)
     if (params["done"].asBoolean) {
       progresses.remove(id)?.let {
         it.stop()

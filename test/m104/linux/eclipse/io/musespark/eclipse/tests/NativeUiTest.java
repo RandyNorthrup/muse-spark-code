@@ -82,6 +82,28 @@ public class NativeUiTest {
         var failure = assertThrows(IllegalArgumentException.class, () -> session.uiRequest("ui/clipboard", Json.object("text", "stale fixture")));
         assertEquals("MHP_CLOSED", failure.getMessage());
     }
+    @Test public void nativeNoticesKeepTypedIdsAndCanonicalNumericLifetimes() throws Exception {
+        session.uiRequest("surfaces/open", Json.object("kind", "chat", "placement", "side", "sessionId", "fixture"));
+        var field = NativeUi.class.getDeclaredField("notices"); field.setAccessible(true);
+        Object registered = field.get(session.ui);
+        if (!(registered instanceof java.util.Map<?, ?> notices)) throw new AssertionError("Native notice registry unavailable");
+        JsonPrimitive numeric = new JsonPrimitive(1), string = new JsonPrimitive("1");
+        for (JsonPrimitive id : new JsonPrimitive[] {numeric, string}) {
+            session.uiRequest("ui/status", Json.object("id", id, "text", "Native status fixture", "visible", true));
+            session.uiRequest("ui/progress", Json.object("id", id, "title", "Native progress fixture", "done", false));
+        }
+        assertEquals(4, notices.size());
+        JsonElement equivalent = JsonParser.parseString("1e0");
+        session.uiRequest("ui/status", Json.object("id", equivalent, "text", "Updated native fixture", "visible", true));
+        session.uiRequest("ui/progress", Json.object("id", equivalent, "title", "Updated native fixture", "done", false));
+        assertEquals(4, notices.size());
+        session.uiRequest("ui/status", Json.object("id", equivalent, "text", "Updated native fixture", "visible", false));
+        session.uiRequest("ui/progress", Json.object("id", equivalent, "title", "Updated native fixture", "done", true));
+        assertEquals(2, notices.size());
+        session.uiRequest("ui/status", Json.object("id", string, "text", "Native status fixture", "visible", false));
+        session.uiRequest("ui/progress", Json.object("id", string, "title", "Native progress fixture", "done", true));
+        assertTrue(notices.isEmpty());
+    }
     @Test public void runtimeSurfaceCloseAndWindowRetirementDisposeNativeBrowsers() throws Exception {
         String id = session.uiRequest("surfaces/open", Json.object("kind", "tasks", "placement", "tab", "sessionId", "fixture")).getAsJsonObject().get("surfaceId").getAsString();
         MuseView view = null;

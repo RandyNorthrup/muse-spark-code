@@ -18,6 +18,8 @@
    Include Eclipse's native prompts/clipboard/status/progress and scoped dynamic
    commands after their native checkpoint passes. Suggested native keybindings
    currently refuse explicitly; never describe them as implemented.
+   Record the native notice identity correction as well: string and numeric
+   identifiers stay distinct, and equivalent integers refer to one lifetime.
 3. **Lead — LSP redesign input.** Supply the pending LSP supervision redesign
    and its reviewed lifetime/consent/pin contracts. This checkout contains no
    `src/runtime/lsp` implementation and no local branch named for LSP. The
@@ -70,6 +72,19 @@
    the remaining process-tree limitations before platform promotion. JetBrains
    retains observed PID/start identities and group/job containment, but sampling
    can miss a child detached and reparented entirely between observations.
+   A bootstrap snapshot now precedes publishing initialized state, with a
+   deterministic retained-worker test; later unobserved detachment still needs
+   the accepted boundary or a reviewed containment design.
    Eclipse and the raw companion shims retain documented parent-first,
    reparenting and Stop-tree gaps. Validation needs exact installed-host tree
    receipts and the accepted boundary, rather than an implied leak exemption.
+10. **Lead/rig — exact native test toolchains.** Cache
+    `com.jetbrains.intellij.platform:test-framework:261.27258.48` and
+    `:262.10968.63`, including their transitive test dependencies. The cache
+    contains only `:253.31033.145`; the 2026.1.5 native attempt compiled
+    production code but stopped at test dependency resolution in offline mode.
+    Supply Neovim 0.12 and Qt Creator 20 receipts as well: installed versions
+    0.11.6 and 18.0.2 are below the guides' declared targets. Android Studio,
+    Espressif, STM32CubeIDE and MCUXpresso need their named product/version runs.
+    Validation: actual native suites/scenarios, rather than API-verifier or
+    framework-stub results promoted to installed-product support.

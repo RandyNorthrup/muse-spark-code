@@ -93,7 +93,8 @@ public final class NativeUi implements AutoCloseable {
         finally { dialogs.remove(dialog); dialog.close(); display.timerExec(-1, poll); }
     }
     private void notice(String method, JsonObject params, BooleanSupplier cancelled) {
-        String id = method + ":" + params.get("id");
+        JsonPrimitive value = params.getAsJsonPrimitive("id");
+        String id = method + ":" + (value.isString() ? value : new JsonPrimitive(value.getAsLong()));
         Notice previous = notices.remove(id); if (previous != null) { previous.manager.remove(previous.item); previous.item.dispose(); previous.manager.update(true); }
         boolean done = method.equals("ui/status") ? !params.get("visible").getAsBoolean() : params.get("done").getAsBoolean();
         if (done) return;
