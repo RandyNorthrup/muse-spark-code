@@ -809,8 +809,11 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
     if (!milestoneId.trim() || !name.trim() || !reason.trim())
       throw new Error(UI_TEXT.playbookUnavailable)
     const register = collectResidualRegister(this.records, lanes, milestoneId)
-    if (register.open.every((entry) => entry.name !== name))
-      throw new Error(UI_TEXT.playbookUnavailable)
+    // The acceptance binds to this open instance — its safety rationale,
+    // follow-up and module — never to the bare name. A later, different
+    // residual under a reused name stays open until freshly accepted.
+    const open = register.open.find((entry) => entry.name === name)
+    if (open === undefined) throw new Error(UI_TEXT.playbookUnavailable)
     const evidence: Parameters<OverrideAuthority>[0] = {
       actor: 'owner',
       reason,
@@ -834,6 +837,7 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
           actor: 'owner',
           reason: acceptance,
           at: evidence.at,
+          evidence: { whySafe: open.whySafe, followUp: open.followUp, moduleId: open.moduleId },
         },
       },
     ])
@@ -851,7 +855,8 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
       })
     return this.decide('refuse', 'continuousIntegration', 'residualOpen', {
       laneId: milestoneId,
-      missing: register.open.map((entry) => entry.name),
+      // One entry per distinct instance; the user-facing names stay unique.
+      missing: [...new Set(register.open.map((entry) => entry.name))],
       needsUser: true,
     })
   }

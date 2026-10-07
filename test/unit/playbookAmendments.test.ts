@@ -248,6 +248,87 @@ describe('M116 D100 amendments (W)', () => {
     ).toEqual(['hook-drift-follow-up'])
   })
 
+  it('G24 acceptance binds to the residual instance, not its reused name', () => {
+    // A name-only acceptance would silently authorize a later, different
+    // residual under the same name. The acceptance binds to the open
+    // instance's safety rationale, follow-up and module instead.
+    const fixture = policyFixture()
+    const { policy } = fixture
+    const other = {
+      ...MODULE,
+      id: 'module-worker-9',
+      key: 'src/core/schedules/worker',
+      files: ['src/core/schedules/worker.ts'],
+    }
+    const lanes = [...fakePlaybookLanes(), { ...fakePlaybookLanes()[0]!, id: 'Z', module: other }]
+    const otherBlock = {
+      ...reviewBlock('concurrency', 'high'),
+      findings: [
+        {
+          file: 'src/core/schedules/worker.ts',
+          title: 'An actual finding',
+          severity: 'high',
+          class: 'concurrency',
+        },
+      ],
+    }
+    policy.declareModule(other)
+    completeReview(policy, MODULE, reviewBlock('concurrency', 'high'), REVIEW_AGENTS)
+    const firstId = latestRound(policy).findings[0]!.id
+    policy.recordDesignDecision(design())
+    expect(
+      policy.answerFindings(MODULE, [
+        {
+          findingId: firstId,
+          status: 'residual',
+          name: 'native-binding',
+          whySafe: 'Module A serializes the claim for now.',
+          followUp: 'Replace it in lane R.',
+        },
+      ]).kind,
+    ).toBe('allow')
+    completeReview(policy, other, otherBlock, REVIEW_AGENTS)
+    const secondId = latestRound(policy, other).findings[0]!.id
+    policy.recordDesignDecision({ ...design(other), id: 'atomic-claim-worker' })
+    expect(
+      policy.answerFindings(other, [
+        {
+          findingId: secondId,
+          status: 'residual',
+          name: 'native-binding',
+          whySafe: 'Module B retries on its own worker.',
+          followUp: 'Harden it in lane Z.',
+        },
+      ]).kind,
+    ).toBe('allow')
+    fixture.authority.mockReturnValue(true)
+    expect(policy.acceptResidual('M116', 'native-binding', 'Accepted A.', lanes).kind).toBe('allow')
+    // B's different residual under the reused name stays open and refuses release.
+    const register = collectResidualRegister(policy.getRecord(), lanes, 'M116')
+    expect(register.open.map((entry) => entry.moduleId)).toEqual(['module-worker-9'])
+    expect(policy.releaseReady('M116', lanes).kind).toBe('refuse')
+    expect(policy.acceptResidual('M116', 'native-binding', 'Accepted B.', lanes).kind).toBe('allow')
+    expect(policy.releaseReady('M116', lanes).kind).toBe('allow')
+    // A later residual under the same name needs a fresh acceptance even
+    // though an older instance was accepted.
+    fixture.advance(50)
+    completeReview(policy, other, otherBlock, REVIEW_AGENTS)
+    const thirdId = latestRound(policy, other).findings[0]!.id
+    expect(
+      policy.answerFindings(other, [
+        {
+          findingId: thirdId,
+          status: 'residual',
+          name: 'native-binding',
+          whySafe: 'Module B retries with backoff now.',
+          followUp: 'Harden it in lane Z.',
+        },
+      ]).kind,
+    ).toBe('allow')
+    expect(collectResidualRegister(policy.getRecord(), lanes, 'M116').open).toHaveLength(1)
+    expect(policy.releaseReady('M116', lanes).kind).toBe('refuse')
+  })
+
   it('G24 integration release runs only with an empty or accepted register', () => {
     const fixture = policyFixture()
     const board = new FakePlaybookBoard()

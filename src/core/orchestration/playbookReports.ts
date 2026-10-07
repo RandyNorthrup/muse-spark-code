@@ -19,11 +19,37 @@ export interface PlaybookResidualEntry {
   readonly at: number
 }
 
+export interface PlaybookResidualEvidence {
+  readonly whySafe: string
+  readonly followUp: string
+  readonly moduleId: string
+}
+
 export interface PlaybookResidualAcceptance {
   readonly name: string
   readonly actor: 'lead' | 'owner'
   readonly reason: string
   readonly at: number
+  /** The accepted instance. Absent on records written before the binding. */
+  readonly evidence?: PlaybookResidualEvidence
+}
+
+/** Whether an acceptance covers an open residual instance: same name,
+ * recorded no earlier than the residual, and — when the acceptance carries
+ * evidence — the same safety rationale, follow-up and module. A later,
+ * different residual under a reused name stays open until freshly accepted. */
+function isResidualCovered(
+  acceptance: PlaybookResidualAcceptance,
+  residual: PlaybookResidualEntry,
+): boolean {
+  if (acceptance.name !== residual.name || acceptance.at < residual.at) return false
+  const evidence = acceptance.evidence
+  return (
+    evidence === undefined ||
+    (evidence.whySafe === residual.whySafe &&
+      evidence.followUp === residual.followUp &&
+      evidence.moduleId === residual.moduleId)
+  )
 }
 
 export interface PlaybookResidualRegister {
@@ -44,40 +70,54 @@ export function collectResidualRegister(
   const modules = new Set(
     lanes.filter((lane) => lane.milestoneId === milestoneId).map((lane) => lane.module.id),
   )
-  const accepted: PlaybookResidualAcceptance[] = []
-  const indexByName = new Map<string, number>()
+  const acceptances: PlaybookResidualAcceptance[] = []
   for (const record of records) {
     if (record.kind !== 'residual' || record.value.milestoneId !== milestoneId) continue
-    const entry: PlaybookResidualAcceptance = {
+    acceptances.push({
       name: record.value.name,
       actor: record.value.actor,
       reason: record.value.reason,
       at: record.value.at,
-    }
-    const known = indexByName.get(record.value.name)
+      ...(record.value.evidence !== undefined && { evidence: { ...record.value.evidence } }),
+    })
+  }
+  const accepted: PlaybookResidualAcceptance[] = []
+  const indexByName = new Map<string, number>()
+  for (const acceptance of acceptances) {
+    const known = indexByName.get(acceptance.name)
     if (known === undefined) {
-      indexByName.set(record.value.name, accepted.length)
-      accepted.push(entry)
-    } else accepted[known] = entry
+      indexByName.set(acceptance.name, accepted.length)
+      accepted.push(acceptance)
+    } else accepted[known] = acceptance
   }
   const open: PlaybookResidualEntry[] = []
   for (const record of records) {
     if (record.kind !== 'round' || !modules.has(record.value.module.id)) continue
     for (const answer of record.value.answers) {
-      if (
-        answer.status !== 'residual' ||
-        indexByName.has(answer.name) ||
-        open.some((entry) => entry.name === answer.name)
-      )
-        continue
-      open.push({
+      if (answer.status !== 'residual') continue
+      const entry: PlaybookResidualEntry = {
         name: answer.name,
         moduleId: record.value.module.id,
         moduleKey: record.value.module.key,
         whySafe: answer.whySafe,
         followUp: answer.followUp,
         at: record.value.at,
-      })
+      }
+      if (acceptances.some((acceptance) => isResidualCovered(acceptance, entry))) continue
+      const duplicate = open.find(
+        (known) =>
+          known.name === entry.name &&
+          known.moduleId === entry.moduleId &&
+          known.whySafe === entry.whySafe &&
+          known.followUp === entry.followUp,
+      )
+      // The same instance republished keeps its latest occurrence: only an
+      // acceptance recorded no earlier covers it.
+      if (duplicate !== undefined) {
+        if (entry.at > duplicate.at) open[open.indexOf(duplicate)] = entry
+        continue
+      }
+      open.push(entry)
     }
   }
   return { milestoneId, open, accepted }
