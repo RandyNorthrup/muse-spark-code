@@ -153,7 +153,92 @@ function readinessPage(now: () => number) {
   }
 }
 
+function longStream() {
+  const timers: ScheduledEvent[] = []
+  let receive: (() => void) | undefined
+  const port1 = {
+    get onmessage() {
+      return receive
+    },
+    set onmessage(callback: () => void) {
+      receive = callback
+    },
+    close: vi.fn(),
+  }
+  const port2 = {
+    postMessage: vi.fn(() => {
+      if (receive === undefined) throw new Error('Missing stream continuation')
+      timers.push({ delay: 0, run: receive })
+    }),
+    close: vi.fn(),
+  }
+  const event = vi.fn<(message: unknown) => void>()
+  const report = vi.fn()
+  const context = {
+    pendingScenarioEvents: 0,
+    window: {},
+    setDraft: vi.fn(),
+    key: vi.fn(),
+    event,
+    report,
+    longReply: () => 'x'.repeat(250),
+    MessageChannel: function () {
+      return { port1, port2 }
+    },
+  }
+  const start = () => {
+    const source = harnessSection('long: () => {', 'focus: () => {')
+    runInNewContext(`const steps = {${source}}; steps.long();`, context)
+  }
+  return { timers, context, event, report, port1, port2, start }
+}
+
 describe('harness scenario event readiness', () => {
+  it('yields between every long-stream delta, retaining their order and final completion', () => {
+    const fixture = longStream()
+    fixture.start()
+    expect(fixture.event).toHaveBeenCalledTimes(2)
+    expect(fixture.context.pendingScenarioEvents).toBe(1)
+    while (fixture.timers.length > 0) runNext(fixture.timers)
+    expect(fixture.event.mock.calls.map(([message]) => message)).toEqual([
+      {
+        type: 'itemStarted',
+        item: { itemId: 'long', kind: 'agentMessage', status: 'inProgress', text: '' },
+      },
+      ...[100, 100, 50].map((length) => ({
+        type: 'textDelta',
+        itemId: 'long',
+        field: 'text',
+        delta: 'x'.repeat(length),
+      })),
+      {
+        type: 'itemCompleted',
+        item: { itemId: 'long', kind: 'agentMessage', status: 'completed' },
+      },
+    ])
+    expect(fixture.context.pendingScenarioEvents).toBe(0)
+    expect(fixture.port2.postMessage).toHaveBeenCalledTimes(3)
+    expect(fixture.report).toHaveBeenCalledWith('long: 3 deltas rendered')
+    expect(fixture.port1.close).toHaveBeenCalledOnce()
+    expect(fixture.port2.close).toHaveBeenCalledOnce()
+  })
+
+  it('releases the long-stream continuation and both ports when a delta fails', () => {
+    const fixture = longStream()
+    fixture.start()
+    fixture.event.mockImplementation(() => {
+      throw new Error('stream delta failed')
+    })
+    expect(() => {
+      runNext(fixture.timers)
+    }).toThrow('stream delta failed')
+    expect(fixture.context.pendingScenarioEvents).toBe(0)
+    expect(fixture.timers).toHaveLength(0)
+    expect(fixture.report).not.toHaveBeenCalled()
+    expect(fixture.port1.close).toHaveBeenCalledOnce()
+    expect(fixture.port2.close).toHaveBeenCalledOnce()
+  })
+
   it('requires timing reasons for readiness timers too', () => {
     expect(delayedDom('<script>readinessLater(50, () => resolve())</script>')).toEqual([
       'Timer without a kept-timing reason: readinessLater(50, () => resolve())',

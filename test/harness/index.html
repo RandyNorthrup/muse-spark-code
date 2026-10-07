@@ -3209,6 +3209,13 @@
           })
           const chunks = longReply().match(/[\s\S]{1,100}/g)
           let index = 0
+          // Zero-delay timers clamp nested continuations to at least 4 ms.
+          // A port task still yields between every delta without that throttle.
+          const continuation = new MessageChannel()
+          const close = () => {
+            continuation.port1.close()
+            continuation.port2.close()
+          }
           const pump = () => {
             const chunk = chunks[index]
             index += 1
@@ -3218,13 +3225,29 @@
                 item: { itemId: 'long', kind: 'agentMessage', status: 'completed' },
               })
               report(`long: ${String(chunks.length)} deltas rendered`)
+              close()
               return
             }
             event({ type: 'textDelta', itemId: 'long', field: 'text', delta: chunk })
-            // kept-timing: each long-reply delta yields to the event loop before the next one.
-            later(0, pump)
+            pendingScenarioEvents += 1
+            continuation.port2.postMessage(null)
           }
-          pump()
+          const run = () => {
+            try {
+              pump()
+            } catch (error) {
+              close()
+              throw error
+            }
+          }
+          continuation.port1.onmessage = () => {
+            try {
+              run()
+            } finally {
+              pendingScenarioEvents -= 1
+            }
+          }
+          run()
         },
         focus: () => {
           send({ type: 'settingsChanged', settings: { ...settings, focusView: true } })

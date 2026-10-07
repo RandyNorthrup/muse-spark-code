@@ -2040,6 +2040,23 @@ push, rebase, merge, credential output or disabled hook.
   byte-exact. The drill uses pinned Node 22 and default test timers. The
   restored ChatGPT file passes both tests in 36.37 seconds.
 
+- The serial aggregate at `d9154a9c0` passes 16,622 tests, every coverage
+  threshold, production build and dependency audit. All 988 WCAG pages are
+  attempted, but the fully completed `long` stream misses its existing
+  ten-second readiness bound in hc-dark and hc-light. Its nested zero-delay
+  continuations incur browser timer throttling. The scene now uses one
+  MessageChannel task port, preserving every 100-character delta, their order
+  and the event-loop yield. Every continuation remains tracked; both ports
+  close at completion or callback failure. No readiness, paint, focus or
+  deadline assertion changes. The two stream tests certify full ordered
+  chunks/completion and failure cleanup; removing the pending-count decrement
+  deliberately fails both (26 other harness tests pass), then the HTML is
+  restored byte-exact. Harness/finder/capture suites pass 39 tests with default
+  timers. Real Chrome passes long and both heartbeat scenes across all four
+  themes: 12 pages, zero violations, undecided checks or missing results.
+  The complete worktree scan is running; the next committed receipt repeats
+  full quality and every Linux job from fresh clones.
+
 ### Fresh-clone job verification
 
 The first committed repair (`02fd30fe9`) passes all four Linux shards, the

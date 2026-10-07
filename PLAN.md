@@ -40850,6 +40850,15 @@ checks, each original command/environment/output bound and every package
 assertion. Final fresh-clone jobs run one at a time, as hosted jobs receive
 independent machines; no test launch delay or product priority change.
 
+The serial aggregate passes 16,622 tests and coverage, then the completed
+long-stream harness scene exceeds its existing ten-second readiness bound in
+two high-contrast themes. Its repeated zero-delay timers incur the browser's
+nested-timer clamp. Use one MessageChannel task queue for that scene's
+continuations, preserving every 100-character delta and an event-loop yield;
+track each continuation, close both ports on completion/error, and retain all
+readiness/paint/deadline checks. Certify complete chunk order and failure
+cleanup, then repeat the complete fresh-clone job set without retries or skips.
+
 ### CI0150A — Clean-shard artifacts and portable certification (2026-10-07)
 
 Scope: six owning suites in the CI0150A brief. Clean hosted shards have no

@@ -7,6 +7,9 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Keep every long-reply accessibility delta while yielding through a task port,
+  avoiding nested timer throttling within the existing readiness deadline.
+
 - Check every staged ACP help language in bounded parallel batches, keeping
   cold package certification within its existing deadline.
 
