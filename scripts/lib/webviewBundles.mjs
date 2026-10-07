@@ -76,6 +76,13 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     entries: ['src/webview/TasksApp.tsx'],
     budgetKiB: 25,
   },
+  // M115's schedule surface (list, editor, timeline, audit): 33.1 KiB
+  // measured, plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  {
+    name: 'schedule surface',
+    entries: ['src/webview/schedules/ScheduleSurfaceView.tsx'],
+    budgetKiB: 50,
+  },
 ]
 
 export function webviewDeferredBudgetGroups(meta, questionBudgetKiB) {

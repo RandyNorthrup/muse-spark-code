@@ -37,6 +37,7 @@ import { AGENT_IMPORT_ROOT_CHANGED_CODE, RULES_FILE_MAX_BYTES } from '../../src/
 import { removeFolder } from './helpers/temporaryFolders'
 import { SYNTHETIC } from './helpers/syntheticTokens'
 import { readContextText } from '../../src/core/context/contextFiles'
+import { contentHash } from '../../src/core/schedules/provenance'
 import { fileContextIo } from '../../src/host/backend/contextIo'
 import { processGitRunner } from '../../src/host/git'
 import { scanImportFixture } from './helpers/memoryImportIo'
@@ -252,7 +253,16 @@ describe('fileImportWriter', () => {
       target,
       workspace,
     )
-    expect(context).toEqual({ ok: true, text: published })
+    // U's source inventory rides along: the native port captures real fstat,
+    // so the test pins the shape and the bytes, not the device identity.
+    expect(context).toMatchObject({ ok: true, text: published })
+    expect(context).toMatchObject({
+      contentSource: {
+        kind: 'file',
+        contentHash: contentHash(Buffer.from(published, 'utf8')),
+        file: { path: target.replaceAll('\\', '/'), size: Buffer.byteLength(published) },
+      },
+    })
     expect(JSON.stringify(context)).toContain(secret)
   })
 

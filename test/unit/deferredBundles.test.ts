@@ -74,7 +74,7 @@ beforeAll(async () => {
         modelApi: 'src/host/backend/modelApiEntry.ts',
         sessionBoard: 'src/host/sessionBoardEntry.ts',
         reviewer: 'src/core/backends/modelapi/reviewerEntry.ts',
-        schedules: 'src/core/backends/modelapi/schedulesEntry.ts',
+        schedules: 'src/runtime/schedules/schedulesBundle.ts',
         foreignHooks: 'src/core/backends/modelapi/foreignHooksEntry.ts',
         hookRuntime: 'src/core/backends/modelapi/hookRuntimeEntry.ts',
         pluginHooks: 'src/core/backends/modelapi/pluginHooksEntry.ts',
@@ -284,7 +284,11 @@ describe('deferred cohort bundles', () => {
   })
 
   it('RVM115U5 diet: Model API frees ten KiB and records context loaders in the lazy schedules chunk', () => {
-    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(483_179 - 10 * 1024)
+    // M115W re-measurement (Kubuntu, deterministic across trees): the merged
+    // milestone carries 1,161 more bytes than U's pin (the validated v2
+    // protocol, schedules settings and their strings). The diet's mechanism
+    // below is unchanged: the loaders stay out of Model API.
+    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(474_100)
     const schedules = new Set(inputs('schedules'))
     for (const file of [
       'src/core/backends/modelapi/schedulesEntry.ts',
@@ -295,6 +299,24 @@ describe('deferred cohort bundles', () => {
       expect(inputs('modelApi')).not.toContain(file)
     }
     expect(bundleText('modelApi')).toContain('./schedules.js')
+  })
+
+  it('M115W: the lazy schedules chunk carries the v2 runtime binding beside v1', () => {
+    const schedules = new Set(inputs('schedules'))
+    for (const file of [
+      'src/runtime/schedules/schedulesBundle.ts',
+      'src/runtime/schedules/runtimeEntry.ts',
+      'src/runtime/schedules/engine.ts',
+      'src/runtime/schedules/control.ts',
+      'src/core/schedules/store.ts',
+      'src/core/schedules/scheduler.ts',
+      'src/core/schedules/delivery.ts',
+    ]) {
+      expect(schedules.has(file)).toBe(true)
+      for (const parent of ['extension', 'modelApi', 'acp'])
+        expect(inputs(parent)).not.toContain(file)
+    }
+    expect(bundleText('schedules')).toContain('createRuntimeSchedules')
   })
 
   it('loads the activation entry without requiring either action bundle', () => {

@@ -17,7 +17,7 @@ differs from the source. Do not edit it by hand.
 | `capabilities.untrustedWorkspaces` | `limited`                                                                                                                     |
 | `enabledApiProposals`              | none                                                                                                                          |
 | `activationEvents`                 | `onWebviewPanel:museSpark.chatPanel`, `onStartupFinished`                                                                     |
-| `contributes`                      | `commands` (46), `configuration` (2), `keybindings` (10), `menus` (2), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
+| `contributes`                      | `commands` (49), `configuration` (2), `keybindings` (10), `menus` (2), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
 
 ## Build targets
 
@@ -424,34 +424,34 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `workspace.textDocuments`                                                            | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                        |
 | `workspace.workspaceFolders`                                                         | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`                                                                                                                                                                                                                                                                                              |
 
-## Node built-ins the host imports (26)
+## Node built-ins the host imports (27)
 
 | Module                 | Files |
 | ---------------------- | ----- |
 | `node:async_hooks`     | 1     |
 | `node:buffer`          | 39    |
-| `node:child_process`   | 14    |
-| `node:crypto`          | 50    |
+| `node:child_process`   | 15    |
+| `node:crypto`          | 64    |
 | `node:dgram`           | 1     |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 3     |
-| `node:fs`              | 34    |
-| `node:fs/promises`     | 49    |
+| `node:fs`              | 35    |
+| `node:fs/promises`     | 52    |
 | `node:http`            | 4     |
 | `node:https`           | 1     |
 | `node:module`          | 1     |
 | `node:net`             | 7     |
-| `node:os`              | 10    |
-| `node:path`            | 89    |
-| `node:perf_hooks`      | 1     |
-| `node:process`         | 3     |
+| `node:os`              | 12    |
+| `node:path`            | 99    |
+| `node:perf_hooks`      | 2     |
+| `node:process`         | 4     |
 | `node:stream`          | 12    |
 | `node:stream/promises` | 2     |
 | `node:string_decoder`  | 1     |
 | `node:timers/promises` | 4     |
 | `node:tls`             | 1     |
 | `node:url`             | 4     |
-| `node:util`            | 7     |
+| `node:util`            | 8     |
 | `node:vm`              | 1     |
 | `node:worker_threads`  | 4     |
 | `node:zlib`            | 4     |

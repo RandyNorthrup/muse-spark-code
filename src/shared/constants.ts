@@ -98,6 +98,10 @@ export const COMMAND_IDS = {
   tabTurnOn: 'museSpark.tabTurnOn',
   tabTurnOff: 'museSpark.tabTurnOff',
   tabSnooze: 'museSpark.tabSnooze',
+  // M115 (PLAN.md D95): the v2 schedules surface.
+  schedulePrompt: 'museSpark.schedulePrompt',
+  showSchedules: 'museSpark.showSchedules',
+  showScheduleTimeline: 'museSpark.showScheduleTimeline',
   tabMenu: 'museSpark.tabMenu',
   tabLanguages: 'museSpark.tabLanguages',
 } as const
@@ -370,6 +374,10 @@ export const SETTING_DEFAULTS = {
   sandboxNetwork: 'default' as SandboxNetworkMode,
   modelApiPromptCacheRetention: 'in_memory' as PromptCacheRetention,
   modelApiScheduledPrompts: true,
+  // M115 (PLAN.md D95): the v2 schedules surface and its defaults.
+  schedules: true,
+  'schedules.defaultDelivery': 'whenIdle' as (typeof SCHEDULE_DELIVERIES)[number],
+  'schedules.agentCreation': 'ask' as (typeof SCHEDULE_AGENT_CREATIONS)[number],
   modelApiSubagents: true,
   // Best-of-N parallel attempts (M77, PLAN.md D49): N worktree-rooted
   // conversations per run, each billed to the key.
@@ -561,6 +569,11 @@ export const MACHINE_SCOPED_SETTINGS = [
   // What may spend on judging, on the key or the subscription (M98, PLAN.md
   // D77): a repository must not choose it.
   'judge.engine',
+  // M115's schedules surface and its unattended-run defaults choose what runs
+  // and what is billed (PLAN.md D95): a repository must not set them.
+  'schedules',
+  'schedules.defaultDelivery',
+  'schedules.agentCreation',
 ] as const
 
 // Muse Code SDK 1.3.0 hook process limits (PLAN.md M51).
@@ -3251,6 +3264,7 @@ export const SCHEDULE_SETTINGS_DEFAULTS = {
   defaultDelivery: 'whenIdle',
   agentCreation: 'ask',
 } as const
+export const SCHEDULE_AGENT_CREATIONS = ['ask', 'always', 'never'] as const
 export const SCHEDULE_DEFAULT_POLICY = {
   whenClosed: 'open',
   catchUp: 'runOnce',
@@ -4493,6 +4507,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/modelApi.js',
   'dist/sessionBoard.js',
   'dist/reviewer.js',
+  'dist/schedules.js',
   'dist/planMarkdown.js',
   'dist/review.js',
   'dist/agentImport.js',
