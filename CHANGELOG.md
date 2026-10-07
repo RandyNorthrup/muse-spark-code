@@ -38,6 +38,11 @@ happened, not what was planned; superseded entries are kept.
   and rebuilds refused caches into fresh private storage without deleting
   suspect files. Native DLL search is restricted to System32, and DPAPI wrap
   validates title and use before acting.
+
+- Rebuilt vault authorization around synchronous state transitions and tagged
+  effects. Connections retain their registration incarnation, private reads
+  stay broker-owned through transport release, and obsolete audit or unlock
+  work cleans up only its own resources.
 - M109's preparation contracts now accept complete HTTPS OAuth issuer
   identifiers, including tenant paths and trailing slashes, while preserving
   exact issuer identity in grants, token material and use digests.

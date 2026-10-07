@@ -7738,11 +7738,14 @@ It builds on:
      - **Headers.** For remote MCP servers and M95's custom headers, the
        extension's own transport adds the item's header for its bound origin
        only (D74's origin check), as it does for first-party keys.
-     - **Disclosure.** The value goes back to the requester, so the model
-       and its provider see it. Only for an item whose `allowDisclosure` the
-       user set; asked every time, whatever the mode; logged loudly; shown as
-       a disclosure row in the transcript. A disclosed value cannot be
-       recalled, so the row offers **Rotate**.
+     - **Disclosure (owner correction, 2026-10-06).** A value never reaches
+       a model, provider or agent context. Disclosure is only to the person,
+       shown by the authenticated host UI after fresh presence. Destination
+       processes use the named command-bound routes above. The recipient
+       schema expresses only `person`; arbitrary recipients are refused.
+       `allowDisclosure` remains explicit, every use asks regardless of mode,
+       and the audit names disclosure. An already released value cannot be
+       recalled; the UI offers **Rotate**.
    - **The feeder** (`dist/vaultExec.js`) is the one way a brokered value
      reaches a child process.
      - The host starts it in place of the command, inside the command's own
@@ -7956,7 +7959,9 @@ It builds on:
        imported while CXP is a draft, since a CXF passkey carries its private
        key.
    - **Third-party browser automation** (an MCP server such as the user's
-     Chrome Control) never gets a fill. It gets a value only by disclosure.
+     Chrome Control) never gets a fill. Only the named, command-bound MCP
+     environment or origin-bound header routes can supply a value; no value
+     returns to a model or agent context (owner correction, 2026-10-06).
 
 10. **Unattended work gets only what was granted for it.**
     - **Unattended requesters:** headless `exec`, schedules (M52), timed
@@ -12767,6 +12772,19 @@ prompts into a chat in any workspace".
    file export and import, chat sharing to copy, file and browser) targets
    the next patch release after 0.14.3; phase 2 (gists) the one after;
    phase 3 with M110, M96, M113 and M115.
+
+### D99 — Broker state transitions (M109 B, 2026-10-06)
+
+Broker core = synchronous reducer + tagged effects. Registration capabilities
+bind authentication, requests and connection cleanup to one incarnation.
+Each completion carries its operation, connection, incarnation and unlock
+generation; stale completions dispose only their own resources. Plaintext is
+broker-owned through the final synchronous transport write. Lock advances the
+generation and wipes owned buffers before any asynchronous settlement. Audit
+writers are isolated resources, with cancellable pending rows and terminal
+outcomes that supersede pending work. Audit UI reads capture the installed
+writer through a tagged effect, rather than an implicit factory-global reader.
+The runner performs I/O; the reducer alone changes broker state. No await-and-recheck implementation remains.
 
 ### D100 — Orchestration gotchas become product rules (2026-10-06)
 
@@ -26303,6 +26321,55 @@ and startup DLL search to System32. Validate DPAPI wrap title/use before
 selecting the tier. Each finding receives regression tests and byte-exact
 red-drill receipts in `docs/certification/m109-pw.md`; no dependency, gate or
 shipped feature changes. No review finding is deferred.
+**FIXM109B6 / RVM109B5 (2026-10-06).** Close both confirmed findings:
+make audit-session key erasure and reference clearing unconditional despite
+file-writer close failures, and report cleanup failure to Lock/Dispose callers;
+audit every B-owned key/plaintext byte owner for unconditional cleanup or
+explicit successful ownership transfer. Guard each invalidation subscriber
+independently and always run the revocation notice afterward. Each new guard
+gets a generated/fake regression and named byte-exact red drill. Keep the lane
+boundary, default timeouts and all gates; no dependency, merge or live call.
+
+**FIXM109B5 / RVM109B4 (2026-10-06).** Keep D99's reducer architecture and
+close all five findings: wipe plaintext synchronously in the reducer before
+removing ownership; isolate every runner effect from callback exceptions;
+revoke admission and lifetime in the failed redemption-audit step; invalidate
+in-flight material on Finish and require active admission at final release;
+record terminal outcomes in state without self-dependent audit settlement;
+retire cancelled automatic unlocks from the serialized queue immediately,
+disposing late results by tag. Each scenario gets a regression, exhaustive
+scheduler coverage and byte-exact red drill. No dependencies, guard widening,
+merge, live calls or aggregate quality run; integration remains lead-owned.
+
+**REDM109B redesign (2026-10-06).** Replace the broker's async authorization
+owner and re-validation helper with D99's synchronous reducer and tagged effect
+runner. Close all RVM109B3 probes by construction; retain named regressions from
+all three rounds. Add deterministic exhaustive and seeded effect-order tests,
+with invariant checks after every event, and three byte-exact mutation drills.
+Certification records coverage, resource ownership and writer commit semantics.
+This rig lane runs targeted checks directly, without merges or aggregate quality;
+the lead retains the joined-tree quality and platform checks.
+
+**FIXM109B2 review repair (2026-10-06).** Close all four RVM109B2 findings:
+bind each continuation to the requester's fresh registration incarnation and
+the broker generation, including channel provenance loading before broker entry;
+own authorization/audit and cancellation cleanup tasks
+through bounded Lock draining and terminal audit settlement; serialize every
+management operation and revalidate after I/O; generate the authorization JSON
+schema from its source and check drift. Add fake-only regression tests and
+byte-exact red drills, then inventory every broker await and its boundary.
+No dependencies, live calls, integration merge or aggregate quality run in this
+rig lane; the lead retains the joined-tree gates.
+
+**FIXM109B review repair (2026-10-06).** All nine RVM109B findings are in
+scope: forbid model disclosure; serialize authorization state with immediate
+lock/revoke/cancellation barriers and a local generation; use one validation
+helper after asynchronous boundaries for epoch, deadline, item expiry,
+registration and live grant coverage; cache session consent only after a
+successful ticket; own temporary unlock resources from acquisition; cancel
+private reads on socket close; limit revocation to the affected item; and audit
+terminal denials for pending approvals and unused tickets. Generated fakes
+only, no dependencies or live calls. Certification: `docs/certification/m109-b.md`.
 
 **Status 2026-10-05: planned.** The research is
 `docs/research/credential-vault-2026-10-05.md`.
@@ -29763,6 +29830,75 @@ local gate commands and native generated-material checks run directly here;
 the lead retains aggregate quality, the integrated host API record and hosted
 CI. This is a lane receipt, not a release certification; no gate is weakened.
 See `docs/certification/m109-p.md` for results and byte-exact red drills.
+**FIXM109B6 / RVM109B5 (2026-10-06, Mac mini).** Both findings are fixed;
+no review residual is accepted. Final restored-source verification passes all
+335 tests in all 19 vault files with default timeouts, at most three files and
+three workers per invocation. Twenty-five named red drills restore byte-exact;
+current production/test hashes match their receipts. All five typechecks,
+changed-file ESLint/Prettier, plain Knip, zero-clone jscpd, localization, schema
+drift and production build pass without changing budgets or gates. The existing
+six Node totals remain the named `B-W-host-api` integration deferral, and the
+existing patch still applies cleanly. Aggregate quality, Windows/editor checks,
+C/P/T/route/W binding, broker bundling and integrated latency remain lead-owned
+under the lane brief. Evidence: `docs/certification/m109-b.md` and
+`m109-b-round5-drills.json`.
+
+**FIXM109B5 / RVM109B4 (2026-10-06, Mac mini).** All five findings are fixed;
+no review residual is accepted. The final restored source passes 313 tests in
+all 18 vault files at the repository-default timeout, at most three files and
+three workers per invocation. Exhaustive and seeded coverage is 518 + 1,600
+schedules, 67,368 invariant steps, seed 109003. Seeded cases run 100 rounds
+per scenario in separate tests after the combined case hit the five-second
+limit; all rounds and invariants remain. Ten named red mutations restore
+byte-exact and their source/test hashes match current files. All five typechecks,
+changed-file ESLint/Prettier, plain Knip, zero-clone jscpd, localization, schema
+drift and production build pass without changing any budget. `B-W-host-api`
+remains the same six generated Node import totals; the existing W-owned patch
+passes apply checking. Aggregate quality is prohibited in this lane by the
+brief and remains lead-owned, as do joined native/editor checks and wiring.
+Evidence: `docs/certification/m109-b.md` and `m109-b-round4-drills.json`.
+
+**REDM109B / D99 (2026-10-06, Mac mini).** The broker core is a synchronous
+reducer with tagged effects; the old queue and async re-validation implementation
+are deleted. All three review reports have named regressions. The final restored
+source passes 282 vault tests at repository-default timeout, at most three files
+and three workers per invocation; the deterministic scheduler covers 505
+exhaustive and 900 seeded schedules (seed 109003), 40,025 invariant steps.
+The three required generation/incarnation/unowned-cleanup mutations each fail
+its named test and restore byte-exact with current-source SHA-256 receipts.
+All five typechecks, changed-file ESLint/Prettier, plain knip, zero-clone jscpd,
+localization, schema drift and production build pass; every bundle cap is unchanged.
+The only required targeted gate deferral is the same six pre-existing Node
+import counts in W's generated host API record; the existing B-W patch still
+applies cleanly. Aggregate `npm run quality` is prohibited by the brief and is
+lead-owned, as are the joined native/editor matrix and bundle registration.
+No dependencies, suppressions, casts or weakened gates were added. This record
+supersedes the historical FIXM109B/FIXM109B2 await inventories and ownership
+claims; current evidence is `docs/certification/m109-b.md` and
+`m109-b-redesign-drills.json`.
+
+**FIXM109B2 / RVM109B2 (2026-10-06, Mac mini).** All four findings are
+fixed with fake-only regressions and byte-exact red drills. Direct default-timeout
+vault suites pass 259 tests; all five typechecks, changed-file static checks,
+schema drift and production build pass. Seventeen red drills and the reviewed
+source baseline restore byte-exact; all 279 awaits have recorded boundaries. Aggregate
+`npm run quality` is prohibited by the rig/shared brief and remains lead-owned;
+no threshold, timeout or ignore is weakened. The existing six Node-total
+`B-W-host-api` differences and its W-owned applicable patch remain the sole
+inventory deferral. Evidence: `docs/certification/m109-b.md` and its round-2
+receipts/await inventory. The grant writer's commit callback and value-free
+audit failure notification are named C/W integration bindings.
+
+**FIXM109B review repair (2026-10-06, Mac mini).** RVM109B's five P1 and
+four P2 findings have regression tests and failing/restored red drills; no
+finding is deferred. B's targeted gates run directly with hooks enabled and
+no gate weakened. Aggregate quality remains prohibited in this lane and
+required at W/lead integration. The host API record is the existing named
+**B-W-host-api** deferral: its W-owned generated Node totals still need
+child_process 13 → 14, crypto 46 → 53, fs 33 → 36, fs/promises 47 → 49,
+net 7 → 10 and path 84 → 89. This repair adds no Node import or host API;
+`docs/certification/m109-b-host-api.patch` still applies cleanly. Evidence and
+restored-source check results: `docs/certification/m109-b.md`.
 
 **FIXM109L0 review repair (2026-10-05, Mac mini).** RVM109L0's two P2
 contract findings and its P3 fake ownership finding are fixed. A distinct
@@ -31212,6 +31348,81 @@ before a repaired one loads (2026-09-30).
   Existing TPM/Hello, screen-lock and stable DPAPI live-capture handoffs
   remain the original integration requirements, not residual review findings.
   See `docs/certification/m109-pw.md` for regression and red-drill evidence.
+- **FIXM109B6 / RVM109B5 (2026-10-06).** Both findings (one P1, one P2)
+  are fixed; none is accepted as residual risk. Audit-session key erasure and
+  reference clearing run in `finally` despite descriptor close failure; facade
+  and Dispose references clear on failure too. Cleanup errors reach Lock/Dispose
+  callers while remaining effects continue. Every B-owned key/plaintext array
+  owner was inventoried for unconditional cleanup or successful ownership
+  transfer. Each invalidation subscriber is guarded independently, followed by
+  the revocation notice, so another subscriber cannot skip channel destruction.
+  Owned-array wiping does not claim immutable-string/native-memory zeroization
+  or OS close success after failure. Evidence, regressions and byte-exact drills:
+  `docs/certification/m109-b.md` and `m109-b-round5-drills.json`. Existing
+  C/P/T/route/W bindings, Windows/editor checks, generated host API totals and
+  joined-tree quality remain integration work; no review finding is deferred.
+
+- **FIXM109B5 / RVM109B4 (2026-10-06).** All five findings (one P1, four P2)
+  are fixed; none is accepted as residual risk. Plaintext erasure runs inside
+  the synchronous reducer before ownership disappears. Fallible cleanup,
+  lifetime-close and host callbacks are isolated per effect. Redemption does
+  not authorize material before successful audit settlement; failed audit
+  removes the admission and closes its lifetime. Finish retires material
+  operations immediately, and final release requires the current admission.
+  Terminal outcomes are recorded in state and survive expiry while cleanup
+  settles; terminal operations cannot become their own audit dependency.
+  Cancelled automatic unlocks settle and leave the serialized queue immediately;
+  late results dispose only their tagged resources. Evidence and finite scheduler
+  limits: `docs/certification/m109-b.md` and `m109-b-round4-drills.json`.
+  Existing C/P/T/route/W bindings, Windows/editor certification, the W-owned
+  generated host API counts and joined-tree full quality remain integration
+  work. No model attempt, paid call, dependency or guard relaxation is added.
+
+- **REDM109B / D99 (2026-10-06).** The synchronous reducer and capability-bound
+  effects supersede the earlier FIXM109B/FIXM109B2 authorization/cleanup claims.
+  The RVM109B3 stale hello/close, private transport release, pending audit/reopen
+  and obsolete unlock/epoch paths now depend on immutable incarnation/generation
+  ownership. None of those findings is accepted as residual risk. C/P/W must bind
+  isolated audit writers, synchronous private-file commit/close, and the epoch
+  and grant authorization callbacks at their exact physical commit boundary.
+  Committed audit rows settle their authenticated anchor under C's transaction;
+  actual anchor failure still fails closed and requires verified repair. B claims
+  no power-loss atomicity, memory zeroization, enabled product feature or joined
+  Windows/editor certification. Existing C/P/T/route/W/full-quality handoffs and
+  the W-owned host API record remain integration work. Current proof and limits:
+  `docs/certification/m109-b.md`; the old await inventory is historical only.
+
+- **FIXM109B2 / RVM109B2 (2026-10-06).** All four review findings are fixed;
+  no P1/P2/P3 is accepted as a residual. Every request retains its registration
+  incarnation and broker generation, including the channel's provenance await.
+  Lock owns audit/cleanup tasks from their start, bounds settlement, writes
+  terminal outcomes and surfaces writer failure rather than reporting success.
+  All management mutations use the same owner and post-await validator; C must
+  invoke the supplied grant authorization callback at its exact commit boundary.
+  The authorization schema is generated and drift-checked from source.
+  B's existing unbound C/P/T/route, Windows, all-editor and W/full-quality
+  handoffs remain open. The new `B-C-save-authorization` and
+  `B-W-audit-failure` bindings are mandatory before integration; no shipped
+  support or real-platform certification is implied. Evidence and every await's
+  boundary: `docs/certification/m109-b.md` and `m109-b-round2-awaits.md`.
+
+- **FIXM109B / RVM109B (2026-10-06).** All five P1 and four P2 findings
+  are fixed; none is deferred as an accepted residual. Disclosure recipients
+  are person-only and require fresh presence; processes retain only D89.4's
+  named bound routes. The broker's queued authorization and immediate
+  invalidation barriers use a local generation in addition to the shared
+  epoch, so a failed epoch write cannot resurrect an old unlock. Deadline,
+  item expiry, live grant coverage and requester registration are rechecked
+  after awaits before caching consent or releasing bytes. Revocation wipes
+  every affected active use before termination/audit I/O, and cancellation
+  and lock audit terminal denials for approvals and unused tickets. Private
+  connection closure cancels reads and erases pending/late material; failed
+  unlocks erase temporary keys and lock opened stores. Tests and byte-exact
+  red receipts: `docs/certification/m109-b.md`. B's existing C/P/T/route,
+  Windows, all-editor, audit-contract and W/full-gate handoffs remain open;
+  this unbound lane enables no product feature and claims no new platform
+  certification. A failed shared epoch write still reports failure rather
+  than claiming the other broker versions received it.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the
