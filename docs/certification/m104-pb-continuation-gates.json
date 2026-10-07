@@ -759,7 +759,7 @@
   "totalFailed": 0,
   "totalPending": 0,
   "ownedEngineFiles": 25,
-  "ownedEnginePassed": 225,
+  "ownedEnginePassed": 205,
   "cumulativeDrills": 146,
   "newContinuationDrills": 51,
   "deadcodeRemaining": "43 unused files plus createRuntimeCheckpoints: A-owned discovery/lazy wiring; no ignores changed",

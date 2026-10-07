@@ -46,7 +46,10 @@ export interface RuntimeTabDeps {
 /** The pure completion engine with consent, one priced attempt, and awaited sent-request settlement. */
 export function createRuntimeTab(deps: RuntimeTabDeps, table: UiText, locale: string) {
   setUiText(table, locale)
-  const lifetime = runtimeFeatureLifetime(deps.assertCurrent, deps.cancelPrompts)
+  const lifetime = runtimeFeatureLifetime(deps.assertCurrent, () => {
+    engine.cancelPending()
+    deps.cancelPrompts()
+  })
   const draining = new Set<Promise<unknown>>()
   const check = (model: string) => {
     lifetime.check()

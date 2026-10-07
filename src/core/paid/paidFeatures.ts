@@ -23,6 +23,13 @@ import {
 } from '../../shared/paid'
 import type { CoreLogger } from '../logging'
 import { estimateCostUsd } from '../usage/insights'
+import { unlessAborted } from '../timeouts'
+
+/** The portable owner fences each write and cancels only an unanswered confirmation. */
+interface PaidFeatureMutationGuard {
+  readonly signal: AbortSignal
+  readonly check: () => void
+}
 
 export interface PaidFeatureGateDeps {
   /** Whether the feature's `museSpark.*` setting is on. */
@@ -72,7 +79,12 @@ export class PaidFeatureGate {
     }
   }
 
-  private async setAccepted(feature: PaidFeature, isAccepted: boolean): Promise<void> {
+  private async setAccepted(
+    feature: PaidFeature,
+    isAccepted: boolean,
+    check?: () => void,
+  ): Promise<void> {
+    check?.()
     const accepted = new Set(this.deps.readAccepted())
     if (accepted.has(feature) === isAccepted) {
       return
@@ -83,6 +95,7 @@ export class PaidFeatureGate {
       accepted.delete(feature)
     }
     await this.deps.writeAccepted(accepted)
+    check?.()
   }
 
   /** The confirmation for a setting found on without an accepted price. */
@@ -186,14 +199,17 @@ export class PaidFeatureGate {
   }
 
   /** The palette's toggle turning a feature on: the confirmation first, then the setting. */
-  public async turnOn(feature: PaidFeature): Promise<boolean> {
+  public async turnOn(feature: PaidFeature, guard?: PaidFeatureMutationGuard): Promise<boolean> {
+    guard?.check()
     if (this.isOn(feature)) {
       return true
     }
     if (this.asksOnFirstUse(feature)) {
       // No modal: its first use asks, naming the price (D48).
-      await this.setAccepted(feature, true)
+      await this.setAccepted(feature, true, guard?.check)
+      guard?.check()
       await this.deps.setSetting(feature, true)
+      guard?.check()
       this.deps.log.info(`Paid feature ${feature} turned on; its first use asks`)
       this.notify()
       return true
@@ -204,7 +220,11 @@ export class PaidFeatureGate {
     this.asking.add(feature)
     let isConfirmed: boolean
     try {
-      isConfirmed = await this.deps.confirm(feature)
+      const confirmation = this.deps.confirm(feature)
+      isConfirmed =
+        (await (guard === undefined ? confirmation : unlessAborted(confirmation, guard.signal))) ??
+        false
+      guard?.check()
     } finally {
       this.asking.delete(feature)
     }
@@ -213,16 +233,20 @@ export class PaidFeatureGate {
       return false
     }
     // Accepted before the setting changes, so the change asks nothing more.
-    await this.setAccepted(feature, true)
+    await this.setAccepted(feature, true, guard?.check)
+    guard?.check()
     await this.deps.setSetting(feature, true)
+    guard?.check()
     this.deps.log.info(`Paid feature ${feature} turned on; the user accepted its price`)
     this.notify()
     return true
   }
 
-  public async turnOff(feature: PaidFeature): Promise<void> {
+  public async turnOff(feature: PaidFeature, guard?: PaidFeatureMutationGuard): Promise<void> {
+    guard?.check()
     await this.deps.setSetting(feature, false)
-    await this.setAccepted(feature, false)
+    guard?.check()
+    await this.setAccepted(feature, false, guard?.check)
     this.deps.log.info(`Paid feature ${feature} turned off`)
     this.notify()
   }

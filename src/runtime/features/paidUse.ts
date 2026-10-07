@@ -7,6 +7,8 @@ import type { PaidUseRequest } from '../../shared/paid'
 import type { ConversationCompositionPorts } from '../../host/compose/conversationDeps'
 import type { JudgeWindowDeps } from '../../host/judge/judgeBundle'
 import type { RuntimePaidGrantStore } from '../paidGrants'
+import { PaidUseConsent } from '../../core/paid/paidConsent'
+import { failureForLog } from '../../core/backends/musecode/logText'
 
 export interface RuntimePaidUseDeps {
   readonly gate: PaidFeatureGate
@@ -18,10 +20,19 @@ export interface RuntimePaidUseDeps {
   readonly log: CoreLogger
 }
 
+interface RuntimeConsent {
+  readonly consent: PaidUseConsent
+  readonly state: { generation: number; isTabDenied: boolean }
+}
+
 /** The interactive policy shares D48's real consent engine while ACP keeps its flag-only policy. */
 export class RuntimePaidUse extends AcpPaidUse {
   private readonly ending = new AbortController()
-  private readonly pending = new Set<Promise<boolean>>()
+  private readonly pending = new Set<Promise<unknown>>()
+  private readonly windows = new Map<string, Map<string, Map<PaidFeature, RuntimeConsent>>>()
+  private runtimeAsker: PaidUseAsker | undefined
+  private mutation: Promise<void> = Promise.resolve()
+  private generation = 0
   private closing: Promise<void> | undefined
 
   public constructor(private readonly runtimeDeps: RuntimePaidUseDeps) {
@@ -33,6 +44,119 @@ export class RuntimePaidUse extends AcpPaidUse {
     })
   }
 
+  private check(generation: number): void {
+    this.ending.signal.throwIfAborted()
+    if (generation !== this.generation || !this.runtimeDeps.isCurrent())
+      throw new Error('MHP_PAID_OWNER_REPLACED')
+  }
+
+  private async track<T>(work: Promise<T>): Promise<T> {
+    this.pending.add(work)
+    try {
+      return await work
+    } finally {
+      this.pending.delete(work)
+    }
+  }
+
+  /** Every setting/acceptance/grant writer belongs to the same drained queue. */
+  private mutate<T>(work: (check: () => void) => Promise<T>): Promise<T> {
+    const generation = this.generation
+    const check = () => {
+      this.check(generation)
+    }
+    const previous = this.mutation
+    const mutation = (async () => {
+      await previous
+      check()
+      const result = await work(check)
+      check()
+      return result
+    })()
+    this.mutation = (async () => {
+      try {
+        await mutation
+      } catch {
+        // The caller receives the failure; the serialized owner can accept its next action.
+      }
+    })()
+    return this.track(mutation)
+  }
+
+  private consent(root: string, surfaceId: string, feature: PaidFeature): PaidUseConsent {
+    let windows = this.windows.get(root)
+    if (windows === undefined) {
+      windows = new Map()
+      this.windows.set(root, windows)
+    }
+    let features = windows.get(surfaceId)
+    if (features === undefined) {
+      features = new Map()
+      windows.set(surfaceId, features)
+    }
+    const held = features.get(feature)
+    if (held !== undefined) return held.consent
+    const state = { generation: 0, isTabDenied: false }
+    const windowGeneration = state.generation
+    const consent = new PaidUseConsent({
+      isOn: (feature) =>
+        windowGeneration === state.generation &&
+        this.isOn(feature) &&
+        (feature !== 'tab' || !state.isTabDenied),
+      canRemember: this.runtimeDeps.canRemember,
+      readGrants: () => this.runtimeDeps.grants.read(root),
+      writeGrants: (grants) =>
+        this.mutate(async (check) => {
+          const held = this.runtimeDeps.grants.read(root)
+          check()
+          if (windowGeneration !== state.generation) throw new Error('MHP_PAID_OWNER_REPLACED')
+          await this.runtimeDeps.grants.add(
+            root,
+            grants.has(feature) && !held.has(feature) ? [feature] : [],
+          )
+          check()
+        }),
+      windowOnceFeatures: new Set(['tab']),
+      windowOnceGeneration: () => state.generation,
+      ask: async (request, canRemember) => {
+        const generation = this.generation
+        try {
+          this.check(generation)
+          if (this.runtimeAsker === undefined) return 'deny'
+          const answer =
+            (await unlessAborted(
+              this.runtimeAsker(surfaceId, request, canRemember),
+              this.ending.signal,
+            )) ?? 'deny'
+          this.check(generation)
+          if (windowGeneration !== state.generation) return 'deny'
+          if (answer === 'deny' && request.feature === 'tab') state.isTabDenied = true
+          return answer
+        } catch (error: unknown) {
+          this.runtimeDeps.log.warn(`Paid use refused: ${failureForLog(error)}`)
+          return 'deny'
+        }
+      },
+      log: this.runtimeDeps.log,
+    })
+    features.set(feature, { consent, state })
+    return consent
+  }
+
+  private revoke(root?: string, feature?: PaidFeature): void {
+    for (const [workspace, windows] of this.windows) {
+      if (root !== undefined && root !== workspace) continue
+      for (const features of windows.values()) {
+        for (const [heldFeature, { consent, state }] of features) {
+          if (feature !== undefined && feature !== heldFeature) continue
+          state.generation += 1
+          consent.revokeWindowOnce(heldFeature)
+          features.delete(heldFeature)
+        }
+      }
+    }
+  }
+
   public override isOn(feature: PaidFeature): boolean {
     return (
       !this.ending.signal.aborted &&
@@ -42,10 +166,7 @@ export class RuntimePaidUse extends AcpPaidUse {
   }
 
   public override attach(asker: PaidUseAsker): void {
-    super.attach(async (...args) => {
-      this.ending.signal.throwIfAborted()
-      return (await unlessAborted(asker(...args), this.ending.signal)) ?? 'deny'
-    })
+    this.runtimeAsker = asker
   }
 
   public override async allows(
@@ -54,13 +175,15 @@ export class RuntimePaidUse extends AcpPaidUse {
     request: PaidUseRequest,
     requiresAsking: boolean,
   ): Promise<boolean> {
-    const decision = super.allows(root, sessionId, request, requiresAsking)
-    this.pending.add(decision)
-    try {
-      return (await decision) && this.isOn(request.feature)
-    } finally {
-      this.pending.delete(decision)
-    }
+    if (!this.isOn(request.feature)) return false
+    const generation = this.generation
+    return (
+      (await this.track(
+        this.consent(root, sessionId, request.feature).allows(request, requiresAsking),
+      )) &&
+      generation === this.generation &&
+      this.isOn(request.feature)
+    )
   }
 
   public override noteUse(feature: PaidFeature, units: number): void {
@@ -69,39 +192,41 @@ export class RuntimePaidUse extends AcpPaidUse {
   }
 
   public override async forgetUnflagged(): Promise<void> {
-    const disabled = PAID_FEATURES.filter((feature) => !this.runtimeDeps.isSettingOn(feature))
-    await this.runtimeDeps.grants.forget(disabled)
+    await this.mutate(async (check) => {
+      const disabled = PAID_FEATURES.filter((feature) => !this.runtimeDeps.isSettingOn(feature))
+      for (const feature of disabled) this.revoke(undefined, feature)
+      check()
+      await this.runtimeDeps.grants.forget(disabled)
+    })
   }
 
   /** Contract v2: the controller and backend consume the same priced policy and tally. */
   public composition(root: string, surfaceId: string): ConversationCompositionPorts['paid'] {
-    const check = () => {
-      this.ending.signal.throwIfAborted()
-      if (!this.runtimeDeps.isCurrent()) throw new Error('MHP_PAID_OWNER_REPLACED')
-    }
     return {
       gate: {
         isOn: (feature) => this.isOn(feature),
-        turnOn: async (feature) => {
-          check()
-          const isOn = await this.runtimeDeps.gate.turnOn(feature)
-          check()
-          return isOn
-        },
-        turnOff: async (feature) => {
-          check()
-          await this.runtimeDeps.gate.turnOff(feature)
-          await this.runtimeDeps.grants.forget([feature])
-          check()
-        },
+        turnOn: (feature) =>
+          this.mutate((check) =>
+            this.runtimeDeps.gate.turnOn(feature, { signal: this.ending.signal, check }),
+          ),
+        turnOff: (feature) =>
+          this.mutate(async (check) => {
+            this.revoke(undefined, feature)
+            await this.runtimeDeps.gate.turnOff(feature, { signal: this.ending.signal, check })
+            check()
+            await this.runtimeDeps.grants.forget([feature])
+            check()
+          }),
       },
       consent: {
         allows: (request) => this.allows(root, surfaceId, request, false),
-        forget: async () => {
-          check()
-          await this.runtimeDeps.grants.forgetWorkspace(root)
-          check()
-        },
+        forget: () =>
+          this.mutate(async (check) => {
+            this.revoke(root)
+            check()
+            await this.runtimeDeps.grants.forgetWorkspace(root)
+            check()
+          }),
       },
       usage: {
         add: (feature, units) => {
@@ -140,9 +265,11 @@ export class RuntimePaidUse extends AcpPaidUse {
   }
 
   public dispose(): Promise<void> {
+    if (!this.ending.signal.aborted) this.generation += 1
     this.ending.abort()
     this.closing ??= (async () => {
       await Promise.allSettled(this.pending)
+      this.windows.clear()
     })()
     return this.closing
   }

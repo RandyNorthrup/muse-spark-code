@@ -2,6 +2,84 @@ import { describe, expect, it } from 'vitest'
 import { paidHarness as setup } from './paidHarness'
 
 describe('interactive paid policy apart from ACP flags', () => {
+  it('snoozes Denied Tab only in its window', async () => {
+    const { paid, ask } = setup()
+    const request = { feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: 1 } as const
+    ask.mockResolvedValueOnce('deny')
+    expect(await paid.allows('/ws', 'denied-window', request, false)).toBe(false)
+    expect(await paid.allows('/ws', 'denied-window', request, false)).toBe(false)
+    expect(ask).toHaveBeenCalledOnce()
+    expect(await paid.allows('/ws', 'other-window', request, false)).toBe(true)
+    expect(ask).toHaveBeenCalledTimes(2)
+    await paid.dispose()
+  })
+
+  it('revokes Tab once on OFF while retaining it across another feature’s toggle', async () => {
+    const { paid, ask } = setup()
+    const request = { feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: 1 } as const
+    const composition = paid.composition('/ws', 'window')
+    expect(await composition.consent.allows(request)).toBe(true)
+    await composition.gate.turnOff('voice')
+    expect(await composition.consent.allows(request)).toBe(true)
+    expect(ask).toHaveBeenCalledOnce()
+    await composition.gate.turnOff('tab')
+    expect(await composition.consent.allows(request)).toBe(true)
+    expect(ask).toHaveBeenCalledTimes(2)
+    await paid.dispose()
+  })
+
+  it('discards an old Always answer after workspace Ask again', async () => {
+    const { paid, ask, grants } = setup()
+    const held = Promise.withResolvers<'always'>()
+    ask.mockReturnValue(held.promise)
+    const composition = paid.composition('/ws', 'window')
+    const pending = composition.consent.allows({ feature: 'voice' })
+    await composition.consent.forget()
+    held.resolve('always')
+    expect(await pending).toBe(false)
+    expect(grants.add).not.toHaveBeenCalled()
+    await paid.dispose()
+  })
+
+  it('keeps Tab Allow once for exactly its window and revokes it with Ask again', async () => {
+    const { paid, ask } = setup()
+    const request = { feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: 1 } as const
+    const first = paid.composition('/ws', 'window-one')
+    expect(await first.consent.allows(request)).toBe(true)
+    expect(await first.consent.allows(request)).toBe(true)
+    expect(ask).toHaveBeenCalledOnce()
+    expect(await paid.composition('/ws', 'window-two').consent.allows(request)).toBe(true)
+    expect(ask).toHaveBeenCalledTimes(2)
+    await first.consent.forget()
+    expect(await first.consent.allows(request)).toBe(true)
+    expect(ask).toHaveBeenCalledTimes(3)
+    await paid.dispose()
+    const next = setup()
+    expect(await next.paid.composition('/ws', 'window-one').consent.allows(request)).toBe(true)
+    expect(next.ask).toHaveBeenCalledOnce()
+    await next.paid.dispose()
+  })
+
+  it('shares a pending Tab question in one window without authorizing another window', async () => {
+    const { paid, ask } = setup()
+    const held = Promise.withResolvers<'once'>()
+    ask.mockReturnValue(held.promise)
+    const request = { feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: 1 } as const
+    const first = paid.allows('/ws', 'window-one', request, false)
+    const second = paid.allows('/ws', 'window-one', request, false)
+    try {
+      expect(ask).toHaveBeenCalledOnce()
+      held.resolve('once')
+      expect(await Promise.all([first, second])).toEqual([true, true])
+      expect(await paid.allows('/ws', 'window-two', request, false)).toBe(true)
+      expect(ask).toHaveBeenCalledTimes(2)
+    } finally {
+      held.resolve('once')
+      await Promise.allSettled([first, second])
+      await paid.dispose()
+    }
+  })
+
   it('binds v2 controller consent, revocation and Best-of-N to the actual policy', async () => {
     const { paid, ask, usage, granted } = setup([], () => 0.25)
     const composition = paid.composition('/ws', 'surface')

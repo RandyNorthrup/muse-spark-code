@@ -20,6 +20,9 @@ import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { writeFileAtomically } from '../fsAtomic'
 import { storeErrorCode } from './storeErrors'
+import { nanoUsdToUsd, usdToNanoUsd } from '../../shared/usd'
+
+const ZERO_NANO_USD = 0n
 
 const JOURNAL_DIRECTORY = 'budget-journal'
 const INTENT_DIRECTORY = 'budget-intents'
@@ -190,23 +193,30 @@ function readClaim(scope: Scope, seed: Seed, claimId: string): Claim {
   }
 }
 
-function totalFor(scope: Scope): SessionBudgetTotal {
+function totalNanoFor(scope: Scope) {
   try {
     const seed = readSeed(scope)
-    let spentUsd = seed.spentUsd
+    let spentNanoUsd = usdToNanoUsd(seed.spentUsd)
     let hasUnknownHistoricalFees = seed.hasUnknownHistoricalFees
     const claimIds = readdirSync(path.join(scope.directory, CLAIMS_DIRECTORY))
     for (const claimId of claimIds) {
       const claim = readClaim(scope, seed, claimId)
-      spentUsd += claim.settledUsd ?? claim.reservedUsd
+      spentNanoUsd += usdToNanoUsd(claim.settledUsd ?? claim.reservedUsd)
       hasUnknownHistoricalFees ||=
         claim.hasUnknownCost === true ||
         (claim.isUnbounded === true && claim.settledUsd === undefined)
     }
-    assertCost(spentUsd)
-    return { spentUsd, hasUnknownHistoricalFees }
+    return { spentNanoUsd, hasUnknownHistoricalFees }
   } catch (error: unknown) {
     throw unavailable(error)
+  }
+}
+
+function totalFor(scope: Scope): SessionBudgetTotal {
+  const total = totalNanoFor(scope)
+  return {
+    spentUsd: nanoUsdToUsd(total.spentNanoUsd),
+    hasUnknownHistoricalFees: total.hasUnknownHistoricalFees,
   }
 }
 
@@ -403,20 +413,25 @@ export function createSessionBudgetJournal(
         if (claim.settledUsd !== undefined) {
           throw unavailable()
         }
-        const total = totalFor(scope)
+        const total = totalNanoFor(scope)
         if (capUsd > 0 && total.hasUnknownHistoricalFees) {
           throw new Error(UI_TEXT.sessionBudgetLegacyFeesUnknown)
         }
-        if (capUsd > 0 && total.spentUsd > capUsd) {
+        if (capUsd > 0 && total.spentNanoUsd > usdToNanoUsd(capUsd, 'down')) {
+          let previousNanoUsd = total.spentNanoUsd - usdToNanoUsd(created.reservedUsd)
+          if (previousNanoUsd < ZERO_NANO_USD) previousNanoUsd = ZERO_NANO_USD
           throw new Error(
             fill(UI_TEXT.sessionBudgetStopped, {
               estimate: formatUsd(created.reservedUsd),
               cap: formatUsd(capUsd),
-              spent: formatUsd(Math.max(0, total.spentUsd - created.reservedUsd)),
+              spent: formatUsd(nanoUsdToUsd(previousNanoUsd)),
             }),
           )
         }
-        return total
+        return {
+          spentUsd: nanoUsdToUsd(total.spentNanoUsd),
+          hasUnknownHistoricalFees: total.hasUnknownHistoricalFees,
+        }
       },
       async settle(actualCostUsd, hasUnknownCost) {
         assertCost(actualCostUsd)

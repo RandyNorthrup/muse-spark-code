@@ -19172,6 +19172,25 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**FIXM104PB / RVM104PB (2026-10-06).** Repair all four P2 findings and the
+P3 evidence error inside B's paid engines and their shared guards. One
+serialized runtime owner tracks gate/grant mutations, advances its generation
+at disposal and checks it before each subsequent write; a remembered answer
+adds only its authorized feature, never other grants from a stale snapshot.
+Cancellation releases
+unanswered confirmations while accepted store writes drain. Keep interactive
+Tab's Allow once in memory for its declared surface/window, with independent
+windows and revocation; ordinary ACP/headless consent is unchanged. Expose
+the existing Tab scheduler's pending cancellation through the engine so owner
+shutdown clears its timer and settles an unsent trigger without aborting sent
+usage. Sum and compare journal amounts as exact nano-USD through
+`src/shared/usd.ts`, conservatively rounding liability up and caps down, and
+use integer subtraction for the portable remaining budget. Correct the
+historical owned-suite subtotal to 205. Each fix gets regression failures and
+byte-exact red drills in `docs/certification/m104-pb.md`; no new dependency,
+guard widening, support promotion or live/paid call. The lane runs bounded
+rig checks; the lead retains aggregate quality and integration qualification.
+
 **FIXM104PA2 / RVM104PA2 (2026-10-06).** Consume the engine's contributed
 `ensureHost` in the real portable controller, including refusal and selected
 host delegation. Keep the existing one-time session adoption and registry/ACP
@@ -19584,6 +19603,18 @@ and are not transferred or accepted as complete by these launcher repairs.
 ---
 
 ## 7. Gates
+
+**FIXM104PB bounded review repair (2026-10-06, Kubuntu).** The lane brief
+overrides the aggregate quality/merge instructions: no full quality, full
+suite, merge, push or rebase. Use the repository's unchanged test deadlines,
+at most three named files and three workers per run, all compiler projects,
+scoped lint/format, plain Knip, duplication, localization, host API and the
+production build. B's test namespace still needs A's central discovery/lazy
+wiring; its supplemental test config adds discovery only. The existing
+generated host inventory remains F's integration responsibility. These gate
+deferrals apply only to the unshipped component lane; the lead must clear
+them and run aggregate quality before integration/support certification.
+Actual exits and unchanged size caps are recorded in `m104-pb.md`.
 
 **M104INT bounded integration (2026-10-06, macmini).** The explicit rig
 brief forbids aggregate quality and full test runs; commits use the owning
@@ -20935,6 +20966,21 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM104PB review closure (2026-10-06).** All four RVM104PB P2 findings
+  and its P3 subtotal error are repaired; no numbered review finding is
+  deferred. **M104PB-discovery** remains an inherited integration prerequisite:
+  plain Knip reports 44 files and the checkpoint factory export because A's
+  owned test/lazy discovery is absent (the new certification test adds one
+  file); supplemental discovery passes without an ignore. Safe only for the
+  unshipped component lane, whose ordinary unavailable bindings still refuse.
+  Follow-up: A wires/discovers the owned factories and suites, then runs the
+  actual gate. **M104PB-host-inventory** is F's stale generated Node import
+  inventory; the portable value/type graph passes. Safe only while the actual
+  gate continues to block aggregate certification. Follow-up: F regenerates
+  and reviews that inventory on the assembled tree. Native prompt cancellation,
+  provider/editor qualification and existing missing services remain the
+  recorded M104 prerequisites; these fixes promote no support status.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

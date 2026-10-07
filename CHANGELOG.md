@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Portable paid state serializes and drains gate/grant mutations at shutdown;
+  stale confirmations cannot enable features after their owner closes. Tab's
+  Allow once covers its window, and rate-limited unsent completions release
+  immediately on shutdown. Shared budget journals sum and compare exact
+  nano-USD, admitting an exactly affordable request without a float tolerance.
+
 - Portable controllers honor contributed host readiness and host selection
   during restore and login model warm-up, preserving session ownership fences
   and refusing late admission after release.

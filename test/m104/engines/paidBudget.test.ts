@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createRuntimePaidBudget } from '../../../src/runtime/features/paidBudget'
 import { PAID_DAILY_BUDGET, UI_TEXT } from '../../../src/shared/constants'
 import * as atomic from '../../../src/host/fsAtomic'
+import { usdToNanoUsd, nanoUsdToUsd } from '../../../src/shared/usd'
 
 const roots: string[] = []
 const budgets: ReturnType<typeof createRuntimePaidBudget>[] = []
@@ -46,6 +47,49 @@ async function setup() {
 }
 
 describe('portable hard shared daily ledger', () => {
+  it('returns exact remaining nano-USD after decimal subtraction', async () => {
+    const { budget } = await setup()
+    const claim = await budget.reserve(0.4)
+    await claim.settle(0.4)
+    expect(await budget.judgeLedger.remainingUsd()).toBe(0.1)
+  })
+
+  it('rounds fractional nano-USD liability up and a cap down without a tolerance', async () => {
+    const { budget, state } = await setup()
+    state.cap = 0.6000000001
+    const claim = await budget.reserve(0.6)
+    expect(claim.check(state.cap).spentUsd).toBe(0.6)
+    await expect(budget.reserve(0.0000000001)).rejects.toThrow()
+    const total = await budget.latestDay()
+    expect(total.spentUsd).toBe(0.6)
+    expect(usdToNanoUsd(0.000000001)).toBe(1n)
+    expect(usdToNanoUsd(0.0000000001)).toBe(1n)
+    expect(usdToNanoUsd(0.0000000001, 'down')).toBe(0n)
+    expect(nanoUsdToUsd(usdToNanoUsd(0.6))).toBe(0.6)
+    expect(() => usdToNanoUsd(Infinity)).toThrow()
+    expect(() => nanoUsdToUsd(-1n)).toThrow()
+    expect(() => nanoUsdToUsd(BigInt(Number.MAX_SAFE_INTEGER) + 1n)).toThrow()
+  })
+
+  it('admits an exactly affordable decimal total and rejects one nano-USD more', async () => {
+    const { budget, state, create } = await setup()
+    state.cap = 0.6
+    const first = await budget.reserve(0.1)
+    await first.settle(0.1)
+    const second = await budget.reserve(0.2)
+    await second.settle(0.2)
+    const subtotal = await budget.latestDay()
+    expect(subtotal.spentUsd).toBe(0.3)
+    expect(await budget.judgeLedger.remainingUsd()).toBe(0.3)
+    const other = create()
+    const exact = await other.reserve(0.3)
+    expect(exact.check(0.6).spentUsd).toBe(0.6)
+    expect(await budget.judgeLedger.remainingUsd()).toBe(0)
+    await expect(budget.reserve(0.000000001)).rejects.toThrow()
+    const total = await budget.latestDay()
+    expect(total.spentUsd).toBe(0.6)
+  })
+
   it('keeps uncertain liability across owners and only releases the verified difference', async () => {
     const { budget, create } = await setup()
     const claim = await budget.reserve(0.4)

@@ -3,7 +3,12 @@ import { createRuntimeTab } from '../../../src/runtime/features/tab'
 import type { TabEngineRequest } from '../../../src/core/tab/tabEngine'
 import { PaidUsage } from '../../../src/core/paid/paidFeatures'
 import { ModelApiClient, type ModelApiClientDeps } from '../../../src/core/backends/modelapi/client'
-import { UI_TEXT, TAB_REPLY_OPEN_TAG, TAB_REPLY_CLOSE_TAG } from '../../../src/shared/constants'
+import {
+  UI_TEXT,
+  TAB_REPLY_OPEN_TAG,
+  TAB_REPLY_CLOSE_TAG,
+  TAB_MAX_REQUESTS_PER_MINUTE,
+} from '../../../src/shared/constants'
 import {
   fakeModelApi,
   fakeModelApiClientSettings,
@@ -86,6 +91,45 @@ async function setup(apiKey?: ModelApiClientDeps['apiKey']) {
 }
 
 describe('F42 portable paid Tab', () => {
+  it('clears a rate-limited unsent trigger and finishes shutdown without advancing the clock', async () => {
+    const rig = await setup()
+    rig.tariff.mockReturnValue(0)
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    let pending: Promise<unknown> | undefined
+    let closing: Promise<void> | undefined
+    try {
+      for (let index = 0; index < TAB_MAX_REQUESTS_PER_MINUTE; index += 1) {
+        rig.api.script({ text: `${TAB_REPLY_OPEN_TAG}42${TAB_REPLY_CLOSE_TAG}` })
+        const answer = await rig.service.complete({
+          ...request,
+          prefix: `const x${String(index)} = `,
+        })
+        await answer.usage
+      }
+      expect(rig.api.responseBodies()).toHaveLength(TAB_MAX_REQUESTS_PER_MINUTE)
+      pending = rig.service.complete({ ...request, prefix: 'const queued = ' })
+      const refused = (async () => {
+        try {
+          await pending
+          return false
+        } catch {
+          return true
+        }
+      })()
+      expect(vi.getTimerCount()).toBe(1)
+      closing = rig.service.dispose()
+      expect(vi.getTimerCount()).toBe(0)
+      expect(await refused).toBe(true)
+      await closing
+      expect(rig.api.responseBodies()).toHaveLength(TAB_MAX_REQUESTS_PER_MINUTE)
+    } finally {
+      // The red drill also settles its deliberately retained timer before fixture cleanup.
+      await vi.runOnlyPendingTimersAsync()
+      await Promise.allSettled([pending, closing])
+      vi.useRealTimers()
+    }
+  })
+
   it.each(['off', 'unsupported', 'unpriced', 'deny'] as const)(
     'refuses %s before any HTTP request or paid tally',
     async (reason) => {

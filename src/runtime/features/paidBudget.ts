@@ -8,6 +8,9 @@ import type { JudgeDailyLedger } from '../../core/judge/admission'
 import { PAID_DAILY_BUDGET, UI_TEXT } from '../../shared/constants'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
+import { nanoUsdToUsd, usdToNanoUsd } from '../../shared/usd'
+
+const ZERO_NANO_USD = 0n
 
 const limitRecord = z.strictObject({
   limitUsd: z
@@ -126,7 +129,9 @@ export function createRuntimePaidBudget(
   const judgeLedger: JudgeDailyLedger = {
     remainingUsd: async () => {
       const total = await latestDay()
-      return Math.max(0, total.capUsd - total.spentUsd)
+      let remaining = usdToNanoUsd(total.capUsd, 'down') - usdToNanoUsd(total.spentUsd)
+      if (remaining < ZERO_NANO_USD) remaining = ZERO_NANO_USD
+      return nanoUsdToUsd(remaining)
     },
     reserve: async (costUsd) => {
       const claim = await reserve(costUsd)

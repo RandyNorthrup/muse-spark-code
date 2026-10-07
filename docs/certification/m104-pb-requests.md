@@ -176,7 +176,11 @@ Bind `RuntimePaidUse` from `src/runtime/features/paidUse.ts` to a real
 PaidFeatureGate, PaidUsage, paidGrantFile, live settings/defaults, stored-key and
 selected-model availability, immutable current profile and trusted workspace.
 Supply it as `RuntimeBackendDeps.interactivePaid`; root shutdown aborts/drains
-its unresolved decisions. ACP/exec ignore this injection. Contract v2 now binds ordinary controller calls through B's contributed
+its unresolved decisions and gate/grant mutations. Await that release before
+rebinding its stores, and route gate/grant writes through the contributed owner.
+For Tab, supply the declared window's stable surface ID on ordinary admissions
+and dispose the policy when that window closes; its once grant is memory only.
+ACP/exec ignore this injection. Contract v2 now binds ordinary controller calls through B's contributed
 policy with `requiresAsking: false`; the old composition-port request is
 resolved. Keep true for actual hook or protected/requiresAsking backend uses. The underlying native confirm request must also
 be cancelled by A's request owner on profile/panel release.

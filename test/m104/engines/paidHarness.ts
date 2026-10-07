@@ -1,6 +1,10 @@
 import { vi } from 'vitest'
 import { RuntimePaidUse } from '../../../src/runtime/features/paidUse'
-import { PaidFeatureGate, PaidUsage } from '../../../src/core/paid/paidFeatures'
+import {
+  PaidFeatureGate,
+  PaidUsage,
+  type PaidFeatureGateDeps,
+} from '../../../src/core/paid/paidFeatures'
 import type { PaidGrantStore, PaidUseAsker } from '../../../src/acp/paid'
 import type { RuntimePaidGrantStore } from '../../../src/runtime/paidGrants'
 import { PAID_FEATURES, UI_TEXT, type PaidFeature } from '../../../src/shared/constants'
@@ -26,6 +30,7 @@ export function enginePaidBudget(directory: string) {
 export function paidHarness(
   features: readonly PaidFeature[] = PAID_FEATURES,
   costOf?: ConstructorParameters<typeof PaidUsage>[1],
+  gateOverrides: Partial<PaidFeatureGateDeps> = {},
 ) {
   const state = { isOn: true, isAvailable: true, isCurrent: true, canRemember: true }
   const granted = new Map<string, Set<PaidFeature>>()
@@ -56,6 +61,7 @@ export function paidHarness(
     confirm: () => Promise.resolve(false),
     isWindowFocused: () => true,
     log,
+    ...gateOverrides,
   })
   const usage = new PaidUsage(log, costOf)
   const paid = new RuntimePaidUse({

@@ -108,6 +108,39 @@ afterEach(() => {
 })
 
 describe('createTabEngine', () => {
+  it('settles a cancelled waiting answer while a sent request retains its usage', async () => {
+    vi.useFakeTimers()
+    const script = scriptedStream(
+      [delta(`${TAB_REPLY_OPEN_TAG}foo()${TAB_REPLY_CLOSE_TAG}`), completed(USAGE)],
+      1,
+    )
+    const engine = createTabEngine({ stream: script.stream, onSent: vi.fn(), onUsage: vi.fn() })
+    const sent = await engine.complete(request())
+    const waiting = engine.complete(request({ isInvoke: false, absolutePath: '/ws/next.ts' }))
+    const state = { isSettled: false }
+    const dropped = (async () => {
+      const answer = await waiting
+      state.isSettled = true
+      return answer
+    })()
+    try {
+      engine.cancelPending()
+      await Promise.resolve()
+      expect(vi.getTimerCount()).toBe(1) // Only the sent request's timeout remains.
+      expect(state.isSettled).toBe(true)
+      const answer = await dropped
+      expect(answer.completion).toBeUndefined()
+      await expect(answer.usage).resolves.toEqual(ZERO)
+      expect(script.calls).toHaveLength(1)
+    } finally {
+      // Also settle the intentionally broken cancelPending red drill.
+      await engine.complete(request({ absolutePath: '/ws/cancel.ts', isCancelled: () => true }))
+      script.release()
+      await sent.usage
+      await dropped
+    }
+  })
+
   it('publishes at the closing tag while the request runs on for its usage', async () => {
     const script = scriptedStream(
       [delta(`${TAB_REPLY_OPEN_TAG}foo`), delta(`()${TAB_REPLY_CLOSE_TAG}`), completed(USAGE)],
