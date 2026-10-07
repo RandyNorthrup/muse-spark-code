@@ -28,6 +28,11 @@ export function webviewStartupOutputs(meta) {
 // Additional lazy closures have measured caps. The original optional surfaces
 // and every unclassified deferred output retain the existing 50 KiB total cap.
 export const ADDITIONAL_WEBVIEW_BUDGETS = [
+  {
+    name: 'deferred English',
+    entries: ['browser-english-deferred:table'],
+    budgetKiB: 25,
+  },
   ...[
     'SignIn',
     'GoalPanel',
@@ -82,10 +87,12 @@ export function webviewDeferredBudgetGroups(meta, questionBudgetKiB) {
   const eager = new Set(webviewStartupOutputs(meta))
   const entries = (sources) =>
     Object.entries(meta.outputs)
-      .filter(([, output]) =>
-        sources.includes(
-          output.entryPoint === undefined ? undefined : normalPath(output.entryPoint),
-        ),
+      .filter(
+        ([, output]) =>
+          sources.some((source) => Object.hasOwn(output.inputs ?? {}, source)) ||
+          sources.includes(
+            output.entryPoint === undefined ? undefined : normalPath(output.entryPoint),
+          ),
       )
       .map(([file]) => normalPath(file))
   const legacy = new Set(

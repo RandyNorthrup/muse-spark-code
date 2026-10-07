@@ -57,8 +57,10 @@ import {
   regionalUiText,
   compressedEnglish,
   compactBrowserEnglish,
+  deferredBrowserEnglish,
 } from './lib/uiTextRegions.mjs'
 import { loadL10n } from './lib/l10nSource.mjs'
+import { compactReferenceData } from './lib/reference.mjs'
 import * as esbuild from 'esbuild'
 import {
   sharedUiText,
@@ -71,6 +73,7 @@ import {
   writeWhatsNewContent,
 } from './lib/whatsNewContent.mjs'
 
+const { L10N_COMPRESSION_QUALITY } = await loadL10n(process.cwd())
 const args = new Set(process.argv.slice(2))
 const isProduction = args.has('--production')
 const isWatch = args.has('--watch')
@@ -213,6 +216,7 @@ const modelApiOptions = {
 
 const referenceOptions = {
   ...modelApiOptions,
+  plugins: [...modelApiOptions.plugins, compactReferenceData(L10N_COMPRESSION_QUALITY)],
   entryPoints: ['src/shared/reference/referenceEntry.ts'],
   outfile: 'dist/reference.js',
 }
@@ -478,7 +482,6 @@ const runtimeAccountsOptions = {
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
-const { L10N_COMPRESSION_QUALITY } = await loadL10n(process.cwd())
 /** @type {import('esbuild').BuildOptions} */
 const uiTextOptions = {
   ...common,
@@ -531,7 +534,7 @@ const pageWorkerOptions = {
 const webviewOptions = {
   ...common,
   plugins: [
-    ...(isProduction ? [compactBrowserEnglish] : []),
+    ...(isProduction ? [deferredBrowserEnglish] : []),
     {
       name: 'reference-page',
       setup(build) {
@@ -572,6 +575,7 @@ const referencePageOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const whatsNewPageOptions = {
   ...webviewOptions,
+  plugins: isProduction ? [compactBrowserEnglish] : [],
   format: 'iife',
   splitting: false,
   entryPoints: { [WHATS_NEW_PAGE_NAME]: WHATS_NEW_PAGE_ENTRY },

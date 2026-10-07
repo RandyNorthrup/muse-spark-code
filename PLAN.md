@@ -259,6 +259,22 @@ before/after sizes: `docs/certification/diet1.md`. FIXDIET1 holds startup
 at 750,942 B (733.3 KiB) and the original deferred group at 32,835 B
 (32.1 KiB), within the review baseline targets.
 
+**M108W browser English and help split (2026-10-07).** Canonical `en.ts`
+remains complete. Production chat carries core English inline and defers
+account/developer/help/ACP-headless fallback to its first optional surface.
+A generated compact validation table retains every deferred key, plural form
+and template slot before the installed table is accepted. The fallback chunk
+has a new **25 KiB** closure cap (14,325 B measured, plus 15%, rounded to
+25 KiB). Help awaits it inside the existing accessible loading/error/retry
+boundary; account/usage/developer mount owners use the same
+`loadDeferredEnglish` handshake before their first render. Independent
+pages and integration builds retain their full inline fallback. Node help's
+generated model is losslessly Brotli packed; its zod model validation and
+reference rows remain unchanged. Startup measures 750,617 B and original
+deferred JS 32,867 B, within the unchanged 733.8/32.1 KiB review baselines;
+Node help measures 45,682 B against 100 KiB. No existing cap rises.
+Certification and deliberate failure/restoration receipts: `docs/certification/m108.md`.
+
 **REL0143M (2026-10-06).** Questions retain their eager arrival and draft
 context while controls and MCP form fields use the shared local retry boundary.
 MCP forms share the unchanged 25 KiB question closure cap. Workflow details
@@ -26005,6 +26021,19 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
 
+**M108W final continuation (2026-10-07):** retain the existing startup,
+deferred and help caps. Split browser account/developer/help English into a
+first-use chunk generated from canonical `en.ts`; startup validates the same
+keys, plural forms and template slots using generated validation templates.
+Lazy surfaces await the fallback before rendering, preserve installed tables,
+and retain their existing loading/error/retry path. Pack Node help's generated
+data losslessly without changing its schema or rows. Prove complete fallback
+and translation equality, malformed-slot refusal, lazy placement and both
+unchanged size regressions with default-timeout tests and byte-exact drills.
+Record stale `media/usage.png` and `media/languages.png`, unavailable browser
+gates and their exact commands as release-lead handoffs. No captures or paid
+calls belong to this continuation.
+
 **FIXM108P2 (2026-10-06):** close RVM108P2's remaining P2 stop-recovery
 finding. Evaluate every model-eligible fallback candidate's complete blocking
 triggers and cold-cache projection before skipping a shared vendor limit;
@@ -31295,38 +31324,6 @@ before a repaired one loads (2026-09-30).
   No automatic binding transfer or invented vendor revocation is permitted.
   Follow-up: compose the callback and captured M95b revoker in the integrated
   panel/native/ACP/runtime flows, with cancellation and endpoint-change tests.
-
-- **M108W-REFERENCE-BUDGET (W).** `dist/reference.js` measures 101.8 KiB
-  against its 100 KiB cap (base 99.5 KiB on `sync/main-0170`, measured by a
-  byte-restored input swap). W removed 10 reference rows that documented
-  `--provider`/`--account` on serve/login/setup/auth-status/auth-clear,
-  which the parser refuses outside `auth set` (proven against the real
-  parser; `referenceGenerator.test.mjs` pins the refusal per route). The
-  remaining growth is gate-mandated rows only: the `accounts` feature, three
-  settings, `providers accounts`/`developer` commands and the honored
-  authSet/exec flags; every string is rendered product text and the model
-  validation is unchanged, so no cap-neutral cut remains and the cap is not
-  raised here. Safe for now: the bundle loads lazily on first help use and
-  startup stays at 737.8 KiB. Follow-up (owner decision): apply the D6 rule
-  (measured plus 15%, rounded up to 25 KiB) or split the CLI section into
-  its own lazy chunk with a budget of its own. Receipts:
-  `docs/certification/m108.md`.
-
-- **M108W-STARTUP (W).** The webview startup closure measures 755,489 B
-  against the FIXDIET1 751,411 B (733.8 KiB) regression baseline in
-  `webviewBundle.test.mjs` — about 4 KiB over. The growth is M108's
-  translated UI strings inlined in `src/shared/l10n/en.ts` (88 added keys,
-  all in all 14 tables as AGENTS.md rule 5 requires) plus small deltas to
-  already-startup files (constants, redact's extended matcher, App); the
-  closure holds no lazy-violating code (`modelsPanel`, `shared/accounts`,
-  `accountPolicy`, `thresholds` and every account surface stay out of it,
-  and the deferred aggregate still fits 32.1 KiB). Strings cannot stay lazy
-  under the current single-table/browser-inline design, so no cap-neutral
-  cut remains. Safe for now: first paint keeps none of the account
-  surfaces, and the 900 KiB startup cap still passes (737.8 KiB).
-  Follow-up (owner decision, as with FIXM112U-P3-STARTUP): waive/rebase the
-  733.8 KiB baseline for the mandated strings, or split browser English
-  into lazy per-surface tables. Receipts: `docs/certification/m108.md`.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

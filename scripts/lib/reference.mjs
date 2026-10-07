@@ -2,6 +2,7 @@
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
+import { brotliCompressSync, constants as zlibConstants } from 'node:zlib'
 import * as esbuild from 'esbuild'
 import ts from 'typescript'
 import { format, resolveConfig } from 'prettier'
@@ -1394,4 +1395,37 @@ ${schema}
     } else writeFileSync(path.join(root, file), content)
   }
   return model
+}
+
+// Node help loads on first use. Its generated model is shipped losslessly
+// packed, retaining the exact same parseReferenceModel boundary and enums.
+/** @returns {import('esbuild').Plugin} */
+export function compactReferenceData(compressionQuality) {
+  return {
+    name: 'compact-reference-data',
+    setup(build) {
+      build.onLoad({ filter: /[/\\]reference[/\\]reference\.generated\.ts$/ }, (args) => {
+        const source = readFileSync(args.path, 'utf8')
+        const start = source.indexOf('export function referenceModel(): ReferenceModel {')
+        const end = source.indexOf('const plainTextSchema =', start)
+        if (start === -1 || end === -1)
+          throw new Error('Generated reference model boundary changed')
+        const packed = brotliCompressSync(readFileSync(JSON_MODEL), {
+          params: { [zlibConstants.BROTLI_PARAM_QUALITY]: compressionQuality },
+        }).toString('base64')
+        return {
+          contents:
+            source.slice(0, start) +
+            `export function referenceModel(): ReferenceModel {
+return parseReferenceModel(JSON.parse(require('node:zlib').brotliDecompressSync(Buffer.from('${packed}','base64')).toString('utf8')))
+}
+` +
+            source.slice(end),
+          loader: 'ts',
+          resolveDir: path.dirname(args.path),
+          watchFiles: [args.path, JSON_MODEL],
+        }
+      })
+    },
+  }
 }

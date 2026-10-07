@@ -1,3 +1,4 @@
+import { loadDeferredEnglish } from '../shared/l10n/deferredEnglish'
 import { JudgeStatusLine } from './components/JudgeStatusLine'
 import {
   type ReactNode,
@@ -145,6 +146,7 @@ const ReviewPane = deferred(async () => {
   return { default: module.ReviewPane }
 }, true)
 const ReferencePage = deferred(async () => {
+  await loadDeferredEnglish()
   const stylesheet = document.createElement('link')
   stylesheet.rel = 'stylesheet'
   stylesheet.href = new URL('referencePage.css', import.meta.url).href

@@ -133,42 +133,119 @@ export function compressedEnglish(file, isProduction, compressionQuality) {
   }
 }
 
-/** The browser carries complete English in an inline native-DEFLATE payload. */
-export const compactBrowserEnglish = {
-  name: 'compact-browser-english',
-  setup(build) {
-    build.onLoad({ filter: /[/\\]l10n[/\\]en\.ts$/ }, async (args) => {
-      if (path.resolve(args.path) !== path.resolve(TABLE)) return
-      const { EN, L10N_BROWSER_COMPRESSION_LEVEL } = await loadL10n(process.cwd())
-      // DIET1: the complete fallback stays inline. Native DEFLATE decoding
-      // completes before dependent ESM modules run (Chrome 128 and later).
-      const alphabet =
-        '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+,-./:;<=>?@[]^'
-      const compressed = deflateSync(
-        JSON.stringify([Object.keys(EN).join('|'), Object.values(EN)]),
-        { level: L10N_BROWSER_COMPRESSION_LEVEL },
-      )
-      let packed = ''
-      for (let offset = 0; offset < compressed.length; offset += 4) {
-        let word = 0
-        for (let byte = 0; byte < 4; byte++) word = word * 256 + (compressed[offset + byte] ?? 0)
-        let digits = ''
-        for (let digit = 0; digit < 5; digit++) {
-          digits = alphabet[word % 85] + digits
-          word = Math.floor(word / 85)
-        }
-        packed += digits
-      }
-      const contents = `const alphabet=${JSON.stringify(alphabet)},packed=${JSON.stringify(packed)};
+// Native DEFLATE keeps browser fallback data lossless without an inflater.
+function packedBrowserTable(table, level) {
+  const alphabet =
+    '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+,-./:;<=>?@[]^'
+  const compressed = deflateSync(
+    JSON.stringify([Object.keys(table).join('|'), Object.values(table)]),
+    { level },
+  )
+  let packed = ''
+  for (let offset = 0; offset < compressed.length; offset += 4) {
+    let word = 0
+    for (let byte = 0; byte < 4; byte++) word = word * 256 + (compressed[offset + byte] ?? 0)
+    let digits = ''
+    for (let digit = 0; digit < 5; digit++) {
+      digits = alphabet[word % 85] + digits
+      word = Math.floor(word / 85)
+    }
+    packed += digits
+  }
+  return `const alphabet=${JSON.stringify(alphabet)},packed=${JSON.stringify(packed)};
 const bytes=new Uint8Array(${compressed.length});
 for(let offset=0;offset<packed.length;offset+=5){let word=0;for(let digit=0;digit<5;digit++)word=word*85+alphabet.indexOf(packed[offset+digit]);for(let byte=3;byte>=0;byte--){bytes[offset/5*4+byte]=word%256;word=Math.floor(word/256)}}
 const [keys,values]=await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'))).json();
 export const EN=Object.fromEntries(keys.split('|').map((key,index)=>[key,values[index]]));`
-      return {
-        contents,
-        loader: 'js',
-        watchFiles: [args.path, 'src/shared/constants.ts'],
-      }
-    })
-  },
 }
+
+// The five reference-card labels belong to chat; all other help text is lazy.
+const deferredKey = (key) =>
+  key === 'accounts' ||
+  key === 'developer' ||
+  UI_TEXT_REGIONS[0].keys.test(key) ||
+  (key.startsWith('reference') && !/^reference(?:Reply|Question|Comment|Remove|Title)$/.test(key))
+
+// Non-strict installed-table validation needs exactly keys, forms and slots.
+// These templates are validation data, never fallback text shown to a user.
+function validationTemplate(value) {
+  return typeof value === 'string'
+    ? value
+        .matchAll(/\{\w+\}/g)
+        .map(([slot]) => slot)
+        .toArray()
+        .join('')
+    : Object.fromEntries(
+        Object.entries(value).map(([key, entry]) => [key, validationTemplate(entry)]),
+      )
+}
+
+function browserEnglish(isDeferred) {
+  return {
+    name: isDeferred ? 'deferred-browser-english' : 'compact-browser-english',
+    setup(build) {
+      let table
+      const readTable = () => (table ??= loadL10n(process.cwd()))
+      if (isDeferred) {
+        build.onResolve({ filter: /^browser-english-deferred$/ }, () => ({
+          path: 'table',
+          namespace: 'browser-english-deferred',
+        }))
+        build.onLoad({ filter: /.*/, namespace: 'browser-english-deferred' }, async () => {
+          const { EN, L10N_BROWSER_COMPRESSION_LEVEL } = await readTable()
+          return {
+            contents: packedBrowserTable(
+              Object.fromEntries(Object.entries(EN).filter(([key]) => deferredKey(key))),
+              L10N_BROWSER_COMPRESSION_LEVEL,
+            ),
+            loader: 'js',
+            watchFiles: [TABLE, 'src/shared/constants.ts'],
+          }
+        })
+        build.onResolve({ filter: /(?:^|\/)l10n\/en$/ }, (args) =>
+          args.importer.replaceAll('\\', '/').endsWith('/src/webview/installTable.ts')
+            ? { path: 'table', namespace: 'browser-english-validation' }
+            : undefined,
+        )
+        build.onLoad({ filter: /.*/, namespace: 'browser-english-validation' }, async () => {
+          const { EN, L10N_BROWSER_COMPRESSION_LEVEL } = await readTable()
+          const templates = Object.fromEntries(
+            Object.entries(EN)
+              .filter(([key]) => deferredKey(key))
+              .map(([key, value]) => [key, validationTemplate(value)]),
+          )
+          return {
+            contents: `import { EN as fallback } from './en'; ${packedBrowserTable(templates, L10N_BROWSER_COMPRESSION_LEVEL).replace('export const EN=', 'const templates=')} export const EN=Object.defineProperties({},Object.getOwnPropertyDescriptors(fallback)); Object.defineProperties(EN,Object.getOwnPropertyDescriptors(templates));`,
+            loader: 'js',
+            resolveDir: path.resolve('src/shared/l10n'),
+            watchFiles: [TABLE],
+          }
+        })
+      }
+      build.onLoad({ filter: /[/\\]l10n[/\\]en\.ts$/ }, async (args) => {
+        if (path.resolve(args.path) !== path.resolve(TABLE)) return
+        const { EN, L10N_BROWSER_COMPRESSION_LEVEL } = await readTable()
+        const core = isDeferred
+          ? Object.fromEntries(Object.entries(EN).filter(([key]) => !deferredKey(key)))
+          : EN
+        let contents = packedBrowserTable(core, L10N_BROWSER_COMPRESSION_LEVEL)
+        if (isDeferred) {
+          const keys = Object.keys(EN).filter((key) => deferredKey(key))
+          contents += `
+let deferred, pending;
+Object.defineProperty(EN,'loadDeferred',{value:async()=>{
+  if(!pending)pending=import('browser-english-deferred').then(module=>{deferred=module.EN},error=>{pending=undefined;throw error});
+  await pending;
+}});
+for(const key of ${JSON.stringify(keys)})Object.defineProperty(EN,key,{enumerable:true,configurable:true,get(){if(!deferred)throw new Error('Deferred English has not loaded');return deferred[key]}});`
+        }
+        return { contents, loader: 'js', watchFiles: [args.path, 'src/shared/constants.ts'] }
+      })
+    },
+  }
+}
+
+/** Complete inline fallback for independent pages and integration fixtures. */
+export const compactBrowserEnglish = browserEnglish(false)
+/** Chat loads account/developer/help fallback only at its first lazy surface. */
+export const deferredBrowserEnglish = browserEnglish(true)

@@ -24,6 +24,14 @@ happened, not what was planned; superseded entries are kept.
   [policy record](docs/certification/m108-policy.md) lists each provider's
   account terms with dated quotes; see `docs/certification/m108.md`.
 
+### Fixed
+
+- Account, developer and help English load with their optional surfaces,
+  keeping chat startup and the original deferred group within their
+  existing size baselines. Translated tables still validate every key,
+  plural form and template slot before installation. Generated help data
+  is packed losslessly under its unchanged bundle cap.
+
 ### Documentation
 
 - A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists

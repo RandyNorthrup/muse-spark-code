@@ -52,8 +52,10 @@ them, the milestone plan, and the certification checklist.
    - **Node bundles share English fallback** (`dist/uiText.js` and its generated
      runtime/hooks/surfaces regions, PLAN.md D6).
      Each bundle keeps its own installed-language state; lazy factories install
-     the caller's table before use. Browser and integration-test bundles keep
-     their inline fallback.
+     the caller's table before use. Production chat splits optional account/developer/help/runtime English
+     behind `loadDeferredEnglish`; its generated validation templates preserve
+     the complete shape and slots. Independent browser pages and integration
+     bundles keep their inline fallback.
    - **Adding or changing a key** means every table in `l10n/` gets it too,
      or `npm run check:l10n` fails.
    - **New UI surfaces ship lazily**, on first use, with accessible loading,
