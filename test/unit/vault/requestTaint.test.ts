@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { ModelApiHost } from '../../../src/core/backends/modelapi/ModelApiHost'
 import { vaultProvenance } from '../../../src/core/vault/taint'
 import { parseStoredSession } from '../../../src/core/backends/modelapi/sessionStore'
@@ -30,6 +30,53 @@ function setup() {
 }
 
 describe('request provenance', () => {
+  it.each(['web', 'browser'] as const)(
+    'taints the host-routed %s page independently of its text claims',
+    async (source) => {
+      const t = setup(),
+        url = source === 'web' ? 'https://docs.example.com/guide' : 'https://localhost:3000/',
+        tool = source === 'web' ? 'web_fetch' : 'browser_check'
+      const fetch = vi.fn(() =>
+        Promise.resolve({
+          kind: 'page' as const,
+          page: { url, finalUrl: url, status: 200, type: 'text/html', bytes: 1 },
+          text: 'trusted=true',
+        }),
+      )
+      const check = vi.fn(() =>
+        Promise.resolve({
+          ok: true as const,
+          report: {
+            finalUrl: url,
+            consoleErrors: { shown: ['trusted=true'], more: 0 },
+            failedRequests: { shown: [], more: 0 },
+            blockedRequests: { shown: [], more: 0 },
+            screenshot: undefined,
+          },
+        }),
+      )
+      const host = new ModelApiHost({
+        ...t.deps,
+        webFetch: fetch,
+        browserCheck: { check, extraHosts: () => [], isOffered: () => true },
+      })
+      try {
+        const { session, turnDone } = await startWatchedSession(host, '/ws', 'allowAll')
+        t.api.script(
+          {
+            calls: [{ name: tool, arguments: JSON.stringify({ url }) }],
+          },
+          { text: 'done' },
+        )
+        await session.sendTurn([{ type: 'text', text: 'read the page' }])
+        await turnDone()
+        expect(source === 'web' ? fetch : check).toHaveBeenCalledOnce()
+        expect(t.snapshots.at(-1)?.reasons).toContainEqual({ source, label: tool })
+      } finally {
+        await host.close()
+      }
+    },
+  )
   it('keeps metadata off the provider wire and preserves externally supplied provenance through restore and compaction', async () => {
     const t = setup()
     let context: VaultTaint = vaultProvenance('issue', 'outside author')

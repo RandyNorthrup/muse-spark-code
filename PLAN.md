@@ -21016,6 +21016,21 @@ only, no dependencies or live calls. Certification: `docs/certification/m109-b.m
 
 ## 7. Gates
 
+**M109 lane T (2026-10-06, Mac mini).** Targeted default-timeout tests and
+byte-exact red drills certify the provenance engine and injected scrub
+boundaries; the lead owns aggregate quality and joined-tree binding. The
+host API gate reports inventory drift: `node:buffer` 39 → 40 from T, plus
+the six B/base totals (`child_process` 13 → 14, `crypto` 46 → 53, `fs` 33 → 36,
+`fs/promises` 47 → 49, `net` 7 → 10, `path` 84 → 89). The record is W-owned;
+`T-W-host-api` defers its regeneration/review to the joined source without
+weakening the gate. Performance initially measured 36.24 MB/s; two attempted
+fixes measured 39.80 and 32.70, then the path stopped under the shared rule.
+Later restored-source runs pass the unchanged 50 MB/s guard. Preserve that
+variability for the integrated rig check; no floor, timeout or cap is raised
+or lowered. B/host/X binding, absent M96/M102 owners and the unsafe opaque CLI
+log writer remain named handoffs, not implemented substitutes. Final evidence:
+`docs/certification/m109-t-taint-and-scrub.md` and `m109-t-drills.json`.
+
 **FIXM109B6 / RVM109B5 (2026-10-06, Mac mini).** Both findings are fixed;
 no review residual is accepted. Final restored-source verification passes all
 335 tests in all 19 vault files with default timeouts, at most three files and

@@ -35,6 +35,20 @@
 
 import { REDACTED_MARK } from './constants'
 
+/** T's broker-backed service. Hosts inject it at each outgoing/storage boundary. */
+export interface SecretScrubPort {
+  scrub(text: string): Promise<string>
+}
+
+/** Scrub exact vault values before patterns; service failures never fall back to delivery. */
+export async function scrubSecrets(
+  text: string,
+  service?: SecretScrubPort,
+  literals: readonly string[] = [],
+): Promise<string> {
+  return redactSecrets(service === undefined ? text : await service.scrub(text), literals)
+}
+
 /** The mark alone, in place of the whole match. */
 function mark(): string {
   return REDACTED_MARK
