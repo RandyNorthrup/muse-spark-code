@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TodoItem } from '../../src/shared/agentEvents'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../../src/shared/protocol'
@@ -12,6 +12,9 @@ import { createUiStore, listenToHost, persistStore } from '../../src/webview/sta
 import { initialUiState } from '../../src/webview/state/uiState'
 import { installSurfaceRetry, retrySurface } from '../../src/webview/surfaceRetry'
 import { testSettings } from './helpers/fakes'
+import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
+
+beforeAll(warmDeferredSurfaces)
 
 // M25 (PLAN.md D28): the UI state lives outside React, keeps reducing under
 // the crash screen, and comes back after its Reload.

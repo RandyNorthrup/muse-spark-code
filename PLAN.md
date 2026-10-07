@@ -13475,6 +13475,25 @@ explicit paths. No push, rebase, additional merge, paid/live call or gate change
 The rig brief and common.md prohibit aggregate quality/full-unit runs; the lead
 owns full quality and hosted cross-platform certification after this handoff.
 
+### TESTWARM — Warm deferred surfaces before behavior tests (2026-10-06)
+
+Add one test-only helper that imports every deferred webview surface before
+behavior suites run. Check its import set against the webview source so a new
+deferred import cannot silently miss warm-up. Keep dedicated loading/failure
+tests cold, production code unchanged, and hook/test/findBy timeouts at their
+repository defaults. Measure cold baseline and three cold runs of every owning
+suite directly on the Windows 11 rig, in batches of at most three files. Prove
+the drift check fails after an unlisted deferred import and restore exact bytes.
+Record receipts in `docs/certification/testwarm.md` and the test infrastructure
+fix in the changelog. Commit locally with hooks; no merge, push or model call.
+
+Completed: all 17 owning behavior suites pass three cold Windows rounds,
+407 assertions per round (1,221 passes) at repository-default timeouts. The
+source-derived warm-up guard fails on an unlisted deferred import and restores
+SHA-256-exact source; dedicated lazy loading/failure tests remain cold and pass.
+Compiler projects, scoped lint/format, Knip, duplication, localization, host API,
+reference and production build pass. Evidence: `docs/certification/testwarm.md`.
+
 ### REL0143F — Repair release PR #129 CI failures (2026-10-06)
 
 Continue `release/0.14.3` at `4122e1155` without another merge or push.
@@ -30223,6 +30242,13 @@ aggregate certification record.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
 ## 7. Gates
+
+**TESTWARM bounded-lane certification (2026-10-06).** The rig/shared brief
+forbids aggregate quality and full-suite runs. Collect owning suites with default
+timeouts, the drift drill, scoped lint/format, five compiler projects, plain
+Knip, duplication, localization, host API and production build on this rig.
+Integrated full quality, coverage and hosted cross-platform checks remain with
+the lead; no gate, timeout or budget is weakened.
 
 **FIXM112Q bounded-lane certification (2026-10-06).** The rig/shared brief
 forbids aggregate quality and full-suite runs; full integrated quality remains

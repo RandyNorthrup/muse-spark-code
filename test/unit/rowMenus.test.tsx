@@ -3,6 +3,9 @@ import { fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import { renderTranscript, selectPassage, tool, warmRowMenus } from './helpers/transcriptFixtures'
+import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
+
+beforeAll(warmDeferredSurfaces)
 
 beforeAll(warmRowMenus)
 
