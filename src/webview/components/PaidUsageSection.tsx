@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import {
   PAID_PRICES_VERIFIED_ON,
   TAB_DAILY_BUDGET_DEFAULT_USD,
@@ -26,12 +27,15 @@ export function JudgeUsageRows({ snapshot }: { readonly snapshot: JudgePanelSnap
       <p className="usage-row-meta" role="status">
         {judgePanelStatusText(snapshot)}
       </p>
+      {snapshot.untested && snapshot.reason !== 'source-untested' ? (
+        <p className="usage-row-meta">{UI_TEXT.judgeSourceUntested}</p>
+      ) : null}
       <dl className="usage-facts">
         {rows.map((row) => (
-          <div key={row.term}>
+          <Fragment key={row.term}>
             <dt>{row.term}</dt>
             <dd dir="auto">{row.detail}</dd>
-          </div>
+          </Fragment>
         ))}
       </dl>
       {snapshot.showSubscriptionNote ? (

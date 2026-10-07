@@ -8,7 +8,11 @@ import {
   JUDGE_SOURCES,
   JUDGE_TECHNIQUES,
 } from '../../src/core/judge/schema'
-import { UI_TEXT } from '../../src/shared/constants'
+import {
+  MODEL_API_PRICE_DECIMALS,
+  PROVIDER_PRICE_MAX_DECIMALS,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import {
   JUDGE_PANEL_LABELS,
   JUDGE_PANEL_REASONS,
@@ -389,10 +393,14 @@ describe('judge panel projection', () => {
     expect(zero?.detail).toBe(judgePanelMoney(0))
   })
 
-  it('formats amounts under one cent with six digits and drops a negative amount', () => {
-    expect(judgePanelMoney(0.000012)).toBe(formatUsd(0.000012, 6))
+  it('formats amounts at the paid exact scale and drops a negative amount', () => {
+    expect(judgePanelMoney(0.000012)).toBe(
+      formatUsd(0.000012, MODEL_API_PRICE_DECIMALS, PROVIDER_PRICE_MAX_DECIMALS),
+    )
     expect(judgePanelMoney(0.000012)).not.toBe(formatUsd(0.000012, 2))
-    expect(judgePanelMoney(1.5)).toBe(formatUsd(1.5, 2))
+    expect(judgePanelMoney(1.5)).toBe(
+      formatUsd(1.5, MODEL_API_PRICE_DECIMALS, PROVIDER_PRICE_MAX_DECIMALS),
+    )
     const snapshot = projectJudgePanel(modelApiFacts({ reservedUsd: 0.000012 }))
     const reserved = judgePanelRows(snapshot).find(
       (row) => row.term === UI_TEXT.judgePanel.reserved,
@@ -451,6 +459,60 @@ describe('judge panel projection', () => {
     const cleared = uiReducer(shown, { type: 'conversationCleared' })
     expect(cleared.judgeUsage).toEqual(usage)
     expect(cleared.judge).toBeUndefined()
+  })
+
+  it('shows an exact small price without rounding to two digits', () => {
+    expect(judgePanelMoney(0.042)).toBe(
+      formatUsd(0.042, MODEL_API_PRICE_DECIMALS, PROVIDER_PRICE_MAX_DECIMALS),
+    )
+    expect(judgePanelMoney(0.042)).toContain('0.042')
+    expect(judgePanelMoney(0.015)).toBe(
+      formatUsd(0.015, MODEL_API_PRICE_DECIMALS, PROVIDER_PRICE_MAX_DECIMALS),
+    )
+    const tiny = judgePanelMoney(0.0000001)
+    expect(tiny).toBe(formatUsd(0.0000001, MODEL_API_PRICE_DECIMALS, PROVIDER_PRICE_MAX_DECIMALS))
+    expect(tiny).not.toBe(judgePanelMoney(0))
+    const snapshot = projectJudgePanel(modelApiFacts({ inputPerMillion: 0.042 }))
+    const price = judgePanelRows(snapshot).find((row) => row.term === UI_TEXT.judgePanel.price)
+    expect(price?.detail).toContain('0.042')
+  })
+
+  it('keeps a verified local System One source in a confidential workspace', () => {
+    const snapshot = projectJudgePanel(
+      judgeFacts({
+        providerId: 'ollama',
+        modelId: 'tev1:4b',
+        engine: 'separate',
+        effectiveSource: 'separate',
+        technique: 'systemone',
+        capability: judgeCapability({ providerId: 'ollama', model: 'tev1:4b', systemone: true }),
+        locality: 'verified',
+        confidential: true,
+        billing: 'free',
+        consent: 'not-required',
+      }),
+    )
+    expect(snapshot.effectiveSource).toBe('separate')
+    expect(snapshot.technique).toBe('systemone')
+    expect(snapshot.reason).toBeUndefined()
+  })
+
+  it('labels a paid source on a subscription backend as paid after consent', () => {
+    const snapshot = projectJudgePanel(
+      judgeFacts({
+        billing: 'subscription',
+        paidSourceSelected: true,
+        consent: 'granted',
+        reason: undefined,
+        inputPerMillion: 1,
+        outputPerMillion: 4,
+        dailyBudgetUsd: 2,
+      }),
+    )
+    expect(judgePanelStatusText(snapshot)).toBe(UI_TEXT.judgeStatusPaid)
+    expect(judgePanelStatusText(snapshot)).not.toBe(UI_TEXT.judgeStatusSubscription)
+    const price = judgePanelRows(snapshot).find((row) => row.term === UI_TEXT.judgePanel.price)
+    expect(price?.detail).toContain(judgePanelMoney(1))
   })
 
   it('stays out of the core and the editor API', () => {

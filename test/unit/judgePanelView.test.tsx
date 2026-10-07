@@ -234,6 +234,42 @@ describe('judge panel view', () => {
     expect(screen.getAllByText(UI_TEXT.judgeSubscriptionNotice).length).toBeGreaterThan(0)
     expect(screen.queryByRole('button', { name: UI_TEXT.judgePanel.askOnce })).toBeNull()
   })
+
+  it('keeps the experimental warning in Account & usage beside another status', () => {
+    for (const reason of ['consent-needed', 'engine-failure'] as const) {
+      const snapshot = projectJudgePanel(
+        modelApiFacts({
+          engine: 'separate',
+          effectiveSource: 'separate',
+          experimental: true,
+          reason,
+        }),
+      )
+      expect(snapshot.untested).toBe(true)
+      const { unmount } = render(<JudgeUsageRows snapshot={snapshot} />)
+      expect(screen.getByText(UI_TEXT.judgeSourceUntested)).toBeInTheDocument()
+      expect(screen.getByText(judgePanelStatusText(snapshot))).toBeInTheDocument()
+      unmount()
+    }
+  })
+
+  it('renders usage facts as direct definition terms at 320px', () => {
+    const snapshot = projectJudgePanel(modelApiFacts())
+    const { container, unmount } = render(
+      <div style={{ width: '320px' }}>
+        <JudgeUsageRows snapshot={snapshot} />
+      </div>,
+    )
+    const facts = container.querySelector('dl.usage-facts')
+    if (facts === null) {
+      throw new Error('missing usage facts')
+    }
+    expect(facts.querySelector(':scope > div')).toBeNull()
+    const terms = facts.querySelectorAll(':scope > dt')
+    expect(terms.length).toBeGreaterThan(0)
+    expect(facts.querySelectorAll(':scope > dd')).toHaveLength(terms.length)
+    unmount()
+  })
 })
 
 function navRule(): string {

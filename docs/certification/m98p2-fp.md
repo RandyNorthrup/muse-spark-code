@@ -13,7 +13,9 @@ shows the effective source and model, the technique, calibration, a
 partial distribution, and the price. A paid source shows reserved,
 settled and uncertain amounts and the shared daily budget. An absent
 paid amount says "Not known". A negative amount is omitted. A non-finite
-amount rejects the report. Amounts under one cent keep six fraction digits.
+amount rejects the report. Amounts print at the paid exact scale (three
+decimals out to twenty significant digits, as provider prices), so a
+positive price or liability never rounds to zero: $0.042 shows as $0.042.
 
 The technique is shown only when the capability record of that same
 provider and model can honour it. The provider name does not choose a
@@ -22,7 +24,8 @@ budget. Top-1 is labelled approximate. Sampling needs cache and no forced
 reasoning. Cascade needs effective source `both`. Embedding needs the
 embedding flag. An experimental `auto` route and an unverified local
 `auto` route show no source. Confidential work refuses an unverified
-endpoint and a System One source that is not the same model, and does
+endpoint and a System One source that is neither the same model nor
+verified local inference, and does
 not ask. Engine `off` clears the technique and does not ask.
 
 A Model API first charge asks once: opening or refreshing the panel
@@ -32,9 +35,13 @@ read reports the grant, a second message does not call again. Muse Code
 with no paid source shows `judgeSubscriptionNotice` and does not ask.
 Selecting a paid source on Muse Code does ask. A free local source does
 not. A paid identity that no longer matches the stored grant asks again.
-An unpriced paid source is labelled unpriced and is not sent.
+An unpriced paid source is labelled unpriced and is not sent. A paid
+source selected on Muse Code reads Paid with its price after consent;
+subscription-only still reads Subscription.
 
-Account & usage renders the same rows from `judgeUsage`. Clearing the
+Account & usage renders the same rows from `judgeUsage`, as direct
+`dt`/`dd` children of the facts list so the narrow grid holds, with the
+experimental warning beside any other status. Clearing the
 conversation does not clear that window snapshot. The chat host does
 not post `judgeUsage` yet; that call site is requested from Z.
 
@@ -95,3 +102,67 @@ The snapshot is host-neutral JSON on the existing postMessage bridge.
 Any editor that renders the shared models webview gets the section.
 ACP and the headless runtime have no Models panel; a host can post the
 same `judgeUsage` message. The projector does not call VS Code.
+
+## F/P review fixes (2026-10-07, macbook, lane FIXM98P2FP)
+
+The independent `RVM98P2FP` review found five P2s against `92ca65235`.
+Each fix below carries a regression test that was run on the base first
+and failed there (5 failed, 25 passed across the two owning files), then
+passed after the fix. That base run is the gate-fire record: no drill
+broke anything on purpose beyond it, and every touched file was restored
+by the fix itself, not by revert.
+
+1. Exact dollars (`src/shared/judgePanel.ts`, `judgePanelMoney`). Money
+   now prints at the paid view's exact provider-price scale
+   (`MODEL_API_PRICE_DECIMALS`, `PROVIDER_PRICE_MAX_DECIMALS`): $0.042
+   shows as $0.042, $0.015 exact, $0.0000001 never rounds to zero. The
+   formatter is not imported from the paid module because that module
+   reads `src/core`, which this file must not. Test: "shows an exact small
+   price without rounding to two digits".
+2. Verified local source in confidential mode (`projectJudgePanel`). The
+   System One refusal now also requires `locality !== 'verified'`, so a
+   verified local separate source (`ollama/tev1:4b`) is kept while remote
+   and unverified endpoints stay refused; same-model behaviour is
+   unchanged. Locality decides. Test: "keeps a verified local System One
+   source in a confidential workspace".
+3. Billing label (`judgePanelStatusText`). A paid source selected on a
+   subscription backend now reads Paid, with its price rows, after
+   consent; subscription-only still reads Subscription. Test: "labels a
+   paid source on a subscription backend as paid after consent".
+4. Experimental warning (`JudgeUsageRows`). Renders `judgeSourceUntested`
+   whenever `untested` holds and the status line does not already say it
+   (the same condition as the Models `JudgeSection`), so the warning
+   survives `consent-needed` and `engine-failure`. Test: "keeps the
+   experimental warning in Account & usage beside another status".
+5. Usage facts grid (`JudgeUsageRows`). Rows render as direct `dt`/`dd`
+   children of the `dl` (keyed fragments, as `PaidRow` already does)
+   instead of `div` wrappers, restoring the `max-content 1fr` grid the
+   CSS selects on. Test: "renders usage facts as direct definition terms
+   at 320px".
+
+Fix checks (default timeouts, `--maxWorkers=3`): `judgePanel.test.ts`
+22 passed, `judgePanelView.test.tsx` 8 passed, `judgePanelHost` /
+`judgeSharedBudget` / `judgeTransport` 19 passed, `judgeUsage` /
+`modelsSections` / `judgeConsent` 16 passed. `npm run typecheck`: all
+five projects passed. Full `npm run lint` and Prettier on the touched
+files: passed. Plain `npx knip`: exit 0. `npm run duplication` still
+reports 0.10% over the 0.0% threshold, and fails identically on the
+unmodified base commit, so the failure is pre-existing; none of the
+reported clones is in the touched files. `npm run build`: exit 0, caps
+unchanged (models body 67.2/75 KiB, models 326.4/500, modelsPanel
+97.0/125, uiText 76.8/125). `webviewBundle.test.mjs` fails its chat
+startup baseline (761611 vs 751411.2 bytes) identically on a clean
+`92ca65235` build (761543 there; the delta from this lane is 68 bytes),
+so that overage is pre-existing and not a lane regression.
+`node scripts/check-l10n.mjs`: 14 UI tables,
+14 usage tables, 190 manifest strings, 962 source files, 0 problems.
+
+Browser receipt: the scripted harness (`harness-shots.mjs`, `usage-*.mjs`)
+needs a loopback listener and a Chrome child process, and this rig's
+sandbox denies `listen(2)` with EPERM and aborts headless Chrome with
+SIGABRT, so no scripted shot or live geometry run was possible here. In
+its place: the real `JudgeUsageRows` output was server-rendered from the
+unchanged components (esbuild SSR) and embedded in a static 320px page per
+captured theme for inspection; the jsdom four-theme axe/status tests pass;
+and the structural regression test asserts the direct `dt`/`dd` children
+the grid CSS selects on. No live or paid call was made; fakes only.

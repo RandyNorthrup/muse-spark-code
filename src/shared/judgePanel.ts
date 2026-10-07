@@ -7,7 +7,7 @@
 // No `vscode`, Node or DOM import: the chat protocol and the panel share it.
 
 import * as z from 'zod/mini'
-import { UI_TEXT } from './constants'
+import { MODEL_API_PRICE_DECIMALS, PROVIDER_PRICE_MAX_DECIMALS, UI_TEXT } from './constants'
 import { fill, formatUsd } from './l10n/text'
 
 export const JUDGE_PANEL_ENGINES = ['auto', 'same', 'separate', 'both', 'off'] as const
@@ -288,7 +288,15 @@ export function projectJudgePanel(facts: JudgePanelFacts): JudgePanelSnapshot {
     reason = 'confidential-refused'
     isUnverifiedLocal = true
   }
-  if (input.confidential && input.technique === 'systemone' && input.effectiveSource !== 'same') {
+  // A confidential workspace refuses a System One source everywhere except
+  // where the text already lives: the same model, or verified local
+  // inference. Locality decides; remote and unverified endpoints stay refused.
+  if (
+    input.confidential &&
+    input.technique === 'systemone' &&
+    input.effectiveSource !== 'same' &&
+    input.locality !== 'verified'
+  ) {
     source = 'none'
     technique = undefined
     reason = 'confidential-refused'
@@ -384,13 +392,14 @@ export function unavailableJudgePanel(): JudgePanelSnapshot {
   })
 }
 
-const SMALL_COST_USD = 0.01
-const SMALL_COST_DIGITS = 6
-const COST_DIGITS = 2
-
-/** Exact dollars. Amounts under one cent keep six digits so they do not become zero. */
+/**
+ * Exact dollars. The paid view quotes provider prices at the same scale
+ * (three decimals out to twenty significant digits), so a positive price or
+ * liability is never rounded to zero and no significant digit is dropped:
+ * $0.042 per million shows as $0.042.
+ */
 export function judgePanelMoney(amount: number): string {
-  return formatUsd(amount, amount > 0 && amount < SMALL_COST_USD ? SMALL_COST_DIGITS : COST_DIGITS)
+  return formatUsd(amount, MODEL_API_PRICE_DECIMALS, PROVIDER_PRICE_MAX_DECIMALS)
 }
 
 export interface JudgePanelRow {
@@ -499,10 +508,12 @@ export function judgePanelStatusText(snapshot: JudgePanelSnapshot): string {
       return UI_TEXT.judgeSourceUntested
     }
     case undefined: {
-      if (snapshot.billing === 'subscription') {
+      // A paid source selected on a subscription backend is billed, not
+      // covered: it reads Paid, with its price in the rows below.
+      if (snapshot.billing === 'subscription' && !snapshot.paidSourceSelected) {
         return UI_TEXT.judgeStatusSubscription
       }
-      if (snapshot.billing === 'modelApi') {
+      if (snapshot.billing === 'modelApi' || snapshot.paidSourceSelected) {
         return UI_TEXT.judgeStatusPaid
       }
       return snapshot.billing === 'free' ? UI_TEXT.judgePanel.freeLocal : UI_TEXT.paidJudgeName
