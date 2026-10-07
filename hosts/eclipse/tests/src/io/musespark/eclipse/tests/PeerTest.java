@@ -140,6 +140,26 @@ public class PeerTest {
             peer.start(); runtime.write(body); runtime.flush(); assertTrue(rejected.await(2, TimeUnit.SECONDS)); assertThrows(ExecutionException.class, () -> peer.initialized().get(2, TimeUnit.SECONDS));
         } finally { runtime.close(); }
     }
+    @Test public void unhandledServiceMethodsKeepTheirTypedCapabilityRefusal() throws Exception {
+        Host host = new Host() {
+            @Override public JsonElement request(String method, JsonObject params, java.util.function.BooleanSupplier cancelled) { throw new IllegalArgumentException("MHP_CAPABILITY_UNAVAILABLE"); }
+        };
+        JsonObject offered = Json.object("host", Json.object("id", "eclipse", "version", "4.38"), "protocolRange", Json.object("minimum", "mhp/1.3.0", "maximumExclusive", "mhp/1.4.0"), "capabilities", new String[] {"lifecycle", "ui"}, "locale", "en", "theme", Json.object("kind", "dark", "tokens", new JsonObject()), "folders", new JsonArray(), "trusted", false);
+        PipedInputStream input = new PipedInputStream(); PipedOutputStream runtime = new PipedOutputStream(input); ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try (MhpPeer peer = new MhpPeer(new Contract(), input, output, host, code -> fail(code))) {
+            peer.initialize(offered);
+            peer.accept(initialResult("mhp/1.3.0", initialize().get("capabilities")).toString());
+            peer.initialized().get(2, TimeUnit.SECONDS);
+            peer.start();
+            peer.accept(Json.object("jsonrpc", "2.0", "id", "runtime-1", "method", "ui/openFile", "params", Json.object("title", "fixture")).toString());
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+            while (!output.toString(java.nio.charset.StandardCharsets.UTF_8).contains("runtime-1") && System.nanoTime() < deadline) Thread.onSpinWait();
+            String replies = output.toString(java.nio.charset.StandardCharsets.UTF_8);
+            assertTrue(replies, replies.contains("\"code\":-32002") && replies.contains("MHP_CAPABILITY_UNAVAILABLE"));
+            assertFalse(replies, replies.contains("MHP_INTERNAL_ERROR"));
+            runtime.close();
+        } finally { runtime.close(); }
+    }
     @Test public void legacyNegotiationRefusesCarrier() throws Exception {
         try (MhpPeer peer = new MhpPeer(new Contract(), new ByteArrayInputStream(new byte[0]), new ByteArrayOutputStream(), new Host(), code -> fail(code))) {
             peer.initialize(initialize());

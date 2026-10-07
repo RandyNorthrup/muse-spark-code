@@ -4,7 +4,10 @@ import static org.junit.Assert.*;
 import com.google.gson.*;
 import io.musespark.eclipse.*;
 import java.nio.file.*;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.*;
 import org.eclipse.ui.PlatformUI;
@@ -52,6 +55,62 @@ public class NativeUiTest {
         Display.getDefault().timerExec(20, session::close);
         failure = assertThrows(IllegalArgumentException.class, () -> session.ui.request("ui/confirm", prompt(), () -> false));
         assertEquals("MHP_CLOSED", failure.getMessage());
+    }
+    private static final class FakeFiles extends NativeUi {
+        private final String[] chosen;
+        FakeFiles(WindowSession owner, String[] chosen) { super(owner); this.chosen = chosen; }
+        protected String[] chooseFile(int style, String title, String fileName) { return chosen; }
+    }
+    @Test public void fileRequestsMapNativeChoicesToMhpResults() throws Exception {
+        Path selection = Files.createTempFile("m104-pick-", ".md");
+        try {
+            JsonElement picked = new FakeFiles(session, new String[] {selection.getParent().toString(), selection.getFileName().toString()}).request("ui/openFile", Json.object("title", "fixture"), () -> false);
+            assertEquals(selection.toUri().toASCIIString(), picked.getAsString());
+            assertTrue(new FakeFiles(session, null).request("ui/openFile", Json.object("title", "fixture"), () -> false).isJsonNull());
+            Files.deleteIfExists(selection);
+            JsonElement saved = new FakeFiles(session, new String[] {selection.getParent().toString(), selection.getFileName().toString()}).request("ui/saveText", Json.object("title", "fixture", "suggestedName", "fixture.md", "text", "saved fixture"), () -> false);
+            assertEquals(new JsonPrimitive(true), saved);
+            assertEquals("saved fixture", Files.readString(selection));
+            assertEquals(new JsonPrimitive(false), new FakeFiles(session, null).request("ui/saveText", Json.object("title", "fixture", "suggestedName", "fixture.md", "text", "saved fixture"), () -> false));
+        } finally { Files.deleteIfExists(selection); }
+    }
+    @Test public void settingRequestsOpenTheNativePreferences() throws Exception {
+        Display display = Display.getDefault();
+        Set<Shell> before = new HashSet<>(Arrays.asList(display.getShells()));
+        AtomicBoolean closed = new AtomicBoolean(); AtomicInteger polls = new AtomicInteger();
+        Runnable closer = new Runnable() {
+            @Override public void run() {
+                for (Shell shell : display.getShells()) if (!before.contains(shell) && !shell.isDisposed()) { closed.set(true); shell.close(); }
+                if (!closed.get() && polls.incrementAndGet() < 50) display.timerExec(100, this);
+            }
+        };
+        display.timerExec(100, closer);
+        assertTrue(session.uiRequest("ui/showSetting", Json.object("key", "museSpark.showWhatsNewOnUpdate")).isJsonNull());
+        assertTrue("the native preferences dialog must open", closed.get());
+        while (display.readAndDispatch()) { }
+    }
+    @Test public void runtimeHtmlLoadsIntoTheOwnedSurfaceOnly() throws Exception {
+        String id = session.uiRequest("surfaces/open", Json.object("kind", "chat", "placement", "side", "sessionId", "fixture")).getAsJsonObject().get("surfaceId").getAsString();
+        String html = "<!DOCTYPE html><html><head></head><body><p id=\"presented\">runtime fixture</p></body></html>";
+        session.uiRequest("surfaces/presentHtml", Json.object("surfaceId", id, "sessionId", "fixture", "html", html));
+        MuseView view = null;
+        for (var reference : session.window.getActivePage().getViewReferences()) if (reference.getView(false) instanceof MuseView candidate && candidate.binding().id.equals(id)) view = candidate;
+        assertNotNull(view);
+        java.lang.reflect.Field browserField = MuseView.class.getDeclaredField("browser"); browserField.setAccessible(true);
+        org.eclipse.swt.browser.Browser browser = (org.eclipse.swt.browser.Browser) browserField.get(view);
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        Object text = null;
+        while (System.nanoTime() < deadline) {
+            while (Display.getDefault().readAndDispatch()) { }
+            try { text = browser.evaluate("return document.getElementById('presented') && document.getElementById('presented').textContent;"); if ("runtime fixture".equals(text)) break; }
+            catch (RuntimeException ex) { }
+            Thread.sleep(50);
+        }
+        assertEquals("runtime fixture", text);
+        String stale = id;
+        assertEquals("MHP_PANEL_UNKNOWN_SURFACE", assertThrows(IllegalArgumentException.class, () -> session.uiRequest("surfaces/presentHtml", Json.object("surfaceId", stale, "sessionId", "another", "html", html))).getMessage());
+        assertEquals("MHP_PANEL_UNKNOWN_SURFACE", assertThrows(IllegalArgumentException.class, () -> session.uiRequest("surfaces/presentHtml", Json.object("surfaceId", "missing", "sessionId", "fixture", "html", html))).getMessage());
+        session.uiRequest("surfaces/close", Json.object("surfaceId", id));
     }
     @Test public void nativeClipboardAndRegisteredCommandAreOwnedByTheWindow() throws Exception {
         for (String kind : new String[] {"models", "traffic", "settings", "walkthrough", "diff", "usage", "maker"}) {

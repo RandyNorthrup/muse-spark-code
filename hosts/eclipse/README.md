@@ -1,6 +1,6 @@
 # Muse Spark Code (Unofficial) for Eclipse
 
-The native host for the frozen MHP 1.2 panel carrier. The plugin owns
+The native host for the frozen MHP 1.3 panel carrier. The plugin owns
 SWT containers and editor services; the shared runtime owns the conversation,
 providers, permissions, paid consent and daily ledger. Authentication stays in
 the runtime OS credential store, through `auth set` in the user's terminal.
@@ -13,7 +13,10 @@ are tracked in the lane certification; they are not inferred from the Linux
 platform tests.
 
 Install the built p2 site through Help > Install New Software. Open the Muse
-view from Window > Show View, or use its Window-menu command. The completion
+view with its Window-menu command: it activates the runtime's owned surface,
+or starts the runtime so its initial surface opens. A view opened directly
+from Window > Show View carries no runtime session and shows the start-failure
+page instead of a dead panel. The completion
 command is bound to Alt+backslash; Tab accepts a displayed suggestion, and
 Escape rejects it. Trust starts off and is granted by the user's Window-menu
 command after the localized warning. Opening a folder imports it as an Eclipse
@@ -23,7 +26,7 @@ The launch interface targets an installed `muse-spark-code-acp panel --stdio`.
 The editor initiates initialization with product version, installed language,
 theme, folders, trust and its supported editor services. The first folder is
 the exact runtime working directory. The runtime replies with its independently
-supported services; legacy 1.1 selections are refused. An absolute
+supported services; legacy 1.1/1.2 selections are refused. An absolute
 `MUSE_SPARK_RUNTIME` executable path overrides PATH discovery. There is no
 automatic installation or download. Credential variables are removed before
 launch. Release lane I supplies the installed runtime and platform Node

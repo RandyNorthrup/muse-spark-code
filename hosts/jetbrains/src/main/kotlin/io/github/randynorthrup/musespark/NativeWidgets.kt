@@ -65,6 +65,17 @@ class NativeWidgets(
     return jsonValue(null)
   }
 
+  fun run(
+    params: JsonObject,
+    checkCurrent: () -> Unit = {},
+  ): JsonElement {
+    checkCurrent()
+    val id = "MuseSpark.${project.locationHash}.${params["id"].asString}"
+    require(id in commands) { "MHP_CAPABILITY_UNAVAILABLE" }
+    execute(params["id"].asString)
+    return jsonValue(null)
+  }
+
   fun status(
     params: JsonObject,
     checkCurrent: () -> Unit = {},

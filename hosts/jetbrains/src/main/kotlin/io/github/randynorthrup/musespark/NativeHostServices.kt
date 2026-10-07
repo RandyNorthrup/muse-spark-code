@@ -9,18 +9,24 @@ import com.intellij.ide.trustedProjects.TrustedProjects
 import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.editor.Document
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.ide.CopyPasteManager
+import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectRootManager
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.WindowManager
 import com.intellij.util.text.minimatch.Minimatch
 import com.intellij.util.text.minimatch.MinimatchOptions
 import java.awt.KeyboardFocusManager
 import java.awt.datatransfer.StringSelection
+import java.io.File
 import java.net.URI
+import java.nio.file.Files
 import java.nio.file.Path
+import javax.swing.JFileChooser
 import javax.swing.JList
 import javax.swing.JOptionPane
 import javax.swing.JScrollPane
@@ -45,6 +51,9 @@ class NativeHostServices(
   private val openBrowser: (String) -> Unit = BrowserUtil::browse,
   private val checkEpoch: () -> Unit = {},
   private val workspaceRoot: Path? = null,
+  private val chooseFile: (open: Boolean, title: String, suggestedName: String?) -> Path? = { open, title, suggestedName ->
+    systemFileDialog(project, open, title, suggestedName)
+  },
 ) : EditorServices {
   override val capabilities =
     listOf(
@@ -106,7 +115,9 @@ class NativeHostServices(
         jsonValue(null)
       }
       method == "commands/register" -> widgets.register(params, checkCurrent)
+      method == "commands/run" -> widgets.run(params, checkCurrent)
       method == "diagnostics/get" -> diagnostics(params["uri"]?.asString)
+      method == "diagnostics/settled" -> settled(params, checkCurrent)
       method == "window/state" ->
         json("focused" to focused())
       method == "window/attention" -> {
@@ -177,7 +188,7 @@ class NativeHostServices(
         }
         jsonValue(null)
       }
-      else -> error("MHP_METHOD_NOT_FOUND")
+      else -> error("MHP_UNSUPPORTED_CAPABILITY")
     }
 
   fun diagnostics(uri: String?): JsonElement {
@@ -198,33 +209,61 @@ class NativeHostServices(
         FileDocumentManager
           .getInstance()
           .getDocument(file) ?: continue
-      DaemonCodeAnalyzerEx.processHighlights(
-        document,
-        project,
-        HighlightSeverity.INFORMATION,
-        0,
-        document.textLength,
-      ) { info ->
-        val message = info.description
-        if (message != null) {
-          result.add(
-            json(
-              "uri" to DocumentServices.uri(file),
-              "range" to DocumentServices.range(document, info.startOffset, info.endOffset),
-              "severity" to
-                when {
-                  info.severity >= HighlightSeverity.ERROR -> "error"
-                  info.severity >= HighlightSeverity.WARNING -> "warning"
-                  else -> "information"
-                },
-              "message" to message,
-            ),
-          )
-        }
-        true
-      }
+      result.addAll(fileDiagnostics(file, document))
     }
     return jsonValue(result)
+  }
+
+  private fun fileDiagnostics(
+    file: VirtualFile,
+    document: Document,
+  ): List<JsonObject> {
+    val result = mutableListOf<JsonObject>()
+    DaemonCodeAnalyzerEx.processHighlights(
+      document,
+      project,
+      HighlightSeverity.INFORMATION,
+      0,
+      document.textLength,
+    ) { info ->
+      val message = info.description
+      if (message != null) {
+        result.add(
+          json(
+            "uri" to DocumentServices.uri(file),
+            "range" to DocumentServices.range(document, info.startOffset, info.endOffset),
+            "severity" to
+              when {
+                info.severity >= HighlightSeverity.ERROR -> "error"
+                info.severity >= HighlightSeverity.WARNING -> "warning"
+                else -> "information"
+              },
+            "message" to message,
+          ),
+        )
+      }
+      true
+    }
+    return result
+  }
+
+  private fun settled(
+    params: JsonObject,
+    checkCurrent: () -> Unit,
+  ): JsonElement {
+    checkCurrent()
+    val uri = params["uri"].asString
+    val expected = params["expectedVersion"].asLong
+    val (file, document) = documents.document(uri)
+    if (document.modificationStamp != expected) return jsonValue(null)
+    val diagnostics = fileDiagnostics(file, document)
+    checkCurrent()
+    if (document.modificationStamp != expected) return jsonValue(null)
+    return json(
+      "uri" to DocumentServices.uri(file),
+      "version" to expected,
+      "diagnostics" to diagnostics,
+    )
   }
 
   private fun ui(
@@ -278,8 +317,46 @@ class NativeHostServices(
       }
       "ui/status" -> widgets.status(params, checkEpoch)
       "ui/progress" -> widgets.progress(params, checkEpoch)
-      else -> error("MHP_METHOD_NOT_FOUND")
+      "ui/openFile" -> openFile(params, cancellation)
+      "ui/saveText" -> saveFile(params, cancellation, checkEpoch)
+      "ui/showSetting" -> showSetting(cancellation, checkEpoch)
+      else -> error("MHP_UNSUPPORTED_CAPABILITY")
     }
+
+  private fun openFile(
+    params: JsonObject,
+    cancellation: RequestCancellation,
+  ): JsonElement {
+    cancellation.check()
+    val picked = chooseFile(true, params["title"].asString, null)?.toUri()?.toASCIIString()
+    cancellation.check()
+    return jsonValue(picked)
+  }
+
+  private fun saveFile(
+    params: JsonObject,
+    cancellation: RequestCancellation,
+    checkCurrent: () -> Unit,
+  ): JsonElement {
+    cancellation.check()
+    val target = chooseFile(false, params["title"].asString, params["suggestedName"].asString)
+    if (target == null) return jsonValue(false)
+    cancellation.check()
+    checkCurrent()
+    runCatching { Files.writeString(target, params["text"].asString) }.getOrThrow()
+    return jsonValue(true)
+  }
+
+  private fun showSetting(
+    cancellation: RequestCancellation,
+    checkCurrent: () -> Unit,
+  ): JsonElement {
+    checkCurrent()
+    cancellation.check()
+    ShowSettingsUtil.getInstance().showSettingsDialog(project)
+    cancellation.check()
+    return jsonValue(null)
+  }
 
   private fun pick(
     params: JsonObject,
@@ -374,6 +451,31 @@ private fun plainMessage(text: String): JScrollPane =
 
 private const val MODAL_COLUMNS = 64
 private const val MODAL_ROWS = 12
+
+private fun systemFileDialog(
+  project: Project,
+  open: Boolean,
+  title: String,
+  suggestedName: String?,
+): Path? {
+  val chooser =
+    JFileChooser().apply {
+      dialogTitle = title
+      if (open) {
+        fileSelectionMode = JFileChooser.FILES_ONLY
+      } else {
+        selectedFile = File(suggestedName ?: "")
+      }
+    }
+  val frame = WindowManager.getInstance().getFrame(project)
+  val approved =
+    if (open) {
+      chooser.showOpenDialog(frame) == JFileChooser.APPROVE_OPTION
+    } else {
+      chooser.showSaveDialog(frame) == JFileChooser.APPROVE_OPTION
+    }
+  return if (approved) chooser.selectedFile?.toPath() else null
+}
 
 // Reuse the platform matcher; its brace expander is a stub in SDK 253.
 // These bounds mirror GLOB_MAX_LENGTH / GLOB_MAX_ALTERNATIVES in shared constants.

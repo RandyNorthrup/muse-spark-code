@@ -1,7 +1,10 @@
 package io.musespark.eclipse;
 
 import com.google.gson.*;
+import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
 import java.util.*;
 import java.util.List;
 import java.util.function.BooleanSupplier;
@@ -15,9 +18,10 @@ import org.eclipse.swt.dnd.*;
 import org.eclipse.swt.program.Program;
 import org.eclipse.swt.widgets.*;
 import org.eclipse.ui.dialogs.ElementListSelectionDialog;
+import org.eclipse.ui.dialogs.PreferencesUtil;
 
 /** Window-owned native prompts; choice identifiers are opaque, never translated decisions. */
-public final class NativeUi implements AutoCloseable {
+public class NativeUi implements AutoCloseable {
     private final WindowSession owner;
     private record Notice(IStatusLineManager manager, ContributionItem item) { }
     private final Map<String, Notice> notices = new HashMap<>();
@@ -70,8 +74,37 @@ public final class NativeUi implements AutoCloseable {
                 yield JsonNull.INSTANCE;
             }
             case "ui/status", "ui/progress" -> { notice(method, params, cancelled); yield JsonNull.INSTANCE; }
+            case "ui/openFile" -> {
+                current(cancelled);
+                String[] chosen = chooseFile(SWT.OPEN, params.get("title").getAsString(), null);
+                current(cancelled);
+                yield chosen == null ? JsonNull.INSTANCE : new JsonPrimitive(Path.of(chosen[0], chosen[1]).toUri().toASCIIString());
+            }
+            case "ui/saveText" -> {
+                current(cancelled);
+                String[] chosen = chooseFile(SWT.SAVE, params.get("title").getAsString(), params.get("suggestedName").getAsString());
+                current(cancelled);
+                if (chosen == null) { yield new JsonPrimitive(false); }
+                current(cancelled);
+                try { Files.writeString(Path.of(chosen[0], chosen[1]), params.get("text").getAsString(), StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING); }
+                catch (IOException ex) { throw new IllegalArgumentException("MHP_SAVE_FAILED"); }
+                yield new JsonPrimitive(true);
+            }
+            case "ui/showSetting" -> {
+                current(cancelled);
+                PreferencesUtil.createPreferenceDialogOn(shell, null, null, null).open();
+                current(cancelled);
+                yield JsonNull.INSTANCE;
+            }
             default -> throw new IllegalArgumentException("MHP_CAPABILITY_UNAVAILABLE");
         };
+    }
+    protected String[] chooseFile(int style, String title, String fileName) {
+        FileDialog dialog = new FileDialog(owner.window.getShell(), style);
+        dialog.setText(title);
+        if (fileName != null) dialog.setFileName(fileName);
+        String name = dialog.open();
+        return name == null ? null : new String[] {dialog.getFilterPath(), name};
     }
     public static URI externalTarget(String value) {
         URI target = URI.create(value);

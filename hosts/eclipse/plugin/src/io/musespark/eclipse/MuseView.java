@@ -44,10 +44,17 @@ public final class MuseView extends ViewPart {
     public static int browserStyle(String os) { return os.equals(Platform.OS_WIN32) ? SWT.EDGE : SWT.WEBKIT; }
     @Override public void createPartControl(Composite parent) {
         parent.setLayout(new FillLayout());
+        Configuration configuration = CONFIGURATIONS.remove(getViewSite().getSecondaryId());
+        if (configuration == null || configuration.owner == null) {
+            // A view without runtime configuration owns no session: publishing an invented one
+            // is rejected as unowned. Fail here; the Window-menu command opens the runtime's
+            // configured surface instead.
+            showFailure(parent);
+            return;
+        }
         try {
-            Configuration configuration = CONFIGURATIONS.remove(getViewSite().getSecondaryId());
-            session = configuration != null && configuration.owner != null ? configuration.owner : MusePlugin.get().session(getSite().getWorkbenchWindow());
-            if (configuration != null) { restoredSession = configuration.session; kind = configuration.kind; }
+            session = configuration.owner;
+            restoredSession = configuration.session; kind = configuration.kind;
             binding = new PanelSurface(session.contract, UUID.randomUUID().toString(), restoredSession == null ? UUID.randomUUID().toString() : restoredSession, kind, session.peer::send, session.peer::purge, MusePlugin.get()::log);
             if (restoredState != null) binding.state(restoredState);
             session.add(this);
@@ -125,6 +132,11 @@ public final class MuseView extends ViewPart {
             return;
         }
         Files.writeString(page, Assets.html(assets, Platform.getNL(), kind, binding.state(), WindowSession.tokens()), StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
+        if (!browser.setUrl(page.toUri().toASCIIString())) throw new IOException("MHP_PAGE_FAILURE");
+    }
+    public void presentHtml(String html) throws IOException {
+        if (page == null || browser == null || browser.isDisposed()) throw new IllegalStateException("MHP_PANEL_NOT_READY");
+        Files.writeString(page, html, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
         if (!browser.setUrl(page.toUri().toASCIIString())) throw new IOException("MHP_PAGE_FAILURE");
     }
     public void deliverPayload(JsonElement payload) {

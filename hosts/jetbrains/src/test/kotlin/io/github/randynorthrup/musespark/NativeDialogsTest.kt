@@ -71,6 +71,45 @@ class NativeDialogsTest : BasePlatformTestCase() {
     }
   }
 
+  fun testShowSettingReachesTheIdeSettingsDialog() {
+    val owner = Disposer.newDisposable()
+    try {
+      val widgets = NativeWidgets(project, JsonBoundary()) {}
+      Disposer.register(owner, widgets)
+      val services = NativeHostServices(project, { _, _ -> error("fixture-unused") }, widgets)
+      if (System.getProperty("muse.nativeUi") != "true") {
+        val failure =
+          org.junit.Assert.assertThrows(Exception::class.java) {
+            JetBrainsPanelHost.onEdt {
+              services.request("ui/showSetting", json("key" to "museSpark.showWhatsNewOnUpdate"), RequestCancellation())
+            }
+          }
+        assertTrue(
+          failure.message,
+          failure.message != "MHP_METHOD_NOT_FOUND" && failure.message != "MHP_UNSUPPORTED_CAPABILITY",
+        )
+        return
+      }
+      val before = Window.getWindows().toSet()
+      val timer =
+        Timer(POLL_MILLIS) {
+          Window.getWindows().filter { it !in before && it is JDialog && it.isShowing }.forEach { it.dispose() }
+        }.apply { start() }
+      try {
+        assertTrue(
+          JetBrainsPanelHost
+            .onEdt {
+              services.request("ui/showSetting", json("key" to "museSpark.showWhatsNewOnUpdate"), RequestCancellation())
+            }.isJsonNull,
+        )
+      } finally {
+        timer.stop()
+      }
+    } finally {
+      JetBrainsPanelHost.onEdt { Disposer.dispose(owner) }
+    }
+  }
+
   fun testCompanionUsesTheIdeBrowserWithTheExactRuntimeUrlAndExplicitLaunchMode() {
     val widgets = JetBrainsPanelHost.onEdt { NativeWidgets(project, JsonBoundary()) {} }
     try {

@@ -228,7 +228,15 @@ class JetBrainsPanelHost(
             ),
         )
       }
-      else -> error("MHP_METHOD_NOT_FOUND")
+      "surfaces/presentHtml" -> {
+        val id = params["surfaceId"].asString
+        val panel = requireNotNull(panels[id]) { "MHP_PANEL_UNKNOWN_SURFACE" }
+        val binding = requireNotNull(bindings[id]) { "MHP_PANEL_UNKNOWN_SURFACE" }
+        require(binding.sessionId == params["sessionId"].asString) { "MHP_PANEL_UNKNOWN_SURFACE" }
+        panel.present(params["html"].asString)
+        jsonValue(null)
+      }
+      else -> error("MHP_UNSUPPORTED_CAPABILITY")
     }
   }
 
@@ -252,10 +260,27 @@ class JetBrainsPanelHost(
         }, { code, count -> log.warn("$code:$count") }),
         budget,
       )
+    // JCEF can report support yet fail construction, bridge setup or the initial
+    // load: the readiness callback only fires after success, so recover here by
+    // restarting in companion mode and fail this request for the retiring runtime.
+    val panel =
+      runCatching { EmbeddedPanel(surface, boundary, locale, diagnostic, ::useCompanion) }
+        .onFailure { useCompanion() }
+        .getOrThrow()
+    panels[id] = panel
+    runCatching {
+      locations[id] =
+        placements.show(panel, surfaceTitle(locale, kind), placement) {
+          locations.remove(id)
+          bindings.remove(id)
+          panels.remove(id)?.let(Disposer::dispose)
+        }
+    }.onFailure {
+      panels.remove(id)
+      Disposer.dispose(panel)
+    }.getOrThrow()
     surface.open()
     bindings[id] = surface
-    val panel = EmbeddedPanel(surface, boundary, locale, diagnostic, ::useCompanion)
-    panels[id] = panel
     panel.component.addHierarchyListener { event ->
       if ((
           event.changeFlags and
@@ -267,12 +292,6 @@ class JetBrainsPanelHost(
         runCatching(surface::hidden).onFailure { diagnostic("MHP_PANEL_HIDDEN_REFUSED") }
       }
     }
-    locations[id] =
-      placements.show(panel, surfaceTitle(locale, kind), placement) {
-        locations.remove(id)
-        bindings.remove(id)
-        panels.remove(id)?.let(Disposer::dispose)
-      }
     return id
   }
 

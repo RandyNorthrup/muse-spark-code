@@ -197,7 +197,7 @@ public class SessionTest {
     @Test public void nativeHtmlRenderRejectsStaleRepliesAndRoutesWhatsNewClicks() throws Exception {
         session.close(); List<JsonObject> requests = new ArrayList<>(); List<CompletableFuture<JsonObject>> replies = new ArrayList<>();
         Assets.HtmlPort port = new Assets.HtmlPort() {
-            @Override public boolean supports(String protocol, String capability) { return protocol.equals("mhp/1.2.0") && capability.equals("surfaceHtml"); }
+            @Override public boolean supports(String protocol, String capability) { return protocol.equals("mhp/1.3.0") && capability.equals("surfaceHtml"); }
             @Override public CompletableFuture<JsonObject> render(JsonObject params) { requests.add(params); CompletableFuture<JsonObject> reply = new CompletableFuture<>(); replies.add(reply); return reply; }
         };
         ProcessBuilder builder = new ProcessBuilder("python3", fixture.toString(), "--receipts", receipts.toString()); Map<String, String> clean = Assets.environment(builder.environment()); builder.environment().clear(); builder.environment().putAll(clean); runtime = builder.start();
@@ -217,6 +217,50 @@ public class SessionTest {
         browser.execute("location.reload();"); pump(() -> requests.size() == 3); assertFalse(opened.binding().isReady()); replies.get(2).complete(Json.object("html", renderedFixture(requests.get(2), "reloaded"))); pump(opened.binding()::isReady); assertEquals("reloaded", browser.evaluate("return document.getElementById('rendered').textContent;"));
         reload.invoke(opened); pump(() -> requests.size() == 4); java.lang.reflect.Field pageField = MuseView.class.getDeclaredField("page"); pageField.setAccessible(true); Path page = (Path) pageField.get(opened);
         session.window.getActivePage().hideView(opened); replies.get(3).complete(Json.object("html", renderedFixture(requests.get(3), "late"))); while (Display.getDefault().readAndDispatch()) { } assertFalse("late render recreated a disposed page", Files.exists(page));
+    }
+    @Test public void settledDiagnosticsAttestTheCheckedDocumentVersion() throws Exception {
+        IFile file = project.getFile("example.txt");
+        IMarker marker = file.createMarker(IMarker.PROBLEM); marker.setAttribute(IMarker.LINE_NUMBER, 1); marker.setAttribute(IMarker.SEVERITY, IMarker.SEVERITY_ERROR); marker.setAttribute(IMarker.MESSAGE, "fake settled diagnostic");
+        try {
+            String uri = file.getLocationURI().toString();
+            JsonElement version = session.documents.descriptor(editor).get("version");
+            JsonObject settled = session.uiRequest("diagnostics/settled", Json.object("uri", uri, "expectedVersion", version)).getAsJsonObject();
+            assertEquals(version, settled.get("version"));
+            assertEquals(uri, settled.get("uri").getAsString());
+            assertEquals(1, settled.getAsJsonArray("diagnostics").size());
+            assertEquals("error", settled.getAsJsonArray("diagnostics").get(0).getAsJsonObject().get("severity").getAsString());
+            assertTrue(session.uiRequest("diagnostics/settled", Json.object("uri", uri, "expectedVersion", version.getAsLong() + 1)).isJsonNull());
+        } finally { marker.delete(); }
+    }
+    @Test public void runtimeCommandRunNotifiesItsRegisteredExecution() throws Exception {
+        session.uiRequest("commands/register", Json.object("id", "fixture-run", "title", "Fixture run command"));
+        session.uiRequest("commands/run", Json.object("id", "fixture-run", "args", new JsonArray()));
+        pump(() -> { try { return Files.readString(receipts).contains("\"method\": \"commands/execute\"") && Files.readString(receipts).contains("\"id\": \"fixture-run\""); } catch (IOException ex) { throw new java.io.UncheckedIOException(ex); } });
+        assertEquals("MHP_CAPABILITY_UNAVAILABLE", assertThrows(IllegalArgumentException.class, () -> session.uiRequest("commands/run", Json.object("id", "missing", "args", new JsonArray()))).getMessage());
+    }
+    @Test public void userMenuOpenAdoptsTheOwnedSessionInsteadOfPublishingAnUnownedOne() throws Exception {
+        OpenHandler.openPanel(session.window);
+        assertTrue("menu open before startup must not publish an unowned view", views().isEmpty());
+        String owned = "owned-chat-session";
+        session.uiRequest("surfaces/open", Json.object("kind", "chat", "placement", "side", "sessionId", owned));
+        assertEquals(1, views().size());
+        OpenHandler.openPanel(session.window);
+        assertEquals("menu open must activate the owned view instead of publishing another session", 1, views().size());
+        assertEquals(owned, views().get(0).binding().session);
+        session.window.getActivePage().hideView(views().get(0));
+        long hidden = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (!views().isEmpty() && System.nanoTime() < hidden) { while (Display.getDefault().readAndDispatch()) { } Thread.sleep(20); }
+        assertTrue("closed view must be removed before reopening", views().isEmpty());
+        OpenHandler.openPanel(session.window);
+        pump(() -> !views().isEmpty());
+        assertEquals(1, views().size());
+        assertEquals(owned, views().get(0).binding().session);
+        for (String line : Files.readAllLines(receipts)) if (line.contains("\"event\": \"opened\"")) assertTrue(line, line.contains(owned));
+    }
+    private List<MuseView> views() {
+        List<MuseView> found = new ArrayList<>();
+        for (IViewReference reference : session.window.getActivePage().getViewReferences()) if (reference.getView(false) instanceof MuseView view) found.add(view);
+        return found;
     }
     private static String renderedFixture(JsonObject params, String text) {
         String script = params.get("scriptUri").getAsString().replace("&", "&amp;").replace("'", "&#39;");

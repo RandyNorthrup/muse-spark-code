@@ -5,6 +5,8 @@ import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
 import com.intellij.openapi.util.Disposer
 import com.intellij.testFramework.PsiTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.concurrent.Executor
 
 class NativeHostServicesTest : BasePlatformTestCase() {
@@ -98,6 +100,105 @@ class NativeHostServicesTest : BasePlatformTestCase() {
     }
     assertEquals(diagnostics, services.request("diagnostics/get", json(), RequestCancellation()))
     JsonBoundary().result("diagnostics/get", json("jsonrpc" to "2.0", "id" to "get", "result" to diagnostics))
+  }
+
+  private fun fileServices(choice: Path?): NativeHostServices {
+    val widgets = NativeWidgets(project, JsonBoundary()) {}
+    Disposer.register(testRootDisposable, widgets)
+    return NativeHostServices(
+      project,
+      { _, _ -> error("fixture-unused") },
+      widgets,
+      chooseFile = { _, _, _ -> choice },
+    )
+  }
+
+  fun testFileRequestsMapNativeChoicesToMhpResults() {
+    val picked = Files.createTempFile("m104-pick-", ".md")
+    val target = Files.createTempDirectory("m104-save-").resolve("fixture.md")
+    try {
+      val selecting = fileServices(picked)
+      assertEquals(
+        picked.toUri().toASCIIString(),
+        selecting.request("ui/openFile", json("title" to "fixture"), RequestCancellation()).asString,
+      )
+      val declining = fileServices(null)
+      assertTrue(
+        declining.request("ui/openFile", json("title" to "fixture"), RequestCancellation()).isJsonNull,
+      )
+      val saving = fileServices(target)
+      assertEquals(
+        jsonValue(true),
+        saving.request(
+          "ui/saveText",
+          json("title" to "fixture", "suggestedName" to "fixture.md", "text" to "saved fixture"),
+          RequestCancellation(),
+        ),
+      )
+      assertEquals("saved fixture", Files.readString(target))
+      assertEquals(
+        jsonValue(false),
+        declining.request(
+          "ui/saveText",
+          json("title" to "fixture", "suggestedName" to "fixture.md", "text" to "saved fixture"),
+          RequestCancellation(),
+        ),
+      )
+    } finally {
+      Files.deleteIfExists(picked)
+      Files.deleteIfExists(target)
+      Files.deleteIfExists(target.parent)
+    }
+  }
+
+  fun testSettledDiagnosticsAttestTheCheckedDocumentVersion() {
+    val services = brokenXml()
+    val uri = DocumentServices.uri(myFixture.file.virtualFile)
+    val version = myFixture.editor.document.modificationStamp
+    val settled =
+      services
+        .request("diagnostics/settled", json("uri" to uri, "expectedVersion" to version), RequestCancellation())
+        .asJsonObject
+    assertEquals(uri, settled["uri"].asString)
+    assertEquals(version, settled["version"].asLong)
+    assertTrue(settled.getAsJsonArray("diagnostics").any { it.asJsonObject["severity"].asString == "error" })
+    assertTrue(
+      services
+        .request("diagnostics/settled", json("uri" to uri, "expectedVersion" to (version + 1)), RequestCancellation())
+        .isJsonNull,
+    )
+  }
+
+  fun testRunInvokesRegisteredCommandsAndRefusesUnknown() {
+    val executed = mutableListOf<String>()
+    val widgets = NativeWidgets(project, JsonBoundary()) { executed.add(it) }
+    Disposer.register(testRootDisposable, widgets)
+    val services = NativeHostServices(project, { _, _ -> error("fixture-unused") }, widgets)
+    val cancellation = RequestCancellation()
+    services.request("commands/register", json("id" to "fixture-run", "title" to "Fixture run"), cancellation)
+    assertEquals(
+      jsonValue(null),
+      services.request("commands/run", json("id" to "fixture-run", "args" to emptyList<String>()), cancellation),
+    )
+    assertEquals(listOf("fixture-run"), executed)
+    assertEquals(
+      "MHP_CAPABILITY_UNAVAILABLE",
+      org.junit.Assert
+        .assertThrows(Exception::class.java) {
+          services.request("commands/run", json("id" to "missing", "args" to emptyList<String>()), cancellation)
+        }.message,
+    )
+  }
+
+  fun testUnhandledUiMethodsKeepTheirTypedCapabilityRefusal() {
+    val services = services()
+    assertEquals(
+      "MHP_UNSUPPORTED_CAPABILITY",
+      org.junit.Assert
+        .assertThrows(Exception::class.java) {
+          services.request("ui/unhandled-fixture", json(), RequestCancellation())
+        }.message,
+    )
   }
 
   fun testDiagnosticsDidChangePublishesSettledErrorsAndClearsAfterCorrection() {

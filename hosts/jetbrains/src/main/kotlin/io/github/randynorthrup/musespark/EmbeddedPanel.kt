@@ -119,6 +119,10 @@ class EmbeddedPanel(
     evaluate("window.__museReceive($payload,$sequence)")
   }
 
+  fun present(html: String) {
+    browser.loadHTML(html, policy.page)
+  }
+
   fun reload() {
     surface.reload()
     subscribed.set(false)

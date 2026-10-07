@@ -26,6 +26,18 @@
               </arguments>
             </configuration>
           </execution>
+          <execution>
+            <id>runtime-fixture</id>
+            <phase>test</phase>
+            <goals><goal>exec</goal></goals>
+            <configuration>
+              <executable>node</executable>
+              <arguments>
+                <argument>--test</argument>
+                <argument>${project.basedir}/runtime-fixture.test.mjs</argument>
+              </arguments>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
       <plugin>

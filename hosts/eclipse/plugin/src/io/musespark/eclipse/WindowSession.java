@@ -12,6 +12,7 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.*;
+import org.eclipse.ui.texteditor.ITextEditor;
 
 /** One runtime per workbench window. Omitted groups select the frozen shared fallbacks. */
 public final class WindowSession implements MhpPeer.Host, AutoCloseable {
@@ -35,6 +36,7 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
     private final IPartListener2 parts;
     private final IWindowListener windows;
     private final ExecutorService stderr = Executors.newSingleThreadExecutor();
+    private String chatSession;
     private boolean trusted;
     private volatile boolean disposed;
     private final CompletableFuture<JsonElement> initialization;
@@ -224,10 +226,32 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
                 yield JsonNull.INSTANCE;
             }
             case "diagnostics/get" -> diagnostics(params.has("uri") ? params.get("uri").getAsString() : null);
+            case "diagnostics/settled" -> {
+                String settledUri = params.get("uri").getAsString();
+                long expectedVersion = params.get("expectedVersion").getAsLong();
+                ITextEditor settledEditor = documents.editor(settledUri);
+                if (settledEditor == null || version(settledEditor) != expectedVersion) yield JsonNull.INSTANCE;
+                JsonArray settled = diagnostics(settledUri);
+                if (version(settledEditor) != expectedVersion) yield JsonNull.INSTANCE;
+                yield Json.object("uri", settledUri, "version", params.get("expectedVersion"), "diagnostics", settled);
+            }
+            case "commands/run" -> {
+                String id = params.get("id").getAsString();
+                if (!commands.containsKey(id)) throw new IllegalArgumentException("MHP_CAPABILITY_UNAVAILABLE");
+                notify("commands/execute", Json.object("id", id));
+                yield JsonNull.INSTANCE;
+            }
+            case "surfaces/presentHtml" -> {
+                MuseView view = surface(params);
+                if (!view.binding().session.equals(params.get("sessionId").getAsString())) throw new IllegalArgumentException("MHP_PANEL_UNKNOWN_SURFACE");
+                view.presentHtml(params.get("html").getAsString());
+                yield JsonNull.INSTANCE;
+            }
             case "surfaces/open" -> {
                 if (!Set.of("chat", "tasks", "whatsNew").contains(params.get("kind").getAsString())) throw new IllegalArgumentException("MHP_CAPABILITY_UNAVAILABLE");
                 if (params.get("kind").getAsString().equals("whatsNew") && !Assets.hasHtmlPort(htmlPort)) throw new IllegalArgumentException("MHP_CAPABILITY_UNAVAILABLE");
                 String session = params.has("sessionId") ? params.get("sessionId").getAsString() : UUID.randomUUID().toString();
+                if (params.has("sessionId") && params.get("kind").getAsString().equals("chat")) chatSession = session;
                 String secondary = UUID.randomUUID().toString();
                 MuseView.configure(secondary, session, params.get("kind").getAsString(), this);
                 IWorkbenchWindow destination = params.get("placement").getAsString().equals("window") ? PlatformUI.getWorkbench().openWorkbenchWindow(window.getActivePage().getPerspective().getId(), ResourcesPlugin.getWorkspace().getRoot()) : window;
@@ -245,6 +269,7 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
         };
     }
     public boolean hasCommand(String id) { return commands.containsKey(id); }
+    public String chatSession() { return chatSession; }
     private MuseView surface(JsonObject params) { MuseView view = surfaces.get(params.get("surfaceId").getAsString()); if (view == null) throw new IllegalArgumentException("MHP_PANEL_UNKNOWN_SURFACE"); return view; }
     public static JsonArray folders() {
         JsonArray result = new JsonArray();
@@ -264,6 +289,10 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
             return !resource.isLinked();
         });
         return result;
+    }
+    private long version(ITextEditor editor) {
+        try { return documents.descriptor(editor).get("version").getAsLong(); }
+        catch (IllegalArgumentException ex) { return -1; }
     }
     public JsonArray diagnostics(String uri) throws Exception {
         JsonArray result = new JsonArray();
@@ -299,7 +328,7 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
             int dropped = dropBrowser(view.binding().id); try { view.binding().close(dropped); } catch (RuntimeException ex) { MusePlugin.get().log("MHP_SURFACE_FAILURE"); }
             if (view.getSite() != null) view.getSite().getPage().hideView(view);
         }
-        surfaces.clear(); Completion.dispose(this); documents.close(); window.getSelectionService().removePostSelectionListener(selections); window.getPartService().removePartListener(parts);
+        surfaces.clear(); chatSession = null; Completion.dispose(this); documents.close(); window.getSelectionService().removePostSelectionListener(selections); window.getPartService().removePartListener(parts);
         PlatformUI.getWorkbench().removeWindowListener(windows); ResourcesPlugin.getWorkspace().removeResourceChangeListener(problems); peer.drain(); peer.close(); stderr.shutdownNow();
         descendants.forEach(ProcessHandle::destroy); process.toHandle().destroy();
         try { process.waitFor(2, TimeUnit.SECONDS); } catch (InterruptedException ex) { Thread.currentThread().interrupt(); }
