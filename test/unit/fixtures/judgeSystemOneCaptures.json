@@ -1,0 +1,135 @@
+{
+  "honesty": "TypeSafe rows use the documented /v1/systemone examples at https://docs.typesafe.ai/api as read on 2026-10-06. They are not an uncommitted live frame. The OpenRouter row's served model typesafe/jev-1.13-20260917 and input_tokens 491 are the 2026-10-04 record in docs/certification/m98-research.md. output_tokens was not recorded for that call; this fixture uses 0 and is not a measured output count. Probability figures are documented common-shape examples. abstain 0.085 is the extra P0's contract test preserves from the live addition, placed on the choice answer. Choice keys A/B/C stand in for the documented billing/technical/sales keys, which this product refuses before send. No cost field is parsed: the research cost was computed from the published rate.",
+  "typesafeDocsNoul": {
+    "presetId": "typesafe-jev",
+    "requestModel": "jev-1.13.0",
+    "request": {
+      "state": "The service responded within its budget.",
+      "questions": {
+        "healthy": {
+          "type": "noul",
+          "instructions": "Is the service healthy?"
+        }
+      }
+    },
+    "response": {
+      "model": "jev-1.13.0",
+      "answers": {
+        "healthy": {
+          "type": "noul",
+          "noul": 0.95
+        }
+      },
+      "usage": {
+        "input_tokens": 296,
+        "output_tokens": 20
+      }
+    }
+  },
+  "typesafeDocsScore": {
+    "presetId": "typesafe-jev",
+    "requestModel": "jev-1.13.0",
+    "request": {
+      "state": "The customer wrote three short messages.",
+      "questions": {
+        "mood": {
+          "type": "score",
+          "instructions": "How frustrated is the customer?",
+          "criteria": ["Calm", "Frustrated", "Very angry"]
+        }
+      }
+    },
+    "response": {
+      "model": "jev-1.13.0",
+      "answers": {
+        "mood": {
+          "type": "score",
+          "score": 1.05,
+          "confidence": 0.92,
+          "legend": {
+            "0": "Calm",
+            "1": "Frustrated",
+            "2": "Very angry"
+          },
+          "probabilities": {
+            "0": 0,
+            "1": 0.95,
+            "2": 0.05
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 296,
+        "output_tokens": 20
+      }
+    }
+  },
+  "documentedChoiceOnLetters": {
+    "presetId": "openrouter-jev",
+    "requestModel": "typesafe/jev-1.13",
+    "request": {
+      "state": "The ticket mentions an invoice and an outage.",
+      "questions": {
+        "route": {
+          "type": "choice",
+          "instructions": "Which queue should take this ticket?",
+          "criteria": {
+            "A": "Billing",
+            "B": "Technical",
+            "C": "Sales"
+          }
+        }
+      }
+    },
+    "response": {
+      "model": "typesafe/jev-1.13",
+      "answers": {
+        "route": {
+          "type": "choice",
+          "choice": "A",
+          "confidence": 0.81,
+          "probabilities": {
+            "A": 0.88,
+            "B": 0.12,
+            "C": 0
+          },
+          "abstain": 0.085
+        }
+      },
+      "usage": {
+        "input_tokens": 491,
+        "output_tokens": 20
+      }
+    }
+  },
+  "openrouterRecordedNoul": {
+    "presetId": "openrouter-jev",
+    "requestModel": "typesafe/jev-1.13",
+    "request": {
+      "state": "Recorded OpenRouter shape, not a raw frame.",
+      "questions": {
+        "healthy": {
+          "type": "noul",
+          "instructions": "Is the service healthy?"
+        }
+      }
+    },
+    "response": {
+      "model": "typesafe/jev-1.13-20260917",
+      "answers": {
+        "healthy": {
+          "type": "noul",
+          "noul": 0.95,
+          "probabilities": {
+            "true": 0.95,
+            "false": 0.05
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 491,
+        "output_tokens": 0
+      }
+    }
+  }
+}
