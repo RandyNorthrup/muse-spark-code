@@ -25281,6 +25281,20 @@ copied with the identical API from `m106/h` for the M106H/M108T handoff.
 No dependency, guard threshold, provider wire or paid/live call is added.
 The existing W-owned bundle and binding handoffs remain release blockers.
 
+**FIXM105A (RVM105A, 2026-10-06).** Repair the audio integration ports only:
+Stop cancels an unanswered consent wait (pass the turn signal into consent
+and race the wait); a validated billing receipt settles exactly once even
+when transcript text is rejected; admission and settlement preserve exact
+`Usd` through `src/shared/usd.ts`, which is absent on this base and will be
+restored from the local repository history (`5fd85846d`, nano-USD with
+liabilities rounded upward and caps downward), with tunables in constants.
+Billing is captured before text rejection; tally failure cannot skip the
+claim's one settlement. Extend the shared consent signature compatibly
+for the supplied signal. Regression tests and byte-restored red drills live
+in `docs/certification/m105-a-audio-(b).md`. Existing captured-adapter,
+converter, UI-budget and production-ledger bindings remain with their named
+integration owners. No guard, cap, paid default or credential path changes.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §2. The work lands in four
 deliveries, in order:
@@ -31123,6 +31137,18 @@ before a repaired one loads (2026-09-30).
   fees, headless media or a new production dispatch. These are explicit
   integration handoffs, not accepted unfixed review defects. Certification:
   `docs/certification/m105-c-cost-(b).md`.
+
+- **M105-A-PAID-EXACT-BINDING (FIXM105A).** RVM105A's three findings are
+  fixed in the portable batch ports and consent wait. The production batch
+  HTTP adapter and D78/M82 ledger binding are still absent, as recorded in
+  `docs/certification/m105-a-audio-(b).md` (A-U18-BATCH, A-PAID-DAILY).
+  Safe for now: these ports have no production caller, so no batch money is
+  admitted into the legacy numeric journals. Follow-up: W/paid owner must
+  carry the exact `Usd` amounts through durable admission, accumulation,
+  cap comparison and one settlement; a number conversion for display
+  cannot become a new arithmetic boundary. Repeat the $0.50 / 1000-bill
+  regression through the real ledger when binding it. Captures and existing
+  converter/UI/editor handoffs remain required; this repair claims none.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

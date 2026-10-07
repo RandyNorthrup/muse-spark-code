@@ -50,6 +50,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M105 batch audio preparation now finishes a stopped turn while its paid
+  consent popup is unanswered.
+  Valid batch bills settle once even for rejected transcript text or a failed
+  usage tally; admission and settlement preserve exact USD amounts.
+
 - M105 conversion waits for pending and final resource samples after encoder
   close and refuses unavailable RSS instead of treating it as zero. Media
   sniffing rejects duplicate unique ISO-BMFF boxes and unreadable top-level

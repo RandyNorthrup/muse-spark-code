@@ -1,6 +1,6 @@
 // The attachment chips above the composer; media cost stays in a lazy region.
 
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, type ReactNode } from 'react'
 import { TEXT_ATTACHMENT_MEDIA_TYPE, UI_TEXT } from '../../shared/constants'
 import { fill, formatNumber } from '../../shared/l10n/text'
 import type { AttachmentSummary } from '../../shared/protocol'
@@ -16,6 +16,8 @@ export interface AttachmentChipsProps {
   readonly onRemove: (id: string) => void
   /** Selected-model capability/tier from the host; no vendor inference in the chip. */
   readonly isContributor?: boolean
+  /** M105-A: E1/C inject the lazy sound surface after W admits its budget. */
+  readonly renderAudio?: (attachment: AttachmentSummary) => ReactNode
 }
 
 function sizeLabel(attachment: AttachmentSummary): string {
@@ -31,6 +33,7 @@ export function AttachmentChips({
   attachments,
   onRemove,
   isContributor = false,
+  renderAudio,
 }: AttachmentChipsProps) {
   if (attachments.length === 0) {
     return null
@@ -48,6 +51,7 @@ export function AttachmentChips({
               <AttachmentMediaCost media={attachment.media} isContributor={isContributor} />
             </Suspense>
           )}
+          {renderAudio?.(attachment)}
           <button
             type="button"
             className="chip-remove"
