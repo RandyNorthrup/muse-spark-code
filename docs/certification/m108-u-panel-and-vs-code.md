@@ -1,5 +1,162 @@
 # M108 U — Panel and VS Code
 
+## FIXM108U2 — RVM108U2 replacement rollback (macmini, 2026-10-06)
+
+The final review reports one P2: an obsolete cancelled Add deletes a
+replacement account with the same ID. The two deterministic regressions use
+the real AccountStore and two independent store instances. Both fail on the
+reviewed source while all 17 existing host tests pass: `preserves a
+replacement account and credential when the original addition is pending`
+and the `cancelled` variant. The first removes/re-adds while the prompt is
+pending. The second cancels A, pauses its rollback, adds B with identical
+metadata and only then releases A's late deletion. Red receipt:
+`temp/fixm108u2-before.log` (untracked), independently repeated directly in
+`temp/fixm108u2-direct-before.log` during the continuation. Repository timeouts and
+`--maxWorkers=3`; no filtering or skips.
+
+Continuation base: `beb733fe9` on `m108/u`. Approval source:
+`M108U.rig.md`, **"Lead ruling: APPROVED."**
+
+**Lead-authorized cross-lane edit (continuation brief, 2026-10-06):** the
+lead accepted K as finished and approved Q-FIXM108U2's minimal AccountStore
+change, exactly as proposed in `temp/fixm108u2-proposed.patch`. U's handler
+needs an ownership token from add and compare-and-delete inside K's existing
+serialized removal. An independent panel check followed by ID-only removal
+cannot close this race. The exception covers only that narrow K store change;
+K's existing suites must remain green. No merge, push or rebase is authorized.
+
+### Concrete proposal and validation before scope approval
+
+`temp/fixm108u2-proposed.patch` (untracked) is the complete narrow proposal:
+successful AccountStore additions return a unique symbol stored with the
+account's process-local ownership; removal compares the supplied token inside
+the existing mutation queue before metadata lookup or credential deletion,
+and clears ownership after successful removal. U's finally passes its own
+token. This adds no persisted/public field, dependency, protocol, setting,
+text, threshold or gate change. Like K's existing queue/fences, ownership is
+process-local; the existing K-M109/W broker integration condition applies.
+
+The proposal was evaluated through scratch-only Vite source transforms with
+the repository configuration inherited unchanged. All **19 host tests pass**.
+Removing the compare-and-delete guard makes both new interleavings fail while
+the 17 existing tests pass; the scratch source is restored byte-exact:
+SHA-256 `8e47b21610fafb5505b495c448ce20084ba082b43c63fd64a424c78601b542d9`.
+Receipts: `temp/fixm108u2-proposal.log`,
+`temp/fixm108u2-proposal-drill.log` and
+`temp/fixm108u2-proposal-drill.json`. These are exploratory proposal receipts,
+not certification of applied production changes. The applied-source receipts
+below supersede those exploratory checks for this repair.
+
+| Check (macmini, direct)                                            | Result before scope approval                                                                                         |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| Complete host regressions against reviewed production              | **17 pass, 2 fail**; both confirm replacement deletion                                                               |
+| Complete UI/contracts/browser files, three files and three workers | **84 pass**, including all 32 axe scenes; repository timeouts                                                        |
+| `npm run typecheck`                                                | All five projects pass                                                                                               |
+| Scoped ESLint and Prettier                                         | Pass                                                                                                                 |
+| `npm run deadcode` / `npx jscpd`                                   | Pass / 1,202 files, zero clones                                                                                      |
+| `node scripts/check-l10n.mjs`                                      | 14 tables, zero problems                                                                                             |
+| `npm run build`                                                    | Pass; activation 440.3/600 KiB, Model API 450.1/475, checkpoint 76.9/225, ACP 818.6/850; all existing caps unchanged |
+| `npm run check:host-api`                                           | Existing W-owned mismatch only: node:crypto 46 → 48 and Accounts CSS theme-source entry                              |
+| `git diff --check`                                                 | Pass                                                                                                                 |
+
+### Authorized applied-source verification
+
+Applied the prepared patch directly to `src/core/providers/accounts.ts` and
+`src/host/models/accountsHandler.ts`. Successful adds publish a unique symbol
+after metadata storage succeeds; failed adds cannot acquire ownership.
+Rollback supplies the original token, and removal checks it inside the shared
+mutation queue before metadata reads, revocation or secret deletion. Successful
+removal clears ownership. Ordinary removal and cleanup after cancellation or
+credential-storage failure still work; duplicate-add failure preserves the
+existing account. No persisted/public field, dependency, wire shape, user text,
+gate, timeout or paid behavior changes. The shared core serves every editor;
+the existing W/H installed-bridge conditions remain.
+
+The additional deterministic queue regression pauses an earlier metadata
+mutation, queues removal/re-addition, and only then cancels the original
+credential prompt. Rollback joins the queue while the original still owns
+the ID. This proves comparison happens after earlier queued mutations settle,
+rather than before entering the queue.
+
+Three final direct production-source drills each run the complete 20-test
+host file with `--maxWorkers=3` and repository timeouts. Removing the store's
+comparison or omitting the handler's token makes **all three replacement
+regressions fail** (exit 1, 17 old tests pass). Moving the comparison outside
+the queue makes only the queued-replacement regression fail (exit 1, 19 pass).
+Each source is restored byte-exact in finally; SHA-256 before and after is
+identical:
+
+| Drill                                    | Production source                    | Original = restored SHA-256                                        |
+| ---------------------------------------- | ------------------------------------ | ------------------------------------------------------------------ |
+| Store ownership comparison removed       | `src/core/providers/accounts.ts`     | `8e47b21610fafb5505b495c448ce20084ba082b43c63fd64a424c78601b542d9` |
+| Handler ownership token omitted          | `src/host/models/accountsHandler.ts` | `5e331a057b17edaf78b312de6643f98fa12005179043beac73c53006d9897733` |
+| Ownership comparison moved outside queue | `src/core/providers/accounts.ts`     | `8e47b21610fafb5505b495c448ce20084ba082b43c63fd64a424c78601b542d9` |
+
+Final receipts: `temp/fixm108u2-final-drill-store-owner.log`,
+`temp/fixm108u2-final-drill-handler-owner.log`,
+`temp/fixm108u2-final-drill-queue-owner.log` and
+`temp/fixm108u2-final-drills.json` (untracked). The earlier two 19-test drills
+are retained under `temp/fixm108u2-direct-drill-*`; they are superseded by
+these final three drills. The initial applied run passed **53 tests** across
+host, account-store and runtime-store files.
+
+Final verification ran directly on macmini after restorations, using
+`npx vitest run <files> --maxWorkers=3` with the repository's default test
+timeout, at most three complete files per run, and no skips or filters:
+
+| Lane | Complete files under `test/unit/`                                                    | Result                                                                     |
+| ---- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| U    | `accountsPanelHost.test.ts`, `accountsPanel.test.tsx`, `accountsPanel.a11y.test.mjs` | **80 pass**: 20 host, 26 UI and 34 browser checks, including 32 axe scenes |
+| U    | `App.test.tsx`, `accounts.test.ts`                                                   | **176 pass**                                                               |
+| K    | `accountStore.test.ts`, `accountSecrets.test.ts`, `runtimeAccountStore.test.ts`      | **83 pass**                                                                |
+| K    | `redact.test.ts`, `credentialStore.test.ts`, `authService.test.ts`                   | **264 pass**                                                               |
+| K    | `scanSecrets.test.ts`, `exportConversation.test.ts`, `problemReportBuilder.test.ts`  | **87 pass**                                                                |
+
+**690 distinct final tests pass: U 256, K 434.** Receipts:
+`temp/fixm108u2-final-tests.json` and the five
+`temp/fixm108u2-final-<batch>.log` files. After adding the queued-replacement
+test and completing its drills, the whole host file passes **20/20** in
+`temp/fixm108u2-queue-final-host.log`; this supersedes the earlier 19-test host
+result. Other suite files and production source hashes are unchanged.
+Existing Vite config and jsdom canvas
+notices do not fail assertions. No raised test timeout or exploratory timeout
+override was used during this continuation.
+
+| Final direct check (macmini)                            | Result                                                                                                                                                                                                    |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck`                                     | All five projects pass                                                                                                                                                                                    |
+| Scoped `eslint --max-warnings=0` and `prettier --check` | Pass                                                                                                                                                                                                      |
+| `npm run deadcode`                                      | Pass; existing vendor/axe-core configuration hints only                                                                                                                                                   |
+| `npx jscpd`                                             | 1,202 files, zero clones                                                                                                                                                                                  |
+| `node scripts/check-l10n.mjs`                           | 14 tables, 164 manifest strings, 617 source files, zero problems                                                                                                                                          |
+| `npm run build`                                         | Every size/split/host-global gate and 83-package notices check passes                                                                                                                                     |
+| `npm run check:host-api`                                | Exit 1, unchanged W-owned generated-record mismatch only: `node:crypto` 46 → 48 and Accounts CSS in the theme-source list; still 332 APIs, 31 VS Code importers, 25 Node built-ins and 61 theme variables |
+| `git diff --check`                                      | Pass                                                                                                                                                                                                      |
+
+Receipts: `temp/fixm108u2-direct-checks.json` and corresponding check logs.
+After the queue test was added, final unit typecheck, scoped ESLint/Prettier
+and the complete host file also pass:
+`temp/fixm108u2-queue-final-checks.json`. The duplication gate caught copied
+pending-addition setup; the tests now share that setup in `pendingAddition`,
+and final `temp/fixm108u2-queue-final-duplication.log` reports zero clones.
+The final three drills were rerun with this shared test fixture. Production
+source hashes still match all restored drill bytes.
+Production activation **440.3/600 KiB**, Model API **450.1/475**, checkpoint
+**76.9/225**, ACP **818.6/850**, webview startup **897.5/900** and existing
+deferred JS **49.7/50** all pass, with every cap unchanged. The separator-
+normalized audit of **37 production metafiles** still finds no AccountStore,
+Accounts handler or Accounts UI input in shipped graphs:
+`temp/fixm108u2-direct-graph.json`. No aggregate quality/coverage, installed
+editor, hosted CI or live receipt is claimed; PLAN §7 retains the bounded-lane
+delegation and exact W record update. CHANGELOG's Unreleased entry records
+replacement protection. No command, setting or help entry changed.
+
+**FIXM108U2-PROCESS-OWNERSHIP**, PLAN §9: the scope blocker is closed by
+the lead's approval and applied fix. The ownership queue, like K's existing
+mutation/removal fences, is process-local. The existing K-M109/W parent-owned
+broker still must compose cross-process ownership before installed account
+surfaces are enabled; no installed-editor or cross-process claim is added.
+
 ## FIXM108U — RVM108U repairs (macmini, 2026-10-06)
 
 Repair base `fde11d93`; all four P2 findings are fixed within U's supplied

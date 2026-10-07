@@ -53,8 +53,9 @@ function harness() {
   })
   const credential = vi.fn(() => Promise.resolve())
   const answer = vi.fn<AccountsPanelHostPort['answer']>(() => false)
+  const accounts = new AccountStore(metadata, vault)
   const handler = new AccountsPanelHandler({
-    accounts: new AccountStore(metadata, vault),
+    accounts,
     confirmations,
     provider: metadata.read,
     currentAccount: () => current,
@@ -72,6 +73,7 @@ function harness() {
   })
   return {
     handler,
+    accounts,
     vault,
     store,
     use,
@@ -82,6 +84,20 @@ function harness() {
       entry = { ...entry, ...value }
     },
   }
+}
+
+async function pendingAddition(h: ReturnType<typeof harness>) {
+  const account = { id: 'team', label: 'Team', order: 2, thresholds: {} }
+  const request = { type: 'accounts/add', provider: 'openai', account }
+  const opened = Promise.withResolvers<undefined>()
+  const credential = Promise.withResolvers<undefined>()
+  h.credential.mockImplementationOnce(() => {
+    opened.resolve(undefined)
+    return credential.promise
+  })
+  const original = h.handler.handle(request)
+  await opened.promise
+  return { account, request, original, credential }
 }
 
 describe('M108 panel host', () => {
@@ -248,6 +264,74 @@ describe('M108 panel host', () => {
     expect(unchanged.accounts).toEqual(panelSlice().accounts)
     expect(h.credential).not.toHaveBeenCalled()
     expect(h.vault.remove).not.toHaveBeenCalled()
+  })
+  it.each(['pending', 'cancelled'])(
+    'preserves a replacement account and credential when the original addition is %s',
+    async (state) => {
+      const h = harness()
+      // A second surface/CLI adapter shares the real store's mutation queue.
+      const other = new AccountStore(h.metadata, h.vault)
+      const { account, request, original, credential } = await pendingAddition(h)
+      await other.remove('openai', 'team')
+      const rollbackStarted = Promise.withResolvers<undefined>()
+      const rollback = Promise.withResolvers<undefined>()
+      const remove = h.accounts.remove.bind(h.accounts)
+      vi.spyOn(h.accounts, 'remove').mockImplementationOnce(async (...args) => {
+        rollbackStarted.resolve(undefined)
+        await rollback.promise
+        await remove(...args)
+      })
+      if (state === 'cancelled') {
+        credential.reject(new Error('cancelled'))
+        await rollbackStarted.promise
+      }
+      // Even byte-identical metadata is a distinct addition with its own credential.
+      expect(await h.handler.handle(request)).toMatchObject({
+        accounts: expect.arrayContaining([account]),
+      })
+      h.vault.remove.mockClear()
+      if (state === 'pending') {
+        credential.reject(new Error('cancelled'))
+        await rollbackStarted.promise
+      }
+      rollback.resolve(undefined)
+      expect(await original).toEqual({ type: 'accounts/error', code: 'unavailable' })
+      const snapshot = await h.handler.snapshot('openai')
+      expect(snapshot.accounts).toEqual([...panelSlice().accounts, account])
+      expect(h.vault.remove).not.toHaveBeenCalled()
+    },
+  )
+  it('compares rollback ownership after earlier queued replacement mutations settle', async () => {
+    const h = harness()
+    const other = new AccountStore(h.metadata, h.vault)
+    const { account, original, credential } = await pendingAddition(h)
+    const writing = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const write = h.metadata.writeAccounts.getMockImplementation()!
+    h.metadata.writeAccounts.mockImplementationOnce(async (...args) => {
+      writing.resolve(undefined)
+      await release.promise
+      await write(...args)
+    })
+    const blocker = other.update('openai', panelSlice().accounts[0]!)
+    await writing.promise
+    const removal = other.remove('openai', 'team')
+    const replacement = other.add('openai', account)
+    const rollingBack = Promise.withResolvers<undefined>()
+    const remove = h.accounts.remove.bind(h.accounts)
+    vi.spyOn(h.accounts, 'remove').mockImplementationOnce(async (...args) => {
+      rollingBack.resolve(undefined)
+      await remove(...args)
+    })
+    credential.reject(new Error('cancelled'))
+    await rollingBack.promise
+    // Rollback joins behind removal/re-addition while the original still owns the ID.
+    release.resolve(undefined)
+    await Promise.all([blocker, removal, replacement])
+    expect(await original).toEqual({ type: 'accounts/error', code: 'unavailable' })
+    const snapshot = await h.handler.snapshot('openai')
+    expect(snapshot.accounts).toEqual([...panelSlice().accounts, account])
+    expect(h.vault.remove).toHaveBeenCalledTimes(1)
   })
   it('validates every display boundary including URLs and current account', () => {
     const value = panelSlice()

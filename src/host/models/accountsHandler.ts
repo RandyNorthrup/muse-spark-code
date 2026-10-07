@@ -92,15 +92,15 @@ export class AccountsPanelHandler {
           break
         }
         case 'accounts/add': {
-          await this.port.accounts.add(request.provider, request.account)
+          const addition = await this.port.accounts.add(request.provider, request.account)
           let hasCredential = false
           try {
             await this.port.credential(request.provider, request.account.id)
             hasCredential = true
           } finally {
-            // Only this successful addition is owned; also remove any partial credential.
+            // Compare the addition token before removing metadata or a partial credential.
             if (!hasCredential)
-              await this.port.accounts.remove(request.provider, request.account.id)
+              await this.port.accounts.remove(request.provider, request.account.id, addition)
           }
           break
         }

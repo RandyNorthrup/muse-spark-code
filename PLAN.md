@@ -19833,6 +19833,23 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
 
+**FIXM108U2 (2026-10-06):** repair RVM108U2's single P2 replacement-account
+rollback race. A cancelled addition must retain its own ownership token;
+rollback compares that token and deletes only its original account under the
+same serialized store mutation. Prove both removal/re-addition while the
+credential prompt is pending and cancellation followed by replacement before
+the delayed rollback. Replacement metadata may be byte-identical; neither
+its row nor its credential may be removed. Keep normal cancellation/storage
+failure cleanup and duplicate-add preservation. Record the regression's
+pre-fix failure, a byte-exact red drill, scoped checks and any integration
+residual in `docs/certification/m108-u-panel-and-vs-code.md` and §9. No
+dependencies, guard relaxations, timeout changes or paid/live calls. The
+lead approved Q-FIXM108U2 in the continuation brief: K is accepted and
+finished, and U may apply the prepared minimal ownership-token change to
+`src/core/providers/accounts.ts`. The ownership comparison belongs inside
+K's mutation queue; a panel-side check cannot make deletion atomic. Keep
+K's complete suites green alongside U's direct default-timeout verification.
+
 **FIXM108U (2026-10-06):** repair all four RVM108U P2 findings within
 U's panel, host ports and display contracts. Keep one pending operation per
 Accounts view, tag its result/error/cleanup with its provider generation and
@@ -20099,8 +20116,9 @@ most three workers/files, scoped static/build checks and hook-on commits.
 The lead retains integrated quality, coverage and installed editor/live
 certification. No gate is weakened; receipts are in
 `docs/certification/m108-u-panel-and-vs-code.md`.
-Final scoped tests pass 253/253, including 32 browser axe scenes; static,
-localization and production build gates pass. `check:host-api` still requires
+The FIXM108U2 continuation's final scoped tests pass 690/690 (U 256, K 434),
+including 32 browser axe scenes; direct static, localization and production
+build gates pass. `check:host-api` still requires
 W's generated record update: `node:crypto` imports 46 → 48 and Accounts CSS
 in the theme-source list. The API/theme totals are unchanged. Keep that
 named integration handoff rather than editing W's owned file in this lane.
@@ -21297,6 +21315,16 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM108U2-PROCESS-OWNERSHIP (K / U / M109 / W).** The lead approved
+  the minimal cross-lane store edit after accepting K. Addition ownership
+  and rollback comparison share the existing process-local mutation queue,
+  including across independent store instances. Replacement accounts with
+  identical metadata receive distinct tokens. Cross-process ownership still
+  needs the existing K-M109/W parent-owned broker; installed multi-account
+  surfaces remain disabled on this base until the existing bindings are
+  certified. The continuation closes the scope blocker without making a
+  cross-process or installed-editor claim.
 
 - **FIXM108U-INSTALLED-BINDINGS (M108-U-M104-PROMPT / M108-U-P-BOUNDARY /
   W).** No RVM108U finding remains in U's supplied panel/host ports. The

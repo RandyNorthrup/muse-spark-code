@@ -42,6 +42,7 @@ export class AccountStore {
   private static writes: Promise<void> = Promise.resolve()
   private static readonly generations = new Map<string, number>()
   private static readonly removing = new Set<string>()
+  private static readonly additions = new Map<string, symbol>()
 
   public constructor(
     private readonly metadata: AccountsMetadataPort,
@@ -105,12 +106,16 @@ export class AccountStore {
     return this.pool(await this.provider(provider)).toSorted((a, b) => a.order - b.order)
   }
 
-  public async add(provider: string, value: Account): Promise<void> {
-    await this.mutate(async () => {
+  /** The returned token owns this addition until its successful removal. */
+  public async add(provider: string, value: Account): Promise<symbol> {
+    return await this.mutate(async () => {
       const entry = await this.provider(provider)
       this.assertCredentialsOffered(entry)
       const pool = providersAccountsSchema.parse([...this.pool(entry), value])
       await this.metadata.writeAccounts(provider, pool)
+      const addition = Symbol()
+      AccountStore.additions.set(accountSecretKey(provider, value.id), addition)
+      return addition
     })
   }
 
@@ -171,10 +176,13 @@ export class AccountStore {
     })
   }
 
-  public async remove(provider: string, account: string): Promise<void> {
+  /** Rollback deletes only the addition that still owns the supplied token. */
+  public async remove(provider: string, account: string, addition?: symbol): Promise<void> {
     await this.mutate(async () => {
-      const binding = this.binding(await this.provider(provider), account)
       const key = accountSecretKey(provider, account)
+      // Compare and deletion share the queue, including through other store instances.
+      if (addition !== undefined && AccountStore.additions.get(key) !== addition) return
+      const binding = this.binding(await this.provider(provider), account)
       AccountStore.generations.set(key, (AccountStore.generations.get(key) ?? 0) + 1)
       AccountStore.removing.add(key)
       try {
@@ -184,6 +192,7 @@ export class AccountStore {
           provider,
           this.pool(await this.provider(provider)).filter((row) => row.id !== account),
         )
+        AccountStore.additions.delete(key)
       } finally {
         AccountStore.removing.delete(key)
       }

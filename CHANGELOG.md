@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Cancelled account additions compare ownership inside the store's mutation
+  queue, preserving replacement accounts and credentials with the same ID.
+
 - Account threshold evaluation and paid token reservations use exact nano-USD
   arithmetic, preserving exactly affordable decimal costs. Request/token
   headroom checks trip at the exact configured percentage boundary.
