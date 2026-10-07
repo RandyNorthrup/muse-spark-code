@@ -5,6 +5,80 @@ Mac mini, 2026-10-06. Live model attempts: **0**. Paid calls: **0**.
 No credential stores, credential files or real secret values were read. No new
 package or machine setting. Hooks exist and commits use the repository hooks.
 
+## FIXM109U — RVM109U repair (2026-10-07)
+
+All six RVM109U findings (five P2, one P3) are fixed; none is accepted as
+residual risk. No guard was widened and no dependency was added.
+
+- **1 (P2, lost update).** `changed` notifications now join the lock/revoke
+  generation barrier in `VaultPanelHost` (`src/host/vault/vaultPanelHost.ts`):
+  the generation advances, the native entry's signal aborts and the queue
+  resets, so an older draft finished after another window's metadata change
+  cannot commit. The retired draft is wiped and reports no error.
+  Regression: `RVM109U-1 a metadata change retires an older native editor`
+  in `test/unit/vault/vaultPanelHost.test.ts`.
+- **2 (P2, starved approvals).** `approval` notifications no longer join the
+  queue behind a held native editor: the host publishes them through a new
+  prompt `refreshNow` outside the queue, keeping its generation, while the
+  queued editor keeps its own (`src/host/vault/vaultPanelHost.ts`). Lock and
+  revoke remain barriers; ordinary state updates still use the queue.
+  Regression: `RVM109U-2 approval cards publish while a native editor waits`.
+- **3 (P2, policy default).** The native mode picker now leads with the
+  edited item's current policy mode, so accepting every default preserves it;
+  new items still lead with Ask every time
+  (`src/host/vault/vaultNativeEditor.ts`). Regression:
+  `RVM109U-3 accepting every default preserves the existing … policy`
+  (never, alwaysAllow, askOncePerSession) in
+  `test/unit/vault/vaultNativeEditor.test.ts`.
+- **4 (P2, unknown tier).** `tierWarning` returns a new honest
+  `vault.unknownTierWarning` when no slot has been observed (`tier: null`,
+  e.g. a locked broker), instead of claiming OS-store protection
+  (`src/webview/models/sections/vault/VaultSection.tsx`,
+  `src/shared/l10n/en.ts` and all 14 `l10n/ui.*.json` tables with real
+  translations). Observed tiers map exactly as before. Regression:
+  `RVM109U-4 an unobserved tier does not claim OS-store protection` in
+  `test/unit/vault/vaultPanel.test.tsx`.
+- **5 (P2, remote session consent).** Session consent is hidden and refused
+  for remote requesters (`deviceId !== null`): `isSessionAllowed` returns
+  false (`src/webview/models/sections/vault/vaultPresentation.tsx`), the
+  host rejects forged `allowSession` answers
+  (`src/host/vault/vaultPanelHost.ts`), and the card states its real scope
+  with the existing translated `remoteWarning`
+  (`src/webview/components/VaultApprovalCard.tsx`). The broker still asks on
+  the owning device for every remote use (D89.13); no broker bypass is
+  claimed. Regressions: `RVM109U-5 session answers are refused for remote
+requesters` (host) and `RVM109U-5 remote requests hide session consent and
+name their scope` (card).
+- **6 (P3, late Lock error).** All three error-report sites use one
+  `shouldReport` predicate that also requires a live window, so a Lock
+  completing after disposal reports nothing
+  (`src/host/vault/vaultPanelHost.ts`). Regression: `RVM109U-6 a late Lock
+success after disposal shows no error`.
+
+**Red drills.** Each guard was broken on purpose, the named test(s) observed
+failing, and the file restored byte-exact (SHA-256 checked before and after).
+Round 1 (host, four guards broken together): exactly the four named host
+tests failed (`RVM109U-1`, `RVM109U-2`, `RVM109U-5`, `RVM109U-6`), 19 others
+passed. Round 2 (editor reorder removed; presentation `deviceId` check
+removed; section null-tier branch removed): the three `RVM109U-3` cases plus
+`RVM109U-4` and card `RVM109U-5` failed, 39 others passed. Restored hashes:
+`vaultPanelHost.ts 829575b8…f2420`, `vaultNativeEditor.ts d72021a0…f1d8b27`,
+`VaultSection.tsx 4ad3c071…270ebe`, `vaultPresentation.tsx cf8c3f6f…faf88d6371`
+(`VaultApprovalCard.tsx be5ffcd2…040c8440` was never broken). Full hashes are
+in the shell history of this lane; the files' committed state is the verified
+post-restore state below.
+
+**Verification (Mac mini, repo default timeouts, no `--testTimeout`).**
+Focused run `vaultPanelHost.test.ts vaultNativeEditor.test.ts
+vaultPanel.test.tsx`: **67 passed**. Neighbours
+`vaultPanelBuild.test.ts contracts.test.ts`: **26 passed**. `App.test.tsx
+AppLazy.test.tsx bundleSize.test.mjs`: **157 passed**. Host, webview and unit
+`tsc --noEmit` pass; targeted ESLint (`--max-warnings=0`) and Prettier pass;
+`node scripts/check-l10n.mjs` reports **14 tables, 0 problems**; `npm run
+build` passes all budgets and split/globals/notices gates. No P2/P3 is left
+as a residual; the C/B/P/M/S service binding handoffs named in the review
+stand unchanged.
+
 ## Delivered interfaces and behavior
 
 - `VaultSurface` is the independent lazy Models & Agents entry. It validates

@@ -22303,6 +22303,22 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **FIXM109U / RVM109U (2026-10-07).** All six findings (five P2, one P3)
+  are fixed; none is accepted as residual risk. `changed` notifications join
+  the host generation barrier so older native drafts cannot commit after
+  another window's metadata change; approval notifications publish promptly
+  outside the queue so a held password box cannot starve an expiring card;
+  the native mode picker leads with the edited item's current policy; an
+  unobserved (`null`) protection tier renders a new honest
+  `vault.unknownTierWarning` (English plus all 14 tables) instead of claiming
+  OS-store protection; session consent is hidden and refused for remote
+  (`deviceId !== null`) requesters while the card states its real scope with
+  the existing `remoteWarning`; late completions after disposal report no
+  window UI through one `shouldReport` predicate. No guard was widened, no
+  dependency was added, and the C/B/P/M/S service binding handoffs stand
+  unchanged. Evidence, regressions and byte-exact drills:
+  `docs/certification/m109-u-panel-and-vs-code.md`.
+
 - **FIXM109B6 / RVM109B5 (2026-10-06).** Both findings (one P1, one P2)
   are fixed; none is accepted as residual risk. Audit-session key erasure and
   reference clearing run in `finally` despite descriptor close failure; facade

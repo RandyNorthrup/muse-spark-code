@@ -16,6 +16,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Vault panel review repairs: metadata changes retire older native editors so
+  a stale draft cannot restore a changed policy; approval cards publish
+  promptly instead of waiting behind native credential entry; the native mode
+  picker preserves the edited item's policy by default; an unobserved
+  protection tier renders as unknown rather than OS-store protection; session
+  consent is hidden and refused for remote requests, whose cards state their
+  real scope; late completions after disposal report no error.
+
 - Rebuilt vault authorization around synchronous state transitions and tagged
   effects. Connections retain their registration incarnation, private reads
   stay broker-owned through transport release, and obsolete audit or unlock
