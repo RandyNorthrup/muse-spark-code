@@ -75,7 +75,13 @@ export default function EstimatorPanel({
   const [section, setSection] = useState<EstimateSection | undefined>(() =>
     initialSection === undefined ? undefined : estimateSectionSchema.parse(initialSection),
   )
-  const [selected, setSelected] = useState<EstimateSection['setups'][number]['kind']>('current')
+  // A section without a current setup still opens on its first available
+  // setup; the radio must never point at a card that is not rendered.
+  const [selected, setSelected] = useState<EstimateSection['setups'][number]['kind']>(() => {
+    if (initialSection === undefined) return 'current'
+    const parsed = estimateSectionSchema.parse(initialSection)
+    return parsed.setups[0]?.kind ?? 'current'
+  })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [spinning, setSpinning] = useState(false)
@@ -127,6 +133,11 @@ export default function EstimatorPanel({
       setBusy(false)
       setError('')
       setSection(next)
+      setSelected((previous) =>
+        next.setups.some((setup) => setup.kind === previous)
+          ? previous
+          : (next.setups[0]?.kind ?? 'current'),
+      )
     })
     return () => {
       // The adapter is being replaced (or the panel closed): drop its request,
@@ -223,9 +234,12 @@ export default function EstimatorPanel({
 
   const setup = section?.setups.find((candidate) => candidate.kind === selected)
   let waiting = ''
+  // With no selected setup there is nothing to spin up: report nothing
+  // rather than the rental-provider wait for a card that is not selected.
   if (
+    setup !== undefined &&
     port.provision.state === 'waiting' &&
-    (setup?.provisioning !== 'existing' || port.startExisting === undefined)
+    (setup.provisioning !== 'existing' || port.startExisting === undefined)
   )
     waiting = fill(UI_TEXT.estimateWaiting, { dependency: port.provision.dependency })
   else if (setup?.provisioning === 'adviceOnly') waiting = UI_TEXT.estimateAdvice

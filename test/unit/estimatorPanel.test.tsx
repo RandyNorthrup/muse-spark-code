@@ -206,6 +206,38 @@ describe('M117 Estimator panel', () => {
     expect(screen.getByRole('alert').textContent).toBe(UI_TEXT.estimateDisclosureMissing)
   })
 
+  it('selects the first available setup when the section has no current fleet', async () => {
+    const h = harness()
+    const startExisting = vi.fn(() => Promise.resolve())
+    const base = fakeEstimate()
+    const section: EstimateSection = {
+      ...base,
+      currentRefusal: 'unschedulable:M117:A',
+      setups: [{ ...base.setups[0]!, kind: 'minimumP90', meetsDeadline: true }],
+    }
+    render(
+      <EstimatorPanel
+        port={{ ...h.port, startExisting }}
+        initial={section.inputs.request}
+        initialSection={section}
+      />,
+    )
+    await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
+    const radio = screen.getByRole('radio', { name: new RegExp(UI_TEXT.estimateMinimum) })
+    expect(radio).toHaveProperty('checked', true)
+    expect(screen.queryByText(/M117-P-start/)).toBeNull()
+    const spin = screen.getByRole('button', { name: UI_TEXT.estimateSpinUp })
+    expect(spin.hasAttribute('disabled')).toBe(false)
+    fireEvent.click(spin)
+    await waitFor(() => {
+      expect(startExisting).toHaveBeenCalledTimes(1)
+    })
+    expect(startExisting).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'estimate' }),
+      expect.objectContaining({ kind: 'minimumP90' }),
+    )
+  })
+
   it('aborts in-flight work and unsubscribes when the panel closes', async () => {
     const pending = Promise.withResolvers<EstimateSection>()
     const h = harness()
