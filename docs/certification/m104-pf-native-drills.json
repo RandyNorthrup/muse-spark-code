@@ -68,5 +68,12 @@
     "test": "testLegacyVersionAndRuntimeInitiationAreRefused",
     "exit": 65,
     "sha256": "b4ba1a5c242e1727538aa596f3bb76fd178cc009aefec4a0d41af8ce3a8d92e1"
+  },
+  {
+    "label": "native package star description",
+    "file": "hosts/xcode/description.html",
+    "test": "testAppAndEditorExtensionPackageTheLinkedStarDescription",
+    "exit": 65,
+    "sha256": "2bacb26e6e08a16ab25e2bc4a0cf8b7f438e01a56deb99cf8cb1fd1d480456e4"
   }
 ]

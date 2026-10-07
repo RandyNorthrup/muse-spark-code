@@ -23,6 +23,8 @@ Model API key, and never mixes the two. The same project ships the
 > Unofficial. Not affiliated with or endorsed by Meta. "Muse Spark" and
 > "Muse Code" are Meta trademarks. You bring your own credentials.
 
+[Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
+
 ## Install
 
 Node.js 22 or later is required.

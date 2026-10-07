@@ -6,6 +6,13 @@ import { buildEnvironment } from '../../../scripts/package-hosts/manifest.mjs'
 
 const mutations = [
   [
+    'native package star description',
+    'hosts/xcode/description.html',
+    'Enjoying Muse Spark Code? A star on GitHub helps other people find it.',
+    '',
+    'testAppAndEditorExtensionPackageTheLinkedStarDescription',
+  ],
+  [
     'owning fake CLI entry',
     'test/hosts/xcode/fake-runtime.ts',
     'path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)',

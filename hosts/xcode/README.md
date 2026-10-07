@@ -126,3 +126,5 @@ was attempted and failed its library signature check; no test is skipped in the
 final scheme and no product entitlement is widened. Receipts, limitations and
 feature parity are in [the parity certification record](../../docs/certification/m104-pf.md).
 Apple feedback text is in [apple-feedback.md](apple-feedback.md).
+
+[Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)

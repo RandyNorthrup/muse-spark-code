@@ -105,3 +105,5 @@ The official Node pin manifest still needs approved offline vendor checksums
 or separate network authorization. Production manifests, installed archive
 payload verification, hosted release execution and per-editor qualification
 remain missing. No native release readiness or support is claimed.
+
+[Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)

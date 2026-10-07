@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Xcode's app and source editor extension ship the linked GitHub star sentence
+  in their packaged descriptions. Xcode, ACP and native distribution READMEs
+  include the same sentence; other native listing changes remain owner requests.
+
 - Xcode and native distribution adopt the integrated MHP 1.3 snapshot.
   ACP archives include the actual portable engine/presentation factories,
   protocol, checkpoint/session/plan dependencies and optional Judge/browser

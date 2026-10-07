@@ -32,6 +32,8 @@ from [the compatibility plan](https://github.com/RandyNorthrup/muse-spark-code/b
 [hosts.md](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/ide-compatibility/hosts.md) records which editors have been
 tested, at which version, and what was found.
 
+[Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
+
 ## Install
 
 Node.js 22 or later is required.

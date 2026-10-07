@@ -5,6 +5,18 @@ import XCTest
 @testable import MuseSpark
 
 final class NativeUiTests: XCTestCase {
+  func testAppAndEditorExtensionPackageTheLinkedStarDescription() throws {
+    let sentence = "Enjoying Muse Spark Code? A star on GitHub helps other people find it."
+    let link = "<a href=\"https://github.com/RandyNorthrup/muse-spark-code\">\(sentence)</a>"
+    let app = try XCTUnwrap(Bundle.main.url(forResource: "description", withExtension: "html"))
+    let editor = Bundle.main.bundleURL.appendingPathComponent(
+      "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/description.html")
+    for file in [app, editor] {
+      let html = try String(contentsOf: file, encoding: .utf8)
+        .replacingOccurrences(of: "\\s+>", with: ">", options: .regularExpression)
+      XCTAssertTrue(html.contains(link))
+    }
+  }
   @MainActor func testNativeAppearanceIncludesBothHighContrastKinds() throws {
     let schema = try MhpSchema()
     for (dark, contrast, expected) in [

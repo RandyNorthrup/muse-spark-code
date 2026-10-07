@@ -86,3 +86,18 @@ implemented and drilled by the file owner before whole-train coverage is claimed
   `scripts/gen-reference.mjs` remain absent. The parity ownership contract
   makes shared source A-owned; supply the owning catalog/command and F will
   update generated global documentation. No fabricated reference gate is claimed.
+
+Additional per-file listing requests:
+
+- **D — `hosts/visualstudio/README.md`:** add the same linked sentence to
+  the Marketplace overview source if this README is used; the VSIX manifest
+  description must point to or contain the actual listed text.
+- **E — `hosts/eclipse/feature/feature.xml`:** add the sentence with the
+  GitHub description URL in the p2 feature listing.
+- **E — `hosts/eclipse/README.md`:** add the linked sentence to the package
+  description. `plugin/plugin.xml` currently registers views/commands, not
+  a marketplace description, so no invented extension-point text is requested.
+
+Xcode's description is now a real resource in both app and editor extension;
+its README and the owned global/distribution/ACP landing descriptions carry
+the sentence too. D/E's eight-editor listing coverage remains pending.

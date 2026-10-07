@@ -5,6 +5,9 @@
 	"objectVersion" = "56";
 	"archiveVersion" = "1";
 	"objects" = {
+		"F104F0000000000000000001" = { "isa" = "PBXFileReference"; "path" = "description.html"; "lastKnownFileType" = "text.html"; "sourceTree" = "SOURCE_ROOT"; };
+		"F104F0000000000000000002" = { "isa" = "PBXBuildFile"; "fileRef" = "F104F0000000000000000001"; };
+		"F104F0000000000000000003" = { "isa" = "PBXBuildFile"; "fileRef" = "F104F0000000000000000001"; };
 		"15D96C47BC4F9317BF656882" = { "isa" = "PBXFileReference"; "path" = "../../test/m104/mac/NativeUiTests.swift"; "lastKnownFileType" = "sourcecode.swift"; "sourceTree" = "SOURCE_ROOT"; };
 		"4DC926C3FC93D6C71E07C3A1" = { "isa" = "PBXBuildFile"; "fileRef" = "15D96C47BC4F9317BF656882"; };
 		"7C06F4F2EE4D108258D4D6EC" = { "isa" = "PBXBuildFile"; "fileRef" = "D0A30C03E69C07767EACB5BE"; };
@@ -454,6 +457,7 @@
 			"isa" = "PBXResourcesBuildPhase";
 			"buildActionMask" = "2147483647";
 			"files" = (
+				"F104F0000000000000000002",
 				"69780563D63F8004029811DF",
 				"E049C6BEA90BF4794695C4CA",
 				"82F972D576C0838F6648DBB5",
@@ -674,6 +678,7 @@
 			"isa" = "PBXResourcesBuildPhase";
 			"buildActionMask" = "2147483647";
 			"files" = (
+				"F104F0000000000000000003",
 				"350AEECDB800F493C25E8D43",
 				"E7DEF74325244C67AAED3E24",
 				"92C935B49B1FA3E60E96E799",
