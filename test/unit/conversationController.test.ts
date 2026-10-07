@@ -16017,10 +16017,11 @@ describe('M105 E1 attachment handler', () => {
       const controller = new ConversationController(t.deps)
       t.setPicked([{ name, fsPath: `/ws/${name}`, relativePath: name }])
       await controller.handle({ type: 'pickFile' })
+      // Unbound is an unavailable pipeline, not an unreadable file (M105 E1 review).
       expect(t.surface.posted).toContainEqual({
         type: 'attachmentRejected',
         name,
-        reason: UI_TEXT.attachmentUnreadable,
+        reason: UI_TEXT.media.uploadStorageUnknown,
       })
       expect(t.read).not.toHaveBeenCalled()
       controller.dispose()
@@ -16034,10 +16035,11 @@ describe('M105 E1 attachment handler', () => {
       .spyOn(t.files, 'canonicalRelativePath')
       .mockRejectedValue(new Error('unreadable'))
     await t.controller.handle({ type: 'droppedUris', uris: ['file:///ws/clip.mp4'] })
+    // A confinement check that throws refuses; nothing was read (M105 E1 review).
     expect(t.surface.posted).toContainEqual({
       type: 'attachmentRejected',
       name: 'clip.mp4',
-      reason: UI_TEXT.attachmentUnreadable,
+      reason: UI_TEXT.textFilePrivate,
     })
     const { promise, reject } =
       Promise.withResolvers<Awaited<ReturnType<typeof t.files.canonicalRelativePath>>>()
@@ -16109,6 +16111,43 @@ describe('M105 E1 attachment handler', () => {
     expect(load).toHaveBeenCalledOnce()
     expect(t.surface.posted.filter((message) => message.type === 'attachmentAdded')).toHaveLength(3)
     controller.dispose()
+    t.controller.dispose()
+  })
+
+  it('confines picked media like drops: outside the workspace or protected is refused unread', async () => {
+    for (const picked of [
+      { name: 'clip.mov', fsPath: '/elsewhere/clip.mov', relativePath: undefined },
+      { name: 'clip.mp4', fsPath: '/ws/.git/clip.mp4', relativePath: '.git/clip.mp4' },
+    ]) {
+      const t = mediaRig()
+      const issue = vi.spyOn(t.port, 'issue')
+      t.setPicked([picked])
+      await t.controller.handle({ type: 'pickFile' })
+      expect(t.surface.posted).toContainEqual({
+        type: 'attachmentRejected',
+        name: picked.name,
+        reason: UI_TEXT.textFilePrivate,
+      })
+      expect(issue).not.toHaveBeenCalled()
+      expect(t.read).not.toHaveBeenCalled()
+      t.controller.dispose()
+    }
+  })
+
+  it('says the soundtrack warning the chip cannot, next to the admitted video', async () => {
+    const t = mediaRig(videoFixture({ brand: 'qt  ' }))
+    t.setPicked([{ name: 'clip.mov', fsPath: '/ws/clip.mov', relativePath: 'clip.mov' }])
+    await t.controller.handle({ type: 'pickFile' })
+    expect(t.surface.posted).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'attachmentAdded' }),
+        expect.objectContaining({
+          type: 'notice',
+          level: 'warning',
+          text: expect.stringContaining('sound'),
+        }),
+      ]),
+    )
     t.controller.dispose()
   })
 })

@@ -7922,7 +7922,11 @@ export class ConversationController {
         continue
       }
       if (this.isMediaExtension(extension)) {
-        await this.addMediaAttachment(file, generation)
+        // A picked file skips the drop path's checks, so it is confined here:
+        // the dialog can name anything (M105 E1 review).
+        if (await this.confinePickedMedia(file, generation)) {
+          await this.addMediaAttachment(file, generation)
+        }
         continue
       }
       const isTextFile = TEXT_ATTACHMENT_EXTENSIONS.has(extension)
@@ -8014,6 +8018,46 @@ export class ConversationController {
     return ['.mp4', '.mov', '.webm', '.mkv', '.mp3', '.wav', '.m4a'].includes(extension)
   }
 
+  /**
+   * The drop path's confinement for a picked media file: outside the
+   * workspace, unresolvable, protected or private is a refusal
+   * (`textFilePrivate`), never an unreadable file (M105 E1 review).
+   */
+  private async confinePickedMedia(file: PickedFile, generation: number): Promise<boolean> {
+    const refused = () => {
+      if (this.isCurrentAttachmentGeneration(generation)) {
+        this.post({ type: 'attachmentRejected', name: file.name, reason: UI_TEXT.textFilePrivate })
+      }
+    }
+    if (file.relativePath === undefined || this.deps.workspaceRoot === undefined) {
+      refused()
+      return false
+    }
+    let checked: Awaited<ReturnType<FileAccess['canonicalRelativePath']>>
+    try {
+      checked = await this.deps.files.canonicalRelativePath(file.fsPath)
+    } catch (error: unknown) {
+      this.deps.log.warn(`media attachment path check failed: ${describeForLog(error)}`)
+      if (!this.isCurrentAttachmentGeneration(generation)) {
+        return false
+      }
+      refused()
+      return false
+    }
+    if (!this.isCurrentAttachmentGeneration(generation)) {
+      return false
+    }
+    if (
+      checked === undefined ||
+      isProtectedPath(checked.canonical) ||
+      isPrivateFileName(checked.canonical)
+    ) {
+      refused()
+      return false
+    }
+    return true
+  }
+
   private async addMediaAttachment(
     file: PickedFile | undefined,
     generation: number,
@@ -8054,7 +8098,8 @@ export class ConversationController {
       }
       if (!isCurrent()) return
       if (port === undefined) {
-        rejected(UI_TEXT.attachmentUnreadable)
+        // No port is an unbound pipeline, not an unreadable file (M105 E1 review).
+        rejected(UI_TEXT.media.uploadStorageUnknown)
         return
       }
       this.mediaAttachments = port
@@ -8069,6 +8114,10 @@ export class ConversationController {
         rejected(prepared.reason)
         return
       }
+      // The chip labels sound; the warning itself is said (M105 E1 review).
+      if (prepared.soundtrackWarning !== undefined) {
+        this.notice('warning', prepared.soundtrackWarning)
+      }
       this.attachments.installMediaPort(prepared.attachment.store)
       const result = this.attachments.addMedia(prepared.attachment.name, prepared.attachment.info)
       if (result.ok)
@@ -8078,8 +8127,14 @@ export class ConversationController {
           ...(requestId !== undefined && { requestId }),
         })
       else rejected(result.reason)
-    } catch {
-      rejected(UI_TEXT.attachmentUnreadable)
+    } catch (error: unknown) {
+      // The unbound pipeline (W's throwing bind until U6c) keeps its own
+      // words; only a genuine read failure is unreadable (M105 E1 review).
+      rejected(
+        error instanceof Error && error.message === UI_TEXT.media.uploadStorageUnknown
+          ? UI_TEXT.media.uploadStorageUnknown
+          : UI_TEXT.attachmentUnreadable,
+      )
     }
   }
 
@@ -8120,8 +8175,10 @@ export class ConversationController {
         if (relativePath !== undefined) mentions.push(`${formatMention(relativePath)} `)
         continue
       }
+      // A refused URI was never read: it is private, not unreadable (M105
+      // E1 review). A confinement check that itself throws refuses too.
       if (relativePath === undefined || this.deps.workspaceRoot === undefined) {
-        this.post({ type: 'attachmentRejected', name, reason: UI_TEXT.attachmentUnreadable })
+        this.post({ type: 'attachmentRejected', name, reason: UI_TEXT.textFilePrivate })
         continue
       }
       let checked: Awaited<ReturnType<FileAccess['canonicalRelativePath']>>
@@ -8131,7 +8188,7 @@ export class ConversationController {
         )
       } catch {
         if (this.isCurrentAttachmentGeneration(generation))
-          this.post({ type: 'attachmentRejected', name, reason: UI_TEXT.attachmentUnreadable })
+          this.post({ type: 'attachmentRejected', name, reason: UI_TEXT.textFilePrivate })
         continue
       }
       if (!this.isCurrentAttachmentGeneration(generation)) return

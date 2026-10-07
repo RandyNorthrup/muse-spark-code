@@ -23,8 +23,18 @@ export interface PreparedMediaAttachment {
 }
 
 export type PrepareMediaResult =
-  | { readonly ok: true; readonly attachment: PreparedMediaAttachment }
-  | { readonly ok: false; readonly reason: string }
+  | {
+      readonly ok: true
+      readonly attachment: PreparedMediaAttachment
+      /** The model hears no soundtrack: the caller says this, the chip only labels sound. */
+      readonly soundtrackWarning?: string
+    }
+  | {
+      readonly ok: false
+      readonly reason: string
+      /** A bound converter can re-offer this file as mp4 (lane V binds the action). */
+      readonly convertToMp4?: true
+    }
 
 export interface MediaAttachmentPort {
   /** Only a host-approved picker result or confined URI may mint a token. */
@@ -73,7 +83,9 @@ export function createMediaAttachments(deps: MediaAttachDeps): MediaAttachmentPo
       if (backend !== 'modelApi') return { ok: false, reason: UI_TEXT.media.museCodeRefusal }
       const epoch = generation
       const opened = await deps.open(file)
-      if (opened === undefined) return { ok: false, reason: UI_TEXT.attachmentUnreadable }
+      // No handle is a refusal (confinement/approval said no), not a failed
+      // read: a throw below stays the read failure. (M105 E1 review.)
+      if (opened === undefined) return { ok: false, reason: UI_TEXT.textFilePrivate }
       try {
         const sniffed = await sniffMedia(opened.source)
         if (epoch !== generation) return { ok: false, reason: UI_TEXT.attachmentUnreadable }
@@ -87,6 +99,9 @@ export function createMediaAttachments(deps: MediaAttachDeps): MediaAttachmentPo
         const part = deps.bind(file, sniffed.info)
         return {
           ok: true,
+          ...(gate.soundtrackWarning !== undefined && {
+            soundtrackWarning: gate.soundtrackWarning,
+          }),
           attachment: {
             name: file.name,
             info: sniffed.info,

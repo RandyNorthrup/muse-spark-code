@@ -186,7 +186,7 @@ describe('M105 E1 media gestures and chips', () => {
       const slice = vi.spyOn(file, 'slice')
       pasteOrDropFile('paste', textarea, file)
       pasteOrDropFile('drop', textarea, file)
-      expect(props.onRefuseFile).toHaveBeenCalledWith(name, UI_TEXT.attachmentUnreadable)
+      expect(props.onRefuseFile).toHaveBeenCalledWith(name, UI_TEXT.textFilePrivate)
       expect(props.onRefuseFile).toHaveBeenCalledTimes(2)
       expect(slice).not.toHaveBeenCalled()
       expect(props.onAttachImage).not.toHaveBeenCalled()

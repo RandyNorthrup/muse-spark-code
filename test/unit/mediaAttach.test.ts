@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createMediaAttachments, type MediaAttachDeps } from '../../src/host/media/mediaAttach'
 import { MEDIA_SNIFF_MAX_BYTES, UI_TEXT } from '../../src/shared/constants'
-import { videoFixture, wavFixture } from './helpers/media/fixtures'
+import { ebmlFixture, videoFixture, wavFixture } from './helpers/media/fixtures'
 import { mediaModel } from './helpers/media/replay'
 
 function testPart() {
@@ -140,6 +140,23 @@ describe('M105 E1 host-token attachments', () => {
     expect(broken.close).toHaveBeenCalledOnce()
   })
 
+  it('carries the soundtrack warning past admission and the convert offer past refusal', async () => {
+    // muse-spark-1.3 hears no soundtrack (helpers/media/replay): the warning
+    // survives prepare so the caller can say it; the chip only labels sound.
+    const t = rig(videoFixture())
+    const admitted = await t.port.prepare(t.token, 'modelApi', 'muse-spark-1.3')
+    expect(admitted).toMatchObject({
+      ok: true,
+      soundtrackWarning: expect.stringContaining('sound'),
+    })
+    expect(t.bind).toHaveBeenCalledOnce()
+    // A convertible refusal keeps its convert flag for lane V's action.
+    const convertible = rig(ebmlFixture(), { limits: () => ({ converterAvailable: true }) })
+    const refused = await convertible.port.prepare(convertible.token, 'modelApi', 'muse-spark-1.3')
+    expect(refused).toMatchObject({ ok: false, convertToMp4: true })
+    expect(convertible.bind).not.toHaveBeenCalled()
+  })
+
   it('rejects malformed/colliding tokens, unavailable sources and mismatched capability records', async () => {
     const invalid = createMediaAttachments({
       newToken: () => '',
@@ -154,9 +171,10 @@ describe('M105 E1 host-token attachments', () => {
     const duplicate = rig(videoFixture(), { newToken: () => 'same' })
     expect(() => duplicate.port.issue(duplicate.file)).toThrow('Duplicate media path token')
     const absent = rig(videoFixture(), { open: () => Promise.resolve(undefined) })
+    // A refused open was never read: private, not unreadable (M105 E1 review).
     expect(await absent.port.prepare(absent.token, 'modelApi', 'selected')).toEqual({
       ok: false,
-      reason: UI_TEXT.attachmentUnreadable,
+      reason: UI_TEXT.textFilePrivate,
     })
     const mismatch = rig(videoFixture(), { capabilities: () => mediaModel('other-model') })
     await expect(mismatch.port.prepare(mismatch.token, 'modelApi', 'selected')).rejects.toThrow(

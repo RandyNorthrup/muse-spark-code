@@ -899,8 +899,9 @@ export function Composer(props: ComposerProps) {
       }
       // Browser File objects expose no approved host path. A URI transfer
       // takes the host route below; bytes-only media needs the native picker.
+      // Refused, not unreadable: nothing was opened (M105 E1 review).
       if (isStreamedMedia(file)) {
-        onRefuseFile(name, UI_TEXT.attachmentUnreadable)
+        onRefuseFile(name, UI_TEXT.textFilePrivate)
         continue
       }
       const isDocument = file.type === PDF_MEDIA_TYPE || name.toLowerCase().endsWith(PDF_EXTENSION)
