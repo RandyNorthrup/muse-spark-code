@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { DiffTally } from '../../src/webview/components/DiffTally'
-import { diffTally } from '../../src/webview/diffTally'
+import { diffTally } from '../../src/shared/diffTally'
 import type { TranscriptEntry } from '../../src/webview/state/transcriptEntries'
 
 const edit: TranscriptEntry = {

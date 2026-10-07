@@ -28088,6 +28088,16 @@ M110, and fake providers for every adapter.
   handoff; the pure core fixes apply to every editor/runtime.
 
 - **Lane 0's contracts,** frozen before the other lanes start:
+  - **K review RVM113K corrections (2026-10-06).** Fix all seven P2
+    findings within K's collectors and tests: unique repeated checklist keys;
+    release absence only after every required source is complete; GitHub
+    release evidence for latest/project; observed zero edits in complete
+    sessions; partial-source rows in forwarded facets; canonical milestone
+    selection; and ancestry-based commit grouping. K's injected selection
+    ports carry explicit, merge-base-aware branch membership from S/W without
+    changing the frozen snapshot or reading Git inside a collector. Unknown
+    membership stays unknown. Regressions and byte-exact red drills belong in
+    `docs/certification/m113-k-kinds.md`; no guard, dependency or budget changes.
   - **Review RVM113L02 correction (2026-10-06).** Derive comparison capacity
     from the document's section schemas, with an exhaustive type-checked map
     that requires an entry for every section field. Include the separate
@@ -30132,6 +30142,15 @@ production build directly on Kubuntu. The frozen Q base's U-owned
 named integration handoffs in `docs/certification/m112-q.md`; do not weaken
 either gate or claim them green. No review finding is deferred.
 
+**M113-K bounded review gates (2026-10-06).** The rig brief and shared lane
+rules require scoped tests/static/build checks and prohibit full quality in
+this lane; W/lead owns the integrated `npm run quality` gate. Existing lane
+0 handoffs remain: seven unused report manifest localization keys and the
+node:crypto host-API inventory count (46 → 47). Neither gate is weakened or
+rewritten by K. Review regressions and deliberate-break receipts are in
+`docs/certification/m113-k-kinds.md`; these local commits do not certify a
+shipped reporting surface.
+
 **CIFIX14T verified local result (2026-10-05).** The five owning suites
 pass 113 tests (six existing Windows-only skips); the exact restored monitor
 file passes 30/30 loaded runs, 210 tests. Removing the wait fails 3/3 loaded
@@ -30830,6 +30849,21 @@ before a repaired one loads (2026-09-30).
   Aggregate quality, integrated surface/docs/reference wiring and the seven
   unchanged unused Reports manifest keys remain the lead/W handoff already
   recorded there, rather than a claim that all of M113 ships.
+
+- **M113-K-review-RVM113K (2026-10-06).** All seven P2 collector findings
+  are fixed, with no review residuals. Facts retain provenance; missing or
+  partial evidence cannot prove absence. Regression tests and twelve
+  byte-exact deliberate-break receipts are recorded in
+  `docs/certification/m113-k-kinds.md`. K's new required `changeBranches`
+  selector receives bounded, merge-base-aware lane membership before the
+  pure collector runs; it never guesses from tips or dates. S/W binds it
+  with historical fork evidence for merged lanes (M113-K-branch-membership).
+  This is safe until integration because current shipped entries do not
+  import the collectors and their factory requires this evidence port.
+  Existing M113-K-localization-manifest (seven unused report keys) and
+  M113-K-host-api-record (node:crypto 46 → 47) remain W's gate handoffs;
+  W wires the manifest and regenerates the inventory before full quality.
+  No threshold, ignore, dependency, wire shape or startup budget is changed.
 
 - **M113-L0-review-RVM113L02 (2026-10-06).** The P2 comparison-capacity
   finding is fixed with no review residuals. Capacity is derived from the

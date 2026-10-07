@@ -1,6 +1,6 @@
 import { UI_TEXT } from '../../shared/constants'
 import { formatNumber, plural, templateParts } from '../../shared/l10n/text'
-import type { DiffTallyCounts } from '../diffTally'
+import type { DiffTallyCounts } from '../../shared/diffTally'
 
 export interface DiffTallyProps {
   readonly counts: DiffTallyCounts | undefined
