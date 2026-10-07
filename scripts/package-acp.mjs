@@ -13,7 +13,7 @@
 //   node scripts/build.mjs --production && node scripts/package-acp.mjs
 //   (npm run package:acp)
 
-import { execFileSync } from 'node:child_process'
+import { execFile, execFileSync } from 'node:child_process'
 import {
   copyFileSync,
   cpSync,
@@ -27,6 +27,7 @@ import {
 } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
+import { promisify } from 'node:util'
 import { renderPackageReadme } from './check-badges.mjs'
 import { packRuntimeArchive } from './lib/packageArchive.mjs'
 
@@ -101,6 +102,8 @@ const SCHEMAS = [
 ]
 // Standalone full Help reads the manifest's labels beside package.json.
 const NLS_FILES = readdirSync('.').filter((file) => /^package\.nls(?:\.[\w-]+)?\.json$/.test(file))
+const HELP_WORKERS = 3
+const runFile = promisify(execFile)
 
 /** The keyring binding's version, as this repository locks it. */
 function lockedVersion(manifest) {
@@ -269,13 +272,19 @@ execFileSync(process.execPath, ['scripts/check-badges.mjs', '--packaged-acp', ST
   stdio: 'inherit',
 })
 // Exercise the real staged CLI without credentials, a server or a model call.
-for (const file of NLS_FILES) {
-  const locale =
-    file === 'package.nls.json' ? 'en' : file.slice('package.nls.'.length, -'.json'.length)
-  execFileSync(process.execPath, [path.join(STAGE, 'dist', 'acp.js'), 'help', '--all'], {
-    env: { ...process.env, LC_ALL: locale },
-    stdio: 'pipe',
-  })
+for (let first = 0; first < NLS_FILES.length; first += HELP_WORKERS) {
+  // Help checks only read the staged package. Settle each bounded batch so a
+  // rejected language does not leave another check running past its failure.
+  const results = await Promise.allSettled(
+    NLS_FILES.slice(first, first + HELP_WORKERS).map((file) => {
+      const locale =
+        file === 'package.nls.json' ? 'en' : file.slice('package.nls.'.length, -'.json'.length)
+      return runFile(process.execPath, [path.join(STAGE, 'dist', 'acp.js'), 'help', '--all'], {
+        env: { ...process.env, LC_ALL: locale },
+      })
+    }),
+  )
+  for (const result of results) if (result.status === 'rejected') throw result.reason
 }
 console.log(`ACP full Help: ${NLS_FILES.length} staged languages verified`)
 

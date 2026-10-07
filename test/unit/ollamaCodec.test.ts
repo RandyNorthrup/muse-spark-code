@@ -197,6 +197,11 @@ function idlessNativeCalls(): string {
   })
 }
 
+// The stream-cap case reads keepalive lines up to the whole stream byte cap;
+// hosted macOS with coverage took 5.2 s, past the default deadline.
+// PLAN.md §8 (2026-10-07).
+const OLLAMA_STREAM_CAP_TIMEOUT_MS = 30_000
+
 describe('encodeOllamaRequest', () => {
   it('pins first-turn bytes', () => {
     golden('first-turn', firstTurn())
@@ -676,11 +681,15 @@ describe('Ollama bounds', () => {
       await failureMessage(response(stream('x'.repeat(OLLAMA_FRAME_MAX_BYTES + 1) + '\n'))),
     ).toBe(UI_TEXT.ollamaStreamLimit)
   })
-  it('bounds total stream bytes including blank lines', async () => {
-    expect(await failureMessage(Array.fromAsync(readOllamaLines(keepalive())))).toBe(
-      UI_TEXT.ollamaStreamLimit,
-    )
-  })
+  it(
+    'bounds total stream bytes including blank lines',
+    async () => {
+      expect(await failureMessage(Array.fromAsync(readOllamaLines(keepalive())))).toBe(
+        UI_TEXT.ollamaStreamLimit,
+      )
+    },
+    OLLAMA_STREAM_CAP_TIMEOUT_MS,
+  )
   it('bounds each tool argument object', async () => {
     const raw = mutatedCalls((call) => {
       if (typeof call['function'] === 'object' && call['function'] !== null)

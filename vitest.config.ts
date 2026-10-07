@@ -1,3 +1,4 @@
+import { availableParallelism } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
@@ -14,8 +15,11 @@ const COVERAGE_THRESHOLDS = {
 
 // V8 coverage and the native Git/process suites contend with large DOM/PDF
 // fixtures on macOS. Bound simultaneous files; deadlines and gates stay intact.
-// INT0170 clean-shard runs show CPU contention at four workers (default deadlines).
-const MACOS_TEST_WORKERS = 3
+// Hosted macOS runners have 3 vCPUs: four workers plus coverage oversubscribed
+// them and test times swung past deadlines between runs (2026-10-07). Leave
+// one core to the main process; rigs keep the measured cap of three.
+const MACOS_MAX_TEST_WORKERS = 3
+const MACOS_TEST_WORKERS = Math.max(1, Math.min(MACOS_MAX_TEST_WORKERS, availableParallelism() - 1))
 
 export default defineConfig({
   resolve: {

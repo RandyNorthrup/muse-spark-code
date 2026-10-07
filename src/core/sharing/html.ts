@@ -1,19 +1,7 @@
+import { escapeHtml } from '../htmlText'
 import { UI_TEXT } from '../../shared/constants'
 import { formatDateTime, uiLocale } from '../../shared/l10n/text'
 import type { ChatShareDocument } from './chatShare'
-
-const HTML_ESCAPES: Readonly<Record<string, string>> = {
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#39;',
-}
-
-/** One encoding pass keeps text inert in elements and quoted attributes. */
-export function escapeHtml(text: string): string {
-  return text.replaceAll(/[&<>"']/g, (character) => HTML_ESCAPES[character] ?? character)
-}
 
 function heading(kind: string): string {
   if (kind === 'userMessage') return UI_TEXT.exportUserHeading

@@ -1,4 +1,4 @@
-import { escapeHtml } from '../../sharing/html'
+import { escapeHtml } from '../../htmlText'
 import type { ReportDocument, ReportTheme } from '../../../shared/reportSchema'
 import { printable, type ReportDisplay } from './display'
 

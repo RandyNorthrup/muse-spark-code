@@ -1,7 +1,10 @@
 // Comparable production builds, including the same English/deferred externals
-// as scripts/build.mjs. The immutable pre-K tree is the review's ad916bbc.
+// as scripts/build.mjs. Checked-in pre-K source bytes preserve the historical
+// comparison without requiring the review rig's ad916bbc Git object.
 import path from 'node:path'
-import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import * as z from 'zod/mini'
 import { build, type Plugin } from 'esbuild'
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
@@ -15,27 +18,15 @@ import { deferredTeamView } from '../../scripts/lib/deferredTeamView.mjs'
 
 const baselineSources = new Map<string, string>()
 beforeAll(() => {
-  const files = execFileSync('git', ['ls-tree', '-r', '--name-only', 'ad916bbc', 'src'], {
-    encoding: 'utf8',
-  })
-    .trim()
-    .split('\n')
-    .filter((file) => file.endsWith('.ts'))
-  const content = execFileSync('git', ['cat-file', '--batch'], {
-    input: files.map((file) => `ad916bbc:${file}\n`).join(''),
-    maxBuffer: 32 * 1024 * 1024,
-  })
-  let offset = 0
-  for (const file of files) {
-    const end = content.indexOf('\n', offset)
-    const length = Number(content.subarray(offset, end).toString().split(' ', 3)[2])
-    if (end === -1 || !Number.isFinite(length)) {
-      throw new Error('Invalid baseline Git frame')
-    }
-    offset = end + 1
-    baselineSources.set(file, content.subarray(offset, offset + length).toString())
-    offset += length + 1
-  }
+  const captured = readFileSync(
+    'test/fixtures/models-activation-baseline/sources.json',
+    'utf8',
+  ).replaceAll('\r\n', '\n')
+  expect(createHash('sha256').update(captured).digest('hex')).toBe(
+    '6d361ac567eb3894eaff407045daef7fcdd23cceb05cb436bd6f7f024172f4f7',
+  )
+  const sources = z.record(z.string(), z.string()).parse(JSON.parse(captured))
+  for (const [file, source] of Object.entries(sources)) baselineSources.set(file, source)
 })
 
 function externals(): Plugin {
@@ -63,7 +54,7 @@ function externals(): Plugin {
     },
   }
 }
-async function bytes(base?: string): Promise<number> {
+async function bytes(isBaseline = false): Promise<number> {
   const plugins = [
     sharedUiText,
     sharedValidation,
@@ -73,7 +64,7 @@ async function bytes(base?: string): Promise<number> {
     sharedModelApiBoundaries,
     externals(),
   ]
-  if (base !== undefined) {
+  if (isBaseline) {
     plugins.push({
       name: 'immutable-baseline',
       setup(builder) {
@@ -115,7 +106,7 @@ async function bytes(base?: string): Promise<number> {
 }
 describe('lane K activation budget', () => {
   it('adds at most 3 KiB to the immutable pre-K production bundle', async () => {
-    const baseline = await bytes('ad916bbc')
+    const baseline = await bytes(true)
     const current = await bytes()
     process.stdout.write(
       `Activation baseline=${String(baseline)} current=${String(current)} growth=${String(current - baseline)}\n`,

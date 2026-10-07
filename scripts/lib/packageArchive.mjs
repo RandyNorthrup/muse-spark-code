@@ -8,7 +8,8 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
-import { brotliCompressSync, constants as zlibConstants } from 'node:zlib'
+import { promisify } from 'node:util'
+import { brotliCompress, brotliCompressSync, constants as zlibConstants } from 'node:zlib'
 import ts from 'typescript'
 import { loadL10n } from './l10nSource.mjs'
 import { UI_TEXT_REGIONS } from './uiTextRegions.mjs'
@@ -27,6 +28,7 @@ const EAGER = new Set([
 ])
 const CODE_ARCHIVE = 'runtime.bundles.json.br'
 const digest = (text) => createHash('sha256').update(text).digest('hex')
+const compressBrotli = promisify(brotliCompress)
 
 export async function packRuntimeArchive(root, stage, files, tables) {
   const orderedTables = tables.toSorted(([left], [right]) => left.localeCompare(right, 'en'))
@@ -156,19 +158,6 @@ module.readPackedRuntime=(()=>{
 })();
 `,
   )
-  mkdirSync(path.join(stage, 'l10n'), { recursive: true })
-  writeFileSync(
-    path.join(stage, 'l10n', L10N_TABLE_ARCHIVE_FILE),
-    brotliCompressSync(text, {
-      params: { [zlibConstants.BROTLI_PARAM_QUALITY]: L10N_COMPRESSION_QUALITY },
-    }),
-  )
-  writeFileSync(
-    path.join(stage, 'dist', CODE_ARCHIVE),
-    brotliCompressSync(codeText, {
-      params: { [zlibConstants.BROTLI_PARAM_QUALITY]: L10N_COMPRESSION_QUALITY },
-    }),
-  )
   const usage = Object.fromEntries(
     TABLE_LOCALES.map((locale) => [
       locale,
@@ -178,12 +167,22 @@ module.readPackedRuntime=(()=>{
   const usageText = JSON.stringify(usage)
   if (Buffer.byteLength(usageText) > maxOutputLength)
     throw new Error('Usage archive exceeds decoded bound')
-  writeFileSync(
-    path.join(stage, 'l10n', USAGE_TABLE_ARCHIVE_FILE),
-    brotliCompressSync(usageText, {
-      params: { [zlibConstants.BROTLI_PARAM_QUALITY]: L10N_COMPRESSION_QUALITY },
-    }),
+  // Each bounded archive has its own compressor; Node's zlib pool bounds
+  // simultaneous work. Canonical inputs and compression parameters stay exact.
+  const members = [
+    [path.join(stage, 'l10n', L10N_TABLE_ARCHIVE_FILE), text],
+    [path.join(stage, 'dist', CODE_ARCHIVE), codeText],
+    [path.join(stage, 'l10n', USAGE_TABLE_ARCHIVE_FILE), usageText],
+  ]
+  const packed = await Promise.all(
+    members.map(([, contents]) =>
+      compressBrotli(contents, {
+        params: { [zlibConstants.BROTLI_PARAM_QUALITY]: L10N_COMPRESSION_QUALITY },
+      }),
+    ),
   )
+  mkdirSync(path.join(stage, 'l10n'), { recursive: true })
+  for (const [index, [file]] of members.entries()) writeFileSync(file, packed[index])
   for (const locale of TABLE_LOCALES)
     rmSync(path.join(stage, 'l10n', `usage.${locale}.json`), { force: true })
 }

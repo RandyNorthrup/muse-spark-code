@@ -19675,6 +19675,24 @@ No new dependency or editor-specific behavior; all shared journal consumers
 receive these fixes. Full quality and combined editor wiring remain lead/W work
 as required by the rig brief; do not run full quality or merge in this lane.
 
+### INT0170B — Complete 0.17.0 integration certification (2026-10-07)
+
+**Status 2026-10-07: building.** The rig brief authorizes five ordered no-ff merges:
+released main-0150, M113 review fixes, M114 review fixes, M115, and M116's
+second fixes. Preserve all features and translated keys; regenerate inventories;
+keep version 0.15.0. Repair every remaining INT0170 failure structurally,
+including package fixtures, CSS palettes, duplicate test setup, lifecycle and
+performance cases, real visual recapture and justified SAST dispositions.
+Record deliberate failures and exact restored hashes in the completion record.
+Commit each finished piece with hooks. Final certification uses fresh committed
+clones, npm ci, CI=true and every exact Linux build.yml command, coverage shards
+and merge, packages and accessibility, sequential heavy gates. This overrides
+the common scoped-test restriction for the required complete workflow jobs;
+aggregate quality remains delegated to the lead. No push, rebase, paid/live call,
+threshold, timeout or byte-cap relaxation. Historical stopped paths are reopened
+for this explicitly requested repair slice. Hosted platform results remain
+separate from Linux rig receipts.
+
 ### INT0170 — Pre-integrate reports, design polish and playbook (2026-10-07)
 
 **Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
@@ -30602,6 +30620,21 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+**WINTEAM hosted Windows repair (2026-10-07, kubuntu).** Own the native
+lifetime, window hints/load and worker-fence suites, with the minimal product
+changes and Windows-control regressions they need. Resolve short/long native
+path spellings without admitting links or replacement roots. Avoid unqualified
+PowerShell module discovery in bounded native helpers. Retire and await the
+owned helper even before its control pipe connects; no folder or assembly may
+be removed while it still holds them. Reduce native hint hook preparation to
+the operations its assertions need. Prove short-path, locked-helper and slow
+module-discovery regressions red/green and restore deliberate drills byte-exact.
+Run complete owning files three times at repository deadlines on Linux, plus
+the five typechecks and scoped/static gates. Hosted windows-latest and full
+quality remain the lead's gates under the shared lane brief. No merge, push,
+live/paid call, dependency or weakened gate is authorized. Receipts:
+`docs/certification/winteam.md`.
+
 **M96INT round 3d (2026-10-05, macmini).** Merge `main-0.14.0`
 (`2d4d72bd`) with `--no-ff`, retaining the release fixes and M96's runtime,
 team UI and package diet. Reconcile generated inventories by their scripts.
@@ -40714,238 +40747,6 @@ lane T and M111b. One short live check per backend (step 3).
 
 ---
 
-#### Preserved integration notes: M112 — Questions that never block (D92)
-
-**Status 2026-10-06: built.**
-
-Status detail retained: fake-only integration complete; live checks and full
-quality remain with the lead. Small: about 48 lane-hours in lane 0 and
-three lanes, for a 0.14.x patch (0.14.3, or folded into 0.14.2 when both are
-ready together). Lanes Q, U and A start together once lane 0's contracts
-freeze, and none waits on an unmerged milestone. The native-host, TUI and
-desktop rows certify on lane 0's fakes and are wired by M104b–d, M110a0's
-lane T and M111b. One short live check per backend (step 3).
-
-- **Goal.** A question from the agent is pinned above the composer like an
-  approval, so it is never lost. If the user has not answered after a minute,
-  the agent carries on with work that does not depend on the answer, and the
-  question folds into a chip. It stays easy to find and answer at any time,
-  from the dock or the transcript, and the answer reaches the agent exactly
-  once. Approvals stay exactly as they are.
-- **Depends on.** Main only:
-  - D26's dock (`ApprovalDock.tsx`) and M25's card locking;
-  - M16's question card and M46's `userInput/clarify`;
-  - M82's background notices and M6's view badge;
-  - the controller's steer path (`conversationController.ts:5724–5765`);
-  - M63's ACP agent, and M91 lane M's MCP forms;
-  - the `/help` reference (0.14.2) for its rows. If M112 lands first, its
-    rows land with lane HELPREF.
-- **Scope.** D92 entire; strings in all 14 tables; README (a "Questions"
-  section), CHANGELOG, AGENTS.md's layout (`src/core/questions/**`),
-  CONTRIBUTING (a new kind of prompt joins the attention dock), `docs/acp.md`
-  (`/answer`, `/questions`, `--questions-defer-after`), `docs/ci.md` (headless
-  runs still decline), `docs/ide-compatibility/**` rows, the `/help` rows,
-  harness screenshots, certification.
-- **Settings.** `museSpark.questions.deferAfterSeconds` (60; 0, or 10 to
-  3,600), machine-scoped. The runtime reads the same key from its settings
-  store once M104 lane B has one, and `--questions-defer-after <seconds>`
-  until then.
-- **Commands.** **Next open question** and **Previous open question**, with
-  keys; ACP's `/answer <n> <text>` and `/questions`.
-- **Lanes and file ownership.** One integration branch,
-  `feature/m112-questions`, under M87's region rules. Muse implements U and
-  A, Codex reviews each in one pass by class, and the lead integrates. Q
-  (timers, settle races, exactly-once delivery) goes to Claude or Codex.
-  **Order:**
-  1. Lane 0.
-  2. Q, U and A in parallel against lane 0's fakes.
-  3. The lead's integration, the live checks and the full gate.
-
-| Lane                                      | Items                                                                                                                                                                                                                                                                                                                                                                                             | Files it owns                                                                                                                                    | Its regions in shared files                                                                                                                                                                                                                                                                                                                                                                                                                                 | Starts  | Rig      | Hours |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | -------- | ----: |
-| 0 Contracts, strings, fakes (lead)        | The contracts below; every string; the keymap check (the proposed keys against VS Code's default keymaps on the three operating systems, and JetBrains', Visual Studio's and Eclipse's defaults for M104's bridges); the fakes: a clock and timers, a scripted session that records `steer`, `sendTurn` and `deferQuestions`, a fake store, a fake ACP client with and without `$/cancel_request` | new `src/shared/questions.ts`, `test/unit/helpers/questions/**`, `docs/certification/m112-contracts.md`                                          | `constants.ts` (`QUESTION_*`, `OPEN_QUESTIONS_MAX`, `LATE_ANSWER_QUESTION_MAX_CHARS`, `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION`, and `QUESTION_MODEL_TEXT` with its declared readers); `src/shared/agentEvents.ts` (`deferred`); `src/shared/protocol.ts` (the question messages); `src/core/agent/agentBackend.ts` (`deferQuestions`); `en.ts`, the 14 tables, `package.nls*.json`; `src/shared/hostApi/**` (the question messages, with M104 lane 0's owner) | day 0   | Kubuntu  |     6 |
-| Q Registry, backends, delivery            | D92.2–6: the registry's states, clock and store port; the key; reminders; the late-answer and dismissal texts; delivery through `submit`; the Model API's `deferred` reply; Muse Code's deferral through `userInput/clarify` and its id set; the store adapters for VS Code and the runtime; the controller's question region; the reminder notice                                                | new `src/core/questions/{registry,key,lateAnswer,reminders}.ts`, `src/host/questions/questionStore.ts`, `src/runtime/questions/questionStore.ts` | `ModelApiHost.ts` (`askUser`, `QuestionReply`, `questionResultText`); `MuseCodeHost.ts` (the question commands); `mapNotification.ts` and `promptLedger.ts` (the settled mapping); `conversationController.ts` (the question region: the registry, the open set on attach, the late answer through `submit`); `turnNotifications.ts` (`notifyOpenQuestions`); the session-delete hooks in `fileSessionStore.ts`                                             | after 0 | Kubuntu  |    14 |
-| U The dock, the transcript and VS Code    | D92.1, 2 and 7: `AttentionDock` in place of `ApprovalDock`; the open-questions chip; the card's states (folded, labels, Dismiss, the countdown line, never folding under focus or a draft); MCP forms in the dock; the reducer's question cases and the row schema; the jump commands and keys; the view badge, the tab title and the History marker; harness scenes and axe                      | new `src/webview/components/AttentionDock.tsx` (replacing `ApprovalDock.tsx`), `src/webview/components/OpenQuestionsChip.tsx`                    | `QuestionCard.tsx`; `ElicitationCard.tsx` (the dock slot); `ToolRow.tsx` (the question region); `uiState.ts` and `transcriptEntries.ts` (the question cases and state); `App.tsx` (the mount); `styles.css` (its region); `ChatViewProvider.ts` and `chatPanel.ts` (the count); `HistoryDialog.tsx` (the marker); `extension.ts` (commands, loaders only); `package.json` (commands and keys); `test/harness` scenes                                        | after 0 | Mac mini |    16 |
-| A ACP, the runtime, docs and help         | D92.9's ACP rows: the agent's clock, the form withdrawn by `cancellationSignal`, a late form answer, deferral at once for clients without forms, `/answer` and `/questions`, the notices; the runtime's `--questions-defer-after`; the `/help` rows; README, `docs/acp.md`, `docs/ci.md`, CONTRIBUTING, AGENTS.md's layout, the editor matrix rows, CHANGELOG                                     | new `src/acp/questionDeferral.ts`                                                                                                                | `src/acp/agent.ts` (`ask`, the commands); `src/acp/questions.ts`; `src/runtime/cliArgs.ts`; `src/shared/featureCatalog.ts` (with HELPREF's owner); README; `docs/acp.md`; `docs/ci.md`; CONTRIBUTING; AGENTS.md; `docs/ide-compatibility/**`; CHANGELOG                                                                                                                                                                                                     | after 0 | Win11 VM |     8 |
-| Integration, live checks, the gate (lead) | The merges in the order Q, U, A; the live checks (step 3); the full gate; README shots; certification                                                                                                                                                                                                                                                                                             | `docs/certification/m112.md`                                                                                                                     | PLAN (D92 and M112 only)                                                                                                                                                                                                                                                                                                                                                                                                                                    | last    | Kubuntu  |     4 |
-
-- **Lane 0's contracts,** frozen before Q, U and A start, so each can work
-  alone against them:
-  - **`src/shared/questions.ts`:** the `OpenQuestion` schema (the
-    `userInputId`, session, item and turn ids, the questions, the key, the
-    state, `askedAt`, `deferredAt`, the reminders given, the backend) and
-    `QUESTION_STATES`; the signatures of `questionKey(questions)` and of the
-    registry's port (`load`, `save` and `remove` per session; `now`;
-    `setTimer`; `deliver`).
-  - **`agentEvents.ts`:** `questionSettled.outcome` gains
-    `QUESTION_OUTCOME_DEFERRED`.
-  - **`agentBackend.ts`:** `AgentSession.deferQuestions(userInputId)`,
-    resolving once the tool call is settled. Both hosts implement it.
-  - **`protocol.ts`:** host to webview, the `openQuestions` snapshot per
-    session; webview to host, `answerOpenQuestion` (answers or an
-    explanation), `dismissOpenQuestion` and `jumpToOpenQuestion` (next or
-    previous). Each zod-parsed (rule 7).
-  - **MHP** (with M104 lane 0's owner): `questions/open` (a notification),
-    `questions/answer`, `questions/dismiss`, and the count on the status
-    item, for the bridges and the TUI.
-  - **Constants:** `QUESTION_DEFER_DEFAULT_SECONDS` (60),
-    `QUESTION_DEFER_MIN_SECONDS` (10), `QUESTION_DEFER_MAX_SECONDS` (3,600),
-    `QUESTION_REMINDERS_MAX` (2), `OPEN_QUESTIONS_MAX` (20),
-    `LATE_ANSWER_QUESTION_MAX_CHARS` (2,000),
-    `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION` (0.5).
-  - **`QUESTION_MODEL_TEXT`:** `deferred`, `deferredClarification` (at most
-    500 characters once filled). `QUESTION_DELIVERY_MODEL_TEXT` holds
-    `lateAnswer`, `dismissed` and the exact existing answer-format prefixes.
-  - **Strings:** every UI string of D92 in `en.ts` and the 14 tables; the
-    setting and the two commands in `package.nls*.json`.
-- **Steps.**
-  1. Lane 0. No capture is needed (AGENTS rule 13): the deferral rides
-     `userInput/clarify`'s shape captured on 2026-09-25 (M46) and the
-     `ask_user` tool output the Model API already sends.
-  2. Q, U and A against the fakes, each with its drills.
-  3. **The live checks** (owner-authorized live spend, the contributor model,
-     an empty `C:\muse-live-ws`, counted from the trace logs afterwards,
-     CLAUDE.md's rule), with the deadline at 10 seconds:
-     - **Model API:** one turn that asks, defers and carries on, then a late
-       answer as a new turn. Expected: 3 inference requests.
-     - **Muse Code:** the same in two turns, counted from the CLI's trace
-       log.
-     - The record states what the model did after the deferral: carried on,
-       did not guess, did not ask again. If it guessed or asked again, lane 0
-       revises the text and the check runs once more.
-  4. The lead's integration, the full gate and the README shots.
-- **Acceptance** (fakes unless named; no model call outside step 3):
-  1. **Pinned.**
-     - A question's card appears in the dock and in its row. Answering in
-       either settles both.
-     - Approvals stay first, block and never defer (a red drill lets the
-       clock defer an approval, and the test fails).
-     - An MCP form sits in the dock with its 300-second deadline unchanged.
-  2. **Deferral.**
-     - At 60 seconds on the fake clock, the Model API's tool output is
-       `QUESTION_MODEL_TEXT.deferred` with the id filled in.
-     - Muse Code receives `userInput/clarify` with at most 500 characters,
-       and the settled row reads Deferred. A user's own explanation stays
-       Explained (a red drill maps every clarification to deferred, and the
-       test fails).
-     - 0 never defers; 5 is read as 10; a workspace value changes nothing (a
-       red drill reads it, and the test fails).
-  3. **The cache.** Every request before a deferral is byte-identical to
-     today's goldens; the deferral's request differs only in that tool
-     output.
-  4. **Under the user's hands.** A card holding focus or a draft does not
-     fold; the draft survives the fold and is sent as a late answer.
-  5. **Late answers.**
-     - During a turn: one steer. A refused steer: one new turn. Idle: one new
-       turn showing "Answer to your earlier question".
-     - Exactly once: a double click, and the same answer from two surfaces,
-       send one message (a red drill drops the mark, and the test fails).
-  6. **Asked again.** A re-asked question shows one card; one answer settles
-     both requests; the open one becomes Answered when asked again, with no
-     late message.
-  7. **Reminders.** A turn ending with open questions expands the oldest once
-     and raises one notice (window unfocused, setting on). No question is
-     expanded more than twice, and no model request follows (a spy counts
-     none; a red drill removes the bound, and the test fails).
-  8. **Kept.**
-     - Open questions survive a reload, a resume and a second surface.
-     - The 21st open question expires the oldest, which says so.
-     - Deleting the session deletes them.
-     - No question text reaches a log (a planted canary).
-  9. **Easy to pick out.**
-     - The accent, icon and label on waiting and open rows; each settled
-       state's own label.
-     - Next and Previous cycle in transcript order; the keys work only with
-       the chat focused.
-     - The badge's count and tooltip, the tab title, the History marker.
-     - The live region's texts for arrival, deferral, reminder and late
-       answer.
-     - axe passes in VS Code's four themes and at 320 px for: waiting,
-       open, the chip, an approval with a question, and each settled state.
-  10. **Runs nobody watches.** `exec` still emits `question_declined` and
-      starts no clock; best-of-N and worktree conversations cancel; the M75
-      evaluation clarifies; a scheduled prompt's question defers.
-  11. **ACP.**
-      - With forms: at the deadline the call defers and the fake client
-        records `$/cancel_request`.
-      - A client that answers anyway after the deadline delivers a late
-        answer: steered into a running prompt, else put before the next one.
-      - Without forms: the question as text, deferred at once, answered by
-        `/answer`. `/questions` lists the open ones.
-  12. **Editors.** The companion page; the native hosts' count through fake
-      JCEF, WebView2 and SWT bridges; the TUI's and the desktop's rows on
-      lane 0's MHP fakes, or named as waiting for their lanes.
-  13. **Budgets.** As below; activation unchanged.
-- **Tests.** Every test can fail: each runs against a fake that can be made
-  to lie (the clock, the session, the store, the ACP client), and each has a
-  red drill recorded in `docs/certification/m112-<lane>.md`:
-  - `questionRegistry.test.ts` (states, the clock, the bound, persistence);
-  - `questionKey.test.ts`;
-  - `lateAnswer.test.ts` (steer, refused steer, idle, once, dismissal);
-  - `modelApiQuestionDeferral.test.ts` and the request goldens;
-  - `museCodeQuestionDeferral.test.ts` (the clarification's length, the id
-    set);
-  - `attentionDock.test.tsx` and `questionCard.test.tsx` (order, folding,
-    focus and drafts, jumps);
-  - `openQuestionNotices.test.ts` (reminders and their bound);
-  - `acpQuestionDeferral.test.ts`;
-  - the e2e `questions.e2e.test.ts`: the fake Muse Code CLI and the fake
-    Model API through a deferral, a late steer and a late new turn.
-
-  **Red drills:**
-  - remove the clock (the turn blocks);
-  - defer an approval;
-  - show a user's explanation as deferred;
-  - send a late answer twice;
-  - fold a card under focus;
-  - remove the reminder bound;
-  - start a clock in `exec`;
-  - fill the clarification past 500 characters;
-  - drop the Open question label;
-  - read the workspace setting.
-
-- **Gates.** The full `npm run quality`, `check:l10n`, the host API record,
-  D6's budgets and the split guard (`QUESTION_MODEL_TEXT`'s readers),
-  `test:a11y`, the request goldens, `check:reference`.
-- **Security.**
-  - An answer is the user's own message: it approves nothing, changes no
-    mode and grants no rule. Approvals and D48's paid popup never enter the
-    question path.
-  - The registry holds question text and the user's drafts: owner-only,
-    deleted with the session, never in a log, an export or a report beyond
-    counts.
-  - A noisy agent is bounded: one card per key, 20 open per session, two
-    reminders per question.
-  - Agent-written text is rendered as text, as today.
-  - PLAN §9 records the residual: an agent that ignores the deferral note and
-    guesses an answer is not stopped by this milestone; the live check
-    records how the contributor model behaves.
-- **Docs.** README ("Questions": the dock, the minute, open questions,
-  answering later, the keys, the setting, what headless runs do); CHANGELOG;
-  `docs/acp.md`; `docs/ci.md`; CONTRIBUTING; AGENTS.md; the `/help` rows; this
-  plan; certification.
-- **Performance and bundles.**
-
-  | Artifact               |                    M112 adds (target) | Cap                                                            |
-  | ---------------------- | ------------------------------------: | -------------------------------------------------------------- |
-  | `dist/extension.js`    | ≤ 2 KiB (the registry and the region) | 600 KiB, unchanged                                             |
-  | `dist/modelApi.js`     |                             ≤ 0.5 KiB | 475 KiB, unchanged                                             |
-  | `dist/acp.js`          |                               ≤ 2 KiB | 850 KiB, unchanged                                             |
-  | Webview startup bundle |   ≤ 3 KiB (the dock replaces its own) | 900 KiB, unchanged                                             |
-  | `dist/uiText.js`       |                             ≤ 1.5 KiB | 125 KiB, unchanged (strings in a regional block if it is near) |
-
-- **Size.** S: about 48 lane-hours.
-- **Certification checklist** (§6.0, plus):
-  - [ ] Lane 0's contracts and the keymap check recorded
-  - [ ] Lanes Q, U and A with their drills
-  - [ ] The live checks counted from the trace logs, with what the model did
-        after the deferral
-  - [ ] Harness scenes in four themes and at 320 px; README shots refreshed
-  - [ ] Editor rows recorded; strings in all 14 tables; the `/help` rows;
-        budgets measured; the full gate green
-
----
-
 ### M113 — Deterministic reports: `/report` (D93)
 
 **Lane W integration (2026-10-06, Kubuntu).** Merge the ten ordered lanes,
@@ -42891,6 +42692,141 @@ pages. No version bump or README What’s New changes; no paid/live calls.
       restoration, full accessibility, static gates and actual VSIX measurements
       in `docs/certification/train-0.15.0.md` and its TRAIN15H receipt.
 
+### MACSLOW — Hosted macOS memory and slow setup (2026-10-07)
+
+**Status 2026-10-07: built.** Certification: `docs/certification/macslow.md`.
+
+Authority: `/Users/randy/lanes/_ctx/MACSLOW.rig.md` and shared
+`_ctx/codex/common.md`, on `fix/0150-macslow` from `ccce6e6ac`.
+Own only unit compiler memory, companion browser lifecycle/readiness, usage
+localization fixtures and exec stdio cold build/package setup. Measure unit
+compiler peak RSS before and after; split the checking work structurally while
+retaining every configured file and strict option. Prepare immutable expensive
+fixtures once per file, keep isolated mutable cases, and pair browser event
+observation with its trigger so cleanup cannot strand a rejection.
+
+- [ ] Measure and repair each owned cause without timeout changes, retries or skips.
+- [ ] Prove compiler coverage and changed fixture/security checks fail on deliberate
+      regressions, restoring every mutation byte-exact.
+- [ ] Run three clean `CI=true` complete-file passes at default test deadlines
+      with at most three workers, plus measured compiler and scoped static/build gates.
+- [ ] Commit finished pieces with hooks and explicit paths; never merge or push.
+
+The brief expressly authorizes `git clean -xdf -e node_modules`, overriding
+common.md's clean prohibition. Aggregate quality remains lead-owned under
+common.md; this lane runs the listed gates directly on macmini. No live/paid
+calls, credentials, new dependencies, increased budgets or timeout changes.
+Receipts belong in `docs/certification/macslow.md`.
+
+### CI0150L — Linux hosted CI round 3 (2026-10-07)
+
+**Status 2026-10-07: built.** Certification: `docs/certification/train-0.15.0.md`.
+
+Scope: the Linux rig brief and CI0150-os-common: private clean-shard ACP
+packaging artifacts, checked-in pre-K activation sources, package badge/image
+isolation, installed archived translations, Semgrep findings and fake-only
+Action W/low-budget failures. Preserve every budget, assertion, timeout and
+security boundary. No live/paid model calls, push, rebase or merge.
+
+The fresh jobs expose two further causes. The hosted release PR's review diff
+is 29,912,292 bytes, exceeding the generic child-output bound before the
+promised 262,144-byte review prefix can be selected. Add a dedicated read-only
+Git-diff prefix sink that drains/counts the complete stream under the same
+phase/child deadlines while retaining at most the existing review byte cap;
+ordinary child output, published patch, stderr and cancellation gates stay
+unchanged. Certify a real diff larger than the generic cap and its UTF-8 cut,
+then run W and low-budget against the actual installed production runtime.
+Latest VS Code also resolves showTextDocument before its observable active
+editor snapshot settles. Make the integration test await that same editor
+condition through its existing bounded UI readiness helper, keeping its
+original assertion and deadline.
+
+- [ ] Reproduce each owned failure and fix its cause; prove changed checks fire.
+- [ ] Commit finished pieces with hooks and explicit paths.
+- [ ] Run Linux pull-request jobs from fresh clones of committed work with
+      Node 22, CI=true, original shard/coverage and package steps; record exact
+      passes, failures and unavailable hosted dependencies in the Linux round 3
+      section of docs/certification/train-0.15.0.md.
+
+Static duplication shares the inert text encoder with the lazy code-fence
+renderer as well as exported chats and the companion page; the zero-clone
+threshold is retained.
+
+The first full rerun exposes the private ChatGPT fixture's combined build and
+pack crossing its unchanged 60-second cold archive bound. Native export
+certification's baseline and packaged observations are independent isolated
+workers; start that pair together, retain every export/call comparison, and
+measure the cold fixture again. No timer, retry or assertion is changed.
+
+The concurrent rerun also exposes E5's unread-output fixture generating
+104,858 five-character SSE deltas before its large-write marker. This case
+tests a blocked output pipe, not fragmentation throughput. Add a test-only
+single-text-delta reply option and use it only for the existing 512 KiB
+blocked reply; keep its marker, unread stdout, signal, 5.4-second exit
+assertion and 30-second test deadline unchanged.
+
+The isolated three-core shard still measures 62.3 seconds for the combined
+cold ChatGPT setup. Its packer serializes three independent, bounded Brotli
+archives (tables, code and usage). Compress those concurrently with Node's
+bounded zlib worker pool, preserving quality 11, decoded caps, canonical
+ordering and exact compressed bytes. Certify byte equivalence with the
+original synchronous compressor and deliberately change its quality to prove
+the new comparison fails.
+
+The complete shard 3 exposes the usage journal's warm-cache benchmark doing
+its 60,000-record fixture construction and cold scan inside the five-second
+warm test. Prepare and assert that cold snapshot once in the default-bounded
+setup; keep the five-second test, 300 ms warm bound, full record count and
+no-reread assertions. Clean failed setup roots at file teardown too.
+
+The complete Linux aggregate passes 988 WCAG pages, then legal accessibility
+refuses Playwright's bare `google-chrome` executable path. Resolve installed
+browser candidates and explicit overrides to existing absolute paths through
+the shared finder, keeping overrides authoritative and refusing missing
+installs. Remove the test harness's duplicate PATH resolver. Certify PATH
+selection and override refusals, the real legal keyboard/zoom/WCAG gate, then
+repeat the complete committed Linux job set. No browser or job timer changes.
+
+The four-CPU WCAG job has a structural floor: 988 pages each sleep five
+seconds, in six lanes, consuming nearly fourteen minutes before axe and the
+legal gate under a fifteen-minute job cap. Replace that blanket sleep with
+tracked fake-host/scenario callbacks and the existing bounded readiness
+condition. Preserve every scheduled event delay, streaming pump yield, font
+and animation wait, two paint frames, error capture, focus rule and per-page
+deadline. Readiness's own deadline/poll/frame timers stay untracked. Prove
+nested callbacks, callback failure cleanup and readiness blocking/deadlines
+with counterfactuals; rerun the complete job set from the committed repair.
+
+The Linux aggregate's local SAST launcher then refuses duplicated `--jobs`
+arguments: the inherited two-worker option and a later serial option both
+reach Semgrep 1.178.0. Keep one named serial worker limit, as the existing
+large-taint-analysis rationale requires; do not change rules, excludes,
+severity or scan deadlines. Certify the actual local launcher against the
+pinned scanner as well as CI's direct command.
+
+The next full shard's cold package still crosses 60 seconds under concurrent
+job load. Profile its unchanged production build, compression, fifteen
+language-help processes and isolated native-loader checks. Remove remaining
+serialized independent work or repeated setup while retaining every language,
+export/call comparison and the existing cold setup deadline; then rerun the
+complete Linux job set. The interrupted wave is not a passing receipt.
+The measured post-archive validation through staged Help takes 13.2 seconds
+of a 41.8-second cold fixture, including localization and badge gates. Run
+Help's independent commands in bounded batches of three,
+settling each batch before reporting a failure. Keep all fifteen language
+checks, each original command/environment/output bound and every package
+assertion. Final fresh-clone jobs run one at a time, as hosted jobs receive
+independent machines; no test launch delay or product priority change.
+
+The serial aggregate passes 16,622 tests and coverage, then the completed
+long-stream harness scene exceeds its existing ten-second readiness bound in
+two high-contrast themes. Its repeated zero-delay timers incur the browser's
+nested-timer clamp. Use one MessageChannel task queue for that scene's
+continuations, preserving every 100-character delta and an event-loop yield;
+track each continuation, close both ports on completion/error, and retain all
+readiness/paint/deadline checks. Certify complete chunk order and failure
+cleanup, then repeat the complete fresh-clone job set without retries or skips.
+
 ### CI0150A — Clean-shard artifacts and portable certification (2026-10-07)
 
 **Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
@@ -42915,6 +42851,28 @@ is relaxed. No live or paid calls, push, rebase or merge.
 ### FIXM116P4 — Final outcome verification repairs (2026-10-06)
 
 **Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
+**MACSLOW bounded certification (2026-10-07, macmini).** The lane's shared
+rules prohibit aggregate quality and delegate it to the lead. Run complete
+owned files directly, at default timeouts, three times after the explicitly
+authorized clean; run each requested compiler/static/build gate separately.
+The unit gate retains all 1,864 configured roots and strict options across five
+sequential programs, sharing ambient declarations and matcher setup. Measured
+peak RSS falls from 2,767,564,800 to 1,688,055,808 bytes (39%); no heap override,
+timeout, retry, skip or other gate changes. Initial compiler probes exposed
+ambient-type resolution and cross-file matcher/declaration scope; preserve
+both through repository-local temporary configs and the shared support roots.
+Final evidence is recorded in `docs/certification/macslow.md`.
+
+**CI0150M round 3 aggregate status (2026-10-07).** The attempted unmodified
+`npm run quality` passes static gates, then fails whole-repository tests in
+unowned clean-artifact/localization suites and load-sensitive cases. The common
+OS brief assigns cross-platform failures to the Linux lane. Certify this lane
+with every exact macOS workflow command in fresh committed clones; record all
+remaining failures rather than weaken gates or edit another lane's suites.
+Aggregate release quality remains deferred to joined integration. Standalone
+secret scanning passes; the inherited SAST wrapper supplies duplicate `--jobs`
+options and is a shared failure, also deferred without changing its invocation.
+See this lane's round 3 section in `docs/certification/train-0.15.0.md`.
 
 The final lane follows the lead's native-Git contract: delete all Husky
 startup/layout/body emulation. Only `git hook run` in the verification
@@ -42935,6 +42893,174 @@ The process-tree module is the necessary shared-file extension of lane P's
 scope. Prefer a prepared Linux cgroup/scope runner when the harness provides
 one. Record the M107 governed-tree binding as an I/W integration handoff.
 No dependency, hook rewrite, gate weakening, paid call or branch merge.
+**CI0150L rolling verification.** The round-3 rig brief explicitly requires
+committing finished pieces after owning tests pass, then verifying committed
+work in fresh clones. Full quality and Linux CI jobs remain pending until that
+fresh-clone run and are not claimed green by an intermediate commit. Record
+any external hosted dependency that cannot run on this rig in the Linux round-3
+certification section; no threshold, ignore, timeout or assertion changes.
+
+**FIX0150R scoped certification.** The rig brief requires complete owning test
+files in batches of at most three, with three clean `CI=true` repetitions and
+individual static/build gates. Shared lane rules reserve aggregate
+`npm run quality` for the lead; its whole-repository coverage invocation exceeds
+this lane's test-file limit. Defer that aggregate to release integration without
+changing any threshold or gate. Receipts are in `docs/certification/fix0150r.md`.
+
+**FIX0150P scoped release-review verification (2026-10-07, linuxlt).**
+The rig/common briefs prohibit a full quality run in this lane. Full quality
+and cross-platform release certification remain with the lead; this lane
+runs the prescribed complete owning suites and scoped static/build gates
+without weakening thresholds, timeouts, isolation or hooks. Detailed red/base
+and restored-green receipts belong in `docs/certification/fix0150p.md`.
+
+**CI0150A scoped certification.** CI0150-common.md requires three clean
+repetitions of complete owning files and individual static gates; the rig note
+caps each test run at three files. Aggregate `npm run quality` includes an
+unbounded whole-repository test/coverage run, so it is deferred to integration
+under this scoped repair. Hosted OS/release checks also include CI0150B/C work
+and are not certified here. This justified deferral changes no gate or threshold.
+
+**CI0150C scoped repair certification (2026-10-07, macmini).** The rig brief
+requires clean `CI=true` verification in batches of at most three test files,
+three times at repository default deadlines, plus all five typechecks, lint,
+changed-file formatting, plain knip and duplication. The aggregate
+`npm run quality` is deferred to the joined release repair: its all-file Vitest
+invocation exceeds this lane's explicit three-file limit, and the other lanes
+own the remaining hosted failures. This is a scoped certification record, not
+a full-release quality claim; no threshold, rule, assertion or CI gate is
+disabled. The badge gate still performs real public network checks in CI.
+The extra `security:audit` run reports the pre-existing, now-unreported
+`GHSA-68fv-2mgg-jv7q` (`source-map-js`) exception in
+`.github/audit-exceptions.json`; that unowned cleanup is deferred to the lead,
+without changing an exception or suppressing the audit failure in this lane.
+
+**CI0150B scoped verification (2026-10-07).** This lane owns the ten slow suites
+in its brief. The shared CI0150 rules require three clean-tree whole-file runs,
+all compiler projects, lint, formatting, plain knip and duplication. Full
+`npm run quality` certification is deferred to the integrated CI repair: the
+other lanes own clean-checkout artifact failures in configured-provider,
+headless/package and other suites, and this lane must not edit their files.
+No threshold, assertion, retry or global timeout is relaxed. This branch's
+receipts certify only its named suites and checks, not a complete release gate.
+
+**TRAIN15H scoped certification.** The lead's rig brief and shared common.md
+reserve aggregate quality for the lead. This lane runs complete owning files
+under default deadlines and individual gates, including every accessibility
+page. No baseline increase, new feature, command, setting or escape hatch.
+
+**TRAIN15G inherited DIET1 measurement hold (resolved by TRAIN15H).** Main adds
+a regression assertion for its own 733.8-KiB startup and 32.1-KiB deferred
+measurement. The integrated train measures 815,775 startup bytes (796.7 KiB)
+and about 32.5 KiB deferred, within unchanged 900/50-KiB production caps.
+The assertion remains enabled and unchanged. Shared ownership, deferred
+loads, and package membership assertions pass. The brief authorizes only
+the universal VSIX cap formula; an additional startup diet or revision of
+this main-only measurement expectation needed a lead decision. TRAIN15H's
+lead decision requires compaction; the restored production graph passes both
+inherited assertions. The final receipt records exact bytes and all new
+closure budgets. No startup baseline or existing cap is raised.
+
+**TRAIN15G scoped certification.** The rig brief and shared common.md prohibit
+aggregate quality here. Run owning default-timeout suites and individual gates;
+the lead retains aggregate quality, hosted matrices and native/live receipts.
+The sole authorized cap decision is the measured universal VSIX formula above.
+
+**TRAIN15F final package cap hold (resolved in TRAIN15G).** The lead’s new
+brief authorizes measured universal +5%, rounded up to 25 KiB after the
+shared-browser audit. Actual TRAIN15G packages pass the resulting cap; the
+measurements below retain the earlier hold’s history.
+
+**Original TRAIN15F package cap hold (2026-10-06, win11).** Actual post-diet
+helperless VSIX is 2,600,909 bytes (66,509 over);
+verified-helper universal is 2,680,457 (146,057 over).
+The existing 2,534,400-byte / 2475-KiB cap is unchanged. Raw bundle,
+split/global, staged localization/badges and native export checks pass. The
+lead explicitly requires recording this remaining decision after excluding
+unneeded payload, rather than raising the cap. Full quality is reserved under
+the scoped-certification rule below. Exact inventories and default-timeout
+owning receipts: docs/certification/train-0.15.0-train15f.json.
+
+**TRAIN15F scoped certification (2026-10-06, win11).** The continuation brief
+requires the 132 complete owning files, default Vitest deadlines and individual
+static/build/package checks. Its shared common.md explicitly prohibits full
+`npm run quality` on this rig; full quality, hosted matrices, native macOS and
+live paid receipts remain the lead's release checks. No gate is weakened.
+The lead lifted the exec fixture's two-fix stop and authorized the exact
+2aa9cbff7 main merge and correcting D78 to immutable request goldens.
+
+**TRAIN15E exec fixture stop (2026-10-06, win11).** Exec stdio now passes
+38 cases, with three existing Windows exclusions, but its first packaging
+fixture expects the former single `de` table while using all fourteen real
+production tables. After the missing-directory and catalog-cache fixes this
+is its third failure. The common brief requires stopping after two distinct
+fixes; retain the assertion and record the remaining fixture mismatch. ACP
+stdio passes all ten cases, and production package/native checks pass. The
+one cold packaging case now has the specifically authorized 60-second limit;
+its measured 41.466 seconds includes archive compression and native checks.
+Ordinary packaging and exec deadlines remain 30 seconds.
+
+**TRAIN15E universal cap hold (2026-10-06, win11).** The real helperless VSIX is
+2,505,428 / 2,534,400 bytes. The certified prior helper contributes 81,327
+compressed bytes; adding that contribution alone projects 2,586,755 bytes,
+at least 52,355 over the unchanged cap before its ZIP entry headers. The
+289,568-byte macOS helper is absent on this rig; no placeholder is fabricated
+and no universal receipt is claimed. Further universal size recovery and an
+actual helper-bearing package remain for the lead. Helperless packaging and
+all native export checks pass; they do not certify the universal archive.
+
+**TRAIN15E D78 deferral (2026-10-06, win11).** Restoring M102's delayed recall
+declaration passes its unused-packing-default test but fails 72 train golden
+assertions by changing a tool declaration and cache key. Preserve the train's
+fixture bytes: all 89 golden assertions pass, while that one D78 test remains
+red. No fixture, assertion, timeout or gate is weakened. The precise conflict
+and both outcomes are in the train certification; the owner's decision is pending.
+
+**TRAIN15C M96 bounded size stop (2026-10-05, kubuntu).** The first composed
+Model API build is 494,346 / 486,400 bytes. Sharing captured validators and pure
+team admission brings it to 486,677 (+277); sharing the existing team bootstrap
+text through that same boundary brings it to 486,463 (+63). The same raw-size
+gate remains red after two distinct fixes. Under the owner's shared `common.md`
+stop rule, hold further Model API recovery and subsequent ordered merges pending
+an explicit continuation decision. The original deferred cohort is recovered
+by conditionally lazy paid usage; no cap, threshold or feature is changed.
+Independent M96 tests and packaging measurements continue for a reviewable
+candidate, not release certification. The universal archive is 2,397,730 /
+2,252,800 (+144,930), with exact largest-20 entry deltas retained. Static,
+source and native export checks do not excuse either cap. A local review
+checkpoint preserves the candidate with these explicit §7 deferrals; subsequent
+merges and release remain blocked. The inherited committed-source binding is
+checked after that checkpoint, because the pre-merge HEAD lacks its worker files. Full quality remains delegated to the
+lead after M95/M102 join. Receipts: `docs/certification/train-0.15.0.md`.
+
+**TRAIN15B raw-cap deferral (2026-10-05).** The resumed integration recovers
+the VSIX, with universal 2,213,704 and helperless 2,132,213 bytes, both under
+the unchanged 2,252,800 cap. The shared graph's original deferred cohort starts
+at 51,452 bytes; the first usage reduction still prints 50.1 KiB over 50 KiB,
+and the second leaves an exact 51,226 bytes (26 over). common.md requires
+stopping a path after two failed fixes, and the integration brief requires
+all caps to hold. Record the candidate with hooks and defer `m96/int3d`,
+`m96/ifix-win4` and `m97/sr`; no further raw-cap optimization or merge is tried.
+The source build completes and all other caps pass, but `npm run package`
+exits 1 before its packager. Running the actual packager separately measures
+exact archives and exercises strict staging, badges and native exports; that
+successful measurement does not certify the failing package command. All
+scoped checks and eight restored red drills are recorded in the train receipt.
+No full quality, cap increase, ignore, skip, feature removal or dependency change.
+This supersedes the first run's VSIX blocker below, preserving its history.
+
+**TRAIN15A budget stop (2026-10-05).** The integration brief explicitly
+forbids full quality and requires stopping after M101 if its unchanged universal
+VSIX cap cannot be met without a product decision. The first M101 candidate is
+2,368,627 bytes, 115,827 over. An existing-ESM shared-entry experiment preserves
+startup and model-text readership but leaves the original deferred cohort over
+its hard cap after two bounded fixes (57 bytes, then 10); common.md requires
+stopping that path. Restore the separate Models graph and retain every shipped
+feature and cap. Finish scoped checks, record the fresh artifact and exact largest
+twenty base deltas in `docs/certification/train-0.15.0.md`, commit the blocked
+integration locally with hooks, and do not merge steps 3–5. This is a justified
+review-candidate deferral under rule 2, never a green release claim. The lead
+owns a further size-recovery decision and the later continuation/full gate.
 
 ### FIXM112U — RVM112U surface repairs (2026-10-06)
 
@@ -48257,6 +48383,20 @@ aggregate quality/coverage/platform matrix before integration/release. No
 threshold, ignore or rule is changed.
 
 ## 8. Escape hatches register
+
+| 0.15.0 hosted-CI location                                                                                                                                                                      | Escape hatch                                                                                                                                                                 | Reason                                                                                                                                                                                                                                                                                                                                                                                           | Removal                                                                                                                                                   |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/unit/teamHintsAndLoad.test.ts` (`native owner-only folder`, `native Windows hint permissions`)                                                                                           | `NATIVE_WINDOWS_HINT_TIMEOUT_MS` (30 s) per-suite deadline instead of the 5 s unit default                                                                                   | Each native Windows hint read starts Windows PowerShell and compiles the C# hint reader (`windowHints.ts`); two or three per test land at about 5 s on a cold hosted runner (reproduced at 5,045 ms on a local Windows 11 host). The suites test real ACL and handle behaviour, so faking them would remove the evidence.                                                                        | Precompile `MuseTeamHintReader` once into the cached, content-addressed job assembly (as `MuseSparkJob`), then return the suites to the default deadline. |
+| `test/unit/usageL10nGate.test.mjs` (`beforeAll`)                                                                                                                                               | `L10N_GATE_SETUP_TIMEOUT_MS` (30 s) setup deadline instead of the 10 s hook default                                                                                          | Setup runs one cold, complete localization gate over the copied sources: a TypeScript parse of every file naming a text table. Hosted macOS with coverage exceeded 10 s. The gate now caches parses by content and skips files without a table name, so later checks take about 2 s instead of 21 s; the duplicate cold CLI build was removed, since CI's static gates run that CLI on every OS. | Narrow the load-order scan to files that import a text table, or ship it as its own gate step, then return to the default hook deadline.                  |
+| `test/unit/teamNativeLifetime.test.ts` (`M96 K real native lifetime`)                                                                                                                          | `NATIVE_PROCESS_SUITE_TIMEOUT_MS` (20 s) per-suite and setup deadline                                                                                                        | Each case starts the team host, journals and the fake CLI as real processes over real pipes; the first case exceeded 5 s on hosted macOS with coverage, and the setup that compiles the Windows job helper exceeded 10 s in a loaded Windows shard.                                                                                                                                              | Start one shared fake-CLI host per file in `beforeAll` and reuse it across cases, then return to the default deadline.                                    |
+| `test/unit/teamHarness.test.mjs` (`RVM96B browser regressions`)                                                                                                                                | `REAL_HARNESS_CASE_TIMEOUT_MS` (20 s) per-case deadline                                                                                                                      | Each case opens a fresh page and loads the full production webview bundle from a local server; one case passed 5 s in a loaded hosted Windows shard with coverage.                                                                                                                                                                                                                               | Reuse one page per theme with in-page scenario switching, then return to the default deadline.                                                            |
+| `package.json` `typecheck:unit`                                                                                                                                                                | `--max-old-space-size=4096` for the single unit TypeScript program                                                                                                           | Measured peak 2.48 GB (`--extendedDiagnostics`, 2026-10-07), above Node's default heap on hosted macOS; splitting the project instead re-checked shared sources and pushed the static gate past its 15-minute limit.                                                                                                                                                                             | Remove when the unit project fits the default heap (smaller project references).                                                                          |
+| `test/unit/vsixCompression.test.mjs`                                                                                                                                                           | `REAL_VSIX_COMPRESSION_TIMEOUT_MS` (30 s) per-case deadline                                                                                                                  | Python writes a real archive and the real compressor rewrites it at maximum compression; hosted Windows with coverage timed out at 5 s (5.9 s measured).                                                                                                                                                                                                                                         | Compress a smaller real table at a lower level for the metadata checks and keep one full-size case in the packaging job.                                  |
+| `test/unit/whatsNewContent.test.ts` (real CHANGELOG cases)                                                                                                                                     | `REAL_CHANGELOG_TIMEOUT_MS` (30 s) per-case deadline                                                                                                                         | The cases parse and encode every release of the real CHANGELOG.md; hosted macOS with coverage timed out at 5 s (5.4 s measured).                                                                                                                                                                                                                                                                 | Parse the real changelog once per file and share the result between the cases.                                                                            |
+| `test/unit/usageCompanionChunks.test.ts`                                                                                                                                                       | `REAL_BROWSER_PAGE_TIMEOUT_MS` (30 s) per-case deadline                                                                                                                      | The case loads the real shared vendor and Usage bundles in a real Chromium page; hosted macOS with coverage timed out at 5 s.                                                                                                                                                                                                                                                                    | Build the bundles in `beforeAll` (its own hook deadline), leaving only the page load in the case.                                                         |
+| `test/unit/conversationController.test.ts` (handoff refusals), `test/unit/ReferencePage.test.tsx` (C03)                                                                                        | `HANDOFF_REFUSALS_TIMEOUT_MS`, `FULL_REFERENCE_SEARCH_TIMEOUT_MS` (20 s) per-case deadlines                                                                                  | Each case loops over several real conversations or reference sections; hosted runners with coverage took 4.7 s, within half a second of the default.                                                                                                                                                                                                                                             | Split each loop into `it.each` cases, then return to the default deadline.                                                                                |
+| `test/unit/legalScan.test.ts` (scan cap), `test/unit/checkBadges.test.mjs` (CLI wiring)                                                                                                        | `LEGAL_CAP_SCAN_TIMEOUT_MS`, `COLD_CLI_TIMEOUT_MS` (15 s) per-case deadlines                                                                                                 | The cap case scans one file past the scan limit and the wiring case starts the badge CLI cold under Node; hosted runners with coverage took 3.5 s and 3.1 s.                                                                                                                                                                                                                                     | Lower the cap in a test-only scanner option; check the CI override in-process instead of a cold CLI.                                                      |
+| `test/unit/ollamaCodec.test.ts` (stream cap), `test/unit/vsixPackaging.test.mjs` (oversized archive), `test/unit/refreshBadges.test.mjs` (README badges), `test/unit/companionBrowser.test.ts` | `OLLAMA_STREAM_CAP_TIMEOUT_MS`, `REAL_OVERSIZED_PACKAGE_TIMEOUT_MS` (30 s), `README_BADGE_PARSE_TIMEOUT_MS` (15 s) per-case; `REAL_BROWSER_CASE_TIMEOUT_MS` (20 s) per-suite | A second sweep at 2 s over two full CI runs: the stream-cap case took 5.2 s and the companion browser case passed 5 s on hosted runners; the others took 3.4 to 4.0 s. The same run showed hosted macOS (3 vCPUs) oversubscribed by four workers plus coverage; `vitest.config.ts` now uses cores minus one there, capped at the measured four.                                                  | Read the stream cap from a test-sized option; share one browser context per file; drop each deadline once a hosted run measures the case under 2.5 s.     |
 
 | REL0144 location                                                | Escape hatch                                                                                                   | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

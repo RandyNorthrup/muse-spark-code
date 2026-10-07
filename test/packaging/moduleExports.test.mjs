@@ -223,8 +223,10 @@ if (isMainThread) {
   }
   for (const file of files) {
     test(`${kind} ${file}: native import and require retain baseline exports and calls`, async () => {
-      const baseline = await observe(path.join(root, 'dist', file))
-      const packaged = await observe(path.join(packageRoot, 'dist', file))
+      const [baseline, packaged] = await Promise.all([
+        observe(path.join(root, 'dist', file)),
+        observe(path.join(packageRoot, 'dist', file)),
+      ])
       assert.deepEqual(packaged, baseline)
       assert.deepEqual(packaged.importCall, packaged.requireCall)
     })

@@ -40,13 +40,17 @@ function windowsOptions() {
     },
   }
 }
+// Real native lifetime cases (and the setup that compiles the Windows job
+// helper) start real processes over real pipes; a cold or loaded hosted
+// runner with coverage needs longer than the defaults. PLAN.md §8 (2026-10-07).
+const NATIVE_PROCESS_SUITE_TIMEOUT_MS = 20_000
 beforeAll(async () => {
   native.directory = await realpath(await mkdtemp(path.join(os.tmpdir(), 'm96-driver-')))
   native.driver = await createNativeTeamProcessDriver({
     killGraceMs: 100,
     windows: windowsOptions(),
   })
-})
+}, NATIVE_PROCESS_SUITE_TIMEOUT_MS)
 afterAll(async () => {
   await rm(native.directory, { recursive: true, force: true })
 })
@@ -146,7 +150,7 @@ async function standaloneOwner(directory: string, code: string, env?: NodeJS.Pro
   return { parent, parentExited }
 }
 
-describe('M96 K real native lifetime', () => {
+describe('M96 K real native lifetime', { timeout: NATIVE_PROCESS_SUITE_TIMEOUT_MS }, () => {
   it('starts a separate journalled team Muse Code host over real fake-CLI pipes', async () => {
     const f = await fixture()
     const host = await startTeamMuseCodeHost({

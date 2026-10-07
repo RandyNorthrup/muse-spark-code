@@ -478,12 +478,27 @@ function moduleLoadReads(file, text) {
   return found
 }
 
+// Parsing every source file dominates repeated checks in one process (the
+// reusable checker runs once per call): a file is parsed again only when its
+// text changed, so results always describe the current bytes.
+const loadReadsCache = new Map()
+function cachedModuleLoadReads(absolute, file, text) {
+  const hit = loadReadsCache.get(absolute)
+  if (hit !== undefined && hit.text === text) return hit.found
+  // A read needs the table's name in the text (an alias is imported under that
+  // name too), so files without any table name cannot report and skip parsing.
+  const found = TEXT_TABLES.some((name) => text.includes(name)) ? moduleLoadReads(file, text) : []
+  loadReadsCache.set(absolute, { text, found })
+  return found
+}
+
 function checkLoadOrder(problems, repoRoot) {
   const files = readdirSync(path.join(repoRoot, SOURCE_DIR), { recursive: true })
     .map((name) => path.join(SOURCE_DIR, String(name)).replaceAll('\\', '/'))
     .filter((file) => SOURCE_FILE.test(file) && statSync(path.join(repoRoot, file)).isFile())
   for (const file of files) {
-    problems.push(...moduleLoadReads(file, readFileSync(path.join(repoRoot, file), 'utf8')))
+    const absolute = path.join(repoRoot, file)
+    problems.push(...cachedModuleLoadReads(absolute, file, readFileSync(absolute, 'utf8')))
   }
   return files.length
 }

@@ -15,8 +15,9 @@ import path from 'node:path'
 import process from 'node:process'
 
 const SEMGREP = 'semgrep'
-// Shared rigs: keep every file/rule and deadline, bound competing analyses.
-const MAX_WORKERS = 2
+// Serial analysis keeps large TypeScript taint scans within the shared heap
+// while retaining every rule and the unchanged default scan deadline.
+const MAX_WORKERS = 1
 const SEMGREP_ARGS = [
   'scan',
   '--jobs',
@@ -24,10 +25,6 @@ const SEMGREP_ARGS = [
   '--config',
   'auto',
   '--error',
-  // Large TypeScript taint analyses contend for the shared heap in parallel;
-  // serial scanning completes every rule at the unchanged default deadline.
-  '--jobs',
-  '1',
   '--exclude=dist',
   '--exclude=coverage',
   '--exclude=node_modules',

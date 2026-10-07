@@ -91,6 +91,11 @@ Text before the first heading.
 - Older.
 `
 
+// These cases parse and encode every release of the real CHANGELOG.md; hosted
+// macOS with coverage took up to 5.4 s, past the default deadline.
+// PLAN.md §8 (2026-10-07).
+const REAL_CHANGELOG_TIMEOUT_MS = 30_000
+
 describe('parseChangelog', () => {
   const releases = parseChangelog(CHANGELOG, ALLOWED, REPOSITORY)
 
@@ -317,34 +322,45 @@ describe('writeWhatsNewContent', () => {
     expect(allowed.commands.has('workbench.action.openSettings')).toBe(false)
   })
 
-  it('parses the real CHANGELOG.md with the real manifest', () => {
-    const changelog = readFileSync(new URL('../../CHANGELOG.md', import.meta.url), 'utf8')
-    const releases = parseChangelog(changelog, contributedIds(manifest), repositoryUrl(manifest))
-    expect(releases.length).toBeGreaterThan(0)
-    expect(releases.some((release) => release.version === manifest.version)).toBe(true)
-    parseWhatsNewContent(JSON.stringify({ schema: 1, releases }))
-  })
+  it(
+    'parses the real CHANGELOG.md with the real manifest',
+    () => {
+      const changelog = readFileSync(new URL('../../CHANGELOG.md', import.meta.url), 'utf8')
+      const releases = parseChangelog(changelog, contributedIds(manifest), repositoryUrl(manifest))
+      expect(releases.length).toBeGreaterThan(0)
+      expect(releases.some((release) => release.version === manifest.version)).toBe(true)
+      parseWhatsNewContent(JSON.stringify({ schema: 1, releases }))
+    },
+    REAL_CHANGELOG_TIMEOUT_MS,
+  )
 })
 
 describe('bounded lossless What’s New artifact', () => {
-  it('keeps both complete releases identical after generated artifact encoding', () => {
-    const changelog = readFileSync(path.resolve(import.meta.dirname, '../../CHANGELOG.md'), 'utf8')
-    const releases = parseChangelog(
-      changelog,
-      contributedIds(manifest),
-      repositoryUrl(manifest),
-    ).slice(0, 2)
-    const plain = JSON.stringify({ schema: 1, releases })
-    const encoded = encodeWhatsNewContent(plain)
-    expect(Buffer.byteLength(encoded)).toBeLessThanOrEqual(40 * 1024)
-    // Small notes ship as written; only notes over the cap are packed.
-    if (Buffer.byteLength(plain) > 40 * 1024) {
-      expect(JSON.parse(encoded)).toHaveProperty('encoding', 'br')
-    } else {
-      expect(encoded).toBe(plain)
-    }
-    expect(parseWhatsNewContent(encoded)).toEqual(JSON.parse(plain))
-  })
+  it(
+    'keeps both complete releases identical after generated artifact encoding',
+    () => {
+      const changelog = readFileSync(
+        path.resolve(import.meta.dirname, '../../CHANGELOG.md'),
+        'utf8',
+      )
+      const releases = parseChangelog(
+        changelog,
+        contributedIds(manifest),
+        repositoryUrl(manifest),
+      ).slice(0, 2)
+      const plain = JSON.stringify({ schema: 1, releases })
+      const encoded = encodeWhatsNewContent(plain)
+      expect(Buffer.byteLength(encoded)).toBeLessThanOrEqual(40 * 1024)
+      // Small notes ship as written; only notes over the cap are packed.
+      if (Buffer.byteLength(plain) > 40 * 1024) {
+        expect(JSON.parse(encoded)).toHaveProperty('encoding', 'br')
+      } else {
+        expect(encoded).toBe(plain)
+      }
+      expect(parseWhatsNewContent(encoded)).toEqual(JSON.parse(plain))
+    },
+    REAL_CHANGELOG_TIMEOUT_MS,
+  )
 
   it('packs real release notes that exceed the cap and decodes them losslessly', () => {
     const changelog = readFileSync(path.resolve(import.meta.dirname, '../../CHANGELOG.md'), 'utf8')
