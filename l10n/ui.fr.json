@@ -1,4 +1,9 @@
 {
+  "paidProviderUseDetail": "{subject}\n\nJusqu’à {price} pour cette utilisation, facturée à votre clé {provider}. Budget quotidien partagé : {budget}. Votre abonnement ne paie pas cette utilisation.",
+  "presentationRolesTitle": "Rôles",
+  "presentationTrafficTitle": "Échanges de messages",
+  "presentationRulesTitle": "Règles",
+  "presentationAgentsTitle": "Agents personnalisés",
   "companionLaunchFailed": "Impossible d’ouvrir le panneau. Revenez à votre éditeur et ouvrez à nouveau Muse Spark Code pour obtenir un nouveau lien de lancement.",
   "untitledConversation": "Sans titre",
   "crashTitle": "Le panneau a rencontré une erreur",

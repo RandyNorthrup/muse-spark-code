@@ -1,4 +1,9 @@
 {
+  "paidProviderUseDetail": "{subject}\n\nДо {price} за это использование, оплачивается вашим ключом {provider}. Общий дневной бюджет: {budget}. Подписка не оплачивает это использование.",
+  "presentationRolesTitle": "Роли",
+  "presentationTrafficTitle": "Обмен сообщениями",
+  "presentationRulesTitle": "Правила",
+  "presentationAgentsTitle": "Пользовательские агенты",
   "companionLaunchFailed": "Не удалось открыть панель. Вернитесь в редактор и снова откройте Muse Spark Code, чтобы получить новую ссылку запуска.",
   "untitledConversation": "Без названия",
   "crashTitle": "В панели произошла ошибка",

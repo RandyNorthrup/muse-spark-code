@@ -14,7 +14,7 @@ import type { JudgeStatus } from '../../shared/judge'
 
 export interface JudgeUseHostDeps extends Pick<
   JudgeUseDeps,
-  'createRunner' | 'question' | 'onError' | 'onFence'
+  'createRunner' | 'question' | 'onError' | 'onFence' | 'onTask'
 > {
   readonly backend: 'modelApi' | 'museCode'
   readonly context: () => Omit<JudgeModeContext, 'minReadyRate'>
@@ -64,6 +64,7 @@ export function createJudgeUse(deps: JudgeUseHostDeps): JudgeUse {
     question: deps.question,
     onError: deps.onError,
     onFence: deps.onFence,
+    onTask: deps.onTask,
     prepare: async (_action, signal) => {
       if (deps.backend === 'museCode') {
         if (!hasSubscriptionNote) {

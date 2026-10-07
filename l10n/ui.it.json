@@ -1,4 +1,9 @@
 {
+  "paidProviderUseDetail": "{subject}\n\nFino a {price} per questo utilizzo, addebitato alla tua chiave {provider}. Budget giornaliero condiviso: {budget}. Il tuo abbonamento non paga questo utilizzo.",
+  "presentationRolesTitle": "Ruoli",
+  "presentationTrafficTitle": "Scambio di messaggi",
+  "presentationRulesTitle": "Regole",
+  "presentationAgentsTitle": "Agenti personalizzati",
   "companionLaunchFailed": "Impossibile aprire il pannello. Torna al tuo editor e apri di nuovo Muse Spark Code per ottenere un nuovo collegamento di avvio.",
   "untitledConversation": "Senza titolo",
   "crashTitle": "Si è verificato un errore nel pannello",

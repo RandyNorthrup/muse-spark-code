@@ -1,4 +1,9 @@
 {
+  "paidProviderUseDetail": "{subject}\n\n이번 사용에 최대 {price}가 {provider} 키로 청구됩니다. 공유 일일 예산: {budget}. 구독으로는 이번 사용 요금이 결제되지 않습니다.",
+  "presentationRolesTitle": "역할",
+  "presentationTrafficTitle": "메시지 흐름",
+  "presentationRulesTitle": "규칙",
+  "presentationAgentsTitle": "사용자 지정 에이전트",
   "companionLaunchFailed": "패널을 열 수 없습니다. 편집기로 돌아가 Muse Spark Code를 다시 열어 새 실행 링크를 받으세요.",
   "untitledConversation": "제목 없음",
   "crashTitle": "패널에서 오류가 발생했습니다",

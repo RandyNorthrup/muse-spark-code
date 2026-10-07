@@ -1,8 +1,10 @@
+import { paidConsentChoices } from '../../shared/portablePaid'
 import { randomUUID } from 'node:crypto'
-import { constants as fsConstants } from 'node:fs'
+import { constants as fsConstants, realpathSync } from 'node:fs'
 import { open, realpath, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { runtimeEditorContext } from '../features/editorContext'
 import type { RuntimeBackend } from '../backends'
 import type { ServeOptions } from '../cliArgs'
 import { walkFiles } from '../fileWalk'
@@ -28,7 +30,7 @@ import type {
   ConversationGitPort,
   LastSession,
 } from '../../host/conversation/conversationController'
-import { HOST_ACTIONS, type HostAction } from '../../shared/protocol'
+import { HOST_ACTIONS, type HostAction, type WebviewToHostMessage } from '../../shared/protocol'
 import type { UiText } from '../../shared/l10n/en'
 import type { MhpPanelBinding } from '../../shared/hostApi/panel'
 import type { PanelView } from './surfaces'
@@ -207,6 +209,11 @@ export type RuntimeEnginePorts = Pick<
   | 'auth'
   | 'ensureHost'
   | 'accountFacts'
+  | 'review'
+  | 'editReview'
+  | 'transferFiles'
+  | 'usageInsights'
+  | 'dictation'
 >
 export type RuntimePresentationPorts = Pick<
   ConversationFeaturePorts,
@@ -237,6 +244,10 @@ export interface RuntimePresentationContribution extends RuntimeFeatureContribut
 }
 export interface RuntimeFeatureContext {
   readonly ports: RuntimeConversationPorts
+  readonly sessionId?: () => string
+  readonly signal?: AbortSignal
+  readonly controller?: () => ConversationController | undefined
+  readonly queueAfterReady?: (message: WebviewToHostMessage) => void
   /** Called at use, never cached across a model selection or session replacement. */
   requireModelCapabilities(): Promise<RuntimeSelectedModel>
   openWorkspace(root: string): Promise<void>
@@ -257,6 +268,9 @@ export interface RuntimeFeatureFactories {
 }
 
 export interface RuntimeConversationPorts {
+  readonly controller?: () => ConversationController | undefined
+  readonly queueAfterReady?: (message: WebviewToHostMessage) => void
+  readonly signal?: AbortSignal
   readonly factories?: RuntimeFeatureFactories
   readonly selectedModel?: () => Promise<RuntimeSelectedModel>
   readonly openWorkspace?: (root: string) => Promise<void>
@@ -361,24 +375,25 @@ export async function runtimeConversationDeps(ports: RuntimeConversationPorts) {
       const answer = await host.request('ui/confirm', {
         title: question.title,
         message: question.detail,
-        choices: [
-          { id: ACP_PAID_OPTIONS.allowOnce, title: UI_TEXT.allowOnce },
-          ...(canRemember
-            ? [{ id: ACP_PAID_OPTIONS.allowAlways, title: UI_TEXT.paidAllowAlways }]
-            : []),
-          { id: ACP_PAID_OPTIONS.deny, title: UI_TEXT.paidDeny },
-        ],
+        choices: paidConsentChoices(canRemember),
       })
       if (answer === ACP_PAID_OPTIONS.allowOnce) return 'once'
       return canRemember && answer === ACP_PAID_OPTIONS.allowAlways ? 'always' : 'deny'
     })
+  const selectionRoot = options.trustWorkspace ? await realpath(workspaceRoot) : undefined
+  let admittedSelectionPaths = new Set<string>()
   const mentions = new MentionIndex({
-    listFiles: () => walkFiles(workspaceRoot, MENTION_INDEX_LIMIT, log),
+    listFiles: async () => {
+      const files = await walkFiles(workspaceRoot, MENTION_INDEX_LIMIT, log)
+      admittedSelectionPaths = new Set(files.map((file) => file.replaceAll('\\', '/')))
+      return files
+    },
     now: Date.now,
     ttlMs: MENTION_INDEX_TTL_MS,
     limit: MENTION_INDEX_LIMIT,
     log,
   })
+  if (options.trustWorkspace) await mentions.search('', MENTION_INDEX_LIMIT)
   const archived = idsSchema.parse((await store.getStorage('archivedSessions', 'workspace')) ?? [])
   const damaged = idsSchema.parse((await store.getStorage('damagedSessions', 'workspace')) ?? [])
   let last: LastSession | undefined
@@ -508,21 +523,24 @@ export async function runtimeConversationDeps(ports: RuntimeConversationPorts) {
     },
     platform: process.platform,
     shellSandbox: () => runtime.museCode.shellSandboxPosture(),
-    editorContext: () => {
-      const active = ports.selection()
-      if (active === null) return
-      const relative = features.files.toRelativePath(active.uri)
-      if (relative === undefined) return
-      return {
-        relativePath: relative,
-        startLine: active.range.start.line + 1,
-        endLine: active.range.end.line + 1,
-        isEmpty:
-          active.range.start.line === active.range.end.line &&
-          active.range.start.character === active.range.end.character,
-        selectedText: undefined,
-      }
-    },
+    editorContext: () =>
+      runtimeEditorContext(ports.selection(), workspaceRoot, process.platform, (relative) => {
+        if (
+          selectionRoot === undefined ||
+          !options.trustWorkspace ||
+          !admittedSelectionPaths.has(relative)
+        )
+          return false
+        try {
+          return (
+            path
+              .relative(selectionRoot, realpathSync(path.resolve(workspaceRoot, relative)))
+              .replaceAll('\\', '/') === relative
+          )
+        } catch {
+          return false
+        }
+      }),
     isAutosaveEnabled: () => settings.current().autosave,
     unsavedFiles: () =>
       ports
@@ -649,6 +667,10 @@ export async function runtimeConversationDeps(ports: RuntimeConversationPorts) {
   }
   const context: RuntimeFeatureContext = {
     ports,
+    sessionId: () => ports.surface.takeRestoredSessionId() ?? ports.surface.id,
+    ...(ports.signal !== undefined && { signal: ports.signal }),
+    ...(ports.controller !== undefined && { controller: ports.controller }),
+    ...(ports.queueAfterReady !== undefined && { queueAfterReady: ports.queueAfterReady }),
     requireModelCapabilities: () =>
       ports.selectedModel?.() ?? Promise.reject(new Error('MHP_MODEL_CAPABILITIES_UNAVAILABLE')),
     openWorkspace: (root) =>

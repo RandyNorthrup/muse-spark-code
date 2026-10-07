@@ -1,4 +1,9 @@
 {
+  "paidProviderUseDetail": "{subject}\n\nDo {price} za to użycie, rozliczane przez Twój klucz {provider}. Wspólny dzienny budżet: {budget}. Subskrypcja nie pokrywa tego użycia.",
+  "presentationRolesTitle": "Role",
+  "presentationTrafficTitle": "Ruch wiadomości",
+  "presentationRulesTitle": "Reguły",
+  "presentationAgentsTitle": "Niestandardowi agenci",
   "companionLaunchFailed": "Nie udało się otworzyć panelu. Wróć do edytora i ponownie otwórz Muse Spark Code, aby uzyskać nowy link uruchomienia.",
   "untitledConversation": "Bez tytułu",
   "crashTitle": "W panelu wystąpił błąd",

@@ -1,21 +1,24 @@
+import type { PaidUseAsker } from '../../src/acp/paid'
+import { ACP_PAID_OPTIONS } from '../../src/shared/constants'
 import { PassThrough } from 'node:stream'
 import { mkdtemp, mkdir, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { afterAll, beforeAll, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
-import { runPanel } from '../../src/runtime/panel/runPanel'
+import { retireCompanionPages, runPanel } from '../../src/runtime/panel/runPanel'
 import type { RuntimeFeatureContext } from '../../src/runtime/panel/runtimeFeatures'
 import { fakePanelRuntime } from './helpers/runtimePanel'
 import type { ServeOptions } from '../../src/runtime/cliArgs'
 import { RuntimeSettingsStore } from '../../src/runtime/settingsStore'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
-import { panelEnvelopeSchema } from '../../src/shared/hostApi/panel'
+import { panelBindingSchema, panelEnvelopeSchema } from '../../src/shared/hostApi/panel'
 import { FakeAgentHost } from './helpers/fakeAgent'
 import { buildHostBundles } from './helpers/modelApiBundle'
 import { removeFolder } from './helpers/temporaryFolders'
+import { PortableTasks } from '../../src/host/views/portableTasks'
 
 function runGit(): Promise<never> {
   return Promise.reject(new Error('fake refuses git'))
@@ -27,6 +30,7 @@ beforeAll(async () => {
   await buildHostBundles(rig.root, {
     conversation: path.resolve('src/host/conversation/conversationEntry.ts'),
     runtimePanelPorts: path.resolve('src/runtime/panel/runtimeFeaturesEntry.ts'),
+    runtimeBackendServices: path.resolve('src/runtime/panel/backendEntry.ts'),
   })
 })
 afterAll(async () => {
@@ -36,7 +40,11 @@ afterAll(async () => {
 const requestSchema = z.object({
   id: z.string(),
   method: z.string(),
-  params: z.object({ sessionId: z.optional(z.string()), surfaceId: z.optional(z.string()) }),
+  params: z.object({
+    sessionId: z.optional(z.string()),
+    surfaceId: z.optional(z.string()),
+    kind: z.optional(z.string()),
+  }),
 })
 const frameId = z.union([z.string(), z.number()])
 const frameSchema = z.union([
@@ -44,7 +52,12 @@ const frameSchema = z.union([
   z.object({ id: frameId, error: z.object({ code: z.number(), message: z.string() }) }),
 ])
 
-async function fixture(kind: 'museCode' | 'modelApi', isTrusted = false) {
+async function fixture(
+  kind: 'museCode' | 'modelApi',
+  isTrusted = false,
+  isPortable = false,
+  hasTasks = false,
+) {
   const root = await realpath(await mkdtemp(path.join(rig.root, 'workspace-')))
   const worktree = path.join(root, 'worktree')
   await mkdir(worktree)
@@ -54,7 +67,9 @@ async function fixture(kind: 'museCode' | 'modelApi', isTrusted = false) {
   const frames: unknown[] = []
   const bindings = new Map<string, { sessionId: string; surface: string }>()
   const contexts: RuntimeFeatureContext[] = []
+  const askers: PaidUseAsker[] = []
   const profiles: { kind: string; trusted: boolean; sandbox: string }[] = []
+  const tasks: PortableTasks[] = []
   const options: ServeOptions = {
     backend: kind,
     trustWorkspace: true,
@@ -75,6 +90,11 @@ async function fixture(kind: 'museCode' | 'modelApi', isTrusted = false) {
       homeDir: root,
       runGit,
       log,
+    })
+    const attach = base.paid.attach.bind(base.paid)
+    vi.spyOn(base.paid, 'attach').mockImplementation((asker) => {
+      askers.push(asker)
+      attach(asker)
     })
     const host = new FakeAgentHost()
     host.info = { ...host.info, kind: options.backend }
@@ -117,22 +137,34 @@ async function fixture(kind: 'museCode' | 'modelApi', isTrusted = false) {
         const binding = { sessionId: params.sessionId, surface }
         bindings.set(surface, binding)
         send({ jsonrpc: '2.0', id, result: { surfaceId: surface } })
-        send({ mhp: '1.2', kind: 'surface', ...binding, surfaceKind: 'chat', event: 'opened' })
-        send({ mhp: '1.2', kind: 'surface', ...binding, surfaceKind: 'chat', event: 'ready' })
+        if (params.kind !== 'chat') continue
+        send({ mhp: '1.3', kind: 'surface', ...binding, surfaceKind: 'chat', event: 'opened' })
+        send({ mhp: '1.3', kind: 'surface', ...binding, surfaceKind: 'chat', event: 'ready' })
         send({
-          mhp: '1.2',
+          mhp: '1.3',
           kind: 'panel',
           surface,
           direction: 'toHost',
           seq: 1,
           payload: { type: 'ready' },
         })
+      } else if (isPortable && method === 'ui/confirm') {
+        send({ jsonrpc: '2.0', id, result: ACP_PAID_OPTIONS.allowOnce })
       } else if (method === 'surfaces/close') {
         send({ jsonrpc: '2.0', id, result: null })
       }
     }
   })
   const result = runPanel({
+    ...(isPortable && {
+      portable: {
+        version: 'fake',
+        hasStoredKey: () => Promise.resolve(false),
+        platform: process.platform,
+        env: {},
+        homeDir: root,
+      },
+    }),
     options,
     runtime: backend(options),
     transport: 'stdio',
@@ -165,6 +197,29 @@ async function fixture(kind: 'museCode' | 'modelApi', isTrusted = false) {
         capabilities: new Set(['compaction']),
       }),
     factories: {
+      ...(hasTasks && {
+        presentation: (context: RuntimeFeatureContext) => {
+          const page = new PortableTasks(
+            context.ports.host,
+            () => context.sessionId?.() ?? '',
+            vi.fn(),
+            log,
+            vi.fn(),
+          )
+          tasks.push(page)
+          return Promise.resolve({
+            features: { tasksTab: page },
+            view: page.view.bind(page),
+            dispose: async () => {
+              expect(context.signal?.aborted).toBe(true)
+              await expect(
+                context.ports.host.request('workspace/folders', {}),
+              ).rejects.toMatchObject({ name: 'AbortError' })
+              await page.dispose()
+            },
+          })
+        },
+      }),
       engines: (context) => {
         contexts.push(context)
         return Promise.resolve({
@@ -180,8 +235,8 @@ async function fixture(kind: 'museCode' | 'modelApi', isTrusted = false) {
     method: 'initialize',
     params: {
       host: { id: 'fake', version: '1' },
-      protocolRange: { minimum: 'mhp/1.2.0', maximumExclusive: 'mhp/1.3.0' },
-      capabilities: ['lifecycle', 'surfaces', 'settings', 'storage'],
+      protocolRange: { minimum: 'mhp/1.3.0', maximumExclusive: 'mhp/1.4.0' },
+      capabilities: ['lifecycle', 'surfaces', 'settings', 'storage', ...(isPortable ? ['ui'] : [])],
       locale: 'de',
       theme: { kind: 'dark', tokens: {} },
       folders: [{ uri: pathToFileURL(root).href, name: 'fake' }],
@@ -211,7 +266,9 @@ async function fixture(kind: 'museCode' | 'modelApi', isTrusted = false) {
     frames,
     bindings,
     contexts,
+    askers,
     profiles,
+    tasks,
     send,
     waitReply,
     failProfile: (isFailing: boolean) => {
@@ -225,6 +282,35 @@ async function fixture(kind: 'museCode' | 'modelApi', isTrusted = false) {
 }
 
 for (const kind of ['museCode', 'modelApi'] as const) {
+  it(`${kind}: profile replacement closes acquired Tasks after ordinary requests are cancelled`, async () => {
+    const t = await fixture(kind, true, false, true)
+    try {
+      const page = t.tasks[0]
+      if (page === undefined) throw new Error('Missing Tasks contribution')
+      await page.show({ conversation: 'Actual session', items: [] })
+      let auxiliary: string | undefined
+      for (const id of t.bindings.keys()) auxiliary = id
+      t.send({
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'settings/update',
+        params: {
+          key: 'museSpark.backend',
+          value: kind === 'museCode' ? 'modelApi' : 'museCode',
+          scope: 'user',
+        },
+      })
+      await t.waitReply(2)
+      expect(t.frames).toContainEqual({ jsonrpc: '2.0', id: 2, result: null })
+      expect(t.frames).toContainEqual(
+        expect.objectContaining({ method: 'surfaces/close', params: { surfaceId: auxiliary } }),
+      )
+      expect(t.contexts).toHaveLength(2)
+      expect(t.log.warn).not.toHaveBeenCalledWith('MHP_TASKS_CLOSE_FAILED')
+    } finally {
+      await t.close()
+    }
+  })
   it(`${kind}: each conversation publishes only its own effective settings and revokes its own Bypass`, async () => {
     const t = await fixture(kind, true)
     try {
@@ -454,3 +540,65 @@ for (const kind of ['museCode', 'modelApi'] as const) {
     }
   })
 }
+
+it('refuses stock portable paid consent before a popup when catalog and hard-ledger configuration is absent', async () => {
+  const t = await fixture('modelApi', true, true)
+  try {
+    const ask = t.askers.at(-1)
+    const context = t.contexts[0]
+    if (ask === undefined || context === undefined) throw new Error('Missing owned paid asker')
+    expect(await ask(context.ports.surface.id, { feature: 'webSearch' }, true)).toBe('deny')
+    expect(
+      t.frames.some(
+        (frame) =>
+          requestSchema.safeParse(frame).success &&
+          requestSchema.parse(frame).method === 'ui/confirm',
+      ),
+    ).toBe(false)
+  } finally {
+    await t.close()
+  }
+})
+
+function companionPage(surface: string, sessionId: string, surfaceKind: string) {
+  return {
+    binding: panelBindingSchema.parse({ surface, sessionId, surfaceKind }),
+  }
+}
+
+describe('companion retire handoff', () => {
+  it('retires replaced pages and hands each surface to its feature owner', () => {
+    const pages = new Map([
+      ['chat', companionPage('chat-surface', 'old', 'chat')],
+      ['aux', companionPage('aux-surface', 'old', 'tasks')],
+      ['other', companionPage('other-surface', 'new', 'tasks')],
+    ])
+    const retired: string[] = []
+    // A feature owner releases what the handoff names, as PortableTasks.closed does.
+    const acquired = new Set(['chat-surface', 'aux-surface', 'other-surface'])
+    const closed = new Set([
+      (id: string) => {
+        acquired.delete(id)
+      },
+    ])
+    retireCompanionPages(
+      pages,
+      (id) => {
+        retired.push(id)
+      },
+      closed,
+      'old',
+    )
+    expect(retired).toEqual(['chat', 'aux'])
+    expect(pages.size).toBe(1)
+    expect(pages.has('other')).toBe(true)
+    // Nothing orphaned remains for release-time cleanup to close.
+    expect(acquired.size).toBe(1)
+    expect(acquired.has('other-surface')).toBe(true)
+  })
+  it('prunes replaced pages when no companion or owner is attached', () => {
+    const pages = new Map([['aux', companionPage('aux-surface', 'old', 'tasks')]])
+    retireCompanionPages(pages, undefined, new Set(), 'old')
+    expect(pages.size).toBe(0)
+  })
+})

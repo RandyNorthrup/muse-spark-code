@@ -23,5 +23,6 @@ export function checkDeferredBundles(
 ): string[]
 export const sharedUiText: Plugin
 export const sharedWire: Plugin
+export const sharedHostProtocol: Plugin
 export const sharedValidation: Plugin
 export const deferredCohort: Plugin

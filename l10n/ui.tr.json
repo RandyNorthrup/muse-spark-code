@@ -1,4 +1,9 @@
 {
+  "paidProviderUseDetail": "{subject}\n\nBu kullanım için {provider} anahtarınıza en fazla {price} ücret yansıtılır. Paylaşılan günlük bütçe: {budget}. Aboneliğiniz bu kullanımı karşılamaz.",
+  "presentationRolesTitle": "Roller",
+  "presentationTrafficTitle": "Mesaj trafiği",
+  "presentationRulesTitle": "Kurallar",
+  "presentationAgentsTitle": "Özel ajanlar",
   "companionLaunchFailed": "Panel açılamadı. Yeni bir başlatma bağlantısı almak için düzenleyicinize dönün ve Muse Spark Code’u yeniden açın.",
   "untitledConversation": "Adsız",
   "crashTitle": "Panelde bir hata oluştu",

@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { UI_TEXT } from '../../shared/l10n/text'
 
-export type ManagerKind = 'skills' | 'mcp' | 'hooks' | 'memory' | 'worktrees'
+export type ManagerKind = 'skills' | 'mcp' | 'hooks' | 'memory' | 'worktrees' | 'rules' | 'agents'
 export interface ManagerAction {
   readonly id: string
   readonly title: string
@@ -30,22 +30,21 @@ function managerTitle(kind: ManagerKind): string {
     case 'worktrees': {
       return UI_TEXT.fallbackWorktrees
     }
-  }
-}
-function Actions({ actions }: { readonly actions: readonly ManagerAction[] }) {
-  const [isBusy, setBusy] = useState(false)
-  const [hasError, setError] = useState(false)
-  async function run(action: ManagerAction): Promise<void> {
-    setBusy(true)
-    setError(false)
-    try {
-      await action.run()
-    } catch {
-      setError(true)
-    } finally {
-      setBusy(false)
+    case 'rules':
+    case 'agents': {
+      throw new Error('MHP_MANAGER_TITLE_REQUIRED')
     }
   }
+}
+function Actions({
+  actions,
+  isBusy,
+  run,
+}: {
+  readonly actions: readonly ManagerAction[]
+  readonly isBusy: boolean
+  readonly run: (action: ManagerAction) => Promise<void>
+}) {
   return (
     <>
       <div className="fallback-actions">
@@ -62,7 +61,6 @@ function Actions({ actions }: { readonly actions: readonly ManagerAction[] }) {
           </button>
         ))}
       </div>
-      {hasError && <p role="alert">{UI_TEXT.fallbackActionFailed}</p>}
     </>
   )
 }
@@ -72,15 +70,36 @@ export function ManagerPage({
   kind,
   entries,
   actions,
+  title,
 }: {
   readonly kind: ManagerKind
   readonly entries: readonly ManagerEntry[]
   readonly actions: readonly ManagerAction[]
+  /** Installed-language title; required for rules/agents. Legacy Muse titles remain the fallback. */
+  readonly title?: string
 }) {
+  const pending = useRef(false)
+  const [isBusy, setBusy] = useState(false)
+  const [hasError, setError] = useState(false)
+  async function run(action: ManagerAction): Promise<void> {
+    if (pending.current) return
+    pending.current = true
+    setBusy(true)
+    setError(false)
+    try {
+      await action.run()
+    } catch {
+      setError(true)
+    } finally {
+      pending.current = false
+      setBusy(false)
+    }
+  }
   return (
-    <main className="fallback-page">
-      <h1>{managerTitle(kind)}</h1>
-      <Actions actions={actions} />
+    <main className="fallback-page" aria-busy={isBusy}>
+      <h1>{title ?? managerTitle(kind)}</h1>
+      {hasError && <p role="alert">{UI_TEXT.fallbackActionFailed}</p>}
+      <Actions actions={actions} isBusy={isBusy} run={run} />
       {entries.length === 0 ? (
         <p role="status">{UI_TEXT.fallbackEmpty}</p>
       ) : (
@@ -89,7 +108,7 @@ export function ManagerPage({
             <li className="fallback-manager-row" key={entry.id}>
               <h2>{entry.title}</h2>
               <p>{entry.detail}</p>
-              <Actions actions={entry.actions} />
+              <Actions actions={entry.actions} isBusy={isBusy} run={run} />
             </li>
           ))}
         </ul>

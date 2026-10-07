@@ -6,6 +6,8 @@ import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import type { ConversationGitPort, GitSurface } from '../conversation/conversationController'
 import { ConversationGit, type ConversationGitErrorTypes, type GitWindow } from './conversationGit'
+import { GitHubError } from '../../core/git/github'
+import { GitUnavailableError } from '../vscode/git/gitExtension'
 import {
   createGitFeatures as gitFeaturesFrom,
   type GitFeaturesDeps,
@@ -21,7 +23,7 @@ export function createConversationGit(
   errorTypes?: ConversationGitErrorTypes,
 ): ConversationGitPort {
   setUiText(table, locale)
-  return new ConversationGit(window, surface, errorTypes)
+  return new ConversationGit(window, surface, errorTypes ?? { GitHubError, GitUnavailableError })
 }
 
 export function createGitFeatures(

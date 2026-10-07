@@ -10,6 +10,8 @@ export const fallbackUiMethodSchema = z.enum([
   'ui/notify',
   'ui/status',
   'ui/progress',
+  'ui/clipboard',
+  'ui/openExternal',
 ])
 export type FallbackUiMethod = z.infer<typeof fallbackUiMethodSchema>
 export const fallbackUiCallSchema = z.union([
