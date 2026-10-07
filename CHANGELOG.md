@@ -7,6 +7,23 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Capacity estimator (M117): `/estimate <goal> [--by <date>] [--fleet
+  current|minimum|optimum]` in the composer, the ACP agent and the Open
+  Estimator command forecasts P50/P90 dates, the lane schedule with its
+  critical path, the limiting resource and current/minimum/optimum setups
+  from one lazily loaded engine. Every figure carries its calibration
+  disclosure with the sample size (Uncalibrated prior below 20 samples);
+  durations and first-pass finding rates fit per engine (Codex, Muse, Grok)
+  × lane kind × machine class, and bases older than seven days are flagged
+  as a schedule risk. Spin it up starts the contract-first first wave;
+  rented servers stay advice-only until the provider binding lands, and
+  every later spend needs its own confirmation inside one explicit run
+  budget. Settings (this machine): `museSpark.estimator.optimize` and
+  `museSpark.estimator.priceLookup`. The generated-help bundle budget moves
+  100 → 125 KiB by the measured-plus-15% rule (100.7 KiB with the new rows).
+
 ### Documentation
 
 - A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists

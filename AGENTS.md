@@ -204,6 +204,8 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       dist/bundledSkills.js, loaded on first use),
                       Tab's lazy provider, ledger and menu (dist/tab.js),
                       with its status item in the activation shim,
+                      the estimator's engine and history honesty
+                      (dist/estimator.js, loaded on the first estimate; M117),
                       commands, auth, settings, mentions,
                       editor tracking, usage trace logs, voice, the IDE tool
                       MCP server (diagnostics, code intelligence, images, web

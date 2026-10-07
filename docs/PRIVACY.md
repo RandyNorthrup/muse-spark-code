@@ -652,6 +652,11 @@ does not yet execute them in this build. When that lane lands, a local
   names instead of JSON parser snippets from the picked file.
   Importing or opening a share file reads the one file you pick; nothing
   is uploaded, and there is no hosted sharing.
+- The capacity estimator (M117) keeps lane durations (tagged with the
+  building engine, lane kind and machine class) and review finding rates as
+  estimate inputs and, once the board, git and review-round bindings land,
+  in a history journal under private application storage the caller
+  supplies — never the workspace. It holds no prompts, attachments or keys.
 
 ## The agent for other editors
 

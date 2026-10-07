@@ -106,6 +106,21 @@ Scheduled/unattended prompts defer immediately and keep the question open,
 including with interactive deferral disabled; headless exec, best-of-N,
 worktrees and the evaluation retain their distinct immediate policies.
 
+## M117 estimator routes — integration status
+
+2026-10-07: every surface runs the same lazily loaded engine
+(`dist/estimator.js`), so all editors estimate equally; only the shell
+differs. Fake-only engine, panel and ACP checks are recorded in [M117's
+record](../certification/m117.md). Installed-editor rows above retain their
+existing status.
+
+| Surface                                                                                                                                  | Estimate path                                                          | Spin it up                                                                         | Binding / evidence                                                                                      |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| VS Code family, Remote SSH, WSL, containers, Codespaces                                                                                  | Composer `/estimate`, the Open Estimator command, the Estimator panel  | Panel button; provider binding refuses with its handoff name until M109/M110 merge | Integrated host/estimator bindings; fake history, fleet and provider ports; installed-host checks: lead |
+| ACP clients with the estimator binding (Zed, Xcode 27, JetBrains AI Assistant, Qt Creator, Neovim, Emacs, Sublime and other ACP clients) | `/estimate` with the same usage and no model call                      | Advice-only until the provider binding lands                                       | Agent's estimate port plus fakes; each installed client's run remains open                              |
+| ACP clients without the binding                                                                                                          | No `/estimate` advertised                                              | Unavailable                                                                        | Capability-gated advertisement; covered by the agent's command tests                                    |
+| Headless runtime and TUI                                                                                                                 | The runtime estimator binding; `openEstimateTui` for the terminal view | Advice-only until the provider binding lands                                       | Runtime/main binding; the terminal view itself binds under M110a0                                       |
+
 ## Native and scientific
 
 | Editor                    | Route                               | Milestone | Status  |
