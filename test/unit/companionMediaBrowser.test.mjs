@@ -1,6 +1,6 @@
 import { createServer } from 'node:http'
 import { Buffer } from 'node:buffer'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
 import path from 'node:path'
 import * as esbuild from 'esbuild'
 import { chromium } from 'playwright-core'
@@ -23,6 +23,8 @@ const themes = ['light', 'dark', 'hc-light', 'hc-dark']
 const normalize = (filename) => filename.replaceAll('\\', '/')
 
 beforeAll(async () => {
+  // `temp/` is gitignored and may not exist on a fresh worktree.
+  await mkdir(path.join(process.cwd(), 'temp'), { recursive: true })
   state.root = await mkdtemp(path.join(process.cwd(), 'temp', 'e3-browser-'))
   const built = await esbuild.build({
     entryPoints: [COMPANION_BROWSER_ENTRY],
