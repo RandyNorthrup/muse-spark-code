@@ -26421,6 +26421,20 @@ or helper-only-access certification.
 - **R** waits for M96; its device part for M100's lanes S and E and M107's
   lane R.
 - **M** moves each store as its owner milestone merges (D89.14).
+- **M lane implementation (2026-10-06, MacBook):** the private migration
+  service and the SecretStorage/runtime adapters copy and SHA-256-verify,
+  retain and mirror rotations, undo, resume interrupted work and retire after
+  two minor-release ordinals (patches do not advance the ordinal). C binds the
+  encrypted journal and physical-commit checks to its serialized writer;
+  B/P/W bind generation/epoch ownership and lazy startup. Only the already
+  merged Model API key format is built in. Each unmerged store owner supplies
+  its exact codec, binding and original storage key as it lands; no guessed
+  credentials or activation changes. Ambient discovery/import, fixed plaintext
+  credential decoders and mapped login CSV are implemented behind private user
+  action and atomic batch ports; S supplies SSH decoding and L supplies TOTP
+  export decoding. Next slice is W's C/P/B/U/H wiring and the later owner
+  codecs. Receipts and integration obligations are in
+  `docs/certification/m109-m-migration-and-import.md`.
 - Every lane certifies on fakes. The rig captures need no model call. The
   Secure Enclave capture waits for the owner (Q-M109) and blocks no lane.
 - **P Windows binding (m109/pw).** The shared runtime adapter implements
@@ -29883,6 +29897,15 @@ complete count change. No W-owned record, README/CHANGELOG, bundle script,
 manifest or help catalog was edited. The cert supplies documentation text and
 O-X/O-C/O-BH/O-T/O-95b/O-96/O-U/H bindings. Full quality, browser/editor checks
 and integrated M109 acceptance stay lead-owned; no live/paid calls or dependency.
+**M109 M (2026-10-06, MacBook).** The migration/import implementation uses
+the brief's focused rig checks, default test timeouts and injected C/P/B/S/L
+ports. `check:host-api` reports generated inventory drift from the lane-0/B
+base plus M's built-in imports: VS Code API/files and theme counts are unchanged.
+W owns `docs/ide-compatibility/host-api.md` and regenerates it on the joined
+tree; M does not edit that lane's file or weaken the check. The aggregate
+quality/browser/editor certification stays with W/the lead under the rig
+brief. Tests, mutation receipts, exact gate results and named bindings are in
+`docs/certification/m109-m-migration-and-import.md`.
 
 **FIXM109B6 / RVM109B5 (2026-10-06, Mac mini).** Both findings are fixed;
 no review residual is accepted. Final restored-source verification passes all

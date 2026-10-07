@@ -35,6 +35,12 @@ happened, not what was planned; superseded entries are kept.
   Lock and service failures refuse delivery. JSON exports and report exports
   recheck after previews. Broker, feeder and host bindings remain pending;
   these hooks do not enable the vault feature.
+- M109's private credential migration service and SecretStorage/OS-store
+  adapters: verified copies, downgrade mirrors, undo, interrupted-work recovery
+  and guarded retirement. Private file import discovers known names without
+  reading contents, verifies user-selected copies and binds Keep/Delete to
+  source identity; plaintext git/netrc/npm/AWS/Docker drafts and mapped CSV
+  logins are supported. Wiring into the vault remains an integration task.
 
 - M109's credential-vault contracts, canonical use digest, translated panel
   labels and warnings, test-only broker and route harnesses, and threat and
