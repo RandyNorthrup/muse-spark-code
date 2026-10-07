@@ -90,6 +90,10 @@ export default function EstimatorPanel({
     if (initialSection !== undefined) {
       const next = estimateSectionSchema.parse(initialSection)
       setSection(next)
+      setGoal(goalText(next.inputs.request))
+      setDeadline(next.inputs.request.deadline ?? '')
+      setFleet(next.inputs.request.fleet)
+      setOptimize(next.inputs.request.optimize)
       setSelected((previous) =>
         next.setups.some((setup) => setup.kind === previous)
           ? previous
@@ -180,8 +184,11 @@ export default function EstimatorPanel({
           ? selected
           : (next.setups[0]?.kind ?? 'current'),
       )
-    } catch {
-      if (!controller.signal.aborted)
+    } catch (error: unknown) {
+      if (
+        !controller.signal.aborted &&
+        !(error instanceof DOMException && error.name === 'AbortError')
+      )
         setError(fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' }))
     } finally {
       if (pending.current === controller && !controller.signal.aborted) setBusy(false)

@@ -321,12 +321,9 @@ export function createEstimatorRun(
         const row = rowKey.startsWith('/calibration/') ? rowEvidence.get(rowKey) : undefined
         const parameter = segments[2]
         if (row !== undefined && parameter !== undefined && segments.slice(2).length === 1) {
-          const evidence =
-            parameter === 'reviewRoundRate'
-              ? row.reviewRoundRate
-              : parameter === 'redesignRisk'
-                ? row.redesignRisk
-                : row.durationParameters
+          let evidence = row.durationParameters
+          if (parameter === 'reviewRoundRate') evidence = row.reviewRoundRate
+          else if (parameter === 'redesignRisk') evidence = row.redesignRisk
           disclosures.push({
             path,
             basis: evidence.basis,

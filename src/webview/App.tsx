@@ -698,6 +698,7 @@ export function App({
   const estimateStarts = useRef(new Map<string, { resolve(): void; reject(error: Error): void }>())
   const estimateSequence = useRef(0)
   const estimateCurrentId = useRef<string | undefined>(undefined)
+  const [estimateDisplayId, setEstimateDisplayId] = useState<string | undefined>(undefined)
   const [estimateLastRequest, setEstimateLastRequest] = useState<EstimateRequest | undefined>(
     undefined,
   )
@@ -706,6 +707,12 @@ export function App({
     (request: EstimateRequest, requestId?: string) => {
       const id = requestId ?? `estimate-${String(++estimateSequence.current)}`
       estimateCurrentId.current = id
+      setEstimateDisplayId(id)
+      for (const [pendingId, pending] of estimatePendings.current) {
+        if (pendingId === id) continue
+        pending.reject(new DOMException('The estimate was replaced', 'AbortError'))
+        estimatePendings.current.delete(pendingId)
+      }
       setEstimateLastRequest(request)
       postMessage({ type: 'estimateRun', requestId: id, request })
     },
@@ -2738,7 +2745,9 @@ export function App({
             key={state.sessionId}
             port={estimatorPort}
             initial={estimateLastRequest}
-            initialSection={state.estimator}
+            initialSection={
+              state.estimatorRequestId === estimateDisplayId ? state.estimator : undefined
+            }
             isInert={isModalOpen}
           />
         )}

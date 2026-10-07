@@ -8260,11 +8260,9 @@ export class ConversationController {
       const kind = message.setup ?? 'current'
       const setup = section?.setups.find((setup) => setup.kind === kind)
       const fleet = section?.setupFleets?.find((row) => row.kind === kind)?.fleet
-      const inputs = fleet
-        ? { ...section.inputs, fleet }
-        : kind === 'current'
-          ? this.lastEstimateInputs
-          : undefined
+      let inputs = this.lastEstimateInputs
+      if (fleet) inputs = { ...section.inputs, fleet }
+      else if (kind !== 'current') inputs = undefined
       if (inputs === undefined || setup === undefined) throw new Error(UI_TEXT.estimateUsage)
       if (setup.provisioning !== 'existing') throw new Error(UI_TEXT.estimateAdvice)
       const started = await estimator.startWave(inputs)

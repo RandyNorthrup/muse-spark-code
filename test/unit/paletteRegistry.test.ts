@@ -8,12 +8,9 @@ import {
   flattenPalette,
   formatTokenWindow,
   type PaletteContext,
-} from '../../src/shared/palette'
-import {
-  rankSlashCommands,
-  type SlashCommand,
   slashCommandsOf,
-} from '../../src/shared/slashCommands'
+} from '../../src/shared/palette'
+import { rankSlashCommands, type SlashCommand } from '../../src/shared/slashCommands'
 
 const context: PaletteContext = {
   currentModel: { modelId: 'muse-spark-1.3', contextLimit: 1_007_997 },

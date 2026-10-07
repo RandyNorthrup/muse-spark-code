@@ -3698,17 +3698,22 @@ function sectionFor(request: Extract<WebviewToHostMessage, { type: 'estimateRun'
   )
   return section
 }
-async function estimateInApp(shouldReplay = false) {
-  const post = renderReady()
-  fireEvent.change(textarea(), { target: { value: '/estimate M117' } })
+async function requestAppEstimate(post: ReturnType<typeof renderReady>, goal = 'M117') {
+  const before = post.mock.calls.filter(([message]) => message.type === 'estimateRun').length
+  fireEvent.change(textarea(), { target: { value: `/estimate ${goal}` } })
   fireEvent.keyDown(textarea(), { key: 'Enter' })
   await vi.waitFor(() => {
-    expect(post.mock.calls.some(([message]) => message.type === 'estimateRun')).toBe(true)
+    expect(post.mock.calls.filter(([message]) => message.type === 'estimateRun')).toHaveLength(
+      before + 1,
+    )
   })
-  const message = post.mock.calls
+  return post.mock.calls
     .map(([message]) => message)
-    .find((message) => message.type === 'estimateRun')!
-
+    .findLast((message) => message.type === 'estimateRun')!
+}
+async function estimateInApp(shouldReplay = false) {
+  const post = renderReady()
+  const message = await requestAppEstimate(post)
   const section = sectionFor(message.request)
   deliver({ type: 'estimatorSection', requestId: message.requestId, section })
   await screen.findByRole('heading', { name: UI_TEXT.estimateTitle })
@@ -3730,6 +3735,48 @@ describe('M117 estimator in the real App', () => {
   it('shows the first composer forecast without another Run', async () => {
     await estimateInApp()
     expect(await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })).toBeTruthy()
+  })
+  it('keeps a superseded panel reply out of a newer composer request', async () => {
+    const store = createUiStore(initialUiState)
+    const post = vi.fn<(message: WebviewToHostMessage) => void>()
+    const deliver = (message: HostToWebviewMessage) => {
+      act(() => {
+        store.dispatch({ type: 'hostMessage', message, at: 0 })
+      })
+    }
+    render(<App store={store} postMessage={post} />)
+    deliver(init)
+    deliver({ type: 'authState', status: 'signedIn' })
+    const first = await requestAppEstimate(post)
+    deliver({
+      type: 'estimatorSection',
+      requestId: first.requestId,
+      section: sectionFor(first.request),
+    })
+    await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateRefresh }))
+    const pending = post.mock.calls
+      .map(([message]) => message)
+      .findLast((message) => message.type === 'estimateRun')!
+    const current = await requestAppEstimate(post, 'M118')
+    deliver({
+      type: 'estimatorSection',
+      requestId: pending.requestId,
+      section: sectionFor(pending.request),
+    })
+    await vi.waitFor(() => {
+      expect(store.getState().estimatorRequestId).toBe(pending.requestId)
+    })
+    expect(screen.queryByRole('heading', { name: UI_TEXT.estimateSchedule })).toBeNull()
+    deliver({
+      type: 'estimatorSection',
+      requestId: current.requestId,
+      section: sectionFor(current.request),
+    })
+    await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
+    expect(screen.getByLabelText(UI_TEXT.estimateGoal)).toHaveValue('M118')
+    expect(screen.getByRole('button', { name: UI_TEXT.estimateRefresh })).not.toBeDisabled()
+    expect(screen.queryByRole('alert')).toBeNull()
   })
   it('settles a matching failed request and permits retry', async () => {
     const { post } = await estimateInApp(true)
