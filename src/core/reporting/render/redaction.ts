@@ -28,6 +28,8 @@ export function reportScrubber(options: ReportRedaction = {}): (text: string) =>
         .join(String.raw`[\\/]+`)
       return [
         {
+          // Root segments are escaped above; only fixed separator/boundary/tail syntax remains.
+          // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp
           pattern: new RegExp(
             // Spaces belong to the path; quotes, controls and invalid path characters end it.
             String.raw`(?<![\w./:])${escaped}(?=[\\/]|[\s"'<>]|$)(?:[\\/]+[^"'<>|?*:\p{Cc}]*)?`,

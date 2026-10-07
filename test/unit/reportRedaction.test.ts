@@ -324,6 +324,20 @@ describe('report snapshot and output scrub', () => {
       expect(output).not.toContain('x'.repeat(32))
     },
   )
+  it.each(['/srv/work[1]+(test)', 'C:/Users/Private Person/work[1]+(test)'])(
+    'treats report root metacharacters as literal path text: %s',
+    (workspaceRoot) => {
+      const scrub = reportScrubber({ workspaceRoot })
+      expect(scrub(`${workspaceRoot}/src/main.ts`)).toBe('./src/main.ts')
+      expect(scrub(`${workspaceRoot.replace('[1]+(test)', '111test')}/src/main.ts`)).not.toContain(
+        './',
+      )
+      if (workspaceRoot.startsWith('C:'))
+        expect(
+          scrub(String.raw`${workspaceRoot.toLowerCase().replaceAll('/', '\\')}\src\main.ts`),
+        ).toBe('./src/main.ts')
+    },
+  )
   it('matches Windows roots case-insensitively in both separators and refuses sibling-prefix matches', () => {
     const scrub = reportScrubber({
       workspaceRoot: 'C:/Users/Private Person/work',

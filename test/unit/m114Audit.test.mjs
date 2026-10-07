@@ -15,7 +15,10 @@ const matrix = JSON.parse(
   }),
 )
 const consumers = JSON.parse(
-  readFileSync(`${auditRoot}/design/tokens/generated/consumers.json`, 'utf8'),
+  execFileSync('git', ['show', `${historicalRevision}:design/tokens/generated/consumers.json`], {
+    cwd: auditRoot,
+    encoding: 'utf8',
+  }),
 )
 const beforeDirectory = path.join(auditRoot, 'docs/certification/m114-a-before')
 const manifest = JSON.parse(readFileSync(path.join(beforeDirectory, 'manifest.json'), 'utf8'))

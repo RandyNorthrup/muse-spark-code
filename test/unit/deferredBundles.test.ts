@@ -27,6 +27,7 @@ import {
   sharedModelApiBoundaries,
 } from '../../scripts/lib/deferredBundles.mjs'
 import type * as validation from '../../src/shared/validationEntry'
+import { compressedModelText } from '../../scripts/lib/compressedModelText.mjs'
 import { deferredTeamView } from '../../scripts/lib/deferredTeamView.mjs'
 import { removeFolder } from './helpers/temporaryFolders'
 import { legalReportEnvelopeSchema } from '../../src/runtime/legal/runLegal'
@@ -137,6 +138,9 @@ beforeAll(async () => {
           deferredTeamView,
           sharedModelApiBoundaries,
           nodeReferenceData,
+          ...(['modelApi', 'reference', 'codeIntel'].includes(name)
+            ? [compressedModelText(true)]
+            : []),
         ],
         external: ['vscode', '@napi-rs/keyring'],
       }),
@@ -988,58 +992,32 @@ describe('deferred cohort bundles', () => {
       expectUnchangedMeta(meta, hash, check)
     },
   )
-  it.each(['reporting', 'reportingNetwork', 'reportingDestinations', 'reportingPanel'])(
-    'refuses backend imports from %s with either path separator',
-    (name) => {
-      const file = `dist/meta/${name}.json`
-      const meta = structuredClone(fixture(file).meta)
-      const output = meta.outputs[`dist/${name}.js`]
-      if (output === undefined) throw new Error('Missing output')
-      const hash = createHash('sha256').update(JSON.stringify(meta)).digest('hex')
-      for (const separator of ['/', '\\']) {
-        const source = 'src/core/backends/modelapi/backend.ts'.replaceAll('/', () => separator)
-        try {
-          output.inputs[source] = { bytesInOutput: 1 }
-          expect(
-            checkDeferredBundles((bundle) =>
-              bundle.metafile === file
-                ? outputInputs(meta, `dist/${name}.js`)
-                : bundleInputs(bundle),
-            ),
-          ).toContain(`dist/${name}.js carries a backend: src/core/backends/modelapi/backend.ts`)
-        } finally {
-          Reflect.deleteProperty(output.inputs, source)
-        }
+  it.each(
+    ['reporting', 'reportingNetwork', 'reportingDestinations', 'reportingPanel'].flatMap((name) => [
+      { name, source: 'src/core/backends/modelapi/backend.ts', reason: 'a backend' },
+      { name, source: 'src/core/paid/paidFeatures.ts', reason: 'the paid gate' },
+    ]),
+  )('refuses $reason imports from $name with either path separator', ({ name, source, reason }) => {
+    const file = `dist/meta/${name}.json`
+    const meta = structuredClone(fixture(file).meta)
+    const output = meta.outputs[`dist/${name}.js`]
+    if (output === undefined) throw new Error('Missing output')
+    const hash = createHash('sha256').update(JSON.stringify(meta)).digest('hex')
+    for (const separator of ['/', '\\']) {
+      const key = source.replaceAll('/', () => separator)
+      try {
+        output.inputs[key] = { bytesInOutput: 1 }
+        expect(
+          checkDeferredBundles((bundle) =>
+            bundle.metafile === file ? outputInputs(meta, `dist/${name}.js`) : bundleInputs(bundle),
+          ),
+        ).toContain(`dist/${name}.js carries ${reason}: ${source}`)
+      } finally {
+        Reflect.deleteProperty(output.inputs, key)
       }
-      expect(createHash('sha256').update(JSON.stringify(meta)).digest('hex')).toBe(hash)
-    },
-  )
-  it.each(['reporting', 'reportingNetwork', 'reportingDestinations', 'reportingPanel'])(
-    'refuses paid-gate imports from %s with either path separator (D93)',
-    (name) => {
-      const file = `dist/meta/${name}.json`
-      const meta = structuredClone(fixture(file).meta)
-      const output = meta.outputs[`dist/${name}.js`]
-      if (output === undefined) throw new Error('Missing output')
-      const hash = createHash('sha256').update(JSON.stringify(meta)).digest('hex')
-      for (const separator of ['/', '\\']) {
-        const source = 'src/core/paid/paidFeatures.ts'.replaceAll('/', () => separator)
-        try {
-          output.inputs[source] = { bytesInOutput: 1 }
-          expect(
-            checkDeferredBundles((bundle) =>
-              bundle.metafile === file
-                ? outputInputs(meta, `dist/${name}.js`)
-                : bundleInputs(bundle),
-            ),
-          ).toContain(`dist/${name}.js carries the paid gate: src/core/paid/paidFeatures.ts`)
-        } finally {
-          Reflect.deleteProperty(output.inputs, source)
-        }
-      }
-      expect(createHash('sha256').update(JSON.stringify(meta)).digest('hex')).toBe(hash)
-    },
-  )
+    }
+    expect(createHash('sha256').update(JSON.stringify(meta)).digest('hex')).toBe(hash)
+  })
 })
 
 it('refuses a raster codec leaked into the lazy Model API parent', () => {

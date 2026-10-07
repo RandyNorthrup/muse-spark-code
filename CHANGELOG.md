@@ -7,6 +7,9 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Use the shared text encoder for schedule XML and a maintained task-glob
+  matcher for report declarations; verify literal private paths before redaction.
+
 - Read report borders and usage-chart fallbacks from generated design tokens;
   retain native theme overrides and the 4 KiB core token budget.
 - Limit context recording to fixed reader-only builders, reject unbranded and

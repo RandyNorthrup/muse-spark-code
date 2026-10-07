@@ -14,12 +14,12 @@ const COVERAGE_THRESHOLDS = {
 } as const
 
 // V8 coverage and the native Git/process suites contend with large DOM/PDF
-// fixtures on macOS. Bound simultaneous files; deadlines and gates stay intact.
+// fixtures. Bound simultaneous files; deadlines and gates stay intact.
 // Hosted macOS runners have 3 vCPUs: four workers plus coverage oversubscribed
 // them and test times swung past deadlines between runs (2026-10-07). Leave
 // one core to the main process; rigs keep the measured cap of three.
-const MACOS_MAX_TEST_WORKERS = 3
-const MACOS_TEST_WORKERS = Math.max(1, Math.min(MACOS_MAX_TEST_WORKERS, availableParallelism() - 1))
+const MAX_TEST_WORKERS = 3
+const TEST_WORKERS = Math.max(1, Math.min(MAX_TEST_WORKERS, availableParallelism() - 1))
 
 export default defineConfig({
   resolve: {
@@ -37,7 +37,7 @@ export default defineConfig({
     // hosted runner, concurrent files delayed launches past real MCP deadlines.
     fileParallelism: process.platform !== 'win32',
     // Spread, not `maxWorkers: undefined`: exactOptionalPropertyTypes rejects it.
-    ...(process.platform === 'darwin' && { maxWorkers: MACOS_TEST_WORKERS }),
+    maxWorkers: TEST_WORKERS,
     coverage: {
       provider: 'v8',
       // Source files only: a bare `src/**` also feeds src/webview/tsconfig.json

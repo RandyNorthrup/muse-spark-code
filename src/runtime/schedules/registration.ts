@@ -8,6 +8,7 @@ import {
   SCHEDULE_MIN_INTERVAL_MS,
   UI_TEXT,
 } from '../../shared/constants'
+import { escapeHtml as xml } from '../../core/htmlText'
 import { fill } from '../../shared/l10n/text'
 
 class UnsafeScheduleLauncherError extends Error {
@@ -89,14 +90,6 @@ export function backgroundRegistrationId(homeDir: string): string {
   return `muse-spark-code-schedules-${createHash('sha256').update(homeDir).digest('hex')}`
 }
 
-function xml(text: string): string {
-  return text
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&apos;')
-}
 function windowsArgument(text: string): string {
   return `"${text.replaceAll(/(\\*)"/g, String.raw`$1$1\"`).replaceAll(/(\\+)$/g, '$1$1')}"`
 }
