@@ -23,13 +23,16 @@ const manifestJson: unknown = JSON.parse(
 )
 const manifest = z.object({ version: z.string() }).parse(manifestJson)
 const changelog = readFileSync(new URL('../../CHANGELOG.md', import.meta.url), 'utf8')
+const heading = new RegExp(
+  String.raw`^## \[${manifest.version.replaceAll('.', String.raw`\.`)}\] - \d{4}-\d{2}-\d{2}$`,
+  'm',
+)
+// This guard owns the manifest release; the real-history parser suite and build
+// validate all other notes. Parsing years of history here costs its 5 s deadline.
+const currentRelease = changelog.split(/(?=^## \[)/m).find((section) => heading.test(section)) ?? ''
 
 describe('CHANGELOG and the manifest version', () => {
   it(`has a dated section for ${manifest.version}`, () => {
-    const heading = new RegExp(
-      String.raw`^## \[${manifest.version.replaceAll('.', String.raw`\.`)}\] - \d{4}-\d{2}-\d{2}$`,
-      'm',
-    )
     expect(heading.test(changelog), `CHANGELOG.md needs "## [${manifest.version}] - <date>"`).toBe(
       true,
     )
@@ -37,7 +40,7 @@ describe('CHANGELOG and the manifest version', () => {
 
   it(`gives ${manifest.version} the Highlights What's New opens with, when it is a minor or major release`, () => {
     const releases = parseChangelog(
-      changelog,
+      currentRelease,
       contributedIds(manifestJson),
       repositoryUrl(manifestJson),
     )

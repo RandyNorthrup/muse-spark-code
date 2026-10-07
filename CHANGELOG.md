@@ -22,6 +22,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Keep the manifest release guard within its existing deadline by checking
+  that release's notes; validate the full history in the build and parser suite.
+
 - Accept Windows short temp-path spellings for team hints while refusing linked
   folders; avoid broad PowerShell module discovery in team native helpers and
   await unconfirmed helper closure before cleaning up its files.
