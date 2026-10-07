@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { readScheduleClock, scheduleTimeAtClock } from '../../src/core/schedules/time/clock'
-import { MISSED_COUNT_MAX, missedScheduleTimes } from '../../src/core/schedules/time/missed'
+import { missedScheduleTimes } from '../../src/core/schedules/time/missed'
+import { SCHEDULE_MISSED_COUNT_MAX } from '../../src/shared/constants'
 import { nextScheduleTime } from '../../src/core/schedules/time/scheduleTime'
 import { ZonedScheduleCalendar } from '../../src/core/schedules/time/zonedCalendar'
 import { FakeScheduleClock } from './helpers/schedules/clock'
@@ -205,16 +206,16 @@ describe('M115 elapsed clock and missed-fire computation', () => {
       const recovered = missedScheduleTimes(plan, after, through)
       expect(performance.now() - began).toBeLessThan(50)
       expect(recovered).toEqual({
-        dueCount: MISSED_COUNT_MAX,
-        missedCount: MISSED_COUNT_MAX - 1,
+        dueCount: SCHEDULE_MISSED_COUNT_MAX,
+        missedCount: SCHEDULE_MISSED_COUNT_MAX - 1,
         isCountLowerBound: true,
         catchUpAtMs: through,
         nextFireAtMs: through + 60_000,
       })
-      expect(resolve.mock.calls.length).toBeLessThanOrEqual(MISSED_COUNT_MAX + 2)
+      expect(resolve.mock.calls.length).toBeLessThanOrEqual(SCHEDULE_MISSED_COUNT_MAX + 2)
       expect(missedScheduleTimes({ ...plan, catchUp: 'skip' }, after, through + 30_000)).toEqual({
-        dueCount: MISSED_COUNT_MAX,
-        missedCount: MISSED_COUNT_MAX,
+        dueCount: SCHEDULE_MISSED_COUNT_MAX,
+        missedCount: SCHEDULE_MISSED_COUNT_MAX,
         isCountLowerBound: true,
         nextFireAtMs: through + 60_000,
       })
@@ -252,12 +253,16 @@ describe('M115 elapsed clock and missed-fire computation', () => {
 
   it('keeps short calendar counts exact and marks capped counts as lower bounds', () => {
     const plan = fakeSchedule({ zone: 'UTC', trigger: { kind: 'cron', expression: '* * * * *' } })
-    for (const count of [MISSED_COUNT_MAX - 1, MISSED_COUNT_MAX, MISSED_COUNT_MAX + 1]) {
+    for (const count of [
+      SCHEDULE_MISSED_COUNT_MAX - 1,
+      SCHEDULE_MISSED_COUNT_MAX,
+      SCHEDULE_MISSED_COUNT_MAX + 1,
+    ]) {
       const through = start + count * 60_000
       const recovered = missedScheduleTimes(plan, start, through)
-      expect(recovered.dueCount).toBe(Math.min(count, MISSED_COUNT_MAX))
-      expect(recovered.missedCount).toBe(Math.min(count, MISSED_COUNT_MAX) - 1)
-      expect(recovered.isCountLowerBound).toBe(count >= MISSED_COUNT_MAX || undefined)
+      expect(recovered.dueCount).toBe(Math.min(count, SCHEDULE_MISSED_COUNT_MAX))
+      expect(recovered.missedCount).toBe(Math.min(count, SCHEDULE_MISSED_COUNT_MAX) - 1)
+      expect(recovered.isCountLowerBound).toBe(count >= SCHEDULE_MISSED_COUNT_MAX || undefined)
       expect(recovered.catchUpAtMs).toBe(through)
       expect(recovered.nextFireAtMs).toBe(through + 60_000)
     }
@@ -356,10 +361,10 @@ describe('M115 elapsed clock and missed-fire computation', () => {
       ['2026-11-01T07:00:00Z', '2026-11-02T08:00:00Z', 1440],
     ] satisfies [string, string, number][]) {
       const recovered = missedScheduleTimes(plan, Date.parse(after), Date.parse(through))
-      expect(count).toBeGreaterThan(MISSED_COUNT_MAX)
+      expect(count).toBeGreaterThan(SCHEDULE_MISSED_COUNT_MAX)
       expect(recovered).toEqual({
-        dueCount: MISSED_COUNT_MAX,
-        missedCount: MISSED_COUNT_MAX - 1,
+        dueCount: SCHEDULE_MISSED_COUNT_MAX,
+        missedCount: SCHEDULE_MISSED_COUNT_MAX - 1,
         isCountLowerBound: true,
         catchUpAtMs: Date.parse(through),
         nextFireAtMs: Date.parse(through) + 60_000,

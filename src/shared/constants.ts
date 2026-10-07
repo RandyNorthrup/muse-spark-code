@@ -3213,6 +3213,8 @@ export const SCHEDULE_RUN_ID_MAX_CHARS =
 export const SCHEDULE_RULE_MAX_CHARS = 1000
 export const SCHEDULE_MAX_GRANT_RULES = 100
 export const SCHEDULE_MAX_DESTINATIONS = 20
+// Lane T's recovery-window bound, owned here since W wiring.
+export const SCHEDULE_MISSED_COUNT_MAX = 100
 export const SCHEDULE_REPORT_FORMATS = ['markdown', 'html', 'json', 'text'] as const
 export const SCHEDULE_MAX_WEEKLY_TIMES = 24
 export const SCHEDULE_PREVIEW_COUNT = 5

@@ -1,9 +1,7 @@
 import type { ScheduleV2 } from '../../../shared/scheduleV2'
+import { SCHEDULE_MISSED_COUNT_MAX } from '../../../shared/constants'
 import { nextScheduleTime, previousTimeOccurrences, type ScheduleTimePlan } from './scheduleTime'
 import { checkInstant } from './zonedCalendar'
-
-// Lane T owns this bound; move it into shared/constants with lane 0/W at wiring.
-export const MISSED_COUNT_MAX = 100
 
 export interface ScheduleMissedTimes {
   readonly dueCount: number
@@ -58,7 +56,7 @@ export function missedScheduleTimes(
         for (const fire of previousTimeOccurrences(trigger, plan.zone, afterMs, through)) {
           latest ??= fire
           dueCount++
-          if (dueCount === MISSED_COUNT_MAX) {
+          if (dueCount === SCHEDULE_MISSED_COUNT_MAX) {
             isCountLowerBound = true
             break
           }
