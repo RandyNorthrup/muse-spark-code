@@ -5279,6 +5279,19 @@ export const EVAL_REPORT_VERSION = 2
 // ten-thousandths of a dollar on the contributor tier.
 export const EVAL_COST_DECIMALS = 4
 
+// M117 / D97: deterministic capacity estimation; no model or paid request.
+export const ESTIMATE_RUNS = 2000
+export const ESTIMATE_CALIBRATION_MIN_SAMPLES = 20
+export const ESTIMATE_PRIOR_SIGMA = 0.5
+export const ESTIMATE_MARGINAL_FLOOR_HOURS = 4
+export const ESTIMATE_IDLE_TEARDOWN_MINUTES = 30
+export const ESTIMATE_LOCAL_BUDGET_MS = 2000
+export const ESTIMATE_LOCAL_BUDGET_LANES = 40
+// Bounds on our own documents, not provider wire shapes.
+export const ESTIMATE_MAX_ITEMS = 512
+export const ESTIMATE_ID_MAX_CHARS = 128
+export const ESTIMATE_LABEL_MAX_CHARS = 256
+
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'
 // Build-only inline browser fallback compression.
