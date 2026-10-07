@@ -92,6 +92,10 @@ happened, not what was planned; superseded entries are kept.
   The original deferred group drops from 50.0 to 32.1 KiB; existing size caps
   stay unchanged.
 
+- Estimator simulation reuses prepared resource data and indexed reservations;
+  forty-lane chain, independent and fan-out regressions enforce the existing
+  two-second budget for 2,000 trials and paired bottleneck comparisons.
+
 - MCP form controls and workflow details also load on first use, preserving
   the diet's startup and deferred regression limits with the question dock.
   Questions keep their visible arrival card and use the shared local retry
@@ -119,6 +123,9 @@ happened, not what was planned; superseded entries are kept.
   duration bases, including concurrent appends. Versioned basis tags and
   reported skips keep unknown or mixed-basis records from blocking valid history;
   estimator surfaces remain pending integration.
+- Estimator scheduling considers feasible multi-account allocations, ignores
+  unused disk measurements and quota accounts, and qualifies selected lanes
+  when required disk headroom is unknown. Commands and surfaces await integration.
 
 - Estimator preparation rejects malformed goals and validates quota renewal,
   per-volume disk capacity, numeric calibration disclosures and module-level
@@ -136,6 +143,7 @@ happened, not what was planned; superseded entries are kept.
 
 - Activation paid-setting checks are directly importable in tests, and ACP
   stdio checks include the localized Help reference hint.
+
 
 - Hungarian Help translations now package correctly alongside the other languages.
 
