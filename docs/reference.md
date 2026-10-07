@@ -1248,6 +1248,7 @@ Availability depends on the backend. Installed skills also add their own slash c
 - `/review` | `/review branch [base]` | `/review commit [revision]` | `/review <instructions>` | `/review security …`: museCode: Review the uncommitted changes, a branch, a commit, or what you describe; modelApi: Review the uncommitted changes, a branch, a commit, or what you describe
 - `/security-review`: museCode: The uncommitted changes, for injection, secrets, authentication and unsafe APIs; modelApi: The uncommitted changes, for injection, secrets, authentication and unsafe APIs
 - `/changes`: museCode: Accept or revert each change, and comment on a line; modelApi: Accept or revert each change, and comment on a line
+- `/report` | `/report <kind> [args]` | `/report history`: museCode: Generate a deterministic report from named sources, without a model call.; modelApi: Generate a deterministic report from named sources, without a model call.
 - `/help`: museCode: Commands, settings and features, with descriptions and documentation.; modelApi: Commands, settings and features, with descriptions and documentation.
 - `/loop <prompt>` | `/loop <interval: 5m|1h|1d> <prompt>` | `/loop "<cron>" <prompt>` | `/loop list` | `/loop cancel <id>`: modelApi: Schedule a prompt in this Model API conversation
 
@@ -2595,6 +2596,22 @@ These are defaults; editor customizations take precedence.
   --description &lt;text&gt; What was happening, in your own words
   --no-facts Leave the support facts out
   --no-events Leave the recent events out
+- `report problem`: Usage:
+  muse-spark-code-acp report [--out &lt;file&gt;] [--description &lt;text&gt;] [--no-facts] [--no-events]
+  Prints the scrubbed problem report to stdout, or writes it to &lt;file&gt; with --out.
+  Starts no backend, signs in nowhere, and opens no browser.
+  Options:
+  --out &lt;file&gt; Write the report to a file instead of stdout
+  --description &lt;text&gt; What was happening, in your own words
+  --no-facts Leave the support facts out
+  --no-events Leave the recent events out
+- `report <kind> / report history`: Generate a deterministic report from named sources, without a model call.
+  muse-spark-code-acp report &lt;kind&gt; [args] [--format md|html|json|text] [--out &lt;file&gt;]
+  [--as-of &lt;ISO&gt;] [--lang &lt;locale&gt;] [--network] [--from &lt;file.json&gt;]
+  [--diff previous|&lt;file.json&gt;] [--full] [--strict] [--fail-on &lt;conditions&gt;]
+  muse-spark-code-acp report history
+  muse-spark-code-acp report problem
+
 - `help --all`: Commands, settings and features, with descriptions and documentation.
 - `help / --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.
 - `--version / -v`: Print the installed agent version.

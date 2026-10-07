@@ -691,6 +691,11 @@ describe('the ACP agent (M63)', () => {
       sessionUpdate: 'available_commands_update',
       availableCommands: [
         { name: 'help', description: UI_TEXT.referenceIntro, input: null },
+        {
+          name: 'report',
+          description: UI_TEXT.reportSlashDescription,
+          input: { hint: '<kind> [args] | history' },
+        },
         { name: 'review', description: 'Review', input: { hint: '<path>' } },
         { name: 'answer', description: UI_TEXT.acpAnswerHelp, input: { hint: '<n> <text>' } },
         { name: 'questions', description: UI_TEXT.acpQuestionsHelp, input: null },

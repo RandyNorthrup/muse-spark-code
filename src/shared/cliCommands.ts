@@ -58,6 +58,18 @@ export function cliCommands() {
       text: { ui: 'reportUsage' },
     },
     {
+      route: 'report',
+      name: 'report problem',
+      description: UI_TEXT.reportUsage,
+      text: { ui: 'reportUsage' },
+    },
+    {
+      route: 'reports',
+      name: 'report <kind> / report history',
+      description: UI_TEXT.reportCliUsage,
+      text: { ui: 'reportCliUsage' },
+    },
+    {
       route: 'help',
       name: 'help --all',
       description: UI_TEXT.referenceIntro,

@@ -16,6 +16,7 @@ import {
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
   UI_TEXT,
+  REPORT_KINDS,
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
 import { parseExec, type ExecOptions } from './exec/execArgs'
@@ -55,6 +56,7 @@ export type RuntimeCommand =
   | { readonly command: 'exec'; readonly options: ExecOptions }
   | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
   | { readonly command: 'report'; readonly options: ReportOptions }
+  | { readonly command: 'reports'; readonly args: readonly string[] }
   | { readonly command: 'serve'; readonly options: ServeOptions }
   | { readonly command: 'login'; readonly options: ServeOptions }
   | { readonly command: 'help'; readonly all?: boolean }
@@ -99,7 +101,8 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
       : invalid(argv.join(' '))
   }
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
-  if (argv[0] === 'report') return parseReport(argv.slice(1))
+  if (argv[0] === 'report')
+    return parseReport(argv.slice(argv[1] === 'problem' ? 2 : 1), argv[1] !== 'problem')
   let parsed: ReturnType<typeof parseCommandLineStrictly>
   try {
     parsed = parseCommandLineStrictly(argv)
@@ -200,7 +203,32 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
 }
 
 /** `report [options]`: the standalone problem report (M93 lane A, PLAN.md D72). */
-function parseReport(argv: readonly string[]): RuntimeCommand {
+function parseReport(argv: readonly string[], canUseNamed = true): RuntimeCommand {
+  // M113 owns named reports; M93's bare command and option parser stay intact.
+  if (
+    canUseNamed &&
+    argv.some((argument) => !argument.startsWith('-') || /^--from(?:=|$)/.test(argument))
+  ) {
+    // Values of M93 options are positionals only after parseArgs; try that
+    // unchanged parser first before delegating to the lazy reports engine.
+    try {
+      const legacy = parseArgs({
+        args: [...argv],
+        allowPositionals: true,
+        strict: true,
+        options: CLI_OPTION_REGISTRY.report.options,
+      })
+      const namedKinds: readonly string[] = REPORT_KINDS
+      if (
+        legacy.positionals.some(
+          (argument) => argument === 'history' || namedKinds.includes(argument),
+        )
+      )
+        return { command: 'reports', args: argv }
+    } catch {
+      return { command: 'reports', args: argv }
+    }
+  }
   try {
     const { values, positionals } = parseArgs({
       args: [...argv],
