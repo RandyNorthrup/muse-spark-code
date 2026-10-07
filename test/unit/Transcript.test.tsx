@@ -18,6 +18,9 @@ import {
   warmRowMenus,
   transcriptProps,
 } from './helpers/transcriptFixtures'
+import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
+
+beforeAll(warmDeferredSurfaces)
 
 const attachment = {
   id: 'att-1',

@@ -9,6 +9,7 @@ import { restoredUiState, webviewStateOf } from '../../src/webview/state/snapsho
 import { createUiStore } from '../../src/webview/state/store'
 import { initialUiState } from '../../src/webview/state/uiState'
 import { testSettings } from './helpers/fakes'
+import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
 
 function deliver(data: unknown) {
   act(() => {
@@ -229,6 +230,7 @@ function storeWithSavedConversation(sessionId: string | undefined, title: string
 // Behaviour assertions share the first-open imports. Dedicated lazy-boundary
 // and production browser tests exercise cold loading, failure and retry.
 beforeAll(async () => {
+  await warmDeferredSurfaces()
   renderReady()
   fireEvent.click(screen.getByLabelText('Commands'))
   fireEvent.keyDown(await screen.findByRole('combobox'), { key: 'Escape' })

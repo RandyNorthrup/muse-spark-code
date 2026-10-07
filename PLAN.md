@@ -9178,7 +9178,7 @@ we make". His standing ruling: enhancements are on by default.
 **STAR — a quiet GitHub star line (owner, 2026-10-05).** Use the same
 sentence, "Enjoying Muse Spark Code? A star on GitHub helps other people
 find it.", linked to `https://github.com/RandyNorthrup/muse-spark-code`,
-near the top of the GitHub and packaged Marketplace/Open VSX READMEs, in
+near the top of the GitHub, npm and packaged Marketplace/Open VSX READMEs, in
 the What's New footer, and in the Getting Started welcome markdown and
 step description. Translate the footer and manifest description in all
 14 languages. Reuse `PageWriter.link` and the host's indexed
@@ -18794,6 +18794,12 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 - [ ] Record all checks, fixes and byte-exact regression drills in
       `docs/certification/train-0.15.0.md`; commit locally with hooks, never push.
 
+First merge is committed as `50a4947a` with normal hooks; the infrastructure
+merge is resolved and its owning tests pass, with its hook-enabled commit next.
+The dependency union and clean ordinary npm ci check are complete. Generated
+reference/host records and locale unions are clean; final full-tree acceptance
+checks, all 17 screenshot captures and universal measurement remain pending.
+
 The rig brief authorizes the full suite and listed full-repository gates despite
 common.md's scoped-file rule. Aggregate `npm run quality` remains reserved for
 the lead under common.md; this lane records its components separately. No new
@@ -18979,6 +18985,200 @@ continuation.
 - [ ] After every merge, run scoped owning tests (at most three files, three workers, 120-second test admission), typecheck, changed-file lint/format, localization, host API, help reference when present, production build and a CI-shaped VSIX with the checksum-verified universal helper from the shared 0.13.0 archive. Keep all existing caps unchanged.
 - [ ] Recover measured size through existing deferred chunks or package exclusions without dropping shipped functionality. If M101 still exceeds the VSIX cap without an owner product decision, record the largest twenty exact archive deltas and stop.
 - [ ] Record merges, conflicts, resolutions, checks and per-merge sizes in `docs/certification/train-0.15.0.md`. Commit locally with hooks, no push/rebase, live/paid calls or unrelated merges. Full quality and the two unfinished inputs belong to the later continuation; time box 120 minutes.
+
+### PR132M — Verify the 0.14.4 merge into infrastructure (2026-10-06)
+
+Starting at merge `3e58f1568` on `chore/infra-0150-m`, verify the complete
+App suite at repository-default deadlines, then every configured Vitest file
+in sequential batches of at most three files with `--maxWorkers=3`. Include
+the deferred warm-up guard, harness-wait guard and built-exec suite. Compare
+any failure with clean main `aa4e3fa83`; fix merge regressions structurally,
+and record main failures separately. No timeout, retry, skip or gate changes.
+
+- [x] Complete App suite: 161 tests pass, including all palette routes.
+- [x] Complete configured unit/process-e2e suite in bounded batches.
+      All 560 files ran: 11,841 passed, 74 existing skips and one failure also
+      reproduced on clean main `aa4e3fa83`. The checkpoint fixture disposes
+      only after successful filter discovery, but a filter-free repository
+      makes Git exit 1 before disposal. The lane permits this trivial test-only
+      correction: dispose in `finally`, preserving Git's discovery result.
+      Corrected owning file passes all 16 tests. The original fixture,
+      omitted merged warm-up import and unexplained sharing timer each fail
+      deliberately; all three restore SHA-256-exact source.
+- [x] Five compiler projects, lint, changed-file format, plain Knip,
+      duplication, localization, host API, reference and production build.
+- [x] Record results and any failure drills in `docs/certification/pr132w.md`;
+      commit locally with hooks and explicit paths.
+
+Final complete checkpoint/warm-up/harness verification passes 37/37.
+Combined final per-file results cover all 560 files: 11,842 passes and 74
+existing skips, zero unresolved failures. All named static/build gates pass;
+no second full sweep or coverage run is claimed. Receipt:
+`docs/certification/pr132w.md#pr132m--main-merge-verification-2026-10-06`.
+
+The lane brief explicitly authorizes the full configured suite in bounded
+batches; shared rules still prohibit aggregate `npm run quality`, external
+requests, additional merges and pushes. Coverage, accessibility and hosted
+cross-platform quality remain with the lead. No live or paid model calls.
+
+### PR132W — Diagnose the Windows built-exec failure (2026-10-06)
+
+On the Windows 11 rig, reproduce the complete `execStdio.e2e.test.ts` file
+at repository-default timeouts and compare with `sync/main-0170`. Isolate
+the expected pre-release external badge failure from any Windows process
+or encoding failure, fix the root cause without weakening a gate or skipping a row,
+and prove the regression fails before the fix. Package setup uses a test-owned
+transport for badge responses and reads screenshot bytes from this checkout;
+the real package badge validator still runs, including its CI skip prohibition.
+Require three complete green runs, scoped static/build checks and a receipt in
+`docs/certification/pr132w.md`.
+The rig/shared brief prohibits aggregate quality/full-unit runs, network
+requests, merges and pushes; integrated quality and external badges stay
+with the lead. Commit locally with the existing hooks and explicit paths.
+
+Completed: the unchanged candidate and main snapshot pass when the expected
+external badge failure is isolated. The package subprocess now uses local
+screenshots and test-owned badge responses while retaining the real validator.
+Three final-source `CI=true` runs pass 33 tests each with only the three existing
+Windows signal skips; all 32 badge-policy tests also pass. A fake HTTP 404 fails
+the real validator and restores SHA-256-exact source. Five compiler projects,
+final e2e typecheck, scoped lint/format, Knip, zero-clone duplication, reference,
+localization, host API and production size/split/host-global/notice gates pass.
+Evidence: `docs/certification/pr132w.md`. Full quality, hosted CI and external
+badges remain lead-owned; no Windows process/encoding defect was reproduced.
+
+### INFRA015 — Integrate screenshot refresh and test infrastructure (2026-10-06)
+
+Completed on `linuxlt`: three ordered no-fast-forward merges preserve all
+incoming heads; npm STAR regression and two integrated guards fail deliberately
+and restore byte-exact. Final default-timeout tests pass 506 assertions in 30
+complete files. All 724 accessibility pages pass with zero violations, undecided
+rules or missing results. All 17 README captures match committed UI; seven are
+pixel-identical and the others differ only in animated/clock/caret paint.
+Five-project typecheck, full lint, plain Knip, zero-clone duplication, reference,
+localization, host API and production size/split/host-global/notice gates pass.
+The actual Linux VSIX is 2,290,386 bytes (2236.705 KiB), below 2400 KiB; packaged
+README links and version are verified. Certification: `docs/certification/infra015.md`.
+Full quality, hosted cross-platform checks, external badges and universal macOS
+helper packaging remain lead-owned; no local implementation blocker remains.
+
+Linux rig `linuxlt`, branch `chore/infra-0150` from
+`8c6351d73`. Merge `fix/test-warm-deferred`, `fix/harness-waits`, then
+`docs/readme-shots-1006`, each with `git merge --no-ff`. Preserve both sides
+of plan, changelog and contributor notes; retain readiness-based harness waits
+and convert any new screenshot-scene fixed delay to the same `whenFound` flow.
+Extend STAR's exact linked sentence to the npm landing page and prove its new
+regression test fires by removing the sentence and restoring it byte-exact.
+
+Acceptance: complete accessibility harness with zero violations and zero pages
+without results; regenerate README previews, compare every declared screenshot,
+refresh and inspect changed assets. Run the requested owning Vitest files in
+batches of at most three, with repository-default timeouts; five-project
+typecheck, lint, format, reference/localization/host API, plain Knip, duplication,
+production build and VSIX packaging under the unchanged 2400 KiB cap. Record
+merge resolutions, failure drills, receipts and remaining blockers in
+`docs/certification/infra015.md`. Commit finished pieces with hooks enabled and
+explicit paths. No push, rebase, additional merge, paid/live call or gate change.
+The rig brief and common.md prohibit aggregate quality/full-unit runs; the lead
+owns full quality and hosted cross-platform certification after this handoff.
+
+### TESTWARM — Warm deferred surfaces before behavior tests (2026-10-06)
+
+Add one test-only helper that imports every deferred webview surface before
+behavior suites run. Check its import set against the webview source so a new
+deferred import cannot silently miss warm-up. Keep dedicated loading/failure
+tests cold, production code unchanged, and hook/test/findBy timeouts at their
+repository defaults. Measure cold baseline and three cold runs of every owning
+suite directly on the Windows 11 rig, in batches of at most three files. Prove
+the drift check fails after an unlisted deferred import and restore exact bytes.
+Record receipts in `docs/certification/testwarm.md` and the test infrastructure
+fix in the changelog. Commit locally with hooks; no merge, push or model call.
+
+Completed: all 17 owning behavior suites pass three cold Windows rounds,
+407 assertions per round (1,221 passes) at repository-default timeouts. The
+source-derived warm-up guard fails on an unlisted deferred import and restores
+SHA-256-exact source; dedicated lazy loading/failure tests remain cold and pass.
+Compiler projects, scoped lint/format, Knip, duplication, localization, host API,
+reference and production build pass. Evidence: `docs/certification/testwarm.md`.
+
+### HARNESSWAIT — Harness scenes wait for their controls (2026-10-06)
+
+Scope: replace every fixed-delay DOM interaction in `test/harness/index.html`
+with `whenFound`, nesting dependent steps. Retain only explained host-event,
+clock and readiness-polling timers. A source-parsing unit guard rejects delayed
+DOM interactions, including calls through helpers, without a kept-timing reason.
+Prove the guard with an old delayed click and SHA-256-exact restoration.
+Check all accessibility scenarios in four themes, compare ten converted scenes
+against shots from this lane's main base, and run harness unit tests at the
+repository default timeout, compiler projects and scoped static/build gates.
+Update CONTRIBUTING, Unreleased and `docs/certification/harness-waits.md`.
+No product feature, dependency, wire shape or budget changes. The rig brief
+prohibits aggregate quality, merges and pushes; the lead retains integrated
+quality and cross-platform certification. Commit locally with existing hooks.
+
+Verification found Chrome's command-line virtual-clock capture stalls before
+rendering; a capture deadline returns blank pages. Use the existing Playwright
+dependency for `scripts/lib/harnessCapture.mjs`, waiting on the harness's same
+timed-event settle and `whenReady` condition before capture. Keep browser
+lifecycle bounded and test that capture waits and closes on readiness failure.
+Historical main snapshots use the same harness helpers and capture driver.
+The full sweep also exposed a DOM wait starting before the module graph had
+loaded. Arm it at `DOMContentLoaded`, require that startup in `whenReady`, and
+prove the once-only startup regression without widening an existing deadline.
+Jump's completion/code-block prerequisites proved too expensive on the loaded
+rig. Stop using the streamed fixture for that scrolling check: preload the same
+completed long reply. Waiting solely for a native scroll also failed twice:
+a row can appear before its lazy content makes the panel scrollable. That path
+was stopped too. Highlighted content plus a synthetic scroll and settling wait
+still failed under full concurrency. A warmed-context trace captured a delayed
+native scroll after the new message, recording that message as already seen.
+Wait for highlighted content and guarantee one native scroll before publishing
+new content; from an already-zero position, move one pixel and back to queue it.
+A runtime regression delays that event at both starting positions. The next
+warmed trace caught one pending layout repinning the panel after that event.
+Requeue the native scroll while the panel has moved from zero, and exercise
+that repin in the regression. Require the actual New messages control before
+scanning. The separate `long` scene retains
+its streamed-delta check; record the failed paths and red controls in certification.
+
+Completed on Kubuntu: 38 readiness conversions, five ineffective callbacks
+removed and 34 individually explained timers. All 38 owning tests pass at
+repository default timeouts. The full accessibility sweep passes all 716 pages
+(179 scenes × four themes), with zero violations, undecided rules or missing
+results; the warmed-context jump check passes 36 pages. Ten visual states match
+main, with caret, clock, elapsed-label and glyph/border rendering differences
+listed in `docs/certification/harness-waits.md`. Six deliberate failure controls
+have SHA-256-exact restoration. Scoped compiler/static checks and production
+build pass without changing caps; aggregate quality remains lead-owned (§7).
+
+### SHOTS — README screenshot refresh (2026-10-06)
+
+Refresh the README and Marketplace screenshots from this release's actual
+webview harness. Build dev, capture every existing mapping to a preview,
+inspect each committed/captured pair, and replace shots whose UI changed.
+Preserve existing sizes and themes. The Chrome CLI capture stalled on this
+rig; use the existing Playwright helper and harness readiness/scan result
+in the README runner, refusing harness errors before writing an image. Add
+images of M112's open-question dock and the Help & Reference page using existing scenes where possible; append
+any needed scene and wait for its controls with `whenFound`. Do not edit
+existing scenarios owned by HARNESSWAIT. Align both landing pages' captions
+and alt text with the captured views; preserve versions and the single
+What's New section. Record every image verdict, scoped checks, accessibility
+receipts and before/after packaged VSIX sizes in
+`docs/certification/readme-shots-2026-10-06.md`. No feature, dependency,
+wire shape, paid call, merge, push or gate change is authorized.
+
+The lane runs owning test files with the repository's default timeout,
+compiler projects, scoped lint/format, dead-code, duplication, localization,
+host API, reference and production build on Kubuntu. Shared rig rules
+prohibit aggregate quality; the lead retains full integrated quality.
+
+Completed on Kubuntu: four existing shots refreshed, two new shots added,
+17 mapped captures inspected, 54 owning tests passing at default timeouts,
+eight new-scene accessibility pages passing and four restored red drills.
+Scoped static checks and production build pass; the same-content Linux VSIX
+grows by 254 bytes (2,289,534 → 2,289,788), below its unchanged 2400 KiB cap.
+The full receipt and per-image verdicts are in the certification record.
 
 ### REL0144 — Release 0.14.4 preparation (2026-10-06)
 
@@ -40779,6 +40979,55 @@ Authority: the rig brief and lead decisions, refining D92/M112 from
 
 ## 7. Gates
 
+**PR132M bounded merge verification (2026-10-06, linuxlt).** Run every
+configured Vitest file at repository-defined deadlines in sequential batches
+of at most three, then the named compiler/static/build checks. The explicit
+lane brief overrides the shared full-suite prohibition for these batches;
+aggregate quality and external network gates remain lead-owned. Record
+failures also present on main with comparison evidence; never widen gates.
+Receipt: `docs/certification/pr132w.md`.
+
+**PR132W scoped Windows certification (2026-10-06).** The rig/shared brief
+prohibits aggregate quality/full-unit runs and external requests. Run the
+complete built-exec file three times at repository-defined timeouts, prove
+the real package validator rejects a fake HTTP 404, compare the main snapshot,
+and run scoped static/build checks. The packager's public transport is fake
+only in this test process tree; production badge checks, including the CI
+skip prohibition, stay intact. Full quality, hosted CI and public pre-release
+badge checks remain lead-owned. Receipt: `docs/certification/pr132w.md`.
+
+**INFRA015 scoped integration certification (2026-10-06, linuxlt).** The rig
+brief authorizes the three named no-fast-forward merges and requires full
+accessibility, README preview comparison, owning default-timeout tests, static
+checks, production build and a VSIX under the existing 2400 KiB cap. The shared
+lane rules prohibit aggregate quality/full-unit runs and external network
+requests; integrated quality, coverage and hosted cross-platform certification
+remain lead-owned. Packaging retains the existing explicit network-skip reason
+for external badge requests while checking staged badge/version contents. This
+Linux package cannot certify the separately built macOS dictation helper.
+No timeout, cap, hook, threshold, ignore or rule level changes. Receipts:
+`docs/certification/infra015.md`.
+
+**HARNESSWAIT scoped rig certification (2026-10-06).** The rig/shared brief
+prohibits aggregate `npm run quality` and full unit-suite runs. Run the complete
+harness-owning files at repository default timeouts, intentional red drills,
+all accessibility scenarios in four themes, ten visual comparisons, compiler
+projects and scoped static/build checks directly on Kubuntu. The lead retains
+aggregate quality, coverage and hosted cross-platform certification. No gate,
+timeout, hook or budget is weakened. Receipts:
+`docs/certification/harness-waits.md`.
+
+**SHOTS bounded-lane verification (2026-10-06).** The rig brief and shared
+rules prohibit aggregate quality and full-suite runs. The screenshot lane
+runs its complete owning test files with default timeouts, new scenes in all
+four accessibility themes, five compiler projects, scoped lint/format,
+plain knip, duplication, localization, host API, reference, production build
+and actual package size comparison. Full integrated quality stays with the
+lead; no gate, threshold or timeout is weakened. The local Linux package
+omits the macOS helper, which cannot be built here; both size measurements
+use that same content set. External badge checks stay with the lead because
+the lane forbids network calls; staged badge/version validation still runs.
+
 **FIX0144W bounded Windows repair (2026-10-06).** The rig/shared brief
 prohibits aggregate quality and unlisted merges. Scoped default-timeout M118/D89.5
 tests, typecheck, changed-file lint/format and individual static/build checks
@@ -44987,6 +45236,13 @@ transaction limit, but other ordinary deadlines now expose fixture cost.
 Stop further deadline rewrites: this file needs shared-fixture/process-cost
 work under the lead's review. R014 records 24 passed / 4 failed; these join
 the five runner/SSH assertions, making nine Windows release holds.
+
+**TESTWARM bounded-lane certification (2026-10-06).** The rig/shared brief
+forbids aggregate quality and full-suite runs. Collect owning suites with default
+timeouts, the drift drill, scoped lint/format, five compiler projects, plain
+Knip, duplication, localization, host API and production build on this rig.
+Integrated full quality, coverage and hosted cross-platform checks remain with
+the lead; no gate, timeout or budget is weakened.
 
 **FIXM112Q bounded-lane certification (2026-10-06).** The rig/shared brief
 forbids aggregate quality and full-suite runs; full integrated quality remains

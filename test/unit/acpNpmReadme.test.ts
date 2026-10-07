@@ -29,6 +29,14 @@ describe('the ACP agent npm landing page', () => {
     expect(script).toContain("['scripts/check-badges.mjs', '--packaged-acp', STAGE]")
   })
 
+  it('keeps the linked STAR sentence near the top of the npm landing page', () => {
+    const readme = read('docs', 'npm-readme.md')
+    const introduction = readme.split('## Install', 1)[0]!
+    expect(introduction).toContain(
+      '[Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)',
+    )
+  })
+
   it('has no relative link or image target', () => {
     const targets = linkTargets(read('docs', 'npm-readme.md'))
     expect(targets.length).toBeGreaterThan(0)

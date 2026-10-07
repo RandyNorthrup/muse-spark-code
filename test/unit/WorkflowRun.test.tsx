@@ -11,6 +11,9 @@ import {
   WORKFLOW_SCRIPT_PATH,
   WORKFLOW_TOOL_ITEM,
 } from './helpers/workflowFixtures'
+import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
+
+beforeAll(warmDeferredSurfaces)
 
 const USAGE = { inputTokens: 9995, outputTokens: 135, cachedTokens: 5105, reasoningTokens: 70 }
 

@@ -15,6 +15,48 @@ happened, not what was planned; superseded entries are kept.
 - Integrate prompt/chat sharing and compact composer actions into the 0.15.0
   provider, team and usage release train; preserve both sets of local commands.
 
+### Fixed
+
+- Checkpoint disposal tests retire the captured owner after filter-free Git
+  discovery exits 1, so the cancellation assertion exercises disposal reliably.
+- Windows shell credential regressions await the matching background completion
+  before cleanup and probe raw environment values within the default test deadline.
+- Prompt host shutdown awaits mirror merges and other admitted operations
+  before releasing storage, preventing Windows cleanup from racing a sync write.
+- Browser package tests build the chat, Help and What's New pages themselves,
+  so a clean CI shard needs no artifacts from an earlier production build.
+- The installed ACP help check validates its complete localization table,
+  retaining prompt and sharing labels in its exact output comparison.
+- Chat-share HTML encodes markup delimiters in one pass. Privacy regexes have
+  literal-metacharacter controls and documented, specific audit exceptions
+  for their escaped workspace, home and username fragments.
+- Built-exec tests isolate package image requests with local screenshots and
+  test-owned badge responses, so unpublished PR assets cannot block the engine
+  tests. The real package badge validation and independent public-image gate
+  still run.
+- Test infrastructure warms deferred panel and row modules before behavior
+  suites, keeping cold transforms outside the default UI query deadlines.
+  A source check catches new deferred imports missing from warm-up.
+- Test infrastructure: harness scenes wait for the controls they touch,
+  including lazy panels, and finish startup and control waits before
+  accessibility scans. The scrolling scene waits for its rendered reply and
+  New messages control. A source guard catches unexplained fixed-delay
+  interactions; screenshots use the same readiness checks.
+
+### Documentation
+
+- The npm landing page carries the same quiet GitHub star link as the other
+  landing pages, with a regression check for its exact sentence and placement.
+
+- A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists
+  what went wrong while a fleet of agents built this project. For each one it
+  gives the rule that prevents it and the milestone that will enforce that
+  rule in the app's own orchestrator (D100).
+
+- README screenshots refreshed for the question dock, Git actions, slash
+  commands and paid usage; added open-question and Help & Reference
+  views, with matching captions on both landing pages.
+
 ## [0.15.0] - 2026-10-06
 
 ### Highlights

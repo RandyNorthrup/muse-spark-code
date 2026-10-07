@@ -276,6 +276,8 @@ export const SCENARIOS = [
   'legal',
   'legal-narrow',
   'legal-preview',
+  'readme-open-question',
+  'readme-help',
 ]
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',

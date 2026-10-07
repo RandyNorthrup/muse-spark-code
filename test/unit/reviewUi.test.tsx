@@ -13,6 +13,9 @@ import { App } from '../../src/webview/App'
 import { MarkdownView } from '../../src/webview/components/MarkdownView'
 import { initialUiState, reviewHunkKey, uiReducer } from '../../src/webview/state/uiState'
 import { testSettings } from './helpers/fakes'
+import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
+
+beforeAll(warmDeferredSurfaces)
 
 function deliver(data: HostToWebviewMessage) {
   act(() => {

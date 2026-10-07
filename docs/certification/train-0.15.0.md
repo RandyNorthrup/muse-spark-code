@@ -1569,11 +1569,50 @@ all five prior inventories before setup, so a prior full build cannot hide a
 missing page. The restored complete file passes 36/36 at default invocation.
 All five TypeScript projects pass across the final owning compiler runs.
 
+### Infrastructure merge resolutions and checks
+
+First merge: `50a4947a` (both parents retained), normal ESLint/Stylelint/Prettier
+and Gitleaks hooks pass. The authorized PR #132 input is now resolved additively.
+All incoming infrastructure notes remain under Unreleased; released history
+from the first merge remains intact. G29 follows G28 in the register.
+Both Models and composer startup trigger the same once-only scenario routine;
+readiness also requires DOMContentLoaded. Usage, legal, sharing, team, Models,
+open-question and Help readiness/scenario entries all remain. The team opener
+uses whenFound; legal/provider/model fake reply timers retain specific timing
+reasons. Warm-up adds all five deferred train modules the drift check identified.
+Built-exec retains its isolated build root and asserts its test-owned image
+transport was used; it copies the resulting isolated ACP stage, not root dist.
+
+Complete default-invocation owning batches pass:
+
+- warmDeferredSurfaces, harnessWaits, harnessCapture: **24 tests**.
+- App, acpNpmReadme, execStdio: **220 tests** (including all built-exec rows).
+- checkpointEnvironment, harnessWaits, warmDeferredSurfaces after drills:
+  **38 tests**.
+- readmeShots in the first drift run: **14 tests**.
+
+The warm drift guard first fails on LegalReport, PlanUi, ReviewCommentForm,
+SetupBanner and TeamUi, then passes after those real imports are added. The
+kept-timing guard exposes three unexplained fake reply timers and the inherited
+team opener's fixed delay; the restored complete file passes without any guard
+relaxation. The Models startup test covers its own surface alongside composer
+startup, each once-only after DOMContentLoaded.
+
+Two deliberate regressions fail their intended assertions and restore exact
+bytes: replace the Models surface selector with the composer branch, and omit
+TeamUi from warm-up. Restored SHA-256 values respectively:
+`37457597467e18ea8d018377c8a8816804a96689c52053b4cc0e8b7507679660` and
+`f2a078df966d9b36e2f6d086e66985fee7fb0f83d0dbba5dadb4bbef10f3a47c`.
+The existing sharing drill and these two records remain in temp/rel0150m.
+
 ### Remaining acceptance work
 
-The second merge, full configured test sweep, full ESLint, final five-project
-compiler/static gates, all accessibility pages, screenshot comparison and
-actual packages are pending. No final package size or universal cap is claimed.
-The rig has macOS helper source but no certified binary; its path was requested
-while independent work continues. Existing caps remain unchanged until actual
-universal measurement is available.
+Normal hook-enabled infrastructure merge commit is next. Full configured
+sweep: **822 files / 274 batches**, at most three files and workers, no
+--testTimeout. Full ESLint, final five-project compiler/static gates, all
+accessibility pages, screenshot comparison and actual packages are pending.
+The screenshot list now has 17 captures, including open-question and Help;
+four image conflicts temporarily retain the prior train bytes until every
+capture is regenerated and reviewed. No final package size or universal cap
+is claimed. The rig has macOS helper source but no certified binary; its path
+was requested while independent work continues. Existing caps remain unchanged.
