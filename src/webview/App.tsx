@@ -43,7 +43,7 @@ import { parseLoopPrompt } from '../core/backends/modelapi/schedules'
 import { fill, formatNumber, formatUsd, plural, templateParts } from '../shared/l10n/text'
 import { displayUsdNanos, usdNanos } from '../shared/usd'
 import type { EstimateRequest, EstimateSection } from '../shared/estimate'
-import { wasEstimateComposerHandled } from './estimator/composer'
+import { isEstimateCommandText } from './estimator/commandPrefix'
 import type { EstimatorPanelPort } from './estimator/EstimatorPanel'
 import {
   availablePermissionModes,
@@ -830,20 +830,26 @@ export function App({
       return
     }
     // `/estimate …` opens the estimator panel, not a message (M117): the
-    // draft clears and the host's `estimatorSection` reveals it.
-    if (
-      wasEstimateComposerHandled(text, {
-        context: () => ({ asOf: new Date().toISOString(), optimize: estimatorOptimize }),
-        open: (request) => {
-          postEstimateRun(request)
-        },
-        notice: (noticeText) => {
-          dispatch({ type: 'noticeRaised', level: 'warning', text: noticeText })
-        },
-      })
-    ) {
+    // draft clears and the host's `estimatorSection` reveals it. The full
+    // parse loads with the composer so startup carries only the prefix check.
+    if (isEstimateCommandText(text)) {
       dispatch({ type: 'draftChanged', draft: '' })
       setIsPinnedToEnd(true)
+      void import('./estimator/composer')
+        .then(({ wasEstimateComposerHandled }) => {
+          wasEstimateComposerHandled(text, {
+            context: () => ({ asOf: new Date().toISOString(), optimize: estimatorOptimize }),
+            open: (request) => {
+              postEstimateRun(request)
+            },
+            notice: (noticeText) => {
+              dispatch({ type: 'noticeRaised', level: 'warning', text: noticeText })
+            },
+          })
+        })
+        .catch(() => {
+          dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.estimateUnavailable })
+        })
       return
     }
     // `/handoff …` distils the conversation for a fresh one (M74), on

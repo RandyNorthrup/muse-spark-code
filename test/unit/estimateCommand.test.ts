@@ -18,6 +18,7 @@ import { fakeEstimate } from './helpers/estimator/fixtures'
 import { ESTIMATOR_AS_OF } from './helpers/estimator/fakes'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import { wasEstimateComposerHandled } from '../../src/webview/estimator/composer'
+import { isEstimateCommandText } from '../../src/webview/estimator/commandPrefix'
 
 const context = { asOf: ESTIMATOR_AS_OF, optimize: 'cost' } as const
 const options: EstimateCommandOptions = {
@@ -91,6 +92,31 @@ describe('M117 estimate command', () => {
     expect(wasEstimateComposerHandled('/estimate bad', port)).toBe(true)
     expect(notice).toHaveBeenCalledWith(UI_TEXT.estimateUsage)
     expect(open).toHaveBeenCalledTimes(1)
+  })
+  it('prefix parity: the eager check agrees with the slash parser on recognition', () => {
+    for (const text of [
+      '/estimate',
+      '/estimate ',
+      '/estimate M117',
+      '/estimate\tM117',
+      '  /estimate M117  ',
+      '/estimate "broken',
+      '/estimate --help',
+    ]) {
+      expect(isEstimateCommandText(text.trim())).toBe(true)
+      expect(estimateSlashArguments(text.trim())).not.toBeUndefined()
+    }
+    for (const text of [
+      'ordinary prompt',
+      '/estimateX',
+      '/estimates M117',
+      '/ESTIMATE M117',
+      '/estimat',
+      '',
+    ]) {
+      expect(isEstimateCommandText(text)).toBe(false)
+      expect(estimateSlashArguments(text)).toBeUndefined()
+    }
   })
   it('parses every goal, flag, quoted label and explicit UTC deadline', () => {
     for (const goal of [
