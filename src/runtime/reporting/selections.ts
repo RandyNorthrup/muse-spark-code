@@ -127,6 +127,8 @@ export async function readReportSelections(
   ) {
     try {
       const prior = readPlan(await run(['show', `${latestTag.commit}:PLAN.md`])).facts
+      if (prior.format === 'none' || prior.drift.length > 0)
+        throw new Error('report/selectionUnavailable')
       const current = snapshot.sources.plan.data
       const oldRisks = new Set(prior.risks.map((entry) => JSON.stringify(entry)))
       const oldResiduals = new Set(prior.residuals.map((entry) => JSON.stringify(entry)))

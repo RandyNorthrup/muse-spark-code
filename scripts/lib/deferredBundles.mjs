@@ -80,6 +80,30 @@ export const DEFERRED = [
 // The Model API backend keeps its own copy of code intelligence.
 export const ON_FIRST_USE = [
   {
+    output: 'dist/reportingNetwork.js',
+    metafile: 'dist/meta/reportingNetwork.json',
+    use: 'the first permitted report network read',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/runtime/reporting/network.ts',
+      'src/core/reporting/sources/cache.ts',
+      'src/core/reporting/sources/admission.ts',
+      'src/core/reporting/sources/github.ts',
+    ],
+  },
+  {
+    output: 'dist/reportingDestinations.js',
+    metafile: 'dist/meta/reportingDestinations.json',
+    use: 'the first scheduled report action',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/runtime/reporting/destinationsEntry.ts',
+      'src/core/reporting/destinations/runner.ts',
+      'src/core/reporting/destinations/email.ts',
+      'src/core/reporting/destinations/post.ts',
+    ],
+  },
+  {
     output: 'dist/reporting.js',
     metafile: 'dist/meta/reporting.json',
     use: 'the first deterministic report',
@@ -326,7 +350,12 @@ export function checkDeferredBundles(inputsOf) {
         problems.push(`${bundle.output} duplicates shared wire schemas in ${file}`)
     }
   }
-  for (const output of ['dist/reporting.js', 'dist/reportingPanel.js']) {
+  for (const output of [
+    'dist/reporting.js',
+    'dist/reportingPanel.js',
+    'dist/reportingNetwork.js',
+    'dist/reportingDestinations.js',
+  ]) {
     const bundle = ON_FIRST_USE.find((entry) => entry.output === output)
     for (const input of inputsOf(bundle).keys()) {
       const normalized = input.replaceAll('\\', '/')

@@ -47,7 +47,8 @@ import {
   permissionModeDetail,
 } from '../shared/permissionModes'
 import { paidFeatureName, paidFeaturePrice, usablePaidFeatures } from '../shared/paid'
-import { buildPalette, type PaletteAction } from '../shared/palette'
+import type * as PaletteRegistryModule from '../shared/paletteRegistry'
+import type { PaletteAction } from '../shared/palette'
 import { type SlashCommand, slashCommandsOf } from '../shared/slashCommands'
 import type { GitAction, GitDraftKind } from '../shared/git'
 import type {
@@ -1844,22 +1845,39 @@ export function App({
     ],
   )
 
-  const paletteGroups = useMemo(
-    () =>
-      buildPalette({
-        currentModel: state.model,
-        models: state.models,
-        effort: state.effort,
-        isThinkingEnabled: state.isThinkingEnabled,
-        permissionMode: state.permissionMode,
-        isFocusView: state.settings?.focusView ?? false,
-        useCtrlEnterToSend: state.settings?.useCtrlEnterToSend ?? false,
-        usage: state.usage,
-        skills: state.skills,
-        backend: state.auth.backend,
-        paidFeatures: state.paid.features,
-        isKeyStored: state.paid.isKeyStored,
-      }),
+  const [paletteModule, setPaletteModule] = useState<typeof PaletteRegistryModule>()
+  const [paletteFailure, setPaletteFailure] = useState(false)
+  const isNeedsPalette =
+    overlay === 'actions' || overlay === 'models' || state.draft.startsWith('/')
+  useEffect(() => {
+    if (!isNeedsPalette || paletteModule !== undefined || paletteFailure) return
+    let isActive = true
+    void import('../shared/paletteRegistry')
+      .then((module) => {
+        if (isActive) setPaletteModule(module)
+      })
+      .catch(() => {
+        if (isActive) setPaletteFailure(true)
+      })
+    return () => {
+      isActive = false
+    }
+  }, [isNeedsPalette, paletteModule, paletteFailure])
+  const paletteContext = useMemo(
+    () => ({
+      currentModel: state.model,
+      models: state.models,
+      effort: state.effort,
+      isThinkingEnabled: state.isThinkingEnabled,
+      permissionMode: state.permissionMode,
+      isFocusView: state.settings?.focusView ?? false,
+      useCtrlEnterToSend: state.settings?.useCtrlEnterToSend ?? false,
+      usage: state.usage,
+      skills: state.skills,
+      backend: state.auth.backend,
+      paidFeatures: state.paid.features,
+      isKeyStored: state.paid.isKeyStored,
+    }),
     [
       state.paid.isKeyStored,
       state.model,
@@ -1873,6 +1891,11 @@ export function App({
       state.auth.backend,
       state.paid.features,
     ],
+  )
+  const slashLoadState = paletteModule === undefined ? 'loading' : 'ready'
+  const paletteGroups = useMemo(
+    () => paletteModule?.buildPalette(paletteContext) ?? [],
+    [paletteModule, paletteContext],
   )
   const onOpenUsage = useCallback(() => {
     openOverlay('usage')
@@ -1930,6 +1953,7 @@ export function App({
       <Palette
         view="actions"
         groups={paletteGroups}
+        context={paletteModule === undefined ? paletteContext : undefined}
         models={state.models}
         currentModelId={state.model?.modelId}
         onAction={onPromptAction}
@@ -1942,7 +1966,16 @@ export function App({
         onActiveRowChange={slot.onActiveRowChange}
       />
     ),
-    [paletteGroups, state.models, state.model, onPromptAction, onSelectModel, onPaletteBack],
+    [
+      paletteGroups,
+      paletteModule,
+      paletteContext,
+      state.models,
+      state.model,
+      onPromptAction,
+      onSelectModel,
+      onPaletteBack,
+    ],
   )
   const modeEntries = useMemo(
     (): readonly MenuEntry[] =>
@@ -2168,6 +2201,7 @@ export function App({
           key={overlay}
           view={overlay}
           groups={paletteGroups}
+          context={paletteModule === undefined ? paletteContext : undefined}
           models={state.models}
           currentModelId={state.model?.modelId}
           onAction={onPaletteAction}
@@ -2609,6 +2643,7 @@ export function App({
             banner={state.banner}
             onDismissBanner={onDismissBanner}
             slashCommands={slashCommands}
+            slashLoadState={paletteFailure ? 'failed' : slashLoadState}
             isMenuOpen={overlay !== undefined}
             renderSlashPalette={renderSlashPalette}
             slashPaletteKeys={slashPaletteKeys}

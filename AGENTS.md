@@ -243,7 +243,8 @@ src/acp/**            the ACP agent (D62): the ACP side of a session and the
                       `vscode`
 src/runtime/reporting/** deterministic report engine and portable facade
                       (dist/reporting.js), shared by editor, CLI and ACP;
-                      report-only parser inspection (dist/reportValidation.js),
+                      permitted network reads (dist/reportingNetwork.js),
+                      destination contracts (dist/reportingDestinations.js),
                       editor adapter (dist/reportingPanel.js) and shared page
                       (dist/webview/reportingPage.js), loaded on first use
 src/runtime/exec/**   headless arguments/protocol/egress, stdin key/scanner,

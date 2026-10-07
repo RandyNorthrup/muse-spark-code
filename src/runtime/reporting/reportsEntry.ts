@@ -11,6 +11,7 @@ export { createReportsHost } from './reportsHost'
 export {
   createReportingServices,
   createReportingEngine,
+  createReportingGeneration,
   createReportingCheckJournal,
 } from './engine'
 

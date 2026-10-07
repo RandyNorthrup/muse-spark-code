@@ -151,7 +151,7 @@ import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/
 import type { AgentEvent, ApprovalChoice, ItemSnapshot, TodoItem } from '../../shared/agentEvents'
 import { fill, plural } from '../../shared/l10n/text'
 import type { GitAction, GitDraftKind } from '../../shared/git'
-import { backendLabel } from '../../shared/palette'
+import { backendLabel } from '../../shared/paletteFormatting'
 import type { PaidUseRequest } from '../../shared/paid'
 import type { ScheduleCadence, ScheduledPrompt } from '../../shared/schedule'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
@@ -9649,17 +9649,21 @@ export class ConversationController {
         const snapshot = registry.snapshot()
         return Promise.resolve({
           observedAt: context.asOf,
-          questions: snapshot.questions.map((entry) => ({
-            id: entry.userInputId,
-            text: entry.questions.map((question) => question.question).join('\n'),
-            milestoneIds: [],
-            state:
-              entry.state === 'open' || entry.state === 'waiting'
-                ? ('open' as const)
-                : entry.state.startsWith('answered') || entry.state === 'clarified'
-                  ? ('answered' as const)
-                  : ('dismissed' as const),
-          })),
+          questions: snapshot.questions.map((entry) => {
+            const settledState =
+              entry.state.startsWith('answered') || entry.state === 'clarified'
+                ? ('answered' as const)
+                : ('dismissed' as const)
+            return {
+              id: entry.userInputId,
+              text: entry.questions.map((question) => question.question).join('\n'),
+              milestoneIds: [],
+              state:
+                entry.state === 'open' || entry.state === 'waiting'
+                  ? ('open' as const)
+                  : settledState,
+            }
+          }),
         })
       },
     }

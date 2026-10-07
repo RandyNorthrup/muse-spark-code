@@ -172,7 +172,7 @@ export const EN = {
   referencePaidContexts:
     'Interactive Model API extras ask before spending and use the shared daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; that daily ledger does not cover them. ACP paid features default off, require Model API flags and editor permission; ordinary ACP has no mandatory hard budget. Headless images require acceptEdits, the flag and a hard budget. Account & usage can forget workspace paid-use grants.',
   referenceAcp:
-    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles only local /help, /questions, /answer and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
+    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles only local /help, /report, /questions, /answer and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
   referenceWebFetchTitle: 'Web fetch',
   referenceWebFetchDetail:
     'Fetch public web pages as readable text, with permission and network checks.',
@@ -1317,7 +1317,6 @@ export const EN = {
     verificationMessage: 'Your report email verification code is {code}.',
     nameTemplate: 'File name template',
     retention: 'Reports to keep',
-    format: 'Format',
     verifyRecipient: 'Verify recipient',
     saveDestination: 'Save to folder',
     browserDestination: 'Open in browser',

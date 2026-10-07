@@ -4078,6 +4078,9 @@ export const REPORT_SECTION_ROWS = 10
 export const REPORT_NEXT_STEP_LIMIT = 3
 export const REPORT_EMPTY_HASH = '0'.repeat(64)
 export const REPORT_GIT_MAX_COMMITS = 5000
+export const REPORT_NETWORK_MAX_BYTES = 2 * 1024 * 1024
+export const REPORT_NETWORK_MAX_PAGES = 3
+export const REPORT_NETWORK_CACHE_ENTRIES = 100
 export const REPORT_SOURCE_TIMEOUT_MS = 5000
 export const REPORT_GITHUB_RATE_FLOOR = 10
 export const REPORT_CHECK_RUNS_MAX = 500
@@ -4637,6 +4640,12 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/webview/referencePage.js',
   'dist/reference.js',
   'dist/report.js',
+  'dist/reporting.js',
+  'dist/reportingPanel.js',
+  'dist/reportingNetwork.js',
+  'dist/reportingDestinations.js',
+  'dist/webview/reportingPage.js',
+  'dist/webview/reportingDestinations.js',
   'dist/recorder.js',
   'dist/browserCheck.js',
   'dist/browserRuntime.js',

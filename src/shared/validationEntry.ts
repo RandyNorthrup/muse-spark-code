@@ -45,6 +45,7 @@ export {
   transform,
   trim,
   union,
+  undefined,
   unknown,
   url,
   uuid,

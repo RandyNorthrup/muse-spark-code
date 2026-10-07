@@ -29,6 +29,11 @@ export function webviewStartupOutputs(meta) {
 // and every unclassified deferred output retain the existing 50 KiB total cap.
 export const ADDITIONAL_WEBVIEW_BUDGETS = [
   {
+    name: 'report destinations',
+    entries: ['src/webview/reporting/destinations/DestinationPicker.tsx'],
+    budgetKiB: 25,
+  },
+  {
     name: 'reporting UI',
     entries: ['src/webview/reporting/main.tsx', 'src/webview/reporting/UsageReportAction.tsx'],
     budgetKiB: 25,
@@ -44,7 +49,10 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     'AgentMapContent',
   ].map((name) => ({
     name,
-    entries: [`src/webview/components/${name}.tsx`],
+    entries: [
+      `src/webview/components/${name}.tsx`,
+      ...(name === 'Palette' ? ['src/shared/paletteRegistry.ts'] : []),
+    ],
     budgetKiB: 25,
   })),
   {

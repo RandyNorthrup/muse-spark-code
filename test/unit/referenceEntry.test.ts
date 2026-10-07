@@ -1,3 +1,4 @@
+import { textKeys } from '../../src/shared/reference/referenceSchema.generated'
 import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import ts from 'typescript'
@@ -250,14 +251,11 @@ it('RVHELPREF4 rejects a corrupt packed technical-prefix index', () => {
     new URL('../../src/shared/reference/reference.generated.ts', import.meta.url),
     'utf8',
   )
-  const body = generated.slice(
-    generated.indexOf('const textKeys ='),
-    generated.indexOf('const plainTextSchema ='),
-  )
+  const body = generated.slice(generated.indexOf('export function referenceModel'))
   const code = ts.transpileModule(`${body.replace('~s0:', '~sz:')}\nreferenceModel()`, {
     compilerOptions: { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.CommonJS },
   }).outputText
   expect(() => {
-    runInNewContext(code, { exports: {}, parseReferenceModel })
+    runInNewContext(code, { exports: {}, parseReferenceModel, textKeys })
   }).toThrow('~sz:')
 })

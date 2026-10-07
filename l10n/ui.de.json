@@ -2530,7 +2530,7 @@
   "referenceCustomAgents": "Definieren Sie Agenten in projektbezogenen oder persönlichen AGENT.md-Dateien. Wählen Sie einen Agenten oder fragen Sie nach explore oder second-opinion; Werkzeuglisten begrenzen seine Fähigkeiten. Model API-Unteraufgaben benötigen die Zustimmung zu kostenpflichtigen Unteragenten.",
   "referenceCodeOutput": "Kopieren kopiert Code; Einfügen schreibt am Cursor; Anwenden ersetzt die Editor-Auswahl. Öffnen Sie Werkzeugausgaben vollständig; gekürzte Ausgaben können seitenweise gelesen werden. Text im Verlauf auswählen, um ihn im Eingabefeld zu zitieren, danach zu fragen, ihn zu kommentieren oder zu kopieren.",
   "referencePaidContexts": "Interaktive Model API-Extras fragen vor Ausgaben und nutzen das gemeinsame Tagesbudget. Muse Code-Bilder und -Sprache benötigen einen gespeicherten Model API-Schlüssel und ausdrückliche Aktivierung; dieses Budget gilt dort nicht. Kostenpflichtige ACP-Funktionen sind standardmäßig aus und benötigen Model API-Flags und Editor-Erlaubnis; normales ACP verlangt kein hartes Budget. Headless-Bilder benötigen acceptEdits, das Flag und ein hartes Budget. Konto und Nutzung kann gespeicherte Workspace-Zustimmungen vergessen.",
-  "referenceAcp": "Installierte Skills ergänzen dynamische Slash-Befehle, die hier nicht aufgelistet sind. ACP verarbeitet nur lokale /help, /questions, /answer und installierte Skills; Panel-Befehle, Einstellungen und Editor-Dialoge der verlinkten Referenz sind Erweiterungsabläufe.",
+  "referenceAcp": "Installierte Skills ergänzen dynamische Slash-Befehle, die hier nicht aufgelistet sind. ACP verarbeitet nur lokale /help, /report, /questions, /answer und installierte Skills; Panel-Befehle, Einstellungen und Editor-Dialoge der verlinkten Referenz sind Erweiterungsabläufe.",
   "referenceSendKeys": "Die Eingabe mit der durch useCtrlEnterToSend gewählten Geste senden.",
   "referenceNewlineKeys": "Eine neue Zeile in die Eingabe einfügen.",
   "referenceDictationKeys": "nimmt Ihre Stimme in das Eingabefeld auf (tippen zum Umschalten, halten zum Sprechen)",
@@ -2809,7 +2809,6 @@
     "verificationMessage": "Ihr Bestätigungscode für Berichte per E-Mail lautet {code}.",
     "nameTemplate": "Vorlage für den Dateinamen",
     "retention": "Aufzubewahrende Berichte",
-    "format": "Ausgabeformat",
     "verifyRecipient": "Empfänger bestätigen"
   },
   "reportRowsMore": {

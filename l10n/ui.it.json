@@ -2626,7 +2626,7 @@
   "referenceCustomAgents": "Definisci gli agenti in file AGENT.md personali o del progetto. Seleziona un agente o chiedi explore o second-opinion; gli elenchi di strumenti ne limitano le capacità. Le attività figlie Model API richiedono consenso ai sottoagenti a pagamento.",
   "referenceCodeOutput": "Copia copia il codice; Inserisci scrive al cursore; Applica sostituisce la selezione dell’editor. Apri l’output completo; quello troncato può essere letto a pagine. Selezionare testo nella conversazione per citarlo nel campo di composizione, fare una domanda, commentarlo o copiarlo.",
   "referencePaidContexts": "Gli extra Model API interattivi chiedono prima di spendere e usano il budget giornaliero condiviso. Immagini e voce Muse Code richiedono una chiave Model API salvata e attivazione esplicita; quel budget non le copre. Le funzioni ACP a pagamento sono disattivate per default e richiedono opzioni Model API e permesso dell’editor; ACP normale non impone un budget rigido. Le immagini headless richiedono acceptEdits, l’opzione e un budget rigido. Account e utilizzo può dimenticare i consensi dell’area di lavoro.",
-  "referenceAcp": "Le abilità installate aggiungono comandi dinamici non elencati in questa guida statica. ACP gestisce solo /help, /questions, /answer locali e abilità installate; comandi del pannello, impostazioni e finestre della guida collegata appartengono all’estensione.",
+  "referenceAcp": "Le abilità installate aggiungono comandi dinamici non elencati in questa guida statica. ACP gestisce solo /help, /report, /questions, /answer locali e abilità installate; comandi del pannello, impostazioni e finestre della guida collegata appartengono all’estensione.",
   "referenceSendKeys": "Inviare la bozza con il gesto scelto da useCtrlEnterToSend.",
   "referenceNewlineKeys": "Inserire una nuova riga nella bozza.",
   "referenceDictationKeys": "registra la tua voce nella casella del messaggio (tocca per attivare o disattivare, tieni premuto per parlare)",
@@ -2905,7 +2905,6 @@
     "verificationMessage": "Il tuo codice di verifica per i rapporti via email è {code}.",
     "nameTemplate": "Modello del nome del file",
     "retention": "Rapporti da conservare",
-    "format": "Formato",
     "verifyRecipient": "Verifica destinatario"
   },
   "reportRowsMore": {

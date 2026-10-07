@@ -10,6 +10,37 @@ import {
 import { availableSource, reportOptions, unavailableSource } from './helpers/reporting/snapshot'
 
 describe('project report collector', () => {
+  it('keeps distinct declarations when two lane tables use the same owner id', () => {
+    const snapshot = fullSnapshot()
+    const plan = snapshot.sources.plan.data!
+    const milestone = plan.milestones[0]!
+    const lane = milestone.lanes[0]!
+    const lanes = [lane, { ...lane, scope: 'Command contributions' }]
+    const collect = (declarations: typeof lanes) =>
+      collectFixture(
+        'project',
+        { full: true },
+        {
+          ...snapshot,
+          sources: {
+            ...snapshot.sources,
+            plan: availableSource('plan', {
+              ...plan,
+              milestones: [{ ...milestone, lanes: declarations }, ...plan.milestones.slice(1)],
+            }),
+          },
+        },
+      )
+    const rows = getSection(collect(lanes), 'lanes').rows
+    expect(
+      rows.filter(
+        (row) => row.cells['name']?.type === 'text' && row.cells['name'].value === lane.id,
+      ),
+    ).toHaveLength(2)
+    expect(new Set(rows.map((row) => row.key)).size).toBe(rows.length)
+    expect(getSection(collect(lanes.toReversed()), 'lanes').rows).toEqual(rows)
+  })
+
   it('puts owner questions, lagging channels and failing default-branch CI first', () => {
     const report = collectFixture('project')
     expect(report.needsYou.rows.map((row) => row.cells['name'])).toEqual([

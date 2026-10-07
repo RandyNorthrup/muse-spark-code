@@ -264,6 +264,7 @@ function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeRepor
           keepHistory: true,
           services: load().createReportingServices({
             workspaceRoot: cwd,
+            log,
             storageRoot: agentDataFolder({
               platform: process.platform,
               env: process.env,
@@ -273,6 +274,14 @@ function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeRepor
             generatorVersion: packageVersion(),
             keepHistory: true,
             enabledAgents: [],
+            network: {
+              policy: {
+                surface: 'terminal',
+                mode: 'always',
+                githubSignedIn: false,
+                allowEgress: () => Promise.resolve(process.env['CI'] === undefined),
+              },
+            },
           }),
         }),
       resolveSaved: async (cwd, file) => {

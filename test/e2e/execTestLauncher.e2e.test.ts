@@ -113,6 +113,9 @@ async function packageTree(): Promise<void> {
   await build({
     entryPoints: {
       recorder: path.join(ROOT, 'src/host/support/recorderEntry.ts'),
+      reporting: path.join(ROOT, 'src/runtime/reporting/reportsEntry.ts'),
+      reportingNetwork: path.join(ROOT, 'src/runtime/reporting/network.ts'),
+      reportingDestinations: path.join(ROOT, 'src/runtime/reporting/destinationsEntry.ts'),
       wire: path.join(ROOT, 'src/shared/wireEntry.ts'),
       uiTextRuntime: UI_TEXT_ENTRY,
       uiTextHooks: UI_TEXT_ENTRY,
@@ -225,7 +228,12 @@ describe('M80 W fake-only test package', { timeout: TIMEOUT }, () => {
       readdirSync(path.join(INSTALLED, 'schemas')).toSorted((left, right) =>
         left.localeCompare(right),
       ),
-    ).toEqual(['exec-event-v1.schema.json', 'exec-result-v1.schema.json'])
+    ).toEqual([
+      'exec-event-v1.schema.json',
+      'exec-result-v1.schema.json',
+      'report-v1.entry.json',
+      'report-v1.schema.json',
+    ])
     expect(readFileSync(path.join(STAGE, 'package.json'), 'utf8')).not.toContain('exec-test')
     expect(readFileSync(LAUNCHER, 'utf8')).toContain('w-report-')
   })

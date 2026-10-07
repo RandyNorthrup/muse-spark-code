@@ -88,7 +88,7 @@
       "theme": "light",
       "width": 690,
       "height": 760,
-      "note": "Every sent message's ⋯: fork, fork and rewind the code, or Rewind for the conversation or the code"
+      "note": "Every sent message's \u22ef: fork, fork and rewind the code, or Rewind for the conversation or the code"
     },
     {
       "file": "media/readme/slash-commands.png",
@@ -121,6 +121,14 @@
       "width": 690,
       "height": 760,
       "note": "Voice dictation: tap or hold, Ctrl+D"
+    },
+    {
+      "file": "media/readme/deterministic-report.png",
+      "scenario": "deterministic-report",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "Local deterministic report tab and export actions"
     }
   ],
   "excluded": [

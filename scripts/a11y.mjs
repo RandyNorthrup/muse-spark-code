@@ -25,6 +25,7 @@ import { availableParallelism, tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { chromium } from 'playwright-core'
+import { sortIncomplete } from './lib/a11yIncomplete.mjs'
 import { findChrome } from './lib/chrome.mjs'
 import { harnessArgs, langQuery, prepareLang } from './lib/harnessLang.mjs'
 import {
@@ -52,12 +53,6 @@ const WINDOWS_MAX_WORKERS = 2
 // its time in the harness's 5 s settle, in real time now.
 const PAGES_PER_WORKER = 2
 const WINDOWS_PAGES_PER_WORKER = 1
-// axe's reasons (messageKey) for a contrast it could not decide: the text is
-// covered, or it could not see the background behind it; or the content is
-// glyphs, not text.
-const CONTRAST_RULE = 'color-contrast'
-const UNSEEN_REASONS = new Set(['elmPartiallyObscured', 'elmPartiallyObscuring', 'bgOverlap'])
-const GLYPH_ONLY_REASON = 'nonBmp'
 // The harness takes these findings out, each only where its own test holds,
 // and they are printed under their own heading with the reason (PLAN.md §8).
 const EXEMPT_REASONS = new Map([
@@ -142,39 +137,6 @@ async function scan(chrome, context, port, page, lang) {
 
 function elementCount(findings) {
   return findings.reduce((sum, finding) => sum + finding.nodes.length, 0)
-}
-
-/**
- * axe's undecided ("incomplete") results, sorted (the review of PR #18).
- * Two kinds of contrast result are counted, not failed, because no tool
- * decides them here: text axe could not see where it looked (covered by a
- * menu or dialog the user opened, or scrolled out of the transcript's
- * view; the same rows are checked where a scenario shows them), and
- * glyph-only content. Everything else axe could not decide fails, as a
- * violation does.
- */
-export function sortIncomplete(findings) {
-  const undecided = []
-  let unseen = 0
-  let glyphOnly = 0
-  for (const finding of findings) {
-    const nodes = finding.nodes.filter((node) => {
-      const isContrast = finding.id === CONTRAST_RULE && node.reasons.length > 0
-      if (isContrast && node.reasons.every((reason) => UNSEEN_REASONS.has(reason))) {
-        unseen += 1
-        return false
-      }
-      if (isContrast && node.reasons.every((reason) => reason === GLYPH_ONLY_REASON)) {
-        glyphOnly += 1
-        return false
-      }
-      return true
-    })
-    if (nodes.length > 0) {
-      undecided.push({ ...finding, nodes })
-    }
-  }
-  return { undecided, unseen, glyphOnly }
 }
 
 /** One of axe's result lists over every page, each finding with its page. */
@@ -287,19 +249,30 @@ async function main() {
   console.log(
     `\na11y: ${String(results.length)} pages (${String(scenarios.length)} scenarios × ${String(THEMES.length)} themes${lang === undefined ? '' : `, in ${lang}`}), ${String(byRule.size)} rules violated on ${String(nodes)} elements, ${String(undecidedByRule.size)} rules undecided on ${String(elementCount(undecided))} elements, ${String(exempt.length)} exempt, ${String(failed.length)} pages without a result`,
   )
-  if (requested.length === 0 && lang === undefined) {
+  if (lang === undefined && requested.length === 0) {
     const code = await new Promise((resolve, reject) => {
-      const child = spawn(process.execPath, ['test/harness/reporting/verify.mjs', '--shipping'], { stdio: 'inherit' })
+      const child = spawn(process.execPath, ['test/harness/reporting/verify.mjs', '--shipping'], {
+        stdio: 'inherit',
+      })
       child.once('error', reject)
       child.once('exit', (status) => resolve(status))
     })
-    if (code !== 0) process.exitCode = 1
-    const reports = JSON.parse(readFileSync('docs/certification/m113-v-a11y.json', 'utf8'))
-    console.log(`report a11y: ${reports.checks.length} production pages, ${reports.checks.filter((entry) => entry.errors.length > 0).length} pages without a result; outer frames and exact standalone content both measured`)
+    if (code !== 0) {
+      process.exitCode = 1
+      return
+    }
+    const reports = JSON.parse(readFileSync('docs/certification/m113-w-a11y.json', 'utf8'))
+    console.log(
+      `report a11y: ${reports.checks.length} production pages, ${reports.checks.filter((entry) => entry.errors.length > 0).length} pages without a result; outer frames and exact standalone content both measured`,
+    )
   }
   if (byRule.size > 0 || undecidedByRule.size > 0 || failed.length > 0) {
     process.exitCode = 1
   }
 }
 
-if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) await main()
+if (
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
+)
+  await main()

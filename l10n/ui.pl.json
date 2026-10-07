@@ -2722,7 +2722,7 @@
   "referenceCustomAgents": "Definiuj agentów w projektowych lub osobistych plikach AGENT.md. Wybierz agenta albo poproś o explore lub second-opinion; listy narzędzi ograniczają możliwości. Zadania potomne Model API wymagają zgody na płatnych podagentów.",
   "referenceCodeOutput": "Kopiuj kopiuje kod; Wstaw pisze przy kursorze; Zastosuj zastępuje zaznaczenie edytora. Otwórz pełne wyjście narzędzia; skrócone wyjście można stronicować. Zaznacz tekst rozmowy, aby zacytować go w polu wiadomości, zapytać o niego, dodać komentarz lub skopiować.",
   "referencePaidContexts": "Interaktywne dodatki Model API pytają przed wydatkiem i korzystają ze wspólnego budżetu dziennego. Obrazy i głos Muse Code wymagają zapisanego klucza Model API i jawnego włączenia; ten budżet ich nie obejmuje. Płatne funkcje ACP są domyślnie wyłączone i wymagają flag Model API oraz zgody edytora; zwykłe ACP nie wymaga twardego budżetu. Obrazy bez interfejsu wymagają acceptEdits, flagi i twardego budżetu. Konto i użycie może zapomnieć zgody obszaru roboczego.",
-  "referenceAcp": "Zainstalowane umiejętności dodają dynamiczne polecenia, których ta statyczna pomoc nie wymienia. ACP obsługuje tylko lokalne /help, /questions, /answer i umiejętności; polecenia panelu, ustawienia i okna w połączonej pomocy to funkcje rozszerzenia.",
+  "referenceAcp": "Zainstalowane umiejętności dodają dynamiczne polecenia, których ta statyczna pomoc nie wymienia. ACP obsługuje tylko lokalne /help, /report, /questions, /answer i umiejętności; polecenia panelu, ustawienia i okna w połączonej pomocy to funkcje rozszerzenia.",
   "referenceSendKeys": "Wyślij szkic gestem wybranym przez useCtrlEnterToSend.",
   "referenceNewlineKeys": "Wstaw nowy wiersz w szkicu.",
   "referenceDictationKeys": "nagrywa Twój głos do pola wiadomości (naciśnij, aby przełączyć, lub przytrzymaj, aby mówić)",
@@ -3001,7 +3001,6 @@
     "verificationMessage": "Twój kod weryfikacyjny raportów e-mail to {code}.",
     "nameTemplate": "Szablon nazwy pliku",
     "retention": "Liczba zachowanych raportów",
-    "format": "Format wyjściowy",
     "verifyRecipient": "Zweryfikuj odbiorcę"
   },
   "reportRowsMore": {

@@ -18,6 +18,7 @@ import {
   rowsFor,
   type SlashPaletteSlot,
 } from '../../src/webview/components/Composer'
+import { installSurfaceRetry } from '../../src/webview/surfaceRetry'
 import { testSettings } from './helpers/fakes'
 
 /** The "/" list's commands (M38): two commands and a skill. */
@@ -1058,6 +1059,39 @@ function slashNames(): readonly (string | undefined)[] {
 
 // M38: "/" alone shows the palette; a character more, the slash commands.
 describe('Composer "/" menus (M38)', () => {
+  it('announces loading without exposing stale commands or dangling listbox references', () => {
+    const { props, view, textarea } = renderComposer({ slashLoadState: 'loading' })
+    textarea.focus()
+    const typed = type(view, props, '/co')
+    expect(screen.getByRole('status')).toHaveTextContent(UI_TEXT.loadingOutput)
+    expect(screen.queryByRole('listbox')).toBeNull()
+    expect(typed).not.toHaveAttribute('aria-controls')
+    expect(typed).not.toHaveAttribute('aria-activedescendant')
+    fireEvent.keyDown(typed, { key: 'Tab' })
+    expect(props.onSlashCommand).not.toHaveBeenCalled()
+    view.rerender(<Composer {...props} draft="/co" slashLoadState="ready" />)
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+    expect(slashNames()).toContain('/compact')
+  })
+  it('announces a failed registry load and retries after saving the draft', () => {
+    const save = vi.fn()
+    const rebuild = vi.fn()
+    installSurfaceRetry(save, rebuild)
+    try {
+      const { props, view, textarea } = renderComposer({ slashLoadState: 'failed' })
+      textarea.focus()
+      type(view, props, '/co')
+      expect(screen.getByRole('alert')).toHaveTextContent(UI_TEXT.surfaceLoadFailed)
+      fireEvent.click(screen.getByRole('button', { name: UI_TEXT.surfaceLoadRetry }))
+      expect(save).toHaveBeenCalledOnce()
+      expect(rebuild).toHaveBeenCalledOnce()
+      expect(props.onSubmit).not.toHaveBeenCalled()
+      expect(props.onSlashCommand).not.toHaveBeenCalled()
+    } finally {
+      installSurfaceRetry(vi.fn(), vi.fn())
+    }
+  })
+
   it('types the "/" and shows the palette above the box while the prompt is just "/"', () => {
     const seen: string[] = []
     const { props, view, textarea } = renderComposer({ renderSlashPalette: slashPalette(seen) })

@@ -179,8 +179,15 @@ const comparisonSectionSchemas = {
 let comparisonSectionLimit = 0
 for (const schema of Object.values(comparisonSectionSchemas)) {
   if (schema instanceof z.ZodMiniArray) {
-    const maximum = z.toJSONSchema(schema).maxItems
-    if (maximum === undefined) throw new Error('Report section arrays require a finite bound')
+    // Read the pinned parser's typed max-length checks without loading its JSON-schema processors.
+    const maxima = (schema._zod.def.checks ?? []).flatMap(({ _zod: { def } }) =>
+      def.check === 'max_length' && 'maximum' in def && typeof def.maximum === 'number'
+        ? [def.maximum]
+        : [],
+    )
+    if (maxima.length === 0 || maxima.some((value) => !Number.isSafeInteger(value) || value < 1))
+      throw new Error('Report section arrays require a finite bound')
+    const maximum = Math.min(...maxima)
     // Disjoint section ids can contribute each input's entire ordinary list.
     comparisonSectionLimit += 2 * maximum
   } else {

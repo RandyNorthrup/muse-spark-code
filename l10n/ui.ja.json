@@ -2434,7 +2434,7 @@
   "referenceCustomAgents": "プロジェクトまたは個人の AGENT.md でエージェントを定義します。選択するか explore、second-opinion を依頼してください。ツール許可リストが能力を制限します。Model API の子タスクには有料サブエージェントの同意が必要です。",
   "referenceCodeOutput": "コピーはコードをコピー、挿入はカーソル位置に書き込み、適用はエディターの選択範囲を置換します。ツール出力を開くと全文を読めます。省略された出力はページ単位で表示できます。 会話のテキストを選択すると、入力欄への引用、質問、コメントの追加、コピーができます。",
   "referencePaidContexts": "対話式 Model API の追加機能は支出前に同意を求め、共通の日次予算を使います。Muse Code の画像と音声には保存済み Model API キーと明示的な有効化が必要で、この予算は適用されません。ACP の有料機能は既定で無効で、Model API フラグとエディターの許可が必要です。通常の ACP に必須の厳格な予算はありません。ヘッドレス画像には acceptEdits、フラグ、厳格な予算が必要です。アカウントと使用量からワークスペースの同意を取り消せます。",
-  "referenceAcp": "インストール済みスキルは動的なスラッシュコマンドを追加しますが、この静的な資料には一覧がありません。ACP がローカルで処理するのは /help、/questions、/answer とスキルだけです。リンク先のパネルコマンド、設定、ダイアログは拡張機能の操作です。",
+  "referenceAcp": "インストール済みスキルは動的なスラッシュコマンドを追加しますが、この静的な資料には一覧がありません。ACP がローカルで処理するのは /help、/report、/questions、/answer とスキルだけです。リンク先のパネルコマンド、設定、ダイアログは拡張機能の操作です。",
   "referenceSendKeys": "useCtrlEnterToSendで選択された操作で下書きを送信します。",
   "referenceNewlineKeys": "下書きに改行を挿入します。",
   "referenceDictationKeys": "音声を入力欄に録音します (タップで切り替え、長押しで話す)",
@@ -2713,7 +2713,6 @@
     "verificationMessage": "メールで受け取るレポートの確認コードは {code} です。",
     "nameTemplate": "ファイル名のテンプレート",
     "retention": "保持するレポート数",
-    "format": "形式",
     "verifyRecipient": "受信者を確認"
   },
   "reportRowsMore": {

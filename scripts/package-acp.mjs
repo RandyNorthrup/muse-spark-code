@@ -40,6 +40,8 @@ const BUNDLES = [
   'hookRuntime.js',
   'recorder.js',
   'reporting.js',
+  'reportingNetwork.js',
+  'reportingDestinations.js',
   'reference.js',
   'uiText.js',
   'uiTextRuntime.js',

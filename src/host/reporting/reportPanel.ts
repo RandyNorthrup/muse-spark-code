@@ -39,6 +39,7 @@ export interface ReportPanelDeps {
   readonly theme: () => ReportTheme
   readonly attachMarkdown: (text: string) => Promise<void>
   readonly openProblem: () => Promise<void>
+  readonly disposeWindow?: () => void
 }
 
 /** One report tab, with all writes restricted to the user's save-dialog selection. */
@@ -423,6 +424,7 @@ export class ReportPanel implements vscode.Disposable {
   }
 
   public dispose(): void {
+    this.deps.disposeWindow?.()
     this.panel?.dispose()
   }
 }

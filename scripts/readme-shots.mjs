@@ -1,8 +1,8 @@
 // Refreshes the README's screenshots from the UI harness
 // (test/harness/index.html), one scenario per image as declared in
 // scripts/readme-shots.json. Each scenario opens like harness-shots does —
-// served from the repository, played under a fast-forwarded clock so the
-// shot waits for it to settle — and is captured at the entry's size.
+// served from the repository, settled in real time, and captured at the
+// entry's size.
 // Needs a Chrome install and a dev bundle (`npm run build:dev`).
 //
 // Run it as `node scripts/readme-shots.mjs` (`npm run readme:shots`): the
@@ -16,6 +16,7 @@
 //   CHROME_PATH=/path/to/chrome node scripts/readme-shots.mjs
 
 import { existsSync } from 'node:fs'
+import { spawn } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -53,7 +54,10 @@ function checkShot(shot, index) {
   if (typeof file !== 'string' || !SHOT_IMAGE.test(file)) {
     fail(what, 'needs a file like "media/readme/<name>.png"')
   }
-  if (typeof scenario !== 'string' || !SCENARIOS.includes(scenario)) {
+  if (
+    typeof scenario !== 'string' ||
+    (scenario !== 'deterministic-report' && !SCENARIOS.includes(scenario))
+  ) {
     fail(what, `names an unknown harness scenario: ${String(scenario)}`)
   }
   if (typeof theme !== 'string' || !THEMES.has(theme)) {
@@ -183,7 +187,9 @@ export function checkCoverage({ shots, excluded }, refs) {
 
 /** The harness URL a shot captures. */
 export function shotUrl(port, shot) {
-  return `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${shot.scenario}&theme=${shot.theme}${langQuery(shot.lang)}`
+  const harnessPath =
+    shot.scenario === 'deterministic-report' ? 'test/harness/reporting/index.html' : HARNESS_PATH
+  return `http://${LOOPBACK}:${String(port)}/${harnessPath}?scenario=${shot.scenario}&theme=${shot.theme}${langQuery(shot.lang)}`
 }
 
 /** One mapping row for --list. */
@@ -256,6 +262,18 @@ async function shootShots(list, { only, out }) {
   }
   const outDir = path.resolve(repoRoot, out)
   const profileDir = await mkdtemp(path.join(tmpdir(), 'muse-readme-'))
+  if (shots.some((shot) => shot.scenario === 'deterministic-report')) {
+    const code = await new Promise((resolve, reject) => {
+      const child = spawn(
+        process.execPath,
+        ['test/harness/reporting/verify.mjs', '--shipping', '--prepare'],
+        { stdio: 'inherit' },
+      )
+      child.once('error', reject)
+      child.once('exit', resolve)
+    })
+    if (code !== 0) throw new Error('Report screenshot preparation failed')
+  }
   const { server, port } = await serveRepo(repoRoot)
   try {
     for (const shot of shots) {

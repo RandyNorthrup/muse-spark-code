@@ -712,7 +712,13 @@ const TEXT_BLOCKS = [
   {
     block: 'CONVERSATION_MODEL_TEXT',
     sentinels: ['planBriefRequest', 'replyContextLead'],
-    readers: ['dist/conversation.js', BUNDLES.modelApi.output, 'dist/reporting.js'],
+    readers: [
+      'dist/conversation.js',
+      BUNDLES.modelApi.output,
+      'dist/reporting.js',
+      'dist/reportingNetwork.js',
+      'dist/reportingDestinations.js',
+    ],
   },
   {
     block: 'TAB_MODEL_TEXT',
@@ -911,6 +917,7 @@ const visitWebview = (file) => {
 }
 visitWebview('dist/webview/main.js')
 visitWebview('dist/webview/reportingPage.js')
+visitWebview('dist/webview/reportingDestinations.js')
 const deferredWebviewSources = [
   ...DEFERRED_WEBVIEW_SURFACES.map((surface) => `src/webview/components/${surface}.tsx`),
   ...ADDITIONAL_WEBVIEW_BUDGETS.flatMap(({ entries }) => entries),
@@ -969,22 +976,15 @@ const validationExports = new Set(
 const nodeMetafiles = readdirSync('dist/meta')
   .filter(
     (name) =>
-      ![
-        'validation.json',
-        'reportValidation.json',
-        'webview.json',
-        'whatsNewPage.json',
-        'referencePage.json',
-      ].includes(name),
+      !['validation.json', 'webview.json', 'whatsNewPage.json', 'referencePage.json'].includes(
+        name,
+      ),
   )
   .map((name) => `dist/meta/${name}`)
 nodeMetafiles.push(
   'dist/meta-acp/acp.json',
   'dist/meta-acp/acpQuestions.json',
   'dist/meta-acp/runtimeQuestions.json',
-)
-const reportValidationExports = new Set(
-  Object.keys(createRequire(import.meta.url)(path.resolve('dist/reportValidation.js'))),
 )
 const validationReaders = new Map()
 for (const file of nodeMetafiles) {
@@ -998,12 +998,8 @@ for (const file of nodeMetafiles) {
   }
   const sourceInputs = Object.keys(meta.inputs).filter((name) => name.startsWith('src/'))
   for (const input of sourceInputs) {
-    const usesReportParser = Object.values(meta.outputs).some((details) =>
-      details.imports.some((entry) => entry.external && entry.path.endsWith('reportValidation.js')),
-    )
-    const exports = usesReportParser ? reportValidationExports : validationExports
     const prior = validationReaders.get(input) ?? []
-    validationReaders.set(input, [...prior, exports])
+    validationReaders.set(input, [...prior, validationExports])
   }
 }
 for (const [input, readers] of validationReaders) {

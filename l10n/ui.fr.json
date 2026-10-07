@@ -2626,7 +2626,7 @@
   "referenceCustomAgents": "Définissez les agents dans des fichiers AGENT.md du projet ou personnels. Sélectionnez un agent ou demandez explore ou second-opinion ; les listes d’outils limitent ses capacités. Les tâches enfants Model API exigent le consentement aux sous-agents payants.",
   "referenceCodeOutput": "Copier copie le code ; Insérer écrit au curseur ; Appliquer remplace la sélection de l’éditeur. Ouvrez la sortie d’un outil pour tout lire ; une sortie tronquée peut être paginée. Sélectionner du texte dans la conversation pour le citer dans la zone de saisie, poser une question, commenter ou le copier.",
   "referencePaidContexts": "Les extras Model API interactifs demandent l’accord avant toute dépense et partagent le budget quotidien. Les images et la voix Muse Code exigent une clé Model API enregistrée et une activation explicite ; ce budget ne les couvre pas. Les fonctions ACP payantes sont désactivées par défaut et exigent des options Model API et l’autorisation de l’éditeur ; ACP ordinaire n’impose aucun budget strict. Les images sans interface exigent acceptEdits, l’option et un budget strict. Compte et utilisation permet d’oublier les accords de cet espace de travail.",
-  "referenceAcp": "Les compétences installées ajoutent des commandes dynamiques, absentes de cette référence statique. ACP traite seulement /help, /questions, /answer locaux et les compétences installées ; les commandes, paramètres et dialogues de l’éditeur dans la référence liée appartiennent à l’extension.",
+  "referenceAcp": "Les compétences installées ajoutent des commandes dynamiques, absentes de cette référence statique. ACP traite seulement /help, /report, /questions, /answer locaux et les compétences installées ; les commandes, paramètres et dialogues de l’éditeur dans la référence liée appartiennent à l’extension.",
   "referenceSendKeys": "Envoyer le brouillon avec le geste choisi par useCtrlEnterToSend.",
   "referenceNewlineKeys": "Insérer une nouvelle ligne dans le brouillon.",
   "referenceDictationKeys": "enregistre votre voix dans la zone de saisie (appuyez pour activer ou désactiver, maintenez pour parler)",
@@ -2905,7 +2905,6 @@
     "verificationMessage": "Votre code de vérification pour les rapports par e-mail est {code}.",
     "nameTemplate": "Modèle de nom de fichier",
     "retention": "Rapports à conserver",
-    "format": "Format de sortie",
     "verifyRecipient": "Vérifier le destinataire"
   },
   "reportRowsMore": {

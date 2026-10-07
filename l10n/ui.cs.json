@@ -2722,7 +2722,7 @@
   "referenceCustomAgents": "Definujte agenty v projektových či osobních souborech AGENT.md. Vyberte agenta nebo požádejte o explore či second-opinion; seznamy nástrojů omezují schopnosti. Podúlohy Model API vyžadují souhlas s placenými podagenty.",
   "referenceCodeOutput": "Kopírovat kopíruje kód; Vložit píše u kurzoru; Použít nahradí výběr editoru. Otevřete úplný výstup nástroje; zkrácený výstup lze stránkovat. Vyberte text přepisu a citujte jej v editoru zprávy, položte k němu otázku, přidejte komentář nebo jej zkopírujte.",
   "referencePaidContexts": "Interaktivní doplňky Model API se ptají před útratou a používají společný denní rozpočet. Obrázky a hlas Muse Code vyžadují uložený klíč Model API a výslovné zapnutí; tento rozpočet je nepokrývá. Placené funkce ACP jsou ve výchozím stavu vypnuté a vyžadují příznaky Model API a souhlas editoru; běžné ACP nevyžaduje pevný rozpočet. Obrázky bez rozhraní vyžadují acceptEdits, příznak a pevný rozpočet. Účet a využití umožňuje zapomenout souhlasy pracovního prostoru.",
-  "referenceAcp": "Nainstalované dovednosti přidávají dynamické příkazy, které statická příručka neuvádí. ACP zpracovává jen místní /help, /questions, /answer a dovednosti; příkazy panelu, nastavení a dialogy propojené příručky patří rozšíření.",
+  "referenceAcp": "Nainstalované dovednosti přidávají dynamické příkazy, které statická příručka neuvádí. ACP zpracovává jen místní /help, /report, /questions, /answer a dovednosti; příkazy panelu, nastavení a dialogy propojené příručky patří rozšíření.",
   "referenceSendKeys": "Odeslat zadání gestem podle useCtrlEnterToSend.",
   "referenceNewlineKeys": "Vložit nový řádek do zadání.",
   "referenceDictationKeys": "nahraje váš hlas do pole zprávy (klepnutím přepnete, podržením mluvíte)",
@@ -3001,7 +3001,6 @@
     "verificationMessage": "Váš ověřovací kód pro e-mailové zprávy je {code}.",
     "nameTemplate": "Šablona názvu souboru",
     "retention": "Počet uchovaných zpráv",
-    "format": "Formát",
     "verifyRecipient": "Ověřit příjemce"
   },
   "reportRowsMore": {

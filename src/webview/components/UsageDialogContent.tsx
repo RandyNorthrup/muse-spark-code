@@ -29,7 +29,7 @@ import {
   paidTotalUsd,
   usablePaidFeatures,
 } from '../../shared/paid'
-import { backendLabel, formatTokenWindow } from '../../shared/palette'
+import { backendLabel, formatTokenWindow } from '../../shared/paletteFormatting'
 import { relativeTime } from '../../shared/sessions'
 import {
   barValue,
@@ -605,7 +605,7 @@ function InsightsSection({
   )
 }
 
-export function UsageDialogContent({
+export default function UsageDialogContent({
   report,
   usage,
   context,

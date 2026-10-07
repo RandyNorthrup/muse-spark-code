@@ -217,40 +217,25 @@ const referenceOptions = {
   outfile: 'dist/reference.js',
 }
 
-const reportValidation = {
-  name: 'report-validation',
-  setup(build) {
-    build.onResolve({ filter: /^zod\/mini$/ }, () => ({
-      path: './reportValidation.js',
-      external: true,
-    }))
-  },
-}
-const reportValidationOptions = {
-  ...modelApiOptions,
-  plugins: [
-    {
-      name: 'shared-report-parser',
-      setup(build) {
-        build.onResolve({ filter: /\/validationEntry$/ }, () => ({
-          path: './validation.js',
-          external: true,
-        }))
-      },
-    },
-  ],
-  entryPoints: ['src/shared/reportValidationEntry.ts'],
-  outfile: 'dist/reportValidation.js',
-}
 const reportingOptions = {
   ...modelApiOptions,
-  plugins: [sharedUiText, reportValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: ['src/runtime/reporting/reportsEntry.ts'],
   outfile: 'dist/reporting.js',
 }
+const reportingNetworkOptions = {
+  ...reportingOptions,
+  entryPoints: ['src/runtime/reporting/network.ts'],
+  outfile: 'dist/reportingNetwork.js',
+}
+const reportingDestinationsOptions = {
+  ...reportingOptions,
+  entryPoints: ['src/runtime/reporting/destinationsEntry.ts'],
+  outfile: 'dist/reportingDestinations.js',
+}
 const reportingPanelOptions = {
   ...hostOptions,
-  plugins: [sharedUiText, reportValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: ['src/host/reporting/reportPanelEntry.ts'],
   outfile: 'dist/reportingPanel.js',
 }
@@ -577,7 +562,11 @@ const webviewOptions = {
     },
   ],
   charset: 'utf8',
-  entryPoints: { main: WEBVIEW_ENTRY, reportingPage: 'src/webview/reporting/main.tsx' },
+  entryPoints: {
+    main: WEBVIEW_ENTRY,
+    reportingPage: 'src/webview/reporting/main.tsx',
+    reportingDestinations: 'src/webview/reporting/destinations/DestinationPicker.tsx',
+  },
   outdir: WEBVIEW_OUTDIR,
   platform: 'browser',
   format: 'esm',
@@ -642,8 +631,9 @@ console.log(
 
 if (isWatch) {
   const contexts = await Promise.all([
-    esbuild.context(reportValidationOptions),
     esbuild.context(reportingOptions),
+    esbuild.context(reportingNetworkOptions),
+    esbuild.context(reportingDestinationsOptions),
     esbuild.context(reportingPanelOptions),
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
@@ -704,8 +694,9 @@ if (isWatch) {
     modelApi: esbuild.build(modelApiOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
-    reportValidation: esbuild.build(reportValidationOptions),
     reporting: esbuild.build(reportingOptions),
+    reportingNetwork: esbuild.build(reportingNetworkOptions),
+    reportingDestinations: esbuild.build(reportingDestinationsOptions),
     reportingPanel: esbuild.build(reportingPanelOptions),
     reference: esbuild.build(referenceOptions),
     reviewer: esbuild.build(reviewerOptions),

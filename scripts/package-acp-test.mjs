@@ -33,6 +33,9 @@ for (const file of [
     'uiTextSurfaces.js',
     'validation.js',
     'wire.js',
+    'reporting.js',
+    'reportingNetwork.js',
+    'reportingDestinations.js',
   ].map((name) => path.join(SOURCE, 'dist', name)),
   ...['exec-result-v1.schema.json', 'exec-event-v1.schema.json'].map((name) =>
     path.join(SOURCE, 'schemas', name),

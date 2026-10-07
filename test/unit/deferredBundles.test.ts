@@ -72,6 +72,8 @@ beforeAll(async () => {
         questionNotes: 'src/core/questions/deferralEntry.ts',
         reference: 'src/shared/reference/referenceEntry.ts',
         reporting: 'src/runtime/reporting/reportsEntry.ts',
+        reportingNetwork: 'src/runtime/reporting/network.ts',
+        reportingDestinations: 'src/runtime/reporting/destinationsEntry.ts',
         reportingPanel: 'src/host/reporting/reportPanelEntry.ts',
         conversation: 'src/host/conversation/conversationEntry.ts',
         modelApi: 'src/host/backend/modelApiEntry.ts',
@@ -516,6 +518,32 @@ describe('deferred cohort bundles', () => {
       }
       expect(createHash('sha256').update(JSON.stringify(meta)).digest('hex')).toBe(hash)
       expect(check()).toEqual([])
+    },
+  )
+  it.each(['reporting', 'reportingNetwork', 'reportingDestinations', 'reportingPanel'])(
+    'refuses backend imports from %s with either path separator',
+    (name) => {
+      const file = `dist/meta/${name}.json`
+      const meta = structuredClone(fixture(file).meta)
+      const output = meta.outputs[`dist/${name}.js`]
+      if (output === undefined) throw new Error('Missing output')
+      const hash = createHash('sha256').update(JSON.stringify(meta)).digest('hex')
+      for (const separator of ['/', '\\']) {
+        const source = 'src/core/backends/modelapi/backend.ts'.replaceAll('/', () => separator)
+        try {
+          output.inputs[source] = { bytesInOutput: 1 }
+          expect(
+            checkDeferredBundles((bundle) =>
+              bundle.metafile === file
+                ? outputInputs(meta, `dist/${name}.js`)
+                : bundleInputs(bundle),
+            ),
+          ).toContain(`dist/${name}.js carries a backend: src/core/backends/modelapi/backend.ts`)
+        } finally {
+          Reflect.deleteProperty(output.inputs, source)
+        }
+      }
+      expect(createHash('sha256').update(JSON.stringify(meta)).digest('hex')).toBe(hash)
     },
   )
 })

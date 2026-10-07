@@ -56,13 +56,13 @@ export interface ReportNetworkDeps {
 }
 
 const timestamp = z.iso.datetime({ offset: true })
-const entrySchema = z.strictObject({
+export const reportCacheEntrySchema = z.strictObject({
   key: z.string().check(z.regex(/^[a-f0-9]{64}$/)),
   etag: z.nullable(z.string()),
   observedAt: timestamp,
   data: z.unknown(),
 })
-type CacheEntry = z.infer<typeof entrySchema>
+type CacheEntry = z.infer<typeof reportCacheEntrySchema>
 
 /**
  * Shared host/runtime storage binding: owner-only, bounded reads and atomic
@@ -87,7 +87,7 @@ export class ReportResponseCache {
     const raw = await this.storage.read(signal)
     return raw === undefined
       ? []
-      : z.array(entrySchema).check(z.maxLength(this.maxEntries)).parse(raw)
+      : z.array(reportCacheEntrySchema).check(z.maxLength(this.maxEntries)).parse(raw)
   }
 
   public async get(key: string, signal: AbortSignal): Promise<CacheEntry | undefined> {
@@ -104,7 +104,7 @@ export class ReportResponseCache {
       signal.throwIfAborted()
       const previous = await this.entries(signal)
       const entries = previous.filter((item) => item.key !== entry.key)
-      entries.push(entrySchema.parse(entry))
+      entries.push(reportCacheEntrySchema.parse(entry))
       entries.sort((a, b) => compare(a.observedAt, b.observedAt) || compare(a.key, b.key))
       signal.throwIfAborted()
       await this.storage.write(entries.slice(-this.maxEntries), signal)

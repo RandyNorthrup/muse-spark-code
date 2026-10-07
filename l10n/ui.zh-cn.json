@@ -2434,7 +2434,7 @@
   "referenceCustomAgents": "在项目或个人 AGENT.md 文件中定义自定义代理。选择代理或请求 explore、second-opinion；工具允许列表限制其能力。Model API 子任务需要付费子代理同意。",
   "referenceCodeOutput": "复制会复制代码；插入在编辑器光标处写入；应用替换编辑器选区。打开工具输出可阅读完整结果；截断的输出可分页读取。 选择对话文本，可在输入框中引用、提问、添加评论或复制。",
   "referencePaidContexts": "交互式 Model API 附加功能在消费前询问，并使用共享每日预算。Muse Code 图像和语音需要已存储的 Model API 密钥及明确启用；该预算不覆盖它们。ACP 付费功能默认关闭，需要 Model API 标志和编辑器许可；普通 ACP 不强制硬预算。无界面图像需要 acceptEdits、标志及硬预算。账户与用量可忘记工作区付费许可。",
-  "referenceAcp": "已安装技能会添加动态斜杠命令，此静态参考不列出它们。ACP 仅处理本地 /help、/questions、/answer 和已安装技能；链接参考中的面板命令、设置和编辑器对话框属于扩展流程。",
+  "referenceAcp": "已安装技能会添加动态斜杠命令，此静态参考不列出它们。ACP 仅处理本地 /help、/report、/questions、/answer 和已安装技能；链接参考中的面板命令、设置和编辑器对话框属于扩展流程。",
   "referenceSendKeys": "使用useCtrlEnterToSend选择的操作发送草稿。",
   "referenceNewlineKeys": "在草稿中插入新行。",
   "referenceDictationKeys": "将你的语音录入输入框（轻点切换，按住说话）",
@@ -2713,7 +2713,6 @@
     "verificationMessage": "您的邮件报告验证码为 {code}。",
     "nameTemplate": "文件名模板",
     "retention": "保留的报告数量",
-    "format": "格式",
     "verifyRecipient": "验证收件人"
   },
   "reportRowsMore": {

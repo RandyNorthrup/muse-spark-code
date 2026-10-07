@@ -18,8 +18,9 @@ const QUESTION_UI_BUDGET_KIB = 25
 const BUDGETS = [
   // M113 W: new entries, each measured +15%, rounded to 25 KiB.
   { path: 'dist/reporting.js', budgetKiB: 175 },
+  { path: 'dist/reportingNetwork.js', budgetKiB: 75 },
+  { path: 'dist/reportingDestinations.js', budgetKiB: 75 },
   { path: 'dist/reportingPanel.js', budgetKiB: 50 },
-  { path: 'dist/reportValidation.js', budgetKiB: 50 },
   // M112 A: question forms, commands and late-answer admission, loaded on first use.
   { path: 'dist/acpQuestions.js', budgetKiB: 25 },
   { path: 'dist/runtimeQuestions.js', budgetKiB: 25 },

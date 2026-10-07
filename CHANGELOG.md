@@ -46,6 +46,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Palette and slash command data load on the first menu use with accessible
+  loading, failure and retry. Account & usage and the agent map retain one
+  modal loading boundary. Report screenshots use the shipped panel assets.
+
+- Report networking scrubs decoded cache data, validates transformed 304
+  results, serializes rate admission, rechecks live settings and releases
+  canceled host owners while rejecting late responses. History and comparisons
+  validate workspace, kind, scope and canonical hashes before showing data.
+
 - Problem reports retain frames from the shipped question deferral bundle.
 - Release checks cover crash recovery through the shared reload helper, await
   deferred question commands and menus, and verify Cline shell quoting on all

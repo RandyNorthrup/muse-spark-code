@@ -69,4 +69,7 @@
 !dist/reportingPanel.js
 !dist/webview/reportingPage.js
 !dist/webview/reportingPage.css
-!dist/reportValidation.js
+!dist/reportingDestinations.js
+!dist/webview/reportingDestinations.js
+!dist/webview/reportingDestinations.css
+!dist/reportingNetwork.js

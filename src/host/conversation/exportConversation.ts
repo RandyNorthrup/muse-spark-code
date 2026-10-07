@@ -27,7 +27,7 @@ import {
 } from '../../shared/constants'
 import type { ItemSnapshot } from '../../shared/agentEvents'
 import { plural } from '../../shared/l10n/text'
-import { backendLabel } from '../../shared/palette'
+import { backendLabel } from '../../shared/paletteFormatting'
 
 /** The portable file before it is written (M84): what the preview opens and says. */
 export interface ExportPreview {

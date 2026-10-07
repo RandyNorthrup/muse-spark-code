@@ -5,8 +5,7 @@ import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import { agentStatusLabel, formatDurationMs } from '../../src/webview/agentFormat'
 import type { WorkflowEntry } from '../../src/webview/state/uiState'
-import {
-  AgentMapContent as AgentMap,
+import AgentMap, {
   type AgentMapProps,
   controlsFor,
   type SubagentEntry,

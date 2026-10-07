@@ -2179,6 +2179,12 @@ async function activateWindow(
             log,
           }),
         })
+  const reportChecksFor = (root: string | undefined) =>
+    reportingCheckJournal({
+      bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', 'reporting.js').fsPath,
+      log,
+      context: { workspaceRoot: root, storageRoot, l10n },
+    })
   const modelApi = new ModelApiBackendManager({
     judge,
     log,
@@ -2357,11 +2363,7 @@ async function activateWindow(
     memory: memory.store,
     // The settings are read at each use; a repository cannot set them (D15).
     verify: {
-      checkRuns: reportingCheckJournal({
-        bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', 'reporting.js').fsPath,
-        log,
-        context: { workspaceRoot, storageRoot, l10n },
-      }),
+      checkRuns: reportChecksFor(workspaceRoot),
       isDiagnosticsOn: () => currentSettings().diagnosticsAfterEdits,
       checkCommands: () => currentSettings().checkCommands,
       isFormatOnEdit: () => currentSettings().formatOnEdit,
@@ -2377,11 +2379,7 @@ async function activateWindow(
         realPath: canonicalPath,
       })
       return {
-        checkRuns: reportingCheckJournal({
-          bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', 'reporting.js').fsPath,
-          log,
-          context: { workspaceRoot: attemptRoot, storageRoot, l10n },
-        }),
+        checkRuns: reportChecksFor(attemptRoot),
         isDiagnosticsOn: () => currentSettings().diagnosticsAfterEdits,
         checkCommands: () => currentSettings().checkCommands,
         isFormatOnEdit: () => currentSettings().formatOnEdit,

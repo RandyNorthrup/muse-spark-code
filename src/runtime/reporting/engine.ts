@@ -6,6 +6,7 @@ import {
   REPORT_FORMAT_VERSION,
   REPORT_PLAN_MAX_BYTES,
   REPORT_SOURCE_TIMEOUT_MS,
+  type REPORT_FAIL_ON,
 } from '../../shared/constants'
 import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
@@ -36,9 +37,13 @@ import { compareReports, reportDiffNotice, reportDiffSection } from '../../core/
 import { ReportStorage, ReportHistory } from '../../core/reporting/history'
 import { CheckRunJournal } from '../../core/reporting/checkRuns'
 import { createRuntimeReportSources, reportFileIo, reportGitIo } from './sources'
+import type { ReportingNetworkContext } from './network'
+import { reportingNetworkLoader } from './networkLoader'
+import type { Logger } from '../../host/logger'
 import { readReportSelections } from './selections'
 import { createReportsHost } from './reportsHost'
 import type { ReportsServices } from './reportsCommand'
+import type { ReportGenerationPort } from '../../core/reporting/destinations/types'
 import type { ReportPanelEngine } from '../../shared/reportingEngine'
 
 export interface ReportingContext {
@@ -46,16 +51,24 @@ export interface ReportingContext {
   readonly storageRoot: string
   readonly l10n: { readonly table: UiText; readonly locale: string }
   readonly generatorVersion: string
+  readonly log?: Logger
   readonly keepHistory: boolean
   readonly enabledAgents: LocalReportSourceDeps['enabledAgents']
   readonly session?: LocalReportSourceDeps['session']
   readonly questions?: LocalReportSourceDeps['questions']
   readonly usage?: LocalReportSourceDeps['usage']
   readonly networkSources?: Pick<ReportSourcePorts, 'github' | 'stores'>
+  readonly network?:
+    | Omit<ReportingNetworkContext, 'workspaceRoot' | 'storageRoot' | 'l10n'>
+    | (() => Promise<Omit<ReportingNetworkContext, 'workspaceRoot' | 'storageRoot' | 'l10n'>>)
 }
 
 const unavailable = <K extends ReportSourceKind>(kind: K) =>
   localSource(kind, () => Promise.reject(new LocalSourceError('unbound')))
+
+const logUnavailable = () => {
+  throw new Error(UI_TEXT.reportUi.generationFailed)
+}
 
 /** One lazy pipeline for every host. Missing adapters fail as named sources. */
 export function createReportingServices(context: ReportingContext): ReportsServices {
@@ -64,20 +77,6 @@ export function createReportingServices(context: ReportingContext): ReportsServi
   const workspaceKey = root === undefined ? undefined : reportWorkspaceKey(root, process.platform)
   const redaction = { ...(root !== undefined && { workspaceRoot: root }), localRoots: [homedir()] }
   const scrub = reportScrubber(redaction)
-  const local =
-    root === undefined
-      ? undefined
-      : createRuntimeReportSources({
-          workspaceRoot: root,
-          homeDir: homedir(),
-          platform: process.platform,
-          env: process.env,
-          scrub,
-          enabledAgents: context.enabledAgents,
-          ...(context.session !== undefined && { session: context.session }),
-          ...(context.questions !== undefined && { questions: context.questions }),
-          ...(context.usage !== undefined && { usage: context.usage }),
-        }).sources
   const storage = new ReportStorage(context.storageRoot)
   const history = new ReportHistory({
     storage,
@@ -107,10 +106,29 @@ export function createReportingServices(context: ReportingContext): ReportsServi
     if (workspaceKey === undefined) throw new Error(UI_TEXT.reportUi.generationFailed)
     return workspaceKey
   }
+  let latestGit: SourceSnapshot['sources']['git']['data'] = null
+  let activeNetwork:
+    Omit<ReportingNetworkContext, 'workspaceRoot' | 'storageRoot' | 'l10n'> | undefined
+  let boundNetwork: Pick<ReportSourcePorts, 'github' | 'stores'> | undefined
   return {
     async generate(options, signal = new AbortController().signal) {
       const key = requiredKey()
+      const local =
+        root === undefined
+          ? undefined
+          : createRuntimeReportSources({
+              workspaceRoot: root,
+              homeDir: homedir(),
+              platform: process.platform,
+              env: process.env,
+              scrub,
+              enabledAgents: context.enabledAgents,
+              ...(context.session !== undefined && { session: context.session }),
+              ...(context.questions !== undefined && { questions: context.questions }),
+              ...(context.usage !== undefined && { usage: context.usage }),
+            }).sources
       const readContext = { options, asOf: options.asOf, workspaceKey: key, signal }
+      let planText: string | undefined
       const sources: ReportSourcePorts = {
         git: local?.git ?? unavailable('git'),
         package: local?.package ?? unavailable('package'),
@@ -137,12 +155,13 @@ export function createReportingServices(context: ReportingContext): ReportsServi
             'PLAN.md',
             planSignal,
           )
-          return { data: readPlan(scrub(text)).facts }
+          planText = scrub(text)
+          return { data: readPlan(planText).facts }
         }),
       }
       // All reads share the request stamp; source ports bound time and cancellation.
       const [
-        plan,
+        initialPlan,
         pkg,
         git,
         changelog,
@@ -152,8 +171,8 @@ export function createReportingServices(context: ReportingContext): ReportsServi
         usage,
         agentUsage,
         checkRuns,
-        github,
-        stores,
+        githubLocal,
+        storesLocal,
         fleet,
         security,
         accounts,
@@ -184,6 +203,81 @@ export function createReportingServices(context: ReportingContext): ReportsServi
         sources.schedules.read(readContext),
         sources.keybindings.read(readContext),
       ])
+      latestGit = git.data
+      activeNetwork =
+        typeof context.network === 'function' ? await context.network() : context.network
+      if (
+        root !== undefined &&
+        activeNetwork !== undefined &&
+        boundNetwork === undefined &&
+        context.networkSources === undefined &&
+        activeNetwork.policy.mode !== 'off' &&
+        (activeNetwork.policy.surface === 'editor' || options.network)
+      ) {
+        const policy = activeNetwork.policy
+        boundNetwork = reportingNetworkLoader(
+          context.log ?? {
+            trace: logUnavailable,
+            info: logUnavailable,
+            warn: logUnavailable,
+            error: logUnavailable,
+          },
+        )().createReportingNetwork(
+          {
+            workspaceRoot: root,
+            storageRoot: context.storageRoot,
+            l10n: context.l10n,
+            policy: {
+              surface: policy.surface,
+              get mode() {
+                return activeNetwork?.policy.mode ?? 'off'
+              },
+              get githubSignedIn() {
+                return activeNetwork?.policy.githubSignedIn ?? false
+              },
+              allowEgress: (url, requestSignal) =>
+                activeNetwork?.policy.allowEgress(url, requestSignal) ?? Promise.resolve(false),
+            },
+            ...(activeNetwork.transport !== undefined && {
+              transport: (request, etag, requestSignal) => {
+                const transport = activeNetwork?.transport
+                return transport === undefined
+                  ? Promise.reject(new LocalSourceError('unbound'))
+                  : transport(request, etag, requestSignal)
+              },
+            }),
+          },
+          () => latestGit,
+        )
+      }
+      const network =
+        activeNetwork !== undefined &&
+        (activeNetwork.policy.surface === 'editor' || options.network)
+          ? boundNetwork
+          : undefined
+      const [github, stores] =
+        network === undefined
+          ? [githubLocal, storesLocal]
+          : await Promise.all([network.github.read(readContext), network.stores.read(readContext)])
+      const plan =
+        planText === undefined || initialPlan.data === null
+          ? initialPlan
+          : {
+              ...initialPlan,
+              data: readPlan(planText, {
+                ...(git.data !== null && { branches: git.data.branches }),
+                ...(github.data !== null && {
+                  pullRequests: github.data.pullRequests.map((pull) => ({
+                    branch: pull.headRef,
+                    number: pull.number,
+                    state: pull.state,
+                  })),
+                }),
+                ...(certification.data !== null && {
+                  certificationPaths: certification.data.records.map((record) => record.path),
+                }),
+              }).facts,
+            }
       signal.throwIfAborted()
       const snapshot: SourceSnapshot = {
         asOf: options.asOf,
@@ -264,6 +358,31 @@ export function createReportingServices(context: ReportingContext): ReportsServi
         await history.save(requiredKey(), document)
       },
     },
+    conditions: (document) => {
+      const conditions: (typeof REPORT_FAIL_ON)[number][] = []
+      if (document.sources.some((source) => source.status === 'unavailable'))
+        conditions.push('unavailable')
+      if (
+        document.sections.some(
+          (section) =>
+            section.id === 'planFormat' &&
+            section.rows.some(
+              (row) =>
+                row.cells['status']?.type === 'label' && row.cells['status'].value === 'partial',
+            ),
+        )
+      )
+        conditions.push('drift')
+      for (const row of document.needsYou.rows) {
+        const status = row.cells['status']
+        if (status?.type !== 'label') continue
+        if (status.value === 'open') conditions.push('blocked')
+        else if (status.value === 'lagging') conditions.push('channelLag')
+        else if (status.value === 'failed' && row.sourceIds.includes('github'))
+          conditions.push('ciFailing')
+      }
+      return [...new Set(conditions)]
+    },
     compare: compareReports,
     renderDiff: (diff, format, locale, theme) => {
       const notice = reportDiffNotice(diff, context.l10n.table.reportUi.noChange)
@@ -295,6 +414,20 @@ export function createReportingServices(context: ReportingContext): ReportsServi
   }
 }
 
+/** M115 supplies authority and destinations; collection stays identical to interactive reports. */
+export function createReportingGeneration(context: ReportingContext): ReportGenerationPort {
+  const services = createReportingServices(context)
+  return {
+    async generate(options) {
+      const generate = services.generate
+      if (generate === undefined) throw new Error(UI_TEXT.reportUi.generationFailed)
+      const result = await generate(options)
+      if (result.status !== 'generated') throw new Error(UI_TEXT.reportUi.generationFailed)
+      return result.document
+    },
+  }
+}
+
 export function createReportingEngine(
   context: ReportingContext & { readonly workspaceKey: string },
 ): ReportPanelEngine {
@@ -318,7 +451,9 @@ export function createReportingEngine(
       localePort: { textForLocale: () => context.l10n.table },
       redaction,
       theme,
-      keepHistory: context.keepHistory,
+      get keepHistory() {
+        return context.keepHistory
+      },
       now: () => new Date().toISOString(),
       readSaved: () => Promise.reject(new Error(UI_TEXT.reportUi.generationFailed)),
       writeOut: () => Promise.reject(new Error(UI_TEXT.reportUi.saveFailed)),

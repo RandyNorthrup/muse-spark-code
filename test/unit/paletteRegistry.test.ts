@@ -1,9 +1,9 @@
+import { buildPalette } from '../../src/shared/paletteRegistry'
 import { afterEach, describe, expect, it } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import {
   backendLabel,
-  buildPalette,
   filterPalette,
   flattenPalette,
   formatTokenWindow,

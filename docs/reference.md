@@ -263,7 +263,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### Help & Reference
 
-Installed skills add dynamic slash commands. This static reference does not list them. ACP handles only local /help, /questions, /answer and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
+Installed skills add dynamic slash commands. This static reference does not list them. ACP handles only local /help, /report, /questions, /answer and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
 
 ```json
 {
@@ -1222,7 +1222,7 @@ Commands: —. Settings: `museSpark.judge.engine`. [Documentation](https://githu
 
 Report an issue.
 
-Installed skills add dynamic slash commands. This static reference does not list them. ACP handles only local /help, /questions, /answer and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
+Installed skills add dynamic slash commands. This static reference does not list them. ACP handles only local /help, /report, /questions, /answer and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 

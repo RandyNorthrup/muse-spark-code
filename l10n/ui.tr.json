@@ -2530,7 +2530,7 @@
   "referenceCustomAgents": "Ajanları proje veya kişisel AGENT.md dosyalarında tanımlayın. Bir ajan seçin ya da explore veya second-opinion isteyin; araç izin listeleri yetenekleri sınırlar. Model API alt görevleri ücretli alt ajan onayı gerektirir.",
   "referenceCodeOutput": "Kopyala kodu kopyalar; Ekle imleçte yazar; Uygula editör seçimini değiştirir. Tam araç çıktısını açın; kırpılmış çıktı sayfalanabilir. Görüşme metnini seçerek giriş alanında alıntılayın, hakkında soru sorun, yorum ekleyin veya kopyalayın.",
   "referencePaidContexts": "Etkileşimli Model API ekleri harcamadan önce sorar ve ortak günlük bütçeyi kullanır. Muse Code görselleri ve sesi kayıtlı Model API anahtarı ve açık etkinleştirme gerektirir; bu bütçe onları kapsamaz. Ücretli ACP özellikleri varsayılan kapalıdır, Model API bayrakları ve editör izni gerektirir; normal ACP zorunlu kesin bütçe istemez. Arayüzsüz görseller acceptEdits, bayrak ve kesin bütçe gerektirir. Hesap ve kullanım çalışma alanı onaylarını unutabilir.",
-  "referenceAcp": "Kurulu beceriler bu statik başvuruda listelenmeyen dinamik komutlar ekler. ACP yalnızca yerel /help, /questions, /answer ve kurulu becerileri işler; bağlantıdaki panel komutları, ayarlar ve editör iletişimleri uzantı akışlarıdır.",
+  "referenceAcp": "Kurulu beceriler bu statik başvuruda listelenmeyen dinamik komutlar ekler. ACP yalnızca yerel /help, /report, /questions, /answer ve kurulu becerileri işler; bağlantıdaki panel komutları, ayarlar ve editör iletişimleri uzantı akışlarıdır.",
   "referenceSendKeys": "Taslağı useCtrlEnterToSend ile seçilen hareketle gönderin.",
   "referenceNewlineKeys": "Taslağa yeni satır ekleyin.",
   "referenceDictationKeys": "sesinizi mesaj kutusuna kaydeder (açıp kapatmak için dokunun, konuşmak için basılı tutun)",
@@ -2809,7 +2809,6 @@
     "verificationMessage": "E-posta raporları için doğrulama kodunuz {code}.",
     "nameTemplate": "Dosya adı şablonu",
     "retention": "Saklanacak rapor sayısı",
-    "format": "Biçim",
     "verifyRecipient": "Alıcıyı doğrula"
   },
   "reportRowsMore": {

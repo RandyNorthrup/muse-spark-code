@@ -2626,7 +2626,7 @@
   "referenceCustomAgents": "Define agentes en archivos AGENT.md del proyecto o personales. Selecciona un agente o pide explore o second-opinion; las listas de herramientas limitan sus capacidades. Las tareas secundarias Model API requieren consentimiento para subagentes de pago.",
   "referenceCodeOutput": "Copiar copia el código; Insertar escribe en el cursor; Aplicar reemplaza la selección del editor. Abre la salida para leerla completa; la salida recortada se puede paginar. Seleccionar texto de la conversación para citarlo en el cuadro de entrada, preguntar sobre él, comentar o copiarlo.",
   "referencePaidContexts": "Los extras interactivos Model API piden permiso antes de gastar y usan el presupuesto diario compartido. Las imágenes y la voz de Muse Code requieren una clave Model API guardada y activación explícita; ese presupuesto no las cubre. Las funciones ACP de pago están desactivadas por defecto y requieren opciones Model API y permiso del editor; ACP normal no exige un presupuesto estricto. Las imágenes sin interfaz requieren acceptEdits, la opción y un presupuesto estricto. Cuenta y uso permite olvidar permisos del espacio de trabajo.",
-  "referenceAcp": "Las habilidades instaladas añaden comandos dinámicos que esta referencia estática no enumera. ACP solo gestiona /help, /questions, /answer locales y habilidades instaladas; los comandos del panel, ajustes y diálogos de la referencia enlazada son flujos de la extensión.",
+  "referenceAcp": "Las habilidades instaladas añaden comandos dinámicos que esta referencia estática no enumera. ACP solo gestiona /help, /report, /questions, /answer locales y habilidades instaladas; los comandos del panel, ajustes y diálogos de la referencia enlazada son flujos de la extensión.",
   "referenceSendKeys": "Enviar el borrador con el gesto elegido por useCtrlEnterToSend.",
   "referenceNewlineKeys": "Insertar una línea nueva en el borrador.",
   "referenceDictationKeys": "graba su voz en el cuadro de mensaje (pulse para alternar, mantenga pulsado para hablar)",
@@ -2905,7 +2905,6 @@
     "verificationMessage": "Tu código de verificación para los informes por correo es {code}.",
     "nameTemplate": "Plantilla del nombre de archivo",
     "retention": "Informes que conservar",
-    "format": "Formato",
     "verifyRecipient": "Verificar destinatario"
   },
   "reportRowsMore": {

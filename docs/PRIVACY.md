@@ -865,3 +865,25 @@ Lanes A to D are integrated and the live receipt LA passed on 2026-10-05; L and
 LR remain open. Read
 [CI guide](ci.md) and [M80 receipts](certification/m80.md) for exact flow,
 retention/cleanup bounds, platform limits and support claims.
+
+## Deterministic reports (M113)
+
+`/report` reads bounded workspace plan, package, Git, changelog and certification
+facts locally. Report history, normalized check completions and decoded response
+cache live in owner-only `reports/v1/` storage outside the workspace. Other agents'
+usage files are read only after the corresponding explicit setting opt-in.
+The shared export scrub removes secrets, registered values and local profile
+paths before canonical hashing, rendering and storage; JSON remains structurally
+valid. Account labels and tokens are not report fields.
+
+Editor GitHub reads use an existing silent sign-in and current network setting;
+terminal collection requires `--network` and uses `gh`'s own identity. No Model API
+key is read or sent to a child process. The check journal retains only the check name, normalized outcome, duration,
+Git commit and observation time; it contains no command or stdout. A writer
+lease with unprovable ownership is preserved. Manual repair requires all
+relevant writers to have stopped.
+
+The network-off setting and cancellation
+are checked before dispatch; validated decoded cache entries use ETags. No report
+makes a model call. Posting and email are not offered by the integrated report UI;
+those adapters require explicit target permission and their missing owning hosts.

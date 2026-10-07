@@ -2530,7 +2530,7 @@
   "referenceCustomAgents": "Egyéni ügynököket projektbeli vagy személyes AGENT.md fájlokban adhat meg. Válasszon ügynököt, vagy kérjen explore vagy second-opinion feladatot; az eszközlisták szűkítik a képességeket. A Model API gyermekfeladatai fizetős alügynöki jóváhagyást igényelnek.",
   "referenceCodeOutput": "A Másolás másolja a kódot; a Beszúrás a kurzornál ír; az Alkalmazás a szerkesztő kijelölését cseréli. Nyissa meg a teljes eszközkimenetet; a levágott kimenet lapozható. Jelöljön ki szöveget a beszélgetésben, hogy idézze az üzenetmezőben, kérdezzen róla, megjegyzést fűzzön hozzá vagy másolja.",
   "referencePaidContexts": "Az interaktív Model API-extrák költés előtt engedélyt kérnek és a közös napi keretet használják. A Muse Code képeihez és hangjához tárolt Model API-kulcs és kifejezett bekapcsolás kell; ez a keret nem vonatkozik rájuk. Az ACP fizetős funkciói alapból kikapcsoltak, Model API-jelzőket és szerkesztői engedélyt igényelnek; a normál ACP nem követel szigorú keretet. A felület nélküli képekhez acceptEdits, a jelző és szigorú keret kell. A Fiók és használat törölheti a munkaterület jóváhagyásait.",
-  "referenceAcp": "A telepített készségek dinamikus parancsokat adnak hozzá, amelyeket ez a statikus referencia nem sorol fel. Az ACP csak a helyi /help, /questions, /answer és a telepített készségek parancsait kezeli; a hivatkozott panelparancsok, beállítások és párbeszédablakok a bővítmény folyamatai.",
+  "referenceAcp": "A telepített készségek dinamikus parancsokat adnak hozzá, amelyeket ez a statikus referencia nem sorol fel. Az ACP csak a helyi /help, /report, /questions, /answer és a telepített készségek parancsait kezeli; a hivatkozott panelparancsok, beállítások és párbeszédablakok a bővítmény folyamatai.",
   "referenceSendKeys": "A piszkozat küldése a useCtrlEnterToSend által választott gesztussal.",
   "referenceNewlineKeys": "Új sor beszúrása a piszkozatba.",
   "referenceDictationKeys": "a hangját a szövegmezőbe rögzíti (koppintás: be/ki, nyomva tartás: beszéd)",
@@ -2809,7 +2809,6 @@
     "verificationMessage": "Az e-mailes jelentések ellenőrző kódja: {code}.",
     "nameTemplate": "Fájlnévsablon",
     "retention": "Megőrzendő jelentések száma",
-    "format": "Formátum",
     "verifyRecipient": "Címzett ellenőrzése"
   },
   "reportRowsMore": {

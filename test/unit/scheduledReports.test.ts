@@ -220,41 +220,46 @@ describe('scheduled report occurrence runner', () => {
   )
   it('binds save effects to the serialized owner generation on local and node storage', async () => {
     for (const storage of ['local', 'node'] as const) {
-      const rig = runnerRig()
-      const assertion = vi.fn(() => {
-        throw new ReportSaveRefusedError()
-      })
-      vi.spyOn(rig.ports, 'saveExclusive').mockImplementation(
-        async (_schedule, _destination, actionKey, work) => {
-          expect(actionKey).toMatch(/^[a-f0-9]{64}$/)
-          return await work(assertion)
-        },
-      )
-      vi.spyOn(rig.ports, 'nodeSave').mockImplementation(
-        (_schedule, _destination, _payload, _roots, admission) => {
-          admission.assertCurrent()
-          return Promise.resolve()
-        },
-      )
-      vi.spyOn(rig.ports.authority, 'authorize').mockResolvedValue({
-        allowed: true,
-        roots: ['C:/reports'],
-        network: false,
-        creator: 'user',
-      })
-      const action = reportAction([
-        {
-          type: 'save',
-          id: 'save',
-          root: 'C:/reports',
-          storage,
-          template: '{kind}.{ext}',
-          retention: 1,
-        },
-      ])
-      const result = await new ScheduledReportRunner(rig.ports).run('one', OCCURRENCE, action)
-      expect(result['save']?.status).toBe('refused')
-      expect(assertion).toHaveBeenCalled()
+      const root = await mkdtemp(path.join(os.tmpdir(), 'report-owner-generation-'))
+      try {
+        const rig = runnerRig()
+        const assertion = vi.fn(() => {
+          throw new ReportSaveRefusedError()
+        })
+        vi.spyOn(rig.ports, 'saveExclusive').mockImplementation(
+          async (_schedule, _destination, actionKey, work) => {
+            expect(actionKey).toMatch(/^[a-f0-9]{64}$/)
+            return await work(assertion)
+          },
+        )
+        vi.spyOn(rig.ports, 'nodeSave').mockImplementation(
+          (_schedule, _destination, _payload, _roots, admission) => {
+            admission.assertCurrent()
+            return Promise.resolve()
+          },
+        )
+        vi.spyOn(rig.ports.authority, 'authorize').mockResolvedValue({
+          allowed: true,
+          roots: [root],
+          network: false,
+          creator: 'user',
+        })
+        const action = reportAction([
+          {
+            type: 'save',
+            id: 'save',
+            root,
+            storage,
+            template: '{kind}.{ext}',
+            retention: 1,
+          },
+        ])
+        const result = await new ScheduledReportRunner(rig.ports).run('one', OCCURRENCE, action)
+        expect(result['save']?.status).toBe('refused')
+        expect(assertion).toHaveBeenCalled()
+      } finally {
+        await rm(root, { recursive: true, force: true })
+      }
     }
   })
   it('bounds retries to three known pre-dispatch failures', async () => {

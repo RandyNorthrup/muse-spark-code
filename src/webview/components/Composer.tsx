@@ -84,6 +84,7 @@ import { MENTION_OPTION_ID_PREFIX, MentionMenu, mentionOptionId } from './Mentio
 import { modeIcon } from './modeIcons'
 import type { PaletteKeys } from './Palette'
 import { PALETTE_LISTBOX_ID } from '../../shared/constants'
+import { retrySurface } from '../surfaceRetry'
 import { SLASH_LISTBOX_ID, SLASH_OPTION_ID_PREFIX, SlashMenu, slashOptionId } from './SlashMenu'
 
 export interface ImageData {
@@ -157,6 +158,7 @@ export interface ComposerProps {
   readonly onDismissBanner: () => void
   /** The prompt's "/" list (M38): the palette's slash commands and skills. */
   readonly slashCommands: readonly SlashCommand[]
+  readonly slashLoadState?: 'loading' | 'failed' | 'ready'
   /** Another menu or dialog is open: the "/" menus stay closed. */
   readonly isMenuOpen: boolean
   /** The palette, attached above the box, for a prompt that is just `/`. */
@@ -366,6 +368,7 @@ export function Composer(props: ComposerProps) {
     banner,
     onDismissBanner,
     slashCommands,
+    slashLoadState = 'ready',
     isMenuOpen,
     renderSlashPalette,
     slashPaletteKeys,
@@ -459,7 +462,9 @@ export function Composer(props: ComposerProps) {
   const slashMenu =
     isFocusWithin && !isMenuOpen && dismissedSlash !== draft ? slashMenuOf(draft, caret) : undefined
   const slashItems =
-    slashMenu === 'commands' ? rankSlashCommands(slashCommands, draft.slice(1)) : []
+    slashMenu === 'commands' && slashLoadState === 'ready'
+      ? rankSlashCommands(slashCommands, draft.slice(1))
+      : []
   const activeSlash = slashIndex < slashItems.length ? slashIndex : 0
   const isSlashMenuOpen = slashMenu !== undefined
   // The textarea keeps the focus and points at the active row with
@@ -965,7 +970,21 @@ export function Composer(props: ComposerProps) {
             onActiveRowChange: setPaletteRowId,
           })
         : null}
-      {slashMenu === 'commands' ? (
+      {slashMenu === 'commands' && slashLoadState !== 'ready' ? (
+        <div className="mention-menu slash-menu">
+          {slashLoadState === 'loading' ? (
+            <p role="status">{UI_TEXT.loadingOutput}</p>
+          ) : (
+            <div role="alert">
+              <p>{UI_TEXT.surfaceLoadFailed}</p>
+              <button type="button" onClick={retrySurface}>
+                {UI_TEXT.surfaceLoadRetry}
+              </button>
+            </div>
+          )}
+        </div>
+      ) : null}
+      {slashMenu === 'commands' && slashLoadState === 'ready' ? (
         <SlashMenu
           items={slashItems}
           activeIndex={activeSlash}

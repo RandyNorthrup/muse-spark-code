@@ -107,7 +107,8 @@ export function laneRows(milestones: readonly PlanMilestone[], sourceId: string)
     milestone.lanes.map((lane) =>
       row(
         'lane',
-        [milestone.id, lane.id],
+        // Separate declaration tables can reuse an owner id for distinct scopes.
+        [milestone.id, lane.id, lane.scope],
         {
           name: text(lane.id),
           scope: text(lane.scope),

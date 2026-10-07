@@ -1,8 +1,8 @@
-import { deferred } from './DeferredSurface'
+// App's deferred modal owns loading, failure, retry and dismissal.
+import { createElement, lazy } from 'react'
 import type { UsageDialogProps } from './UsageDialogContent'
 export type { UsageDialogProps } from './UsageDialogContent'
-
-export const UsageDialog = deferred<UsageDialogProps>(async () => {
-  const module = await import('./UsageDialogContent')
-  return { default: module.UsageDialogContent }
-}, true)
+const Content = lazy(() => import('./UsageDialogContent'))
+export function UsageDialog(props: UsageDialogProps) {
+  return createElement(Content, props)
+}

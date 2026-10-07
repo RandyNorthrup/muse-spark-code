@@ -135,7 +135,11 @@ describe('lazy runtime report entry', () => {
       await h.reports.acp.execute('session --save', { ...context, format: 'text' }),
     ).toMatchObject({ code: 0, text: expect.stringContaining('Session') })
     expect(h.generate.mock.lastCall?.[0].sessionId).toBe('current-session')
-    expect(h.servicesFor.mock.lastCall).toEqual([context.cwd, context.sessionId])
+    expect(h.servicesFor.mock.lastCall).toEqual([
+      context.cwd,
+      context.sessionId,
+      { table: EN, locale: 'en' },
+    ])
     expect(h.history.save).toHaveBeenCalledTimes(1)
     expect(await h.reports.acp.execute('history project', context)).toMatchObject({
       code: 0,

@@ -529,3 +529,33 @@ keep secrets out of it.
 ## Help and reference
 
 Send `/help` in an ACP session for its local command list and the [generated reference](reference.md). Run `muse-spark-code-acp help --all` in a terminal for the complete reference. Help starts no backend and makes no model request.
+
+## Deterministic reports (M113)
+
+`muse-spark-code-acp report project` collects locally through the same engine
+as the editor. `report quality`, `report milestone M113`, `report release
+latest` and `report changes` select other local reports. `report history`
+lists verified, workspace-scoped saved entries. Bare `report`, and `report
+problem`, retain M93's problem report.
+
+The report command accepts `--format md|html|json|text`, `--out <file>`,
+`--as-of <ISO>`, `--lang <locale>`, `--network`, `--from <file.json>`,
+`--diff previous|<file.json>`, `--full`, `--save`, `--strict` and
+`--fail-on <conditions>`. `--from` verifies and renders the saved data without
+collecting again. A fixed observation time stabilizes the canonical report;
+comparison uses semantic rows. `--save` stores the report outside the workspace.
+ACP exposes `/report <kind>` in its available commands and replies in Markdown
+through the same portable report methods, without sending the command to a model.
+
+Network collection requires `--network`; `gh` owns terminal GitHub authentication.
+No Model API key is needed or read. Missing service captures and future source
+adapters remain unavailable. Posting and scheduled destinations are not exposed
+until their capture, scheduler, vault and browser dependencies are mounted.
+The [README report guide](../README.md#report) describes the kinds and settings.
+
+Exit codes are 0 for a generated/rendered report, 1 for a collection or output
+failure, 2 for invalid arguments or unsupported format, 3 for an unknown exact
+scope (with nearest ids), and 4 when a requested `--fail-on` condition holds.
+Conditions are `unavailable`, `drift`, `blocked`, `channelLag` and `ciFailing`.
+History-save revocation or cancellation fails explicitly. Equal observation
+times preserve the newest saved sequence when selecting the previous report.

@@ -736,6 +736,12 @@ other budget changes.
   import of classic zod; removing them means aliasing or patching a
   dependency's module graph, for a download a user makes once.
 
+M113 W's additional first-use entries preserve every existing cap: reporting
+network 55.5 KiB → 75 KiB, destination core 54.3 KiB → 75 KiB, destination
+picker closure below 25 KiB → 25 KiB, each measured plus 15% and rounded to
+25 KiB. The engine remains under its 175 KiB cap and never carries a backend.
+Reports share the existing 50 KiB mini-parser; every runtime API read is guarded.
+
 ### D7 — Permission modes map onto MSP approval modes; prompting modes wait for M4
 
 `muse --help` (1.3.0) names the CLI's own modes `untrusted | on-request |
@@ -11236,10 +11242,17 @@ model.
 - **Versioned, checked schemas** live in `docs/schemas/**`, with
   `npm run schema:exec -- --check` (M80).
 - **PLAN.md drifts, and a reader must say so.** At `4c7b064b5`, `## 7.
-Gates` appears twice (lines 24216 and 24793) with M98's entry inside the
-  first; 110 `### M…` headings carry 95 status lines, in free prose ("built
-  and certified", "merged as PR #36 at `4694803`", "planned, documentation
-  only").
+
+M113 W first-paint repair: the optional palette registry loads with the first
+palette or slash menu, within the existing 25 KiB Palette closure. Its filtered
+slash list uses accessible loading and failure/retry text until data arrives;
+chat and ordinary drafts do not load the registry. Complete browser English
+fallback stays inline; startup and legacy deferred limits remain unchanged.
+
+Gates`appears twice (lines 24216 and 24793) with M98's entry inside the
+  first; 110`### M…`headings carry 95 status lines, in free prose ("built
+  and certified", "merged as PR #36 at`4694803`", "planned, documentation
+only").
 
 1. **Deterministic means four things.**
    - **No model call anywhere in generation.** The reporting bundle may not
@@ -28004,6 +28017,8 @@ parser or paid/live call. Measure new bundles by D6's +15% rounding rule,
 keep every existing cap, drill new guards, and run the full default-timeout
 batched suite, accessibility matrix and README screenshots. G8/G22 remain
 M115-owned; reporting uses H's lease authority and Q's destination receipts.
+The real `--full` project invocation also requires lane identities to retain
+distinct declarations when two tables reuse an owner letter (M91).
 
 **Lane V review corrections (RVM113V, 2026-10-06).** Fix all three P2s and
 the P3 within the VS Code surface lane: authorize the trusted iframe style
@@ -30848,6 +30863,35 @@ Pause local browser gates while that extension is enabled. Hosted CI runs
 remain available.
 
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
+
+**M113 W integration boundaries (2026-10-06).** The rig note explicitly
+requires the complete configured Vitest suite in three-file batches, overriding
+common.md's normal scoped-suite rule. Aggregate `npm run quality` remains
+forbidden by that shared brief; the named component gates run separately.
+Public badge/audit traffic and live captures are also forbidden on this lane.
+The supported package badge check uses its existing documented network-skip
+reason solely for offline packaging; its local badge/template checks remain.
+Coverage aggregation, installed editor/live service/platform receipts and the
+hosted M80 matrix stay with the lead. No threshold, timeout, rule or size cap
+is lowered or raised to replace one of these receipts.
+
+M113 dependency handoffs remain explicit: S session activity and usage need
+M84's retained activity/M102's actual aggregate; native/companion/TUI/desktop
+hosts and runtime settings need M104/M110/M111; N stores, workflow/release and
+posting await approved captures; Q scheduling/occurrences, vault mail, node
+browser and editor/CLI creation need M115/M109/M110/M104; H check-slot records
+await M96c and the runtime verify adapter, which is absent on this base.
+The shipped portable bindings reject missing adapters or report unavailable
+sources. The shared engine, private cache/history/check journal, manifest,
+reference, lazy entries, budgets, docs and host inventory are W's scope.
+
+M113 W keeps schema-derived comparison bounds without importing Zod's JSON
+schema processors into browser first paint: the pinned, typed max-length
+check definitions supply the minimum actual bound. The structural section-key
+coverage and unbounded-array refusal remain; schema generation still uses
+`toJSONSchema` in its lazy/script reader. The existing 733.8 KiB startup
+regression and every production cap remain unchanged. CI's static job also
+runs P's new `check:plan` gate, matching `quality:gates`.
 
 ## 8. Escape hatches register
 
