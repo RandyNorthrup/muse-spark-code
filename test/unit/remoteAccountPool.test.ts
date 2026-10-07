@@ -138,12 +138,21 @@ describe('M108 D routing by the pinned device', () => {
     expect(await rig.run({ trigger: vendorLimit })).toBe('device-1')
   })
 
-  it('discards a deleted sticky account and continues routing', async () => {
+  it.each(['a', 'b'] as const)(
+    'discards a deleted sticky account and continues routing from %s',
+    async (account) => {
+      const rig = remoteDeviceRig()
+      await rig.run({ trigger: vendorLimit })
+      rig.accounts.rows.splice(1, 1)
+      rig.state.placement.rows.splice(1, 1)
+      expect(await rig.run({ account })).toBe('device-0')
+    },
+  )
+
+  it('rejects an unknown initial account instead of silently assigning another', async () => {
     const rig = remoteDeviceRig()
-    await rig.run({ trigger: vendorLimit })
-    rig.accounts.rows.splice(1, 1)
-    rig.state.placement.rows.splice(1, 1)
-    expect(await rig.run()).toBe('device-0')
+    await expect(rig.run({ account: 'unknown' })).rejects.toThrow(UI_TEXT.accounts.invalidAccount)
+    expect(rig.deps.admit).not.toHaveBeenCalled()
   })
 
   it('keeps the selected route valid on retries after adopting its sticky account', async () => {

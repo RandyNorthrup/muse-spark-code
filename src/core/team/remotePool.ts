@@ -217,6 +217,8 @@ export class RemoteAccountPool {
       this.sticky.delete(owner)
     const current = liveAccount ?? this.sticky.get(owner) ?? request.account
     const index = accounts.findIndex((account) => account.id === current)
+    if (index === -1 && sticky === undefined && liveAccount === undefined)
+      throw new Error(UI_TEXT.accounts.invalidAccount)
     const start = index === -1 ? 0 : index
     const ordered = [...accounts.slice(start), ...accounts.slice(0, start)]
     return ordered
