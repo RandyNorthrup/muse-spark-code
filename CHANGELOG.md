@@ -16,6 +16,7 @@ happened, not what was planned; superseded entries are kept.
 
 - The `museSpark.reports.network` setting no longer promises public release-channel reads: only GitHub reads are wired, and store, workflow and release adapters stay unavailable until their approved live captures land.
 - The reporting bundle split check now also fails when a reporting bundle carries the paid gate (`src/core/paid/**`), as D93 requires.
+- `/report` comparisons render changed diffs in every format from the verified report instead of failing schema validation; the bridge checks redaction on decoded values rather than serialized JSON; equal history stamps order by save sequence; tied check runs sort in a total order; Claude subagent sessions are discovered; quality globs match like the runner instead of by prefix; worktree paths resolve workspace aliases through git; save and git fixtures capture canonical roots; slow CLI cases are split to fit the default deadline; long picker identities wrap at 320 px.
 
 ### Documentation
 
