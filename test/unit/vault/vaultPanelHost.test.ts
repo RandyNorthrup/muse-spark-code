@@ -64,6 +64,18 @@ function fixture() {
   return { host, deps, service, state, changed }
 }
 
+/** Queue one request and answer it for the session; the refusal assertions stay per case. */
+async function answerSession(
+  f: ReturnType<typeof fixture>,
+  request: ReturnType<typeof approval>,
+): Promise<void> {
+  f.state.pending = [request]
+  await f.host.handle({
+    type: 'vaultAnswer',
+    answer: { requestId: request.id, digest: request.digest, decision: 'allowSession' },
+  })
+}
+
 describe('U authenticated panel host', () => {
   it('V16 failed Lock keeps controls locked until an explicit unlock; cancellation reaches native entry', async () => {
     const f = fixture()
@@ -317,11 +329,7 @@ describe('U authenticated panel host', () => {
           : request.taint
       request.use =
         variant === 'disclosure' ? { kind: 'disclosure', recipient: 'person' } : request.use
-      f.state.pending = [request]
-      await f.host.handle({
-        type: 'vaultAnswer',
-        answer: { requestId: request.id, digest: request.digest, decision: 'allowSession' },
-      })
+      await answerSession(f, request)
       expect(f.service.answer).toHaveBeenCalledTimes(variant === 'valid' ? 1 : 0)
       f.host.dispose()
     }
@@ -440,11 +448,7 @@ describe('U authenticated panel host', () => {
     const request = approval()
     request.item.policy.mode = 'askOncePerSession'
     request.requester.deviceId = 'remote-device'
-    f.state.pending = [request]
-    await f.host.handle({
-      type: 'vaultAnswer',
-      answer: { requestId: request.id, digest: request.digest, decision: 'allowSession' },
-    })
+    await answerSession(f, request)
     expect(f.service.answer).not.toHaveBeenCalled()
     f.host.dispose()
   })

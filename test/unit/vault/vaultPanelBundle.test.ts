@@ -64,6 +64,8 @@ describe('isVaultBundle', () => {
 
 describe('vaultBundleLoader', () => {
   const bundle: VaultBundle = {
+    // A same-build factory the loader shape-checks; these tests observe only
+    // identity and refusal, never the panel, so no real host is built.
     createVaultPanelHost: () => ({}) as unknown as ReturnType<VaultBundle['createVaultPanelHost']>,
   }
 
@@ -148,7 +150,11 @@ describe('loadVaultControls', () => {
       lock: vi.fn(() => Promise.resolve()),
       dispose: vi.fn(),
     }
-    const createVaultPanelHost = vi.fn(() => created)
+    // A same-build factory the loader shape-checks; the test observes only
+    // that the controls are the created object, so no real host is built.
+    const createVaultPanelHost = vi.fn(
+      () => created as unknown as ReturnType<VaultBundle['createVaultPanelHost']>,
+    )
     const bundle: VaultBundle = { createVaultPanelHost }
     const owned = service()
     const entry = connect()

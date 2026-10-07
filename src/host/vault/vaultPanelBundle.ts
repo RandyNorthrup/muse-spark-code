@@ -5,7 +5,7 @@ import { type Disposable } from 'vscode'
 import { UI_TEXT } from '../../shared/constants'
 import type { UiText } from '../../shared/l10n/en'
 import { uiLocale } from '../../shared/l10n/text'
-import { lazyBundleLoader } from '../lazyBundle'
+import { fixedMessageLog, lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import type { VaultPanelEntryDeps } from './vaultPanelEntry'
 import type { VaultPanelHost, VaultPanelService } from './vaultPanelHost'
@@ -87,24 +87,11 @@ export interface VaultBundleLoaderDeps {
 export function vaultBundleLoader(deps: VaultBundleLoaderDeps): () => VaultBundle {
   return lazyBundleLoader({
     ...deps,
-    log: {
-      trace: (message) => {
-        deps.log.trace(message)
-      },
-      info: (message) => {
-        deps.log.info(message)
-      },
-      warn: (message) => {
-        deps.log.warn(message)
-      },
-      error: (message) => {
-        deps.log.error(
-          message.includes('does not export')
-            ? 'The vault bundle does not export the panel'
-            : 'The vault bundle could not be loaded',
-        )
-      },
-    },
+    log: fixedMessageLog({
+      log: deps.log,
+      loadFailed: 'The vault bundle could not be loaded',
+      wrongShape: 'The vault bundle does not export the panel',
+    }),
     isBundle: isVaultBundle,
     label: 'vault bundle',
     unavailable: () => UI_TEXT.vault.brokerBlocked,

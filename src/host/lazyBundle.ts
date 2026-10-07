@@ -40,6 +40,37 @@ export interface LazyBundleLoaderOptions<T> {
   readonly unavailable: () => string
 }
 
+export interface FixedMessageLogDeps {
+  readonly log: Logger
+  /** Fixed words kept when the file cannot be loaded (never the path or cause). */
+  readonly loadFailed: string
+  /** Fixed words kept when the module lacks the bundle's exports. */
+  readonly wrongShape: string
+}
+
+/**
+ * A log that forwards trace/info/warn and keeps only fixed words for errors,
+ * so bundle paths and error text never reach the log. The `does not export`
+ * marker is lazyBundleLoader's own shape failure; anything else is a load
+ * failure.
+ */
+export function fixedMessageLog(deps: FixedMessageLogDeps): Logger {
+  return {
+    trace: (message) => {
+      deps.log.trace(message)
+    },
+    info: (message) => {
+      deps.log.info(message)
+    },
+    warn: (message) => {
+      deps.log.warn(message)
+    },
+    error: (message) => {
+      deps.log.error(message.includes('does not export') ? deps.wrongShape : deps.loadFailed)
+    },
+  }
+}
+
 /**
  * The bundle, required the first time it is asked for and kept from then on.
  * A missing or corrupt bundle throws `unavailable` and is tried again on the

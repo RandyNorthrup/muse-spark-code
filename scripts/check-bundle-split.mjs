@@ -30,6 +30,11 @@
 //   hold and edit review) is in dist/extension.js, dist/modelApi.js or
 //   dist/acp.js, or missing from dist/review.js, which dist/extension.js
 //   requires the first time one is used.
+// - the vault's window (M109: the panel host and the native editor) is in
+//   dist/extension.js, dist/modelApi.js or dist/acp.js, or missing from
+//   dist/vault.js, which dist/extension.js requires on the first vault
+//   command. Only types and the loader (vaultPanelBundle.ts) stay at
+//   activation.
 // - the import from other agents (M83: the scan, the converters, the file
 //   access, the flow and smol-toml) is in dist/extension.js, dist/modelApi.js
 //   or dist/acp.js, or missing from dist/agentImport.js.
@@ -515,6 +520,26 @@ for (const file of REVIEW_ONLY) {
   }
   if (!review.has(file)) {
     problems.push(`${REVIEW.output} no longer carries ${file}`)
+  }
+}
+// M109 lane W: the vault's window (the panel host and the native editor)
+// loads on the first vault command. Only types and the loader
+// (vaultPanelBundle.ts) stay at activation.
+const VAULT = { output: 'dist/vault.js', metafile: 'dist/meta/vault.json' }
+const VAULT_ONLY = [
+  'src/host/vault/vaultPanelEntry.ts',
+  'src/host/vault/vaultPanelHost.ts',
+  'src/host/vault/vaultNativeEditor.ts',
+]
+const vault = inputsOf(VAULT)
+for (const file of VAULT_ONLY) {
+  for (const [output, inputs] of [...loaders, [BUNDLES.modelApi.output, modelApi]]) {
+    if (inputs.has(file)) {
+      problems.push(`${output} carries ${file}, which belongs to the vault bundle`)
+    }
+  }
+  if (!vault.has(file)) {
+    problems.push(`${VAULT.output} no longer carries ${file}`)
   }
 }
 // M83: the import from other agents loads on the first import.
