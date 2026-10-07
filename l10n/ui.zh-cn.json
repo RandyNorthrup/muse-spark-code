@@ -2600,7 +2600,8 @@
     "usageUnavailable": "暂无当前使用情况数据。",
     "placementConflict": "{device} 上已有 {provider} 的帐户。请选择其他设备或关闭 onePerDevicePerProvider。",
     "sendToDevice": "发送到 {device}",
-    "routeUnavailable": "所选设备没有可用帐户或没有接收转发工作的权限。"
+    "routeUnavailable": "所选设备没有可用帐户或没有接收转发工作的权限。",
+    "missingDevice": "所选设备不可用。"
   },
   "developer": {
     "title": "开发者选项",

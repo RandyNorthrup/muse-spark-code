@@ -19,6 +19,28 @@ import { developerFixture, enabledDeveloper } from './helpers/developer'
 const page = { id: 'local-page', isLocal: true, kind: 'page' } as const
 
 describe('Developer options on every surface', () => {
+  it.each(['page', 'palette', 'terminal', 'setting'] as const)(
+    'audits enable and disable from the real %s source',
+    async (source) => {
+      const h = developerFixture()
+      const owner = await h.open()
+      await owner.unlock('palette')
+      for (const isEnabled of [true, false]) {
+        if (source === 'setting') await setDeveloperMachineSetting(owner, isEnabled)
+        else
+          await handleDeveloperRequest(
+            owner,
+            { id: source, isLocal: true, kind: source },
+            { type: 'developer/setMultiple', enabled: isEnabled },
+          )
+      }
+      expect(h.audits.slice(-2)).toMatchObject([
+        { action: 'enable', source },
+        { action: 'disable', source },
+      ])
+    },
+  )
+
   it.each([
     'VS Code',
     'JetBrains',

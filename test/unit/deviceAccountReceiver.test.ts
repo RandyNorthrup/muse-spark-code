@@ -9,8 +9,110 @@ import { poolRequest } from './helpers/accounts/pool'
 const vendor = { kind: 'vendorLimit', reason: 'rateLimited', resetAt: null } as const
 
 describe('M108 D receiver-owned account admission', () => {
+  it('scans vendor limits across unpinned siblings in the full limit group', async () => {
+    const rig = receiverRig('anthropic', 'api')
+    for (const row of rig.rows) row.limitGroup = 'shared'
+    rig.here.delete('b')
+    rig.blocks.set('c', { blocked: { reason: 'rateLimited', resetAt: null } })
+    expect(rig.receiver.offer()).toEqual({ anthropic: 'none' })
+    await expect(rig.receive()).rejects.toThrow()
+    expect(rig.deps.reserve).not.toHaveBeenCalled()
+    expect(rig.dispatch).not.toHaveBeenCalled()
+  })
+
+  it('admits the credential with advertised room and refuses a sole empty bucket', async () => {
+    const rig = receiverRig('anthropic', 'api')
+    rig.headroom.set('a', 'none')
+    expect(rig.receiver.offer()).toEqual({ anthropic: 'ample' })
+    expect(await rig.receive()).toBe('b')
+    rig.here.delete('b')
+    rig.receiverDeps.request = (fragment) =>
+      poolRequest({ owner: 'other', modelId: fragment.modelId })
+    await expect(rig.receive()).rejects.toThrow()
+    expect(rig.dispatch).toHaveBeenCalledTimes(1)
+  })
+
+  it('uses the advertised ample bucket even while the current credential has some room', async () => {
+    const rig = receiverRig('anthropic', 'api')
+    rig.headroom.set('a', 'some')
+    expect(rig.receiver.offer()).toEqual({ anthropic: 'ample' })
+    expect(await rig.receive()).toBe('b')
+  })
+
+  it('rejects a shared busy owner with a typed refusal', async () => {
+    const rig = receiverRig('anthropic', 'api')
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const local = rig.pool.run(poolRequest(), async (admission) => {
+      entered.resolve(undefined)
+      await release.promise
+      admission.beforeSend()
+      return { value: admission.account, actualUsd: admission.estimate.costUsd }
+    })
+    await entered.promise
+    const refusal = rig.receive()
+    try {
+      await expect(refusal).rejects.toMatchObject({ code: 'busyOwner' })
+    } finally {
+      release.resolve(undefined)
+      await local
+    }
+    expect(rig.claim.finish).toHaveBeenCalledWith('notSent')
+  })
+
+  it('rechecks advertised capacity and unpinned group limits after credential waits', async () => {
+    for (const cause of ['bucket', 'group']) {
+      const rig = receiverRig('anthropic', 'api')
+      for (const row of rig.rows) row.limitGroup = 'shared'
+      await expect(
+        rig.receiver.receive({ provider: 'anthropic', modelId: 'fake-model' }, (admission) => {
+          if (cause === 'bucket') rig.headroom.set(admission.account, 'none')
+          else rig.blocks.set('c', { blocked: { reason: 'rateLimited', resetAt: null } })
+          admission.beforeSend()
+          return Promise.resolve({ value: 'sent', actualUsd: admission.estimate.costUsd })
+        }),
+      ).rejects.toThrow()
+      expect(rig.claims[0]?.actual).toBe(parseUsd(0))
+      expect(rig.claim.finish).toHaveBeenCalledWith('notSent')
+    }
+  })
+
+  it('joins local and receiver admission before either reservation completes', async () => {
+    const rig = receiverRig('anthropic', 'api')
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const reserve = rig.deps.reserve
+    rig.deps.reserve = vi.fn(async (...args: Parameters<typeof reserve>) => {
+      entered.resolve(undefined)
+      await release.promise
+      return await reserve(...args)
+    })
+    const local = rig.run({ owner: 'local' })
+    await entered.promise
+    const remote = rig.receive()
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve)
+    })
+    expect(rig.deps.reserve).toHaveBeenCalledTimes(1)
+    release.resolve(undefined)
+    await Promise.all([local, remote])
+    expect(rig.deps.reserve).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['ownCapsOnly', 'cancel'] as const)('distinguishes the %s refusal', async (choice) => {
+    const rig = receiverRig()
+    rig.ask.mockResolvedValue(choice)
+    await expect(rig.receive(vendor)).rejects.toMatchObject({ code: choice })
+  })
+
+  it('distinguishes recovery from unavailable admission', async () => {
+    const rig = receiverRig('openai', 'chatgpt-plan')
+    await expect(rig.receive(vendor)).rejects.toMatchObject({ code: 'recovery' })
+  })
+
   it('offers only per-provider buckets, computed from local pins without account data', () => {
     const rig = receiverRig()
+    rig.headroom.set('a', 'some')
     rig.rows[0]!.label = 'private-label-canary'
     rig.rows[0]!.limitGroup = 'private-group-canary'
     expect(rig.receiver.offer()).toEqual({ meta: 'ample' })
@@ -21,6 +123,7 @@ describe('M108 D receiver-owned account admission', () => {
     rig.headroom.set('c', 'ample')
     expect(rig.receiver.offer()).toEqual({ meta: 'none' })
     expect(JSON.stringify(rig.receiver.offer())).not.toMatch(/canary|label|account|group|confirm/)
+    expect(Object.keys(rig.receiver.offer())).toEqual(['meta'])
   })
 
   it('rejects invalid headroom and reports unavailable policies/providers with no capacity', () => {

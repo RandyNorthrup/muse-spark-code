@@ -2794,7 +2794,8 @@
     "usageUnavailable": "Nessun dato di utilizzo attuale.",
     "placementConflict": "{provider} ha già un account su {device}. Scegli un altro dispositivo o disattiva onePerDevicePerProvider.",
     "sendToDevice": "Invia a {device}",
-    "routeUnavailable": "Il dispositivo selezionato non ha un account disponibile o non consente di instradare il lavoro."
+    "routeUnavailable": "Il dispositivo selezionato non ha un account disponibile o non consente di instradare il lavoro.",
+    "missingDevice": "Il dispositivo selezionato non è disponibile."
   },
   "developer": {
     "title": "Opzioni sviluppatore",

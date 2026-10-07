@@ -25,6 +25,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Device account admission shares its local pool's queue, checks the complete
+  vendor limit group and uses the advertised capacity. Later thresholds move
+  the live sticky route; deleted accounts no longer wedge it. Refusals
+  distinguish recovery, cancellation, own caps, busy owners and missing devices.
+- Developer options reject unknown profile removal without changing authority.
+  Revocation stops profiles before saving and failed state publication cannot
+  restore an audited revoked grant. Enable/disable record their actual surface;
+  stale launches return a typed error and release their prepared credential slot.
+
 - Account, developer and help English load with their optional surfaces,
   keeping chat startup and the original deferred group within their
   existing size baselines. Translated tables still validate every key,

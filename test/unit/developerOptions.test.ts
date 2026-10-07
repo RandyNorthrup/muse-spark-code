@@ -9,6 +9,43 @@ import { developerStateSchema } from '../../src/shared/developerOptions'
 import { developerFixture, enabledDeveloper } from './helpers/developer'
 
 describe('machine-local Developer options', () => {
+  it('rejects an unknown removal without changing state or live resources', async () => {
+    const h = await enabledDeveloper()
+    await h.owner.addProfile('meta', 'work')
+    const before = h.owner.snapshot()
+    const publications = h.snapshots.length
+    await expect(h.owner.removeProfile('missing')).rejects.toMatchObject({ code: 'invalidRequest' })
+    expect(h.owner.snapshot()).toEqual(before)
+    expect(h.snapshots).toHaveLength(publications)
+    expect(h.admits.get('profile-1')?.()).toBe(true)
+    expect(h.resources.stop).not.toHaveBeenCalled()
+    expect(h.resources.remove).not.toHaveBeenCalled()
+  })
+
+  it.each(['disable', 'expiry', 'reset'] as const)(
+    'stops profiles before a failed %s save',
+    async (action) => {
+      const h = await enabledDeveloper()
+      await h.owner.addProfile('meta', 'work')
+      const admit = h.admits.get('profile-1')
+      vi.mocked(h.deps.store.commit).mockImplementationOnce(() => {
+        expect(admit?.()).toBe(false)
+        expect(h.resources.stop).toHaveBeenCalledTimes(1)
+        return Promise.reject(new Error('save failed'))
+      })
+      if (action === 'expiry') h.advance(DEVELOPER_UNLOCK_MS)
+      const revokes = {
+        disable: () => h.owner.setMultiple(false),
+        expiry: () => h.owner.refresh(),
+        reset: () => h.owner.reset(),
+      }
+      const revoke = revokes[action]()
+      await expect(revoke).rejects.toThrow('save failed')
+      expect(h.owner.isMultipleAccountsOn()).toBe(false)
+      expect(h.resources.stop).toHaveBeenCalledTimes(1)
+    },
+  )
+
   it('starts locked and refuses multiple accounts and profiles before unlock', async () => {
     const h = developerFixture()
     const owner = await h.open()

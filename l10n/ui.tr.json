@@ -2697,7 +2697,8 @@
     "usageUnavailable": "Güncel kullanım verisi yok.",
     "placementConflict": "{device} cihazında zaten bir {provider} hesabı var. Başka bir cihaz seçin veya onePerDevicePerProvider kuralını kapatın.",
     "sendToDevice": "{device} cihazına gönder",
-    "routeUnavailable": "Seçilen cihazda kullanılabilir bir hesap veya iş yönlendirme izni yok."
+    "routeUnavailable": "Seçilen cihazda kullanılabilir bir hesap veya iş yönlendirme izni yok.",
+    "missingDevice": "Seçilen cihaz kullanılamıyor."
   },
   "developer": {
     "title": "Geliştirici seçenekleri",

@@ -88,7 +88,17 @@ describe('isolated local Developer profiles', () => {
           isValid = false
           return Promise.resolve('/machine/profiles/profile-work')
         })
-      await expect(h.resources.start(work, () => isValid)).rejects.toThrow()
+      await expect(h.resources.start(work, () => isValid)).rejects.toMatchObject({
+        code: 'locked',
+        name: 'DeveloperOptionsError',
+      })
+      await expect(h.resources.start(work, () => false)).rejects.toMatchObject({
+        code: 'locked',
+        name: 'DeveloperOptionsError',
+      })
+      expect(h.ports.credentials.remove).toHaveBeenCalledWith(
+        'museSpark.developer.profile.profile-work.provider.meta.account.work',
+      )
       expect(h.ports.runtime.start).not.toHaveBeenCalled()
       expect(h.ports.pool.register).not.toHaveBeenCalled()
     },

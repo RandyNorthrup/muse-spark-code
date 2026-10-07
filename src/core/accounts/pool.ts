@@ -88,6 +88,14 @@ export class AccountPoolStoppedError extends Error {
   }
 }
 
+export class AccountPoolBusyError extends Error {
+  public readonly code = 'busyOwner'
+  public constructor() {
+    super(UI_TEXT.acpPromptBusy)
+    this.name = 'AccountPoolBusyError'
+  }
+}
+
 /** Lane-0 numeric outputs may not silently lose an exact nano-USD liability. */
 function numericUsd(value: Usd): number {
   const converted = usdNumber(value)
@@ -125,7 +133,7 @@ export class AccountPool {
   private readonly active = new Set<string>()
   private admission: Promise<void> = Promise.resolve()
 
-  public constructor(private readonly deps: AccountPoolDeps) {}
+  public constructor(public readonly deps: AccountPoolDeps) {}
 
   private owner(request: AccountPoolRequest): string {
     return JSON.stringify([request.kind, request.owner])
@@ -206,7 +214,7 @@ export class AccountPool {
     throw new AccountPoolStoppedError(trigger, decision, resetAt, this.deps.usageUrl)
   }
 
-  private async select(request: AccountPoolRequest) {
+  private async select(request: AccountPoolRequest, isEligible: (account: Account) => boolean) {
     const rows = this.rows()
     const owner = this.owner(request)
     const held = this.sticky.get(owner)
@@ -216,6 +224,7 @@ export class AccountPool {
     const settings = this.deps.settings?.() ?? ACCOUNT_DEFAULTS
     const canPool = request.isInteractive || request.hasPoolFlag === true
     const triggers = this.triggers(current, request.estimate, this.deps.journal, request)
+    const isCurrentEligible = isEligible(current)
     const row = this.deps.policy()
     if (row === undefined || row.pooling === 'notOffered' || !row.isCredentialHeld)
       return await this.stop(current, triggers, { kind: 'stop', reason: 'notOffered' })
@@ -230,7 +239,7 @@ export class AccountPool {
       if (refreshed.kind !== 'allow') return await this.stop(current, triggers, refreshed)
       heldDecision = refreshed
     }
-    if (triggers.length > 0 && (!canPool || !settings.isSwapOn))
+    if ((!isCurrentEligible || triggers.length > 0) && (!canPool || !settings.isSwapOn))
       return await this.stop(current, triggers)
     if (triggers.length > 0 && rows.length === 1) return await this.stop(current, triggers)
     const isSpread =
@@ -239,7 +248,7 @@ export class AccountPool {
       rows.length > 1 &&
       request.kind === 'worker' &&
       held === undefined
-    if (!isSpread && triggers.length === 0)
+    if (!isSpread && isCurrentEligible && triggers.length === 0)
       return {
         account: current,
         previousAccount: current.id,
@@ -271,7 +280,7 @@ export class AccountPool {
     const recoveries = [this.reset(triggers)]
     for (const account of candidates) {
       if (account.id === current.id && triggers.length > 0) continue
-      if (!this.deps.canUseModel(account, request)) continue
+      if (!isEligible(account) || !this.deps.canUseModel(account, request)) continue
       const coldCacheUsd =
         account.id === current.id ? parseUsd(0) : this.deps.coldCache(current, account, request)
       if (coldCacheUsd < parseUsd(0)) throw new Error(UI_TEXT.accounts.invalidAccount)
@@ -304,8 +313,8 @@ export class AccountPool {
     return await this.stop(current, allTriggers, undefined, recoveries)
   }
 
-  private async admit(request: AccountPoolRequest) {
-    const selected = await this.select(request)
+  private async admit(request: AccountPoolRequest, isEligible: (account: Account) => boolean) {
+    const selected = await this.select(request, isEligible)
     const claim = await this.deps.reserve(selected.account, selected.estimate, request)
     const check = () => {
       const account = this.rows().find((row) => row.id === selected.account.id)
@@ -313,6 +322,7 @@ export class AccountPool {
       if (
         account === undefined ||
         row === undefined ||
+        !isEligible(account) ||
         !this.deps.canUseModel(account, request) ||
         row.pooling === 'notOffered' ||
         !row.isCredentialHeld ||
@@ -348,6 +358,14 @@ export class AccountPool {
     }
   }
 
+  /** Offers consult the same full-group limits as admission, before reservation. */
+  public hasRoom(account: Account, request: AccountPoolRequest): boolean {
+    return (
+      this.deps.canUseModel(account, request) &&
+      this.triggers(account, request.estimate, this.deps.journal, request).length === 0
+    )
+  }
+
   /** Only admissions serialize. Requests already sent keep their client and liability. */
   public async run<T>(
     request: AccountPoolRequest,
@@ -358,15 +376,16 @@ export class AccountPool {
       /** Call synchronously immediately before EVERY send/retry, after credential lookup. */
       readonly beforeSend: () => void
     }) => Promise<{ readonly value: T; readonly actualUsd: Usd | null }>,
+    isEligible: (account: Account) => boolean = () => true,
   ): Promise<T> {
     request = Object.freeze({ ...request, estimate: Object.freeze({ ...request.estimate }) })
     const owner = this.owner(request)
-    if (this.active.has(owner)) throw new Error(UI_TEXT.accounts.invalidAccount)
+    if (this.active.has(owner)) throw new AccountPoolBusyError()
     this.active.add(owner)
     const previous = this.admission
     const operation = (async () => {
       await previous
-      return await this.admit(request)
+      return await this.admit(request, isEligible)
     })()
     this.admission = (async () => {
       try {

@@ -26021,6 +26021,20 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
 
+**FIXM108DX (2026-10-07):** verify the previously unrouted D/X reports in
+`M108-findings.md` against `9f608e58e` and fix every remaining finding.
+Receiver admission uses the existing provider pool owner, retaining its full
+group scan while restricting dispatch to local pins with advertised capacity.
+Triggers replace the live sticky route; removed sticky ids are discarded.
+Refusals retain typed reasons. Unknown profile removal has no side effects.
+Disable, expiry and Reset stop resources before persistence; restore reconciles
+durable revocations after failed state publication. Audit the initiating surface
+and release a stale launch's prepared slot. Use fake-only baseline regressions,
+default-timeout complete-file runs and byte-exact guard drills. Certify a fresh
+clone of committed work with three owning-suite repetitions and the brief's
+static/build gates; aggregate quality and live/paid calls remain prohibited by
+the shared lane rules and lead-owned. No caps, timeouts or guards are weakened.
+
 **M108W final continuation (2026-10-07):** retain the existing startup,
 deferred and help caps. Split browser account/developer/help English into a
 first-use chunk generated from canonical `en.ts`; startup validates the same

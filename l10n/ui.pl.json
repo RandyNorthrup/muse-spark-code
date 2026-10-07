@@ -2891,7 +2891,8 @@
     "usageUnavailable": "Brak aktualnych danych o użyciu.",
     "placementConflict": "Na urządzeniu {device} jest już konto dostawcy {provider}. Wybierz inne urządzenie lub wyłącz onePerDevicePerProvider.",
     "sendToDevice": "Wyślij do {device}",
-    "routeUnavailable": "Wybrane urządzenie nie ma dostępnego konta lub uprawnienia do przyjmowania pracy."
+    "routeUnavailable": "Wybrane urządzenie nie ma dostępnego konta lub uprawnienia do przyjmowania pracy.",
+    "missingDevice": "Wybrane urządzenie jest niedostępne."
   },
   "developer": {
     "title": "Opcje programisty",

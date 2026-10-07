@@ -40,7 +40,7 @@ export async function handleDeveloperRequest(
         return await owner.unlock(surface.kind)
       }
       case 'developer/setMultiple': {
-        return await owner.setMultiple(request.enabled)
+        return await owner.setMultiple(request.enabled, surface.kind)
       }
       case 'developer/addProfile': {
         return await owner.addProfile(request.provider, request.account)
@@ -67,7 +67,7 @@ export async function setDeveloperMachineSetting(
   isEnabled: boolean,
 ): Promise<DeveloperSnapshot> {
   if (isEnabled && !owner.snapshot().isUnlocked) await owner.unlock('palette')
-  return await owner.setMultiple(isEnabled)
+  return await owner.setMultiple(isEnabled, 'setting')
 }
 
 /** Metadata read after localization installation; W copies this into its

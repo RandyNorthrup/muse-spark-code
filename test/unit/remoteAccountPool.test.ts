@@ -131,6 +131,64 @@ describe('M108 D account placement', () => {
 })
 
 describe('M108 D routing by the pinned device', () => {
+  it('moves away from the live sticky account on every threshold', async () => {
+    const rig = remoteDeviceRig()
+    expect(await rig.run({ trigger: vendorLimit })).toBe('device-1')
+    expect(await rig.run({ trigger: vendorLimit })).toBe('device-2')
+    expect(await rig.run({ trigger: vendorLimit })).toBe('device-1')
+  })
+
+  it('discards a deleted sticky account and continues routing', async () => {
+    const rig = remoteDeviceRig()
+    await rig.run({ trigger: vendorLimit })
+    rig.accounts.rows.splice(1, 1)
+    rig.state.placement.rows.splice(1, 1)
+    expect(await rig.run()).toBe('device-0')
+  })
+
+  it('keeps the selected route valid on retries after adopting its sticky account', async () => {
+    const rig = remoteDeviceRig()
+    await rig.run({ trigger: vendorLimit })
+    expect(
+      await rig.pool.run(routeRequest({ trigger: vendorLimit }), (route) => {
+        route.beforeSend()
+        route.beforeSend()
+        return Promise.resolve(route.device)
+      }),
+    ).toBe('device-2')
+  })
+
+  it('reports a busy owner and a missing device with distinct typed reasons', async () => {
+    const rig = remoteDeviceRig()
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const first = rig.pool.run(routeRequest(), async (route) => {
+      entered.resolve(undefined)
+      await release.promise
+      route.beforeSend()
+      return route.device
+    })
+    await entered.promise
+    await expect(rig.run()).rejects.toMatchObject({ code: 'busyOwner' })
+    release.resolve(undefined)
+    await first
+    await expect(rig.run({ destination: 'missing' })).rejects.toMatchObject({
+      code: 'missingDevice',
+    })
+  })
+
+  it('reports a device lost during credential lookup as missing before dispatch', async () => {
+    const rig = remoteDeviceRig()
+    await expect(
+      rig.pool.run(routeRequest(), (route) => {
+        rig.state.remote.offers.shift()
+        route.beforeSend()
+        return Promise.resolve(route.device)
+      }),
+    ).rejects.toMatchObject({ code: 'missingDevice' })
+    expect(rig.claims[0]?.finish).toHaveBeenCalledWith('notSent')
+  })
+
   it('keeps a conversation on its pinned account, swaps by provider headroom, and sticks', async () => {
     const rig = remoteDeviceRig()
     expect(await rig.run()).toBe('device-0')

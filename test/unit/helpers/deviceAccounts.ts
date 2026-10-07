@@ -106,7 +106,7 @@ export function receiverRig(provider = 'meta', product = 'model-api') {
   const accounts = poolRig(provider, product)
   const here = new Set(['a', 'b'])
   const headroom = new Map([
-    ['a', 'some'],
+    ['a', 'ample'],
     ['b', 'ample'],
     ['c', 'none'],
   ])
@@ -115,7 +115,8 @@ export function receiverRig(provider = 'meta', product = 'model-api') {
   const placement = { generation: 0 }
   const deps: { -readonly [K in keyof DeviceAccountReceiverDeps]: DeviceAccountReceiverDeps[K] } = {
     providers: () => [provider],
-    pool: (id) => (id === provider ? accounts.deps : undefined),
+    pool: (id) => (id === provider ? accounts.pool : undefined),
+    offerRequest: () => poolRequest(),
     isPinnedHere: (_provider, account) => here.has(account),
     placementFence: () => {
       const generation = placement.generation

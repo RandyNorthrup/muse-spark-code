@@ -1,5 +1,5 @@
 import { developerProfileSchema, type DeveloperProfile } from '../../shared/developerOptions'
-import { UI_TEXT } from '../../shared/constants'
+import { DeveloperOptionsError } from './developerOptions'
 
 export interface DeveloperProfileResources {
   start(profile: DeveloperProfile, isCurrent: () => boolean): Promise<void>
@@ -57,30 +57,31 @@ export class LocalDeveloperProfiles implements DeveloperProfileResources {
   public constructor(private readonly ports: LocalProfilePorts) {}
 
   public async start(value: DeveloperProfile, isCurrent: () => boolean): Promise<void> {
-    if (!isCurrent()) throw new Error(UI_TEXT.developer.locked)
+    if (!isCurrent()) throw new DeveloperOptionsError('locked')
     const profile = developerProfileSchema.parse(value)
     const active = this.running.get(profile.id)
     if (active?.withdraw !== undefined && active.admit()) return
     if (active !== undefined) await this.stop(profile)
     const credentialSlot = slot(profile)
     await this.ports.credentials.prepare(credentialSlot, profile)
-    if (!isCurrent()) throw new Error(UI_TEXT.developer.locked)
-    const stateFolder = await this.ports.folders.prepare(profile.id)
-    if (!isCurrent()) throw new Error(UI_TEXT.developer.locked)
-    const deviceId = `local-${profile.id}`
-    const process = await this.ports.runtime.start({
-      deviceId,
-      stateFolder,
-      credentialSlot,
-      profile,
-    })
-    this.running.set(profile.id, { process, withdraw: undefined, admit: isCurrent })
     try {
-      if (!isCurrent()) throw new Error(UI_TEXT.developer.locked)
+      if (!isCurrent()) throw new DeveloperOptionsError('locked')
+      const stateFolder = await this.ports.folders.prepare(profile.id)
+      if (!isCurrent()) throw new DeveloperOptionsError('locked')
+      const deviceId = `local-${profile.id}`
+      const process = await this.ports.runtime.start({
+        deviceId,
+        stateFolder,
+        credentialSlot,
+        profile,
+      })
+      this.running.set(profile.id, { process, withdraw: undefined, admit: isCurrent })
+      if (!isCurrent()) throw new DeveloperOptionsError('locked')
       const withdraw = this.ports.pool.register({ id: deviceId, profile, admit: isCurrent })
       this.running.set(profile.id, { process, withdraw, admit: isCurrent })
     } catch (error) {
       await this.stop(profile)
+      await this.ports.credentials.remove(credentialSlot)
       throw error
     }
   }

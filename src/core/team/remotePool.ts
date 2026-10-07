@@ -178,6 +178,18 @@ function headroomRank(value: z.infer<typeof accountHeadroomSchema> | undefined):
   return value === undefined ? 0 : HEADROOM_RANK[value]
 }
 
+export class AccountRouteError extends Error {
+  public constructor(public readonly code: 'busyOwner' | 'missingDevice' | 'routeUnavailable') {
+    const messages = {
+      busyOwner: UI_TEXT.acpPromptBusy,
+      missingDevice: UI_TEXT.accounts.missingDevice,
+      routeUnavailable: UI_TEXT.accounts.routeUnavailable,
+    }
+    super(messages[code])
+    this.name = 'AccountRouteError'
+  }
+}
+
 export class RemoteAccountPool {
   private readonly sticky = new Map<string, string>()
   private readonly active = new Set<string>()
@@ -192,12 +204,20 @@ export class RemoteAccountPool {
     return JSON.stringify([request.provider, request.kind, request.owner])
   }
 
-  private routes(request: AccountRouteRequest, rows: readonly AccountPlacement[]) {
+  private routes(
+    request: AccountRouteRequest,
+    rows: readonly AccountPlacement[],
+    liveAccount?: string,
+  ) {
     const offers = this.offers()
     const accounts = this.deps.accounts(request.provider).toSorted((a, b) => a.order - b.order)
-    const current = this.sticky.get(this.owner(request)) ?? request.account
-    const start = accounts.findIndex((account) => account.id === current)
-    if (start === -1) throw new Error(UI_TEXT.accounts.invalidAccount)
+    const owner = this.owner(request)
+    const sticky = this.sticky.get(owner)
+    if (sticky !== undefined && accounts.every((account) => account.id !== sticky))
+      this.sticky.delete(owner)
+    const current = liveAccount ?? this.sticky.get(owner) ?? request.account
+    const index = accounts.findIndex((account) => account.id === current)
+    const start = index === -1 ? 0 : index
     const ordered = [...accounts.slice(start), ...accounts.slice(0, start)]
     return ordered
       .flatMap((account) => {
@@ -212,7 +232,7 @@ export class RemoteAccountPool {
         if (
           request.destination === undefined &&
           request.trigger !== undefined &&
-          account.id === request.account
+          account.id === current
         )
           return []
         const rank = headroomRank(
@@ -224,7 +244,10 @@ export class RemoteAccountPool {
       })
       .toSorted((a, b) => {
         // A conversation/held worker keeps its account while its device has room.
-        if (request.kind === 'conversation' || this.sticky.has(this.owner(request))) {
+        if (
+          request.trigger === undefined &&
+          (request.kind === 'conversation' || this.sticky.has(owner))
+        ) {
           if (a.placement.account === current) return -1
           if (b.placement.account === current) return 1
         }
@@ -244,17 +267,27 @@ export class RemoteAccountPool {
     const request = Object.freeze(routeRequestSchema.parse(raw))
     if (request.trigger !== undefined) Object.freeze(request.trigger)
     const owner = this.owner(request)
-    if (this.active.has(owner)) throw new Error(UI_TEXT.accounts.routeUnavailable)
+    if (this.active.has(owner)) throw new AccountRouteError('busyOwner')
     this.active.add(owner)
     const previous = this.admissions
     const operation = (async () => {
       await previous
       const snapshot = await this.deps.placements.snapshot()
+      if (
+        request.destination !== undefined &&
+        this.offers().every((offer) => offer.device !== request.destination)
+      )
+        throw new AccountRouteError('missingDevice')
       const route = this.routes(request, snapshot.rows)[0]
-      if (route === undefined) throw new Error(UI_TEXT.accounts.routeUnavailable)
+      if (route === undefined) throw new AccountRouteError('routeUnavailable')
       const claim = await this.deps.admit(route.placement.device, request)
-      if (claim === undefined) throw new Error(UI_TEXT.accounts.routeUnavailable)
-      return { snapshot, placement: route.placement, claim }
+      if (claim === undefined) throw new AccountRouteError('routeUnavailable')
+      return {
+        snapshot,
+        placement: route.placement,
+        claim,
+        current: this.sticky.get(owner) ?? request.account,
+      }
     })()
     this.admissions = (async () => {
       try {
@@ -264,7 +297,7 @@ export class RemoteAccountPool {
       }
     })()
     try {
-      const { snapshot, placement, claim } = await operation
+      const { snapshot, placement, claim, current } = await operation
       let outcome: 'notSent' | 'returned' | 'uncertain' = 'notSent'
       const hasSent = () => outcome !== 'notSent'
       try {
@@ -281,8 +314,10 @@ export class RemoteAccountPool {
           request: fragment,
           beforeSend: () => {
             snapshot.check()
+            if (this.offers().every((offer) => offer.device !== placement.device))
+              throw new AccountRouteError('missingDevice')
             if (
-              this.routes(request, snapshot.rows).every(
+              this.routes(request, snapshot.rows, current).every(
                 (row) =>
                   !(
                     row.placement.account === placement.account &&
@@ -290,13 +325,13 @@ export class RemoteAccountPool {
                   ),
               )
             )
-              throw new Error(UI_TEXT.accounts.routeUnavailable)
+              throw new AccountRouteError('routeUnavailable')
             claim.check()
             this.sticky.set(owner, placement.account)
             outcome = 'uncertain'
           },
         })
-        if (!hasSent()) throw new Error(UI_TEXT.accounts.routeUnavailable)
+        if (!hasSent()) throw new AccountRouteError('routeUnavailable')
         outcome = 'returned'
         return result
       } finally {
