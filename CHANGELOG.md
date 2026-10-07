@@ -7,6 +7,8 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Windows remote runners start PowerShell without a visible window and publish
+  their native job exit marker reliably.
 - Provider-specific retry-table binding remains pending for non-Meta transports;
   per-format classifier data is implemented, but does not certify endpoint quota refusal.
 

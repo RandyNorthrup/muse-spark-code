@@ -35,24 +35,6 @@ describe('snapshot-bound landing and recovery', () => {
     REAL_LANDING_TIMEOUT_MS,
   )
 
-  it('checks holders immediately before deleting a matching file', async () => {
-    const fixture = await teamLandingFixture(repo)
-    const before = await fixture.access.read('a.txt')
-    const lock = await fixture.deps.takeLock(repo.root, 'deletion')
-    if (lock === null) throw new Error('expected lock')
-    const writeGuard = vi.fn(async () => {
-      await repo.write('.git/CHERRY_PICK_HEAD', 'operation')
-      return (await fixture.deps.knownHolder(repo.root, lock)) === undefined
-    })
-    try {
-      expect(await fixture.access.replace('a.txt', before, null, writeGuard)).toBe(false)
-      expect(writeGuard).toHaveBeenCalledOnce()
-      expect(await readFile(path.join(repo.root, 'a.txt'), 'utf8')).toBe('base-a\n')
-    } finally {
-      await lock.release()
-    }
-  })
-
   it.each(['rebase-merge', 'rebase-apply', 'MERGE_HEAD', 'CHERRY_PICK_HEAD'])(
     'defers an operation appearing during lock acquisition: %s',
     async (operation) => {
@@ -191,22 +173,6 @@ describe('snapshot-bound landing and recovery', () => {
     REAL_LANDING_TIMEOUT_MS,
   )
 
-  it('invalidates untouched dependency changes and changed check identities before writing', async () => {
-    const fixture = await teamLandingFixture(repo)
-    await repo.write('b.txt', 'changed dependency\n')
-    expect(await fixture.landing.land(repo.root, fixture.admission)).toMatchObject({
-      status: 'stale',
-    })
-    await repo.write('b.txt', 'base-b\n')
-    const landing = new TeamLanding({
-      ...fixture.deps,
-      checkIdentity: () => Promise.resolve('checks-two'),
-    })
-    expect(await landing.land(repo.root, fixture.admission)).toMatchObject({ status: 'stale' })
-    expect(await readFile(path.join(repo.root, 'a.txt'), 'utf8')).toBe('base-a\n')
-    expect(fixture.deps.invalidate).toHaveBeenCalledTimes(2)
-  })
-
   it(
     'lands and undoes raw binary additions and deletions with executable modes',
     async () => {
@@ -240,29 +206,6 @@ describe('snapshot-bound landing and recovery', () => {
     REAL_LANDING_TIMEOUT_MS,
   )
 
-  it('excludes overlapping in-process landings and makes real git add meet the lock', async () => {
-    const fixture = await teamLandingFixture(repo)
-    const entered = Promise.withResolvers<undefined>()
-    const resume = Promise.withResolvers<undefined>()
-    const landing = new TeamLanding({
-      ...fixture.deps,
-      replace: async (_root, file, canWrite) => {
-        entered.resolve(undefined)
-        await resume.promise
-        return await fixture.access.replace(file.path, file.before, file.after, canWrite)
-      },
-    })
-    const first = landing.land(repo.root, fixture.admission)
-    await entered.promise
-    try {
-      expect(await landing.land(repo.root, fixture.admission)).toMatchObject({ status: 'busy' })
-      await expect(repo.git(['add', 'a.txt'])).rejects.toThrow('index.lock')
-    } finally {
-      resume.resolve(undefined)
-    }
-    expect(await first).toMatchObject({ status: 'landed' })
-  })
-
   it(
     'defers a known holder to a landing branch and Apply rebuilds from a fresh snapshot',
     async () => {
@@ -290,20 +233,6 @@ describe('snapshot-bound landing and recovery', () => {
     },
     REAL_LANDING_TIMEOUT_MS,
   )
-
-  it('asks separately for Land without checks in every mode', async () => {
-    const fixture = await teamLandingFixture(repo)
-    expect(await fixture.landing.land(repo.root, fixture.admission, true)).toMatchObject({
-      status: 'denied',
-    })
-    expect(fixture.deps.confirmWithoutChecks).toHaveBeenCalledOnce()
-    const consent = vi.fn().mockResolvedValue(true)
-    const landing = new TeamLanding({ ...fixture.deps, confirmWithoutChecks: consent })
-    expect(await landing.land(repo.root, fixture.admission, true)).toMatchObject({
-      status: 'landed',
-    })
-    expect(consent).toHaveBeenCalledOnce()
-  })
 
   it(
     'refuses a per-file byte change immediately before replacement and leaves the user edit',
@@ -548,5 +477,78 @@ describe('snapshot-bound landing and recovery', () => {
         { ...hint, workingTree: fixture.copy },
       ]),
     ).toBeUndefined()
+  })
+  describe('with prepared real staging', () => {
+    let fixture: Awaited<ReturnType<typeof teamLandingFixture>>
+    beforeEach(async () => {
+      fixture = await teamLandingFixture(repo)
+    })
+
+    it('checks holders immediately before deleting a matching file', async () => {
+      const before = await fixture.access.read('a.txt')
+      const lock = await fixture.deps.takeLock(repo.root, 'deletion')
+      if (lock === null) throw new Error('expected lock')
+      const writeGuard = vi.fn(async () => {
+        await repo.write('.git/CHERRY_PICK_HEAD', 'operation')
+        return (await fixture.deps.knownHolder(repo.root, lock)) === undefined
+      })
+      try {
+        expect(await fixture.access.replace('a.txt', before, null, writeGuard)).toBe(false)
+        expect(writeGuard).toHaveBeenCalledOnce()
+        expect(await readFile(path.join(repo.root, 'a.txt'), 'utf8')).toBe('base-a\n')
+      } finally {
+        await lock.release()
+      }
+    })
+
+    it('invalidates untouched dependency changes and changed check identities before writing', async () => {
+      await repo.write('b.txt', 'changed dependency\n')
+      expect(await fixture.landing.land(repo.root, fixture.admission)).toMatchObject({
+        status: 'stale',
+      })
+      await repo.write('b.txt', 'base-b\n')
+      const landing = new TeamLanding({
+        ...fixture.deps,
+        checkIdentity: () => Promise.resolve('checks-two'),
+      })
+      expect(await landing.land(repo.root, fixture.admission)).toMatchObject({ status: 'stale' })
+      expect(await readFile(path.join(repo.root, 'a.txt'), 'utf8')).toBe('base-a\n')
+      expect(fixture.deps.invalidate).toHaveBeenCalledTimes(2)
+    })
+
+    it('excludes overlapping in-process landings and makes real git add meet the lock', async () => {
+      const entered = Promise.withResolvers<undefined>()
+      const resume = Promise.withResolvers<undefined>()
+      const landing = new TeamLanding({
+        ...fixture.deps,
+        replace: async (_root, file, canWrite) => {
+          entered.resolve(undefined)
+          await resume.promise
+          return await fixture.access.replace(file.path, file.before, file.after, canWrite)
+        },
+      })
+      const first = landing.land(repo.root, fixture.admission)
+      await entered.promise
+      try {
+        expect(await landing.land(repo.root, fixture.admission)).toMatchObject({ status: 'busy' })
+        await expect(repo.git(['add', 'a.txt'])).rejects.toThrow('index.lock')
+      } finally {
+        resume.resolve(undefined)
+      }
+      expect(await first).toMatchObject({ status: 'landed' })
+    })
+
+    it('asks separately for Land without checks in every mode', async () => {
+      expect(await fixture.landing.land(repo.root, fixture.admission, true)).toMatchObject({
+        status: 'denied',
+      })
+      expect(fixture.deps.confirmWithoutChecks).toHaveBeenCalledOnce()
+      const consent = vi.fn().mockResolvedValue(true)
+      const landing = new TeamLanding({ ...fixture.deps, confirmWithoutChecks: consent })
+      expect(await landing.land(repo.root, fixture.admission, true)).toMatchObject({
+        status: 'landed',
+      })
+      expect(consent).toHaveBeenCalledOnce()
+    })
   })
 })

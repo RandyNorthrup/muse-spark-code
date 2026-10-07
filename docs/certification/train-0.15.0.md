@@ -1425,3 +1425,36 @@ finished after the rig time box; no bypass or subsequent source fix was made.
 HEAD remains `c15b7eeaeabc20f64cd39c910e39c507492db930`, with the resolved
 main-0170 merge and release changes explicitly staged. The lead must fix this
 lint error, rerun the pending gates and complete the hook-enabled merge commit.
+
+## TRAIN15E final continuation — Windows root repairs
+
+The new 90-minute brief explicitly reopens the nine held assertions. Merge
+commit `95231901919ed3494dc50d2fac2087938be08399` retains both parents and
+completes the normal lint-staged and Gitleaks hooks. The harness inventory now
+lives on its existing fixture object, without a lint disable; its complete
+production browser file passes all 22 tests.
+
+The native runner used DETACHED_PROCESS, under which Windows PowerShell exits
+before its script and publishes no output or marker. CREATE_NO_WINDOW starts
+the same hidden process successfully while retaining breakaway, the explicit
+inherited-handle list, closed stdin and native job retirement (PLAN D75).
+Fake SSH's Unix metric functions were local to its outer Bash; exporting them
+makes the real helper's health JSON valid. That first health assertion had
+prevented the initial cache run, causing the two later setup-count failures.
+The marker poll also uses the discovered installed Bash on Windows.
+
+The four ordinary landing cases now share real staging preparation through an
+inner beforeEach. Their bodies retain every holder, stale-dependency, lock,
+Git-add and separate-consent assertion at the unchanged default five seconds.
+All three complete owning files pass **52 tests / zero failures / zero skips**
+with no --testTimeout. No cap, timeout, assertion or skip is changed.
+
+The native regression drill restores DETACHED_PROCESS and the closed-stdin
+self-test fails (exit 1, inputReady false); restoring the exact source passes
+(exit 0, inputReady true). SHA-256 before and after is
+`3c03192aa84cd3b8c09409d3586b763b758aae05061ef2331b61c2b9ce47878e`.
+Its machine-readable record is in `train-0.15.0-final-drills.json`.
+An initial scratch verifier incorrectly piped Console.WriteLine into a
+PowerShell pipeline; the corrected verifier parses the child's actual stdout.
+The initial verifier is not counted as guard-fire evidence. Full sweep and
+remaining gate/package receipts follow after completion.

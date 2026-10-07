@@ -88,7 +88,9 @@ public static class MuseRunnerJob {
         StartupEx extended=new StartupEx(); extended.startup=start;
         extended.startup.cb=(uint)Marshal.SizeOf(extended); extended.attributes=attributes;
         // If OpenSSH forbids breakaway, fail; the user's scheduled-task wrapper is required.
-        if(!CreateProcessEx(application,new StringBuilder(command),IntPtr.Zero,IntPtr.Zero,true,0x01000000|0x8|0x200|0x4000|0x80000,IntPtr.Zero,null,ref extended,out child)) throw new System.ComponentModel.Win32Exception();
+        // PowerShell needs a console-compatible process even with redirected handles.
+        // CREATE_NO_WINDOW keeps it hidden; DETACHED_PROCESS exits before the script runs.
+        if(!CreateProcessEx(application,new StringBuilder(command),IntPtr.Zero,IntPtr.Zero,true,0x01000000|0x08000000|0x200|0x4000|0x80000,IntPtr.Zero,null,ref extended,out child)) throw new System.ComponentModel.Win32Exception();
       } finally {
         if(attributesReady) DeleteProcThreadAttributeList(attributes);
         if(attributes!=IntPtr.Zero) Marshal.FreeHGlobal(attributes); if(handles!=IntPtr.Zero) Marshal.FreeHGlobal(handles);

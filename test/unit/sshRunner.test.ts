@@ -115,7 +115,7 @@ if(command.includes("'status'") && command.includes("'drop-run'")) process.exit(
 const remoteEnv=Object.fromEntries(Object.entries(process.env).filter(([name])=>name.toLowerCase()!=='path'));
 remoteEnv.PATH=${JSON.stringify(shellPath)}+(process.env.PATH??process.env.Path??'');
 // Git Bash lacks Unix host metrics; this fake remote supplies only those probes.
-const metrics=${JSON.stringify(process.platform === 'win32' ? String.raw`getconf() { printf '4\n'; }; uptime() { printf 'load average: 0.00, 0.00, 0.00\n'; }; ` : '')};
+const metrics=${JSON.stringify(process.platform === 'win32' ? String.raw`getconf() { printf '4\n'; }; uptime() { printf 'load average: 0.00, 0.00, 0.00\n'; }; export -f getconf uptime; ` : '')};
 const child=spawn(${JSON.stringify(bash)},['-c',metrics+command],{stdio:'inherit',env:{...remoteEnv,VENDOR_API_KEY:'remote-fixture-only',GH_TOKEN:'remote-fixture-only',mIxEd_ApI_kEy:'remote-fixture-only',gH_tOkEn:'remote-fixture-only'}});
 child.on('exit',code=>process.exit(code??1));
 `,
@@ -364,9 +364,13 @@ describe('SSH runner over a fake transport and local repositories', () => {
       const file = await helper(runner)
       let marker = ''
       for (let index = 0; index < 30; index += 1) {
-        const answer = await execute('/bin/bash', [file, 'status', runner.workFolder, 'drop-run'], {
-          encoding: 'utf8',
-        })
+        const answer = await execute(
+          findBash() ?? '/bin/bash',
+          [file, 'status', runner.workFolder, 'drop-run'],
+          {
+            encoding: 'utf8',
+          },
+        )
         marker = answer.stdout
         if (marker.includes('ended')) break
         await delay(100)
@@ -820,7 +824,7 @@ describe('SSH runner over a fake transport and local repositories', () => {
     expect(text).toContain(
       "if ($line.Length -ge 32767) { Write-Protocol @{runId=$RunId;state='refused';reason='commandTooLong'}; break }",
     )
-    expect(text).toContain('0x01000000|0x8|0x200|0x4000')
+    expect(text).toContain('0x01000000|0x08000000|0x200|0x4000')
     expect(text).toContain('start.input=Inherit(input)')
     expect(text).toContain('UpdateProcThreadAttribute(attributes,0,new IntPtr(0x20002),handles')
     expect(text).toContain('|0x80000')

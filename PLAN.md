@@ -44629,6 +44629,23 @@ quality remain with the lead. This lane records each requested gate separately
 in docs/certification/train-0.15.0.md and its release receipt, without claiming
 aggregate quality or new model-service certification. No gate is weakened.
 
+**TRAIN15E final continuation (2026-10-06, win11; before repair).** The new
+90-minute brief resumes the staged release and explicitly reopens the nine
+Windows failures. First restructure the harness inventory as fixture state
+and commit the authorized merge with hooks. Preserve D75's closed stdin,
+remote slot and native retirement contract: the real PowerShell self-test
+fails with DETACHED_PROCESS and succeeds with CREATE_NO_WINDOW, retaining
+breakaway and the exact inherited-handle list. Export the fake SSH host's
+metric functions into its helper shell and use its discovered Bash for marker
+polling. Prepare the four ordinary landing cases' real Git staging in a
+shared beforeEach rather than spending their unchanged five-second body
+deadline on setup. Keep every assertion, timeout, cap and existing skip.
+Run all test files in batches of at most three at the repository defaults;
+finish lint, inventories, knip, duplication, cycles and both actual packages.
+Reuse the 952-page accessibility receipt if browser sources remain unchanged.
+Record root causes, red/restored drills, final totals and package bytes in the
+train certification; no push or model call.
+
 **TRAIN15E hook hold (2026-10-06, win11).** The required commit hook rejects
 `teamHarness.test.mjs:23` for `unicorn/no-top-level-assignment-in-function`.
 Lint-staged restores and cleans its automatic backup. The rig time limit has
