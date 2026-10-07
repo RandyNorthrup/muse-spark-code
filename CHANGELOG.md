@@ -16,6 +16,19 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- M109 lane W's wiring: the `Vault` and `Lock vault now` commands
+  (`museSpark.vault`, `museSpark.lockVault`, Ctrl+Alt+Shift+L), the five
+  machine-scoped vault settings, and the lazy `dist/vault.js` bundle (50 KiB
+  budget) carrying the panel host and the native editor on the first vault
+  command. Until the broker-backed service lands, both commands report the
+  missing broker installation and refuse access instead of opening an empty
+  vault. The Secure Enclave hardware and presence slots are offered where
+  `SecureEnclave.isAvailable` after the owner's Touch ID capture; the
+  Keychain-biometry path stays off until an Apple Developer entitlement
+  exists. Bundle budgets follow the measured rule: `dist/reference.js`
+  100 to 125 KiB with the vault rows, `dist/acp.js` 850 to 1000 KiB with
+  lane H's vault handlers, new `dist/vault.js` at 50 KiB.
+
 - M109's Windows vault platform adapter and native helper: current-user DPAPI,
   non-exportable PCP RSA wrapping with OAEP-SHA-256, forced-protection keys
   with a fresh Windows Hello signature gate, capability facts and a

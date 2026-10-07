@@ -1220,6 +1220,14 @@ Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model
 
 Commands: `museSpark.showLogs`, `museSpark.diagnostics`, `museSpark.reportProblem`, `museSpark.openWalkthrough`, `museSpark.showWhatsNew`, `museSpark.openHelp`. Settings: `museSpark.showWhatsNewOnUpdate`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#help-and-reference)
 
+### Vault
+
+Open the per-user credential vault. Values never print; the broker holds them.
+
+Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: `museSpark.vault`, `museSpark.lockVault`. Settings: `museSpark.vault`, `museSpark.vault.protection`, `museSpark.vault.agentFence`, `museSpark.vault.lockAfterIdleMinutes`, `museSpark.vault.lockOnScreenLock`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-vault)
+
 ## Slash commands
 
 Availability depends on the backend. Installed skills also add their own slash commands.
@@ -1462,6 +1470,14 @@ Available when: `workspaceFolderCount > 0`.
 ### Muse Spark: Previous open question
 
 `museSpark.previousOpenQuestion` — Previous open question
+
+### Muse Spark: Vault
+
+`museSpark.vault` — Open the per-user credential vault. Values never print; the broker holds them.
+
+### Muse Spark: Lock vault now
+
+`museSpark.lockVault` — Lock the per-user credential vault now, ending every use in every window.
 
 ## Settings
 
@@ -2508,6 +2524,78 @@ Type: `"string"`. Default: `"auto"`. Scope: `machine`.
 - `"same"`: Only your own chat model judges; it never switches models.
 - `"off"`: No judge: approvals behave exactly as without one.
 
+### museSpark.vault
+
+Enable the per-user credential vault shared by editors.
+
+Type: `"boolean"`. Default: `true`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": true
+}
+```
+
+### museSpark.vault.protection
+
+Choose vault key protection. Automatic uses available hardware plus the operating system store.
+
+Type: `"string"`. Default: `"auto"`. Scope: `machine`.
+
+```json
+{
+  "type": "string",
+  "enum": ["auto", "osStore", "hardware", "passphrase"],
+  "default": "auto"
+}
+```
+
+- `"auto"`: Automatic protection
+- `"osStore"`: OS credential store
+- `"hardware"`: Hardware protection
+- `"passphrase"`: Passphrase protection
+
+### museSpark.vault.agentFence
+
+agentFence: Fence agent processes from ambient credential routes. Workers remain fenced when this is off.
+
+Type: `"boolean"`. Default: `true`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": true
+}
+```
+
+### museSpark.vault.lockAfterIdleMinutes
+
+Lock the vault after this many idle minutes.
+
+Type: `"integer"`. Default: `240`. Scope: `machine`.
+
+```json
+{
+  "type": "integer",
+  "minimum": 0,
+  "default": 240
+}
+```
+
+### museSpark.vault.lockOnScreenLock
+
+screenLock: Lock the vault when the operating system reports a screen lock.
+
+Type: `"boolean"`. Default: `true`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": true
+}
+```
+
 ### museSpark.shell.passEnvironmentVariables
 
 backend=modelApi&shellOrigin=interactive: Names of environment variables to pass to interactive top-level shell commands, including credential variables normally withheld. Names only, never values. Default: none. A command can expose these values in the conversation and to the model provider. Verification/then_run, schedules, child/team workers and hooks never receive credential variables, even when named here. An interactive command moved to the background retains its starting environment. Does not change Muse Code or explicitly configured MCP server environments.
@@ -2554,6 +2642,7 @@ These are defaults; editor customizations take precedence.
 - `editor.action.inlineSuggest.trigger`: `alt+\`; when `editorTextFocus && museSpark.tabOn`
 - `museSpark.nextOpenQuestion`: `ctrl+alt+j` (macOS: `cmd+alt+j`); when `activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'`
 - `museSpark.previousOpenQuestion`: `ctrl+alt+shift+j` (macOS: `cmd+alt+shift+j`); when `activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'`
+- `museSpark.lockVault`: `ctrl+alt+shift+l` (macOS: `cmd+alt+shift+l`)
 - `composer.send`: `Enter / Ctrl+Enter / Cmd+Enter`; when `Enter: useCtrlEnterToSend=false; Ctrl/Cmd+Enter: useCtrlEnterToSend=true`; Send the draft using the gesture selected by useCtrlEnterToSend.
 - `composer.newline`: `Shift+Enter`; when `composer.newline`; Insert a new line in the draft.
 - `composer.dictation`: `Ctrl+D / Cmd+D`; when `composer.dictation`; records your voice into the composer (tap to toggle, hold to talk)

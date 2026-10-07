@@ -4006,7 +4006,34 @@ See the [ACP guide](docs/acp.md), the [CI guide](docs/ci.md) and the
 [M80 record](docs/certification/m80.md) for tests, deliberate breaks, platform
 results and what is still open.
 
-## The vault (M109 H integration)
+## The vault
+
+One encrypted vault per user holds API keys, OAuth tokens, SSH keys, sudo and
+other passwords, website logins with their TOTP seeds, session cookies and any
+named secret. Agents get handles and approved, scoped, logged uses, never
+values. Every approval names the exact use and binds to it. One click locks
+everything. It works the same in every editor; see
+[the M109 record](docs/certification/m109.md) for the lanes, the captures and
+what is still open.
+
+The `Vault` command (`museSpark.vault`) opens the vault panel and `Lock vault
+now` (`museSpark.lockVault`, Ctrl+Alt+Shift+L / Cmd+Alt+Shift+L) ends every
+use in every window. The panel host and the native editor ship in
+`dist/vault.js`, loaded on the first vault command; activation reads no vault
+and starts no broker. Until the broker-backed service lands
+([the M109 record](docs/certification/m109.md)), both commands report that the
+broker installation is missing and refuse access instead of opening an empty
+vault. No value is ever logged, and no handle is substituted into a command,
+a file or the model's text.
+
+Settings (all machine-scoped, so no workspace can change them):
+`museSpark.vault` (on), `museSpark.vault.protection` (`auto` is available
+hardware plus the OS store, with the recovery code offered at setup),
+`museSpark.vault.agentFence` (on), `museSpark.vault.lockAfterIdleMinutes`
+(240) and `museSpark.vault.lockOnScreenLock` (on). The Secure Enclave
+hardware and presence slots are offered where `SecureEnclave.isAvailable`,
+after the owner's Touch ID capture; the Keychain-biometry path stays off
+until an Apple Developer entitlement exists.
 
 The terminal/ACP/headless handlers are implemented against the shared vault
 contracts. This branch still needs the installed broker factory and panel

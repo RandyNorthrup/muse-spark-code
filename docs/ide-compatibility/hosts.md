@@ -106,6 +106,22 @@ Scheduled/unattended prompts defer immediately and keep the question open,
 including with interactive deferral disabled; headless exec, best-of-N,
 worktrees and the evaluation retain their distinct immediate policies.
 
+## M109 vault routes — integration status
+
+2026-10-07: lane W wires the commands, settings, bundles and budgets; every
+surface below refuses closed until the broker-backed service lands (the open
+handoffs are in [M109's record](../certification/m109.md)). No surface prints
+a value, substitutes a handle, or opens an empty vault.
+
+| Surface                                                                                                         | Vault path                                                                              | Lock and refusal                                                                                              | Binding / evidence                                                                                     |
+| --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| VS Code family, Remote SSH, WSL, containers, Codespaces                                                         | `Vault` command opens the panel; `Lock vault now` (Ctrl+Alt+Shift+L) locks it           | Locks every use in every window; both commands report the missing broker installation until W's service lands | W's lazy `dist/vault.js`, settings and manifest; refuse-closed unit tests; installed-host checks: lead |
+| ACP with forms: Zed, Xcode 27, JetBrains AI Assistant, Qt Creator, Neovim, Emacs, Sublime and other ACP clients | `/vault` slash command; vault permission mapping through the editor's permission prompt | Lock ends every use; permission answers bind to the exact requested use                                       | H's ACP vault plus permission mapping; fake-CLI checks; installed-client checks remain open            |
+| ACP without forms, including clients that only show text                                                        | `/vault` over text                                                                      | Same lock and refusal as above                                                                                | H's text path; installed-client checks remain open                                                     |
+| Headless exec                                                                                                   | `--vault` refuses before unaffordable dispatch; values never reach the transcript       | Lock drains in-flight uses, then denies; uncertain tally settles against the budget                           | H's exec vault; fake-only checks; live receipts remain open (M80 lanes stay supported-only)            |
+| Terminal (`muse-spark-code-acp vault`)                                                                          | Reads, writes and SSH through the runtime vault command                                 | Same refusal when the broker is missing                                                                       | H's vault command against the generated reference; live run: lead                                      |
+| Models & Agents panel, native bridges, TUI, Muse Desktop                                                        | The panel binds on integration                                                          | Same lock everywhere once bound                                                                               | M95's panel, M104's bridge, M110/M111 surfaces; waiting for their integration                          |
+
 ## Native and scientific
 
 | Editor                    | Route                               | Milestone | Status  |
