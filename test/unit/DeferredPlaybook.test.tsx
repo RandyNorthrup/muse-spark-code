@@ -1,13 +1,12 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
-import { retrySurface } from '../../src/webview/surfaceRetry'
-import { ErrorBoundary } from '../../src/webview/components/ErrorBoundary'
 import {
   DeferredPlaybookNotes,
   DeferredPlaybookPanel,
 } from '../../src/webview/playbook/DeferredPlaybook'
+import { expectLocalChunkFailure } from './helpers/chunkFailure'
 import { surfacePort } from './playbookSurfaceFixtures'
 
 vi.mock('../../src/webview/surfaceRetry', () => ({ retrySurface: vi.fn() }))
@@ -37,24 +36,13 @@ describe('deferred playbook surfaces', () => {
   })
 
   it('keeps the chat mounted with a local retry when a chunk fails', async () => {
-    const onError = vi.fn()
-    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    try {
-      render(
-        <ErrorBoundary onError={onError} onReload={vi.fn()}>
-          <p>Chat</p>
-          <DeferredPlaybookNotes notes={[]} />
-        </ErrorBoundary>,
-      )
-      await screen.findByRole('alert')
-      expect(screen.getByRole('alert')).toHaveTextContent(UI_TEXT.surfaceLoadFailed)
-      expect(screen.queryByText('playbook rows chunk failed')).toBeNull()
-      fireEvent.click(screen.getByRole('button', { name: UI_TEXT.surfaceLoadRetry }))
-      expect(retrySurface).toHaveBeenCalledOnce()
-      expect(screen.getByText('Chat')).toBeInTheDocument()
-      expect(onError).not.toHaveBeenCalled()
-    } finally {
-      errors.mockRestore()
-    }
+    await expectLocalChunkFailure(
+      <>
+        <p>Chat</p>
+        <DeferredPlaybookNotes notes={[]} />
+      </>,
+    )
+    expect(screen.queryByText('playbook rows chunk failed')).toBeNull()
+    expect(screen.getByText('Chat')).toBeInTheDocument()
   })
 })

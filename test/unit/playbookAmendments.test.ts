@@ -27,7 +27,8 @@ import {
   runPlaybookCommand,
 } from '../../src/runtime/playbook/command'
 import { playbookRecordText, playbookText } from '../../src/runtime/playbook/text'
-import type { PlaybookBrief } from '../../src/shared/playbook'
+import type { PlaybookBrief, PlaybookModule } from '../../src/shared/playbook'
+import type { ReviewBlock } from '../../src/shared/reviewFindings'
 
 const BRIEF: PlaybookBrief = {
   objective: 'Dispatch lane W',
@@ -43,6 +44,52 @@ function events() {
     hookOutput: vi.fn(),
     failure: vi.fn(),
   }
+}
+
+/** Two modules with A's residual answered under a reused name. */
+function residualNameBed() {
+  const fixture = policyFixture()
+  const { policy } = fixture
+  const other = {
+    ...MODULE,
+    id: 'module-worker-9',
+    key: 'src/core/schedules/worker',
+    files: ['src/core/schedules/worker.ts'],
+  }
+  const lanes = [...fakePlaybookLanes(), { ...fakePlaybookLanes()[0]!, id: 'Z', module: other }]
+  const otherBlock: ReviewBlock = {
+    ...reviewBlock('concurrency', 'high'),
+    findings: [
+      {
+        file: 'src/core/schedules/worker.ts',
+        title: 'An actual finding',
+        severity: 'high',
+        class: 'concurrency',
+      },
+    ],
+  }
+  policy.declareModule(other)
+  completeReview(policy, MODULE, reviewBlock('concurrency', 'high'), REVIEW_AGENTS)
+  answerResidual(policy, MODULE, 'atomic-claim', {
+    name: 'native-binding',
+    whySafe: 'Module A serializes the claim for now.',
+    followUp: 'Replace it in lane R.',
+  })
+  return { fixture, policy, lanes, other, otherBlock }
+}
+
+/** Answer the module's current finding as the named residual instance. */
+function answerResidual(
+  policy: OrchestratorPlaybook,
+  module: PlaybookModule,
+  designId: string,
+  answer: { readonly name: string; readonly whySafe: string; readonly followUp: string },
+): void {
+  const findingId = latestRound(policy, module).findings[0]!.id
+  policy.recordDesignDecision({ ...design(module), id: designId })
+  expect(policy.answerFindings(module, [{ findingId, status: 'residual', ...answer }]).kind).toBe(
+    'allow',
+  )
 }
 
 describe('M116 D100 amendments (W)', () => {
@@ -252,55 +299,13 @@ describe('M116 D100 amendments (W)', () => {
     // A name-only acceptance would silently authorize a later, different
     // residual under the same name. The acceptance binds to the open
     // instance's safety rationale, follow-up and module instead.
-    const fixture = policyFixture()
-    const { policy } = fixture
-    const other = {
-      ...MODULE,
-      id: 'module-worker-9',
-      key: 'src/core/schedules/worker',
-      files: ['src/core/schedules/worker.ts'],
-    }
-    const lanes = [...fakePlaybookLanes(), { ...fakePlaybookLanes()[0]!, id: 'Z', module: other }]
-    const otherBlock = {
-      ...reviewBlock('concurrency', 'high'),
-      findings: [
-        {
-          file: 'src/core/schedules/worker.ts',
-          title: 'An actual finding',
-          severity: 'high',
-          class: 'concurrency',
-        },
-      ],
-    }
-    policy.declareModule(other)
-    completeReview(policy, MODULE, reviewBlock('concurrency', 'high'), REVIEW_AGENTS)
-    const firstId = latestRound(policy).findings[0]!.id
-    policy.recordDesignDecision(design())
-    expect(
-      policy.answerFindings(MODULE, [
-        {
-          findingId: firstId,
-          status: 'residual',
-          name: 'native-binding',
-          whySafe: 'Module A serializes the claim for now.',
-          followUp: 'Replace it in lane R.',
-        },
-      ]).kind,
-    ).toBe('allow')
+    const { fixture, policy, lanes, other, otherBlock } = residualNameBed()
     completeReview(policy, other, otherBlock, REVIEW_AGENTS)
-    const secondId = latestRound(policy, other).findings[0]!.id
-    policy.recordDesignDecision({ ...design(other), id: 'atomic-claim-worker' })
-    expect(
-      policy.answerFindings(other, [
-        {
-          findingId: secondId,
-          status: 'residual',
-          name: 'native-binding',
-          whySafe: 'Module B retries on its own worker.',
-          followUp: 'Harden it in lane Z.',
-        },
-      ]).kind,
-    ).toBe('allow')
+    answerResidual(policy, other, 'atomic-claim-worker', {
+      name: 'native-binding',
+      whySafe: 'Module B retries on its own worker.',
+      followUp: 'Harden it in lane Z.',
+    })
     fixture.authority.mockReturnValue(true)
     expect(policy.acceptResidual('M116', 'native-binding', 'Accepted A.', lanes).kind).toBe('allow')
     // B's different residual under the reused name stays open and refuses release.
@@ -333,41 +338,7 @@ describe('M116 D100 amendments (W)', () => {
     // RVF116I P2: the review's timestamp (t=120) predates the acceptance
     // (t=140) but the answer is published after it (t=160). Coverage binds to
     // the answer's journal position, so the later instance stays open.
-    const fixture = policyFixture()
-    const { policy } = fixture
-    const other = {
-      ...MODULE,
-      id: 'module-worker-9',
-      key: 'src/core/schedules/worker',
-      files: ['src/core/schedules/worker.ts'],
-    }
-    const lanes = [...fakePlaybookLanes(), { ...fakePlaybookLanes()[0]!, id: 'Z', module: other }]
-    const otherBlock = {
-      ...reviewBlock('concurrency', 'high'),
-      findings: [
-        {
-          file: 'src/core/schedules/worker.ts',
-          title: 'An actual finding',
-          severity: 'high',
-          class: 'concurrency',
-        },
-      ],
-    }
-    policy.declareModule(other)
-    completeReview(policy, MODULE, reviewBlock('concurrency', 'high'), REVIEW_AGENTS)
-    const firstId = latestRound(policy).findings[0]!.id
-    policy.recordDesignDecision(design())
-    expect(
-      policy.answerFindings(MODULE, [
-        {
-          findingId: firstId,
-          status: 'residual',
-          name: 'native-binding',
-          whySafe: 'Module A serializes the claim for now.',
-          followUp: 'Replace it in lane R.',
-        },
-      ]).kind,
-    ).toBe('allow')
+    const { fixture, policy, lanes, other, otherBlock } = residualNameBed()
     // B's review is recorded at t=120 but answers nothing yet.
     fixture.advance(20)
     completeReview(policy, other, otherBlock, REVIEW_AGENTS)
@@ -392,19 +363,11 @@ describe('M116 D100 amendments (W)', () => {
     // round keeps the review's timestamp (t=120): only journal position tells
     // it was answered after the acceptance.
     fixture.advance(20)
-    const secondId = latestRound(policy, other).findings[0]!.id
-    policy.recordDesignDecision({ ...design(other), id: 'atomic-claim-worker' })
-    expect(
-      policy.answerFindings(other, [
-        {
-          findingId: secondId,
-          status: 'residual',
-          name: 'native-binding',
-          whySafe: 'Module B retries on its own worker.',
-          followUp: 'Harden it in lane Z.',
-        },
-      ]).kind,
-    ).toBe('allow')
+    answerResidual(policy, other, 'atomic-claim-worker', {
+      name: 'native-binding',
+      whySafe: 'Module B queues the write behind its own lock.',
+      followUp: 'Drain the queue in lane Z.',
+    })
     const register = collectResidualRegister(policy.getRecord(), lanes, 'M116')
     expect(register.open.map((entry) => entry.moduleId)).toEqual(['module-worker-9'])
     const refused = policy.releaseReady('M116', lanes)
