@@ -4093,8 +4093,9 @@ them. `npm run check:reference` checks the sharing command reference;
 `node scripts/gen-reference.mjs` regenerates it from the same catalog `/help`
 reads.
 
-`node scripts/build.mjs --production --webview-only` builds just the browser
-fixture with the production options and stale-chunk cleanup; it omits the Node
+`node scripts/build.mjs --production --webview-only` builds the chat, Help and
+What's New browser pages and their metafiles with production options and
+stale-chunk cleanup; it omits the Node
 bundles so browser tests stay within their default setup deadline.
 
 After a production build, `node test/e2e/webviewDiet.mjs` checks optional UI

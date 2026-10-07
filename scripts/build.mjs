@@ -623,9 +623,18 @@ console.log(
 // every unrelated Node bundle inside Vitest's default setup deadline.
 if (process.argv.includes('--webview-only')) {
   if (!isProduction || isWatch) throw new Error('--webview-only requires --production')
-  const { metafile } = await esbuild.build(webviewOptions)
+  const pages = {
+    webview: webviewOptions,
+    referencePage: referencePageOptions,
+    whatsNewPage: whatsNewPageOptions,
+  }
   mkdirSync(METAFILE_DIR, { recursive: true })
-  writeFileSync(path.join(METAFILE_DIR, 'webview.json'), JSON.stringify(metafile))
+  await Promise.all(
+    Object.entries(pages).map(async ([name, options]) => {
+      const { metafile } = await esbuild.build(options)
+      writeFileSync(path.join(METAFILE_DIR, `${name}.json`), JSON.stringify(metafile))
+    }),
+  )
   process.exit(0)
 }
 

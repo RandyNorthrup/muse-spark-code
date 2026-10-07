@@ -21,7 +21,8 @@ const built = { outputs: {}, fixture: '' }
 beforeAll(() => {
   mkdirSync('dist/webview/chunks', { recursive: true })
   writeFileSync('dist/webview/chunks/stale.js', 'throw new Error("stale browser chunk")')
-  // Exercise the real production settings, including removal of stale chunks.
+  // Build every browser page and metafile the package assertion reads, even
+  // when dist is absent. Exercise production settings and stale-chunk removal.
   execFileSync(process.execPath, ['scripts/build.mjs', '--production', '--webview-only'], {
     stdio: 'pipe',
   })

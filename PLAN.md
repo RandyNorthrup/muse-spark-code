@@ -13455,6 +13455,16 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ### REL0144 — Release 0.14.4 preparation (2026-10-06)
 
+**Hosted CI repair (run 37558466658, 2026-10-06).** Fast-forward the rig to
+`sync/rel0144-host` (`99163bd10`). Make the browser fixture build every page
+and metafile its package assertion reads, and prove it after deleting `dist`.
+Replace chained HTML sanitization with one encoding pass; audit literal regex
+escaping and document only specific Semgrep false positives in §8. Validate
+the complete installed ACP help table without stripping M118's keys. Re-run
+all configured Vitest files in batches of at most three at default timeouts,
+the production build, both packages, reference and universal-artifact checks,
+and CI's pinned Semgrep 1.178.0. No paid/live calls, push or extra merge.
+
 Merge only `sync/main-0144` into the reviewed M118 integration, preserving
 M112 questions, Help and STARTDIET deferred surfaces. Give M118 optional
 surfaces the diet's accessible loading/retry pattern and independent measured
