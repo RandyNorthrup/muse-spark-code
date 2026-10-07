@@ -578,33 +578,55 @@ async function settledDiagnostics(
       return { file, entries: [], unchecked: 'changed' }
     }
     if (canReadFile?.(file) === false) return { file, entries: [], unchecked: 'notShown' }
-    // A functional probe: no report and no held native errors after the
-    // bounded wait. Provider installation/host name cannot establish this.
-    const shouldUseJsonFallback =
-      isJson &&
-      vscode.languages.getDiagnostics(shown.document.uri).length === 0 &&
-      (!isSettled ||
-        jsonDiagnostics(
-          shown.document.getText(),
-          file.relative,
-          shown.document.languageId === 'jsonc',
-        ).length > 0)
-    // An empty earlier event cannot certify malformed JSON when the local
-    // check is refused, for example because the editor still has old text.
-    if (shouldUseJsonFallback) isSettled = false
-    if (
-      shouldUseJsonFallback &&
-      (await isShowingDiskText(shown.document, isAllowed)) &&
-      isAllowed() &&
-      (await isStillAsConfined(deps, file, isAllowed))
-    ) {
-      fallback.publish(shown.document, file.relative)
-      isSettled = await reports.settle(timing, signal, true)
+    if (isJson) {
+      // Editor changes advance version even when a reload ends on identical
+      // text. Certify the disk bytes read here, within that one generation.
+      const version = shown.document.version
+      const languageId = shown.document.languageId
+      let bytes: Uint8Array
+      try {
+        bytes = await vscode.workspace.fs.readFile(shown.document.uri)
+      } catch {
+        return { file, entries: [], unchecked: 'noReport' }
+      }
+      if (isStopped(signal)) return { file, entries: [], unchecked: 'stopped' }
+      if (!isAllowed()) return { file, entries: [], unchecked: 'notShown' }
+      if (isDirty(shown.document)) return { file, entries: [], unchecked: 'unsaved' }
+      if (file.fingerprint !== undefined && bytesFingerprint(bytes) !== file.fingerprint)
+        return { file, entries: [], unchecked: 'changed' }
+      const text = new TextDecoder().decode(bytes)
+      const isCurrent = () =>
+        shown.document.version === version &&
+        shown.document.languageId === languageId &&
+        shown.document.getText() === text
+      if (!isCurrent()) return { file, entries: [], unchecked: 'noReport' }
+      if (!(await isStillAsConfined(deps, file, isAllowed)))
+        return { file, entries: [], unchecked: 'changed' }
+      if (isStopped(signal)) return { file, entries: [], unchecked: 'stopped' }
+      if (!isAllowed()) return { file, entries: [], unchecked: 'notShown' }
+      if (isDirty(shown.document)) return { file, entries: [], unchecked: 'unsaved' }
+      if (!isCurrent()) return { file, entries: [], unchecked: 'noReport' }
+      // No report or a malformed disk snapshot with only an empty event:
+      // provider installation/host name cannot establish a clean report.
+      if (vscode.languages.getDiagnostics(shown.document.uri).length > 0) {
+        isSettled = true
+      } else if (
+        !isSettled ||
+        jsonDiagnostics(text, file.relative, languageId === 'jsonc').length > 0
+      ) {
+        fallback.publish(shown.document, text, file.relative)
+        isSettled = await reports.settle(timing, signal, true)
+      }
       if (isStopped(signal)) return { file, entries: [], unchecked: 'stopped' }
       if (!isAllowed()) return { file, entries: [], unchecked: 'notShown' }
       if (isDirty(shown.document)) return { file, entries: [], unchecked: 'unsaved' }
       if (!(await isStillAsConfined(deps, file, isAllowed)))
         return { file, entries: [], unchecked: 'changed' }
+      const isShowingSnapshot = await isShowingDiskText(shown.document, isAllowed)
+      if (isStopped(signal)) return { file, entries: [], unchecked: 'stopped' }
+      if (!isAllowed()) return { file, entries: [], unchecked: 'notShown' }
+      if (isDirty(shown.document)) return { file, entries: [], unchecked: 'unsaved' }
+      if (!isShowingSnapshot || !isCurrent()) return { file, entries: [], unchecked: 'noReport' }
     }
     if (!isSettled) return { file, entries: [], unchecked: 'noReport' }
     const held = vscode.languages
@@ -851,7 +873,7 @@ async function afterBoth(first: Promise<void>, second: Promise<unknown>): Promis
 }
 
 interface JsonFallback {
-  readonly publish: (document: vscode.TextDocument, relative: string) => void
+  readonly publish: (document: vscode.TextDocument, text: string, relative: string) => void
   readonly remove: (uri: vscode.Uri) => void
   readonly dispose: () => void
 }
@@ -860,24 +882,22 @@ function jsonFallback(): JsonFallback {
   let collection: vscode.DiagnosticCollection | undefined
   let nativeReports: vscode.Disposable | undefined
   return {
-    publish: (document, relative) => {
+    publish: (document, text, relative) => {
       // Never append a second report to errors the native service already holds.
       if (vscode.languages.getDiagnostics(document.uri).length > 0) return
-      const entries = jsonDiagnostics(
-        document.getText(),
-        relative,
-        document.languageId === 'jsonc',
-      ).map(({ offset, message }) => {
-        const start = document.positionAt(offset)
-        const end = document.positionAt(Math.min(offset + 1, document.getText().length))
-        const diagnostic = new vscode.Diagnostic(
-          new vscode.Range(start, end),
-          message,
-          vscode.DiagnosticSeverity.Error,
-        )
-        diagnostic.source = JSON_DIAGNOSTICS_SOURCE
-        return diagnostic
-      })
+      const entries = jsonDiagnostics(text, relative, document.languageId === 'jsonc').map(
+        ({ offset, message }) => {
+          const start = document.positionAt(offset)
+          const end = document.positionAt(Math.min(offset + 1, text.length))
+          const diagnostic = new vscode.Diagnostic(
+            new vscode.Range(start, end),
+            message,
+            vscode.DiagnosticSeverity.Error,
+          )
+          diagnostic.source = JSON_DIAGNOSTICS_SOURCE
+          return diagnostic
+        },
+      )
       collection ??= vscode.languages.createDiagnosticCollection(JSON_DIAGNOSTICS_SOURCE)
       nativeReports ??= vscode.languages.onDidChangeDiagnostics(({ uris }) => {
         for (const uri of uris) {

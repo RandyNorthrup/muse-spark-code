@@ -67,6 +67,10 @@ happened, not what was planned; superseded entries are kept.
   immutable generation, verified against a live lease-only child without
   board assets. New machine registration requests leave generation UUIDs
   with the engine.
+- JSON verification checks disk bytes and the editor generation even when stale
+  valid editor text and an empty diagnostics event would otherwise appear clean.
+  Arduino completion unit tests provide private fake artifacts and run without
+  an integration build.
 
 - JSONC verification rejects missing members/elements rather than erasing
   illegal commas. Stale editor text stays unchecked after an empty diagnostic
