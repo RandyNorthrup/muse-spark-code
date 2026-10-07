@@ -466,7 +466,9 @@ export function Composer(props: ComposerProps) {
   // A prompt that starts with `!` runs as a shell command (M46): the box says so.
   const isShellMode = userShellCommandOf(draft) !== undefined
   const mention: MentionQuery | undefined = mentionQueryAt(draft, caret)
-  const isMentionOpen = mention !== undefined && dismissedMention !== mention.start
+  // The prompt menu takes the place of the attached `/` and `@` lists while it is open.
+  const isMentionOpen =
+    !isPromptMenuOpen && mention !== undefined && dismissedMention !== mention.start
   const mentionItems: readonly MentionItem[] =
     isMentionOpen && mentionResults !== undefined && mentionResults.requestId === activeRequest
       ? mentionResults.items
@@ -478,7 +480,9 @@ export function Composer(props: ComposerProps) {
     setDismissedSlash(undefined)
   }
   const slashMenu =
-    isFocusWithin && !isMenuOpen && dismissedSlash !== draft ? slashMenuOf(draft, caret) : undefined
+    isFocusWithin && !isMenuOpen && !isPromptMenuOpen && dismissedSlash !== draft
+      ? slashMenuOf(draft, caret)
+      : undefined
   const slashItems =
     slashMenu === 'commands' ? rankSlashCommands(slashCommands, draft.slice(1)) : []
   const activeSlash = slashIndex < slashItems.length ? slashIndex : 0
@@ -1124,14 +1128,18 @@ export function Composer(props: ComposerProps) {
           {promptEntries.length === 0 ? null : (
             <button
               type="button"
-              className="icon-button"
+              className="icon-button prompt-menu-button"
               title={UI_TEXT.promptLibrary}
               aria-label={UI_TEXT.promptLibrary}
               aria-haspopup="dialog"
               aria-expanded={isPromptMenuOpen}
               onMouseDown={keepMenuFocus}
               onClick={() => {
-                setPromptMenuOpen(!isPromptMenuOpen)
+                if (isPromptMenuOpen) {
+                  closePromptMenu()
+                } else {
+                  setPromptMenuOpen(true)
+                }
               }}
             >
               <BookmarkIcon />
