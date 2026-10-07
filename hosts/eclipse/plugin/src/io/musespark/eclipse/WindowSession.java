@@ -24,10 +24,17 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
     public final Assets.HtmlPort htmlPort;
     public final NativeUi ui;
     private record Command(org.eclipse.core.commands.Command command, org.eclipse.ui.handlers.IHandlerActivation activation) { }
+    // The display thread owns commands, analyses, chatSession, trusted and all
+    // native UI/document state. close() from OSGi never touches that state.
+    private final Display display;
+    private final java.util.function.Consumer<String> log;
+    // One lock owns cross-thread close admission, surfaces and browserQueue.
+    // disposed is volatile only for read-only cancellation checks by jobs/peers.
+    private final Object stateLock = new Object();
     private final Map<String, Command> commands = new HashMap<>();
     private final String commandPrefix = "io.musespark.runtime." + UUID.randomUUID() + ".";
     private final Process process;
-    private final Map<String, MuseView> surfaces = new ConcurrentHashMap<>();
+    private final Map<String, MuseView> surfaces = new HashMap<>();
     private record Analysis(long version, long stamp, org.eclipse.core.runtime.jobs.Job job, CompletableFuture<JsonArray> report) { }
     private final Map<String, Analysis> analyses = new HashMap<>();
     private record Delivery(MuseView view, JsonElement payload, JsonElement sequence, int bytes) { }
@@ -55,27 +62,29 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
     public WindowSession(IWorkbenchWindow window, Process runtime) throws Exception { this(window, runtime, null); }
     public WindowSession(IWorkbenchWindow window, Process runtime, Assets.HtmlPort htmlPort) throws Exception {
         this.window = window; this.htmlPort = htmlPort;
+        display = window.getShell().getDisplay(); log = MusePlugin.get()::log;
+        requireDisplay();
         ui = new NativeUi(this);
         process = runtime;
         documents = new Documents(window, params -> notify("documents/didChange", params), contract.selectionCap);
-        peer = new MhpPeer(contract, process.getInputStream(), process.getOutputStream(), this, MusePlugin.get()::log);
+        peer = new MhpPeer(contract, process.getInputStream(), process.getOutputStream(), this, log);
         initialization = peer.initialized();
         initialization.orTimeout(100, TimeUnit.SECONDS).whenComplete((result, error) -> { if (error != null) shutdown(); });
         stderr.submit(() -> {
             try (InputStream input = process.getErrorStream()) { byte[] buffer = new byte[contract.chunkBytes]; while (input.read(buffer) != -1) { /* Drain without interpreting provider/account text. */ } }
-            catch (IOException ex) { if (!disposed) MusePlugin.get().log("MHP_STDERR_FAILURE"); }
+            catch (IOException ex) { if (!disposed) log.accept("MHP_STDERR_FAILURE"); }
         });
         trusted = MusePlugin.get().getPreferenceStore().getBoolean("trusted:" + ResourcesPlugin.getWorkspace().getRoot().getLocationURI());
-        selections = (part, selection) -> { if (part instanceof org.eclipse.ui.texteditor.ITextEditor) try { notify("editor/didChangeSelection", Json.object("selection", documents.selection())); } catch (Exception ex) { MusePlugin.get().log("MHP_SELECTION_FAILURE"); } };
+        selections = (part, selection) -> { if (part instanceof org.eclipse.ui.texteditor.ITextEditor) try { notify("editor/didChangeSelection", Json.object("selection", documents.selection())); } catch (Exception ex) { log.accept("MHP_SELECTION_FAILURE"); } };
         window.getSelectionService().addPostSelectionListener(selections);
-        problems = event -> window.getShell().getDisplay().asyncExec(() -> {
+        problems = event -> display.asyncExec(() -> {
             if (disposed) return;
             try { for (JsonElement item : documents.list()) { String uri = item.getAsJsonObject().get("uri").getAsString();
                 IFile file = ResourcesPlugin.getWorkspace().getRoot().getFileForLocation(new org.eclipse.core.runtime.Path(Path.of(java.net.URI.create(uri)).toString()));
                 IResourceDelta delta = file == null || event.getDelta() == null ? null : event.getDelta().findMember(file.getFullPath());
                 if (delta != null && (delta.getFlags() & IResourceDelta.CONTENT) != 0 && !item.getAsJsonObject().get("dirty").getAsBoolean()) notify("documents/didSave", item.getAsJsonObject());
                 notify("diagnostics/didChange", Json.object("uri", uri, "diagnostics", diagnostics(uri))); } }
-            catch (Exception ex) { MusePlugin.get().log("MHP_DIAGNOSTICS_FAILURE"); }
+            catch (Exception ex) { log.accept("MHP_DIAGNOSTICS_FAILURE"); }
         });
         ResourcesPlugin.getWorkspace().addResourceChangeListener(problems, IResourceChangeEvent.POST_CHANGE);
         parts = new IPartListener2() {
@@ -100,7 +109,6 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
         };
         PlatformUI.getWorkbench().addWindowListener(windows);
         documents.list();
-        Display display = window.getShell().getDisplay();
         process.onExit().thenRun(() -> { if (!display.isDisposed()) display.asyncExec(() -> { if (!disposed) close(); }); });
         JsonObject metadata = hostContext();
         peer.start();
@@ -108,48 +116,50 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
     }
     public void afterInitialize(Runnable action) { afterInitialize(action, () -> { }); }
     public void afterInitialize(Runnable action, Runnable failure) {
-        Display display = window.getShell().getDisplay();
         initialization.whenComplete((result, error) -> { if (!display.isDisposed()) display.asyncExec(() -> {
-            if (error != null) { MusePlugin.get().log("MHP_INITIALIZE_FAILURE"); failure.run(); }
+            if (error != null) { log.accept("MHP_INITIALIZE_FAILURE"); failure.run(); }
             else if (!disposed) action.run();
         }); });
     }
     public void notify(String method, JsonObject params) {
         if (initialization == null || !initialization.isDone() || initialization.isCompletedExceptionally() || disposed) return;
-        try { peer.notify(method, params); } catch (RuntimeException ex) { MusePlugin.get().log("MHP_NOTIFICATION_FAILURE"); }
+        try { peer.notify(method, params); } catch (RuntimeException ex) { log.accept("MHP_NOTIFICATION_FAILURE"); }
     }
     public void grantTrust() {
+        requireDisplay();
         trusted = true; MusePlugin.get().getPreferenceStore().setValue("trusted:" + ResourcesPlugin.getWorkspace().getRoot().getLocationURI(), true);
         notify("workspace/didGrantTrust", Json.object("trusted", true));
     }
-    public void add(MuseView view) { surfaces.put(view.binding().id, view); }
-    public void remove(MuseView view) { surfaces.remove(view.binding().id); }
+    public void add(MuseView view) { synchronized (stateLock) { if (disposed) throw new IllegalStateException("MHP_CLOSED"); surfaces.put(view.binding().id, view); } }
+    public void remove(MuseView view) { synchronized (stateLock) { surfaces.remove(view.binding().id); } }
     public boolean isClosed() { return disposed; }
-    @Override public void shutdown() { Display display = window.getShell().getDisplay(); if (!display.isDisposed()) display.asyncExec(this::close); }
+    @Override public void shutdown() { close(); }
     @Override public void panel(JsonObject frame) {
-        MuseView view = surfaces.get(frame.get("surface").getAsString());
+        MuseView view;
+        synchronized (stateLock) { if (disposed) return; view = surfaces.get(frame.get("surface").getAsString()); }
         try {
             if (view == null) throw new IllegalArgumentException("MHP_PANEL_UNKNOWN_SURFACE");
             view.binding().receive(frame, payload -> {
                 int size = peer.reserveBrowser(frame);
-                synchronized (browserQueue) {
+                synchronized (stateLock) {
+                    if (disposed) { peer.releaseBrowser(size); return; }
                     browserQueue.add(new Delivery(view, payload, frame.get("seq"), size));
-                    if (!browserScheduled) { browserScheduled = true; window.getShell().getDisplay().asyncExec(this::drainBrowser); }
+                    if (!browserScheduled) { browserScheduled = true; display.asyncExec(this::drainBrowser); }
                 }
             });
         } catch (RuntimeException ex) {
             String code = ex.getMessage(); if (code == null || !code.startsWith("MHP_PANEL_")) code = "MHP_PANEL_INVALID_PAYLOAD";
             JsonObject error = Json.object("mhp", "1.3", "kind", "panelError", "surface", frame.get("surface"), "seq", frame.get("seq"), "code", code);
-            contract.panel("error", error); peer.send(error); MusePlugin.get().log(code);
+            contract.panel("error", error); peer.send(error); log.accept(code);
         }
     }
     public void browserReady() {
-        synchronized (browserQueue) { if (!disposed && !browserQueue.isEmpty() && !browserScheduled) { browserScheduled = true; window.getShell().getDisplay().asyncExec(this::drainBrowser); } }
+        synchronized (stateLock) { if (!disposed && !browserQueue.isEmpty() && !browserScheduled) { browserScheduled = true; display.asyncExec(this::drainBrowser); } }
     }
     private void drainBrowser() {
         while (!disposed) {
             Delivery delivery;
-            synchronized (browserQueue) {
+            synchronized (stateLock) {
                 delivery = null;
                 Iterator<Delivery> iterator = browserQueue.iterator();
                 while (iterator.hasNext()) { Delivery next = iterator.next(); if (next.view.binding().isReady()) { delivery = next; iterator.remove(); break; } }
@@ -158,14 +168,14 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
             JsonObject error = null;
             try { delivery.view.deliverPayload(delivery.payload); } catch (RuntimeException ex) {
                 error = Json.object("mhp", "1.3", "kind", "panelError", "surface", delivery.view.binding().id, "seq", delivery.sequence, "code", "MHP_PANEL_NOT_READY");
-                contract.panel("error", error); MusePlugin.get().log("MHP_PANEL_NOT_READY");
+                contract.panel("error", error); log.accept("MHP_PANEL_NOT_READY");
             }
             finally { peer.releaseBrowser(delivery.bytes); }
             if (error != null) try { peer.send(error); } catch (RuntimeException ex) { peer.close(); }
         }
     }
     public int dropBrowser(String surface) {
-        synchronized (browserQueue) {
+        synchronized (stateLock) {
             int count = 0;
             Iterator<Delivery> iterator = browserQueue.iterator();
             while (iterator.hasNext()) { Delivery delivery = iterator.next(); if (delivery.view.binding().id.equals(surface)) { peer.releaseBrowser(delivery.bytes); iterator.remove(); count++; } }
@@ -173,8 +183,9 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
         }
     }
     @Override public JsonElement request(String method, JsonObject params, java.util.function.BooleanSupplier cancelled) throws Exception {
+        if (disposed) throw new IOException("MHP_CLOSED");
         CompletableFuture<JsonElement> result = new CompletableFuture<>();
-        window.getShell().getDisplay().asyncExec(() -> {
+        display.asyncExec(() -> {
             if (result.isDone()) return;
             if (disposed) { result.completeExceptionally(new IOException("MHP_CLOSED")); return; }
             try { if (cancelled.getAsBoolean()) throw new IllegalArgumentException("MHP_CANCELLED"); result.complete(method.startsWith("ui/") ? ui.request(method, params, cancelled) : uiRequest(method, params)); } catch (Exception ex) { result.completeExceptionally(ex); }
@@ -185,6 +196,7 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
         catch (ExecutionException ex) { if (ex.getCause() instanceof Exception cause) throw cause; throw ex; }
     }
     public JsonElement uiRequest(String method, JsonObject params) throws Exception {
+        requireDisplay();
         if (disposed) throw new IllegalArgumentException("MHP_CLOSED");
         if (method.startsWith("ui/")) return ui.request(method, params, () -> false);
         if (method.startsWith("documents/") || method.startsWith("editor/")) {
@@ -304,9 +316,9 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
             default -> throw new IllegalArgumentException("MHP_CAPABILITY_UNAVAILABLE");
         };
     }
-    public boolean hasCommand(String id) { return commands.containsKey(id); }
-    public String chatSession() { return chatSession; }
-    private MuseView surface(JsonObject params) { MuseView view = surfaces.get(params.get("surfaceId").getAsString()); if (view == null) throw new IllegalArgumentException("MHP_PANEL_UNKNOWN_SURFACE"); return view; }
+    public boolean hasCommand(String id) { requireDisplay(); return commands.containsKey(id); }
+    public String chatSession() { requireDisplay(); return chatSession; }
+    private MuseView surface(JsonObject params) { synchronized (stateLock) { MuseView view = surfaces.get(params.get("surfaceId").getAsString()); if (view == null) throw new IllegalArgumentException("MHP_PANEL_UNKNOWN_SURFACE"); return view; } }
     public static JsonArray folders() {
         JsonArray result = new JsonArray();
         IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
@@ -343,6 +355,7 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
         return result;
     }
     public JsonObject hostContext() throws IOException {
+        requireDisplay();
         org.osgi.framework.Bundle platform = Platform.getBundle("org.eclipse.platform");
         String version = platform == null ? Platform.getBundle("org.eclipse.ui").getVersion().toString() : platform.getVersion().toString();
         boolean dark = PlatformUI.getWorkbench().getThemeManager().getCurrentTheme().getId().toLowerCase(Locale.ROOT).contains("dark");
@@ -353,22 +366,69 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
         RGB background = Display.getDefault().getSystemColor(SWT.COLOR_LIST_BACKGROUND).getRGB(); RGB foreground = Display.getDefault().getSystemColor(SWT.COLOR_LIST_FOREGROUND).getRGB();
         return Json.object("--muse-editor-background", String.format("#%02x%02x%02x", background.red, background.green, background.blue), "--muse-editor-foreground", String.format("#%02x%02x%02x", foreground.red, foreground.green, foreground.blue));
     }
-    @Override public void close() {
-        if (disposed) return; disposed = true;
-        for (Analysis analysis : analyses.values()) analysis.job.cancel(); analyses.clear();
-        ui.close();
-        var handlers = window.getService(org.eclipse.ui.handlers.IHandlerService.class);
-        for (Command command : commands.values()) { handlers.deactivateHandler(command.activation); command.command.undefine(); } commands.clear();
-        // Snapshot before closing either pipe: EOF can make the parent exit and reparent its children.
-        List<ProcessHandle> descendants = process.descendants().toList();
-        for (MuseView view : List.copyOf(surfaces.values())) {
-            int dropped = dropBrowser(view.binding().id); try { view.binding().close(dropped); } catch (RuntimeException ex) { MusePlugin.get().log("MHP_SURFACE_FAILURE"); }
-            if (view.getSite() != null) view.getSite().getPage().hideView(view);
+    private void requireDisplay() {
+        if (Display.getCurrent() != display) throw new IllegalStateException("MHP_UI_THREAD_REQUIRED");
+    }
+    private void cleanup(String code, Runnable step) {
+        try { step.run(); } catch (RuntimeException ex) { log.accept(code); }
+    }
+    private void closeNative() {
+        requireDisplay();
+        List<Analysis> pending = List.copyOf(analyses.values()); analyses.clear();
+        for (Analysis analysis : pending) cleanup("MHP_ANALYSIS_CLEANUP_FAILURE", () -> analysis.job.cancel());
+        cleanup("MHP_UI_CLEANUP_FAILURE", ui::close);
+        List<Command> registered = List.copyOf(commands.values()); commands.clear();
+        for (Command command : registered) {
+            cleanup("MHP_COMMAND_CLEANUP_FAILURE", () -> window.getService(org.eclipse.ui.handlers.IHandlerService.class).deactivateHandler(command.activation));
+            cleanup("MHP_COMMAND_CLEANUP_FAILURE", command.command::undefine);
         }
-        surfaces.clear(); chatSession = null; Completion.dispose(this); documents.close(); window.getSelectionService().removePostSelectionListener(selections); window.getPartService().removePartListener(parts);
-        PlatformUI.getWorkbench().removeWindowListener(windows); ResourcesPlugin.getWorkspace().removeResourceChangeListener(problems); peer.drain(); peer.close(); stderr.shutdownNow();
-        descendants.forEach(ProcessHandle::destroy); process.toHandle().destroy();
-        try { process.waitFor(2, TimeUnit.SECONDS); } catch (InterruptedException ex) { Thread.currentThread().interrupt(); }
-        finally { descendants.stream().filter(ProcessHandle::isAlive).forEach(ProcessHandle::destroyForcibly); if (process.isAlive()) process.toHandle().destroyForcibly(); }
+        List<MuseView> views;
+        synchronized (stateLock) { views = List.copyOf(surfaces.values()); surfaces.clear(); }
+        for (MuseView view : views) {
+            cleanup("MHP_SURFACE_FAILURE", () -> view.binding().close(dropBrowser(view.binding().id)));
+            cleanup("MHP_SURFACE_CLEANUP_FAILURE", () -> { if (view.getSite() != null) view.getSite().getPage().hideView(view); });
+        }
+        chatSession = null;
+        cleanup("MHP_TAB_CLEANUP_FAILURE", () -> Completion.dispose(this));
+        cleanup("MHP_DOCUMENT_CLEANUP_FAILURE", documents::close);
+        cleanup("MHP_SELECTION_CLEANUP_FAILURE", () -> window.getSelectionService().removePostSelectionListener(selections));
+        cleanup("MHP_PART_CLEANUP_FAILURE", () -> window.getPartService().removePartListener(parts));
+        cleanup("MHP_WINDOW_CLEANUP_FAILURE", () -> PlatformUI.getWorkbench().removeWindowListener(windows));
+        cleanup("MHP_RESOURCE_CLEANUP_FAILURE", () -> ResourcesPlugin.getWorkspace().removeResourceChangeListener(problems));
+    }
+    @Override public void close() {
+        synchronized (stateLock) { if (disposed) return; disposed = true; }
+        // Capture before any pipe closes: EOF can reparent children immediately.
+        List<ProcessHandle> descendants = new ArrayList<>();
+        try {
+            cleanup("MHP_PROCESS_SNAPSHOT_FAILURE", () -> descendants.addAll(process.descendants().toList()));
+            cleanup("MHP_NATIVE_CLEANUP_FAILURE", () -> {
+                if (Display.getCurrent() == display) closeNative();
+                // Do not syncExec from OSGi stop: the display may be waiting for it.
+                else if (!display.isDisposed()) display.asyncExec(this::closeNative);
+            });
+            synchronized (stateLock) {
+                while (!browserQueue.isEmpty()) {
+                    Delivery delivery = browserQueue.removeFirst();
+                    cleanup("MHP_BROWSER_CLEANUP_FAILURE", () -> peer.releaseBrowser(delivery.bytes));
+                }
+                browserScheduled = false;
+            }
+            cleanup("MHP_PEER_DRAIN_FAILURE", peer::drain);
+            cleanup("MHP_PEER_CLEANUP_FAILURE", peer::close);
+            cleanup("MHP_STDERR_CLEANUP_FAILURE", () -> stderr.shutdownNow());
+        } finally {
+            for (ProcessHandle child : descendants) cleanup("MHP_PROCESS_CLEANUP_FAILURE", child::destroy);
+            cleanup("MHP_PROCESS_CLEANUP_FAILURE", () -> process.toHandle().destroy());
+            try { process.waitFor(2, TimeUnit.SECONDS); }
+            catch (InterruptedException ex) { log.accept("MHP_PROCESS_WAIT_INTERRUPTED"); Thread.currentThread().interrupt(); }
+            finally {
+                for (ProcessHandle child : descendants) cleanup("MHP_PROCESS_CLEANUP_FAILURE", () -> { if (child.isAlive()) child.destroyForcibly(); });
+                cleanup("MHP_PROCESS_CLEANUP_FAILURE", () -> { if (process.isAlive()) process.toHandle().destroyForcibly(); });
+                // destroyForcibly requests termination; wait for the actual parent exit.
+                try { if (!process.waitFor(2, TimeUnit.SECONDS)) log.accept("MHP_PROCESS_EXIT_TIMEOUT"); }
+                catch (InterruptedException ex) { log.accept("MHP_PROCESS_WAIT_INTERRUPTED"); Thread.currentThread().interrupt(); }
+            }
+        }
     }
 }

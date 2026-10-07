@@ -44,7 +44,7 @@ public class SessionTest {
         IFile file = project.getFile("example.txt"); file.create(new ByteArrayInputStream("user".getBytes(StandardCharsets.UTF_8)), true, null); editor = session.documents.open(file.getLocationURI().toString());
     }
     @After public void cleanup() throws Exception {
-        if (pluginSessions != null && session != null) pluginSessions.remove(session.window);
+        if (pluginSessions != null && session != null) pluginSessions.values().removeIf(value -> value == session);
         if (session != null) session.close();
         for (IViewReference reference : PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage().getViewReferences())
             if (reference.getView(false) instanceof MuseView view) view.getSite().getPage().hideView(view);
@@ -151,21 +151,98 @@ public class SessionTest {
         try { session.close(); assertFalse("window close waited for the watchdog to release the blocked pipe", expired.get()); assertTrue(child.waitFor(2, TimeUnit.SECONDS)); }
         finally { timeout.cancel(false); watchdog.shutdownNow(); child.toHandle().destroyForcibly(); }
     }
-    @Test public void closeKillsCapturedDescendantsAfterTheParentExits() throws Exception {
+    private ProcessHandle startRuntimeWithChild() throws Exception {
         session.close();
         String wrapper = "import subprocess,sys,runpy; child=subprocess.Popen([sys.executable,'-c',\"import signal,time; signal.signal(signal.SIGTERM,signal.SIG_IGN); print('ready',flush=True); time.sleep(100)\"],stdout=subprocess.PIPE); child.stdout.readline(); runpy.run_path(sys.argv[1],run_name='__main__')";
         ProcessBuilder builder = new ProcessBuilder("python3", "-c", wrapper, fixture.toString()); Map<String, String> clean = Assets.environment(builder.environment()); builder.environment().clear(); builder.environment().putAll(clean); runtime = builder.start();
         session = new WindowSession(PlatformUI.getWorkbench().getActiveWorkbenchWindow(), runtime); CountDownLatch ready = new CountDownLatch(1); session.afterInitialize(ready::countDown); pump(() -> ready.getCount() == 0);
-        List<ProcessHandle> children = runtime.descendants().toList(); assertEquals(1, children.size());
+        List<ProcessHandle> children = runtime.descendants().toList(); assertEquals("fixture must have started exactly one descendant", 1, children.size());
+        ProcessHandle child = children.get(0); assertTrue("descendant must be running before cleanup", running(child)); return child;
+    }
+    private static boolean running(ProcessHandle child) {
+        if (!child.isAlive()) return false;
+        if (!System.getProperty("os.name").equals("Linux")) return child.isAlive();
+        Path stat = Path.of("/proc", Long.toString(child.pid()), "stat");
         try {
-            session.close(); assertFalse(runtime.isAlive()); long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
-            java.util.function.BooleanSupplier running = () -> {
-                if (!children.get(0).isAlive()) return false;
-                Path stat = Path.of("/proc", Long.toString(children.get(0).pid()), "stat");
-                try { return !Files.exists(stat) || !Files.readString(stat).contains(") Z "); } catch (IOException ex) { return children.get(0).isAlive(); }
-            };
-            while (running.getAsBoolean() && System.nanoTime() < deadline) Thread.onSpinWait(); assertFalse("captured child survived its parent", running.getAsBoolean());
-        } finally { children.forEach(ProcessHandle::destroyForcibly); }
+            String status = Files.readString(stat);
+            return !status.substring(status.lastIndexOf(')') + 1).trim().startsWith("Z ");
+        } catch (NoSuchFileException ex) { return false; }
+        catch (IOException ex) { throw new AssertionError("cannot observe descendant state", ex); }
+    }
+    @Test public void descendantObservationTreatsAVanishedProcEntryAsExited() {
+        ProcessHandle vanished = (ProcessHandle) java.lang.reflect.Proxy.newProxyInstance(ProcessHandle.class.getClassLoader(), new Class<?>[] {ProcessHandle.class}, (proxy, method, arguments) -> switch (method.getName()) {
+            case "isAlive" -> true;
+            case "pid" -> Long.MAX_VALUE;
+            default -> throw new AssertionError("unexpected process observation");
+        });
+        assertEquals("a stale isAlive observation cannot revive a reaped process", !System.getProperty("os.name").equals("Linux"), running(vanished));
+    }
+    private static void awaitExit(ProcessHandle child) throws Exception {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+        boolean alive = running(child);
+        while (alive && System.nanoTime() < deadline) { Thread.sleep(20); alive = running(child); }
+        assertFalse("started descendant survived cleanup: " + child.pid(), alive);
+    }
+    @Test public void closeKillsCapturedDescendantsAfterTheParentExits() throws Exception {
+        ProcessHandle child = startRuntimeWithChild();
+        try { session.close(); assertFalse("parent survived cleanup", runtime.isAlive()); awaitExit(child); }
+        finally { child.destroyForcibly(); }
+    }
+    @Test public void cleanupFailureStillKillsRuntimeTreeAndContinuesOtherSteps() throws Exception {
+        ProcessHandle child = startRuntimeWithChild();
+        java.util.concurrent.atomic.AtomicInteger attempts = new java.util.concurrent.atomic.AtomicInteger();
+        java.lang.reflect.Field uiField = WindowSession.class.getDeclaredField("ui"); uiField.setAccessible(true);
+        NativeUi original = session.ui;
+        uiField.set(session, new NativeUi(session) { @Override public void close() { attempts.incrementAndGet(); throw new IllegalStateException("fixture cleanup failure"); } });
+        List<String> logged = new CopyOnWriteArrayList<>(); org.eclipse.core.runtime.ILogListener listener = (status, plugin) -> logged.add(status.getMessage());
+        MusePlugin.get().getLog().addLogListener(listener);
+        try {
+            Throwable failure = null; try { session.close(); } catch (Throwable ex) { failure = ex; }
+            assertFalse("early cleanup failure must not keep the parent alive", runtime.isAlive()); awaitExit(child);
+            assertNull("close isolates the injected cleanup exception", failure);
+            assertTrue("cleanup failure must be logged", logged.contains("MHP_UI_CLEANUP_FAILURE"));
+            assertEquals("MHP_CLOSED", assertThrows(IllegalStateException.class, () -> session.peer.send(Json.object("fixture", "closed"))).getMessage());
+            session.close(); assertEquals("close is idempotent", 1, attempts.get());
+        } finally { MusePlugin.get().getLog().removeLogListener(listener); uiField.set(session, original); original.close(); child.destroyForcibly(); }
+    }
+    @Test public void nonUiNativeRequestsAreRefusedBeforeTouchingState() throws Exception {
+        java.util.concurrent.atomic.AtomicReference<Throwable> failure = new java.util.concurrent.atomic.AtomicReference<>();
+        Thread caller = new Thread(() -> { try { session.uiRequest("workspace/trust", new JsonObject()); } catch (Throwable ex) { failure.set(ex); } });
+        caller.start(); caller.join(TimeUnit.SECONDS.toMillis(2)); assertFalse(caller.isAlive());
+        assertNotNull("native requests must be confined to their display", failure.get());
+        assertEquals("MHP_UI_THREAD_REQUIRED", failure.get().getMessage());
+    }
+    @Test public void nonUiCloseDuringSettledMutationLeavesCleanupOnTheDisplay() throws Exception {
+        CountDownLatch mutating = new CountDownLatch(1), returned = new CountDownLatch(1);
+        java.util.concurrent.atomic.AtomicReference<Throwable> failure = new java.util.concurrent.atomic.AtomicReference<>();
+        Thread displayThread = Thread.currentThread();
+        Map<String, Object> owned = new HashMap<>() {
+            private void owner() { assertSame("analysis state belongs to the display", displayThread, Thread.currentThread()); }
+            @Override public Object put(String key, Object value) {
+                owner(); Object result = super.put(key, value); mutating.countDown();
+                try { assertTrue("non-UI close must not wait for the display", returned.await(5, TimeUnit.SECONDS)); }
+                catch (InterruptedException ex) { throw new AssertionError(ex); }
+                return result;
+            }
+            @Override public Collection<Object> values() { owner(); return super.values(); }
+            @Override public void clear() { owner(); super.clear(); }
+        };
+        java.lang.reflect.Field analysesField = WindowSession.class.getDeclaredField("analyses"); analysesField.setAccessible(true); analysesField.set(session, owned);
+        Thread closer = new Thread(() -> {
+            try { assertTrue(mutating.await(5, TimeUnit.SECONDS)); session.close(); session.close(); }
+            catch (Throwable ex) { failure.set(ex); }
+            finally { returned.countDown(); }
+        }, "fixture-osgi-stop");
+        closer.start();
+        try {
+            String uri = session.documents.uri(editor);
+            JsonElement version = session.documents.descriptor(editor).get("version");
+            assertTrue(session.uiRequest("diagnostics/settled", Json.object("uri", uri, "expectedVersion", version)).isJsonNull());
+            closer.join(TimeUnit.SECONDS.toMillis(2)); assertFalse("close thread did not finish", closer.isAlive());
+            assertNull("non-UI close touched display-owned state", failure.get()); assertFalse(runtime.isAlive());
+            pump(owned::isEmpty);
+            assertEquals("MHP_CLOSED", assertThrows(IllegalArgumentException.class, () -> session.uiRequest("diagnostics/settled", Json.object("uri", uri, "expectedVersion", version))).getMessage());
+        } finally { returned.countDown(); closer.join(TimeUnit.SECONDS.toMillis(2)); }
     }
     @Test public void admittedBrowserMessagesWaitForReloadAndRemainCounted() throws Exception {
         MuseView view = new MuseView();
@@ -281,6 +358,53 @@ public class SessionTest {
         OpenHandler.openPanel(session.window);
         assertTrue("Open must replace the unbound placeholder", views().stream().anyMatch(view -> view.binding() != null));
         assertEquals(1, views().size()); assertEquals(owned, views().get(0).binding().session);
+    }
+    @Test public void userMenuScansPlaceholdersBeforeAndAfterTheOwnedView() throws Exception {
+        IWorkbenchPage actual = session.window.getActivePage();
+        MuseView placeholder = (MuseView) actual.showView("io.musespark.panel");
+        session.uiRequest("surfaces/open", Json.object("kind", "chat", "placement", "side", "sessionId", "mixed-owned"));
+        MuseView owned = views().stream().filter(view -> view.binding() != null).findFirst().orElseThrow();
+        IViewReference ownedReference = actual.findViewReference("io.musespark.panel", owned.getViewSite().getSecondaryId());
+        IViewReference unboundReference = actual.findViewReference("io.musespark.panel");
+        for (IViewReference[] order : List.of(new IViewReference[] {ownedReference, unboundReference}, new IViewReference[] {unboundReference, ownedReference})) {
+            List<IViewReference> hidden = new ArrayList<>(); List<Object> activated = new ArrayList<>();
+            IWorkbenchWindow decorated = menuWindow(order, hidden, activated);
+            OpenHandler.openPanel(decorated);
+            assertEquals("scan must remove the placeholder regardless of order", List.of(unboundReference), hidden);
+            assertEquals(List.of(owned), activated);
+        }
+        assertNull(placeholder.binding());
+    }
+    @Test public void userMenuReplacesANotYetCreatedPlaceholderWithoutCreatingIt() throws Exception {
+        IWorkbenchPage actual = session.window.getActivePage();
+        session.uiRequest("surfaces/open", Json.object("kind", "chat", "placement", "side", "sessionId", "lazy-owned"));
+        MuseView owned = views().get(0);
+        IViewReference ownedReference = actual.findViewReference("io.musespark.panel", owned.getViewSite().getSecondaryId());
+        IViewReference lazy = (IViewReference) java.lang.reflect.Proxy.newProxyInstance(IViewReference.class.getClassLoader(), new Class<?>[] {IViewReference.class}, (proxy, method, arguments) -> {
+            if (method.getName().equals("getId")) return "io.musespark.panel";
+            if (method.getName().equals("getView")) { assertEquals("Open must not instantiate the placeholder", false, arguments[0]); return null; }
+            throw new AssertionError("unexpected lazy reference call: " + method.getName());
+        });
+        List<IViewReference> hidden = new ArrayList<>(); List<Object> activated = new ArrayList<>();
+        OpenHandler.openPanel(menuWindow(new IViewReference[] {lazy, ownedReference}, hidden, activated));
+        assertEquals(List.of(lazy), hidden); assertEquals(List.of(owned), activated);
+    }
+    private IWorkbenchWindow menuWindow(IViewReference[] references, List<IViewReference> hidden, List<Object> activated) throws Exception {
+        IWorkbenchWindow actual = session.window; IWorkbenchPage page = actual.getActivePage();
+        IWorkbenchPage decoratedPage = (IWorkbenchPage) java.lang.reflect.Proxy.newProxyInstance(IWorkbenchPage.class.getClassLoader(), new Class<?>[] {IWorkbenchPage.class}, (proxy, method, arguments) -> {
+            if (method.getName().equals("getViewReferences")) return references;
+            if (method.getName().equals("hideView")) { assertTrue("hide the reference without creating it", arguments[0] instanceof IViewReference); hidden.add((IViewReference) arguments[0]); return null; }
+            if (method.getName().equals("activate")) { activated.add(arguments[0]); return null; }
+            return method.invoke(page, arguments);
+        });
+        IWorkbenchWindow decorated = (IWorkbenchWindow) java.lang.reflect.Proxy.newProxyInstance(IWorkbenchWindow.class.getClassLoader(), new Class<?>[] {IWorkbenchWindow.class}, (proxy, method, arguments) -> {
+            if (method.getName().equals("getActivePage")) return decoratedPage;
+            if (method.getName().equals("hashCode")) return System.identityHashCode(proxy);
+            if (method.getName().equals("equals")) return proxy == arguments[0];
+            return method.invoke(actual, arguments);
+        });
+        pluginSessions.getClass().getMethod("put", Object.class, Object.class).invoke(pluginSessions, decorated, session);
+        return decorated;
     }
     @Test public void runtimeCommandRunNotifiesItsRegisteredExecution() throws Exception {
         session.uiRequest("commands/register", Json.object("id", "fixture-run", "title", "Fixture run command"));

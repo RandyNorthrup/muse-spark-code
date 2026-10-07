@@ -10,12 +10,16 @@ public final class OpenHandler extends AbstractHandler {
     }
     public static void openPanel(IWorkbenchWindow window) throws Exception {
         IWorkbenchPage page = window.getActivePage();
-        for (IViewReference reference : page.getViewReferences()) if (reference.getView(false) instanceof MuseView view) {
-            if (view.binding() == null) page.hideView(view);
-            else { page.activate(view); return; }
-        }
         WindowSession session = MusePlugin.get().session(window);
         String owned = session.chatSession();
+        MuseView active = null;
+        for (IViewReference reference : page.getViewReferences()) {
+            if (!reference.getId().equals("io.musespark.panel")) continue;
+            IViewPart part = reference.getView(false);
+            if (part == null || part instanceof MuseView view && view.binding() == null) page.hideView(reference);
+            else if (part instanceof MuseView view && view.binding().session.equals(owned) && view.binding().kind.equals("chat")) active = view;
+        }
+        if (active != null) { page.activate(active); return; }
         // Without a runtime-owned chat session there is nothing to configure: the runtime's
         // initial surfaces/open creates the view once startup completes. Publishing an invented
         // session here would be rejected as unowned and leave a dead view behind.

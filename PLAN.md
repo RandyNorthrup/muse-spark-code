@@ -19179,6 +19179,21 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**FIXM104PE3 / RVF104PE2 (2026-10-07).** Redesign Eclipse shutdown:
+the display owns analysis, command and native UI state; one documented lock
+owns cross-thread admission, surfaces and queued browser deliveries. Closing
+claims ownership once, dispatches native cleanup to its owner without waiting
+on the OSGi thread, isolates cleanup failures and always tears down the captured
+runtime tree in finally. Regressions inject an early cleanup failure and race
+non-UI close with settled-request mutation. Replace every restored placeholder
+before activating the owned chat view. Repair the descendant receipt to distinguish
+startup, zombies and reaping, repeat it 20 times and remove descendant killing
+for a red control. Decompose JetBrains native UI into a collaborator with a
+parameter object; Detekt must pass unchanged. Replay each fix against exact
+base `9ae7c6c34`, run the specified JVM gates/repeats and fresh-clone CI-style
+TypeScript checks at default test deadlines. Certification goes in
+`docs/certification/m104.md`; no merge/push or paid/live calls.
+
 **FIXM104PE2 / RVF104PE (2026-10-07).** Close the six P2 findings in
 the Linux/JVM hosts: preserve SWT's absolute file selection, attest diagnostics
 only after analysis of the saved version, prepare replacement JetBrains HTML
@@ -19651,18 +19666,12 @@ and are not transferred or accepted as complete by these launcher repairs.
 
 ## 7. Gates
 
-**FIXM104PE2 native static debt (2026-10-07).** The exact `5adb76f38`
-snapshot fails Detekt with five issues. This repair removes its settled-report
-return-count and line-length issues, and removes every new Detekt issue in the
-page preparation and browser regression. Three unchanged findings remain in
-`NativeHostServices`: its seven-parameter constructor (`LongParameterList`),
-the 15-branch UI dispatcher (`CyclomaticComplexMethod`), and the class's
-15 functions (`TooManyFunctions`). Defer decomposition of that existing
-service to a dedicated native cleanup: changing its full constructor and UI
-ownership is outside this six-finding repair. The mandatory Maven `verify`
-and Gradle `test` gates and native regressions are required green; Detekt
-is explicitly not certified green. No threshold, ignore or rule is changed.
-Exact base/head commands and counts are in `docs/certification/m104.md`.
+**FIXM104PE3 scope (2026-10-07).** The rig/common rules reserve aggregate
+`npm run quality` and coverage for the lead. This lane requires native Maven
+verify, Gradle test/Detekt, repeated owning JVM suites, and sequential
+fresh-clone TypeScript gates. The previous NativeHostServices Detekt deferral
+is removed: all three remaining findings are in scope and must be green with
+unchanged rules and thresholds.
 
 **FIXM104PA3 packaging correction (2026-10-06).** Lane A repairs the existing
 VSIX allowlist and its actual package-member/production activation tests for
