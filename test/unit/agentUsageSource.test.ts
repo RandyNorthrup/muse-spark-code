@@ -244,6 +244,51 @@ describe('captured, opt-in external agent usage', () => {
       await rm(root, { recursive: true, force: true })
     }
   })
+  it('discovers accepted Claude subagent sessions below each project', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'm113-subagents-'))
+    try {
+      await mkdir(path.join(root, '.claude/projects/fixture/subagents'), { recursive: true })
+      await writeFile(
+        path.join(root, '.claude/projects/fixture/session.jsonl'),
+        JSON.stringify(claude()),
+      )
+      const child = claude()
+      child.message.id = 'fixture-child-message'
+      child.message.usage = {
+        input_tokens: 100,
+        cache_creation_input_tokens: 0,
+        cache_read_input_tokens: 0,
+        output_tokens: 0,
+      }
+      await writeFile(
+        path.join(root, '.claude/projects/fixture/subagents/child.jsonl'),
+        JSON.stringify(child),
+      )
+      await writeFile(
+        path.join(root, '.claude/projects/fixture/subagents/notes.md'),
+        'Synthetic fixture marker',
+      )
+      const result = await createRuntimeReportSources({
+        workspaceRoot: root,
+        homeDir: root,
+        platform: process.platform,
+        env: {},
+        scrub: clean,
+        enabledAgents: ['claudeCode'],
+      }).sources.agentUsage.read(context())
+      expect(result.record.status).toBe('ok')
+      expect(result.data?.map((row) => row.file)).toEqual([
+        '~/.claude/projects/fixture/session.jsonl',
+        '~/.claude/projects/fixture/subagents/child.jsonl',
+      ])
+      expect(
+        result.data?.find((row) => row.file.endsWith('subagents/child.jsonl'))?.usage.inputTokens,
+      ).toBe(100)
+      expect(JSON.stringify(result)).not.toContain('Synthetic fixture marker')
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
   it('does not double-count duplicate file selections', async () => {
     const source = file('codex', JSON.stringify(codex()))
     const result = await agentUsageSource(['codex'], [source, source], clean).read(context())
