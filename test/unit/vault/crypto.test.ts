@@ -1,5 +1,6 @@
 import { withRngFailure } from './storeFixtures'
 import type * as crypto from 'node:crypto'
+import { VAULT_TAG_BYTES } from '../../../src/shared/constants'
 import { describe, expect, it, vi } from 'vitest'
 import {
   aesGcmOpen,
@@ -88,6 +89,23 @@ describe('vault crypto', () => {
     expect(aesGcmOpen(key, nonce, sealed.ciphertext, sealed.tag, Buffer.alloc(0))).toEqual(
       plaintext,
     )
+  })
+  it('pins the authenticated GCM tag length at the native decryption boundary', async () => {
+    const native = await import('node:crypto')
+    const decipher = vi.spyOn(native, 'createDecipheriv')
+    const key = Buffer.alloc(32)
+    const nonce = Buffer.alloc(12)
+    const aad = Buffer.alloc(0)
+    const plaintext = Buffer.from('native tag contract')
+    try {
+      const sealed = aesGcmSeal(key, nonce, plaintext, aad)
+      expect(aesGcmOpen(key, nonce, sealed.ciphertext, sealed.tag, aad)).toEqual(plaintext)
+      expect(decipher).toHaveBeenCalledWith('aes-256-gcm', key, nonce, {
+        authTagLength: VAULT_TAG_BYTES,
+      })
+    } finally {
+      decipher.mockRestore()
+    }
   })
   it('matches RFC 5869 SHA-256 test case 1', () => {
     const result = hkdfSha256(

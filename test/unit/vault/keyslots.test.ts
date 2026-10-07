@@ -13,7 +13,8 @@ const vaultId = 'a'.repeat(32)
 
 vi.mock('node:crypto', async (importOriginal) => {
   const original = await importOriginal<typeof crypto>()
-  return { ...original, randomFillSync: vi.fn(original.randomFillSync) }
+  const argon2: unknown = Reflect.get(original, 'argon2')
+  return { ...original, argon2, randomFillSync: vi.fn(original.randomFillSync) }
 })
 
 describe('vault software slots', () => {

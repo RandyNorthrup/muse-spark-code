@@ -19007,7 +19007,26 @@ recover any excess through the newest features' existing lazy boundaries.
 Packaging includes the new Node dependencies and first-use surfaces; native vault
 assets follow the existing universal artifact transfer and executable-mode rules.
 Estimator namespace imports preserve the shared mini-parser export contract;
-real package import checks exercise these first-use dependencies.
+real package import checks exercise these first-use dependencies. Fresh-clone
+repairs preserve fixed auth-error text, build cold package inputs, retain new
+vault schemas in launcher fixtures, and feed large determinism programs on
+standard input rather than process arguments. Hook fixtures retain the new
+vault Git fence while asserting credentials remain absent. Browser startup
+root exclusion is relative to the project, so a committed clone under temp
+retains its real UI readers while synthetic probe entries remain deferred.
+The vault shell secrets descriptor is offered only with a bound private runner;
+unbound ordinary shell schemas and golden request bytes remain unchanged.
+Diagnostic compiled child runs also exceed the simulation and scrub performance
+limits without coverage. Keep the original benchmark assertions, all 2,000
+simulation trials, forty lanes, 1,000 scrub values and original hard limits.
+Node 22 vault slot fixtures explicitly model its absent optional Argon2 export;
+software KDF parameters and production cryptography stay unchanged. Account
+help joins the shared usage formatter so installed CLI output and the complete
+fifteen-language package verifier use one contract. Legal accessibility uses
+the same Chrome channel/absolute-path launch rule as the main harness. Native
+GCM decryption pins the already-validated tag length in the crypto call too.
+Bound vault descriptors still refuse unsupported strict conversion without
+dropping constraints; installed broker/grammar bindings remain milestone work.
 The estimator session adapter lives with its deferred panel, which validates and
 displays the first received section before subscribing to refreshes.
 M117 startup validation loads its complete captured application contracts before
@@ -41866,7 +41885,12 @@ Contract/price/session splits removed most incoming estimator growth. Further
 budget rewrites stopped under the assigned two-fix rule; no waiver is requested
 or implied. The regression remains active and final CI reports it. The earlier
 vault English fixture deferral was resolved by reader classification; its
-unchanged assertion now passes. See `docs/certification/int0180.md`.
+unchanged assertion now passes. Fresh-clone performance diagnostics also fail
+without coverage (simulation 2.2–3.0 s / 2 s; scrub 20.94 / 50 MB/s). Account
+closure remains 77.4 / 25 KiB after two fixture repairs; stop that path. B12
+reference/provider-auth disagreement likewise awaits lead review after setup
+repairs. Full CI records remaining coverage/SAST/native-artifact failures; no
+threshold or rule is weakened. See `docs/certification/int0180.md`.
 
 **CI0150M round 3 aggregate status (2026-10-07).** The attempted unmodified
 `npm run quality` passes static gates, then fails whole-repository tests in

@@ -14,7 +14,10 @@ happened, not what was planned; superseded entries are kept.
   endpoint checks and scrubbed failures, and uploaded history refuses cleanup
   without its ownership ledger. Vault and estimator assets survive both package
   formats, with the macOS vault helper carried from its native CI artifact.
-  Existing bundle caps remain unchanged.
+  Fresh clones retain browser English readers even beneath a temporary parent.
+  Unbound vault shell descriptors preserve ordinary strict-tool requests,
+  account CLI help shares the installed usage contract, and GCM decryption
+  explicitly pins its authenticated tag length. Existing caps remain unchanged.
 
 ### Added
 

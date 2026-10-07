@@ -646,7 +646,7 @@ describe('App conversation', () => {
       args: '{"command":"npm run dev"}',
     }
     deliver({ type: 'agentEvent', event: { type: 'itemStarted', item: call } })
-    fireEvent.click(screen.getByRole('button', { name: /^Move to background/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /^Move to background/ }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'moveToBackground', itemId: 'c1' })
     expect(screen.getByRole('button', { name: /^Move to background/ })).toBeDisabled()
     deliver({
@@ -1874,7 +1874,7 @@ describe('App session history (M6)', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
-  it('shows the agents pill once a subagent runs and opens the Agent map from it (M14)', () => {
+  it('shows the agents pill once a subagent runs and opens the Agent map from it (M14)', async () => {
     const postMessage = renderReady()
     deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
     deliver({
@@ -1900,7 +1900,7 @@ describe('App session history (M6)', () => {
     const pill = screen.getByTitle('Show the agent map')
     expect(pill).toHaveTextContent('1 agent')
     fireEvent.click(pill)
-    const map = screen.getByRole('dialog', { name: 'Agent map' })
+    const map = await screen.findByRole('dialog', { name: 'Agent map' })
     expect(map).toHaveTextContent('1 agent · click an agent for details')
     fireEvent.click(screen.getByRole('button', { name: /Map the workspace/ }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'readChildSession', sessionId: 'child-1' })
@@ -1920,7 +1920,7 @@ describe('App session history (M6)', () => {
 
   it.each(['museCode', 'modelApi'] as const)(
     'shows only verified %s agent result controls through the real App',
-    (backend) => {
+    async (backend) => {
       const postMessage = renderReady()
       deliver({ type: 'authState', status: 'signedIn', backend })
       deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
@@ -1946,7 +1946,7 @@ describe('App session history (M6)', () => {
         },
       })
       fireEvent.click(screen.getByTitle('Show the agent map'))
-      fireEvent.click(screen.getByRole('button', { name: /Check controls/ }))
+      fireEvent.click(await screen.findByRole('button', { name: /Check controls/ }))
       if (backend === 'modelApi') {
         fireEvent.click(screen.getByRole('button', { name: 'Mark result read' }))
         expect(postMessage).toHaveBeenCalledWith({

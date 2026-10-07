@@ -333,6 +333,7 @@ export function parseCommandLine<T>(
   if (values.account !== undefined && (first !== 'auth' || second !== 'set' || rest.length > 0))
     return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
   if (first === 'setup' && second === undefined) {
+    if (values.provider !== undefined) return invalid('setup')
     return options.trustWorkspace
       ? { command: 'setup', options, maintenance: values.maintenance === true }
       : { command: 'invalid', reason: UI_TEXT.hooksNotRunnable }
@@ -352,18 +353,17 @@ export function parseCommandLine<T>(
   if (first === 'providers') {
     return parseProviders(values, second, rest)
   }
-  if (first !== 'auth' || rest.length > 0) {
-    return invalid(positionals.join(' '))
-  }
+  if (first !== 'auth') return invalid(positionals.join(' '))
+  if (rest.length > 0) return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
   if (PROVIDER_AUTH_OPTIONS.some((name) => values[name] !== undefined)) {
-    return invalid(positionals.join(' '))
+    return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
   }
   const auth = authCommand(second)
   if (auth === undefined) {
-    return invalid(positionals.join(' '))
+    return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
   }
   const provider = values.provider
-  const hasTarget = provider !== undefined || values.account !== undefined
+  const hasTarget = values.account !== undefined
   if (auth === 'authSet' && hasTarget) {
     const targetProvider = accountIdSchema.safeParse(provider ?? 'meta')
     const targetAccount = accountIdSchema.safeParse(values.account ?? ACCOUNT_DEFAULT_ID)

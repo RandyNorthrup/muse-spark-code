@@ -46,7 +46,7 @@ beforeAll(async () => {
       '-o',
       native.helper,
     ],
-    { env: {} },
+    { env: { PATH: process.env['PATH'] } },
   )
 })
 afterEach(async () => {

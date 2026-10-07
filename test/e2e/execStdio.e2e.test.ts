@@ -257,6 +257,11 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     'runtimeEngine',
     'providerPolicy',
     'modelApiBoundaries',
+    'vault',
+    'vaultBoundaries',
+    'estimator',
+    'estimateContracts',
+    'media',
     'providers',
     'subscriptions',
     'configuredProviders',
@@ -288,7 +293,15 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
   }
   cpSync(path.join(ROOT, 'dist/providerCatalog.json'), path.join(dir, 'dist/providerCatalog.json'))
   cpSync(path.join(ROOT, 'dist/providerCatalog.js'), path.join(dir, 'dist/providerCatalog.js'))
-  for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs']) {
+  for (const file of [
+    'MuseSparkJob.cs',
+    'MuseSparkMcpJob.cs',
+    'MuseSparkScreenRecord.cs',
+    'MuseSparkVault.cs',
+    'MuseSparkVaultCng.cs',
+    'MuseSparkVaultHello.cs',
+    'MuseSparkVaultLock.cs',
+  ]) {
     writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
   }
   cpSync(path.join(ROOT, 'src/shared'), path.join(dir, 'src/shared'), { recursive: true })
@@ -756,6 +769,7 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
         'docs',
         'test/integration',
         'test/packaging',
+        'media/readme',
       ]) {
         cpSync(path.join(ROOT, folder), path.join(BUILD_ROOT, folder), { recursive: true })
       }

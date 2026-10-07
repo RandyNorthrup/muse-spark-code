@@ -243,11 +243,10 @@ export class MediaBudget {
       const content = reversedContent.map((part) => {
         const reason = refusal(part)
         const omission = this.mediaOmissions.get(part)
-        return reason === undefined
-          ? part
-          : omission === undefined
-            ? leftOut(part, reason)
-            : { type: 'input_text' as const, text: omission }
+        if (reason === undefined) return part
+        return omission === undefined
+          ? leftOut(part, reason)
+          : { type: 'input_text' as const, text: omission }
       })
       const isItemChanged = content.some((part, index) => part !== reversedContent[index])
       return isItemChanged ? { ...item, content: content.toReversed() } : item

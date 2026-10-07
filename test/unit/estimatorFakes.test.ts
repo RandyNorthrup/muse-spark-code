@@ -33,7 +33,7 @@ describe('M117 reusable fakes and evidence', () => {
       { TZ: 'Pacific/Auckland', LANG: 'ja_JP.UTF-8' },
       { TZ: 'America/Los_Angeles', LANG: 'fr_FR.UTF-8' },
     ]) {
-      const child = spawnSync(process.execPath, ['-e', code], { env, encoding: 'utf8' })
+      const child = spawnSync(process.execPath, ['-'], { input: code, env, encoding: 'utf8' })
       expect(child.status, child.stderr).toBe(0)
       expect(child.stdout).toBe(expected)
     }

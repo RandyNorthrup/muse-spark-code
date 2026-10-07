@@ -6,6 +6,7 @@ import path from 'node:path'
 import { chromium } from 'playwright-core'
 import { serveRepo } from '../../scripts/lib/harnessServer.mjs'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
+import { compactBrowserUiText } from '../../scripts/lib/uiTextRegions.mjs'
 import { accountsHarnessEntry } from '../harness/accounts.mjs'
 
 const root = path.resolve(import.meta.dirname, '../..')
@@ -29,6 +30,7 @@ beforeAll(async () => {
     jsx: 'automatic',
     minify: true,
     metafile: true,
+    plugins: [compactBrowserUiText],
   })
   state.meta = result.metafile
   await mkdir(path.join(root, 'temp/m108-u-shots'), { recursive: true })

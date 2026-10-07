@@ -158,7 +158,7 @@ export function aesGcmOpen(
   let chunk: Buffer | undefined
   let tail: Buffer | undefined
   try {
-    const decipher = createDecipheriv('aes-256-gcm', key, nonce)
+    const decipher = createDecipheriv('aes-256-gcm', key, nonce, { authTagLength: VAULT_TAG_BYTES })
     decipher.setAAD(aad)
     decipher.setAuthTag(tag)
     chunk = decipher.update(ciphertext)

@@ -1,3 +1,4 @@
+import { withStrictTools } from '../../../src/core/backends/modelapi/schemas'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   executeTool,
@@ -37,6 +38,14 @@ function fixture() {
 function contextFor(io: ToolIo = memoryToolIo({}, '/workspace')): ToolContext {
   return { io, platform: 'linux', workspaceRoot: '/workspace', seen: new Map() }
 }
+it('keeps unbound ordinary shell schemas compatible with strict tools', () => {
+  const definitions = toolDefinitions('linux')
+  expect(
+    definitions.find((tool) => tool.name === 'bash')?.parameters['properties'],
+  ).not.toHaveProperty('secrets')
+  expect(() => withStrictTools(definitions, true)).not.toThrow()
+})
+
 describe('M109 X backend adapters', () => {
   it('routes the Model API shell secrets through the broker callback and never through ordinary shell', async () => {
     const io = memoryToolIo({}, '/workspace')
@@ -63,9 +72,11 @@ describe('M109 X backend adapters', () => {
     expect(result.output).toContain('scrubbed')
     expect(run).toHaveBeenCalledOnce()
     expect(ordinary).not.toHaveBeenCalled()
-    expect(toolDefinitions('linux').find((tool) => tool.name === 'bash')?.parameters).toMatchObject(
-      { properties: { secrets: { type: 'object' } } },
-    )
+    expect(
+      toolDefinitions('linux', { hasShell: true, hasSkills: false, hasVaultShell: true }).find(
+        (tool) => tool.name === 'bash',
+      )?.parameters,
+    ).toMatchObject({ properties: { secrets: { type: 'object' } } })
     const denied = await executeTool(
       'bash',
       JSON.stringify({ command: 'echo secret://test-secret' }),

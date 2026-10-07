@@ -4,7 +4,7 @@ import { fill } from '../shared/l10n/text'
 
 /** Compact CLI help, also checked against the installed package's tables. */
 export function formatAcpUsage(table: UiText, command: string): string {
-  return `${fill(table.acpUsage, { command })}\n${fill(table.acpChatGpt.usage, { command })}\n${table.helpReferenceTitle}: ${command} help --all\n${sharingHelp(table)}`
+  return `${fill(table.acpUsage, { command })}\n${fill(table.acpChatGpt.usage, { command })}\n${table.helpReferenceTitle}: ${command} help --all\n${sharingHelp(table)}\n${fill(table.accounts.cliUsage, { command })}\n${fill(table.accounts.execHelp, { command })}`
 }
 
 // One parseArgs definition per runtime route, also read by the lazy reference.

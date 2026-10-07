@@ -47,10 +47,16 @@ function fixture() {
     'runtimeAccounting',
     'acpQuestions',
     'runtimeQuestions',
+    'runtimeAccounts',
     'questionNotes',
     'runtimeEngine',
     'providerPolicy',
     'modelApiBoundaries',
+    'vault',
+    'vaultBoundaries',
+    'estimator',
+    'estimateContracts',
+    'media',
     'legalScan',
     'imageResizeWorker',
     'team',
@@ -68,6 +74,7 @@ function fixture() {
     'uiTextRuntime',
     'uiTextHooks',
     'uiTextSurfaces',
+    'uiTextMedia',
     'extensionHooks',
     'validation',
     'wire',
@@ -77,7 +84,15 @@ function fixture() {
     'usageCompanion',
   ])
     put(`dist/${bundle}.js`, 'exports.EN = {}')
-  for (const file of ['MuseSparkJob', 'MuseSparkMcpJob'])
+  for (const file of [
+    'MuseSparkJob',
+    'MuseSparkMcpJob',
+    'MuseSparkScreenRecord',
+    'MuseSparkVault',
+    'MuseSparkVaultCng',
+    'MuseSparkVaultHello',
+    'MuseSparkVaultLock',
+  ])
     put(`native/windows/${file}.cs`, '// test source')
   put('LICENSE', 'MIT')
   put('dist/providerCatalog.json', '{"providers":{}}')

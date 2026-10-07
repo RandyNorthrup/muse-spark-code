@@ -6,20 +6,26 @@ import { UI_TEXT } from '../../src/shared/l10n/text'
 import { installEmbeddedTable } from '../../src/webview/installTable'
 import '../../src/webview/styles.css'
 
+async function accountsModule() {
+  const english = await import('../../src/shared/l10n/deferredEnglish')
+  await english.loadDeferredEnglish()
+  return await import('../../src/webview/models/sections/accounts/accountsEntry')
+}
+
 const Section = lazy(async () => {
-  const module = await import('../../src/webview/models/sections/accounts/accountsEntry')
+  const module = await accountsModule()
   return { default: module.AccountsSection }
 })
 const Dialog = lazy(async () => {
-  const module = await import('../../src/webview/models/sections/accounts/accountsEntry')
+  const module = await accountsModule()
   return { default: module.AccountsConfirmationDialog }
 })
 const Chip = lazy(async () => {
-  const module = await import('../../src/webview/models/sections/accounts/accountsEntry')
+  const module = await accountsModule()
   return { default: module.AccountChip }
 })
 const Notices = lazy(async () => {
-  const module = await import('../../src/webview/models/sections/accounts/accountsEntry')
+  const module = await accountsModule()
   return { default: module.AccountNotices }
 })
 // The Node accessibility test uses this entry without mounting a document.

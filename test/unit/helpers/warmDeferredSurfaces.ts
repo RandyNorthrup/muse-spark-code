@@ -38,5 +38,7 @@ export async function warmDeferredSurfaces(): Promise<void> {
     import('../../../src/webview/prompts/PromptLibrary'),
     import('../../../src/webview/prompts/PromptLibraryBridge'),
     import('../../../src/webview/sharing/ChatShareBridge'),
+    import('../../../src/webview/estimator/composer'),
+    import('../../../src/webview/estimator/EstimatorPanel'),
   ])
 }

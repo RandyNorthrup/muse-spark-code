@@ -331,7 +331,7 @@ describe('M117 goal and DAG determinism', () => {
       { TZ: 'Etc/GMT+12', LANG: 'de_DE.UTF-8' },
     ]
     const outputs = contexts.map((env) =>
-      spawnSync(process.execPath, ['-e', code], { env, encoding: 'utf8' }),
+      spawnSync(process.execPath, ['-'], { input: code, env, encoding: 'utf8' }),
     )
     expect(outputs.map(({ status, stdout, stderr }) => ({ status, stdout, stderr }))).toEqual(
       contexts.map(() => ({ status: 0, stdout: expected, stderr: '' })),

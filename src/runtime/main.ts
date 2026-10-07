@@ -1227,8 +1227,6 @@ async function main(): Promise<number> {
         writeLine(process.stdout, reference.all(nls))
       } else {
         writeLine(process.stdout, formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
-        writeLine(process.stdout, fill(UI_TEXT.accounts.cliUsage, { command: ACP_AGENT_NAME }))
-        writeLine(process.stdout, fill(UI_TEXT.accounts.execHelp, { command: ACP_AGENT_NAME }))
       }
       return 0
     }

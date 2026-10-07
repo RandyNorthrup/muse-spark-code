@@ -629,6 +629,8 @@ const PATH_PROPERTY = { type: 'string', description: 'Workspace-relative path' }
 const SHELL_STOPPED_BY_USER = 'stopped by the user'
 
 export interface ToolDefinitionOptions {
+  /** Advertise private shell handles only when a vault runner is bound. */
+  readonly hasVaultShell?: boolean
   readonly vaultTools?: readonly McpTool[]
   /** False in Restricted Mode: no shell tool is offered (PLAN.md D13). */
   readonly hasShell: boolean
@@ -770,7 +772,7 @@ export function toolDefinitions(
             `Run one ${shell.shellName} command line in the workspace root and return its output.`,
             {
               command: { type: 'string' },
-              secrets: VAULT_EXEC_PARAMETERS.secrets,
+              ...(options.hasVaultShell === true && { secrets: VAULT_EXEC_PARAMETERS.secrets }),
               description: { type: 'string', description: 'One line saying what the command does' },
               timeout_ms: {
                 type: 'integer',

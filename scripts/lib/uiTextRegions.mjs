@@ -283,6 +283,14 @@ export function browserTextKeys(entries, english, eagerSources = new Set()) {
   return { keys, files: [...seen], eagerKeys }
 }
 
+/** Exclude synthetic probes within the project, regardless of the checkout's parent path. */
+export function browserStartupRoots(entries, root = process.cwd()) {
+  return entries.filter((entry) => {
+    const relative = path.relative(root, path.resolve(root, entry)).replaceAll('\\', '/')
+    return !relative.endsWith('/ReferencePage.tsx') && !relative.startsWith('temp/')
+  })
+}
+
 /** Production browser readers retain their English; complete translation checks retain their contract. */
 export const compactBrowserUiText = {
   name: 'compact-browser-ui-text',
@@ -291,10 +299,7 @@ export const compactBrowserUiText = {
     build.onStart(async () => {
       const { EN, L10N_BROWSER_COMPRESSION_LEVEL } = await loadL10n(process.cwd())
       const entries = Object.values(build.initialOptions.entryPoints)
-      const roots = entries.filter((entry) => {
-        const normal = path.resolve(entry).replaceAll('\\', '/')
-        return !normal.endsWith('/ReferencePage.tsx') && !normal.includes('/temp/')
-      })
+      const roots = browserStartupRoots(entries)
       const eagerSources = browserStartupSources(roots).files
       const { keys, files, eagerKeys } = browserTextKeys(entries, EN, eagerSources)
       const deferredKeys = [...keys].filter((key) => !eagerKeys.has(key))

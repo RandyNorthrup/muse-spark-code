@@ -230,7 +230,13 @@ describe('M80 W fake-only test package', { timeout: TIMEOUT }, () => {
       readdirSync(path.join(INSTALLED, 'schemas')).toSorted((left, right) =>
         left.localeCompare(right),
       ),
-    ).toEqual(['exec-event-v1.schema.json', 'exec-result-v1.schema.json', 'share-v1.schema.json'])
+    ).toEqual([
+      'exec-event-v1.schema.json',
+      'exec-result-v1.schema.json',
+      'share-v1.schema.json',
+      'vault-authorization-result-v1.schema.json',
+      'vault-issuer-v1.schema.json',
+    ])
     expect(readFileSync(path.join(STAGE, 'package.json'), 'utf8')).not.toContain('exec-test')
     expect(readFileSync(LAUNCHER, 'utf8')).toContain('w-report-')
   })

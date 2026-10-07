@@ -3797,6 +3797,7 @@ export class ModelApiSession implements AgentSession {
     if (this.modelPolicy().tools.calling.state !== 'yes') return []
     const teamMode = this.teamModeForRequest()
     const own = toolDefinitions(this.deps.platform, {
+      hasVaultShell: this.deps.io.runVaultShell !== undefined,
       hasShell,
       // then_run runs any command: only where the shell tool is (M76).
       hasThenRun: hasShell && this.canRunShell(),
@@ -3855,6 +3856,7 @@ export class ModelApiSession implements AgentSession {
    */
   private reviewerTools(): readonly FunctionToolDefinition[] {
     const own = toolDefinitions(this.deps.platform, {
+      hasVaultShell: this.deps.io.runVaultShell !== undefined,
       hasShell: false,
       hasSkills: false,
       isSubagent: true,
@@ -6985,6 +6987,7 @@ export class ModelApiSession implements AgentSession {
    */
   private hookModelTools(): readonly FunctionToolDefinition[] {
     return toolDefinitions(this.deps.platform, {
+      hasVaultShell: this.deps.io.runVaultShell !== undefined,
       hasShell: false,
       hasSkills: false,
       isSubagent: true,

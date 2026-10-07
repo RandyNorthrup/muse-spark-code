@@ -54,7 +54,7 @@ describe('native Unix foreign-user rejection', () => {
       execFileSync(
         '/usr/bin/cc',
         ['-Wall', '-Wextra', '-Werror', path.resolve('src/core/vault/broker/peer.c'), '-o', helper],
-        { env: {} },
+        { env: { PATH: process.env['PATH'] } },
       )
       execFileSync(
         '/usr/bin/cc',
@@ -66,7 +66,7 @@ describe('native Unix foreign-user rejection', () => {
           '-o',
           client,
         ],
-        { env: {} },
+        { env: { PATH: process.env['PATH'] } },
       )
       await chmod(directory, 0o755)
       await new Promise<undefined>((resolve, reject) => {
@@ -83,12 +83,13 @@ describe('native Unix foreign-user rejection', () => {
       expect(await verified.promise).toBe(false)
       expect(identify).not.toHaveBeenCalled()
     } finally {
-      await new Promise<undefined>((resolve, reject) =>
-        server.close((error) => {
-          if (error) reject(error)
-          else resolve(undefined)
-        }),
-      )
+      if (server.listening)
+        await new Promise<undefined>((resolve, reject) =>
+          server.close((error) => {
+            if (error) reject(error)
+            else resolve(undefined)
+          }),
+        )
       await rm(directory, { recursive: true, force: true })
     }
   })
