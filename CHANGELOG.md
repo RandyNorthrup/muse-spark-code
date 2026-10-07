@@ -14,6 +14,10 @@ happened, not what was planned; superseded entries are kept.
   gives the rule that prevents it and the milestone that will enforce that
   rule in the app's own orchestrator (D100).
 
+- README screenshots refreshed for the question dock, Git actions, slash
+  commands and paid usage; added open-question and Help & Reference
+  views, with matching captions on both landing pages.
+
 ### Fixed
 
 - Test infrastructure warms deferred panel and row modules before behavior

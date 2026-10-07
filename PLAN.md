@@ -13544,6 +13544,35 @@ listed in `docs/certification/harness-waits.md`. Six deliberate failure controls
 have SHA-256-exact restoration. Scoped compiler/static checks and production
 build pass without changing caps; aggregate quality remains lead-owned (§7).
 
+### SHOTS — README screenshot refresh (2026-10-06)
+
+Refresh the README and Marketplace screenshots from this release's actual
+webview harness. Build dev, capture every existing mapping to a preview,
+inspect each committed/captured pair, and replace shots whose UI changed.
+Preserve existing sizes and themes. The Chrome CLI capture stalled on this
+rig; use the existing Playwright helper and harness readiness/scan result
+in the README runner, refusing harness errors before writing an image. Add
+images of M112's open-question dock and the Help & Reference page using existing scenes where possible; append
+any needed scene and wait for its controls with `whenFound`. Do not edit
+existing scenarios owned by HARNESSWAIT. Align both landing pages' captions
+and alt text with the captured views; preserve versions and the single
+What's New section. Record every image verdict, scoped checks, accessibility
+receipts and before/after packaged VSIX sizes in
+`docs/certification/readme-shots-2026-10-06.md`. No feature, dependency,
+wire shape, paid call, merge, push or gate change is authorized.
+
+The lane runs owning test files with the repository's default timeout,
+compiler projects, scoped lint/format, dead-code, duplication, localization,
+host API, reference and production build on Kubuntu. Shared rig rules
+prohibit aggregate quality; the lead retains full integrated quality.
+
+Completed on Kubuntu: four existing shots refreshed, two new shots added,
+17 mapped captures inspected, 54 owning tests passing at default timeouts,
+eight new-scene accessibility pages passing and four restored red drills.
+Scoped static checks and production build pass; the same-content Linux VSIX
+grows by 254 bytes (2,289,534 → 2,289,788), below its unchanged 2400 KiB cap.
+The full receipt and per-image verdicts are in the certification record.
+
 ### REL0143F — Repair release PR #129 CI failures (2026-10-06)
 
 Continue `release/0.14.3` at `4122e1155` without another merge or push.
@@ -29418,6 +29447,17 @@ projects and scoped static/build checks directly on Kubuntu. The lead retains
 aggregate quality, coverage and hosted cross-platform certification. No gate,
 timeout, hook or budget is weakened. Receipts:
 `docs/certification/harness-waits.md`.
+
+**SHOTS bounded-lane verification (2026-10-06).** The rig brief and shared
+rules prohibit aggregate quality and full-suite runs. The screenshot lane
+runs its complete owning test files with default timeouts, new scenes in all
+four accessibility themes, five compiler projects, scoped lint/format,
+plain knip, duplication, localization, host API, reference, production build
+and actual package size comparison. Full integrated quality stays with the
+lead; no gate, threshold or timeout is weakened. The local Linux package
+omits the macOS helper, which cannot be built here; both size measurements
+use that same content set. External badge checks stay with the lead because
+the lane forbids network calls; staged badge/version validation still runs.
 
 **REL0143F release CI repair (2026-10-06, Kubuntu).** The complete configured
 Vitest matrix passes at repository default timeouts (532 files, 11,430 passing
