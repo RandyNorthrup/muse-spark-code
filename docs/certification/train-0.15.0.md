@@ -1914,3 +1914,23 @@ Two intentional regressions fired at default deadlines and were restored:
 
 Final Windows job results are pending the fresh-clone run; this interim record
 makes no aggregate quality or release certification claim.
+
+### Whole-shard baseline and additional Windows repair
+
+The unchanged baseline fresh clone (`f033583e2`, Node 22.23.3, `CI=true`,
+exact coverage shard 1/4 command) finished in **876.25 s**: **204 files passed,
+2 failed; 4,293 tests passed, 1 failed, 7 skipped**. Model API host's 661 cases
+and hints/load's 15 Windows cases passed. The failures were:
+
+- `runtimeChatGptPackage.test.ts`: absent clean-checkout `dist/acp.js` in suite
+  setup; the round-2 report confirms this on Linux/macOS as well, so Linux owns it.
+- `teamRuntimePackage.test.mjs`: invariant private production compilation inside
+  the five-second test. Its three build calls now run in `beforeAll`, with suite
+  cleanup in `afterAll`; every lazy-load, factory and no-dispatch assert remains.
+  The repaired complete file passes at repository deadlines. Eagerly loading its
+  scheduler before the initial cache assertion deliberately failed (exit 1);
+  restoring the exact line removal restored the pass.
+
+The first committed verification started before this extra repair was found.
+It is a reproduction run, not the final certification. The full Windows job set
+will start again from the next hooked commit and freshly cloned source.

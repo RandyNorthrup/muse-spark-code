@@ -18820,6 +18820,12 @@ security checks, all assertions, deadlines and budgets. Record any failures
 owned by another OS lane without merging or editing its work. No paid/live
 model calls, global dependency installs, push, merge or rebase.
 
+The baseline clean Windows shard also exposed `teamRuntimePackage.test.mjs`
+building its private production bundles inside a five-second assertion. Move
+that invariant compilation into suite preparation while retaining every lazy
+factory and no-dispatch assertion. Clean-artifact package failures reported
+across OSes remain Linux-owned under the round-3 shared rules.
+
 - [ ] Reproduce owned failures and inspect round-2 Windows process priority.
 - [ ] Fix causes, prove regression guards fire, and commit with hooks.
 - [ ] Run every Windows job/matrix command in fresh committed clones, including
