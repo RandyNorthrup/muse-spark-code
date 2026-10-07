@@ -219,6 +219,9 @@ happened, not what was planned; superseded entries are kept.
   while its engine loads. Action-only dialogs and the separate Tasks surface
   also load on demand; the command palette reuses its shared list shell. The
   900 KiB startup budget and existing deferred budget stay unchanged.
+- Cancelled account additions compare ownership inside the store's mutation
+  queue, preserving replacement accounts and credentials with the same ID.
+
 - Account threshold evaluation and paid token reservations use exact nano-USD
   arithmetic, preserving exactly affordable decimal costs. Request/token
   headroom checks trip at the exact configured percentage boundary.

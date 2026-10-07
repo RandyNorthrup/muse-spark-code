@@ -26006,6 +26006,37 @@ timeout, credential, paid policy or installed-feature changes; Q-M108 and W's
 capture/bindings remain required. Receipts:
 `docs/certification/m108-m-muse-code-accounts.md`.
 
+**FIXM108U2 (2026-10-06):** repair RVM108U2's single P2 replacement-account
+rollback race. A cancelled addition must retain its own ownership token;
+rollback compares that token and deletes only its original account under the
+same serialized store mutation. Prove both removal/re-addition while the
+credential prompt is pending and cancellation followed by replacement before
+the delayed rollback. Replacement metadata may be byte-identical; neither
+its row nor its credential may be removed. Keep normal cancellation/storage
+failure cleanup and duplicate-add preservation. Record the regression's
+pre-fix failure, a byte-exact red drill, scoped checks and any integration
+residual in `docs/certification/m108-u-panel-and-vs-code.md` and §9. No
+dependencies, guard relaxations, timeout changes or paid/live calls. The
+lead approved Q-FIXM108U2 in the continuation brief: K is accepted and
+finished, and U may apply the prepared minimal ownership-token change to
+`src/core/providers/accounts.ts`. The ownership comparison belongs inside
+K's mutation queue; a panel-side check cannot make deletion atomic. Keep
+K's complete suites green alongside U's direct default-timeout verification.
+
+**FIXM108U (2026-10-06):** repair all four RVM108U P2 findings within
+U's panel, host ports and display contracts. Keep one pending operation per
+Accounts view, tag its result/error/cleanup with its provider generation and
+request identity, and discard completions after navigation away and back.
+Issue a unique question id plus generation with each policy dialog and carry
+both through the shared answer payload, including the host's asynchronous
+provider lookup. Roll back an owned account addition in finally if its
+credential flow cancels or fails. Display stop recovery only from P's
+`AccountPoolStoppedError.resetAt`, carried alongside the opaque event in U's
+validated notice projection; the first trigger is not a recovery estimate.
+Add interleaved regression tests and byte-exact red drills for each finding.
+No dependencies, guard relaxations or gate/budget changes. W retains the
+installed M95/M104 bindings and joined-tree certification.
+
 **FIXM108P (2026-10-06):** fix all five RVM108P P2 findings inside P's
 owned core/paid ports. Serialize confirmation read/question/write ownership
 before starting I/O, discard stale reads/results by generation, and refresh
@@ -29719,6 +29750,19 @@ account adapter's child_process 13→14 importer. There is no host boundary
 violation. W must regenerate/review its owned host-API record and rerun the
 gate in integration; this lane does not change that out-of-scope record.
 
+**FIXM108U bounded-lane certification (2026-10-06).** The explicit rig brief
+and shared rules prohibit aggregate quality/full unit runs, merges and
+network calls. Run complete owning files with repository timeouts and at
+most three workers/files, scoped static/build checks and hook-on commits.
+The lead retains integrated quality, coverage and installed editor/live
+certification. No gate is weakened; receipts are in
+`docs/certification/m108-u-panel-and-vs-code.md`.
+The FIXM108U2 continuation's final scoped tests pass 690/690 (U 256, K 434),
+including 32 browser axe scenes; direct static, localization and production
+build gates pass. `check:host-api` still requires
+W's generated record update: `node:crypto` imports 46 → 48 and Accounts CSS
+in the theme-source list. The API/theme totals are unchanged. Keep that
+named integration handoff rather than editing W's owned file in this lane.
 **FIXM108P / FIXM108P2 bounded-lane certification (2026-10-06).** The rig brief and
 shared rules prohibit aggregate quality/full unit runs, merges and network
 calls. Run complete owning test files with repository timeouts and at most
@@ -31076,6 +31120,30 @@ before a repaired one loads (2026-09-30).
   its manager's process disposal before adopting another account, preserving
   old-account usage/liability for already-dispatched work. No RVM108M finding
   is accepted as an unresolved review residual.
+- **FIXM108U2-PROCESS-OWNERSHIP (K / U / M109 / W).** The lead approved
+  the minimal cross-lane store edit after accepting K. Addition ownership
+  and rollback comparison share the existing process-local mutation queue,
+  including across independent store instances. Replacement accounts with
+  identical metadata receive distinct tokens. Cross-process ownership still
+  needs the existing K-M109/W parent-owned broker; installed multi-account
+  surfaces remain disabled on this base until the existing bindings are
+  certified. The continuation closes the scope blocker without making a
+  cross-process or installed-editor claim.
+
+- **FIXM108U-INSTALLED-BINDINGS (M108-U-M104-PROMPT / M108-U-P-BOUNDARY /
+  W).** No RVM108U finding remains in U's supplied panel/host ports. The
+  installed M95/M104 bridge is absent on this base. W must preserve the
+  host-issued question UUID and provider generation through every editor's
+  request/answer envelopes, bind one serialized Accounts/modal owner, and
+  project each stop with `accountNoticeFor(event, stoppedError)` from that
+  exact failed pool admission. A raw persisted stop event carries only its
+  trigger, so without the error the projection explicitly shows unknown
+  recovery. Safe for now: these modules are absent from shipped graphs and
+  installed multi-account surfaces remain disabled. Follow-up: certify
+  provider-return/delayed-answer interleavings and pool recovery through the
+  installed VS Code/native/companion transports before enabling them; H owns
+  equivalent ACP/terminal/headless bindings. Full quality and generated host
+  API/README/CHANGELOG/help updates remain W's joined-tree work.
 
 - **FIXM108P-PROFILE-OWNER (P-W-POLICY-STORE / M109 / W).** Compose one
   profile-owned pool and confirmation authority, and one account/tariff paid

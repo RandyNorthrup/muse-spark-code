@@ -2571,6 +2571,11 @@
     "removeConfirm": "{account}을(를) 제거할까요? 저장된 자격 증명이 삭제되고 로그인 권한이 철회됩니다.",
     "requestCount": {
       "other": "요청 {count}회"
-    }
+    },
+    "none": "선택된 계정 없음",
+    "id": "계정 ID",
+    "use": "계정 사용",
+    "earlier": "앞으로 이동",
+    "later": "뒤로 이동"
   }
 }

@@ -2571,6 +2571,11 @@
     "removeConfirm": "移除 {account}？其已存储的凭据将被删除，登录授权将被撤销。",
     "requestCount": {
       "other": "{count} 次请求"
-    }
+    },
+    "none": "未选择账户",
+    "id": "账户 ID",
+    "use": "使用账户",
+    "earlier": "向前移动",
+    "later": "向后移动"
   }
 }

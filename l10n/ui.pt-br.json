@@ -2765,6 +2765,11 @@
       "one": "{count} solicitação",
       "many": "{count} solicitações",
       "other": "{count} solicitações"
-    }
+    },
+    "none": "Nenhuma conta selecionada",
+    "id": "ID da conta",
+    "use": "Usar conta",
+    "earlier": "Mover para antes",
+    "later": "Mover para depois"
   }
 }

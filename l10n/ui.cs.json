@@ -2862,6 +2862,11 @@
       "few": "{count} požadavky",
       "many": "{count} požadavku",
       "other": "{count} požadavků"
-    }
+    },
+    "none": "Není vybrán žádný účet",
+    "id": "ID účtu",
+    "use": "Použít účet",
+    "earlier": "Posunout dříve",
+    "later": "Posunout později"
   }
 }

@@ -10,6 +10,7 @@ import {
   accountEventSchema,
 } from '../accounts'
 import { ACCOUNT_MAX_PER_PROVIDER } from '../constants'
+import { accountsPolicyQuestionSchema } from '../modelsPanel'
 
 const identity = { provider: accountIdSchema, account: accountIdSchema }
 export const accountsRequestSchema = z.discriminatedUnion('type', [
@@ -44,6 +45,8 @@ export const accountsRequestSchema = z.discriminatedUnion('type', [
     type: z.literal('accounts/confirm'),
     provider: accountIdSchema,
     product: accountIdSchema,
+    questionId: accountsPolicyQuestionSchema.shape.questionId,
+    providerGeneration: accountsPolicyQuestionSchema.shape.providerGeneration,
     choice: accountConfirmationChoiceSchema,
   }),
   z.strictObject({

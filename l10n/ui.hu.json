@@ -2668,6 +2668,11 @@
     "requestCount": {
       "one": "{count} kérés",
       "other": "{count} kérés"
-    }
+    },
+    "none": "Nincs kiválasztott fiók",
+    "id": "Fiókazonosító",
+    "use": "Fiók használata",
+    "earlier": "Előrébb helyezés",
+    "later": "Hátrébb helyezés"
   }
 }
