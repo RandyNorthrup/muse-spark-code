@@ -13,8 +13,8 @@ happened, not what was planned; superseded entries are kept.
   runtime polling; JetBrains replacement pages retain native bridges and
   packaged assets; unavailable runtime-setting shortcuts return explicit errors
   surfaced to the user. Native fixtures wait for readiness and own their fake
-  sessions. Linux JVM and fresh-clone verification are recorded in the PE fix
-  round 2 certification.
+  sessions; Knip tracks the existing native-loader test entrypoint. Linux JVM
+  and fresh-clone verification are recorded in the PE fix round 2 certification.
 
 - Close the M104PE independent review (four P2, one P3) in the Linux/JVM hosts:
   Eclipse and JetBrains implement 1.3 `ui`, `surfaces`,

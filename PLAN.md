@@ -19198,6 +19198,10 @@ immediate-return assertion and synchronous invalid-timeout assertion. Run
 that owning file three times at the default deadline and prove the existing
 lint rule rejects the exact-base file; no judge production behavior changes.
 
+Plain Knip also finds the existing native module loader test outside its
+entry graph. Register that actual `node --test` entrypoint, without changing
+any ignore or rule, and record the exact-base gate failure and final pass.
+
 **FIXM104PA4 / RVM104PA4 (2026-10-07).** Close the re-review's two P2
 findings in lane A's files, closing residual R3-2. State publication
 reconciles into the mounted presentation page (fresh boundary key only
