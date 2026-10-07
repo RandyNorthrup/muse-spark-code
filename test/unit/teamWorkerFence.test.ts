@@ -214,7 +214,7 @@ describe('W-F1 native identities', () => {
         : [fixtureState.checkout]
     for (const alias of aliases) await expect(assertWorkerRoot(input(alias))).rejects.toThrow()
   })
-  it('RVM96A-4 refuses a real 8.3 short-name alias', async () => {
+  it('RVM96A-4 refuses the native short-name result even on volumes without 8.3 names', async () => {
     const probe =
       process.platform === 'win32'
         ? spawnSync(
@@ -231,9 +231,23 @@ describe('W-F1 native identities', () => {
     const short = probe === undefined ? fixtureState.checkout : probe.stdout.trim()
     if (probe !== undefined) {
       expect(probe.status).toBe(0)
-      expect(short).toContain('~')
     }
+    expect(await WORKER_NATIVE_IO.pathIdentity(await WORKER_NATIVE_IO.realPath(short))).toBe(
+      await WORKER_NATIVE_IO.pathIdentity(fixtureState.checkout),
+    )
     await expect(assertWorkerRoot(input(short))).rejects.toThrow()
+  })
+  it('RVM96A-4 refuses a Windows 8.3 alias fixture by resolved identity on every volume', async () => {
+    const checkout = String.raw`D:\a\workspace\checkout-long-name`
+    const short = String.raw`D:\a\WORKSP~1\CHECKO~1`
+    expect(short).toContain('~')
+    const io = {
+      pathIdentity: fakeWorkerIdentity,
+      realPath: (given: string) => Promise.resolve(given === short ? checkout : given),
+    }
+    await expect(
+      assertWorkerRoot({ folder: short, workspaceRoot: checkout, platform: 'win32', io }),
+    ).rejects.toThrow()
   })
   it('RVM96A-4 refuses a junction alias and rechecks replaced roots on path requests', async () => {
     const alias = path.join(fixtureState.fixture, 'junction')

@@ -1,6 +1,9 @@
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
-import { describe, expect, it, vi } from 'vitest'
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { PNG } from 'pngjs'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   checkReadmeBadges,
   readmeImageUrls,
@@ -196,5 +199,86 @@ describe('public image responses', () => {
         fetch: vi.fn(() => response('missing', 'text/html')),
       }),
     ).rejects.toThrow('did not return an image')
+  })
+})
+
+describe('checkout images ahead of public main', () => {
+  const roots = []
+  afterEach(() => {
+    for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
+  })
+  function fixture(mainPaths = []) {
+    const root = mkdtempSync(path.join(tmpdir(), 'ci0150c-images-'))
+    roots.push(root)
+    const relative = 'media/readme/new.png'
+    mkdirSync(path.dirname(path.join(root, relative)), { recursive: true })
+    const image = new PNG({ width: 1, height: 1 })
+    writeFileSync(path.join(root, relative), PNG.sync.write(image))
+    const url = `https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/${relative}`
+    const fetch = vi.fn(async (target) =>
+      target === url
+        ? response('image bytes', 'image/png')
+        : globalThis.Response.json({
+            truncated: false,
+            tree: mainPaths.map((name) => ({ path: name, type: 'blob' })),
+          }),
+    )
+    return {
+      root,
+      relative,
+      url,
+      fetch,
+      check: () =>
+        checkReadmeBadges([{ ...document(url), labels: [] }], version, {
+          repositoryRoot: root,
+          fetch,
+          ci: true,
+        }),
+    }
+  }
+  it('validates a new PNG locally while main has no such file', async () => {
+    const f = fixture()
+    await expect(f.check()).resolves.toContain('1 new checkout images')
+    expect(f.fetch).toHaveBeenCalledTimes(1)
+    expect(f.fetch).not.toHaveBeenCalledWith(f.url, expect.anything())
+  })
+  it('continues checking public bytes for an image already on main', async () => {
+    const f = fixture(['media/readme/new.png'])
+    await expect(f.check()).resolves.toContain('0 new checkout images')
+    expect(f.fetch).toHaveBeenCalledWith(f.url, expect.anything())
+    const fetchMain = f.fetch.getMockImplementation()
+    f.fetch.mockImplementation(async (url) =>
+      url === f.url ? response('missing', 'image/png', 404) : fetchMain(url),
+    )
+    await expect(f.check()).rejects.toThrow('Badge image HTTP 404')
+  })
+  it.each(['missing', 'empty', 'invalid PNG'])(
+    'refuses a %s checkout image before networking',
+    async (kind) => {
+      const f = fixture()
+      const file = path.join(f.root, f.relative)
+      if (kind === 'missing') rmSync(file)
+      else writeFileSync(file, kind === 'empty' ? '' : 'not a PNG')
+      await expect(f.check()).rejects.toThrow()
+      expect(f.fetch).not.toHaveBeenCalled()
+      await expect(
+        checkReadmeBadges([{ ...document(f.url), labels: [] }], version, {
+          repositoryRoot: f.root,
+          ...offline,
+        }),
+      ).rejects.toThrow()
+    },
+  )
+  it('refuses an incomplete or malformed public-main inventory', async () => {
+    const f = fixture()
+    for (const body of [{ tree: [], truncated: true }, { tree: [] }]) {
+      f.fetch.mockResolvedValue(globalThis.Response.json(body))
+      await expect(f.check()).rejects.toThrow()
+    }
+  })
+  it('refuses an unavailable public-main inventory', async () => {
+    const f = fixture()
+    f.fetch.mockResolvedValue(response('missing', 'text/plain', 404))
+    await expect(f.check()).rejects.toThrow('Public main tree HTTP 404')
   })
 })

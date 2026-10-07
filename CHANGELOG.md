@@ -7,6 +7,21 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Canonicalize trusted usage-journal roots on macOS while retaining linked-store
+  refusals. Team processes set below-normal priority before their command runs.
+- CI fixtures share the ACP budget's home, wait for legal-dialog focus and
+  prompt-menu controls, and use Playwright's installed browser when available.
+  Windows worker checks retain alias refusals on volumes without 8.3 names.
+- Validate newly added README screenshots from the checkout while continuing
+  public image checks for files already on main; missing local images fail.
+
+### Pending
+
+- Provider-specific retry-table binding remains pending for non-Meta transports;
+  the shared retry classifier does not certify endpoint quota refusal.
+
 ## [0.15.0] - 2026-10-06
 
 ### Highlights

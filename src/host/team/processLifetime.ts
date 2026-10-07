@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
+import os from 'node:os'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
 import { Connection, checkServedFingerprint } from '@muse-code/sdk'
@@ -464,10 +465,6 @@ export async function createNativeTeamProcessDriver(options: {
         request.command,
         ...request.args,
       ]
-      if (request.priority === 'belowNormal') {
-        args = ['-n', '10', '--', command, ...args]
-        command = 'nice'
-      }
       if (hasSetpriv) {
         args = ['--pdeathsig', 'KILL', '--', command, ...args]
         command = 'setpriv'
@@ -692,6 +689,15 @@ export async function createNativeTeamProcessDriver(options: {
           const parsed = confirmationSchema.parse(value)
           if (JSON.stringify(parsed) !== JSON.stringify(observed))
             throw new Error('TEAM_LAUNCH_CONFIRMATION_CHANGED')
+          // Set the held process's absolute priority before releasing its
+          // command. nice's relative adjustment can leave a privileged
+          // runner's child at normal priority; retain an already lower one.
+          if (request.priority === 'belowNormal') {
+            os.setPriority(
+              parsed.pid,
+              Math.max(os.getPriority(parsed.pid), os.constants.priority.PRIORITY_BELOW_NORMAL),
+            )
+          }
           if (lifecycle.phase === 'spawning') lifecycle.confirm()
           lifecycle.release()
           recorded = parsed

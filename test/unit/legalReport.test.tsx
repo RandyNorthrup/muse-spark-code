@@ -5,7 +5,7 @@
 // previews the exact eligible findings before confirmation; Plan refuses
 // upfront and the host's refusals are shown in words.
 
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { LegalFinding, LegalScanResult } from '../../src/shared/legal'
@@ -111,9 +111,17 @@ function renderReady() {
 async function openReport() {
   const postMessage = renderReady()
   deliver({ type: 'legalScanReport', requestId: 'r1', result: RESULT })
+  const dialog = await screen.findByRole('dialog', { name: UI_TEXT.legalScanTitle })
+  // The lazy dialog must finish its opening focus effect before native-dialog
+  // focus events or user actions can be simulated.
+  await waitFor(() => {
+    expect(document.activeElement).toBe(
+      within(dialog).getByRole('button', { name: UI_TEXT.usageClose }),
+    )
+  })
   return {
     postMessage,
-    dialog: await screen.findByRole('dialog', { name: UI_TEXT.legalScanTitle }),
+    dialog,
   }
 }
 

@@ -18789,6 +18789,21 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### CI0150C — Clean-checkout platform and logic CI repairs (2026-10-07, macmini)
+
+- [x] Repair the lane's journal canonical-root checks, Windows short-name fixture,
+      native child priority observation, ACP model fixture, legal focus readiness,
+      prompt-menu harness readiness, pending release note and browser resolution.
+- [x] Validate newly added README images from checked-out files while retaining
+      public URL checks for images already on main and missing-file refusals.
+- [x] Run every touched owning test file three times from a clean checkout with
+      `CI=true`, at most three files per run and repository default timeouts;
+      run all five typechecks, lint, formatting, plain knip and duplication.
+- [x] Prove a repaired behaviour fails when deliberately broken, restore exact
+      bytes and record results in `docs/certification/ci0150c.md`; commit locally
+      with hooks and explicit paths. Hosted cross-platform results remain the
+      lead's release checks; no live or paid calls, push or merge is authorized.
+
 ### REL0150M — Bring 0.14.4 and 0.14.5 into 0.15.0 (2026-10-06, linuxlt)
 
 - [x] Merge `rel-0145` then `chore/infra-0150-m`, each with `git merge --no-ff`;
@@ -40706,6 +40721,20 @@ pages. No version bump or README What’s New changes; no paid/live calls.
       in `docs/certification/train-0.15.0.md` and its TRAIN15H receipt.
 
 ## 7. Gates
+
+**CI0150C scoped repair certification (2026-10-07, macmini).** The rig brief
+requires clean `CI=true` verification in batches of at most three test files,
+three times at repository default deadlines, plus all five typechecks, lint,
+changed-file formatting, plain knip and duplication. The aggregate
+`npm run quality` is deferred to the joined release repair: its all-file Vitest
+invocation exceeds this lane's explicit three-file limit, and the other lanes
+own the remaining hosted failures. This is a scoped certification record, not
+a full-release quality claim; no threshold, rule, assertion or CI gate is
+disabled. The badge gate still performs real public network checks in CI.
+The extra `security:audit` run reports the pre-existing, now-unreported
+`GHSA-68fv-2mgg-jv7q` (`source-map-js`) exception in
+`.github/audit-exceptions.json`; that unowned cleanup is deferred to the lead,
+without changing an exception or suppressing the audit failure in this lane.
 
 **TRAIN15H scoped certification.** The lead's rig brief and shared common.md
 reserve aggregate quality for the lead. This lane runs complete owning files

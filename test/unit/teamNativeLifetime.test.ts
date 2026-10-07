@@ -306,9 +306,16 @@ describe('M96 K real native lifetime', () => {
   })
   it('runs marked child at below-normal priority with intent and OS confirmation on disk', async () => {
     const f = await fixture()
+    const priority = vi.spyOn(os, 'setPriority')
     const output = path.join(f.directory, 'observed.json')
     const code = `require('node:fs').writeFileSync(${JSON.stringify(output)}, JSON.stringify({marker:process.env.MUSE_SPARK_LAUNCH_ID, priority:require('node:os').getPriority()})); setTimeout(()=>{}, 20000)`
     const child = await f.lifetime.launch(f.request(code))
+    if (process.platform !== 'win32') {
+      expect(priority).toHaveBeenCalledWith(
+        child.child.pid,
+        Math.max(os.getPriority(), os.constants.priority.PRIORITY_BELOW_NORMAL),
+      )
+    }
     await until(async () => {
       try {
         JSON.parse(await readFile(output, 'utf8'))
@@ -319,7 +326,7 @@ describe('M96 K real native lifetime', () => {
     })
     expect(JSON.parse(await readFile(output, 'utf8'))).toEqual({
       marker: child.launchId,
-      priority: os.constants.priority.PRIORITY_BELOW_NORMAL,
+      priority: Math.max(os.getPriority(), os.constants.priority.PRIORITY_BELOW_NORMAL),
     })
     const records = await f.lifetime.recoveryRecords(f.journal)
     expect(records).toHaveLength(1)

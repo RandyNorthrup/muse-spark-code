@@ -11,7 +11,9 @@ describe('M101 P2 release claims (RVM101P2 F7)', () => {
     )
     expect(unreleased).toContain('does not certify endpoint quota refusal')
     expect(released).toContain('coalesced session saves')
-    expect(released).not.toContain('provider transport binding remains pending')
+    expect(released?.replaceAll(/\s+/g, ' ')).not.toContain(
+      'Provider-specific retry-table binding remains pending for non-Meta transports',
+    )
     expect(changelog).not.toContain('quota errors are never retried on any')
   })
 })
