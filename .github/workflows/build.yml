@@ -91,8 +91,8 @@ jobs:
           Remove-Item -Force -Path (Join-Path $target '*.nuspec') -ErrorAction SilentlyContinue
           Import-Module PSScriptAnalyzer -RequiredVersion $version -ErrorAction Stop
           Write-Host "PSScriptAnalyzer $version installed from the checked package"
-      # Same static/build/audit gates as quality:gates; tests run separately.
-      - run: npx run-s format:check lint typecheck check:badges check:tokens check:visual check:l10n check:reference check:host-api check:plan deadcode cycles duplication build security:audit
+      # Same static/build/audit gates as quality:gates; tests and pixel replay have required jobs.
+      - run: npx run-s format:check lint typecheck check:badges check:tokens check:l10n check:reference check:host-api check:plan deadcode cycles duplication build security:audit
         env:
           # check:badges lists public main through the GitHub API; the job token
           # keeps hosted runners off the shared unauthenticated rate limit.
@@ -195,6 +195,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # Historical visual receipts verify their immutable capture sources.
+          fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22

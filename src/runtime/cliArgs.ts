@@ -687,5 +687,11 @@ function parseFonts(argv: readonly string[]): RuntimeCommand {
   } catch {
     /* Invalid font arguments get the localized usage below. */
   }
-  return { command: 'invalid', reason: fill(UI_TEXT.acpFontsUsage, { command: ACP_AGENT_NAME }) }
+  return {
+    command: 'invalid',
+    // main installs the display language after parsing, before printing usage.
+    get reason() {
+      return fill(UI_TEXT.acpFontsUsage, { command: ACP_AGENT_NAME })
+    },
+  }
 }

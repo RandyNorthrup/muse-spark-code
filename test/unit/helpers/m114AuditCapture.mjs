@@ -1,6 +1,7 @@
 // Test-only before-capture driver. It reuses the existing fake host and actual
 // components; it does not add a shipping theme adapter or a visual golden.
 import { createHash } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
@@ -13,9 +14,40 @@ import { serveRepo } from '../../../scripts/lib/harnessServer.mjs'
 export const auditRoot = path.resolve(fileURLToPath(new URL('../../../', import.meta.url)))
 export const digest = (bytes) => createHash('sha256').update(bytes).digest('hex')
 
-export async function readAudit() {
+export async function readAudit(revision) {
+  if (revision !== undefined)
+    return JSON.parse(
+      execFileSync('git', ['show', `${revision}:docs/certification/m114-audit.json`], {
+        cwd: auditRoot,
+        encoding: 'utf8',
+        maxBuffer: 4 * 1024 * 1024,
+      }),
+    )
   return JSON.parse(
     await readFile(path.join(auditRoot, 'docs/certification/m114-audit.json'), 'utf8'),
+  )
+}
+
+/** One Git process reads immutable blobs; no checkout or network is needed. */
+export function sourcesAtRevision(revision, files) {
+  if (!/^[\da-f]{40}$/.test(revision)) throw new Error('Capture needs an immutable source revision')
+  const output = execFileSync('git', ['cat-file', '--batch'], {
+    cwd: auditRoot,
+    input: files.map((file) => `${revision}:${file.replaceAll('\\', '/')}`).join('\n') + '\n',
+    maxBuffer: 8 * 1024 * 1024,
+  })
+  let offset = 0
+  return new Map(
+    files.map((file) => {
+      const end = output.indexOf('\n', offset)
+      const header = output.subarray(offset, end).toString()
+      const match = /^[\da-f]{40} blob (\d+)$/.exec(header)
+      if (match === null) throw new Error(`Missing historical source: ${revision}:${file}`)
+      const size = Number(match[1])
+      const bytes = output.subarray(end + 1, end + 1 + size)
+      offset = end + 1 + size + 1
+      return [file, bytes]
+    }),
   )
 }
 

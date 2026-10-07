@@ -41213,6 +41213,15 @@ M110, and fake providers for every adapter.
 
 ### M114 — Design language and polish (D94)
 
+- **Integration review repairs (FIXM114I, 2026-10-07):** address RVM114W's six
+  P2 findings and the font-usage P3. Route CI pixel replay exclusively through
+  its required six shards; polish Open Questions focus; refresh current render
+  coverage while preserving immutable historical observations; isolate panel
+  fixture focus; fit the existing theme closure cap; format font usage after
+  language installation. Each repair has a failing-base regression, with
+  default-timeout repeated owning suites in a fresh CI clone. Full quality and
+  reviewed integrated pixels remain explicit lead gates where unavailable.
+
 **Status 2026-10-06: planned.** No model call is needed. Lane 0's token
 source and lint rule come first and are the prerequisite of every UI-building
 lane after it: M111's TH and its shell and workbench lanes, M110's web UI
@@ -47444,6 +47453,18 @@ all compiler projects, scoped lint/format, dead-code, duplication,
 localization and the production build. Full integrated quality, coverage,
 the polished-surface accessibility/visual matrix and editor bindings remain
 with the lead and lanes A/C/D/N/S. No gate or threshold is weakened.
+
+**FIXM114I integrated repair gates (2026-10-07).** The shared rig rules prohibit
+aggregate quality/full-suite runs; the lead retains `npm run quality`. This
+lane runs the owning files three times in a fresh committed CI clone, all five
+compiler projects, lint/format, plain knip, duplication, build, reference and
+localization. Chrome 150 on win11 refuses the visual driver's font-probe PNG;
+two bounded viewport/crop attempts were reverted byte-exact. Full integrated
+PNG capture/review and replay remain lead-owned: commit capture inputs, run
+`npm run check:visual -- --update --review=RVM114W-FIXM114I-integrated --archive=<new-outside-repository-directory>`,
+inspect and commit the manifest, then `npm run check:visual` and
+`npm run check:visual:a11y`. Current inventory validation deliberately rejects
+the old golden until that recapture; no stale pixels are certified as current.
 
 **M114 P2 review repair scoped certification (2026-10-06).** The rig/shared
 brief likewise prohibits aggregate quality/full unit runs and cross-lane

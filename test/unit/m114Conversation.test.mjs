@@ -7,7 +7,7 @@ import { chromium } from 'playwright-core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { contrastRatio } from '../../scripts/check-tokens.mjs'
-import { auditRoot, digest, readAudit } from './helpers/m114AuditCapture.mjs'
+import { digest, readAudit, sourcesAtRevision } from './helpers/m114AuditCapture.mjs'
 import { conversationManifestPath } from './helpers/m114ConversationCapture.mjs'
 
 const themes = ['light', 'dark', 'hc-dark', 'hc-light', 'one-dark-pro', 'dracula']
@@ -43,7 +43,9 @@ import {createRoot} from 'react-dom/client';
 import {StatusLine} from './src/webview/components/StatusLine';
 import {CodeBlock} from './src/webview/components/CodeBlock';
 import {Clipped} from './src/webview/components/ToolBlocks';
+import {OpenQuestionsChip} from './src/webview/components/OpenQuestionsChip';
 createRoot(document.getElementById('actual')).render(<>
+  <OpenQuestionsChip count={2} onAnswer={()=>{}} onJump={()=>{}}/>
   <ul className="transcript"><StatusLine/></ul>
   <Clipped text={"Sample output\n".repeat(100)} className="tool-output"/>
   <CodeBlock code={'const answer = "yes"; // comment'} language="typescript" onOpen={()=>{}}/>
@@ -83,14 +85,15 @@ beforeAll(async () => {
 })
 
 describe('M114 P1 after evidence', () => {
-  it('covers every owned render in six themes and two widths with current source hashes and no axe violations', async () => {
-    const audit = await readAudit()
+  it('covers every historical owned render with immutable capture source hashes and no axe violations', async () => {
+    const audit = await readAudit('58ed2fc1d232d89491c441f44cfbd12539e8b4a1')
     const rows = audit.components.filter((row) => row.owner === 'P1')
     const scenes = [...new Set(rows.map((row) => row.scene))]
     const manifest = JSON.parse(readFileSync(conversationManifestPath, 'utf8'))
     expect(manifest).toMatchObject({
       kind: 'after-observation-not-golden',
       base: '58ed2fc1d',
+      sourceRevision: '55e2ab9edb72b1ec4417f9328e45edec9467dbd0',
       locale: 'en',
       timezone: 'UTC',
       deviceScaleFactor: 1,
@@ -110,8 +113,12 @@ describe('M114 P1 after evidence', () => {
       'src/webview/styles.css',
       ...rows.map((row) => row.file),
     ])
+    const sources = sourcesAtRevision(
+      manifest.sourceRevision,
+      manifest.sources.map((row) => row.file),
+    )
     for (const source of manifest.sources)
-      expect(digest(readFileSync(path.join(auditRoot, source.file)))).toBe(source.sha256)
+      expect(digest(sources.get(source.file)), source.file).toBe(source.sha256)
     for (const capture of manifest.captures) {
       expect(capture.file.replaceAll('\\', '/')).toBe(
         `${capture.scene}/${capture.theme}/${capture.width}.png`,
@@ -181,6 +188,33 @@ describe('M114 P1 after evidence', () => {
 })
 afterAll(async () => {
   await runtime.browser?.close()
+})
+
+describe('M114 integrated Open Questions controls', () => {
+  it.each(themes)(
+    '%s: all three buttons have a visible AA keyboard ring at 320 px',
+    async (theme) => {
+      const page = await pageFor(theme)
+      try {
+        const buttons = page.locator('.open-questions-chip button')
+        expect(await buttons.count()).toBe(3)
+        const canvas = await styleValue(page, 'body', 'backgroundColor')
+        const controls = await buttons.all()
+        for (const button of controls) {
+          await button.focus()
+          const ring = await button.evaluate((element) => {
+            const s = globalThis.getComputedStyle(element)
+            return { width: s.outlineWidth, offset: s.outlineOffset, colour: s.outlineColor }
+          })
+          expect(ring.width).toBe('2px')
+          expect(ring.offset).toBe('2px')
+          expect(ratio(ring.colour, canvas)).toBeGreaterThanOrEqual(3)
+        }
+      } finally {
+        await page.close()
+      }
+    },
+  )
 })
 
 async function pageFor(theme, width = 320, motion = 'reduce', progress) {

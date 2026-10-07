@@ -1,5 +1,11 @@
 # M114 P1 after captures
 
+Historical observations of source revision
+`55e2ab9edb72b1ec4417f9328e45edec9467dbd0`, with the lane-A inventory at
+`58ed2fc1d232d89491c441f44cfbd12539e8b4a1`. The owning test hashes those Git
+blobs, including the then-present ApprovalDock, rather than today's worktree.
+Integrated coverage is tracked separately in `m114-audit.json`.
+
 After PNGs: /home/randy/lanes/M114P1/temp/m114-p1-after.
 Before PNGs: /home/randy/archive/m114-a-before-17d7.
 

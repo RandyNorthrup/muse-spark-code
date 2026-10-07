@@ -1,12 +1,19 @@
 import { readFileSync, readdirSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import process from 'node:process'
 import { describe, expect, it } from 'vitest'
-import { auditRoot, digest, readAudit } from './helpers/m114AuditCapture.mjs'
+import { auditRoot, digest, readAudit, sourcesAtRevision } from './helpers/m114AuditCapture.mjs'
 
 const key = (scene, theme, width) => `${scene}/${theme}/${width}`
-const audit = await readAudit()
-const matrix = JSON.parse(readFileSync(`${auditRoot}/test/harness/visual-matrix.json`, 'utf8'))
+const historicalRevision = '58ed2fc1d232d89491c441f44cfbd12539e8b4a1'
+const audit = await readAudit(historicalRevision)
+const matrix = JSON.parse(
+  execFileSync('git', ['show', `${historicalRevision}:test/harness/visual-matrix.json`], {
+    cwd: auditRoot,
+    encoding: 'utf8',
+  }),
+)
 const consumers = JSON.parse(
   readFileSync(`${auditRoot}/design/tokens/generated/consumers.json`, 'utf8'),
 )
@@ -21,16 +28,20 @@ const compareNames = (a, b) => {
 describe('M114 A complete before-state audit', () => {
   it('grades every renderer and classifies every remaining webview file exactly once', () => {
     expect(audit.components.map((row) => row.file)).toEqual(matrix.componentAuditInputs)
-    const files = readdirSync(`${auditRoot}/src/webview`, { recursive: true, withFileTypes: true })
-      .filter((entry) => entry.isFile())
-      .map((entry) =>
-        `${entry.parentPath}/${entry.name}`.slice(auditRoot.length + 1).replaceAll('\\', '/'),
-      )
+    const files = execFileSync(
+      'git',
+      ['ls-tree', '-r', '--name-only', historicalRevision, '--', 'src/webview'],
+      { cwd: auditRoot, encoding: 'utf8' },
+    )
+      .trim()
+      .split('\n')
       .toSorted(compareNames)
     const recorded = [...audit.components, ...audit.otherWebviewFiles].map((row) => row.file)
     expect(recorded.toSorted(compareNames)).toEqual(files)
     expect(audit.sources.map((entry) => entry.file).toSorted(compareNames)).toEqual(files)
-    for (const { sha256: hash } of audit.sources) expect(hash).toMatch(/^[\da-f]{64}$/)
+    const sources = sourcesAtRevision(historicalRevision, files)
+    for (const { file, sha256: hash } of audit.sources)
+      expect(digest(sources.get(file)), file).toBe(hash)
   })
 
   it('gives each component every grade dimension and an actionable owned fix with source evidence', () => {
@@ -177,4 +188,31 @@ describe('M114 A complete before-state audit', () => {
       }
     },
   )
+})
+
+describe('M114 integrated coverage', () => {
+  it('classifies every current renderer and supporting file with current source hashes', async () => {
+    const current = await readAudit()
+    const currentMatrix = JSON.parse(
+      readFileSync(`${auditRoot}/test/harness/visual-matrix.json`, 'utf8'),
+    )
+    const files = readdirSync(`${auditRoot}/src/webview`, { recursive: true })
+      .map((name) => `src/webview/${name.replaceAll('\\', '/')}`)
+      .filter((name) => /\.[^/]+$/.test(name))
+      .toSorted(compareNames)
+    expect(current.components.map((row) => row.file)).toEqual(currentMatrix.componentAuditInputs)
+    expect(
+      [...current.components, ...current.otherWebviewFiles]
+        .map((row) => row.file)
+        .toSorted(compareNames),
+    ).toEqual(files)
+    expect(current.sources.map((row) => row.file)).toEqual(files)
+    for (const row of current.sources)
+      expect(digest(readFileSync(path.join(auditRoot, row.file))), row.file).toBe(row.sha256)
+    for (const row of current.components) {
+      expect(current.scenes).toContain(row.scene)
+      expect(row.captureSelector.length).toBeGreaterThan(0)
+    }
+    expect(current.historicalAuditRevision).toBe(historicalRevision)
+  })
 })

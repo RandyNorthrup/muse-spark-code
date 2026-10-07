@@ -154,7 +154,17 @@ export function mergeVisualResults(values, manifest, manifestSha256, candidateSh
   }
 }
 
+const compareRendererInputs = (a, b) => a.localeCompare(b)
+
 export function validateManifest(value, audit, matrix) {
+  const renderers = audit.components.map((row) => row.file.replaceAll('\\', '/'))
+  const inputs = matrix.componentAuditInputs.map((file) => file.replaceAll('\\', '/'))
+  if (
+    new Set(renderers).size !== renderers.length ||
+    JSON.stringify(renderers.toSorted(compareRendererInputs)) !==
+      JSON.stringify(inputs.toSorted(compareRendererInputs))
+  )
+    throw new Error('Renderer inventory coverage differs from the current matrix')
   const manifest = manifestSchema.parse(value)
   const expected = new Set(
     audit.scenes.flatMap((scene) =>

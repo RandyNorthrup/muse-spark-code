@@ -15,6 +15,9 @@ for (const scene of [
   'whats-new-highlights',
   'approval-several',
   'approval-narrow',
+  'questions-open',
+  'questions-chip',
+  'help-narrow',
 ])
   beforeAll(async () => {
     const audit = JSON.parse(await readFile('docs/certification/m114-audit.json', 'utf8'))
@@ -57,6 +60,17 @@ for (const scene of [
   })
 
 describe('M114 real visual capture driver', () => {
+  it('captures the integrated question store, lazy dock, Open Questions controls and Help renderer', () => {
+    const components = captured.result.captures.flatMap((capture) => capture.components)
+    for (const name of [
+      'QuestionSurface',
+      'QuestionUi',
+      'DeferredQuestionUi',
+      'OpenQuestionsChip',
+      'ReferencePage',
+    ])
+      expect(components).toContain(`src/webview/components/${name}.tsx`)
+  })
   it('keeps the autofocus palette open through every representative control state', () => {
     expect(
       captured.result.captures

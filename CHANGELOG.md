@@ -170,6 +170,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Keep visual replay in its required CI shards, cover integrated question and
+  lazy surfaces, and bind historical screenshot receipts to their capture
+  revisions. Open Questions now uses the shared accessible keyboard ring;
+  panel fixtures keep modal and menu focus independent. The companion theme
+  closure fits its existing budget, and font usage errors use the installed
+  display language.
+
 - Batch visual comparisons into six deterministic, independently failing
   CI shards. Require every receipt, matching coverage and rendering environment,
   and the combined 512 MiB budgets before the visual gate passes.
