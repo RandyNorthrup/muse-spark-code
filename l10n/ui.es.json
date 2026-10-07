@@ -2788,6 +2788,9 @@
     "usageThreshold": "Límite de {metric} para {period}: {threshold}",
     "usageEvents": "Eventos de cuentas",
     "usageRateTokens": "Tokens de uso",
-    "usageUnavailable": "No hay datos de uso actuales."
+    "usageUnavailable": "No hay datos de uso actuales.",
+    "placementConflict": "{provider} ya tiene una cuenta en {device}. Elige otro dispositivo o desactiva onePerDevicePerProvider.",
+    "sendToDevice": "Enviar a {device}",
+    "routeUnavailable": "El dispositivo seleccionado no tiene ninguna cuenta disponible o no permite dirigirle trabajo."
   }
 }

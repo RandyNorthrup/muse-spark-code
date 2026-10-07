@@ -2594,6 +2594,9 @@
     "usageThreshold": "{period} の {metric} の上限: {threshold}",
     "usageEvents": "アカウントのイベント",
     "usageRateTokens": "トークン",
-    "usageUnavailable": "現在の使用状況データはありません。"
+    "usageUnavailable": "現在の使用状況データはありません。",
+    "placementConflict": "{device} にはすでに {provider} のアカウントがあります。別のデバイスを選択するか、onePerDevicePerProvider をオフにしてください。",
+    "sendToDevice": "{device} に送信",
+    "routeUnavailable": "選択したデバイスには利用可能なアカウントがないか、作業の転送が許可されていません。"
   }
 }

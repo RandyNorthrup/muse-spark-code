@@ -2691,6 +2691,9 @@
     "usageThreshold": "{metric} korlátja a következő időszakra: {period}: {threshold}",
     "usageEvents": "Fiókesemények",
     "usageRateTokens": "Tokenek",
-    "usageUnavailable": "Nincsenek aktuális használati adatok."
+    "usageUnavailable": "Nincsenek aktuális használati adatok.",
+    "placementConflict": "A(z) {provider} szolgáltatónak már van fiókja a(z) {device} eszközön. Válasszon másik eszközt, vagy kapcsolja ki a onePerDevicePerProvider szabályt.",
+    "sendToDevice": "Küldés ide: {device}",
+    "routeUnavailable": "A kiválasztott eszköznek nincs elérhető fiókja vagy engedélye a munka fogadására."
   }
 }

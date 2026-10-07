@@ -2885,6 +2885,9 @@
     "usageThreshold": "Limit pro {metric} za období {period}: {threshold}",
     "usageEvents": "Události účtů",
     "usageRateTokens": "Tokeny",
-    "usageUnavailable": "Aktuální údaje o využití nejsou k dispozici."
+    "usageUnavailable": "Aktuální údaje o využití nejsou k dispozici.",
+    "placementConflict": "{provider} už má na zařízení {device} účet. Vyberte jiné zařízení nebo vypněte onePerDevicePerProvider.",
+    "sendToDevice": "Odeslat na {device}",
+    "routeUnavailable": "Vybrané zařízení nemá dostupný účet nebo oprávnění ke směrování."
   }
 }

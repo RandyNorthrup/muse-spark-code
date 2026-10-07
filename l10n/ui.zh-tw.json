@@ -2594,6 +2594,9 @@
     "usageThreshold": "{period}的{metric}上限：{threshold}",
     "usageEvents": "帳戶事件",
     "usageRateTokens": "權杖數",
-    "usageUnavailable": "暫無目前使用情況資料。"
+    "usageUnavailable": "暫無目前使用情況資料。",
+    "placementConflict": "{device} 上已有 {provider} 的帳戶。請選擇其他裝置或關閉 onePerDevicePerProvider。",
+    "sendToDevice": "傳送至 {device}",
+    "routeUnavailable": "所選裝置沒有可用帳戶或沒有接收轉送工作的權限。"
   }
 }

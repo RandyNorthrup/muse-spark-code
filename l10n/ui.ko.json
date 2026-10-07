@@ -2594,6 +2594,9 @@
     "usageThreshold": "{period}의 {metric} 한도: {threshold}",
     "usageEvents": "계정 이벤트",
     "usageRateTokens": "토큰",
-    "usageUnavailable": "현재 사용량 데이터가 없습니다."
+    "usageUnavailable": "현재 사용량 데이터가 없습니다.",
+    "placementConflict": "{device}에 이미 {provider} 계정이 있습니다. 다른 기기를 선택하거나 onePerDevicePerProvider를 끄세요.",
+    "sendToDevice": "{device}(으)로 보내기",
+    "routeUnavailable": "선택한 기기에 사용 가능한 계정이 없거나 작업 전달 권한이 없습니다."
   }
 }

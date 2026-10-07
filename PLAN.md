@@ -7405,6 +7405,22 @@ It builds on:
     credentials. Routing follows M100's consent. The receiver applies its own
     record and its own confirmations, which never travel between machines.
 
+    **Placement amendment (a), M108 D (2026-10-06):** each account is pinned
+    to exactly one device or node in local metadata. `onePerDevicePerProvider`
+    defaults on for placement; a second account of that provider on the same
+    device is refused with two ways forward: choose another device or turn
+    off the rule. Re-pinning replaces the previous placement. Swaps and
+    background routing follow the pinned device's provider headroom, with
+    **Send to {device}** as the manual choice. No account identifier or
+    confirmation is sent to select a receiver credential; the receiver
+    chooses from its own locally pinned accounts. The original pooling
+    trigger remains a reason to consult the receiver's own policy, never
+    permission to bypass it. Missing/unknown offers give no admission.
+    M100/M107 implementations are absent on lane D's `76c1231e8` base:
+    implement these regions through required injected placement, authenticated
+    offer, consent, relocation and receiver-admission ports. W binds their
+    real owners and lazy bundles; D's certification names every handoff.
+
 11. **The usage page.** Records gain `account`, an opaque id. The page groups
     by account (labels resolved locally), shows each account's thresholds as
     meters, and lists swaps, spreads and stops as events.

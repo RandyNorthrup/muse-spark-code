@@ -2691,6 +2691,9 @@
     "usageThreshold": "Limit für {metric} im Zeitraum {period}: {threshold}",
     "usageEvents": "Kontoereignisse",
     "usageRateTokens": "Tokenanzahl",
-    "usageUnavailable": "Keine aktuellen Nutzungsdaten."
+    "usageUnavailable": "Keine aktuellen Nutzungsdaten.",
+    "placementConflict": "Für {provider} gibt es auf {device} bereits ein Konto. Wählen Sie ein anderes Gerät oder deaktivieren Sie onePerDevicePerProvider.",
+    "sendToDevice": "An {device} senden",
+    "routeUnavailable": "Das ausgewählte Gerät hat kein verfügbares Konto oder keine Berechtigung zur Weiterleitung."
   }
 }

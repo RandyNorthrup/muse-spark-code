@@ -3358,6 +3358,10 @@ export const EN = {
     headroomAmple: 'Ample headroom',
     headroomSome: 'Some headroom',
     headroomNone: 'No headroom',
+    placementConflict:
+      '{provider} already has an account on {device}. Choose another device or turn off onePerDevicePerProvider.',
+    sendToDevice: 'Send to {device}',
+    routeUnavailable: 'The selected device has no available account or routing permission.',
     multipleAllowed: 'Several accounts allowed',
     multipleConditions: 'Several accounts with conditions',
     multipleOnePerson: 'One account per person',
