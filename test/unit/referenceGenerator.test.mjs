@@ -1,3 +1,4 @@
+import { parseEstimateOptions } from '../../src/runtime/estimator/command.ts'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
@@ -1104,6 +1105,10 @@ describe('RVHELPREF2 runtime truth regressions', () => {
       'questions-defer-after': '60',
       out: '/tmp/report',
       description: 'description',
+      by: '2026-10-09',
+      fleet: 'current',
+      format: 'json',
+      seed: '17',
     }
     const rows = build().cli
     for (const [route, definition] of Object.entries(source.CLI_OPTION_REGISTRY)) {
@@ -1128,15 +1133,24 @@ describe('RVHELPREF2 runtime truth regressions', () => {
           if (!['muse-binary', 'shell-sandbox'].includes(name)) args.push('--max-budget-usd', '1')
           if (name === 'image-generation') args.push('--permission-mode', 'acceptEdits')
         }
+        if (route === 'estimate' && name !== 'help') args.push('M117')
         args.push(...flag)
         if (route === 'exec' && name !== 'prompt-file') args.push('prompt')
         if (route === 'scan-secrets') args.push('/tmp/patch')
         const parsed = source.parseCommandLine(args)
         let expected = route
         if (row.contract.refused === true) expected = 'invalid'
-        else if (name === 'help') expected = 'help'
+        else if (name === 'help' && route !== 'estimate') expected = 'help'
         else if (name === 'version') expected = 'version'
         expect(parsed.command, `${route}: --${name}: ${parsed.reason ?? ''}`).toBe(expected)
+        if (route === 'estimate') {
+          // The outer dispatcher delegates this route; its own parser validates all flags.
+          expect(parsed.argv).toEqual(args.slice(1))
+          expect(parseEstimateOptions(parsed.argv).kind).toBe(name === 'help' ? 'help' : 'estimate')
+          expect(parseEstimateOptions([...parsed.argv, '--unknown', 'ignored']).kind).toBe(
+            'invalid',
+          )
+        }
         if (option.short === undefined) continue
         const aliasArgs = args.map((arg) => (arg === `--${name}` ? `-${option.short}` : arg))
         expect(source.parseCommandLine(aliasArgs).command, `${route}: -${option.short}`).toBe(
