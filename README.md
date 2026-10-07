@@ -563,6 +563,10 @@ integration listed in [M108's certification](docs/certification/m108.md).
 `museSpark.accountSwap` and `museSpark.accountParallel` are machine-scoped
 and default on; they do not enable those missing integrations by themselves.
 
+These commands require an existing provider metadata record; this base
+refuses absent or malformed configuration until its provider owner supplies
+it. Display order never selects a backend credential.
+
 Manage metadata through the agent (credentials only from standard input,
 never an argument or a file):
 

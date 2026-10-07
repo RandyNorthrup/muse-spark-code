@@ -564,6 +564,11 @@ Releases and npm.
   Gatekeeper normally does not assess it; a copy that carries the quarantine
   attribute is assessed and refused.
 
+Fixed runtime account ports keep their backend identity through display-order
+changes and account removal. A missing non-default binding cannot use the
+legacy Meta key; only an absent Meta default record uses that fallback.
+Malformed configured provider records refuse before any fallback key read.
+
 More detail: `docs/PRIVACY.md` and PLAN.md §9.
 
 ## Headless CI boundary (M80, PLAN D65)

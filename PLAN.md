@@ -26036,7 +26036,11 @@ calls belong to this continuation. The runtime's still-unbound profile
 lifecycle must refuse stop/removal as explicitly as start; a failed profile
 launch retains its ownership ledger until the real resource owner can clean
 it up. Profile ids must satisfy the shared account-id schema and remain
-distinct even when two launches share a clock tick. Regress that refusal through the runtime owner, with a red drill.
+distinct even when two launches share a clock tick. Runtime account surfaces
+must report the backend's fixed account, independent of display order or
+removal; headless ports bind their requested account and publish the same
+identity. Legacy credential fallback applies only to Meta's default account,
+and malformed configured provider metadata must refuse before that fallback. Regress that refusal through the runtime owner, with a red drill.
 
 **FIXM108P2 (2026-10-06):** close RVM108P2's remaining P2 stop-recovery
 finding. Evaluate every model-eligible fallback candidate's complete blocking

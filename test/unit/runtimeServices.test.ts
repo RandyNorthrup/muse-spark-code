@@ -2,9 +2,10 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
+import { MODEL_API_BASE_URL, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 import { runtimeProvidersFile } from '../../src/runtime/providers/providersFileStore'
 import { createRuntimeAccountServices } from '../../src/runtime/providers/runtimeServices'
+import { parseCommandLine } from '../../src/runtime/cliArgs'
 import type { KeyringEntryFactory } from '../../src/runtime/keyStore'
 
 const dirs: string[] = []
@@ -113,6 +114,151 @@ describe('createRuntimeAccountServices', () => {
       await expect(port.use('session-a', 'default', () => false)).resolves.toMatchObject({
         currentAccount: 'default',
       })
+    } finally {
+      services.dispose()
+    }
+  })
+
+  it('keeps the actual default identity through reorder and removal instead of adopting another account', async () => {
+    const services = rig()
+    try {
+      await services.store.add('vendor', { ...ROW, order: 1 })
+      const port = services.sessions('vendor')
+      await services.store.order('vendor', ['work', 'default'])
+      await expect(port.read('session-a')).resolves.toMatchObject({ currentAccount: 'default' })
+      await expect(port.use('session-a', 'work', () => true)).rejects.toThrow(
+        UI_TEXT.accounts.unavailable,
+      )
+      await services.store.remove('vendor', 'default')
+      await expect(port.read('session-a')).resolves.toMatchObject({ currentAccount: null })
+      await expect(port.use('session-a', 'work', () => true)).rejects.toThrow(
+        UI_TEXT.accounts.unavailable,
+      )
+    } finally {
+      services.dispose()
+    }
+  })
+
+  it('binds the headless port to its requested credential and publishes that fixed identity', async () => {
+    const services = rig()
+    const folder = dirs[0]
+    if (folder === undefined) throw new Error('missing test folder')
+    const parsed = parseCommandLine(['--backend', 'modelApi'])
+    if (parsed.command !== 'serve') throw new Error('missing test serve options')
+    const origin = new URL(MODEL_API_BASE_URL).origin
+    writeFileSync(
+      runtimeProvidersFile(folder),
+      JSON.stringify({
+        providers: {
+          meta: { ...ENTRY, id: 'meta', policyProvider: 'meta', origin },
+        },
+      }),
+    )
+    await services.store.add('meta', { ...ROW, order: 1 })
+    await services.store.setCredential('meta', 'work', {
+      v: 1,
+      auth: 'apiKey',
+      provider: 'meta',
+      account: 'work',
+      origin,
+      secret: 'LLM|1|fake-work-key',
+    })
+    const get = vi.fn(() => Promise.resolve('LLM|1|fake-legacy-key'))
+    const fetch = vi.fn<typeof globalThis.fetch>(() =>
+      Promise.reject(new Error('unexpected fetch')),
+    )
+    const configured = services.exec.create(
+      {
+        options: parsed.options,
+        version: 'test',
+        distDir: folder,
+        platform: process.platform,
+        env: {},
+        homeDir: folder,
+        secrets: { get, store: () => Promise.resolve(), delete: () => Promise.resolve() },
+        runGit: () => Promise.reject(new Error('unexpected git')),
+        museCodeCredentials: [],
+        fetch,
+        sleep: () => Promise.resolve(),
+        log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      },
+      { account: 'work', hasPoolFlag: false, isInteractive: false },
+    )
+    const seen: unknown[] = []
+    const stop = configured.accounts.subscribe('run-a', (state) => {
+      seen.push(state)
+    })
+    try {
+      await expect(configured.runtime.backend.readiness(false)).resolves.toMatchObject({
+        state: 'ready',
+      })
+      expect(get).not.toHaveBeenCalled()
+      await expect(configured.accounts.read('run-a')).resolves.toMatchObject({
+        currentAccount: 'work',
+      })
+      await services.store.order('meta', ['work', 'default'])
+      await vi.waitFor(() => {
+        expect(seen.at(-1)).toMatchObject({ currentAccount: 'work' })
+      })
+      await expect(services.sessions('meta').read('session-a')).resolves.toMatchObject({
+        currentAccount: 'default',
+      })
+      await expect(configured.accounts.use('run-a', 'default', () => true)).rejects.toThrow(
+        UI_TEXT.accounts.unavailable,
+      )
+      expect(fetch).not.toHaveBeenCalled()
+    } finally {
+      stop()
+      await configured.runtime.close()
+      services.dispose()
+    }
+  })
+
+  it('uses legacy key fallback only for an absent Meta default binding', async () => {
+    const services = rig()
+    const get = vi.fn(() => Promise.resolve('LLM|1|fake-legacy-key'))
+    const fallback = { get, store: () => Promise.resolve(), delete: () => Promise.resolve() }
+    try {
+      for (const [provider, account] of [
+        ['meta', 'work'],
+        ['absent', 'default'],
+        ['absent', 'work'],
+      ]) {
+        if (provider === undefined || account === undefined)
+          throw new Error('missing fixture identity')
+        await expect(
+          services.secretsFor(provider, account, fallback).get(SECRET_KEYS.modelApiKey),
+        ).rejects.toThrow(UI_TEXT.accounts.unavailable)
+      }
+      expect(get).not.toHaveBeenCalled()
+      await expect(
+        services.secretsFor('meta', 'default', fallback).get(SECRET_KEYS.modelApiKey),
+      ).resolves.toBe('LLM|1|fake-legacy-key')
+    } finally {
+      services.dispose()
+    }
+  })
+
+  it('refuses malformed Meta metadata before reading any legacy key', async () => {
+    const services = rig()
+    const folder = dirs[0]
+    if (folder === undefined) throw new Error('missing test folder')
+    writeFileSync(
+      runtimeProvidersFile(folder),
+      JSON.stringify({ providers: { meta: { ...ENTRY, auth: 'bad' } } }),
+    )
+    const get = vi.fn(() => Promise.resolve('LLM|1|fake-legacy-key'))
+    try {
+      await expect(
+        services
+          .secretsFor('meta', 'default', {
+            get,
+            store: () => Promise.resolve(),
+            delete: () => Promise.resolve(),
+          })
+          .get(SECRET_KEYS.modelApiKey),
+      ).rejects.toThrow()
+      expect(get).not.toHaveBeenCalled()
     } finally {
       services.dispose()
     }

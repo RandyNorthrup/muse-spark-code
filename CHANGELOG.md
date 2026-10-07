@@ -33,6 +33,12 @@ happened, not what was planned; superseded entries are kept.
 - Unbound runtime developer-profile cleanup reports unavailable and retains
   its ownership ledger after a failed launch.
 
+- Fixed-account runtime surfaces retain their backend identity through account
+  reordering or removal. Headless runs bind their account port to the requested
+  credential; missing additional accounts and malformed provider metadata
+  cannot fall back to the legacy Meta key.
+- ACP packaging guard fixtures include the lazy account runtime bundle.
+
 ### Documentation
 
 - A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists

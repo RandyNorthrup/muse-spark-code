@@ -27,6 +27,7 @@ import type { ExecAccountsPort } from '../exec/execAccounts'
 import { createRuntimeBackend } from '../backends'
 import { fileAccountsMetadata } from './providersFileStore'
 import {
+  ACCOUNT_DEFAULT_ID,
   DEVELOPER_PROFILE_ID_BYTES,
   SECRET_KEYS,
   SETTING_DEFAULTS,
@@ -67,21 +68,17 @@ export interface RuntimeAccountServices {
 type SessionListener = Parameters<AccountsSessionPort['subscribe']>[1]
 
 class RuntimeAccountSessions implements AccountsSessionPort {
-  private readonly selection = new Map<string, string>()
   private readonly listeners = new Map<string, Set<SessionListener>>()
 
   public constructor(
     private readonly store: AccountStore,
     private readonly provider: string,
+    private readonly account: string,
   ) {}
 
-  private async snapshot(sessionId: string): ReturnType<AccountsSessionPort['read']> {
+  private async snapshot(): ReturnType<AccountsSessionPort['read']> {
     const accounts = await this.store.list(this.provider)
-    const selected = this.selection.get(sessionId)
-    const current =
-      selected !== undefined && accounts.some((row) => row.id === selected)
-        ? selected
-        : (accounts.toSorted((a, b) => a.order - b.order)[0]?.id ?? null)
+    const current = accounts.some((row) => row.id === this.account) ? this.account : null
     return {
       type: 'accounts/state',
       provider: this.provider,
@@ -95,8 +92,7 @@ class RuntimeAccountSessions implements AccountsSessionPort {
   private async publishAll(): Promise<void> {
     for (const [key, group] of this.listeners) {
       if (!key.startsWith(`${this.provider} `)) continue
-      const sessionId = key.slice(this.provider.length + 1)
-      const state = await this.snapshot(sessionId)
+      const state = await this.snapshot()
       for (const listener of group) listener(state)
     }
   }
@@ -108,9 +104,9 @@ class RuntimeAccountSessions implements AccountsSessionPort {
     throw new Error(UI_TEXT.accounts.unavailable)
   }
 
-  public async read(sessionId: string): ReturnType<AccountsSessionPort['read']> {
+  public async read(_sessionId: string): ReturnType<AccountsSessionPort['read']> {
     try {
-      return await this.snapshot(sessionId)
+      return await this.snapshot()
     } catch {
       throw new Error(UI_TEXT.accounts.unavailable)
     }
@@ -219,25 +215,32 @@ export function createRuntimeAccountServices(
   })
   const sessionsByProvider = new Map<string, RuntimeAccountSessions>()
   const publish = (provider: string): void => {
-    sessionsByProvider.get(provider)?.publish()
+    for (const [key, port] of sessionsByProvider) {
+      if (key.startsWith(`${provider} `)) port.publish()
+    }
   }
   const store = new PublishingAccountStore(metadata, credentials, publish)
-  const createSessions = (provider: string): AccountsSessionPort => {
-    const port = new RuntimeAccountSessions(store, provider)
-    sessionsByProvider.set(provider, port)
+  const sessions = (provider: string, account = ACCOUNT_DEFAULT_ID): AccountsSessionPort => {
+    const key = `${provider} ${account}`
+    let port = sessionsByProvider.get(key)
+    if (port === undefined) {
+      port = new RuntimeAccountSessions(store, provider, account)
+      sessionsByProvider.set(key, port)
+    }
     return port
   }
-  const sessions = (provider: string): AccountsSessionPort =>
-    sessionsByProvider.get(provider) ?? createSessions(provider)
   const secretsFor = (provider: string, account: string, fallback: SecretStore): SecretStore => ({
     get: async (key) => {
       if (key !== SECRET_KEYS.modelApiKey) return await fallback.get(key)
       const entry = await metadata.read(provider)
-      return entry === undefined
-        ? await fallback.get(key)
-        : await store.useCredential(provider, account, entry.origin, (_binding, credential) =>
-            Promise.resolve(credential?.secret),
-          )
+      if (entry === undefined) {
+        if (provider !== 'meta' || account !== ACCOUNT_DEFAULT_ID)
+          throw new Error(UI_TEXT.accounts.unavailable)
+        return await fallback.get(key)
+      }
+      return await store.useCredential(provider, account, entry.origin, (_binding, credential) =>
+        Promise.resolve(credential?.secret),
+      )
     },
     store: (key, value) => fallback.store(key, value),
     delete: (key) => fallback.delete(key),
@@ -257,7 +260,7 @@ export function createRuntimeAccountServices(
             ...deps,
             secrets: secretsFor('meta', selection.account, deps.secrets),
           }),
-          accounts: sessions('meta'),
+          accounts: sessions('meta', selection.account),
         }
       },
     },

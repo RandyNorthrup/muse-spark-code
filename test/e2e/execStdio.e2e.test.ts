@@ -134,6 +134,7 @@ function packagingFixture() {
     // M112: the lazy ACP forms, the private registry and the deferral note.
     'acpQuestions',
     'runtimeQuestions',
+    'runtimeAccounts',
     'questionNotes',
     'modelApi',
     'reviewer',

@@ -87,6 +87,17 @@ describe('fileAccountsMetadata', () => {
     expect(readFileSync(before, 'utf8')).toBe('{oops')
   })
 
+  it.each([null, {}, { ...ENTRY, auth: 'not-a-method' }])(
+    'refuses malformed configured provider metadata: %j',
+    async (entry) => {
+      const folder = dir()
+      seed(folder, { providers: { meta: entry } })
+      await expect(
+        (async () => await fileAccountsMetadata(folder).read('meta'))(),
+      ).rejects.toBeInstanceOf(AccountStoreError)
+    },
+  )
+
   it('reads nothing for an invalid provider id', async () => {
     const metadata = fileAccountsMetadata(dir())
     await expect(metadata.read('META!')).resolves.toBeUndefined()

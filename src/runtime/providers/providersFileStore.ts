@@ -60,9 +60,12 @@ export class FileAccountsMetadata implements AccountsMetadataPort {
   }
 
   public read(provider: string): Promise<AccountProvider | undefined> {
-    return accountIdSchema.safeParse(provider).success
-      ? Promise.resolve(providerOf(this.load().providers[provider]))
-      : Promise.resolve(undefined)
+    if (!accountIdSchema.safeParse(provider).success) return Promise.resolve(undefined)
+    const value = this.load().providers[provider]
+    if (value === undefined) return Promise.resolve(undefined)
+    const entry = providerOf(value)
+    if (entry === undefined) throw new AccountStoreError('unavailable')
+    return Promise.resolve(entry)
   }
 
   public writeAccounts(provider: string, accounts: readonly Account[]): Promise<void> {
