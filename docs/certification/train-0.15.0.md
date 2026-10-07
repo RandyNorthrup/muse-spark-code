@@ -2057,6 +2057,18 @@ push, rebase, merge, credential output or disabled hook.
   The complete worktree scan is running; the next committed receipt repeats
   full quality and every Linux job from fresh clones.
 
+- The complete worktree scan after the task-port repair passes all 988
+  pages with zero violations, undecided checks, exemptions or missing results.
+  An independent real-browser probe wraps axe at scan start: in every theme
+  the reply has aria-busy=false and all 120 paragraphs and 120 code blocks,
+  confirming the scan starts on the complete rendered reply. The next fresh
+  aggregate catches a test-fixture TypeScript getter/setter mismatch: its
+  initially absent handler is allowed by the getter but not its setter. Both
+  now agree on that optional callback type; no runtime branch or assertion
+  changes. All five typechecks, targeted lint and 39 owning tests pass before
+  committing the correction. The failed aggregate's clone is removed and
+  the complete fresh-clone job set starts again.
+
 ### Fresh-clone job verification
 
 The first committed repair (`02fd30fe9`) passes all four Linux shards, the

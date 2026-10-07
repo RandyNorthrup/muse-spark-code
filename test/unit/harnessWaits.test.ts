@@ -160,7 +160,7 @@ function longStream() {
     get onmessage() {
       return receive
     },
-    set onmessage(callback: () => void) {
+    set onmessage(callback: (() => void) | undefined) {
       receive = callback
     },
     close: vi.fn(),
