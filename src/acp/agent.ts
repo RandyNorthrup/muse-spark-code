@@ -388,7 +388,9 @@ class AcpSession {
         `ACP session ${this.sessionId}: skills unavailable: ${failureForLog(error)}`,
       )
       observeError(this.deps, 'skillsUnavailable')
-      if (this.deps.playbookFor === undefined) return
+      // A failed skill list still announces the local commands (help, the
+      // question commands when the registry is present, /playbook when the
+      // playbook is bound): the failure only empties the remote skill list.
       this.skills = []
     }
     this.send({
