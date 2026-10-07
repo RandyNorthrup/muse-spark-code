@@ -1934,3 +1934,31 @@ and hints/load's 15 Windows cases passed. The failures were:
 The first committed verification started before this extra repair was found.
 It is a reproduction run, not the final certification. The full Windows job set
 will start again from the next hooked commit and freshly cloned source.
+
+### Full-job discovery: slot deadlines and held cancellation
+
+The complete committed-clone run at `b31c41ef` reproduced shard 2's
+`checkSlots.test.ts` failure: six independent native uncertainty/transport
+scenarios occupied one five-second test, which then raced cleanup with the
+still-running loop (`EBUSY`). One immutable Git seed now prepares in
+`beforeAll`; each scenario gets fresh repositories and its own default-deadline
+case, preserving every failed-run, occupied/uncertain-state and second-admission
+refusal assertion. The complete repaired file passed **17/17** cases in
+**27.27 s**. Deliberately returning a positive descendant proof in the command
+uncertainty fixture made its rejection assertion fail (exit 1); the original
+uncertainty was restored.
+
+Shard 3 exposed a production Windows held-confirmation retirement race. A
+coverage-enabled native reproduction failed with `write EPIPE` instead of
+`TEAM_PROCESS_LIFETIME_DISPOSED`: lifecycle cancellation and subsequent
+retirement wrote STOP repeatedly after the native helper closed its control
+pipe. The Windows driver now retains the first held cancellation write and
+awaits it during retirement. It preserves the existing helper-close wait,
+retirement deadline and native descendant proof. The real native disposal
+guard and portable lifetime contract passed **32/32** cases with coverage
+enabled and repository deadlines after the repair. No production priority,
+assertion, timeout, retry or skip changed.
+
+The discovery job set continues on the immutable committed head. Its receipts
+do not certify these later repairs; every Windows job will run again in a new
+clone of their hooked commit before final reporting.

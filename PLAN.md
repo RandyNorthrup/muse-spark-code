@@ -18826,6 +18826,22 @@ that invariant compilation into suite preparation while retaining every lazy
 factory and no-dispatch assertion. Clean-artifact package failures reported
 across OSes remain Linux-owned under the round-3 shared rules.
 
+The complete Windows shard 2 additionally reproduces `checkSlots.test.ts`'s
+six native failure scenarios sharing one five-second test, followed by cleanup
+while its timed-out loop still starts children. Prepare one immutable Git seed
+per suite and run each independent uncertainty/transport scenario as its own
+case at the unchanged default deadline. Keep every state and refusal assertion.
+
+Coverage also reproduces Windows held-launch cancellation issuing STOP again
+after the helper has already received STOP and closed its pipe. The second
+write raises EPIPE and masks the expected lifetime-disposed refusal. Retain
+the held cancellation's original write promise and await it during retirement;
+do not resend STOP for that held launch. Preserve ordinary retirement, native
+proof/uncertainty and the existing deadline. The real coverage-enabled native
+disposal case is the regression guard; no assertion or timeout is relaxed.
+Record this native cancellation pitfall as G33 in the orchestration register,
+covered by M96's held-launch disposal guard and Windows cancellation write.
+
 - [ ] Reproduce owned failures and inspect round-2 Windows process priority.
 - [ ] Fix causes, prove regression guards fire, and commit with hooks.
 - [ ] Run every Windows job/matrix command in fresh committed clones, including

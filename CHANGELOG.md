@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Reuse Windows held-launch cancellation during retirement so a second STOP
+  write cannot hide the disposal refusal with a closed-pipe error. Prepare
+  immutable check-slot Git seeds once and verify each native failure scenario
+  at the unchanged repository deadline.
 - Prepare native Windows ACL, worker-handle and reviewer-journal fixtures before
   their assertions, and reserve background process priority for its dedicated
   lifetime test. Build the packaged team's invariant fixtures in suite setup.

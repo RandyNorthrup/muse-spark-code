@@ -735,6 +735,7 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
       const statusPipe = `muse-team-status-${launchId}`
       const group = String.raw`Local\MuseSparkTeam-${launchId}`
       let send: ((command: 'GO' | 'STOP') => Promise<void>) | undefined
+      let heldCancellation: Promise<void> | undefined
       // Node 20 (the VS Code floor) has no Promise.withResolvers. Subscribe
       // in the executor instead of extracting resolvers into mutable variables.
       const events = new EventTarget()
@@ -789,15 +790,16 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
       })
       const status = createServer((socket) => {
         socket.on('error', () => socket.destroy())
-        send = (command) =>
+        const writeCommand = (command: 'GO' | 'STOP') =>
           new Promise<void>((resolve, reject) => {
             socket.write(`${command} ${nonce}\n`, 'utf8', (error) => {
               if (error == null) resolve()
               else reject(error)
             })
           })
+        send = writeCommand
         lifecycle.hold(() => {
-          if (result.end === undefined) void send?.('STOP').catch(fail)
+          if (result.end === undefined) void (heldCancellation ??= writeCommand('STOP')).catch(fail)
         })
         let text = ''
         socket.on('data', (bytes: Buffer) => {
@@ -920,7 +922,11 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
                   { once: true, signal: failure.signal },
                 )
                 void closed.then(resolve)
-                if (result.end === undefined) void send?.('STOP').catch(reject)
+                if (result.end !== undefined) return
+                // A held launch already received STOP through lifecycle.retire.
+                // Await that write; a second STOP can hit its now-closed pipe.
+                const stopping = heldCancellation ?? send?.('STOP')
+                void stopping?.catch(reject)
               }),
               NATIVE_CONFIRM_MS,
               'TEAM_WINDOWS_RETIREMENT_TIMEOUT',
