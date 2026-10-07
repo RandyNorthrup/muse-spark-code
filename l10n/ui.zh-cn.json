@@ -2641,7 +2641,12 @@
       "saveRoot": "仅保存到此日程批准的根目录内。",
       "openWhenBack": "我回来时打开",
       "plannedDestination": "此目标处于计划阶段，目前不可用。",
-      "expiredOwner": "此日程随创建者的会话或团队结束而终止。"
+      "expiredOwner": "此日程随创建者的会话或团队结束而终止。",
+      "targetUnavailable": "此计划的目标在当前主机上不可用。",
+      "targetClosed": "目标已关闭，或此等待中的执行已跳过。",
+      "catchUpSkipped": "根据此计划的补执行策略，已跳过错过的执行。",
+      "backgroundNotice": "计划 {name} 已在后台打开对话。",
+      "conversationTitle": "计划 {name} · {date}"
     },
     "endAfterRuns": {
       "other": "执行{count}次后结束"

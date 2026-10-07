@@ -13943,6 +13943,24 @@ brief reserves aggregate quality for W/lead; run bounded complete owning
 suites and the shared rules' static/build checks directly on Kubuntu. Core
 ports apply to all editors/runtime; existing named integration handoffs stay.
 
+### FIXM115D — Repair schedule delivery review findings (2026-10-06)
+
+**Complete:** all six RVM115D P2 findings repaired, with 23 additional
+regression cases and 14 successful byte-exact restored red controls.
+704 related tests and the rig's required static/build checks pass; no review
+finding is deferred. Full quality and bound shipping receipts remain W/lead.
+
+Repair every RVM115D P2: admit when-idle fires into the target's own queue
+with Skip surviving unattended admission; share the controller's child-turn
+predicate; treat every non-idle status as busy and interrupt compaction through
+Stop; acquire only current live pooled entries and release by identity;
+retain a parsed, frozen event snapshot before awaits; and compare parsed
+settlements using sorted-key canonical JSON. Use real ModelApiHost/fake
+transport regressions for the backend review scenarios and byte-exact
+restored red drills for every fix in `docs/certification/m115-d.md`.
+No dependency, wire schema, authority, shipping registration or gate change.
+The rig brief reserves aggregate quality for the lead and forbids merges.
+
 ### FIXM115L0 — Freeze corrected schedule contracts (2026-10-06)
 
 Repair all six RVM115L0 P2 findings before M115's wave lanes bind the
@@ -31253,6 +31271,20 @@ before a repaired one loads (2026-09-30).
   Existing S/D/V/W/X, M112/M103/M109/M107/M95 and HELPREF bindings remain
   named in `docs/certification/m115-u.md`; W/lead owns full quality and
   integrated coverage. Zero-cap migration records carry no paid authority.
+- **FIXM115D review scope.** All six RVM115D P2 findings are repaired;
+  none is a deferred review residual. When-idle owns a backend queue entry
+  with run-scoped Skip through admission/acknowledgement, child-turn filtering
+  uses the controller's unchanged shared predicate, non-idle statuses remain
+  busy, pooled ownership is current/live and released by identity, events
+  are parsed/frozen before awaits, and parsed settlements use sorted-key
+  equality. The local cancellable queue operation and minimal shared predicate
+  extraction add no provider schema or frozen-contract change. Existing named
+  integration residuals remain: U/M112 owns unattended admission and actual
+  refusal/cost settlement, S owns persistence/claims/collision order, and W/X
+  owns shipping registration, editor surfaces, the integrated bundle budget,
+  full quality and live/platform receipts. These modules remain unshipped on
+  this base; those implementing lanes must certify the bound behavior before
+  release. Evidence is in `docs/certification/m115-d.md`.
 
 - **FIXM115L0 contract scope.** All six RVM115L0 findings are repaired;
   none is deferred. These are unshipped internal schedule contracts, not

@@ -2833,7 +2833,12 @@
       "saveRoot": "Salvar apenas dentro da raiz aprovada deste agendamento.",
       "openWhenBack": "Abrir quando eu voltar",
       "plannedDestination": "Este destino está planejado e indisponível.",
-      "expiredOwner": "Este agendamento terminou com a sessão ou equipe de seu criador."
+      "expiredOwner": "Este agendamento terminou com a sessão ou equipe de seu criador.",
+      "targetUnavailable": "O destino deste agendamento não está disponível neste host.",
+      "targetClosed": "O destino foi fechado ou esta execução pendente foi ignorada.",
+      "catchUpSkipped": "A execução perdida foi ignorada conforme a política de recuperação deste agendamento.",
+      "backgroundNotice": "O agendamento {name} abriu uma conversa em segundo plano.",
+      "conversationTitle": "Agendamento {name} · {date}"
     },
     "endAfterRuns": {
       "one": "Encerrar após {count} execução",

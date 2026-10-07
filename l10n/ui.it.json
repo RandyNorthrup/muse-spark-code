@@ -2833,7 +2833,12 @@
       "saveRoot": "Salva solo nella radice approvata di questa pianificazione.",
       "openWhenBack": "Apri al mio ritorno",
       "plannedDestination": "Questa destinazione è prevista e non disponibile.",
-      "expiredOwner": "Questa pianificazione è terminata con la sessione o il gruppo del suo creatore."
+      "expiredOwner": "Questa pianificazione è terminata con la sessione o il gruppo del suo creatore.",
+      "targetUnavailable": "La destinazione di questa pianificazione non è disponibile su questo host.",
+      "targetClosed": "La destinazione è stata chiusa o questa esecuzione in attesa è stata saltata.",
+      "catchUpSkipped": "L’esecuzione mancata è stata saltata secondo la regola di recupero di questa pianificazione.",
+      "backgroundNotice": "La pianificazione {name} ha aperto una conversazione in background.",
+      "conversationTitle": "Pianificazione {name} · {date}"
     },
     "endAfterRuns": {
       "one": "Termina dopo {count} esecuzione",

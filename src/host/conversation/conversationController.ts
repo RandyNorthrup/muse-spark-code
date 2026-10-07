@@ -146,7 +146,13 @@ import {
   USER_SHELL_SANDBOX_FAILURE_MARKER,
 } from '../../shared/constants'
 import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
-import type { AgentEvent, ApprovalChoice, ItemSnapshot, TodoItem } from '../../shared/agentEvents'
+import {
+  isChildTurn,
+  type AgentEvent,
+  type ApprovalChoice,
+  type ItemSnapshot,
+  type TodoItem,
+} from '../../shared/agentEvents'
 import { fill, plural } from '../../shared/l10n/text'
 import type { GitAction, GitDraftKind } from '../../shared/git'
 import { backendLabel } from '../../shared/palette'
@@ -2357,12 +2363,7 @@ export class ConversationController {
    * a Model API child's turn ids prefix it, as the panel already reads them.
    */
   private isChildTurn(turnId: string): boolean {
-    for (const childSessionId of this.childSessionIds) {
-      if (turnId === childSessionId || turnId.startsWith(`${childSessionId}:`)) {
-        return true
-      }
-    }
-    return false
+    return isChildTurn(turnId, this.childSessionIds)
   }
 
   /** Remember a subagent row's child session, live or from a loaded history. */
