@@ -26273,6 +26273,22 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M109 — A credential vault and broker for agents (D89)
 
+**FIXM109W integrated review repair (2026-10-07, Mac mini).** Verify every
+P1/P2 in `_ctx/codex/M109-findings.md` against integration `a1d2b73e7`,
+including already repaired U findings and the L certificate observation.
+Close remaining H/R/M/X/O defects with structural fixes and baseline-failing
+regressions; record disproved findings with executable evidence. Move vault
+English fallback and browser constants behind the existing lazy surface so
+the 751,411-byte startup regression cap remains unchanged. Commit finished
+pieces with hooks. In a fresh clone of the committed tree, install with
+`CI=true npm ci`, run complete owning files three times at default timeouts
+(maximum three files per run), then all five typechecks, lint, prettier,
+plain knip, duplication, capped build, reference and localization checks.
+No paid/live calls, pushes, merges, dependencies or aggregate quality run;
+the lane brief and shared rules assign the full quality gate to the lead.
+Map each finding, baseline failure, guard drill and final gate to
+`docs/certification/m109.md`; update CHANGELOG with the repaired behavior.
+
 **FIXM109C2 review repair (2026-10-06, Mac mini).** RVM109C2's remaining
 P2 is accepted before code: a confirmed backup that matches the independent
 anchor must repair a damaged or unreadable destination document without

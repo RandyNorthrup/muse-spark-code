@@ -55,11 +55,39 @@ export class HeadlessVaultSession implements ExecVaultSession {
   private isCurrent(): boolean {
     return !this.closed && !this.context.signal.aborted
   }
-  private deny(handle: string, use: VaultUse): VaultApprovalResult {
+  private deny(
+    handle: string,
+    use: VaultUse,
+    reason: Extract<VaultApprovalResult, { kind: 'denied' }>['reason'],
+  ): VaultApprovalResult {
+    let detail = UI_TEXT.vault.noAccess
+    switch (reason) {
+      case 'presence': {
+        detail = UI_TEXT.vault.presenceTierWarning
+        break
+      }
+      case 'locked': {
+        detail = UI_TEXT.vault.locked
+        break
+      }
+      case 'expired': {
+        detail = UI_TEXT.vault.approvalExpired
+        break
+      }
+      case 'digest': {
+        detail = UI_TEXT.vault.useChanged
+        break
+      }
+      default: {
+        break
+      }
+    }
     this.context.onDenied(
-      fill(UI_TEXT.vault.noUnattended, { item: handle, use: JSON.stringify(use) }),
+      reason === 'unattended'
+        ? fill(UI_TEXT.vault.noUnattended, { item: handle, use: JSON.stringify(use) })
+        : `${handle}: ${detail} (${reason})`,
     )
-    return { kind: 'denied', reason: 'unattended' }
+    return { kind: 'denied', reason }
   }
   async request(
     handle: string,
@@ -70,18 +98,20 @@ export class HeadlessVaultSession implements ExecVaultSession {
       const use = vaultUseSchema.parse(structuredClone(rawUse))
       const taint = vaultTaintSchema.parse(structuredClone(rawTaint))
       const item = vaultItemMetadataSchema.shape.handle.parse(handle)
-      if (!this.isCurrent() || taint.tainted) return this.deny(item, use)
+      if (!this.isCurrent()) return this.deny(item, use, 'peer')
+      if (taint.tainted) return this.deny(item, use, 'tainted')
       const digest = vaultUseDigest(use)
       const result = vaultAuthorizationResultSchema.parse(
         await this.broker.request(this.requester, handle, use, taint),
       )
-      return !this.isCurrent() ||
-        result.kind !== 'ticket' ||
-        result.authority.kind !== 'grant' ||
-        result.ticket.requesterId !== this.requester.id ||
-        result.ticket.digest !== digest ||
-        this.broker.clock.now() >= result.ticket.expiresAt
-        ? this.deny(handle, use)
+      if (!this.isCurrent()) return this.deny(item, use, 'peer')
+      if (result.kind === 'denied') return this.deny(item, use, result.reason)
+      if (result.kind !== 'ticket' || result.authority.kind !== 'grant')
+        return this.deny(item, use, 'policy')
+      if (result.ticket.requesterId !== this.requester.id || result.ticket.digest !== digest)
+        return this.deny(item, use, 'digest')
+      return this.broker.clock.now() >= result.ticket.expiresAt
+        ? this.deny(item, use, 'expired')
         : result
     } catch {
       this.context.onDenied(UI_TEXT.vault.noAccess)

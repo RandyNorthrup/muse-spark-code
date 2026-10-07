@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Vault refusals preserve their reason; TOTP approvals state that the command
+  sees the code. ACP cancels stale permission dialogs and filters hidden
+  credential audit rows from local command replies.
+
 ### Documentation
 
 - A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists

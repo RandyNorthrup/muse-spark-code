@@ -8,6 +8,7 @@ export function vaultDecisionChoices(
   const isSession =
     request.item.policy.mode === 'askOncePerSession' &&
     request.requester.sessionId !== null &&
+    request.requester.deviceId === null &&
     !request.requester.unattended &&
     !request.taint.tainted &&
     request.use.kind !== 'disclosure'
@@ -26,7 +27,7 @@ export function vaultApprovalText(request: VaultApprovalRequest): string {
       ? fill(UI_TEXT.vault.taintWarning, { content: JSON.stringify(request.taint.reasons) })
       : '',
     request.item.requirePresence ? UI_TEXT.vault.presenceWarning : '',
-    ['environment', 'stdin', 'sudo', 'askpass', 'git', 'mcp'].includes(request.use.kind)
+    ['environment', 'stdin', 'sudo', 'askpass', 'git', 'mcp', 'totp'].includes(request.use.kind)
       ? UI_TEXT.vault.processWarning
       : '',
     UI_TEXT.vault.paidWarning,

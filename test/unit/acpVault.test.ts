@@ -9,8 +9,9 @@ import {
   vaultPermissionOptions,
   vaultSlash,
 } from '../../src/acp/vault'
+import { vaultApprovalText } from '../../src/runtime/vault/vaultApproval'
 import { UI_TEXT } from '../../src/shared/constants'
-import { approval } from './helpers/vault/fixtures'
+import { approval, audit, metadata } from './helpers/vault/fixtures'
 import { commandHarness } from './helpers/vault/runtime'
 import { FakeAgentHost, museCodeTestBackend } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
@@ -73,7 +74,9 @@ function harness(mode: 'manual' | 'bypassPermissions' = 'manual', hasVault = tru
     questions: 'decline',
   })
   const updates: acp.SessionUpdate[] = []
+  const permissionEntered = Promise.withResolvers<undefined>()
   const permissions: acp.RequestPermissionRequest[] = []
+  const cancelledPermissions: acp.RequestPermissionRequest[] = []
   const answer = vi.fn<() => Promise<acp.RequestPermissionResponse>>(() =>
     Promise.resolve(selected('allowOnce')),
   )
@@ -84,6 +87,14 @@ function harness(mode: 'manual' | 'bypassPermissions' = 'manual', hasVault = tru
     })
     .onRequest('session/request_permission', async (ctx) => {
       permissions.push(ctx.params)
+      permissionEntered.resolve(undefined)
+      ctx.signal.addEventListener(
+        'abort',
+        () => {
+          cancelledPermissions.push(ctx.params)
+        },
+        { once: true },
+      )
       return await answer()
     })
   return {
@@ -92,6 +103,8 @@ function harness(mode: 'manual' | 'bypassPermissions' = 'manual', hasVault = tru
     host,
     updates,
     permissions,
+    cancelledPermissions,
+    permissionEntered: permissionEntered.promise,
     answer,
     grants,
     run: <T>(fn: (client: acp.ClientContext) => Promise<T>) => client.connectWith(app, fn),
@@ -120,6 +133,101 @@ function requestFor(sessionId: string) {
 }
 
 describe('M109 H ACP vault', () => {
+  it('W-H3 TOTP cards warn that the command and children see the code', () => {
+    const request = approval()
+    request.use = {
+      kind: 'totp',
+      command:
+        request.use.kind === 'environment'
+          ? request.use.command
+          : { executable: '/bin/tool', argv: [], cwd: '/workspace' },
+    }
+    expect(vaultApprovalText(request)).toContain(UI_TEXT.vault.processWarning)
+  })
+  it('W-H4 ACP audit excludes hidden, first-party, internal and deleted item rows', async () => {
+    const h = harness()
+    const base = metadata()
+    const items = [
+      base,
+      {
+        ...base,
+        id: 'b'.repeat(32),
+        name: 'hidden',
+        handle: 'secret://hidden' as const,
+        hidden: true,
+      },
+      {
+        ...base,
+        id: 'c'.repeat(32),
+        name: 'first',
+        handle: 'secret://first' as const,
+        firstParty: true,
+        hidden: true,
+        policy: { ...base.policy, mode: 'never' as const },
+      },
+    ]
+    h.commands.port.list.mockResolvedValue(items)
+    h.commands.port.audit.mockResolvedValue([
+      audit(),
+      ...items.slice(1).map((item) => ({ ...audit(), handle: item.handle })),
+      { ...audit(), handle: 'secret://deleted' },
+    ])
+    await promptLocalText((work) => h.run(work), start, '/vault audit')
+    const chunks = h.updates.filter((update) => update.sessionUpdate === 'agent_message_chunk')
+    expect(JSON.stringify(chunks)).toContain(base.handle)
+    for (const handle of ['secret://hidden', 'secret://first', 'secret://deleted'])
+      expect(JSON.stringify(chunks)).not.toContain(handle)
+  })
+  it.each(['lock', 'cancel', 'expired'] as const)(
+    'W-H2 %s withdraws a held permission and settles its card',
+    async (boundary) => {
+      const h = harness()
+      const held = Promise.withResolvers<acp.RequestPermissionResponse>()
+      h.answer.mockImplementation(() => held.promise)
+      await h.run(async (client) => {
+        const { sessionId, turn } = await activeTurn(h, client)
+        if (boundary === 'expired') vi.useFakeTimers()
+        const request = requestFor(sessionId)
+        const answer = h.vault.ask(sessionId, request)
+        await h.permissionEntered
+        try {
+          if (boundary === 'lock')
+            await client.request('session/prompt', {
+              sessionId,
+              prompt: [{ type: 'text', text: '/vault lock' }],
+            })
+          else if (boundary === 'cancel') await client.notify('session/cancel', { sessionId })
+          else {
+            // Fire the existing deadline without a slow wall-clock wait.
+            await vi.advanceTimersByTimeAsync(120_000)
+            vi.useRealTimers()
+          }
+          await until(() => h.cancelledPermissions.length === 1)
+          expect(decisionOf(await answer)).toBe('deny')
+          await until(() =>
+            h.updates.some(
+              (update) =>
+                update.sessionUpdate === 'tool_call_update' &&
+                update.toolCallId === `vault:${request.id}` &&
+                update.status === 'failed',
+            ),
+          )
+        } finally {
+          vi.useRealTimers()
+          vi.restoreAllMocks()
+          held.resolve(selected('allowOnce'))
+          h.host.sessions[0]?.emit({
+            type: 'turnCompleted',
+            turnId: 'turn-1',
+            terminal: 'cancelled',
+          })
+          await turn
+          await answer
+        }
+      })
+    },
+  )
+
   it('H30 ACP allow_always means session only; no standing Always choice', () => {
     const request = approval()
     request.item.policy.mode = 'askOncePerSession'

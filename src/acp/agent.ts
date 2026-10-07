@@ -257,6 +257,7 @@ class AcpSession {
   /** Let go (closed, loaded again, or never set up): the editor's late answers decide nothing. */
   private isDisposed = false
   private vaultGeneration = 0
+  private readonly vaultRequests = new Set<AbortController>()
   /** A turn being started (`sendTurn` not yet answered): a release waits for it, then stops it. */
   private starting: Promise<unknown> | undefined
   public readonly sessionId: string
@@ -739,6 +740,11 @@ class AcpSession {
     }
   }
 
+  private cancelVaultRequests(): void {
+    this.vaultGeneration += 1
+    for (const controller of this.vaultRequests) controller.abort()
+  }
+
   /**
    * The question before a paid use (M58, PLAN.md D48): a row naming what is
    * about to be billed and its price, and a permission prompt on it with the
@@ -818,37 +824,54 @@ class AcpSession {
       status: 'pending',
       content,
     })
+    const controller = new AbortController()
+    this.vaultRequests.add(controller)
     let timer: ReturnType<typeof setTimeout> | undefined
     let answer = deny
     try {
       await this.outbox
-      if (!isCurrent()) return deny
-      const response = await Promise.race([
-        this.client.request('session/request_permission', {
-          sessionId: this.sessionId,
-          toolCall: { toolCallId, title: UI_TEXT.vault.title, status: 'pending', content },
-          options: vaultPermissionOptions(request),
-        }),
-        new Promise<RequestPermissionResponse>((resolve) => {
-          timer = setTimeout(
+      if (isCurrent()) {
+        const cancelled = new Promise<RequestPermissionResponse>((resolve) => {
+          controller.signal.addEventListener(
+            'abort',
             () => {
               resolve({ outcome: { outcome: 'cancelled' } })
             },
+            { once: true },
+          )
+          timer = setTimeout(
+            () => {
+              controller.abort()
+            },
             Math.max(1, request.expiresAt - Date.now()),
           )
-        }),
-      ])
-      if (isCurrent()) answer = vaultPermissionAnswer(request, permissionResponse(response))
+        })
+        const response = await Promise.race([
+          this.client.request(
+            'session/request_permission',
+            {
+              sessionId: this.sessionId,
+              toolCall: { toolCallId, title: UI_TEXT.vault.title, status: 'pending', content },
+              options: vaultPermissionOptions(request),
+            },
+            { cancellationSignal: controller.signal },
+          ),
+          cancelled,
+        ])
+        if (isCurrent()) answer = vaultPermissionAnswer(request, permissionResponse(response))
+      }
     } catch {
       /* A lost editor or malformed permission response is Deny, with no remote text logged. */
     } finally {
       clearTimeout(timer)
+      controller.abort()
+      this.vaultRequests.delete(controller)
+      this.send({
+        sessionUpdate: 'tool_call_update',
+        toolCallId,
+        status: answer.decision === 'deny' ? 'failed' : 'completed',
+      })
     }
-    this.send({
-      sessionUpdate: 'tool_call_update',
-      toolCallId,
-      status: answer.decision === 'deny' ? 'failed' : 'completed',
-    })
     return answer
   }
 
@@ -1007,7 +1030,7 @@ class AcpSession {
         throw RequestError.internalError(undefined, UI_TEXT.vault.brokerBlocked)
       const preparing: PreparingPrompt | undefined =
         slash === 'lock' ? undefined : { isCancelled: false }
-      if (preparing === undefined) this.vaultGeneration += 1
+      if (preparing === undefined) this.cancelVaultRequests()
       else this.preparing = preparing
       try {
         const text = await this.deps.vault.command(slash)
@@ -1131,7 +1154,7 @@ class AcpSession {
   }
 
   public async cancel(): Promise<void> {
-    this.vaultGeneration += 1
+    this.cancelVaultRequests()
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
       this.deps.log.info(`ACP session ${this.sessionId}: cancelled before its turn started`)
@@ -1189,7 +1212,7 @@ class AcpSession {
     this.isDisposed = true
     this.questions?.dispose()
     if (this.questions === undefined) this.questionRegistry?.dispose()
-    this.vaultGeneration += 1
+    this.cancelVaultRequests()
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
     }

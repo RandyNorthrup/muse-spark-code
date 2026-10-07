@@ -59,6 +59,20 @@ function kindOf(result: VaultApprovalResult): VaultApprovalResult['kind'] {
 const clean = { tainted: false, reasons: [] }
 
 describe('M109 H headless authorization', () => {
+  it.each(['tainted', 'presence', 'locked', 'policy', 'unattended'] as const)(
+    'W-H1 preserves the %s denial and only recommends a grant when it can help',
+    async (reason) => {
+      const h = policyHarness()
+      h.request.mockResolvedValue({ kind: 'denied', reason })
+      const result = await h.session.request('secret://test-secret', use(), clean)
+      expect(result).toEqual({ kind: 'denied', reason })
+      const message = vi.mocked(h.context.onDenied).mock.calls[0]?.[0]
+      expect(message).toContain('secret://test-secret')
+      if (reason === 'unattended') expect(message).toContain('unattended grant')
+      else expect(message).not.toContain('unattended grant')
+    },
+  )
+
   it('H50 accepts only bound, unexpired grant tickets for headless registration', async () => {
     const h = policyHarness()
     expect(kindOf(await h.session.request('secret://test-secret', use(), clean))).toBe('ticket')

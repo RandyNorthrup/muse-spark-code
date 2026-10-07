@@ -164,10 +164,26 @@ export async function vaultRead(
         .array(vaultAuditRecordSchema)
         .check(z.maxLength(VAULT_LIMITS.items))
         .parse(await port.audit())
+      const visible = isAgent
+        ? new Set(
+            z
+              .array(vaultItemMetadataSchema)
+              .check(z.maxLength(VAULT_LIMITS.items))
+              .parse(await port.list())
+              .filter(
+                (item) =>
+                  !item.hidden &&
+                  !item.firstParty &&
+                  !['devicePair', 'internal'].includes(item.kind),
+              )
+              .map((item) => item.handle),
+          )
+        : undefined
       const filter = auditFilterSchema.parse(filters)
       return JSON.stringify(
         records.filter(
           (record) =>
+            (visible === undefined || visible.has(record.handle)) &&
             (filter.item === undefined || record.handle === filter.item) &&
             (filter.requester === undefined || record.requester.id === filter.requester) &&
             (filter.kind === undefined || record.kind === filter.kind) &&
