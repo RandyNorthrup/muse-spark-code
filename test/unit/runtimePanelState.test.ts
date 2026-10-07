@@ -5,16 +5,16 @@ import { mkdtemp, mkdir, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { afterAll, beforeAll, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
-import { runPanel } from '../../src/runtime/panel/runPanel'
+import { retireCompanionPages, runPanel } from '../../src/runtime/panel/runPanel'
 import type { RuntimeFeatureContext } from '../../src/runtime/panel/runtimeFeatures'
 import { fakePanelRuntime } from './helpers/runtimePanel'
 import type { ServeOptions } from '../../src/runtime/cliArgs'
 import { RuntimeSettingsStore } from '../../src/runtime/settingsStore'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
-import { panelEnvelopeSchema } from '../../src/shared/hostApi/panel'
+import { panelBindingSchema, panelEnvelopeSchema } from '../../src/shared/hostApi/panel'
 import { FakeAgentHost } from './helpers/fakeAgent'
 import { buildHostBundles } from './helpers/modelApiBundle'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -558,4 +558,47 @@ it('refuses stock portable paid consent before a popup when catalog and hard-led
   } finally {
     await t.close()
   }
+})
+
+function companionPage(surface: string, sessionId: string, surfaceKind: string) {
+  return {
+    binding: panelBindingSchema.parse({ surface, sessionId, surfaceKind }),
+  }
+}
+
+describe('companion retire handoff', () => {
+  it('retires replaced pages and hands each surface to its feature owner', () => {
+    const pages = new Map([
+      ['chat', companionPage('chat-surface', 'old', 'chat')],
+      ['aux', companionPage('aux-surface', 'old', 'tasks')],
+      ['other', companionPage('other-surface', 'new', 'tasks')],
+    ])
+    const retired: string[] = []
+    // A feature owner releases what the handoff names, as PortableTasks.closed does.
+    const acquired = new Set(['chat-surface', 'aux-surface', 'other-surface'])
+    const closed = new Set([
+      (id: string) => {
+        acquired.delete(id)
+      },
+    ])
+    retireCompanionPages(
+      pages,
+      (id) => {
+        retired.push(id)
+      },
+      closed,
+      'old',
+    )
+    expect(retired).toEqual(['chat', 'aux'])
+    expect(pages.size).toBe(1)
+    expect(pages.has('other')).toBe(true)
+    // Nothing orphaned remains for release-time cleanup to close.
+    expect(acquired.size).toBe(1)
+    expect(acquired.has('other-surface')).toBe(true)
+  })
+  it('prunes replaced pages when no companion or owner is attached', () => {
+    const pages = new Map([['aux', companionPage('aux-surface', 'old', 'tasks')]])
+    retireCompanionPages(pages, undefined, new Set(), 'old')
+    expect(pages.size).toBe(0)
+  })
 })
