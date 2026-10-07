@@ -139,6 +139,11 @@
         "category": "%command.category%"
       },
       {
+        "command": "museSpark.estimate",
+        "title": "%command.estimate.title%",
+        "category": "%command.category%"
+      },
+      {
         "command": "museSpark.newConversation",
         "title": "%command.newConversation.title%",
         "category": "%command.category%"
@@ -1135,6 +1140,26 @@
           ],
           "default": "auto",
           "description": "%config.judge.engine.description%",
+          "scope": "machine"
+        },
+        "museSpark.estimator.optimize": {
+          "type": "string",
+          "enum": [
+            "cost",
+            "speed"
+          ],
+          "enumDescriptions": [
+            "%config.estimator.optimize.enumDescriptions.cost%",
+            "%config.estimator.optimize.enumDescriptions.speed%"
+          ],
+          "default": "cost",
+          "description": "%config.estimator.optimize.description%",
+          "scope": "machine"
+        },
+        "museSpark.estimator.priceLookup": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.estimator.priceLookup.description%",
           "scope": "machine"
         },
         "museSpark.shell.passEnvironmentVariables": {

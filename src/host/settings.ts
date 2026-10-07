@@ -17,6 +17,8 @@ import {
   type EnvironmentVariable,
   JUDGE_ENGINES,
   type JudgeEngine,
+  ESTIMATE_OPTIMIZE_MODES,
+  type EstimateOptimizeMode,
   PROMPT_CACHE_RETENTIONS,
   QUESTION_DEFER_MAX_SECONDS,
   type PromptCacheRetention,
@@ -104,6 +106,10 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly tabWithCopilot: TabWithCopilot
   /** The Muse Judge's engine (M98, PLAN.md D77): `auto` is `same` in phase 1. */
   readonly 'judge.engine': JudgeEngine
+  /** The capacity estimator's setup search (M117, PLAN.md D97). */
+  readonly 'estimator.optimize': EstimateOptimizeMode
+  /** Public catalog price lookup for rented servers (M117, PLAN.md D97). */
+  readonly 'estimator.priceLookup': boolean
   /** The verify loop (M68, PLAN.md D49): diagnostics after edits, check commands, format on edit. */
   readonly diagnosticsAfterEdits: boolean
   readonly checkCommands: readonly CheckCommandSetting[]
@@ -181,6 +187,8 @@ const settingSchemas = {
   tabTrigger: z.enum(TAB_TRIGGER_MODES),
   tabWithCopilot: z.enum(TAB_WITH_COPILOT_MODES),
   'judge.engine': z.enum(JUDGE_ENGINES),
+  'estimator.optimize': z.enum(ESTIMATE_OPTIMIZE_MODES),
+  'estimator.priceLookup': z.boolean(),
   diagnosticsAfterEdits: z.boolean(),
   checkCommands: checkCommandsSchema,
   formatOnEdit: z.boolean(),
@@ -298,6 +306,8 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiRepositoryRules: readSetting(config, 'modelApiRepositoryRules', log),
     modelApiAutoReviewer: readSetting(config, 'modelApiAutoReviewer', log),
     'judge.engine': readSetting(config, 'judge.engine', log),
+    'estimator.optimize': readSetting(config, 'estimator.optimize', log),
+    'estimator.priceLookup': readSetting(config, 'estimator.priceLookup', log),
     museCodeAutoReviewer: readSetting(config, 'museCodeAutoReviewer', log),
     modelApiTab: readSetting(config, 'modelApiTab', log),
     tabModel: readSetting(config, 'tabModel', log),

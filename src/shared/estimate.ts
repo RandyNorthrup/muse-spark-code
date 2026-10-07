@@ -4,6 +4,7 @@
 import * as z from 'zod/mini'
 import {
   ESTIMATE_CALIBRATION_MIN_SAMPLES,
+  ESTIMATE_ENGINES,
   ESTIMATE_ID_MAX_CHARS,
   ESTIMATE_LABEL_MAX_CHARS,
   ESTIMATE_MAX_ITEMS,
@@ -404,6 +405,10 @@ export const estimateLaneSchema = z.strictObject({
     ciId: z.optional(id),
   }),
   review: reviewSchema,
+  // M117 W (PLAN.md D100, gotcha G4): the base the lane was built on, when
+  // known. A base older than ESTIMATE_STALE_BASE_DAYS is a schedule risk:
+  // the estimate names it in `risks` instead of pricing a rebase it cannot see.
+  baseAsOf: z.optional(instant),
 })
 export type EstimateLane = z.infer<typeof estimateLaneSchema>
 
@@ -421,6 +426,11 @@ export const historyRecordSchema = z
     // Git elapsed time includes waiting; never silently fit it as agent time.
     durationBasis: z.enum(['agentTime', 'gitElapsed']),
     source: z.enum(['board', 'git', 'playbook', 'ci']),
+    // M117 W (PLAN.md D97 §4, playbook §4): which engine ran the lane, when
+    // known. Calibration fits durations and finding rates per engine × kind ×
+    // machine class and re-fits after each finished lane; records without an
+    // engine join the unscoped fit only.
+    engine: z.optional(z.enum(ESTIMATE_ENGINES)),
   })
   .check(z.refine((record) => Date.parse(record.finishedAt) >= Date.parse(record.startedAt)))
 export type HistoryRecord = z.infer<typeof historyRecordSchema>
@@ -581,6 +591,10 @@ export const estimateSectionSchema = z
         .strictObject({
           kind: id,
           machineClassId: id,
+          // M117 W (playbook §4): the engine this fit is scoped to, when it
+          // is. Rows without an engine are the unscoped fit every lane kind
+          // keeps; engine rows re-fit after each finished lane of that engine.
+          engine: z.optional(z.enum(ESTIMATE_ENGINES)),
           samples: count,
           basis: z.enum(['uncalibratedPrior', 'fitted']),
           mu: z.number(),
@@ -603,6 +617,16 @@ export const estimateSectionSchema = z
         p90Hours: z.number(),
       }),
     ),
+    // M117 W (PLAN.md D100, gotcha G4): named schedule risks the dates do not
+    // price. A stale base names its lane; rebase before starting it.
+    risks: z.optional(
+      z.array(
+        z.strictObject({
+          laneId: id,
+          kind: z.enum(['staleBase']),
+        }),
+      ),
+    ),
   })
   .check(
     z.refine(
@@ -617,7 +641,11 @@ export const estimateSectionSchema = z
         estimate.criticalPath.every((laneId) =>
           estimate.inputs.lanes.some((lane) => lane.id === laneId),
         ) &&
-        areUnique(estimate.calibration.map((row) => `${row.kind}:${row.machineClassId}`)) &&
+        areUnique(
+          estimate.calibration.map(
+            (row) => `${row.kind}:${row.machineClassId}:${row.engine ?? ''}`,
+          ),
+        ) &&
         estimate.inputs.lanes.every((lane) =>
           estimate.calibration.some((row) => row.kind === lane.kind),
         ) &&

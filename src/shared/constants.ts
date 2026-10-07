@@ -92,6 +92,8 @@ export const COMMAND_IDS = {
   // M99 (PLAN.md D79): the release notes of this version and the ones before it.
   showWhatsNew: 'museSpark.showWhatsNew',
   openHelp: 'museSpark.openHelp',
+  // M117 (PLAN.md D97): open the capacity estimator for a goal.
+  estimate: 'museSpark.estimate',
   // M112 (PLAN.md D92): cycle the focused chat's open question cards.
   nextOpenQuestion: 'museSpark.nextOpenQuestion',
   previousOpenQuestion: 'museSpark.previousOpenQuestion',
@@ -473,6 +475,13 @@ export const SETTING_DEFAULTS = {
   // since a repository must not choose what is spent. The key holds the dot:
   // VS Code declares `museSpark.judge.engine` and reads it as a subsection.
   'judge.engine': 'auto' as JudgeEngine,
+  // M117 (PLAN.md D97): cheapest P90 setup or fastest finish with worthwhile
+  // marginal savings. Machine scoped: a repository must not choose spending.
+  'estimator.optimize': 'cost' as EstimateOptimizeMode,
+  // M117 (PLAN.md D97): public catalog price lookup for rented servers, each
+  // price shown with its date, never a quote. Machine scoped, off by default:
+  // it follows M113's Reports network policy once that milestone merges.
+  'estimator.priceLookup': false,
 } as const
 export const PAID_DAILY_BUDGET = {
   minimumUsd: 0.5,
@@ -561,6 +570,10 @@ export const MACHINE_SCOPED_SETTINGS = [
   // What may spend on judging, on the key or the subscription (M98, PLAN.md
   // D77): a repository must not choose it.
   'judge.engine',
+  // What the estimator optimizes and whether it may read public prices
+  // (M117, PLAN.md D97): a repository must not choose spending or network.
+  'estimator.optimize',
+  'estimator.priceLookup',
 ] as const
 
 // Muse Code SDK 1.3.0 hook process limits (PLAN.md M51).
@@ -817,6 +830,13 @@ export const SECONDS_PER_HOUR = 3600
 // phase-2 sections that build them. Machine-scoped, on (`auto`) by default.
 export const JUDGE_ENGINES = ['auto', 'same', 'off'] as const
 export type JudgeEngine = (typeof JUDGE_ENGINES)[number]
+// M117 (PLAN.md D97): what `museSpark.estimator.optimize` takes.
+export const ESTIMATE_OPTIMIZE_MODES = ['cost', 'speed'] as const
+export type EstimateOptimizeMode = (typeof ESTIMATE_OPTIMIZE_MODES)[number]
+// M117 W (PLAN.md D97 §4, playbook §4): the engines whose durations and
+// first-pass finding rates calibration fits per lane kind and machine class.
+export const ESTIMATE_ENGINES = ['codex', 'claude', 'grok'] as const
+export type EstimateEngine = (typeof ESTIMATE_ENGINES)[number]
 // The request bounds, at the intersection of the SystemOne services (TypeSafe,
 // OpenRouter, Ollama, Cloudflare): 1–64 questions; a choice of 2–26 options
 // lettered A–Z; a score of 2–10 levels; a 64 KiB body. A state past its
@@ -5292,6 +5312,10 @@ export const ESTIMATE_LOCAL_BUDGET_LANES = 40
 export const ESTIMATE_MAX_ITEMS = 512
 export const ESTIMATE_ID_MAX_CHARS = 128
 export const ESTIMATE_LABEL_MAX_CHARS = 256
+// M117 W (PLAN.md D100, gotcha G4): a lane whose base is this many days old
+// or older is a schedule risk: merging current main has broken such lanes'
+// releases before, so the estimate names it instead of pricing it.
+export const ESTIMATE_STALE_BASE_DAYS = 7
 
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'

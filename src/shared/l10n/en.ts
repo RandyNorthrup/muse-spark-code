@@ -122,6 +122,11 @@ export const EN = {
   estimateClassStrikes: 'Finding-class strikes',
   estimateRedesigns: 'Redesign events',
   estimateDisclosureMissing: 'Numeric calibration disclosures are incomplete.',
+  // The estimator's own module (dist/estimator.js) could not be loaded.
+  estimateUnavailable:
+    'The estimator could not be loaded, so no estimate can run; reinstall the extension and reload the window. The log has the details.',
+  // M117 W (PLAN.md D100, gotcha G4): {lanes} is the stale-base lane list.
+  estimateStaleBase: 'Stale base ({lanes}): rebase before starting.',
   referenceAgentControls:
     'Agent controls; Interrupt; Stop; Resume; Close agent; Reopen agent; Mark result read; Send message; Follow-up task',
 
@@ -314,6 +319,8 @@ export const EN = {
   referenceTasks: 'Open this conversation’s task list in a separate editor tab.',
   referenceDiagnostics: 'Show local backend and extension diagnostics.',
   referenceReport: 'Preview a scrubbed problem report before saving or sending it.',
+  referenceEstimate:
+    'Estimate when a goal ships with the current fleet, or the setup a date needs.',
   referenceTerminal: 'Open the Muse Code CLI in the editor’s terminal.',
   referenceRules: 'Create or open AGENTS.md in the workspace root.',
   referenceWalkthrough: 'Open the Getting Started walkthrough.',
