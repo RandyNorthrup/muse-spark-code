@@ -18,6 +18,11 @@ happened, not what was planned; superseded entries are kept.
   child scripts through stdin. Bound goal snapshots and normalize merged affinity.
 - Fit candidate fleets before setup search, preserve infeasible current-fleet results and
   unknown limits, and disclose calibration parameters using their own evidence.
+- Keep ranking setup candidates when one hits quota-horizon, date-overflow or
+  account-selection-limit; open the panel on the first available setup without
+  the rental-provider wait for an unselected card; carry per-node duration
+  evidence (unit, source, basis, samples) through the DAG, sampled durations
+  and each setup's date disclosures.
 - Collect engine-tagged history and report first-pass finding profiles by engine, lane
   kind and machine class.
 - Include the lazy capacity estimator engine in VSIX, ACP and private test packages.
@@ -35,8 +40,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Documentation
 
-- Correct estimator availability and mark provisioning Slice 2 and per-node
-  duration evidence as open internal work, distinct from external bindings.
+- Correct estimator availability and mark provisioning Slice 2 as open internal
+  work, distinct from external bindings. Per-node duration evidence is now
+  implemented (finding 17 closed).
 - A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists
   what went wrong while a fleet of agents built this project. For each one it
   gives the rule that prevents it and the milestone that will enforce that
