@@ -21,6 +21,7 @@ import { readArchivedUiTable } from '../../src/shared/l10n/tableArchive'
 import { readUsageTableFile } from '../../src/runtime/usage/usageTableFile'
 import { EN } from '../../src/shared/l10n/en'
 import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
+import { L10N_COMPRESSION_QUALITY } from '../../src/shared/constants'
 import { loadUiTable, readUiTableFile } from '../../src/host/l10n'
 import { listFiles, pack } from '@vscode/vsce/out/package.js'
 
@@ -35,6 +36,12 @@ const FAULT_COMPRESSION = { params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 1 } 
 // macOS runner shard that exceeded vitest's 10 s hook default (PR #128, twice).
 const STAGE_TIMEOUT_MS = 60_000
 
+const ARCHIVE_PATHS = [
+  'l10n/ui.tables.json.br',
+  'dist/runtime.bundles.json.br',
+  'l10n/usage.tables.json.br',
+]
+
 const ROOT = process.cwd()
 const hash = (text) => createHash('sha256').update(text).digest('hex')
 const fixture = {
@@ -44,6 +51,7 @@ const fixture = {
   packagedFiles: [],
   before: undefined,
   after: undefined,
+  brotliBaseline: new Map(),
 }
 const excluded = [
   'PLAN.md',
@@ -203,6 +211,15 @@ beforeAll(async () => {
     JSON.parse(readFileSync(path.join(fixture.root, `l10n/ui.${locale}.json`))),
   ])
   await packRuntimeArchive(fixture.root, stage, fixture.files.toReversed(), tables.toReversed())
+  for (const file of ARCHIVE_PATHS) {
+    const packed = readFileSync(path.join(fixture.stage, file))
+    fixture.brotliBaseline.set(
+      file,
+      brotliCompressSync(brotliDecompressSync(packed), {
+        params: { [zlibConstants.BROTLI_PARAM_QUALITY]: L10N_COMPRESSION_QUALITY },
+      }),
+    )
+  }
 }, ARCHIVE_SETUP_TIMEOUT_MS)
 afterAll(() => rmSync(fixture.root, { recursive: true, force: true }))
 
@@ -416,6 +433,10 @@ describe('VSIX packaging', () => {
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
+  })
+  it.each(ARCHIVE_PATHS)('retains the synchronous production Brotli bytes: %s', (file) => {
+    const packed = readFileSync(path.join(fixture.stage, file))
+    expect(packed.equals(fixture.brotliBaseline.get(file))).toBe(true)
   })
   it('produces identical archive bytes with reversed input order', () => {
     const stage = path.join(fixture.root, 'reordered')

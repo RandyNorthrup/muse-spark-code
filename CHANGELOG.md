@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Compress the independent package archives concurrently at the same production
+  quality and with identical bytes, keeping cold CI setup within its deadline.
+
 - Exercise headless unread-output shutdown with the same large write in one
   synthetic text delta, avoiding more than 100,000 unnecessary fake frames.
 

@@ -40797,6 +40797,14 @@ single-text-delta reply option and use it only for the existing 512 KiB
 blocked reply; keep its marker, unread stdout, signal, 5.4-second exit
 assertion and 30-second test deadline unchanged.
 
+The isolated three-core shard still measures 62.3 seconds for the combined
+cold ChatGPT setup. Its packer serializes three independent, bounded Brotli
+archives (tables, code and usage). Compress those concurrently with Node's
+bounded zlib worker pool, preserving quality 11, decoded caps, canonical
+ordering and exact compressed bytes. Certify byte equivalence with the
+original synchronous compressor and deliberately change its quality to prove
+the new comparison fails.
+
 ### CI0150A — Clean-shard artifacts and portable certification (2026-10-07)
 
 Scope: six owning suites in the CI0150A brief. Clean hosted shards have no

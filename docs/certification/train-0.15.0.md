@@ -1945,6 +1945,17 @@ push, rebase, merge, credential output or disabled hook.
   separate CPU sets and runs one shard at a time; no product priority or delay
   is changed. Interrupted old clones have been deleted.
 
+- The next three-core shard still measures 62.3 seconds for cold setup. The
+  packer now compresses its three independent bounded archives concurrently
+  through Node's zlib pool. Quality 11, decoded limits, canonical ordering and
+  per-member digests are unchanged. ChatGPT packaging passes in 39.96 seconds;
+  VSIX packaging passes 75 tests in 41.22 seconds; headless/package guards pass
+  44 tests in 119.08 seconds, each on three CPUs with default test timers.
+  Expensive synchronous reference compression lives in the existing bounded
+  archive setup; the new assertions only compare bytes. Deliberately changing
+  the asynchronous compressor to quality 1 fails all three byte comparisons
+  (72 other tests pass). The script is restored byte-exact.
+
 ### Fresh-clone job verification
 
 The first committed repair (`02fd30fe9`) passes all four Linux shards, the
