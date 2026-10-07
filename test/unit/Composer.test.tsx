@@ -521,6 +521,26 @@ describe('Composer attachments', () => {
     expect(props.onRefuseFile).toHaveBeenCalledWith('huge.pdf', UI_TEXT.documentTooLarge)
   })
 
+  it('attaches a pasted PDF whose clipboard carries no getData', async () => {
+    // App.test.tsx pastes with `{ files }` only; a missing reader is an
+    // empty URI list, never a throw (M105W merge fallout).
+    const { props, textarea } = renderComposer()
+    const pdf = new File([new TextEncoder().encode('%PDF-1.4')], 'plain.pdf', {
+      type: 'application/pdf',
+    })
+    fireEvent.paste(textarea, { clipboardData: { files: [pdf] } })
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(props.onAttachImage).toHaveBeenCalledWith({
+      name: 'plain.pdf',
+      mediaType: 'application/pdf',
+      base64: Buffer.from('%PDF-1.4').toString('base64'),
+      requestId: expect.any(String),
+      attachmentEpoch: 0,
+    })
+  })
+
   it.each(['paste', 'drop'] as const)(
     'admits a real 20 MiB PDF with misleading image metadata by %s',
     async (gesture) => {

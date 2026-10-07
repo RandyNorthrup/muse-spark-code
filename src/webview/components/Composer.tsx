@@ -934,7 +934,12 @@ export function Composer(props: ComposerProps) {
   }
 
   const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
-    const uris = parseHostUris(event.clipboardData.getData(URI_LIST_TYPE))
+    // A synthetic clipboard may carry files without a reader; that reads as
+    // an empty URI list, never a throw.
+    const clipboard = event.clipboardData
+    const readClipboard = (type: string): string =>
+      typeof clipboard.getData === 'function' ? clipboard.getData(type) : ''
+    const uris = parseHostUris(readClipboard(URI_LIST_TYPE))
     if (uris.length > 0) {
       event.preventDefault()
       onDroppedUris(uris)
@@ -949,7 +954,7 @@ export function Composer(props: ComposerProps) {
     // file with no text representation can be probed for PDF bytes instead.
     if (
       attachableFiles(event.clipboardData.files).length === 0 &&
-      event.clipboardData.getData(TEXT_ATTACHMENT_MEDIA_TYPE) !== ''
+      readClipboard(TEXT_ATTACHMENT_MEDIA_TYPE) !== ''
     ) {
       return
     }
