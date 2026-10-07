@@ -721,6 +721,7 @@ describe('App conversation', () => {
 
   it('Design 5 hides Bypass after hardware latches despite an enabled setting', () => {
     const postMessage = renderReady()
+    deliver({ type: 'authState', status: 'signedIn', backend: 'museCode' })
     deliver({
       type: 'settingsChanged',
       settings: { ...testSettings, allowDangerouslySkipPermissions: true },
@@ -737,6 +738,7 @@ describe('App conversation', () => {
       screen.queryByRole('menuitemradio', { name: /Bypass permissions/ }),
     ).not.toBeInTheDocument()
     expect(screen.getAllByRole('menuitemradio')).toHaveLength(4)
+    expect(screen.getAllByText(UI_TEXT.hardwareBindingUnavailable)).toHaveLength(4)
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
     deliver({
       type: 'composerState',

@@ -15,6 +15,7 @@ import type {
   UnresponsiveHostDeps,
 } from '../../src/host/backend/museCodeBackendManager'
 import { readProxySettings } from '../../src/host/networkPosture'
+import { createHardwareContexts } from '../../src/core/maker/hardwareContext'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeMuseCodeManager } from './helpers/museCodeManager'
 
@@ -126,6 +127,48 @@ describe('MuseCodeBackendManager: known MSP builds (SDK142)', () => {
     )
     expect(log.info).not.toHaveBeenCalledWith(expect.stringContaining('MSP schema'))
   })
+})
+
+it('Design 5 review P1.2 selects B owner instead of the manager default A', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'muse-manager-roots-'))
+  const a = path.join(root, 'ordinary')
+  const b = path.join(root, 'board')
+  mkdirSync(a)
+  mkdirSync(b)
+  writeFileSync(path.join(b, 'platformio.ini'), '[env]')
+  const contexts = createHardwareContexts(() => ({}))
+  const hardwareContext = vi.fn((workspaceRoot: string | undefined) =>
+    contexts(workspaceRoot).current(),
+  )
+  const spawn = sdk.spawnMspConnection
+  vi.spyOn(sdk, 'spawnMspConnection').mockImplementation((options) =>
+    spawn({
+      ...options,
+      args: [path.resolve('test/e2e/fake-muse/serve.mjs')],
+      env: { XDG_CONFIG_HOME: path.resolve('test/fixtures/workspace/no-muse-config') },
+    }),
+  )
+  const manager = managerWith([], '', new FakeLogOutputChannel(), {
+    workspaceRoot: a,
+    hardwareContext,
+    getConfiguredBinaryPath: () => process.execPath,
+  })
+  vi.spyOn(manager, 'credentialFileVerdict').mockReturnValue('absent')
+  try {
+    const host = await manager.ensureHost()
+    const session = await host.startSession({
+      workspaceRoot: b,
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'onRequest',
+    })
+    expect(hardwareContext).toHaveBeenCalledWith(b)
+    expect(session.hardwareState().hardwareOwner).toBe(contexts(b))
+    expect(session.hardwareState().isHardwareWorkspace).toBe(true)
+  } finally {
+    await manager.dispose()
+    vi.restoreAllMocks()
+    rmSync(root, { recursive: true, force: true })
+  }
 })
 
 describe('MuseCodeBackendManager: checkpoint native startup admission (M72)', () => {

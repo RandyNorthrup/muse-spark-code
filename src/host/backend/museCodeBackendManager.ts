@@ -323,9 +323,8 @@ export class MuseCodeBackendManager {
         mspHost,
         this.deps.log,
         this.deps.commandTimeouts,
-        () =>
-          this.deps.hardwareContext?.(this.deps.workspaceRoot) ??
-          this.hardware(this.deps.workspaceRoot).current(),
+        (workspaceRoot) =>
+          this.deps.hardwareContext?.(workspaceRoot) ?? this.hardware(workspaceRoot).current(),
         this.deps.runHardwareStop,
       )
     } catch (error: unknown) {

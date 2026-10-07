@@ -4929,6 +4929,8 @@ file through a nonblocking, no-follow boundary. Regression tests run red on
 `39144b519`, then green; fresh-clone CI coverage repeats three times at the
 repository timeout. All five typechecks and unchanged static/build gates
 follow. Fakes/simulators only; shared core covers every editor/runtime.
+The P3 Modes-menu finding uses the existing translated migration text in
+latched Muse Code sessions; ordinary and Model API descriptions stay accurate.
 
 **Fourth design (REDM103G3, lead ruling after RVM103G3).** Every agent shell
 command in a hardware session asks the host UI once for the exact command;
@@ -15764,6 +15766,11 @@ quality/coverage, hosted OS/editor matrix and physical qualification remain
 lead gates, as in the prior guard receipts; no threshold or cap is waived.
 Next slice: independent design-5 review, then lane H Windows/USB inventory and
 lane D registry integration, using simulator receipts before physical work.
+FIXM103G5 repeats every complete owning file with coverage in a fresh committed
+clone under `CI=true`, three times at default timeouts. Its `--shard=1/1`
+collects every selected test using the repository's existing CI shard policy;
+aggregate full-map coverage thresholds remain the lead's merge gate. No cap,
+threshold, ignore, timeout, test skip or hook is changed.
 
 **REDM103G3 continuation (2026-10-05, Windows 11 rig).** The lead approves
 the nine pending wiring/docs files and accepts the fourth-design guard's

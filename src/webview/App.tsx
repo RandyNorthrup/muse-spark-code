@@ -1672,14 +1672,24 @@ export function App({
       availablePermissionModes(canBypass).map((mode) => ({
         id: mode,
         label: UI_TEXT.permissionModes[mode],
-        detail: permissionModeDetail(mode, state.auth.backend, {
-          museCode: hasMuseCodeReviewer,
-          modelApi: hasModelApiReviewer,
-        }),
+        detail:
+          state.isHardwareWorkspace && state.auth.backend === 'museCode'
+            ? UI_TEXT.hardwareBindingUnavailable
+            : permissionModeDetail(mode, state.auth.backend, {
+                museCode: hasMuseCodeReviewer,
+                modelApi: hasModelApiReviewer,
+              }),
         icon: modeIcon(mode),
         isChecked: mode === state.permissionMode,
       })),
-    [canBypass, state.permissionMode, state.auth.backend, hasMuseCodeReviewer, hasModelApiReviewer],
+    [
+      canBypass,
+      state.isHardwareWorkspace,
+      state.permissionMode,
+      state.auth.backend,
+      hasMuseCodeReviewer,
+      hasModelApiReviewer,
+    ],
   )
   const agents = agentsOf(state)
   // The approvals waiting, docked above the composer (D26).

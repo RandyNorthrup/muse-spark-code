@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Design 5 hardware review: Muse Code entry fences.** Refuse work submissions
+  after a hardware latch at every wire attempt, including steering, child
+  messages/follow-ups and goal wakes. Select the actual workspace owner; reject
+  mismatched leases. Read stored sessions before refusing hardware resume, so
+  the CLI cannot restart queued hardware work. Hardware Modes help directs
+  Muse Code users to Model API.
+
 - **Design 5 hardware review: Stop and marker failures.** Model API Stop
   transport failures now fail their row and tell the user delivery is
   unconfirmed. Marker scans reject special files before opening and check

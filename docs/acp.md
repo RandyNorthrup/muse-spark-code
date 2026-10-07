@@ -283,11 +283,17 @@ identity/payload/expiry checked immediately before native spawn. Bypass and
 unattended commands are refused. Muse Code hardware turns and approval grants
 are unavailable because the captured MSP has no synchronous process-start
 contract; use the Model API backend. No allow frame is sent blindly.
+This also refuses steering, child follow-ups and autonomous goal wakes after
+the workspace latches. A stored hardware session can be read for history,
+but cannot be resumed: read-only preflight refuses before the CLI can restart
+queued work. Each session uses its actual workspace's shared owner.
 
 Registered canonical Stop is normalized from the command, ignoring staged
 subject extras. The trusted host adapter directly executes absolute curl with
 startup config disabled and no inherited environment, or writes exact serial
 bytes. It needs no approval even unattended. The external CLI copy is rejected.
+Failed or uncertain transport delivery produces an unconfirmed Stop notice;
+check the machine and use its physical E-stop.
 USB identity acquisition, the full device registry/UI and editor/hardware
 qualification remain the other maker lanes' work. Webview focus/visibility is
 checked by the extension; ACP editor presence remains the editor's own boundary.

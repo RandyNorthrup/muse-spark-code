@@ -7,7 +7,7 @@
 // through a fake in-memory transport.
 
 import { Buffer } from 'node:buffer'
-import { createHardwareContexts } from '../../maker/hardwareContext'
+import { createHardwareContexts, type HardwareWorkspace } from '../../maker/hardwareContext'
 import { SessionHardwareGuard } from '../../maker/sessionGuard'
 import { isHardwareStop, hardwareStop, type HardwareStop } from '../../maker/guard/hardwareCommands'
 import {
@@ -500,6 +500,7 @@ async function sendCommand(
   method: string,
   params: Record<string, unknown>,
   commandId: string,
+  assertCanSend?: () => void,
 ): Promise<Record<string, unknown>> {
   const { log } = channel
   const commandParams = { ...params, commandId }
@@ -510,6 +511,7 @@ async function sendCommand(
   }
   for (let attempt = 1; ; attempt += 1) {
     try {
+      assertCanSend?.()
       const ack = await answered(channel, method, commandParams)
       if (ack['commandId'] !== undefined && ack['commandId'] !== commandId) {
         throw new Error(`${method} ack did not echo its commandId ${commandId}`)
@@ -588,13 +590,14 @@ async function commandWithin(
   method: string,
   params: Record<string, unknown>,
   commandId: string = channel.connection.mintCommandId(),
+  assertCanSend?: () => void,
 ): Promise<unknown> {
   const { log, timeouts } = channel
   const timeoutMs = MSP_LONG_COMMANDS.has(method) ? timeouts.longMs : timeouts.normalMs
   const startedAt = Date.now()
   try {
     const answer = await requestWithin(channel, method, timeoutMs, () =>
-      sendCommand(channel, method, params, commandId),
+      sendCommand(channel, method, params, commandId, assertCanSend),
     )
     log.trace(`${method} answered in ${String(Date.now() - startedAt)} ms`)
     return answer
@@ -698,7 +701,38 @@ export class MuseSession implements AgentSession {
   /** One MSP command against this session with a freshly minted commandId. */
   private async command(method: string, params: Record<string, unknown>): Promise<unknown> {
     try {
-      return await commandWithin(this.channel, method, { sessionId: this.sessionId, ...params })
+      return await commandWithin(
+        this.channel,
+        method,
+        { sessionId: this.sessionId, ...params },
+        undefined,
+        () => {
+          // Recheck at every wire attempt: preparation and refusal retries can await.
+          if (
+            [
+              'turn/start',
+              'turn/steer',
+              'session/userShell',
+              'subagent/sendMessage',
+              'subagent/followupTask',
+              'subagent/resume',
+              'goal/set',
+              'goal/edit',
+              'goal/resume',
+              'userInput/answer',
+              'userInput/clarify',
+            ].includes(method) &&
+            isHardwareWorkspace(this.hardwareGuard.current())
+          )
+            throw new Error(UI_TEXT.hardwareBindingUnavailable)
+          if (method !== 'approval/decide' || typeof params['approvalId'] !== 'string') return
+          const pending = this.prompts.pending(params['approvalId'])
+          this.hardwareGuard.validate(
+            pending?.availableChoices.find((choice) => choice.choiceId === params['choiceId']),
+            pending?.subject,
+          )
+        },
+      )
     } catch (error: unknown) {
       this.noteLogFault(error)
       throw error
@@ -1257,7 +1291,6 @@ export class MuseSession implements AgentSession {
    * `session/goalChanged`.
    */
   public async controlGoal(command: GoalCommand): Promise<GoalCommandOutcome> {
-    await prepareHardwareTurn(this.hardwareGuard.current(), command.verb)
     let ack: unknown
     try {
       ack = await this.command(
@@ -1365,16 +1398,17 @@ export class MuseCodeHost implements AgentHost {
   private readonly unresponsiveListeners = new Set<() => void>()
   /** The deadlines, log and watchdog every command on this connection shares. */
   private readonly channel: CommandChannel
-  private readonly hardwareContexts = createHardwareContexts()
+  private readonly hardwareContexts: ReturnType<typeof createHardwareContexts>
   public readonly info: MuseHostInfo
 
   public constructor(
     private readonly host: MspHost,
     private readonly log: CoreLogger,
     private readonly timeouts: CommandTimeouts = DEFAULT_TIMEOUTS,
-    private readonly hardwareContext?: () => HardwareContext,
+    private readonly hardwareContext?: (workspaceRoot: string | undefined) => HardwareContext,
     private readonly runHardwareStop?: (stop: HardwareStop) => Promise<void>,
   ) {
+    this.hardwareContexts = createHardwareContexts(hardwareContext)
     this.channel = {
       connection: host.connection,
       timeouts,
@@ -1544,8 +1578,24 @@ export class MuseCodeHost implements AgentHost {
     }
   }
 
-  private async command(method: string, params: Record<string, unknown>): Promise<unknown> {
-    return await commandWithin(this.channel, method, params)
+  private async command(
+    method: string,
+    params: Record<string, unknown>,
+    assertCanSend?: () => void,
+  ): Promise<unknown> {
+    return await commandWithin(this.channel, method, params, undefined, assertCanSend)
+  }
+
+  private hardwareOwner(workspaceRoot: string | undefined): HardwareWorkspace {
+    const context = this.hardwareContext?.(workspaceRoot)
+    if (
+      [context?.workspaceRoot, context?.hardwareOwner?.current().workspaceRoot].some(
+        (root) =>
+          root !== undefined && root.replaceAll('\\', '/') !== workspaceRoot?.replaceAll('\\', '/'),
+      )
+    )
+      throw new Error(UI_TEXT.hardwareRefused)
+    return context?.hardwareOwner ?? this.hardwareContexts(workspaceRoot)
   }
 
   /**
@@ -1615,9 +1665,7 @@ export class MuseCodeHost implements AgentHost {
         this.sessions.delete(record.sessionId)
       },
       this.info.grantedCapabilities.includes(MSP_USER_SHELL_CAPABILITY),
-      hardwareContext ??
-        this.hardwareContext ??
-        (() => this.hardwareContexts(record.workspaceRoot ?? undefined).current()),
+      hardwareContext ?? (() => this.hardwareOwner(record.workspaceRoot ?? undefined).current()),
       this.runHardwareStop,
     )
     this.sessions.set(record.sessionId, handle)
@@ -1796,25 +1844,30 @@ export class MuseCodeHost implements AgentHost {
     modelId: string,
     mcpServers?: Readonly<Record<string, SessionMcpServer>>,
   ): Promise<LoadedSession> {
+    // `session/read` does not attach or restart queued turns (captured M6 envelope).
+    const stored = sessionEnvelopeSchema.parse(
+      await this.command('session/read', { sessionId, excludeItems: true }),
+    )
+    const owner = this.hardwareOwner(stored.session.workspaceRoot ?? undefined)
+    owner.startSession()
+    const assertCanResume = () => {
+      owner.startSession()
+      if (isHardwareWorkspace(owner.current())) throw new Error(UI_TEXT.hardwareBindingUnavailable)
+    }
+    assertCanResume()
     const { loaded, hasPending } = await this.opened(async () => {
       const envelope = sessionEnvelopeSchema.parse(
-        await this.command('session/resume', {
-          sessionId,
-          history: HISTORY_PREFERENCE_SNAPSHOT,
-          ...this.mcpConfig(mcpServers),
-        }),
+        await this.command(
+          'session/resume',
+          { sessionId, history: HISTORY_PREFERENCE_SNAPSHOT, ...this.mcpConfig(mcpServers) },
+          assertCanResume,
+        ),
       )
       return {
         loaded: this.loaded(envelope, modelId),
         hasPending: (envelope.pendingRequests ?? []).length > 0,
       }
     })
-    await prepareHardwareTurn(
-      this.sessions.get(sessionId)?.hardwareState() ?? this.hardwareContexts(undefined).current(),
-      (mode) =>
-        this.sessions.get(sessionId)?.setApprovalMode(mode) ??
-        Promise.reject(new Error(UI_TEXT.hardwareRefused)),
-    )
     if (hasPending) {
       await this.presentPending(sessionId)
     }
@@ -1885,11 +1938,7 @@ export class MuseCodeHost implements AgentHost {
 
   public async startSession(options: StartSessionOptions): Promise<MuseSession> {
     return await this.opened(async () => {
-      const context =
-        this.hardwareContext?.() ?? this.hardwareContexts(options.workspaceRoot).current()
-      const owner =
-        context.hardwareOwner ??
-        createHardwareContexts(this.hardwareContext ?? (() => context))(options.workspaceRoot)
+      const owner = this.hardwareOwner(options.workspaceRoot)
       owner.startSession()
       let result: unknown
       try {

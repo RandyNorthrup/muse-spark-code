@@ -40,7 +40,7 @@ function answer(value: HardwareApproval) {
 }
 
 async function observeHardware(h: ReturnType<typeof acpMspHost>, command: string) {
-  const { session } = await h.host.resumeSession('old-1', 'muse-spark-1.3')
+  const session = await startHardwareSession(h)
   const events: AgentEvent[] = []
   session.onEvent((event) => {
     events.push(event)
@@ -50,6 +50,14 @@ async function observeHardware(h: ReturnType<typeof acpMspHost>, command: string
     subject: { ...capturedSubject(), command },
   })
   return { session, events }
+}
+
+function startHardwareSession(h: ReturnType<typeof acpMspHost>) {
+  return h.host.startSession({
+    workspaceRoot: '/ws',
+    modelId: 'muse-spark-1.3',
+    approvalMode: 'onRequest',
+  })
 }
 
 async function pendingHardwareCard(events: readonly AgentEvent[]): Promise<Card> {
@@ -238,7 +246,7 @@ describe('Muse Code guard over the real MSP transport', () => {
         ],
       }))
       try {
-        const { session } = await h.host.resumeSession('old-1', 'muse-spark-1.3')
+        const session = await startHardwareSession(h)
         const events: AgentEvent[] = []
         session.onEvent((event) => {
           events.push(event)
@@ -304,16 +312,16 @@ describe('Muse Code guard over the real MSP transport', () => {
     },
   )
 
-  it('caps resumed hardware session modes before turns and refuses autonomous goal wakes', async () => {
+  it('caps hardware session modes before turns and refuses autonomous goal wakes', async () => {
     const h = acpMspHost(() => ({ hasConnectedBoard: true }))
     try {
-      const { session } = await h.host.resumeSession('old-1', 'muse-spark-1.3')
+      const session = await startHardwareSession(h)
       await session.setApprovalMode('onRequest')
       expect(h.server.requestsFor('session/setApprovalMode')[0]?.params?.['mode']).toBe(
         'promptUnmatched',
       )
       await expect(session.controlGoal({ verb: 'set', objective: 'move machine' })).rejects.toThrow(
-        UI_TEXT.hardwareUnattended,
+        UI_TEXT.hardwareBindingUnavailable,
       )
       expect(h.server.requestsFor('goal/set')).toHaveLength(0)
     } finally {
@@ -402,7 +410,10 @@ describe('Muse Code guard over the real MSP transport', () => {
       await expect(session.setApprovalMode('allowAll')).rejects.toThrow(
         UI_TEXT.hardwareBypassNotice,
       )
-      expect(h.server.requestsFor('session/setApprovalMode')).toHaveLength(1)
+      expect(h.server.requestsFor('session/start')[0]?.params?.['approvalMode']).toBe(
+        'promptUnmatched',
+      )
+      expect(h.server.requestsFor('session/setApprovalMode')).toHaveLength(0)
       const request = await pendingHardwareCard(events)
       expect(request.availableChoices.map((choice) => choice.choiceId)).toEqual(['abort'])
       await expect(

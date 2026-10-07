@@ -666,12 +666,14 @@ describe('M103-G hardware dispatch boundary', () => {
       })
       if (failure !== 'missingAdapter') t.io.runHardwareStop = dispatch
       const { session, events, turnDone } = await startSession(t, 'onRequest')
-      t.api.script(
-        { calls: [shellCall('curl -X POST https://printer.local/printer/emergency_stop')] },
+      await completeToolCalls(
+        t,
+        session,
+        turnDone,
+        [shellCall('curl -X POST https://printer.local/printer/emergency_stop')],
+        'stop',
         { text: 'done' },
       )
-      await session.sendTurn([{ type: 'text', text: 'stop' }])
-      await turnDone()
       expect(dispatch).toHaveBeenCalledTimes(failure === 'missingAdapter' ? 0 : 1)
       expect(events).toContainEqual({
         type: 'backendNotice',

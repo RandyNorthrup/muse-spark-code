@@ -1676,6 +1676,7 @@
           click('Permission mode: Manual')
         },
         'modes-hardware': () => {
+          send({ type: 'authState', status: 'signedIn', backend: 'museCode' })
           send({
             type: 'settingsChanged',
             settings: { ...settings, allowDangerouslySkipPermissions: true },

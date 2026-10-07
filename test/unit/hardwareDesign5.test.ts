@@ -53,7 +53,7 @@ function host(root: string, source?: () => HardwareContext, shouldFailStop = fal
     },
   )
   h.server.handle('session/start', () => ({
-    session: { sessionId: 's1', modelId: 'muse-spark-1.3' },
+    session: { sessionId: 'old-1', modelId: 'muse-spark-1.3' },
   }))
   h.server.handle('session/resume', () => ({
     ...acpResumeEnvelope(),
@@ -68,10 +68,14 @@ function host(root: string, source?: () => HardwareContext, shouldFailStop = fal
     h.server.handle(method, (params) => ({ commandId: params['commandId'], terminal: true }))
   h.server.handle('view/page', () => ({ events: [], nextCursor: null }))
   h.server.handle('turn/start', () => ({ turnId: 't1', disposition: 'started' }))
-  return { ...h, owner, stops }
+  return { ...h, owner, stops, root }
 }
 async function watchedSession(h: ReturnType<typeof host>) {
-  const { session } = await h.owner.resumeSession('old-1', 'muse-spark-1.3')
+  const session = await h.owner.startSession({
+    workspaceRoot: h.root,
+    modelId: 'muse-spark-1.3',
+    approvalMode: 'onRequest',
+  })
   const events: AgentEvent[] = []
   session.onEvent((event) => {
     events.push(event)
@@ -194,7 +198,11 @@ describe('Design 5 guard4 regressions', () => {
       const targets = [{ address: 'https://printer.local', stop: '/printer/emergency_stop' }]
       const h = host(root, () => ({ workspaceRoot: root, targets, isUnattended }))
       try {
-        const { session } = await h.owner.resumeSession('old-1', 'muse-spark-1.3')
+        const session = await h.owner.startSession({
+          workspaceRoot: root,
+          modelId: 'muse-spark-1.3',
+          approvalMode: 'onRequest',
+        })
         const events: AgentEvent[] = []
         session.onEvent((event) => {
           events.push(event)
@@ -261,7 +269,7 @@ describe('Design 5 guard4 regressions', () => {
       ),
     ).toBeUndefined()
   })
-  it('P2.5 resume downgrades stored mode before pending request presentation', async () => {
+  it('P2.5 hardware resume refuses before pending request presentation or CLI attachment', async () => {
     const root = workspace('platformio.ini')
     const h = host(root)
     h.server.handle('session/resume', () => ({
@@ -271,12 +279,11 @@ describe('Design 5 guard4 regressions', () => {
     }))
     h.server.handle('approval/listPending', () => ({ approvals: [], userInputs: [] }))
     try {
-      await h.owner.resumeSession('old-1', 'muse-spark-1.3')
-      const methods = h.server.requests.map((request) => request.method)
-      expect(methods.indexOf('session/setApprovalMode')).toBeGreaterThan(-1)
-      expect(methods.indexOf('session/setApprovalMode')).toBeLessThan(
-        methods.indexOf('approval/listPending'),
+      await expect(h.owner.resumeSession('old-1', 'muse-spark-1.3')).rejects.toThrow(
+        UI_TEXT.hardwareBindingUnavailable,
       )
+      expect(h.server.requestsFor('session/resume')).toHaveLength(0)
+      expect(h.server.requestsFor('approval/listPending')).toHaveLength(0)
     } finally {
       await h.owner.close()
     }

@@ -61,6 +61,9 @@ export function acpMspHost(
     () => ({ hardwareSessionLatched: false, ...hardwareContext() }),
   )
   const { server } = handle
+  server.handle('session/start', () => ({
+    session: { sessionId: SESSION_ID, modelId: 'muse-spark-1.3' },
+  }))
   server.handle('model/list', () => ({
     models: [
       {

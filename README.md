@@ -446,12 +446,18 @@ asked (PLAN.md D69). The menu now says what each mode does on each backend.
 > Muse Code's captured MSP has no synchronous process-start binding contract.
 > Hardware turns and approval grants are therefore unavailable on that backend;
 > use the Model API backend. No blind allow frame is sent for hardware commands.
+> This includes steering, child messages/follow-ups and goal wakes after latching.
+> Read-only preflight refuses hardware resume before the CLI can restart queued
+> work; stored history remains readable. Sessions select their actual workspace's
+> shared lease. The hardware Modes menu explains the Model API migration.
 >
 > Registered canonical Stop runs through a trusted host adapter without a card,
 > including unattended runs. HTTP Stop directly executes absolute curl with
 > startup config disabled and no inherited environment; serial Stop writes
 > the registered bytes directly. The CLI copy is rejected, preventing a second
 > ambient-shell execution. Extra staged approval fields cannot gate Stop.
+> Transport failures and uncertain delivery fail the Stop row and report that
+> delivery is unconfirmed; check the machine and use its physical E-stop.
 > Real hardware, USB identity acquisition and the editor matrix are still
 > unqualified. Keep the machine's physical E-stop available.
 
