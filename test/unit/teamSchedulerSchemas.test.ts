@@ -319,6 +319,22 @@ describe('metrics boundaries', () => {
 })
 
 describe('user-level runner boundaries', () => {
+  it.each(['NPM_TOKEN', 'AZURE_KEY', 'DATABASE_PASSWORD', 'X_SECRET'])(
+    'refuses %s in environmentNames with the credential exclusion reason',
+    (name) => {
+      for (const spelling of [name, name.toLowerCase()]) {
+        const result = runnerSchema.safeParse({ ...runner, environmentNames: [spelling] })
+        expect(result.success).toBe(false)
+        if (result.success) throw new Error('credential name admitted')
+        expect(result.error.issues).toContainEqual(
+          expect.objectContaining({
+            path: ['environmentNames', 0],
+            message: constants.UI_TEXT.teamRunners.environmentNotice,
+          }),
+        )
+      }
+    },
+  )
   it('accepts SSH aliases and user@host with no environment names by default', () => {
     expect(runnerSchema.parse({ ...runner, environmentNames: undefined })).toEqual(runner)
     expect(runnerSchema.parse({ ...runner, destination: 'mac-mini' }).destination).toBe('mac-mini')

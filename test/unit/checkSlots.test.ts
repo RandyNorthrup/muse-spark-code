@@ -73,6 +73,22 @@ afterEach(async () => {
   for (const folder of folders.splice(0)) await rm(folder, { recursive: true, force: true })
 })
 describe('persistent check slots', () => {
+  it('scrubs broad credential names from every Git, setup and check child', async () => {
+    const { deps, job } = await fixture()
+    const names = ['NPM_TOKEN', 'AZURE_KEY', 'DATABASE_PASSWORD', 'X_SECRET']
+    const run = vi.fn(deps.run)
+    const slots = new CheckSlots({
+      ...deps,
+      run,
+      env: { ...deps.env, ...Object.fromEntries(names.map((name) => [name, 'fixture-only'])) },
+    })
+    const result = await slots.run(job)
+    expect(result.exitCode).toBe(0)
+    expect(run.mock.calls.some(([request]) => request.file === deps.file)).toBe(true)
+    expect(run.mock.calls.filter(([request]) => request.file === deps.shell)).toHaveLength(2)
+    for (const [request] of run.mock.calls)
+      for (const name of names) expect(request.env).not.toHaveProperty(name)
+  })
   it('snapshots working edits and untracked files without touching the real index or refs', async () => {
     const { deps, worker, folder } = await fixture()
     const index = await readFile(path.join(worker, '.git', 'index'))

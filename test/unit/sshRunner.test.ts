@@ -209,6 +209,17 @@ async function cleanupFolders(owned: readonly string[]) {
 }
 afterEach(() => cleanupFolders(folders.splice(0)))
 describe('SSH runner over a fake transport and local repositories', () => {
+  it.each(['NPM_TOKEN', 'AZURE_KEY', 'DATABASE_PASSWORD', 'X_SECRET'])(
+    'refuses remote forwarding of %s before any transport or Git child starts',
+    async (name) => {
+      const { deps, runner, job } = await fixture()
+      const run = vi.fn(deps.run)
+      await expect(
+        new SshRunner({ ...deps, run }).run({ ...runner, environmentNames: [name] }, job),
+      ).rejects.toThrow(UI_TEXT.teamRunners.environmentNotice)
+      expect(run).not.toHaveBeenCalled()
+    },
+  )
   it('pins every SSH option, including ports, and closes Windows command stdin', () => {
     const runner: Runner = {
       id: 'win',

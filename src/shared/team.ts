@@ -21,7 +21,9 @@ import {
   TEAM_SCHED_ID_MAX_CHARS,
   TEAM_SCHED_TEXT_MAX_CHARS,
   TEAM_WRITE_SET_MAX,
+  UI_TEXT,
 } from './constants'
+import { isCredentialVariable } from '../core/credentialEnvironment'
 // The team: agents, roles, pools, tasks and the ledger (M96, PLAN.md D75),
 // as the host, the wire protocol and the webview share them. Lane 0 owns
 // these shapes; the lanes that fill them (R: configuration, A: pools and
@@ -704,9 +706,8 @@ const environmentName = z.string().check(
   z.maxLength(HOOK_MANAGED_ENV_NAME_MAX_CHARS),
   z.regex(/^[A-Za-z_][A-Za-z0-9_]*$/),
   z.refine(
-    (name) =>
-      !name.toUpperCase().endsWith('_API_KEY') &&
-      !forbiddenEnvironmentNames.has(name.toUpperCase()),
+    (name) => !isCredentialVariable(name) && !forbiddenEnvironmentNames.has(name.toUpperCase()),
+    { error: () => UI_TEXT.teamRunners.environmentNotice },
   ),
 )
 export const runnerSchema = z.strictObject({

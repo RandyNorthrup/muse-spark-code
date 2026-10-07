@@ -6,6 +6,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { runnersSchema, type Runner } from '../../shared/team'
+import { isCredentialVariable } from '../credentialEnvironment'
 
 const forbidden: ReadonlySet<string> = new Set([
   ...HOOK_FORBIDDEN_ENV_NAMES,
@@ -40,7 +41,7 @@ export function runnerEnvironment(
       const upper = name.toUpperCase()
       return (
         value !== undefined &&
-        !upper.endsWith('_API_KEY') &&
+        !isCredentialVariable(name) &&
         (!forbidden.has(upper) || (isTransport && upper === 'SSH_AUTH_SOCK')) &&
         !upper.startsWith('GIT_') &&
         !upper.startsWith('SSH_ASKPASS') &&

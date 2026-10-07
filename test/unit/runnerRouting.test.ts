@@ -48,6 +48,15 @@ function deps(): CheckRoutingDeps {
   }
 }
 describe('user-level runner config', () => {
+  it.each(['NPM_TOKEN', 'AZURE_KEY', 'DATABASE_PASSWORD', 'X_SECRET'])(
+    'scrubs %s from local, transport and explicitly selected remote environments',
+    (name) => {
+      const env = { PATH: '/bin', [name]: 'fixture-only', [name.toLowerCase()]: 'fixture-only' }
+      expect(runnerEnvironment(env)).toEqual({ PATH: '/bin' })
+      expect(runnerEnvironment(env, Object.keys(env))).toEqual({ PATH: '/bin' })
+      expect(runnerEnvironment(env, undefined, true)).toEqual({ PATH: '/bin' })
+    },
+  )
   it('reads only the config-home file and refuses unknown authority and oversized data', async () => {
     const read = vi.fn(() => Promise.resolve(JSON.stringify([runner])))
     expect(await readRunnerConfig('/personal', read)).toEqual([runner])

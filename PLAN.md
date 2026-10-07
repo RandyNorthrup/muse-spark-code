@@ -18789,6 +18789,22 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### FIX0150R — Release review repairs for runners and usage (2026-10-07, macmini)
+
+Repair PR #136 threads PRRT_kwDOUkzj5M6p1xVd, PRRT_kwDOUkzj5M6p1xVm
+and PRRT_kwDOUkzj5M6p1xVs only. Runner children use D89.5's shared credential
+predicate; runner configuration refuses credential-shaped environment names
+with the existing translated explanation. Retention persists paired cache/input
+and output/duration sums and observation coverage, and the shared runtime adapter
+restores them for every editor. Legacy rollups keep unknown paired rates.
+Rollup monetary sums use the same integer micro-dollar settlement as raw totals.
+Prove each regression fails against release head `0113c131e`, then passes;
+record byte-exact restored guard drills in `docs/certification/fix0150r.md`.
+Verify complete owning files three times after the brief's clean checkout,
+with `CI=true`, at repository timeouts and at most three files per invocation.
+Run all five typecheck projects and the scoped static/build gates. No dependency,
+new feature, provider-wire shape, paid/live call, merge or push is authorized.
+
 ### CI0150C — Clean-checkout platform and logic CI repairs (2026-10-07, macmini)
 
 - [x] Repair the lane's journal canonical-root checks, Windows short-name fixture,
@@ -40753,6 +40769,13 @@ is relaxed. No live or paid calls, push, rebase or merge.
       bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
 
 ## 7. Gates
+
+**FIX0150R scoped certification.** The rig brief requires complete owning test
+files in batches of at most three, with three clean `CI=true` repetitions and
+individual static/build gates. Shared lane rules reserve aggregate
+`npm run quality` for the lead; its whole-repository coverage invocation exceeds
+this lane's test-file limit. Defer that aggregate to release integration without
+changing any threshold or gate. Receipts are in `docs/certification/fix0150r.md`.
 
 **CI0150A scoped certification.** CI0150-common.md requires three clean
 repetitions of complete owning files and individual static gates; the rig note
