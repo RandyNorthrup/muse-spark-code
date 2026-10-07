@@ -1956,6 +1956,15 @@ push, rebase, merge, credential output or disabled hook.
   the asynchronous compressor to quality 1 fails all three byte comparisons
   (72 other tests pass). The script is restored byte-exact.
 
+- Shard 3's warm usage benchmark times out while creating and cold-reading
+  60,000 records inside the five-second test. Its unchanged dataset and cold
+  count assertion now run once in the default-bounded setup; the warm test
+  retains its default timer, 300 ms bound and no-reread assertion. File teardown
+  also cleans failed setup roots. The owning file passes 19 tests in 7.29
+  seconds on three CPUs. Appending one harmless newline before the warm read
+  deliberately fails the no-reread assertion (expected 0 reads, actual 1);
+  the file is restored byte-exact.
+
 ### Fresh-clone job verification
 
 The first committed repair (`02fd30fe9`) passes all four Linux shards, the

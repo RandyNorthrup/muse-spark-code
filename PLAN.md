@@ -40805,6 +40805,12 @@ ordering and exact compressed bytes. Certify byte equivalence with the
 original synchronous compressor and deliberately change its quality to prove
 the new comparison fails.
 
+The complete shard 3 exposes the usage journal's warm-cache benchmark doing
+its 60,000-record fixture construction and cold scan inside the five-second
+warm test. Prepare and assert that cold snapshot once in the default-bounded
+setup; keep the five-second test, 300 ms warm bound, full record count and
+no-reread assertions. Clean failed setup roots at file teardown too.
+
 ### CI0150A — Clean-shard artifacts and portable certification (2026-10-07)
 
 Scope: six owning suites in the CI0150A brief. Clean hosted shards have no

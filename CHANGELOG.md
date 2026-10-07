@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Prepare the large usage-journal benchmark before timing its warm read,
+  retaining its 300 ms and no-reread checks with the normal test deadline.
+
 - Compress the independent package archives concurrently at the same production
   quality and with identical bytes, keeping cold CI setup within its deadline.
 
