@@ -24,7 +24,8 @@ does not claim those absent services or the complete M113 product are wired.
 - `runner.ts`: validates the action, checks the trusted revocable grant,
   sets `asOf` to the scheduled occurrence, intersects source-network permission,
   verifies and renders the document, then persists its frozen payload before
-  delivery. A retry uses that document without recollecting changing sources.
+  delivery. A retry uses that complete rendered payload without recollecting
+  changing sources or re-rendering with a changed installed locale table.
   Action identity changes refuse reuse. Each destination is recorded separately.
   Completed, failed and uncertain deliveries are terminal; the browser's deferred
   state can resume. Uncertainty is written before dispatch, so a process crash
@@ -37,7 +38,7 @@ does not claim those absent services or the complete M113 product are wired.
   are those captured on consent; links/junctions are resolved before confinement.
   Atomic conditional writes keep the approved canonical path and refuse foreign
   files without reading their contents. Hard-linked manifest/artifact data refuses
-  before reading. Per-schedule manifests retain newest occurrences by timestamp,
+  before reading. Manifests keyed by schedule and destination retain newest occurrences by timestamp,
   with a code-unit filename tie break;
   pruning conditionally removes only listed files with their original bytes,
   leaving manual replacements and other schedules alone. The node binding runs
@@ -254,7 +255,10 @@ The required M115/M110 save-owner binding now accepts the action hash and
 supplies an assertion that throws `ReportSaveRefusedError` on revocation or a
 stale generation. It serializes the canonical root across all destinations,
 holds ownership until mutation settlement, and implements node admission on
-the node itself. Grant roots are canonical roots captured at consent and are
+the node itself. The owner captures its grant generation when the effect is
+queued; waiting or revoking and then regranting must never rebind that effect
+to a newer generation, even when the action hash is identical. Grant roots are
+canonical roots captured at consent and are
 checked again on refresh. There is no optional/no-op production guard. Test
 fakes alone provide finite assertions and services. The owner is a required
 integration port because this base still has no M115 scheduler or M110 node
@@ -284,3 +288,48 @@ manifest guard (`P2-manifest-destination-identity`) and frozen format/locale/the
 guard (`P2-frozen-metadata`). Scope and generation regressions also cover roots
 being removed from an otherwise allowed grant. Scoped ESLint is green with
 zero warnings; hooks are present and remain enabled for the correction commit.
+
+Final scoped checks on win11 (repository defaults, no gate weakening):
+
+| Check                                    | Actual result                                                                                                                                                                                                                                                                      |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Complete owning Vitest groups            | 79/79 save/email/runner and 17/17 picker/browser-post/cross-process tests passed: **96 total**, including the final boundary extension and fixture cleanup.                                                                                                                        |
+| `npm.cmd run typecheck`                  | Exit 0, all five projects, repeated after the final boundary extension and fixture cleanup.                                                                                                                                                                                        |
+| Scoped ESLint / Prettier                 | Exit 0, zero lint warnings; all changed files match formatting.                                                                                                                                                                                                                    |
+| `npm.cmd run deadcode`                   | Exit 0, plain knip; the same two configuration hints, no unused code.                                                                                                                                                                                                              |
+| `npx.cmd jscpd`                          | Exit 0, 1,224 files, zero clones. Its first correction-tree run correctly caught three copied test setups; a shared deferred-occurrence test fixture removed them without changing the gate.                                                                                       |
+| `node scripts/gen-reference.mjs --check` | Exit 0, 53 features / 44 commands / 59 settings / 26 slash commands / 116 CLI entries; current. No new shipped command or catalogue claim.                                                                                                                                         |
+| `node scripts/check-l10n.mjs`            | Exit 1, exactly the same seven unused report manifest keys listed above; all 14 source tables remain complete. Named `M113-Q-doc-reference` / W manifest wiring handoff.                                                                                                           |
+| `npm.cmd run check:host-api`             | Exit 1, the same stale Node import counts and destination CSS source listed above; 332 VS Code APIs, 31 importer files, 25 Node builtins and 61 theme variables remain unchanged. Named `M113-Q-host-record` / W handoff.                                                          |
+| `npm.cmd run build`                      | Exit 0: production build, every size/split check, host globals and third-party notices. Extension 439.6 KiB / 600; Model API 446.9 / 475; checkpoint store 77.0 / 225; ACP 821.5 / 850. All caps unchanged.                                                                        |
+| Destination closure measurement          | Exit 0, Node **55,125 bytes** under the existing proposed **75 KiB** cap; picker **8,108 bytes JS + 881 bytes CSS** under **25 KiB**. No backend/paid import. This supersedes the pre-review closure measurements; shipping registration/shared-validation export handoffs remain. |
+| Correction commit hooks                  | Exit 0, repository lint-staged (ESLint/Prettier) and staged gitleaks, no leaks. `757320ee` carries all eight fixes and the 20 drill receipts.                                                                                                                                      |
+
+The updated [m113-q-budgets.json](m113-q-budgets.json) keeps the same proposed
+75/25 KiB caps. The build proves the currently registered bundles, while the
+separate closure measurement uses existing shared text/validation/wire plugins
+and caller React. It does not claim installed Q wiring or resolve the previously
+named missing shared-validation exports. Full `quality`, service calls, live
+captures, publication and external host wiring remain the lead/integration
+work specified by the brief. No review finding is left open.
+
+P7's final boundary check also covers failures from recipient permission,
+the persistent mail state, invalid addresses and code verification before
+dispatch, plus editor opening and interactive report preparation. The public
+entrypoints emit fixed existing translated text; no raw error or `cause`
+crosses them. TLS policy failures retain the fixed TLS explanation. A failure
+after verification dispatch still returns uncertainty and retains its reservation.
+These additions introduce no string key, provider protocol or dependency.
+
+Named regressions: `sanitizes interactive verification … failures` (recipient,
+state, verify and address), `uses fixed text for invalid mail addresses at
+message preparation`, and `sanitizes editor and interactive preparation failures`.
+Additional observed drills are `P2-verification-preflight`,
+`P2-verification-preflight-state`, `P2-verification-state`,
+`P2-verification-address`, `P2-interactive-editor-open` and
+`P2-interactive-prepare`. The final ledger contains **26/26 intended failures**;
+all source hashes restore byte-exact and match the final source. The final
+complete owning runs passed at 17:31 PDT on win11: 79 tests in 6.93 s and 17
+tests in 7.45 s, with default timeouts, three files per run, three workers.
+All-project typechecking, scoped lint, zero-clone duplication, deadcode and
+production size/split/host-globals/notices passed again after these additions.

@@ -54,8 +54,8 @@
       "expectedFailure": "binds save effects to the serialized owner generation on local and node storage",
       "exitCode": 1,
       "fired": true,
-      "before": "9296928e6cc5619a0af6a2daacbf70614826ded9a425196c72203d90b0eadc66",
-      "after": "9296928e6cc5619a0af6a2daacbf70614826ded9a425196c72203d90b0eadc66",
+      "before": "2fa8f5169b87e1b6cf6e5b27c1a23f39291ad48b81ce9a13a988795e5677f3a2",
+      "after": "2fa8f5169b87e1b6cf6e5b27c1a23f39291ad48b81ce9a13a988795e5677f3a2",
       "restored": true
     },
     {
@@ -63,6 +63,17 @@
       "file": "src/core/reporting/destinations/save.ts",
       "testFile": "test/unit/reportDestinationSave.test.ts",
       "expectedFailure": "keeps retention and ownership separate for destinations sharing a root",
+      "exitCode": 1,
+      "fired": true,
+      "before": "9f8d705ca11dc490cf0af2f09df2f51c8186bddbf3f81ca34115a699b1ccbb0a",
+      "after": "9f8d705ca11dc490cf0af2f09df2f51c8186bddbf3f81ca34115a699b1ccbb0a",
+      "restored": true
+    },
+    {
+      "id": "P2-manifest-destination-identity",
+      "file": "src/core/reporting/destinations/save.ts",
+      "testFile": "test/unit/reportDestinationSave.test.ts",
+      "expectedFailure": "refuses a manifest with a different destination identity",
       "exitCode": 1,
       "fired": true,
       "before": "9f8d705ca11dc490cf0af2f09df2f51c8186bddbf3f81ca34115a699b1ccbb0a",
@@ -109,8 +120,8 @@
       "expectedFailure": "dispatches schema-valid destination id constructor",
       "exitCode": 1,
       "fired": true,
-      "before": "9296928e6cc5619a0af6a2daacbf70614826ded9a425196c72203d90b0eadc66",
-      "after": "9296928e6cc5619a0af6a2daacbf70614826ded9a425196c72203d90b0eadc66",
+      "before": "2fa8f5169b87e1b6cf6e5b27c1a23f39291ad48b81ce9a13a988795e5677f3a2",
+      "after": "2fa8f5169b87e1b6cf6e5b27c1a23f39291ad48b81ce9a13a988795e5677f3a2",
       "restored": true
     },
     {
@@ -120,8 +131,8 @@
       "expectedFailure": "rejects unknown persisted destination ids before dispatch",
       "exitCode": 1,
       "fired": true,
-      "before": "9296928e6cc5619a0af6a2daacbf70614826ded9a425196c72203d90b0eadc66",
-      "after": "9296928e6cc5619a0af6a2daacbf70614826ded9a425196c72203d90b0eadc66",
+      "before": "2fa8f5169b87e1b6cf6e5b27c1a23f39291ad48b81ce9a13a988795e5677f3a2",
+      "after": "2fa8f5169b87e1b6cf6e5b27c1a23f39291ad48b81ce9a13a988795e5677f3a2",
       "restored": true
     },
     {
@@ -142,8 +153,8 @@
       "expectedFailure": "generates and resumes a legitimate redacted workspace scope",
       "exitCode": 1,
       "fired": true,
-      "before": "9296928e6cc5619a0af6a2daacbf70614826ded9a425196c72203d90b0eadc66",
-      "after": "9296928e6cc5619a0af6a2daacbf70614826ded9a425196c72203d90b0eadc66",
+      "before": "2fa8f5169b87e1b6cf6e5b27c1a23f39291ad48b81ce9a13a988795e5677f3a2",
+      "after": "2fa8f5169b87e1b6cf6e5b27c1a23f39291ad48b81ce9a13a988795e5677f3a2",
       "restored": true
     },
     {
@@ -153,8 +164,19 @@
       "expectedFailure": "resumes persisted rendered bytes after the installed locale table changes",
       "exitCode": 1,
       "fired": true,
-      "before": "9296928e6cc5619a0af6a2daacbf70614826ded9a425196c72203d90b0eadc66",
-      "after": "9296928e6cc5619a0af6a2daacbf70614826ded9a425196c72203d90b0eadc66",
+      "before": "2fa8f5169b87e1b6cf6e5b27c1a23f39291ad48b81ce9a13a988795e5677f3a2",
+      "after": "2fa8f5169b87e1b6cf6e5b27c1a23f39291ad48b81ce9a13a988795e5677f3a2",
+      "restored": true
+    },
+    {
+      "id": "P2-frozen-metadata",
+      "file": "src/core/reporting/destinations/runner.ts",
+      "testFile": "test/unit/scheduledReports.test.ts",
+      "expectedFailure": "refuses frozen payload metadata mismatching action format",
+      "exitCode": 1,
+      "fired": true,
+      "before": "2fa8f5169b87e1b6cf6e5b27c1a23f39291ad48b81ce9a13a988795e5677f3a2",
+      "after": "2fa8f5169b87e1b6cf6e5b27c1a23f39291ad48b81ce9a13a988795e5677f3a2",
       "restored": true
     },
     {
@@ -164,8 +186,8 @@
       "expectedFailure": "sanitizes unknown action keys and broker exceptions at interactive schedule save",
       "exitCode": 1,
       "fired": true,
-      "before": "4bc5b794c25f6e4eb508993aacba6f632f36e215d6573bfbc1cd84902155efbc",
-      "after": "4bc5b794c25f6e4eb508993aacba6f632f36e215d6573bfbc1cd84902155efbc",
+      "before": "b3b0340c85983d6dc1a0bc223607b9fb42c212c3ab8677c0cec6809c7ff0bf81",
+      "after": "b3b0340c85983d6dc1a0bc223607b9fb42c212c3ab8677c0cec6809c7ff0bf81",
       "restored": true
     },
     {
@@ -175,8 +197,8 @@
       "expectedFailure": "sanitizes unknown action keys and broker exceptions at interactive schedule save",
       "exitCode": 1,
       "fired": true,
-      "before": "4bc5b794c25f6e4eb508993aacba6f632f36e215d6573bfbc1cd84902155efbc",
-      "after": "4bc5b794c25f6e4eb508993aacba6f632f36e215d6573bfbc1cd84902155efbc",
+      "before": "b3b0340c85983d6dc1a0bc223607b9fb42c212c3ab8677c0cec6809c7ff0bf81",
+      "after": "b3b0340c85983d6dc1a0bc223607b9fb42c212c3ab8677c0cec6809c7ff0bf81",
       "restored": true
     },
     {
@@ -186,8 +208,63 @@
       "expectedFailure": "sanitizes broker policy exceptions before interactive verification dispatch",
       "exitCode": 1,
       "fired": true,
-      "before": "18aae0ec0acc7b987ac785f95caba51516524a4ff3a2c8e0dd59a1e6e183afe1",
-      "after": "18aae0ec0acc7b987ac785f95caba51516524a4ff3a2c8e0dd59a1e6e183afe1",
+      "before": "c84856c0697985bee7cb8cdd8e4e6260154eb5ab18ee8f83edfdb8419ffc07c6",
+      "after": "c84856c0697985bee7cb8cdd8e4e6260154eb5ab18ee8f83edfdb8419ffc07c6",
+      "restored": true
+    },
+    {
+      "id": "P2-verification-preflight",
+      "file": "src/core/reporting/destinations/email.ts",
+      "testFile": "test/unit/reportDestinationEmail.test.ts",
+      "expectedFailure": "sanitizes interactive verification recipient failures",
+      "exitCode": 1,
+      "fired": true,
+      "before": "c84856c0697985bee7cb8cdd8e4e6260154eb5ab18ee8f83edfdb8419ffc07c6",
+      "after": "c84856c0697985bee7cb8cdd8e4e6260154eb5ab18ee8f83edfdb8419ffc07c6",
+      "restored": true
+    },
+    {
+      "id": "P2-verification-state",
+      "file": "src/core/reporting/destinations/email.ts",
+      "testFile": "test/unit/reportDestinationEmail.test.ts",
+      "expectedFailure": "sanitizes interactive verification verify failures",
+      "exitCode": 1,
+      "fired": true,
+      "before": "c84856c0697985bee7cb8cdd8e4e6260154eb5ab18ee8f83edfdb8419ffc07c6",
+      "after": "c84856c0697985bee7cb8cdd8e4e6260154eb5ab18ee8f83edfdb8419ffc07c6",
+      "restored": true
+    },
+    {
+      "id": "P2-verification-address",
+      "file": "src/core/reporting/destinations/email.ts",
+      "testFile": "test/unit/reportDestinationEmail.test.ts",
+      "expectedFailure": "uses fixed text for invalid mail addresses at message preparation",
+      "exitCode": 1,
+      "fired": true,
+      "before": "c84856c0697985bee7cb8cdd8e4e6260154eb5ab18ee8f83edfdb8419ffc07c6",
+      "after": "c84856c0697985bee7cb8cdd8e4e6260154eb5ab18ee8f83edfdb8419ffc07c6",
+      "restored": true
+    },
+    {
+      "id": "P2-interactive-editor-open",
+      "file": "src/core/reporting/destinations/scheduleRequest.ts",
+      "testFile": "test/unit/scheduledReports.test.ts",
+      "expectedFailure": "sanitizes editor and interactive preparation failures",
+      "exitCode": 1,
+      "fired": true,
+      "before": "b3b0340c85983d6dc1a0bc223607b9fb42c212c3ab8677c0cec6809c7ff0bf81",
+      "after": "b3b0340c85983d6dc1a0bc223607b9fb42c212c3ab8677c0cec6809c7ff0bf81",
+      "restored": true
+    },
+    {
+      "id": "P2-interactive-prepare",
+      "file": "src/core/reporting/destinations/runner.ts",
+      "testFile": "test/unit/scheduledReports.test.ts",
+      "expectedFailure": "sanitizes editor and interactive preparation failures",
+      "exitCode": 1,
+      "fired": true,
+      "before": "2fa8f5169b87e1b6cf6e5b27c1a23f39291ad48b81ce9a13a988795e5677f3a2",
+      "after": "2fa8f5169b87e1b6cf6e5b27c1a23f39291ad48b81ce9a13a988795e5677f3a2",
       "restored": true
     },
     {
@@ -202,25 +279,14 @@
       "restored": true
     },
     {
-      "id": "P2-manifest-destination-identity",
-      "file": "src/core/reporting/destinations/save.ts",
-      "testFile": "test/unit/reportDestinationSave.test.ts",
-      "expectedFailure": "refuses a manifest with a different destination identity",
+      "id": "P2-verification-preflight-state",
+      "file": "src/core/reporting/destinations/email.ts",
+      "testFile": "test/unit/reportDestinationEmail.test.ts",
+      "expectedFailure": "sanitizes interactive verification state failures",
       "exitCode": 1,
       "fired": true,
-      "before": "9f8d705ca11dc490cf0af2f09df2f51c8186bddbf3f81ca34115a699b1ccbb0a",
-      "after": "9f8d705ca11dc490cf0af2f09df2f51c8186bddbf3f81ca34115a699b1ccbb0a",
-      "restored": true
-    },
-    {
-      "id": "P2-frozen-metadata",
-      "file": "src/core/reporting/destinations/runner.ts",
-      "testFile": "test/unit/scheduledReports.test.ts",
-      "expectedFailure": "refuses frozen payload metadata mismatching action format",
-      "exitCode": 1,
-      "fired": true,
-      "before": "9296928e6cc5619a0af6a2daacbf70614826ded9a425196c72203d90b0eadc66",
-      "after": "9296928e6cc5619a0af6a2daacbf70614826ded9a425196c72203d90b0eadc66",
+      "before": "c84856c0697985bee7cb8cdd8e4e6260154eb5ab18ee8f83edfdb8419ffc07c6",
+      "after": "c84856c0697985bee7cb8cdd8e4e6260154eb5ab18ee8f83edfdb8419ffc07c6",
       "restored": true
     }
   ]

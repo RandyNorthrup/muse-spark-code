@@ -28,6 +28,14 @@ const post = {
   target: { repository: 'owner/project', number: 12, kind: 'statusIssue' as const },
 }
 const browser = { type: 'browser' as const, id: 'browser', storage: 'node' as const }
+async function deferredOccurrence() {
+  const rig = runnerRig()
+  const runner = new ScheduledReportRunner(rig.ports)
+  const action = reportAction([browser])
+  rig.browser.hasActiveSession.mockResolvedValue(false)
+  await runner.run('one', OCCURRENCE, action)
+  return { rig, runner, action, record: rig.records.get(OCCURRENCE)! }
+}
 describe('scheduled report occurrence runner', () => {
   it('uses occurrence asOf and exact manual bytes, with no paid/model dependency', async () => {
     const rig = runnerRig()
@@ -76,12 +84,8 @@ describe('scheduled report occurrence runner', () => {
     expect(rig.ports.generation.generate).toHaveBeenCalledTimes(1)
   })
   it('resumes persisted rendered bytes after the installed locale table changes', async () => {
-    const rig = runnerRig()
-    const runner = new ScheduledReportRunner(rig.ports)
-    const action = reportAction([browser])
-    rig.browser.hasActiveSession.mockResolvedValue(false)
-    await runner.run('one', OCCURRENCE, action)
-    const frozen = structuredClone(rig.records.get(OCCURRENCE)!.payload)
+    const { rig, runner, action, record } = await deferredOccurrence()
+    const frozen = structuredClone(record.payload)
     vi.spyOn(rig.ports.locale, 'textForLocale').mockImplementation(() => ({
       ...EN,
       reportKinds: { ...EN.reportKinds, project: 'Changed installed title' },
@@ -94,12 +98,7 @@ describe('scheduled report occurrence runner', () => {
   it.each(['format', 'locale', 'theme'])(
     'refuses frozen payload metadata mismatching action %s',
     async (field) => {
-      const rig = runnerRig()
-      const runner = new ScheduledReportRunner(rig.ports)
-      const action = reportAction([browser])
-      rig.browser.hasActiveSession.mockResolvedValue(false)
-      await runner.run('one', OCCURRENCE, action)
-      const record = rig.records.get(OCCURRENCE)!
+      const { rig, runner, action, record } = await deferredOccurrence()
       const payload = { ...record.payload }
       switch (field) {
         case 'format': {
@@ -140,12 +139,7 @@ describe('scheduled report occurrence runner', () => {
     },
   )
   it('rejects unknown persisted destination ids before dispatch', async () => {
-    const rig = runnerRig()
-    const runner = new ScheduledReportRunner(rig.ports)
-    const action = reportAction([browser])
-    rig.browser.hasActiveSession.mockResolvedValue(false)
-    await runner.run('one', OCCURRENCE, action)
-    const record = rig.records.get(OCCURRENCE)!
+    const { rig, runner, action, record } = await deferredOccurrence()
     rig.records.set(OCCURRENCE, {
       ...record,
       outcomes: { missing: { status: 'delivered', attempts: 1 } },
@@ -422,5 +416,22 @@ describe('scheduled report occurrence runner', () => {
     await expect(saveReportSchedule(reportAction([post]), port)).rejects.toThrow(
       UI_TEXT.reportUi.generationFailed,
     )
+  })
+  it('sanitizes editor and interactive preparation failures', async () => {
+    const rig = runnerRig()
+    const canary = 'ghp_' + 'a'.repeat(36)
+    const action = reportAction([post])
+    const port = {
+      openReportSchedule: vi.fn(() => Promise.reject(new Error(canary))),
+      saveReportSchedule: vi.fn(() => Promise.resolve()),
+    }
+    await expect(openReportSchedule(action.options, ['--schedule'], port)).rejects.toThrow(
+      UI_TEXT.reportUi.generationFailed,
+    )
+    vi.spyOn(rig.ports.generation, 'generate').mockRejectedValue(new Error(canary))
+    await expect(new ScheduledReportRunner(rig.ports).prepare('one', action)).rejects.toThrow(
+      UI_TEXT.reportUi.generationFailed,
+    )
+    expect(rig.postPort.previewAndConfirm).not.toHaveBeenCalled()
   })
 })

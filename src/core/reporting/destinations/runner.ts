@@ -145,33 +145,40 @@ export class ScheduledReportRunner {
 
   /** Called in the interactive schedule editor, never by an unattended fire. */
   async prepare(scheduleId: string, input: unknown): Promise<boolean> {
-    const action = validatedAction(input)
-    const authority = await this.ports.authority.authorize(scheduleId, action)
-    if (!authority.allowed) return false
-    for (const destination of action.destinations) {
-      if (destination.type === 'email' && !(await this.ports.email.isVerified(destination.address)))
-        return false
-    }
-    const payload = this.render(
-      action,
-      await this.ports.generation.generate({
-        ...action.options,
-        network: action.options.network && authority.network,
-      }),
-    )
-    for (const destination of action.destinations) {
-      if (
-        destination.type === 'email' &&
-        !(await this.ports.email.confirm(destination.address, payload))
+    try {
+      const action = validatedAction(input)
+      const authority = await this.ports.authority.authorize(scheduleId, action)
+      if (!authority.allowed) return false
+      for (const destination of action.destinations) {
+        if (
+          destination.type === 'email' &&
+          !(await this.ports.email.isVerified(destination.address))
+        )
+          return false
+      }
+      const payload = this.render(
+        action,
+        await this.ports.generation.generate({
+          ...action.options,
+          network: action.options.network && authority.network,
+        }),
       )
-        return false
-      if (
-        destination.type === 'post' &&
-        !(await this.ports.post.confirm(destination.target, payload))
-      )
-        return false
+      for (const destination of action.destinations) {
+        if (
+          destination.type === 'email' &&
+          !(await this.ports.email.confirm(destination.address, payload))
+        )
+          return false
+        if (
+          destination.type === 'post' &&
+          !(await this.ports.post.confirm(destination.target, payload))
+        )
+          return false
+      }
+      return true
+    } catch {
+      throw new Error(UI_TEXT.reportUi.generationFailed)
     }
-    return true
   }
 
   async run(

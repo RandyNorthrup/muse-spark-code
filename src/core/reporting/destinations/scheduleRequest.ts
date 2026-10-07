@@ -14,7 +14,11 @@ export async function openReportSchedule(
   port: ReportScheduleEditorPort,
 ): Promise<'opened' | 'ignored'> {
   if (!flags.includes('--schedule')) return 'ignored'
-  await port.openReportSchedule(options)
+  try {
+    await port.openReportSchedule(options)
+  } catch {
+    throw new Error(UI_TEXT.reportUi.generationFailed)
+  }
   return 'opened'
 }
 export async function saveReportSchedule(

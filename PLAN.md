@@ -11479,7 +11479,8 @@ Needs: <items>.`).
          `{hash8}`, `{ext}`; `{kind}-{date}-{time}.{ext}` by default, with
          milliseconds preserved so each occurrence has its own name) and a
          retention of the newest N (`REPORT_SAVE_RETENTION_DEFAULT`, 30),
-         which deletes only files that schedule wrote (its own manifest).
+         which deletes only files that destination wrote (a manifest keyed
+         by both schedule and destination).
          Paths are canonicalised and confined to the allowed root (no link
          or junction escapes, `canonicalPath.ts`), and every write is atomic
          (`fsAtomic.ts`).

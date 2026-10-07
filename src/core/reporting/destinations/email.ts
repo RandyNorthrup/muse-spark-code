@@ -78,9 +78,9 @@ export interface ReportMailPort {
 }
 function addressKey(address: string): string {
   // SMTP local parts may be case sensitive. Only the domain is case folded.
-  return reportEmailAddressSchema
-    .parse(address)
-    .replace(/@[^@]+$/, (domain) => domain.toLowerCase())
+  const validation = reportEmailAddressSchema.safeParse(address)
+  if (!validation.success) throw new Error(UI_TEXT.reportUi.recipientUnverified)
+  return validation.data.replace(/@[^@]+$/, (domain) => domain.toLowerCase())
 }
 function codeDigest(salt: string, code: string): string {
   return createHash('sha256').update(`${salt}:${code}`).digest('hex')
@@ -134,78 +134,88 @@ export class ReportEmailDelivery {
     connection: ReportMailConnection,
   ): Promise<ReportDeliveryReceipt> {
     const recipient = addressKey(address)
-    if (
-      !(await this.port.isRecipientAllowed(recipient)) ||
-      !(await this.connectionAllowed(connection))
-    )
-      return { status: 'failed' }
-    if (!(await this.reserve())) return { status: 'failed' }
-    const code = randomInt(REPORT_EMAIL_CODE_MIN, REPORT_EMAIL_CODE_MAX).toString()
-    const salt = randomBytes(REPORT_EMAIL_CODE_SALT_BYTES).toString('hex')
-    const expiresAt = this.now() + REPORT_EMAIL_CODE_TTL_MS
-    await this.store.update((state) => ({
-      state: {
-        ...reportMailStateSchema.parse(state),
-        challenges: {
-          ...state.challenges,
-          [recipient]: { salt, digest: codeDigest(salt, code), expiresAt, tries: 0 },
-        },
-      },
-      value: undefined,
-    }))
-    const text = fill(UI_TEXT.reportUi.verificationMessage, { code })
-    const message: ReportMailMessage = {
-      to: recipient,
-      subject: UI_TEXT.reportUi.verifyCode,
-      text,
-      html: `<p>${text}</p>`,
-      attachment: null,
-    }
+    let isAllowed: boolean
     try {
-      return reportDeliveryReceiptSchema.parse(
-        await this.port.send(connection, message, {
-          requester: 'report:verify-recipient',
-          idempotencyKey: salt,
-          requireTls: true,
-          rejectUnauthorized: true,
-        }),
-      )
+      isAllowed = await this.port.isRecipientAllowed(recipient)
     } catch {
-      return { status: 'uncertain' }
+      throw new Error(UI_TEXT.reportUi.recipientUnverified)
+    }
+    if (!isAllowed || !(await this.connectionAllowed(connection))) return { status: 'failed' }
+    try {
+      if (!(await this.reserve())) return { status: 'failed' }
+      const code = randomInt(REPORT_EMAIL_CODE_MIN, REPORT_EMAIL_CODE_MAX).toString()
+      const salt = randomBytes(REPORT_EMAIL_CODE_SALT_BYTES).toString('hex')
+      const expiresAt = this.now() + REPORT_EMAIL_CODE_TTL_MS
+      await this.store.update((state) => ({
+        state: {
+          ...reportMailStateSchema.parse(state),
+          challenges: {
+            ...state.challenges,
+            [recipient]: { salt, digest: codeDigest(salt, code), expiresAt, tries: 0 },
+          },
+        },
+        value: undefined,
+      }))
+      const text = fill(UI_TEXT.reportUi.verificationMessage, { code })
+      const message: ReportMailMessage = {
+        to: recipient,
+        subject: UI_TEXT.reportUi.verifyCode,
+        text,
+        html: `<p>${text}</p>`,
+        attachment: null,
+      }
+      try {
+        return reportDeliveryReceiptSchema.parse(
+          await this.port.send(connection, message, {
+            requester: 'report:verify-recipient',
+            idempotencyKey: salt,
+            requireTls: true,
+            rejectUnauthorized: true,
+          }),
+        )
+      } catch {
+        return { status: 'uncertain' }
+      }
+    } catch {
+      throw new Error(UI_TEXT.reportUi.recipientUnverified)
     }
   }
 
   async verify(address: string, code: string): Promise<boolean> {
-    const recipient = addressKey(address)
-    if (!(await this.port.isRecipientAllowed(recipient))) return false
-    return await this.store.update((input) => {
-      const state = reportMailStateSchema.parse(input)
-      const challenge = state.challenges[recipient]
-      if (
-        challenge === undefined ||
-        this.now() >= challenge.expiresAt ||
-        challenge.tries >= REPORT_EMAIL_CODE_TRIES
-      )
-        return { state, value: false }
-      const actual = Buffer.from(codeDigest(challenge.salt, code), 'hex')
-      const expected = Buffer.from(challenge.digest, 'hex')
-      const isValid =
-        code.length === REPORT_EMAIL_CODE_DIGITS &&
-        /^\d+$/.test(code) &&
-        actual.length === expected.length &&
-        timingSafeEqual(actual, expected)
-      const challenges = { ...state.challenges }
-      if (isValid) Reflect.deleteProperty(challenges, recipient)
-      else challenges[recipient] = { ...challenge, tries: challenge.tries + 1 }
-      return {
-        state: {
-          ...state,
-          challenges,
-          verified: isValid ? [...new Set([...state.verified, recipient])] : state.verified,
-        },
-        value: isValid,
-      }
-    })
+    try {
+      const recipient = addressKey(address)
+      if (!(await this.port.isRecipientAllowed(recipient))) return false
+      return await this.store.update((input) => {
+        const state = reportMailStateSchema.parse(input)
+        const challenge = state.challenges[recipient]
+        if (
+          challenge === undefined ||
+          this.now() >= challenge.expiresAt ||
+          challenge.tries >= REPORT_EMAIL_CODE_TRIES
+        )
+          return { state, value: false }
+        const actual = Buffer.from(codeDigest(challenge.salt, code), 'hex')
+        const expected = Buffer.from(challenge.digest, 'hex')
+        const isValid =
+          code.length === REPORT_EMAIL_CODE_DIGITS &&
+          /^\d+$/.test(code) &&
+          actual.length === expected.length &&
+          timingSafeEqual(actual, expected)
+        const challenges = { ...state.challenges }
+        if (isValid) Reflect.deleteProperty(challenges, recipient)
+        else challenges[recipient] = { ...challenge, tries: challenge.tries + 1 }
+        return {
+          state: {
+            ...state,
+            challenges,
+            verified: isValid ? [...new Set([...state.verified, recipient])] : state.verified,
+          },
+          value: isValid,
+        }
+      })
+    } catch {
+      throw new Error(UI_TEXT.reportUi.recipientUnverified)
+    }
   }
 
   async isVerified(address: string): Promise<boolean> {

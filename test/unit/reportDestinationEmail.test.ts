@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { ReportEmailDelivery } from '../../src/core/reporting/destinations/email'
 import {
   REPORT_EMAIL_CODE_TTL_MS,
@@ -169,6 +169,30 @@ describe('report email verification, consent and vault transport', () => {
     )
     expect(rig.port.send).not.toHaveBeenCalled()
     expect(rig.store.state.reservations).toEqual([])
+  })
+  it.each(['recipient', 'state', 'verify', 'address'])(
+    'sanitizes interactive verification %s failures',
+    async (boundary) => {
+      const rig = mailRig()
+      const canary = 'ghp_' + 'a'.repeat(36)
+      if (boundary === 'recipient') rig.port.isRecipientAllowed.mockRejectedValue(new Error(canary))
+      else if (boundary === 'state' || boundary === 'verify')
+        vi.spyOn(rig.store, 'update').mockRejectedValue(new Error(canary))
+      const address = boundary === 'address' ? canary : ADDRESS
+      const failure =
+        boundary === 'verify'
+          ? rig.email.verify(ADDRESS, '123456')
+          : rig.email.requestVerification(address, CONNECTION)
+      await expect(failure).rejects.toThrow(UI_TEXT.reportUi.recipientUnverified)
+      expect(rig.port.send).not.toHaveBeenCalled()
+    },
+  )
+  it('uses fixed text for invalid mail addresses at message preparation', () => {
+    const rig = mailRig()
+    const canary = 'ghp_' + 'a'.repeat(36)
+    expect(() => rig.email.message(canary, deliveryPayload())).toThrow(
+      UI_TEXT.reportUi.recipientUnverified,
+    )
   })
   it('enforces six per rolling hour across instances, counting verification and failures', async () => {
     const rig = mailRig()
