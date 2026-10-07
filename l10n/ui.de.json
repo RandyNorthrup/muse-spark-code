@@ -2512,6 +2512,7 @@
     "approvalExpired": "Diese Zustimmung ist abgelaufen. Fordern Sie die Nutzung erneut an.",
     "useChanged": "Die Nutzung hat sich nach der Zustimmung geändert. Fordern Sie eine Zustimmung für die neue Nutzung an.",
     "osStoreWarning": "Durch den Zugangsdaten-Speicher Ihres Betriebssystems geschützt. Programme unter Ihrem Benutzerkonto können ihn ebenfalls entsperren.",
+    "unknownTierWarning": "Die Schutzstufe ist unbekannt, weil der Tresor gesperrt ist. Entsperren Sie ihn, um zu sehen, wie er geschützt ist.",
     "hardwareWarning": "Durch die Hardware dieses Geräts geschützt. Die Entsperrung erfolgt ohne Nachfrage, auch für Programme unter Ihrem Benutzerkonto.",
     "presenceTierWarning": "Jede Nutzung erfordert Ihre Berührung, PIN oder Passphrase. Unbeaufsichtigte Nutzung wird verweigert.",
     "legacyNotice": {

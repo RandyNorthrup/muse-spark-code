@@ -114,14 +114,21 @@ export async function editVaultItem(
     const bindings: VaultBinding[] = bindingArray
     const isFirstParty = current?.firstParty ?? false
     const isRestricted = isFirstParty || kind === 'internal' || kind === 'devicePair'
-    const mode = isRestricted
-      ? 'never'
-      : await choice([
-          { label: UI_TEXT.vault.askEveryTime, id: 'askEveryTime' },
-          { label: UI_TEXT.vault.askOncePerSession, id: 'askOncePerSession' },
-          { label: UI_TEXT.vault.alwaysAllow, id: 'alwaysAllow' },
-          { label: UI_TEXT.vault.never, id: 'never' },
-        ])
+    // The current mode stays first so accepting every default preserves it.
+    const modeChoices = [
+      { label: UI_TEXT.vault.askEveryTime, id: 'askEveryTime' },
+      { label: UI_TEXT.vault.askOncePerSession, id: 'askOncePerSession' },
+      { label: UI_TEXT.vault.alwaysAllow, id: 'alwaysAllow' },
+      { label: UI_TEXT.vault.never, id: 'never' },
+    ]
+    if (current !== undefined) {
+      const at = modeChoices.findIndex((option) => option.id === current.policy.mode)
+      if (at > 0) {
+        const [keeping] = modeChoices.splice(at, 1)
+        if (keeping !== undefined) modeChoices.unshift(keeping)
+      }
+    }
+    const mode = isRestricted ? 'never' : await choice(modeChoices)
     const isRequirePresence = await isToggleOn(
       `${UI_TEXT.vault.requirePresence}: ${UI_TEXT.vault.presenceAdvice}`,
       current?.requirePresence ?? false,

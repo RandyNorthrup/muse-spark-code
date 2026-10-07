@@ -2512,6 +2512,7 @@
     "approvalExpired": "Bu onayın süresi doldu. Kullanımı yeniden isteyin.",
     "useChanged": "Onaydan sonra kullanım değişti. Yeni kullanım için onay isteyin.",
     "osStoreWarning": "İşletim sisteminin kimlik bilgisi deposuyla korunur. Sizin hesabınızla çalışan programlar da kilidi açabilir.",
+    "unknownTierWarning": "Kasa kilitli olduğundan koruma düzeyi bilinmiyor. Nasıl korunduğunu görmek için kilidi açın.",
     "hardwareWarning": "Bu cihazın donanımıyla korunur. Sessizce açıldığından sizin hesabınızla çalışan programlar da açabilir.",
     "presenceTierWarning": "Her kullanım dokunma, PIN veya parola gerektirir. Gözetimsiz kullanım reddedilir.",
     "legacyNotice": {

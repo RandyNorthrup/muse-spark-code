@@ -2,6 +2,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { VaultSection, tierWarning } from '../../../src/webview/models/sections/vault/VaultSection'
+import { isSessionAllowed } from '../../../src/webview/models/sections/vault/vaultPresentation'
 import { VaultSurface } from '../../../src/webview/models/sections/vault/VaultSurface'
 import { VaultApprovalCard } from '../../../src/webview/components/VaultApprovalCard'
 import { VaultGrantEditor } from '../../../src/webview/models/sections/vault/VaultGrantEditor'
@@ -115,6 +116,20 @@ describe('U approval cards', () => {
       expect(screen.queryByRole('button', { name: UI_TEXT.vault.allowSession })).toBeNull()
     }
   })
+  it('RVM109U-5 remote requests hide session consent and name their scope', () => {
+    const request = approval()
+    request.item.policy.mode = 'askOncePerSession'
+    request.requester.deviceId = 'remote-device'
+    expect(isSessionAllowed(request)).toBe(false)
+    expect(
+      isSessionAllowed({ ...request, requester: { ...request.requester, deviceId: null } }),
+    ).toBe(true)
+    render(
+      <VaultApprovalCard request={request} now={() => 0} onAnswer={vi.fn()} onManage={vi.fn()} />,
+    )
+    expect(screen.queryByRole('button', { name: UI_TEXT.vault.allowSession })).toBeNull()
+    expect(screen.getByText(UI_TEXT.vault.remoteWarning)).toBeInTheDocument()
+  })
   it('V11 deadline disables the card and a late click never answers', () => {
     vi.useFakeTimers()
     let time = 0
@@ -203,6 +218,18 @@ describe('U Vault section', () => {
       'slotUnavailable',
     ] as const)
       expect(tierWarning({ ...status, reason })).toBe(UI_TEXT.vault[reason])
+  })
+  it('RVM109U-4 an unobserved tier does not claim OS-store protection', () => {
+    const locked = {
+      ...panel().status,
+      state: 'locked' as const,
+      tier: null,
+      provider: null,
+      silentUnlock: false,
+      reason: 'locked' as const,
+    }
+    expect(tierWarning(locked)).toBe(UI_TEXT.vault.unknownTierWarning)
+    expect(tierWarning(locked)).not.toBe(UI_TEXT.vault.osStoreWarning)
   })
   it('V16 locked state disables management, exposes Unlock and holds no cards', async () => {
     const state = panel()

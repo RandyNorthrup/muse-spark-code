@@ -118,6 +118,18 @@ describe('U native credential entry', () => {
       policy: { mode: 'never', unattendedAllowed: false, allowDisclosure: false },
     })
   })
+  it.each(['never', 'alwaysAllow', 'askOncePerSession'] as const)(
+    'RVM109U-3 accepting every default preserves the existing %s policy',
+    async (mode) => {
+      const n = native()
+      const current = {
+        ...metadata(),
+        policy: { mode, allowDisclosure: false, unattendedAllowed: false },
+      }
+      const result = await editVaultItem(n, current)
+      expect(result).toMatchObject({ policy: { mode } })
+    },
+  )
   it('cancel at any prompt returns no item and erases acquired buffers', async () => {
     const n = native('sshKey')
     vi.mocked(n.sshKey).mockResolvedValueOnce(null)

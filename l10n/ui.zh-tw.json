@@ -2418,6 +2418,7 @@
     "approvalExpired": "此核准已過期。請重新要求使用。",
     "useChanged": "核准後的使用內容已改變。請為新用途要求核准。",
     "osStoreWarning": "由作業系統的憑證儲存保護。以您的身分執行的程式也可能解鎖它。",
+    "unknownTierWarning": "由於保存庫已鎖定，保護層級未知。解鎖以查看其保護方式。",
     "hardwareWarning": "由此裝置的硬體保護。它會無提示解鎖，因此以您的身分執行的程式也可解鎖它。",
     "presenceTierWarning": "每次使用都需要觸碰、PIN 或通關片語。無人值守使用會被拒絕。",
     "legacyNotice": {

@@ -25,6 +25,8 @@ export function tierWarning(status: VaultStatus): string {
   if (status.reason === 'basicText') return UI_TEXT.vault.basicText
   if (status.reason === 'auditInvalid') return UI_TEXT.vault.auditInvalid
   if (status.reason === 'slotUnavailable') return UI_TEXT.vault.slotUnavailable
+  // A null tier means no slot has been observed (a locked vault), not OS-store protection.
+  if (status.tier === null) return UI_TEXT.vault.unknownTierWarning
   if (status.tier === 'passphrase') return UI_TEXT.vault.passphraseWarning
   if (status.tier === 'recovery') return UI_TEXT.vault.recoveryWarning
   if (status.tier === 'presence') return UI_TEXT.vault.presenceTierWarning

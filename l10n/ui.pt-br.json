@@ -2606,6 +2606,7 @@
     "approvalExpired": "Esta aprovação expirou. Solicite o uso novamente.",
     "useChanged": "O uso mudou após a aprovação. Solicite aprovação para o novo uso.",
     "osStoreWarning": "Protegido pelo armazenamento de credenciais do sistema operacional. Programas executados com sua conta também podem desbloqueá-lo.",
+    "unknownTierWarning": "O nível de proteção é desconhecido porque o cofre está bloqueado. Desbloqueie-o para ver como ele está protegido.",
     "hardwareWarning": "Protegido pelo hardware deste dispositivo. É desbloqueado sem perguntar, inclusive por programas executados com sua conta.",
     "presenceTierWarning": "Cada uso exige toque, PIN ou frase secreta. O uso sem supervisão é recusado.",
     "legacyNotice": {

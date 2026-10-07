@@ -2700,6 +2700,7 @@
     "approvalExpired": "Ta zgoda wygasła. Ponownie poproś o użycie.",
     "useChanged": "Użycie zmieniło się po zatwierdzeniu. Poproś o zgodę na nowe użycie.",
     "osStoreWarning": "Chroniony przez magazyn poświadczeń systemu operacyjnego. Programy działające na Twoim koncie też mogą go odblokować.",
+    "unknownTierWarning": "Poziom ochrony jest nieznany, ponieważ sejf jest zablokowany. Odblokuj go, aby zobaczyć, jak jest chroniony.",
     "hardwareWarning": "Chroniony przez sprzęt tego urządzenia. Odblokowuje się bez pytania, także dla programów działających na Twoim koncie.",
     "presenceTierWarning": "Każde użycie wymaga dotyku, kodu PIN lub hasła. Użycie bez nadzoru jest odrzucane.",
     "legacyNotice": {

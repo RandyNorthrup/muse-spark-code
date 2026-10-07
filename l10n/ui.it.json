@@ -2606,6 +2606,7 @@
     "approvalExpired": "Questa approvazione è scaduta. Richiedi di nuovo l’utilizzo.",
     "useChanged": "L’utilizzo è cambiato dopo l’approvazione. Richiedi l’approvazione per il nuovo uso.",
     "osStoreWarning": "Protetta dall’archivio credenziali del sistema operativo. Anche i programmi eseguiti con il tuo account possono sbloccarla.",
+    "unknownTierWarning": "Il livello di protezione è sconosciuto perché il vault è bloccato. Sbloccalo per vedere come è protetto.",
     "hardwareWarning": "Protetta dall’hardware di questo dispositivo. Si sblocca senza chiedere, anche per i programmi eseguiti con il tuo account.",
     "presenceTierWarning": "Ogni uso richiede tocco, PIN o frase segreta. L’uso non presidiato è rifiutato.",
     "legacyNotice": {

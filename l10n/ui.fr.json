@@ -2606,6 +2606,7 @@
     "approvalExpired": "Cette approbation a expiré. Demandez à nouveau cette utilisation.",
     "useChanged": "L’utilisation a changé après l’approbation. Demandez une approbation pour le nouvel usage.",
     "osStoreWarning": "Protégé par le stockage des identifiants de votre système. Les programmes exécutés sous votre compte peuvent aussi le déverrouiller.",
+    "unknownTierWarning": "Le niveau de protection est inconnu car le coffre est verrouillé. Déverrouillez-le pour voir comment il est protégé.",
     "hardwareWarning": "Protégé par le matériel de cet appareil. Il se déverrouille sans demander, y compris pour les programmes exécutés sous votre compte.",
     "presenceTierWarning": "Chaque utilisation exige votre empreinte, PIN ou phrase secrète. Les usages sans surveillance sont refusés.",
     "legacyNotice": {

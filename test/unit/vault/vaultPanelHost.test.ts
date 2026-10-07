@@ -5,7 +5,7 @@ import {
   type VaultPanelService,
   type VaultPanelHostDeps,
 } from '../../../src/host/vault/vaultPanelHost'
-import { type VaultItem } from '../../../src/shared/vault'
+import { type VaultItem, type VaultItemMetadata } from '../../../src/shared/vault'
 import { panel, item, metadata, approval, grant } from '../helpers/vault/fixtures'
 
 function fixture() {
@@ -380,5 +380,85 @@ describe('U authenticated panel host', () => {
     f.host.dispose()
     await f.host.handle({ type: 'vaultAdd' })
     expect(f.deps.editItem).not.toHaveBeenCalled()
+  })
+  it('RVM109U-1 a metadata change retires an older native editor', async () => {
+    const f = fixture()
+    const current = {
+      ...metadata(),
+      policy: { mode: 'never' as const, unattendedAllowed: false, allowDisclosure: false },
+    }
+    f.state.items = [current]
+    const held = Promise.withResolvers<VaultItem | VaultItemMetadata | null>()
+    let signal: AbortSignal | undefined
+    f.deps.editItem.mockImplementationOnce((_item, value) => {
+      signal = value
+      return held.promise
+    })
+    const editing = f.host.handle({ type: 'vaultEdit', itemId: current.id })
+    await vi.waitFor(() => {
+      expect(f.deps.editItem).toHaveBeenCalledOnce()
+    })
+    // Another window changes the policy; the service sends the changed notification.
+    f.state.items = [
+      {
+        ...current,
+        policy: { ...current.policy, mode: 'alwaysAllow' as const },
+      },
+    ]
+    f.changed.callback({ kind: 'changed' })
+    expect(signal?.aborted).toBe(true)
+    // Window A finishes its older draft restoring Never: it must not commit.
+    held.resolve({ ...current })
+    await editing
+    expect(f.service.updateMetadata).not.toHaveBeenCalled()
+    expect(f.service.write).not.toHaveBeenCalled()
+    f.host.dispose()
+  })
+  it('RVM109U-2 approval cards publish while a native editor waits', async () => {
+    const f = fixture()
+    const held = Promise.withResolvers<VaultItem | VaultItemMetadata | null>()
+    f.deps.editItem.mockImplementationOnce(() => held.promise)
+    const editing = f.host.handle({ type: 'vaultAdd' })
+    await vi.waitFor(() => {
+      expect(f.deps.editItem).toHaveBeenCalledOnce()
+    })
+    const request = approval()
+    f.state.pending = [request]
+    const before = f.deps.publish.mock.calls.length
+    f.changed.callback({ kind: 'approval', v: 1, request })
+    await vi.waitFor(() => {
+      expect(f.deps.publish.mock.calls.length).toBeGreaterThan(before)
+    })
+    const last = f.deps.publish.mock.calls.at(-1)?.[0]
+    expect(JSON.stringify(last)).toContain(request.id)
+    held.resolve(null)
+    await editing
+    f.host.dispose()
+  })
+  it('RVM109U-5 session answers are refused for remote requesters', async () => {
+    const f = fixture()
+    const request = approval()
+    request.item.policy.mode = 'askOncePerSession'
+    request.requester.deviceId = 'remote-device'
+    f.state.pending = [request]
+    await f.host.handle({
+      type: 'vaultAnswer',
+      answer: { requestId: request.id, digest: request.digest, decision: 'allowSession' },
+    })
+    expect(f.service.answer).not.toHaveBeenCalled()
+    f.host.dispose()
+  })
+  it('RVM109U-6 a late Lock success after disposal shows no error', async () => {
+    const f = fixture()
+    const gate = Promise.withResolvers<undefined>()
+    vi.mocked(f.service.lock).mockImplementationOnce(() => gate.promise)
+    const locking = f.host.lock()
+    await vi.waitFor(() => {
+      expect(f.service.lock).toHaveBeenCalledOnce()
+    })
+    f.host.dispose()
+    gate.resolve(undefined)
+    await locking
+    expect(f.deps.showError).not.toHaveBeenCalled()
   })
 })

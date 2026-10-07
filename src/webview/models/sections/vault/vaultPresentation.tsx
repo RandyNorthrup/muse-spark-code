@@ -80,6 +80,8 @@ export function isSessionAllowed(request: VaultApprovalRequest): boolean {
   return (
     request.item.policy.mode === 'askOncePerSession' &&
     request.requester.sessionId !== null &&
+    // Remote uses need approval on the owning device every time (D89.13).
+    request.requester.deviceId === null &&
     !request.taint.tainted &&
     request.use.kind !== 'disclosure'
   )

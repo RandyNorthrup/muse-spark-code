@@ -2700,6 +2700,7 @@
     "approvalExpired": "Platnost schválení vypršela. Požádejte o použití znovu.",
     "useChanged": "Použití se po schválení změnilo. Požádejte o schválení nového použití.",
     "osStoreWarning": "Chráněno úložištěm přihlašovacích údajů operačního systému. Programy běžící pod vaším účtem je také mohou odemknout.",
+    "unknownTierWarning": "Úroveň ochrany není známa, protože je trezor uzamčen. Odemknutím zjistíte, jak je chráněn.",
     "hardwareWarning": "Chráněno hardwarem tohoto zařízení. Odemyká se bez dotazu, takže je mohou odemknout i programy běžící pod vaším účtem.",
     "presenceTierWarning": "Každé použití vyžaduje váš dotyk, PIN nebo heslovou frázi. Bezobslužné použití je odmítnuto.",
     "legacyNotice": {

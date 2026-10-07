@@ -67,7 +67,15 @@ export class VaultPanelHost {
       const parsed = vaultPanelChangeSchema.safeParse(raw)
       if (!parsed.success || this.disposed) return
       const event = parsed.data
-      if (event.kind === 'locked' || event.kind === 'revoked') {
+      // Approval cards never wait behind native editors: a held password
+      // box must not starve another requester's expiring card.
+      if (event.kind === 'approval') {
+        this.refreshNow()
+        return
+      }
+      // Metadata changes retire older native editors too: a draft finished
+      // after another window's change must not restore the older policy.
+      if (['locked', 'revoked', 'changed'].includes(event.kind)) {
         if (
           event.kind === 'locked' &&
           this.state !== undefined &&
@@ -103,6 +111,19 @@ export class VaultPanelHost {
     })
   }
 
+  /** Late completions after disposal report nothing: there is no window left. */
+  private shouldReport(generation: number): boolean {
+    return !this.disposed && generation === this.generation
+  }
+
+  /** Prompt publish outside the queue; the queued editor keeps its own generation. */
+  private refreshNow(): void {
+    const generation = this.generation
+    void this.load(generation).catch(() => {
+      if (this.shouldReport(generation)) this.deps.showError(UI_TEXT.vault.operationFailed)
+    })
+  }
+
   private authorize(generation: number): void {
     if (this.disposed || generation !== this.generation) throw new Error(UI_TEXT.vault.useChanged)
   }
@@ -116,7 +137,7 @@ export class VaultPanelHost {
         this.authorize(generation)
         await task(generation)
       } catch {
-        if (generation === this.generation) this.deps.showError(UI_TEXT.vault.operationFailed)
+        if (this.shouldReport(generation)) this.deps.showError(UI_TEXT.vault.operationFailed)
       }
     })()
     return this.queue
@@ -173,7 +194,7 @@ export class VaultPanelHost {
       await this.deps.service.lock()
       await this.refresh()
     } catch {
-      if (generation === this.generation) this.deps.showError(UI_TEXT.vault.operationFailed)
+      if (this.shouldReport(generation)) this.deps.showError(UI_TEXT.vault.operationFailed)
     }
   }
 
@@ -270,10 +291,13 @@ export class VaultPanelHost {
           ) {
             throw new Error(UI_TEXT.vault.approvalExpired)
           }
+          // Remote uses need approval on the owning device every time (D89.13):
+          // a session grant here cannot cover later remote uses.
           if (
             message.answer.decision === 'allowSession' &&
             (request.item.policy.mode !== 'askOncePerSession' ||
               request.requester.sessionId === null ||
+              request.requester.deviceId !== null ||
               request.taint.tainted ||
               request.use.kind === 'disclosure')
           )

@@ -2512,6 +2512,7 @@
     "approvalExpired": "Ez a jóváhagyás lejárt. Kérje újra a használatot.",
     "useChanged": "A használat megváltozott a jóváhagyás után. Kérjen jóváhagyást az új használathoz.",
     "osStoreWarning": "Az operációs rendszer hitelesítőadat-tárolója védi. Az Ön nevében futó programok is feloldhatják.",
+    "unknownTierWarning": "A védelmi szint ismeretlen, mert a tároló zárolva van. Oldja fel, hogy lássa, hogyan védett.",
     "hardwareWarning": "Az eszköz hardvere védi. Kérdés nélkül oldódik fel, így az Ön nevében futó programok is feloldhatják.",
     "presenceTierWarning": "Minden használat érintést, PIN-t vagy jelmondatot igényel. A felügyelet nélküli használat elutasítva.",
     "legacyNotice": {

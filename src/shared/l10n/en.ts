@@ -3147,6 +3147,8 @@ export const EN = {
     useChanged: 'The use changed after approval. Request approval for the new use.',
     osStoreWarning:
       'Protected by your operating system’s credential store. Programs running as you may unlock it too.',
+    unknownTierWarning:
+      'The protection tier is unknown because the vault is locked. Unlock to see how it is protected.',
     hardwareWarning:
       'Protected by this device’s hardware. It unlocks silently, so programs running as you can unlock it too.',
     presenceTierWarning:
