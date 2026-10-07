@@ -19,7 +19,7 @@ import {
   REMOVE_MARKER,
 } from '../../shared/patchDocument'
 import type { ChatReference, LineRange, ReviewFile } from '../../shared/protocol'
-import { type DiffRow, hunkRows } from '../diff'
+import { type DiffRow, hunkRows } from '../../shared/patchDocument'
 import {
   type ReviewHunkState,
   reviewHunkKey,

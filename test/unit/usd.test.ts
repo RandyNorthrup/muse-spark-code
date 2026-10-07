@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
-import { BASE_LOCALE, formatUsd, setUiText } from '../../src/shared/l10n/text'
+import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
+import { formatExactUsd as formatUsd } from '../../src/shared/l10n/exactUsd'
 import {
   Usd,
   isPositiveUsd,
@@ -20,6 +21,16 @@ afterEach(() => {
 describe('shared exact USD', () => {
   it('normalizes legacy edges and rejects noncanonical or nonfinite money', () => {
     expect(legacyUsdSchema.parse(0.0005872)).toBe('0.0005872')
+    for (const [input, expected] of [
+      [1e-7, '0.0000001'],
+      [1e21, '1000000000000000000000'],
+      [0.10000000000000002, '0.10000000000000002'],
+      [0, '0'],
+    ] as const) {
+      expect(legacyUsdSchema.parse(input)).toBe(expected)
+    }
+    expect(legacyUsdSchema.parse('9007199254740993.001')).toBe('9007199254740993.001')
+    expect(usdInputSchema.parse('000.0000')).toBe('0')
     expect(usdInputSchema.parse('000.0100')).toBe('0.01')
     expect(nonnegativeUsdSchema.safeParse('-1').success).toBe(false)
     expect(Usd.from('1.2300e-4').toAmount()).toBe('0.000123')

@@ -808,9 +808,12 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
             }),
           ...(route === 'setup' && option.name === 'maintenance' && { event: 'maintenance' }),
           ...(route === 'exec' && {
-            ...(['trust-workspace', 'allow-dangerously-skip-permissions', 'web-search'].includes(
-              option.name,
-            ) && { refused: true }),
+            ...([
+              'trust-workspace',
+              'allow-dangerously-skip-permissions',
+              'web-search',
+              'record',
+            ].includes(option.name) && { refused: true }),
             purpose:
               {
                 'max-requests': 'maxRequests',

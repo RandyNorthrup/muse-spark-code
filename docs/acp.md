@@ -264,6 +264,18 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 
 ## Questions
 
+M105 media commands are parsed between turns: `/attach <path>` confines an
+approved local source; `/record` requires an interactive recorder and private
+preview before Attach. Embedded PDF/image blobs keep their established routes;
+video/audio blobs and media links require the selected-model media port.
+Ordinary source links remain mentions and URLs remain links. A missing media
+binding refuses before dispatch; it never claims that bytes were delivered.
+Production capability, Files ownership/storage billing, paid transcription and
+recording bindings remain pending. Fakes prove the portable adapter contract,
+not installed editor or provider availability. Headless `/attach` and `/record`
+are usage errors; use repeated `exec --attach` flags after the real media
+binding exists. See [M105 certification](certification/m105.md).
+
 The launcher connects the shared question registry and private durable queue.
 See [the integration certification](certification/m112.md): a scripted stdio
 client exercised forms on both backends and the deadline withdrawal, open

@@ -1,6 +1,6 @@
 // A tool row entry and the transcript's props, for the tests that render the
 // conversation (Transcript, the tool rows of M43).
-import { fireEvent, render } from '@testing-library/react'
+import { act, fireEvent, render } from '@testing-library/react'
 import { vi } from 'vitest'
 import { Transcript, type TranscriptProps } from '../../../src/webview/components/Transcript'
 import type { TranscriptEntry } from '../../../src/webview/state/uiState'
@@ -149,5 +149,10 @@ export async function warmRowMenus(): Promise<void> {
   const view = render(<Transcript {...props} />)
   fireEvent.click(view.getByRole('button', { name: 'More actions' }))
   await view.findByRole('menu')
+  await act(async () => {
+    view.rerender(<Transcript {...transcriptProps([tool({})], {})} />)
+    await import('../../../src/webview/components/ToolRow')
+  })
+  await view.findByRole('button', { name: /a.ts/u })
   view.unmount()
 }

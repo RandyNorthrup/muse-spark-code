@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- M105 integration verification: keep exact media currency arithmetic and
+  ceiling display outside chat startup; preserve existing tariff text. Load
+  tool rows on first use with accessible loading, failure and retry. Share
+  patch projections with the existing schema and retain every bundle cap.
+  Correct the headless `--record` reference contract and document the remaining
+  capture, provider, accounting, recorder and companion bindings explicitly.
+
 - M105 ACP and headless entry points: `/attach <path>` and `/record` between
   turns, audio blocks gated on the model record, `resource_link` reads under
   the workspace confinement, and blob routing for PDF, video, audio, image

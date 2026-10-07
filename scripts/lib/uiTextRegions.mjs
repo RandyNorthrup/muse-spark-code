@@ -12,6 +12,7 @@ import { loadL10n } from './l10nSource.mjs'
 
 const TABLE = 'src/shared/l10n/en.ts'
 export const UI_TEXT_REGIONS = [
+  { name: 'media', output: 'dist/uiTextMedia.js', keys: /^media$/ },
   {
     name: 'runtime',
     output: 'dist/uiTextRuntime.js',

@@ -293,10 +293,19 @@ jobs:
       # disclaims the responsibility of the app that started it, and a
       # SIGTERM to the first process ends the copy (M28).
       - run: bash native/darwin/check-disclaim.sh
+      - name: permission-free screen recorder and signed resource checks
+        run: |
+          bash test/native/darwin/run-screen-record.sh
+          bash test/native/darwin/check-screen-resources.sh
+          bash native/darwin/check-disclaim.sh --screen-only
+      # Archive on macOS: artifact upload otherwise discards executable modes.
+      - run: tar -czf native/darwin/muse-dictate-screen.tgz -C native/darwin muse-dictate-screen.app
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: muse-dictate-darwin
-          path: native/darwin/muse-dictate
+          path: |
+            native/darwin/muse-dictate
+            native/darwin/muse-dictate-screen.tgz
           if-no-files-found: error
 
   # The .vsix with both helpers: what release.yml publishes.
@@ -319,6 +328,7 @@ jobs:
           name: muse-dictate-darwin
           path: native/darwin
       - run: chmod +x native/darwin/muse-dictate
+      - run: tar -xzf native/darwin/muse-dictate-screen.tgz -C native/darwin
       - run: npm ci
       - run: npm run package
       - name: the universal VSIX stays within its measured budget
@@ -336,10 +346,14 @@ jobs:
             extension/native/windows/dictate.ps1 extension/native/windows/capture.ps1 \
             extension/native/windows/MuseSparkJob.cs extension/native/windows/MuseSparkMcpJob.cs \
             extension/native/windows/MuseSparkMcpLauncher.cs extension/native/darwin/muse-dictate \
+            extension/native/windows/MuseSparkScreenRecord.cs \
+            extension/native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate \
+            extension/native/darwin/muse-dictate-screen.app/Contents/_CodeSignature/CodeResources \
             extension/dist/extension.js extension/dist/conversation.js extension/dist/modelApi.js extension/dist/searchWorker.js \
             extension/dist/pageWorker.js extension/dist/planMarkdown.js extension/dist/checkpointStore.js \
             extension/dist/review.js extension/dist/agentImport.js extension/dist/conversationGit.js extension/dist/bundledSkills.js \
             extension/dist/uiTextRuntime.js extension/dist/uiTextHooks.js extension/dist/uiTextSurfaces.js \
+            extension/dist/uiTextMedia.js extension/dist/media.js extension/dist/screenRecord.js \
             extension/dist/uiText.js extension/dist/validation.js extension/dist/wire.js extension/dist/browserCheck.js extension/dist/browserRuntime.js \
             extension/dist/sessionBoard.js extension/dist/reviewer.js \
             extension/dist/foreignHooks.js extension/dist/hookRuntime.js extension/dist/extensionHooks.js extension/dist/pluginHooks.js \
@@ -366,7 +380,7 @@ jobs:
       - name: the agent's package carries its bundles, tables, notices and manifest
         run: |
           listing="$(tar -tzf dist/muse-spark-code-acp-*.tgz)"
-          for entry in package/package.json package/dist/uiTextRuntime.js package/dist/uiTextHooks.js package/dist/uiTextSurfaces.js \
+          for entry in package/package.json package/dist/uiTextRuntime.js package/dist/uiTextHooks.js package/dist/uiTextSurfaces.js package/dist/uiTextMedia.js \
             package/dist/acp.js package/dist/modelApi.js package/dist/uiText.js package/dist/validation.js package/dist/wire.js package/dist/reviewer.js \
             package/dist/foreignHooks.js package/dist/hookRuntime.js package/dist/extensionHooks.js \
             package/dist/recorder.js \

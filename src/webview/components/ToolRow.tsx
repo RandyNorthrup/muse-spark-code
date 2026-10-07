@@ -6,6 +6,7 @@
 // picture a tool read or made, plus the approval or question card when the
 // host is waiting.
 
+import { statusDotClass } from '../toolStatus'
 import { memo, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import {
   IO_PREVIEW_LINES,
@@ -17,7 +18,12 @@ import {
 import { fill } from '../../shared/l10n/text'
 import { PaidBadge } from './PaidBadge'
 import type { LineRange } from '../../shared/protocol'
-import { type DiffRow, type FileDiff, parsePatchDocument, parseUnifiedText } from '../diff'
+import {
+  type DiffRow,
+  type FileDiff,
+  parsePatchDocument,
+  parseUnifiedText,
+} from '../../shared/patchDocument'
 import {
   failedOutcomeText,
   hasLandedEdits,
@@ -137,15 +143,6 @@ function editRows(
 }
 
 /** A row's status dot: running, done, cut off or failed (the user's `!` rows too, M46). */
-export function statusDotClass(status: string): string {
-  if (status === 'inProgress') {
-    return 'tool-dot tool-dot-running'
-  }
-  if (status === TOOL_STATUS_INTERRUPTED) {
-    return 'tool-dot tool-dot-muted'
-  }
-  return status === 'completed' ? 'tool-dot tool-dot-ok' : 'tool-dot tool-dot-failed'
-}
 
 function EditBody({
   entry,

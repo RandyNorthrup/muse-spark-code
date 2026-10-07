@@ -1,7 +1,7 @@
 // Portable M105 metadata and UI contracts (PLAN.md D85). No provider wire,
 // file bytes, keys or host APIs belong here. Unknown duration/sound stays null.
 import * as z from 'zod/mini'
-import { legacyUsdSchema } from './usd'
+import { legacyUsdSchema } from './usdSchema'
 import {
   MEDIA_AUDIO_ACTIONS,
   MEDIA_CONTRIBUTOR_CHOICES,

@@ -80,6 +80,11 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
   // with the first media attachment: 1.2 KiB when split out. Measured size
   // plus 15%, rounded up to 25 KiB (PLAN.md D6).
   {
+    name: 'tool rows',
+    entries: ['src/webview/components/ToolRow.tsx'],
+    budgetKiB: 25,
+  },
+  {
     name: 'media',
     entries: ['src/webview/components/AttachmentMediaCost.tsx'],
     budgetKiB: 25,

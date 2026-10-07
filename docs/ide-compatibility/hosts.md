@@ -108,18 +108,21 @@ worktrees and the evaluation retain their distinct immediate policies.
 
 ## M105 media routes — integration status
 
-2026-10-07: integration binds the media attach port, the recording command
-deps and the uploaded-files list in `extension.ts` for every VSIX surface,
-and the ACP agent's `/attach` and `/record` for every ACP client. All rows
-are equal: the same confinement, refusal wording and expiry apply
-everywhere. Evidence here is fake-based unit and controller checks;
-installed-editor runs remain lead-owned.
+2026-10-07: the extension supplies the media loader and recording command
+ports to all VSIX surfaces; production video/audio admission still refuses
+because M95 capability records, verified storage billing and paid/account
+bindings are absent. ACP exposes the same portable entry-point contract, but
+its production media/recorder factories are unbound. Fake bridge tests prove
+confinement and refusal behavior; they do not certify installed editors.
+All editors keep equal requirements and explicit unavailable states.
 
 | Surface                                                                                           | Attach path                                                                                     | Recording path                                                          | Binding / evidence                                                                         |
 | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | VS Code family, Remote SSH, WSL, containers, Codespaces                                           | `deps.mediaAttachments`; picked media confined like dropped media                               | `deps.recordingCommandDeps`; recording attaches to its own conversation | Integrated bindings; controller/media fakes; installed-host checks: lead                   |
 | ACP clients: Zed, Xcode 27, JetBrains AI Assistant, Qt Creator, Neovim, Emacs, Sublime and others | `/attach <path>` between turns; `resource_link` reads under workspace confinement               | `/record`; recorder-missing stays an honest unavailable-here notice     | ACP translate/media/agent fakes; each installed client's media rendering still needs a run |
 | Headless exec                                                                                     | `/attach` prompts are refused as usage errors; `--attach` without storage fails unknown-storage | `/record` prompts are refused as usage errors                           | runExec fakes; no live run here                                                            |
+| JetBrains, Visual Studio, Eclipse                                                                 | Native `attachments/*` projection, metadata/tokens only                                         | Shared runtime recorder contract                                        | JCEF/WebView2/SWT fakes; real MHP envelope and plugins wait for M104b–d                    |
+| Companion-paired editors, remote windows and browser                                              | Guarded streaming upload adapter                                                                | Browser recorder and Attach/Discard adapter                             | Server/launch exchange and mounted page wait for M104 C/e; capture receipt remains open    |
 
 ## Native and scientific
 

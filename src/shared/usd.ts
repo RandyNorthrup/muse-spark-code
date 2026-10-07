@@ -1,6 +1,5 @@
 // Exact decimal USD arithmetic for hosted-search admission and durable claims.
 // Numbers enter once at the boundary; persisted amounts use decimal strings.
-import * as z from 'zod/mini'
 import {
   USD_DECIMAL_RADIX,
   USD_DECIMAL_ZERO,
@@ -8,16 +7,14 @@ import {
   USD_LIABILITY_DECIMALS,
 } from './usdConstants'
 
-/** Canonical exact amounts on new money ports. Numbers are accepted only at legacy parse edges. */
-export const usdAmountSchema = z
-  .string()
-  .check(z.regex(/^-?(?:0|[1-9]\d*)(?:\.\d*[1-9])?$/))
-  .brand<'Usd'>()
-export const nonnegativeUsdSchema = z
-  .string()
-  .check(z.regex(/^(?:0|[1-9]\d*)(?:\.\d*[1-9])?$/))
-  .brand<'Usd'>()
-export type UsdAmount = z.infer<typeof usdAmountSchema>
+import { usdAmountSchema, type UsdAmount } from './usdSchema'
+export {
+  usdAmountSchema,
+  nonnegativeUsdSchema,
+  usdInputSchema,
+  legacyUsdSchema,
+  type UsdAmount,
+} from './usdSchema'
 
 const DECIMAL = /^(-?\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/i
 function radix(): bigint {
@@ -140,18 +137,6 @@ export class Usd {
     return usdAmountSchema.parse(this.toString())
   }
 }
-
-/** New user input is decimal text; canonicalize exactly once, without Number. */
-export const usdInputSchema = z.pipe(
-  z.string().check(z.regex(/^\d+(?:\.\d+)?$/)),
-  z.transform((amount) => Usd.from(amount).toAmount()),
-)
-
-/** Historical numeric records parse once; new serialized amounts stay canonical and exact. */
-export const legacyUsdSchema = z.pipe(
-  z.union([z.number().check(z.nonnegative()), nonnegativeUsdSchema]),
-  z.transform((amount) => Usd.from(amount).toAmount()),
-)
 
 /** Legacy values normalize once; every arithmetic result remains an exact branded string. */
 export function sumUsd(...amounts: readonly UsdAmount[]): UsdAmount {

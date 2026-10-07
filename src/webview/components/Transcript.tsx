@@ -49,13 +49,18 @@ import { type QuoteIntent, QuoteMenu } from './QuoteMenu'
 import { MarkdownView } from './MarkdownView'
 import { ReasoningRow } from './ReasoningRow'
 import { StatusLine } from './StatusLine'
-import { ToolRow, type ToolRowProps } from './ToolRow'
+import type { ToolRowProps } from './ToolRow'
 import { UserShellRow } from './UserShellRow'
 import { deferred } from './DeferredSurface'
 
 import { PaidBadge } from './PaidBadge'
 import { type GooeyItem, useRowMenu } from './GooeyMenu'
 import type { MenuPoint } from '../gooeyLayout'
+
+const ToolRow = deferred<ToolRowProps>(async () => {
+  const module = await import('./ToolRow')
+  return { default: module.ToolRow }
+})
 
 const WorkflowRunView = deferred(async () => {
   const module = await import('./WorkflowRun')

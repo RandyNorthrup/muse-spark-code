@@ -4203,7 +4203,13 @@
       "name": "exec: --record",
       "description": "Refused for headless runs: nobody is there to preview a recording.",
       "text": { "cli": "record" },
-      "contract": { "type": "boolean", "repeatable": false, "default": false, "purpose": "record" }
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "refused": true,
+        "purpose": "record"
+      }
     },
     {
       "route": "exec",

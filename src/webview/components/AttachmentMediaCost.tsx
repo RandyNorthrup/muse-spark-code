@@ -1,6 +1,7 @@
 // Optional M105 chip region; loaded only when a chip carries media metadata.
 import { MILLISECONDS_PER_SECOND, UI_TEXT } from '../../shared/constants'
-import { fill, formatBytes, formatUsd, plural } from '../../shared/l10n/text'
+import { fill, formatBytes, plural } from '../../shared/l10n/text'
+import { formatExactUsd } from '../../shared/l10n/exactUsd'
 import type { MediaChip } from '../../shared/media'
 import { formatDurationMs } from '../agentFormat'
 
@@ -31,10 +32,10 @@ export function AttachmentMediaCost({
     labels.push(
       `~${plural(UI_TEXT.media.estimateTokens, estimate.estimatedInputTokens)}`,
       estimate.contributorCostUsd === undefined
-        ? formatUsd(estimate.standardCostUsd, 2)
+        ? formatExactUsd(estimate.standardCostUsd, 2)
         : fill(UI_TEXT.media.estimatePrices, {
-            standard: formatUsd(estimate.standardCostUsd, 2),
-            contributor: formatUsd(estimate.contributorCostUsd, 2),
+            standard: formatExactUsd(estimate.standardCostUsd, 2),
+            contributor: formatExactUsd(estimate.contributorCostUsd, 2),
           }),
     )
   }

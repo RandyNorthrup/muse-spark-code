@@ -44,6 +44,7 @@ const BUNDLES = [
   'uiTextRuntime.js',
   'uiTextHooks.js',
   'uiTextSurfaces.js',
+  'uiTextMedia.js',
   'extensionHooks.js',
   'validation.js',
   'wire.js',
@@ -58,6 +59,7 @@ const BUNDLES = [
 const JOB_SOURCES = [
   path.join('native', 'windows', 'MuseSparkJob.cs'),
   path.join('native', 'windows', 'MuseSparkMcpJob.cs'),
+  path.join('native', 'windows', 'MuseSparkScreenRecord.cs'),
 ]
 const NATIVE_DEPENDENCY = '@napi-rs/keyring'
 const PACKAGE_NAME = 'muse-spark-code-acp'
@@ -109,6 +111,12 @@ for (const bundle of BUNDLES) {
 for (const source of JOB_SOURCES) {
   mkdirSync(path.join(STAGE, path.dirname(source)), { recursive: true })
   copyFileSync(source, path.join(STAGE, source))
+}
+// Keep every signed resource and executable mode when macOS CI supplied it.
+// Linux-only packages retain the runtime's honest missing-helper refusal.
+const screenBundle = path.join('native', 'darwin', 'muse-dictate-screen.app')
+if (existsSync(screenBundle)) {
+  cpSync(screenBundle, path.join(STAGE, screenBundle), { recursive: true })
 }
 cpSync('l10n', path.join(STAGE, 'l10n'), {
   recursive: true,

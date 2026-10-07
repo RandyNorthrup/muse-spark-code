@@ -18,9 +18,9 @@ const QUESTION_UI_BUDGET_KIB = 25
 const BUDGETS = [
   // M112 A: question forms, commands and late-answer admission, loaded on first use.
   { path: 'dist/acpQuestions.js', budgetKiB: 25 },
-  // M105 lane W: the shared money/display leaves grew the registry entry to
-  // 26.8 KiB when measured. Plus 15%, rounded up to 25 KiB (PLAN.md D6).
-  { path: 'dist/runtimeQuestions.js', budgetKiB: 50 },
+  // Exact media money no longer enters the registry through locale helpers.
+  // Keep M112's original cap; M105's inherited temporary increase is removed.
+  { path: 'dist/runtimeQuestions.js', budgetKiB: 25 },
   { path: 'dist/questionNotes.js', budgetKiB: 25 },
   { path: 'dist/extension.js', budgetKiB: 600 },
   // ACTDIET: first chat surface; 216.0 KiB + 15%, rounded to 25 KiB.
@@ -139,6 +139,8 @@ const BUDGETS = [
   { path: 'dist/uiTextRuntime.js', budgetKiB: 25 },
   { path: 'dist/uiTextHooks.js', budgetKiB: 25 },
   { path: 'dist/uiTextSurfaces.js', budgetKiB: 25 },
+  // M105: media English on first use; measured region +15%, rounded to 25 KiB.
+  { path: 'dist/uiTextMedia.js', budgetKiB: 25 },
   // TRAIN13B: used Node mini-parser API, 39.5 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/validation.js', budgetKiB: 50 },
   // Shared existing Node boundary schemas: 41.3 KB plus 15%, rounded to 25 KiB.

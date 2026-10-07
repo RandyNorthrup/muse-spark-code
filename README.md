@@ -2369,17 +2369,34 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   gets a failed tool result before its bytes are retained. PDF and image
   tool rows use the installed panel language and number format; the model
   receives its English result.
-- **Audio and screen recordings.** Audio clips (WAV, MP3, M4A) paste and
-  drop like images. Pasted audio is transcribed to text by default
-  (`museSpark.mediaAudioAction: sendAudio` sends a playable clip instead).
-  **Muse Spark: Attach screen recording…** (`/record`) captures a screen
-  recording (10 s to 10 min; the `museSpark.screenRecordingMaxSeconds`
-  setting caps the length) and attaches it to the conversation it started
-  in; where no recorder driver exists it says so instead of recording. The
-  model does not hear a video's sound. Uploads are capped at
-  `museSpark.mediaMaxUploadMiB` and expire after
-  `museSpark.mediaUploadExpiryDays` days; **Muse Spark: Delete uploaded
-  files…** removes them early.
+- **Multimodal integration status (M105).** The picker recognizes video and
+  audio; paste/drop sends approved host URI tokens without reading their bytes
+  in the browser. A bytes-only audio/video paste is refused. Production video
+  and audio delivery remains unavailable until the selected-model capability,
+  Files storage billing and ownership, consent and exact-budget bindings land.
+  `mediaAudioAction` selects the intended audio route; it does not enable an
+  unbound transcription adapter. Muse Spark 1.3 ignores a video's soundtrack;
+  1.2 hears it, according to the recorded captures. Standalone Meta audio is
+  refused because the capture found it silently ignored.
+  **Attach screen recording…** and ACP `/record` require an installed recorder
+  binding and otherwise explain that recording is unavailable. **Attach latest
+  screen recording** can inspect an existing Linux recording, but admission
+  still requires the media bindings. Remote windows need the companion route,
+  whose server is pending M104. The Windows VM has no working direct-capture
+  receipt. Configured future uploads have a `mediaMaxUploadMiB` cap and
+  `mediaUploadExpiryDays` expiry; **Delete uploaded files…** requires the real
+  account ledger. These commands do not establish provider/editor certification.
+
+  | Backend/model                                | Images and PDFs                                 | Video                                                | Standalone audio                                     |
+  | -------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------- |
+  | Model API, current production binding        | Existing inline path                            | Off: capability/Files/consent/budget binding pending | Off: captured batch adapter and paid binding pending |
+  | Muse Code                                    | Existing image path; established document rules | Off: U16/MSP capture pending                         | Off: needs captured Model API route                  |
+  | Gemini / OpenAI-compatible and other vendors | Their future captured capability record         | Off: lane V and vendor captures pending              | Off: captured capability/codec pending               |
+
+  Portable core and editor adapters have fake-based tests. Installed-editor,
+  native recording and live provider receipts remain open in
+  [M105 certification](docs/certification/m105.md).
+
 - A path with a space, `#` or `"` is written in quotes,
   `@"my notes/a b.md"#5-10`, and the menu searches what you type after `@"`.
 - The model pill reads `model effort` (effort tiers Minimal to Max, each

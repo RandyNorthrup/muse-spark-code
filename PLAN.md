@@ -25236,6 +25236,25 @@ with exact commands and owners. Finish with hook-on commits and a clean tree.
 No live or paid model calls, branch merges beyond the already completed brief
 order, pushes, timeout increases or gate weakening.
 
+W startup correction: boundary USD normalization is a schema leaf; arithmetic
+and ceiling currency display load only with media pricing. Preserve the legacy
+tariff formatter. Tool-row rendering also loads on its first row, behind the
+existing accessible loading/failure/retry surface, with its own measured D6
+budget. A small status-class leaf keeps user-shell rows from importing the
+tool renderer. Existing startup and deferred caps and tests stay unchanged.
+Media English has its own first-read Node region and ACP package entry.
+The inherited W-only runtimeQuestions increase is removed: 24.4 KiB now fits
+the original 25 KiB cap. Shared patch projection keeps the original deferred
+baseline intact. No cap is raised. Production-only binding blockers are
+listed by name in `docs/certification/m105.md`; fake receipts cannot close them.
+W packaging correction: explicitly include the media/screen recorder/English
+bundles, Windows recorder source and all signed macOS app resources in VSIX.
+Transfer the app through a tar archive to retain modes; macOS CI runs R1
+permission-free encoder, signature/localization and disclaimed probes. ACP
+keeps supplied native resources, but its portable media factory remains unbound.
+The local package budget is verified separately from the still-owed universal
+macOS-artifact package and exact-package signature receipt.
+
 **M1 second review corrections (RVM105M12, 2026-10-06).** Resolve both P2
 findings inside the media core. Encoding close waits for a bounded in-flight
 resource check, then a final output/RSS sample; failures still count after
