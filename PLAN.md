@@ -18935,6 +18935,13 @@ shared screenshot helper after the harness replaced idle timing with bounded
 readiness. Remove the obsolete delay and retain theme, scene, font/paint and
 error readiness through `whenReady`; exercise the actual evaluation string
 without that removed global, and prove the guard fires before restoring it.
+The fourth coverage run passes the release/version fixture but exposes the
+same expensive full-changelog parse in the lossless artifact suite: its
+packing test exceeds the five-second deadline at 5.596 seconds. Parse the
+complete real notes once in that suite's `beforeAll` and reuse them in both
+encoding cases. Preserve the existing named deadline on the other long case,
+all 40 KiB/decoded bounds and exact lossless comparisons. Prove corruption
+still fails the complete owning file, with a byte-restored encoder drill.
 
 Packaged exec reproduces a release-base Node 22 loader-hook failure before
 any dispatch: native CommonJS import lacks implicit `require.cache`. A small

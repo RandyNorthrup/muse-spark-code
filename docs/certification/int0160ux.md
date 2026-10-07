@@ -222,6 +222,33 @@ Continue dispatches the expected agent control; Enter on the transcript's
 Answer moves focus to the dock's control. The final committed run will repeat
 this proof in its new clone.
 
+## Fourth fresh-clone finding: shared artifact fixture
+
+The fresh clone of `f34f29c70d27c5c02cc95ed1171e384e322054cb` passes
+installation, all static/build gates and shards 1, 2 and 4. The repaired
+release/version fixture passes both tests under coverage. Shard 3 exposes
+one remaining five-second timeout: the real-notes packing case parses the
+entire changelog again, taking 5.596 s. The other 16,702 tests pass, with
+the same 75 existing skips. Merged coverage still exceeds all thresholds
+(92.70%, 87.69%, 93.77%, 93.32%), and the merge command returns nonzero
+for that timeout.
+
+The bounded artifact suite now parses every real release once in its scoped
+`beforeAll`, reusing that complete fixture in both encoding cases. The
+separate real-manifest integration test and the existing named deadline on
+the full-release identity case are retained. The packing case keeps its
+default deadline; 40 KiB packed bounds, decoded-size bounds and exact
+lossless comparisons remain unchanged. No production encoder change is
+retained.
+
+The complete `whatsNewContent`, `changelogVersion` and `harnessCapture`
+files pass 25 tests on Node 22.22.2. Corrupting the encoder's Brotli payload
+makes the full `whatsNewContent` file fail its real-notes packing guard
+(one failed, 15 passed). The encoder is restored in `finally`, SHA-256
+`41d384f451d7714e5e2c92b6af21c7a6bd38e9732aa851e3294a17679b5a5c3a`.
+All 25 restored tests and targeted lint pass. This is the twelfth recorded
+drill, including the superseded first stream guard.
+
 Additional repair drills ran on Node 22.22.2 at the same default deadlines,
 with source saved/restored in `finally` and SHA-256 equality:
 

@@ -29,8 +29,9 @@ happened, not what was planned; superseded entries are kept.
   validated deltas between paints and wait for the actual composer before
   scene actions, preventing startup sign-in races in questions and reports.
 
-- Parse the full changelog in release-test setup so version and Highlights
-  assertions keep their existing deadlines under load.
+- Parse the full changelog in release and artifact test setup so version,
+  Highlights and lossless packing assertions keep their existing deadlines
+  under load.
 
 - Screenshot helpers use the harness's bounded scene readiness instead of a
   removed idle-delay constant, preserving theme, font, paint and error checks.
