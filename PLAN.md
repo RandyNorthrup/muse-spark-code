@@ -31296,6 +31296,38 @@ before a repaired one loads (2026-09-30).
   Follow-up: compose the callback and captured M95b revoker in the integrated
   panel/native/ACP/runtime flows, with cancellation and endpoint-change tests.
 
+- **M108W-REFERENCE-BUDGET (W).** `dist/reference.js` measures 101.8 KiB
+  against its 100 KiB cap (base 99.5 KiB on `sync/main-0170`, measured by a
+  byte-restored input swap). W removed 10 reference rows that documented
+  `--provider`/`--account` on serve/login/setup/auth-status/auth-clear,
+  which the parser refuses outside `auth set` (proven against the real
+  parser; `referenceGenerator.test.mjs` pins the refusal per route). The
+  remaining growth is gate-mandated rows only: the `accounts` feature, three
+  settings, `providers accounts`/`developer` commands and the honored
+  authSet/exec flags; every string is rendered product text and the model
+  validation is unchanged, so no cap-neutral cut remains and the cap is not
+  raised here. Safe for now: the bundle loads lazily on first help use and
+  startup stays at 737.8 KiB. Follow-up (owner decision): apply the D6 rule
+  (measured plus 15%, rounded up to 25 KiB) or split the CLI section into
+  its own lazy chunk with a budget of its own. Receipts:
+  `docs/certification/m108.md`.
+
+- **M108W-STARTUP (W).** The webview startup closure measures 755,489 B
+  against the FIXDIET1 751,411 B (733.8 KiB) regression baseline in
+  `webviewBundle.test.mjs` — about 4 KiB over. The growth is M108's
+  translated UI strings inlined in `src/shared/l10n/en.ts` (88 added keys,
+  all in all 14 tables as AGENTS.md rule 5 requires) plus small deltas to
+  already-startup files (constants, redact's extended matcher, App); the
+  closure holds no lazy-violating code (`modelsPanel`, `shared/accounts`,
+  `accountPolicy`, `thresholds` and every account surface stay out of it,
+  and the deferred aggregate still fits 32.1 KiB). Strings cannot stay lazy
+  under the current single-table/browser-inline design, so no cap-neutral
+  cut remains. Safe for now: first paint keeps none of the account
+  surfaces, and the 900 KiB startup cap still passes (737.8 KiB).
+  Follow-up (owner decision, as with FIXM112U-P3-STARTUP): waive/rebase the
+  733.8 KiB baseline for the mandated strings, or split browser English
+  into lazy per-surface tables. Receipts: `docs/certification/m108.md`.
+
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the
   compaction that exists, the manual one: PreCompact may block it, and
