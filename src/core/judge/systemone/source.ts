@@ -8,6 +8,7 @@ import {
 import { systemOneCapability, type SystemOneModelCapability } from '../../providers/capabilities'
 import { systemOnePresetById, type SystemOneServicePreset } from '../../providers/presets'
 import { redactSecrets } from '../../redact'
+import { unlessAborted } from '../../timeouts'
 import type { JudgeRuntime } from '../engine'
 import {
   judgeRequestBytes,
@@ -24,6 +25,8 @@ const HTTP_OK = 200
 type NoAnswerReason = Extract<JudgeOutcome, { outcome: 'no-answer' }>['reason']
 
 export interface SystemOneSelection {
+  /** Increment for every policy/binding change, including revocation then restoration. */
+  readonly generation: number
   readonly presetId: string
   readonly model: string
   readonly enabled: boolean
@@ -103,6 +106,7 @@ function routeRefusal(selection: SystemOneSelection | undefined): NoAnswerReason
 function fingerprint(selection: SystemOneSelection | undefined): string {
   if (selection === undefined) return ''
   return JSON.stringify({
+    generation: selection.generation,
     presetId: selection.presetId,
     model: selection.model,
     enabled: selection.enabled,
@@ -115,10 +119,9 @@ function fingerprint(selection: SystemOneSelection | undefined): string {
 function redactNode(value: unknown): unknown {
   if (typeof value === 'string') return redactSecrets(value)
   if (value === null || typeof value !== 'object') return value
-  if (Array.isArray(value)) return Array.from(value, (item) => redactNode(item))
-  const copy: Record<string, unknown> = {}
-  for (const key of Object.keys(value)) copy[key] = redactNode(Reflect.get(value, key))
-  return copy
+  return Array.isArray(value)
+    ? Array.from(value, (item) => redactNode(item))
+    : Object.fromEntries(Object.entries(value).map(([key, item]) => [key, redactNode(item)]))
 }
 
 /** A fresh read. A direct `.aborted` check stays narrowed false across awaits. */
@@ -149,12 +152,51 @@ function tokenCount(measure: (text: string) => number, text: string): number {
 }
 
 function redactedRequest(parsed: JudgeRequest): JudgeRequest | undefined {
-  const candidate = judgeRequestSchema.safeParse({
-    ...parsed,
-    state: redactNode(parsed.state),
-    questions: redactNode(parsed.questions),
-  })
-  return candidate.success ? candidate.data : undefined
+  try {
+    // Scrub raw text before escaping, then named fields with their JSON context.
+    // This is the sole outbound owner; only its validated copy reaches the wire.
+    const redacted: unknown = JSON.parse(
+      redactSecrets(
+        JSON.stringify({
+          ...parsed,
+          state: redactNode(parsed.state),
+          questions: redactNode(parsed.questions),
+        }),
+      ),
+    )
+    const candidate = judgeRequestSchema.safeParse(redacted)
+    return candidate.success ? candidate.data : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function bindingRefusal(
+  deps: SystemOneJudgeDependencies,
+  binding: string,
+): NoAnswerReason | undefined {
+  const fresh = deps.configuration()
+  // An otherwise allowed replacement still needs a new consent binding.
+  return fingerprint(fresh) === binding ? undefined : (routeRefusal(fresh) ?? 'consent-needed')
+}
+
+async function reserveUntilAborted(
+  deps: SystemOneJudgeDependencies,
+  quote: number,
+  signal: AbortSignal,
+): Promise<SystemOneReserveResult | undefined> {
+  const pending = deps.reserve(quote)
+  const reserved = await unlessAborted(pending, signal)
+  if (reserved === undefined) {
+    // Admission may finish after Stop. Only this branch owns that late claim;
+    // it cannot dispatch and refunds exactly once. Late rejections are consumed.
+    void pending
+      .then(async (late) => {
+        if (late.reserved) await release(late.claim, 'cancelled')
+      })
+      .catch(() => refused('engine-failure'))
+  }
+  return reserved
 }
 
 interface MeasuredBody {
@@ -217,8 +259,13 @@ function ledgerReason(reason: 'over-budget' | 'unpriced' | 'ledger-unavailable')
 export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRuntime {
   return {
     async judge(input, callerSignal): Promise<JudgeOutcome> {
-      const initial = deps.configuration()
-      if (initial === undefined) return refused('source-unavailable')
+      const configured = deps.configuration()
+      if (configured === undefined) return refused('source-unavailable')
+      const initial = { ...configured }
+      if (!Number.isSafeInteger(initial.generation) || initial.generation < 0) {
+        return refused('source-unavailable')
+      }
+      const binding = fingerprint(initial)
       const blocked = policyRefusal(initial)
       if (blocked !== undefined) return refused(blocked)
       const route = resolveRoute(initial)
@@ -252,60 +299,76 @@ export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRun
       const deadline = AbortSignal.timeout(JUDGE_REQUEST_TIMEOUT_MS)
       const signal = AbortSignal.any([callerSignal, deadline])
       if (isSignalAborted(signal)) return refused(abortReason(callerSignal, deadline))
-      let reserved: SystemOneReserveResult
+      let reserved: SystemOneReserveResult | undefined
       try {
-        reserved = await deps.reserve(quote)
-      } catch {
-        return refused('engine-failure')
-      }
-      if (!reserved.reserved) return refused(ledgerReason(reserved.reason))
-      const claim = reserved.claim
-      if (isSignalAborted(signal)) return await release(claim, abortReason(callerSignal, deadline))
-      const fresh = deps.configuration()
-      if (fingerprint(fresh) !== fingerprint(initial)) {
-        return await release(claim, routeRefusal(fresh) ?? 'engine-failure')
-      }
-      let key: string | undefined
-      try {
-        key = await deps.readKey(route.preset.keyProviderId)
-      } catch {
-        return await release(claim, 'engine-failure')
-      }
-      if (key === undefined || key.length === 0) return await release(claim, 'source-unavailable')
-      if (isSignalAborted(signal)) return await release(claim, abortReason(callerSignal, deadline))
-      let response: SystemOnePostResult
-      try {
-        response = await deps.post({
-          origin: route.preset.origin,
-          path: route.preset.path,
-          body,
-          key,
-          signal,
-        })
+        reserved = await reserveUntilAborted(deps, quote, signal)
       } catch {
         return refused(
           isSignalAborted(signal) ? abortReason(callerSignal, deadline) : 'engine-failure',
         )
       }
-      if (!response.sent) return await release(claim, 'engine-failure')
-      if (response.status !== HTTP_OK) return refused('engine-failure')
-      try {
-        const prepared = prepareSystemOne(response.body, request, route.capability.responseModels)
-        const actual = systemOneUsd(
-          prepared.usage.input_tokens,
-          prepared.usage.output_tokens,
-          route.capability,
-        )
-        if (actual > claim.reservedUsd) return refused('engine-failure')
-        const result = prepared.withCosts({
-          reservedCostUsd: claim.reservedUsd,
-          settledCostUsd: actual,
-        })
-        await claim.settle(actual)
-        return { outcome: 'answered', result }
-      } catch {
-        return refused('engine-failure')
+      if (reserved === undefined) return refused(abortReason(callerSignal, deadline))
+      if (!reserved.reserved) return refused(ledgerReason(reserved.reason))
+      const claim = reserved.claim
+      const complete = async (): Promise<JudgeOutcome> => {
+        if (isSignalAborted(signal))
+          return await release(claim, abortReason(callerSignal, deadline))
+        const changed = bindingRefusal(deps, binding)
+        if (changed !== undefined) return await release(claim, changed)
+        let key: string | undefined
+        try {
+          key = await unlessAborted(deps.readKey(route.preset.keyProviderId), signal)
+        } catch {
+          return await release(claim, 'engine-failure')
+        }
+        if (isSignalAborted(signal))
+          return await release(claim, abortReason(callerSignal, deadline))
+        const rebound = bindingRefusal(deps, binding)
+        if (rebound !== undefined) return await release(claim, rebound)
+        if (key === undefined || key.length === 0) return await release(claim, 'source-unavailable')
+        // No await between the final policy/cancellation check and dispatch.
+        if (isSignalAborted(signal))
+          return await release(claim, abortReason(callerSignal, deadline))
+        let response: SystemOnePostResult
+        try {
+          response = await deps.post({
+            origin: route.preset.origin,
+            path: route.preset.path,
+            body,
+            key,
+            signal,
+          })
+        } catch {
+          return refused('engine-failure')
+        }
+        if (!response.sent) return await release(claim, 'engine-failure')
+        if (response.status !== HTTP_OK) return refused('engine-failure')
+        try {
+          const prepared = prepareSystemOne(response.body, request, route.capability.responseModels)
+          const actual = systemOneUsd(
+            prepared.usage.input_tokens,
+            prepared.usage.output_tokens,
+            route.capability,
+          )
+          if (actual > claim.reservedUsd) return refused('engine-failure')
+          const result = prepared.withCosts({
+            reservedCostUsd: claim.reservedUsd,
+            settledCostUsd: actual,
+          })
+          // One serialized transition owns settlement. Stop ends the caller's
+          // wait, while known dispatched usage still finishes accounting once.
+          await claim.settle(actual)
+          return { outcome: 'answered', result }
+        } catch {
+          return refused('engine-failure')
+        }
       }
+      const outcome = await unlessAborted(complete(), signal)
+      // The shared signal is sticky: cancellation can never become answered,
+      // even if the response or ledger wins the promise race in the same turn.
+      return outcome === undefined || isSignalAborted(signal)
+        ? refused(abortReason(callerSignal, deadline))
+        : outcome
     },
   }
 }

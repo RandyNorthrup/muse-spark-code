@@ -23,6 +23,7 @@ const KEY = 'sk-or-test-key-00000000000001'
 
 function selection(over: Partial<SystemOneSelection> = {}): SystemOneSelection {
   return {
+    generation: 0,
     presetId: 'openrouter-jev',
     model: 'typesafe/jev-1.13',
     enabled: true,
@@ -47,6 +48,7 @@ interface HarnessOptions {
   readonly duringReserve?: (set: (next: SystemOneSelection) => void) => void
   readonly settle?: (usd: number) => Promise<void>
   readonly refund?: () => Promise<void>
+  readonly onConfigurationRead?: () => void
 }
 
 function harness(options: HarnessOptions = {}) {
@@ -57,7 +59,10 @@ function harness(options: HarnessOptions = {}) {
   let refunds = 0
   let current = options.selection ?? selection()
   const deps: SystemOneJudgeDependencies = {
-    configuration: () => current,
+    configuration: () => {
+      options.onConfigurationRead?.()
+      return current
+    },
     readKey(keyProviderId) {
       events.push(`key:${keyProviderId}`)
       return options.readKey === undefined ? Promise.resolve(KEY) : options.readKey(keyProviderId)
@@ -67,7 +72,7 @@ function harness(options: HarnessOptions = {}) {
       events.push('reserve')
       quotes.push(usd)
       options.duringReserve?.((next) => {
-        current = next
+        current = { ...next, generation: current.generation + 1 }
       })
       if (options.reserve !== undefined) return await options.reserve(usd)
       return {
@@ -109,7 +114,7 @@ function harness(options: HarnessOptions = {}) {
     settled,
     refunds: () => refunds,
     setSelection(next: SystemOneSelection) {
-      current = next
+      current = { ...next, generation: current.generation + 1 }
     },
   }
 }
@@ -148,6 +153,24 @@ function kind(text: string): 'state' | 'question' | 'body' {
   const value: unknown = JSON.parse(text)
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return 'state'
   return 'model' in value ? 'body' : 'question'
+}
+
+function nextTask(): Promise<void> {
+  return new Promise((resolve) => {
+    setImmediate(resolve)
+  })
+}
+
+function heldKeyHarness() {
+  const entered = Promise.withResolvers<undefined>()
+  const key = Promise.withResolvers<string | undefined>()
+  const rig = harness({
+    readKey: () => {
+      entered.resolve(undefined)
+      return key.promise
+    },
+  })
+  return { rig, key, entered: entered.promise }
 }
 
 describe('systemone runtime', () => {
@@ -204,6 +227,15 @@ describe('systemone runtime', () => {
     })
     expect(rig.events).toEqual([])
   })
+
+  it.each([-1, 0.5, NaN])(
+    'refuses an invalid policy generation %s before I/O',
+    async (generation) => {
+      const rig = harness({ selection: selection({ generation }) })
+      expect(await ask(rig)).toEqual({ outcome: 'no-answer', reason: 'source-unavailable' })
+      expect(rig.events).toEqual([])
+    },
+  )
 
   it('refuses auto selection before reserve', async () => {
     const rig = harness({ selection: selection({ selection: 'auto' }) })
@@ -292,6 +324,346 @@ describe('systemone runtime', () => {
     expect(again.outcome).toBe('answered')
     expect(rig.quotes).toHaveLength(2)
     expect(rig.posts).toHaveLength(2)
+  })
+
+  it.each([
+    ['openrouter-jev', 'object'],
+    ['openrouter-jev', 'array'],
+    ['typesafe-jev', 'object'],
+    ['typesafe-jev', 'array'],
+  ])(
+    'redacts named secrets in every structured field on %s with %s state',
+    async (presetId, shape) => {
+      const names = [
+        'password',
+        'api_key',
+        'apikey',
+        'access_token',
+        'refresh_token',
+        'id_token',
+        'client_secret',
+        'private_key',
+        'customToken',
+      ]
+      const fields = Object.fromEntries(names.map((name) => [name, `opaque-${name}-value`]))
+      const structured = {
+        ...fields,
+        nested: { ...fields },
+        list: [{ ...fields }],
+        keep: 'ordinary',
+      }
+      const state = shape === 'array' ? [structured] : structured
+      const model = presetId === 'typesafe-jev' ? 'jev-1.13.0' : 'typesafe/jev-1.13'
+      const rig = harness({ selection: selection({ presetId, model }) })
+      const request = judgeRequestSchema.parse({
+        state,
+        questions: {
+          healthy: {
+            type: 'noul',
+            instructions: 'password=opaque-instructions',
+            criteria: { true: 'api_key=opaque-true', false: 'client_secret=opaque-false' },
+          },
+          route: {
+            type: 'choice',
+            instructions: 'access_token=opaque-choice',
+            criteria: { A: 'password=opaque-A', B: 'refresh_token=opaque-B' },
+          },
+          score: {
+            type: 'score',
+            instructions: 'id_token=opaque-score',
+            criteria: ['"private_key":"opaque-low"', 'password=opaque-high'],
+          },
+        },
+      })
+      await ask(rig, request)
+      expect(rig.posts).toHaveLength(1)
+      const body = rig.posts[0]?.body ?? ''
+      expect(body).not.toContain('opaque-')
+      expect(body).toContain('ordinary')
+      expect(body).toContain(REDACTED_MARK)
+      expect(judgeRequestSchema.safeParse(JSON.parse(body)).success).toBe(true)
+      expect(request.state).toEqual(state)
+    },
+  )
+
+  it.each([
+    [{ confidential: true }, 'confidential-refused'],
+    [{ consent: 'declined' }, 'consent-declined'],
+    [{ consent: 'needed' }, 'consent-needed'],
+    [{ enabled: false }, 'explicit-off'],
+    [{ selection: 'auto' }, 'source-untested'],
+    [{ presetId: 'typesafe-jev', model: 'jev-1.13.0' }, 'consent-needed'],
+    [{ model: '~typesafe/jev-latest' }, 'consent-needed'],
+  ] satisfies [Partial<SystemOneSelection>, string][])(
+    'rechecks policy after key lookup for %j',
+    async (change, reason) => {
+      const { rig, key, entered } = heldKeyHarness()
+      const operation = ask(rig)
+      await entered
+      rig.setSelection(selection(change))
+      key.resolve(KEY)
+      expect(await operation).toEqual({ outcome: 'no-answer', reason })
+      expect(rig.posts).toHaveLength(0)
+      expect(rig.refunds()).toBe(1)
+      expect(rig.settled).toEqual([])
+    },
+  )
+
+  it('refuses a revoked then restored policy generation during key lookup', async () => {
+    const { rig, key, entered } = heldKeyHarness()
+    const operation = ask(rig)
+    await entered
+    rig.setSelection(selection({ consent: 'declined', confidential: true }))
+    rig.setSelection(selection())
+    key.resolve(KEY)
+    expect(await operation).toEqual({ outcome: 'no-answer', reason: 'consent-needed' })
+    expect(rig.posts).toHaveLength(0)
+    expect(rig.refunds()).toBe(1)
+  })
+
+  it('snapshots a mutable policy object before key lookup', async () => {
+    const initial = { ...selection() }
+    const rig = harness({
+      selection: initial,
+      readKey: () => {
+        initial.confidential = true
+        initial.generation += 1
+        return Promise.resolve(KEY)
+      },
+    })
+    expect(await ask(rig)).toEqual({ outcome: 'no-answer', reason: 'confidential-refused' })
+    expect(rig.posts).toHaveLength(0)
+    expect(rig.refunds()).toBe(1)
+  })
+
+  it('refuses cancellation when fulfilled accounting wins the promise race', async () => {
+    const caller = new AbortController()
+    const rig = harness({
+      settle: () => {
+        // Cancel after the ledger fulfills, in the same microtask turn as delivery.
+        queueMicrotask(() => {
+          queueMicrotask(() => {
+            queueMicrotask(() => {
+              caller.abort()
+            })
+          })
+        })
+        return Promise.resolve()
+      },
+    })
+    expect(await rig.runtime.judge(openrouterRequest(), caller.signal)).toEqual({
+      outcome: 'no-answer',
+      reason: 'cancelled',
+    })
+    expect(rig.settled).toHaveLength(1)
+    expect(rig.refunds()).toBe(0)
+  })
+
+  it('refuses redacted structured JSON that cannot be validated before I/O', async () => {
+    const rig = harness()
+    const request = judgeRequestSchema.parse({
+      ...openrouterRequest(),
+      state: { password: 1234 },
+    })
+    expect(await ask(rig, request)).toEqual({ outcome: 'no-answer', reason: 'engine-failure' })
+    expect(rig.events).toEqual([])
+  })
+
+  it('refuses a synchronous cancellation at the final policy read before dispatch', async () => {
+    const caller = new AbortController()
+    let hasReadKey = false
+    const rig = harness({
+      readKey: () => {
+        hasReadKey = true
+        return Promise.resolve(KEY)
+      },
+      onConfigurationRead: () => {
+        if (hasReadKey) caller.abort()
+      },
+    })
+    expect(await rig.runtime.judge(openrouterRequest(), caller.signal)).toEqual({
+      outcome: 'no-answer',
+      reason: 'cancelled',
+    })
+    expect(rig.posts).toHaveLength(0)
+    expect(rig.refunds()).toBe(1)
+  })
+
+  it.each([
+    ['caller', 'sent'],
+    ['deadline', 'sent'],
+    ['caller', 'unsent'],
+    ['deadline', 'unsent'],
+    ['caller', 'reject'],
+    ['deadline', 'reject'],
+  ])('bounds pending post by %s and accounts late %s once', async (cause, late) => {
+    const caller = new AbortController()
+    const deadline = new AbortController()
+    const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(deadline.signal)
+    const entered = Promise.withResolvers<undefined>()
+    const response = Promise.withResolvers<SystemOnePostResult>()
+    const rig = harness({
+      post: () => {
+        entered.resolve(undefined)
+        return response.promise
+      },
+    })
+    const decided = vi.fn()
+    const operation = rig.runtime.judge(openrouterRequest(), caller.signal)
+    void operation.then(decided)
+    try {
+      await entered.promise
+      ;(cause === 'caller' ? caller : deadline).abort()
+      await nextTask()
+      expect(decided).toHaveBeenCalledExactlyOnceWith({
+        outcome: 'no-answer',
+        reason: cause === 'caller' ? 'cancelled' : 'timeout',
+      })
+      expect(rig.settled).toEqual([])
+      expect(rig.refunds()).toBe(0)
+    } finally {
+      if (late === 'reject') response.reject(new Error('transport'))
+      else
+        response.resolve({
+          sent: late === 'sent',
+          status: 200,
+          body: captures.openrouterRecordedNoul.response,
+        })
+      await operation
+      await nextTask()
+      timeout.mockRestore()
+    }
+    expect(rig.posts).toHaveLength(1)
+    expect(rig.settled).toHaveLength(late === 'sent' ? 1 : 0)
+    expect(rig.refunds()).toBe(late === 'unsent' ? 1 : 0)
+    expect(decided).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['key', 'caller', 'resolve'],
+    ['key', 'deadline', 'resolve'],
+    ['reserve', 'caller', 'resolve'],
+    ['reserve', 'deadline', 'resolve'],
+    ['key', 'caller', 'reject'],
+    ['reserve', 'deadline', 'reject'],
+  ])('bounds pending %s by %s and handles late %s once', async (stage, cause, late) => {
+    const caller = new AbortController()
+    const deadline = new AbortController()
+    const timeout = vi.spyOn(AbortSignal, 'timeout').mockImplementation((milliseconds) => {
+      expect(milliseconds).toBe(JUDGE_REQUEST_TIMEOUT_MS)
+      return deadline.signal
+    })
+    const entered = Promise.withResolvers<undefined>()
+    const key = Promise.withResolvers<string | undefined>()
+    const reservation = Promise.withResolvers<SystemOneReserveResult>()
+    const refund = vi.fn(() => Promise.resolve())
+    const settle = vi.fn(() => Promise.resolve())
+    const rig = harness(
+      stage === 'key'
+        ? {
+            readKey: () => {
+              entered.resolve(undefined)
+              return key.promise
+            },
+          }
+        : {
+            reserve: () => {
+              entered.resolve(undefined)
+              return reservation.promise
+            },
+          },
+    )
+    const decided = vi.fn()
+    const operation = rig.runtime.judge(openrouterRequest(), caller.signal)
+    void operation.then(decided)
+    try {
+      await entered.promise
+      const reason = cause === 'caller' ? 'cancelled' : 'timeout'
+      ;(cause === 'caller' ? caller : deadline).abort()
+      await nextTask()
+      expect(decided).toHaveBeenCalledExactlyOnceWith({ outcome: 'no-answer', reason })
+      expect(rig.posts).toHaveLength(0)
+      if (stage === 'key') expect(rig.refunds()).toBe(1)
+    } finally {
+      if (late === 'reject') {
+        if (stage === 'key') key.reject(new Error('late key failure'))
+        else reservation.reject(new Error('late ledger failure'))
+      } else {
+        key.resolve(KEY)
+        reservation.resolve({ reserved: true, claim: { reservedUsd: 1, refund, settle } })
+      }
+      await operation
+      await nextTask()
+      timeout.mockRestore()
+    }
+    caller.abort()
+    deadline.abort()
+    await nextTask()
+    expect(rig.posts).toHaveLength(0)
+    expect(rig.settled).toEqual([])
+    expect(settle).not.toHaveBeenCalled()
+    expect(refund).toHaveBeenCalledTimes(stage === 'reserve' && late === 'resolve' ? 1 : 0)
+    expect(rig.refunds()).toBe(stage === 'key' ? 1 : 0)
+    expect(decided).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['post', 'caller'],
+    ['post', 'deadline'],
+    ['settle', 'caller'],
+    ['settle', 'deadline'],
+    ['settle-failure', 'caller'],
+    ['settle-failure', 'deadline'],
+  ])('keeps %s cancellation from %s terminal while accounting once', async (stage, cause) => {
+    const caller = new AbortController()
+    const deadline = new AbortController()
+    const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(deadline.signal)
+    const stop = cause === 'caller' ? caller : deadline
+    const entered = Promise.withResolvers<undefined>()
+    const settlement = Promise.withResolvers<undefined>()
+    const rig = harness(
+      stage === 'post'
+        ? {
+            post: () => {
+              stop.abort()
+              return Promise.resolve({
+                sent: true,
+                status: 200,
+                body: captures.openrouterRecordedNoul.response,
+              })
+            },
+          }
+        : {
+            settle: () => {
+              entered.resolve(undefined)
+              return settlement.promise
+            },
+          },
+    )
+    const decided = vi.fn()
+    const operation = rig.runtime.judge(openrouterRequest(), caller.signal)
+    void operation.then(decided)
+    try {
+      if (stage !== 'post') {
+        await entered.promise
+        stop.abort()
+      }
+      await nextTask()
+      expect(decided).toHaveBeenCalledExactlyOnceWith({
+        outcome: 'no-answer',
+        reason: cause === 'caller' ? 'cancelled' : 'timeout',
+      })
+    } finally {
+      if (stage === 'settle-failure') settlement.reject(new Error('ledger'))
+      else settlement.resolve(undefined)
+      await operation
+      await nextTask()
+      timeout.mockRestore()
+    }
+    expect(rig.posts).toHaveLength(1)
+    expect(rig.settled).toHaveLength(1)
+    expect(rig.refunds()).toBe(0)
+    expect(decided).toHaveBeenCalledTimes(1)
   })
 
   it('sends direct TypeSafe only on an explicit opt-in and keeps its labels', async () => {
@@ -398,7 +770,7 @@ describe('systemone runtime', () => {
     expect(await switched.runtime.judge(openrouterRequest(), new AbortController().signal)).toEqual(
       {
         outcome: 'no-answer',
-        reason: 'engine-failure',
+        reason: 'consent-needed',
       },
     )
     expect(switched.refunds()).toBe(1)
