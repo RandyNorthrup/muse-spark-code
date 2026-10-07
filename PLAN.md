@@ -20637,6 +20637,40 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M109 — A credential vault and broker for agents (D89)
 
+**M109-R implementation slice (2026-10-06, MacBook rig).** Implement D89.6,
+D89.10 and D89.13 in the lane-owned `src/core/vault/fleet.ts` and `remote.ts`.
+Role `secrets` ceilings validate `none`, `ask` or unique handles; research,
+design and marketing default to none. Trusted launch facts mark schedules,
+timed sends, goals, headless and relocation unattended, including scheduler
+admission. Each worker gets its own socket and private inherited-pipe ticket
+handoff, revoked synchronously on retirement/lock. Task delegation binds the
+user's answer to role, task, targets, counts and digest; only narrowing is
+allowed and use reservations belong to one serialized owner. Uses outside an
+approved task card force a fresh broker approval, including when an ordinary
+Always grant would cover them; no fabricated taint is used for this. Remote frames
+admit signatures/codes only, using authenticated channel identity, local item
+selection and fresh owner-side approval; stale effects erase their own bytes.
+
+M96, M96c, M100 S/E, M107 R and vault S/X are absent from this base.
+Implement against injected route, task-authorization and paired-channel ports;
+record each binding as a named integration handoff, with no production fake or
+changes to another lane's files. Existing broker policy remains authoritative.
+No new UI, command, setting, dependency or activation import in this slice.
+Feature-reference entries and delegation-card visual checks follow actual UI
+integration; no Chrome/browser suite on this rig. Lane certification and red
+drills: `docs/certification/m109-r-roles,-fleets-and-devices.md`. Aggregate
+quality and joined-tree platform/editor checks remain lead-owned, per rig brief.
+
+**M109-R certification (2026-10-06).** Core slice complete against its injected
+ports: 59 focused tests at default timeout, 63 named red drills with byte-exact
+restoration, all five typecheck projects, lint/format, localization, deadcode,
+zero duplication, cycles and production build passed. Test helpers were checked
+again after deduplication. Host API record regeneration remains W-owned (B's
+existing drift plus R's two crypto imports). M109 stays integration-open: next
+bind R-task-authority/R-routes with M96/B/S/X, then M100 S/E and M107 R, shared
+editor/UI surfaces, reference entries and the joined-tree full gate. Evidence:
+`docs/certification/m109-r-roles,-fleets-and-devices.md` and `m109-r-drills.json`.
+
 **FIXM109B6 / RVM109B5 (2026-10-06).** Close both confirmed findings:
 make audit-session key erasure and reference clearing unconditional despite
 file-writer close failures, and report cleanup failure to Lock/Dispose callers;
