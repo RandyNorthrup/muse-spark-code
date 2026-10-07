@@ -700,16 +700,24 @@ describe('the Auto reviewer on Muse Code (M90)', () => {
     expect(restarted.server.requestsFor('session/start').at(-1)?.params).toMatchObject({
       modelId: 'muse-spark-1.3',
     })
-    // Muse Code exited.
+    // Muse Code exited. The dead host's command owner refuses new writes
+    // (M108/M lease fence), so recovery arrives on the relaunched host the
+    // manager supplies, as in the restart leg above.
     restarted.exit(1)
     await new Promise((resolve) => setTimeout(resolve, 50))
-    t.hold(shellRequest('a5'), 'muse-spark-1.3', newHost)
-    answer(restarted, await reviewTurn(restarted, 4), CAPTURED_REPLY)
+    const relaunched = answeringHost()
+    const relaunchedHost = new MuseCodeHost(relaunched.host, t.log)
+    t.hold(shellRequest('a5'), 'muse-spark-1.3', relaunchedHost)
+    answer(relaunched, await reviewTurn(relaunched, 1), CAPTURED_REPLY)
     await vi.waitFor(() => {
       expect(t.conversation.decideApproval).toHaveBeenCalledTimes(5)
     })
-    expect(restarted.server.requestsFor('session/start')).toHaveLength(4)
-    expect(t.sideIds).toEqual(['side-1', 'side-1', 'side-2', 'side-3', 'side-4'])
+    expect(restarted.server.requestsFor('session/start')).toHaveLength(3)
+    expect(relaunched.server.requestsFor('session/start')).toHaveLength(1)
+    expect(relaunched.server.requestsFor('session/start').at(-1)?.params).toMatchObject({
+      modelId: 'muse-spark-1.3',
+    })
+    expect(t.sideIds).toEqual(['side-1', 'side-1', 'side-2', 'side-3', 'side-1'])
   })
 
   it(`starts a fresh side session after ${String(MUSE_CODE_REVIEWER_TURNS_PER_SESSION)} reviews`, async () => {
