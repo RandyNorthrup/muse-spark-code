@@ -19201,6 +19201,8 @@ lint rule rejects the exact-base file; no judge production behavior changes.
 Plain Knip also finds the existing native module loader test outside its
 entry graph. Register that actual `node --test` entrypoint, without changing
 any ignore or rule, and record the exact-base gate failure and final pass.
+Regenerate the host API inventory using its existing writer: the pending
+poller adds a Node timer import, and the exact-base built-in counts are stale.
 
 **FIXM104PA4 / RVM104PA4 (2026-10-07).** Close the re-review's two P2
 findings in lane A's files, closing residual R3-2. State publication
