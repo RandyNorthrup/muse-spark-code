@@ -167,5 +167,12 @@
   "config.shell.passEnvironmentVariables.description": "Nazwy zmiennych środowiskowych przekazywanych do interaktywnych poleceń powłoki głównej sesji, w tym zwykle wykluczanych danych uwierzytelniających. Tylko nazwy, nigdy wartości. Domyślnie: brak. Polecenie może ujawnić te wartości w rozmowie i dostawcy modelu. Weryfikacja/then_run, harmonogramy, pracownicy podrzędni/zespołowi i hooki nigdy nie otrzymują zmiennych uwierzytelniających, nawet jeśli są tu wymienione. Interaktywne polecenie przeniesione do tła zachowuje początkowe środowisko. Nie zmienia środowisk Muse Code ani jawnie skonfigurowanych serwerów MCP.",
   "command.nextOpenQuestion.title": "Następne otwarte pytanie",
   "command.previousOpenQuestion.title": "Poprzednie otwarte pytanie",
-  "config.questions.deferAfterSeconds.description": "Liczba sekund, po których pytanie bez odpowiedzi zostaje odroczone, aby Muse mógł kontynuować pracę. Domyślnie 60; 0 oznacza nigdy; 1–9 są odczytywane jako 10; maksimum 3600. Pytanie pozostaje otwarte i można odpowiedzieć później. Używane jest tylko ustawienie tego komputera."
+  "config.questions.deferAfterSeconds.description": "Liczba sekund, po których pytanie bez odpowiedzi zostaje odroczone, aby Muse mógł kontynuować pracę. Domyślnie 60; 0 oznacza nigdy; 1–9 są odczytywane jako 10; maksimum 3600. Pytanie pozostaje otwarte i można odpowiedzieć później. Używane jest tylko ustawienie tego komputera.",
+  "command.showReport.title": "Pokaż raport…",
+  "config.reports.network.description": "Wybierz, kiedy raporty mogą odczytywać GitHub i publiczne kanały wydań. Raporty w terminalu korzystają z sieci tylko z --network.",
+  "config.reports.network.enumDescriptions.whenSignedIn": "Odczytuj GitHub po zalogowaniu oraz publiczne kanały wydań.",
+  "config.reports.network.enumDescriptions.always": "Zezwól na sieciowe źródła raportów.",
+  "config.reports.network.enumDescriptions.off": "Odczytuj wyłącznie lokalne źródła.",
+  "config.reports.keepHistory.description": "Przechowuj na tym komputerze 50 najnowszych raportów każdego rodzaju do historii i porównań.",
+  "config.reports.agentSources.description": "Zezwól na odczyt własnych plików użycia i limitów Claude Code lub Codex. Domyślnie: żadne. Tekst rozmów i pliki poświadczeń nigdy nie są odczytywane jako źródła raportów."
 }

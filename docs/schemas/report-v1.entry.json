@@ -1,0 +1,19 @@
+{
+  "source": "src/shared/reportSchema.ts",
+  "export": "reportDocumentSchema",
+  "output": "docs/schemas/report-v1.schema.json",
+  "format": "report-v1",
+  "outputScrubExemptPaths": ["/header/contentHash"],
+  "hashExcludedPaths": ["/header/asOf", "/header/contentHash"],
+  "runtimeInvariants": [
+    "Needs you has id and label needsYou, and is the first section.",
+    "Section ids, row keys, column keys and source ids are unique within their containers.",
+    "Every row has exactly the declared columns and references only named sources.",
+    "A source without observedAt has unknown freshness, never a claimed age.",
+    "All sections declare key order, compared by code unit; collectors sort before rendering.",
+    "Source strings are scrubbed at snapshot creation and again over canonical output bytes before hashing.",
+    "Then compute contentHash as SHA-256 of the scrubbed canonical JSON excluding /header/asOf and /header/contentHash; verify the same bytes when reading saved reports.",
+    "Only /header/contentHash is excluded from output scrubbing by schema path, never by value, key name alone or a general hexadecimal exemption; JSON, display and diff hash metadata preserve it.",
+    "Schema validation alone certifies neither output scrubbing nor content-hash verification."
+  ]
+}

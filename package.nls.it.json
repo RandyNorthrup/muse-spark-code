@@ -167,5 +167,12 @@
   "config.shell.passEnvironmentVariables.description": "Nomi delle variabili di ambiente da passare ai comandi shell interattivi della sessione principale, incluse le credenziali normalmente escluse. Solo nomi, mai valori. Predefinito: nessuna. Un comando può esporre questi valori nella conversazione e al fornitore del modello. Verifiche/then_run, pianificazioni, agenti secondari/di squadra e hook non ricevono mai variabili di credenziali, anche se elencate qui. Un comando interattivo spostato in background mantiene il suo ambiente iniziale. Non modifica gli ambienti di Muse Code o dei server MCP configurati esplicitamente.",
   "command.nextOpenQuestion.title": "Domanda aperta successiva",
   "command.previousOpenQuestion.title": "Domanda aperta precedente",
-  "config.questions.deferAfterSeconds.description": "Secondi prima che una domanda senza risposta venga rimandata per consentire a Muse di continuare a lavorare. 60 per impostazione predefinita; 0 significa mai; 1–9 vengono interpretati come 10; massimo 3.600. La domanda resta aperta e può ricevere una risposta in seguito. Si usa solo l’impostazione di questo computer."
+  "config.questions.deferAfterSeconds.description": "Secondi prima che una domanda senza risposta venga rimandata per consentire a Muse di continuare a lavorare. 60 per impostazione predefinita; 0 significa mai; 1–9 vengono interpretati come 10; massimo 3.600. La domanda resta aperta e può ricevere una risposta in seguito. Si usa solo l’impostazione di questo computer.",
+  "command.showReport.title": "Mostra rapporto…",
+  "config.reports.network.description": "Scegli quando i rapporti possono leggere GitHub e i canali pubblici di pubblicazione. I rapporti da terminale usano la rete solo con --network.",
+  "config.reports.network.enumDescriptions.whenSignedIn": "Leggi GitHub quando hai effettuato l’accesso e i canali pubblici di pubblicazione.",
+  "config.reports.network.enumDescriptions.always": "Consenti fonti di rete per i rapporti.",
+  "config.reports.network.enumDescriptions.off": "Leggi solo fonti locali.",
+  "config.reports.keepHistory.description": "Conserva su questo computer gli ultimi 50 rapporti di ogni tipo per la cronologia e i confronti.",
+  "config.reports.agentSources.description": "Abilita la lettura dei tuoi file di utilizzo e limiti di Claude Code o Codex. Impostazione predefinita: nessuno. Il testo delle conversazioni e i file di credenziali non vengono mai letti come fonti dei rapporti."
 }

@@ -167,5 +167,12 @@
   "config.shell.passEnvironmentVariables.description": "傳遞給主工作階段互動式 shell 命令的環境變數名稱，包括通常被排除的憑證變數。僅填寫名稱，不填寫值。預設不傳遞。命令可能在對話中以及向模型供應商揭露這些值。驗證/then_run、排程、子代理/團隊工作者和掛鉤永遠不會接收憑證變數，即使在此列出名稱。移至背景的互動式命令保留啟動時的環境。不會變更 Muse Code 或明確設定的 MCP 伺服器環境。",
   "command.nextOpenQuestion.title": "下一個待回答的問題",
   "command.previousOpenQuestion.title": "上一個待回答的問題",
-  "config.questions.deferAfterSeconds.description": "在多少秒後暫緩未回答的問題，讓 Muse 繼續工作。預設值為 60；0 表示永不；1–9 按 10 處理；最大值為 3,600。問題會維持待回答狀態，可稍後回答。僅使用此電腦的設定。"
+  "config.questions.deferAfterSeconds.description": "在多少秒後暫緩未回答的問題，讓 Muse 繼續工作。預設值為 60；0 表示永不；1–9 按 10 處理；最大值為 3,600。問題會維持待回答狀態，可稍後回答。僅使用此電腦的設定。",
+  "command.showReport.title": "顯示報告…",
+  "config.reports.network.description": "選擇報告何時可以讀取 GitHub 和公開發行通路。終端機報告僅在帶有 --network 時使用網路。",
+  "config.reports.network.enumDescriptions.whenSignedIn": "登入 GitHub 時讀取 GitHub，同時讀取公開發行通路。",
+  "config.reports.network.enumDescriptions.always": "允許報告使用網路來源。",
+  "config.reports.network.enumDescriptions.off": "僅讀取本機來源。",
+  "config.reports.keepHistory.description": "在此電腦上保留每種類型最新的 50 份報告，供歷程記錄和比較使用。",
+  "config.reports.agentSources.description": "選擇讀取您自己的 Claude Code 或 Codex 用量和限制檔案。預設不啟用任何來源。絕不將對話本文與認證資料檔案作為報告來源讀取。"
 }

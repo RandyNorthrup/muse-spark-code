@@ -167,5 +167,12 @@
   "config.shell.passEnvironmentVariables.description": "Ana oturumdaki etkileşimli kabuk komutlarına aktarılacak ortam değişkenlerinin adları; normalde dışarıda tutulan kimlik bilgileri de dahil. Yalnızca adlar, asla değerler. Varsayılan: hiçbiri. Bir komut bu değerleri konuşmada ve model sağlayıcısına açığa çıkarabilir. Doğrulama/then_run, zamanlanmış işler, alt/ekip çalışanları ve kancalar, burada adları yazılsa bile kimlik bilgisi değişkenlerini asla almaz. Arka plana taşınan etkileşimli bir komut başlangıç ortamını korur. Muse Code veya açıkça yapılandırılmış MCP sunucusu ortamlarını değiştirmez.",
   "command.nextOpenQuestion.title": "Sonraki açık soru",
   "command.previousOpenQuestion.title": "Önceki açık soru",
-  "config.questions.deferAfterSeconds.description": "Muse’un çalışmaya devam edebilmesi için yanıtsız bir sorunun ertelenmesine kadar geçen saniye. Varsayılan 60; 0 hiçbir zaman demektir; 1–9, 10 olarak okunur; en fazla 3.600. Soru açık kalır ve daha sonra yanıtlanabilir. Yalnızca bu bilgisayarın ayarı kullanılır."
+  "config.questions.deferAfterSeconds.description": "Muse’un çalışmaya devam edebilmesi için yanıtsız bir sorunun ertelenmesine kadar geçen saniye. Varsayılan 60; 0 hiçbir zaman demektir; 1–9, 10 olarak okunur; en fazla 3.600. Soru açık kalır ve daha sonra yanıtlanabilir. Yalnızca bu bilgisayarın ayarı kullanılır.",
+  "command.showReport.title": "Rapor göster…",
+  "config.reports.network.description": "Raporların GitHub ve herkese açık sürüm kanallarını ne zaman okuyabileceğini seçin. Terminal raporları ağı yalnızca --network ile kullanır.",
+  "config.reports.network.enumDescriptions.whenSignedIn": "GitHub’a giriş yapılmışken GitHub’ı ve herkese açık sürüm kanallarını oku.",
+  "config.reports.network.enumDescriptions.always": "Raporlar için ağ kaynaklarına izin ver.",
+  "config.reports.network.enumDescriptions.off": "Yalnızca yerel kaynakları oku.",
+  "config.reports.keepHistory.description": "Geçmiş ve karşılaştırma için bu bilgisayarda her türün en yeni 50 raporunu sakla.",
+  "config.reports.agentSources.description": "Kendi Claude Code veya Codex kullanım ve sınır dosyalarınızın okunmasına izin verin. Varsayılan: hiçbiri. Konuşma metni ve kimlik bilgisi dosyaları rapor kaynağı olarak asla okunmaz."
 }
