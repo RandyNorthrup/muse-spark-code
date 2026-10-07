@@ -4,11 +4,13 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { SHARE_VIEW_PAGE_ITEMS, UI_TEXT } from '../../src/shared/constants'
 import { EMPTY_PAID_TALLY } from '../../src/shared/paid'
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../../src/shared/protocol'
+import { scheduleDraftSchema } from '../../src/shared/scheduleV2'
 import { App } from '../../src/webview/App'
 import { restoredUiState, webviewStateOf } from '../../src/webview/state/snapshot'
 import { createUiStore } from '../../src/webview/state/store'
 import { initialUiState } from '../../src/webview/state/uiState'
 import { testSettings } from './helpers/fakes'
+import { fakeScheduleDraft } from './helpers/schedules/runtimeFixtures'
 
 function deliver(data: unknown) {
   act(() => {
@@ -2754,6 +2756,58 @@ describe('App: Model API scheduled prompts (M52)', () => {
     send('/loop 10m Review tests')
     expect(postMessage).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'sendMessage', text: '/loop 10m Review tests' }),
+    )
+  })
+
+  // Scheduled prompts v2 (M115, lane W): the palette binds the surface rows
+  // while the `schedules` setting is on (protocol's snapshot, on by default),
+  // and a report draft opens the editor with nothing stashed (only a prompt
+  // draft carries text for it).
+  it('shows the schedule rows while the schedules setting is on and routes one to the host', () => {
+    const postMessage = renderReady()
+    runPaletteRow(UI_TEXT.scheduleV2.labels.schedulePrompt)
+    expect(postMessage).toHaveBeenCalledWith({ type: 'openSchedules', view: 'editor' })
+    runPaletteRow(UI_TEXT.scheduleV2.labels.timeline)
+    expect(postMessage).toHaveBeenCalledWith({ type: 'openSchedules', view: 'timeline' })
+  })
+
+  it('hides the schedule rows while the schedules setting is off', () => {
+    const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
+    render(<App postMessage={postMessage} newLocalId={() => 'local-1'} />)
+    deliver({ ...init, settings: { ...testSettings, schedules: false } })
+    deliver({ type: 'authState', status: 'signedIn' })
+    const filter = openPalette()
+    fireEvent.change(filter, { target: { value: 'schedule' } })
+    const palette = screen.getByRole('dialog', { name: 'Actions' })
+    expect(within(palette).queryByText(UI_TEXT.scheduleV2.labels.title)).toBeNull()
+    expect(within(palette).queryByText(UI_TEXT.scheduleV2.labels.schedulePrompt)).toBeNull()
+    expect(within(palette).queryByText(UI_TEXT.scheduleV2.labels.timeline)).toBeNull()
+  })
+
+  it('opens the editor with nothing stashed for a report draft', () => {
+    const postMessage = renderReady()
+    const draft = scheduleDraftSchema.parse({
+      ...fakeScheduleDraft(),
+      action: {
+        kind: 'report',
+        reportKind: 'project',
+        args: { scope: 'workspace' },
+        format: 'html',
+        destinations: [{ id: 'browser', kind: 'browser', location: 'local', whenInactive: 'wait' }],
+      },
+    })
+    deliver({
+      type: 'schedulesSurface',
+      workspaceKey: 'test-key',
+      targets: [],
+      defaultDraft: draft,
+      nowMs: 1,
+      initialView: 'list',
+    } satisfies HostToWebviewMessage)
+    send('/schedule add')
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'openSchedules', view: 'editor' })
+    expect(postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'schedulesRequest' }),
     )
   })
 

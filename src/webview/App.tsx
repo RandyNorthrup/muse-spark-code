@@ -859,11 +859,14 @@ export function App({
         return
       }
       if (action.kind === 'open') {
-        if (action.draft !== undefined) {
-          const prompt: unknown = action.draft.action.prompt
-          if (typeof prompt === 'string' && prompt !== '')
-            setPendingSchedulePrompt({ prompt, surface: current.schedulesSurface })
-        }
+        // Only a prompt draft carries text for the editor; a report draft
+        // (M115 RA) opens the editor over its own args, with nothing stashed.
+        const draftAction = action.draft?.action
+        if (draftAction?.kind === 'prompt' && draftAction.prompt !== '')
+          setPendingSchedulePrompt({
+            prompt: draftAction.prompt,
+            surface: current.schedulesSurface,
+          })
         postMessage({ type: 'openSchedules', view: action.view })
         return
       }
@@ -1985,18 +1988,18 @@ export function App({
         paidFeatures: state.paid.features,
         isKeyStored: state.paid.isKeyStored,
         // Scheduled prompts v2 (M115, lane W): the palette rows open the
-        // surface through the host, which posts its props back.
-        schedules:
-          state.schedulesEnabled === true
-            ? {
-                create: { type: 'openScheduleEditor' },
-                list: { type: 'openScheduleList' },
-                timeline: { type: 'openScheduleTimeline' },
-              }
-            : undefined,
+        // surface through the host, which posts its props back (or says why
+        // it cannot: no workspace yet). Bound while the setting is on
+        // (protocol's schedules snapshot); the host owns availability.
+        ...((state.settings?.schedules ?? SETTING_DEFAULTS.schedules) && {
+          schedules: {
+            create: { type: 'openScheduleEditor' },
+            list: { type: 'openScheduleList' },
+            timeline: { type: 'openScheduleTimeline' },
+          },
+        }),
       }),
     [
-      state.schedulesEnabled,
       state.paid.isKeyStored,
       state.model,
       state.models,

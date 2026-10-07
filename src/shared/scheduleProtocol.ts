@@ -2,7 +2,7 @@
 // conversation protocol so a single-model user pays no activation cost.
 import * as z from 'zod/mini'
 import { scheduleRequestSchema, scheduleResponseSchema } from './scheduleV2'
-import { parseWith, type ParseResult } from './protocol'
+import { parseWith, type ParseResult } from './parseResult'
 import { SCHEDULE_PROTOCOL_VERSION } from './constants'
 
 // M115's lazy schedule surface uses a separate validated channel, like Tasks.
