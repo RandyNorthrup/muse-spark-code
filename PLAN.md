@@ -18834,6 +18834,33 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### INT0180 — Pre-integrate 0.18.0 on the 0.15.0 candidate (2026-10-07, linuxlt)
+
+Base `2b9059676`, branch `int/0180`. Merge only `int-m105-w`,
+`int-m108-w`, `int-m109-w`, then `int-m117-w`, each with `git merge --no-ff`.
+Preserve both sides' behavior, translated keys and harness readiness entries;
+regenerate the Help reference and host API inventory. Keep the release version
+and README What's new unchanged. Startup remains at most 751,411 bytes;
+recover any excess through the newest features' existing lazy boundaries.
+
+- [~] Merge M105 media; resolve by meaning, regenerate and check.
+- [ ] Merge M108 accounts; resolve by meaning, regenerate and check.
+- [ ] Merge M109 vault and its fix round; regenerate and check.
+- [ ] Merge M117 estimator; regenerate and check.
+- [ ] Repair integration failures with failing-before/passing-after tests and
+      byte-exact restored guard drills; no increased caps or timeouts.
+- [ ] Fresh-clone committed source, `npm ci`, `CI=true`: exact Linux static
+      job, four coverage shards and merged coverage, integration, packages,
+      secrets, SAST and accessibility jobs from `.github/workflows/build.yml`.
+      Run heavy jobs serially on this rig; scoped development runs use at most
+      three files and three workers. Record missing hosted artifacts honestly.
+- [ ] Finish `docs/certification/int0180.md`, hooks-on explicit-path commits,
+      merge/job results and lead handoff. No push, extra merges or model calls.
+
+The assigned integration brief supersedes common.md's legacy merge and scoped
+verification instructions. Certification records every command, repair, drill,
+size and external blocker; it does not claim hosted/platform/live certification.
+
 ### CI0150M — Round 3 macOS CI repairs (2026-10-07, macmini)
 
 - [x] Reproduce the journal coverage timeout and companion authentication race;
