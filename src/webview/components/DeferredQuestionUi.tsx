@@ -12,12 +12,15 @@ const LazyCard = deferred(
     return { default: QuestionView }
   },
   false,
-  (props) =>
-    'question' in props ? (
-      <QuestionLoadingCard question={props.question} isDockCard={props.isDockCard ?? false} />
-    ) : 'elicitation' in props ? (
+  (props) => {
+    if ('question' in props)
+      return (
+        <QuestionLoadingCard question={props.question} isDockCard={props.isDockCard ?? false} />
+      )
+    return 'elicitation' in props ? (
       <QuestionLoadingCard title={props.elicitation.server} question={undefined} />
-    ) : null,
+    ) : null
+  },
 )
 const LazyDock = deferred(
   async () => {
