@@ -26,6 +26,7 @@ public class SessionTest {
     private Path receipts;
     private IProject project;
     private ITextEditor editor;
+    private Map<?, ?> pluginSessions;
     @Before public void setup() throws Exception {
         Platform.getBundle("io.musespark.eclipse").start();
         fixture = Files.createTempFile("m104-runtime-", ".py");
@@ -33,12 +34,20 @@ public class SessionTest {
         receipts = Files.createTempFile("m104-receipts-", ".ndjson");
         ProcessBuilder builder = new ProcessBuilder("python3", fixture.toString(), "--receipts", receipts.toString()); Map<String, String> clean = Assets.environment(builder.environment()); builder.environment().clear(); builder.environment().putAll(clean); runtime = builder.start();
         session = new WindowSession(PlatformUI.getWorkbench().getActiveWorkbenchWindow(), runtime);
+        java.lang.reflect.Field owned = MusePlugin.class.getDeclaredField("sessions"); owned.setAccessible(true);
+        if (!(owned.get(MusePlugin.get()) instanceof Map<?, ?> registered)) throw new AssertionError("plugin session registry unavailable");
+        pluginSessions = registered;
+        // The Window-menu must adopt this fake; it must never launch a real agent.
+        registered.getClass().getMethod("put", Object.class, Object.class).invoke(registered, session.window, session);
         CountDownLatch initialized = new CountDownLatch(1); session.afterInitialize(initialized::countDown); pump(() -> initialized.getCount() == 0);
         project = ResourcesPlugin.getWorkspace().getRoot().getProject("m104-session-" + UUID.randomUUID()); project.create(null); project.open(null);
         IFile file = project.getFile("example.txt"); file.create(new ByteArrayInputStream("user".getBytes(StandardCharsets.UTF_8)), true, null); editor = session.documents.open(file.getLocationURI().toString());
     }
     @After public void cleanup() throws Exception {
+        if (pluginSessions != null && session != null) pluginSessions.remove(session.window);
         if (session != null) session.close();
+        for (IViewReference reference : PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage().getViewReferences())
+            if (reference.getView(false) instanceof MuseView view) view.getSite().getPage().hideView(view);
         if (editor != null) PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage().closeEditor(editor, false);
         if (project != null) project.delete(true, true, null);
         if (runtime != null) { runtime.destroyForcibly(); runtime.waitFor(2, TimeUnit.SECONDS); }
@@ -224,13 +233,54 @@ public class SessionTest {
         try {
             String uri = file.getLocationURI().toString();
             JsonElement version = session.documents.descriptor(editor).get("version");
-            JsonObject settled = session.uiRequest("diagnostics/settled", Json.object("uri", uri, "expectedVersion", version)).getAsJsonObject();
+            java.util.concurrent.atomic.AtomicReference<JsonElement> report = new java.util.concurrent.atomic.AtomicReference<>();
+            pump(() -> { try { report.set(session.uiRequest("diagnostics/settled", Json.object("uri", uri, "expectedVersion", version))); return !report.get().isJsonNull(); } catch (Exception ex) { throw new AssertionError(ex); } });
+            JsonObject settled = report.get().getAsJsonObject();
             assertEquals(version, settled.get("version"));
             assertEquals(uri, settled.get("uri").getAsString());
             assertEquals(1, settled.getAsJsonArray("diagnostics").size());
             assertEquals("error", settled.getAsJsonArray("diagnostics").get(0).getAsJsonObject().get("severity").getAsString());
             assertTrue(session.uiRequest("diagnostics/settled", Json.object("uri", uri, "expectedVersion", version.getAsLong() + 1)).isJsonNull());
         } finally { marker.delete(); }
+    }
+    @Test public void settledDiagnosticsWaitForAnalysisAfterASavedEdit() throws Exception {
+        IFile file = project.getFile("example.txt");
+        session.documents.document(editor).set("new error"); editor.doSave(new org.eclipse.core.runtime.NullProgressMonitor());
+        long version = session.documents.descriptor(editor).get("version").getAsLong();
+        CountDownLatch analysing = new CountDownLatch(1), finish = new CountDownLatch(1);
+        org.eclipse.core.runtime.jobs.Job builder = new org.eclipse.core.runtime.jobs.Job("pending fixture analysis") {
+            @Override public boolean belongsTo(Object family) { return family == ResourcesPlugin.FAMILY_AUTO_BUILD; }
+            @Override protected org.eclipse.core.runtime.IStatus run(org.eclipse.core.runtime.IProgressMonitor monitor) {
+                analysing.countDown();
+                try {
+                    assertTrue(finish.await(5, TimeUnit.SECONDS));
+                    IMarker marker = file.createMarker(IMarker.PROBLEM); marker.setAttribute(IMarker.LINE_NUMBER, 1);
+                    marker.setAttribute(IMarker.SEVERITY, IMarker.SEVERITY_ERROR); marker.setAttribute(IMarker.MESSAGE, "new version error");
+                    return org.eclipse.core.runtime.Status.OK_STATUS;
+                } catch (Exception ex) { return org.eclipse.core.runtime.Status.error("fixture analysis failed", ex); }
+            }
+        };
+        builder.schedule(); assertTrue(analysing.await(2, TimeUnit.SECONDS));
+        try {
+            JsonObject params = Json.object("uri", file.getLocationURI().toString(), "expectedVersion", version);
+            assertTrue("cached clean markers are not settled for the edit", session.uiRequest("diagnostics/settled", params).isJsonNull());
+            finish.countDown();
+            java.util.concurrent.atomic.AtomicReference<JsonElement> report = new java.util.concurrent.atomic.AtomicReference<>();
+            pump(() -> { try { report.set(session.uiRequest("diagnostics/settled", params)); return !report.get().isJsonNull(); } catch (Exception ex) { throw new AssertionError(ex); } });
+            assertEquals(version, report.get().getAsJsonObject().get("version").getAsLong());
+            assertTrue(report.get().toString(), report.get().toString().contains("new version error"));
+        } finally { finish.countDown(); builder.join(); }
+    }
+    @Test public void userMenuOpenReplacesAnUnboundRestoredViewWithTheOwnedSession() throws Exception {
+        IWorkbenchPage page = session.window.getActivePage();
+        MuseView placeholder = (MuseView) page.showView("io.musespark.panel"); assertNull(placeholder.binding());
+        String owned = "restored-owned-session";
+        session.uiRequest("surfaces/open", Json.object("kind", "chat", "placement", "side", "sessionId", owned));
+        for (MuseView view : views()) if (view.binding() != null) page.hideView(view);
+        assertEquals(List.of(placeholder), views());
+        OpenHandler.openPanel(session.window);
+        assertTrue("Open must replace the unbound placeholder", views().stream().anyMatch(view -> view.binding() != null));
+        assertEquals(1, views().size()); assertEquals(owned, views().get(0).binding().session);
     }
     @Test public void runtimeCommandRunNotifiesItsRegisteredExecution() throws Exception {
         session.uiRequest("commands/register", Json.object("id", "fixture-run", "title", "Fixture run command"));

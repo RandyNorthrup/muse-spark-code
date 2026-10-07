@@ -9,6 +9,89 @@ import javax.swing.JFrame
 class NativeBrowserTest : BasePlatformTestCase() {
   override fun runInDispatchThread() = false
 
+  fun testReplacementWhatsNewHtmlInstallsTheBridgeAndLoadsItsAssets() {
+    val boundary = JsonBoundary()
+    val sent = java.util.concurrent.CopyOnWriteArrayList<com.google.gson.JsonObject>()
+    val surface =
+      PanelSurface(
+        "replacement",
+        "session",
+        "whatsNew",
+        boundary,
+        PanelCallbacks({ frame, _ -> sent.add(frame) }, { 0 }, { _, _ -> }, { _, _ -> }),
+      )
+    if (System.getProperty("muse.nativeUi") != "true") {
+      verifyFallback(surface, boundary)
+      return
+    }
+    surface.open()
+    val panel = JetBrainsPanelHost.onEdt { EmbeddedPanel(surface, boundary, "en", {}) }
+    val console = captureConsole(panel)
+    val frame = show(panel)
+    try {
+      awaitDom(panel, console, "initial", "typeof window.museHost === 'object'", "")
+      val html =
+        """
+        <!DOCTYPE html><html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'">
+        <link rel="stylesheet" href="/assets/portable/whatsNew.css"></head>
+        <body data-bridge="native" data-surface="whatsNew"><a id="replacement-link" data-link="7" href="https://example.com">replacement</a>
+        <script nonce="runtime-nonce" src="/assets/portable/whatsNew.js"></script>
+        <script nonce="runtime-nonce" src="/assets/portable/loader.js"></script></body></html>
+        """.trimIndent()
+      val replacementLoaded = java.util.concurrent.CountDownLatch(1)
+      val browser =
+        EmbeddedPanel::class.java
+          .getDeclaredField("browser")
+          .apply { isAccessible = true }
+          .get(panel)
+      require(browser is com.intellij.ui.jcef.JBCefBrowser)
+      browser.jbCefClient.addLoadHandler(
+        object : org.cef.handler.CefLoadHandlerAdapter() {
+          override fun onLoadEnd(
+            browser: org.cef.browser.CefBrowser,
+            frame: org.cef.browser.CefFrame,
+            httpStatusCode: Int,
+          ) {
+            browser.getSource { source ->
+              if (source.contains("id=\"replacement-link\"")) replacementLoaded.countDown()
+            }
+          }
+        },
+        browser.cefBrowser,
+      )
+      JetBrainsPanelHost.onEdt { panel.present(html) }
+      assertTrue(
+        "The replacement document must finish loading",
+        replacementLoaded.await(WAIT_SECONDS, TimeUnit.SECONDS),
+      )
+      awaitDom(
+        panel,
+        console,
+        "replacement",
+        "typeof window.museHost === 'object' && document.querySelector('#replacement-link') && " +
+          "document.querySelectorAll('script[src],link[rel=stylesheet]').length === 0 && document.querySelector('style')",
+        "document.querySelector('#replacement-link').click();",
+      )
+      val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(WAIT_SECONDS)
+      while (sent.none { it["payload"]?.asJsonObject?.get("type")?.asString == "openLink" } &&
+        System.nanoTime() < deadline
+      ) {
+        Thread.sleep(POLL_MILLIS)
+      }
+      val clicked =
+        sent
+          .single {
+            it["payload"]?.asJsonObject?.get("type")?.asString == "openLink"
+          }.getAsJsonObject("payload")
+      assertEquals(7, clicked["index"].asInt)
+    } finally {
+      JetBrainsPanelHost.onEdt {
+        frame.dispose()
+        Disposer.dispose(panel)
+      }
+    }
+  }
+
   fun testSharedPanelReadinessStateAndActualBrowserBridgeOrGuardedFallback() {
     val boundary = JsonBoundary()
     val surface =

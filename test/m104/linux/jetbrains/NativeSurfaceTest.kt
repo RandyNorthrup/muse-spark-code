@@ -127,13 +127,26 @@ class NativeSurfaceTest : BasePlatformTestCase() {
       assertTrue(failure.toString(), failure.cause?.message == "MHP_JCEF_UNSUPPORTED")
       assertTrue(
         "Construction failure must restart in companion mode",
-        host.javaClass.getDeclaredField("companion").apply { isAccessible = true }.get(host) as Boolean,
+        host.javaClass
+          .getDeclaredField("companion")
+          .apply { isAccessible = true }
+          .get(host) as Boolean,
       )
       assertTrue(
-        (host.javaClass.getDeclaredField("bindings").apply { isAccessible = true }.get(host) as Map<*, *>).isEmpty(),
+        (
+          host.javaClass
+            .getDeclaredField("bindings")
+            .apply { isAccessible = true }
+            .get(host) as Map<*, *>
+        ).isEmpty(),
       )
       assertTrue(
-        (host.javaClass.getDeclaredField("panels").apply { isAccessible = true }.get(host) as Map<*, *>).isEmpty(),
+        (
+          host.javaClass
+            .getDeclaredField("panels")
+            .apply { isAccessible = true }
+            .get(host) as Map<*, *>
+        ).isEmpty(),
       )
     } finally {
       JetBrainsPanelHost.onEdt { Disposer.dispose(host) }

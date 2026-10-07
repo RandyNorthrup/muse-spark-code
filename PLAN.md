@@ -19179,6 +19179,18 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**FIXM104PE2 / RVF104PE (2026-10-07).** Close the six P2 findings in
+the Linux/JVM hosts: preserve SWT's absolute file selection, attest diagnostics
+only after analysis of the saved version, prepare replacement JetBrains HTML
+through the native bridge/assets path, explicitly refuse unavailable runtime
+settings, replace unbound restored Eclipse views using the runtime-owned
+session, and repair the three failing native fixtures. Pending diagnostic
+reports are retried within the existing shared settle budget. Record exact-base
+regression failures, byte-exact guard drills, JVM gates and three repeated
+default-deadline owning suites, followed by fresh-clone CI-style TypeScript
+checks in `docs/certification/m104.md`. Scoped rig checks replace aggregate
+quality; no merge, dependency, cap change, support promotion or live/paid call.
+
 **FIXM104PA4 / RVM104PA4 (2026-10-07).** Close the re-review's two P2
 findings in lane A's files, closing residual R3-2. State publication
 reconciles into the mounted presentation page (fresh boundary key only

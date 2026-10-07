@@ -169,6 +169,31 @@ class NativeHostServicesTest : BasePlatformTestCase() {
     )
   }
 
+  fun testSettledDiagnosticsStayPendingAfterAnEditUntilHighlightingCompletes() {
+    val services = brokenXml()
+    com.intellij.openapi.command.WriteCommandAction.runWriteCommandAction(project) {
+      myFixture.editor.document.setText("<root><new></root>")
+    }
+    val uri = DocumentServices.uri(myFixture.file.virtualFile)
+    val version = myFixture.editor.document.modificationStamp
+    val params = json("uri" to uri, "expectedVersion" to version)
+    assertTrue(
+      "An edit invalidates cached highlighting",
+      services.request("diagnostics/settled", params, RequestCancellation()).isJsonNull,
+    )
+    com.intellij.psi.PsiDocumentManager
+      .getInstance(project)
+      .commitAllDocuments()
+    assertTrue(
+      "Committed PSI is still pending analysis",
+      services.request("diagnostics/settled", params, RequestCancellation()).isJsonNull,
+    )
+    myFixture.doHighlighting()
+    val report = services.request("diagnostics/settled", params, RequestCancellation()).asJsonObject
+    assertEquals(version, report["version"].asLong)
+    assertTrue(report.getAsJsonArray("diagnostics").any { it.asJsonObject["severity"].asString == "error" })
+  }
+
   fun testRunInvokesRegisteredCommandsAndRefusesUnknown() {
     val executed = mutableListOf<String>()
     val widgets = NativeWidgets(project, JsonBoundary()) { executed.add(it) }

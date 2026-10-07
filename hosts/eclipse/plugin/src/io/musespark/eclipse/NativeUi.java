@@ -18,7 +18,6 @@ import org.eclipse.swt.dnd.*;
 import org.eclipse.swt.program.Program;
 import org.eclipse.swt.widgets.*;
 import org.eclipse.ui.dialogs.ElementListSelectionDialog;
-import org.eclipse.ui.dialogs.PreferencesUtil;
 
 /** Window-owned native prompts; choice identifiers are opaque, never translated decisions. */
 public class NativeUi implements AutoCloseable {
@@ -78,7 +77,7 @@ public class NativeUi implements AutoCloseable {
                 current(cancelled);
                 String[] chosen = chooseFile(SWT.OPEN, params.get("title").getAsString(), null);
                 current(cancelled);
-                yield chosen == null ? JsonNull.INSTANCE : new JsonPrimitive(Path.of(chosen[0], chosen[1]).toUri().toASCIIString());
+                yield chosen == null ? JsonNull.INSTANCE : new JsonPrimitive(Path.of(chosen[1]).toUri().toASCIIString());
             }
             case "ui/saveText" -> {
                 current(cancelled);
@@ -86,15 +85,14 @@ public class NativeUi implements AutoCloseable {
                 current(cancelled);
                 if (chosen == null) { yield new JsonPrimitive(false); }
                 current(cancelled);
-                try { Files.writeString(Path.of(chosen[0], chosen[1]), params.get("text").getAsString(), StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING); }
+                try { Files.writeString(Path.of(chosen[1]), params.get("text").getAsString(), StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING); }
                 catch (IOException ex) { throw new IllegalArgumentException("MHP_SAVE_FAILED"); }
                 yield new JsonPrimitive(true);
             }
             case "ui/showSetting" -> {
                 current(cancelled);
-                PreferencesUtil.createPreferenceDialogOn(shell, null, null, null).open();
-                current(cancelled);
-                yield JsonNull.INSTANCE;
+                // Eclipse preferences do not expose the runtime's requested setting.
+                throw new IllegalArgumentException("MHP_CAPABILITY_UNAVAILABLE");
             }
             default -> throw new IllegalArgumentException("MHP_CAPABILITY_UNAVAILABLE");
         };

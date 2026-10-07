@@ -118,12 +118,8 @@ export function createPanelBackendOptions(
         assertCurrent: () => {
           check(workspaceRoot)
         },
-        settledDiagnostics: async (uri, version, signal) =>
-          (await context.host.request(
-            'diagnostics/settled',
-            { uri, expectedVersion: version },
-            signal,
-          )) ?? undefined,
+        settledDiagnostics: (uri, version, signal) =>
+          context.host.request('diagnostics/settled', { uri, expectedVersion: version }, signal),
       }),
     codeIntel: (workspaceRoot) =>
       createRuntimeCodeIntel({

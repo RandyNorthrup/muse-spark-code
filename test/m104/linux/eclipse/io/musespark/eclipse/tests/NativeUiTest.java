@@ -7,7 +7,6 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.*;
 import org.eclipse.ui.PlatformUI;
@@ -64,38 +63,40 @@ public class NativeUiTest {
     @Test public void fileRequestsMapNativeChoicesToMhpResults() throws Exception {
         Path selection = Files.createTempFile("m104-pick-", ".md");
         try {
-            JsonElement picked = new FakeFiles(session, new String[] {selection.getParent().toString(), selection.getFileName().toString()}).request("ui/openFile", Json.object("title", "fixture"), () -> false);
+            // SWT FileDialog.open returns the absolute path, alongside its filter directory.
+            JsonElement picked = new FakeFiles(session, new String[] {selection.getParent().toString(), selection.toString()}).request("ui/openFile", Json.object("title", "fixture"), () -> false);
             assertEquals(selection.toUri().toASCIIString(), picked.getAsString());
             assertTrue(new FakeFiles(session, null).request("ui/openFile", Json.object("title", "fixture"), () -> false).isJsonNull());
             Files.deleteIfExists(selection);
-            JsonElement saved = new FakeFiles(session, new String[] {selection.getParent().toString(), selection.getFileName().toString()}).request("ui/saveText", Json.object("title", "fixture", "suggestedName", "fixture.md", "text", "saved fixture"), () -> false);
+            JsonElement saved = new FakeFiles(session, new String[] {selection.getParent().toString(), selection.toString()}).request("ui/saveText", Json.object("title", "fixture", "suggestedName", "fixture.md", "text", "saved fixture"), () -> false);
             assertEquals(new JsonPrimitive(true), saved);
             assertEquals("saved fixture", Files.readString(selection));
             assertEquals(new JsonPrimitive(false), new FakeFiles(session, null).request("ui/saveText", Json.object("title", "fixture", "suggestedName", "fixture.md", "text", "saved fixture"), () -> false));
         } finally { Files.deleteIfExists(selection); }
     }
-    @Test public void settingRequestsOpenTheNativePreferences() throws Exception {
-        Display display = Display.getDefault();
-        Set<Shell> before = new HashSet<>(Arrays.asList(display.getShells()));
-        AtomicBoolean closed = new AtomicBoolean(); AtomicInteger polls = new AtomicInteger();
-        Runnable closer = new Runnable() {
-            @Override public void run() {
-                for (Shell shell : display.getShells()) if (!before.contains(shell) && !shell.isDisposed()) { closed.set(true); shell.close(); }
-                if (!closed.get() && polls.incrementAndGet() < 50) display.timerExec(100, this);
-            }
-        };
+    @Test public void unavailableRuntimeSettingIsExplicitlyRefused() {
+        // Close the old generic dialog too, so this regression terminates on the exact base.
+        Display display = Display.getDefault(); Set<Shell> before = new HashSet<>(Arrays.asList(display.getShells()));
+        Runnable closer = () -> { for (Shell shell : display.getShells()) if (!before.contains(shell) && !shell.isDisposed()) shell.close(); };
         display.timerExec(100, closer);
-        assertTrue(session.uiRequest("ui/showSetting", Json.object("key", "museSpark.showWhatsNewOnUpdate")).isJsonNull());
-        assertTrue("the native preferences dialog must open", closed.get());
-        while (display.readAndDispatch()) { }
+        try {
+            assertEquals("MHP_CAPABILITY_UNAVAILABLE", assertThrows(IllegalArgumentException.class,
+                () -> session.uiRequest("ui/showSetting", Json.object("key", "museSpark.showWhatsNewOnUpdate"))).getMessage());
+        } finally { display.timerExec(-1, closer); }
     }
     @Test public void runtimeHtmlLoadsIntoTheOwnedSurfaceOnly() throws Exception {
         String id = session.uiRequest("surfaces/open", Json.object("kind", "chat", "placement", "side", "sessionId", "fixture")).getAsJsonObject().get("surfaceId").getAsString();
         String html = "<!DOCTYPE html><html><head></head><body><p id=\"presented\">runtime fixture</p></body></html>";
-        session.uiRequest("surfaces/presentHtml", Json.object("surfaceId", id, "sessionId", "fixture", "html", html));
         MuseView view = null;
         for (var reference : session.window.getActivePage().getViewReferences()) if (reference.getView(false) instanceof MuseView candidate && candidate.binding().id.equals(id)) view = candidate;
         assertNotNull(view);
+        MuseView opened = view;
+        long readyDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (!opened.binding().isReady() && System.nanoTime() < readyDeadline) {
+            if (!Display.getDefault().readAndDispatch()) Thread.sleep(1);
+        }
+        assertTrue("runtime presentation waits for the owned browser", opened.binding().isReady());
+        session.uiRequest("surfaces/presentHtml", Json.object("surfaceId", id, "sessionId", "fixture", "html", html));
         java.lang.reflect.Field browserField = MuseView.class.getDeclaredField("browser"); browserField.setAccessible(true);
         org.eclipse.swt.browser.Browser browser = (org.eclipse.swt.browser.Browser) browserField.get(view);
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);

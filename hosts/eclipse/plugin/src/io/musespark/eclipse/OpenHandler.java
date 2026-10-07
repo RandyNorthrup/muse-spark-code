@@ -10,7 +10,10 @@ public final class OpenHandler extends AbstractHandler {
     }
     public static void openPanel(IWorkbenchWindow window) throws Exception {
         IWorkbenchPage page = window.getActivePage();
-        for (IViewReference reference : page.getViewReferences()) if (reference.getView(false) instanceof MuseView view) { page.activate(view); return; }
+        for (IViewReference reference : page.getViewReferences()) if (reference.getView(false) instanceof MuseView view) {
+            if (view.binding() == null) page.hideView(view);
+            else { page.activate(view); return; }
+        }
         WindowSession session = MusePlugin.get().session(window);
         String owned = session.chatSession();
         // Without a runtime-owned chat session there is nothing to configure: the runtime's

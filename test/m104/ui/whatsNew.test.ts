@@ -70,6 +70,20 @@ function fixture() {
 }
 
 describe('portable release-note ownership', () => {
+  it('shows an error when the native host cannot edit the requested runtime setting', async () => {
+    const f = fixture()
+    await f.pages.show()
+    f.openSetting.mockRejectedValue(new Error('MHP_UNSUPPORTED_CAPABILITY'))
+    await f.pages.view(f.binding())!.handle({ type: 'tryIt', index: 1 })
+    expect(f.openSetting).toHaveBeenCalledExactlyOnceWith('museSpark.autosave')
+    expect(f.log.warn).toHaveBeenCalledWith('MHP_WHATS_NEW_ACTION_FAILED')
+    expect(f.requests.at(-1)).toEqual({
+      method: 'ui/notify',
+      params: { severity: 'error', message: EN.fallbackActionFailed },
+    })
+    await f.pages.dispose()
+  })
+
   it('renders actual notes and routes only indices into that page, including settings', async () => {
     const f = fixture()
     await f.pages.show()

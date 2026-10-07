@@ -120,7 +120,7 @@ class EmbeddedPanel(
   }
 
   fun present(html: String) {
-    browser.loadHTML(html, policy.page)
+    browser.loadHTML(prepareHtml(html), policy.page)
   }
 
   fun reload() {
@@ -141,6 +141,11 @@ class EmbeddedPanel(
   }
 
   private fun html(): String {
+    val kind = if (surface.kind in setOf("tasks", "whatsNew")) surface.kind else "chat"
+    return prepareHtml(JsonBoundary.resource("/pages/$kind.$locale.html"))
+  }
+
+  private fun prepareHtml(html: String): String {
     val envelope = boundary.panel.getAsJsonObject("envelope")
     val payloads =
       envelope.getAsJsonArray("oneOf").map {
@@ -177,13 +182,19 @@ class EmbeddedPanel(
       JsonBoundary.resource("/embedded.mjs") +
         "\nwindow.installMuseHost($safeConfig,(request,onSuccess,onFailure)=>{$injection});" + moduleBridge(injection)
     val kind = if (surface.kind in setOf("tasks", "whatsNew")) surface.kind else "chat"
-    return JsonBoundary
-      .resource("/pages/$kind.$locale.html")
+    return html
       .replace(
         "__MUSE_ASSET_BASE__",
         policy.base,
       ).replace("__MUSE_NONCE__", nonce)
       .replace("__MUSE_BRIDGE__", safeScript)
+      .let { page ->
+        if (html.contains("__MUSE_BRIDGE__")) {
+          page
+        } else {
+          page.replace("</head>", "<script nonce=\"$nonce\">$safeScript</script></head>")
+        }
+      }.replace(Regex("nonce=\"[^\"]*\""), "nonce=\"$nonce\"")
       .replace("<body", "<body data-host=\"embedded\"")
       .let { inlineAssets(it, kind) }
       .let { html ->
@@ -220,7 +231,17 @@ class EmbeddedPanel(
         Regex("<meta http-equiv=\"Content-Security-Policy\"[^>]*>"),
         { "<meta http-equiv=\"Content-Security-Policy\" content=\"${policy.csp(nonce)}\">" },
       ).replace(Regex("<link[^>]*rel=\"stylesheet\"[^>]*>"), { "<style nonce=\"$nonce\">$style</style>" })
-      .replace(Regex("<script[^>]*src=\"[^\"]+\"[^>]*></script>"), { "<script nonce=\"$nonce\">$script</script>" })
+      .replace(Regex("<script[^>]*src=\"([^\"]+)\"[^>]*></script>"), { match ->
+        // The native module bridge loads chat/Tasks. What's New's entry is inline;
+        // its companion loader must not run a second copy or fetch native URLs.
+        if (entry == "whatsNew" &&
+          match.groupValues[1].endsWith("/whatsNew.js")
+        ) {
+          "<script nonce=\"$nonce\">$script</script>"
+        } else {
+          ""
+        }
+      })
   }
 
   private fun installGuards() {

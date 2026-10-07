@@ -16,7 +16,8 @@ Install the built p2 site through Help > Install New Software. Open the Muse
 view with its Window-menu command: it activates the runtime's owned surface,
 or starts the runtime so its initial surface opens. A view opened directly
 from Window > Show View carries no runtime session and shows the start-failure
-page instead of a dead panel. The completion
+page instead of a dead panel. The Window-menu Open command replaces that
+unbound page with the runtime's owned view. The completion
 command is bound to Alt+backslash; Tab accepts a displayed suggestion, and
 Escape rejects it. Trust starts off and is granted by the user's Window-menu
 command after the localized warning. Opening a folder imports it as an Eclipse
@@ -66,6 +67,12 @@ status and progress are window-owned. Confirmation returns the exact opaque
 choice ID; cancellation and window retirement close dialogs and refuse consent.
 Dynamic native commands are window-scoped and removed on teardown; suggested
 keybindings currently return an explicit unavailable failure.
+File open/save uses the absolute path returned by SWT's dialog. Settled
+diagnostics wait for prior workspace analysis and a build of the saved bytes;
+pending analysis stays unchecked while the runtime polls within its settle
+budget. Runtime-setting shortcuts explicitly report unavailable because
+Eclipse's preferences do not expose those keys; the runtime displays the
+failed action to the user.
 Runtime surface closure and window teardown dispose native browsers. Auxiliary
 kinds without the A/C asset/binding adapter return an explicit unavailable
 failure before creating a view.

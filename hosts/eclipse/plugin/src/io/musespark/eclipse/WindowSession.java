@@ -28,6 +28,8 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
     private final String commandPrefix = "io.musespark.runtime." + UUID.randomUUID() + ".";
     private final Process process;
     private final Map<String, MuseView> surfaces = new ConcurrentHashMap<>();
+    private record Analysis(long version, long stamp, org.eclipse.core.runtime.jobs.Job job, CompletableFuture<JsonArray> report) { }
+    private final Map<String, Analysis> analyses = new HashMap<>();
     private record Delivery(MuseView view, JsonElement payload, JsonElement sequence, int bytes) { }
     private final ArrayDeque<Delivery> browserQueue = new ArrayDeque<>();
     private boolean browserScheduled;
@@ -78,7 +80,10 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
         ResourcesPlugin.getWorkspace().addResourceChangeListener(problems, IResourceChangeEvent.POST_CHANGE);
         parts = new IPartListener2() {
             @Override public void partOpened(IWorkbenchPartReference reference) { if (reference.getPart(false) instanceof org.eclipse.ui.texteditor.ITextEditor editor) documents.document(editor); }
-            @Override public void partClosed(IWorkbenchPartReference reference) { if (reference.getPart(false) instanceof org.eclipse.ui.texteditor.ITextEditor editor) { WindowSession.this.notify("documents/didClose", Json.object("uri", documents.uri(editor))); documents.closed(editor); } }
+            @Override public void partClosed(IWorkbenchPartReference reference) { if (reference.getPart(false) instanceof org.eclipse.ui.texteditor.ITextEditor editor) {
+                String uri = documents.uri(editor); Analysis analysis = analyses.remove(uri); if (analysis != null) analysis.job.cancel();
+                WindowSession.this.notify("documents/didClose", Json.object("uri", uri)); documents.closed(editor);
+            } }
             @Override public void partActivated(IWorkbenchPartReference reference) { }
             @Override public void partBroughtToTop(IWorkbenchPartReference reference) { }
             @Override public void partDeactivated(IWorkbenchPartReference reference) { }
@@ -230,9 +235,40 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
                 String settledUri = params.get("uri").getAsString();
                 long expectedVersion = params.get("expectedVersion").getAsLong();
                 ITextEditor settledEditor = documents.editor(settledUri);
-                if (settledEditor == null || version(settledEditor) != expectedVersion) yield JsonNull.INSTANCE;
-                JsonArray settled = diagnostics(settledUri);
-                if (version(settledEditor) != expectedVersion) yield JsonNull.INSTANCE;
+                if (settledEditor == null || settledEditor.isDirty() || version(settledEditor) != expectedVersion) yield JsonNull.INSTANCE;
+                IFile file = ResourcesPlugin.getWorkspace().getRoot().getFileForLocation(new org.eclipse.core.runtime.Path(Path.of(java.net.URI.create(settledUri)).toString()));
+                if (file == null || !file.exists()) throw new IllegalArgumentException("MHP_CAPABILITY_UNAVAILABLE");
+                Analysis analysis = analyses.get(settledUri);
+                if (analysis == null || analysis.version != expectedVersion || analysis.stamp != file.getModificationStamp()) {
+                    if (analysis != null) analysis.job.cancel();
+                    long stamp = file.getModificationStamp();
+                    CompletableFuture<JsonArray> report = new CompletableFuture<>();
+                    org.eclipse.core.runtime.jobs.Job build = new org.eclipse.core.runtime.jobs.Job("MHP_DIAGNOSTICS_BUILD") {
+                        @Override protected IStatus run(IProgressMonitor monitor) {
+                            try {
+                                // Cached markers have no document-version attestation. Finish prior
+                                // analysis, then explicitly build these saved bytes before reading them.
+                                var jobs = org.eclipse.core.runtime.jobs.Job.getJobManager();
+                                jobs.join(ResourcesPlugin.FAMILY_AUTO_BUILD, monitor);
+                                jobs.join(ResourcesPlugin.FAMILY_MANUAL_BUILD, monitor);
+                                if (monitor.isCanceled() || disposed) return Status.CANCEL_STATUS;
+                                ResourcesPlugin.getWorkspace().build(IncrementalProjectBuilder.INCREMENTAL_BUILD, monitor);
+                                if (monitor.isCanceled() || disposed) return Status.CANCEL_STATUS;
+                                JsonArray checked = diagnostics(settledUri);
+                                if (file.getModificationStamp() != stamp) report.completeExceptionally(new IllegalStateException("MHP_VERSION_CONFLICT"));
+                                else report.complete(checked);
+                                return Status.OK_STATUS;
+                            } catch (Exception ex) { report.completeExceptionally(ex); return Status.CANCEL_STATUS; }
+                        }
+                    };
+                    build.setSystem(true);
+                    analyses.put(settledUri, new Analysis(expectedVersion, stamp, build, report));
+                    build.schedule(); yield JsonNull.INSTANCE;
+                }
+                if (!analysis.report.isDone()) yield JsonNull.INSTANCE;
+                if (analysis.report.isCompletedExceptionally()) throw new IllegalArgumentException("MHP_DIAGNOSTICS_UNAVAILABLE");
+                JsonArray settled = analysis.report.join();
+                if (settledEditor.isDirty() || version(settledEditor) != expectedVersion || file.getModificationStamp() != analysis.stamp) yield JsonNull.INSTANCE;
                 yield Json.object("uri", settledUri, "version", params.get("expectedVersion"), "diagnostics", settled);
             }
             case "commands/run" -> {
@@ -319,6 +355,7 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
     }
     @Override public void close() {
         if (disposed) return; disposed = true;
+        for (Analysis analysis : analyses.values()) analysis.job.cancel(); analyses.clear();
         ui.close();
         var handlers = window.getService(org.eclipse.ui.handlers.IHandlerService.class);
         for (Command command : commands.values()) { handlers.deactivateHandler(command.activation); command.command.undefine(); } commands.clear();

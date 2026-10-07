@@ -42,6 +42,12 @@ ordinary file navigation, popups and developer tools remain refused.
 The plugin advertises only implemented native capability groups. Other groups
 use the fallbacks declared in the frozen contract, including runtime settings
 and storage, the React diff and terminal pages, and LSP code intelligence.
+Runtime-setting shortcuts explicitly report unsupported because the IDE's
+generic settings dialog cannot edit those keys; the runtime displays the
+failed action to the user. Settled diagnostics attest a version only after its
+PSI is committed and the daemon has finished every analysis scope. Replacement
+HTML uses the same native bridge, nonce and packaged asset preparation as
+initial pages, including What's New actions.
 
 The optional Gradle `privateIdePath` property selects a private copy of the
 pinned IDEA 2025.3.3 SDK, avoiding native test writes in Gradle's immutable

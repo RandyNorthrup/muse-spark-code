@@ -3,6 +3,7 @@ package io.github.randynorthrup.musespark
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.intellij.codeInsight.daemon.impl.DaemonCodeAnalyzerEx
+import com.intellij.codeInsight.daemon.impl.DaemonCodeAnalyzerImpl
 import com.intellij.ide.BrowserUtil
 import com.intellij.ide.impl.ProjectUtil
 import com.intellij.ide.trustedProjects.TrustedProjects
@@ -13,11 +14,11 @@ import com.intellij.openapi.editor.Document
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.ide.CopyPasteManager
-import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.WindowManager
+import com.intellij.psi.PsiDocumentManager
 import com.intellij.util.text.minimatch.Minimatch
 import com.intellij.util.text.minimatch.MinimatchOptions
 import java.awt.KeyboardFocusManager
@@ -51,7 +52,11 @@ class NativeHostServices(
   private val openBrowser: (String) -> Unit = BrowserUtil::browse,
   private val checkEpoch: () -> Unit = {},
   private val workspaceRoot: Path? = null,
-  private val chooseFile: (open: Boolean, title: String, suggestedName: String?) -> Path? = { open, title, suggestedName ->
+  private val chooseFile: (
+    open: Boolean,
+    title: String,
+    suggestedName: String?,
+  ) -> Path? = { open, title, suggestedName ->
     systemFileDialog(project, open, title, suggestedName)
   },
 ) : EditorServices {
@@ -256,9 +261,14 @@ class NativeHostServices(
     val expected = params["expectedVersion"].asLong
     val (file, document) = documents.document(uri)
     if (document.modificationStamp != expected) return jsonValue(null)
+    val psi = PsiDocumentManager.getInstance(project).getPsiFile(document) ?: return jsonValue(null)
+    val daemon = DaemonCodeAnalyzerImpl.getInstance(project)
+    // The daemon's completion predicate checks committed PSI, the exact document
+    // stamp and dirty analysis scopes; cached highlights alone attest none of these.
+    if (daemon !is DaemonCodeAnalyzerImpl || !daemon.isAllAnalysisFinished(psi)) return jsonValue(null)
     val diagnostics = fileDiagnostics(file, document)
     checkCurrent()
-    if (document.modificationStamp != expected) return jsonValue(null)
+    if (document.modificationStamp != expected || !daemon.isAllAnalysisFinished(psi)) return jsonValue(null)
     return json(
       "uri" to DocumentServices.uri(file),
       "version" to expected,
@@ -353,9 +363,8 @@ class NativeHostServices(
   ): JsonElement {
     checkCurrent()
     cancellation.check()
-    ShowSettingsUtil.getInstance().showSettingsDialog(project)
-    cancellation.check()
-    return jsonValue(null)
+    // The IDE's generic settings dialog cannot edit the runtime's requested key.
+    error("MHP_UNSUPPORTED_CAPABILITY")
   }
 
   private fun pick(
