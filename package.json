@@ -1417,7 +1417,7 @@
     "typecheck": "run-s typecheck:host typecheck:webview typecheck:unit typecheck:e2e typecheck:integration",
     "typecheck:host": "tsc -p tsconfig.json --noEmit",
     "typecheck:webview": "tsc -p src/webview/tsconfig.json --noEmit",
-    "typecheck:unit": "node scripts/typecheck-unit.mjs",
+    "typecheck:unit": "node --max-old-space-size=4096 node_modules/typescript/bin/tsc -p test/unit/tsconfig.json --noEmit",
     "typecheck:e2e": "tsc -p test/e2e/tsconfig.json --noEmit",
     "typecheck:integration": "tsc -p test/integration/tsconfig.json --noEmit",
     "deadcode": "knip",

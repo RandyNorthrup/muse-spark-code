@@ -26,7 +26,9 @@ jobs:
   checks:
     name: static gates (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    # macOS reaches the unit typecheck about 13 minutes in (format, lint, host and
+    # webview typechecks); the single unit program adds about 3 (2026-10-07).
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:

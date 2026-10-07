@@ -14,6 +14,10 @@ import { EN } from '../../src/shared/l10n/en'
 
 // Preparation builds production chunks and inventories the complete real VSIX.
 const REAL_HARNESS_PREPARE_TIMEOUT_MS = 60_000
+// Each case opens a fresh page and loads the full production webview bundle;
+// a loaded hosted Windows shard with coverage needs longer than the unit
+// default. PLAN.md §8 (2026-10-07).
+const REAL_HARNESS_CASE_TIMEOUT_MS = 20_000
 const rig = { browser: undefined, server: undefined, origin: '', packagedFiles: [] }
 beforeAll(async () => {
   execFileSync(process.execPath, ['scripts/build.mjs', '--production'], { stdio: 'pipe' })
@@ -54,7 +58,7 @@ async function harness(scenario, theme, lang, run) {
   }
 }
 
-describe('RVM96B browser regressions', () => {
+describe('RVM96B browser regressions', { timeout: REAL_HARNESS_CASE_TIMEOUT_MS }, () => {
   it.each(
     ['light', 'dark', 'hc-dark', 'hc-light'].flatMap((theme) =>
       ['team-tree', 'team-tree-320', 'team-cards'].map((scenario) => [theme, scenario]),
