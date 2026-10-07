@@ -49,3 +49,14 @@ With the branch restored, both pass (e2e 1/1, unit file 95/95).
 
 The "Available in the ACP Registry" README text is deliberately not added;
 it waits until the registry PR merges.
+
+## 0.14.5 consolidation (2026-10-06)
+
+The repository's zero-clone duplication gate found the standalone e2e file
+repeating `acpStdio.e2e.test.ts`'s imports, agent build and cleanup. The
+release gate now lives in `test/e2e/acpStdio.e2e.test.ts` as the
+`the ACP registry release gate` case, reusing that file's agent launcher
+against a signed-out profile. The packed-package CI step runs it there with
+`-t "the ACP registry release gate"` beside `execStdio.e2e.test.ts`. The
+assertions are unchanged: a terminal or agent method for `auth.terminal`
+and for the `_meta` flag, none for a client announcing neither.

@@ -22,7 +22,7 @@ Code” are Meta trademarks. You bring your own credentials.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-**Contents:** [What's new](#whats-new-in-0144) · [Get started](#get-started) ·
+**Contents:** [What's new](#whats-new-in-0145) · [Get started](#get-started) ·
 [Work in the panel](#work-in-the-panel)
 
 ## What's new in 0.14.5
