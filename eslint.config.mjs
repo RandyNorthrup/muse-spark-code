@@ -226,4 +226,28 @@ export default tseslint.config(
       'vendor/**',
     ],
   },
+  {
+    // M113 D93: collectors consume only the injected normalized snapshot.
+    files: ['src/core/reporting/collect/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { paths: ['vscode'], patterns: ['**/backends/**', '**/host/**'] },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        BUNDLE_SAFE_ERRORS,
+        {
+          selector:
+            'NewExpression[callee.name=Date], MemberExpression[object.name=Date][property.name=now], MemberExpression[object.name=Math][property.name=random], MemberExpression[object.name=performance][property.name=now], Identifier[name=process], ImportSpecifier[imported.name=UI_TEXT]',
+          message: 'Deterministic collectors read only injected facts and options.',
+        },
+        {
+          selector:
+            'MemberExpression[computed=false][property.name=/^(ino|dev)$/], MemberExpression[computed=true][property.value=/^(ino|dev)$/], ObjectPattern > Property[key.name=/^(ino|dev)$/], ObjectPattern > Property[key.value=/^(ino|dev)$/]',
+          message: 'Native identity belongs to fileIdentity.ts.',
+        },
+      ],
+    },
+  },
 )

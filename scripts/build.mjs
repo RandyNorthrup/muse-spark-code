@@ -66,7 +66,6 @@ import {
   regionalUiText,
   compressedEnglish,
   compactBrowserUiText,
-  compressedReference,
 } from './lib/uiTextRegions.mjs'
 import { webviewEntryMetafile } from './lib/webviewBundles.mjs'
 import { lazyBrowserKeybindings } from './lib/browserKeybindings.mjs'
@@ -79,6 +78,7 @@ import { deferredTeamView } from './lib/deferredTeamView.mjs'
 import {
   sharedUiText,
   sharedValidation,
+  nodeReferenceData,
   deferredCohort,
   sharedWire,
   sharedModelApiBoundaries,
@@ -295,9 +295,32 @@ const modelApiOptions = {
 
 const referenceOptions = {
   ...modelApiOptions,
+  plugins: [...modelApiOptions.plugins, nodeReferenceData],
   entryPoints: ['src/shared/reference/referenceEntry.ts'],
   outfile: 'dist/reference.js',
-  plugins: [...modelApiOptions.plugins, compressedReference(isProduction)],
+}
+
+const reportingOptions = {
+  ...modelApiOptions,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: ['src/runtime/reporting/reportsEntry.ts'],
+  outfile: 'dist/reporting.js',
+}
+const reportingNetworkOptions = {
+  ...reportingOptions,
+  entryPoints: ['src/runtime/reporting/network.ts'],
+  outfile: 'dist/reportingNetwork.js',
+}
+const reportingDestinationsOptions = {
+  ...reportingOptions,
+  entryPoints: ['src/runtime/reporting/destinationsEntry.ts'],
+  outfile: 'dist/reportingDestinations.js',
+}
+const reportingPanelOptions = {
+  ...hostOptions,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: ['src/host/reporting/reportPanelEntry.ts'],
+  outfile: 'dist/reportingPanel.js',
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -764,6 +787,8 @@ const webviewOptions = {
     usage: USAGE_WEBVIEW_ENTRY,
     referencePage: 'src/webview/components/ReferencePage.tsx',
     [WHATS_NEW_PAGE_NAME]: WHATS_NEW_PAGE_ENTRY,
+    reportingPage: 'src/webview/reporting/main.tsx',
+    reportingDestinations: 'src/webview/reporting/destinations/DestinationPicker.tsx',
   },
   outdir: WEBVIEW_OUTDIR,
   platform: 'browser',
@@ -782,11 +807,21 @@ function writeWebviewMetafiles(metafile) {
     whatsNewPage: 'dist/webview/whatsNew.js',
     usageWebview: 'dist/webview/usage.js',
     referencePage: 'dist/webview/referencePage.js',
+    reportingPageWebview: 'dist/webview/reportingPage.js',
+    reportingDestinationsWebview: 'dist/webview/reportingDestinations.js',
   }
   for (const [page, entry] of Object.entries(pages)) {
     writeFileSync(
       path.join(METAFILE_DIR, `${page}.json`),
-      JSON.stringify(webviewEntryMetafile(metafile, entry)),
+      JSON.stringify(
+        webviewEntryMetafile(
+          metafile,
+          entry,
+          page === 'webview'
+            ? ['dist/webview/reportingPage.js', 'dist/webview/reportingDestinations.js']
+            : [],
+        ),
+      ),
     )
   }
 }
@@ -837,6 +872,10 @@ if (process.argv.includes('--webview-only')) {
 
 if (isWatch) {
   const contexts = await Promise.all([
+    esbuild.context(reportingOptions),
+    esbuild.context(reportingNetworkOptions),
+    esbuild.context(reportingDestinationsOptions),
+    esbuild.context(reportingPanelOptions),
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
     esbuild.context(tabOptions),
@@ -940,6 +979,10 @@ if (isWatch) {
     configuredProviders: esbuild.build(configuredOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
+    reporting: esbuild.build(reportingOptions),
+    reportingNetwork: esbuild.build(reportingNetworkOptions),
+    reportingDestinations: esbuild.build(reportingDestinationsOptions),
+    reportingPanel: esbuild.build(reportingPanelOptions),
     reference: esbuild.build(referenceOptions),
     reviewer: esbuild.build(reviewerOptions),
     team: esbuild.build(teamOptions),

@@ -57,6 +57,9 @@ export interface ExtensionSettings extends SettingsSnapshot {
   /** M112 (D92): seconds before an unanswered question defers; 0 never. */
   readonly syncPromptsAndBookmarks: boolean
   readonly 'questions.deferAfterSeconds': number
+  readonly 'reports.network': 'whenSignedIn' | 'always' | 'off'
+  readonly 'reports.keepHistory': boolean
+  readonly 'reports.agentSources': readonly ('claudeCode' | 'codex')[]
   /** Shell sandbox posture for `muse serve` (PLAN.md D12). */
   readonly shellSandbox: ShellSandboxMode
   /** Which backend hosts conversations (PLAN.md D1, M7). */
@@ -167,6 +170,11 @@ const settingSchemas = {
   'shell.passEnvironmentVariables': z.array(z.string().check(z.regex(/^[A-Za-z_][A-Za-z0-9_]*$/))),
   syncPromptsAndBookmarks: z.boolean(),
   'questions.deferAfterSeconds': z.int().check(z.gte(0), z.lte(QUESTION_DEFER_MAX_SECONDS)),
+  'reports.network': z.enum(['whenSignedIn', 'always', 'off']),
+  'reports.keepHistory': z.boolean(),
+  'reports.agentSources': z
+    .array(z.enum(['claudeCode', 'codex']))
+    .check(z.refine((values) => new Set(values).size === values.length)),
   shellSandbox: z.enum(SHELL_SANDBOX_MODES),
   backend: z.enum(BACKEND_MODES),
   suggestedProvider: z.string(),
@@ -289,6 +297,9 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     'shell.passEnvironmentVariables': readSetting(config, 'shell.passEnvironmentVariables', log),
     syncPromptsAndBookmarks: readSetting(config, 'syncPromptsAndBookmarks', log),
     'questions.deferAfterSeconds': readSetting(config, 'questions.deferAfterSeconds', log),
+    'reports.network': readSetting(config, 'reports.network', log),
+    'reports.keepHistory': readSetting(config, 'reports.keepHistory', log),
+    'reports.agentSources': readSetting(config, 'reports.agentSources', log),
     shellSandbox: readSetting(config, 'shellSandbox', log),
     backend: readSetting(config, 'backend', log),
     suggestedProvider: readSetting(config, 'suggestedProvider', log),

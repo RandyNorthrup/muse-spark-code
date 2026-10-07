@@ -154,6 +154,72 @@ key to the CLI.
 Earlier releases are in the
 [changelog](https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md).
 
+## /report
+
+Open the local kind picker with `/report`, **Muse Spark: Show report…**, or
+Account & usage's **Usage report**. A report reads named sources without a
+model call or a charge. **Needs you** comes first; every source names its
+availability, freshness and observation time. Missing integrations remain
+visible as unavailable.
+
+| Kind                        | Input                                                                                       |
+| --------------------------- | ------------------------------------------------------------------------------------------- |
+| Project                     | `/report project`                                                                           |
+| Milestone                   | `/report milestone M113`                                                                    |
+| Release                     | `/report release latest`                                                                    |
+| Changes                     | `/report changes`; `since <tag, branch, or YYYY-MM-DD>` selects Git ancestry                |
+| Quality                     | `/report quality`                                                                           |
+| Usage                       | `/report usage today`; also `7d`, `30d`, `90d`, `week`, `month` or a date range             |
+| Session                     | `/report session`                                                                           |
+| Playbook                    | `/report playbook`                                                                          |
+| Issues                      | `/report issues`                                                                            |
+| Estimate                    | `/report estimate M113`                                                                     |
+| Fleet / security / accounts | `/report fleet`, `/report security`, `/report accounts`; future source bindings unavailable |
+| Schedules / keybindings     | `/report schedules`, `/report keybindings`; owning host bindings unavailable                |
+
+Each table shows at most ten rows with an omitted-row count; `--full` retains
+all available rows. Next steps follow the plan's declared delivery order and
+only become ready when their required milestones are complete. At most three
+next steps are shown. Session turn
+and approval totals require retained activity facts; transcript row counts
+never substitute for them.
+
+The tab provides **Save as…**, **Copy as Markdown**, **Attach to message**,
+**History**, **Diff with previous** and **Refresh**. Save as exports Markdown,
+HTML, JSON or text through the editor's save dialog. A saved report retains
+its original observation time; Refresh collects again. History is scoped to
+this workspace and kind. Identical comparisons say **No change since** the
+previous observation. Turning off `museSpark.reports.keepHistory` stops new
+history saves. Existing entries remain readable. A malformed or unfinished writer lease can
+block publication; it is preserved because ownership cannot be proved. Manual
+repair requires every relevant writer to have stopped. No automatic deletion
+is attempted.
+
+`museSpark.reports.network` is machine-scoped: `whenSignedIn` (default) reads
+GitHub using the editor's existing sign-in, `always` also reads GitHub without
+requiring sign-in, and `off` forbids network collection. Reports never open a
+sign-in prompt.
+The terminal requires `--network` on every collection, and uses `gh`'s own
+identity. CI egress remains denied. Cache reads and writes use confined,
+owner-only storage, validated decoded data and ETags; interrupted requests
+retain honest unavailable or partial status. Store, workflow and release
+adapters await approved live captures. Posting, scheduled destinations,
+mail/vault and node-browser integration await their owning milestones;
+the tab does not offer them yet.
+
+`museSpark.reports.agentSources` defaults to an empty array. Only agents you
+explicitly enable (`claudeCode`, `codex`) have their confined local usage files
+read. A missing usage capability, ledger, account or future feature produces
+an unavailable source; a subscription never implies known token or cost data.
+
+The shared CLI/ACP engine supplies the same report data to every editor.
+Installed native editor tabs are certified by M104; the portable MHP 1.2
+report methods are already validated. In a terminal, the command is
+`muse-spark-code-acp report <kind>`; bare `report` retains the problem-report
+command. See the [ACP guide](docs/acp.md#deterministic-reports-m113).
+
+![Local report tab with export actions](https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/deterministic-report.png)
+
 ## Highlights
 
 - **Streaming chat with tools you can see.** Every read, edit, write and shell
@@ -171,7 +237,8 @@ Earlier releases are in the
   `Shift+Tab`. Gated commands arrive as approval cards with the CLI's own
   choices; questions from the agent arrive as question cards with radios,
   checkboxes, tabs and an "Other" answer.
-- **`/` for everything.** The palette holds the actions, the model, effort
+- **`/` for everything.** The palette loads its action registry on first use, with loading, failure and
+  retry available. It holds the actions, the model, effort
   and thinking, the permission mode and your skills; type a letter after the
   `/` and it narrows to the slash commands, as in Claude Code.
 - **Subagents on a map.** When Muse Code delegates, or the Model API backend
@@ -4459,6 +4526,10 @@ patch. Preparing and testing a patch and the maintainer-approved push are
 separate jobs: read the proposal before you approve it. A candidate tarball is
 unsigned and pinned by digest; a registry install checks npm 11.19.0's verified
 bundles and the signer identity.
+
+`npm run schema:report` regenerates the [report-v1 schema](docs/schemas/report-v1.schema.json).
+`npm run schema:report -- --check` checks its committed bytes against the strict
+shared report boundary. The schema ships beside the exec schemas in the ACP package.
 
 `npm run schema:exec` regenerates the
 [result](docs/schemas/exec-result-v1.schema.json) and

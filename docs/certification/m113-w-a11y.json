@@ -1,0 +1,681 @@
+{
+  "sizes": {
+    "reportingPanelKiB": 38.140625,
+    "reportingPageKiB": 9.259765625,
+    "reportingCssKiB": 1.265625
+  },
+  "checks": [
+    {
+      "undecided": [],
+      "unseen": 0,
+      "glyphOnly": 0,
+      "theme": "light",
+      "width": 690,
+      "scene": "report",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 0,
+      "glyphOnly": 0,
+      "theme": "light",
+      "width": 690,
+      "scene": "history",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 0,
+      "glyphOnly": 0,
+      "theme": "light",
+      "width": 690,
+      "scene": "diff",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 0,
+      "glyphOnly": 0,
+      "theme": "light",
+      "width": 690,
+      "scene": "error",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 10,
+      "glyphOnly": 0,
+      "theme": "light",
+      "width": 320,
+      "scene": "report",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 10,
+      "glyphOnly": 0,
+      "theme": "light",
+      "width": 320,
+      "scene": "history",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 10,
+      "glyphOnly": 0,
+      "theme": "light",
+      "width": 320,
+      "scene": "diff",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 10,
+      "glyphOnly": 0,
+      "theme": "light",
+      "width": 320,
+      "scene": "error",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 0,
+      "glyphOnly": 0,
+      "theme": "dark",
+      "width": 690,
+      "scene": "report",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 0,
+      "glyphOnly": 0,
+      "theme": "dark",
+      "width": 690,
+      "scene": "history",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 0,
+      "glyphOnly": 0,
+      "theme": "dark",
+      "width": 690,
+      "scene": "diff",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 0,
+      "glyphOnly": 0,
+      "theme": "dark",
+      "width": 690,
+      "scene": "error",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 10,
+      "glyphOnly": 0,
+      "theme": "dark",
+      "width": 320,
+      "scene": "report",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 10,
+      "glyphOnly": 0,
+      "theme": "dark",
+      "width": 320,
+      "scene": "history",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 10,
+      "glyphOnly": 0,
+      "theme": "dark",
+      "width": 320,
+      "scene": "diff",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 10,
+      "glyphOnly": 0,
+      "theme": "dark",
+      "width": 320,
+      "scene": "error",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 0,
+      "glyphOnly": 0,
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "report",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 0,
+      "glyphOnly": 0,
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "history",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 0,
+      "glyphOnly": 0,
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "diff",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 0,
+      "glyphOnly": 0,
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "error",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 10,
+      "glyphOnly": 0,
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "report",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 10,
+      "glyphOnly": 0,
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "history",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 10,
+      "glyphOnly": 0,
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "diff",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 10,
+      "glyphOnly": 0,
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "error",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 0,
+      "glyphOnly": 0,
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "report",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 0,
+      "glyphOnly": 0,
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "history",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 0,
+      "glyphOnly": 0,
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "diff",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 0,
+      "glyphOnly": 0,
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "error",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 10,
+      "glyphOnly": 0,
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "report",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 10,
+      "glyphOnly": 0,
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "history",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 10,
+      "glyphOnly": 0,
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "diff",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "undecided": [],
+      "unseen": 10,
+      "glyphOnly": 0,
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "error",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    }
+  ]
+}

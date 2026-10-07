@@ -1,9 +1,9 @@
+import { buildPalette } from '../../src/shared/paletteRegistry'
 import { afterEach, describe, expect, it } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import {
   backendLabel,
-  buildPalette,
   filterPalette,
   flattenPalette,
   formatTokenWindow,
@@ -182,6 +182,21 @@ function backendRow(base: PaletteContext, backend: PaletteContext['backend']) {
 }
 
 describe('buildPalette', () => {
+  it('offers deterministic reports on both backends separately from the problem report', () => {
+    for (const backend of ['museCode', 'modelApi'] as const) {
+      const groups = buildPalette({ ...context, backend })
+      const rows = groups.flatMap((group) => group.items)
+      expect(rows.find((row) => row.id === 'showReport')).toMatchObject({
+        label: EN.reportShowItem,
+        slashName: 'report',
+        action: { type: 'showReport' },
+      })
+      expect(rows.find((row) => row.id === 'issue')?.action).toEqual({ type: 'openReport' })
+      expect(slashCommandsOf(groups).find((command) => command.name === 'report')?.detail).toBe(
+        EN.reportSlashDescription,
+      )
+    }
+  })
   it('lays out the seven Claude Code groups in order, with git and pull requests (M71), Review (M70) before Support', () => {
     expect(buildPalette(context).map((group) => group.title)).toEqual([
       'Context',
@@ -600,6 +615,7 @@ describe('slashCommandsOf', () => {
       'review',
       'security-review',
       'changes',
+      'report',
       'help',
     ])
     // A row named for the prompt describes itself by its label.

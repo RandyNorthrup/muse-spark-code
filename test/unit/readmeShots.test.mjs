@@ -36,8 +36,15 @@ describe('readme shot list', () => {
   it('names a harness scenario that test/harness/index.html plays, per entry', () => {
     expect(list.shots.length).toBeGreaterThan(0)
     for (const shot of list.shots) {
-      expect(SCENARIOS, `${shot.file}: scenario`).toContain(shot.scenario)
-      expect(hasStepKey(shot.scenario), `${shot.file}: harness step`).toBe(true)
+      if (shot.scenario === 'deterministic-report') {
+        const reporting = readFileSync('test/harness/reporting/index.html', 'utf8')
+        expect(reporting).toContain("import('../../../dist/webview/reportingPage.js')")
+        expect(reporting).toContain("fetch('../../../temp/m113-v/scenes.json')")
+        expect(shotUrl(1234, shot)).toContain('/test/harness/reporting/index.html?')
+      } else {
+        expect(SCENARIOS, `${shot.file}: scenario`).toContain(shot.scenario)
+        expect(hasStepKey(shot.scenario), `${shot.file}: harness step`).toBe(true)
+      }
     }
   })
 

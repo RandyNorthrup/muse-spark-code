@@ -95,3 +95,12 @@
 
 !dist/modelApiHooks.js
 !dist/modelApiMcp.js
+
+!dist/reporting.js
+!dist/reportingPanel.js
+!dist/webview/reportingPage.js
+!dist/webview/reportingPage.css
+!dist/reportingDestinations.js
+!dist/webview/reportingDestinations.js
+!dist/webview/reportingDestinations.css
+!dist/reportingNetwork.js

@@ -992,6 +992,12 @@ other budget changes.
   import of classic zod; removing them means aliasing or patching a
   dependency's module graph, for a download a user makes once.
 
+M113 W's additional first-use entries preserve every existing cap: reporting
+network 55.5 KiB → 75 KiB, destination core 54.3 KiB → 75 KiB, destination
+picker closure below 25 KiB → 25 KiB, each measured plus 15% and rounded to
+25 KiB. The engine remains under its 175 KiB cap and never carries a backend.
+Reports share the existing 50 KiB mini-parser; every runtime API read is guarded.
+
 | Artifact                       | Budget (minified, uncompressed)                                                                                                                                                                                                                                                                      |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `dist/extension.js`            | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                                                                                                          |
@@ -15736,10 +15742,17 @@ model.
 - **Versioned, checked schemas** live in `docs/schemas/**`, with
   `npm run schema:exec -- --check` (M80).
 - **PLAN.md drifts, and a reader must say so.** At `4c7b064b5`, `## 7.
-Gates` appears twice (lines 24216 and 24793) with M98's entry inside the
-  first; 110 `### M…` headings carry 95 status lines, in free prose ("built
-  and certified", "merged as PR #36 at `4694803`", "planned, documentation
-  only").
+
+M113 W first-paint repair: the optional palette registry loads with the first
+palette or slash menu, within the existing 25 KiB Palette closure. Its filtered
+slash list uses accessible loading and failure/retry text until data arrives;
+chat and ordinary drafts do not load the registry. Complete browser English
+fallback stays inline; startup and legacy deferred limits remain unchanged.
+
+Gates`appears twice (lines 24216 and 24793) with M98's entry inside the
+  first; 110`### M…`headings carry 95 status lines, in free prose ("built
+  and certified", "merged as PR #36 at`4694803`", "planned, documentation
+only").
 
 1. **Deterministic means four things.**
    - **No model call anywhere in generation.** The reporting bundle may not
@@ -15906,8 +15919,11 @@ Needs: <items>.`).
 
 8. **Redaction on every renderer.** Every string from a source passes the
    export's scrub (credential shapes, the key digest, account ids, local
-   roots shown as `~` or the workspace's name) once when the snapshot is
-   taken, and each renderer's output passes it again. Paths are
+   workspace paths shown relative, outside paths redacted) once when the snapshot is
+   taken. Decoded report strings and object keys pass it again before
+   canonical serialization and hashing; saved input is decoded and re-walked
+   before verification. Text/Markdown/HTML output passes it again, but the
+   text scrub never runs on canonical JSON bytes (RVM113R, 2026-10-06). Paths are
    workspace-relative. Commit subjects, pull request titles and changelog
    lines are data: shown verbatim after the scrub, and escaped for each
    format (Markdown table pipes, HTML entities).
@@ -15935,7 +15951,7 @@ Needs: <items>.`).
     | Surface                                          | How                                                                                                                                                                                                                                                                                                                                                     | Output                                                                                                                                                                                                                  | When                                |
     | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
     | VS Code family                                   | `/report` and `/report <kind> …` in the composer, run by the host and never sent to the model; the palette's **Show report…**; Account & usage's **Usage report**                                                                                                                                                                                       | the report tab (a `WebviewPanel`, `dist/reportingPanel.js`): **Save as…** (md, html, json, txt, through the save dialog), **Copy as Markdown**, **Attach to message**, **History**, **Diff with previous**, **Refresh** | M113a                               |
-    | JetBrains IDEs, Visual Studio, Eclipse (M104b–d) | the embedded panel's `/report`; MHP's `reports/run`, `reports/history` and `reports/open`                                                                                                                                                                                                                                                               | the same tab in the host's web view; saved through the host's dialog                                                                                                                                                    | contract in M113a; wired by M104b–d |
+    | JetBrains IDEs, Visual Studio, Eclipse (M104b–d) | the embedded panel's `/report`; MHP 1.2's host-initiated `reports/run`, `reports/history`, `reports/open`, `reports/get` and `reports/compare`                                                                                                                                                                                                          | the same tab in the host's web view; saved through the host's dialog                                                                                                                                                    | contract in M113a; wired by M104b–d |
     | The companion page                               | `/report`                                                                                                                                                                                                                                                                                                                                               | the page's report view                                                                                                                                                                                                  | M113a                               |
     | ACP clients                                      | `/report <kind> …` in `available_commands_update`                                                                                                                                                                                                                                                                                                       | Markdown in an agent message (text for clients without Markdown); `--save` adds it to the history                                                                                                                       | M113a                               |
     | Any terminal                                     | `muse-spark-code-acp report <kind> [args] [--format md\|html\|json\|text] [--out <file>] [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>] [--diff previous\|<file.json>] [--full] [--strict] [--fail-on <conditions>]`; `report history`. Bare `report` stays M93's problem report, unchanged, and `report problem` becomes its alias | stdout, or `--out`                                                                                                                                                                                                      | M113a                               |
@@ -16004,9 +16020,11 @@ Needs: <items>.`).
          as that schedule's allowed root), the workspace's `reports/`
          folder, or a node's storage (M110's data volume, shown in its web
          UI). A name template (`{kind}`, `{scope}`, `{date}`, `{time}`,
-         `{hash8}`, `{ext}`; `{kind}-{date}.{ext}` by default) and a
+         `{hash8}`, `{ext}`; `{kind}-{date}-{time}.{ext}` by default, with
+         milliseconds preserved so each occurrence has its own name) and a
          retention of the newest N (`REPORT_SAVE_RETENTION_DEFAULT`, 30),
-         which deletes only files that schedule wrote (its own manifest).
+         which deletes only files that destination wrote (a manifest keyed
+         by both schedule and destination).
          Paths are canonicalised and confined to the allowed root (no link
          or junction escapes, `canonicalPath.ts`), and every write is atomic
          (`fsAtomic.ts`).
@@ -18834,6 +18852,22 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### INT0170 — Pre-integrate reports, design polish and playbook (2026-10-07)
+
+Merge `int-m113-w`, `int-m114-w` and `int-m116-w` in that order with
+`--no-ff` onto candidate `2b9059676`. Preserve both sides of every feature,
+translation and harness readiness entry. Regenerate reference and host API
+inventories. Keep version and README release summary unchanged. Verify the
+committed tree in a fresh clone with Node 22, `CI=true`, exact macOS build
+workflow commands, all coverage shards, native helper, packages and accessibility.
+Fix structural integration failures without widening deadlines or caps.
+M113 adds Help-only report/CLI prose to the shared optional English region,
+exceeding its 25 KiB cap. Ship that prose with the existing lazy Help closure,
+under its unchanged 50 KiB cap; retain direct surface readers in their current
+region and validate every installed table against the complete canonical shape. No push,
+rebase or paid/live model calls. Report status and next slice in
+`docs/certification/int0170.md`.
+
 ### CI0150M — Round 3 macOS CI repairs (2026-10-07, macmini)
 
 - [x] Reproduce the journal coverage timeout and companion authentication race;
@@ -19611,6 +19645,8 @@ Record regression failures, byte-exact red drills and bounded checks in
 
 ### REL0143F — Repair release PR #129 CI failures (2026-10-06)
 
+**Status 2026-10-06: built.** Status evidence: `docs/certification/rel0143-ci.md`.
+
 Continue `release/0.14.3` at `4122e1155` without another merge or push.
 Reproduce the report frame inventory, crash recovery, question dismissal and
 Cline quoting failures. Match the shipped inventory exactly, exercise M25's
@@ -19637,6 +19673,8 @@ No additional merge failure, cap change or timeout override was needed.
 
 ### FIXM112Q — Durable-question review corrections (2026-10-06, Q complete)
 
+**Status 2026-10-06: built.** Status evidence: `docs/certification/m112-q.md`.
+
 Scope: all six findings in `RVM112Q.report.md`, within Q's existing files.
 Late answers use the ordinary user-message send path, including permission-mode
 barriers and session-not-loaded recovery. Re-asks own a fresh deferral deadline;
@@ -19659,6 +19697,8 @@ and production build pass. The inherited U reducer and A inventory handoffs
 remain as below.
 
 ### REL0142 — Prepare the 0.14.2 Help reference release (2026-10-06)
+
+**Status 2026-10-06: built.** Status evidence: `docs/certification/rel0142.md`.
 
 Scope: merge `sync/main` at `1c5f016ae` into the Help reference branch with
 both features and gates intact; keep released 0.14.1 entries in their section.
@@ -19849,6 +19889,8 @@ train, and those waiting on outside events, keep their own status lines.
 
 ### BADGEFIX — Exact package versions on store pages (2026-10-05)
 
+**Status 2026-10-05: built.** Status evidence: `docs/certification/badgefix.md`.
+
 - [x] Generate static Marketplace/Open VSX and npm/GitHub release version
       badges from the manifest while staging each package. Landing-page templates
       use `{version}`; installed READMEs contain the exact package version.
@@ -19870,6 +19912,8 @@ with hooks on. Badge-check public requests are the brief's sole added network
 exception; release cache refresh remains CI-only. Time box: 60 minutes.
 
 ### CIFIX14T — Timed-out monitor cleanup on macOS (2026-10-05)
+
+**Status 2026-10-05: built.** Status evidence: `docs/certification/cifix14-monitor.md`.
 
 - [x] Collect 30 complete baseline owning-file runs under twelve CPU load
       workers. Capture a running descendant after return with a 300-call
@@ -19916,6 +19960,8 @@ shell execution covers the extension and ACP/headless runtime on every editor.
       shared rules reserve aggregate quality/coverage for the lead; 120-minute box.
 
 ### STARTDIET — Chat startup headroom (2026-10-05)
+
+**Status 2026-10-05: certified.** Status evidence: `docs/certification/startdiet.md`.
 
 - **Scope.** Measure the production startup import closure and record its forty
   largest modules with import chains. Keep the 900 KiB startup cap and all
@@ -19993,6 +20039,8 @@ shell execution covers the extension and ACP/headless runtime on every editor.
 
 ### CIFIX14C — Packaged ACP help agrees with its canonical table (2026-10-05)
 
+**Status 2026-10-05: built.** Status evidence: `docs/certification/cifix14-acp-usage.md`.
+
 - [x] Reproduce the release job's strict English fallback check against the
       installed production ACP tarball, and trace both help strings through
       the generated runtime region and package copy.
@@ -20013,6 +20061,8 @@ The existing strict equality check and every budget remain unchanged.
 
 ### CIFIX14W2 — Windows short paths in the kept shell directory (2026-10-05)
 
+**Status 2026-10-05: built.** Status evidence: `docs/certification/cifix14-shortpath.md`.
+
 - [x] Resolve Windows workspace roots and shell-reported directories to the
       native long form before containment, relative tails and command cwd use.
       Keep POSIX path handling unchanged and retain link/junction confinement.
@@ -20029,6 +20079,8 @@ rules reserve the integrated full quality run for the lead; all existing
 gates and timeouts remain unchanged.
 
 ### CIFIX14M — macOS hosted CI repair for 0.14.0 (2026-10-05)
+
+**Status 2026-10-05: built.** Status evidence: `docs/certification/cifix14-macos.md`.
 
 - [x] Collect all four CI unit/process-e2e shards on the Mac mini, in the rig
       brief's batches of at most three files with three workers. Preserve coverage
@@ -20095,6 +20147,8 @@ guard widening, paid/live call, merge, push or rebase; 90-minute repair box.
 
 ### TRAIN14B — Complete the 0.14.0 release train (2026-10-05)
 
+**Status 2026-10-05: built.** Status evidence: `docs/certification/train-0.14.0.md`.
+
 - [x] Merge origin-main (#121), M91/M91b, M93, Knip constants, DEFLAKE4 and M98 phase 1 in the brief's order, retaining every source head and both split-check speed fixes. Skip unready m94/kw and ci/refresh-badges for the lead.
 - [x] Connect metered Judge claim/settle/refund/lookupByClaimId/latestDay to D78's shared daily ledger and test shared reservation plus subscription-only consent behavior.
 - [x] Adapt ACTDIET prototype commits after the merges; activation at most 600,000 bytes, shared English under the original 125 KiB, webview startup under 921,600 bytes, all other caps unchanged.
@@ -20108,6 +20162,8 @@ Train 0.14.0 final gate repair: update ACP fixtures for required split bundles, 
 
 ### TRAIN14A — Start the 0.14.0 release batch (2026-10-05)
 
+**Status 2026-10-05: built.** Status evidence: `docs/certification/train-0.14.0.md`.
+
 Final integration review joins M94 Tab to M71 held-project trust: the Tab
 factory receives `isProjectTrusted`, and its ignore-check Git runner carries
 the same predicate through `beforeRun` to the native entry. Prove both wiring
@@ -20120,6 +20176,8 @@ checks fail under deliberate bypasses, then restore exact source bytes.
 - [x] Record conflict decisions, checks, gate-fire drills if new guards are needed, and exact per-merge bundle/archive bytes in `docs/certification/train-0.14.0.md`. Commit locally with hooks; no push, main merge, rebase, credential access or paid/live call. Time box: 100 minutes on Kubuntu.
 
 ### KNIPC — Restore dead-export analysis of shared constants (2026-10-05)
+
+**Status 2026-10-05: built.** Status evidence: `docs/certification/knip-constants.md`.
 
 - [x] Reproduce the Knip 6.38.0 blind spot and bisect a scratch copy of
       `src/shared/constants.ts`; identify the source construct or entry/config
@@ -20140,6 +20198,8 @@ accessibility and integration certification; this lane runs the required
 scoped checks directly on macmini, with all existing gates unchanged.
 
 ### DEFLAKE4 — Deterministic deferred-bundle split drills (2026-10-05)
+
+**Status 2026-10-05: built.** Status evidence: `docs/certification/deflake4.md`.
 
 Scope: remove repeated child-process/full-repository split scans from
 `test/unit/deferredBundles.test.ts` without changing a timeout, retry,
@@ -20171,6 +20231,8 @@ for D4-C despite common.md's ordinary rig-only/one-process rules.
 
 ### TRAIN13B — Release-train size recovery and complete Kubuntu gate (2026-10-05)
 
+**Status 2026-10-05: certified.** Status evidence: `docs/certification/train-0.13.0.md`.
+
 - [x] Confirm both checkpoint test files pass in the cleared normal temporary directory.
 - [x] Defer Account & usage, Agent map, best-of-N, board, history and review UI until opened, with accessible loading/cancellation, ESM chunks and startup-transitive size/split/packaging guards. Keep the 900 KiB startup cap and at least 20 KiB headroom.
 - [x] Share the Node bundles’ used zod/mini exports in one guarded runtime beside uiText; browser and integration builds retain their inline parser. Ship that runtime in the VSIX and both ACP packages. Keep every existing cap; give only the new measured artifact its D6 measured-plus-15%-rounded-to-25-KiB cap.
@@ -20178,6 +20240,8 @@ for D4-C despite common.md's ordinary rig-only/one-process rules.
 - [x] Measure with the real universal helper extracted from the 0.12.1 release asset (119,342 compressed bytes), then run full quality and the unchanged VSIX gate. Drill new guards, restore byte-exact, update train certification/result and the reviewable PR description. Local hook-on commits only; no merge, push, paid or live model call. The specific brief authorizes full quality and read-only release-asset retrieval despite common.md’s ordinary lane limits.
 
 ### DEFAULTS — Available enhancements and interactive daily paid admission (D78)
+
+**Status 2026-10-04: built.** Status evidence: `docs/certification/defaults.md`.
 
 Scope and acceptance are in D78. The existing paid gate and consent remain
 canonical; the daily adapter reuses M82's journal, while the final HTTP
@@ -20212,6 +20276,8 @@ acceptance criteria. **A milestone is not complete until its checklist passes.**
 - [ ] Commit with a message describing what changed and why.
 
 ### SDK142 — Muse Code 1.4.2 fingerprint and documentation (2026-10-02)
+
+**Status 2026-10-02: built.** Status evidence: `docs/certification/sdk142.md`.
 
 Scoped maintenance: recognize the captured additive MSP fingerprint of
 1.4.2-R4684.1. 1.4.1-R4503.1 is not added: it never reached npm and no live
@@ -21432,6 +21498,8 @@ merged through pull request #7 from `hardening/m26-platform`, shipped in
   signing credentials created.
 
 ### M26 follow-up — Refresh README badges after publication (BADGES)
+
+**Status 2026-10-05: built.** Status evidence: `docs/certification/badges.md`.
 
 The 0.13.0 release exposed stale badge-service and GitHub image-proxy caches.
 Extend the existing release workflow and scripts without changing publication:
@@ -23899,6 +23967,8 @@ joins, combined M56 gates and live enterprise proxy/private-root proof.
 
 ### M58 — A popup before every paid use (D48)
 
+**Status 2026-09-27: certified.** Status evidence: `docs/certification/m58.md`.
+
 - **Goal.** The owner's rule of 2026-09-27: every paid use asks in a popup
   with Allow once, Allow always in this workspace, or Deny.
 - **Scope.** `PaidUseConsent` and its grants; `askPaidUse`; the Model API
@@ -23932,12 +24002,16 @@ joins, combined M56 gates and live enterprise proxy/private-root proof.
 
 ### M67–M85 — Coding quality first (D49, D50)
 
+**Status 2026-10-05: building.**
+
 The program D49 ranks, and D50's M85. Each milestone follows AGENTS.md:
 tests first, red drills, docs landing with the change, strings in all 14
 tables, and the full gate. A paid item follows D30/D48. New UI gets a
 harness scenario, which is what the accessibility gate checks (D32).
 
 ### M67 — Code intelligence tools (D49)
+
+**Status 2026-09-29: built.** Status evidence: `docs/certification/m67.md`.
 
 **Integration review 2026-09-29:** PR #57's candidate is being joined with
 PR #32 before final gates. A Stop during the last awaited check of the first
@@ -24606,6 +24680,8 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
     are the owner's (§3 is untouched until asked).
 
 ### M70 — Review (D49)
+
+**Status 2026-10-02: built.** Status evidence: `docs/certification/m70.md`.
 
 - **Main reconciliation (MG69, 2026-10-02).** Finish the inherited merge of
   `origin/main` `0e9546e0` into `544c16c2`, preserving M70 review/Revert,
@@ -26166,6 +26242,8 @@ extension's own storage, never the workspace's `.git`.
 
 ### M75 — Paired efficiency evaluation (D49)
 
+**Status 2026-10-02: built.** Status evidence: `docs/certification/m75.md`.
+
 **PR63 second review round and the 0.10.0 merge (2026-10-01):** main
 (`90ec399e`, 0.10.0 and the npm path fix) merged in; its [Unreleased]
 `### Fixed` kept, M75's entry under `### Added`. Three threads closed:
@@ -26437,6 +26515,8 @@ evaluation is authorized by these repairs.
 
 ### M74 — Long tasks: automatic compaction and handoff (D49)
 
+**Status 2026-10-02: built.** Status evidence: `docs/certification/m74.md`.
+
 **M74fu follow-ups verified, 2026-10-02 (`fix/m74-followups`).** The four
 review findings after PR #71 are fixed: share one conversation-replacing operation
 lock between handoff Start and plan actions (P2-2); explain a deferred
@@ -26465,7 +26545,7 @@ the share is open, then opens with focus when it closes. Both arrival
 orders have regression coverage. Current merge evidence is recorded in
 `docs/certification/m74.md`; the full four-machine gate remains the lead's.
 
-**Status, 2026-10-02 (this tree, `feature/m74-handoff`).** Manual
+**Historical note, 2026-10-02 (this tree, `feature/m74-handoff`).** Manual
 `/handoff` is built: ported onto the release candidate (`41ed14bf` on
 `8e9d3a1e`), fixed for the ten findings of the RV74 review (one commit
 per finding), for RV74c's (a refusal at the sign-in guard answered, one
@@ -26904,6 +26984,8 @@ maxBytes)`, which returns at most one byte past the cap and only for a
 
 ### M77 — Session board and best-of-N (D49)
 
+**Status 2026-09-29: building.** Status evidence: `docs/certification/m77.md`.
+
 **RV78 review fixes, 2026-10-02.** The board's git status ran through the
 ordinary runner, so opening it could start a repository's configured
 fsmonitor program with no approval, in any mode. It now runs through
@@ -27034,6 +27116,8 @@ JSON ledger format; converting the project plan is outside this lane.
   the shared host verification hold.
 
 ### M78 — Auto, made safe (D49)
+
+**Status 2026-10-02: built.** Status evidence: `docs/certification/m78.md`.
 
 **MGCOH main merge, 2026-10-02.** Integrate `origin/main` at `0e9546e0`
 into `feature/m77-m78-m82` at `8c72bdcc`. Main already includes M84,
@@ -27428,6 +27512,8 @@ independent review and the full candidate gates remain required.**
   the model's judgement, not a fixed name (D13).
 
 ### M80 — Headless and CI (D49, D65)
+
+**Status 2026-10-05: building.** Status evidence: `docs/certification/m80.md`.
 
 **Contract:** scratchpad `m80/SPEC.md` v4 plus its F1/F2 lead rulings,
 2026-10-02. M80 builds on M63/D61, independently of M82. It adds one-turn
@@ -28486,6 +28572,8 @@ remain the lead's.
 
 ### M85 — TypeSafe assist, experimental and opt in (D50; folded into M98)
 
+**Status 2026-10-04: superseded.**
+
 **Amended 2026-10-04: M85 is now section 2c of M98, the SystemOne
 adapter (D77).** It is phase 2, after M98's phase 1 and M95's keys. Read
 M98 for its scope and acceptance. What remains M85's own:
@@ -28549,6 +28637,8 @@ The original text follows for the record; where it differs, M98 wins.
 - **Size.** M.
 
 ### M86 — Restore by the tools' own writes (D63)
+
+**Status 2026-09-30: built.** Status evidence: `docs/certification/m86.md`.
 
 - **DEFLAKE3 Windows follow-up (2026-10-04), verification in progress.**
   The original checkpoint-copy file passed 100 normal and 100 CPU-loaded
@@ -28743,7 +28833,7 @@ of the lanes.
 
 ### M87 — Panel polish (D66)
 
-**Status 2026-10-04, integration: joined on `m87/int` with main at
+**Status 2026-10-04 (integration): joined on `m87/int` with main at
 `2e341e4c`; hosted CI on the milestone PR's head and native VS Code Tasks
 acceptance remain open.** The lead's integration lane merged `m87/pills`
 (one blue pill per menu item), `m87/c2` (the centred chat column, even
@@ -29249,6 +29339,8 @@ been sent.
 
 ### M88 — Prompts, bookmarks and timed sends (D67)
 
+**Status 2026-10-04: planned.**
+
 - **Goal.** The user keeps prompts and conversations they come back to, and
   sends a prompt (or a "continue") at a time they choose, without any new
   way to spend money unseen.
@@ -29725,6 +29817,8 @@ usage window gives has never been captured (§3).
 - [ ] Hosted CI green on the milestone PR's exact head.
 
 ### M89 — Bundled skills (D68)
+
+**Status 2026-10-03: built.** Status evidence: `docs/certification/m89.md`.
 
 - **Goal.** The high-quality-projects workflows work out of the box on the
   Model API backend and, after one click, on Muse Code.
@@ -36431,6 +36525,8 @@ as required by the rig brief; do not run full quality or merge in this lane.
 
 ### M93 — Report a problem after a crash or reload (D72, implemented 2026-10-05)
 
+**Status 2026-10-05: built.** Status evidence: `docs/certification/m93.md`.
+
 - **Goal.** A user can prepare and inspect a useful, scrubbed report without
   an active chat, backend or credential, then choose where it goes.
 - **Scope.** D72's journal, crash offer, report builder, preview and export;
@@ -36542,6 +36638,8 @@ as required by the rig brief; do not run full quality or merge in this lane.
   - [x] README/ACP/privacy/changelog/host-API and `m93.md` match shipped behavior.
 
 ### M92 — Muse Gadgets support (D71)
+
+**Status 2026-10-05: building.** Status evidence: `docs/certification/m92.md`.
 
 - **Goal.** Firmware and device work with Muse Spark Code is safe, with tokens
   never leaked, and practical, with bounded flash and monitor runs, without
@@ -39176,7 +39274,8 @@ merges before its contracts freeze.
 
 ### M112 — Questions that never block (D92)
 
-**Status 2026-10-05: planned.** Small: about 48 lane-hours in lane 0 and
+**Status 2026-10-06: built.** Fake-only integration complete; live checks and full
+quality remain with the lead. Small: about 48 lane-hours in lane 0 and
 three lanes, for a 0.14.x patch (0.14.3, or folded into 0.14.2 when both are
 ready together). Lanes Q, U and A start together once lane 0's contracts
 freeze, and none waits on an unmerged milestone. The native-host, TUI and
@@ -39251,7 +39350,8 @@ lane T and M111b. One short live check per backend (step 3).
     `LATE_ANSWER_QUESTION_MAX_CHARS` (2,000),
     `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION` (0.5).
   - **`QUESTION_MODEL_TEXT`:** `deferred`, `deferredClarification` (at most
-    500 characters once filled), `lateAnswer`, `dismissed`.
+    500 characters once filled). `QUESTION_DELIVERY_MODEL_TEXT` holds
+    `lateAnswer`, `dismissed` and the exact existing answer-format prefixes.
   - **Strings:** every UI string of D92 in `en.ts` and the 14 tables; the
     setting and the two commands in `package.nls*.json`.
 - **Steps.**
@@ -39404,6 +39504,103 @@ lane T and M111b. One short live check per backend (step 3).
 
 ### M113 — Deterministic reports: `/report` (D93)
 
+**Lane W integration (2026-10-06, Kubuntu).** Merge the ten ordered lanes,
+retain current release/question records while applying P's grammar repairs,
+and bind the lazy reporting engine, panel, destinations and page. Close the
+manifest, source/history/renderer, composer/palette/usage, runtime, reference,
+documentation and generated-host-record handoffs against available production
+ports. Missing captured services and unmerged host/scheduler/vault milestones
+stay explicitly unavailable and named in certification; no substitute wire
+parser or paid/live call. Measure new bundles by D6's +15% rounding rule,
+keep every existing cap, drill new guards, and run the full default-timeout
+batched suite, accessibility matrix and README screenshots. G8/G22 remain
+M115-owned; reporting uses H's lease authority and Q's destination receipts.
+The real `--full` project invocation also requires lane identities to retain
+distinct declarations when two tables reuse an owner letter (M91).
+
+**Lane V review corrections (RVM113V, 2026-10-06).** Fix all three P2s and
+the P3 within the VS Code surface lane: authorize the trusted iframe style
+with the production shell's nonce, scrub decoded diff fields with R's
+structured helper, admit picker work through the panel's busy and lifetime
+guards, and move the usage report action into the lazy reporting surface.
+Each correction has a regression and byte-exact red drill in
+`docs/certification/m113-v-vs-code-surfaces.md`. W retains shipping build,
+catalogue, host inventory and editor integration ownership; no gate is widened.
+
+**Lane X review repairs RVM113X (2026-10-06).** Fix all four P2 findings
+within X's runtime/ACP/bridge files, with no dependency or guard weakening.
+Use one whitespace/quote tokenizer for the slash boundary and runtime
+arguments (space, tab, CR, LF, CRLF and Unicode whitespace); MHP continues
+using its frozen structured options and the same reporting engine. Recheck
+authorization and cancellation after generation and history saving before
+returning a document. Preserve explicit formats on capable transports and
+refuse unsupported ones; a text-only ACP adapter defaults to text and refuses
+an explicit Markdown/HTML/JSON request. Select previous history by descending
+`asOf`, including equality, then saved sequence: the history port supplies
+newest-saved-first entries, and a stable timestamp sort preserves that order
+for ties without inventing a wire field. Add default-timeout regressions and
+byte-exact red drills to X's certification. W retains the existing shared
+docs/reference/build handoffs and full integrated quality gate.
+
+**Lane N final repair RVM113N4 (2026-10-06).** Fix the confirmed P2
+throwing refusal effect inside the existing admission reducer design. Catch
+synchronous effect failures at the shell boundary and send generation-tagged
+`effectFailed` events back to the reducer, including the releasing phase;
+continue pending cleanup/release effects. Prove prompt failure and subsequent
+same-host admission for an unrepresentable rate reset, and cancellation of
+a returned body when dispatch throws. Add regressions and byte-exact red
+drills to N's certification. No guard widening, dependency or other-lane edit;
+default test timeouts and existing W integration handoffs remain.
+
+**Lane N lifecycle redesign RVM113N3 (2026-10-06).** Three review rounds
+found defects in admission and response ownership, so replace that path with
+one synchronous per-host reducer, `step(state, event) -> { state, effects }`.
+It owns requested/admitted/transportReturned/transportFailed/aborted/timedOut/
+dispatched/released transitions, queued generations, response ownership and
+rate state. The shell only executes generation-tagged transport, cancellation,
+dispatch, release and refusal effects. Stale completions cancel their bodies
+and cannot publish rate/cache facts. Read the shared live network/sign-in
+decision immediately before transport dispatch; preserve authorized pages
+that return after sign-out and recheck before the next send. Preserve the
+existing public ports and tests. Enumerate abort/timeout at each lifecycle
+boundary with late completions, and prove body-cancellation and generation
+guards with byte-exact red drills. Scoped checks run directly on Kubuntu with
+default test timeouts; W retains the existing integration handoffs.
+
+**Lane N round-two repair RVM113N2 (2026-10-06).** Fix both P2 findings
+structurally within N's files: one serialized admission owner per host,
+abort/deadline-bounded waits and transport settlement, and generation checks
+that discard late transport completions. Centralize the live policy decision
+for every dispatch, including GitHub's `whenSignedIn` requirement, while
+keeping public stores eligible without sign-in. Add failing regressions and
+byte-exact red drills to N's certification. No dependency, guard widening or
+other lane's edits; the existing W integration handoffs remain.
+
+**Lane N review repair RVM113N (2026-10-06).** Fix all four P2 findings
+within N's network/cache/store modules and owned tests: parse responses before
+scrubbing decoded structured values and persisting them; validate 304 cache
+data with the parsed output schema; serialize each host's rate admission and
+dispatch through its response headers; recheck current network policy
+immediately before every send. Add failing regressions and byte-exact red
+drills in `docs/certification/m113-n-network-sources-(b).md`. No dependency,
+guard widening, command or setting change; W retains public documentation
+and integrated quality. Run scoped checks directly on Kubuntu with default
+test timeouts; the rig brief forbids aggregate quality and branch merges.
+
+**Lane Q review corrections (RVM113Q, 2026-10-06).** Fix all eight
+findings within Q: a serialized destination/root owner supplies a live,
+generation-bound assertion to every atomic save mutation, and the runner
+rechecks the complete grant before publication and retention removal. Give
+each destination its own manifest identity; make default names unique to
+the occurrence (including milliseconds) and refuse older replacements at
+custom colliding names. Use own-property outcome lookup, compare scrubbed
+scope identities, resume the persisted rendered payload byte-for-byte,
+sanitize interactive validation/broker errors, and name picker targets before
+selection. Add regressions and byte-exact red drills to Q's certification.
+No dependency, guard weakening or live/model call. Existing W wiring,
+reference and integration-gate handoffs remain; bounded rig checks replace
+aggregate quality for this lane under the explicit rig/shared brief.
+
 **Status 2026-10-05: planned.** No model call is needed anywhere in this
 milestone. It lands in three deliveries:
 
@@ -39415,6 +39612,29 @@ milestone. It lands in three deliveries:
 - **c:** the kinds and surfaces that wait for other milestones: accounts
   (M108), security (M109), fleet's devices and nodes (M100, M110a), the TUI
   (M110a0's lane T), Muse Desktop (M111b).
+
+**Lane R review corrections (RVM113R, 2026-10-06).** Fix the P1 and both
+P2 findings by scrubbing decoded report strings and object keys before
+canonical serialization and hashing, and re-walking decoded saved input
+during verification. Never apply the text scrubber to canonical JSON bytes;
+only `/header/contentHash` is exempt, and hashing still excludes that path
+and `/header/asOf`. Normalize known workspace paths before the shared scrub,
+with Windows case-insensitive root matching and portable relative separators.
+Fix P3 terminal widths using a generated Unicode East Asian Width W/F table
+with its source version, preserving graphemes and emoji width. No dependency
+or guard change. Every finding gets a default-timeout regression and a
+byte-exact red drill in the lane R certification; W retains the existing
+product-documentation and integration-gate handoffs.
+
+**Lane R second review correction (RVM113R2, 2026-10-06).** Fix the
+remaining P2 by recognizing the known workspace prefix in decoded strings
+and consuming the whole relative path, including directory and filename
+spaces, through a quote, field end or invalid path character. Normalize
+every retained separator, including doubled JSON backslashes, with
+case-insensitive Windows roots. Prove equivalent documents, hashes and
+text/JSON/HTML output, saved-JSON round trips and outside-workspace
+redaction with default-timeout tests and a byte-exact red drill. Keep the
+shape-only scrub contract and the existing W integration handoffs explicit.
 
 Lanes P, S, R and V start once lane 0's contracts freeze, which can be as
 soon as M112's lane 0 has published the registry's types (for the session
@@ -39487,7 +39707,75 @@ and HELP, quiet hours, the summary and link, the caps, the price and the
 paid ask-once; 18 h, Win11 VM), with the lead's 2 h; it needs M109 and
 M110, and fake providers for every adapter.
 
+- **Lane P review RVM113P corrections (2026-10-06).** Fix all seven P2 and
+  both P3 findings in the shared reader and gate. Decode every returned
+  string before the shared credential scrub; recognize indented GFM tables
+  from delimiters and validate their widths; retain case-insensitive working,
+  milestone and lane dependencies and refuse unparseable Needs; pair branch
+  and PR evidence exactly or report ambiguity; retain owner decision text as
+  answered; validate every ledger reference. Bound UTF-8 input at 4 MiB
+  (`REPORT_PLAN_MAX_BYTES`, in the existing Reports constants region), index
+  headings once and use sets for duplicate ids. Scan folded status text once
+  and index passing ledger evidence by acceptance id. Prove a large synthetic plan
+  within the existing parse budget and today's entire plan with zero false
+  drift. Every finding gets a default-timeout regression and a byte-exact red
+  drill in `docs/certification/m113-p-the-plan-reader-and-check-plan.md`.
+  README, CHANGELOG and feature-reference wording remain W's documented
+  handoff; the pure core fixes apply to every editor/runtime.
+
+- **Lane H review RVM113H2 corrections (2026-10-06).** Both P2s are
+  in scope. Replace stale unlink with a random-token compare-and-delete
+  lease: rename to a unique tombstone, validate its token, delete only the
+  proven dead identity, and restore a displaced live lease without replacing
+  another lock. Pending tombstones prevent admission. Unknown/incomplete
+  records provide no authority to recover. Retry own-process probing within
+  a bound, cache success only, and leave failures recoverable on the next
+  transaction. Add controlled races, journal evidence retention, an
+  interleaving model and byte-restored red drills before certification.
+
+- **Lane H review RVM113H corrections (2026-10-06).** Fix all six P2
+  findings within H's existing files: capture HEAD before the final confinement
+  guard, recover writer locks using PID and OS process start time, wait for
+  contention with a named bounded backoff, enforce retained history on reads
+  and retry failed pruning before subsequent writes, namespace diff row
+  identities, and retain checks by append sequence. Add failing regressions
+  and byte-exact red drills for each; no dependency or guard weakening.
+
 - **Lane 0's contracts,** frozen before the other lanes start:
+  - **K review RVM113K corrections (2026-10-06).** Fix all seven P2
+    findings within K's collectors and tests: unique repeated checklist keys;
+    release absence only after every required source is complete; GitHub
+    release evidence for latest/project; observed zero edits in complete
+    sessions; partial-source rows in forwarded facets; canonical milestone
+    selection; and ancestry-based commit grouping. K's injected selection
+    ports carry explicit, merge-base-aware branch membership from S/W without
+    changing the frozen snapshot or reading Git inside a collector. Unknown
+    membership stays unknown. Regressions and byte-exact red drills belong in
+    `docs/certification/m113-k-kinds.md`; no guard, dependency or budget changes.
+  - **Review RVM113L02 correction (2026-10-06).** Derive comparison capacity
+    from the document's section schemas, with an exhaustive type-checked map
+    that requires an entry for every section field. Include the separate
+    Needs-you section and the union of ordinary sections from both saved
+    inputs; keep document bounds unchanged. Prove changes in all 65 sections,
+    disjoint ordinary-section ids, rejection beyond the derived bound, and
+    compile failure when a new document section has no comparison entry.
+    Record default-timeout regressions and byte-exact red drills in lane 0's
+    certification; no dependency or other lane's implementation is needed.
+  - **Review RVM113L0 corrections (2026-10-06).** Fix all four P2 and both
+    P3 findings before freeze, with no review residuals. Milestones carry
+    required gate names; a package source carries declared quality-script
+    names and commands without executing them. Session facts retain actual
+    turns and approval counts (approved/denied/auto/expired) from the portable
+    export's source, with explicit unavailable reasons when history lacks
+    them. CI is a list of runs scoped to HEAD, default branch or release tag,
+    each naming its ref, SHA, workflow, conclusion and URL. MHP 1.2 remains
+    host-initiated; saved-id `reports/get` and two-id `reports/compare` share
+    history's workspace authorization. Scrub decoded values before canonical
+    serialization and hashing (RVM113R, 2026-10-06);
+    only the schema path `/header/contentHash` is exempt from scrubbing, and
+    hashing excludes `/header/asOf` and `/header/contentHash`. Add token and
+    current/lagging labels in all 14 languages. R owns the actual renderer;
+    lane 0 supplies strict contracts, deterministic fakes and red drills.
   - **`src/shared/reportSchema.ts`:** `report-v1` (header, Needs you,
     sections with typed rows and stable row keys, sources, footer) as zod;
     the kind ids; each section's declared sort key.
@@ -39497,8 +39785,9 @@ M110, and fake providers for every adapter.
   - **The collector signature:** `(snapshot, options) => ReportDocument`,
     with `options` holding `asOf`, the scope argument and `full`.
   - **The renderer signature:** `(document, locale, theme) => string`.
-  - **MHP:** `reports/run`, `reports/history`, `reports/open` (with M104 lane
-    0's owner).
+  - **MHP 1.2 (host-initiated):** `reports/run`, `reports/history`,
+    `reports/open`, `reports/get`, `reports/compare` (with M104 lane 0's
+    owner). Saved retrieval/comparison share history's workspace authorization.
   - **Constants:** `REPORT_SECTION_ROWS` (10), `REPORT_GIT_MAX_COMMITS`
     (5,000), `REPORT_SOURCE_TIMEOUT_MS` (5,000), `REPORT_GITHUB_RATE_FLOOR`
     (10), `REPORT_CHECK_RUNS_MAX` (500), `REPORT_HISTORY_MAX_PER_KIND` (50),
@@ -40552,6 +40841,8 @@ anywhere joined it).
 
 ### ENVFENCE — Shell credential fence (D89.5, security fix for 0.14.1)
 
+**Status 2026-10-05: built.** Status evidence: `docs/certification/envfence.md`.
+
 - [x] Shared credential matcher and fences at model process entry.
 - [x] Machine-scoped interactive name-only exception, with 14 translations.
 - [x] Spawn environment snapshots and real-shell fake-credential probe;
@@ -41315,6 +41606,74 @@ lane T and M111b. One short live check per backend (step 3).
 
 ### FIXM112U — RVM112U surface repairs (2026-10-06)
 
+**Status 2026-10-06: built.** Status evidence: `docs/certification/m112-u.md`.
+
+**M113-Q-RVM113Q bounded rig certification (2026-10-06).** The rig/shared
+brief prohibits aggregate quality and confines changes to Q. Complete owning
+test files run with repository-default timeouts and at most three workers;
+scoped lint/format, all-project typechecking, deadcode, duplication,
+localization, reference, host API and production build checks run directly
+on win11. No gate is weakened. Existing unused report manifest keys,
+generated host API inventory and destination shipping registration remain
+named W integration handoffs in Q's certification, with their actual exit
+codes recorded. The lead must pass complete integrated quality before shipping.
+
+**M113-R-RVM113R bounded rig certification (2026-10-06).** The lane brief
+reserves full `npm run quality` to the lead and confines changes to R's
+files. Default-timeout regressions, byte-exact drills, all-project
+typechecking, scoped lint/format, schema/reference freshness, dead code,
+zero-clone duplication and production size/split/host-global/notices gates
+run directly on win11. The seven pre-existing unused report manifest keys
+and the existing `node:crypto` inventory mismatch (46 to 47) remain named
+W integration handoffs in `docs/certification/m113-r-renderers,-redaction,-determinism.md`;
+neither gate is weakened or claimed green. W's complete integration gate
+must pass before the milestone ships. RVM113R has no deferred finding.
+RVM113R2 uses the same bounded certification: complete default-timeout
+owning files and scoped checks run on win11, with exact-restoration drills;
+the single P2 is fixed and neither existing integration handoff is hidden.
+
+**M113-V-RVM113V bounded rig certification (2026-10-06).** The lane/shared
+brief prohibits aggregate quality and merges; the lead runs integrated
+quality after W's wiring. Run complete owning tests with default timeouts,
+typecheck, changed-file lint/format, deadcode, duplication, localization,
+reference, host API and production build directly on Windows 11. Record
+the unchanged unbound manifest/reference/inventory/entry failures as W's
+integration handoffs, with concrete receipts in V's certification. No rule,
+ignore, threshold or timeout is weakened. All three P2s and the P3 have
+named regressions and byte-exact red drills; the browser uses the compiled
+host's real production CSP.
+
+**M113-X-RVM113X bounded rig certification (2026-10-06).** The lane brief
+reserves aggregate quality for the lead and forbids merges/pushes. Run the
+complete owned report/ACP/CLI test files at the repository timeout (three files
+and workers maximum), focused lint/format, typecheck, deadcode, duplication,
+localization, host API, reference/schema freshness and production build on
+Kubuntu. Certify every repaired guard with a named failing test and SHA-256
+restoration. Existing unused manifest keys, host API freshness and reporting
+bundle registration remain the named W handoffs; no gate is weakened.
+
+- **M113-H2 lane certification (2026-10-06).** The lane brief prohibits
+  the full quality run on this shared rig; the lead owns fleet quality.
+  H runs scoped suites, typecheck, lint, format, deadcode, duplication,
+  localization, reference, host inventory and production build directly on
+  Kubuntu. The previously recorded seven unused manifest keys and generated
+  host inventory remain W integration handoffs, never suppressed or claimed
+  green; final command outcomes are in H's certification.
+
+**M113-N-RVM113N/RVM113N2/RVM113N3/RVM113N4 bounded rig certification (2026-10-06).** The explicit
+rig/shared brief reserves aggregate quality for the lead and forbids merges.
+Run complete owned suites (at most three files per run), default timeouts,
+scoped static checks and the production build directly in this worktree.
+Existing unused report manifest keys and host API freshness remain W's
+integration handoffs. Record every nonzero gate without weakening it.
+
+**M113-L0-RVM113L02 bounded rig certification (2026-10-06).** The brief
+reserves aggregate quality for the lead. Run complete owned unit files with
+default timeouts and the scoped static/build checks directly on Kubuntu;
+record exact-restoration drills in lane 0's certification. The seven existing
+unused manifest keys remain W's wiring handoff; no gate is weakened. Full
+integrated quality and native-host implementation remain the lead's work.
+
 Authority: the rig brief and lead decisions, refining D92/M112 from
 `plan/m105-m107`. No producer, wire contract or paid-call change.
 
@@ -41336,7 +41695,485 @@ Authority: the rig brief and lead decisions, refining D92/M112 from
       `docs/certification/m112-u.md`. Lead retains aggregate quality and existing
       Q/A/editor integration handoffs. No merge, push, dependency or gate widening.
 
+### REL0143M — Integrate the webview diet into 0.14.3 (2026-10-06)
+
+**Status 2026-10-06: built.** Status evidence: `docs/certification/rel0143.md`.
+
+- Merge `sync/main-0143` (`61d8647c2`) into the prepared release with both
+  M112 question behavior and DIET1 optional-surface loading retained.
+- Keep the immediate question arrival card and shared drafts eager; give lazy
+  question controls the shared failure/retry boundary and their existing 25 KiB cap.
+- Preserve DIET1's stricter 733.8/32.1 KiB regression baselines as well: defer
+  MCP form controls and workflow details, and compact History's layout loop.
+  Forms share the existing question cap;
+  workflow details get a measured independent 25 KiB closure cap.
+- Deduplicate the merged ACP question-command golden in existing test fixtures,
+  retaining every command, description and input field under the zero-clone gate.
+- Keep the What's New codec fixture between its unchanged 40 KiB encoded
+  and 75 KiB decoded limits, even when a whole historical release jumps
+  past the upper limit. The real two-release artifact remains separately checked.
+- Regenerate reference artifacts, put the diet release notes in 0.14.3 and add
+  the README startup bullet. Verify the unchanged 900/50/2400 KiB startup,
+  deferred and VSIX caps with focused default-timeout tests and rig gates.
+- Local hooks-on merge commit only; no push, extra merge or model call.
+
+### DIET1 — Webview startup and deferred headroom (2026-10-06)
+
+**Status 2026-10-06: built.** Status evidence: `docs/certification/diet1.md`.
+
+- [x] Measure main `e56b795a` with the production metafile: startup 813,180 B
+      (794.1 KiB); original deferred aggregate 51,157 B (49.96 KiB).
+- [x] Reduce startup by at least 60 KiB and original deferred aggregate to
+      at most 35 KiB without raising either existing cap or adding dependencies.
+      Keep transcript, composer and approvals eager; defer optional surfaces
+      and preserve the complete inline English fallback with lossless encoding.
+- [x] Accessible loading, local load failure and retry; shared-host CSP/asset
+      proof; owning tests and intentional static-import red drill.
+- [x] Fix RVMDIET1 P2-1, P2-2 and P3 with owning regressions and byte-exact
+      red drills; final 628-page accessibility matrix exits 0 on macmini.
+- [~] Scoped rig gates, production/package, accessibility and browser smoke;
+  certification `docs/certification/diet1.md`, contribution rule and changelog.
+  Lane rules prohibit aggregate quality, network, merges and pushes; the
+  lead retains integrated quality and hosted checks.
+
+**FIXDIET1 review follow-up (2026-10-06).** RVMDIET1 P2-1 is fixed by
+rebuilding the panel document on Retry; the existing persister flushes state
+before the host rebuilds and the browser refetches the complete module graph,
+including failed static dependencies. The dynamic-root URL rewrite is removed.
+Interactive lazy surfaces use the shared deferred loader. Each open owns
+an intent that is cancelled on dismissal; loading and failed nonmodal menus
+retain outside-pointer/focus, Escape and trigger-focus behavior (P2-2/P3).
+Regression tests and byte-exact red drills certify each fix. Keep startup at most
+733.8 KiB, the original deferred group at most 32.1 KiB and each moved
+surface within 25 KiB. No dependency, gate relaxation, model call or merge.
+
+### FIXHELPREF4 — Final focused help audit repairs (2026-10-06)
+
+**Status 2026-10-06: built.** Status evidence: `docs/certification/help-reference.md`.
+
+Scope: fix RVHELPREF4's P1 and both P2 findings. Best-of-N's finite session
+budget requires an owned parent scope shared by candidates; derive that help
+prerequisite from the production manager's admission in a truth regression.
+Correct English and all fourteen translations, then regenerate every output.
+Reject the closed state-predicate vocabulary in every plain description by
+walking the complete built reference, including keyboard rows and nested facts.
+Move existing state claims into typed conditions rather than rewording them.
+Prove the review's exact sentences fail at buildReference/referenceMarkdown,
+accept neutral prose, and retain the original 100-KiB reference cap.
+
+The complete walk exposed existing conditional enum meanings and paid-default
+facts as well as ordinary descriptions. Preserve them with typed localized
+references and the same selector on every surface. The first production build
+correctly rejected the resulting reference at 103,230 bytes / 102,400. Extend
+the existing lossless string packing with shared technical prefixes, certify
+whole-model equality and a rejecting restoration drill, and retain every cap.
+
+- [x] Budget truth regression, all translations and generated outputs.
+- [x] Vocabulary/output-walk regressions and byte-exact red drills.
+- [x] Scoped Kubuntu validation and hook-on commits; no merge or push.
+
+Evidence: `docs/certification/help-reference.md`. The rig brief reserves full
+quality and release integration for the lead. No new dependency, paid/live
+call, guard weakening or cap change is authorized; time box: ninety minutes.
+
+### FIXHELPREF3 — Third truth audit repairs (2026-10-06)
+
+**Status 2026-10-06: built.** Status evidence: `docs/certification/help-reference.md`.
+
+Scope: resolve all six RVHELPREF3 findings at their source. Describe both Auto
+reviewers and ordinary model questions separately from MCP elicitation; prove
+the prose against runtime paths. Use one JSON formatter for displayed/searchable
+facts, schemas and CLI contracts. Escape argument slots throughout Markdown.
+Represent forward and backward modal focus in the shared handler table. Replace
+the historical-sentence blacklist with a structural conditional-description
+rule and typed conditions rendered on every reference surface. Audit every
+human-written catalogue description against its code path and record corrections.
+
+- [x] Six regressions and twelve deliberate red drills, with SHA-256 restoration.
+- [x] Whole-catalogue truth pass, translated tables and generated reference.
+- [x] Scoped Kubuntu checks and hook-on local commits; no merge or push.
+
+Evidence: `docs/certification/help-reference.md`. The rig brief prohibits
+aggregate quality; integrated quality remains the lead's gate. No new dependency,
+live/paid request, relaxed guard or budget change is authorized.
+
+### REDHELPREF — Runtime-owned reference facts (2026-10-05)
+
+**Status 2026-10-05: built.** Status evidence: `docs/certification/help-reference.md`.
+
+Scope authorized by FIXHELPREF.rig.md: replace heuristic reference facts with
+typed runtime registries for CLI options, webview keys, slash grammar and paid
+identity. Settings retain the complete contributed schema; command conditions
+retain the contributed menus. Human descriptions live in the catalogue and all
+14 translations, never in generated fact strings or failure-message lookups.
+Conditional state is expressed as conditions, with a rejecting catalogue lint.
+The independent gate inventories all keyboard handlers and parser routes,
+regenerates every committed output in both directions, and tests actual actions,
+defaults, paid registry identity and route option acceptance. Preserve all
+existing audits' regressions, add the second audit's 16 regressions and repair
+deferred build fixtures. Search includes every displayed field and retains
+visible relationship targets. No native/phone implementation is added; ACP and
+CLI consume the same lazy reference through their existing bridges.
+
+- [x] Runtime-owned typed sources and translated catalogue descriptions.
+- [x] Complete action coverage, independent truth tests and 19 red drills.
+- [x] Search/navigation, fixtures and scoped static/build validation.
+
+The rig brief forbids aggregate quality, merge, rebase and push. Hook-on local
+commits follow scoped green checks. Receipts: docs/certification/help-reference.md.
+
+### FIXHELPREF — Reference truth audit repairs (2026-10-05)
+
+**Status 2026-10-05: built.** Status evidence: `docs/certification/help-reference.md`.
+
+Scope: resolve RVHELPREF findings 1–23 in the existing help lane. Derive paid
+membership from the paid registry, complete setting schemas from the manifest,
+CLI options from the parser, slash syntax from its parsers, and command
+conditions from menus. Record explicit host/backend combinations and effective
+availability; distinguish extension workflows from ACP's local help/skills.
+Inventory existing palette, bridge and keyboard actions independently of the
+catalogue, then check their reference coverage. Correct release placement,
+installed-language output, first-help skill refresh, unavailable values and
+loading failures with retry. Each repair has a failing regression/drill and
+byte-exact restoration in `docs/certification/help-reference.md`.
+
+- [x] Repair all 23 findings, with exact implemented surfaces and complete contracts.
+- [x] Certify 571 scoped tests and 59 deliberate failures with byte-exact restoration.
+- [x] Pass existing static/build gates, production help parity/localization and
+      wide/narrow English/French accessibility; preserve every budget.
+
+The rig brief overrides common.md's old merge step: no merge, push or rebase.
+Scoped checks run on Kubuntu; aggregate quality remains the lead's gate. No
+dependency, live/paid call, credential access or gate/cap weakening.
+
+### HELPREF — Generated Help & Reference (2026-10-05, release 0.14.1)
+
+**Status 2026-10-05: built.** Status evidence: `docs/certification/help-reference.md`.
+
+Owner requests `/help` opening an always-current, searchable reference of every
+feature, slash command, palette command, setting and keyboard shortcut. Build
+on the shared palette, manifest translations, host bridge and modal UI.
+
+Startup comparison against `2d4d72bd` measured 914,658 bytes before help and
+917,333 bytes with help's entry points and English controls. Keep the existing
+inline fallback and lossless dictionary; use reserved two-byte UTF-8 dictionary
+characters (U+0100–U+05FF) instead of three-byte private-use characters. The
+canonical English table has no collision and uses 953 of 1,280 slots. The
+existing collision guard and exact full-table round-trip remain mandatory;
+verify smaller startup and unchanged limits before certifying this lane.
+
+- [x] Generate the lazy reference model and `docs/reference.md` from the
+      manifest, palette, typed feature catalogue and ACP/CLI command table.
+      Validate coverage, descriptions, links and freshness in `check:reference`;
+      add that check to local quality and CI without changing any cap.
+- [x] Add shared React reference page, translated controls, current/default
+      values, settings links and an explicit safe command allowlist. Host bridge
+      messages are schema-validated. VS Code filters settings by `@id:`; native
+      bridges use their settings page anchors with the same requested key.
+- [x] Wire panel `/help`, Open Help & Reference palette command, ACP's compact
+      `/help`, CLI `help --all` and headless help. The generated GitHub reference
+      is the companion link for ACP editors; the React page is portable through
+      the shared bridge. No backend or model invocation is required for help.
+- [x] Prove generator/page tests and red drills; check accessibility in all
+      four themes, capture wide/narrow light/dark, measure unchanged startup caps,
+      update README, CONTRIBUTING, AGENTS and CHANGELOG, commit with hooks.
+
+HELPREF lane runs on macmini. The explicit rig rules prohibit full `quality`,
+push, merge and rebase; the lead retains integrated quality/release approval.
+Scoped tests and all available static/build checks run directly here. No paid
+or live model calls, dependency changes, credential access or cap changes.
+Certification: `docs/certification/help-reference.md`.
+
+### M98 — Muse Judge: a calibrated judge for any agent (D77, phase 1 integration)
+
+**Status 2026-10-05: built.** Status evidence: `docs/certification/m98.md`.
+
+Lane D integration (2026-10-05, Kubuntu): merge A's review fixes and G's
+M91-G goldens into U, activate the same-model sources through a lazy window
+bundle, retain A's live binding and dispatch guards, and connect dispatch
+receipts to U's separate usage rows. Repair the recorded 320 px tool-row
+overflow. Document and certify only the behaviour exercised on this tree.
+D78's `paidDailyBudget.ts` and setting are absent from this checkout; its
+historical `3db0ef37` factory exposes `capUsd`/`reserve`, not A's complete
+daily-ledger interface. Metered Judge stays unavailable until that real
+adapter and D77's entry-criteria receipts land; no competing store is added.
+The exact handoff is recorded in `docs/certification/m98.md`. Prefixes with
+hosted billable tools use a standalone body with no tools: Judge token
+consent cannot authorize a separate hosted-search charge.
+The full rig gate also exposes Chrome CLI `--dump-dom` stalls on ordinary
+pages. Use the existing Playwright page driver for every accessibility
+scenario, preserving the four themes, real 690/320 px viewports, 120-second
+page timeout and every axe finding rule; prove the ordinary-page failure
+and the restored driver before rerunning the complete quality command.
+Lane D's final Kubuntu `npm run quality` exits 0 (7,317 passing tests;
+464 accessibility pages). Package and raw size check exit 0 at 2,113,751
+bytes against the unchanged 2,252,800 cap. The universal macOS helper is
+absent; CI's exact presence check fails only for that helper. The combined
+final-tree checkbox stays open. Receipts and the D78 handoff are in the
+aggregate certification record.
+
+- **Goal.** Small, calibrated, advisory decisions, on out of the box (D78),
+  from the user's own chat model first, with separate judges later. The Muse
+  model, or a deterministic rule, still decides.
+  - Redesigned after the third review round (RVM98C): **phase 1 is the
+    same-model judge only.**
+  - Every other part is a named phase-2 section that stays planned.
+- **Phase 1 scope.**
+  - **The same-model judge** on the Model API and on Muse Code:
+    - stated confidence on every model, batched;
+    - logprobs where a model offers them, with binary-from-top-1 under its
+      floor;
+    - results labelled "uncalibrated" or "approximate (top-1)".
+  - **Speed:**
+    - Model API side requests that share the main cached prefix exactly
+      (redaction first);
+    - Muse Code redacted standalone prompts in a fresh hidden session per
+      batch;
+    - background calls with stale results dropped, and a memory-only result
+      cache.
+  - **One use:** the Auto risk advisory, through the synchronous caution
+    latch at the reviewer-held and card-held fences only (D77, "Where
+    phase 1 intervenes"). Not started on immediate allows.
+  - **Admission** through D78's daily ledger; the ask-once consent;
+    confidential rules; privacy.
+  - **Modes:** `auto` (= `same`), `same`, `off`.
+  - **Per-backend invariance goldens:** M91-G's raw-body harness for the
+    Model API, MSP frames for Muse Code.
+- **Phase 2 sections**, each with its own lanes, acceptance, drills and
+  certification when it starts:
+  - 2a cascade and `both`;
+  - 2b calibration fitting;
+  - 2c SystemOne adapters and `judge serve` (M85);
+  - 2d sampling and contrastive framing;
+  - 2e BYO providers;
+  - 2f the other uses, the Judge panel section, and pre-execution fences;
+  - 2g the CLI and MCP;
+  - 2h lint;
+  - 2i the embedding fast path;
+  - 2j the local judge, after its design spike.
+- **Depends on.**
+  - **Phase 1:**
+    - M78 and M90 (the reviewer-held approval paths, `reviewedApprovals.ts`,
+      and the CLI settings reader);
+    - D78's daily ledger and M82's claim journal (FIXDEF);
+    - M91-G's raw-body harness (`6cfb19e4`, not yet on main);
+    - D48 and D78 (consent).
+  - **Phase 2:**
+    - M95 (2c keys, 2e, the 2f panel);
+    - M91 (2f pre-execution hooks, 2g `judge hook`);
+    - M96 (2f hints);
+    - M75 (2a, 2b, 2d, 2f, 2i);
+    - D68 (2h).
+- **Phase 1 lanes and file ownership.** Muse codes each lane. Codex
+  independently reviews each lane's finished diff and gate-fire evidence. The
+  lead serializes shared files, integration and the aggregate gates; no lane
+  rewrites another's region.
+  - **Start now on the rigs:** lanes 0, J and A. They are pure or
+    interface-level, and need no host integration.
+  - **After them:** S needs J. U needs S and A. G needs S and M91-G's
+    merge. D runs alongside, closing last.
+
+| Lane                  | Starts                        | Muse implementation ownership                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Codex review / acceptance focus                                                                                                                                                                |
+| --------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 Contract / strings  | now                           | new `src/core/judge/schema.ts` (zod request/answer/`muse` schemas, bounds, labels); named limits in `src/shared/constants.ts` (`JUDGE_TOP1_MIN_PROB`, `JUDGE_MIN_READY_RATE`, the advisory threshold, deadlines, caps); the `judge` paid feature in `PAID_FEATURES`; `museSpark.judge.engine` (`auto`, `same`, `off`) in `package.json` and `package.nls*.json`; English and the 14 `l10n/ui.*.json`                                                                                                           | Byte-compatible `answers`; option letters `A`–`Z`; no content in log fields; complete real translations                                                                                        |
+| J Judge core          | now                           | new `src/core/judge/{judge,math,techniques,prompt,resolve,entries}.ts`: the entropy confidence, logprob renormalization over distinct alternatives, `partial`, binary-from-top-1 with its floor and stated fallback, the stated-confidence parser, the state-first prompt builder, batching (questions split, never the state), the over-context refusal, the phase-1 mode resolver, and the exact-action entry store (key, states, discard rules, the synchronous latch read); new `test/unit/judge*.test.ts` | The RVM98 top-1 counterexample; variants counted once; top-1 never a distribution; a missing field read as failure; no state split; a late result never readable after its fence               |
+| A Admission           | now (against D78's interface) | new `src/core/judge/admission.ts`: worst-case uncached reservation per call, refusal of unpriced and over-budget calls, settlement, refunds of known non-sends, liability for uncertain outcomes, re-binding after waits; the adapter onto `src/host/paid/paidDailyBudget.ts` (D78), with no store of its own; integration tests against the real ledger once FIXDEF merges                                                                                                                                    | Entry criteria 1–7 of D77 verified, or a gap filed against FIXDEF; kill after dispatch, corrupt store, lock contention, network-home refusal, two windows, held modal; M80 and D78 regressions |
+| S Same-model source   | after J                       | new `src/core/judge/same/**` and host adapters: the Model API side request built from `ModelApiHost`'s own request builder (prefix copied only when redaction leaves it unchanged; standalone otherwise); Muse Code's fresh hidden session per batch (`session/start`, an empty temporary folder deleted after, Plan, no MCP servers, the user-settings allow-rule check, the M90 item guard); background scheduling and the memory-only result cache                                                          | No model switch; main request or session untouched; redaction first; no reuse of M90's session; judge off on standing allow rules; Muse Spark never awaited                                    |
+| U Use / UI            | after S and A                 | the latch reads at M78's reviewer fence (Model API) and in `src/host/review/reviewedApprovals.ts` (Muse Code, extension-owned held approvals); the caution note on cards; no start on immediate allows; the ready-rate and precision recorder for M75 replays; the Judge status line; the ask-once modal hook-up; usage rows; harness and accessibility cases                                                                                                                                                  | A ready caution turns ALLOW into ask; a pending one leaves it; the card never waits; never an allow; results kept out of the ALLOW parsers; themes, narrow panel, keyboard and screen reader   |
+| G Golden / invariants | after S, and M91-G's merge    | the Model API: an extension of M91-G's raw-body harness (`test/unit/modelApiGoldenRequests.test.ts` at `6cfb19e4`), with the full body byte-identical when `off` or with no hint, the side prefix equal to the main cached prefix, and the redaction case standalone; Muse Code: main-session MSP frames unchanged through the real adapter and fake CLI, and the judge session carrying only the standalone prompt; the SoL-Pi regression files rerun                                                         | Red on any main-body byte change, a side-prefix divergence, a prefix reused despite redaction, or a changed main-session frame; no independent baseline; no claim about the CLI's HTTP bytes   |
+| D Docs / integration  | alongside; closes last        | README, `docs/judge.md` (phase 1), `docs/PRIVACY.md`, SECURITY, CHANGELOG, PLAN, `docs/certification/m98.md`, the bundle and package scripts, knip and dpdm entries                                                                                                                                                                                                                                                                                                                                            | Documented behaviour only after real runs; costs from receipts; Muse Code's narrowed claim stated                                                                                              |
+
+- **Phase 1 acceptance.**
+  - **FIXM98J review repairs (RVM98J, 2026-10-04).** Findings 1–10
+    corrected within lanes J/0: finite JSON booleans; generation-bound entry handles;
+    complete-request context admission and splitting; single-character
+    answer tokens; no judge in the legacy activation paid review; explicit
+    `same` below the automatic ready-rate floor; singular `logprob` metadata;
+    ask-once wording with the shared daily budget in every language; a
+    schema-free engine predicate; and honest top-1 `partial` metadata.
+    Each fix has a regression and a byte-exact red drill in
+    `docs/certification/m98-j.md` (16 drills, full hashes beside it).
+    Lane U retains first-charge consent;
+    no judge call runs in this repair lane.
+  1. **Invariance, per backend.**
+     - When `off`: no request, no file, no log line, no bundle load.
+     - Model API with no hint: the main body is byte-identical (the M91-G
+       harness), and side prefixes are exact or standalone under redaction.
+     - Muse Code: main-session MSP frames unchanged, and the judge frames
+       carry only the standalone prompt.
+  2. **The contract.**
+     - Jev shapes for noul, choice and score.
+     - `muse` carries the source, technique, model, label, our confidence,
+       `vendorConfidence`, `partial`, and the reserved and settled cost.
+     - The bounds refuse 65 questions, 27 options, 11 levels and an oversized
+       body.
+  3. **Techniques.**
+     - **Stated:** batched and labelled "uncalibrated".
+     - **Logprobs:** renormalized over distinct variants.
+     - **Top-1:** only for a noul with a yes/no token at or above the floor,
+       labelled "approximate (top-1)"; the RVM98 counterexample falls back.
+     - **A missing field** is a failure.
+  4. **Fences** (C3).
+     - A ready caution at the reviewer's verdict turns ALLOW into ask.
+     - A fast reviewer with a delayed judge: ALLOW stands, and the late
+       result is dropped.
+     - An immediate native or Auto allow: no judge started, nothing charged.
+     - A card with a caution ready before the answer gets a note; after the
+       answer, nothing.
+     - A replaced session, turn or action discards the entry.
+     - The card never waits.
+     - Ready rate and precision recorded per backend; under
+       `JUDGE_MIN_READY_RATE`, the backend's default is off, with the reason.
+  5. **Muse Code isolation** (C4).
+     - A fresh session per batch, never M90's or the main one.
+     - An empty temporary folder, removed after.
+     - Plan mode with no MCP servers.
+     - The judge is off when user-level always-allow rules exist.
+     - The tool-item guard cancels.
+     - The residual and the narrowed claim appear in §9, in PRIVACY and in
+       the first-use note.
+  6. **Admission** (C5). Through D78's ledger only:
+     - worst-case reservation before dispatch;
+     - kill after dispatch, then restart: the liability is kept;
+     - a corrupt store or a lock failure: refused;
+     - a network home: refused;
+     - two windows: one admitted;
+     - a held modal: re-checked;
+     - unpriced: refused;
+     - re-binding after every wait.
+  7. **State size.** An over-context state gets an explicit no-answer, and
+     questions split across requests each carry the full state.
+  8. **Consent and billing.** Model API asks once (D78) with the price and
+     daily budget; Muse Code shows the subscription note.
+  9. **Confidential.** Same-model calls run exactly when the chat model may.
+  10. **Advisory only.** A "safe" answer leaves every verdict unchanged
+      (D50's test); results never reach the ALLOW parsers.
+  11. **Privacy.** Redaction before any remote call wins over prefix reuse.
+      Logs carry ids, source, technique, model, timing and cost only.
+- **Phase 1 tests and red drills.** Fakes only under `test/**`:
+  - a fake provider with stated-JSON, top-5, top-1, silent-drop,
+    reasoning-forced and cache modes;
+  - a fake Muse CLI with a hidden-session recorder, an always-allow settings
+    fixture and a tool-item emitter;
+  - fake reviewers with controllable delays.
+
+  Each new assertion and guard is broken once on purpose, observed failing,
+  restored byte-exact (SHA-256), and its whole test file rerun. The record
+  goes in `docs/certification/m98.md`. The required drills:
+  - **Invariance:** a main-body byte change; a side-prefix divergence; a
+    prefix reused despite redaction; a changed main-session MSP frame.
+  - **Math:** the top-1 complement under the floor; variants counted twice;
+    top-1 used for a choice; a dropped field read as certainty; a state
+    split.
+  - **Fences:**
+    - the latch awaiting the judge;
+    - a late result applied after its fence;
+    - a judge started on an immediate allow;
+    - a judge result parsed as ALLOW;
+    - an entry surviving a turn replacement.
+  - **Isolation:** reuse of M90's session; judging in the workspace folder;
+    running despite a user-level always-allow rule.
+  - **Admission:** a dispatch before the durable reservation; a liability
+    dropped on restart; two windows admitted for the last claim; dispatch
+    after a held modal without re-checking.
+  - **Behaviour:** a "safe" score that allows; a user path awaiting Muse
+    Spark; the judge doing anything while `off`; contributor tier in a
+    confidential workspace.
+
+  Never drill against a user's repository.
+
+- **Phase 2 sections.** Planned, not dropped. Each starts after its
+  dependency and the evidence it names.
+  - **2a — Cascade, `both`, and `auto` → `both`.**
+    - **Design:** the separate judge first; the same model under the entropy
+      `JUDGE_CASCADE_CONFIDENCE` or for a high-stakes family;
+      profile-weighted combination; disagreement only adds caution.
+    - **Needs:** 2b, a verified separate judge (2c or 2j), and M75's
+      families. The round-2 numbers are offline prototypes.
+  - **2b — Calibration fitting and the report.**
+    - Platt first, isotonic at 200 or more labels.
+    - Per-family targets with independent labels; outcome signals kept
+      apart.
+    - Disjoint grouped splits; metrics from the evaluation set only.
+  - **2c — SystemOne adapters and `judge serve`** (M85).
+    - **Adapters:** OpenRouter Jev (tested), TypeSafe (untested), Clef
+      (after a key), over M95's keys.
+    - **`serve`:** an IP-literal bind, a per-start token in a user-only file
+      deleted on exit, Host and `Origin` refusal (an absent `Origin` never
+      skips the token), 64 KiB, per-request admission.
+  - **2d — Sampling and contrastive framing,** under the cost gate,
+    measured first.
+  - **2e — BYO providers** after M95, with per-model capability blocks from
+    captures.
+  - **2f — The other uses, the Judge panel section and pre-execution
+    fences.**
+    - **Uses:** skill suggestion, relevance and grading, M96's hints, M90's
+      signal, and the three testing uses, each measured first.
+    - **Fences:** a deadline-bounded or hook-based fence for immediate
+      allows, only with a captured pre-execution hook (M91) and a measured
+      ready rate.
+    - **The panel section** sits in M95's panel.
+  - **2g — The CLI and MCP.** `judge ask`, `calibrate`, `report` and `mcp`,
+    plus `judge hook` after M91; exit codes 0, 2 and 4; `--budget-usd`
+    defaults to 0; hooks emit caution only.
+  - **2h — Lint,** within D77's declared limits: a strict, pinned
+    `jevlint.json`; a separate Muse config; Tree-sitter for the kinds
+    symbols cannot cover; a "not checked" coverage report; the first-party
+    pack.
+  - **2i — The embedding fast path,** after a measurement with hundreds of
+    labels.
+  - **2j — The local judge.** First, a design spike answering C1 and C2
+    (D77): verified local inference checked per connection, against the
+    named fixtures, or else only a user-configured, unverified endpoint
+    that is never confidential and never auto-selected. The build follows
+    the spike's verdict, starting from D77's carried design: the pinned
+    `node:net` transport, provenance, consented pulls and `tev1:4b`.
+    **Amended 2026-10-06** (D90.27's amendment): M110t's lane TJ owns the
+    hardware scan and recommendation table that 2j's setup in every editor
+    also uses, and the OS installers install and register the judge on hosts
+    and nodes once 2j has merged with outcome (a).
+- **Gates.**
+  - The lead runs the full `npm run quality` and the required CI checks on
+    the final integrated tree. Lane tests and builds run on the rigs; local
+    work is limited to changed-file formatting and lint.
+  - All existing budgets are preserved.
+  - New external shapes need counted captures before their parsers: for
+    phase 1, Muse Code's hidden-session frames and the CLI's user-settings
+    allow-rule format.
+  - This planning lane authorizes no paid or live call beyond its recorded
+    probes.
+- **Security.**
+  - Inputs are bounded by named constants.
+  - State is data, and the judge can only add caution.
+  - Keys stay in SecretStorage or the OS store.
+  - Muse Code's judge session carries M90's recorded residual (§9), with
+    the narrowed claim.
+  - No local endpoint is contacted in phase 1.
+- **Docs and owner steps.** None for phase 1. The owner-only keys (TypeSafe,
+  Cloudflare) are needed only for 2c. Each surface is documented only after
+  a real successful run.
+- **Certification checklist.**
+  - [x] Owner requests and rulings; D77's policy of record; research and
+        probes (41 live attempts, ≈ $0.015; local CPU and GPU runs; round-2
+        prototypes labelled).
+  - [x] RVM98 (12 findings) answered in `96d7b669`; RVM98C (C1–C6) answered
+        by this redesign. C1 and C2 move with the local judge to the 2j
+        spike; C3–C6 are fixed for phase 1.
+  - [x] RVM98J findings 1–10 repaired in FIXM98J with owning regressions
+        and byte-exact red drills; no finding remains as an accepted residual.
+  - [ ] Phase 1 acceptance 1–11, each with its failing drill and passing
+        receipt.
+  - [x] M91-G's harness merged with `--no-ff` in `e64ced28`; lane G's
+        golden and MSP receipts are linked in `docs/certification/m98.md`.
+  - [ ] D78's ledger meets entry criteria 1–7, or FIXDEF gaps are closed.
+  - [ ] Phase-1 final tree: full quality, a11y, package and bundle caps,
+        installed-host receipts.
+  - [ ] Each phase-2 section certified on its own when it ships.
+- **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
+
 ## 7. Gates
+
+**M113 W rig constraint (2026-10-06).** The explicit rig brief requires individual full gates and the complete test suite in batches of at most three files at default deadlines; its shared rules prohibit aggregate `npm run quality` and public network. This integration runs the named gates individually. Aggregate quality, hosted OS/editor/live receipts and network badge checks remain lead-owned; no threshold, ignore, hook or timeout changes.
 
 **PR132M bounded merge verification (2026-10-06, linuxlt).** Run every
 configured Vitest file at repository-defined deadlines in sequential batches
@@ -41521,56 +42358,6 @@ drill in `docs/certification/m112-a.md`. The rig/shared rules delegate full
 quality and Q/U integration to the lead; this lane runs its focused suites
 and required static/build checks without merging, pushing or paid calls.
 
-### REL0143M — Integrate the webview diet into 0.14.3 (2026-10-06)
-
-- Merge `sync/main-0143` (`61d8647c2`) into the prepared release with both
-  M112 question behavior and DIET1 optional-surface loading retained.
-- Keep the immediate question arrival card and shared drafts eager; give lazy
-  question controls the shared failure/retry boundary and their existing 25 KiB cap.
-- Preserve DIET1's stricter 733.8/32.1 KiB regression baselines as well: defer
-  MCP form controls and workflow details, and compact History's layout loop.
-  Forms share the existing question cap;
-  workflow details get a measured independent 25 KiB closure cap.
-- Deduplicate the merged ACP question-command golden in existing test fixtures,
-  retaining every command, description and input field under the zero-clone gate.
-- Keep the What's New codec fixture between its unchanged 40 KiB encoded
-  and 75 KiB decoded limits, even when a whole historical release jumps
-  past the upper limit. The real two-release artifact remains separately checked.
-- Regenerate reference artifacts, put the diet release notes in 0.14.3 and add
-  the README startup bullet. Verify the unchanged 900/50/2400 KiB startup,
-  deferred and VSIX caps with focused default-timeout tests and rig gates.
-- Local hooks-on merge commit only; no push, extra merge or model call.
-
-### DIET1 — Webview startup and deferred headroom (2026-10-06)
-
-- [x] Measure main `e56b795a` with the production metafile: startup 813,180 B
-      (794.1 KiB); original deferred aggregate 51,157 B (49.96 KiB).
-- [x] Reduce startup by at least 60 KiB and original deferred aggregate to
-      at most 35 KiB without raising either existing cap or adding dependencies.
-      Keep transcript, composer and approvals eager; defer optional surfaces
-      and preserve the complete inline English fallback with lossless encoding.
-- [x] Accessible loading, local load failure and retry; shared-host CSP/asset
-      proof; owning tests and intentional static-import red drill.
-- [x] Fix RVMDIET1 P2-1, P2-2 and P3 with owning regressions and byte-exact
-      red drills; final 628-page accessibility matrix exits 0 on macmini.
-- [~] Scoped rig gates, production/package, accessibility and browser smoke;
-  certification `docs/certification/diet1.md`, contribution rule and changelog.
-  Lane rules prohibit aggregate quality, network, merges and pushes; the
-  lead retains integrated quality and hosted checks.
-
-**FIXDIET1 review follow-up (2026-10-06).** RVMDIET1 P2-1 is fixed by
-rebuilding the panel document on Retry; the existing persister flushes state
-before the host rebuilds and the browser refetches the complete module graph,
-including failed static dependencies. The dynamic-root URL rewrite is removed.
-Interactive lazy surfaces use the shared deferred loader. Each open owns
-an intent that is cancelled on dismissal; loading and failed nonmodal menus
-retain outside-pointer/focus, Escape and trigger-focus behavior (P2-2/P3).
-Regression tests and byte-exact red drills certify each fix. Keep startup at most
-733.8 KiB, the original deferred group at most 32.1 KiB and each moved
-surface within 25 KiB. No dependency, gate relaxation, model call or merge.
-
-## 7. Gates
-
 **REL0143M bounded integration certification (2026-10-06, Kubuntu).** The
 specific rig brief authorizes only the main diet merge and local hooks-on
 commit. Shared rig rules prohibit aggregate `npm run quality`; the lead owns
@@ -41599,6 +42386,13 @@ violations, zero undecided rules, zero exemptions and zero missing results.
 No timeout, exemption, worker policy or accessibility rule changed. The lead
 still owns integrated aggregate quality and actual host/release certification.
 
+**M113-L0-RVM113L02 bounded rig certification (2026-10-06).** The brief
+reserves aggregate quality for the lead. Run complete owned unit files with
+default timeouts and the scoped static/build checks directly on Kubuntu;
+record exact-restoration drills in lane 0's certification. The seven existing
+unused manifest keys remain W's wiring handoff; no gate is weakened. Full
+integrated quality and native-host implementation remain the lead's work.
+
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
 test files, deliberate failures, typecheck, scoped lint/format, deadcode,
@@ -41616,134 +42410,29 @@ future-version fixture proves no manual badge bump is needed. The Kubuntu
 package lacks the compiled macOS helper; hosted universal packaging remains
 unchanged. Receipts: `docs/certification/badgefix.md`.
 
-### FIXHELPREF4 — Final focused help audit repairs (2026-10-06)
+**M113-L0-RVM113L02 bounded rig certification (2026-10-06).** The brief
+reserves aggregate quality for the lead. Run complete owned unit files with
+default timeouts and the scoped static/build checks directly on Kubuntu;
+record exact-restoration drills in lane 0's certification. The seven existing
+unused manifest keys remain W's wiring handoff; no gate is weakened. Full
+integrated quality and native-host implementation remain the lead's work.
 
-Scope: fix RVHELPREF4's P1 and both P2 findings. Best-of-N's finite session
-budget requires an owned parent scope shared by candidates; derive that help
-prerequisite from the production manager's admission in a truth regression.
-Correct English and all fourteen translations, then regenerate every output.
-Reject the closed state-predicate vocabulary in every plain description by
-walking the complete built reference, including keyboard rows and nested facts.
-Move existing state claims into typed conditions rather than rewording them.
-Prove the review's exact sentences fail at buildReference/referenceMarkdown,
-accept neutral prose, and retain the original 100-KiB reference cap.
-
-The complete walk exposed existing conditional enum meanings and paid-default
-facts as well as ordinary descriptions. Preserve them with typed localized
-references and the same selector on every surface. The first production build
-correctly rejected the resulting reference at 103,230 bytes / 102,400. Extend
-the existing lossless string packing with shared technical prefixes, certify
-whole-model equality and a rejecting restoration drill, and retain every cap.
-
-- [x] Budget truth regression, all translations and generated outputs.
-- [x] Vocabulary/output-walk regressions and byte-exact red drills.
-- [x] Scoped Kubuntu validation and hook-on commits; no merge or push.
-
-Evidence: `docs/certification/help-reference.md`. The rig brief reserves full
-quality and release integration for the lead. No new dependency, paid/live
-call, guard weakening or cap change is authorized; time box: ninety minutes.
-
-### FIXHELPREF3 — Third truth audit repairs (2026-10-06)
-
-Scope: resolve all six RVHELPREF3 findings at their source. Describe both Auto
-reviewers and ordinary model questions separately from MCP elicitation; prove
-the prose against runtime paths. Use one JSON formatter for displayed/searchable
-facts, schemas and CLI contracts. Escape argument slots throughout Markdown.
-Represent forward and backward modal focus in the shared handler table. Replace
-the historical-sentence blacklist with a structural conditional-description
-rule and typed conditions rendered on every reference surface. Audit every
-human-written catalogue description against its code path and record corrections.
-
-- [x] Six regressions and twelve deliberate red drills, with SHA-256 restoration.
-- [x] Whole-catalogue truth pass, translated tables and generated reference.
-- [x] Scoped Kubuntu checks and hook-on local commits; no merge or push.
-
-Evidence: `docs/certification/help-reference.md`. The rig brief prohibits
-aggregate quality; integrated quality remains the lead's gate. No new dependency,
-live/paid request, relaxed guard or budget change is authorized.
-
-### REDHELPREF — Runtime-owned reference facts (2026-10-05)
-
-Scope authorized by FIXHELPREF.rig.md: replace heuristic reference facts with
-typed runtime registries for CLI options, webview keys, slash grammar and paid
-identity. Settings retain the complete contributed schema; command conditions
-retain the contributed menus. Human descriptions live in the catalogue and all
-14 translations, never in generated fact strings or failure-message lookups.
-Conditional state is expressed as conditions, with a rejecting catalogue lint.
-The independent gate inventories all keyboard handlers and parser routes,
-regenerates every committed output in both directions, and tests actual actions,
-defaults, paid registry identity and route option acceptance. Preserve all
-existing audits' regressions, add the second audit's 16 regressions and repair
-deferred build fixtures. Search includes every displayed field and retains
-visible relationship targets. No native/phone implementation is added; ACP and
-CLI consume the same lazy reference through their existing bridges.
-
-- [x] Runtime-owned typed sources and translated catalogue descriptions.
-- [x] Complete action coverage, independent truth tests and 19 red drills.
-- [x] Search/navigation, fixtures and scoped static/build validation.
-
-The rig brief forbids aggregate quality, merge, rebase and push. Hook-on local
-commits follow scoped green checks. Receipts: docs/certification/help-reference.md.
-
-### FIXHELPREF — Reference truth audit repairs (2026-10-05)
-
-Scope: resolve RVHELPREF findings 1–23 in the existing help lane. Derive paid
-membership from the paid registry, complete setting schemas from the manifest,
-CLI options from the parser, slash syntax from its parsers, and command
-conditions from menus. Record explicit host/backend combinations and effective
-availability; distinguish extension workflows from ACP's local help/skills.
-Inventory existing palette, bridge and keyboard actions independently of the
-catalogue, then check their reference coverage. Correct release placement,
-installed-language output, first-help skill refresh, unavailable values and
-loading failures with retry. Each repair has a failing regression/drill and
-byte-exact restoration in `docs/certification/help-reference.md`.
-
-- [x] Repair all 23 findings, with exact implemented surfaces and complete contracts.
-- [x] Certify 571 scoped tests and 59 deliberate failures with byte-exact restoration.
-- [x] Pass existing static/build gates, production help parity/localization and
-      wide/narrow English/French accessibility; preserve every budget.
-
-The rig brief overrides common.md's old merge step: no merge, push or rebase.
-Scoped checks run on Kubuntu; aggregate quality remains the lead's gate. No
-dependency, live/paid call, credential access or gate/cap weakening.
-
-### HELPREF — Generated Help & Reference (2026-10-05, release 0.14.1)
-
-Owner requests `/help` opening an always-current, searchable reference of every
-feature, slash command, palette command, setting and keyboard shortcut. Build
-on the shared palette, manifest translations, host bridge and modal UI.
-
-Startup comparison against `2d4d72bd` measured 914,658 bytes before help and
-917,333 bytes with help's entry points and English controls. Keep the existing
-inline fallback and lossless dictionary; use reserved two-byte UTF-8 dictionary
-characters (U+0100–U+05FF) instead of three-byte private-use characters. The
-canonical English table has no collision and uses 953 of 1,280 slots. The
-existing collision guard and exact full-table round-trip remain mandatory;
-verify smaller startup and unchanged limits before certifying this lane.
-
-- [x] Generate the lazy reference model and `docs/reference.md` from the
-      manifest, palette, typed feature catalogue and ACP/CLI command table.
-      Validate coverage, descriptions, links and freshness in `check:reference`;
-      add that check to local quality and CI without changing any cap.
-- [x] Add shared React reference page, translated controls, current/default
-      values, settings links and an explicit safe command allowlist. Host bridge
-      messages are schema-validated. VS Code filters settings by `@id:`; native
-      bridges use their settings page anchors with the same requested key.
-- [x] Wire panel `/help`, Open Help & Reference palette command, ACP's compact
-      `/help`, CLI `help --all` and headless help. The generated GitHub reference
-      is the companion link for ACP editors; the React page is portable through
-      the shared bridge. No backend or model invocation is required for help.
-- [x] Prove generator/page tests and red drills; check accessibility in all
-      four themes, capture wide/narrow light/dark, measure unchanged startup caps,
-      update README, CONTRIBUTING, AGENTS and CHANGELOG, commit with hooks.
-
-HELPREF lane runs on macmini. The explicit rig rules prohibit full `quality`,
-push, merge and rebase; the lead retains integrated quality/release approval.
-Scoped tests and all available static/build checks run directly here. No paid
-or live model calls, dependency changes, credential access or cap changes.
-Certification: `docs/certification/help-reference.md`.
-
-## 7. Gates
+**BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
+prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
+test files, deliberate failures, typecheck, scoped lint/format, deadcode,
+duplication, localization, host API and production/package checks directly on
+Kubuntu; the lead retains full integrated quality and hosted service proof.
+Local badge requests use the explicitly permitted named skip because the shared
+rig lane forbids public network. CI and CI packaging reject that override and
+must validate actual SVG responses. PNG screenshots remain HTTPS content images;
+the SVG requirement applies to badges. No threshold or existing gate is relaxed.
+Focused certification passed: 86 tests, 23 byte-exact red drills, required
+static/build/package checks and actual VSIX/ACP archive version inspection.
+The 0.14.0 VSIX is 2,168,278 bytes under the unchanged 2,252,800-byte cap; the
+ACP tarball is 1,295,446 bytes. Both carry exact static v0.14.0 badges, and a
+future-version fixture proves no manual badge bump is needed. The Kubuntu
+package lacks the compiled macOS helper; hosted universal packaging remains
+unchanged. Receipts: `docs/certification/badgefix.md`.
 
 **FIXHELPREF4 bounded certification (2026-10-06).** The explicit rig brief
 prohibits aggregate quality and reserves release integration for the lead.
@@ -45623,6 +46312,15 @@ production build directly on Kubuntu. The frozen Q base's U-owned
 named integration handoffs in `docs/certification/m112-q.md`; do not weaken
 either gate or claim them green. No review finding is deferred.
 
+**M113-K bounded review gates (2026-10-06).** The rig brief and shared lane
+rules require scoped tests/static/build checks and prohibit full quality in
+this lane; W/lead owns the integrated `npm run quality` gate. Existing lane
+0 handoffs remain: seven unused report manifest localization keys and the
+node:crypto host-API inventory count (46 → 47). Neither gate is weakened or
+rewritten by K. Review regressions and deliberate-break receipts are in
+`docs/certification/m113-k-kinds.md`; these local commits do not certify a
+shipped reporting surface.
+
 **CIFIX14T verified local result (2026-10-05).** The five owning suites
 pass 113 tests (six existing Windows-only skips); the exact restored monitor
 file passes 30/30 loaded runs, 210 tests. Removing the wait fails 3/3 loaded
@@ -46741,6 +47439,35 @@ scan is now clean after archive refs moved outside this repository, and
 the shared install now contains the pinned source-map-js 1.2.2. Windows
 proof remains WINPUB on win11 for the lead's release batch.
 
+**M113 W integration boundaries (2026-10-06).** The rig note explicitly
+requires the complete configured Vitest suite in three-file batches, overriding
+common.md's normal scoped-suite rule. Aggregate `npm run quality` remains
+forbidden by that shared brief; the named component gates run separately.
+Public badge/audit traffic and live captures are also forbidden on this lane.
+The supported package badge check uses its existing documented network-skip
+reason solely for offline packaging; its local badge/template checks remain.
+Coverage aggregation, installed editor/live service/platform receipts and the
+hosted M80 matrix stay with the lead. No threshold, timeout, rule or size cap
+is lowered or raised to replace one of these receipts.
+
+M113 dependency handoffs remain explicit: S session activity and usage need
+M84's retained activity/M102's actual aggregate; native/companion/TUI/desktop
+hosts and runtime settings need M104/M110/M111; N stores, workflow/release and
+posting await approved captures; Q scheduling/occurrences, vault mail, node
+browser and editor/CLI creation need M115/M109/M110/M104; H check-slot records
+await M96c and the runtime verify adapter, which is absent on this base.
+The shipped portable bindings reject missing adapters or report unavailable
+sources. The shared engine, private cache/history/check journal, manifest,
+reference, lazy entries, budgets, docs and host inventory are W's scope.
+
+M113 W keeps schema-derived comparison bounds without importing Zod's JSON
+schema processors into browser first paint: the pinned, typed max-length
+check definitions supply the minimum actual bound. The structural section-key
+coverage and unbounded-array refusal remain; schema generation still uses
+`toJSONSchema` in its lazy/script reader. The existing 733.8 KiB startup
+regression and every production cap remain unchanged. CI's static job also
+runs P's new `check:plan` gate, matching `quality:gates`.
+
 ## 8. Escape hatches register
 
 | REL0144 location                                                | Escape hatch                                                                                                   | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -46756,6 +47483,10 @@ proof remains WINPUB on win11 for the lead's release batch.
 | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/acp/questionDeferralBundle.ts` (FIXM112A)                                                                      | `isAcpQuestionBundle` trusts the checked factory signature | The entry, loader and ACP package come from the same build; the export is checked as a function and loader tests reject missing/malformed modules. The factory installs the caller's language table before constructing a session's question controller. |
 | `src/runtime/questions/questionRegistryBundle.ts`, `src/host/conversation/conversationBundle.ts` (M112 integration) | Checked same-build function signatures                     | Loader guards validate each required export as a function; entries and callers ship from the same build. Registry and host store factories install or inherit the caller's language before use; loader and real-disk tests exercise their signatures.    |
+
+| File                                | Construct                                                                 | Reason                                                                                                                                                                                                              | Added      |
+| ----------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/core/reporting/plan/ledger.ts` | `eslint-disable-next-line unicorn/no-thenable` on the `then` schema field | The vendored quality-ledger v1 grammar requires an outcome named `then`; its value here is a zod text schema, never a promise callback. The strict ledger boundary is exercised by the lane P tests and red drills. | 2026-10-06 |
 
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -47517,6 +48248,213 @@ before a repaired one loads (2026-09-30).
   credential boundaries, CSP, dependencies and bundle caps are unchanged.
   The lead retains integrated quality and real host/release certification.
   Tests, exact-restoration drills and rig receipts: docs/certification/diet1.md.
+
+- **M113-P-review-RVM113P (2026-10-06).** All seven P2 and both P3
+  findings are fixed; no review residual remains. Decoded strings are scrubbed,
+  all indented lane tables and delimiter widths are checked, dependencies
+  retain working/case/lane ids and malformed Needs stay blocked, branch/PR
+  evidence pairs exactly or reports ambiguity, owner decision text is retained
+  as answered, and every ledger reference is validated. A 4 MiB UTF-8 bound,
+  bounded gate reads, one heading index, duplicate-id sets, a single scan of
+  folded statuses and indexed ledger evidence replace unbounded/quadratic
+  parsing. Default-timeout regressions, 23 byte-exact red
+  drills and the real-plan zero-false-drift receipt are recorded in
+  `docs/certification/m113-p-the-plan-reader-and-check-plan.md`.
+  Aggregate quality, integrated surface/docs/reference wiring and the seven
+  unchanged unused Reports manifest keys remain the lead/W handoff already
+  recorded there, rather than a claim that all of M113 ships.
+
+- **M113-K-review-RVM113K (2026-10-06).** All seven P2 collector findings
+  are fixed, with no review residuals. Facts retain provenance; missing or
+  partial evidence cannot prove absence. Regression tests and twelve
+  byte-exact deliberate-break receipts are recorded in
+  `docs/certification/m113-k-kinds.md`. K's new required `changeBranches`
+  selector receives bounded, merge-base-aware lane membership before the
+  pure collector runs; it never guesses from tips or dates. S/W binds it
+  with historical fork evidence for merged lanes (M113-K-branch-membership).
+  This is safe until integration because current shipped entries do not
+  import the collectors and their factory requires this evidence port.
+  Existing M113-K-localization-manifest (seven unused report keys) and
+  M113-K-host-api-record (node:crypto 46 → 47) remain W's gate handoffs;
+  W wires the manifest and regenerates the inventory before full quality.
+  No threshold, ignore, dependency, wire shape or startup budget is changed.
+
+- **M113-Q-review-RVM113Q (2026-10-06).** All eight findings are fixed;
+  no review residual is deferred. Saving requires a serialized canonical-root
+  owner bound to the action generation, a live grant refresh before each
+  conditional write/removal, and a synchronous owner assertion immediately
+  before every atomic mutation. A revoked or stale effect records refused;
+  published bytes from before revocation are retained, without compensating
+  writes after consent ends. Destination-specific manifests isolate retention;
+  default UTC names preserve milliseconds and older custom-name replacements
+  refuse. Persisted rendered payloads resume unchanged. Fixed interactive
+  errors and pre-selection target names are covered by regressions and
+  byte-exact drills in Q's certification. M115/M110 must supply the required
+  cross-process owner and generation assertions, including on node volumes;
+  Q supplies no production fallback. The pre-existing final filesystem race,
+  orphan-on-manifest-failure limit, shape-only scrub and W integration/shipping
+  handoffs remain, without any expanded guard or support claim.
+
+- **M113-R-review-RVM113R2 (2026-10-06).** The single P2 is fixed;
+  no review finding is deferred. Known workspace paths consume the full
+  relative suffix, including spaces, through quotes, field ends or invalid
+  path characters, and normalize all separators before the shared scrub.
+  Ordinary, doubled and mixed Windows separators yield identical documents
+  and hashes. Text/JSON/HTML boundaries, saved-JSON round trips, outside
+  paths and three byte-exact red drills are recorded in the lane R
+  certification and `docs/certification/m113-r-review-drills.json`.
+- **M113-R-shape-only-source-prose (existing D93 limit, clarified by
+  RVM113R2, 2026-10-06).** The scrub recognizes registered shapes after
+  decoding the outer saved document. It does not recursively decode inner
+  JSON with Unicode-escaped credential keys, twice-escaped credential
+  fields, percent/base64-encoded keys or credentials split across text-list
+  entries. This remains accepted under the existing shape-only export
+  contract: saved-input verification proves known-shape compliance, not
+  absence of arbitrary secrets in source prose. Follow-up: the shared-export
+  scrub owner must design bounded decoding if that contract expands.
+
+- **M113-R-review-RVM113R (2026-10-06).** The P1, both P2 findings and P3
+  are fixed with no review residuals. Report strings and object keys are
+  scrubbed as structured values, then serialized and hashed; saved input is
+  re-walked after decoding. Only `/header/contentHash` is exempt. Known
+  workspace paths retain normalized relative filenames, with Windows
+  case-insensitive root matching; paths outside the workspace remain
+  redacted. Terminal width uses a generated Unicode 16.0.0 W/F table and
+  emoji properties, preserving graphemes. Default-timeout tests and five
+  byte-exact red drills are recorded in
+  `docs/certification/m113-r-renderers,-redaction,-determinism.md` and
+  `docs/certification/m113-r-review-drills.json`. The existing shape-only
+  scrub limit and W's shipping, product-doc and integration-gate handoffs
+  remain; this lane adds no secret-free-prose claim or shipped command.
+
+- **M113-V-review-RVM113V (2026-10-06).** All three P2s and the P3 are
+  fixed; no finding is deferred. Report iframe styles use the production
+  shell's nonce, with the empty sandbox and parent CSP preserved. Diff
+  re-scrubbing walks decoded strings and keys through R's `scrubFields`
+  helper; the only change to R's file is exporting its existing helper,
+  matching R's reviewed correction. Picker work has busy admission,
+  original-panel checks and canceled editor dialogs. The Usage report
+  button lives in the lazy reporting surface, supplied through
+  `UsageDialog.reportAction`; W must bind that slot through its reporting
+  lazy boundary and register the reporting chunks' measured budgets.
+  Existing W build/catalogue/manifest/inventory and X/editor handoffs stay
+  open as named in `docs/certification/m113-v-vs-code-surfaces.md`; this
+  lane does not claim shipping integration or editor parity. Scoped gates
+  and byte-exact failure drills are recorded there.
+
+- **M113-X-review-RVM113X (2026-10-06).** All four P2 findings are fixed;
+  there were no P1/P3 findings and no review finding is deferred. CRLF/lone-CR
+  and Unicode-whitespace report commands stay local; revoked/cancelled runs
+  refuse the document after history saving; explicit formats are honored or
+  refused; equal-`asOf` comparisons use the latest saved sequence. The frozen
+  history payload has no sequence field, so H's port must list newest saved
+  first and X preserves that sequence with stable timestamp sorting. Existing
+  S/K/H bindings, actual native/companion/TUI/desktop receipts, and W's
+  manifest/docs/reference/build integration remain named handoffs rather than
+  claims of shipped functionality. Evidence and exact-restoration drills:
+  `docs/certification/m113-x-the-runtime,-acp,-the-companion,-mhp.md`.
+
+- **M113-H-review-RVM113H2 (2026-10-06).** Both P2 findings are fixed:
+  O_EXCL leases hold PID, OS birth identity and a random token. Recovery
+  renames to a unique tombstone and deletes only the observed stale token;
+  a different token is restored. Pending tombstones block admission and
+  survive recoverer crashes. Native identity is checked again after the scan,
+  so restoring a live lease cannot admit a displaced creator. Release uses
+  the same compare-and-delete path.
+  Own-process probes retry within the existing bound, cache success only and
+  permit a later transaction after failure. Controlled races preserve both
+  real journal appends; the two-writer/two-recoverer interleaving model
+  includes crashes at every writer boundary and both recovery orders.
+  Named byte-restored red drills are in H's certification. No P1/P3 was
+  reported; no review finding is deferred.
+- **M113-H-unknown-owner-lease (2026-10-06).** A crash during initial
+  O_EXCL record creation can leave an empty or malformed lease. Its exact
+  process identity is unknowable, so it cannot safely be declared stale.
+  Writes fail explicitly within the unchanged contention bound, preserving
+  evidence and excluding a second writer. A paused creator is retained and
+  can finish. An actually abandoned unknown-owner file needs manual repair
+  after all relevant writers stop. Follow-up: W documents this recovery
+  limitation; any automatic repair needs a separately reviewed atomic
+  publication design. This is an availability residual, not deletion
+  authority inferred from elapsed time. No guard or threshold is widened.
+
+- **M113-H-review-RVM113H (2026-10-06).** All six P2 findings are fixed,
+  with no review residual. HEAD capture precedes the final path guard;
+  writer ownership records PID and OS process start time. The RVM113H2 entry
+  supersedes its stale/unfinished-owner recovery certification. Contention uses
+  a separate two-second monotonic wait with bounded backoff and an explicit
+  failure on exhaustion. History prunes before publishing, refuses an
+  over-cap read and retries pruning on the next write. Diff metadata and
+  ordinary cells have separate identities; check retention follows append
+  sequence across clock corrections. Tests and byte-exact red drills are in
+  `docs/certification/m113-h-history,-diff-and-the-check-run-journal-(b).md`.
+  Existing W-owned codec/surface/bundle/documentation bindings and aggregate
+  fleet gates remain integration handoffs; this lane changes no command,
+  setting, dependency, wire contract, credential policy or guard threshold.
+
+- **M113-N-final-RVM113N4 (2026-10-06).** The sole P2 throwing-effect
+  finding is fixed; no review residuals. The shell converts synchronous
+  effect throws to generation-tagged reducer events and continues sibling
+  effects. A failed refusal in `releasing` gets a fixed `source-failed`
+  rejection while the original release proceeds once; a failed dispatch
+  retires its owned response through cancellation/refusal/release effects.
+  Stale failures cannot disturb a successor. The existing numeric rate floor
+  remains enforced, including an unrepresentable reset; no guard is widened.
+  Regression and exact-restoration drill receipts are in N's certification.
+  Existing captures/storage/wiring/lazy-bundle and W's public
+  CHANGELOG/reference/localization/host API/quality handoffs remain.
+
+- **M113-N-lifecycle-RVM113N3 (2026-10-06).** The admission reducer owns
+  queued/current generations, response ownership and rate publication. Abort,
+  deadline and transport failure retire an owner once; stale completions
+  cancel returned bodies and cannot dispatch or release a successor. A
+  successful dispatch transfers the response to the query's cleanup scope,
+  which also covers cancellation before its await continuation resumes.
+  The async shell has only resource ports and reducer states, no independent
+  lifecycle flags or promise queue. Existing authorized-page semantics and
+  N-captures/storage/wiring/lazy-bundle/W handoffs remain. Model interleavings,
+  microtask abort schedules and byte-exact drills are in N's certification;
+  no new live-service, model-call or integrated-editor claim is made.
+
+- **M113-N-review-RVM113N2 (2026-10-06).** Both P2 findings fixed;
+  no review residuals. Each host has one admission owner; its waits and
+  transport settlement race the source's existing deadline/abort signal.
+  Cancellation releases admission even when the transport never settles;
+  obsolete generations discard late responses without rate/cache updates.
+  One shared policy function checks GitHub's live sign-in requirement at
+  each dispatch; public stores retain their declared eligibility. Regression
+  and byte-exact red-drill evidence is in N's certification. Existing
+  N-captures, N-cache-storage (storage must honour cancellation),
+  N-reader-wiring (one shared reader per host with live setting/sign-in
+  getters), N-lazy-bundle and W's documentation/quality handoffs remain;
+  no live-service or integrated-editor claim is added.
+
+- **M113-N-review-RVM113N (2026-10-06).** All four P2 findings fixed;
+  no review residuals. Responses are parsed, scrubbed as decoded structured
+  values and validated before storage; 304s validate stored output separately
+  from transforming input schemas. One per-host lock covers rate admission,
+  dispatch and response-header updates; current network policy is checked
+  immediately before every send. Regression tests and byte-exact red drills
+  are in `docs/certification/m113-n-network-sources-(b).md`. Existing
+  N-captures, N-cache-storage, N-reader-wiring and other integration handoffs
+  in that record remain with their named owners; no live-service claim is
+  added. W retains unused manifest-key wiring and host API regeneration,
+  public documentation and the lead's full integrated quality run.
+
+- **M113-L0-review-RVM113L02 (2026-10-06).** The P2 comparison-capacity
+  finding is fixed with no review residuals. Capacity is derived from the
+  actual document section schemas, including Needs you and both inputs'
+  ordinary-section union. Every section field requires a comparison entry,
+  including optional fields. Document bounds remain unchanged; boundary,
+  overflow and required/optional-field drills are recorded in
+  `docs/certification/m113-0-contracts,-strings,-fakes-(lead).md`.
+
+- **M113-L0-review-RVM113L0 (2026-10-06).** All four P2 and both P3
+  contract findings fixed; no review residuals. Scoped gate evidence and
+  byte-exact red drills are in
+  `docs/certification/m113-0-contracts,-strings,-fakes-(lead).md`. Existing
+  implementation handoffs remain with P/S/K/R/N/H/X/W; no runtime feature
+  availability is claimed by these contracts.
 
 - **ENVFENCE-HELPREF (resolved in REL0142 integration, 2026-10-06).** Main's
   credential pass-through setting joins the Help permissions feature with its

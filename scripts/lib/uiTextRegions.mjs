@@ -294,6 +294,18 @@ export const compactBrowserUiText = {
       const eagerSources = browserStartupSources(roots).files
       const { keys, files, eagerKeys } = browserTextKeys(entries, EN, eagerSources)
       const deferredKeys = [...keys].filter((key) => !eagerKeys.has(key))
+      // Help-only CLI/reference prose travels with the existing Help closure.
+      // Direct readers on other surfaces stay in their current fallback region.
+      const helpFiles = files.filter((file) => {
+        const normal = file.replaceAll('\\', '/')
+        return !normal.includes('/shared/reference/') && !normal.endsWith('/ReferencePage.tsx')
+      })
+      const helpKeys = deferredKeys.filter(
+        (key) =>
+          /^(?:reference|acp|exec|scanSecrets|reportUsage$)/.test(key) &&
+          helpFiles.every((file) => !readFileSync(file, 'utf8').includes(`UI_TEXT.${key}`)),
+      )
+      const surfaceKeys = deferredKeys.filter((key) => !helpKeys.includes(key))
       const readers = new Set([...keys].filter((key) => !deferredKeys.includes(key)))
       const contract = Object.fromEntries(
         Object.entries(EN).map(([key, value]) => [
@@ -313,6 +325,8 @@ export const compactBrowserUiText = {
         files,
         lanes,
         deferredKeys,
+        surfaceKeys,
+        helpKeys,
         contract,
         level: L10N_BROWSER_COMPRESSION_LEVEL,
       }
@@ -321,7 +335,11 @@ export const compactBrowserUiText = {
       path: 'browser-table-contract',
       namespace: 'browser-table-contract',
     }))
-    for (const namespace of ['browser-table-contract', 'browser-surface-english']) {
+    for (const namespace of [
+      'browser-table-contract',
+      'browser-surface-english',
+      'browser-reference-english',
+    ]) {
       build.onResolve({ filter: /.*/, namespace }, (args) => {
         if (args.path === path.resolve(TABLE).replaceAll('\\', '/'))
           return { path: path.resolve(TABLE), namespace: 'file' }
@@ -347,13 +365,23 @@ export const compactBrowserUiText = {
     }))
     build.onLoad({ filter: /.*/, namespace: 'browser-surface-english' }, () => ({
       contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
-${inlineBrowserTable(Object.fromEntries(data.deferredKeys.map((key) => [key, data.EN[key]])), data.level)}
+${inlineBrowserTable(Object.fromEntries(data.surfaceKeys.map((key) => [key, data.EN[key]])), data.level)}
+installSurfaceEnglish(EN);`,
+      loader: 'js',
+    }))
+    build.onResolve({ filter: /^browser-reference-english$/ }, () => ({
+      path: 'browser-reference-english',
+      namespace: 'browser-reference-english',
+    }))
+    build.onLoad({ filter: /.*/, namespace: 'browser-reference-english' }, () => ({
+      contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
+${inlineBrowserTable(Object.fromEntries(data.helpKeys.map((key) => [key, data.EN[key]])), data.level)}
 installSurfaceEnglish(EN);`,
       loader: 'js',
     }))
     build.onLoad({ filter: /[/\\]webview[/\\].*\.tsx$/ }, (args) => {
       const source = readFileSync(args.path, 'utf8')
-      if (!source.includes('lazy')) return
+      if (!source.includes('lazy') && !source.includes('ReferencePage')) return
       const tree = ts.createSourceFile(
         args.path,
         source,
@@ -366,15 +394,20 @@ installSurfaceEnglish(EN);`,
         if (
           ts.isCallExpression(node) &&
           ts.isIdentifier(node.expression) &&
-          node.expression.text === 'lazy'
+          (node.expression.text === 'lazy' ||
+            (node.expression.text === 'deferred' &&
+              node.arguments[0]?.getText(tree).includes("import('./components/ReferencePage')")))
         ) {
-          if (node.arguments.length !== 1 || node.arguments[0] === undefined)
+          if (
+            (node.expression.text === 'lazy' && node.arguments.length !== 1) ||
+            node.arguments[0] === undefined
+          )
             throw new Error(`Unsupported lazy English loader: ${args.path}`)
           const argument = node.arguments[0]
           edits.push({
             start: argument.getStart(tree),
             end: argument.end,
-            source: `async () => { await import('browser-surface-english'); return await (${argument.getText(tree)})() }`,
+            source: `async () => { await import('${node.expression.text === 'lazy' ? 'browser-surface-english' : 'browser-reference-english'}'); return await (${argument.getText(tree)})() }`,
           })
         }
         ts.forEachChild(node, visit)

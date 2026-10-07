@@ -40,6 +40,9 @@ function count(text: string, pattern: RegExp): number {
 
 const SURFACE_ACTIVE = `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || focusedView == '${CHAT_VIEW_ID}'`
 
+/** A package.json `%key%` reference names its package.nls.json string. */
+const nlsKeyOf = (reference: string | undefined) => reference?.replace(/^%(.+)%$/, '$1') ?? ''
+
 describe('package.json manifest', () => {
   it('offers paid Tab by default while retaining its machine scope and daily cap', () => {
     const properties = manifest.contributes.configuration.properties
@@ -203,6 +206,30 @@ describe('package.json manifest', () => {
     expect(description).toContain('Unknown sent requests keep their reservation')
     expect(description).toContain('Web search is unavailable while capped')
     expect(description).not.toMatch(/only through|only overrun|only way/i)
+  })
+
+  it('claims only the GitHub reads the wired network port can make (M113W)', () => {
+    // The wired stores port is always unbound (src/runtime/reporting/network.ts):
+    // store, workflow and release adapters await approved live captures, so no
+    // setting may promise public release-channel reads (Grok M113W P2).
+    const here = path.dirname(fileURLToPath(import.meta.url))
+    const nls = JSON.parse(
+      readFileSync(path.join(here, '..', '..', 'package.nls.json'), 'utf8'),
+    ) as Record<string, string>
+    const properties = manifest.contributes.configuration.properties as Record<
+      string,
+      { description?: string; enumDescriptions?: string[] }
+    >
+    const network = properties['museSpark.reports.network']
+    const description = nls[nlsKeyOf(network?.description)] ?? ''
+    expect(description).toContain('GitHub')
+    expect(description).toContain('--network')
+    expect(description).not.toMatch(/public release channels/i)
+    const enumTexts = (network?.enumDescriptions ?? []).map(
+      (reference) => nls[nlsKeyOf(reference)] ?? '',
+    )
+    for (const text of enumTexts) expect(text).not.toMatch(/public release channels/i)
+    expect(nls[nlsKeyOf(network?.enumDescriptions?.[0])] ?? '').toContain('signed in')
   })
 
   it('notifies about background turns until turned off, a choice a workspace may make (M82)', () => {

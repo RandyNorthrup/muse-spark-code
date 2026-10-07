@@ -1,7 +1,7 @@
 // The generator's build entry: its imports are visible to the dead-code gate.
 export { featureCatalog, COMMAND_REFERENCE, referenceDescription } from '../featureCatalog'
 export { COMMAND_IDS } from '../constants'
-export { buildPalette } from '../palette'
+export { buildPalette } from '../paletteRegistry'
 export { slashCommandsOf } from '../slashCommands'
 export { cliCommands } from '../cliCommands'
 export { EN } from '../l10n/en'
@@ -125,6 +125,7 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ]),
   // M112: ACP asks through forms or text and answers with /questions and /answer.
   ['questions', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  ['reports', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ...['web-fetch', 'images'].map((id): [string, readonly string[]] => [
     id,
     ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
@@ -150,6 +151,7 @@ export const REFERENCE_ACTION_FEATURES = {
   requestLegalExplanation: 'legal-explanation',
   exportLegalReport: 'legal',
   sharingAction: 'prompt-library',
+  runReport: 'reports',
   openSettings: 'support',
   openKeybindings: 'support',
   openLog: 'support',

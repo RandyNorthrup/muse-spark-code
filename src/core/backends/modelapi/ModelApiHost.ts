@@ -1118,6 +1118,8 @@ function newHookEffects(): HookEffects {
 
 /** A check or then_run command, before its hooks and its permission path (M68). */
 interface VerifyCommand {
+  /** Only configured checks enter the report journal; then_run stays a shell command. */
+  readonly checkName?: string
   readonly line: string
   /** What "always allow in this session" is keyed on. */
   readonly ruleCommand: string
@@ -8439,11 +8441,25 @@ export class ModelApiSession implements AgentSession {
       isForced: request.isForced || pre.forceApproval,
     }
     const policy = beforePolicy
+    const journal = this.deps.verify?.checkRuns
+    let commit: string | undefined
     const refusal = await authorizeThenGuard({
       isRuleLapsed: () => this.changesWhatRunsNow(ruleCommand),
       authorize: () => this.authorizeCommand(itemId, authorized, signal, policy),
-      guard: async () =>
-        isCurrent() && (request.guard === undefined || (await request.guard())) && isCurrent(),
+      guard: async () => {
+        if (!isCurrent()) return false
+        // HEAD capture can wait: confinement must be checked after it settles.
+        if (journal !== undefined && request.checkName !== undefined) {
+          try {
+            commit = await journal.commit()
+          } catch {
+            this.deps.log.warn('Check-run journal commit unavailable')
+          }
+        }
+        return (
+          isCurrent() && (request.guard === undefined || (await request.guard())) && isCurrent()
+        )
+      },
     })
     signal.throwIfAborted()
     if (refusal !== undefined) {
@@ -8455,6 +8471,21 @@ export class ModelApiSession implements AgentSession {
       if (!isCurrent()) throw new AbortedError()
     })
     if (result.isEntryRefused === true) return { kind: 'skipped', skip: 'refused' }
+    if (commit !== undefined && journal !== undefined && request.checkName !== undefined) {
+      const completedAt = this.deps.now()
+      const outcome = outcomeOf(result)
+      try {
+        await journal.append({
+          check: request.checkName,
+          outcome: outcome === 'timedOut' ? 'failed' : outcome,
+          durationMs: Math.max(0, completedAt - startedAt),
+          commit,
+          at: new Date(completedAt).toISOString(),
+        })
+      } catch {
+        this.deps.log.warn('Check-run journal append unavailable')
+      }
+    }
     if (!isCurrent())
       return {
         kind: 'ran',
@@ -8582,6 +8613,7 @@ export class ModelApiSession implements AgentSession {
       itemId,
       {
         line: built.line,
+        checkName: check.name,
         ruleCommand: check.command,
         description: check.name,
         timeoutMs,

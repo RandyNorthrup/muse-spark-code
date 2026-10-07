@@ -8,7 +8,7 @@
 // usage row, `/usage` and `/cost`; centred over the transcript with the
 // chat dimmed behind it.
 
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import {
   META_DASHBOARD_URL,
   MODEL_API_PRICES_VERIFIED_ON,
@@ -23,7 +23,7 @@ import {
   usablePaidFeatures,
   modelApiPaidTier,
 } from '../../shared/paid'
-import { formatTokenWindow } from '../../shared/palette'
+import { formatTokenWindow } from '../../shared/paletteFormatting'
 import { relativeTime } from '../../shared/sessions'
 import {
   barValue,
@@ -91,6 +91,8 @@ export interface UsageDialogProps {
   /** The chat's existing bridge supplies openUsagePage (editor wiring lane). */
   readonly onOpenUsagePage?: () => void
   readonly onClose: () => void
+  /** The report action loads through its own reporting boundary. */
+  readonly reportAction?: ReactNode
 }
 
 const ROW_META_CLASS = 'usage-row-meta'
@@ -375,6 +377,7 @@ export function UsageDialogContent({
   onOpenExternal,
   onOpenUsagePage,
   onClose,
+  reportAction,
 }: UsageDialogProps) {
   const [confirmInstall, setConfirmInstall] = useState(false)
   const [, setCountdownTick] = useState(0)
@@ -504,6 +507,7 @@ export function UsageDialogContent({
       >
         {UI_TEXT.openUsagePage}
       </button>
+      {reportAction}
       {body}
       {auth.status === 'signedIn' ? (
         <div className="usage-setup">
@@ -594,6 +598,7 @@ export function UsageDialogContent({
 
 /** The state-backed App adapter stays with the deferred account surface. */
 export function UsageSurface({
+  reportAction,
   state,
   postMessage,
   onSetupSignIn,
@@ -603,6 +608,7 @@ export function UsageSurface({
 }: {
   readonly state: UiState
   readonly postMessage: (message: WebviewToHostMessage) => void
+  readonly reportAction?: ReactNode
   readonly onSetupSignIn: (method: SignInMethod) => void
   readonly now: () => number
   readonly onOpenExternal: (url: string) => void
@@ -611,6 +617,7 @@ export function UsageSurface({
   return (
     <UsageDialogContent
       auth={state.auth}
+      reportAction={reportAction}
       report={state.usageReport}
       usage={state.usage}
       context={state.context}

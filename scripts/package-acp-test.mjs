@@ -34,6 +34,9 @@ for (const file of [
     'validation.js',
     'wire.js',
     'runtime.bundles.json.br',
+    'reporting.js',
+    'reportingNetwork.js',
+    'reportingDestinations.js',
   ].map((name) => path.join(SOURCE, 'dist', name)),
   ...['exec-result-v1.schema.json', 'exec-event-v1.schema.json'].map((name) =>
     path.join(SOURCE, 'schemas', name),

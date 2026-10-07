@@ -9,6 +9,7 @@ import {
   UsageDialogContent as UsageDialog,
   type UsageDialogProps,
 } from '../../src/webview/components/UsageDialogContent'
+import UsageReportAction from '../../src/webview/reporting/UsageReportAction'
 
 const HOUR = 60 * 60 * 1000
 const DAY = 24 * HOUR
@@ -138,6 +139,12 @@ describe('UsageDialog', () => {
     expect(onOpenUsagePage).toHaveBeenCalledOnce()
   })
 
+  it('opens the local usage report through the injected host action', async () => {
+    const onUsageReport = vi.fn()
+    await renderDialog({ reportAction: <UsageReportAction onUsageReport={onUsageReport} /> })
+    fireEvent.click(screen.getByRole('button', { name: EN.reportUsageAction }))
+    expect(onUsageReport).toHaveBeenCalledOnce()
+  })
   it('shows hook additions separately without subtracting them from packing savings', async () => {
     await renderDialog({
       usage: {

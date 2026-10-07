@@ -195,5 +195,12 @@
   "command.savePrompt.title": "保存提示词",
   "command.useSavedPrompt.title": "使用已保存的提示词…",
   "command.copyToMyPrompts.title": "复制到我的提示词",
-  "config.syncPromptsAndBookmarks.description": "将所有工作区的提示词镜像到设置同步。工作区提示词保留在本地。"
+  "config.syncPromptsAndBookmarks.description": "将所有工作区的提示词镜像到设置同步。工作区提示词保留在本地。",
+  "command.showReport.title": "显示报告…",
+  "config.reports.network.description": "选择报告何时可以读取 GitHub。终端报告仅在带有 --network 时使用网络。",
+  "config.reports.network.enumDescriptions.whenSignedIn": "登录 GitHub 时读取 GitHub。",
+  "config.reports.network.enumDescriptions.always": "允许报告使用网络来源。",
+  "config.reports.network.enumDescriptions.off": "仅读取本地来源。",
+  "config.reports.keepHistory.description": "在此计算机上保留每种类型最近的 50 份报告，用于历史记录和比较。",
+  "config.reports.agentSources.description": "选择读取您自己的 Claude Code 或 Codex 用量和限制文件。默认不启用任何来源。绝不会将会话正文和凭据文件作为报告来源读取。"
 }

@@ -855,9 +855,9 @@ describe('App conversation', () => {
     expect(postMessage).not.toHaveBeenCalled()
   })
 
-  it('opens the Modes menu from the palette row', () => {
+  it('opens the Modes menu from the palette row', async () => {
     renderReady()
-    const filter = openPalette()
+    const filter = await openPalette()
     fireEvent.change(filter, { target: { value: 'Permission mode' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
     expect(screen.getByRole('menu', { name: 'Permission modes' })).toBeInTheDocument()
@@ -1187,14 +1187,14 @@ describe('App transcript (M4)', () => {
   })
 })
 
-function openPalette() {
+async function openPalette() {
   fireEvent.click(screen.getByLabelText('Commands'))
-  return screen.getByRole('combobox')
+  return await screen.findByRole('combobox')
 }
 
 /** Opens the account modal through the same palette action a user selects. */
 async function openUsageDialog() {
-  const filter = openPalette()
+  const filter = await openPalette()
   fireEvent.change(filter, { target: { value: '/usage' } })
   fireEvent.keyDown(filter, { key: 'Enter' })
   return await screen.findByRole('dialog', { name: 'Account & usage' })
@@ -1220,7 +1220,7 @@ describe('App palette', () => {
 
   // M38: `/` alone shows the palette attached to the prompt; a character
   // more, the slash commands. The prompt keeps the focus and the text.
-  it('shows the palette for a typed "/" and the slash commands after a character more', () => {
+  it('shows the palette for a typed "/" and the slash commands after a character more', async () => {
     const postMessage = renderReady()
     deliver({ type: 'modelList', models })
     const box = textarea()
@@ -1251,7 +1251,7 @@ describe('App palette', () => {
     // A character more: the slash commands, the skill among them.
     fireEvent.change(box, { target: { value: '/fi' } })
     expect(screen.queryByRole('dialog')).toBeNull()
-    const list = screen.getByRole('listbox', { name: 'Slash commands' })
+    const list = await screen.findByRole('listbox', { name: 'Slash commands' })
     expect(within(list).getAllByRole('option')[0]).toHaveTextContent('/fix-bug')
     fireEvent.keyDown(box, { key: 'Enter' })
     expect(box.value).toBe('/fix-bug ')
@@ -1282,7 +1282,7 @@ describe('App palette', () => {
     expect(screen.getByRole('listbox', { name: 'Models' })).toBeInTheDocument()
   })
 
-  it('routes every palette action to the host or the local state', () => {
+  it('routes every palette action to the host or the local state', async () => {
     const postMessage = renderReady()
     deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_007_997 })
     deliver({ type: 'modelList', models })
@@ -1290,56 +1290,56 @@ describe('App palette', () => {
       type: 'skillList',
       skills: [{ selector: 'fix-bug', displayName: 'Fix bug', description: 'd' }],
     })
-    const run = (filterText: string) => {
-      const filter = openPalette()
+    const run = async (filterText: string) => {
+      const filter = await openPalette()
       fireEvent.change(filter, { target: { value: filterText } })
       fireEvent.keyDown(filter, { key: 'Enter' })
     }
-    run('Attach file')
+    await run('Attach file')
     expect(postMessage).toHaveBeenCalledWith({ type: 'pickFile' })
-    run('Mention file')
+    await run('Mention file')
     expect(postMessage).toHaveBeenCalledWith({ type: 'pickMentionFile' })
-    run('Thinking')
+    await run('Thinking')
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'setThinking', enabled: false })
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
-    run('Effort')
+    await run('Effort')
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'xhigh' })
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
-    run('Focus view')
+    await run('Focus view')
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'hostAction', action: 'toggleFocusView' })
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
-    run('Ctrl+Enter')
+    await run('Ctrl+Enter')
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'hostAction',
       action: 'toggleCtrlEnterToSend',
     })
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
-    run('Open settings')
+    await run('Open settings')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'openSettings' })
-    run('Keyboard shortcuts')
+    await run('Keyboard shortcuts')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'openKeybindings' })
-    run('Output log')
+    await run('Output log')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'openLog' })
     // M99: the release notes of this version, in an editor tab.
-    run('What’s New')
+    await run('What’s New')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'showWhatsNew' })
-    run('Sign out')
+    await run('Sign out')
     expect(postMessage).toHaveBeenCalledWith({ type: 'signOut' })
-    run('/compact')
+    await run('/compact')
     expect(postMessage).toHaveBeenCalledWith({ type: 'compact' })
     // M74: /handoff readies the prompt for the new conversation's goal.
-    run('/handoff')
+    await run('/handoff')
     expect(textarea().value).toBe('/handoff ')
     expect(postMessage).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: 'requestHandoff' }),
     )
     fireEvent.change(textarea(), { target: { value: '' } })
-    run('/export')
+    await run('/export')
     expect(postMessage).toHaveBeenCalledWith({ type: 'exportConversation', format: 'markdown' })
     deliver({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
-    run('Import session…')
+    await run('Import session…')
     expect(postMessage).toHaveBeenCalledWith({ type: 'importSession' })
-    run('Open share file…')
+    await run('Open share file…')
     expect(postMessage).toHaveBeenCalledWith({ type: 'openShareFile' })
     // The CLI's own rows (M30) need the Muse Code backend.
     deliver({ type: 'authState', status: 'signedIn', backend: 'museCode' })
@@ -1347,36 +1347,36 @@ describe('App palette', () => {
       type: 'skillList',
       skills: [{ selector: 'fix-bug', displayName: 'Fix bug', description: 'd' }],
     })
-    run('Export session log')
+    await run('Export session log')
     expect(postMessage).toHaveBeenCalledWith({ type: 'exportConversation', format: 'sessionLog' })
-    run('Manage skills')
+    await run('Manage skills')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'manageSkills' })
-    run('Import skills')
+    await run('Import skills')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'importSkills' })
-    run('MCP servers')
+    await run('MCP servers')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'showMcpServers' })
-    run('Hooks…')
+    await run('Hooks…')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'showHooks' })
-    run('Memory…')
+    await run('Memory…')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'showMemory' })
-    run('New worktree')
+    await run('New worktree')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'newWorktree' })
-    run('Remove a worktree')
+    await run('Remove a worktree')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'removeWorktree' })
     // M93: the report's preview, never a bare link.
-    run('Report an issue')
+    await run('Report an issue')
     expect(postMessage).toHaveBeenCalledWith({ type: 'openReport' })
-    run('/fix-bug')
+    await run('/fix-bug')
     expect(textarea()).toHaveValue('/fix-bug ')
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
-  it('clears the conversation locally and tells the host', () => {
+  it('clears the conversation locally and tells the host', async () => {
     const postMessage = renderReady()
     fireEvent.change(textarea(), { target: { value: 'hello' } })
     fireEvent.keyDown(textarea(), { key: 'Enter' })
     expect(screen.getByText('hello')).toBeInTheDocument()
-    const filter = openPalette()
+    const filter = await openPalette()
     fireEvent.change(filter, { target: { value: 'Clear conversation' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
     expect(postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'clearConversation' }))
@@ -1384,7 +1384,7 @@ describe('App palette', () => {
     expect(screen.getByText(init.emptyStateHint)).toBeInTheDocument()
   })
 
-  it('switches models from the pill and from the palette, and can go back', () => {
+  it('switches models from the pill and from the palette, and can go back', async () => {
     const postMessage = renderReady()
     deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_007_997 })
     deliver({ type: 'modelList', models })
@@ -1397,7 +1397,7 @@ describe('App palette', () => {
     deliver({ type: 'agentEvent', event: { type: 'modelChanged', modelId: 'muse-spark-1.2' } })
     expect(screen.getByLabelText('Model')).toHaveTextContent('muse-spark-1.2 High')
 
-    const filter = openPalette()
+    const filter = await openPalette()
     fireEvent.change(filter, { target: { value: 'Switch model' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
     expect(screen.getByRole('listbox', { name: 'Models' })).toBeInTheDocument()
@@ -1621,9 +1621,9 @@ describe('App session history (M6)', () => {
     expect(document.activeElement).toBe(textarea())
   })
 
-  it('opens the History dialog from the palette Resume row', () => {
+  it('opens the History dialog from the palette Resume row', async () => {
     const postMessage = renderReady()
-    const filter = openPalette()
+    const filter = await openPalette()
     fireEvent.change(filter, { target: { value: 'Resume' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'listSessions' })
@@ -2013,14 +2013,14 @@ describe('App session history (M6)', () => {
     expect(within(map).getByRole('note')).toHaveTextContent('workflows are on explicit')
   })
 
-  it('explains delegation being off in the Agent map and opens the Muse settings file (M14)', () => {
+  it('explains delegation being off in the Agent map and opens the Muse settings file (M14)', async () => {
     const postMessage = renderReady()
     deliver({
       type: 'usageReport',
       backend: 'museCode',
       account: { signInMethod: 'cli', delegationMode: 'off' },
     })
-    const filter = openPalette()
+    const filter = await openPalette()
     fireEvent.change(filter, { target: { value: '/agents' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
     const map = screen.getByRole('dialog', { name: 'Agent map' })
@@ -2117,12 +2117,12 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
 
   it('opens the dialog from the Account & usage row and from /cost', async () => {
     const postMessage = renderReady()
-    let filter = openPalette()
+    let filter = await openPalette()
     fireEvent.change(filter, { target: { value: 'Account & usage' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
     expect(await screen.findByRole('dialog', { name: 'Account & usage' })).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Close'))
-    filter = openPalette()
+    filter = await openPalette()
     fireEvent.change(filter, { target: { value: '/cost' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
     expect(await screen.findByRole('dialog', { name: 'Account & usage' })).toBeInTheDocument()
@@ -2717,12 +2717,12 @@ describe('App: the session goal (M45)', () => {
     ).toHaveLength(1)
   })
 
-  it('readies /goal for an objective from the slash list and the palette, and asks for one', () => {
+  it('readies /goal for an objective from the slash list and the palette, and asks for one', async () => {
     const postMessage = renderReady()
     const box = textarea()
     box.focus()
     fireEvent.change(box, { target: { value: '/goal' } })
-    const list = screen.getByRole('listbox', { name: 'Slash commands' })
+    const list = await screen.findByRole('listbox', { name: 'Slash commands' })
     expect(within(list).getAllByRole('option')[0]).toHaveTextContent('/goal')
     fireEvent.keyDown(box, { key: 'Enter' })
     expect(box).toHaveValue('/goal ')
@@ -2734,7 +2734,7 @@ describe('App: the session goal (M45)', () => {
     expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'goalCommand' }))
     expect(box).toHaveValue('/goal ')
     fireEvent.change(box, { target: { value: '' } })
-    const filter = openPalette()
+    const filter = await openPalette()
     fireEvent.change(filter, { target: { value: '/goal' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
     expect(textarea()).toHaveValue('/goal ')
@@ -3177,8 +3177,8 @@ describe('App turn checkpoints (M72)', () => {
 })
 
 /** Filters the palette to one row and runs it. */
-function runPaletteRow(filterText: string) {
-  const filter = openPalette()
+async function runPaletteRow(filterText: string) {
+  const filter = await openPalette()
   fireEvent.change(filter, { target: { value: filterText } })
   fireEvent.keyDown(filter, { key: 'Enter' })
 }
@@ -3211,16 +3211,16 @@ describe('App: git and pull requests (M71)', () => {
     },
   } satisfies HostToWebviewMessage
 
-  it('routes the palette rows to the host', () => {
+  it('routes the palette rows to the host', async () => {
     const postMessage = renderReady()
     const run = runPaletteRow
-    run('Commit…')
+    await run('Commit…')
     expect(postMessage).toHaveBeenCalledWith({ type: 'gitAction', action: 'openCommit' })
-    run('Push…')
+    await run('Push…')
     expect(postMessage).toHaveBeenCalledWith({ type: 'gitAction', action: 'push' })
-    run('Open a pull request…')
+    await run('Open a pull request…')
     expect(postMessage).toHaveBeenCalledWith({ type: 'gitAction', action: 'openPullRequest' })
-    run('in a conversation')
+    await run('in a conversation')
     expect(postMessage).toHaveBeenCalledWith({
       type: 'hostAction',
       action: 'openPullRequestInConversation',
@@ -3896,7 +3896,7 @@ describe('M118 prompt action failure notices', () => {
         break
       }
       case 'palette': {
-        const filter = openPalette()
+        const filter = await openPalette()
         fireEvent.change(filter, { target: { value: label } })
         fireEvent.keyDown(filter, { key: 'Enter' })
         break

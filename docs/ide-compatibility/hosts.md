@@ -161,3 +161,7 @@ M104 must carry equivalent strict DTOs through its validated envelopes and abort
 pending actions on closure/replacement. These are local DTO names, not claims
 that MHP message methods are already available. Phase 2 gists and phase 3
 node/team/email destinations remain unavailable.
+
+## Deterministic reports (M113)
+
+Every editor uses the same report-v1 engine and scoped reports/run, history, get, compare and open contracts. VS Code mounts the lazy shared ReportApp; CLI and ACP render the same document as Markdown/text (CLI also HTML/JSON). JCEF, WebView2, SWT, desktop, companion and terminal adapters have fake contract receipts in M113 X. Installed JetBrains, Visual Studio, Eclipse, Zed, Xcode, Neovim, Emacs and Sublime report-page receipts remain with their host owners; this integration does not claim they ran. Missing usage, fleet, security, accounts, estimates, playbook, issues, schedules and keybindings adapters remain named unavailable sources in all editors.

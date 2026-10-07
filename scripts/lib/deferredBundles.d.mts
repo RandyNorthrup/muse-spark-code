@@ -27,3 +27,5 @@ export const sharedWire: Plugin
 export const sharedValidation: Plugin
 export const deferredCohort: Plugin
 export const sharedModelApiBoundaries: Plugin
+
+export const nodeReferenceData: Plugin

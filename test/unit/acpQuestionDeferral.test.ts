@@ -918,12 +918,14 @@ describe('M112 through the pinned ACP SDK client', () => {
       expect(commands.map((command) => command.name)).toEqual([
         'help',
         'compact',
+        'report',
         'answer',
         'questions',
       ])
       expect(commands.map((command) => command.description)).toEqual([
         UI_TEXT.referenceIntro,
         UI_TEXT.compactDetail,
+        UI_TEXT.reportSlashDescription,
         UI_TEXT.acpAnswerHelp,
         UI_TEXT.acpQuestionsHelp,
       ])

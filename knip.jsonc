@@ -14,6 +14,14 @@
   // the knip 5 `"//": [...]` pseudo-comment convention.
 
   "entry": [
+    "src/runtime/reporting/network.ts",
+    "src/runtime/reporting/destinationsEntry.ts",
+    "src/webview/reporting/destinations/DestinationPicker.tsx",
+    "src/runtime/reference.node.generated.ts",
+    "src/runtime/reporting/reportsEntry.ts",
+    "src/host/reporting/reportPanelEntry.ts",
+    "src/webview/reporting/main.tsx",
+    "test/harness/reporting/verify.mjs",
     "src/extension.ts",
     "src/runtime/exec/runExec.ts",
     "src/runtime/runtimeAccountingEntry.ts",

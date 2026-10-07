@@ -195,5 +195,12 @@
   "command.savePrompt.title": "프롬프트 저장",
   "command.useSavedPrompt.title": "저장된 프롬프트 사용…",
   "command.copyToMyPrompts.title": "내 프롬프트로 복사",
-  "config.syncPromptsAndBookmarks.description": "모든 작업 공간용 프롬프트를 설정 동기화에 반영합니다. 작업 공간 프롬프트는 로컬에 유지됩니다."
+  "config.syncPromptsAndBookmarks.description": "모든 작업 공간용 프롬프트를 설정 동기화에 반영합니다. 작업 공간 프롬프트는 로컬에 유지됩니다.",
+  "command.showReport.title": "보고서 표시…",
+  "config.reports.network.description": "보고서가 GitHub을 읽을 수 있는 시점을 선택합니다. 터미널 보고서는 --network가 있을 때만 네트워크를 사용합니다.",
+  "config.reports.network.enumDescriptions.whenSignedIn": "GitHub에 로그인했을 때 GitHub을 읽습니다.",
+  "config.reports.network.enumDescriptions.always": "보고서의 네트워크 출처를 허용합니다.",
+  "config.reports.network.enumDescriptions.off": "로컬 출처만 읽습니다.",
+  "config.reports.keepHistory.description": "기록 및 비교를 위해 이 컴퓨터에 유형별로 최신 보고서 50개를 보관합니다.",
+  "config.reports.agentSources.description": "자신의 Claude Code 또는 Codex 사용량 및 한도 파일 읽기를 허용합니다. 기본값은 없음입니다. 대화 본문과 자격 증명 파일은 보고서 출처로 읽지 않습니다."
 }

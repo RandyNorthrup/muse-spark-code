@@ -195,5 +195,12 @@
   "command.savePrompt.title": "プロンプトを保存",
   "command.useSavedPrompt.title": "保存したプロンプトを使用…",
   "command.copyToMyPrompts.title": "自分のプロンプトにコピー",
-  "config.syncPromptsAndBookmarks.description": "全ワークスペース用のプロンプトを設定同期に反映します。ワークスペース用プロンプトはローカルに残ります。"
+  "config.syncPromptsAndBookmarks.description": "全ワークスペース用のプロンプトを設定同期に反映します。ワークスペース用プロンプトはローカルに残ります。",
+  "command.showReport.title": "レポートを表示…",
+  "config.reports.network.description": "レポートが GitHub を読み取れる条件を選びます。ターミナルのレポートは --network がある場合のみネットワークを使用します。",
+  "config.reports.network.enumDescriptions.whenSignedIn": "GitHub にサインイン中は GitHub を読み取ります。",
+  "config.reports.network.enumDescriptions.always": "レポートのネットワークソースを許可します。",
+  "config.reports.network.enumDescriptions.off": "ローカルソースのみを読み取ります。",
+  "config.reports.keepHistory.description": "履歴と比較のため、このコンピューターに種類ごとに最新の 50 件を保存します。",
+  "config.reports.agentSources.description": "自分の Claude Code または Codex の使用状況と上限ファイルの読み取りを有効にします。既定はなしです。会話の本文と認証情報ファイルはレポートのソースとして読み取りません。"
 }

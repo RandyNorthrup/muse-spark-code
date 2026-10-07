@@ -195,5 +195,12 @@
   "command.savePrompt.title": "Prompt mentése",
   "command.useSavedPrompt.title": "Mentett prompt használata…",
   "command.copyToMyPrompts.title": "Másolás a saját promptjaimba",
-  "config.syncPromptsAndBookmarks.description": "Az összes munkaterület promptjainak tükrözése a beállítások szinkronizálásába. A munkaterületi promptok helyben maradnak."
+  "config.syncPromptsAndBookmarks.description": "Az összes munkaterület promptjainak tükrözése a beállítások szinkronizálásába. A munkaterületi promptok helyben maradnak.",
+  "command.showReport.title": "Jelentés megjelenítése…",
+  "config.reports.network.description": "Válassza ki, mikor olvashatják a jelentések a GitHubot. A termináljelentések csak --network kapcsolóval használják a hálózatot.",
+  "config.reports.network.enumDescriptions.whenSignedIn": "GitHub olvasása bejelentkezett állapotban.",
+  "config.reports.network.enumDescriptions.always": "Hálózati források engedélyezése a jelentésekhez.",
+  "config.reports.network.enumDescriptions.off": "Csak helyi források olvasása.",
+  "config.reports.keepHistory.description": "A legújabb 50 jelentés megőrzése típusonként ezen a gépen az előzményekhez és összevetéshez.",
+  "config.reports.agentSources.description": "Saját Claude Code vagy Codex használati és korlátfájlok olvasásának engedélyezése. Alapérték: nincs. Beszélgetésszöveget és hitelesítőadat-fájlokat soha nem olvas jelentésforrásként."
 }

@@ -1,0 +1,58 @@
+# Engineering playbook
+
+Scope: Fixture workspace
+
+Generated as of 2026-10-06T12:00:00+00:00
+
+Version: 0.14.2
+
+SHA-256: 88c37bfd01471a35da53aed04b448fd84525d91fdf92ef19e94c7442f08866dc
+
+## Needs you
+
+| Questions | Sources |
+| --- | --- |
+| Choose the release channel. | plan |
+| Open VSX is behind the tag. | git |
+| Default branch quality failed. | github |
+
+## Decisions
+
+| Name | Status | Sources |
+| --- | --- | --- |
+| M12: fixture contracts &#124; &#60;release&#62; &#38; "notes" | Planned | git, plan |
+| M110a0: fixture runtime<br>A second commit. | Merged | git |
+
+12 more
+
+## Drills
+
+| Name | Status | Sources |
+| --- | --- | --- |
+| M12: fixture contracts | Planned | git, plan |
+| M110a0: fixture runtime<br>A second commit. | Merged | git |
+
+## Disabled rules
+
+| Name | Status | Sources |
+| --- | --- | --- |
+| M12: fixture contracts | Planned | git, plan |
+| M110a0: fixture runtime<br>A second commit. | Merged | git |
+
+## Refusals
+
+| Name | Status | Sources |
+| --- | --- | --- |
+| M12: fixture contracts | Planned | git, plan |
+| M110a0: fixture runtime<br>A second commit. | Merged | git |
+
+## Sources
+
+| Name | Status | Reason | Observed at | Freshness |
+| --- | --- | --- | --- | --- |
+| git | Partial | Commit bound reached. | 2026-10-06T11:00:00.000+00:00 | Stale &#40;3,600s&#41; |
+| github | Unavailable | Network is off. | Unknown | Unknown |
+| plan | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| usage | Not applicable | Journal integration is not present. | Unknown | Unknown |
+
+Renderer 1; ICU 77.1; locale en

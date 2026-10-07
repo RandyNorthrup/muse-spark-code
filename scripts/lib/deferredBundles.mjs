@@ -154,7 +154,7 @@ export const DEFERRED = [
     metafile: 'dist/meta/reference.json',
     files: [
       'src/shared/reference/referenceEntry.ts',
-      'src/shared/reference/reference.generated.ts',
+      'src/runtime/reference.node.generated.ts',
       'src/shared/reference/text.ts',
     ],
   },
@@ -224,6 +224,51 @@ export const ON_FIRST_USE = [
       'src/core/legal/spdx.ts',
       'src/core/legal/workspace.ts',
     ],
+  },
+  {
+    output: 'dist/reportingNetwork.js',
+    metafile: 'dist/meta/reportingNetwork.json',
+    use: 'the first permitted report network read',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/runtime/reporting/network.ts',
+      'src/core/reporting/sources/cache.ts',
+      'src/core/reporting/sources/admission.ts',
+      'src/core/reporting/sources/github.ts',
+    ],
+  },
+  {
+    output: 'dist/reportingDestinations.js',
+    metafile: 'dist/meta/reportingDestinations.json',
+    use: 'the first scheduled report action',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/runtime/reporting/destinationsEntry.ts',
+      'src/core/reporting/destinations/runner.ts',
+      'src/core/reporting/destinations/email.ts',
+      'src/core/reporting/destinations/post.ts',
+    ],
+  },
+  {
+    output: 'dist/reporting.js',
+    metafile: 'dist/meta/reporting.json',
+    use: 'the first deterministic report',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/runtime/reporting/reportsEntry.ts',
+      'src/runtime/reporting/engine.ts',
+      'src/core/reporting/collect/index.ts',
+      'src/core/reporting/render/index.ts',
+      'src/core/reporting/history.ts',
+      'src/core/reporting/plan/reader.ts',
+    ],
+  },
+  {
+    output: 'dist/reportingPanel.js',
+    metafile: 'dist/meta/reportingPanel.json',
+    use: 'the first report tab',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: ['src/host/reporting/reportPanelEntry.ts', 'src/host/reporting/reportPanel.ts'],
   },
   {
     output: 'dist/questionNotes.js',
@@ -538,6 +583,21 @@ export function checkDeferredBundles(inputsOf) {
         )
     }
   }
+  for (const output of [
+    'dist/reporting.js',
+    'dist/reportingPanel.js',
+    'dist/reportingNetwork.js',
+    'dist/reportingDestinations.js',
+  ]) {
+    const bundle = ON_FIRST_USE.find((entry) => entry.output === output)
+    for (const input of inputsOf(bundle).keys()) {
+      const normalized = input.replaceAll('\\', '/')
+      if (normalized.startsWith('src/core/backends/') || normalized.startsWith('src/host/backend/'))
+        problems.push(`${output} carries a backend: ${normalized}`)
+      if (normalized.startsWith('src/core/paid/'))
+        problems.push(`${output} carries the paid gate: ${normalized}`)
+    }
+  }
   return problems
 }
 
@@ -671,5 +731,15 @@ export const sharedModelApiBoundaries = {
           : undefined
       },
     )
+  },
+}
+
+/** Node-only compressed reference data; the browser keeps its portable schema. */
+export const nodeReferenceData = {
+  name: 'node-reference-data',
+  setup(build) {
+    build.onResolve({ filter: /\/reference\.generated$/ }, () => ({
+      path: path.resolve('src/runtime/reference.node.generated.ts'),
+    }))
   },
 }

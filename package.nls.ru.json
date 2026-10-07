@@ -195,5 +195,12 @@
   "command.savePrompt.title": "Сохранить промпт",
   "command.useSavedPrompt.title": "Использовать сохранённый промпт…",
   "command.copyToMyPrompts.title": "Скопировать в мои промпты",
-  "config.syncPromptsAndBookmarks.description": "Копировать запросы для всех рабочих областей в синхронизацию настроек. Запросы рабочей области остаются локальными."
+  "config.syncPromptsAndBookmarks.description": "Копировать запросы для всех рабочих областей в синхронизацию настроек. Запросы рабочей области остаются локальными.",
+  "command.showReport.title": "Показать отчёт…",
+  "config.reports.network.description": "Выберите, когда отчёты могут читать GitHub. Отчёты в терминале используют сеть только с --network.",
+  "config.reports.network.enumDescriptions.whenSignedIn": "Читать GitHub после входа в него.",
+  "config.reports.network.enumDescriptions.always": "Разрешить сетевые источники отчётов.",
+  "config.reports.network.enumDescriptions.off": "Читать только локальные источники.",
+  "config.reports.keepHistory.description": "Хранить на этом компьютере последние 50 отчётов каждого вида для истории и сравнения.",
+  "config.reports.agentSources.description": "Разрешить чтение ваших файлов использования и лимитов Claude Code или Codex. По умолчанию: никакие. Текст разговоров и файлы учётных данных никогда не читаются как источники отчётов."
 }

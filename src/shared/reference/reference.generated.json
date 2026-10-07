@@ -31,6 +31,25 @@
       "editors": ["vscode", "acp"]
     },
     {
+      "id": "reports",
+      "name": { "ui": "reportShowCommand" },
+      "summary": { "ui": "reportSlashDescription" },
+      "description": { "ui": "reportSlashDescription" },
+      "commands": ["museSpark.showReport"],
+      "settings": [
+        "museSpark.reports.network",
+        "museSpark.reports.keepHistory",
+        "museSpark.reports.agentSources"
+      ],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#report",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "prompt-library",
       "name": { "ui": "promptLibrary" },
       "summary": { "ui": "referencePromptMenu" },
@@ -2155,11 +2174,20 @@
       "id": "museSpark.shareChat",
       "name": "Share chat…",
       "nameKey": "command.shareChat.title",
-      "category": "Muse Spark",
-      "categoryKey": "command.category",
+      "category": "",
       "description": "Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.",
       "text": { "ui": "shareReviewPrivacy" },
       "canRun": false
+    },
+    {
+      "id": "museSpark.showReport",
+      "name": "Show report…",
+      "nameKey": "command.showReport.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Generate a deterministic report from named sources, without a model call.",
+      "text": { "ui": "reportSlashDescription" },
+      "canRun": true
     }
   ],
   "settings": [
@@ -3380,6 +3408,77 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "boolean", "default": false }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "reportsNetwork&githubSignIn", "text": { "setting": "reports.network" } }
+        ]
+      },
+      "id": "museSpark.reports.network",
+      "name": "museSpark.reports.network",
+      "description": "Choose when reports may read GitHub. Terminal reports use the network only with --network.",
+      "descriptionKey": "config.reports.network.description",
+      "type": "string",
+      "default": "whenSignedIn",
+      "enum": ["whenSignedIn", "always", "off"],
+      "enumDescriptions": [
+        "Read GitHub while signed in to GitHub.",
+        "Allow network sources for reports.",
+        "Read local sources only."
+      ],
+      "enumDescriptionKeys": [
+        "config.reports.network.enumDescriptions.whenSignedIn",
+        "config.reports.network.enumDescriptions.always",
+        "config.reports.network.enumDescriptions.off"
+      ],
+      "enumTexts": {
+        "0": {
+          "conditions": [
+            {
+              "when": "reportsNetwork&githubSignIn",
+              "text": {
+                "fallbackKey": "config.reports.network.enumDescriptions.whenSignedIn",
+                "fallback": "Read GitHub while signed in to GitHub."
+              }
+            }
+          ]
+        }
+      },
+      "scope": "machine",
+      "refinements": [],
+      "schema": {
+        "type": "string",
+        "enum": ["whenSignedIn", "always", "off"],
+        "default": "whenSignedIn"
+      }
+    },
+    {
+      "id": "museSpark.reports.keepHistory",
+      "name": "museSpark.reports.keepHistory",
+      "description": "Keep the newest 50 reports per kind on this machine for history and comparison.",
+      "descriptionKey": "config.reports.keepHistory.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.reports.agentSources",
+      "name": "museSpark.reports.agentSources",
+      "description": "Opt in to reading your own Claude Code or Codex usage and limit files. Default: none. Conversation text and credential files are never read as report sources.",
+      "descriptionKey": "config.reports.agentSources.description",
+      "type": "array",
+      "default": [],
+      "scope": "machine",
+      "refinements": [],
+      "schema": {
+        "type": "array",
+        "items": { "type": "string", "enum": ["claudeCode", "codex"] },
+        "uniqueItems": true,
+        "default": []
+      }
     }
   ],
   "slash": [
@@ -3668,6 +3767,16 @@
       "syntax": ["/help"]
     },
     {
+      "name": "report",
+      "description": "Generate a deterministic report from named sources, without a model call.",
+      "descriptions": {
+        "museCode": { "ui": "reportSlashDescription" },
+        "modelApi": { "ui": "reportSlashDescription" }
+      },
+      "backends": ["museCode", "modelApi"],
+      "syntax": ["/report", "/report <kind> [args]", "/report history"]
+    },
+    {
       "name": "loop",
       "description": "Schedule a prompt in this Model API conversation",
       "descriptions": { "modelApi": { "ui": "loopItemDetail" } },
@@ -3777,6 +3886,18 @@
       "name": "report",
       "description": "Usage:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Prints the scrubbed problem report to stdout, or writes it to <file> with --out.\n  Starts no backend, signs in nowhere, and opens no browser.\nOptions:\n  --out <file>         Write the report to a file instead of stdout\n  --description <text>  What was happening, in your own words\n  --no-facts           Leave the support facts out\n  --no-events          Leave the recent events out",
       "text": { "ui": "reportUsage" }
+    },
+    {
+      "route": "report",
+      "name": "report problem",
+      "description": "Usage:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Prints the scrubbed problem report to stdout, or writes it to <file> with --out.\n  Starts no backend, signs in nowhere, and opens no browser.\nOptions:\n  --out <file>         Write the report to a file instead of stdout\n  --description <text>  What was happening, in your own words\n  --no-facts           Leave the support facts out\n  --no-events          Leave the recent events out",
+      "text": { "ui": "reportUsage" }
+    },
+    {
+      "route": "reports",
+      "name": "report <kind> / report history",
+      "description": "Generate a deterministic report from named sources, without a model call.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
+      "text": { "ui": "reportCliUsage" }
     },
     {
       "route": "help",

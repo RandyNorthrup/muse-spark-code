@@ -44,6 +44,7 @@ const UI_CONDITIONS: Readonly<
   mcpRestartDetail: 'turnState',
 }
 const NLS_CONDITIONS: Readonly<Partial<Record<string, string>>> = {
+  'config.reports.network.enumDescriptions.whenSignedIn': 'reportsNetwork&githubSignIn',
   'config.backend.enumDescriptions.auto': 'backendAvailability',
   'config.browserCheckRuntime.enumDescriptions.download': 'browserRuntimeAcquisition',
   'config.tabMultiline.enumDescriptions.auto': 'multilineMode',
@@ -51,6 +52,7 @@ const NLS_CONDITIONS: Readonly<Partial<Record<string, string>>> = {
   'config.judge.engine.enumDescriptions.auto': 'judgeEngine',
 }
 const SETTING_CONDITIONS: Readonly<Partial<Record<keyof typeof SETTING_DEFAULTS, string>>> = {
+  'reports.network': 'reportsNetwork&githubSignIn',
   preferredLocation: 'activeConversation',
   archiveInactiveSessions: 'sessionIdle',
   cleanupPeriodDays: 'sessionList',
@@ -142,6 +144,7 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   showLogs: { description: { tip: 'log' }, canRun: true },
   diagnostics: { description: { ui: 'referenceDiagnostics' }, canRun: true },
   reportProblem: { description: { ui: 'referenceReport' }, canRun: true },
+  showReport: { description: { ui: 'reportSlashDescription' }, canRun: true },
   newConversation: { description: { tip: 'clear' }, canRun: false },
   signOut: { description: { tip: 'signOut' }, canRun: false },
   openInTerminal: { description: { ui: 'referenceTerminal' }, canRun: false },
@@ -228,6 +231,17 @@ export function featureCatalog(): readonly Feature[] {
       ],
       ['suggestedProvider'],
       'backends',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'reports',
+      { ui: 'reportShowCommand' },
+      { ui: 'reportSlashDescription' },
+      ['showReport'],
+      ['reports.network', 'reports.keepHistory', 'reports.agentSources'],
+      'report',
       ['museCode', 'modelApi'],
       false,
       ['vscode', 'acp'],

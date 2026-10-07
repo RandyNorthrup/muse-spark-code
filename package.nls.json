@@ -195,5 +195,12 @@
   "command.savePrompt.title": "Save prompt",
   "command.useSavedPrompt.title": "Use saved prompt…",
   "command.copyToMyPrompts.title": "Copy to my prompts",
-  "config.syncPromptsAndBookmarks.description": "Mirror prompts for all workspaces into Settings Sync. Workspace prompts stay local."
+  "config.syncPromptsAndBookmarks.description": "Mirror prompts for all workspaces into Settings Sync. Workspace prompts stay local.",
+  "command.showReport.title": "Show report…",
+  "config.reports.network.description": "Choose when reports may read GitHub. Terminal reports use the network only with --network.",
+  "config.reports.network.enumDescriptions.whenSignedIn": "Read GitHub while signed in to GitHub.",
+  "config.reports.network.enumDescriptions.always": "Allow network sources for reports.",
+  "config.reports.network.enumDescriptions.off": "Read local sources only.",
+  "config.reports.keepHistory.description": "Keep the newest 50 reports per kind on this machine for history and comparison.",
+  "config.reports.agentSources.description": "Opt in to reading your own Claude Code or Codex usage and limit files. Default: none. Conversation text and credential files are never read as report sources."
 }

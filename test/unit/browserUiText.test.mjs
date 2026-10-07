@@ -30,7 +30,7 @@ beforeAll(async () => {
 export { EN, EN_SHAPE } from '${english}';
 export { UI_TEXT, setUiText, uiLocale } from '${text}';
 export { installEmbeddedTable } from '${installer}';
-export async function loadHelp() { await import('browser-surface-english') }
+export async function loadHelp() { await import('browser-surface-english'); await import('browser-reference-english') }
 `,
   )
   fixture.canonical = await loadL10n(process.cwd())

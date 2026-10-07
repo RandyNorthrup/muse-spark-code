@@ -1,0 +1,833 @@
+{
+  "sizes": {
+    "reportingPanelKiB": 74.353515625,
+    "reportingPageKiB": 453.30859375,
+    "reportingCssKiB": 1.31640625
+  },
+  "checks": [
+    {
+      "theme": "light",
+      "width": 690,
+      "scene": "report",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "light",
+      "width": 690,
+      "scene": "history",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "light",
+      "width": 690,
+      "scene": "diff",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "light",
+      "width": 690,
+      "scene": "error",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "scene": "report",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "scene": "history",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "scene": "diff",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "scene": "error",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "dark",
+      "width": 690,
+      "scene": "report",
+      "violations": [
+        {
+          "id": "color-contrast",
+          "nodes": [
+            {
+              "target": ["h1"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 19.5pt (26px), font weight: bold). Expected contrast ratio of 3:1"
+            },
+            {
+              "target": ["label"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["p:nth-child(3)"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "dark",
+      "width": 690,
+      "scene": "history",
+      "violations": [
+        {
+          "id": "color-contrast",
+          "nodes": [
+            {
+              "target": ["h1"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 19.5pt (26px), font weight: bold). Expected contrast ratio of 3:1"
+            },
+            {
+              "target": ["label"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["#report-history-title"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 14.6pt (19.5px), font weight: bold). Expected contrast ratio of 3:1"
+            },
+            {
+              "target": ["p:nth-child(4)"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "dark",
+      "width": 690,
+      "scene": "diff",
+      "violations": [
+        {
+          "id": "color-contrast",
+          "nodes": [
+            {
+              "target": ["h1"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 19.5pt (26px), font weight: bold). Expected contrast ratio of 3:1"
+            },
+            {
+              "target": ["label"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["#report-diff-title"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 14.6pt (19.5px), font weight: bold). Expected contrast ratio of 3:1"
+            },
+            {
+              "target": [".reporting-diff > p"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["h3"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 11.4pt (15.21px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["dl > dt"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["div:nth-child(3) > h4"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["div:nth-child(3) > ul > li:nth-child(1) > code"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "div:nth-child(3) > ul > li:nth-child(1) > .reporting-row-values > div:nth-child(1) > dt"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "div:nth-child(3) > ul > li:nth-child(1) > .reporting-row-values > div:nth-child(1) > dd"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "div:nth-child(3) > ul > li:nth-child(1) > .reporting-row-values > div:nth-child(2) > dt"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "div:nth-child(3) > ul > li:nth-child(1) > .reporting-row-values > div:nth-child(2) > dd"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["li:nth-child(2) > code"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["li:nth-child(2) > .reporting-row-values > div:nth-child(1) > dt"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["li:nth-child(2) > .reporting-row-values > div:nth-child(1) > dd"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["li:nth-child(2) > .reporting-row-values > div:nth-child(2) > dt"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["li:nth-child(2) > .reporting-row-values > div:nth-child(2) > dd"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["li:nth-child(3) > code"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["li:nth-child(3) > .reporting-row-values > div:nth-child(1) > dt"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["li:nth-child(3) > .reporting-row-values > div:nth-child(1) > dd"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["li:nth-child(3) > .reporting-row-values > div:nth-child(2) > dt"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["li:nth-child(3) > .reporting-row-values > div:nth-child(2) > dd"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["div:nth-child(4) > h4"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["div:nth-child(5) > h4"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["div:nth-child(5) > ul > li > code"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["h5:nth-child(2)"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 8.1pt (10.79px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [".reporting-row-values:nth-child(3) > div:nth-child(1) > dt"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [".reporting-row-values:nth-child(3) > div:nth-child(1) > dd"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [".reporting-row-values:nth-child(3) > div:nth-child(2) > dt"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [".reporting-row-values:nth-child(3) > div:nth-child(2) > dd"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["h5:nth-child(4)"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 8.1pt (10.79px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [".reporting-row-values:nth-child(5) > div:nth-child(1) > dt"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [".reporting-row-values:nth-child(5) > div:nth-child(1) > dd"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [".reporting-row-values:nth-child(5) > div:nth-child(2) > dt"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [".reporting-row-values:nth-child(5) > div:nth-child(2) > dd"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["p:nth-child(4)"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ],
+      "incomplete": ["color-contrast", "frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "dark",
+      "width": 690,
+      "scene": "error",
+      "violations": [
+        {
+          "id": "color-contrast",
+          "nodes": [
+            {
+              "target": ["h1"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 19.5pt (26px), font weight: bold). Expected contrast ratio of 3:1"
+            },
+            {
+              "target": ["label"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["p[role=\"alert\"]"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["p:nth-child(3)"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "scene": "report",
+      "violations": [
+        {
+          "id": "color-contrast",
+          "nodes": [
+            {
+              "target": ["h1"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 19.5pt (26px), font weight: bold). Expected contrast ratio of 3:1"
+            },
+            {
+              "target": ["label"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["p:nth-child(3)"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "scene": "history",
+      "violations": [
+        {
+          "id": "color-contrast",
+          "nodes": [
+            {
+              "target": ["h1"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 19.5pt (26px), font weight: bold). Expected contrast ratio of 3:1"
+            },
+            {
+              "target": ["label"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["#report-history-title"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 14.6pt (19.5px), font weight: bold). Expected contrast ratio of 3:1"
+            },
+            {
+              "target": ["p:nth-child(4)"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "scene": "diff",
+      "violations": [
+        {
+          "id": "color-contrast",
+          "nodes": [
+            {
+              "target": ["h1"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 19.5pt (26px), font weight: bold). Expected contrast ratio of 3:1"
+            },
+            {
+              "target": ["label"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["#report-diff-title"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 14.6pt (19.5px), font weight: bold). Expected contrast ratio of 3:1"
+            },
+            {
+              "target": [".reporting-diff > p"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["h3"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 11.4pt (15.21px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["dl > dt"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["div:nth-child(3) > h4"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["div:nth-child(3) > ul > li:nth-child(1) > code"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "div:nth-child(3) > ul > li:nth-child(1) > .reporting-row-values > div:nth-child(1) > dt"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "div:nth-child(3) > ul > li:nth-child(1) > .reporting-row-values > div:nth-child(1) > dd"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "div:nth-child(3) > ul > li:nth-child(1) > .reporting-row-values > div:nth-child(2) > dt"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "div:nth-child(3) > ul > li:nth-child(1) > .reporting-row-values > div:nth-child(2) > dd"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["li:nth-child(2) > code"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["li:nth-child(2) > .reporting-row-values > div:nth-child(1) > dt"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["li:nth-child(2) > .reporting-row-values > div:nth-child(1) > dd"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["li:nth-child(2) > .reporting-row-values > div:nth-child(2) > dt"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["li:nth-child(2) > .reporting-row-values > div:nth-child(2) > dd"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["li:nth-child(3) > code"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["li:nth-child(3) > .reporting-row-values > div:nth-child(1) > dt"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["li:nth-child(3) > .reporting-row-values > div:nth-child(1) > dd"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["li:nth-child(3) > .reporting-row-values > div:nth-child(2) > dt"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["li:nth-child(3) > .reporting-row-values > div:nth-child(2) > dd"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["div:nth-child(4) > h4"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["div:nth-child(5) > h4"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["div:nth-child(5) > ul > li > code"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["h5:nth-child(2)"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 8.1pt (10.79px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [".reporting-row-values:nth-child(3) > div:nth-child(1) > dt"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [".reporting-row-values:nth-child(3) > div:nth-child(1) > dd"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [".reporting-row-values:nth-child(3) > div:nth-child(2) > dt"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [".reporting-row-values:nth-child(3) > div:nth-child(2) > dd"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["h5:nth-child(4)"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 8.1pt (10.79px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [".reporting-row-values:nth-child(5) > div:nth-child(1) > dt"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [".reporting-row-values:nth-child(5) > div:nth-child(1) > dd"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [".reporting-row-values:nth-child(5) > div:nth-child(2) > dt"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [".reporting-row-values:nth-child(5) > div:nth-child(2) > dd"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["p:nth-child(4)"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ],
+      "incomplete": ["color-contrast", "frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "scene": "error",
+      "violations": [
+        {
+          "id": "color-contrast",
+          "nodes": [
+            {
+              "target": ["h1"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 19.5pt (26px), font weight: bold). Expected contrast ratio of 3:1"
+            },
+            {
+              "target": ["label"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["p[role=\"alert\"]"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": ["p:nth-child(3)"],
+              "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.27 (foreground color: #000000, background color: #1f1f1f, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "report",
+      "violations": [],
+      "incomplete": ["color-contrast", "frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "history",
+      "violations": [],
+      "incomplete": ["color-contrast", "frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "diff",
+      "violations": [],
+      "incomplete": ["color-contrast", "frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "error",
+      "violations": [],
+      "incomplete": ["color-contrast", "frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "report",
+      "violations": [],
+      "incomplete": ["color-contrast", "frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "history",
+      "violations": [],
+      "incomplete": ["color-contrast", "frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "diff",
+      "violations": [],
+      "incomplete": ["color-contrast", "frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "error",
+      "violations": [],
+      "incomplete": ["color-contrast", "frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "report",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "history",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "diff",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "error",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "report",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "history",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "diff",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false
+    },
+    {
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "error",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false
+    }
+  ]
+}

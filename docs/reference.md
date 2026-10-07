@@ -23,6 +23,14 @@ Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no
 
 Commands: `museSpark.startWithOwnModel`, `museSpark.modelsAndAgents`, `museSpark.addModelProvider`, `museSpark.connectChatGpt`, `museSpark.connectCopilot`. Settings: `museSpark.suggestedProvider`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#backends)
 
+### Show report…
+
+Generate a deterministic report from named sources, without a model call.
+
+Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: `museSpark.showReport`. Settings: `museSpark.reports.network`, `museSpark.reports.keepHistory`, `museSpark.reports.agentSources`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#report)
+
 ### Prompt library
 
 Composer toolbar or right-click: Save, Share, Use saved. Outside VS Code, Shift-right-click keeps native clipboard actions. Prompts are plain text; save no secrets.
@@ -439,7 +447,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### Help & Reference
 
-Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /compact, /legal, /usage, /questions, /answer, /prompt and /share plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
+Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /compact, /legal, /usage, /questions, /answer, /prompt and /share plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
 
 ```json
 {
@@ -1398,7 +1406,7 @@ Commands: —. Settings: `museSpark.judge.engine`. [Documentation](https://githu
 
 Report an issue.
 
-Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /compact, /legal, /usage, /questions, /answer, /prompt and /share plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
+Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /compact, /legal, /usage, /questions, /answer, /prompt and /share plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -1435,6 +1443,7 @@ Availability depends on the backend. Installed skills also add their own slash c
 - `/security-review`: museCode: The uncommitted changes, for injection, secrets, authentication and unsafe APIs; modelApi: The uncommitted changes, for injection, secrets, authentication and unsafe APIs
 - `/changes`: museCode: Accept or revert each change, and comment on a line; modelApi: Accept or revert each change, and comment on a line
 - `/help`: museCode: Commands, settings and features, with descriptions and documentation.; modelApi: Commands, settings and features, with descriptions and documentation.
+- `/report` | `/report <kind> [args]` | `/report history`: museCode: Generate a deterministic report from named sources, without a model call.; modelApi: Generate a deterministic report from named sources, without a model call.
 - `/loop <prompt>` | `/loop <interval: 5m|1h|1d> <prompt>` | `/loop "<cron>" <prompt>` | `/loop list` | `/loop cancel <id>`: modelApi: Schedule a prompt in this Model API conversation
 
 ## Commands
@@ -1699,9 +1708,13 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 
 `museSpark.copyToMyPrompts` — All workspaces
 
-### Muse Spark: Share chat…
+### : Share chat…
 
 `museSpark.shareChat` — Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
+
+### Muse Spark: Show report…
+
+`museSpark.showReport` — Generate a deterministic report from named sources, without a model call.
 
 ## Settings
 
@@ -2904,6 +2917,55 @@ Type: `"boolean"`. Default: `false`. Scope: `machine`.
 }
 ```
 
+### museSpark.reports.network
+
+reportsNetwork&githubSignIn: Choose when reports may read GitHub. Terminal reports use the network only with --network.
+
+Type: `"string"`. Default: `"whenSignedIn"`. Scope: `machine`.
+
+```json
+{
+  "type": "string",
+  "enum": ["whenSignedIn", "always", "off"],
+  "default": "whenSignedIn"
+}
+```
+
+- `"whenSignedIn"`: reportsNetwork&githubSignIn: Read GitHub while signed in to GitHub.
+- `"always"`: Allow network sources for reports.
+- `"off"`: Read local sources only.
+
+### museSpark.reports.keepHistory
+
+Keep the newest 50 reports per kind on this machine for history and comparison.
+
+Type: `"boolean"`. Default: `true`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": true
+}
+```
+
+### museSpark.reports.agentSources
+
+Opt in to reading your own Claude Code or Codex usage and limit files. Default: none. Conversation text and credential files are never read as report sources.
+
+Type: `"array"`. Default: `[]`. Scope: `machine`.
+
+```json
+{
+  "type": "array",
+  "items": {
+    "type": "string",
+    "enum": ["claudeCode", "codex"]
+  },
+  "uniqueItems": true,
+  "default": []
+}
+```
+
 ## Keyboard shortcuts
 
 These are defaults; editor customizations take precedence.
@@ -2971,6 +3033,22 @@ These are defaults; editor customizations take precedence.
   --description &lt;text&gt; What was happening, in your own words
   --no-facts Leave the support facts out
   --no-events Leave the recent events out
+- `report problem`: Usage:
+  muse-spark-code-acp report [--out &lt;file&gt;] [--description &lt;text&gt;] [--no-facts] [--no-events]
+  Prints the scrubbed problem report to stdout, or writes it to &lt;file&gt; with --out.
+  Starts no backend, signs in nowhere, and opens no browser.
+  Options:
+  --out &lt;file&gt; Write the report to a file instead of stdout
+  --description &lt;text&gt; What was happening, in your own words
+  --no-facts Leave the support facts out
+  --no-events Leave the recent events out
+- `report <kind> / report history`: Generate a deterministic report from named sources, without a model call.
+  muse-spark-code-acp report &lt;kind&gt; [args] [--format md|html|json|text] [--out &lt;file&gt;]
+  [--as-of &lt;ISO&gt;] [--lang &lt;locale&gt;] [--network] [--from &lt;file.json&gt;]
+  [--diff previous|&lt;file.json&gt;] [--full] [--strict] [--fail-on &lt;conditions&gt;]
+  muse-spark-code-acp report history
+  muse-spark-code-acp report problem
+
 - `help --all`: Commands, settings and features, with descriptions and documentation.
 - `help / --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.
 - `share chat SESSION_ID [--mode full|conversation] [--format md|html|json]`: Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.

@@ -973,6 +973,9 @@ const TEXT_BLOCKS = [
       SHARING_RUNTIME.output,
       'dist/conversation.js',
       BUNDLES.modelApi.output,
+      'dist/reporting.js',
+      'dist/reportingNetwork.js',
+      'dist/reportingDestinations.js',
     ],
   },
   {
@@ -1188,6 +1191,8 @@ const visitWebview = (file) => {
 }
 visitWebview('dist/webview/main.js')
 
+visitWebview('dist/webview/reportingPage.js')
+visitWebview('dist/webview/reportingDestinations.js')
 const deferredWebviewSources = [
   ...DEFERRED_WEBVIEW_SURFACES.map((surface) => `src/webview/components/${surface}.tsx`),
   ...ADDITIONAL_WEBVIEW_BUDGETS.flatMap(({ entries }) => entries),
@@ -1295,6 +1300,8 @@ const nodeMetafiles = readdirSync('dist/meta')
         'whatsNewPage.json',
         'usageWebview.json',
         'referencePage.json',
+        'reportingPageWebview.json',
+        'reportingDestinationsWebview.json',
       ].includes(name),
   )
   .map((name) => `dist/meta/${name}`)
@@ -1303,7 +1310,7 @@ nodeMetafiles.push(
   'dist/meta-acp/acpQuestions.json',
   'dist/meta-acp/runtimeQuestions.json',
 )
-const validationReaders = new Set()
+const validationReaders = new Map()
 for (const file of nodeMetafiles) {
   const meta = JSON.parse(readFileSync(file, 'utf8'))
   for (const [output, details] of Object.entries(meta.outputs)) {
@@ -1315,10 +1322,11 @@ for (const file of nodeMetafiles) {
   }
   const sourceInputs = Object.keys(meta.inputs).filter((name) => name.startsWith('src/'))
   for (const input of sourceInputs) {
-    validationReaders.add(input)
+    const prior = validationReaders.get(input) ?? []
+    validationReaders.set(input, [...prior, validationExports])
   }
 }
-for (const input of validationReaders) {
+for (const [input, readers] of validationReaders) {
   const text = readFileSync(input, 'utf8')
   // A file that never names the module has no alias to check; parsing every
   // source input made this the slowest part of the check.
@@ -1341,7 +1349,7 @@ for (const input of validationReaders) {
       ts.isPropertyAccessExpression(node) &&
       ts.isIdentifier(node.expression) &&
       aliases.has(node.expression.text) &&
-      !validationExports.has(node.name.text)
+      readers.some((exports) => !exports.has(node.name.text))
     ) {
       problems.push(`${input} reads zod/mini.${node.name.text}, absent from validation.js`)
     }

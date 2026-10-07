@@ -1,6 +1,7 @@
 import type { UsageRecording } from '../../core/usage/recording'
 import type { ProviderUsageRow } from '../../shared/usage'
 import type { ChatShareSource } from '../../core/sharing/chatShare'
+import type { ReportQuestionsReader } from '../../core/reporting/sources/questions'
 import { QuestionRegistry } from '../../core/questions/registry'
 import type { QuestionAnswerText } from '../../core/questions/lateAnswer'
 import type {
@@ -11,6 +12,7 @@ import type {
   QuestionStore,
 } from '../../shared/questions'
 import { startApprovalJudge } from '../../core/judge/use'
+import { reportCommandArguments } from '../reporting/reportCommand'
 // One conversation per surface: owns the MSP session for that surface, turns
 // webview requests into backend calls, and streams AgentEvents back. Also the
 // source of truth for the composer settings that outlive a webview reload
@@ -165,7 +167,7 @@ import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/
 import type { AgentEvent, ApprovalChoice, ItemSnapshot, TodoItem } from '../../shared/agentEvents'
 import { fill, plural } from '../../shared/l10n/text'
 import type { GitAction, GitDraftKind } from '../../shared/git'
-import { backendLabel } from '../../shared/palette'
+import { backendLabel } from '../../shared/paletteFormatting'
 import type { PaidUseRequest } from '../../shared/paid'
 import type { ScheduleCadence, ScheduledPrompt } from '../../shared/schedule'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
@@ -389,6 +391,8 @@ export interface SessionMemory {
 
 export interface ConversationDeps {
   readonly usageRecording?: UsageRecording | undefined
+  /** Local reports: native hosts inject the same operation; absent means unavailable. */
+  readonly showDeterministicReport?: (argumentsText: string) => Promise<void>
   readonly surface: ChatSurface
   readonly auth: AuthPort
   readonly ensureHost: () => Promise<AgentHost>
@@ -9164,6 +9168,33 @@ export class ConversationController {
 
   /** One message from the webview, routed; `handle` catches what it throws. */
   private async dispatch(message: ConversationMessage): Promise<void> {
+    if (message.type === 'runReport') {
+      let isAccepted = false
+      try {
+        if (this.deps.showDeterministicReport === undefined)
+          throw new Error(UI_TEXT.reportUi.generationFailed)
+        await this.showDeterministicReport(message.argumentsText)
+        isAccepted = true
+      } catch {
+        this.notice('warning', UI_TEXT.reportUi.generationFailed)
+      }
+      this.post({ type: 'reportCommandResult', requestId: message.requestId, accepted: isAccepted })
+      return
+    }
+    // Reports are host commands, even while signed out or while a model turn is running.
+    if (message.type === 'sendMessage') {
+      const argumentsText = reportCommandArguments(message.text)
+      if (argumentsText !== undefined) {
+        this.post({
+          type: 'sendFailed',
+          localId: message.localId,
+          reason: UI_TEXT.reportSlashDescription,
+          attachmentsKept: true,
+        })
+        await this.showDeterministicReport(argumentsText)
+        return
+      }
+    }
     if (!this.isAuthAdmitted() && AUTH_REQUIRED_SESSION_ACTIONS.has(message.type)) {
       this.notice('warning', UI_TEXT.notSignedInReason)
       // A command the panel waits on hears the refusal too (M45, M74, M87),
@@ -10212,6 +10243,50 @@ export class ConversationController {
    */
   public async openReport(): Promise<void> {
     await this.handleReportMessage({ type: 'openReport' })
+  }
+
+  public reportingQuestions(): ReportQuestionsReader {
+    return {
+      read: (context) => {
+        const registry = this.session === undefined ? undefined : sessionQuestions.get(this.session)
+        if (registry === undefined)
+          return Promise.reject(new Error(UI_TEXT.reportSourceReasons.unbound))
+        const snapshot = registry.snapshot()
+        return Promise.resolve({
+          observedAt: context.asOf,
+          questions: snapshot.questions.map((entry) => {
+            const settledState =
+              entry.state.startsWith('answered') || entry.state === 'clarified'
+                ? ('answered' as const)
+                : ('dismissed' as const)
+            return {
+              id: entry.userInputId,
+              text: entry.questions.map((question) => question.question).join('\n'),
+              milestoneIds: [],
+              state:
+                entry.state === 'open' || entry.state === 'waiting'
+                  ? ('open' as const)
+                  : settledState,
+            }
+          }),
+        })
+      },
+    }
+  }
+
+  /** W binds the composer's dedicated command action to this host-only entry. */
+  public async showDeterministicReport(argumentsText = ''): Promise<void> {
+    if (this.deps.showDeterministicReport === undefined) {
+      this.notice('warning', UI_TEXT.reportUi.generationFailed)
+      return
+    }
+    await this.deps.showDeterministicReport(argumentsText)
+  }
+
+  /** Attach the reviewed Markdown to the draft; spending still needs the user's Send. */
+  public attachReportMarkdown(text: string): void {
+    this.post({ type: 'insertText', text: `${text}\n` })
+    this.deps.surface.reveal()
   }
 
   /**

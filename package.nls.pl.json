@@ -195,5 +195,12 @@
   "command.savePrompt.title": "Zapisz prompt",
   "command.useSavedPrompt.title": "Użyj zapisanego promptu…",
   "command.copyToMyPrompts.title": "Kopiuj do moich promptów",
-  "config.syncPromptsAndBookmarks.description": "Kopiuj prompty dla wszystkich obszarów roboczych do synchronizacji ustawień. Prompty obszaru pozostają lokalne."
+  "config.syncPromptsAndBookmarks.description": "Kopiuj prompty dla wszystkich obszarów roboczych do synchronizacji ustawień. Prompty obszaru pozostają lokalne.",
+  "command.showReport.title": "Pokaż raport…",
+  "config.reports.network.description": "Wybierz, kiedy raporty mogą odczytywać GitHub. Raporty w terminalu korzystają z sieci tylko z --network.",
+  "config.reports.network.enumDescriptions.whenSignedIn": "Odczytuj GitHub po zalogowaniu do GitHub.",
+  "config.reports.network.enumDescriptions.always": "Zezwól na sieciowe źródła raportów.",
+  "config.reports.network.enumDescriptions.off": "Odczytuj wyłącznie lokalne źródła.",
+  "config.reports.keepHistory.description": "Przechowuj na tym komputerze 50 najnowszych raportów każdego rodzaju do historii i porównań.",
+  "config.reports.agentSources.description": "Zezwól na odczyt własnych plików użycia i limitów Claude Code lub Codex. Domyślnie: żadne. Tekst rozmów i pliki poświadczeń nigdy nie są odczytywane jako źródła raportów."
 }

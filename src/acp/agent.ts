@@ -101,6 +101,7 @@ import {
   UpdateTranslator,
 } from './translate'
 import type { AcpSharingPort } from './sharing'
+import { acpReportArguments, runAcpReport, type AcpReportsPort } from './reports'
 
 // Muse Code runs a session's MCP servers only with this grant (M63c).
 const [SESSION_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
@@ -183,6 +184,8 @@ export interface AcpAgentDeps {
    * session. Absent, the agent behaves exactly as before.
    */
   readonly reportError?: (fact: AcpErrorFact) => void
+  /** M113's lazy deterministic engine, scoped to this session's workspace. */
+  readonly reports?: AcpReportsPort
 }
 
 /** One observed failure as facts: a fixed kind and a fixed short code, nothing else. */
@@ -223,6 +226,7 @@ interface PreparingPrompt {
   readonly abort: AbortController
   error?: unknown
   abandonElicitation?: () => void
+  readonly reportAbort?: AbortController
 }
 
 /** Identity of the latest load or resume; kept while earlier releases finish. */
@@ -418,6 +422,11 @@ class AcpSession {
           .filter((command) => command.name !== SLASH_COMMAND_NAMES.help) ?? []),
         { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
         { name: ACP_COMPACT_COMMAND, description: UI_TEXT.compactDetail, input: null },
+        {
+          name: SLASH_COMMAND_NAMES.report,
+          description: UI_TEXT.reportSlashDescription,
+          input: { hint: '<kind> [args] | history' },
+        },
         ...(this.deps.legalScan === undefined
           ? []
           : [{ name: 'legal', description: UI_TEXT.legalScanDisclaimer, input: null }]),
@@ -436,7 +445,9 @@ class AcpSession {
               skill.selector !== SLASH_COMMAND_NAMES.help &&
               skill.selector !== ACP_COMPACT_COMMAND &&
               skill.selector !== 'legal' &&
-              !['answer', 'questions', 'share', 'prompt'].includes(skill.selector) &&
+              !['answer', 'questions', 'share', 'prompt', SLASH_COMMAND_NAMES.report].includes(
+                skill.selector,
+              ) &&
               (this.deps.usage === undefined || skill.selector !== 'usage'),
           )
           .map((skill) => ({
@@ -741,6 +752,10 @@ class AcpSession {
 
   private questionNotice(text: string): void {
     this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+  }
+
+  private isCurrentReport(preparing: PreparingPrompt): boolean {
+    return this.preparing === preparing && !preparing.isCancelled && !this.isDisposed
   }
 
   /**
@@ -1057,6 +1072,28 @@ class AcpSession {
     if (this.pending !== undefined || this.preparing !== undefined) {
       throw RequestError.invalidRequest(undefined, UI_TEXT.acpPromptBusy)
     }
+    const reportArgs = acpReportArguments(blocks)
+    if (reportArgs !== undefined) {
+      const reportAbort = new AbortController()
+      const preparing: PreparingPrompt = { isCancelled: false, reportAbort, abort: reportAbort }
+      this.preparing = preparing
+      try {
+        await this.announceCommands()
+        if (!this.isCurrentReport(preparing)) return 'cancelled'
+        const text = await runAcpReport(reportArgs, this.deps.reports, {
+          cwd: this.cwd,
+          sessionId: this.sessionId,
+          signal: reportAbort.signal,
+        })
+        if ('error' in preparing) throw preparing.error
+        if (!this.isCurrentReport(preparing)) return 'cancelled'
+        this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+        await this.outbox
+        return 'end_turn'
+      } finally {
+        this.preparing = undefined
+      }
+    }
     const parsed = promptParts(blocks, this.cwd)
     if (!parsed.ok) {
       throw RequestError.invalidParams(undefined, parsed.reason)
@@ -1235,6 +1272,7 @@ class AcpSession {
     this.legalStop?.abort()
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
+      this.preparing.reportAbort?.abort()
       this.preparing.abandonElicitation?.()
       this.preparing.abort.abort()
       this.preparing = undefined
@@ -1267,6 +1305,7 @@ class AcpSession {
       this.preparing.error = error
       this.preparing.abandonElicitation?.()
       this.preparing.abort.abort()
+      this.preparing.reportAbort?.abort()
     }
     this.pending?.reject(error)
     this.pending = undefined
@@ -1298,6 +1337,7 @@ class AcpSession {
     if (this.questions === undefined) this.questionRegistry?.dispose()
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
+      this.preparing.reportAbort?.abort()
       this.preparing.abandonElicitation?.()
       this.preparing.abort.abort()
       this.preparing = undefined

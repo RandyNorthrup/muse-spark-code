@@ -195,5 +195,12 @@
   "command.savePrompt.title": "Uložit prompt",
   "command.useSavedPrompt.title": "Použít uložený prompt…",
   "command.copyToMyPrompts.title": "Zkopírovat do mých promptů",
-  "config.syncPromptsAndBookmarks.description": "Zrcadlit prompty pro všechny pracovní prostory do synchronizace nastavení. Prompty pracovního prostoru zůstávají místní."
+  "config.syncPromptsAndBookmarks.description": "Zrcadlit prompty pro všechny pracovní prostory do synchronizace nastavení. Prompty pracovního prostoru zůstávají místní.",
+  "command.showReport.title": "Zobrazit zprávu…",
+  "config.reports.network.description": "Zvolte, kdy mohou zprávy číst GitHub. Terminálové zprávy používají síť jen s --network.",
+  "config.reports.network.enumDescriptions.whenSignedIn": "Číst GitHub po přihlášení do GitHubu.",
+  "config.reports.network.enumDescriptions.always": "Povolit síťové zdroje zpráv.",
+  "config.reports.network.enumDescriptions.off": "Číst pouze místní zdroje.",
+  "config.reports.keepHistory.description": "Uchovávat na tomto počítači nejnovějších 50 zpráv každého druhu pro historii a porovnání.",
+  "config.reports.agentSources.description": "Volitelně číst vlastní soubory využití a limitů Claude Code nebo Codex. Výchozí: žádné. Text konverzací a soubory přihlašovacích údajů se nikdy nečtou jako zdroje zpráv."
 }

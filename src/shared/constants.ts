@@ -58,6 +58,7 @@ export const COMMAND_IDS = {
   showLogs: 'museSpark.showLogs',
   diagnostics: 'museSpark.diagnostics',
   reportProblem: 'museSpark.reportProblem',
+  showReport: 'museSpark.showReport',
   newConversation: 'museSpark.newConversation',
   signOut: 'museSpark.signOut',
   openInTerminal: 'museSpark.openInTerminal',
@@ -412,6 +413,9 @@ export const SETTING_DEFAULTS = {
   // host reads only the user's own value (questionStore.ts).
   'questions.deferAfterSeconds': 60,
   syncPromptsAndBookmarks: false,
+  'reports.network': 'whenSignedIn',
+  'reports.keepHistory': true,
+  'reports.agentSources': [],
   shellSandbox: 'auto' as ShellSandboxMode,
   backend: 'auto' as BackendMode,
   // Claude Code's `enableNewConversationShortcut`: Ctrl+N starts a new
@@ -606,6 +610,9 @@ export const MACHINE_SCOPED_SETTINGS = [
   'showWhatsNewOnUpdate',
   // How long Muse waits for an answer is the user's choice (M112, D92).
   'questions.deferAfterSeconds',
+  'reports.network',
+  'reports.keepHistory',
+  'reports.agentSources',
   // Tab chooses what runs, what is billed and how much is approved (M94,
   // PLAN.md D73): every Tab setting is machine-scoped, so a workspace's
   // settings cannot change what Tab spends.
@@ -4581,7 +4588,220 @@ export const SLASH_COMMAND_NAMES = {
   // M70: Claude Code's name for its security review, and the review pane.
   securityReview: 'security-review',
   changes: 'changes',
+  report: 'report',
 } as const
+
+// M113 / D93: deterministic reports, independent of M93's problem reports.
+export const REPORT_FORMAT_VERSION = 'report-v1'
+export const REPORT_SECTION_ROWS = 10
+export const REPORT_NEXT_STEP_LIMIT = 3
+export const REPORT_EMPTY_HASH = '0'.repeat(64)
+export const REPORT_GIT_MAX_COMMITS = 5000
+export const REPORT_NETWORK_MAX_BYTES = 2 * 1024 * 1024
+export const REPORT_NETWORK_MAX_PAGES = 3
+export const REPORT_NETWORK_CACHE_ENTRIES = 100
+export const REPORT_SOURCE_TIMEOUT_MS = 5000
+export const REPORT_GITHUB_RATE_FLOOR = 10
+export const REPORT_CHECK_RUNS_MAX = 500
+export const REPORT_HISTORY_MAX_PER_KIND = 50
+// A legitimate bucket rewrite may take seconds; exhaustion is an explicit failure.
+export const REPORT_WRITER_LOCK_WAIT_MS = 2000
+export const REPORT_WRITER_LOCK_BACKOFF_MS = 25
+export const REPORT_WRITER_LOCK_BACKOFF_MAX_MS = 100
+export const REPORT_WRITER_LOCK_PROBE_MS = 2000
+// Linux /proc/<pid>/stat fields after the closing command-name parenthesis start at 3.
+export const REPORT_PROCESS_START_FIELD_INDEX = 19
+export const REPORT_LOCAL_BUDGET_MS = 2000
+export const REPORT_PLAN_BUDGET_MS = 200
+/** Whole-project plans are larger than per-message text; refuse above this UTF-8 bound. */
+export const REPORT_PLAN_MAX_BYTES = 4 * 1024 * 1024
+export const REPORT_TEXT_COLUMNS = 80
+export const REPORT_SAVE_RETENTION_DEFAULT = 30
+export const REPORT_EMAIL_CODE_TTL_MS = 15 * 60 * 1000
+export const REPORT_EMAIL_CODE_TRIES = 5
+export const REPORT_EMAIL_PER_HOUR = 6
+export const REPORT_EMAIL_PER_DAY = 20
+export const REPORT_EMAIL_CODE_DIGITS = 6
+export const REPORT_EMAIL_CODE_MIN = 100_000
+export const REPORT_EMAIL_CODE_MAX = 1_000_000
+export const REPORT_EMAIL_CODE_SALT_BYTES = 16
+export const REPORT_DELIVERY_ATTEMPTS = 3
+export const REPORT_DELIVERY_RETRY_MS = 1000
+export const REPORT_DESTINATIONS_MAX = 20
+export const REPORT_SAVE_RETENTION_MAX = 1000
+export const REPORT_SAVE_TEMPLATE_DEFAULT = '{kind}-{date}-{time}.{ext}'
+export const REPORT_FILENAME_MAX_CHARS = 200
+export const REPORT_HASH_PREFIX_CHARS = 8
+export const REPORT_DELIVERY_HOUR_MS = 60 * 60 * 1000
+export const REPORT_DELIVERY_DAY_MS = 24 * REPORT_DELIVERY_HOUR_MS
+export const REPORT_SMS_PER_HOUR = 2
+export const REPORT_SMS_PER_DAY = 10
+// Bound saved documents and bridge messages before rendering untrusted input.
+export const REPORT_MAX_SECTIONS = 64
+export const REPORT_MAX_ROWS = 20_000
+export const REPORT_MAX_COLUMNS = 64
+export const REPORT_MAX_SOURCES = 100
+export const REPORT_MAX_TEXT_CHARS = 64 * 1024
+export const REPORT_MAX_ID_CHARS = 256
+export const REPORT_HASH_PATTERN = /^[a-f0-9]{64}$/
+export const REPORT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/-]*$/
+export const REPORT_STORAGE_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
+export const REPORT_KINDS = [
+  'project',
+  'milestone',
+  'release',
+  'usage',
+  'session',
+  'changes',
+  'quality',
+  'fleet',
+  'security',
+  'accounts',
+  'estimate',
+  'playbook',
+  'issues',
+  'schedules',
+  'keybindings',
+] as const
+export const REPORT_FORMATS = ['md', 'html', 'json', 'text'] as const
+export const REPORT_FAIL_ON = [
+  'unavailable',
+  'drift',
+  'blocked',
+  'channelLag',
+  'ciFailing',
+] as const
+export const REPORT_EXIT_CODES = {
+  generated: 0,
+  failed: 1,
+  usage: 2,
+  notFound: 3,
+  conditionHeld: 4,
+} as const
+// Schema labels are identifiers only; renderers resolve UI_TEXT.reportLabels at use time.
+export const REPORT_LABEL_KEYS = [
+  'needsYou',
+  'releases',
+  'milestones',
+  'lanes',
+  'pullRequests',
+  'ci',
+  'usage',
+  'risks',
+  'nextSteps',
+  'status',
+  'date',
+  'goal',
+  'dependencies',
+  'certification',
+  'gates',
+  'residuals',
+  'questions',
+  'changelog',
+  'tag',
+  'channels',
+  'releaseRecord',
+  'totals',
+  'breakdown',
+  'limits',
+  'model',
+  'backend',
+  'turns',
+  'tokens',
+  'inputTokens',
+  'outputTokens',
+  'cachedTokens',
+  'cost',
+  'tools',
+  'files',
+  'approvals',
+  'checks',
+  'paidUses',
+  'commits',
+  'agents',
+  'workers',
+  'devices',
+  'nodes',
+  'vault',
+  'grants',
+  'denials',
+  'locks',
+  'developerAudit',
+  'accounts',
+  'swaps',
+  'confirmations',
+  'criticalPath',
+  'limitingResource',
+  'setups',
+  'inputs',
+  'calibration',
+  'decisions',
+  'drills',
+  'disabledRules',
+  'refusals',
+  'issues',
+  'timeline',
+  'schedules',
+  'fires',
+  'keybindings',
+  'conflicts',
+  'diff',
+  'sources',
+  'planFormat',
+  'name',
+  'scope',
+  'version',
+  'commit',
+  'branch',
+  'outcome',
+  'duration',
+  'count',
+  'provider',
+  'kind',
+  'tool',
+  'session',
+  'client',
+  'account',
+  'certainty',
+  'reported',
+  'estimated',
+  'unknown',
+  'freshness',
+  'observedAt',
+  'reason',
+  'ok',
+  'partial',
+  'unavailable',
+  'notApplicable',
+  'fresh',
+  'stale',
+  'current',
+  'lagging',
+  'planned',
+  'building',
+  'built',
+  'certified',
+  'merged',
+  'released',
+  'complete',
+  'superseded',
+  'waiting',
+  'blocked',
+  'inReview',
+  'inProgress',
+  'passed',
+  'failed',
+  'running',
+  'skipped',
+  'cancelled',
+  'answered',
+  'open',
+  'dismissed',
+  'added',
+  'removed',
+  'changed',
+  'unchanged',
+] as const
 export const REFERENCE_DOCS_URL =
   'https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/reference.md'
 export const REFERENCE_BUNDLE_FILE = 'reference.js'
@@ -4990,6 +5210,12 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/webview/referencePage.js',
   'dist/reference.js',
   'dist/report.js',
+  'dist/reporting.js',
+  'dist/reportingPanel.js',
+  'dist/reportingNetwork.js',
+  'dist/reportingDestinations.js',
+  'dist/webview/reportingPage.js',
+  'dist/webview/reportingDestinations.js',
   'dist/recorder.js',
   'dist/browserCheck.js',
   'dist/browserRuntime.js',

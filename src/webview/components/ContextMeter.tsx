@@ -1,6 +1,6 @@
 import { CONTEXT_PRESSURE_HIGH, CONTEXT_PRESSURE_MEDIUM, UI_TEXT } from '../../shared/constants'
 import { fill, formatNumber, formatPercent } from '../../shared/l10n/text'
-import { formatTokenWindow } from '../../shared/palette'
+import { formatTokenWindow } from '../../shared/paletteFormatting'
 import type { UiState } from '../state/uiState'
 
 export interface ContextMeterProps {

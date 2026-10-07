@@ -16,6 +16,9 @@ import { createLegalFixApplier, legalFixFileEdits } from './host/legalFixApplier
 import { legalScanResultSchema, type LegalScanRunner } from './shared/legal'
 import { isReferenceRequest, referenceLoader } from './host/referenceLoader'
 import { REFERENCE_BUNDLE_FILE } from './shared/constants'
+import { reportingCheckJournal } from './host/reporting/reportCheckBundle'
+import { reportPanelLoader } from './host/reporting/reportPanelBundle'
+import type { ReportPanel } from './host/reporting/reportPanel'
 // Extension host entry point. Kept to registration and adapter wiring; the
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
@@ -2414,6 +2417,12 @@ async function activateWindow(
             log,
           }),
         })
+  const reportChecksFor = (root: string | undefined) =>
+    reportingCheckJournal({
+      bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', 'reporting.js').fsPath,
+      log,
+      context: { workspaceRoot: root, storageRoot, l10n },
+    })
   const modelApi = new ModelApiBackendManager({
     judge,
     createProviderClient: async (meta) =>
@@ -2601,6 +2610,7 @@ async function activateWindow(
     memory: memory.store,
     // The settings are read at each use; a repository cannot set them (D15).
     verify: {
+      checkRuns: reportChecksFor(workspaceRoot),
       isDiagnosticsOn: () => currentSettings().diagnosticsAfterEdits,
       checkCommands: () => currentSettings().checkCommands,
       isFormatOnEdit: () => currentSettings().formatOnEdit,
@@ -2616,6 +2626,7 @@ async function activateWindow(
         realPath: canonicalPath,
       })
       return {
+        checkRuns: reportChecksFor(attemptRoot),
         isDiagnosticsOn: () => currentSettings().diagnosticsAfterEdits,
         checkCommands: () => currentSettings().checkCommands,
         isFormatOnEdit: () => currentSettings().formatOnEdit,
@@ -3079,6 +3090,44 @@ async function activateWindow(
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', CONVERSATION_BUNDLE_FILE).fsPath,
     log,
   })
+  // M113 V: the command loads two separate bundles on its first use only.
+  const loadReportingPanel = reportPanelLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', 'reportingPanel.js').fsPath,
+    log,
+  })
+  const reportingPanels = new Map<string, ReportPanel>()
+  const showDeterministicReport = async (
+    surface: ChatSurface | undefined,
+    argumentsText = '',
+  ): Promise<void> => {
+    const id = surface?.id ?? 'window'
+    let reportingPanel = reportingPanels.get(id)
+    if (reportingPanel === undefined) {
+      reportingPanel = loadReportingPanel().createReportingWindow(
+        {
+          context: { extensionUri: context.extensionUri, l10n, log },
+          generatorVersion: version,
+          ...(surface !== undefined && { questions: controllerFor(surface).reportingQuestions() }),
+          workspaceRoot,
+          storageRoot,
+          attachMarkdown: (text) => {
+            if (surface === undefined || !registry.has(surface))
+              throw new Error(UI_TEXT.reportUi.generationFailed)
+            controllerFor(surface).attachReportMarkdown(text)
+            return Promise.resolve()
+          },
+          openProblem: async () => {
+            await vscode.commands.executeCommand(COMMAND_IDS.reportProblem)
+          },
+        },
+        l10n.table,
+        l10n.locale,
+      )
+      reportingPanels.set(id, reportingPanel)
+      context.subscriptions.push(reportingPanel)
+    }
+    await reportingPanel.open(argumentsText)
+  }
   const controllerFor = (surface: ChatSurface): ConversationController => {
     let controller = controllers.get(surface.id)
     if (controller === undefined) {
@@ -3107,6 +3156,8 @@ async function activateWindow(
           },
           surface,
           questions: factory.questionsForHost(questionsStore),
+          showDeterministicReport: (argumentsText) =>
+            showDeterministicReport(surface, argumentsText),
           tasksTab,
           auth,
           ensureHost: ensureSelectedHost,
@@ -4074,6 +4125,9 @@ async function activateWindow(
     registerLoggedCommand(log, COMMAND_IDS.openInSidebar, openSidebar),
     registerLoggedCommand(log, COMMAND_IDS.showLogs, () => {
       channel.show(true)
+    }),
+    registerLoggedCommand(log, COMMAND_IDS.showReport, async () => {
+      await showDeterministicReport(registry.active)
     }),
     registerLoggedCommand(log, COMMAND_IDS.openHelp, async () => {
       const surface = registry.active

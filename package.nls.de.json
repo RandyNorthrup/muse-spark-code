@@ -195,5 +195,12 @@
   "command.savePrompt.title": "Prompt speichern",
   "command.useSavedPrompt.title": "Gespeicherten Prompt verwenden…",
   "command.copyToMyPrompts.title": "In meine Prompts kopieren",
-  "config.syncPromptsAndBookmarks.description": "Prompts für alle Arbeitsbereiche in die Einstellungssynchronisierung spiegeln. Arbeitsbereich-Prompts bleiben lokal."
+  "config.syncPromptsAndBookmarks.description": "Prompts für alle Arbeitsbereiche in die Einstellungssynchronisierung spiegeln. Arbeitsbereich-Prompts bleiben lokal.",
+  "command.showReport.title": "Bericht anzeigen…",
+  "config.reports.network.description": "Wählen Sie, wann Berichte GitHub lesen dürfen. Terminalberichte nutzen das Netzwerk nur mit --network.",
+  "config.reports.network.enumDescriptions.whenSignedIn": "GitHub bei bestehender GitHub-Anmeldung lesen.",
+  "config.reports.network.enumDescriptions.always": "Netzwerkquellen für Berichte erlauben.",
+  "config.reports.network.enumDescriptions.off": "Nur lokale Quellen lesen.",
+  "config.reports.keepHistory.description": "Die neuesten 50 Berichte je Art auf diesem Rechner für Verlauf und Vergleiche aufbewahren.",
+  "config.reports.agentSources.description": "Das Lesen Ihrer eigenen Claude-Code- oder Codex-Nutzungs- und Limitdateien erlauben. Standard: keine. Gesprächstexte und Zugangsdaten werden niemals als Berichtsquellen gelesen."
 }

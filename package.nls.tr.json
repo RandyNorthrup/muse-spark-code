@@ -195,5 +195,12 @@
   "command.savePrompt.title": "İstemi kaydet",
   "command.useSavedPrompt.title": "Kayıtlı istemi kullan…",
   "command.copyToMyPrompts.title": "İstemlerime kopyala",
-  "config.syncPromptsAndBookmarks.description": "Tüm çalışma alanlarının istemlerini ayar eşitlemesine yansıtın. Çalışma alanı istemleri yerel kalır."
+  "config.syncPromptsAndBookmarks.description": "Tüm çalışma alanlarının istemlerini ayar eşitlemesine yansıtın. Çalışma alanı istemleri yerel kalır.",
+  "command.showReport.title": "Rapor göster…",
+  "config.reports.network.description": "Raporların GitHub’ı ne zaman okuyabileceğini seçin. Terminal raporları ağı yalnızca --network ile kullanır.",
+  "config.reports.network.enumDescriptions.whenSignedIn": "GitHub’a giriş yapılmışken GitHub’ı oku.",
+  "config.reports.network.enumDescriptions.always": "Raporlar için ağ kaynaklarına izin ver.",
+  "config.reports.network.enumDescriptions.off": "Yalnızca yerel kaynakları oku.",
+  "config.reports.keepHistory.description": "Geçmiş ve karşılaştırma için bu bilgisayarda her türün en yeni 50 raporunu sakla.",
+  "config.reports.agentSources.description": "Kendi Claude Code veya Codex kullanım ve sınır dosyalarınızın okunmasına izin verin. Varsayılan: hiçbiri. Konuşma metni ve kimlik bilgisi dosyaları rapor kaynağı olarak asla okunmaz."
 }

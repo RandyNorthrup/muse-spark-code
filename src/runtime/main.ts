@@ -8,7 +8,7 @@ import { legalScanLoader } from '../host/ide/legalScanBundle'
 import { spawn } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { open, writeFile } from 'node:fs/promises'
+import { open, writeFile, realpath, lstat } from 'node:fs/promises'
 import { createInterface } from 'node:readline'
 import { homedir, hostname, tmpdir } from 'node:os'
 import path from 'node:path'
@@ -38,6 +38,8 @@ import {
   SETTING_DEFAULTS,
   USAGE_HISTORY_DAYS_DEFAULT,
   UI_TEXT,
+  SESSION_EXPORT_MAX_BYTES,
+  REPORT_SOURCE_TIMEOUT_MS,
 } from '../shared/constants'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { fill, uiLocale } from '../shared/l10n/text'
@@ -104,6 +106,8 @@ import { museSettingsPath } from '../host/backend/museSettings'
 import { walkFiles } from './fileWalk'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
+import { reportsLoader } from './reporting/reportsLoader'
+import type { createRuntimeReports } from './reporting/reportsEntry'
 
 const EXIT_FAILED = 1
 // Keep only presence for reports, before credential variables leave the process.
@@ -353,6 +357,77 @@ async function runtimeFor(
   })
 }
 
+/** No account or backend is touched; W ships this entry in its own lazy chunk. */
+function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeReports> {
+  const load = reportsLoader({ bundlePath: path.join(distDir, 'reporting.js'), log })
+  let reports: ReturnType<typeof createRuntimeReports> | undefined
+  return () => {
+    reports ??= load().createRuntimeReports({
+      cwd: process.cwd(),
+      locale: uiLocale(),
+      table: UI_TEXT,
+      now: () => new Date().toISOString(),
+      roots: [homedir()],
+      servicesFor: (cwd, _sessionId, language) =>
+        Promise.resolve({
+          keepHistory: true,
+          services: load().createReportingServices({
+            workspaceRoot: cwd,
+            log,
+            storageRoot: agentDataFolder({
+              platform: process.platform,
+              env: process.env,
+              homeDir: homedir(),
+            }),
+            l10n: language ?? { table: UI_TEXT, locale: uiLocale() },
+            generatorVersion: packageVersion(),
+            keepHistory: true,
+            enabledAgents: [],
+            network: {
+              policy: {
+                surface: 'terminal',
+                mode: 'always',
+                githubSignedIn: false,
+                allowEgress: () => Promise.resolve(process.env['CI'] === undefined),
+              },
+            },
+          }),
+        }),
+      resolveSaved: async (cwd, file) => {
+        const target = path.resolve(cwd, file)
+        const info = await lstat(target)
+        if (info.isSymbolicLink()) throw new Error(UI_TEXT.reportUi.generationFailed)
+        return await realpath(target)
+      },
+      readSaved: async (cwd, file) => {
+        const bytes = await readBoundedFile(
+          path.resolve(cwd, file),
+          SESSION_EXPORT_MAX_BYTES,
+          AbortSignal.timeout(REPORT_SOURCE_TIMEOUT_MS),
+        )
+        const value: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
+        return value
+      },
+      writeOut: async (cwd, file, text) => {
+        await writeFile(path.resolve(cwd, file), text, { encoding: 'utf8', mode: 0o600 })
+      },
+      readTable: async (locale) => {
+        const value: unknown = JSON.parse(
+          await readUiTableFile(packageRoot, ['l10n', `ui.${locale}.json`]),
+        )
+        return value
+      },
+      stdout: (text) => {
+        process.stdout.write(text)
+      },
+      stderr: (text) => {
+        writeLine(process.stderr, text)
+      },
+    })
+    return reports
+  }
+}
+
 /** Explicit trusted Setup runs neither an account probe nor a model request. */
 async function setupHooks(
   options: ServeOptions,
@@ -548,7 +623,9 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
       bundlePath: path.join(distDir, LEGAL_SCAN_BUNDLE_FILE),
       log,
     })
+    const reports = runtimeReports(log)
     const agent = engine.createAcpAgent({
+      reports: { format: 'md', execute: (args, context) => reports().acp.execute(args, context) },
       legalScan: async (cwd, signal, isRegistryOn, allowsRegistryLookup) => {
         const bundle = agentLegalBundle()
         const handle = await bundle.runLegalScan({ workspaceRoot: cwd, input: {}, signal })
@@ -1030,6 +1107,14 @@ async function main(): Promise<number> {
           writeLine(process.stderr, line)
         },
       })
+    }
+    case 'reports': {
+      try {
+        return await runtimeReports(log)().run(command.args)
+      } catch {
+        writeLine(process.stderr, UI_TEXT.reportUi.generationFailed)
+        return EXIT_FAILED
+      }
     }
     case 'version': {
       writeLine(process.stdout, packageVersion())

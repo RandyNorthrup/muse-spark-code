@@ -195,5 +195,12 @@
   "command.savePrompt.title": "Salva prompt",
   "command.useSavedPrompt.title": "Usa prompt salvato…",
   "command.copyToMyPrompts.title": "Copia nei miei prompt",
-  "config.syncPromptsAndBookmarks.description": "Copia i prompt per tutti gli spazi di lavoro nella sincronizzazione delle impostazioni. I prompt dello spazio restano locali."
+  "config.syncPromptsAndBookmarks.description": "Copia i prompt per tutti gli spazi di lavoro nella sincronizzazione delle impostazioni. I prompt dello spazio restano locali.",
+  "command.showReport.title": "Mostra rapporto…",
+  "config.reports.network.description": "Scegli quando i rapporti possono leggere GitHub. I rapporti da terminale usano la rete solo con --network.",
+  "config.reports.network.enumDescriptions.whenSignedIn": "Leggi GitHub quando hai effettuato l’accesso a GitHub.",
+  "config.reports.network.enumDescriptions.always": "Consenti fonti di rete per i rapporti.",
+  "config.reports.network.enumDescriptions.off": "Leggi solo fonti locali.",
+  "config.reports.keepHistory.description": "Conserva su questo computer gli ultimi 50 rapporti di ogni tipo per la cronologia e i confronti.",
+  "config.reports.agentSources.description": "Abilita la lettura dei tuoi file di utilizzo e limiti di Claude Code o Codex. Impostazione predefinita: nessuno. Il testo delle conversazioni e i file di credenziali non vengono mai letti come fonti dei rapporti."
 }

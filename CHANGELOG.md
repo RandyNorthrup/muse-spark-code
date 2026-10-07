@@ -7,6 +7,16 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Deterministic `/report` commands and a local report tab with Markdown, HTML, JSON and text exports, saved history and comparisons. The composer, palette and Account & usage open the same lazy engine without starting a model turn. Sources retain their reasons and freshness when evidence is unavailable.
+- A checked plan grammar and report-v1 schema; pure collectors, bounded local readers, canonical redaction and shared report contracts for CLI, ACP and native host adapters.
+
+### Fixed
+
+- The `museSpark.reports.network` setting no longer promises public release-channel reads: only GitHub reads are wired, and store, workflow and release adapters stay unavailable until their approved live captures land.
+- The reporting bundle split check now also fails when a reporting bundle carries the paid gate (`src/core/paid/**`), as D93 requires.
+
 ### Fixed
 
 - Search usage-journal newlines in native byte arrays so cold scans retain their
@@ -277,6 +287,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Palette and slash command data load on the first menu use with accessible
+  loading, failure and retry. Account & usage and the agent map retain one
+  modal loading boundary. Report screenshots use the shipped panel assets.
+
+- Report networking scrubs decoded cache data, validates transformed 304
+  results, serializes rate admission, rechecks live settings and releases
+  canceled host owners while rejecting late responses. History and comparisons
+  validate workspace, kind, scope and canonical hashes before showing data.
+
 - Problem reports retain frames from the shipped question deferral bundle.
 - Release checks cover crash recovery through the shared reload helper, await
   deferred question commands and menus, and verify Cline shell quoting on all
@@ -351,6 +370,17 @@ happened, not what was planned; superseded entries are kept.
   within npm-run-all2's existing dependency range.
 
 ### Fixed
+
+- Report storage compares lease tokens during tombstone recovery to preserve
+  live writer leases and concurrent journal evidence. It retries transient
+  process-identity probes and permits later saves after a failed probe
+  without restarting the host.
+
+- Report checks validate file confinement after capturing HEAD. Report diffs
+  keep metadata identities separate from ordinary cells, and check journals
+  retain completed runs in append order through clock corrections. History
+  writers recover abandoned locks, wait through normal contention, and keep
+  pruning failures from adding artifacts beyond the retention cap.
 
 - The release-artifact check validates complete ACP help, including its reference
   hint, in English and every installed language using the CLI's shared formatter.

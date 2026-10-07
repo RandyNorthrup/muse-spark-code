@@ -58,6 +58,9 @@ const BUNDLES = [
   'foreignHooks.js',
   'hookRuntime.js',
   'recorder.js',
+  'reporting.js',
+  'reportingNetwork.js',
+  'reportingDestinations.js',
   'reference.js',
   'uiText.js',
   'uiTextRuntime.js',
@@ -89,7 +92,12 @@ const PACKAGE_NAME = 'muse-spark-code-acp'
 // detailed guide and is linked from the landing page instead.
 const README = path.join('docs', 'npm-readme.md')
 const NOTICES = 'THIRD_PARTY_NOTICES.txt'
-const SCHEMAS = ['exec-result-v1.schema.json', 'exec-event-v1.schema.json', 'share-v1.schema.json']
+const SCHEMAS = [
+  'exec-result-v1.schema.json',
+  'exec-event-v1.schema.json',
+  'share-v1.schema.json',
+  'report-v1.schema.json',
+]
 // Standalone full Help reads the manifest's labels beside package.json.
 const NLS_FILES = readdirSync('.').filter((file) => /^package\.nls(?:\.[\w-]+)?\.json$/.test(file))
 
