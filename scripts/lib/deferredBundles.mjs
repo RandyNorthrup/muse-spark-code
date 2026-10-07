@@ -361,6 +361,8 @@ export function checkDeferredBundles(inputsOf) {
       const normalized = input.replaceAll('\\', '/')
       if (normalized.startsWith('src/core/backends/') || normalized.startsWith('src/host/backend/'))
         problems.push(`${output} carries a backend: ${normalized}`)
+      if (normalized.startsWith('src/core/paid/'))
+        problems.push(`${output} carries the paid gate: ${normalized}`)
     }
   }
   return problems

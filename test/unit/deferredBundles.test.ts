@@ -546,4 +546,30 @@ describe('deferred cohort bundles', () => {
       expect(createHash('sha256').update(JSON.stringify(meta)).digest('hex')).toBe(hash)
     },
   )
+  it.each(['reporting', 'reportingNetwork', 'reportingDestinations', 'reportingPanel'])(
+    'refuses paid-gate imports from %s with either path separator (D93)',
+    (name) => {
+      const file = `dist/meta/${name}.json`
+      const meta = structuredClone(fixture(file).meta)
+      const output = meta.outputs[`dist/${name}.js`]
+      if (output === undefined) throw new Error('Missing output')
+      const hash = createHash('sha256').update(JSON.stringify(meta)).digest('hex')
+      for (const separator of ['/', '\\']) {
+        const source = 'src/core/paid/paidFeatures.ts'.replaceAll('/', () => separator)
+        try {
+          output.inputs[source] = { bytesInOutput: 1 }
+          expect(
+            checkDeferredBundles((bundle) =>
+              bundle.metafile === file
+                ? outputInputs(meta, `dist/${name}.js`)
+                : bundleInputs(bundle),
+            ),
+          ).toContain(`dist/${name}.js carries the paid gate: src/core/paid/paidFeatures.ts`)
+        } finally {
+          Reflect.deleteProperty(output.inputs, source)
+        }
+      }
+      expect(createHash('sha256').update(JSON.stringify(meta)).digest('hex')).toBe(hash)
+    },
+  )
 })
