@@ -13453,6 +13453,28 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### INFRA015 — Integrate screenshot refresh and test infrastructure (2026-10-06)
+
+Status: in progress on Linux rig `linuxlt`, branch `chore/infra-0150` from
+`8c6351d73`. Merge `fix/test-warm-deferred`, `fix/harness-waits`, then
+`docs/readme-shots-1006`, each with `git merge --no-ff`. Preserve both sides
+of plan, changelog and contributor notes; retain readiness-based harness waits
+and convert any new screenshot-scene fixed delay to the same `whenFound` flow.
+Extend STAR's exact linked sentence to the npm landing page and prove its new
+regression test fires by removing the sentence and restoring it byte-exact.
+
+Acceptance: complete accessibility harness with zero violations and zero pages
+without results; regenerate README previews, compare every declared screenshot,
+refresh and inspect changed assets. Run the requested owning Vitest files in
+batches of at most three, with repository-default timeouts; five-project
+typecheck, lint, format, reference/localization/host API, plain Knip, duplication,
+production build and VSIX packaging under the unchanged 2400 KiB cap. Record
+merge resolutions, failure drills, receipts and remaining blockers in
+`docs/certification/infra015.md`. Commit finished pieces with hooks enabled and
+explicit paths. No push, rebase, additional merge, paid/live call or gate change.
+The rig brief and common.md prohibit aggregate quality/full-unit runs; the lead
+owns full quality and hosted cross-platform certification after this handoff.
+
 ### REL0143F — Repair release PR #129 CI failures (2026-10-06)
 
 Continue `release/0.14.3` at `4122e1155` without another merge or push.
