@@ -25,7 +25,16 @@ def prepare(target, workspace, assets, download):
     shutil.copyfile(
         overlay / "boot" / ("vmlinuz-" + board["kernel"]), modules / "vmlinuz"
     )
-    subprocess.run(["depmod", "--basedir", str(overlay), board["kernel"]], check=True)
+    subprocess.run(
+        [
+            "depmod",
+            "--basedir",
+            str(overlay),
+            "--moduledir=/usr/lib/modules",
+            board["kernel"],
+        ],
+        check=True,
+    )
     boot = overlay / "boot/firmware"
     shutil.copytree(overlay / "usr/lib/raspi-firmware", boot)
     shutil.copytree(modules / "dtb/broadcom", boot, dirs_exist_ok=True)

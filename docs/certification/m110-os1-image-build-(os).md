@@ -167,3 +167,13 @@ pass used two vCPUs. This is configuration-specific evidence, not a hardware
 or KVM receipt. The real usr-block corruption drill withheld readiness and
 restored the full disposable copy's exact SHA-256. Receipts are in
 `m110-os1-boot.json`; ARM final media and Pi composition are still running.
+
+All four final UEFI media pass their native readiness/permission probes. Pi 4
+composition is now successful. The actual builds exposed two Pi integration
+issues: host depmod's default directory did not match the extracted usr tree,
+and the common ESP definition had higher priority than the appended Pi one.
+Explicit `--moduledir=/usr/lib/modules` and a reset, Pi-first repart list fix
+those boundaries. Repart's ineffective ESP `NoAuto` setting is removed;
+firmware selects FAT A/B and usr/hash B remain NoAuto. FAT sizes are the
+effective 260 MiB. Pi EOF's source drill was refreshed after the change:
+**59 unit tests pass, all 53 source hashes match restoration**. Pi 5 is running.

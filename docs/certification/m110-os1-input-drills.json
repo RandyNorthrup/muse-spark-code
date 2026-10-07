@@ -1,13 +1,5 @@
 [
   {
-    "control": "truncated Pi boot partition",
-    "file": "os/pi/compose.py",
-    "sourceSha256": "5acb631002f6632d0c489ddd07dcacc1ef83db8ff5e19850f88bc83cc8f02084",
-    "exit": 1,
-    "failedTests": ["M110-OS1 immutable image inputs refuses a truncated native Pi boot partition"],
-    "restoredSha256": "5acb631002f6632d0c489ddd07dcacc1ef83db8ff5e19850f88bc83cc8f02084"
-  },
-  {
     "control": "raise ValueError(\"OS1 unknown target\")",
     "file": "os/build.py",
     "sourceSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546",
@@ -527,5 +519,13 @@
     "failedTests": [
       "M110-OS1 immutable image inputs refuses to execute the native boot fixture outside the service UID"
     ]
+  },
+  {
+    "control": "truncated Pi boot partition",
+    "file": "os/pi/compose.py",
+    "sourceSha256": "9a6bb894428ccd9a3419d3d49fd9d324826a912d44d947238a32a7acf1a49180",
+    "restoredSha256": "9a6bb894428ccd9a3419d3d49fd9d324826a912d44d947238a32a7acf1a49180",
+    "exit": 1,
+    "failedTests": ["M110-OS1 immutable image inputs refuses a truncated native Pi boot partition"]
   }
 ]

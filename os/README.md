@@ -34,10 +34,13 @@ detects block corruption but an unsigned UKI is not a trusted boot chain.
 
 The `pi4` and `pi5` targets use Raspberry Pi's native EEPROM boot path, not
 UEFI. `pi/manifest.json` pins the trixie archive's signed index, firmware and
-board-specific kernels. Two FAT partitions precede the shared root, A/B `/usr`
+board-specific kernels. Two 260 MiB FAT partitions precede the shared root, A/B `/usr`
 and persistent `/var`. Slot A includes firmware, the correct DTB, overlays,
 `kernel8.img` or `kernel_2712.img`, an initrd and a single-line verity command
-line. Slot B is reserved for OS2; initial `autoboot.txt` selects A. Composition
+line. Slot B is reserved for OS2; initial `autoboot.txt` selects A. The Pi recipe clears the inherited repart
+list and places its definitions first, so the native slot replaces the common
+ESP. ESP partitions do not support `NoAuto`; firmware selects the boot FAT,
+while the inactive usr/hash slots retain their valid `NoAuto` flags. Composition
 never changes EEPROM, burns OTP fuses or enrolls Secure Boot keys. Physical
 Pi and ARM server qualification belongs to Q and is explicitly waiting here.
 
