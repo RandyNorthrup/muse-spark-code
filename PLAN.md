@@ -40721,8 +40721,8 @@ is relaxed. No live or paid calls, push, rebase or merge.
 - [x] Run each complete owning file three times after
       `git clean -xdf -e node_modules`, with default Vitest test timeouts;
       run five typechecks, lint, changed-file formatting, plain knip and duplication.
-- [~] Deliberately regress one fixed behavior, observe failure, restore exact
-  bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
+- [x] Deliberately regress one fixed behavior, observe failure, restore exact
+      bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
 
 ## 7. Gates
 
