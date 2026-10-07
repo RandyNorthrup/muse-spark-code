@@ -1,0 +1,23 @@
+{
+  "kind": "scoped-real-Git-source-reconstruction",
+  "startedUtc": "2026-10-06T22:39:47.404Z",
+  "completedUtc": "2026-10-06T22:40:07.195Z",
+  "exit": 0,
+  "revision": "c4f37c6f748f2ea009271cb5cf8dbd462a6a88b0",
+  "manifestSha256": "1f33b677df78738c328925802451c5b386d779129b153cee07b1fc3801c5fba6",
+  "scenes": ["agents-details", "approval-narrow", "whats-new-highlights"],
+  "themes": ["light", "dark", "hc-dark", "hc-light", "one-dark-pro", "dracula"],
+  "widths": [320],
+  "states": ["default", "hover", "focus-visible", "pressed", "disabled", "selected"],
+  "checked": 108,
+  "changedPixels": 0,
+  "maxImageChangedPixels": 0,
+  "browser": "150.0.7871.186",
+  "platform": "linux",
+  "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+  "manifestUnchanged": true,
+  "temporarySourceAndBrowserArtifactsCleaned": true,
+  "retainedPngs": 0,
+  "modelAttempts": 0,
+  "fullSourceReplay": "Configured in the required hosted visual job; not run locally in this time-boxed continuation."
+}

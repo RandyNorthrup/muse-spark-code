@@ -1,0 +1,13 @@
+{
+  "kind": "complete-comparison-mount-failure",
+  "revision": "c4f37c6f748f2ea009271cb5cf8dbd462a6a88b0",
+  "archive": "/home/randy/archive/m114-s-settled-c4f37c6f7-complete",
+  "exit": 1,
+  "reportedCompletedCaptures": 4752,
+  "totalRequiredCaptures": 4824,
+  "failure": "page.waitForSelector #root > * timed out at the unchanged 30000 ms deadline; no pixel regression was reported.",
+  "exactScene": "The initial timeout lacks scene context; do not infer an exact scene from the progress batch.",
+  "fullComparisonPasses": 0,
+  "consecutiveFullPassesRequired": 2,
+  "modelAttempts": 0
+}

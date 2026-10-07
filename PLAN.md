@@ -13253,6 +13253,56 @@ Minimal completion design, pending that choice:
    pair permits an off-by-default production setting. Record paid attempts,
    known/unknown usage, source hashes and the incomplete inventory honestly.
 
+### Q-M114S — Historical page-mount timeout provenance (2026-10-06)
+
+The prior 4,752-capture log has no scene key, trace or resource measurements.
+Its recorded loop order bounds the failure to Dracula/690 px/English in the
+last 72-capture batch; the exact scene within that batch is not known.
+Continuation 3's complete diagnostic passes 4,824 captures, and 500 repeated
+late Tasks mounts do not reproduce a two-second stall. The capture driver now
+names scene/theme/width/English and page errors on a failed mount. The exact
+historical scenario and cause remain unconfirmed; a trace/resource log from
+that run is requested. Do not infer a scene from the last progress batch or
+describe the timeout as fixed merely because a later run passes. New CI shards
+bound each source/candidate replay to 804 captures; repeated full receipts
+certify their own rendering results, not an unknown historical root cause.
+
+**H-M114S-report-readiness → harness scenario owner.** A separate source
+reconstruction compares 216 captures before `report-narrow/light/320/en`
+throws `never rendered: .report-check input`. Delaying only the report lazy
+chunk reproduces that exact error while one deferred-loading fallback is
+present and no checkbox has mounted: the harness's 3,000 ms virtual deadline
+expires in 261 ms of real time. The controlled probe demonstrates a readiness
+race; it does not identify the older root timeout. Two attempted owned
+barriers (400 ms start followed by checkbox readiness, then network-idle
+readiness) both fail the default 10-second setup deadline. Stop that path
+under the shared rule; remove the experimental test and restore the capture
+driver SHA-256-exact. The proposed exact harness fix is a report-scenario
+completion marker after DOM readiness and the existing spacing assertion,
+awaited under the real page deadline before advancing its virtual deadline.
+Preserve missing-control failure and compatibility with the recorded source
+harness. This foreign contract change remains unimplemented and unverified.
+See `docs/certification/m114-s-after/c3-report-readiness.json`.
+
+The second complete replay also records `history-archived/dracula/690/en`
+failing `whenFound('.history-toggle input')` inside `clock.runFor`, with no
+page errors. Include this lazy history scenario in the same harness
+readiness-contract handoff; its uncaptured resource timing is unconfirmed.
+The complete receipt retains that failed batch attempt and its retry.
+
+**H-M114S-code-highlight-readiness → webview/harness owner.** Batch 6's
+first attempt fails at `markdown/dracula/690/en`: 475 changed pixels, all
+within the code text at x=38–432, y=260–290. The candidate is plain text
+where the reviewed image is highlighted. `CodeBlock.tsx`'s asynchronous
+`HighlightedCode` Suspense fallback has no pending marker, so the owned
+driver's `[data-deferred-loading]` check cannot distinguish it. Mark only
+that asynchronous fallback, include it in a bounded capture settlement
+contract with clock coordination, and retain intentionally plain open or
+unknown-language blocks. Support or re-review the recorded source harness.
+No production webview file is edited here. The next attempt passes under
+the unchanged policy; the failed attempt remains evidence, not a red drill.
+See `docs/certification/m114-s-after/c3-highlight-readiness.json`.
+
 ## 4. Architecture
 
 ```
@@ -28327,6 +28377,54 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
   host-API inventory mismatch recorded in §7/§9; startup CSS growth is 3,831
   bytes, below 4 KiB, with unchanged caps.
 
+- **Lane S implementation scope (2026-10-06):** integrate P2 and F as
+  ordered by the rig brief. Capture A's complete component/scene inventory
+  in six themes at 320/690 px, with representative control CSS states (CDP pseudo-state forcing avoids
+  closing menus; existing P1/P2 suites cover real keyboard/mouse actions).
+  Keep all full-resolution PNGs outside git (512 MiB archive budget); track
+  only source revision, SHA-256, dimensions, component/state coverage and
+  environment in `test/harness/goldens/`. `check:visual` uses pinned pixelmatch
+  7.1.0 (ISC), vendored unmodified for the development gate so the shared
+  `node_modules` installation is never changed. The comparison threshold is
+  initially zero changed pixels, with per-pixel threshold zero and AA
+  filtering off; the dated lead decision below supersedes that policy.
+  Missing local archives are regenerated from the recorded Git revision in
+  ignored `temp/`, in the candidate's browser/environment; missing revisions
+  or captures fail. Updates require a named review; normal checks never
+  rewrite the manifest. Follow local CSS imports in the host-API inventory,
+  regenerate its record, refresh curated README media, document tokens/fonts
+  and gates, and record equivalent editor bindings with C/N/D awaiting their
+  milestones. No live/paid calls or new shipping bundle code.
+
+- **Lane S continuation contract (lead decision, 2026-10-06):** the observed
+  2/5-pixel focus raster differences are antialiasing/subpixel noise. Use
+  pixelmatch's AA detection (`includeAA: false`) and colour threshold 0.1,
+  with a named per-image tolerance of the smaller of 0.01% of pixels and
+  12 pixels (rounded down). Prove a 1 px border/outline change, one token
+  colour change, a 1 px layout shift and a missing icon fail; require two
+  consecutive complete comparisons to pass. Complete the missing captured
+  `contrastActiveBorder` observation and bind the token/visual gates into
+  the existing reusable CI workflow, including the recorded baseline Git
+  history and the required-check aggregate. Regenerate PNGs from that source
+  on the runner under the existing 512 MiB budget; commit no full PNG sets.
+  Startup-growth compaction remains assigned to integration. The two-fix
+  stop is lifted only for the rendering-noise repair. No model calls.
+
+- **S full-repeat capture repair (2026-10-06):** the first continuation
+  comparison reveals a 33,778-pixel approval/composer geometry difference
+  despite byte-identical product source. The scenario's virtual timers can
+  run before React's initial mount commits, making the empty composer's
+  placeholder fitting depend on render timing. Wait for the actual harness
+  root to mount before advancing scenario time, then settle a 1 px resize
+  and restore the target width so the component's own ResizeObserver refits
+  the final placeholder. Narrow temporarily (width - 1), since a scenario's
+  max-width can clamp width + 1 and otherwise prevent its resize callback. Never assign textarea rows or alter product code;
+  retain actual components, clock/state/AA policy and all coverage. The old candidate was never
+  repeat-certified. If its unsettled frames differ, make a named reviewed
+  replacement from the committed capture repair, inspect those views and
+  prove full repeat/reconstruction passes. Retain the old receipt as failed
+  evidence; never make its inconsistent layout a pixel exemption.
+
 - **Lane 0's contracts,** frozen before the other lanes start:
   - **C implementation scope (2026-10-06):** this base has no M104 companion,
     MHP theme schema/capture or native bridges. C implements the token consumer
@@ -30352,13 +30450,112 @@ dead-code, duplication and production build checks directly on Kubuntu.
 The existing S-owned host-API inventory and final integrated quality/visual
 certification remain explicit handoffs; no gate is weakened.
 
-**M114 lane 0 host-API record handoff to S.** `check:host-api` exits 1 only
-because the source list for the same 61 theme variables now includes the
-generated `src/webview/tokens.css`. The API counts and policy are unchanged.
-M114's file table assigns `docs/ide-compatibility/**` to S, so this lane
-leaves that generated document untouched. S runs
-`npm run check:host-api -- --write`, reviews the source-path-only row and
-reruns the gate. This documentation gate is deferred, never claimed green.
+**M114 host-API inventory handoff resolved by S (2026-10-06).**
+The scanner now follows local CSS imports, including generated host roles,
+and normalizes Windows separators. The reviewed record contains 62 theme
+variables with their actual source paths, 332 VS Code APIs, 31 import files
+and 25 Node built-ins (including F's new uses). The read-only gate exits 0;
+the import traversal guard was deliberately disabled and both regressions
+failed, then the source was restored byte-exact. S also binds the inherited `visualMatrix.test.mjs` imported-source handoff
+named in P1's final receipt, retaining its exact equality/provenance assertions.
+That reveals one genuinely uncaptured new P1 variable,
+`--vscode-contrastActiveBorder`, absent from both third-party fixtures.
+Lane 0 owns those captured fixtures; S stops at that boundary rather than
+inventing a value or dropping a variable. The two strict matrix cases remain
+failing for that single variable until its live capture is supplied.
+
+**M114 integrated startup measurement (S, 2026-10-06).**
+Against P1's recorded pre-polish source `58ed2fc1d`, production eager
+JavaScript grows 952 bytes and eager CSS grows 11,789 bytes: **12,741 bytes**
+combined, above D94/M114's 4 KiB growth target. The existing hard artifact
+caps pass unchanged. P1/P2 own the styles and lane 0 the token outputs;
+the lead retains their named startup compaction handoff. S records both
+JavaScript and CSS rather than excluding a generated sheet or raising a cap.
+
+**M114 visual CI binding (S → lead, 2026-10-06).**
+Local `quality:gates` now includes `check:tokens` and `check:visual`. The
+explicit static command in `.github/workflows/build.yml:93` still lists
+neither; its checkout also has no history depth configured. The workflow
+owner must bind both gates and fetch the tracked visual source revision
+(`git archive` needs that Git object). The six-theme/state source replay is
+a separate long browser operation, not a Vitest timeout exception. S owns
+neither this workflow nor its job scheduling; it records the handoff rather
+than editing another owner's file or adding a network fetch to the gate.
+Missing source revisions fail explicitly, and no local gate skips CI.
+
+**M114 strict capture-repeat deferral (S, 2026-10-06).**
+The complete 4,824-image candidate is outside Git, with its hashes, dimensions,
+review and source revision tracked. The actual comparison fails on 2 header
+focus pixels; an independent repeated real scene prefix fails on 5 pressed
+pixels. Clock/frame settling and Chrome software rasterization both failed
+in final verification. The lane brief requires stopping the repair path after
+two different fixes fail; both ineffective changes are reverted. S retains
+the failing strict gate/test and does not waive AA, pixels or coverage.
+Browser raster stability and a fully green normal/source-reconstructed visual
+receipt remain with the lead before release. See S's certification for the
+exact cases and attempted repairs; no certified baseline is claimed.
+
+**M114 S continuation (lead authorization, 2026-10-06).** The rendering-noise
+stop above is lifted for the dated 0.1/AA-detection/0.01%-or-12-pixel policy.
+S now owns the missing captured theme observation and CI binding previously
+handed to the lead. Validate two full local comparisons and a scoped source replay;
+the new CI job owns the complete source-reconstructed comparison,
+record the four actual UI red drills and two consecutive complete passes;
+startup compaction remains assigned to P1/P2/lane 0 and integration. The
+historical failed receipts above remain evidence of the superseded policy.
+
+**M114 S continuation 3 scope (rig brief, 2026-10-06).** Diagnose the late
+mount timeout with exact scene/theme/width/language and page-error context;
+check frozen-clock startup, scenario readiness and resource cleanup before
+changing the S-owned capture driver. Keep the existing deadlines, complete
+matrix and reviewed pixel policy. If the complete source/candidate replay
+cannot fit the CI job, partition the validated manifest deterministically
+into independently failing shards and require every shard in both tiers.
+Collect two consecutive complete comparison receipts and repeat the four
+actual UI red drills on the final driver. Foreign harness scenario fixes
+remain named handoffs, unless the cause is in S's owned files. Full quality,
+hosted execution and startup compaction stay integration-owned.
+
+For the timeboxed second replay, at most two independent browser capture
+jobs may overlap using a byte-identical local Git snapshot inside ignored
+scratch. Serialize their builds; merge only real CLI receipts with matching
+candidate/manifest/environment identities. No capture, policy or UI input
+changes, and no subagents or shared installation writes.
+
+The isolated browser suites also exceed their default setup deadlines when
+three or six real scenes share a hook. Their existing complete coverage now
+uses one scene per setup hook: all 36 representative captures and both
+18-capture stability sets remain, with unchanged test/hook deadlines.
+Both complete suites pass (6 assertions, 20.76 s). The new cross-scene
+rasterization binding is deliberately made red and restored SHA-256-exact;
+see `docs/certification/m114-s-after/c3-raster-drill.json`.
+
+**M114 S continuation final boundary (2026-10-06).** The reviewed tolerance,
+four real UI red drills, missing theme capture and required CI binding are
+implemented. All 25 owning tests pass at default deadlines and scoped
+compiler/static/build gates pass. The complete 4,824-image replacement is
+235.37 MiB outside Git, with 108 scoped Git-source replay images passing.
+Its full CLI comparison reports 4,752 captures before a 30-second page-root
+mount timeout; no pixel regression is reported. Zero of the required two
+complete comparisons pass, so the candidate remains unaccepted. The
+90-minute continuation ends with that failure recorded in S's certification;
+the lead must resolve the mount failure and collect both full receipts.
+No capture, threshold, deadline or CI gate is waived. Startup compaction and
+aggregate/hosted certification retain their named integration owners.
+
+**M114 S continuation 3 local result (2026-10-06).** Both complete local
+comparisons now pass: 4,824 images each, 1,850.478 s resumed and 1,488.964 s
+fresh, 12/20 pixels total, maximum 1/2 per image. Every merge requires all
+six 804-image receipts and the unchanged policy and 512 MiB budgets. One
+final-batch retry per run is retained with its actual failure. The four final
+UI drills and five shard guards fire; 27 scoped assertions pass at default
+deadlines, including an isolated stability retry after a setup timeout.
+Compiler/static/build checks retain their original caps; aggregate quality
+remains explicitly deferred to the lead by the rig/shared brief. Historical
+timeout provenance, report/history readiness, unmarked code-highlighting
+fallbacks and hosted source reconstruction remain named handoffs, not
+claimed fixes. See S's final certification and C3 receipts. No baseline
+update or foreign production edit is made.
 
 **M114 P1 forced-colors repair scoped gates (RVM114P12, 2026-10-06).**
 The rig/shared brief forbids full quality/full unit runs and other lanes'
@@ -30995,9 +31192,9 @@ before a repaired one loads (2026-09-30).
 | `test/unit/modelApiHost.test.ts`   | `as ModelApiSession` in `resumeWithChild` and the custom-agent fork regression | The fake host constructs Model API sessions, but the shared resume/fork interface returns `AgentSession`; these two test-only casts expose `history()` for child-result assertions. Inline comments name that invariant. Production mode narrowing now selects a member of `APPROVAL_MODES` without a cast. | 2026-09-30 |
 | `test/unit/flightRecorder.test.ts` | `as never` on a hostile event kind and backend                                 | The refusal branches are reachable only with values outside `REPORT_EVENT_KINDS`/`BACKEND_KINDS`, which a typed test cannot spell; the two test-only casts feed them in. Inline comments name that invariant. Lane R product code holds no cast.                                                            | 2026-10-05 |
 
-| File                                                                  | Construct                                                                   | Reason                                                                                                                                                                                                                        | Added      |
-| --------------------------------------------------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/webview/styles.css`, status-mark section and reduced-motion pose | `stylelint-disable`/`stylelint-enable custom-property-pattern` (two ranges) | The owner's request keeps the pen's `--angle`, `--offset`, `--amplitude` and `--scale` names so the keyframes read against the original; the repo's own custom properties take an `ms-` prefix. Inline comments name the pen. | 2026-10-04 |
+| File                                                                  | Construct                                                                              | Reason                                                                                                                                                                                                                                                                                           | Added      |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| `src/webview/styles.css`, status-mark section and reduced-motion pose | `stylelint-disable`/`stylelint-enable custom-property-pattern` (one polar-angle range) | The owner's request keeps the pen's `--angle` and `--offset` names; obsolete amplitude/scale keyframes and the separate reduced-motion range were removed in P1 so the keyframes read against the original; the repo's own custom properties take an `ms-` prefix. Inline comments name the pen. | 2026-10-04 |
 
 | File                                                                                | Construct                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
 | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -31063,13 +31260,12 @@ before a repaired one loads (2026-09-30).
   inherited lane 0/S imported-role inventories, shared changelog/goldens,
   4 KiB startup-growth compaction target and lead aggregate quality keep
   their existing owners. No guard, permission or paid-call scope changes.
-- **M114-P2-HOST-API / integrated certification (inherited, 2026-10-06).**
-  The theme-variable inventory scanner misses imported generated host roles,
-  leaving S's host-API document stale. This does not alter host calls or
-  permissions; the unchanged gate still rejects release. S must fix the
-  scanner/inventory and the lead must run integrated quality and reviewed
-  visual goldens. RVM114P2's header, pressed-state and History-claim findings
-  are all fixed; none is accepted as a residual.
+- **M114-P2-HOST-API resolved / integrated certification pending (2026-10-06).**
+  S fixed the imported-role scanner and regenerated/reviewed the host-API
+  inventory; the unchanged gate now exits 0. The remaining live capture of `--vscode-contrastActiveBorder` for the
+  two third-party fixtures, C/N/D surfaces and lead aggregate quality retain
+  their named owners. RVM114P2's header, pressed-state and History-claim findings
+  are fixed; none is accepted as a residual.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

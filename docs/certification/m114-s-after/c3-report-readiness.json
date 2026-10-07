@@ -1,0 +1,50 @@
+{
+  "events": [
+    {
+      "phase": "report chunk requested",
+      "utc": "2026-10-07T00:15:05.644Z"
+    },
+    {
+      "phase": "clock failed",
+      "utc": "2026-10-07T00:15:05.905Z",
+      "error": "clock.runFor: Error: never rendered: .report-check input\n    at look (http://127.0.0.1:41397/test/harness/index.html?scenario=report-narrow&theme=light:122:19)\n    at http://127.0.0.1:41397/test/harness/index.html?scenario=report-narrow&theme=light:124:43\n    at ClockController._callFirstTimer (<anonymous>:285:20)\n    at ClockController._runTo (<anonymous>:120:33)\n    at async <anonymous>:111:7\n    at async ClockController._runWithDisabledRealTimeSync (<anonymous>:184:7)\n    at async ClockController.runFor (<anonymous>:110:5)\n    at async <anonymous>:337:30",
+      "deferredLoading": 1,
+      "checkboxes": 0
+    },
+    {
+      "phase": "expected failure",
+      "error": "Visual scene failed: report-narrow/light/320/en: clock.runFor: Error: never rendered: .report-check input\n    at look (http://127.0.0.1:41397/test/harness/index.html?scenario=report-narrow&theme=light:122:19)\n    at http://127.0.0.1:41397/test/harness/index.html?scenario=report-narrow&theme=light:124:43\n    at ClockController._callFirstTimer (<anonymous>:285:20)\n    at ClockController._runTo (<anonymous>:120:33)\n    at async <anonymous>:111:7\n    at async ClockController._runWithDisabledRealTimeSync (<anonymous>:184:7)\n    at async ClockController.runFor (<anonymous>:110:5)\n    at async <anonymous>:337:30; page errors: none"
+    }
+  ],
+  "modelAttempts": 0,
+  "candidateCommit": "f3ee8572abc7bf0c554eb4a1639bd321b2e76aee",
+  "kind": "controlled diagnostic, not a pixel regression drill",
+  "delayedChunk": "BGD2JM3K.js",
+  "delayMilliseconds": 3500,
+  "clockDeadlineMilliseconds": 3000,
+  "captureScene": "report-narrow/light/320/en",
+  "requiredFix": "Proposed, unimplemented: explicit report-scenario completion marker after actual DOM readiness and the existing spacing assertion, coordinated with the capture clock under its real page deadline before the simulated deadline expires. Preserve missing-control failure and compatibility with the recorded source harness.",
+  "beforeFixRegression": {
+    "command": "npx vitest run test/unit/visualReadiness.test.mjs --maxWorkers=3",
+    "exit": 1,
+    "durationSeconds": 4.78,
+    "error": "never rendered: .report-check input",
+    "injectedRealLazyDelayMilliseconds": 1000,
+    "defaultDeadlines": true
+  },
+  "ownershipHandoff": "H-M114S-report-readiness: harness scenario owner",
+  "attemptedRepairs": [
+    {
+      "repair": "advance 400 ms, wait for checkbox mount, advance 6100 ms",
+      "exit": 1,
+      "error": "default 10000 ms setup hook timeout"
+    },
+    {
+      "repair": "advance 400 ms, wait for networkidle, advance 6100 ms",
+      "exit": 1,
+      "error": "default 10000 ms setup hook timeout"
+    }
+  ],
+  "disposition": "Stopped after two failed fixes per shared brief; experimental test deleted, capture driver restored SHA-256-exact",
+  "restoredDriverSha256": "fe3913f6a6622fc9f67936cdcaaa07c95480f4b19b2cc7fc5422e3f51fa0f9a0"
+}

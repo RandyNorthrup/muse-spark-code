@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { SCENARIOS } from '../../scripts/lib/harnessServer.mjs'
 import {
   checkCoverage,
+  checkReadmeBudget,
   describeShot,
   parseArgs,
   parseShotList,
@@ -43,6 +44,14 @@ describe('readme shot list', () => {
         reason: expect.stringContaining('render-images'),
       },
     ])
+  })
+})
+
+describe('M114 bounded README media', () => {
+  it('keeps the actual curated set below 2 MiB and fails an oversized set', () => {
+    const sizes = readmeImageRefs(readme).map((file) => readFileSync(file).length)
+    expect(checkReadmeBudget(sizes)).toBeGreaterThan(0)
+    expect(() => checkReadmeBudget([2 * 1024 * 1024 + 1])).toThrow('2 MiB budget')
   })
 })
 

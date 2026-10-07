@@ -16,25 +16,34 @@
 //   CHROME_PATH=/path/to/chrome node scripts/readme-shots.mjs
 
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { pathToFileURL } from 'node:url'
 import { findChrome } from './lib/chrome.mjs'
-import { screenshotUrl } from './lib/harnessCapture.mjs'
+import { CAPTURE_VIRTUAL_TIME_BUDGET_MS } from './lib/harnessCapture.mjs'
 import { langQuery, prepareLang } from './lib/harnessLang.mjs'
-import { HARNESS_PATH, LOOPBACK, SCENARIOS, serveRepo } from './lib/harnessServer.mjs'
+import {
+  HARNESS_PATH,
+  LOOPBACK,
+  SCENARIOS,
+  serveRepo,
+  withSizedPage,
+} from './lib/harnessServer.mjs'
 
 export const SHOT_LIST_FILE = 'scripts/readme-shots.json'
 export const README_FILE = 'README.md'
 export const DEFAULT_OUT_DIR = 'media/readme'
 export const BUNDLE_PATH = 'dist/webview/main.js'
 export const THEMES = new Set(['dark', 'light', 'hc-dark', 'hc-light'])
-// Chrome's headless CLI clamps windows below this width (see
-// withSizedPage in scripts/lib/harnessServer.mjs): a narrower shot has no
-// capture path here yet.
-export const MIN_CLI_WIDTH = 500
+export const README_MEDIA_BUDGET = 2 * 1024 * 1024
+export function checkReadmeBudget(sizes) {
+  const total = sizes.reduce((sum, size) => sum + size, 0)
+  if (total > README_MEDIA_BUDGET)
+    throw new Error(`README media exceeds its 2 MiB budget: ${total} bytes`)
+  return total
+}
 const LANG_ID = /^[a-z]{2,3}(?:-[a-z\d]+)*$/
 const SHOT_IMAGE = /^media\/readme\/[^/]+\.png$/
 const README_IMAGE = /media\/readme\/[A-Za-z0-9][\w.-]*\.png/g
@@ -194,17 +203,20 @@ export function describeShot(shot) {
 }
 
 async function captureShot(chrome, port, shot, outDir, profileDir) {
-  if (shot.width < MIN_CLI_WIDTH) {
-    throw new Error(
-      `${shot.file} is ${String(shot.width)} px wide: headless Chrome clamps below ${String(MIN_CLI_WIDTH)} px and a narrow capture path does not exist yet`,
-    )
-  }
   const file = path.join(outDir, path.basename(shot.file))
   await mkdir(path.dirname(file), { recursive: true })
-  await screenshotUrl(chrome, shotUrl(port, shot), file, {
-    width: shot.width,
-    height: shot.height,
-    profileDir,
+  const url = shotUrl(port, shot)
+  await withSizedPage(chrome, profileDir, url, { width: shot.width }, async (page) => {
+    await page.setViewportSize({ width: shot.width, height: shot.height })
+    await page.clock.install({ time: new Date('2026-10-06T12:00:00Z') })
+    // Install the deterministic clock before this scenario's timers start.
+    await page.goto(url)
+    await page.clock.runFor(CAPTURE_VIRTUAL_TIME_BUDGET_MS)
+    await page.evaluate(() => globalThis.document.fonts.ready)
+    await page.waitForFunction(
+      () => globalThis.document.querySelector('[data-deferred-loading]') === null,
+    )
+    await page.screenshot({ path: file, animations: 'disabled' })
   })
   return file
 }
@@ -262,6 +274,15 @@ async function shootShots(list, { only, out }) {
       const file = await captureShot(chrome, port, shot, outDir, profileDir)
       console.log(`${shot.scenario}: ${path.relative(repoRoot, file)}`)
     }
+    const sizes = await Promise.all(
+      readmeImageRefs(await readFile(path.join(repoRoot, README_FILE), 'utf8')).map(
+        async (file) => {
+          const facts = await stat(path.join(repoRoot, file))
+          return facts.size
+        },
+      ),
+    )
+    console.log(`README media: ${checkReadmeBudget(sizes)} / ${README_MEDIA_BUDGET} bytes`)
   } finally {
     server.close()
     await rm(profileDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })

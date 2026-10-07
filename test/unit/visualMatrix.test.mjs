@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
+import { collectThemeVariables } from '../../scripts/lib/themeInventory.mjs'
 import { contrastRatio } from '../../scripts/check-tokens.mjs'
 
 const matrix = JSON.parse(
@@ -148,13 +149,10 @@ describe('M114 lane 0 visual contract', () => {
   it.each(captures)(
     'separates absent archive entries from captured registered defaults for $kind',
     ({ kind }) => {
-      const used = new Set(['--vscode-editor-foreground'])
       const files = readdirSync('src/webview', { recursive: true })
-      for (const name of files) {
-        if (!/\.(?:tsx?|css)$/.test(name)) continue
-        const content = readFileSync(`src/webview/${name}`, 'utf8')
-        for (const match of content.matchAll(/--vscode-[A-Za-z0-9-]+/g)) used.add(match[0])
-      }
+        .filter((name) => /\.(?:tsx?|css)$/.test(name))
+        .map((name) => `src/webview/${name.replaceAll('\\', '/')}`)
+      const used = new Set(['--vscode-editor-foreground', ...collectThemeVariables(files).keys()])
       const theme = themeOf(kind)
       expect([...Object.keys(theme.variables), ...theme.unset].toSorted(compareNames)).toEqual(
         [...used].toSorted(compareNames),

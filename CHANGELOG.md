@@ -7,6 +7,45 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Add a shared design-token source, generated editor and Muse palettes,
+  contrast/staleness checks and raw-colour guards. Standalone accessibility
+  overrides cover html, body and nested scopes; escaped template paint and
+  closing-brace hex values are guarded.
+- Add a pinned optional OFL font pack for standalone surfaces, explicit
+  verified `fonts install` with offline seeds, portable UI/code font and
+  ligature preferences, and font notice/package guards. Editor fonts remain
+  controlled by their host.
+
+- Add pixelmatch visual regression across the complete audited panel,
+  Tasks and What's New inventory, six themes, six control states and 320/690 px
+  widths. Track size-bounded external PNG archives by hashes and dimensions;
+  CI rebuilds the reviewed source revision in its own rendering environment.
+
+### Changed
+
+- Apply the lead's rendering-noise policy to visual checks: antialiasing
+  detection, colour threshold 0.1, and a per-image allowance capped at 0.01%
+  or 12 pixels. Require source-reconstructed visual comparisons in both CI
+  tiers, plus token checks in the static gates.
+
+- Polish conversation cards, tools, composer, chips, dock, menus, pickers,
+  dialogs, Account & usage, History, task windows and What's New with shared
+  theme tokens and control states. Approval choices stay equally sized and
+  emphasized on one row at 320 px; gooey pills stay crisp. Header actions
+  retain 24 × 24 px targets, and History retains Arrow/Delete archiving.
+  Reduced motion stops interaction animations; forced colours retain distinct
+  hover, focus and pressed feedback.
+
+### Fixed
+
+- Batch visual comparisons into six deterministic, independently failing
+  CI shards. Require every receipt, matching coverage and rendering environment,
+  and the combined 512 MiB budgets before the visual gate passes.
+- Follow imported generated stylesheets in the host-API theme inventory,
+  restoring its complete theme-variable record after panel token migration.
+
 ### Documentation
 
 - A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists
