@@ -17906,7 +17906,8 @@ test that fails without the rule:
    ledger-only cleanup with an identity re-check, never by name pattern; G12
    OS-service pressure and transport failure as signals; G13 spawn-rate and
    process-count caps per job tree; G16 reparse points unlinked, never
-   recursed into.
+   recursed into; G30 independent tool installations outside the checked
+   workspace, since an ignored path can still incur discovery cost.
 5. **M110 (Muse Node):** G1, G2, G10, G11, G14 to G16 for the tool host and
    sandboxes.
 6. **M115 (scheduled prompts):** G8 one serialized owner plus a lease, never
@@ -17917,7 +17918,8 @@ test that fails without the rule:
    optional, recorded fallback reviewer for classifier-blocked reviews, set by
    the user in advance (never an automatic reroute; rule 9 stands); G24 a
    residual register per milestone that must be empty or accepted before
-   release.
+   release; G31 UI condition targets distinguish controls that share a style
+   class, with the harness's two-pill regression as the concrete example.
 8. **M117 (estimator):** G4 base age as a schedule risk.
 
 Rows marked **covered** keep their existing decision as the owner: D87.14,
@@ -18783,7 +18785,7 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 - [x] Keep version 0.15.0 and the dependency union; regenerate the lock and prove
       clean installation. Keep one current What's New, with Earlier 0.14.5 and
       Earlier 0.14.4 before older notes; preserve every changelog release.
-- [ ] Run the complete configured suite in batches of at most three files using
+- [x] Run the complete configured suite in batches of at most three files using
       repository default timeouts, full ESLint with zero warnings, all five
       compiler projects, formatting, plain knip, duplication, cycles and inventories.
 - [ ] Measure production bundles and actual universal VSIX/ACP packages; apply
@@ -18798,9 +18800,11 @@ Both ordered merges are committed with normal hooks: `50a4947a` and
 `4eac2793`. Infrastructure owning tests and restored regression drills pass.
 The dependency union and clean ordinary npm ci check are complete. Generated
 reference/host records and locale unions are clean. All 822 configured files
-have final whole-file results: 16,431 passed, zero failed, 75 existing skips.
-Final static gates, all 17 screenshot captures and universal measurement remain
-pending. Six successful deliberate regressions restore exact bytes.
+have final whole-file results: 16,433 passed, zero failed, 75 existing skips.
+Every listed static gate and production build passed before the final JS-only
+keyboard compiler repair; recheck its affected gates and production matrix. All
+17 screenshot captures and universal measurement remain pending. Seven
+successful deliberate regressions restore exact bytes.
 
 The merged ACP Registry and stdio suites duplicate their real packaged-agent
 build and cleanup. Consolidate only that test fixture setup to satisfy the
@@ -18820,6 +18824,19 @@ allowlist filter; move that evidence to OS scratch rather than changing a gate.
 The now-executed browser cases expose the map opener matching Side chat's
 earlier `.agents-pill`. Target the titled Agent map pill in every harness scene
 and guard against the ambiguous selector; preserve all 22 browser assertions.
+Record both discoveries as G30/G31 in the orchestration register and D100;
+future governor/playbook enforcement stays with M107/M116, not this release lane.
+
+The complete 976-page accessibility run finds failed lazy history rows inside
+the listbox and dangling active-row IDs (16 elements, two ARIA rules; no missing
+pages). Diagnose the production row-load failure and preserve valid listbox,
+keyboard, loading and retry semantics; add an owning regression and demonstrate
+its failure before rerunning the complete four-theme matrix. Gates stay unchanged.
+The production error is `Cannot read properties of undefined (reading 'archive')`:
+the browser keyboard compiler discovers dispatch calls but misses direct
+WEBVIEW_KEYBINDINGS context reads in HistoryPromptRow. Extend that existing AST
+discovery to literal direct reads and reject dynamic reads; compile the real lazy
+row in its owning regression. No eager history import or budget increase.
 
 The rig brief authorizes the full suite and listed full-repository gates despite
 common.md's scoped-file rule. Aggregate `npm run quality` remains reserved for

@@ -10,14 +10,19 @@ const treeOf = (file) =>
 function contextsOf(tree) {
   const contexts = new Set()
   const visit = (node) => {
-    if (
+    const dispatch =
       ts.isCallExpression(node) &&
       ts.isIdentifier(node.expression) &&
       node.expression.text === 'webviewKey'
-    ) {
-      if (node.arguments[0] === undefined || !ts.isStringLiteral(node.arguments[0]))
+    const tableRead =
+      ts.isElementAccessExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === 'WEBVIEW_KEYBINDINGS'
+    if (dispatch || tableRead) {
+      const context = dispatch ? node.arguments[0] : node.argumentExpression
+      if (context === undefined || !ts.isStringLiteral(context))
         throw new Error(`Nonliteral browser keyboard context: ${tree.fileName}`)
-      contexts.add(node.arguments[0].text)
+      contexts.add(context.text)
     }
     ts.forEachChild(node, visit)
   }

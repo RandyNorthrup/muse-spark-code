@@ -1674,10 +1674,42 @@ walkthrough union records one walkthrough. Final static gates rerun on repairs.
 PowerShell lint exits zero with its existing Linux skip; native Windows analysis
 remains the lead's platform gate.
 
+### Production history keyboard repair
+
+The first complete accessibility run measures **976/976 pages**, zero missing
+results, but finds two critical ARIA rules on 16 history/history-archived
+objects across all four themes: failed deferred row alerts are listbox children,
+and the search's active-row ID has no row to name. The real production error is
+`Cannot read properties of undefined (reading 'archive')` in HistoryPromptRow.
+The keyboard build plugin discovers webviewKey calls but misses the row's direct
+WEBVIEW_KEYBINDINGS read, assigning it a startup table that omits history.archive.
+
+Extend the existing AST discovery to literal direct table reads and reject
+dynamic reads before emitting a partial table. History stays lazy; no rendering
+feature, schema, shortcut, budget or gate is removed. Two new owning regressions
+compile/import the actual lazy row with that plugin and reject a dynamic direct
+read. Before repair both fail, the two existing canonical tests pass; after
+repair the complete browser-keyboard/webview-bundle/history batch passes **53**.
+Deliberately disabling direct-read discovery fails both intended new assertions;
+exact restored compiler SHA-256:
+`b24d2fb5ae545d09fe75e0dc7be2da62bf72b28e826324bc72b720e39ab172f7`.
+The restored complete keyboard file passes 4/4 at default invocation. This is
+successful drill seven. Final deduplicated totals now have **16,433 passed,
+zero failed, 75 existing skips**, 16,508 cases in the same 822 files.
+
+All twelve listed final static/build components passed before this last JS-only
+compiler repair: full ESLint zero warnings, five compiler projects, formatting,
+plain knip, zero clones, cycles, reference, localization, host API and production
+size/split/global/notices checks. Final changed-script and compiled-browser
+acceptance follows; all TypeScript source remains byte-identical to that pass.
+G30/G31 and D100 now record the independent-install scan cost and ambiguous
+control selector, assigning future governor/playbook enforcement to M107/M116.
+
 ### Remaining acceptance work
 
-Full final static gates, accessibility, all 17 screenshot captures/comparisons
-and actual package checks remain pending. The screenshot baseline is preserved,
-including incoming Help and open-question images. No final universal size or cap
-is claimed: this rig has helper source but no certified macOS binary. Its path
-was requested while independent work continues. Existing caps remain unchanged.
+Recheck final script/static/build gates, the complete accessibility matrix,
+legal keyboard/zoom checks, all 17 screenshot captures/comparisons and actual
+packages. The screenshot baseline includes incoming Help and open-question
+images. No final universal size or cap is claimed: this rig has helper source
+but no certified macOS binary or local archive. Its path was requested while
+independent work continues. Existing caps remain unchanged.

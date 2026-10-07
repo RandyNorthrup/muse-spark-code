@@ -1,10 +1,14 @@
 import { Buffer } from 'node:buffer'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { build } from 'esbuild'
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
   browserKeyboardSource,
   lazyBrowserKeybindings,
 } from '../../scripts/lib/browserKeybindings.mjs'
+import { removeFolder } from './helpers/temporaryFolders'
 
 const runtime = { canonical: undefined, subsets: undefined }
 const moduleOf = async (options) => {
@@ -57,6 +61,32 @@ beforeAll(async () => {
 })
 
 describe('browser keyboard dispatch with optional contexts deferred', () => {
+  it('loads the real lazy history row with its directly read archive gesture', async () => {
+    const row = await moduleOf({
+      entryPoints: ['src/webview/components/HistoryPromptRow.tsx'],
+      plugins: [lazyBrowserKeybindings],
+    })
+    expect(row.HistoryPromptRow).toBeTypeOf('function')
+  })
+
+  it('refuses a dynamic direct context before emitting a partial keyboard table', async () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'browser-keyboard-'))
+    const entry = path.join(root, 'src/webview/keys.ts')
+    mkdirSync(path.dirname(entry), { recursive: true })
+    const table = path.resolve('src/shared/keybindings').replaceAll('\\', '/')
+    writeFileSync(
+      entry,
+      `import { WEBVIEW_KEYBINDINGS } from ${JSON.stringify(table)};\nconst context = 'dialog';\nexport const keys = WEBVIEW_KEYBINDINGS[context];\n`,
+    )
+    try {
+      await expect(
+        moduleOf({ entryPoints: [entry], plugins: [lazyBrowserKeybindings] }),
+      ).rejects.toThrow('Nonliteral browser keyboard context')
+    } finally {
+      await removeFolder(root)
+    }
+  })
+
   it('preserves every canonical gesture, modifier, phase and send setting', () => {
     const { WEBVIEW_KEYBINDINGS, webviewKey } = runtime.canonical
     for (const [context, actions] of Object.entries(WEBVIEW_KEYBINDINGS)) {

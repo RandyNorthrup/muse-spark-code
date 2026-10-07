@@ -17,6 +17,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- History rows load correctly in production builds and keep their Archive
+  shortcut when optional keyboard contexts are deferred.
 - ACP Registry and stdio release tests share their real-agent fixture build
   and cleanup, preserving installed-package coverage without copied setup.
 - Translated ACP help retains provider and legal commands alongside sharing,
