@@ -417,6 +417,16 @@ session ends before the next message starts a fresh CLI session.
 
 ## Other editors
 
+The experimental [Thonny plugin](integrations/thonny/README.md) offers
+**Open Muse Spark**, **Stop machine**, **Hand the port to Muse Spark**, and
+**Give the port back to Thonny** in Tools. It reads bounded text already
+shown in Thonny's shell. Hand-over waits for the provider's validated welcome
+and disconnects Thonny before the runtime acquires the serial lease;
+give-back requires confirmed release before
+reconnecting. Both require user clicks. Device bytes go through the runtime's
+serial session only. Runtime wire integration and hosted certification are
+still pending; the plugin has not been published.
+
 The same two backends run outside VS Code as `muse-spark-code-acp`, an
 agent for editors that speak the Agent Client Protocol (Zed, JetBrains IDEs,
 Neovim, Emacs and others), attached to each GitHub Release since 0.10.0 and
@@ -442,6 +452,60 @@ Get it from the
 | **JetBrains IDEs** (IntelliJ IDEA, PyCharm, WebStorm, …) | Install the ACP agent (below), then add it to AI Assistant (below). Not yet tested here                                                                                                                                                            |
 | **Zed**                                                  | Install the ACP agent (below), then add it to Zed's settings (below)                                                                                                                                                                               |
 | **Neovim, Emacs, JupyterLab**                            | Install the ACP agent (below), then follow [docs/acp.md](docs/acp.md#configure-the-editor) (CodeCompanion, agent-shell, Jupyter AI)                                                                                                                |
+
+#### Arduino IDE 2.3.x
+
+The experimental Arduino package ends in **`-arduino.vsix`**. It is the same Muse
+Spark Code (Unofficial) product, built for Arduino IDE's VS Code API 1.96,
+Node 20.14 and Chromium 124. Arduino supports themes officially; this full
+extension is an unsupported side-load. There is no extension store in the IDE.
+The macOS qualification run passes **34/34 integration tests** with the explicit
+TypeScript capability expectations described below. JSON diagnostics use a positioned local fallback when the host emits no report;
+VS Code's native reports stay preferred. The fallback also checks Muse permission
+settings using the schemas shipped with the extension, without downloading a
+language server. Verification loads only on first use. Arduino has no TypeScript
+language service: semantic tools explain that limitation and direct the model to
+search and read_file; diagnostics with no report stay explicitly unchecked.
+Run your project's check command before relying on diagnostics in this experimental
+host. See [the JSON completion record](docs/certification/m103-a3.md) and
+[the prior qualification record](docs/certification/m103-a2.md), including its
+explicit host expectations. Machine-scoped settings are read from user/global settings
+even when the IDE accepts a workspace override; a repository cannot enable
+Bypass or paid features, or replace the CLI.
+
+Quit Arduino IDE, unzip the asset, and copy its `extension/` directory to
+`~/.arduinoIDE/plugins/muse-spark-code/` (on Windows,
+`%USERPROFILE%\.arduinoIDE\plugins\muse-spark-code\`). Restart the IDE,
+then open **Muse Spark: Open in New Tab** from its command palette. Updating
+means replacing that directory while the IDE is closed; uninstalling means
+removing it. Keep your normal Muse Code sign-in or Model API key setup.
+
+The IDE's optional `vscode-arduino-api` provider supplies the selected sketch,
+FQBN and port. Reading that selection opens no device. Close the IDE's Serial
+Monitor before using another serial tool: it holds the port, and another
+window may hold it too. Hardware actions retain the shared maker approval
+policy when the maker lanes are integrated.
+
+Build the Arduino asset locally with these commands (Node 22 for tooling):
+
+```sh
+node scripts/typecheck-arduino.mjs
+node scripts/build.mjs --production --arduino
+node scripts/package-arduino.mjs
+```
+
+The typecheck installs pinned `@types/vscode` 1.96.0 into `temp/arduino-types/`
+and checks the shared host and integration sources without changing the
+regular project's declarations. Packaging runs the regular bundle-size,
+split, host-global, notices, localization and VSIX-size gates. The regular
+VS Code and ACP builds retain their existing floors. For offline maintainer
+qualification, the existing Arduino host runner accepts
+`MUSE_ARDUINO_OFFLINE_CACHE` pointing to a prior private test directory's
+public CLI cache. It copies only indexes, libraries and tools, isolates the
+new CLI directories, and denies external requests; it never copies account
+or credential files.
+
+#### ACP agent and editors
 
 **The ACP agent** needs Node.js 22 or later. Install it from the release:
 
@@ -4033,6 +4097,61 @@ skips only requests, for example:
 BADGE_CHECK_SKIP_NETWORK='offline local verification' npm run check:badges
 ```
 
+**Local maker emulators (M103 X).** Linux-only development tools live in
+[`scripts/emulators/`](scripts/emulators/). Installation is explicit and uses
+apt plus worktree-local pip, npm, ESP-IDF, Espressif QEMU and Renode caches.
+Stop running targets before setup; preparing images restores the pristine
+Pi disk. The scripts create owner-private socat UARTs and terminate their
+process groups on Stop, exit, or the ten-minute lifetime limit. Child
+processes get a minimal environment. No emulator dependency ships in the
+extension or ACP package.
+
+```bash
+bash scripts/emulators/setup.sh
+bash scripts/emulators/esp32.sh start esp32 temp/m103-x/manual-esp32
+bash scripts/emulators/esp32.sh status esp32 temp/m103-x/manual-esp32
+bash scripts/emulators/esp32.sh stop esp32 temp/m103-x/manual-esp32
+```
+
+`setup.sh` uses `prepare.py` for pinned assets and fixture images, and
+`build-esp32s3.sh` for the IDF application. `supervisor.py` owns the process
+lifetime; `qemu-uart.sh` bridges QEMU's private socket and PTY; `pico.mjs`
+runs the RP2040 CPU and USB CDC. These are development helpers.
+
+Pi 3B and 4B extract matching kernels, device trees and modules from the pinned
+Raspberry Pi OS image. PL011 uses QEMU's first serial backend and Linux
+`ttyAMA0`; the mini-UART's second backend is explicitly discarded. The copied
+device trees give PL011 the `serial0` alias, disable its Bluetooth claim and
+let Linux initialize it. Both guests boot with one CPU and open a development
+root shell through `agetty`; no full desktop or systemd boot is claimed.
+S3 download mode uses the documented `0x00` strap and a disposable QEMU state
+with USB download disabled, keeping the ROM on UART0. This initializes the
+test model; no fuse programming command is run.
+
+Every launcher takes `start|status|stop`, the board name and a private state
+directory. ESP32 and AVR launchers also take `boot|download` as the fourth
+argument; download starts their programming bootloader. The state record's
+`port` is the stable `ttyEMU-<board>-0` alias to a real PTY. Start reports
+process/UART readiness; firmware readiness comes from received UART bytes.
+
+| Launcher    | Targets                         |
+| ----------- | ------------------------------- |
+| `pi.sh`     | `raspi3b`, `raspi4b`, `pi-virt` |
+| `esp32.sh`  | `esp32`, `esp32s3`, `esp32c3`   |
+| `avr.sh`    | `uno`, `mega`                   |
+| `pico.sh`   | `pico`                          |
+| `renode.sh` | `stm32`, `nrf52`                |
+
+The e2e suite is opt-in through `MUSE_MAKER_EMULATORS=1`; missing tools fail
+when enabled. It uses P's actual serial sessions, host-only single-use
+approvals and native cross-process leases. Synthetic USB metadata is test
+input. This base lacks G's classifier and the editor adapters, so it does
+not certify their physical-safety or installed-editor flows. The Pi 3B/4B
+consoles and S3 ROM downloader have dedicated qualification checks, including
+an S3 app upload, reboot and Stop during programming. Run instructions, tools,
+receipts and remaining hardware checks are in
+[`docs/certification/m103-x.md`](docs/certification/m103-x.md).
+
 ```bash
 git clone https://github.com/RandyNorthrup/muse-spark-code.git
 cd muse-spark-code
@@ -4135,6 +4254,15 @@ recorded in [the M78 certification](docs/certification/m78.md).
 | `npm run package`                         | `npm run build`, then `scripts/package-vsix.mjs` stages allowlisted files, minifies JSON, checks the shipped translations, and packs `.vsix` with a concise marketplace README and the newest two releases plus Unreleased (complete documentation stays linked). The unchanged compressed-size gate runs on the result; it carries the macOS helper only if `bash native/darwin/build.sh` built it first, on a Mac                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `npm run package:acp`                     | Production build, the committed exec schemas checked against `execProtocol.ts` (`scripts/exec-schema.mjs --check`), then `scripts/package-acp.mjs` → `dist/muse-spark-code-acp-<version>.tgz`, the ACP agent's npm package (landing page: `docs/npm-readme.md`; guide: `docs/acp.md`), with its own third-party notices                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `npm run clean`                           | Remove `dist/` and `coverage/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+
+The portable maker engine/surface contract is in `src/shared/makerProtocol.ts`.
+`node scripts/maker-schema.mjs` regenerates its committed
+[host](docs/schemas/maker-host-v1.schema.json) and
+[surface](docs/schemas/maker-surface-v1.schema.json) JSON Schemas;
+`node scripts/maker-schema.mjs --check` checks for drift. The schemas describe
+the contract for the forthcoming maker surfaces; they do not enable hardware.
+The adapter handoff and remaining qualification are in
+[the integration record](docs/certification/m103-int.md).
 
 **Tests.** Unit tests (`test/unit/**`) run under vitest with `vscode` aliased
 to `test/unit/mocks/vscode.ts` and webview components under jsdom; the fakes

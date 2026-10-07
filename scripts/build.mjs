@@ -60,6 +60,7 @@ import {
 } from './lib/uiTextRegions.mjs'
 import { loadL10n } from './lib/l10nSource.mjs'
 import * as esbuild from 'esbuild'
+import { buildProfile } from './lib/arduinoBuild.mjs'
 import {
   sharedUiText,
   sharedValidation,
@@ -74,11 +75,15 @@ import {
 const args = new Set(process.argv.slice(2))
 const isProduction = args.has('--production')
 const isWatch = args.has('--watch')
+const profile = buildProfile(args.has('--arduino'))
+const BUILD_PROFILE_FILE = 'dist/build-profile.json'
 
 const HOST_ENTRY = 'src/extension.ts'
 const HOST_OUTFILE = 'dist/extension.js'
 const CONVERSATION_ENTRY = 'src/host/conversation/conversationEntry.ts'
 const CONVERSATION_OUTFILE = 'dist/conversation.js'
+const VERIFY_EDITOR_ENTRY = 'src/host/editor/verifyEditor.ts'
+const VERIFY_EDITOR_OUTFILE = 'dist/verifyEditor.js'
 // One immutable English fallback shared by Node bundles; each keeps its own
 // mutable installed-language state. The browser keeps its fallback bundled.
 const TAB_ENTRY = 'src/host/tab/tabEntry.ts'
@@ -161,9 +166,12 @@ const INTEGRATION_TEST_DIR = 'test/integration'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
 // The extension host of the oldest VS Code the manifest accepts: 1.99 runs
 // Node 20.18 (PLAN.md M62). The ACP agent runs on the user's own Node 22.
+// Recorded normal-build floor (check-host-api); the profile selects the variant.
 const HOST_NODE_TARGET = 'node20.18'
 const AGENT_NODE_TARGET = 'node22'
 const BROWSER_TARGET = 'chrome128'
+const hostNodeTarget = args.has('--arduino') ? profile.host : HOST_NODE_TARGET
+const browserTarget = args.has('--arduino') ? profile.browser : BROWSER_TARGET
 const BYTES_PER_KIB = 1024
 const METAFILE_DIR = 'dist/meta'
 // Hashed browser chunks from an earlier build must not enter the package.
@@ -187,7 +195,7 @@ const hostOptions = {
   outfile: HOST_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
   external: ['vscode'],
 }
 
@@ -199,6 +207,13 @@ const conversationOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const verifyEditorOptions = {
+  ...hostOptions,
+  entryPoints: [VERIFY_EDITOR_ENTRY],
+  outfile: VERIFY_EDITOR_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const modelApiOptions = {
   ...common,
   plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
@@ -206,7 +221,7 @@ const modelApiOptions = {
   outfile: MODEL_API_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 const referenceOptions = {
@@ -258,7 +273,7 @@ const reviewOptions = {
   outfile: REVIEW_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 // The report dialog's bundle (M93) takes the editor's clipboard, browser and
@@ -272,7 +287,7 @@ const reportOptions = {
   outfile: REPORT_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 // The flight recorder's journal (M93), loaded just after activation or at
@@ -285,7 +300,7 @@ const recorderOptions = {
   outfile: RECORDER_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -296,7 +311,7 @@ const planMarkdownOptions = {
   outfile: PLAN_MARKDOWN_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 // Neither imports `vscode`, so it is not external there and a stray import
@@ -340,7 +355,7 @@ const whatsNewOptions = {
   platform: 'node',
   external: ['vscode'],
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -366,7 +381,7 @@ const agentImportOptions = {
   platform: 'node',
   external: ['vscode'],
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -384,7 +399,7 @@ const bundledSkillsOptions = {
   outfile: BUNDLED_SKILLS_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -395,7 +410,7 @@ const searchWorkerOptions = {
   outfile: SEARCH_WORKER_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -407,7 +422,7 @@ const conversationGitOptions = {
   platform: 'node',
   external: ['vscode'],
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -418,7 +433,7 @@ const checkpointStoreOptions = {
   outfile: CHECKPOINT_STORE_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -429,7 +444,7 @@ const browserCheckOptions = {
   outfile: BROWSER_CHECK_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -440,7 +455,7 @@ const browserRuntimeOptions = {
   outfile: BROWSER_RUNTIME_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -483,7 +498,7 @@ const uiTextOptions = {
   outfile: UI_TEXT_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 const uiTextRegionOptions = UI_TEXT_REGIONS.map((region) => ({
@@ -517,7 +532,7 @@ const pageWorkerOptions = {
   outfile: PAGE_WORKER_OUTFILE,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -544,7 +559,7 @@ const webviewOptions = {
   splitting: true,
   // STARTDIET: content hashes identify chunks; repeated names inflate every import.
   chunkNames: 'chunks/[hash]',
-  target: BROWSER_TARGET,
+  target: browserTarget,
   jsx: 'automatic',
 }
 
@@ -584,7 +599,7 @@ const integrationTestOptions = {
   outdir: INTEGRATION_TEST_OUTDIR,
   platform: 'node',
   format: 'cjs',
-  target: HOST_NODE_TARGET,
+  target: hostNodeTarget,
   external: ['vscode', 'mocha'],
 }
 
@@ -592,6 +607,9 @@ function reportSize(path) {
   const kib = (statSync(path).size / BYTES_PER_KIB).toFixed(1)
   console.log(`  ${path}  ${kib} KiB`)
 }
+
+// A failed or watch build cannot certify a package from earlier output.
+rmSync(BUILD_PROFILE_FILE, { force: true })
 
 // Content-hashed chunks from an earlier build must never enter a package.
 rmSync(path.join(WEBVIEW_OUTDIR, 'chunks'), { recursive: true, force: true })
@@ -605,6 +623,7 @@ if (isWatch) {
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
     esbuild.context(tabOptions),
+    esbuild.context(verifyEditorOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
@@ -658,6 +677,7 @@ if (isWatch) {
     extension: esbuild.build(hostOptions),
     conversation: esbuild.build(conversationOptions),
     tab: esbuild.build(tabOptions),
+    verifyEditor: esbuild.build(verifyEditorOptions),
     modelApi: esbuild.build(modelApiOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
@@ -701,7 +721,7 @@ if (isWatch) {
   const acpQuestions = esbuild.build(acpQuestionsOptions)
   const runtimeQuestions = esbuild.build(runtimeQuestionsOptions)
   const builds = [...Object.values(shipped), acp, acpQuestions, runtimeQuestions]
-  if (!isProduction) {
+  if (!isProduction || args.has('--integration-tests')) {
     builds.push(esbuild.build(integrationTestOptions))
   }
   await Promise.all(builds)
@@ -725,6 +745,7 @@ if (isWatch) {
       JSON.stringify(questionsMetafile),
     )
   }
+  writeFileSync(BUILD_PROFILE_FILE, JSON.stringify({ ...profile, production: isProduction }))
   console.log('bundle sizes:')
   reportSize(ACP_QUESTIONS_OUTFILE)
   reportSize(HOST_OUTFILE)

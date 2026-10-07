@@ -288,6 +288,7 @@ properties, and retain all existing caps. No new artifact or dependency.
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `dist/conversation.js`                | ≤ 250 KiB (ACTDIET: first chat surface, 216.0 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                                                         |
 | `dist/tab.js`                         | ≤ 75 KiB (M94: first request/menu; status/provider registration stays eager)                                                                                                                                                                                                                                                                                                                           |
+| `dist/verifyEditor.js`                | ≤ 25 KiB (M103A3: verification and local JSON diagnostics, first request only)                                                                                                                                                                                                                                                                                                                         |
 | `dist/extension.js`                   | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                                                                                                                                                                                                            |
 | `dist/modelApi.js`                    | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b; M91 brought it to 486.1 KiB, and moving the hook and MCP-form runtime and the imported records' reader out took it to 463.7 KiB, 466.8 KiB on 0.13.0, 2026-10-05: the cap held)                                                                                              |
 | `dist/review.js`                      | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                                                                                                                                                                                                        |
@@ -12109,6 +12110,378 @@ scheduled command released after its turn ends. Deliberately break each fix,
 observe the named tests fail, restore byte-exact and record the evidence in
 `docs/certification/envfence.md`. No new dependency or broader exception.
 
+### D83 — Makers: boards, firmware and machines, with a human at every actuation (M103, 2026-10-05)
+
+The owner asked (2026-10-05): "is there anything we can include that will
+make this harness have useful features for creators and tinkerers ie people
+who program raspberry pi or esp32 or like robotics and cncs and 3d printers
+etc?" The research, its sources and the ranked list are in
+`docs/research/makers-2026-10-05.md` (this draft, once landed).
+
+Physical machines can injure people and start fires. A model is wrong
+sometimes, and a prompt in a datasheet, a README or a fetched page can steer
+it. These decisions keep every physical effect behind a person who sees
+exactly what will be sent.
+
+1. **Help with the work; the user's hand moves the machine.** The extension
+   helps write, build, flash, simulate and read devices and machines. It is
+   not a print host or a G-code sender: OctoPrint, Mainsail/Fluidd, CNCjs,
+   UGS and FluidNC's WebUI stay the user's tools for running jobs.
+2. **Six action classes, and stop,** decided by our code, never by the
+   model or a server's own hint:
+   - _offline_: edit, build, simulate, render, ERC/DRC, G-code analysis —
+     ordinary tools and checks;
+   - _observe_: list ports (opens nothing), read a registered machine's
+     status over its HTTP API, ROS 2 introspection, `vcgencmd`, `gpioinfo`;
+   - _connect_: open a serial port (it may reset the board), mount a device
+     file system;
+   - _program_: flash, upload, erase, OTA update, write files to a
+     development board, reset a development board (a microcontroller, not a
+     printer's or CNC's controller, whose restarts and settings are
+     _refused_ below);
+   - _actuate_: anything else sent to a machine — motion, homing, probing,
+     jogging, heaters, spindle, laser, fans, pumps, relays, power, starting,
+     pausing or cancelling a job (Klipper's `PAUSE` and `CANCEL_PRINT` are
+     macros that move the toolhead), ROS motion topics, actions and
+     services, `gpioset`. A command or macro the classifier does not know is
+     _actuate_ (fail closed).
+   - _refused_: what the model may never send, even with approval. The user
+     does these in their own tools:
+     - firmware updates and factory resets (M997, M502);
+     - saved settings (M500, `SAVE_CONFIG`, GRBL `$` writes, `$RST`, `$N`);
+     - restarts and host shutdown (`FIRMWARE_RESTART`, `RESTART`,
+       Moonraker `/machine/shutdown|reboot`);
+     - power and pins (M80/M81, M42);
+     - autotune (M303);
+     - GRBL `$X` (alarm unlock);
+     - uploads into Moonraker's `root=config`;
+     - the irreversible chip operations of D83.4.
+   - _stop_ is not a class the model can compose: it is the machine's own
+     fixed stop sequence (D83.5).
+3. **Connect, program and actuate ask every time, in every mode.** The maker
+   engine asks from inside the tool, through its host's approval surface
+   (D83.16): in VS Code a native modal (the M69 pattern), in an ACP client
+   its permission prompt, in the companion page and the native plugins the
+   shared dialog. So it asks under any backend mode, Muse Code's Bypass
+   included. The approval names the target (port, VID:PID and USB serial, or
+   the machine's name and address and what it reports itself as), shows the
+   exact payload (bytes as hex where not printable; up to
+   `MACHINE_SEND_MAX_LINES` lines, more opens the payload read-only before
+   asking again), the analysis (bounds, maximum temperature and feed against
+   the limits, unknown commands), and warns that opening a port may reset the
+   board. It offers **Send once** and **Reject** only (closing it rejects).
+   No session rule, allow rule, "always", Auto reviewer or hook answers it.
+   **Approval comes only from the host's own UI:** a token, a `confirm`
+   flag or any value in a tool's arguments or results is never approval,
+   because the model can read it and set it (§2.11: ugs-mcp hands its token
+   to the model).
+   An unanswered modal expires as Reject after `MACHINE_APPROVAL_TTL_MS`;
+   the machine's state is read again just before sending, and any change
+   since the modal opened (a print started, a different board on the port)
+   asks again.
+4. **The shell and MCP cannot go around it.** A guard table
+   (`src/core/maker/guard/`, one table like M92e's secret table) recognises
+   flashing, uploading, device writes and machine API calls in shell
+   commands (§6 lane G lists them) and settles them `hardwareDetected`:
+   asked in every mode, Bypass included, with no session choice, never the
+   reviewer, never a hook's allow; Plan refuses them. Irreversible operations
+   (eFuse burns, secure-boot and flash-encryption key burns, AVR fuse and lock
+   writes, STM32 read-out protection level 2, RP2350 OTP writes) are refused
+   in every mode: the reply gives the user the command to run in their own
+   terminal. MCP servers the user marks physical
+   (`museSpark.physicalMcpServers`, machine scope; a workspace can add a name,
+   never remove one) and known hardware servers ask like D83.3. The table
+   cannot recognise every program that can reach a port, so in a workspace
+   with the hardware switch on: Bypass is unavailable on both backends (on
+   Muse Code the CLI emits no approval under Bypass, RVM92E-BYPASS-MUSE), the
+   Auto reviewer does not answer shell commands, and README says plainly that
+   a program the model wrote can reach a device once the user lets it run.
+5. **Stop is always one click away and never asks.** While a machine is
+   registered, **Stop machine** is in the panel, the status bar and the
+   command palette with a keybinding no OS or VS Code default uses. It sends
+   the machine's own stop, out of band:
+   - Moonraker: `POST /printer/emergency_stop`, never M112 through
+     `gcode/script`, which queues behind earlier G-code;
+   - OctoPrint: M112 through its emergency parser, which sends it out of
+     band;
+   - Marlin over serial: M112 or M410, immediate only where M115 reports
+     `EMERGENCY_PARSER`; otherwise the panel says the printer's own switch
+     is the immediate stop;
+   - GRBL: feed hold `!`, jog cancel 0x85, then soft reset 0x18 (grblHAL's
+     0x19 where present), with a warning when `$N` startup lines hold
+     motion.
+
+   It stops any stream the extension started and needs no approval. The turn's Stop also stops streams. The model may call
+   `machine_stop` without approval. README and the skill say a software stop
+   is not an emergency stop: a machine needs its own physical E-stop
+   (ISO 13850, IEC 60204-1).
+
+6. **Limits come from the machine and the user, never the model.** Travel,
+   temperature and feed limits are the smaller of what the machine reports
+   (Moonraker's parsed `configfile`, GRBL `$$`, FluidNC's config, Marlin's
+   `M503`) and the limits the user entered when registering it. A command
+   outside them is refused without asking. With no limits, only stop and
+   observe work. Travel limits count only on a homed machine (Klipper
+   `homed_axes`, GRBL not in alarm with `$20` and `$22` on, FluidNC
+   `soft_limits` true, which is off by default): an unhomed machine or one
+   without soft limits gets no model-proposed motion. Moonraker keys have no
+   roles, so these checks are ours. OctoPrint's wizard offers a key from its
+   "Read-only Access" group first, through the appkeys flow (the user
+   approves in OctoPrint's UI and never pastes a key).
+7. **Dry run first.** G-code is analysed locally before any modal; the
+   simulators (QEMU, Renode, Wokwi, a virtual Klipper, Gazebo) are the first
+   target for firmware and robot work, and the skill says so. CNC and laser
+   machines get no model-proposed motion or firing in this delivery
+   (status, settings read, alarms, stop only); printers get short approved
+   G-code. Widening that is a later owner decision after field use.
+8. **Never unattended.** Connect, program and actuate are refused, not
+   asked, in subagents, team workers, best-of-N candidates, M100 remote
+   lanes, headless `exec` and CI. Timed sends, loops and goals still meet the
+   approval, which expires. In the ACP agent device tools exist only with
+   `--hardware`, and each action is the editor's permission prompt with
+   allow-once and reject-once only (or the companion page's dialog when the
+   client has no prompt). Headless `exec` on a Raspberry Pi gets every
+   offline and observe tool (build, test, simulate, list ports, read a
+   registered machine's status over HTTP); opening a serial port is a
+   _connect_ action, so serial reads are not among them. A hard allowlist for headless
+   hardware-in-the-loop runs is a separate decision (Q-M103f).
+9. **Off until the user turns it on, per workspace, with a reason.** Device
+   tools, serial, machine status and sends need **Enable hardware for this
+   workspace** (in VS Code a command; in the runtime `hardware enable`, or
+   `/hardware` in an ACP client): a trusted workspace, a reason the user
+   types (kept in the device log), stored by the host outside the
+   repository (VS Code's `workspaceState`; the runtime's data folder, keyed
+   like its paid grants), revocable, and never set by a repository file.
+   Machines (kind, address, API key, limits) are added by a command into
+   machine-scoped storage, the key in the host's secret store (SecretStorage,
+   or the OS credential store for the runtime); a workspace may only name
+   which registered machines it uses. Plain HTTP to
+   a private address is allowed only for a registered machine, with a
+   warning that the key crosses the LAN unencrypted; public, link-local and
+   metadata addresses are refused, and every request checks the resolved
+   address again (D74's checks). The guard (D83.4), the skills, detection,
+   the analyser and the offline tools are on by default.
+10. **Flash the board that is meant.** Before a _program_ action the card
+    shows the port's identity next to the project's target (PlatformIO
+    `board`, `CONFIG_IDF_TARGET`, the FQBN); a known mismatch (a Pico's
+    2E8A on the port of an ESP32 project) is refused with the reason.
+11. **Everything sent is logged.** An append-only, size-capped JSONL device
+    log in the host's per-workspace storage (outside the repository): time,
+    machine, class, payload (redacted) and its SHA-256, the approval, the
+    outcome. **Open device log** shows it. It never reaches the model or an
+    export unless the user chooses.
+12. **Multi-vendor, by capability (D81.2).** Skills and the guard are on for
+    every provider; tools only on tool-calling models; photo review and
+    render feedback only where `capabilities.vision`; PDFs where the
+    provider takes them. Nothing is withheld because one vendor's model
+    lacks it.
+13. **No native modules, no startup growth.** Platform tools first
+    (`pio`, `arduino-cli`, `idf.py`, `mpremote`, `esptool`), then our
+    fallback: on Windows a C# helper compiled on first use by `jobBuild`
+    (`System.IO.Ports` in .NET Framework's `System.dll`), on Linux and macOS
+    pyserial where present, else `stty` with reads through a killable child
+    process (never `fs.read` on a device in the host), under the existing
+    process-tree kill. All maker code is in lazy bundles: the portable
+    engine `dist/maker.js` (the extension and the ACP package), the VS Code
+    adapter's few loaders, and the webview's lazy maker chunks and preview
+    page. Activation and the webview's startup bundle gain nothing (D6).
+    OpenSCAD, KiCad and the toolchains are the user's installs; nothing GPL
+    is bundled.
+14. **Privacy.** The device log, machine list and keys stay on the machine.
+    Wokwi runs in Wokwi's cloud with the user's own token (§2.5): the skill
+    and README say what leaves the machine; QEMU and Renode stay local.
+    Secrets:
+    - Wokwi CI tokens (`wok_`, 44 characters) join the one shared redaction
+      table, as M92a's `mgst_` did.
+    - Machine keys are redacted by value.
+    - The skills tell the model never to print or commit `secrets.h`,
+      `settings.toml`, ESPHome `secrets.yaml` or `sdkconfig` Wi-Fi values.
+15. **Amends D71.** The Muse Code bundled-skill installer also copies the
+    first-party skills (marked, removable, same setting), so `muse_gadgets`
+    and the maker skills reach Muse Code too.
+16. **One maker engine for every editor (owner, 2026-10-05: "all of the
+    editors should have equivalent functionality even if we need to develop
+    it ourselves").**
+    - **The engine is portable.** Every maker feature lives in
+      `src/core/maker/**`, which imports no `vscode` and is on M60's portable
+      list: the guard, detection, ports and serial, flash identity, machines,
+      the G-code analyser, CAD and EDA runners, the device log, the lease and
+      the approval rules. It is built as `dist/maker.js`, which the
+      extension loads lazily and the ACP agent's package ships (as
+      `dist/modelApi.js` is today, D6).
+    - **Hosts implement one port.** `MakerHost` is the only seam:
+      - `confirm(request)`;
+      - `notify`;
+      - `stopControls(machines)`;
+      - `openPreview`;
+      - `storage` (workspace and machine);
+      - `secrets`;
+      - `isTrusted`;
+      - a host may provide bounded text already displayed for context.
+        Thonny supplies no device I/O provider: explicit user clicks stop
+        its backend, hand the port to lane P's leased serial session, and
+        release that session before reconnecting Thonny (REDM103T).
+
+      There are three implementations:
+      - VS Code (`src/host/maker/`): native modal, status bar, SecretStorage,
+        `workspaceState`;
+      - the runtime (`src/runtime/maker/`): the ACP permission prompt or the
+        companion page, its data folder, the OS credential store (D61);
+      - the native plugins (M64, M65): they run the runtime and supply only
+        the dialog and toolbar through the shared protocol.
+
+    - **The engine decides; surfaces only display.** It mints each approval
+      request:
+      - an id;
+      - the payload's SHA-256;
+      - the target's identity;
+      - an expiry.
+
+      It accepts only an answer that echoes the id and digest before the
+      expiry, so no surface can widen, reuse or extend an approval.
+
+    - **The UI is shared React.** These live in `src/webview/maker/**`,
+      lazily loaded chunks behind M61's `HostBridge`:
+      - the approval dialog (for surfaces without a native one);
+      - the Stop chip;
+      - the device panel, machine wizard and device log view;
+      - the STL viewer.
+
+      They render the same in a VS Code webview, JCEF, WebView2, SWT's
+      browser and the companion page.
+
+    - **Editors without a webview get the companion page.** It is the shared
+      React UI, served by our runtime on loopback (`127.0.0.1`, random port,
+      a per-launch token, Host and Origin checks, the panel's CSP), opened in
+      the user's browser. On a Raspberry Pi it is reached through `ssh -L`.
+      It never listens on a LAN address.
+    - **Muse Code in the runtime.** When the ACP agent runs Muse Code, the
+      runtime serves the maker tools to `muse serve` from its own loopback
+      MCP server, as the extension's `ide` server does. Without that, ACP on
+      Muse Code would have no device tools.
+    - **Stop in every editor:**
+      - the panel or companion page;
+      - the editor's toolbar or command where it has one;
+      - `/stop-machine` among the ACP agent's commands;
+      - `muse-spark-code-acp stop-machine [--all]` from any terminal.
+
+      The CLI stop reaches the port's holder over an owner-only local socket
+      (named pipe on Windows), and the machine's own API directly for HTTP
+      machines.
+
+      A stop never waits behind a running turn. ACP slash commands arrive
+      as ordinary prompts (https://agentclientprotocol.com/protocol/slash-commands),
+      so `/stop-machine` serves only between turns. During a turn:
+      - the client's cancel (`session/cancel`) ends every stream the agent
+        started;
+      - the companion page's button and the CLI command send the machine's
+        stop.
+
+    - **The approval through ACP.** It is `session/request_permission`
+      offering only `allow_once` and `reject_once` of the four kinds
+      (https://agentclientprotocol.com/protocol/tool-calls), with the exact
+      payload as the tool call's text content.
+    - **What cannot be equal is said, not hidden.** Ports are the machine's
+      the engine runs on. In a cloud workspace (Codespaces, code-server,
+      Che, Firebase Studio) there is no USB, so simulators and offline tools
+      only. The matrix below records each editor's surfaces, and README
+      carries it.
+
+**Editor matrix (maker features).** "Engine" is where `dist/maker.js` runs;
+"Approval" the surface that shows D83.3's request; "Preview" where the
+device panel, log and STL viewer render.
+
+| Editor                                                                                                   | Route                                                                                                                        | Engine                | Approval                                                         | Stop                                                              | Panel, log, preview                   | Ports and machines                                                                                                        | When                                               |
+| -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| VS Code, VSCodium, Cursor, Devin Desktop (Windsurf), Kiro, Positron                                      | the extension                                                                                                                | extension host        | native modal                                                     | panel chip, status bar, palette, keybinding                       | shared React panel and preview tab    | this machine                                                                                                              | now (M103)                                         |
+| Remote-SSH, Dev Containers, WSL                                                                          | the extension on the remote                                                                                                  | remote extension host | native modal (UI side)                                           | as above                                                          | as above                              | the remote's (a Pi over Remote-SSH: its USB and GPIO)                                                                     | now; Pi rows need hardware                         |
+| code-server, Codespaces, Che, Firebase Studio                                                            | the extension in the cloud host                                                                                              | cloud host            | native modal                                                     | as above                                                          | as above                              | none (no USB): simulators, offline tools, registered machines only if the host can reach them                             | now, offline tools and simulators only             |
+| Eclipse Theia                                                                                            | the extension                                                                                                                | Theia's plugin host   | Theia's modal (qualified in M62b)                                | as above                                                          | as above                              | this machine                                                                                                              | now, after its M62b checks                         |
+| **Arduino IDE 2.3.x** (Theia 1.57, API 1.96, Node 20.14, Chromium 124)                                   | a second VSIX build, side-loaded into `~/.arduinoIDE/plugins/`                                                               | the IDE's plugin host | native modal                                                     | as VS Code                                                        | shared React panel                    | this machine; board, FQBN and port from the IDE's board API; the IDE's Serial Monitor holds the port (lease reports busy) | M103f                                              |
+| PlatformIO IDE (VS Code family)                                                                          | the extension beside it                                                                                                      | extension host        | native modal                                                     | as VS Code                                                        | as VS Code                            | this machine; `pio` found under `~/.platformio/penv`                                                                      | now (M103)                                         |
+| PlatformIO in CLion                                                                                      | ACP (bundled PlatformIO)                                                                                                     | agent process         | ACP permission prompt                                            | client cancel; companion page; CLI                                | companion page (JCEF plugin with M64) | this machine                                                                                                              | now (M103)                                         |
+| **Thonny 5**                                                                                             | `thonnycontrib.muse_spark` plugin (Tk menu and status) + runtime + companion page                                            | runtime               | companion dialog (the plugin raises it)                          | plugin's Stop menu item and toolbar button; companion page; CLI   | companion page                        | explicit user hand-over to runtime lane P; release acknowledged before user give-back                                     | M103f                                              |
+| **Espressif-IDE 4.x, STM32CubeIDE 2.x, MCUXpresso IDE**                                                  | our Eclipse plugin (M65), SWT Browser forced to Edge on Windows; until then the beta Eclipse ACP Connector for Espressif-IDE | runtime               | plugin dialog or shared dialog                                   | toolbar action, panel chip; CLI                                   | shared React in the SWT Browser       | this machine                                                                                                              | with M65 (connector route now, Espressif-IDE only) |
+| ST, NXP and Espressif VS Code extensions                                                                 | the extension beside them                                                                                                    | extension host        | native modal                                                     | as VS Code                                                        | as VS Code                            | this machine                                                                                                              | now (M103)                                         |
+| Mu (archived), code.circuitpython.org (web app)                                                          | the companion page beside it                                                                                                 | runtime               | companion dialog                                                 | companion page; CLI                                               | companion page                        | this machine; the web editor holds the port while connected                                                               | now (M103), lease only                             |
+| Arduino App Lab                                                                                          | not reachable (MCP-only Agentic Mode, closed provider list)                                                                  | —                     | —                                                                | —                                                                 | —                                     | —                                                                                                                         | —                                                  |
+| JetBrains IDEs through ACP (AI Assistant 2025.3+, CLion 2026.1)                                          | ACP agent via `~/.jetbrains/acp.json`; the registry once the agent offers Agent Auth or Terminal Auth (no WSL)               | agent process         | ACP permission prompt                                            | client cancel; companion page; CLI `stop-machine`                 | companion page                        | this machine                                                                                                              | now (M103), per product qualified                  |
+| JetBrains native plugin (JCEF)                                                                           | plugin + runtime                                                                                                             | runtime               | plugin dialog or shared dialog                                   | toolbar action and shortcut, panel chip                           | shared React in JCEF                  | this machine                                                                                                              | with M64                                           |
+| Visual Studio (WebView2)                                                                                 | plugin + runtime                                                                                                             | runtime               | plugin dialog or shared dialog                                   | toolbar command, panel chip                                       | shared React in WebView2              | this machine                                                                                                              | with M64                                           |
+| Zed, Neovim (CodeCompanion), Emacs (agent-shell), JupyterLab (Jupyter AI), Sublime, Xcode 27, Qt Creator | ACP agent                                                                                                                    | agent process         | the client's permission prompt (companion dialog if it has none) | client cancel; `/stop-machine` between turns; companion page; CLI | companion page                        | where the client runs the agent                                                                                           | now (M103)                                         |
+| Headless `exec` (CI, a Pi)                                                                               | CLI                                                                                                                          | agent process         | none: connect, program and actuate refused                       | CLI `stop-machine`                                                | —                                     | this machine; offline and observe only                                                                                    | now (M103); allowlist is Q-M103f                   |
+| A Pi over plain SSH                                                                                      | ACP agent in Neovim/Emacs on the Pi, or the companion page through `ssh -L`                                                  | the Pi                | prompt or companion dialog                                       | CLI on the Pi; companion page                                     | companion page in the PC's browser    | the Pi's USB and GPIO                                                                                                     | now (M103); 64-bit OS for Muse Code                |
+
+17. **One holder per port or machine.** A port or machine is leased to one
+    conversation at a time, across windows, editors and the ACP agent on the
+    same computer. The lease is a lock file in the per-user data folder that
+    names the holder's owner-only socket, so the CLI stop can reach the
+    holder. A second claimant is told who holds it. A port already held by
+    another program (an IDE's serial monitor, a slicer) is reported busy,
+    never taken. Embedder's "exclusive hardware lease" is the precedent
+    (https://embedder.com/).
+
+---
+
+### D84 — Equal functionality in every editor (2026-10-05)
+
+The owner (2026-10-05): "i feel like you are still focusing very hard on vs
+code rather than treating all the editors equally; all of the editors should
+have equivalent functionality even if we need to develop it ourselves".
+
+- **Parity, not tiers.** This supersedes D60's "integration type" tiers and
+  D62's "the editor's own chat is the interface" as the product promise.
+  - Every editor gets the full Muse panel and every feature in the
+    registry, through native APIs where the host has them and through our
+    own implementation where it does not.
+  - ACP stays, as a second view of the same sessions, and as the route for
+    clients we do not ship a shim for.
+  - D60's status ladder (Planned → Prototype → Preview → Supported) still
+    applies. **Supported now means every registry row is W** with evidence.
+    An exception is allowed only where the host makes a capability
+    impossible; it is named, given an equivalent in our panel, and gets an
+    upstream request (the owner files Zed's, since Zed refuses agent-written
+    contributions).
+- **One controller, one UI, one contract.**
+  - The `ConversationController` and every panel feature run in VS Code's
+    extension host and in the standalone runtime
+    (`muse-spark-code-acp panel`).
+  - The React UI runs behind three bridges: VS Code, embedded and
+    companion.
+  - The editor-services contract is **MHP v1** (`src/shared/hostApi/`).
+    VS Code implements it in-process first, and its behaviour does not
+    change.
+  - The ACP agent's sessions move onto the controller.
+- **The routes:**
+  - **Embedded native plugins:** JetBrains (with Android Studio), Visual
+    Studio and Eclipse (with Espressif IDE).
+  - **A loopback companion panel**, paired with ACP and a thin shim: Zed,
+    Xcode (a signed WKWebView container app with XcodeKit commands), Qt
+    Creator (Lua), Neovim (Lua), Emacs (elisp, in an xwidget where built)
+    and Sublime (Python).
+  - **Tab completions** through each host's completion API, an LSP 3.18
+    `inlineCompletion` server, Zed's OpenAI-compatible provider, or an
+    Invoke command.
+  - **Code intelligence and diagnostics** through each host's API, or the
+    runtime's LSP broker.
+- **Rulings carried.**
+  - Rule 8: the key stays in the runtime's OS store and is entered only
+    through `auth set`. There is no `secrets/*` in MHP, and the key never
+    reaches the UI or the companion.
+  - Rule 12: our popup and the shared ledger in every editor. The ACP
+    launch flags become per-session options, still asked at each use.
+  - Rule 7: zod on MHP and on the companion.
+  - The companion follows M98's loopback guard, adapted for a browser
+    (§3.8 of the research).
+  - Nothing is installed unasked: Node and the language servers are found
+    or downloaded only with consent and a pinned SHA-256.
+- **Merge-gate rule.** `check:editor-matrix` in `quality:gates`, with
+  AGENTS.md rule 14: a feature PR updates the feature × editor registry.
+- **Order.** Foundation first (M104a). Then the three native plugins and the
+  companion-paired hosts in parallel (M104b–e), distribution (M104f), and
+  qualification (M104g). The research is
+  `docs/certification/m104-research.md` (this file, moved in).
+
 ### D92 — Questions that never block (M112, 2026-10-05)
 
 The owner, 2026-10-05:
@@ -13096,6 +13469,16 @@ D90.25, D96, D88 and D97.
   Default: retain production behavior, reduce only the test fixture and prove
   exact bounds/cursor identity; leave the original hosted trigger unconfirmed
   until its receipt is available. Evidence: `docs/certification/deflake3.md`.
+
+**Q-M103T (R/P protocol freeze, amended REDM103T):** freeze the v2
+context/port-control proposal in integrations/thonny/README.md with R/P.
+The plugin no longer accepts write approvals or sends device commands.
+`acquire` succeeds only after lane P's lease and serial session are held;
+`release` acknowledges only after serial close and lease release, including
+recovery after an uncertain acquire. A closed provider must cancel its port
+operation and release its runtime-owned session. Keep installed-runtime
+compatibility unclaimed until fake editor-to-runtime receipts land
+(M103T-WIRE-FREEZE, section 9).
 
 - **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
   flag/hard cap, required real Action receipt, and hosted-search refusal are
@@ -29758,6 +30141,829 @@ lane does not run it or weaken any gate. The generic delivery validator's
 ledger-format check remains deferred for this established plan format.
 Current receipts: `docs/certification/star-line.md`.
 
+### M103 — Makers: boards, firmware and machines (D83)
+
+**M103INT integration and lanes I/0 (2026-10-05, Kubuntu).** Merge only
+m103/sfix, m103/dfix, m103/pfix2, m103/mfix3, m103/x, m103/afix and
+m103/tredesign2, in that order, with merge commits; no guard branch joins
+until G4 is reviewed. Freeze MakerHost and one target-bound, expiring,
+single-use approval/answer contract in ports.ts and makerProtocol.ts;
+replace D/M/P's temporary projections with types from that port. Dispatch
+revalidates the immutable target and interactive/trusted hardware admission
+at the adapter's final spawn/write, with Stop remaining independent.
+Compose the detection event and maker surface messages into the portable
+protocol and commit deterministic JSON Schema snapshots. Consolidate maker
+text and translate it in every UI table; this lane adds no manifest command
+or setting before W. U/V/R get the exact entry points in m103-int.md.
+No UI/adapter/wiring implementation, physical device operation or model call
+is in this scope. The 150-minute brief forbids aggregate quality; owning
+suites, static gates and per-merge cap receipts are required instead.
+
+Lane I keeps the shared protocol free of core/Node imports: detection preset
+and limit schemas move into the shared boundary, with compatibility exports
+for their existing core readers. D/M/P use projections of the single full
+port; no separate host interface remains. The approval's wall-clock expiry
+also has a monotonic lifetime, so a clock rollback cannot extend it. Runtime
+bindings stay local to one engine instance and are consumed synchronously at
+dispatch after adapter preparation. Host/UI clones cannot mutate the engine
+snapshot. The two committed maker schemas and their complete drift tests
+follow the exec schema pattern. Future adapter defaults remain with V/R/W;
+this lane introduces only constants used by its protocol. The exact contract,
+byte-exact failure drills and U/V/R handoff are in m103-int.md.
+The duplication gate also requires the existing verifier's check-command
+field schema to move into `src/shared/checkCommandSchema.ts`: the maker
+protocol wraps the same fields strictly, while the settings parser preserves
+its existing unknown-field behavior. This small dependent seam avoids both a
+copied validator and a browser import of Node-typed core shell helpers.
+Lane 0 consolidates the nine detection entries and adds 37 shared maker
+entries, including locale-specific device-count forms and templates for
+holders, temperatures and feed. U/V/R read `UI_TEXT` at use time, fill one
+template with `fill`, use `plural` for counts, and format values through the
+Intl helpers. All fourteen UI tables carry real translations; no English
+exemption is added. Commands and settings are not registered by this lane,
+so maker manifest keys remain with W. The release base has no help catalog,
+reference generator or reference-check script; integrating that separate
+facility remains a named lead/W obligation, not an invented replacement here.
+The final interface review keeps engine-minted registration generations out
+of `makerAddMachine` input. New registrations carry only their secretless
+fields; only host summaries, target approval echoes and stale-removal checks
+carry the generation UUID. This matches MachineRegistry's fresh UUID on add
+and avoids making a surface invent an identifier the engine would overwrite.
+The final P/X join review exposes X's version-1 lease-frame parser against P's
+version-2 producer. Move that existing consumer into X's test helper and add
+an always-running real lease-worker regression, using an ordinary temporary
+file as the resource and no serial/device open. Capture the child's actual
+version-2 frame and generation before updating the parser. This closes the
+masked ABI drift without claiming the missing emulator board matrix passed.
+
+**FIXM103S review corrections (2026-10-05).** Resolve RVM103S's two P2
+installer findings and its P3 topic-safety coverage finding within lane S.
+Updates reconcile owned same-id links across the vendor and first-party
+roots in both directions. Retain the previous copy and journal link changes
+until all links exist and the new content marker is written; failed upgrades
+restore the old copy, links and marker so Update remains available. Add
+safety lint over every maker topic for queued Moonraker M112, the complete
+GRBL stop sequence, model-set approval, bypass/Auto actuation and irreversible
+chip operations. Every regression and rule gets a byte-exact red drill in
+`docs/certification/m103-s.md`. No new dependency, command or wire shape.
+The rig brief forbids aggregate quality and integration merges; the lead
+runs those required gates after integration.
+
+**FIXM103D review corrections (2026-10-05).** Address all three P2 findings
+in RVM103D: bind detection reads and directory enumeration to opened handles
+and the workspace root's identity; recognize CIRCUITPY volume labels and
+root boot_out.txt on Windows, macOS and Linux; offer Pico/Zephyr builds only
+from detected application CMakeLists.txt, keeping metadata markers for kind
+and skill detection. Each correction has a regression and a byte-exact
+restored red drill in `docs/certification/m103-d.md`. No dependency or gate
+change; full quality and generated host-record integration remain lane W's
+responsibility under the rig brief.
+
+**FIXM103P2 / RVM103P4 correction scope (2026-10-05).** Fix all three
+confirmed P2 findings before integration: stale deletion addresses an immutable
+record filename containing the holder ID and a fresh claim generation, so a
+submitted removal cannot address a later holder after native lock loss; failed
+claims settle their pending record write and close/remove their own generation
+before rejecting; Windows enumeration projects the device registry's PortName,
+with only a final parenthesized COM suffix as the text-only fallback. The
+resource mutex and process-plus-endpoint stale checks remain mandatory. These
+portable P-core changes cover every editor/runtime through LeaseDependencies
+and listSerialPorts; W's host wiring/package and physical qualification remain
+separate. Each finding gets a whole-file regression and byte-exact red drill in
+`docs/certification/m103-p.md`. No dependency, setting or command is added.
+
+**Lane T third-review correction (FIXM103T2, 2026-10-05).** Address all
+three RVM103T3 findings within the existing lane-T files. Provider readiness
+starts only after validated welcome, so a Hand click during connection cannot
+disconnect Thonny or send port control before hello. Keep acquisition pending
+until the runtime confirms its held lease and open serial session. Drain
+runtime stdout as bytes, decode UTF-8 independently of the Windows locale,
+report invalid diagnostics with fixed words and continue draining; report
+unrecoverable reader failures and stop the owned child. Correct the active
+wire-freeze residual to the no-write-path context/acquire/release proposal.
+Each finding gets a regression and a byte-exact red drill in m103-t.md.
+No new dependency, widened guard, live call or merge is authorized.
+
+**Lane T redesign (REDM103T, 2026-10-05, lead decision).** Remove every
+Thonny device command and write path after the second queue-bypass review.
+While Thonny owns the port the plugin serves only bounded text already shown
+in its shell. Two explicit user clicks hand the port to the runtime and give
+it back: disconnect through the public Thonny runner API before requesting
+lane P serial ownership; release the runtime lease before reconnecting Thonny.
+The runtime alone opens/writes/reads the device, with its cross-process lease,
+exact-byte approval, bounded reads and independent Stop. Never transfer or
+reconnect automatically, including after failure or shutdown. Retain the
+loopback/handshake/gettext/process-tree guards; own and join Stop launches too.
+Reject/log provider failures without unchecked peer text, bound every encoded
+response, and move PyPI upload to Trusted Publishing with OIDC confined to a
+separate upload job. Named regressions and byte-exact red drills cover both
+review rounds. R/P wire agreement and installed-runtime receipts remain
+explicit integration prerequisites; this base contains no lane P/R sources.
+The upload job pins Twine 6.2.0 for its PyPI Trusted Publishing support;
+no runtime dependency is added, and upload requires PyPI's owner-configured
+trusted-publisher record. The upload was not run from this no-network lane.
+The base also lacks the help catalogue/generator/check script: document the
+new controls here and in both READMEs, with reference integration left to the
+lead. No merge, push, live call, board or full quality run is authorized.
+
+**Lane T review correction (FIXM103T, 2026-10-05; historical, superseded by REDM103T).** Address all twelve
+RVM103T findings within `integrations/thonny/` and its existing certification
+record. Bind queued writes to the exact SHA-256 bytes, an opaque identity
+for Thonny's current runner/backend connection and an absolute approval
+expiry, and recheck under the dispatch lock immediately before sending.
+Advertise that identity in the provider's `info` reply; require `target`
+and `expires_at` on write approval echoes. This remains a lane-T protocol
+proposal awaiting R/P freeze, not certified installed-runtime compatibility.
+Cancel settled/expired queued work, confine the provider to literal
+`127.0.0.1`, validate handshakes, retain idle connections, accept empty
+files and report browser refusal. Serialize startup, cancel shutdown races,
+own the runtime process tree with a Windows job/POSIX process group, drain
+stdout, and require all announcement kinds. Ship a standard-library gettext
+catalogue for all fourteen repository languages. Each finding gets a
+regression and a byte-exact red drill in `docs/certification/m103-t.md`.
+The existing no-device-stack gate also bans `ctypes`; preserve it. A small
+C# launcher, compiled by Windows' bundled .NET Framework compiler into a
+private temporary directory, assigns itself to a kill-on-close job before
+creating the suspended runtime, which inherits the job. The launcher owns
+the job handle; Python uses no native device API or new dependency.
+No dependency, paid call, real board, merge, push or gate relaxation; the
+rig brief delegates the full quality run to the lead.
+
+**Q-M103a–h resolved 2026-10-05 (lead, under the owner's standing
+authorization: "any recommendation you come up with you are authorized").**
+(a) Plain HTTP on the LAN only for a machine the user registered by command,
+with the warning; model servers keep D74. (b) Model-proposed actuation for
+3D printers only, each send approved; CNC, lasers and robots get read-only
+status and Stop. (c) The Auto reviewer never answers shell commands in a
+hardware workspace. (d) Certify on fakes and simulators, plus the owner's
+Raspberry Pi and ESP32 in a supervised session (2026-10-05 evening). (e)
+Wokwi only with the user's own `WOKWI_CLI_TOKEN`, never on by itself. (f)
+Headless hardware-in-the-loop is built, but only from an allowlist file the
+user writes (device identity, action, payload digest, limits, expiry), never
+the model; every run's log is kept. (g) The companion page is the whole
+panel (M104); M103's maker pages are built on the same server and bridge.
+(h) Publishing accounts (PyPI, ACP registry, Eclipse update site) are the
+owner's; release assets and install docs ship meanwhile.
+
+**Status 2026-10-05: planned.** Sub-milestones land in order a → f; a's
+guard ships first and alone if the others slip, because it closes H1–H5 for
+every user.
+
+Lane M review follow-up (FIXM103M): canonicalize G-code once for analysis,
+macro refusal and approved dispatch; move the last approval/access/state
+checks after transport preparation; include the captured active extruder in
+state and limits; fail closed on credential removal; clean CAD invocation
+artifacts. Certify each fix with a failing regression and byte-exact red
+drill in `docs/certification/m103-m.md`. Cross-process registry transactions
+require a host-storage redesign and are tracked as RVM103M-REGISTRY-WRITERS
+in §9; no physical action or live/paid call is authorized by this follow-up.
+
+Round-two follow-up (FIXM103M2): resolve RVM103M2's credential/record race
+with one exclusive cross-process registry lock, revision compare-and-swap,
+and immutable registration-owned secret names. The concrete file store is
+in the per-user data directory; stale locks fail closed for operator recovery.
+Prove two actual Node processes cannot cross-pair credentials. Acknowledged
+sends return a successful outcome with audit status, retry only the audit,
+and never enter the failed-send path. CAD reads a bounded, confined opened
+handle and stages those exact bytes privately for both tools. Each finding
+gets regressions and byte-exact red drills in the lane M certification.
+No live/paid call, hardware use, dependency or shipped surface is added.
+
+Round-three follow-up (FIXM103M3): preserve post-write response loss as
+`sentOutcomeUnknown`, in both the result and device log, and require a
+successful explicit status read before another send. Notification and
+accounting retries must never resend. Bound arcs conservatively across all
+possible active planes when telemetry does not certify one; do not admit
+previously refused commands or guess a new wire field. Replay G17/G18/G19,
+G2/G3, absolute/relative and both units against the available Klipper/GRBL
+simulators; record evidence and any qualification limit. Each guard gets a
+regression and a byte-exact red drill in `docs/certification/m103-m.md`.
+No physical hardware, external network, paid/live call or dependency change.
+
+- **Goal.** Makers get skills, detection, simulation and offline tools that
+  work out of the box, and device and machine access that never moves,
+  heats, powers or flashes anything without a person approving exactly what
+  is sent.
+- **Depends on.** M92 (bounded runs, first-party skills, the secret-guard
+  settle), M68 (check commands), M69 (the in-tool modal), M89 (the
+  installer), M91 (hooks: their allow must not answer a device action), M95
+  (capability records) for D83.12, M96/M100 only for the refusals in D83.8.
+  For D83.16: M60's portable list and host API record, M61's `HostBridge`,
+  M63's ACP agent and package. The JetBrains, Visual Studio and Eclipse
+  surfaces arrive with M64 and M65; M103 freezes the protocol they
+  implement, so they need no maker code of their own beyond a dialog and a
+  toolbar action.
+- **Scope.** D83: the guard table and settle on both backends and in the ACP
+  agent and headless; the hardware switch, device log and machine registry;
+  detection and catalogue gating; the maker skills and the installer
+  change; the device list, flash identity check and irreversible refusals;
+  the G-code analyser; simulator and EDA check presets; the OpenSCAD tool
+  and STL preview; the serial tool and helpers; printer status, send and
+  stop; GRBL/FluidNC status and stop; physical MCP marking; the arm64 CI job
+  and the Pi, local-model and simulator guides; D83.16's portable engine,
+  `MakerHost` port and protocol, the VS Code adapter, the runtime's maker
+  host with its CLI subcommands, loopback MCP tool server and companion
+  page, the ACP prompts and commands, and the shared React maker views;
+  strings in all 14 tables;
+  README (a Makers section with the safety box), SECURITY, PRIVACY,
+  CHANGELOG, this plan, `docs/research/makers-2026-10-05.md`,
+  `docs/certification/m103*.md`.
+
+**Lane P review corrections (RVM103P3, 2026-10-05).** Fix CRLF Stop
+framing, native-lock loss during stale reclamation, unowned POSIX exclusivity
+cleanup, empty CIM enumeration, cancellable opening with settled Stop,
+Windows COM namespace aliases, and adapter line-state admission. Strengthen
+platform discovery and active-capture fixtures. Each finding gets a whole-file
+regression run and a byte-exact red drill in `docs/certification/m103-p.md`.
+Run focused gates directly on Win11; W retains the full quality, host-record
+and shipping qualification. No live devices, model calls or new dependencies.
+
+**Arduino host qualification follow-up (M103A2, 2026-10-05).** The real
+IDE 2.3.10 run (API 1.96, Node 20.14) returned 21/34 with 13 failures.
+This lane fixes shared adapters for machine-scoped settings (user/global
+values only even when Theia accepts workspace overrides), document opening,
+walkthroughs and language-provider commands. Native VS Code paths are kept
+where available. Qualification must observe webview panels through their
+actual lifecycle when the host omits them from `tabGroups`, retaining the
+same title, creation and in-place-clear assertions. Language support is
+qualified against the IDE's installed providers; any impossible capability
+requires an explicit host expectation, an actionable visible fallback and
+a recorded reason rather than a skipped test. All 34 cases run in the real
+IDE, followed by VS Code regressions for shared changes, the API-floor
+compiler, both unchanged VSIX budgets and byte-exact red drills. No model,
+credential or physical-device calls; the lead owns the full quality gate.
+Evidence: `docs/certification/m103-a2.md`.
+
+Arduino 2.3.10 ships JSON/C++ services but no TypeScript language definition
+or provider, and no public rename-provider commands. Do not invent semantic
+answers. The TypeScript compiler from the installed VS Code is 17 MiB
+uncompressed and cannot be added within the existing 2.15 MiB VSIX cap;
+a consented language-server acquisition belongs to D84/M104's broker. For
+this host, the same named tests must prove explicit no-service refusals,
+no rename writes and an actionable translated search/file fallback; the
+verify test must prove that an unprovided language remains unchecked,
+while retaining real JSON diagnostics/formatting assertions. Record this
+as a capability limit, not proof of full TypeScript parity. No provider is
+silently installed and no test is skipped. Native VS Code expectations
+remain unchanged.
+
+**JSON diagnostics completion (M103A3, 2026-10-05).** Feature-detect a
+missing diagnostic response for each JSON document at runtime, without host
+names. After the bounded native wait, provide positioned JSON syntax checks
+and the existing Muse permission-setting schemas through a DiagnosticCollection.
+Native reports take precedence; unsupported non-JSON languages remain explicitly
+unchecked. Keep confinement, cancellation, disk-text and cleanup guards. Defer
+the entire verification adapter until its first diagnostics/formatting request
+in `dist/verifyEditor.js`, with a 25 KiB budget under D6's measured-plus-margin
+rule; existing startup and package caps stay unchanged. All editor adapters can
+reuse the pure core parser; ACP/headless's broader language broker remains M104.
+Certify all 34 real Arduino tests and 19 owning native VS Code controls, prove
+native JSON reports do not duplicate, and disable the fallback for a two-failure
+real-IDE red drill followed by byte-exact restoration. No live/paid calls or
+physical-device access. The lane runs scoped checks; the lead retains aggregate
+quality/coverage. Evidence: `docs/certification/m103-a3.md`.
+
+**Review corrections (FIXM103A, 2026-10-05).** Resolve all four RVM103A
+findings within the existing parser, verification adapter and Arduino harness:
+preserve illegal empty JSONC members/elements, keep failed fallback admission
+unchecked despite an earlier empty event, stop active/queued diagnostics when
+the adapter is disposed, and reject empty discovery or incomplete host results.
+Each correction gets a failing-before regression and a deliberate guard-removal
+drill with byte-exact restoration. Repeat the 34-case Arduino and 19-case native
+VS Code packaged controls, both existing package/build gates and the 44-output
+cross-profile JavaScript comparison. No new dependency, host-name guard, model
+call, credential access or device access. Scoped lane gates only; aggregate
+quality/coverage remain with the lead under the rig brief. Record corrections
+and any named residual in `docs/certification/m103-a3.md` and §9.
+
+**Lanes and file ownership.** One integration branch
+(`feature/m103-makers`). Sub-milestone **f** is the maker editors (lanes A
+and T, and the Eclipse and JetBrains qualification rows); the owner has
+authorised plugins and bridges for every editor. New code lives in new folders split by lane, so
+lanes touch shared files only in their named regions (M87's region rules for
+`constants.ts`, `en.ts`, styles and the harness). Order:
+
+1. Lanes 0 and I first (about a day): the strings and the frozen
+   interfaces.
+2. Then up to six lanes in parallel against fakes of I's ports:
+   - core lanes G, D, S, P and M;
+   - surface lane U.
+3. Then V and R, the host adapters, which may overlap with step 2 once I is
+   frozen.
+4. W last.
+
+Everything a lane builds in `src/core/maker/**` is portable: no `vscode`
+import, and it goes on M60's portable list. The only VS Code code is lane V.
+
+| Lane                           | Owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 Strings                      | `src/shared/l10n/en.ts` (maker region), the 14 `l10n/ui.*.json`, `package.nls*.json` (commands, settings).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| I Interfaces (first)           | `src/core/maker/ports.ts`: the `MakerHost` port (`confirm`, `notify`, `stopControls`, `openPreview`, `storage`, `secrets`, `isTrusted`), `ApprovalRequest` (id, digest, target identity, expiry) and the answer check. `src/shared/makerProtocol.ts`: zod messages between the engine and any surface (webview, companion page, native plugin). The constants region. Tests for the answer check (a stale, mismatched or replayed answer is refused).                                                                                                                                                                                                                                                                                                                                                                  |
+| G Guard (a)                    | New `src/core/maker/guard/`: `hardwareCommands.ts` (the table below, both esptool spellings) and `actionClass.ts`. `src/core/agent/approvalHardware.ts` (Muse Code approvals, like `approvalSecrets.ts`). In `src/core/backends/modelapi/permissions.ts`, the `hardwareDetected` settle and the `device` class. The settled-ask list in `ModelApiHost.ts` (`askApproval`). `isReviewableApproval` in `approvalRules.ts`. The Bypass refusal in `src/shared/permissionModes.ts`. The subagent, worker, best-of-N, remote-lane and headless refusals at their call sites (one line each). Tests: `hardwareCommands.test.ts`, maker cases in `permissions.test.ts`, `approvalHardware.test.ts`, exec cases.                                                                                                               |
+| S Skills (a)                   | New `first-party-skills/maker_*/**`: each `SKILL.md` plus topic files read on demand. The installer change in `src/host/skills/bundledSkillsInstall.ts` (the first-party folder copied and marked). `.vscodeignore` if needed. Tests: `bundledSkillsInstall.test.ts`, and a skill lint test (front matter, ids, links, no secrets, every recipe command on the recipe-check list).                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| D Detection and presets (a, b) | New `src/core/maker/detect/`: `projectKinds.ts` (markers → kinds, bounded file reads), `checkPresets.ts`, and `onPi.ts` (facts from `/proc/device-tree/model`, `vcgencmd`). The catalogue gate in `src/core/context/skills.ts`. A `presetsOffered` event the hosts render. Tests over fixture workspaces.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| P Ports, serial, lease (a, c)  | New `src/core/maker/serial/`: port-list parsers per OS (CIM, sysfs and `by-id`, `ioreg`, `pio`/`arduino-cli` JSON), the VID:PID table, the session over helpers (the pyserial script, `stty` plus a killable reader child, the platform-tool adapters), and framing. `src/core/maker/lease.ts`: one holder per port or machine, through a lock file in the per-user data folder that names the holder's owner-only socket or pipe. `src/core/maker/flashIdentity.ts`. New `native/windows/MuseSparkSerial.cs` with its `JobBuild` entry (`jobBuild.ts` is already portable), and `native/posix/serial.py`. Tests: socat pairs on the rigs, a fake helper, parser fixtures.                                                                                                                                             |
+| M Machines and G-code (b, d)   | New `src/core/maker/gcode/`: tokenizer, analyser, Klipper macro and Marlin/GRBL dialect tables, limits check. New `src/core/maker/machines/`: Moonraker, OctoPrint, PrusaLink, GRBL/FluidNC and Marlin adapters behind one `Machine` interface; limits readers; stop sequences. New `src/core/maker/registry.ts`: machine records with no secrets; the LAN address rule over `endpointPolicy.ts`'s classifier; keys through `MakerHost.secrets`. New `src/core/maker/deviceLog.ts`. New `src/core/maker/cad.ts` (OpenSCAD and `kicad-cli` runners, the STL bounds and size check). Tests against fake Moonraker, OctoPrint and GRBL servers.                                                                                                                                                                           |
+| U Shared UI (a, b, d)          | New `src/webview/maker/**`, all lazy chunks: the approval dialog (surfaces without a native one), the Stop chip, the device panel, the machine wizard, the device log view, and the STL viewer (in-house WebGL, ≤ 25 KiB, its own page entry). Each speaks only `makerProtocol.ts` through `HostBridge`. The panel's mount points in their component regions. Harness scenes, and axe on every new view.                                                                                                                                                                                                                                                                                                                                                                                                               |
+| V VS Code adapter              | New `src/host/maker/`: `vscodeMakerHost.ts` (native modal, notifications, status bar Stop, SecretStorage, `workspaceState`/`globalState`, trust), `makerPreviewPanel.ts` (the webview tab for the preview page), the hardware-switch and machine commands, and the `ide` server's maker tools (`src/host/ide/makerTools.ts`). Tests with the `vscode` mock.                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| R Runtime, ACP, companion      | New `src/runtime/maker/`: `runtimeMakerHost.ts` (data folder, the OS credential store via `keyStore.ts`, workspace grants keyed like the ACP agent's paid grants); the CLI subcommands `hardware enable\|disable\|status`, `machines add\|list\|remove` and `stop-machine [--all]` (keys only from stdin, rule 8); a loopback MCP tool server for Muse Code (`muse serve` gets the maker tools as the extension's `ide` server gives them); the companion server (loopback, token, Host/Origin checks, CSP, serving the shared panel's maker pages). In `src/acp/maker.ts`: permission prompts with allow-once and reject-once only, the `/stop-machine`, `/hardware` and `/machines` commands, and `--hardware`. Tests over stdio against the fake CLI, and companion-server tests (token, Origin, LAN bind refused). |
+| W Wiring (last)                | The esbuild entries `dist/maker.js` (portable; added to the ACP package beside `dist/modelApi.js`), the preview page, and the webview's maker chunks. Their budgets in `scripts/check-bundle-size.mjs` and the split guard. The tool-definitions region in `tools.ts` (`hasDevices`, `hasCad`, `hasGcode`). The command region in `src/extension.ts` (loaders only). `package.json` (commands, settings, keybinding). The M60 portable list and the host API record. README (with the editor matrix), SECURITY, PRIVACY, CHANGELOG, PLAN, `docs/research/makers-2026-10-05.md`, `docs/certification/m103.md`, `docs/ide-compatibility/hosts.md` rows. The arm64 CI job in `.github/workflows/`. The full gate.                                                                                                         |
+| A Arduino IDE build (f)        | A second VSIX build: `engines.vscode ^1.96.0`, host `node20.14`, webview `chrome124` (`scripts/build.mjs` variant, `scripts/package-arduino.mjs`). A typecheck job against `@types/vscode` 1.96. Reading the IDE's board API (`vscode-arduino-api`) when present. The Arduino IDE row in `hosts.yml`: install into `~/.arduinoIDE/plugins/` and run the integration tests. Install docs.                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| T Thonny plugin (f)            | New `integrations/thonny/` (Python package `thonnycontrib.muse_spark`, Apache-2.0 or MIT like the repository): menu items (Open Muse Spark, Stop machine), starting and stopping the runtime, opening the companion page, bounded displayed console context and explicit hand-over/give-back (public Thonny backend lifecycle; runtime lane P owns device bytes). Fake backend/port/lease regressions; PyPI Trusted Publishing (OIDC upload job only, no stored token).                                                                                                                                                                                                                                                                                                                                                |
+| E Evidence (after W)           | The rig runs, the ACP clients (Zed, Neovim, Emacs, JupyterLab, CLion) through the device flows against fakes, Arduino IDE 2 and Thonny on a rig, and the one live capture (below). No source files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+
+**Lane X emulator qualification (owner, 2026-10-05).** Add local, bounded,
+idempotent launch/stop scripts under `scripts/emulators/` for QEMU Pi 3B,
+Pi 4B and aarch64 virt with Raspberry Pi OS Lite; Espressif QEMU ESP32,
+S3 and C3; simavr Uno/Mega; rp2040js Pico; Renode STM32/nRF52. UARTs
+use private socat PTYs with stable device-style aliases. Synthetic USB
+metadata stays in `test/` and uses P's discovery seam without changing
+the production OS discovery. An opt-in `MUSE_MAKER_EMULATORS=1` e2e suite
+exercises available P flows, host-only per-action approvals, cancellation
+and real cross-process leases. Real tool flashing is qualified separately
+until G/W's guarded dispatcher exists on this base; no test classifier
+is presented as G's physical-safety guard. GPIO uses guest gpio-sim or
+gpio-mockup where supported. No model or paid calls. Emulator receipts,
+versions, every blocked/unavailable flow and remaining electrical/RF/timing
+hardware checks go in `docs/certification/m103-x.md`. Installation is
+authorized on the Kubuntu rig; no emulator dependency ships in the product.
+The lane brief reserves full quality for the lead and forbids merges/pushes;
+X runs focused suites and the individual static/build gates with hooks on.
+
+**Lane X2 continuation (2026-10-05, 90-minute rig brief).** Finish Pi 3B/4B
+console qualification with explicit UART routing and matching device-tree
+aliases; document a Pi 4 model workaround only if needed. Qualify the S3 ROM
+download strap, esptool v5 reset flags and flash size through write/verify,
+reboot into the UART application and Stop during programming. Re-run the
+whole emulator matrix, retain unavailable transports and integrated-guard
+limits, and update the certification receipts. Product code changes only
+for a demonstrated product bug, with a regression test and red drill.
+
+**Lane G's table (initial; each row and each near-miss is a fixture).**
+
+esptool v5 uses dashes (`write-flash`) and keeps the underscore forms
+(`write_flash`) with a warning; both spellings are rows.
+
+| Class                                   | Shell patterns (any OS, after `commandShape` splitting)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Near-misses that stay ordinary                                                                                                                                                       |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| program                                 | `pio`/`platformio` `run` with `-t`/`--target` `upload`, `uploadfs` or `erase`; `pio test` without `--without-uploading`. `idf.py … flash`, `app-flash`, `erase-flash`, `dfu-flash`. `esptool` `write-flash`, `erase-flash`, `erase-region`. `arduino-cli upload`, `burn-bootloader`. `avrdude -U flash:w`/`eeprom:w`. `picotool load`/`reboot`. `mpremote` `cp`/`fs cp` to `:`, `rm :`, `run`, `exec`, `mount`, `reset`. `ampy put`/`rm`/`run`. `dfu-util -D`. `st-flash write`. `openocd … program`. `nrfjprog --program`/`--recover`. `esphome run`/`upload`. `espota.py`. `west flash`. A copy to a mounted `CIRCUITPY` or `RPI-RP2` volume. An HTTP `PUT`/`DELETE`/`MOVE` to a CircuitPython `/fs/`.                                                                                                                                | `pio run`, `pio test -e native`, `idf.py build`/`menuconfig`/`qemu …`, `arduino-cli compile`, `esptool merge-bin`/`image-info`, `espsecure …` (local files), `mpremote connect list` |
+| connect                                 | `pio device monitor`, `pio run -t monitor`, `idf.py monitor`, `arduino-cli monitor`, `mpremote` (bare, `repl`, `connect <port>`), `screen`/`minicom`/`picocom`/`cu` on a device, `stty -F`/`-f` on a device, `cat` of a device, `python -m serial.tools.miniterm`, `esptool` `chip-id`/`read-mac`/`flash-id`, `picotool info`, any open of a port at 1200 baud (it reboots CircuitPython and Arduino-class boards into their bootloader)                                                                                                                                                                                                                                                                                                                                                                                                | `pio device list`, `arduino-cli board list`, `python -m serial.tools.list_ports`, `ls /dev/serial/by-id`                                                                             |
+| actuate                                 | A write to a serial device node (`> /dev/tty*`, `> /dev/cu.*`, `> COMn`, `Set-Content -Path COMn`, `.Write(` on `System.IO.Ports`). `gpioset`, `pinctrl set`/`op`, `raspi-gpio set`. `ros2 topic pub`, `ros2 action send_goal`, `ros2 service call`. HTTP that changes a printer or CNC by `curl`, `wget`, `Invoke-WebRequest`, `Invoke-RestMethod` or `http`, over TCP or Moonraker's unix socket (`--unix-socket …moonraker.sock`, which skips auth): Moonraker `/printer/gcode/script`, `/printer/print/*`, `/machine/device_power/*`, `/server/files/upload` with `print=true`; OctoPrint `/api/printer/*` POST, `/api/job` POST, `/api/files` upload with `print=true`, `/api/connection` POST; PrusaLink `/api/v1/job/*` PUT/DELETE and file PUT with `Print-After-Upload`; FluidNC `/command`; a CNCjs socket `command`/`write`. | `curl …/printer/objects/query`, `GET /printer/info`, `GET /api/printer`, `GET /api/v1/status`, `ros2 topic echo`, `ros2 bag info`, `gpioinfo`, `gpiodetect`, `vcgencmd`              |
+| refused (irreversible, or machine-side) | `espefuse` `burn-efuse`/`burn_efuse`, `burn-key`, `burn-key-digest`, `burn-block-data`, `burn-bit`, `write-protect-efuse`, `read-protect-efuse`, `set-flash-voltage`. `avrdude -U lfuse:w`/`hfuse:w`/`efuse:w`/`lock:w`. `STM32_Programmer_CLI … -ob RDP=0xCC` (level 2). `picotool otp set`/`otp load`. Machine-side refusals (D83.2), so the shell cannot do what the tools refuse: Moonraker `/printer/restart`, `/printer/firmware_restart`, `/machine/shutdown\|reboot\|services/*`, uploads with `root=config`; G-code or HTTP carrying M997, M502, M500, `SAVE_CONFIG`, M80/M81, M42, M303; GRBL `$X`, `$RST`, `$N…=`, `$<n>=` writes.                                                                                                                                                                                           | `espefuse summary`/`dump`, `picotool otp list`/`get`                                                                                                                                 |
+
+Lane G records each row's source (the tool's own documentation) in its
+certification file. A row it cannot confirm there stays out and is listed
+as such, never guessed in. Stop endpoints and stop bytes (`/printer/emergency_stop`,
+`M112`, GRBL `!` and 0x18) are never blocked or asked in the shell; they are
+logged.
+
+- **Acceptance.**
+  1. **Guard, Model API.** Every row of lane G's table asks in Manual, Edit
+     automatically, Auto and Bypass, with no session choice; an allow rule, a
+     session rule, a hook's allow and the Auto reviewer never answer it; Plan
+     refuses it; every near-miss is judged as today. Refused rows are denied
+     in every mode with the run-it-yourself reply.
+  2. **Guard, Muse Code (fake CLI).** A guarded approval is scrubbed of
+     standing choices and never reaches the reviewer. In a hardware workspace
+     Bypass is not offered on either backend, an existing Bypass session
+     drops to Auto with a notice, and the Auto reviewer answers no shell
+     command. Lane E's capture records which table rows Muse Code's own Auto
+     skip lets through without an approval; if any, Auto is capped to Manual
+     in hardware workspaces on Muse Code and the README says why.
+  3. **Unattended.** In a subagent, a team worker, a best-of-N candidate,
+     headless `exec` and an M100 remote lane a guarded command and every
+     device tool are refused, not asked; a timed send meets the modal, which
+     expires as Reject.
+  4. **Switch.** Off: no device tool is offered (request bytes and goldens
+     identical to the base); untrusted: refused; a `museSpark.*` workspace or
+     folder setting cannot turn it on; enabling asks for a reason, which the
+     device log records; revoking removes the tools at the next request.
+  5. **Detection.** Fixture workspaces (PlatformIO, ESP-IDF, Arduino CLI,
+     MicroPython, CircuitPython incl. a CIRCUITPY root, Pico SDK, Zephyr,
+     ESPHome, ROS 2, Klipper config, Marlin, G-code, OpenSCAD, CadQuery,
+     KiCad, Wokwi) give the right kinds, skills and presets; a workspace
+     without a marker sends byte-identical requests and catalogue; detection
+     reads at most `MAKER_DETECT_MAX_FILES` names and `MAKER_DETECT_MAX_BYTES`
+     per sniffed file.
+  6. **CIRCUITPY and machine config (H2).** A CIRCUITPY workspace root, a
+     Klipper config folder and a Marlin `Configuration*.h` are detected; on
+     the Model API an edit there asks in every mode but Plan with the safety
+     keys highlighted (`max_temp`, `min_temp`, `verify_heater`, thermal
+     protection, position limits); on Muse Code the panel shows a notice that
+     the CLI edits without asking and suggests a working copy plus an
+     approved deploy (the stated residual).
+  7. **Device list.** Fixtures of Windows CIM output, Linux sysfs and
+     `/dev/serial/by-id`, and macOS `ioreg` give port, VID:PID, serial and a
+     board guess; nothing opens a port (asserted by the fake).
+  8. **Flash identity.** A known mismatch is refused; an unknown identity is
+     shown as unknown on the card; a match is shown.
+  9. **Serial.** On socat pairs (Kubuntu, Mac mini) and the fake helper (all
+     OSes; com0com if installable on the Win11 VM): a bounded read returns
+     the bytes and leaves no process; a write shows exact bytes (hex for
+     non-printables) and sends only after Send once; connect warns about
+     resets; every action is logged.
+  10. **Printer status and send (fake Moonraker and OctoPrint servers).**
+      Status reads need no modal; a send is analysed, refused without asking
+      when outside limits or with unknown limits, asks with the exact lines
+      otherwise, expires, and asks again when the state changed; plain HTTP
+      to a registered private address works, to an unregistered or public
+      address is refused, and a name that later resolves elsewhere is
+      refused.
+  11. **Stop.** Stop machine sends each kind's stop sequence with no
+      approval, within `MACHINE_STOP_DEADLINE_MS`, from the panel, the status
+      bar, the palette and the keybinding; the turn's Stop ends a stream; the
+      model's `machine_stop` needs no approval and is logged.
+  12. **CNC/laser.** On a fake GRBL over a pty (grbl-sim where it builds): `?` status and
+      `$$` parse; any motion, spindle or laser command from the model is
+      refused; stop sends `!` then 0x18.
+  13. **G-code analyser.** Fixtures (absolute/relative, mm/inch, arcs,
+      Klipper macros, Marlin and GRBL dialects, unknown commands) give the
+      expected bounds, maximum temperatures and feeds, and classes.
+  14. **CAD and EDA.** A fake `openscad` produces STL and PNG; the preview
+      tab opens with its CSP and passes axe; malformed or oversize STL is
+      refused; the PNG goes back only to vision models. `kicad-cli` JSON
+      captured on a rig becomes the check summary.
+  15. **ACP.** Device tools appear only with `--hardware`; each action's
+      permission prompt offers only allow once and reject once.
+  16. **Installer.** Install for Muse Code copies and marks the first-party
+      skills; Remove deletes only what it marked.
+  17. **Budgets.** `dist/extension.js` and the webview's startup bundle do
+      not grow over the base (D6). `dist/maker.js`, the preview page and the
+      webview's maker chunks are lazy and under their new budgets (measured
+      - 15 %, rounded up to 25 KiB). The VSIX and the ACP tarball are within
+        their budgets.
+  18. **Portable engine.** `src/core/maker/**` is on M60's portable list and
+      the gate fails a `vscode` import there, red-drilled. The same
+      `dist/maker.js` loads in the extension host and in the ACP agent's
+      package.
+  19. **Every surface, one decision.** The same approval request is shown by
+      the VS Code modal, an ACP permission prompt and the companion page's
+      dialog. Each test drives a surface that answers late, with a wrong
+      digest, twice, or for another request; the engine refuses all of them
+      and sends nothing.
+  20. **ACP on both backends.** With `--hardware`, the device tools exist on
+      the Model API backend (in process) and on Muse Code (the runtime's
+      loopback MCP server, fake CLI). `/stop-machine` stops between turns.
+      During a turn, `session/cancel` ends the agent's streams, and
+      `muse-spark-code-acp stop-machine` from a second terminal stops a port
+      held by the agent (through the lease socket) and an HTTP machine
+      directly.
+  21. **Companion page.** It binds loopback only and refuses a LAN address.
+      It refuses requests without the token or with a foreign Origin or
+      Host. It renders the maker views under its own `HostBridge` and passes
+      axe in the harness.
+  22. **Editor matrix.** Every "now" row of the matrix in D83.16 has its
+      flows run against fakes (VS Code family in CI, the ACP clients in
+      `hosts.yml`), recorded in `docs/ide-compatibility/hosts.md`. The rows
+      that wait name the milestone they wait for.
+  23. **Lease.** A second conversation, window or agent asking for a port or
+      machine that another holds is told who holds it and gets nothing. A
+      holder that died leaves a lock the next claim proves stale (no
+      process, no socket) before taking it. A platform tool already holding
+      the port (an IDE's serial monitor) is reported as busy, never fought
+      over.
+  24. **Stop paths.** Against the fakes:
+      - Moonraker's Stop is `POST /printer/emergency_stop` and never
+        `gcode/script` (a drill swaps it and fails);
+      - GRBL's is `!`, 0x85, 0x18 as bytes ahead of any queued line;
+      - Marlin without `EMERGENCY_PARSER` shows the switch notice.
+
+      Klipper `PAUSE`/`CANCEL_PRINT` and OctoPrint job pause or cancel ask
+      as _actuate_. The refused set (D83.2) is refused with the reason,
+      approval or not.
+
+  25. **Approval is the host's.** A tool argument or result carrying a
+      `confirm`, a token or an approval id never counts. A fake MCP server
+      that hands the model a token gets its call asked by our surface all
+      the same.
+  26. **Homing.** An unhomed Klipper fake, GRBL in alarm, or FluidNC with
+      `soft_limits: false` refuses model motion with the reason, and allows
+      stop and status.
+  27. **Maker editors (f).**
+      - The Arduino IDE build loads in Arduino IDE 2.3.10 (Linux, CI or
+        Kubuntu) and runs the integration tests.
+      - The Thonny plugin starts the runtime, opens the companion page, and
+        reads bounded displayed console context without a device command;
+        user hand-over disconnects Thonny before a fake runtime lease/open,
+        and give-back releases/closes before Thonny reconnects. No automatic
+        transfer or reconnection.
+      - The Eclipse rows wait for M65; the beta ACP Connector route for
+        Espressif-IDE is recorded if it installs.
+      - CLion 2026.1 runs the ACP flows against fakes.
+- **Tests.** Unit tests per lane with a red drill for every guard row and
+  every refusal, recorded in `docs/certification/m103-<lane>.md`; fake CLI
+  e2e for the Muse Code paths; fake machine servers in `test/unit/helpers`;
+  socat-pair serial tests on Kubuntu and the Mac mini; the Windows helper on
+  the host and the Win11 VM; the ACP package on the arm64 CI runner. No
+  hardware is needed for the gate.
+- **Gates.** The full quality gate, check-l10n, host API record, bundle
+  budgets and the split guard, VSIX size, test:a11y (the preview page), the
+  PSScriptAnalyzer gate if a PowerShell helper is added, semgrep.
+- **Security and physical safety.** D83.3–D83.11 are the rules. No
+  credential in a fixture (built at run time, M92's rule); machine keys in
+  SecretStorage only and redacted by value; the guard table and redaction
+  table are each the one shared table; no listener, no discovery, no port
+  scan, no network access from a workspace file; the preview page has
+  `default-src 'none'` and no network.
+- **Docs.** README "Makers" section (what works per backend and provider,
+  the switch, the stop, the safety box with the physical E-stop sentence,
+  simulator and Pi guides, the CIRCUITPY and Muse Code edit notice),
+  SECURITY (device classes and the residuals), PRIVACY (device log, machine
+  list, Wokwi), CHANGELOG, this plan, the research report, certification.
+- **Size.** XL across a–f; a is M.
+- **Certification checklist.**
+  - [ ] M103a: guard (both backends, ACP, headless), switch, log, detection,
+        skills and installer, device list, flash identity — with drills
+  - [ ] M103b: G-code analyser, simulator and EDA presets, OpenSCAD tool and
+        preview, photo review gating — with drills
+  - [ ] M103c: serial tool on socat pairs, the Windows helper, resets
+        documented — with drills
+  - [ ] M103d: machine registry and LAN rule, printer status/send/stop,
+        GRBL status/stop, physical MCP marking — with drills against the
+        fakes and the virtual Klipper and OctoPrint virtual printer
+  - [ ] M103e: arm64 CI job green, Pi and local-model guides run as written
+  - [ ] M103f: Arduino IDE 2 build loaded and tested; Thonny plugin with
+        drills; CLion ACP row; Eclipse vendor IDE rows with M65 (or named
+        as waiting)
+  - [ ] Stop paths, refused set, host-only approval and homing drills
+        (acceptance 24–26)
+  - [ ] D83.16: the portable engine in the extension and the ACP package;
+        approval surfaces (VS Code modal, ACP prompt, companion dialog)
+        with drills; the runtime's MCP tool server on Muse Code; CLI and ACP
+        stop; the companion page; the editor matrix's "now" rows recorded in
+        `docs/ide-compatibility/hosts.md`
+  - [ ] Lane E's live capture (Muse Code Auto skip) with its call count
+  - [ ] The owner-hardware items in §7, or each named as open
+  - [ ] Strings in all 14 tables; full gate green; budgets measured
+
+---
+
+### M104 — Every editor, every feature (D84)
+
+**M104 is split** because it is large: a foundation and seven parallel
+parts. All of them build against the MHP v1 contract frozen at the end of
+lane A's first step.
+
+| Milestone | Delivers                                                                                                                                  | Depends on                                   |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| M104a     | MHP v1; the VS Code adapter refactor; the runtime `panel` mode; UI bridges, tokens and fallbacks; the companion server; the registry gate | M95, M96c, M98 merged (or rebased onto them) |
+| M104b     | JetBrains plugin (IntelliJ-based IDEs and Android Studio)                                                                                 | M104a contract freeze                        |
+| M104c     | Visual Studio extension                                                                                                                   | M104a contract freeze                        |
+| M104d     | Eclipse plugin (with Espressif IDE)                                                                                                       | M104a contract freeze                        |
+| M104e     | ACP on the controller, plus the shims: Zed, Xcode app, Qt Creator, Neovim, Emacs, Sublime; LSP broker; `lsp` server                       | M104a contract freeze; companion server      |
+| M104f     | Distribution: the release workflow for every channel; signing; registries                                                                 | M104b–e artifacts                            |
+| M104g     | Qualification: the conformance suite green per editor; Arduino IDE 2 and the remaining VS Code-family rows                                | all                                          |
+| M104h     | Docs and certification (runs throughout)                                                                                                  | —                                            |
+
+- **Goal.** Every feature in the registry (F1–F56, and every one added
+  later) works in every editor in §1.3, through the editor's own APIs or
+  our own implementation. Every future feature lands in all of them in the
+  PR that adds it.
+- **Depends on.**
+  - D84.
+  - The M60 gate and the M61 steps.
+  - M98's `tokenFile.ts` and its serve guard (merged, or this milestone
+    takes ownership of a copy).
+  - M95 (providers) and M96c (Traffic), so their webviews join the bridge
+    at once.
+  - Toolchains on the rigs, all installs authorised:
+    - Kubuntu: JDK 21 and 25, Gradle 9, Maven 3.9.9, Tycho 5.0.4, Xvfb,
+      Neovim 0.12, Emacs 29 and 30, Sublime build 4205 or later, Qt
+      Creator 20;
+    - Win11 VM: VS 2022 (17.14) and VS 2026 with the VSSDK workload;
+    - Mac mini: Xcode 26.6 and 27.
+- **Lanes and file ownership.** One integration branch, `feature/m104`.
+  Lane 0 lands the contract skeleton (one day). Then lanes A–J run in
+  parallel, and the lead integrates.
+
+| Lane     | Items                                                                                                                                                                                                                                                                            | Files it owns                                                                                                                                                     | Its regions in shared files                                                      | Starts                      |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | --------------------------- |
+| 0 (lead) | MHP v1 skeleton: method table, zod schemas, capability names, error codes, version range; feature registry skeleton (F1–F56)                                                                                                                                                     | `src/shared/hostApi/**`, `src/shared/hostApi/features.ts`                                                                                                         | `src/shared/constants.ts` (MHP block)                                            | day 0                       |
+| A        | VS Code adapter: `HostServices` implemented with `vscode`; `extension.ts` composes from it; the 24 `vscode` files moved to `src/host/vscode/**`; behaviour unchanged                                                                                                             | `src/host/vscode/**`, `src/host/compose/**`, `src/extension.ts`                                                                                                   | `scripts/check-host-api.mjs` (new allowed roots)                                 | after 0                     |
+| B        | Runtime panel: `panel --stdio` and `--companion`; controller registry; ACP sessions on the controller (re-basing `src/acp/agent.ts` on the registry); settings and storage stores                                                                                                | `src/runtime/panel/**`, `src/runtime/settingsStore.ts`, `src/acp/**`                                                                                              | `src/runtime/main.ts`, `src/runtime/cliArgs.ts` (the `panel` and `lsp` commands) | after 0                     |
+| C        | Companion server: launch code, cookie, Host/Origin/Fetch-Metadata guard, SSE, CSP, static assets, idle exit; shared token-file module                                                                                                                                            | `src/runtime/companion/**`, `src/runtime/tokenFile.ts` (moved from `judge/`, coordinated with the M98 owner)                                                      | —                                                                                | after 0                     |
+| D        | UI: the three bridges; `main.tsx`, Tasks and What's New on the bridge; `--muse-*` tokens (M61.3); React fallbacks (Confirm, Picker, Input, Toasts, StatusStrip, SettingsPage, Walkthrough, DiffPage, TerminalOutput); manager pages for skills, MCP, hooks, memory and worktrees | `src/webview/bridges/**`, `src/webview/fallbacks/**`, `src/webview/main.tsx`, `src/webview/whatsNew/main.ts`, `src/webview/tokens.css`, `src/host/ui/pageHtml.ts` | `src/webview/styles.css` (variables only), `l10n/*` (new keys, all 15 tables)    | after 0                     |
+| E        | JetBrains plugin (M104b)                                                                                                                                                                                                                                                         | `hosts/jetbrains/**`                                                                                                                                              | —                                                                                | after the contract freeze   |
+| F        | Visual Studio extension (M104c)                                                                                                                                                                                                                                                  | `hosts/visualstudio/**`                                                                                                                                           | —                                                                                | after the contract freeze   |
+| G        | Eclipse plugin (M104d)                                                                                                                                                                                                                                                           | `hosts/eclipse/**`                                                                                                                                                | —                                                                                | after the contract freeze   |
+| H        | Shims and editor routes (M104e): Zed extension, Xcode app and XcodeKit, Qt Creator Lua, `muse.nvim`, `muse-spark.el`, Sublime package; the LSP broker and the `lsp` server; the Zed completions endpoint                                                                         | `hosts/{zed,xcode,qtcreator,neovim,emacs,sublime}/**`, `src/runtime/lsp/**`, `src/runtime/tabServe.ts`                                                            | —                                                                                | after lane C's first commit |
+| I        | Distribution and CI (M104f): `hosts-native.yml` (path-filtered on PRs, weekly full), release jobs per channel, packaging scripts, the Node runtime pin manifest, the conformance runner                                                                                          | `.github/workflows/hosts-native.yml`, `scripts/package-hosts/**`, `src/runtime/nodeRuntime.json`, `test/hostApi/**`                                               | `.github/workflows/release.yml` (new jobs after `npm`), `package.json` scripts   | after 0                     |
+| J        | Docs (M104h): README "Every editor", `docs/ide-compatibility/{hosts,matrix,host-api-v1}.md`, `docs/acp.md`, CONTRIBUTING, AGENTS.md rule 14, CHANGELOG, PLAN, certification                                                                                                      | `docs/ide-compatibility/**`, `docs/certification/m104*.md`                                                                                                        | README, AGENTS.md, CHANGELOG, PLAN (M104 and D84 only)                           | throughout                  |
+
+- **Acceptance (all with fakes, no model calls).** Fakes: the fake Muse Code
+  CLI and the fake Model API server.
+  1. **VS Code unchanged.** Every existing gate and integration test passes,
+     and the harness screenshots are pixel-identical before and after lanes
+     A and D. The host API record lists only `src/host/vscode/**` and
+     `src/extension.ts` as importing `vscode`.
+  2. **MHP conformance.** The scenario suite passes against:
+     - (a) the in-process VS Code adapter;
+     - (b) a fake host in `test/hostApi/fakeHost.ts`;
+     - (c) each native plugin, in its own headless harness: IntelliJ's
+       `BasePlatformTestCase` and `HeavyPlatformTestCase` plus the
+       Starter/Driver UI tests, plus `CodeInsightTestFixture.testInlineCompletion`;
+       the VS experimental instance, with `[IdeFact]` tests pinned (the
+       harness is archived upstream, so hosted-runner reliability is measured
+       before it gates); tycho-surefire
+       with the UI harness under Xvfb; headless Neovim with plenary; Emacs
+       batch ERT; Sublime UnitTesting; Qt Creator Lua tests; XCTest.
+     - The scenarios cover:
+       - a conversation;
+       - an approval allowed, denied and cancelled;
+       - a dirty-buffer edit refused, and an edit applied once with one
+         undo;
+       - a diff reviewed hunk by hunk;
+       - diagnostics read by the verify loop;
+       - a checkpoint restore;
+       - the paid popup (Allow once, Always, Deny) and the budget limit;
+       - a Tab completion accepted;
+       - settings changed and seen;
+       - a session resumed after a reload.
+  3. **Matrix.** Every row is W for every editor's adapter in the registry,
+     or an exception is recorded with an approved reason and an equivalent.
+  4. **Companion security.** These are refused:
+     - a wrong `Host`;
+     - a foreign `Origin`, including a Playwright page served from another
+       port that tries a form POST, a fetch, an EventSource and a WebSocket;
+     - a missing cookie or a missing custom header;
+     - a replayed launch code;
+     - a non-loopback bind;
+     - an over-cap body.
+       Also: no CORS header in any response, and the CSP present on every
+       page.
+  5. **ACP.** M63's acceptance re-runs unchanged on the controller-based
+     agent, and the new slash commands, boolean options and `fs/*` routing
+     are tested against the SDK client. In Zed, Neovim and Emacs (hosts.yml)
+     a `/panel` command opens the same session in the companion.
+  6. **Rule 8 drills.** The key is absent from every MHP frame, every
+     companion response, the logs and every child environment, checked by
+     a grep test.
+- **Tests.**
+  - Unit tests: MHP schemas (round trip, rejection), capability selection
+    and fallback, the registry gate, the companion guard (each header case),
+    the launch-code lifecycle, the bridges, the token mapping, every React
+    fallback (including axe), the LSP broker against a fake LSP server, the
+    `lsp` server's `inlineCompletion`, and the Node runtime pin's checksum.
+  - Per plugin: unit tests in its own language (JUnit 5, MSTest or xUnit,
+    JUnit with Tycho, busted or plenary, ERT, Python `unittest`, XCTest).
+  - Integration: `test/e2e` drives `panel --stdio` with the fake host, and
+    `--companion` with Playwright.
+- **Gates.**
+  - New: `check:editor-matrix`; the tightened M60 import gate; the MHP
+    schema snapshot (a breaking change needs a version bump); Plugin
+    Verifier for the declared IDE range (IC, IU, PC, WS, GO, CL, RR, RD,
+    AS); `verifyPlugin`; ktlint and detekt; `dotnet format` and analyzers;
+    Checkstyle or SpotBugs for Eclipse; luacheck and stylua; `package-lint`
+    and checkdoc; ruff for the Sublime package; SwiftLint; actionlint for
+    the new workflows.
+  - Every new gate gets a red drill (CLAUDE.md), recorded in
+    `docs/certification/m104*.md`.
+  - D6 bundle budgets: the runtime `panel` entry is new (measured plus 15%).
+    The VSIX budget does not grow, because the plugins carry the bundle and
+    the VSIX does not.
+- **Security.**
+  - Covered by §3.8: the companion guard, launch codes, CSP, rule 8 (no key
+    over MHP, the UI or the companion), and rule 12 (decision in the
+    runtime).
+  - Node and language-server downloads only with consent and a pinned
+    SHA-256.
+  - The plugins never spawn with the key in their environment, and the
+    runtime strips credential variables as today
+    (`credentialVariables.ts`).
+  - JCEF, WebView2 and SWT pages get the same CSP and no remote origins:
+    `JBCefBrowser` with no devtools in release builds, WebView2 with
+    `AreDevToolsEnabled=false` and `AreDefaultContextMenusEnabled=false`,
+    and navigation outside the asset scheme blocked.
+  - PLAN §9 records the residual risks for same-user processes.
+- **Docs.**
+  - README: an "Every editor" section, plus install sections per editor.
+  - `docs/ide-compatibility/matrix.md` (generated), `hosts.md` (routes and
+    statuses updated: Xcode ACP from 26.6, Qt Creator's built-in client) and
+    `host-api-v1.md` (generated from the schemas).
+  - `docs/acp.md` (`/panel`, the options, `fs/*`), CONTRIBUTING (the
+    toolchains, how to run each harness), AGENTS.md rule 14, CHANGELOG, and
+    PLAN D84, M104 and §8/§9 rows.
+- **Size.** L overall. Rough sizes:
+  - M104a, 9–12k lines of TypeScript including tests (A about 3k of moves,
+    B 3k, C 1.5k, D 3k);
+  - JetBrains 7–9k Kotlin;
+  - Visual Studio 6–8k C#;
+  - Eclipse 6–8k Java;
+  - shims 1–2.5k each;
+  - LSP broker 2k;
+  - workflows and packaging 1.5k.
+    With 8–10 lanes in parallel, the critical path is lane A plus one plugin
+    (M104b).
+- **Certification checklist** (§6.0, plus):
+  - [ ] Lane 0's contract is frozen and versioned (`mhp/1.0.0`), with a
+        schema snapshot committed.
+  - [ ] VS Code is pixel-identical (harness) and every integration test
+        passes.
+  - [ ] Conformance is green per adapter, with a receipt per editor and
+        version, filed in `docs/certification/m104-<host>.md`.
+  - [ ] `matrix.md` is generated, and each editor's status is moved only on
+        that evidence.
+  - [ ] Companion security tests pass, including the Playwright
+        cross-origin drill.
+  - [ ] Red drills for `check:editor-matrix`, the tightened import gate,
+        the schema snapshot and the companion guard.
+  - [ ] Rule 8 grep tests and rule 12 popup tests pass in every host.
+  - [ ] Every artifact is built from one tag and attached to the GitHub
+        Release. Registry publishes run where the owner's accounts exist, and
+        each one missing is listed at the top of the report (loud failures).
+  - [ ] No live or paid call. Any live smoke follows CLAUDE.md: state the
+        count first, use an empty workspace, count from the trace log.
+  - [ ] Codex review in one pass per lane class before push.
+
+---
+
+## 7. Gates
+
+**FIXM103S bounded-lane gates (2026-10-05).** The rig brief and shared lane
+rules forbid aggregate quality/full-unit runs and integration merges in this
+worktree. Run the owning suites, typecheck, scoped lint/format, dead-code,
+duplication, localization, host API and production build directly on Kubuntu;
+record results and every red drill in `docs/certification/m103-s.md`. Full
+quality, aggregate coverage and the platform/editor matrix remain mandatory
+lead checks after integration. No gate is weakened.
+
+**FIXM103P / FIXM103P2 rig deferral (2026-10-05):** the rig/shared brief prohibits the
+full `quality` command in a lane. Focused P suites and the listed local gates
+run instead. The pre-existing stale host API file-count record is W-owned;
+W must regenerate and review it with the maker entry/package, then run full
+quality and the platform matrix before integration. No rule, threshold or
+record comparison is weakened. Evidence: `docs/certification/m103-p.md`.
+
+**FIXM103M / FIXM103M2 / FIXM103M3 (2026-10-05, Kubuntu).** The rig brief prohibits full quality and
+full-suite runs and assigns integration gates to the lead. This fix lane
+runs its four owning test files, red drills and required static/build checks
+directly on the rig. The existing generated Node import inventory is stale;
+lane W owns regeneration after combining Maker lanes. Full quality,
+coverage, installed-editor/surface acceptance and simulator MCU success
+remain unclaimed. No rule, threshold, budget or ignore is weakened. Receipts
+and named residuals are in `docs/certification/m103-m.md` and §9. FIXM103M2
+resolves all three round-two findings, proves 16 byte-exact red drills and
+passes 189 owning tests, all type checks, changed-file lint/format, dead code,
+duplication, localization and production build. The host API inventory gate
+still reports only its previously assigned generated Node-reader drift;
+regeneration remains lane W's integration work.
+
+FIXM103M3 resolves response uncertainty and the native-confirmed arc-plane
+candidate, passes **249** owning tests and **48** native replay cases, and
+proves five distinct byte-exact red drills. All required static/build checks
+pass except that same generated inventory drift. Surface outcome mapping
+and P3 offline GRBL decimal precision are named in §9; full shipping/editor,
+coverage and physical-device acceptance stay with integration.
+
+**M103 X emulator lane (2026-10-05, Kubuntu).** The rig brief prohibits full
+quality and assigns it to the lead. X adds only development rig scripts and
+tests. This P-only base lacks G/D/M/W integration; injected test classification
+is not G's physical-safety guard. The original Pi 3B/4B console and S3 ROM
+UART flash failures are resolved by X2's matching image kernel/DTBs, explicit
+PL011/getty setup and disposable S3 UART-download fixture. The restored
+matrix passes 22 tests with no skips, including app upload, reboot output and
+Stop during real programming. Physical boards, GPIO electrical behavior,
+RF, power, timing, installed-editor paths and full quality remain required.
+The unchanged W-owned host API inventory is stale from P. Individual gates,
+versions, attempted fixes and receipts are in `docs/certification/m103-x.md`.
+
+**M103A3 (2026-10-05, macmini).** The rig brief forbids aggregate quality
+and assigns it to the lead. This lane runs focused files, compiler/lint gates,
+localization, host inventory, dead code, duplication, builds and both unchanged
+VSIX budgets. Real Arduino/native controls and failing fallback/gate controls
+are retained in `docs/certification/m103-a3.md`; no skip or timeout change.
+
+**M103A2 qualification (2026-10-05, macmini).** The lane brief assigns the
+complete quality/coverage gate to the lead; focused owning tests, all typechecks
+including the isolated 1.96 floor, lint, localization, host inventory, builds
+and both unchanged VSIX budgets run here. Arduino's missing TypeScript provider
+has explicit host expectations and translated search/read_file guidance, not
+invented semantic results. Native VS Code's live getCommands capture lists internal
+`_executeDocumentRenameProvider` / `_executePrepareRename` identifiers instead
+of the public API aliases. Availability checks include internal commands and
+recognize both forms, while actual dispatch stays on the public API aliases.
+Arduino's capture lists the same internal identifiers but rejects the public
+prepare alias. Skip only that captured exact missing-command error for the
+optional prepare; an absent execute alias becomes explicit no-service, and
+all genuine provider refusals/errors still propagate.
+JSON diagnostics still fail after document reveal
+and installed-provider activation attempts; stop that path under the brief's
+two-failed-fixes rule. Remove the ineffective activation attempt and retain
+both failing assertions. No timeout, skip or diagnostics expectation is
+relaxed. Qualification stays incomplete. The editor-specific clean temporary
+document close uses the deprecated but present TextEditor.hide only when the
+host omits tab identities; §8 records this bounded exception.
+
+**FIXM103T (2026-10-05, rig lane).** The rig/common briefs explicitly prohibit
+full `npm run quality` and the full JS test suite, assigning integration
+quality to the lead. Run owned Python regressions, static repository checks
+and the build directly on Windows, with all thresholds unchanged. The base
+has no `src/shared/featureCatalog.ts`, `scripts/gen-reference.mjs` or
+`check:reference` command. REDM103T adds two explicit transfer menu controls
+and updates both READMEs; the absent catalogue cannot be regenerated here. Reference generation remains the lead's
+integration check once that catalogue exists. Receipts and every red drill
+are in `docs/certification/m103-t.md`; no local gate is disabled.
+
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
 120 minutes. No cap, threshold, skip or user-facing feature may be weakened.
@@ -30202,6 +31408,21 @@ aggregate certification record.
 
 ## 7. Gates
 
+**M103INT bounded integration receipts (2026-10-05, Kubuntu).** The explicit
+rig brief requires the seven named merges, lanes I/0, owning suites and
+static/build checks, and forbids aggregate quality/full-unit runs. Five
+TypeScript projects, merged-file lint/formatting, localization with duplicate
+checks, reviewed host inventory, plain Knip, zero-clone jscpd, normal and
+unwired-maker cycle graphs, schema drift and the Arduino API 1.96 floor pass.
+Normal/Arduino builds pass every unchanged cap. Guard/translation drills
+restore SHA-256-exact bytes; P/X's stale lease parser is corrected from an
+actual lease-only child capture, without a device open or model attempt.
+The X board matrix remains 17 failures for absent worktree-local tools/images;
+no other lane's cache was read. Native Arduino, physical/live, cross-editor,
+full quality/coverage/a11y, startup-growth wiring and G4 joining remain with
+W/E/lead. The absent help catalogue/reference tooling is an inherited W/lead
+integration obligation. Exact receipts and U/V/R handoff: m103-int.md. No
+threshold, ignore, severity, timeout or budget was weakened.
 **FIXM112Q bounded-lane certification (2026-10-06).** The rig/shared brief
 forbids aggregate quality and full-suite runs; full integrated quality remains
 with the lead. Run the complete owning test files, red drills, scoped lint and
@@ -30719,6 +31940,24 @@ Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemg
 | `TAB_FILE_MAX_BYTES`, `TAB_SNOOZE_SHORT_MINUTES`, `TAB_SNOOZE_LONG_MINUTES`, `TAB_TRIGGER_MODES`, `TabTrigger`, `TAB_WITH_COPILOT_MODES`, `TabWithCopilot`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | H                                                                 | Remove after provider/status/settings consumers merge and W verifies production use.                                                                                                                                                                                                                      |
 | `TAB_HOOK_TIMEOUT_MS`, `TAB_HOOK_VERDICT_CACHE`, `TAB_EDIT_HOOK_QUEUE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | K                                                                 | Remove after the two Tab hooks merge and W verifies production use. No Knip configuration exception is added.                                                                                                                                                                                             |
 
+M103A3: `src/host/editor/verifyEditorBundle.ts` checks its same-build factory's
+object/function shape; TypeScript signatures are trusted only for this packaged
+module, as with the existing lazy bundle loaders. The collection mock in
+`test/unit/verifyEditor.test.ts` uses an inline-reason double assertion for only
+its called API methods. No product cast or suppression is added.
+
+Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
+
+| M103A2 location                         | Escape hatch                                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                          | Date       |
+| --------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/editor/verifyEditor.ts`       | Two `eslint-disable-next-line @typescript-eslint/no-deprecated` for `TextEditor.hide` | Arduino/Theia omits tab input identities. Its still-available editor-specific hide API closes only our new clean temporary editor, after recording whether its document was already open. Closing the active editor could close the user’s file. Native tabGroups.close remains preferred. Unit controls cover existing and dirty editors; the real IDE qualifies the fallback. | 2026-10-05 |
+| `src/host/editor/verifyEditorBundle.ts` | Same-build function signature trusted after object/function checks                    | The factory comes from the same build/package; failed or malformed modules reject and retry.                                                                                                                                                                                                                                                                                    | 2026-10-05 |
+| `test/unit/verifyEditor.test.ts`        | Inline-reason double assertion for DiagnosticCollection mock                          | Only set/get/delete/dispose operations the adapter calls are supplied; tests use the real API shape and real IDE controls.                                                                                                                                                                                                                                                      | 2026-10-05 |
+
+| M103A3 integration location          | Escape hatch                                                                      | Reason                                                                                                                                                                                                                                                                                   | Date       |
+| ------------------------------------ | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/integration/extension.test.ts` | `eslint-disable-next-line @typescript-eslint/no-deprecated` for `TextEditor.hide` | Arduino omits tab input identities. Cleanup locates the exact AGENTS.md editor this test created, hides only that editor and asserts it is gone; closing the active widget destroyed the chat panel before the reuse assertion in two real runs. Native tabGroups.close stays preferred. | 2026-10-05 |
+
 | M80 lane A location                      | Escape hatch                                   | Reason                                                                                                                                                                                                                                               | Date       |
 | ---------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `scripts/exec-schema.mjs`, `conditional` | `eslint-disable-next-line unicorn/no-thenable` | JSON Schema requires the literal `then` keyword for conditional validation. This object is serialized as data, never consumed as a Promise. Computed keys and `Object.fromEntries` also trigger the rule; the exception is limited to this property. | 2026-10-02 |
@@ -31064,6 +32303,131 @@ before a repaired one loads (2026-09-30).
   a crash; a frame inside the package can be forged by an error message that
   imitates a stack line, but it can then name only a shipped bundle and two
   numbers.
+
+- **M103D-NATIVE-QUALIFICATION (integration pending, 2026-10-05):** RVM103D's
+  three P2 findings are fixed and red-drilled on Kubuntu. Native macOS
+  descriptor-directory access and Windows kernel APIs still need receipts
+  on their own rigs; Linux/macOS adapter schedules and the actual Windows
+  C# guard/read/listing code are covered with deterministic OS fakes here.
+  Missing descriptor support or a failed native helper aborts detection;
+  there is no fallback that reopens a checked mutable pathname. The helper
+  has a hard deadline, bounded validated output and only the system module
+  path in its environment; it inherits no host environment or credentials.
+  Safe pending qualification because failure grants no outside read or
+  hardware authority. Follow-up: lane W/E's native rig and editor checks
+  before claiming the platform detector supported. Full quality, host API
+  record regeneration and M103's pre-existing startup-growth item remain
+  with lane W, as recorded in `docs/certification/m103-d.md`.
+
+- **M103P-QUALIFICATION (2026-10-05):** lane P's RVM103P3/RVM103P4 corrections
+  are checked on Win11, including a separate process stopping the compiled
+  current-user C# pipe. No physical board, reset or flash is claimed. The
+  same platform-metadata test runs CIM, ioreg or sysfs on its actual OS;
+  POSIX socat cases still need the lead's Linux/macOS reruns of this tree.
+  Approved line settings use PlatformIO, native Windows or pyserial;
+  Arduino monitor, raw and shell adapters refuse before opening because
+  they cannot guarantee the approved DTR/RTS values. Follow-up: qualify any
+  additional line-control adapter before admitting it. The unchanged stale
+  host API record and final maker/helper packaging remain W-owned integration
+  gates; the lane does not claim them or full quality passed.
+  RVM103P4 uses version-2 records in per-resource directories, with immutable
+  holder-ID/generation filenames. Old pre-integration fixed-file records
+  fail closed; none of this maker storage has shipped. Follow-up: W selects
+  a fresh versioned per-user namespace before shipping or qualifies an
+  offline migration only after all old holders are absent. Nonempty registry
+  PortName board captures and the new lease interleavings on real POSIX rigs
+  remain part of the same platform qualification. All three RVM103P4 review
+  findings are fixed; no P2/P3 review finding is intentionally deferred.
+
+- **RVM103M3-ARC-PLANE (native planner confirmed, fixed by FIXM103M3):**
+  Klipper offline batch and GRBL native check mode both generate G18/G19 Z
+  sweeps beyond the review's user cap. Telemetry cannot establish the plane,
+  so the analyzer conservatively unions XY/XZ/YZ complete-circle/helical
+  bounds. No previously refused command is admitted. The 48-case replay
+  covers both arc directions, coordinate modes and units; native Klipper's
+  relative/G20 rejections remain explicit. Receipts: `docs/certification/m103-m.md`.
+- **RVM103M3-GRBL-DECIMAL (P3 offline precision, 2026-10-05):** GRBL's
+  eight-digit decoder and float32 arithmetic can quantize repeating absolute
+  inch endpoints by under two micrometers in the capture; the analyzer's
+  double-precision ideal endpoint is not a native numeric emulator. The
+  plane cap remains refused, and GRBL/FluidNC model actuation is prohibited,
+  so no physical action uses this discrepancy. Maker is unshipped. Follow-up:
+  conservative numeric/parser envelopes before any CNC-motion owner decision;
+  no exact native GRBL endpoint-precision claim. The final plane regression
+  uses representable unit conversions and strict captured-envelope checks.
+- **RVM103M3-RESPONSE-LOSS (portable core fixed by FIXM103M3, 2026-10-05):**
+  an error after the synchronous final write guard returns `sentOutcomeUnknown`
+  in the send result and device log. It requires a successful explicit status
+  read before another send; accounting retry never resends. Prewrite errors
+  remain failures. The local fake consumes a relative move, changes reported
+  X 10 → 11 and loses the reply; the immediate retry cannot dispatch. Stop
+  remains available. Receipts and byte-exact drills: `docs/certification/m103-m.md`.
+- **FIXM103M3-SURFACE-OUTCOME (integration qualification, 2026-10-05):**
+  Maker hosts/UI are absent and unshipped at this base and owned by V/R/U/W.
+  The portable core notifies `sentOutcomeUnknown` and returns/logs it even
+  when notification or accounting fails. Every host/shared surface must show
+  “sent — outcome unknown”, the required status read, and audit-only retry;
+  never a failure/success or resend suggestion. Safe for now because Maker
+  is unshipped. Follow-up: localized outcome mapping, shared-surface tests,
+  README/CHANGELOG/reference accuracy and editor acceptance in lane W.
+
+- **RVM103M-REGISTRY-WRITERS (closed by FIXM103M2, 2026-10-05):** the
+  round-two P1 credential cross-pairing supersedes the prior lost-write P2.
+  Every registry mutation now owns the same exclusive cross-process file
+  lock and commits by revision CAS. Records and HTTP lookups use immutable
+  registration UUIDs; cleanup deletes only that UUID's credential. Two real
+  Node processes prove lock exclusion, duplicate refusal, distinct-record
+  retention, removal and replacement ownership. Stale locks fail closed;
+  operator recovery must first ensure the old writer cannot resume. Host
+  adapters must share the same per-user directory and implement the revised
+  snapshot/CAS port; no unlocked writer or legacy id-keyed lookup is allowed.
+  Maker remains unshipped. Receipts: `docs/certification/m103-m.md`.
+- **RVM103M-JOB-MACROS (acceptance 24 deferral, 2026-10-05):** opaque Klipper
+  `PAUSE`/`CANCEL_PRINT` and job pause/cancel remain refused before approval;
+  their motion cannot be bounded by this analyser. This is conservative
+  and cannot actuate a machine. Follow-up: explicitly defer that part of
+  acceptance 24 at M103 integration or certify a separately bounded path;
+  this lane does not claim the full item passed.
+
+- **FIXM103A (2026-10-05):** all four RVM103A findings are corrected; no
+  reviewed P2/P3 is deferred. The earlier absent-TypeScript capability limit
+  and lead-owned aggregate/Linux qualification remain as recorded in M103A3;
+  these corrections do not claim a language broker or release certification.
+- **FIXM103A-ARDUINO-RECHECK (qualification pending, 2026-10-05):** the
+  post-correction 34-case IDE run needs an allowed public application/cache
+  location. The only found IDE copy is in another lane's worktree; common.md
+  forbids touching it, and the asset-location/limited-copy question is pending.
+  Safe for review because no fresh Arduino qualification or release approval
+  is claimed: the previous 34/34 receipt is historical, while all correction
+  regressions, five byte-exact drills, 109 focused unit cases, native VS Code
+  19/19, compilers and unchanged artifact gates pass. Follow-up: after an
+  allowed asset location is supplied, run the complete packaged Arduino suite
+  with the private offline profile, require 34/34 and zero pending, retain its
+  receipt, and close this qualification residual.
+
+- **M103T-WIRE-FREEZE (existing interoperability limit, 2026-10-05):**
+  REDM103T supersedes the write bridge after RVM103T2. The v2 context and
+  explicit port-control interface is fake-tested, but the announcement/provider
+  protocol is still T's proposal awaiting R/P freeze. Thonny accepts no device
+  payloads or write approvals and exports no runner/proxy identity. Port control
+  starts only after validated welcome. `acquire` succeeds only after lane P's
+  lease is held and its serial session is open; `release` acknowledges only
+  after serial close and lease release, including uncertain-acquire recovery.
+  Provider closure must cancel outstanding acquisitions and release its owned
+  session before a replacement provider connects. Safe for now within the
+  fake-tested authenticated loopback proposal: malformed control replies and
+  foreign endpoints fail closed, uncertain transfers stay disconnected, and
+  changed Thonny targets refuse give-back. Follow-up: R/P freeze and fake
+  editor-to-runtime receipts proving these ownership/closure guarantees before
+  claiming installed-runtime compatibility.
+- **M103T-POSIX-RIG-RECEIPTS (verification limit, 2026-10-05):** Windows job
+  ownership and actual fake descendants are tested on win11; POSIX session
+  creation/group signals are exercised with injected OS calls here. Actual
+  macOS/Linux execution and Python 3.10 remain the hosted matrix's checks,
+  rather than an asserted safety certification from Windows. Follow-up: the
+  Thonny hosted workflow and lead's POSIX rig receipts before all-platform
+  support claims. No P1/P2/P3 review finding is silently deferred.
+
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through
   the shell-command guard, which scans the command text and does not inspect

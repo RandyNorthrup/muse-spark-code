@@ -4,6 +4,7 @@
 // edit, over the `vscode` mock. The real API is exercised by the integration
 // test inside VS Code.
 
+import { redactSecrets } from '../../src/core/redact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as vscode from 'vscode'
 import {
@@ -12,6 +13,7 @@ import {
   EndOfLine,
   FakeUri,
   languages,
+  Position,
   TabInputText,
   Uri,
   ViewColumn,
@@ -19,12 +21,19 @@ import {
   workspace,
 } from './mocks/vscode'
 import { createVerifyEditor, type VerifyEditor } from '../../src/host/editor/verifyEditor'
+import capture from '../../docs/certification/m103-a2/host-api-capture.json'
+import { showEditorDocument } from '../../src/host/editor/showDocument'
+import { EDITOR_REVEAL_MAX_MS, THEIA_SHOW_DOCUMENT_FAILURE } from '../../src/shared/constants'
 import { fingerprint } from '../../src/core/verify/fingerprint'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { logLines } from './helpers/logText'
 import { createLogger } from '../../src/host/logger'
 
 const shownDocument = window.showTextDocument
+
+function shownPath(target: vscode.Uri | vscode.TextDocument): string {
+  return ('uri' in target ? target.uri : target).fsPath
+}
 
 const ROOT = '/ws'
 const FILE = { relative: 'src/a.ts', absolute: '/ws/src/a.ts' }
@@ -39,6 +48,7 @@ interface DocumentState {
   text: string
   isDirty?: boolean
   eol?: (typeof EndOfLine)[keyof typeof EndOfLine]
+  languageId?: string
 }
 
 /** The offset of a position in `text`, counting each line break's characters. */
@@ -56,6 +66,13 @@ function fakeDocument(
 ): vscode.TextDocument {
   const document = {
     uri,
+    get languageId() {
+      return state.languageId ?? 'typescript'
+    },
+    positionAt: (offset: number) => {
+      const lines = state.text.slice(0, offset).split('\n')
+      return new Position(lines.length - 1, lines.at(-1)?.length ?? 0)
+    },
     get isDirty() {
       return state.isDirty ?? false
     },
@@ -63,7 +80,12 @@ function fakeDocument(
       return state.eol ?? EndOfLine.LF
     },
     getText: () => state.text,
-    offsetAt: (position: vscode.Position) => offsetOf(state.text, position),
+    offsetAt: (position: vscode.Position) => {
+      // Arduino/Theia requires real API Position instances even when the
+      // formatter command returned plain range coordinates.
+      if (!(position instanceof Position)) throw new Error('Invalid argument')
+      return offsetOf(state.text, position)
+    },
   }
   // Only what the verify editor reads of a document; nothing else is touched.
   return document as unknown as vscode.TextDocument
@@ -143,6 +165,7 @@ function editor(options: { platform?: NodeJS.Platform; links?: Record<string, st
 } {
   const channel = new FakeLogOutputChannel()
   const verify = createVerifyEditor({
+    redact: redactSecrets,
     platform: options.platform ?? 'linux',
     log: createLogger(channel),
     workspaceRoot: ROOT,
@@ -176,6 +199,7 @@ function report(...paths: readonly string[]): void {
 }
 
 beforeEach(() => {
+  workspace.textDocuments = []
   groups.clear()
   window.tabGroups.all = []
   vi.mocked(workspace.openTextDocument).mockImplementation((uri) =>
@@ -216,6 +240,47 @@ afterEach(() => {
 })
 
 describe('diagnosticsAfterEdit', () => {
+  it('closes only its fresh clean editor when tabGroups omits document identities', async () => {
+    const { verify } = editor()
+    const uri = Uri.file(FILE.absolute)
+    const state: DocumentState = { text: '' }
+    const document = fakeDocument(state, uri)
+    const hide = vi.fn(() => {
+      window.visibleTextEditors = []
+    })
+    const shown = { ...fakeEditor(uri), document, viewColumn: 1, hide }
+    vi.mocked(workspace.openTextDocument).mockResolvedValue(document)
+    vi.mocked(shownDocument).mockImplementation(() => {
+      window.visibleTextEditors = [shown]
+      return Promise.resolve(shown)
+    })
+    const read = async () => {
+      const pending = verify.diagnosticsAfterEdit([FILE], new AbortController().signal)
+      setTimeout(() => {
+        report(FILE.absolute)
+      }, 10)
+      await pending
+    }
+    await read()
+    expect(hide).toHaveBeenCalledOnce()
+    expect(window.tabGroups.close).not.toHaveBeenCalled()
+    hide.mockClear()
+    workspace.textDocuments = [document]
+    await read()
+    expect(hide).not.toHaveBeenCalled()
+    window.visibleTextEditors = []
+    workspace.textDocuments = []
+    vi.mocked(shownDocument).mockImplementation(() => {
+      window.visibleTextEditors = [shown]
+      setTimeout(() => {
+        state.isDirty = true
+      }, 1)
+      return Promise.resolve(shown)
+    })
+    await read()
+    expect(hide).not.toHaveBeenCalled()
+  })
+
   it('does not open or read a file refused by the live caller predicate', async () => {
     const { verify } = editor()
     const files = await verify.diagnosticsAfterEdit(
@@ -270,7 +335,7 @@ describe('diagnosticsAfterEdit', () => {
     // Each beside the user's editor, never a preview (which would replace
     // the user's own), without taking focus.
     expect(
-      vi.mocked(shownDocument).mock.calls.map(([uri, options]) => [uri.fsPath, options]),
+      vi.mocked(shownDocument).mock.calls.map(([uri, options]) => [shownPath(uri), options]),
     ).toEqual([
       [FILE.absolute, { viewColumn: ViewColumn.Beside, preview: false, preserveFocus: true }],
       [OTHER.absolute, { viewColumn: ViewColumn.Beside, preview: false, preserveFocus: true }],
@@ -372,7 +437,9 @@ describe('diagnosticsAfterEdit', () => {
       { file: OTHER, entries: [], unchecked: 'stopped' },
     ])
     expect(Date.now() - started).toBeLessThan(SETTLE.firstMs)
-    expect(vi.mocked(shownDocument).mock.calls.map(([uri]) => uri.fsPath)).toEqual([FILE.absolute])
+    expect(vi.mocked(shownDocument).mock.calls.map(([uri]) => shownPath(uri))).toEqual([
+      FILE.absolute,
+    ])
   })
 
   it('runs one caller at a time: a second waits for the first', async () => {
@@ -577,6 +644,7 @@ describe('the file as the edit left it', () => {
   it('does not open for the diagnostics tool a path retargeted after it was confined', async () => {
     let calls = 0
     const verify = createVerifyEditor({
+      redact: redactSecrets,
       platform: 'linux',
       log: createLogger(new FakeLogOutputChannel()),
       workspaceRoot: ROOT,
@@ -641,10 +709,7 @@ describe('the file as the edit left it', () => {
     expect(
       vi
         .mocked(shownDocument)
-        .mock.calls.map(([uri, options]): readonly unknown[] => [
-          uri instanceof FakeUri ? uri.fsPath : undefined,
-          options,
-        ]),
+        .mock.calls.map(([uri, options]): readonly unknown[] => [shownPath(uri), options]),
     ).toEqual([
       [FILE.absolute, { viewColumn: BESIDE_COLUMN, preview: true, preserveFocus: true }],
       ['/ws/user.ts', { viewColumn: BESIDE_COLUMN, preview: false, preserveFocus: true }],
@@ -673,7 +738,9 @@ describe('settleFile (the diagnostics tool)', () => {
     expect(await pending).toEqual([
       { path: 'src/a.ts', severity: 'error', line: 3, column: 5, message: 'bad', source: 'ts' },
     ])
-    expect(vi.mocked(shownDocument).mock.calls[0]?.[0].fsPath).toBe(FILE.absolute)
+    expect(vi.mocked(shownDocument).mock.calls[0]?.[0]).toMatchObject({
+      uri: { fsPath: FILE.absolute },
+    })
     expect(window.tabGroups.close).toHaveBeenCalledTimes(1)
     // No report: nothing read.
     expect(await verify.settleFile(OTHER.absolute)).toBeUndefined()
@@ -686,6 +753,7 @@ describe('settleFile (the diagnostics tool)', () => {
     expect(await verify.settleFile('/ws/node_modules/x/index.js')).toBeUndefined()
     const channel = new FakeLogOutputChannel()
     const folderless = createVerifyEditor({
+      redact: redactSecrets,
       platform: 'linux',
       log: createLogger(channel),
       workspaceRoot: undefined,
@@ -713,6 +781,22 @@ function documentWith(state: DocumentState): void {
 }
 
 describe('formatAfterEdit', () => {
+  it('formats the live Arduino Monaco edits with real Position instances and rejects malformed responses', async () => {
+    const { verify, channel } = editor()
+    const text = '{"a":1,"b":[1,2]}'
+    documentWith({ text })
+    vi.mocked(commands.executeCommand).mockResolvedValue(capture.formatting)
+    const formatted = await verify.formatAfterEdit(FILE.absolute, text)
+    expect(formatted).toBe('{\n  "a": 1,\n  "b": [\n    1,\n    2\n  ]\n}')
+    const first = capture.formatting[0]
+    expect(first).toBeDefined()
+    vi.mocked(commands.executeCommand).mockResolvedValue([
+      { ...first, range: { ...first?.range, startColumn: 0 } },
+    ])
+    expect(await verify.formatAfterEdit(FILE.absolute, text)).toBeUndefined()
+    expect(logLines(channel).join('\n')).toContain('unsupported formatter response')
+  })
+
   it('applies the formatter’s edits to what the tool wrote, with the editor’s options', async () => {
     const { verify } = editor()
     documentWith({ text: 'let  a=1\nlet b=2\n' })
@@ -800,5 +884,330 @@ describe('formatAfterEdit', () => {
     expect(await verify.formatAfterEdit(FILE.absolute, 'same')).toBeUndefined()
     vi.mocked(commands.executeCommand).mockResolvedValueOnce([textEdit([0, 0], [0, 4], 'same')])
     expect(await verify.formatAfterEdit(FILE.absolute, 'same')).toBeUndefined()
+  })
+})
+
+describe('Theia document reveal race', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('waits for a successfully shown editor without revealing twice', async () => {
+    vi.useFakeTimers()
+    const uri = Uri.file(FILE.absolute)
+    const expected = fakeEditor(uri)
+    vi.mocked(shownDocument).mockRejectedValueOnce(
+      new Error(`${THEIA_SHOW_DOCUMENT_FAILURE}[object Object]`),
+    )
+    const pending = showEditorDocument(fakeDocument({ text: '' }, uri), { preserveFocus: true })
+    setTimeout(() => {
+      window.visibleTextEditors = [expected]
+    }, 1)
+    await vi.advanceTimersByTimeAsync(100)
+    expect(await pending).toBe(expected)
+    expect(shownDocument).toHaveBeenCalledOnce()
+  })
+
+  it('propagates genuine failures even if the document is visible', async () => {
+    const uri = Uri.file(FILE.absolute)
+    window.visibleTextEditors = [fakeEditor(uri)]
+    const failure = new Error('permission denied')
+    vi.mocked(shownDocument).mockRejectedValueOnce(failure)
+    await expect(showEditorDocument(fakeDocument({ text: '' }, uri))).rejects.toBe(failure)
+  })
+
+  it('never treats another file as the shown document and bounds a missing editor', async () => {
+    vi.useFakeTimers()
+    const uri = Uri.file(FILE.absolute)
+    window.visibleTextEditors = [fakeEditor(Uri.file(OTHER.absolute))]
+    const failure = new Error(`${THEIA_SHOW_DOCUMENT_FAILURE}[object Object]`)
+    vi.mocked(shownDocument).mockRejectedValueOnce(failure)
+    let isSettled = false
+    const shown = showEditorDocument(fakeDocument({ text: '' }, uri))
+    void shown
+      .then(() => {
+        isSettled = true
+      })
+      .catch(() => {
+        isSettled = true
+      })
+    const pending = expect(shown).rejects.toBe(failure)
+    await vi.advanceTimersByTimeAsync(EDITOR_REVEAL_MAX_MS - 100)
+    expect(isSettled).toBe(false)
+    await vi.advanceTimersByTimeAsync(100)
+    await pending
+    expect(shownDocument).toHaveBeenCalledOnce()
+  })
+
+  it('does not accept an editor after the caller revoked access', async () => {
+    const uri = Uri.file(FILE.absolute)
+    window.visibleTextEditors = [fakeEditor(uri)]
+    const failure = new Error(`${THEIA_SHOW_DOCUMENT_FAILURE}[object Object]`)
+    vi.mocked(shownDocument).mockRejectedValueOnce(failure)
+    await expect(showEditorDocument(fakeDocument({ text: '' }, uri), {}, () => false)).rejects.toBe(
+      failure,
+    )
+  })
+})
+
+describe('JSON diagnostics without a native report', () => {
+  const file = { relative: 'broken.json', absolute: '/ws/broken.json' }
+  const uri = Uri.file(file.absolute)
+  const source = 'muse-spark-json'
+  let held: vscode.Diagnostic[]
+  let state: DocumentState
+  const set = vi.fn<(uri: vscode.Uri, entries: readonly vscode.Diagnostic[]) => void>()
+  const remove = vi.fn()
+  const dispose = vi.fn()
+
+  beforeEach(() => {
+    held = []
+    state = { text: '{\n  "a": 1\n  "b": 2\n}\n', languageId: 'json' }
+    const document = fakeDocument(state, uri)
+    vi.mocked(workspace.openTextDocument).mockResolvedValue(document)
+    vi.mocked(workspace.fs.readFile).mockImplementation(() =>
+      Promise.resolve(new TextEncoder().encode(state.text)),
+    )
+    function diagnostics(uri: vscode.Uri): vscode.Diagnostic[]
+    function diagnostics(): [vscode.Uri, vscode.Diagnostic[]][]
+    function diagnostics(
+      target?: vscode.Uri,
+    ): vscode.Diagnostic[] | [vscode.Uri, vscode.Diagnostic[]][] {
+      return target === undefined ? [[uri, held]] : held
+    }
+    vi.mocked(languages.getDiagnostics).mockImplementation(diagnostics)
+    set.mockImplementation((_uri, entries) => {
+      held = [...entries]
+      report(file.absolute)
+    })
+    remove.mockImplementation(() => {
+      held = held.filter((entry) => entry.source !== source)
+    })
+    // Only collection operations this adapter uses; no fake native service.
+    vi.mocked(languages.createDiagnosticCollection).mockReturnValue({
+      set,
+      delete: remove,
+      get: () =>
+        held.some((entry) => entry.source === source)
+          ? held.filter((entry) => entry.source === source)
+          : undefined,
+      dispose,
+    } as unknown as vscode.DiagnosticCollection)
+  })
+  afterEach(() => {
+    vi.mocked(languages.createDiagnosticCollection).mockReset()
+    set.mockClear()
+    remove.mockClear()
+    dispose.mockClear()
+  })
+
+  it('publishes positioned syntax diagnostics, reads them through the API, then cleans up', async () => {
+    const { verify } = editor()
+    const [result] = await verify.diagnosticsAfterEdit([file], new AbortController().signal)
+    expect(result?.unchecked).toBeUndefined()
+    expect(result?.entries).toEqual([
+      {
+        path: file.relative,
+        severity: 'error',
+        line: 3,
+        column: 3,
+        message: 'Expected comma',
+        source,
+      },
+    ])
+    expect(set).toHaveBeenCalledOnce()
+    expect(remove).toHaveBeenCalledWith(uri)
+    expect(held).toEqual([])
+    verify.dispose()
+    expect(dispose).toHaveBeenCalled()
+  })
+
+  it('a native error arriving during the final disk read prevents publication', async () => {
+    vi.mocked(workspace.fs.readFile).mockImplementation(() => {
+      held = [diagnostic(0, 2, 2, 'native report')]
+      return Promise.resolve(new TextEncoder().encode(state.text))
+    })
+    const read = await editor().verify.settleFile(file.absolute)
+    expect(read?.[0]?.source).toBe('ts')
+    expect(languages.createDiagnosticCollection).not.toHaveBeenCalled()
+  })
+
+  it('does not mistake a previous collection-clear event for a clean JSON report', async () => {
+    const pending = editor().verify.settleFile(file.absolute)
+    setTimeout(() => {
+      report(file.absolute)
+    }, 5)
+    const read = await pending
+    expect(read?.[0]?.source).toBe(source)
+  })
+
+  it('withdraws fallback diagnostics if a late native provider answers', async () => {
+    const pending = editor().verify.settleFile(file.absolute)
+    setTimeout(() => {
+      held.push(diagnostic(0, 2, 2, 'native report'))
+      report(file.absolute)
+    }, 70)
+    expect(await pending).toEqual([
+      expect.objectContaining({ source: 'ts', message: 'native report' }),
+    ])
+  })
+
+  it('checks an already visible JSON document without a reporting service', async () => {
+    window.visibleTextEditors = [{ ...fakeEditor(uri), document: fakeDocument(state, uri) }]
+    const read = await editor().verify.settleFile(file.absolute)
+    expect(read?.[0]?.source).toBe(source)
+  })
+
+  it('the diagnostics tool gets the same positioned fallback', async () => {
+    const read = await editor().verify.settleFile(file.absolute)
+    expect(read?.[0]).toMatchObject({ path: file.relative, source, line: 3 })
+  })
+
+  it('prefers native reports without creating duplicate diagnostics', async () => {
+    held = [diagnostic(0, 2, 2, 'Expected comma')]
+    const pending = editor().verify.diagnosticsAfterEdit([file], new AbortController().signal)
+    setTimeout(() => {
+      report(file.absolute)
+    }, 5)
+    const read = await pending
+    expect(read[0]?.entries[0]?.source).toBe('ts')
+    expect(languages.createDiagnosticCollection).not.toHaveBeenCalled()
+  })
+
+  it('does not duplicate held native errors even when there was no report event', async () => {
+    held = [diagnostic(0, 2, 2, 'Expected comma')]
+    await editor().verify.settleFile(file.absolute)
+    expect(languages.createDiagnosticCollection).not.toHaveBeenCalled()
+  })
+
+  it('publishes a clean report after fixing the file, including JSONC comments', async () => {
+    state.text = '{ /* safe */ "a": 1, }'
+    state.languageId = 'jsonc'
+    expect(await editor().verify.settleFile(file.absolute)).toEqual([])
+    expect(set).toHaveBeenCalledWith(uri, [])
+  })
+
+  it('reads a computed clean report even when the host suppresses empty-delta events', async () => {
+    state.text = '{}'
+    set.mockImplementation((_uri, entries) => {
+      held = [...entries]
+    })
+    expect(await editor().verify.settleFile(file.absolute)).toEqual([])
+  })
+
+  it('keeps stale editor text unchecked', async () => {
+    vi.mocked(workspace.fs.readFile).mockResolvedValue(new TextEncoder().encode('{}'))
+    expect(await editor().verify.settleFile(file.absolute)).toBeUndefined()
+    expect(set).not.toHaveBeenCalled()
+  })
+
+  it('keeps stale malformed disk text unchecked after an empty collection-clear event', async () => {
+    const diskText = '{"new": 1 "broken": 2}'
+    vi.mocked(workspace.fs.readFile).mockResolvedValue(new TextEncoder().encode(diskText))
+    const pending = editor().verify.diagnosticsAfterEdit(
+      [{ ...file, fingerprint: fingerprint(diskText) }],
+      new AbortController().signal,
+    )
+    setTimeout(() => {
+      report(file.absolute)
+    }, 5)
+    const [result] = await pending
+    expect(result?.unchecked).toBe('noReport')
+    expect(result?.entries).toEqual([])
+    expect(set).not.toHaveBeenCalled()
+  })
+
+  it('stops an active native wait on disposal without creating fallback resources', async () => {
+    const { verify } = editor()
+    const signal = new AbortController().signal
+    const pending = verify.settleFile(file.absolute, signal)
+    setTimeout(() => {
+      verify.dispose()
+    }, 5)
+    expect(await pending).toBeUndefined()
+    expect(signal.aborted).toBe(false)
+    expect(languages.createDiagnosticCollection).not.toHaveBeenCalled()
+    expect(set).not.toHaveBeenCalled()
+  })
+
+  it('stops queued diagnostics and rejects later calls after disposal', async () => {
+    const { verify } = editor()
+    const signal = new AbortController().signal
+    const active = verify.diagnosticsAfterEdit([file], signal)
+    const queued = verify.diagnosticsAfterEdit([file], signal)
+    setTimeout(() => {
+      verify.dispose()
+    }, 5)
+    const [[first], [next]] = await Promise.all([active, queued])
+    expect(first?.unchecked).toBe('stopped')
+    expect(next?.unchecked).toBe('stopped')
+    const calls = vi.mocked(workspace.openTextDocument).mock.calls.length
+    expect(await verify.settleFile(file.absolute)).toBeUndefined()
+    expect(workspace.openTextDocument).toHaveBeenCalledTimes(calls)
+    expect(set).not.toHaveBeenCalled()
+  })
+
+  it('refuses cancellation and read revocation while its own report settles', async () => {
+    const stop = new AbortController()
+    const pending = editor().verify.diagnosticsAfterEdit([file], stop.signal)
+    setTimeout(() => {
+      stop.abort()
+    }, 70)
+    const stopped = await pending
+    expect(stopped[0]?.unchecked).toBe('stopped')
+    let isAllowed = true
+    const pendingRead = editor().verify.diagnosticsAfterEdit(
+      [file],
+      new AbortController().signal,
+      () => isAllowed,
+    )
+    setTimeout(() => {
+      isAllowed = false
+    }, 70)
+    const revoked = await pendingRead
+    expect(revoked[0]?.unchecked).toBe('notShown')
+  })
+
+  it('refuses unsaved text and a retargeted path after publication', async () => {
+    const pending = editor().verify.diagnosticsAfterEdit([file], new AbortController().signal)
+    setTimeout(() => {
+      state.isDirty = true
+    }, 70)
+    const unsaved = await pending
+    expect(unsaved[0]?.unchecked).toBe('unsaved')
+    state.isDirty = false
+    const links: Record<string, string> = {}
+    set.mockImplementation((_uri, entries) => {
+      held = [...entries]
+      links[file.absolute] = '/outside/changed.json'
+      report(file.absolute)
+    })
+    const changed = await editor({ links }).verify.diagnosticsAfterEdit(
+      [file],
+      new AbortController().signal,
+    )
+    expect(changed[0]?.unchecked).toBe('changed')
+  })
+
+  it('does not publish after cancellation or read admission changes', async () => {
+    const stop = new AbortController()
+    const pending = editor().verify.diagnosticsAfterEdit([file], stop.signal)
+    setTimeout(() => {
+      stop.abort()
+    }, 5)
+    const stopped = await pending
+    expect(stopped[0]?.unchecked).toBe('stopped')
+    let isAllowed = true
+    const revoked = editor().verify.diagnosticsAfterEdit(
+      [file],
+      new AbortController().signal,
+      () => isAllowed,
+    )
+    setTimeout(() => {
+      isAllowed = false
+    }, 5)
+    const refused = await revoked
+    expect(refused[0]?.unchecked).toBe('notShown')
+    expect(set).not.toHaveBeenCalled()
   })
 })

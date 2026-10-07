@@ -151,6 +151,13 @@ export const CONTEXT_KEYS = {
 } as const
 
 // Built-in VS Code commands the extension invokes.
+// Theia 1.57's reveal/visible-editor notification race (M103A2).
+export const EDITOR_REVEAL_MAX_MS = 2000
+export const EDITOR_REVEAL_POLL_MS = 50
+export const THEIA_SHOW_DOCUMENT_FAILURE = 'Failed to show text document '
+// Captured framework failure: M103A2 arduino-commands.json.
+export const UNREGISTERED_HOST_COMMAND = /^Command with id '([^']+)' is not registered\.$/
+
 export const VSCODE_COMMANDS = {
   focusActiveEditorGroup: 'workbench.action.focusActiveEditorGroup',
   setContext: 'setContext',
@@ -175,7 +182,9 @@ export const VSCODE_COMMANDS = {
   provideIncomingCalls: 'vscode.provideIncomingCalls',
   provideOutgoingCalls: 'vscode.provideOutgoingCalls',
   prepareRename: 'vscode.prepareRename',
+  prepareRenameInternal: '_executePrepareRename',
   executeDocumentRenameProvider: 'vscode.executeDocumentRenameProvider',
+  executeDocumentRenameProviderInternal: '_executeDocumentRenameProvider',
 } as const
 
 // Settings (package.json `contributes.configuration`). Keys are relative to
@@ -210,6 +219,45 @@ export interface CheckCommandSetting {
   readonly changedFiles?: boolean
   readonly timeoutSeconds?: number
 }
+
+// M103 lane D: maker-detect bounds. Detection only offers checks; it never runs them.
+export const MAKER_DETECT_MAX_FILES = 256
+export const MAKER_DETECT_MAX_BYTES = 8 * 1024
+export const MAKER_DETECT_MAX_DEPTH = 4
+export const MAKER_DETECT_IO_TIMEOUT_MS = 10_000
+export const MAKER_PI_MODEL_PATH = '/proc/device-tree/model'
+export const MAKER_PI_COMMAND_PATHS = ['/usr/bin/vcgencmd', '/opt/vc/bin/vcgencmd'] as const
+export const MAKER_PI_COMMAND_TIMEOUT_MS = 2000
+export const MAKER_PRESET_TIMEOUT_SECONDS = 120
+export const MAKER_PRESETS_MAX = 32
+// M103 I: shared surface bounds and per-action approval defaults.
+export const MAKER_PROTOCOL_VERSION = 1
+export const MAKER_PROTOCOL_MAX_TEXT_CHARS = 1024 * 1024
+export const MAKER_PROTOCOL_MAX_ID_CHARS = 256
+export const MAKER_PROTOCOL_MAX_ITEMS = 256
+export const MAKER_SIMULATION_TIMEOUT_MS = 60_000
+export const MAKER_GAZEBO_ITERATIONS = 1000
+export const MAKER_PROJECT_KINDS = [
+  'platformio',
+  'esp-idf',
+  'arduino',
+  'micropython',
+  'circuitpython',
+  'pico-sdk',
+  'zephyr',
+  'esphome',
+  'ros2',
+  'klipper',
+  'marlin',
+  'gcode',
+  'openscad',
+  'cadquery',
+  'kicad',
+  'wokwi',
+  'renode',
+  'gazebo',
+  'raspberry-pi',
+] as const
 
 // Whether shell commands run inside Muse Code's OS sandbox. `auto` keeps the
 // sandbox except where it is known not to work: Windows workspaces under the
@@ -3713,6 +3761,8 @@ export const WORKSPACE_IDENTITY_ZERO = 0n
 // Measured in VS Code 1.139.1 and 1.125.0 (M68): JSON's first report came at
 // once, a cold TypeScript server's in about 1.6 s, and TypeScript's
 // semantic errors follow its syntax errors.
+export const VERIFY_EDITOR_BUNDLE_FILE = 'verifyEditor.js'
+export const JSON_DIAGNOSTICS_SOURCE = 'muse-spark-json'
 export const DIAGNOSTICS_SETTLE_FIRST_MS = 4000
 export const DIAGNOSTICS_SETTLE_QUIET_MS = 1500
 export const DIAGNOSTICS_SETTLE_MAX_MS = 10_000

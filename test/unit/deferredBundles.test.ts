@@ -71,6 +71,7 @@ beforeAll(async () => {
         questionNotes: 'src/core/questions/deferralEntry.ts',
         reference: 'src/shared/reference/referenceEntry.ts',
         conversation: 'src/host/conversation/conversationEntry.ts',
+        verifyEditor: 'src/host/editor/verifyEditor.ts',
         modelApi: 'src/host/backend/modelApiEntry.ts',
         sessionBoard: 'src/host/sessionBoardEntry.ts',
         reviewer: 'src/core/backends/modelapi/reviewerEntry.ts',
@@ -486,6 +487,16 @@ describe('deferred cohort bundles', () => {
     // Split out of activation on 2026-10-03 (PLAN.md D6).
     ['extension', 'src/core/codeIntel/codeIntelQuery.ts', 'on the first code intelligence call'],
     ['extension', 'src/core/voice/museVoice.ts', 'on the first recording'],
+    [
+      'extension',
+      'src/host/editor/verifyEditor.ts',
+      'on the first diagnostics or formatting request',
+    ],
+    [
+      'extension',
+      'src/core/verify/jsonDiagnostics.ts',
+      'on the first diagnostics or formatting request',
+    ],
     // M90: the Auto reviewer on Muse Code, required on the first review.
     ['extension', 'src/host/review/museCodeReviewer.ts', 'on the first review'],
   ])(

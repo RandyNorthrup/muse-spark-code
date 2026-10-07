@@ -21,6 +21,7 @@ const HOST_BUNDLES = [
   'dist/extension.js',
   'dist/conversation.js',
   'dist/tab.js',
+  'dist/verifyEditor.js',
   'dist/modelApi.js',
   'dist/review.js',
   'dist/sessionBoard.js',

@@ -13,6 +13,166 @@ happened, not what was planned; superseded entries are kept.
   what went wrong while a fleet of agents built this project. For each one it
   gives the rule that prevents it and the milestone that will enforce that
   rule in the app's own orchestrator (D100).
+### Added
+
+- A consolidated maker text region for approvals, hardware admission and
+  physical-stop warnings, target/payload analysis, logs, previews and device
+  counts, with real translations in all fourteen UI languages. Maker commands
+  and settings remain with the forthcoming wiring lane.
+
+- A portable maker host and versioned surface protocol for the forthcoming
+  editor/runtime adapters, with committed JSON Schemas. Serial and machine
+  approvals share a frozen target, expiring single-use answer checks and a
+  live identity check at the final spawn/write. Device swaps, stale answers,
+  revoked permissions and replayed bindings refuse dispatch; Stop stays
+  independent.
+
+- An Arduino IDE 2.3.x VSIX variant of the same product, targeting VS Code API
+  1.96, Node 20.14 and Chromium 124, with an isolated older-API typecheck,
+  unchanged package and startup budgets, and side-load installation guidance.
+- A validated optional Arduino board-selection reader and an Arduino IDE
+  host job running every integration test. The first real IDE run loaded the
+  extension and passed 21 of 34 tests; 13 host compatibility failures remain
+  recorded, so Arduino qualification is incomplete.
+
+### Fixed
+
+- The maker emulator lease consumer now reads P's version-2 record and
+  immutable generation, verified against a live lease-only child without
+  board assets. New machine registration requests leave generation UUIDs
+  with the engine.
+
+- JSONC verification rejects missing members/elements rather than erasing
+  illegal commas. Stale editor text stays unchecked after an empty diagnostic
+  event, and disposing verification stops active and queued diagnostic reads.
+  Arduino qualification requires discovered tests and a fully passed receipt
+  with zero pending cases.
+
+- JSON verification supplies positioned local diagnostics when the host emits
+  no JSON report, publishes through the editor API, checks existing Muse
+  permission-setting schemas, and prefers native diagnostics without duplicates.
+  Verification and formatting now load on first use in a separate guarded
+  25 KiB bundle; existing startup and VSIX budgets remain unchanged.
+
+- Arduino IDE file reveals tolerate the measured Theia editor-notification
+  race. Temporary clean documents close through their own editor handle when
+  the host omits tab identities. Formatting validates the captured Monaco
+  edit shape and converts its one-based ranges to native Positions.
+- Semantic rename detects missing provider/prepare commands while retaining
+  VS Code providers listed by internal identifiers, with translated
+  search/read_file guidance when no language service answers. The real Arduino
+  follow-up passes 32/34 integration tests with explicit absent-TypeScript
+  expectations; two JSON diagnostics cases remain failing, so qualification
+  is incomplete.
+- Arduino qualification isolates CLI data/downloads and supports a public
+  cached offline run with external requests denied; runner logs survive a
+  slow IDE shutdown.
+
+
+- Hosts without the native walkthrough command get a local getting-started
+  page with sign-in guidance, shortcuts and chat/rules actions. File opening
+  passes the opened document to the editor API.
+
+- Machine-scoped settings are read from user/global configuration even in
+  hosts that accept repository overrides, preventing a workspace from
+  enabling Bypass, replacing the CLI or opting into paid features.
+
+
+- M103 lane D's portable maker project detector and catalogue gate: bounded,
+  read-only project markers select relevant bundled maker skills, while
+  ordinary workspaces keep the existing catalogue and request text. Optional
+  Raspberry Pi facts use the OS model file and bounded, credential-free
+  `vcgencmd` probes. A validated, localized `presetsOffered` event suggests
+  finite build, syntax, analysis and simulation checks without running them
+  or changing settings. Wokwi suggestions require explicit cloud opt-in and
+  an expected result; Arduino and Zephyr require a chosen board target.
+  Host integration follows in M103's wiring lane.
+
+
+- Maker detection validates opened file and directory handles against the
+  held workspace root before reading or listing, so an ancestor replacement
+  cannot redirect detection outside the workspace. Windows uses native
+  handle paths and directory queries, including case-sensitive roots.
+
+- CIRCUITPY volume labels and root boot_out.txt retain the board-save notice
+  and generic Python syntax suggestions, including Windows drive roots and
+  differently named Linux mount points.
+
+- Maker Pico SDK and Zephyr build suggestions now use detected application
+  CMakeLists.txt directories; toolchain and workspace metadata still select
+  skills without offering unusable builds.
+
+
+- Bundled-skill updates reconcile owned links when an id moves between the
+  vendor and first-party roots. Failed upgrades restore the previous copy,
+  links and marker, keeping Update available. Maker topic checks now reject
+  unsafe stop paths, model-set approvals, bypass/Auto actuation suggestions
+  and irreversible provisioning instructions.
+
+
+
+- **Maker serial lifecycle before integration.** Cross-process Stop accepts
+  Windows CRLF frames and waits for cancelled opening and port cleanup.
+  Lost native locks invalidate stale-reclamation work, COM namespace aliases
+  share a lease, failed POSIX claims retain another holder's exclusivity, and
+  empty Windows enumeration returns no ports. Adapters that cannot honour
+  approved DTR/RTS settings refuse before opening. Submitted stale removals
+  address only their immutable holder generation, and failed claims drain
+  pending writes and remove their own record before rejecting. Windows port
+  identity uses the registry's PortName, falling back only to a final COM
+  suffix in the friendly name.
+
+
+
+- Local Linux maker rig for Pi 3B/4B/arm64 virt, ESP32/S3/C3, Uno/Mega,
+  Pico, STM32 and nRF52: bounded launchers, private UARTs and an opt-in suite
+  using real emulators, serial sessions, approvals, flashing tools and leases.
+  Pi 3B/4B now provide getty consoles using the image's matching kernel and
+  device trees; S3's download fixture selects UART rather than unemulated USB.
+  S3 qualification uploads and verifies a real app, boots it, and stops a
+  live flash.
+  Physical boards and the integrated maker guard/editor flows remain required.
+
+- **Thonny companion plugin (M103 lane T).** New `integrations/thonny/`
+  Python package `thonnycontrib.muse_spark`: Tools menu items Open Muse
+  Spark and Stop machine (also a toolbar button), runtime start/stop,
+  companion-page opening, and the serial-provider bridge through Thonny's
+  own connection. pytest suite against fakes, CI test workflow, and a
+  PyPI release job that publishes only with the owner's token (nothing
+  published by this lane).
+
+
+- **Thonny handshake readiness and stdout failures (RVM103T3).** Hand-over
+  waits for a validated provider welcome and held-lease acknowledgement.
+  Runtime output is decoded as UTF-8 without relying on the Windows locale;
+  invalid diagnostics are reported while draining continues, and unreadable
+  output stops the owned child. The active wire-freeze residual now describes
+  context and explicit acquire/release, with no Thonny write-approval path.
+
+- **Thonny port hand-over redesign (REDM103T / RVM103T2).** Removed every
+  device command and write path through Thonny. The bridge serves bounded
+  displayed shell context only. Explicit Hand the port to Muse Spark / Give
+  the port back to Thonny clicks disconnect before runtime acquisition and
+  require release before reconnection; the runtime owns device I/O. Stop
+  workers and their process trees are owned through shutdown, the Windows
+  launcher preserves child failure exit codes, provider logs discard peer
+  values, and encoded responses have a hard size cap. The incompatible v2
+  interface awaits R/P integration. PyPI upload uses Trusted Publishing in
+  a separate OIDC job, without a stored publishing token. Both new controls
+  and transfer failures ship in all fourteen translated languages.
+
+- **Thonny provider admission and connection (RVM103T).** Settled or timed-out
+  queued writes are cancelled; each write rechecks its approved bytes, target
+  connection and expiry. Provider endpoints are confined to `127.0.0.1`,
+  handshakes validate field types, and idle connections survive the handshake
+  timeout. Empty files can be created or truncated, and browser-launch refusal
+  is reported. Approval fields remain a proposal awaiting the runtime freeze.
+- **Thonny startup, shutdown and localization (RVM103T).** Open clicks are
+  serialized and shutdown cancels startup and handshakes. Runtime children
+  belong to a Windows job or POSIX process group, and stdout is drained
+  throughout their lifetime. Announcement order no longer affects startup.
+  Menus, toolbar captions and failure notices ship in all fourteen translated
+  languages through gettext catalogues.
 
 ## [0.14.3] - 2026-10-06
 

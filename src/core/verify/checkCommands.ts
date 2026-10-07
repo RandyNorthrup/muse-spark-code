@@ -17,11 +17,8 @@
 
 import * as z from 'zod/mini'
 import {
-  CHECK_COMMAND_MAX_CHARS,
   CHECK_COMMANDS_MAX,
   CHECK_DEFAULT_TIMEOUT_SECONDS,
-  CHECK_MAX_TIMEOUT_SECONDS,
-  CHECK_NAME_MAX_CHARS,
   CHECK_PATHS_SEPARATOR,
   type CheckCommandSetting,
   HARNESS_NOTE_TAG,
@@ -31,14 +28,8 @@ import {
   WINDOWS_ARGUMENT_SYNTAX,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { checkCommandSchema } from '../../shared/checkCommandSchema'
 import { posixQuoted, powerShellQuoted } from '../shellQuote'
-
-export const checkCommandSchema = z.object({
-  name: z.string().check(z.trim(), z.minLength(1), z.maxLength(CHECK_NAME_MAX_CHARS)),
-  command: z.string().check(z.trim(), z.minLength(1), z.maxLength(CHECK_COMMAND_MAX_CHARS)),
-  changedFiles: z.optional(z.boolean()),
-  timeoutSeconds: z.optional(z.int().check(z.positive(), z.lte(CHECK_MAX_TIMEOUT_SECONDS))),
-})
 
 /** The setting's whole list: at most CHECK_COMMANDS_MAX, each name once. */
 export const checkCommandsSchema = z.array(checkCommandSchema).check(

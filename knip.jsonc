@@ -16,6 +16,7 @@
   "entry": [
     "src/extension.ts",
     "src/host/conversation/conversationEntry.ts",
+    "src/host/editor/verifyEditor.ts",
     "src/shared/validationEntry.ts",
     // Help data: separate lazy runtime and generator build entries.
     "src/shared/reference/referenceEntry.ts",

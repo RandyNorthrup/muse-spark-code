@@ -1,0 +1,490 @@
+{
+  "workspace": "/home/randy/lanes/M103X",
+  "rig": "kubuntu",
+  "continuationBase": "21867e8b",
+  "modelAttempts": 0,
+  "tests": {
+    "passed": 22,
+    "failed": 0,
+    "skipped": 0
+  },
+  "cases": [
+    {
+      "name": "raspi3b: discovery, host approvals, UART traffic, Stop and competing processes",
+      "status": "passed"
+    },
+    {
+      "name": "raspi4b: discovery, host approvals, UART traffic, Stop and competing processes",
+      "status": "passed"
+    },
+    {
+      "name": "pi-virt: discovery, host approvals, UART traffic, Stop and competing processes",
+      "status": "passed"
+    },
+    {
+      "name": "esp32: discovery, host approvals, UART traffic, Stop and competing processes",
+      "status": "passed"
+    },
+    {
+      "name": "esp32s3: discovery, host approvals, UART traffic, Stop and competing processes",
+      "status": "passed"
+    },
+    {
+      "name": "esp32c3: discovery, host approvals, UART traffic, Stop and competing processes",
+      "status": "passed"
+    },
+    {
+      "name": "uno: discovery, host approvals, UART traffic, Stop and competing processes",
+      "status": "passed"
+    },
+    {
+      "name": "mega: discovery, host approvals, UART traffic, Stop and competing processes",
+      "status": "passed"
+    },
+    {
+      "name": "pico: discovery, host approvals, UART traffic, Stop and competing processes",
+      "status": "passed"
+    },
+    {
+      "name": "stm32: discovery, host approvals, UART traffic, Stop and competing processes",
+      "status": "passed"
+    },
+    {
+      "name": "nrf52: discovery, host approvals, UART traffic, Stop and competing processes",
+      "status": "passed"
+    },
+    {
+      "name": "esp32: flashes exact approved bytes with the real tool and stops a live flash",
+      "status": "passed"
+    },
+    {
+      "name": "esp32s3: flashes exact approved bytes with the real tool and stops a live flash",
+      "status": "passed"
+    },
+    {
+      "name": "esp32c3: flashes exact approved bytes with the real tool and stops a live flash",
+      "status": "passed"
+    },
+    {
+      "name": "uno: flashes exact approved bytes with the real tool and stops a live flash",
+      "status": "passed"
+    },
+    {
+      "name": "mega: flashes exact approved bytes with the real tool and stops a live flash",
+      "status": "passed"
+    },
+    {
+      "name": "Pico refuses malformed and out-of-range UF2 before opening any UART",
+      "status": "passed"
+    },
+    {
+      "name": "starts once, strips inherited environment, and Stop removes both PTYs and all children",
+      "status": "passed"
+    },
+    {
+      "name": "refuses a shared state directory and cleans failed startup",
+      "status": "passed"
+    },
+    {
+      "name": "does not control a process whose birth stamp differs from the recorded owner",
+      "status": "passed"
+    },
+    {
+      "name": "refuses start without an emulator command",
+      "status": "passed"
+    },
+    {
+      "name": "refuses any flash target outside private emulator PTYs before reading approved bytes",
+      "status": "passed"
+    }
+  ],
+  "checks": [
+    {
+      "check": "typecheck",
+      "exit": 0
+    },
+    {
+      "check": "eslint",
+      "exit": 0
+    },
+    {
+      "check": "prettier",
+      "exit": 0
+    },
+    {
+      "check": "deadcode",
+      "exit": 0
+    },
+    {
+      "check": "duplication",
+      "exit": 0
+    },
+    {
+      "check": "l10n",
+      "exit": 0
+    },
+    {
+      "check": "host-api",
+      "exit": 1
+    },
+    {
+      "check": "build",
+      "exit": 0
+    }
+  ],
+  "checkReports": [
+    {
+      "file": "temp/m103-x/x2-typecheck.log",
+      "bytes": 556,
+      "sha256": "0f23de64d9cf504946b20dedbf5e3de067da0ae23a675e4f5e600bfc4a5434ba"
+    },
+    {
+      "file": "temp/m103-x/x2-eslint.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "temp/m103-x/x2-prettier.log",
+      "bytes": 66,
+      "sha256": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20"
+    },
+    {
+      "file": "temp/m103-x/x2-deadcode.log",
+      "bytes": 179,
+      "sha256": "a44f00e37feb2a4add18f0154a9ef5612452f3e4b953339b10d6cbd42b41b393"
+    },
+    {
+      "file": "temp/m103-x/x2-duplication.log",
+      "bytes": 3365,
+      "sha256": "3c4f4b56c47cb48be504ce2f183229c6a5289ce288618350e28e636b3b092396"
+    },
+    {
+      "file": "temp/m103-x/x2-l10n.log",
+      "bytes": 136,
+      "sha256": "47c2b6776453bd19f602eae99da388ac7229b1732b0272b0f5992933b5491dc7"
+    },
+    {
+      "file": "temp/m103-x/x2-host-api.log",
+      "bytes": 704,
+      "sha256": "013f9936ddb16e5ea8962170214ec5ba7b385375fbbd5ce9b0043e6c47052319"
+    },
+    {
+      "file": "temp/m103-x/x2-build.log",
+      "bytes": 8565,
+      "sha256": "424a7181e516107feeb2e36761928718dc74afb52b6660132931995541e350a6"
+    }
+  ],
+  "captures": [
+    {
+      "file": "temp/m103-x/receipts/esp32/emulator.log",
+      "bytes": 357,
+      "sha256": "1f5fc8497f9cb5da91722cc36a2bbbe16acca76d036cd9cd3ac6224d15ae51ea"
+    },
+    {
+      "file": "temp/m103-x/receipts/esp32/flash-stop.txt",
+      "bytes": 953,
+      "sha256": "9a7ecfcd0f0da8d505e66d3368a197ab6651b34a663f8e880c67c9c82b670613"
+    },
+    {
+      "file": "temp/m103-x/receipts/esp32/flash.txt",
+      "bytes": 972,
+      "sha256": "8fe81b3d734041c9705c2505e4ba65cfce196b93015c1f169dc8d43a250d2779"
+    },
+    {
+      "file": "temp/m103-x/receipts/esp32/monitor.txt",
+      "bytes": 483,
+      "sha256": "594553752b891549e7cace7b1b39d5be1cde4f4194b816d9c0ef29370ccb64ab"
+    },
+    {
+      "file": "temp/m103-x/receipts/esp32/write.txt",
+      "bytes": 35,
+      "sha256": "b1808dcc49501932147dfafb5f33d5fcaf1a38d8bd37831fb326074ec144df4f"
+    },
+    {
+      "file": "temp/m103-x/receipts/esp32c3/emulator.log",
+      "bytes": 363,
+      "sha256": "d6a2aaf2b914862d888d12d9b6b2d638c7c211ef549fa8af0feea8c56a305254"
+    },
+    {
+      "file": "temp/m103-x/receipts/esp32c3/flash-stop.txt",
+      "bytes": 1039,
+      "sha256": "7c46af07c4c08b4ee96def51a90477c56b292ce5289139df9b4a32f45e0b128b"
+    },
+    {
+      "file": "temp/m103-x/receipts/esp32c3/flash.txt",
+      "bytes": 974,
+      "sha256": "97ec104a85dabfc04ba70e8add9ab4cf51f9cf35494b823d937219e205b1c3d5"
+    },
+    {
+      "file": "temp/m103-x/receipts/esp32c3/monitor.txt",
+      "bytes": 366,
+      "sha256": "ebb29252304f6487051aa9069673ec5f4db9f8a83fd5cf60ad20f8a87664871a"
+    },
+    {
+      "file": "temp/m103-x/receipts/esp32c3/write.txt",
+      "bytes": 35,
+      "sha256": "b1808dcc49501932147dfafb5f33d5fcaf1a38d8bd37831fb326074ec144df4f"
+    },
+    {
+      "file": "temp/m103-x/receipts/esp32s3/emulator.log",
+      "bytes": 361,
+      "sha256": "77684db89b5d79676de2dd17cf67fd69f6924278597a268a580b0865e1b49c20"
+    },
+    {
+      "file": "temp/m103-x/receipts/esp32s3/flash-stop.txt",
+      "bytes": 966,
+      "sha256": "b50745c1362b48c035b38870765f71ff7d490caebab8f42051f42e0e550797d5"
+    },
+    {
+      "file": "temp/m103-x/receipts/esp32s3/flash.txt",
+      "bytes": 18724,
+      "sha256": "c47cf20037e2896687533d4095256901a2dd67b34030fe3e24bfdb1e59c60531"
+    },
+    {
+      "file": "temp/m103-x/receipts/esp32s3/flashed-app.txt",
+      "bytes": 5857,
+      "sha256": "537926587cea89f23c360fb8d02c18e7c7162196ae968279dc96b7c3223dad94"
+    },
+    {
+      "file": "temp/m103-x/receipts/esp32s3/monitor.txt",
+      "bytes": 5897,
+      "sha256": "91010de97247e1a3a080671fb7cf769f6ab74d4ce17aea63b0b86a8a9b09da15"
+    },
+    {
+      "file": "temp/m103-x/receipts/esp32s3/write.txt",
+      "bytes": 240,
+      "sha256": "e4bedf291e95df01c3568d6e0b85d8d9591c6413530df784f8c9a1bf61bd3f05"
+    },
+    {
+      "file": "temp/m103-x/receipts/mega/emulator.log",
+      "bytes": 48,
+      "sha256": "805de0fb9a416dd8a67ad22d62612871909f8f868206f981ce735746224f3778"
+    },
+    {
+      "file": "temp/m103-x/receipts/mega/flash-stop.txt",
+      "bytes": 350,
+      "sha256": "297ee39875be1b6214c08e9f585f35edeab5136e620d1771c122746310bf3f0f"
+    },
+    {
+      "file": "temp/m103-x/receipts/mega/flash.txt",
+      "bytes": 666,
+      "sha256": "6fdbdc9183be0f4a68852b52fe8bd1151df8d7a4586f4044ec24be20ce8e6c8a"
+    },
+    {
+      "file": "temp/m103-x/receipts/mega/monitor.txt",
+      "bytes": 2416,
+      "sha256": "9bf4a55bf0c2500e927b0e298856afcb742c348fead12f86e5af96c1b7e9206e"
+    },
+    {
+      "file": "temp/m103-x/receipts/mega/write.txt",
+      "bytes": 186,
+      "sha256": "069e9d8d6c8d45b2bda171831d2aeef52273c3eb9807f51d186f63dc73102121"
+    },
+    {
+      "file": "temp/m103-x/receipts/nrf52/emulator.log",
+      "bytes": 3742,
+      "sha256": "039880b32c88cb244c3a5151bc14509453e01dd330d3b68a55839256a28d47a6"
+    },
+    {
+      "file": "temp/m103-x/receipts/nrf52/monitor.txt",
+      "bytes": 22,
+      "sha256": "23250b57a12dcfb8ccb52e8bdb037eee92f09337f3ab024ea78ca4363d2b13dd"
+    },
+    {
+      "file": "temp/m103-x/receipts/nrf52/write.txt",
+      "bytes": 1262,
+      "sha256": "7a638fa295dce460bc1575e4056845582ebe202582c470f0e2a29d18fe97f0f1"
+    },
+    {
+      "file": "temp/m103-x/receipts/pi-virt/emulator.log",
+      "bytes": 339,
+      "sha256": "87bce8cb5d21c67d4e0f7ae4138ef57d99a1a2c081cd1070799344b7d729899d"
+    },
+    {
+      "file": "temp/m103-x/receipts/pi-virt/monitor.txt",
+      "bytes": 16416,
+      "sha256": "0cc6812a1883ad15450b31e888acdfe49a9371f9b834f53955c73ecc037cbc8f"
+    },
+    {
+      "file": "temp/m103-x/receipts/pi-virt/write.txt",
+      "bytes": 117,
+      "sha256": "b083b7b4ce870fa4cf3247b52d1b56f5e8da04fbf7a5042f51d28a3ffb06c2ac"
+    },
+    {
+      "file": "temp/m103-x/receipts/pico/emulator.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "temp/m103-x/receipts/pico/monitor.txt",
+      "bytes": 6,
+      "sha256": "640592d730c6d1d695441a8e6b5915c7c5a8843882895512b9f1c8e0f68a0cbb"
+    },
+    {
+      "file": "temp/m103-x/receipts/pico/write.txt",
+      "bytes": 35,
+      "sha256": "b1808dcc49501932147dfafb5f33d5fcaf1a38d8bd37831fb326074ec144df4f"
+    },
+    {
+      "file": "temp/m103-x/receipts/raspi3b/emulator.log",
+      "bytes": 436,
+      "sha256": "c2d1e4ead16b6217bdab033e53b64252c329d8fcb76be4465e64ce6655bf4d1a"
+    },
+    {
+      "file": "temp/m103-x/receipts/raspi3b/monitor.txt",
+      "bytes": 21970,
+      "sha256": "03bba41f8ea8e1e7192391c3a389cd580020fa18a48487469924195d619977de"
+    },
+    {
+      "file": "temp/m103-x/receipts/raspi3b/write.txt",
+      "bytes": 100,
+      "sha256": "5c0c8f89193ba0304216b79d3cd676193c0e3a87362d5c4db01c54ff9b89c844"
+    },
+    {
+      "file": "temp/m103-x/receipts/raspi4b/emulator.log",
+      "bytes": 668,
+      "sha256": "be51d3cfe5d7aeded9ca778a701b18265375dca4b9a977ccf611b3afb16d95f6"
+    },
+    {
+      "file": "temp/m103-x/receipts/raspi4b/monitor.txt",
+      "bytes": 19506,
+      "sha256": "6f2fa09eeb4d183a05d5a36b01e322dc136a5bed70f5bfaf598360a80e323373"
+    },
+    {
+      "file": "temp/m103-x/receipts/raspi4b/write.txt",
+      "bytes": 100,
+      "sha256": "bfcafc31d70016b6ad46c05f3ce6410b5f106158251b227950e41cda930e5674"
+    },
+    {
+      "file": "temp/m103-x/receipts/stm32/emulator.log",
+      "bytes": 1044,
+      "sha256": "9bd795f98b7bbdb26c8699321941e3aeee89ab8b3ef3b1c5f211f77d23b7c086"
+    },
+    {
+      "file": "temp/m103-x/receipts/stm32/monitor.txt",
+      "bytes": 4950,
+      "sha256": "32990dc789a3c87f3e87dfb4e29bddffe9f4831e4efaede00ea5de5251585cea"
+    },
+    {
+      "file": "temp/m103-x/receipts/stm32/write.txt",
+      "bytes": 226,
+      "sha256": "6282aefba77ccdda54ac5d8453095d2f5ba04197fd055b686d0b020e29785d8a"
+    },
+    {
+      "file": "temp/m103-x/receipts/uno/emulator.log",
+      "bytes": 48,
+      "sha256": "358e56e899020a9da62c7919c69697bfd6ab6a9349973f2aa122fbdc29ae0523"
+    },
+    {
+      "file": "temp/m103-x/receipts/uno/flash-stop.txt",
+      "bytes": 349,
+      "sha256": "f2fb78f9b9740bb2dcfb66456c14271531a6d93b30815ceebb26ce6fd6e5c9a7"
+    },
+    {
+      "file": "temp/m103-x/receipts/uno/flash.txt",
+      "bytes": 664,
+      "sha256": "a640c542a96af000cef77a4cdfa6249ef0ecdc8840fa21a6cbc252c596ba6a3c"
+    },
+    {
+      "file": "temp/m103-x/receipts/uno/monitor.txt",
+      "bytes": 2416,
+      "sha256": "9bf4a55bf0c2500e927b0e298856afcb742c348fead12f86e5af96c1b7e9206e"
+    },
+    {
+      "file": "temp/m103-x/receipts/uno/write.txt",
+      "bytes": 186,
+      "sha256": "069e9d8d6c8d45b2bda171831d2aeef52273c3eb9807f51d186f63dc73102121"
+    }
+  ],
+  "artifacts": [
+    {
+      "file": "temp/m103-x/images/pi-kernel.img",
+      "bytes": 10192324,
+      "sha256": "c9f5af153236ec42eb012700e39ff43d02bc7c5f2ab71abad6da1f20880343e0"
+    },
+    {
+      "file": "temp/m103-x/images/pi3-console.dtb",
+      "bytes": 34723,
+      "sha256": "3441219e731a7a67af15926fd29cb3985a92ec85e89dd714abbb0ef11f7b6f70"
+    },
+    {
+      "file": "temp/m103-x/images/pi4-console.dtb",
+      "bytes": 56399,
+      "sha256": "53cf1cddfdd1778c914fdb491ea8b6b4369feb270e21ca61c5b66b177f9d5c73"
+    },
+    {
+      "file": "temp/m103-x/images/esp32s3-uart-efuse.bin",
+      "bytes": 1024,
+      "sha256": "64380df80d0d89e73d7d3c4c1b5224369e1ac77768634f088e0720f493da91b5"
+    },
+    {
+      "file": "temp/m103-x/images/esp32s3-flash.bin",
+      "bytes": 4194304,
+      "sha256": "0aaac540fc319612e664cb5f4a019622e826d8cea17458c3b3d116ca9c1739b6"
+    },
+    {
+      "file": "temp/m103-x/esp32s3-build/muse_emulator_uart.bin",
+      "bytes": 210816,
+      "sha256": "33b00b4f5afbf69a25515ab297c431cd61470150f76964f6d3c4999a60334250"
+    }
+  ],
+  "sources": [
+    {
+      "file": "scripts/emulators/pi.sh",
+      "bytes": 1547,
+      "sha256": "6ebb3482f3437e61ade47e7b2c72b744fc68eb38e7accb0c9044490d659592d2"
+    },
+    {
+      "file": "scripts/emulators/pi-guest.sh",
+      "bytes": 913,
+      "sha256": "4dbf3ced1f3f347031f06a4f5b5109e00b47db2dc9c4e5131641d6a98634ece9"
+    },
+    {
+      "file": "scripts/emulators/prepare.py",
+      "bytes": 9189,
+      "sha256": "623fc38180922b1085efc2d3a869f99796b032537159a44f7086e73294f56530"
+    },
+    {
+      "file": "scripts/emulators/esp32.sh",
+      "bytes": 1747,
+      "sha256": "c9264de0372b92849f65d415e33367cc043f68ab4a5b6cd15f6802194bbf17ca"
+    },
+    {
+      "file": "scripts/emulators/assets.json",
+      "bytes": 3738,
+      "sha256": "c921509ae19ea70035ef5b01685487d94eba365309967d810b43db5c04a48d77"
+    },
+    {
+      "file": "test/e2e/makerEmulators.e2e.test.ts",
+      "bytes": 18135,
+      "sha256": "aa087e46bc47f378a060a82a88746c107863917f005be5551790d9c1a7ae1815"
+    },
+    {
+      "file": "test/fixtures/maker-emulators/flash.py",
+      "bytes": 2134,
+      "sha256": "4c2393a90cf6b75ac4c83a2dfff48d49c196eda5b527d2daf96a4d11e90fa332"
+    }
+  ],
+  "controls": [
+    {
+      "file": "temp/m103-x/x2-red-getty-usb.json",
+      "bytes": 8082,
+      "sha256": "cea345fb3b9ecb62c3768883c432cff04f21d7e8f65aeff919b5c463c4db254f"
+    },
+    {
+      "file": "temp/m103-x/x2-red-getty-usb-restores.json",
+      "bytes": 538,
+      "sha256": "96b9501b1da0c13f4ce3124a78e9f4bdde3251f5be040a0998f9e472cb282de3"
+    },
+    {
+      "file": "temp/m103-x/x2-red-reboot.json",
+      "bytes": 7054,
+      "sha256": "9da3270b628a7b49957e9f88052d16d22c87142e051ee919eb71d83baa3ece14"
+    },
+    {
+      "file": "temp/m103-x/x2-red-reboot-restores.json",
+      "bytes": 144,
+      "sha256": "f0150ae1ed3d1c59f8bd53e80bd3716eef523e8235e2d152e2eb538fd2d65d84"
+    }
+  ]
+}

@@ -112,7 +112,10 @@ export class TabInputText implements vscode.TabInputText {
   public constructor(public readonly uri: vscode.Uri) {}
 }
 
+const initiallyOpenDocuments: readonly vscode.TextDocument[] = []
+
 export const workspace = {
+  textDocuments: initiallyOpenDocuments,
   isTrusted: true,
   // The folders an export redacts (M84); none unless a test sets them.
   workspaceFolders: undefined as readonly vscode.WorkspaceFolder[] | undefined,
@@ -202,7 +205,8 @@ export const ProgressLocation = { SourceControl: 1, Window: 10, Notification: 15
 export const diagnosticsChanged = new EventEmitter<vscode.DiagnosticChangeEvent>()
 
 export const languages = {
-  getDiagnostics: vi.fn<() => [vscode.Uri, vscode.Diagnostic[]][]>(),
+  getDiagnostics: vi.fn<typeof vscode.languages.getDiagnostics>(),
+  createDiagnosticCollection: vi.fn<typeof vscode.languages.createDiagnosticCollection>(),
   onDidChangeDiagnostics: diagnosticsChanged.event,
   // Tab's ghost-text provider (M94): the last registration, for assertions.
   registerInlineCompletionItemProvider:
@@ -356,8 +360,20 @@ export const extensions: {
 }
 
 export const commands = {
+  getCommands: vi.fn<typeof vscode.commands.getCommands>(),
   executeCommand: vi.fn<typeof vscode.commands.executeCommand>(),
   registerCommand: vi.fn<typeof vscode.commands.registerCommand>(),
 }
 
 export const version = '0.0.0-test'
+
+/** The real API constructor fields used by JSON fallback diagnostics. */
+export class Diagnostic {
+  public source: string | undefined
+  public constructor(
+    public readonly range: vscode.Range,
+    public readonly message: string,
+    public readonly severity: vscode.DiagnosticSeverity,
+  ) {}
+}
+export const DiagnosticSeverity = { Error: 0, Warning: 1, Information: 2, Hint: 3 } as const

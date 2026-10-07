@@ -1,0 +1,15 @@
+{
+  "failures": 13,
+  "stats": {
+    "suites": 8,
+    "tests": 34,
+    "passes": 21,
+    "pending": 0,
+    "failures": 13,
+    "start": "2026-10-06T00:05:11.735Z",
+    "end": "2026-10-06T00:07:23.963Z",
+    "duration": 132228
+  },
+  "vscode": "1.96.0",
+  "node": "20.14.0"
+}
