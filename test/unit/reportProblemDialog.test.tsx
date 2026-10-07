@@ -5,7 +5,7 @@
 // posts choices (never content) and states every export answer plainly.
 
 import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
@@ -19,6 +19,9 @@ import {
   type ReportDialogProps,
 } from '../../src/webview/components/ReportDialog'
 import type { ReportDialogState, ReportExportStatus } from '../../src/webview/state/uiState'
+import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
+
+beforeAll(warmDeferredSurfaces)
 
 const ITEMS: readonly ReportDraftItem[] = [
   { kind: 'facts', label: 'Support facts' },

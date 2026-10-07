@@ -7,6 +7,7 @@
 
 import { Buffer } from 'node:buffer'
 import path from 'node:path'
+import { setImmediate as yieldToHost } from 'node:timers/promises'
 import * as z from 'zod/mini'
 import {
   type PatchSummary,
@@ -20,6 +21,7 @@ import {
   type CheckCommandSetting,
   CODE_INTEL_TOOLS,
   FILE_REFUSAL_MODEL_TEXT,
+  EDIT_MATCH_YIELD_LINES,
   IMAGE_EXTENSIONS,
   LIST_FILES_DEFAULT_LIMIT,
   MAX_DOCUMENT_BYTES,
@@ -31,6 +33,8 @@ import {
   PDF_MEDIA_TYPE,
   READ_FILE_DEFAULT_LIMIT,
   READ_FILE_MAX_LINE_CHARS,
+  READ_FILE_CONTEXT_CHAR_FRACTION,
+  SEARCH_HIT_MAX_CHARS,
   SEARCH_MAX_CANDIDATES,
   SEARCH_MAX_FILE_BYTES,
   SEARCH_MAX_HITS,
@@ -62,7 +66,7 @@ import {
   BROWSER_CHECK_PARAMETERS,
   BROWSER_CHECK_REQUIRED,
 } from '../../browser/browserTool'
-import { confineWorkspacePath } from '../../workspacePath'
+import { confineWorkspacePath, normalizeModelPath } from '../../workspacePath'
 import { compileGlob, GLOB_LIMITS } from './globLimits'
 import type { GlobLimits } from './glob'
 import type { HookHttpResult } from './hookHandlers'
@@ -78,8 +82,10 @@ import { MEMORY_TOOL_DEFINITIONS } from './memoryTools'
 
 import type { ToolClass } from './permissions'
 import type { FunctionOutputPart, FunctionToolDefinition } from './schemas'
+import { LEGAL_SCAN_DESCRIPTION, LEGAL_SCAN_PARAMETERS } from './legalScanTool'
 import { RECALL_TOOL_DEFINITION } from './observationPack'
 import { SUBAGENT_TOOL_DEFINITIONS } from './subagentTools'
+import type { TEAM_TOOL_DEFINITIONS } from '../../team/teamTools'
 import { runChecksDefinition, THEN_RUN_PROPERTY } from './verifyTools'
 
 import type { ShellResult } from '../../shellResult'
@@ -119,6 +125,8 @@ export interface SearchJob {
   /** The canonical limits travel with the job so the worker stays small. */
   readonly maxFileBytes: number
   readonly maxHits: number
+  /** One hit is cut here (M101): a minified line cannot fill the whole budget. */
+  readonly maxHitChars: number
   /**
    * The deny-read globs of the permission settings (M78), lower case: a
    * file whose canonical path one covers is skipped, as a link to it is.
@@ -328,6 +336,8 @@ export interface TurnEnd {
 
 export interface ToolContext {
   readonly isInteractiveShell?: boolean
+  /** Selected model's context window, supplied by the engine (M101). */
+  readonly contextTokens?: number | undefined
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   /**
@@ -354,6 +364,13 @@ export interface ToolContext {
   readonly files?: FileRules
   /** The shell's time limit, lifted when the command moves to the background (M46). */
   readonly limit?: ShellTimeLimit
+  /**
+   * Keep shell output whole instead of eliding its middle (M101): set while
+   * the session packs observations, so a packed shell result stays
+   * recoverable through `recall_output`. Oversized originals are packed
+   * before their first model send.
+   */
+  readonly wholeShellOutput?: boolean
   /**
    * The session's record of each file as the model last read or wrote it
    * (absolute path to a fingerprint): `write_file` replaces only what the
@@ -468,6 +485,13 @@ const TOOL_CLASSES: Readonly<Record<string, ToolClass>> = {
   [MODEL_API_SUBAGENT_TOOLS.sendMessage]: 'interactive',
   [MODEL_API_SUBAGENT_TOOLS.readResult]: 'interactive',
   [MODEL_API_SUBAGENT_TOOLS.cancel]: 'interactive',
+  // The team runner owns delegation and merge consent (D75), just as each
+  // run_checks command owns its approval. No ordinary card grants a paid use.
+  roster: 'read',
+  collect: 'read',
+  delegate: 'interactive',
+  cancel: 'interactive',
+  merge: 'interactive',
   // M49 (PLAN.md D41): a memory write is judged as an edit, never a protected one.
   [MODEL_API_TOOLS.readMemory]: 'read',
   [MODEL_API_TOOLS.addMemory]: 'edit',
@@ -488,6 +512,9 @@ const TOOL_CLASSES: Readonly<Record<string, ToolClass>> = {
   // M81 (PLAN.md D49): it starts a browser that reaches the page's host, so
   // it asks per host as web fetch does; Plan refuses it.
   [MODEL_API_TOOLS.browserCheck]: 'network',
+  // M97 (PLAN.md D76): the deterministic scan reads, in every mode; it
+  // never writes, runs a command or installs.
+  [MODEL_API_TOOLS.legalScan]: 'read',
   // M67 (PLAN.md D49): the language services read, in every mode; a rename is an edit.
   [CODE_INTEL_TOOLS.findDefinition]: 'read',
   [CODE_INTEL_TOOLS.findReferences]: 'read',
@@ -523,7 +550,13 @@ const readFileArgs = z.object({
   limit: z.optional(z.number()),
 })
 const writeFileArgs = z.object({ path: z.string(), content: z.string() })
-const editFileArgs = z.object({ path: z.string(), find: z.string(), replace: z.string() })
+const editEntryArgs = z.object({ find: z.string(), replace: z.string() })
+const editFileArgs = z.object({
+  path: z.string(),
+  find: z.optional(z.string()),
+  replace: z.optional(z.string()),
+  edits: z.optional(z.array(editEntryArgs)),
+})
 const OUTPUT_MODES = ['content', 'files_with_matches', 'count'] as const
 const searchArgs = z.object({
   pattern: z.string(),
@@ -559,6 +592,8 @@ export interface ToolDefinitionOptions {
   readonly hasImageGeneration?: boolean
   /** Child sessions cannot spawn again (M48, PLAN.md D45). */
   readonly hasSubagents?: boolean
+  /** A team conversation declares the team's five tools instead (M96, PLAN.md D75). */
+  readonly teamTools?: typeof TEAM_TOOL_DEFINITIONS
   /** Child sessions cannot ask the panel or set its task list. */
   readonly isSubagent?: boolean
   /** Muse Code's memory tools, trusted workspaces only (M49, PLAN.md D41). */
@@ -571,6 +606,8 @@ export interface ToolDefinitionOptions {
   readonly hasWebFetch?: boolean
   /** The browser check, trusted workspaces only, when the host can run one (M81, PLAN.md D49). */
   readonly hasBrowserCheck?: boolean
+  /** The deterministic legal scan (M97, PLAN.md D76): a scanner is behind it. */
+  readonly hasLegalScan?: boolean
   /** The code intelligence tools, while VS Code's language services are at hand (M67). */
   readonly hasCodeIntel?: boolean
 }
@@ -617,14 +654,26 @@ export function toolDefinitions(
     ),
     define(
       MODEL_API_TOOLS.editFile,
-      'Replace one exact occurrence of `find` with `replace` in a file. `find` must match exactly once; include enough surrounding lines to make it unique.',
+      'Replace one exact occurrence of `find` with `replace` in a file. `find` must match exactly once; include enough surrounding lines to make it unique. Pass `edits` (a list of `find`/`replace` pairs) instead for several replacements in one call: every entry must match exactly once, entries must not overlap, and either all of them are applied or none is.',
       {
         path: PATH_PROPERTY,
         find: { type: 'string', description: 'The exact text to replace' },
         replace: { type: 'string', description: 'The replacement text' },
+        edits: {
+          type: 'array',
+          description: 'Several replacements, applied together or not at all',
+          items: {
+            type: 'object',
+            properties: {
+              find: { type: 'string', description: 'The exact text to replace' },
+              replace: { type: 'string', description: 'The replacement text' },
+            },
+            required: ['find', 'replace'],
+          },
+        },
         ...thenRun,
       },
-      ['path', 'find', 'replace'],
+      ['path'],
     ),
     define(
       MODEL_API_TOOLS.writeFile,
@@ -767,6 +816,10 @@ export function toolDefinitions(
           define(tool.name, tool.description, tool.properties, tool.required),
         )
       : []),
+    // M96 (PLAN.md D75): the orchestrator's five, never beside M48's six.
+    ...(options.teamTools ?? []).map((tool) =>
+      define(tool.name, tool.description, tool.properties, tool.required),
+    ),
     ...(options.hasMemory === true
       ? MEMORY_TOOL_DEFINITIONS.map((tool) =>
           define(tool.name, tool.description, tool.properties, tool.required),
@@ -793,14 +846,31 @@ export function toolDefinitions(
           define(CODE_INTEL_TOOLS[tool.tool], tool.description, tool.properties, tool.required),
         )
       : []),
+    ...(options.hasLegalScan === true
+      ? [define(MODEL_API_TOOLS.legalScan, LEGAL_SCAN_DESCRIPTION, LEGAL_SCAN_PARAMETERS, [])]
+      : []),
   ]
 }
 
 // --- helpers ---
 
-function clip(text: string): string {
-  return text.length > TOOL_OUTPUT_MAX_CHARS
-    ? `${text.slice(0, TOOL_OUTPUT_MAX_CHARS)}${TOOL_OUTPUT_CLIP_MARKER}`
+/** Keep the Muse cap; smaller loaded windows leave room for the prompt and replay (M101). */
+export function readFileCharacterBudget(contextTokens: number | undefined): number {
+  return contextTokens === undefined || !Number.isSafeInteger(contextTokens) || contextTokens <= 0
+    ? TOOL_OUTPUT_MAX_CHARS
+    : Math.max(
+        1,
+        Math.min(
+          TOOL_OUTPUT_MAX_CHARS,
+          Math.floor(contextTokens * READ_FILE_CONTEXT_CHAR_FRACTION),
+        ),
+      )
+}
+
+function clip(text: string, maxChars = TOOL_OUTPUT_MAX_CHARS): string {
+  // Cut on a code point boundary, so the clip never splits a surrogate pair (M101).
+  return text.length > maxChars
+    ? `${text.slice(0, codePointBoundary(text, maxChars))}${TOOL_OUTPUT_CLIP_MARKER}`
     : text
 }
 
@@ -811,7 +881,7 @@ const SHELL_STREAMS = 2
 const HALVES = 2
 
 /** `index` moved back off the middle of a surrogate pair, so no character is split. */
-function codePointBoundary(text: string, index: number): number {
+export function codePointBoundary(text: string, index: number): number {
   // A code point past the Basic Multilingual Plane starts at `index - 1` and
   // ends after `index`: cutting at `index` would split it.
   return (text.codePointAt(index - 1) ?? 0) > LAST_BMP_CODE_POINT ? index - 1 : index
@@ -1149,7 +1219,8 @@ async function readablePath(
     context.io,
   )
   const p = context.platform === 'win32' ? path.win32 : path.posix
-  if (inWorkspace.ok || !p.isAbsolute(given)) {
+  const normalized = normalizeModelPath(given, context.platform)
+  if (inWorkspace.ok || !normalized.ok || !p.isAbsolute(normalized.path)) {
     return inWorkspace
   }
   const roots = context.files?.extraRoots ?? []
@@ -1190,20 +1261,47 @@ async function readFile(
   context.seen.set(resolved.absolute, fingerprint(raw))
   const lines = splitLines(modelText(raw, shapeOf(raw)))
   const start = Math.max((args.offset ?? 1) - 1, 0)
+  // An offset past the last line is an error, not an empty read (M101): the
+  // model otherwise pages past the end without noticing.
+  if (start >= lines.length && (lines.length > 0 || start > 0)) {
+    return {
+      ...failure(
+        fill(MODEL_API_MODEL_TEXT.readPastEnd, {
+          offset: String(start + 1),
+          path: resolved.relative,
+          lines: String(lines.length),
+        }),
+        fill(UI_TEXT.toolReadPastEnd, { offset: formatNumber(start + 1), path: resolved.relative }),
+      ),
+      touched,
+    }
+  }
   const limit = Math.max(args.limit ?? READ_FILE_DEFAULT_LIMIT, 1)
-  const shown = lines.slice(start, start + limit).map((line, index) => {
-    const number = String(start + index + 1)
+  const maxChars = readFileCharacterBudget(context.contextTokens)
+  const header = `Read text file \`${resolved.relative}\`.\n`
+  const shown: string[] = []
+  let used = header.length
+  const continuation = (count: number) =>
+    start + count < lines.length
+      ? `\n[lines ${String(start + 1)}-${String(start + count)} of ${String(lines.length)}; offset=${String(start + count + 1)}]`
+      : ''
+  const selected = lines.slice(start, start + limit)
+  for (const [index, line] of selected.entries()) {
     const body =
-      line.length > READ_FILE_MAX_LINE_CHARS ? `${line.slice(0, READ_FILE_MAX_LINE_CHARS)}…` : line
-    return `${number}|${body}`
-  })
-  const remaining = lines.length - (start + shown.length)
-  const tail = remaining > 0 ? `\n[${String(remaining)} more lines]` : ''
-  const body = `Read text file \`${resolved.relative}\`.\n${shown.join('\n')}${tail}`
+      line.length > READ_FILE_MAX_LINE_CHARS
+        ? `${line.slice(0, codePointBoundary(line, READ_FILE_MAX_LINE_CHARS))}…`
+        : line
+    const numbered = `${String(start + index + 1)}|${body}`
+    const nextSize = used + numbered.length + (shown.length > 0 ? 1 : 0)
+    if (nextSize + continuation(shown.length + 1).length > maxChars) break
+    shown.push(numbered)
+    used = nextSize
+  }
+  const body = `${header}${shown.join('\n')}${continuation(shown.length)}`
   // A refused read leaves no trace: the host forgets `seen` with the outcome.
   return {
     output: clip(body),
-    visibleOutput: clip(body),
+    visibleOutput: `${fill(UI_TEXT.toolReadText, { path: resolved.relative })}\n${shown.join('\n')}${start + shown.length < lines.length ? `\n[${fill(UI_TEXT.toolReadRange, { start: formatNumber(start + 1), end: formatNumber(start + shown.length), total: formatNumber(lines.length), offset: String(start + shown.length + 1) })}]` : ''}`,
     touched: { ...touched, seen: resolved.absolute },
   }
 }
@@ -1356,6 +1454,97 @@ async function writeFile(
   }
 }
 
+/**
+ * One line for fuzzy matching (M101, Pi's edit-diff): NFKC, Unicode spaces
+ * as spaces, curly quotes and dashes as their plain forms, no trailing
+ * whitespace.
+ */
+function fuzzyLine(line: string): string {
+  return line
+    .normalize('NFKC')
+    .replaceAll(/[\u{00A0}\u{2000}-\u{200A}\u{202F}\u{205F}\u{3000}]/gu, ' ')
+    .replaceAll(/[\u{2018}\u{2019}\u{201A}\u{201B}]/gu, "'")
+    .replaceAll(/[\u{201C}\u{201D}\u{201E}\u{201F}]/gu, '"')
+    .replaceAll(/[\u{2013}\u{2014}\u{2212}]/gu, '-')
+    .trimEnd()
+}
+
+/**
+ * The character range a `find` uniquely matches, exact first, then the
+ * normalised line fallback (M101): at most one run of normalised lines may
+ * match, and the untouched lines are copied back from the original, so only
+ * the matched range changes. Undefined with the refusal when it does not.
+ */
+async function matchRange(
+  current: string,
+  find: string,
+  signal: AbortSignal | undefined,
+): Promise<
+  { readonly start: number; readonly end: number } | { readonly refusal: 'notFound' | 'ambiguous' }
+> {
+  const first = current.indexOf(find)
+  if (first !== -1) {
+    // Several exact matches stay refused: the model adds context. The
+    // normalised fallback is only for formatting the exact text missed.
+    return current.includes(find, first + 1)
+      ? {
+          refusal: 'ambiguous',
+        }
+      : { start: first, end: first + find.length }
+  }
+  const lines = current.split('\n')
+  const starts: number[] = []
+  const normalized: string[] = []
+  for (const [index, line] of lines.entries()) {
+    if (index % EDIT_MATCH_YIELD_LINES === 0) {
+      await yieldToHost(undefined, { signal })
+    }
+    starts.push(index === 0 ? 0 : (starts[index - 1] ?? 0) + (lines[index - 1]?.length ?? 0) + 1)
+    normalized.push(fuzzyLine(line))
+  }
+  const want = find.split('\n').map((line) => fuzzyLine(line))
+  const hasTrailingBreak = find.endsWith('\n')
+  if (hasTrailingBreak) want.pop()
+  // KMP prefix lengths: each normalized line is compared a bounded number
+  // of times, including repeated-line near misses (M101 review finding 4).
+  const prefixLengths: number[] = [0]
+  for (let index = 1, matched = 0; index < want.length; index += 1) {
+    while (matched > 0 && want[index] !== want[matched]) matched = prefixLengths[matched - 1] ?? 0
+    if (want[index] === want[matched]) matched += 1
+    prefixLengths.push(matched)
+  }
+  const matches: number[] = []
+  if (want.some((line) => line !== '')) {
+    for (let index = 0, matched = 0; index < normalized.length; index += 1) {
+      if (index % EDIT_MATCH_YIELD_LINES === 0) await yieldToHost(undefined, { signal })
+      while (matched > 0 && normalized[index] !== want[matched])
+        matched = prefixLengths[matched - 1] ?? 0
+      if (normalized[index] === want[matched]) matched += 1
+      if (matched !== want.length) {
+        continue
+      }
+
+      if (!hasTrailingBreak || index + 1 < lines.length) matches.push(index - want.length + 1)
+      if (matches.length > 1) break
+      matched = prefixLengths[matched - 1] ?? 0
+    }
+  }
+  if (matches.length === 1) {
+    const at = matches[0] ?? 0
+    const end = at + want.length
+    return {
+      start: starts[at] ?? 0,
+      end:
+        end < lines.length
+          ? (starts[end] ?? current.length) - (hasTrailingBreak ? 0 : 1)
+          : current.length,
+    }
+  }
+  return {
+    refusal: matches.length === 0 ? 'notFound' : 'ambiguous',
+  }
+}
+
 async function editFile(
   args: z.infer<typeof editFileArgs>,
   context: ToolContext,
@@ -1372,23 +1561,76 @@ async function editFile(
   if (refusal !== undefined) {
     return refusal
   }
-  if (args.find === '') {
-    return failure('find must not be empty')
+  // One call edits once (`find`/`replace`) or several times (`edits`),
+  // never both; an empty `edits` edits nothing and is refused outright.
+  if (args.edits?.length === 0) {
+    return failure(MODEL_API_MODEL_TEXT.editEmptyList, UI_TEXT.toolEditInvalid)
+  }
+  const hasEdits = args.edits !== undefined
+  if (hasEdits && (args.find !== undefined || args.replace !== undefined)) {
+    return failure(MODEL_API_MODEL_TEXT.editMixedShape, UI_TEXT.toolEditInvalid)
+  }
+  const singles =
+    args.edits ??
+    (args.find !== undefined && args.replace !== undefined
+      ? [{ find: args.find, replace: args.replace }]
+      : undefined)
+  if (singles === undefined) {
+    return failure(MODEL_API_MODEL_TEXT.editPairRequired, UI_TEXT.toolEditInvalid)
+  }
+  for (const entry of singles) {
+    if (entry.find === '') {
+      return failure(MODEL_API_MODEL_TEXT.editFindEmpty, UI_TEXT.toolEditInvalid)
+    }
+    // A no-op edit writes the file for nothing; refuse it (M101).
+    if (entry.find === entry.replace) {
+      return failure(MODEL_API_MODEL_TEXT.editNoChange, UI_TEXT.toolEditNoChange)
+    }
   }
   // The model reads LF lines without the BOM: the match runs on that text,
   // and the file gets its own BOM and line breaks back (D27).
   const shape = shapeOf(before)
   const current = modelText(before, shape)
-  const find = shape.isCrlf ? toLf(args.find) : args.find
-  const replace = shape.isCrlf ? toLf(args.replace) : args.replace
-  const first = current.indexOf(find)
-  if (first === -1) {
-    return failure(`find text not found in ${relative}`)
+  // Every entry resolved against the original text first (M101): overlaps
+  // are refused and one write applies all of them, so either all land or
+  // none does.
+  const ranges: { readonly start: number; readonly end: number; readonly replace: string }[] = []
+  for (const [index, entry] of singles.entries()) {
+    const find = shape.isCrlf ? toLf(entry.find) : entry.find
+    const matched = await matchRange(current, find, context.signal)
+    if ('refusal' in matched) {
+      const prefix = hasEdits ? `edits[${String(index)}]: ` : ''
+      const model =
+        matched.refusal === 'notFound'
+          ? MODEL_API_MODEL_TEXT.editNotFound
+          : MODEL_API_MODEL_TEXT.editAmbiguous
+      const visible =
+        matched.refusal === 'notFound' ? UI_TEXT.toolEditNotFound : UI_TEXT.toolEditAmbiguous
+      return failure(
+        `${prefix}${fill(model, { path: relative })}`,
+        `${prefix}${fill(visible, { path: relative })}`,
+      )
+    }
+    ranges.push({
+      start: matched.start,
+      end: matched.end,
+      replace: shape.isCrlf ? toLf(entry.replace) : entry.replace,
+    })
   }
-  if (current.includes(find, first + find.length)) {
-    return failure(`find text occurs more than once in ${relative}; include more context`)
+  const ordered = ranges.toSorted((a, b) => a.start - b.start)
+  for (const [index, range] of ordered.entries()) {
+    const previous = ordered[index - 1]
+    if (previous !== undefined && range.start < previous.end) {
+      return failure(MODEL_API_MODEL_TEXT.editOverlap, UI_TEXT.toolEditOverlap)
+    }
   }
-  const updated = `${current.slice(0, first)}${replace}${current.slice(first + find.length)}`
+  let updated = ''
+  let at = 0
+  for (const range of ordered) {
+    updated += `${current.slice(at, range.start)}${range.replace}`
+    at = range.end
+  }
+  updated += current.slice(at)
   const after = fileText(updated, shape)
   const final = await publishText(file, after, context)
   return {
@@ -1396,8 +1638,11 @@ async function editFile(
       relative,
       current,
       final === after ? updated : modelText(final, shapeOf(final)),
-      'edited',
-      editedLine(`edited ${relative}`, final !== after),
+      hasEdits ? `edited ${relative} (${String(singles.length)} edits)` : 'edited',
+      editedLine(
+        hasEdits ? `edited ${relative} (${String(singles.length)} edits)` : `edited ${relative}`,
+        final !== after,
+      ),
     ),
     touched: touchedBy(file),
   }
@@ -1458,6 +1703,7 @@ async function search(
     root: context.workspaceRoot,
     maxFileBytes: SEARCH_MAX_FILE_BYTES,
     maxHits: SEARCH_MAX_HITS,
+    maxHitChars: SEARCH_HIT_MAX_CHARS,
     denyRead: context.files?.denyGlobs ?? [],
     globLimits: GLOB_LIMITS,
     files: searched.map((relative) => ({
@@ -1525,7 +1771,7 @@ async function shell(args: z.infer<typeof shellArgs>, context: ToolContext): Pro
     context.assertCanRun,
     context.isInteractiveShell === true,
   )
-  return shellOutcome(result, timeoutMs)
+  return shellOutcome(result, timeoutMs, TOOL_OUTPUT_MAX_CHARS, context.wholeShellOutput === true)
 }
 
 /**
@@ -1590,12 +1836,17 @@ export function parseShellDirectoryReport(
  * What a finished command printed: each stream keeps its beginning and its
  * end within its share of the output budget (D27).
  */
-export function shellText(result: ShellResult, maxChars: number = TOOL_OUTPUT_MAX_CHARS): string {
+export function shellText(
+  result: ShellResult,
+  maxChars: number = TOOL_OUTPUT_MAX_CHARS,
+  shouldKeepWhole = false,
+): string {
+  const parts = [result.stdout.trimEnd(), result.stderr.trimEnd()].filter((part) => part !== '')
+  // The runner already bounds each stream. Preserve that original in
+  // replay; the packer projects oversized results before their first send.
+  if (shouldKeepWhole) return parts.join('\n')
   const streamBudget = Math.floor(maxChars / SHELL_STREAMS)
-  return [result.stdout.trimEnd(), result.stderr.trimEnd()]
-    .filter((part) => part !== '')
-    .map((part) => clipMiddle(part, streamBudget))
-    .join('\n')
+  return parts.map((part) => clipMiddle(part, streamBudget)).join('\n')
 }
 
 /**
@@ -1608,6 +1859,7 @@ export function shellOutcome(
   result: ShellResult,
   timeoutMs: number,
   maxChars: number = TOOL_OUTPUT_MAX_CHARS,
+  shouldKeepWhole = false,
 ): ToolOutcome {
   let exit = `exit code ${String(result.exitCode ?? 'unknown')}`
   if (result.isCancelled) {
@@ -1615,10 +1867,13 @@ export function shellOutcome(
   } else if (result.isTimedOut) {
     exit = `stopped after ${String(timeoutMs)} ms`
   }
-  const body = `${shellText(result, maxChars)}\n[${exit}]`.trim()
+  const body = `${shellText(result, maxChars, shouldKeepWhole)}\n[${exit}]`.trim()
+  // The row keeps the elided text it always showed; only what the model
+  // receives rides whole into the packed replay.
+  const shown = shouldKeepWhole ? `${shellText(result, maxChars)}\n[${exit}]`.trim() : body
   return {
     output: body,
-    visibleOutput: body,
+    visibleOutput: shown,
     ...((result.isTimedOut || result.isCancelled) && { failureReason: exit }),
   }
 }

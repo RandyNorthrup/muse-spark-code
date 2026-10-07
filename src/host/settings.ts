@@ -8,7 +8,6 @@ import { widenedHost } from '../core/browser/browserPolicy'
 import { checkCommandsSchema } from '../core/verify/checkCommands'
 import {
   BACKEND_MODES,
-  PAID_DAILY_BUDGET,
   type BackendMode,
   BROWSER_CHECK_EXTRA_HOSTS_MAX,
   BROWSER_RUNTIME_MODES,
@@ -17,15 +16,20 @@ import {
   type EnvironmentVariable,
   JUDGE_ENGINES,
   type JudgeEngine,
+  LEGAL_HEADER_POLICIES,
+  type LegalHeaderPolicy,
   PROMPT_CACHE_RETENTIONS,
   QUESTION_DEFER_MAX_SECONDS,
   type PromptCacheRetention,
   SANDBOX_NETWORK_MODES,
   type SandboxNetworkMode,
   SETTING_DEFAULTS,
+  PAID_DAILY_BUDGET,
   SETTINGS_SECTION,
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
+  USAGE_HISTORY_DAYS_MIN,
+  USAGE_HISTORY_DAYS_MAX,
   TAB_DAILY_BUDGET_MAX_USD,
   TAB_DAILY_BUDGET_MIN_USD,
   TAB_MODELS,
@@ -42,6 +46,8 @@ import { type SettingsSnapshot, settingsSnapshotShape } from '../shared/protocol
 import type { Logger } from './logger'
 
 export interface ExtensionSettings extends SettingsSnapshot {
+  readonly usageHistory: boolean
+  readonly usageHistoryDays: number
   readonly paidDailyBudgetUsd: number
   readonly dictationEngine: 'system' | 'museVoice'
   /** Absolute path to the `muse` executable; empty means "discover". */
@@ -55,6 +61,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly shellSandbox: ShellSandboxMode
   /** Which backend hosts conversations (PLAN.md D1, M7). */
   readonly backend: BackendMode
+  /** Workspace preset suggestion, held by the host (M95, PLAN.md D74). */
+  readonly suggestedProvider: string
   /** Ctrl+N for a new conversation (read by the keybinding, kept here for the schema). */
   readonly enableNewConversationShortcut: boolean
   /** Days an idle Model API conversation is kept; 0 keeps it (PLAN.md D26). */
@@ -71,6 +79,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiSubagents: boolean
   /** Best-of-N availability; an explicit run and consent choose its extra attempts. */
   readonly modelApiBestOfN: boolean
+  /** Team tasks billed to a key (M96 lane A, PLAN.md D75): on only with the price accepted too. */
+  readonly modelApiTeamWorkers: boolean
   /** Configured hooks are enabled by default (D78), in trusted workspaces only. */
   readonly modelApiHooks: boolean
   /** The Model API shell keeps its directory between calls (M91 lane S): on until turned off. */
@@ -114,6 +124,7 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiRepoMap: boolean
   /** Observation packing on the Model API backend (M73): a conversation reads it when it starts. */
   readonly modelApiObservationPacking: boolean
+  readonly modelApiAutoCompaction: boolean
   /** A checkpoint of the workspace's files at each turn boundary (M72). */
   readonly turnCheckpoints: boolean
   /** The hosts beyond loopback the browser check may open and reach (M81, PLAN.md D49). */
@@ -130,6 +141,10 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiReplyUsage: boolean
   /** Session budget cap in USD for Model API requests; 0 is no cap (M82). */
   readonly modelApiSessionBudgetUsd: number
+  /** Copyright/SPDX header hygiene for the read-only legal scan (M97). */
+  readonly legalRegistryLookups: boolean
+  readonly legalExplanation: boolean
+  readonly legalHeaderPolicy: LegalHeaderPolicy
 }
 
 /**
@@ -154,6 +169,7 @@ const settingSchemas = {
   'questions.deferAfterSeconds': z.int().check(z.gte(0), z.lte(QUESTION_DEFER_MAX_SECONDS)),
   shellSandbox: z.enum(SHELL_SANDBOX_MODES),
   backend: z.enum(BACKEND_MODES),
+  suggestedProvider: z.string(),
   enableNewConversationShortcut: z.boolean(),
   cleanupPeriodDays: z.int().check(z.nonnegative()),
   modelApiWebSearch: z.boolean(),
@@ -164,6 +180,7 @@ const settingSchemas = {
   modelApiScheduledPrompts: z.boolean(),
   modelApiSubagents: z.boolean(),
   modelApiBestOfN: z.boolean(),
+  modelApiTeamWorkers: z.boolean(),
   modelApiHooks: z.boolean(),
   modelApiShellKeepsDirectory: z.boolean(),
   modelApiHookModels: z.boolean(),
@@ -189,6 +206,7 @@ const settingSchemas = {
 
   modelApiRepoMap: z.boolean(),
   modelApiObservationPacking: z.boolean(),
+  modelApiAutoCompaction: z.boolean(),
   turnCheckpoints: z.boolean(),
   // Each entry a plain host name or IP address (no port, path or wildcard):
   // one that is not refuses the whole list, so a typo warns rather than
@@ -201,11 +219,18 @@ const settingSchemas = {
   showWhatsNewOnUpdate: z.boolean(),
   notifyOnBackgroundTurn: z.boolean(),
   modelApiReplyUsage: z.boolean(),
+  dictationEngine: z.enum(['system', 'museVoice']),
+  modelApiSessionBudgetUsd: z.number().check(z.nonnegative()),
+  legalRegistryLookups: z.boolean(),
+  legalExplanation: z.boolean(),
   paidDailyBudgetUsd: z
     .number()
     .check(z.minimum(PAID_DAILY_BUDGET.minimumUsd), z.maximum(PAID_DAILY_BUDGET.maximumUsd)),
-  dictationEngine: z.enum(['system', 'museVoice']),
-  modelApiSessionBudgetUsd: z.number().check(z.nonnegative()),
+  legalHeaderPolicy: z.enum(LEGAL_HEADER_POLICIES),
+  usageHistory: z.boolean(),
+  usageHistoryDays: z
+    .int()
+    .check(z.minimum(USAGE_HISTORY_DAYS_MIN), z.maximum(USAGE_HISTORY_DAYS_MAX)),
 } as const
 
 type SettingKey = keyof typeof settingSchemas
@@ -266,6 +291,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     'questions.deferAfterSeconds': readSetting(config, 'questions.deferAfterSeconds', log),
     shellSandbox: readSetting(config, 'shellSandbox', log),
     backend: readSetting(config, 'backend', log),
+    suggestedProvider: readSetting(config, 'suggestedProvider', log),
     enableNewConversationShortcut: readSetting(config, 'enableNewConversationShortcut', log),
     cleanupPeriodDays: readSetting(config, 'cleanupPeriodDays', log),
     modelApiWebSearch: readSetting(config, 'modelApiWebSearch', log),
@@ -276,6 +302,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiScheduledPrompts: readSetting(config, 'modelApiScheduledPrompts', log),
     modelApiSubagents: readSetting(config, 'modelApiSubagents', log),
     modelApiBestOfN: readSetting(config, 'modelApiBestOfN', log),
+    modelApiTeamWorkers: readSetting(config, 'modelApiTeamWorkers', log),
     modelApiHooks: readSetting(config, 'modelApiHooks', log),
     modelApiShellKeepsDirectory: readSetting(config, 'modelApiShellKeepsDirectory', log),
     modelApiHookModels: readSetting(config, 'modelApiHookModels', log),
@@ -285,6 +312,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     formatOnEdit: readSetting(config, 'formatOnEdit', log),
     modelApiRepoMap: readSetting(config, 'modelApiRepoMap', log),
     modelApiObservationPacking: readSetting(config, 'modelApiObservationPacking', log),
+    modelApiAutoCompaction: readSetting(config, 'modelApiAutoCompaction', log),
     turnCheckpoints: readSetting(config, 'turnCheckpoints', log),
     browserCheckExtraHosts: readSetting(config, 'browserCheckExtraHosts', log),
     browserCheckRuntime: readSetting(config, 'browserCheckRuntime', log),
@@ -293,6 +321,8 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     notifyOnBackgroundTurn: readSetting(config, 'notifyOnBackgroundTurn', log),
     modelApiReplyUsage: readSetting(config, 'modelApiReplyUsage', log),
     paidDailyBudgetUsd: readSetting(config, 'paidDailyBudgetUsd', log),
+    usageHistory: readSetting(config, 'usageHistory', log),
+    usageHistoryDays: readSetting(config, 'usageHistoryDays', log),
     dictationEngine: readSetting(config, 'dictationEngine', log),
     modelApiSessionBudgetUsd: readSetting(config, 'modelApiSessionBudgetUsd', log),
     modelApiCommandRules: readSetting(config, 'modelApiCommandRules', log),
@@ -309,6 +339,9 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     tabMultiline: readSetting(config, 'tabMultiline', log),
     tabTrigger: readSetting(config, 'tabTrigger', log),
     tabWithCopilot: readSetting(config, 'tabWithCopilot', log),
+    legalRegistryLookups: readSetting(config, 'legalRegistryLookups', log),
+    legalExplanation: readSetting(config, 'legalExplanation', log),
+    legalHeaderPolicy: readSetting(config, 'legalHeaderPolicy', log),
   }
 }
 

@@ -1,13 +1,23 @@
+import { readFileSync } from 'node:fs'
+import { loadUiTable } from '../../src/host/l10n'
+import { createLogger } from '../../src/host/logger'
+import { FakeLogOutputChannel } from './helpers/fakes'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   classifyTool,
   executeTool,
   parseQuestions,
+  shellOutcome,
   shellToolFor,
   type ToolContext,
   toolDefinitions,
 } from '../../src/core/backends/modelapi/tools'
-import { confineWorkspacePath, resolveWorkspacePath } from '../../src/core/workspacePath'
+import {
+  confineWorkspacePath,
+  normalizeModelPath,
+  resolveWorkspacePath,
+} from '../../src/core/workspacePath'
+import { thenRunOf } from '../../src/core/backends/modelapi/verifyTools'
 import { parsePatchFiles } from '../../src/shared/patchDocument'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
@@ -21,7 +31,13 @@ import {
   SEARCH_MAX_HITS,
   TOOL_OUTPUT_ELIDED_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
+  TOOL_OUTPUT_CLIP_MARKER,
+  UI_TEXT,
+  TOOL_SCHEMA_JSON_BUDGET_BYTES,
+  MODEL_API_TOOLS,
+  OBS_PACK_PAGE_CHARS,
 } from '../../src/shared/constants'
+import { isToolSchemaGrammarSafe, withStrictTools } from '../../src/core/backends/modelapi/schemas'
 import { memoryToolIo } from './helpers/fakeToolIo'
 
 const ROOT = '/ws'
@@ -484,6 +500,155 @@ describe('toolDefinitions / classifyTool', () => {
   })
 })
 
+describe('strict tool schemas and grammar safety (M101 item 24)', () => {
+  it('requires every property and makes optional values nullable recursively (F4)', () => {
+    const definitions = toolDefinitions('linux')
+    const read = withStrictTools(definitions, true).find(
+      (tool) => tool.type === 'function' && tool.name === 'read_file',
+    )
+    expect(read).toMatchObject({
+      strict: true,
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['path', 'offset', 'limit'],
+        properties: {
+          path: { type: 'string' },
+          offset: { type: ['integer', 'null'] },
+          limit: { type: ['integer', 'null'] },
+        },
+      },
+    })
+    const custom = {
+      type: 'function' as const,
+      name: 'nested',
+      description: 'nested',
+      strict: false,
+      parameters: {
+        type: 'object',
+        properties: {
+          rows: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                label: { type: 'string' },
+                mode: { type: 'string', enum: ['one', 'two'] },
+              },
+              required: ['label'],
+            },
+          },
+        },
+        required: [],
+      },
+    }
+    const before = JSON.stringify(custom)
+    expect(withStrictTools([custom], true)[0]).toMatchObject({
+      parameters: {
+        additionalProperties: false,
+        required: ['rows'],
+        properties: {
+          rows: {
+            type: ['array', 'null'],
+            items: {
+              additionalProperties: false,
+              required: ['label', 'mode'],
+              properties: {
+                label: { type: 'string' },
+                mode: { type: ['string', 'null'], enum: ['one', 'two', null] },
+              },
+            },
+          },
+        },
+      },
+    })
+    expect(JSON.stringify(custom)).toBe(before)
+    const search = { type: 'web_search' as const }
+    expect(withStrictTools([search], true)[0]).toBe(search)
+  })
+
+  it('refuses unsupported strict keywords and malformed schemas before dispatch (F4)', () => {
+    for (const parameters of [
+      { type: 'object', properties: {}, patternProperties: { x: { type: 'string' } } },
+      { type: 'object', properties: { x: { type: 'string', minLength: 'one' } } },
+      { type: 'object', properties: { x: { type: 'integer', maxLength: 2 } } },
+      { type: 'object', properties: { x: { type: 'string', minLength: 2, maxLength: 1 } } },
+      { type: 'object', properties: { x: { anyOf: [{ type: 'string' }] } } },
+      { type: 'object', additionalProperties: true },
+      { type: 'object', required: ['absent'] },
+      { type: 'object', properties: null },
+      { type: 'object', required: null },
+      { type: 'array', items: { type: 'string' } },
+      { type: 'object', properties: { x: { type: 42 } } },
+    ]) {
+      const tools = [
+        { type: 'function' as const, name: 'bad', description: 'bad', parameters, strict: false },
+      ]
+      expect(() => withStrictTools(tools, true)).toThrow('strict_tool_schema_unsupported')
+      expect(withStrictTools(tools, false)).toBe(tools)
+    }
+  })
+
+  it('rejects malformed and unknown grammar type declarations (F5)', () => {
+    for (const type of [42, null, {}, [], ['wizard'], ['string', 42]]) {
+      expect(isToolSchemaGrammarSafe({ type })).toBe(false)
+    }
+    expect(isToolSchemaGrammarSafe({ type: ['string', 'null'] })).toBe(true)
+  })
+
+  it('flags function tools strict only where the model takes it', () => {
+    const definitions = toolDefinitions('linux', {
+      hasShell: true,
+      hasSkills: true,
+      hasImageGeneration: true,
+      hasSubagents: true,
+      hasMemory: true,
+      hasPackedRecall: true,
+      hasWebFetch: true,
+      hasCodeIntel: true,
+      checks: [{ name: 'unit', command: 'npm test', changedFiles: false }],
+    })
+    expect(definitions.length).toBeGreaterThan(0)
+    // Off returns the same definitions: the canonical body stays strict:false.
+    expect(withStrictTools(definitions, false)).toBe(definitions)
+    const strict = withStrictTools(definitions, true)
+    expect(strict).not.toBe(definitions)
+    for (const tool of strict) {
+      if (tool.type !== 'function') continue
+      expect(tool.strict).toBe(true)
+      expect(tool.parameters['required']).toEqual(Object.keys(tool.parameters['properties'] ?? {}))
+      expect(tool.parameters['additionalProperties']).toBe(false)
+    }
+    expect(definitions.every((tool) => !tool.strict)).toBe(true)
+    const recall = strict.find(
+      (tool) => tool.type === 'function' && tool.name === MODEL_API_TOOLS.recallOutput,
+    )
+    expect(recall?.type === 'function' && recall.parameters['properties']).toMatchObject({
+      search: { minLength: 1, maxLength: OBS_PACK_PAGE_CHARS },
+    })
+  })
+
+  it('keeps every emitted parameter schema grammar-safe and small', () => {
+    const definitions = toolDefinitions('linux')
+    for (const tool of definitions) {
+      expect(isToolSchemaGrammarSafe(tool.parameters)).toBe(true)
+    }
+    const bytes = Buffer.byteLength(JSON.stringify(definitions), 'utf8')
+    expect(bytes).toBeLessThan(TOOL_SCHEMA_JSON_BUDGET_BYTES)
+  })
+
+  it('refuses references, combinators and unknown types', () => {
+    expect(isToolSchemaGrammarSafe({ $ref: '#/$defs/x' })).toBe(false)
+    expect(isToolSchemaGrammarSafe({ oneOf: [{ type: 'string' }] })).toBe(false)
+    expect(isToolSchemaGrammarSafe({ type: 'object', properties: { d: { $ref: '#/x' } } })).toBe(
+      false,
+    )
+    expect(isToolSchemaGrammarSafe({ type: 'wizard' })).toBe(false)
+    expect(isToolSchemaGrammarSafe({ type: 'object', properties: {} })).toBe(true)
+    expect(isToolSchemaGrammarSafe({ type: 'array', items: { type: 'string' } })).toBe(true)
+  })
+})
+
 describe('executeTool: read_file', () => {
   it('numbers lines, windows with offset and limit, and clips long lines', async () => {
     const long = 'x'.repeat(2500)
@@ -493,7 +658,7 @@ describe('executeTool: read_file', () => {
       `Read text file \`a.txt\`.\n1|one\n2|two\n3|three\n4|${'x'.repeat(2000)}…`,
     )
     const window = await run('read_file', { path: 'a.txt', offset: 2, limit: 1 })
-    expect(window.output).toBe('Read text file `a.txt`.\n2|two\n[2 more lines]')
+    expect(window.output).toBe('Read text file `a.txt`.\n2|two\n[lines 2-2 of 4; offset=3]')
     expect(window.failureReason).toBeUndefined()
   })
 
@@ -555,7 +720,7 @@ describe('executeTool: write_file and edit_file', () => {
     const none = await run('edit_file', { path: 'notes.md', find: 'zzz', replace: 'x' })
     expect(none.failureReason).toContain('not found')
     const empty = await run('edit_file', { path: 'notes.md', find: '', replace: 'x' })
-    expect(empty.failureReason).toBe('find must not be empty')
+    expect(empty.output).toContain('find must not be empty')
     const ok = await run('edit_file', {
       path: 'notes.md',
       find: 'first line?',
@@ -900,5 +1065,415 @@ describe('a conversation in a worktree (M71)', () => {
     const written = await run('write_file', { path: 'src/a.ts', content: 'changed\n' })
     expect(written.failureReason).toBeUndefined()
     expect(io.files.get(`${WORKTREE}/src/a.ts`)).toBe('changed\n')
+  })
+})
+
+describe('normalizeModelPath (M101 item 9)', () => {
+  it('normalises Unicode spaces, a leading @, file:// and win32 drive forms; refuses ~', () => {
+    expect(normalizeModelPath('a b', 'linux')).toEqual({ ok: true, path: 'a b' })
+    expect(normalizeModelPath('@a.ts', 'linux')).toEqual({ ok: true, path: 'a.ts' })
+    expect(normalizeModelPath('file:///x/y.ts', 'linux')).toEqual({ ok: true, path: '/x/y.ts' })
+    expect(normalizeModelPath('~/note.txt', 'linux')).toMatchObject({ ok: false })
+    expect(normalizeModelPath('~', 'linux')).toMatchObject({ ok: false })
+    expect(normalizeModelPath('file://foo', 'linux')).toMatchObject({ ok: false })
+    expect(normalizeModelPath('/c/ws/a.ts', 'win32')).toEqual({ ok: true, path: 'c:/ws/a.ts' })
+    expect(normalizeModelPath('/mnt/c/ws/a.ts', 'win32')).toEqual({ ok: true, path: 'c:/ws/a.ts' })
+    expect(normalizeModelPath('/cygdrive/c/ws/a.ts', 'win32')).toEqual({
+      ok: true,
+      path: 'c:/ws/a.ts',
+    })
+    expect(normalizeModelPath('src/a.ts', 'linux')).toEqual({ ok: true, path: 'src/a.ts' })
+  })
+
+  it('resolves every normalised form through the one shared path', () => {
+    expect(resolveWorkspacePath('/ws', '@a.ts', 'linux')).toMatchObject({
+      ok: true,
+      relative: 'a.ts',
+    })
+    expect(resolveWorkspacePath('/ws', 'a b', 'linux')).toMatchObject({
+      ok: true,
+      relative: 'a b',
+    })
+    // file:///x is absolute and outside: refused instead of creating `file:` folders.
+    expect(resolveWorkspacePath('/ws', 'file:///x', 'linux')).toMatchObject({ ok: false })
+    expect(resolveWorkspacePath('/ws', '~/x', 'linux')).toMatchObject({ ok: false })
+    expect(resolveWorkspacePath(String.raw`C:\ws`, '/c/ws/a.ts', 'win32')).toMatchObject({
+      ok: true,
+      relative: 'a.ts',
+    })
+  })
+})
+
+describe('edit_file: normalised unique fallback (M101 item 12)', () => {
+  it('matches past trailing whitespace, curly quotes, dashes and Unicode spaces', async () => {
+    const { io, run } = context({
+      'note.txt': 'line one \n\u{2018}quoted\u{2019} and a \u{2014} dash\nwide\u{A0}space\ntail\n',
+    })
+    const edited = await run('edit_file', {
+      path: 'note.txt',
+      find: "line one\n'quoted' and a - dash\nwide space",
+      replace: 'changed',
+    })
+    expect(edited.failureReason).toBeUndefined()
+    // Only the matched range changed; the untouched line is byte-identical.
+    expect(io.files.get('/ws/note.txt')).toBe('changed\ntail\n')
+  })
+
+  it('still refuses an ambiguous or missing match, and a no-op edit', async () => {
+    const { io, run } = context({ 'a.txt': 'foo \nfoo\n' })
+    const ambiguous = await run('edit_file', { path: 'a.txt', find: 'foo', replace: 'bar' })
+    expect(ambiguous.output).toContain('more than once')
+    const missing = await run('edit_file', { path: 'a.txt', find: 'absent', replace: 'bar' })
+    expect(missing.output).toContain('not found')
+    const noop = await run('edit_file', {
+      path: 'a.txt',
+      find: 'foo \nfoo\n',
+      replace: 'foo \nfoo\n',
+    })
+    expect(noop.output).toContain('identical')
+    expect(io.files.get('/ws/a.txt')).toBe('foo \nfoo\n')
+  })
+})
+
+describe('edit_file: several edits at once (M101 item 20)', () => {
+  it('applies every entry in one write', async () => {
+    const { io, run } = context({ 'a.txt': 'alpha one\nbeta two\ngamma three\n' })
+    const edited = await run('edit_file', {
+      path: 'a.txt',
+      edits: [
+        { find: 'alpha one', replace: 'alpha 1' },
+        { find: 'gamma three', replace: 'gamma 3' },
+      ],
+    })
+    expect(edited.failureReason).toBeUndefined()
+    expect(edited.output).toContain('2 edits')
+    expect(io.files.get('/ws/a.txt')).toBe('alpha 1\nbeta two\ngamma 3\n')
+  })
+
+  it('refuses overlaps and a bad entry with the file untouched', async () => {
+    const { io, run } = context({ 'a.txt': 'alpha one\nbeta two\n' })
+    const overlapping = await run('edit_file', {
+      path: 'a.txt',
+      edits: [
+        { find: 'alpha one\nbeta', replace: 'x' },
+        { find: 'beta two', replace: 'y' },
+      ],
+    })
+    expect(overlapping.output).toContain('overlap')
+    const partial = await run('edit_file', {
+      path: 'a.txt',
+      edits: [
+        { find: 'alpha one', replace: 'x' },
+        { find: 'absent', replace: 'y' },
+      ],
+    })
+    expect(partial.output).toContain('edits[1]')
+    expect(partial.output).toContain('not found')
+    expect(io.files.get('/ws/a.txt')).toBe('alpha one\nbeta two\n')
+  })
+
+  it('refuses edits beside find/replace, and an empty list', async () => {
+    const { io, run } = context({ 'a.txt': 'alpha\n' })
+    const both = await run('edit_file', {
+      path: 'a.txt',
+      find: 'alpha',
+      replace: 'beta',
+      edits: [{ find: 'alpha', replace: 'beta' }],
+    })
+    expect(both.output).toContain('either find and replace, or edits')
+    const empty = await run('edit_file', { path: 'a.txt', edits: [] })
+    expect(empty.output).toContain('at least one edit')
+    expect(io.files.get('/ws/a.txt')).toBe('alpha\n')
+  })
+})
+
+describe('read_file: paging (M101 item 13)', () => {
+  it('names the shown lines and the offset that reads on', async () => {
+    const lines = Array.from({ length: 10 }, (_, index) => `line ${String(index + 1)}`)
+    const { run } = context({ 'long.txt': `${lines.join('\n')}\n` })
+    const page = await run('read_file', { path: 'long.txt', offset: 3, limit: 4 })
+    expect(page.failureReason).toBeUndefined()
+    expect(page.output).toContain('3|line 3')
+    expect(page.output).toContain('6|line 6')
+    expect(page.output).not.toContain('7|line 7')
+    expect(page.output).toContain('[lines 3-6 of 10; offset=7]')
+  })
+
+  it('errors an offset past the end instead of reading empty', async () => {
+    const { run } = context({ 'long.txt': 'one\ntwo\n' })
+    const past = await run('read_file', { path: 'long.txt', offset: 3 })
+    expect(past.output).toBe('Error: offset 3 is past the end of long.txt: it has 2 lines')
+    expect(past.failureReason).toBe('Offset 3 is beyond the end of long.txt.')
+    const last = await run('read_file', { path: 'long.txt', offset: 2 })
+    expect(last.failureReason).toBeUndefined()
+    expect(last.output).toContain('2|two')
+    expect(last.output).not.toContain('offset=')
+  })
+})
+
+function bigResult(size: number) {
+  return {
+    stdout: `s${'x'.repeat(size)}e`,
+    stderr: '',
+    exitCode: 0 as const,
+    isTimedOut: false,
+    isCancelled: false,
+  }
+}
+
+describe('shell output kept whole for packing (M101 item 15)', () => {
+  it('elides the middle unless the session packs observations', () => {
+    const result = bigResult(100_000)
+    const clipped = shellOutcome(result, 120_000)
+    expect(clipped.output).toContain(TOOL_OUTPUT_ELIDED_MARKER)
+    expect(clipped.visibleOutput).toBe(clipped.output)
+    const whole = shellOutcome(result, 120_000, TOOL_OUTPUT_MAX_CHARS, true)
+    expect(whole.output).toContain('x'.repeat(1000))
+    expect(whole.output.endsWith('[exit code 0]')).toBe(true)
+    expect(whole.output).not.toContain(TOOL_OUTPUT_ELIDED_MARKER)
+    // The row keeps the elided text it always showed.
+    expect(whole.visibleOutput).toBe(clipped.output)
+  })
+
+  it('keeps the shell tool result whole through executeTool while packing', async () => {
+    const io = memoryToolIo({}, ROOT, () => bigResult(100_000))
+    const ctx: ToolContext = {
+      workspaceRoot: ROOT,
+      platform: 'linux',
+      io,
+      seen: new Map(),
+      wholeShellOutput: true,
+    }
+    const outcome = await executeTool(
+      'bash',
+      JSON.stringify({ command: 'big', description: 'd' }),
+      ctx,
+    )
+    expect(outcome.output).not.toContain(TOOL_OUTPUT_ELIDED_MARKER)
+    expect(outcome.output.endsWith('[exit code 0]')).toBe(true)
+    expect(outcome.visibleOutput).toContain(TOOL_OUTPUT_ELIDED_MARKER)
+  })
+})
+
+describe('clip: surrogate pairs (M101 item 18c)', () => {
+  it('never splits a character at the clip point', async () => {
+    // Every line is 2000 characters, so line 32 starts at a known offset;
+    // its emoji's high surrogate lands exactly on the clip point's last kept
+    // character, which the old clip left dangling.
+    const headerLen = 'Read text file `big.txt`.\n'.length
+    const lineStart = headerLen + 31 * 2001
+    const pairAt = TOOL_OUTPUT_MAX_CHARS - 1 - lineStart - '32|'.length
+    expect(pairAt).toBeGreaterThan(0)
+    // Raw lines: read_file prepends its own `N|`, so every displayed line is
+    // 2000 characters and line 32 starts at the computed offset.
+    const lines = Array.from({ length: 40 }, (_, index) => {
+      const headLen = `${String(index + 1)}|`.length
+      return index === 31
+        ? `${'a'.repeat(pairAt)}\u{1F600}${'a'.repeat(2000 - headLen - pairAt - 2)}`
+        : 'a'.repeat(2000 - headLen)
+    })
+    const { run } = context({ 'big.txt': `${lines.join('\n')}\n` })
+    const result = await run('read_file', { path: 'big.txt' })
+    expect(result.output).toMatch(/offset=\d+/)
+    expect(result.output).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/)
+    expect(result.output).not.toMatch(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/)
+  })
+})
+
+describe('thenRunOf: non-string values (M101 item 18b)', () => {
+  it('reports a present non-string value instead of dropping it', () => {
+    expect(thenRunOf('{"then_run": 42}')).toEqual({ kind: 'invalid' })
+    expect(thenRunOf('{"then_run": null}')).toEqual({ kind: 'invalid' })
+    expect(thenRunOf('{"then_run": ["npm", "test"]}')).toEqual({ kind: 'invalid' })
+    expect(thenRunOf('{"then_run": " npm test "}')).toEqual({ kind: 'run', command: 'npm test' })
+    expect(thenRunOf('{}')).toEqual({ kind: 'absent' })
+    expect(thenRunOf('{"then_run": ""}')).toEqual({ kind: 'absent' })
+    expect(thenRunOf('not json')).toEqual({ kind: 'absent' })
+  })
+})
+
+describe('FIXM101T tool regressions', () => {
+  it('refuses overlapping occurrences of exact find text', async () => {
+    const { run, io } = context({ 'a.txt': 'aaa' })
+    const result = await run('edit_file', { path: 'a.txt', find: 'aa', replace: 'changed' })
+    expect(result.failureReason).toBeDefined()
+    expect(result.output).toContain('more than once')
+    expect(io.files.get('/ws/a.txt')).toBe('aaa')
+  })
+
+  it('advertises schema-valid atomic edits without top-level find and replace', async () => {
+    const { run, io } = context({ 'a.txt': 'alpha\nbeta\n' })
+    const definition = toolDefinitions('linux').find((tool) => tool.name === 'edit_file')
+    expect(definition?.parameters['required']).toEqual(['path'])
+    await run('read_file', { path: 'a.txt' })
+    const result = await run('edit_file', {
+      path: 'a.txt',
+      edits: [{ find: 'alpha', replace: 'changed' }],
+    })
+    expect(result.failureReason).toBeUndefined()
+    expect(io.files.get('/ws/a.txt')).toBe('changed\nbeta\n')
+  })
+
+  it.each([false, true])(
+    'fuzzy replacement consumes its requested trailing newline (edits=%s)',
+    async (multi) => {
+      const { run, io } = context({ 'a.txt': 'alpha \nbeta\n' })
+      await run('read_file', { path: 'a.txt' })
+      const pair = { find: 'alpha\n', replace: 'changed\n' }
+      const result = await run('edit_file', {
+        path: 'a.txt',
+        ...(multi ? { edits: [pair] } : pair),
+      })
+      expect(result.failureReason).toBeUndefined()
+      expect(io.files.get('/ws/a.txt')).toBe('changed\nbeta\n')
+    },
+  )
+
+  it('searches repeated fuzzy lines without quadratic host blocking', async () => {
+    const { run } = context({ 'a.txt': 'a\n'.repeat(6000) })
+    await run('read_file', { path: 'a.txt' })
+    const start = performance.now()
+    const result = await run('edit_file', {
+      path: 'a.txt',
+      find: `${'a\n'.repeat(2999)}b`,
+      replace: 'changed',
+    })
+    expect(result.failureReason).toBeDefined()
+    expect(performance.now() - start).toBeLessThan(1000)
+  })
+
+  it('pages by the character budget with an intact next offset and no skipped line', async () => {
+    const { run } = context({
+      'a.txt': Array.from({ length: 200 }, (_, at) => `${String(at)} ${'x'.repeat(1000)}`).join(
+        '\n',
+      ),
+    })
+    const first = await run('read_file', { path: 'a.txt', limit: 200 })
+    expect(first.output.length).toBeLessThanOrEqual(TOOL_OUTPUT_MAX_CHARS)
+    const next = /offset=(\d+)/.exec(first.output)?.[1]
+    expect(next).toBeDefined()
+    const offset = Number(next)
+    expect(first.output).toContain(`${String(offset - 1)}|${String(offset - 2)} `)
+    expect(first.output).not.toContain(`${String(offset)}|`)
+    const page = await run('read_file', { path: 'a.txt', offset, limit: 1 })
+    expect(page.output).toContain(`${String(offset)}|${String(offset - 1)} `)
+  })
+
+  it('refuses a past-end offset even for an empty file', async () => {
+    const { run } = context({ 'empty.txt': '' })
+    const past = await run('read_file', { path: 'empty.txt', offset: 999 })
+    const first = await run('read_file', { path: 'empty.txt', offset: 1 })
+    expect(past.failureReason).toBeDefined()
+    expect(first.failureReason).toBeUndefined()
+  })
+
+  it('decodes file URLs once and checks and writes the decoded target', async () => {
+    const { run, io } = context({ 'a b.txt': 'space', 'a%20b.txt': 'percent' })
+    const uri = 'file:///ws/a%20b.txt'
+    const read = await run('read_file', { path: uri })
+    expect(read.output).toContain('space')
+    const result = await run('write_file', { path: uri, content: 'changed' })
+    expect(result.failureReason).toBeUndefined()
+    expect(io.files.get('/ws/a b.txt')).toBe('changed')
+    expect(io.files.get('/ws/a%20b.txt')).toBe('percent')
+    for (const given of [
+      'file:///ws/%2e%2e/out.txt',
+      'file:///ws/%2fout',
+      'file:///ws/%5cout',
+      'file:///ws/%00bad',
+      'file:///ws/%XX',
+      'file://evil/ws/a',
+      'file:///ws/a?x=1',
+      'file:///ws/a#fragment',
+    ]) {
+      expect(resolveWorkspacePath('/ws', given, 'linux').ok).toBe(false)
+    }
+    expect(resolveWorkspacePath('/ws', 'file:///ws/a%2520b.txt', 'linux')).toMatchObject({
+      absolute: '/ws/a%20b.txt',
+    })
+    expect(resolveWorkspacePath('C:/ws', 'file:///C:/ws/N%55L', 'win32').ok).toBe(false)
+    expect(resolveWorkspacePath('C:/ws', 'file:///C:/ws/a%3Ahidden', 'win32').ok).toBe(false)
+  })
+
+  it('admits normalized absolute file URLs only beneath approved extra roots', async () => {
+    const io = memoryToolIo({ 'a.txt': 'workspace' }, 'C:/ws')
+    io.files.set('C:/extra/b.txt', 'extra')
+    const ctx: ToolContext = {
+      workspaceRoot: 'C:/ws',
+      platform: 'win32',
+      io,
+      seen: new Map(),
+      files: { extraRoots: ['C:/extra'], isDenied: () => false, denyGlobs: [], isDenyAll: false },
+    }
+    const allowed = await executeTool('read_file', '{"path":"file:///C:/extra/b.txt"}', ctx)
+    expect(allowed.failureReason).toBeUndefined()
+    expect(allowed.output).toContain('extra')
+    const outside = await executeTool('read_file', '{"path":"file:///C:/outside/b.txt"}', ctx)
+    expect(outside.failureReason).toBeDefined()
+  })
+})
+
+describe('FIXM101T localized tool failures and cancellation', () => {
+  afterEach(() => {
+    setUiText(EN, BASE_LOCALE)
+  })
+  it('reads French edit and paging errors at invocation time while model errors stay English', async () => {
+    await loadUiTable({
+      language: 'fr',
+      readExtensionFile: () =>
+        Promise.resolve(readFileSync(new URL('../../l10n/ui.fr.json', import.meta.url), 'utf8')),
+      log: createLogger(new FakeLogOutputChannel()),
+    })
+    const { run } = context({ 'a.txt': 'alpha\nbeta\n' })
+    const empty = await run('edit_file', { path: 'a.txt', edits: [] })
+    expect(empty.failureReason).toBe(UI_TEXT.toolEditInvalid)
+    expect(empty.failureReason).toContain('Utilisez')
+    expect(empty.output).toContain('edits must hold at least one edit')
+    const noop = await run('edit_file', { path: 'a.txt', find: 'alpha', replace: 'alpha' })
+    expect(noop.failureReason).toBe(
+      'Les textes recherché et de remplacement sont identiques ; rien ne changerait.',
+    )
+    const overlap = await run('edit_file', {
+      path: 'a.txt',
+      edits: [
+        { find: 'alpha\nbeta', replace: 'x' },
+        { find: 'beta', replace: 'y' },
+      ],
+    })
+    expect(overlap.failureReason).toBe(UI_TEXT.toolEditOverlap)
+    const missing = await run('edit_file', { path: 'a.txt', find: 'missing', replace: 'x' })
+    expect(missing.failureReason).toBe('Le texte recherché est introuvable dans a.txt.')
+    const past = await run('read_file', { path: 'a.txt', offset: 999 })
+    expect(past.failureReason).toContain('Le décalage')
+    expect(past.output).toContain('past the end')
+    const page = await run('read_file', { path: 'a.txt', limit: 1 })
+    expect(page.visibleOutput).toContain('Lignes 1–1 sur 2')
+    expect(page.output).toContain('offset=2')
+  })
+
+  it('yields during fuzzy matching so Stop aborts before any write', async () => {
+    const { ctx, io } = context({ 'a.txt': 'a \n'.repeat(6000) })
+    const abort = new AbortController()
+    const pending = executeTool(
+      'edit_file',
+      JSON.stringify({ path: 'a.txt', find: 'a\n'.repeat(2999) + 'b', replace: 'x' }),
+      { ...ctx, signal: abort.signal },
+    )
+    setTimeout(() => {
+      abort.abort()
+    }, 0)
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+    expect(io.files.get('/ws/a.txt')).toBe('a \n'.repeat(6000))
+  })
+
+  it('clips a tool output at a code point boundary', async () => {
+    const { ctx, io } = context()
+    const text = 'a'.repeat(TOOL_OUTPUT_MAX_CHARS - 1) + '\u{1F600}' + 'b'.repeat(1000)
+    const output = await executeTool('list_files', '{}', {
+      ...ctx,
+      io: { ...io, listFiles: () => Promise.resolve([text]) },
+    })
+    expect(output.output).toContain(TOOL_OUTPUT_CLIP_MARKER)
+    expect(output.output).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/)
   })
 })

@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "date": "2026-10-05",
+  "base": "539e517da8f3738f1f8133ac83782531f345090c",
+  "status": "partial - Windows natural exit and shared settlement/integration remain open",
+  "modelAttempts": 0,
+  "sources": [
+    {
+      "path": "native/windows/MuseSparkJob.cs",
+      "sha256": "5d6f866ea61d304fdb685e75877bb7f454d1dcfc3e594f47449bf52cd00c9a10"
+    },
+    {
+      "path": "src/host/team/processLifetime.ts",
+      "sha256": "de53d9a780c113875cbc064e3f812cc459a415463d887f88faba606cf2f7c408"
+    },
+    {
+      "path": "src/host/team/orphanRecovery.ts",
+      "sha256": "28ca3c82fc2991f25e0f4981385efad530f69424bb59b8b8c9181551d3461542"
+    },
+    {
+      "path": "src/host/team/teamJournal.ts",
+      "sha256": "779ab0d0ed7dd882754dbbde238e0f96784843e101a01ca0f3bfabc6af579471"
+    },
+    {
+      "path": "src/host/team/windowHints.ts",
+      "sha256": "14acebf74f699a663ba9b407478d83061581abe79e9c5b7b5bb651e8c17d172e"
+    },
+    {
+      "path": "test/unit/teamProcessLifetime.test.ts",
+      "sha256": "f559a92b6500a1ee17dd2bbc0e5dfd994d823018dc85f08f865affe07377d1c8"
+    },
+    {
+      "path": "test/unit/teamHintsAndLoad.test.ts",
+      "sha256": "9ba9de0497657d7f5fa5b27d1ff793bc40ed595f0cdcf19a4cd8d67e2341fe98"
+    },
+    {
+      "path": "test/unit/teamNativeLifetime.test.ts",
+      "sha256": "34acdc83ef597c96309b396e80f23d3ce42aec1967282e8e67b7323a59471acb"
+    },
+    {
+      "path": "docs/ide-compatibility/host-api.md",
+      "sha256": "a2041d545ab648f0dde00439c4af77a9cb102e49d5c8af11c04b2e2eae5334d4"
+    }
+  ],
+  "logs": {
+    "fin-gates2.txt": {
+      "path": "docs/certification/m96-k/fin-logs/fin-gates2.txt",
+      "sha256": "d23dd00f4e4f0612ae21411805e3fb70451cc9cfb84b4b5697ac81245b158005"
+    },
+    "fin-native-mac-final.txt": {
+      "path": "docs/certification/m96-k/fin-logs/fin-native-mac-final.txt",
+      "sha256": "5397add1abeb5b51172b8d18b35702c10cef59e3abb177beb32a218634ac5356"
+    },
+    "fin-red-kubuntu-baseline.txt": {
+      "path": "docs/certification/m96-k/fin-logs/fin-red-kubuntu-baseline.txt",
+      "sha256": "1f910ac3421ecd5391942ad8eaa875f6dbfe47a973001360fa2e354dbb8bcfde"
+    },
+    "fin-red-kubuntu-restored.txt": {
+      "path": "docs/certification/m96-k/fin-logs/fin-red-kubuntu-restored.txt",
+      "sha256": "4d6e7f0920d9bc0ea33f485e418df4171b1cdd32075c093ab2dbe73f9414857b"
+    },
+    "fin-native-win3.txt": {
+      "path": "docs/certification/m96-k/fin-logs/fin-native-win3.txt",
+      "sha256": "5830849fb2df607972498dd65d92541e2c315393d172348d15bfd1fa8bd06ac4"
+    },
+    "fin-red-win11-baseline.txt": {
+      "path": "docs/certification/m96-k/fin-logs/fin-red-win11-baseline.txt",
+      "sha256": "c50d8308cddff65bd88a2ea804ae1dce05f3ba50ad65ce11dfe0970e807ee49a"
+    },
+    "fin-red-win11-baseline-retry.txt": {
+      "path": "docs/certification/m96-k/fin-logs/fin-red-win11-baseline-retry.txt",
+      "sha256": "a53ee7392a2d30a94de9c653c7b4fc692f8f41095fa2c074ee48699bbf6fad94"
+    },
+    "fin-eslint6.txt": {
+      "path": "docs/certification/m96-k/fin-logs/fin-eslint6.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "fin-red-native-priority.txt": {
+      "path": "docs/certification/m96-k/fin-logs/fin-red-native-priority.txt",
+      "sha256": "983fe7305c8ea4789102164cb590f81596f90c0aed1ab58735c79e280618bcd7"
+    },
+    "fin-red-native-marker-scan.txt": {
+      "path": "docs/certification/m96-k/fin-logs/fin-red-native-marker-scan.txt",
+      "sha256": "74bac61f4ef3720cfffa3bddd11e938a1ba2a53277eea80e181e662ede2a0dfc"
+    },
+    "fin-red-scope-populated-proof.txt": {
+      "path": "docs/certification/m96-k/fin-logs/fin-red-scope-populated-proof.txt",
+      "sha256": "14702a283cd30273ae3417dd301c726acdb17de399547fe18fa8708a63d3eee8"
+    },
+    "fin-red-retirement-monotonic.txt": {
+      "path": "docs/certification/m96-k/fin-logs/fin-red-retirement-monotonic.txt",
+      "sha256": "b20290e64ef17c802ace435c921ca4ea0e9eabcf76cde17c7d0e72860b5060a8"
+    },
+    "fin-red-startup-reconciliation.txt": {
+      "path": "docs/certification/m96-k/fin-logs/fin-red-startup-reconciliation.txt",
+      "sha256": "0e790609180ddde3bd56485b6220fc2daa3d8a9138ff86ceafa1a0c8b0ea53a0"
+    },
+    "fin-red-state-home.txt": {
+      "path": "docs/certification/m96-k/fin-logs/fin-red-state-home.txt",
+      "sha256": "10a7147d3a13d2080793de247629e43a043f83b5132a25d9c82e7c433b3d5db2"
+    },
+    "fin-red-parent-death.txt": {
+      "path": "docs/certification/m96-k/fin-logs/fin-red-parent-death.txt",
+      "sha256": "df6dc45f4866894643cea58018ec01cc08e09b2d9b3138a6c0f5ca4bfa36a576"
+    }
+  }
+}

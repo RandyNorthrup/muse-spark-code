@@ -176,8 +176,8 @@ function tabConsentWith(
 }
 
 describe('paidUseQuestion: Tab (M94 lane L, PLAN.md D73)', () => {
-  it('names Tab, the model, its rates and today’s budget', () => {
-    const question = paidUseQuestion(TAB_REQUEST)
+  it('names Tab, the model, its rates and today’s budget', async () => {
+    const question = await paidUseQuestion(TAB_REQUEST)
     expect(question.title).toBe(UI_TEXT.paidUseTabTitle)
     expect(question.detail).toContain('muse-spark-1.3')
     expect(question.detail).toContain('$1.250/1M input')
@@ -185,8 +185,8 @@ describe('paidUseQuestion: Tab (M94 lane L, PLAN.md D73)', () => {
     expect(question.detail).toContain('Allow once covers this window until it closes')
   })
 
-  it('adds the training note for the contributor model only', () => {
-    const contributor = paidUseQuestion({
+  it('adds the training note for the contributor model only', async () => {
+    const contributor = await paidUseQuestion({
       feature: 'tab',
       modelId: 'muse-spark-1.3-contributor',
       budgetUsd: 1,
@@ -194,13 +194,14 @@ describe('paidUseQuestion: Tab (M94 lane L, PLAN.md D73)', () => {
     expect(contributor.detail).toContain('muse-spark-1.3-contributor')
     expect(contributor.detail).toContain('$0.100/1M input')
     expect(contributor.detail).toContain(UI_TEXT.tabTrainingContributor)
-    expect(paidUseQuestion(TAB_REQUEST).detail).not.toContain('trains on')
+    const standard = await paidUseQuestion(TAB_REQUEST)
+    expect(standard.detail).not.toContain('trains on')
   })
 
-  it('has no rate to quote for an unpriced model', () => {
-    expect(() =>
+  it('has no rate to quote for an unpriced model', async () => {
+    await expect(
       paidUseQuestion({ feature: 'tab', modelId: 'muse-spark-future', budgetUsd: 1 }),
-    ).toThrow(UI_TEXT.subagentTariffUnknown)
+    ).rejects.toThrow(UI_TEXT.subagentTariffUnknown)
   })
 })
 

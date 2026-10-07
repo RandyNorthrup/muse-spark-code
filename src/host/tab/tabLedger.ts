@@ -60,7 +60,8 @@ interface LedgerFile {
 
 /** Today's total spend across every window, or the refusal to trust it. */
 export type TabDayTotal =
-  { readonly ok: true; readonly totalUsd: number } | { readonly ok: false; readonly detail: string }
+  | { readonly ok: true; readonly totalUsd: number; readonly uncertainUsd?: number }
+  | { readonly ok: false; readonly detail: string }
 
 /** An admitted request's reservation: the local day it was written to and its worst case. */
 export interface TabLedgerReservation {
@@ -116,6 +117,8 @@ export interface TabLedger {
    * (`YYYY-MM-DD`, as a reservation names it). Never throws.
    */
   readonly todayTotal: (date?: string) => Promise<TabDayTotal>
+  /** The same validated read with retained reservations distinguished. No writes. */
+  readonly todayUsage?: () => Promise<TabDayTotal>
   /**
    * Writes `worstCaseUsd` into this window's file for the local day read
    * once from the clock, then admits the request only while that day's
@@ -131,7 +134,9 @@ export interface TabLedger {
   readonly settle: (reservation: TabLedgerReservation, actualUsd: number) => Promise<void>
 }
 
-export function createTabLedger(deps: TabLedgerDeps): TabLedger {
+export function createTabLedger(
+  deps: TabLedgerDeps,
+): TabLedger & Required<Pick<TabLedger, 'todayUsage'>> {
   if (!WINDOW_ID_PATTERN.test(deps.windowId)) {
     throw new Error(`Tab window id ${deps.windowId} cannot name a ledger file`)
   }
@@ -183,7 +188,7 @@ export function createTabLedger(deps: TabLedgerDeps): TabLedger {
     }
   }
 
-  const dayTotal = async (date: string): Promise<TabDayTotal> => {
+  const dayTotal = async (date: string, shouldReadUsage = false): Promise<TabDayTotal> => {
     if (!DATE_PATTERN.test(date)) {
       return { ok: false, detail: date }
     }
@@ -207,6 +212,7 @@ export function createTabLedger(deps: TabLedgerDeps): TabLedger {
       return isMissing(error) ? { ok: true, totalUsd: 0 } : { ok: false, detail: date }
     }
     let totalUsd = 0
+    let uncertainUsd = 0
     const sorted = names.toSorted((left, right) => left.localeCompare(right))
     for (const name of sorted) {
       if (name.endsWith(ATOMIC_TEMPORARY_SUFFIX) || !name.endsWith(FILE_EXTENSION)) {
@@ -234,8 +240,9 @@ export function createTabLedger(deps: TabLedgerDeps): TabLedger {
         return { ok: false, detail: name }
       }
       totalUsd += file.data.reservedUsd + file.data.reportedUsd
+      uncertainUsd += file.data.reservedUsd
     }
-    return { ok: true, totalUsd }
+    return { ok: true, totalUsd, ...(shouldReadUsage && { uncertainUsd }) }
   }
 
   const rollback = async (date: string, worstCaseUsd: number): Promise<void> => {
@@ -337,6 +344,7 @@ export function createTabLedger(deps: TabLedgerDeps): TabLedger {
 
   return {
     todayTotal: (date) => dayTotal(date ?? tabLocalDate(deps.now())),
+    todayUsage: () => dayTotal(tabLocalDate(deps.now()), true),
     admit: (worstCaseUsd, budgetUsd) => exclusive(() => admit(worstCaseUsd, budgetUsd)),
     settle: (reservation, actualUsd) => exclusive(() => settle(reservation, actualUsd)),
   }

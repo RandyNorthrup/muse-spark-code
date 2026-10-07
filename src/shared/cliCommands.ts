@@ -4,6 +4,48 @@ import { ACP_AGENT_NAME, REFERENCE_DOCS_URL, UI_TEXT, SLASH_COMMAND_NAMES } from
 export function cliCommands() {
   return [
     {
+      route: 'usage',
+      name: 'usage [summary|daily|models|limits|export|open|serve] [options] / --usage --json',
+      description: UI_TEXT.acpUsageDescription,
+      text: { ui: 'acpUsageDescription' },
+    },
+    {
+      route: 'legal',
+      name: 'exec legal-scan --json / legal [--format text|json] [--out <file>] [--registry]',
+      description: UI_TEXT.legalScanItemDetail,
+      text: { ui: 'legalScanItemDetail' },
+    },
+    {
+      route: 'providersList',
+      name: 'providers list',
+      description: UI_TEXT.referenceProviders,
+      text: { ui: 'referenceProviders' },
+    },
+    {
+      route: 'providersAdd',
+      name: 'providers add --preset <preset> [--as <id>] [--address <url>] [--model <model>] [--privacy <policy>] [--private-ok] [--key-stdin]',
+      description: UI_TEXT.startWithOwnModelDetail,
+      text: { ui: 'startWithOwnModelDetail' },
+    },
+    {
+      route: 'providersTest',
+      name: 'providers test <id>',
+      description: UI_TEXT.referenceProviders,
+      text: { ui: 'referenceProviders' },
+    },
+    {
+      route: 'providersRemove',
+      name: 'providers remove <id>',
+      description: UI_TEXT.referenceProviders,
+      text: { ui: 'referenceProviders' },
+    },
+    {
+      route: 'chatGptProvider',
+      name: 'providers add|remove|status chatgpt',
+      description: UI_TEXT.referenceProviders,
+      text: { ui: 'referenceProviders' },
+    },
+    {
       route: 'serve',
       name: '[options]',
       description: UI_TEXT.referenceServe,
@@ -115,12 +157,12 @@ export function cliCommands() {
   ]
 }
 
-/** ACP supports /help and installed skills; the full panel list lives in the page. */
+/** ACP's available local commands and installed skills; panel commands live in the page. */
 export function compactReference(skills: readonly string[]): string {
   return [
     UI_TEXT.helpReferenceTitle,
     UI_TEXT.referenceAcp.replaceAll(`/${SLASH_COMMAND_NAMES.help}`, () => SLASH_COMMAND_NAMES.help),
-    `${UI_TEXT.groupSlashCommands}: ${[`/${SLASH_COMMAND_NAMES.help}`, ...skills.filter((name) => name !== SLASH_COMMAND_NAMES.help).map((name) => `/${name}`)].join(', ')}`,
+    `${UI_TEXT.groupSlashCommands}: ${[...new Set([SLASH_COMMAND_NAMES.help, ...skills])].map((name) => `/${name}`).join(', ')}`,
     `${UI_TEXT.referenceCommands}: ${cliCommands()
       .map((entry) => entry.name)
       .join(', ')}`,

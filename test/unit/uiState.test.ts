@@ -3,6 +3,7 @@ import { scrubSecretApproval } from '../../src/core/agent/approvalSecrets'
 import type { AgentEvent, ItemSnapshot } from '../../src/shared/agentEvents'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { AttachmentSummary, HostToWebviewMessage } from '../../src/shared/protocol'
+import type { TeamTreeData } from '../../src/shared/teamView'
 import { restoredUiState, webviewStateOf } from '../../src/webview/state/snapshot'
 import type { ScheduleView } from '../../src/shared/schedule'
 import {
@@ -1217,7 +1218,9 @@ describe('uiReducer: agent events', () => {
       }),
     ])
     expect(state.activeTurnId).toBeUndefined()
-    expect(state.transcript).toEqual([{ kind: 'error', id: 'error:t1', text: 'not logged in' }])
+    expect(state.transcript).toEqual([
+      { kind: 'error', id: 'error:t1', text: 'not logged in', errorKind: 'authRequired' },
+    ])
   })
 
   it('records usage, context and model changes', () => {
@@ -1335,6 +1338,104 @@ describe('uiReducer: account & usage and announcements (M8)', () => {
     expect(
       reduceAll([host({ type: 'notice', level: 'info', text: 'fyi' })], base).announcement,
     ).toBeUndefined()
+  })
+})
+
+describe('uiReducer: team tree, usage and cards (M96 lane U2)', () => {
+  const team: TeamTreeData = {
+    orchestrator: { model: 'muse-spark-1.3', backend: 'modelApi', slot: 'default' },
+    roles: [],
+  }
+
+  it('keeps the host’s team tree, across a cleared conversation but not an account change', () => {
+    const withTree = reduceAll([host(init), host({ type: 'teamTree', tree: team })])
+    expect(withTree.teamTree).toEqual(team)
+    // The team is the workspace's: a new conversation keeps it.
+    expect(uiReducer(withTree, { type: 'conversationCleared' }).teamTree).toEqual(team)
+    // The tree names the account's models: sign-out clears it with the usage.
+    const signedOut = uiReducer(withTree, host({ type: 'authState', status: 'signedOut' }))
+    expect(signedOut.teamTree).toBeUndefined()
+    expect(signedOut.usageReport).toBeUndefined()
+  })
+
+  it('starts with no team: the map, the pill and the dialog are today’s', () => {
+    expect(reduceAll([host(init)]).teamTree).toBeUndefined()
+  })
+
+  it('carries the usage Team section on the report', () => {
+    const figures = {
+      tasks: 1,
+      inputTokens: 100,
+      outputTokens: 50,
+      costUsd: 0.01,
+      estimated: false,
+    }
+    const state = reduceAll([
+      host(init),
+      host({
+        type: 'usageReport',
+        backend: 'modelApi',
+        team: { today: figures, window: figures, byRole: [], byEntry: [] },
+      }),
+    ])
+    expect(state.usageReport?.team?.today.tasks).toBe(1)
+  })
+
+  it('turns team items into cards, and a payload-less one into today’s row', () => {
+    const state = reduceAll([
+      host(init),
+      agent({
+        type: 'itemStarted',
+        item: {
+          itemId: 's1',
+          kind: 'teamSwitch',
+          status: 'completed',
+          teamSwitch: {
+            roleId: 'engineering',
+            fromEntry: 'entry 1',
+            toEntry: 'entry 2',
+            reason: 'cap',
+          },
+        },
+      }),
+      agent({
+        type: 'itemStarted',
+        item: { itemId: 'm1', kind: 'teamMerge', status: 'inProgress' },
+      }),
+    ])
+    expect(state.transcript[0]).toMatchObject({ kind: 'teamSwitch', reason: 'cap' })
+    expect(state.transcript[1]).toMatchObject({ kind: 'item', itemKind: 'teamMerge' })
+  })
+
+  it('labels a worker’s own approval from the task', () => {
+    const state = reduceAll([
+      host(init),
+      agent({
+        type: 'itemStarted',
+        item: {
+          itemId: 'c1',
+          kind: 'toolCall',
+          status: 'inProgress',
+          tool: 'edit',
+          teamWorker: { roleId: 'engineering', agentLabel: 'Codex', taskId: 't3' },
+        },
+      }),
+      agent({
+        type: 'approvalRequested',
+        approvalId: 'a1',
+        itemId: 'c1',
+        toolName: 'edit',
+        requirementId: { approvalId: 'a1', sourceIndex: 0 },
+        subject: { kind: 'tool', toolName: 'edit' },
+        rawArgs: '{}',
+        availableChoices: [],
+        isProtectedWrite: false,
+        isJudgeEscalated: false,
+      }),
+    ])
+    expect(waitingApprovals(state.transcript)[0]).toMatchObject({
+      teamWorker: { roleId: 'engineering', agentLabel: 'Codex', taskId: 't3' },
+    })
   })
 })
 
@@ -3563,6 +3664,7 @@ describe('uiReducer: the session goal (M45)', () => {
         backend: 'museCode',
         subscription: undefined,
         account: { signInMethod: 'cli' },
+        providers: undefined,
         insights: undefined,
       },
       editorContext: { relativePath: 'private-a.ts', startLine: 1, endLine: 2, isEmpty: false },
@@ -4081,6 +4183,67 @@ describe('uiReducer: share files read-only (M84)', () => {
     const other = host({ type: 'historyLoaded', sessionId: 'old', items: [], todos: [] })
     expect(reduceAll([imported, other]).isImported).toBe(false)
     expect(uiReducer(reduceAll([imported]), { type: 'conversationCleared' }).isImported).toBe(false)
+  })
+})
+
+describe('uiReducer: finished provider setup (M95)', () => {
+  const finished = host({
+    type: 'setupComplete',
+    provider: 'OpenRouter',
+    model: 'openrouter/deepseek/deepseek-v3',
+  })
+
+  it('confirms once with the provider and model, announces it, and dismisses', () => {
+    const state = reduceAll([finished])
+    expect(state.setupComplete).toEqual({
+      provider: 'OpenRouter',
+      model: 'openrouter/deepseek/deepseek-v3',
+    })
+    expect(state.announcement?.text).toContain('OpenRouter')
+    expect(state.announcement?.text).toContain('openrouter/deepseek/deepseek-v3')
+    const dismissed = uiReducer(state, { type: 'setupCompleteDismissed' })
+    expect(dismissed.setupComplete).toBeUndefined()
+  })
+
+  it('drops the confirmation with the account', () => {
+    const state = reduceAll([
+      host({ type: 'authState', status: 'signedIn', backend: 'modelApi' }),
+      finished,
+    ])
+    expect(state.setupComplete).toBeDefined()
+    expect(
+      uiReducer(state, host({ type: 'authState', status: 'signedOut' })).setupComplete,
+    ).toBeUndefined()
+  })
+
+  it('keeps per-provider tallies from the usage report', () => {
+    const providers = [
+      {
+        providerId: 'openrouter',
+        providerLabel: 'OpenRouter',
+        pricing: 'priced' as const,
+        inputTokens: 1200,
+        outputTokens: 300,
+        costUsd: 0.001,
+      },
+    ]
+    const state = reduceAll([host({ type: 'usageReport', backend: 'modelApi', providers })])
+    expect(state.usageReport?.providers).toEqual(providers)
+  })
+
+  it('stores provider fields on the listed models', () => {
+    const models = [
+      {
+        modelId: 'openrouter/deepseek/deepseek-v3',
+        displayLabel: 'DeepSeek V3',
+        isDefault: true,
+        providerId: 'openrouter',
+        providerLabel: 'OpenRouter',
+        pricing: 'priced' as const,
+        isPinned: true,
+      },
+    ]
+    expect(reduceAll([host({ type: 'modelList', models })]).models).toEqual(models)
   })
 })
 

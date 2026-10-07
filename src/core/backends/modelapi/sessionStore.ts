@@ -21,6 +21,7 @@ import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionMod
 import type { AgentRuntime } from '../../context/customAgents'
 import type { SessionRecord } from '../../agent/agentBackend'
 import { type GoalRecord, goalRecordSchema } from './goalRecord'
+import type { TeamCommandRecord } from '../../team/teamTools'
 import type { SessionBudgetJournal } from './sessionBudget'
 import {
   functionCallItemSchema,
@@ -30,9 +31,12 @@ import {
   webSearchActionSchema,
 } from './schemas'
 
+import type { ReplayProducer } from './modelPolicy'
+
 export interface StoredReplayItem {
   readonly turnId: string
   readonly item: InputItem
+  readonly producer?: ReplayProducer | undefined
   /** The transcript user card that supplied this exact replay message (M53). */
   readonly userMessageId?: string
   /** Identifies a background task's terminal model note across fork cuts. */
@@ -105,6 +109,8 @@ export interface StoredSession {
   readonly agent?: AgentRuntime
   readonly name?: string
   readonly createdAt: string
+  /** Local calendar date frozen at session start (M101); absent on older files. */
+  readonly promptDate?: string
   readonly lastActivityAt: string
   readonly turnIds: readonly string[]
   /** Last completed turn covered by the accepted compaction summary (M53). */
@@ -130,11 +136,23 @@ export interface StoredSession {
    */
   readonly packedTokensAvoided?: number
   readonly hookTokensAdded?: number
+  /** Sticky packing swaps (M101), with originals retained in replay; absent on old files. */
+  readonly packedCallIds?: readonly string[]
   /** Children are nested in the parent's file; they do not appear in History. */
   readonly children?: readonly StoredChild[]
   /** Completed children whose results have not entered the next model request. */
   readonly pendingChildResults?: readonly StoredPendingChildResult[]
   readonly spawnCommands?: Readonly<Record<string, string>>
+  /**
+   * M96 lane T: the conversation's declared delegation family, decided at
+   * its first request and kept on resume. Absent on conversations saved
+   * before teams, which keep their single-model declared set.
+   */
+  readonly teamMode?: 'single-model' | 'team'
+  /** M96 lane T: the roster's stable part as the first request sent it, never rewritten. */
+  readonly teamRoster?: string
+  /** M96 lane T: `command_id` claims and their recorded answers. */
+  readonly teamCommands?: Readonly<Record<string, TeamCommandRecord>>
 }
 
 /**
@@ -255,6 +273,7 @@ const storedSessionFields = {
   ),
   name: z.optional(z.string()),
   createdAt: z.string(),
+  promptDate: z.optional(z.string().check(z.regex(/^\d{4}-\d{2}-\d{2}$/))),
   lastActivityAt: z.string(),
   turnIds: z.array(z.string()),
   compactedThroughTurnId: z.optional(z.string()),
@@ -267,6 +286,7 @@ const storedSessionFields = {
     z.object({
       turnId: z.string(),
       item: storedInputItemSchema,
+      producer: z.optional(z.object({ provider: z.string(), model: z.string() })),
       userMessageId: z.optional(z.string()),
       backgroundTaskId: z.optional(z.string()),
     }),
@@ -293,6 +313,7 @@ const storedSessionFields = {
   // corrupt value is dropped before validation (withoutCorruptEstimate).
   packedTokensAvoided: z.optional(z.int().check(z.nonnegative())),
   hookTokensAdded: z.optional(z.int().check(z.nonnegative())),
+  packedCallIds: z.optional(z.array(z.string())),
 } as const
 
 export const storedSessionSchema = z.object({
@@ -335,6 +356,18 @@ export const storedSessionSchema = z.object({
     ),
   ),
   spawnCommands: z.optional(z.record(z.string(), z.string())),
+  teamMode: z.optional(z.enum(['single-model', 'team'])),
+  teamRoster: z.optional(z.string()),
+  teamCommands: z.optional(
+    z.record(
+      z.string(),
+      z.object({
+        tasksFingerprint: z.string(),
+        answer: z.string(),
+        state: z.optional(z.literal('uncertain')),
+      }),
+    ),
+  ),
 })
 
 export type StoredSessionParse =
@@ -377,11 +410,16 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     children,
     pendingChildResults,
     spawnCommands,
+    teamMode,
+    teamRoster,
+    teamCommands,
     budgetSpentUsd,
     budgetIsFreshFork,
     agent,
     packedTokensAvoided,
     hookTokensAdded,
+    packedCallIds,
+    promptDate,
     ...rest
   } = result.data
   const replay = rest.replay.map(({ backgroundTaskId, userMessageId, ...entry }) => ({
@@ -441,9 +479,14 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
         ),
       }),
       ...(spawnCommands !== undefined && { spawnCommands }),
+      ...(teamMode !== undefined && { teamMode }),
+      ...(teamRoster !== undefined && { teamRoster }),
+      ...(teamCommands !== undefined && { teamCommands }),
       ...(agent !== undefined && { agent }),
       ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
       ...(hookTokensAdded !== undefined && { hookTokensAdded }),
+      ...(packedCallIds !== undefined && { packedCallIds }),
+      ...(promptDate !== undefined && { promptDate }),
     },
   }
 }

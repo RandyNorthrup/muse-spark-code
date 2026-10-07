@@ -71,6 +71,7 @@ export function AttentionDock({
           key={stageKey}
           approval={first.approval}
           toolName={first.toolName}
+          worker={first.teamWorker}
           onDecide={onDecide}
         />
       )}

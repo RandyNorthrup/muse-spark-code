@@ -4,7 +4,11 @@
 // its budget or is missing.
 
 import { existsSync, readFileSync, statSync } from 'node:fs'
-import { webviewDeferredBudgetGroups, webviewStartupOutputs } from './lib/webviewBundles.mjs'
+import {
+  webviewDeferredBudgetGroups,
+  webviewStartupOutputs,
+  webviewPanelOutputs,
+} from './lib/webviewBundles.mjs'
 
 const BYTES_PER_KIB = 1024
 // M99: bound the generated notes independently of their ZIP compression.
@@ -33,6 +37,33 @@ const BUDGETS = [
   // purpose after M77, M78 and M82 (2026-10-02): 402.8 KiB measured, plus 15%,
   // rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/modelApi.js', budgetKiB: 475 },
+  // TRAIN15E new lazy entries: 28.3, 49.0 and 26.0 KiB measured; +15%,
+  // rounded up to 25 KiB. Existing Model API cap stays fixed.
+  { path: 'dist/modelApiHooks.js', budgetKiB: 50 },
+  { path: 'dist/modelApiMcp.js', budgetKiB: 75 },
+  { path: 'dist/runtimeAccounting.js', budgetKiB: 50 },
+  // TRAIN15E: credentials/model references only; 7.7 KiB +15%, rounded to 25 KiB.
+  { path: 'dist/providerPolicy.js', budgetKiB: 25 },
+  // Standalone ACP engine: 754.8 KiB +15%, rounded up to 25 KiB.
+  { path: 'dist/runtimeEngine.js', budgetKiB: 875 },
+  // TRAIN15C: shared captured validators and pure team call admission:
+  // 16,991 bytes +15%, rounded up to 25 KiB (D6).
+  { path: 'dist/modelApiBoundaries.js', budgetKiB: 25 },
+  // TRAIN15E joined M95: providers 128.4, subscriptions 29.3, configured
+  // providers 24.9 and Models panel 90.3 KiB measured.
+  // New bundles use measured + 15%, rounded up to 25 KiB (D6/D74).
+  { path: 'dist/providers.js', budgetKiB: 150 },
+  { path: 'dist/subscriptions.js', budgetKiB: 50 },
+  { path: 'dist/configuredProviders.js', budgetKiB: 50 },
+  { path: 'dist/modelsPanel.js', budgetKiB: 125 },
+  // M102: independent lazy entries; measured + 15%, rounded up to 25 KiB.
+  { path: 'dist/usageService.js', budgetKiB: 100 },
+  { path: 'dist/usageCompanion.js', budgetKiB: 50 },
+  { path: 'dist/usagePanel.js', budgetKiB: 75 },
+  { path: 'dist/webview/usage.js', budgetKiB: 500 },
+  { path: 'dist/webview/usage.css', budgetKiB: 25 },
+  // TRAIN15E: Models page and its shared static imports: 424.9 KiB +15%.
+  { path: 'dist/webview/models.js', budgetKiB: 500 },
   // The review (M70): git's material, the review turn's text, the Plan-mode
   // hold and edit review, loaded the first time one is used: 40.6 KiB when
   // split out, plus room (PLAN.md D6).
@@ -41,6 +72,13 @@ const BUDGETS = [
   { path: 'dist/sessionBoard.js', budgetKiB: 75 },
   // M78b: paid Auto review after consent, 55.2 KiB with the same rule.
   { path: 'dist/reviewer.js', budgetKiB: 75 },
+  // M96INT: tools and roster, loaded only for a team conversation. 44.6 KiB
+  // measured; plus 15%, rounded up to 25 KiB (the approved D6 rule).
+  { path: 'dist/team.js', budgetKiB: 75 },
+  // M96c X2: runner adapters 44.6 KiB; D6's 15%, rounded to 25 KiB.
+  { path: 'dist/teamRunners.js', budgetKiB: 75 },
+  // M96c X2: board/scheduler/tools 57.8 KiB; D6's 15%, rounded to 25 KiB.
+  { path: 'dist/teamScheduler.js', budgetKiB: 75 },
   // M91 lane W: the imported hooks' adapters (lane P's contracts and engine),
   // loaded the first time a session holding one runs a hook: 64.9 KiB when
   // split out (2026-10-04). 85.7 KiB once the imported records' reader moved
@@ -95,6 +133,8 @@ const BUDGETS = [
   // voice's drivers (M9, M35), loaded on the first recording: split out on
   // 2026-10-03 at 80.3 and 34.5 KiB. Measured size plus 15%, rounded up to
   // 25 KiB (PLAN.md D6).
+  // M97: local legal scanner, 128.8 KiB measured; plus 15%, rounded to 25 KiB.
+  { path: 'dist/legalScan.js', budgetKiB: 150 },
   { path: 'dist/codeIntel.js', budgetKiB: 100 },
   { path: 'dist/voice.js', budgetKiB: 50 },
   // The window's web fetch (M69), loaded on the first fetch: each hop's
@@ -130,6 +170,7 @@ const BUDGETS = [
   // Shared English fallback; existing host budgets stay unchanged. Measured
   // 104.9 KiB (2026-10-04); plus 15%, rounded up to 25 KiB.
   { path: 'dist/uiText.js', budgetKiB: 125 },
+  // Used Node mini-parser API: 39.5 KiB + 15%, rounded up to 25 KiB.
   { path: 'dist/uiTextRuntime.js', budgetKiB: 25 },
   { path: 'dist/uiTextHooks.js', budgetKiB: 25 },
   { path: 'dist/uiTextSurfaces.js', budgetKiB: 25 },
@@ -138,6 +179,8 @@ const BUDGETS = [
   // Shared existing Node boundary schemas: 41.3 KB plus 15%, rounded to 25 KiB.
   { path: 'dist/wire.js', budgetKiB: 50 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },
+  // M101: pure raster worker, 58.7 KiB + 15%, rounded to 25 KiB.
+  { path: 'dist/imageResizeWorker.js', budgetKiB: 75 },
   // Web fetch's page converter (M69), on a worker started for each page:
   // 201.2 KiB when split out (parse5 122.7 of it), plus room.
   { path: 'dist/pageWorker.js', budgetKiB: 300 },
@@ -154,11 +197,17 @@ const BUDGETS = [
   // imports (445.2 of 713.2 KiB when set, 257.6 of them zod's locales). The
   // measured size plus about 15 %, rounded up to 50 KiB (D6 amendment).
   { path: 'dist/acp.js', budgetKiB: 850 },
+  // TRAIN15E: headless preflight before the lazy engine; 77.9 KiB +15%.
+  { path: 'dist/headless.js', budgetKiB: 100 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus
 // 15%, rounded up to 25 KiB. Closure caps also charge their shared imports.
 const WEBVIEW_SURFACE_BUDGETS = [
+  // TRAIN15H: legal report's full non-startup closure, measured +15%, rounded to 25 KiB.
+  { entry: 'LegalReport', budgetKiB: 25 },
+  // TRAIN15H: review comment form, measured +15%, rounded to 25 KiB.
+  { entry: 'ReviewCommentForm', budgetKiB: 25 },
   // Sign-in: 3.9 KiB + 15%, rounded to 25 KiB.
   { entry: 'SignIn', budgetKiB: 25 },
   // Goal panel: 3.2 KiB by the same rule.
@@ -184,22 +233,46 @@ for (const { path, budgetKiB } of BUDGETS) {
     console.log(`MISS ${path}: not built (budget ${budgetKiB} KiB)`)
     continue
   }
-  const files =
-    path === 'dist/webview/main.js'
-      ? webviewStartupOutputs(JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')))
-      : [path]
+  const pageMetafile = {
+    'dist/webview/main.js': 'dist/meta/webview.json',
+    'dist/webview/models.js': 'dist/meta/modelsWebview.json',
+    'dist/webview/usage.js': 'dist/meta/usageWebview.json',
+    'dist/webview/whatsNew.js': 'dist/meta/whatsNewPage.json',
+  }[path]
+  const files = pageMetafile
+    ? webviewStartupOutputs(JSON.parse(readFileSync(pageMetafile, 'utf8')), path)
+    : [path]
   const sizeKiB = files.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
   const status = sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'
   if (sizeKiB > budgetKiB) {
     hasFailure = true
   }
-  const label = path === 'dist/webview/main.js' ? `${path} + static imports` : path
+  const label = pageMetafile ? `${path} + static imports` : path
   console.log(`${status} ${label}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`)
 }
 
+// TRAIN15C: provider usage loads only for a nonempty provider report; its
+// new closure is 1,683 bytes + 15%, rounded up to 25 KiB (PLAN.md D6);
+// scripts/lib/webviewBundles.mjs records and enforces that independent cap.
 // Each new lazy closure has its own cap; old surfaces and unclassified
 // deferred helpers stay under TRAIN13B's unchanged aggregate 50 KiB cap.
+// TRAIN15H: optional surfaces' English has its own measured closure cap in
+// webviewBundles.mjs, following measured +15%, rounded up to 25 KiB.
 const webview = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
+for (const { name, source, budgetKiB } of [
+  // TRAIN15G: full lazy closure 56.3 KiB +15%, rounded up to 25 KiB.
+  { name: 'models', source: 'src/webview/models/panel.tsx', budgetKiB: 75 },
+  // TRAIN15G: full lazy closure 35.4 KiB +15%, rounded up to 25 KiB.
+  { name: 'usage', source: 'src/webview/usage/UsageApp.tsx', budgetKiB: 50 },
+]) {
+  const meta = JSON.parse(readFileSync(`dist/meta/${name}Webview.json`, 'utf8'))
+  const files = webviewPanelOutputs(meta, `dist/webview/${name}.js`, source)
+  const sizeKiB = files.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
+  if (sizeKiB > budgetKiB) hasFailure = true
+  console.log(
+    `${sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'} dist/webview ${name} body: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
+  )
+}
 for (const { entry, budgetKiB } of WEBVIEW_SURFACE_BUDGETS) {
   for (const [file, output] of Object.entries(webview.outputs)) {
     if (output.entryPoint?.replaceAll('\\', '/') !== `src/webview/components/${entry}.tsx`) continue

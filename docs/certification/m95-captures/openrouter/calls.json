@@ -1,0 +1,95 @@
+{
+  "provider": "openrouter",
+  "capturedAt": "2026-10-04",
+  "totalRequests": 9,
+  "billedRequests": 5,
+  "freeRequests": 4,
+  "expected": {
+    "billed": 5,
+    "free": 4
+  },
+  "models": ["openai/gpt-oss-20b", "anthropic/claude-sonnet-5.5"],
+  "calls": [
+    {
+      "seq": 1,
+      "name": "models-list",
+      "method": "GET",
+      "url": "https://openrouter.ai/api/v1/models?supported_parameters=tools",
+      "status": 200,
+      "billed": false,
+      "ms": 1164
+    },
+    {
+      "seq": 2,
+      "name": "key-usage",
+      "method": "GET",
+      "url": "https://openrouter.ai/api/v1/key",
+      "status": 200,
+      "billed": false,
+      "ms": 127
+    },
+    {
+      "seq": 3,
+      "name": "model-endpoints",
+      "method": "GET",
+      "url": "https://openrouter.ai/api/v1/models/openai/gpt-oss-20b/endpoints",
+      "status": 200,
+      "billed": false,
+      "ms": 69
+    },
+    {
+      "seq": 4,
+      "name": "tool-call-stream",
+      "method": "POST",
+      "url": "https://openrouter.ai/api/v1/chat/completions",
+      "status": 200,
+      "billed": true,
+      "ms": 1058
+    },
+    {
+      "seq": 5,
+      "name": "tool-result-stream",
+      "method": "POST",
+      "url": "https://openrouter.ai/api/v1/chat/completions",
+      "status": 200,
+      "billed": true,
+      "ms": 708
+    },
+    {
+      "seq": 6,
+      "name": "tool-history-without-tools",
+      "method": "POST",
+      "url": "https://openrouter.ai/api/v1/chat/completions",
+      "status": 200,
+      "billed": true,
+      "ms": 1563
+    },
+    {
+      "seq": 7,
+      "name": "error-invalid-model",
+      "method": "POST",
+      "url": "https://openrouter.ai/api/v1/chat/completions",
+      "status": 400,
+      "billed": false,
+      "ms": 44
+    },
+    {
+      "seq": 8,
+      "name": "cache-call-1",
+      "method": "POST",
+      "url": "https://openrouter.ai/api/v1/chat/completions",
+      "status": 200,
+      "billed": true,
+      "ms": 1059
+    },
+    {
+      "seq": 9,
+      "name": "cache-call-2",
+      "method": "POST",
+      "url": "https://openrouter.ai/api/v1/chat/completions",
+      "status": 200,
+      "billed": true,
+      "ms": 982
+    }
+  ]
+}

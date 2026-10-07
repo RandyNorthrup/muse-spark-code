@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ATTENTION_DOCK_MAX_VIEWPORT_FRACTION,
   MCP_ELICITATION_TIMEOUT_MS,
@@ -15,6 +15,9 @@ import type {
   WaitingApproval,
 } from '../../src/webview/state/uiState'
 import { questionFixture } from './helpers/questions/fixtures'
+import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
+
+beforeAll(warmDeferredSurfaces)
 
 type Group = NonNullable<AttentionDockProps['questionGroup']>
 const form: PendingElicitation = {

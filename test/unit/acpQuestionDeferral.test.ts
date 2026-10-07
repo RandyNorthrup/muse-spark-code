@@ -915,9 +915,15 @@ describe('M112 through the pinned ACP SDK client', () => {
       const commands = h.updates.flatMap((update) =>
         update.sessionUpdate === 'available_commands_update' ? update.availableCommands : [],
       )
-      expect(commands.map((command) => command.name)).toEqual(['help', 'answer', 'questions'])
+      expect(commands.map((command) => command.name)).toEqual([
+        'help',
+        'compact',
+        'answer',
+        'questions',
+      ])
       expect(commands.map((command) => command.description)).toEqual([
         UI_TEXT.referenceIntro,
+        UI_TEXT.compactDetail,
         UI_TEXT.acpAnswerHelp,
         UI_TEXT.acpQuestionsHelp,
       ])

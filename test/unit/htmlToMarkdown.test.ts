@@ -1,5 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { defaultTreeAdapter, html as spec, parse } from 'parse5'
+import type * as Parse5 from 'parse5'
+import { describe, expect, it, vi } from 'vitest'
 import { htmlToMarkdown } from '../../src/core/web/htmlToMarkdown'
+
+vi.mock('parse5', async (load) => {
+  const actual = await load<typeof Parse5>()
+  return { ...actual, parse: vi.fn(actual.parse) }
+})
 
 const BASE = new URL('https://docs.example.com/guide/intro.html')
 // Far past anything these pages produce: the bound has its own test.
@@ -7,6 +14,25 @@ const UNBOUNDED = 1_000_000
 
 function markdown(html: string): string {
   return htmlToMarkdown(html, BASE, UNBOUNDED).markdown
+}
+
+function nestedTree(shell: string, tags: readonly string[], depth: number, text: string) {
+  const document = parse(shell)
+  const root = document.childNodes.find((node) => defaultTreeAdapter.isElementNode(node))
+  const body = root?.childNodes
+    .filter((node) => defaultTreeAdapter.isElementNode(node))
+    .find((node) => node.tagName === 'body')
+  if (body === undefined) throw new Error('Missing fixture body')
+  let parent = body
+  for (let level = 0; level < depth; level += 1) {
+    for (const tag of tags) {
+      const element = defaultTreeAdapter.createElement(tag, spec.NS.HTML, [])
+      defaultTreeAdapter.appendChild(parent, element)
+      parent = element
+    }
+  }
+  defaultTreeAdapter.insertText(parent, text)
+  return document
 }
 
 describe('htmlToMarkdown (M69)', () => {
@@ -241,10 +267,20 @@ describe('htmlToMarkdown (M69)', () => {
   })
 
   it('walks a deep tree without recursion', () => {
-    // parse5 builds it; the walk over it must not overflow the stack. (How long a
-    // page nested to be hostile takes is bounded by the worker: pageConverter.)
-    expect(markdown(`${'<div>'.repeat(5000)}deep`)).toBe('deep')
-    expect(markdown(`<p>a</p>${'<ul><li>'.repeat(2000)}x`)).toContain('- x')
+    // Isolate the iterative walker from parse5's nonlinear hostile-HTML cost,
+    // which pageConverter bounds separately. Keep both original tree depths.
+    const divs = nestedTree('', ['div'], 5000, 'deep')
+    const lists = nestedTree('<p>a</p>', ['ul', 'li'], 2000, 'x')
+    const parser = vi.mocked(parse)
+    const realParse = parser.getMockImplementation()
+    if (realParse === undefined) throw new Error('Missing real parser')
+    try {
+      parser.mockReturnValueOnce(divs).mockReturnValueOnce(lists)
+      expect(markdown(`${'<div>'.repeat(5000)}deep`)).toBe('deep')
+      expect(markdown(`<p>a</p>${'<ul><li>'.repeat(2000)}x`)).toContain('- x')
+    } finally {
+      parser.mockReset().mockImplementation(realParse)
+    }
   })
 
   it('reads text the way a browser does: entities, white space, stray brackets', () => {

@@ -9,6 +9,17 @@ import type { ReferenceText } from './featureCatalog'
 import type { PaletteAction, PaletteGroup, PaletteItem } from './palette'
 
 export const SLASH_REFERENCE = {
+  'usage page': {
+    syntax: ['/usage page'],
+    descriptions: { museCode: { ui: 'paletteUsagePage' }, modelApi: { ui: 'paletteUsagePage' } },
+  },
+  legal: {
+    syntax: ['/legal [workspace-relative path ...]'],
+    descriptions: {
+      museCode: { ui: 'legalScanItemDetail' },
+      modelApi: { ui: 'legalScanItemDetail' },
+    },
+  },
   resume: {
     syntax: ['/resume'],
     descriptions: { museCode: { ui: 'resumeDetail' }, modelApi: { ui: 'resumeDetail' } },

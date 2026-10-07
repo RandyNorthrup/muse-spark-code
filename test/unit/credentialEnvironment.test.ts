@@ -21,6 +21,7 @@ import { spawnHelper, startRecorder } from '../../src/host/voice/voiceProcesses'
 import { pageConverter } from '../../src/host/web/pageConverter'
 import { readSettings } from '../../src/host/settings'
 import { FakeLogOutputChannel, fakeSettingsSource } from './helpers/fakes'
+import { SEARCH_HIT_MAX_CHARS } from '../../src/shared/constants'
 
 vi.mock('node:child_process', { spy: true })
 vi.mock('node:worker_threads', { spy: true })
@@ -274,6 +275,7 @@ describe('D89.5 native environment snapshots', () => {
           files: [],
           maxFileBytes: 100,
           maxHits: 1,
+          maxHitChars: SEARCH_HIT_MAX_CHARS,
           denyRead: [],
           globLimits: GLOB_LIMITS,
         },

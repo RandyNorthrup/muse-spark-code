@@ -2,7 +2,7 @@
 
 Researched 2026-10-06 while orchestrating the agent fleet that built this
 project. The gotcha register
-([`docs/orchestration-gotchas.md`](../orchestration-gotchas.md), G31–G33)
+([`docs/orchestration-gotchas.md`](../orchestration-gotchas.md), G50–G52)
 records the rules; the owning milestones (M100, M110, M96c, M107) enforce
 them in the app's own orchestrator.
 
@@ -81,9 +81,9 @@ and how should we (and the app) handle them on every platform?
 
 ## Gotcha register rows
 
-G31–G33 in [`docs/orchestration-gotchas.md`](../orchestration-gotchas.md)
+G50–G52 in [`docs/orchestration-gotchas.md`](../orchestration-gotchas.md)
 record these as product rules:
 
-- **G31:** pre-authentication limits and per-source penalties (MaxStartups, PerSourcePenalties) can make a healthy machine look unreachable. Owners: M100, M110, M96c.
-- **G32:** the Windows non-interactive desktop heap (768 KB) caps concurrent processes under an SSH session. Owners: M100 and M110 (Windows workers), M107.
-- **G33:** failed password attempts and port probes add penalties. Owners: M100 pairing and M110's SSH route.
+- **G50:** pre-authentication limits and per-source penalties (MaxStartups, PerSourcePenalties) can make a healthy machine look unreachable. Owners: M100, M110, M96c.
+- **G51:** the Windows non-interactive desktop heap (768 KB) caps concurrent processes under an SSH session. Owners: M100 and M110 (Windows workers), M107.
+- **G52:** failed password attempts and port probes add penalties. Owners: M100 pairing and M110's SSH route.

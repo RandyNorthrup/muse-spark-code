@@ -19,10 +19,9 @@ function declarationsOf(css, selector, { isOwn = false } = {}) {
   )?.body
 }
 
-const css = readFileSync(
-  new URL('../../src/webview/styles.css', import.meta.url),
-  'utf8',
-).replaceAll(/\/\*[\s\S]*?\*\//g, '')
+const css = readFileSync(new URL('../../src/webview/styles.css', import.meta.url), 'utf8')
+  .replaceAll(/\/\*[\s\S]*?\*\//g, '')
+  .replaceAll(/^@import[^;]+;\s*/gm, '')
 const harness = readFileSync(new URL('../harness/index.html', import.meta.url), 'utf8')
 
 describe('the chat column (the owner’s requests of 2026-10-04)', () => {

@@ -103,15 +103,26 @@ interface Fixture extends BundledSkillsPaths {
   readonly copy: string
 }
 
-function fixture(tag = 'v0.7.0', ids: readonly string[] = IDS): Fixture {
+function fixture(
+  tag = 'v0.7.0',
+  ids: readonly string[] = IDS,
+  extensionSkills: readonly string[] = [],
+): Fixture {
   const root = tempFolder('muse-bundled-')
   const config = path.join(root, 'config')
+  for (const id of extensionSkills) {
+    writeFile(
+      path.join(root, 'skills', id, 'SKILL.md'),
+      `---\nname: ${id}\ndescription: ${id}\n---\n`,
+    )
+  }
   return {
     root,
     vendorRoot: vendor(root, tag, ids),
     skillsRoot: path.join(config, 'muse', 'skills'),
     sourcesRoot: path.join(config, 'muse', 'skill-sources'),
     copy: path.join(config, 'muse', 'skill-sources', PACKAGE),
+    ...(extensionSkills.length > 0 && { extensionSkillsRoot: path.join(root, 'skills') }),
   }
 }
 
@@ -704,5 +715,134 @@ describe('the two commands', () => {
     expect(t.errors).toEqual(['The bundled skills could not be removed at /c/muse/skills: EACCES'])
     // Nothing changed, so nothing to restart for.
     expect(t.confirmRestart).not.toHaveBeenCalled()
+  })
+})
+
+describe('the extension’s own skills (M97)', () => {
+  it('repoints legal links across extension versions and removes stale-version links', async () => {
+    const f = fixture('v0.7.0')
+    const oldRoot = path.join(
+      f.root,
+      'extensions',
+      'randynorthrup.muse-spark-code-0.12.0',
+      'skills',
+    )
+    const newRoot = path.join(
+      f.root,
+      'extensions',
+      'randynorthrup.muse-spark-code-0.12.1',
+      'skills',
+    )
+    for (const root of [oldRoot, newRoot])
+      writeFile(path.join(root, 'legal', 'SKILL.md'), '---\nname: legal\n---\n')
+    await installBundledSkills({ ...deps(f), extensionSkillsRoot: oldRoot })
+    const updated = await installBundledSkills({ ...deps(f), extensionSkillsRoot: newRoot })
+    expect(updated.skipped).toEqual([])
+    expect(updated.installed).toContain('legal')
+    expect(leadsTo(path.join(f.skillsRoot, 'legal'))).toBe(path.join(newRoot, 'legal'))
+    await fs.unlink(path.join(f.skillsRoot, 'legal'))
+    await fs.symlink(
+      path.join(oldRoot, 'legal'),
+      path.join(f.skillsRoot, 'legal'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    )
+    const removed = await removeBundledSkills({ ...f, extensionSkillsRoot: newRoot })
+    expect(removed.removed).toContain('legal')
+    expect(existsSync(path.join(f.skillsRoot, 'legal'))).toBe(false)
+  })
+  it('removes a dangling legal link from a prior extension version without a marked copy', async () => {
+    const f = fixture('v0.7.0')
+    const oldInstall = path.join(f.root, 'extensions', 'randynorthrup.muse-spark-code-0.12.0')
+    const newRoot = path.join(
+      f.root,
+      'extensions',
+      'randynorthrup.muse-spark-code-0.12.1',
+      'skills',
+    )
+    const oldSkill = path.join(oldInstall, 'skills', 'legal')
+    writeFile(path.join(oldSkill, 'SKILL.md'), '---\nname: legal\n---\n')
+    mkdirSync(f.skillsRoot, { recursive: true })
+    const link = path.join(f.skillsRoot, 'legal')
+    symlinkSync(oldSkill, link, process.platform === 'win32' ? 'junction' : 'dir')
+    await removeFolder(oldInstall)
+    expect(lstatSync(link).isSymbolicLink()).toBe(true)
+    const removed = await removeBundledSkills({ ...f, extensionSkillsRoot: newRoot })
+    expect(removed).toMatchObject({ removed: ['legal'], hadCopy: false, failure: undefined })
+    await expect(fs.lstat(link)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('keeps another extension and user link when updating or removing legal skills', async () => {
+    const f = fixture('v0.7.0', IDS, ['legal'])
+    const userSkill = path.join(f.root, 'other.muse-spark-code-0.12.0', 'skills', 'legal')
+    writeFile(path.join(userSkill, 'SKILL.md'), 'mine')
+    mkdirSync(f.skillsRoot, { recursive: true })
+    symlinkSync(
+      userSkill,
+      path.join(f.skillsRoot, 'legal'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    )
+    const updated = await installBundledSkills(deps(f))
+    expect(updated.skipped).toContain('legal')
+    await removeBundledSkills(f)
+    expect(leadsTo(path.join(f.skillsRoot, 'legal'))).toBe(userSkill)
+  })
+  it('links the legal skill straight at the extension, beside the copied package', async () => {
+    const f = fixture('v0.7.0', IDS, ['legal'])
+    const result = await installBundledSkills(deps(f))
+    expect(result.failure).toBeUndefined()
+    expect(result.installed).toEqual([...IDS, 'legal'])
+    const link = path.join(f.skillsRoot, 'legal')
+    expect(lstatSync(link).isSymbolicLink()).toBe(true)
+    expect(leadsTo(link)).toBe(path.join(f.root, 'skills', 'legal'))
+    // No copy involved: the package copy holds only its own skills.
+    expect(sorted(readdirSync(path.join(f.copy, 'skills')))).toEqual(sorted(IDS))
+  })
+
+  it('lists it in status with the vendored ids', async () => {
+    const f = fixture('v0.7.0', IDS, ['legal'])
+    const before = await bundledSkillsStatus(f)
+    expect(before).toMatchObject({ kind: 'notInstalled', skillIds: [...IDS, 'legal'] })
+    await installBundledSkills(deps(f))
+    const after = await bundledSkillsStatus(f)
+    expect(after).toMatchObject({ kind: 'installed', skillIds: [...IDS, 'legal'] })
+  })
+
+  it('skips a user-owned name and leaves the folder alone', async () => {
+    const f = fixture('v0.7.0', IDS, ['legal'])
+    writeFile(path.join(f.skillsRoot, 'legal', 'OWN.md'), 'mine\n')
+    const result = await installBundledSkills(deps(f))
+    expect(result.failure).toBeUndefined()
+    expect(result.skipped).toEqual(['legal'])
+    expect(readFileSync(path.join(f.skillsRoot, 'legal', 'OWN.md'), 'utf8')).toBe('mine\n')
+  })
+
+  it('removes its link with the copy, and without one', async () => {
+    const f = fixture('v0.7.0', IDS, ['legal'])
+    await installBundledSkills(deps(f))
+    const removed = await removeBundledSkills(f)
+    expect(removed.failure).toBeUndefined()
+    expect(sorted(removed.removed)).toEqual(sorted([...IDS, 'legal']))
+    expect(existsSync(path.join(f.skillsRoot, 'legal'))).toBe(false)
+
+    const g = fixture('v0.7.0', IDS, ['legal'])
+    await installBundledSkills(deps(g))
+    await removeFolder(g.copy)
+    const orphaned = await removeBundledSkills(g)
+    expect(orphaned).toMatchObject({ removed: ['legal'], hadCopy: false, failure: undefined })
+    expect(existsSync(path.join(g.skillsRoot, 'legal'))).toBe(false)
+  })
+
+  it('ignores entries without a SKILL.md or a matching id', async () => {
+    const f = fixture()
+    writeFile(path.join(f.root, 'skills', 'legal', 'SKILL.md'), '---\nname: legal\n---\n')
+    writeFile(path.join(f.root, 'skills', 'notes.txt'), 'not a skill\n')
+    mkdirSync(path.join(f.root, 'skills', 'empty'))
+    writeFile(path.join(f.root, 'skills', 'Bad-Id', 'SKILL.md'), '---\nname: x\n---\n')
+    const extended = { ...f, extensionSkillsRoot: path.join(f.root, 'skills') }
+    const result = await installBundledSkills(deps(extended))
+    expect(result.failure).toBeUndefined()
+    expect(result.installed).toEqual([...IDS, 'legal'])
+    const status = await bundledSkillsStatus(extended)
+    expect(status.skillIds).toEqual([...IDS, 'legal'])
   })
 })

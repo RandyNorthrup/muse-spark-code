@@ -445,7 +445,6 @@ async function engine(reply: ScriptedReply, idle: number, isCancelled = false) {
     homeDir: folder(),
     secrets,
     runGit: vi.fn(() => Promise.resolve('')),
-    museCodeCredentials: [],
     fetch: h.transport.fetch,
     sleep: () => Promise.resolve(),
     log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -466,7 +465,13 @@ async function engine(reply: ScriptedReply, idle: number, isCancelled = false) {
     })
     await session.sendTurn([{ type: 'text', text: 'task' }])
     if (isCancelled) {
-      await new Promise((resolve) => setTimeout(resolve, 30))
+      await vi.waitFor(() => {
+        expect(
+          events.some(
+            (event) => event.type === 'itemCompleted' && event.item.kind === 'agentMessage',
+          ),
+        ).toBe(true)
+      })
       await session.cancel()
     }
     await end.promise

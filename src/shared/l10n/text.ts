@@ -87,13 +87,27 @@ export function formatPercent(percent: number): string {
 }
 
 /** An amount of US dollars as the language writes money: $1.46 / 1,46 $ / US$1.46. */
-export function formatUsd(amount: number, fractionDigits: number): string {
-  return numberFormat(`usd:${String(fractionDigits)}`, {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: fractionDigits,
-    maximumFractionDigits: fractionDigits,
-  }).format(amount)
+export function formatUsd(
+  amount: number,
+  fractionDigits: number,
+  maximumFractionDigits = fractionDigits,
+): string {
+  const notation =
+    maximumFractionDigits > fractionDigits &&
+    amount > 0 &&
+    amount < Number(`1e-${String(maximumFractionDigits)}`)
+      ? 'scientific'
+      : 'standard'
+  return numberFormat(
+    `usd:${String(fractionDigits)}:${String(maximumFractionDigits)}:${notation}`,
+    {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits,
+      notation,
+    },
+  ).format(amount)
 }
 
 // Decimal sizes, as Intl's byte units are named (kB, MB).
@@ -122,8 +136,8 @@ export function formatBytes(bytes: number): string {
 
 export type DurationUnit = 'second' | 'minute' | 'hour' | 'day'
 
-/** A short amount of time in one unit: 3s / 3 Sek. / 3秒. */
-export function formatUnit(value: number, unit: DurationUnit): string {
+/** A localized duration or byte count in narrow units. */
+export function formatUnit(value: number, unit: DurationUnit | 'byte'): string {
   return numberFormat(`unit:${unit}`, {
     style: 'unit',
     unit,

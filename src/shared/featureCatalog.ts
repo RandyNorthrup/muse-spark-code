@@ -27,7 +27,9 @@ const UI_CONDITIONS: Readonly<
   Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
 > = {
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
+  providerOpenRouterServices: 'openRouterServices=absent',
   referenceSandbox: 'platform=win32&shellSandbox',
+  autoCompactionAwaitingEvaluation: 'autoCompactionEvaluation',
   referenceBrowser: 'workspaceTrust',
   referenceBestOfNRequirements: 'bestOfNAdmission',
   referenceSecretPrompt: 'secretDetected',
@@ -56,6 +58,7 @@ const SETTING_CONDITIONS: Readonly<Partial<Record<keyof typeof SETTING_DEFAULTS,
   browserCheckExtraHosts: 'browserNetworkAdmission',
   notifyOnBackgroundTurn: 'turnState&windowFocus',
   modelApiSessionBudgetUsd: 'sessionBudget',
+  modelApiAutoCompaction: 'autoCompactionEvaluation&modelCapability',
   modelApiObservationPacking: 'conversationStart',
   showWhatsNewOnUpdate: 'releaseHighlights',
   modelApiPermissionProfile: 'permissionProfile',
@@ -75,7 +78,25 @@ export function referenceDescription(text: ReferenceText): ReferenceText {
   if ('ui' in text) when = UI_CONDITIONS[text.ui]
   else if ('fallbackKey' in text) when = NLS_CONDITIONS[text.fallbackKey]
   else if ('setting' in text) when = settingConditions[text.setting]
-  else if ('cli' in text && text.cli === 'fail-on-denial') when = 'permission=denied'
+  else if ('cli' in text) {
+    switch (text.cli) {
+      case 'fail-on-denial': {
+        when = 'permission=denied'
+        break
+      }
+      case 'no-auto-compaction': {
+        when = 'autoCompactionEvaluation'
+        break
+      }
+      case 'private-ok': {
+        when = 'privateNetwork'
+        break
+      }
+      default: {
+        when = undefined
+      }
+    }
+  }
   return when === undefined ? text : { conditions: [{ when, text }] }
 }
 
@@ -103,6 +124,13 @@ interface CommandReference {
 }
 
 export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> = {
+  startWithOwnModel: { description: { ui: 'startWithOwnModelDetail' }, canRun: false },
+  modelsAndAgents: { description: { ui: 'modelsPanelTitle' }, canRun: true },
+  addModelProvider: { description: { ui: 'startWithOwnModelDetail' }, canRun: false },
+  openUsagePage: { description: { ui: 'paletteUsagePage' }, canRun: true },
+  legalScan: { description: { ui: 'legalScanItemDetail' }, canRun: false },
+  connectChatGpt: { description: { ui: 'startWithOwnModelDetail' }, canRun: false },
+  connectCopilot: { description: { ui: 'startWithOwnModelDetail' }, canRun: false },
   openInSidebar: { description: { ui: 'referenceSidebar' }, canRun: true },
   openInNewTab: { description: { ui: 'referenceNewTab' }, canRun: true },
   focusInput: { description: { ui: 'referenceFocus' }, canRun: false },
@@ -188,13 +216,83 @@ function feature(
 export function featureCatalog(): readonly Feature[] {
   return [
     feature(
+      'providers',
+      { ui: 'modelsPanelTitle' },
+      { ui: 'startWithOwnModelDetail' },
+      [
+        'startWithOwnModel',
+        'modelsAndAgents',
+        'addModelProvider',
+        'connectChatGpt',
+        'connectCopilot',
+      ],
+      ['suggestedProvider'],
+      'backends',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
       'prompt-library',
       { ui: 'promptLibrary' },
-      { ui: 'promptSecretsNote' },
+      { ui: 'referencePromptMenu' },
       ['savePrompt', 'useSavedPrompt', 'promptLibrary', 'copyToMyPrompts'],
       ['syncPromptsAndBookmarks'],
       'sharing',
       undefined,
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'usage',
+      { ui: 'usagePageTitle' },
+      { ui: 'paletteUsagePage' },
+      ['openUsagePage'],
+      ['usageHistory', 'usageHistoryDays'],
+      'usage-and-cost',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'team-workers',
+      { ui: 'paidTeamWorkersName' },
+      { setting: 'modelApiTeamWorkers' },
+      [],
+      ['modelApiTeamWorkers'],
+      'the-panel',
+      ['modelApi'],
+      true,
+    ),
+    feature(
+      'legal',
+      { ui: 'legalScanTitle' },
+      { ui: 'legalScanItemDetail' },
+      ['legalScan'],
+      ['legalHeaderPolicy', 'legalRegistryLookups'],
+      'legal-scan-m97',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'legal-explanation',
+      { ui: 'paidLegalExplanationName' },
+      { ui: 'legalExplainConfirm' },
+      [],
+      ['legalExplanation'],
+      'legal-scan-m97',
+      ['museCode', 'modelApi'],
+      true,
+    ),
+    feature(
+      'compaction',
+      { ui: 'compactItem' },
+      { ui: 'autoCompactionAwaitingEvaluation' },
+      [],
+      ['modelApiAutoCompaction'],
+      'observation-packing-model-api',
+      ['modelApi'],
       false,
       ['vscode', 'acp'],
     ),
@@ -730,6 +828,7 @@ export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
 const REFERENCE_DETAILS: Readonly<
   Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
 > = {
+  providers: ['providerOpenRouterServices'],
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],
   account: ['signInBrowserDetail', 'signInApiKeyDetail', 'installDetail', 'referenceSecretPrompt'],

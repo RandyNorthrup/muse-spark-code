@@ -1,0 +1,486 @@
+{
+  "rig": "macmini",
+  "base": "aa6b15a3",
+  "release": "2d4d72bd",
+  "windowsDependency": "WINPUB on win11; lead merges in release batch",
+  "modelAttempts": 0,
+  "paidCalls": 0,
+  "historySecrets": {
+    "command": "gitleaks git --redact --no-banner .",
+    "exit": 0,
+    "commits": 1381,
+    "findings": 0
+  },
+  "focused": [
+    {
+      "run": "focused-1",
+      "passed": 60,
+      "failed": 1,
+      "pending": 33,
+      "files": [
+        {
+          "file": "test/e2e/execStdio.e2e.test.ts",
+          "status": "passed",
+          "maxDurationMs": 17770.674602
+        },
+        {
+          "file": "test/unit/deferredBundles.test.ts",
+          "status": "failed",
+          "maxDurationMs": 0
+        },
+        {
+          "file": "test/unit/pluginDispatch.test.ts",
+          "status": "failed",
+          "maxDurationMs": 914.459758
+        }
+      ]
+    },
+    {
+      "run": "focused-2",
+      "passed": 41,
+      "failed": 0,
+      "pending": 0,
+      "files": [
+        {
+          "file": "test/unit/teamLanding.test.ts",
+          "status": "passed",
+          "maxDurationMs": 5283.179662000002
+        },
+        {
+          "file": "test/unit/teamMergeBatchRepository.test.ts",
+          "status": "passed",
+          "maxDurationMs": 8071.631133999999
+        },
+        {
+          "file": "test/unit/teamSchedulerRetire.test.ts",
+          "status": "passed",
+          "maxDurationMs": 5257.1304629999995
+        }
+      ]
+    },
+    {
+      "run": "focused-3",
+      "passed": 60,
+      "failed": 0,
+      "pending": 0,
+      "files": [
+        {
+          "file": "test/unit/htmlToMarkdown.test.ts",
+          "status": "passed",
+          "maxDurationMs": 389.12907999999993
+        },
+        {
+          "file": "test/unit/sshRunner.test.ts",
+          "status": "passed",
+          "maxDurationMs": 10469.493338
+        },
+        {
+          "file": "test/unit/teamNativeLifetime.test.ts",
+          "status": "passed",
+          "maxDurationMs": 3719.1270019999974
+        }
+      ]
+    },
+    {
+      "run": "focused-4",
+      "passed": 111,
+      "failed": 0,
+      "pending": 0,
+      "files": [
+        {
+          "file": "test/unit/flightRecorder.test.ts",
+          "status": "passed",
+          "maxDurationMs": 178.52343299999984
+        },
+        {
+          "file": "test/unit/paidDailyBudget.test.ts",
+          "status": "passed",
+          "maxDurationMs": 114.86450000000013
+        },
+        {
+          "file": "test/unit/paletteRegistry.test.ts",
+          "status": "passed",
+          "maxDurationMs": 19.263464999999997
+        }
+      ]
+    },
+    {
+      "run": "merge-repairs",
+      "passed": 60,
+      "failed": 0,
+      "pending": 2,
+      "files": [
+        {
+          "file": "test/unit/deferredBundles.test.ts",
+          "status": "passed",
+          "maxDurationMs": 62.09587199999987
+        },
+        {
+          "file": "test/unit/pluginDispatch.test.ts",
+          "status": "passed",
+          "maxDurationMs": 2338.6438020000005
+        },
+        {
+          "file": "test/unit/uiTextRegions.test.mjs",
+          "status": "passed",
+          "maxDurationMs": 35.09679200000028
+        }
+      ]
+    },
+    {
+      "run": "timing-1",
+      "passed": 41,
+      "failed": 0,
+      "pending": 0,
+      "files": [
+        {
+          "file": "test/unit/teamLanding.test.ts",
+          "status": "passed",
+          "maxDurationMs": 2692.816072999998
+        },
+        {
+          "file": "test/unit/teamMergeBatchRepository.test.ts",
+          "status": "passed",
+          "maxDurationMs": 4416.592900000001
+        },
+        {
+          "file": "test/unit/teamSchedulerRetire.test.ts",
+          "status": "passed",
+          "maxDurationMs": 160.815965
+        }
+      ]
+    },
+    {
+      "run": "timing-2",
+      "passed": 59,
+      "failed": 0,
+      "pending": 0,
+      "files": [
+        {
+          "file": "test/unit/sshRunner.test.ts",
+          "status": "passed",
+          "maxDurationMs": 7752.792270000001
+        },
+        {
+          "file": "test/unit/teamLanding.test.ts",
+          "status": "passed",
+          "maxDurationMs": 2396.86917
+        },
+        {
+          "file": "test/unit/teamStagingCopy.test.ts",
+          "status": "passed",
+          "maxDurationMs": 697.5456610000001
+        }
+      ]
+    },
+    {
+      "run": "timing-3",
+      "passed": 32,
+      "failed": 1,
+      "pending": 0,
+      "files": [
+        {
+          "file": "test/unit/sshRunner.test.ts",
+          "status": "failed",
+          "maxDurationMs": 16688.426264
+        },
+        {
+          "file": "test/unit/teamMergeBatchRepository.test.ts",
+          "status": "passed",
+          "maxDurationMs": 3585.2758129999997
+        },
+        {
+          "file": "test/unit/teamSchedulerRetire.test.ts",
+          "status": "passed",
+          "maxDurationMs": 241.23174499999982
+        }
+      ]
+    },
+    {
+      "run": "timing-4",
+      "passed": 0,
+      "failed": 0,
+      "pending": 0,
+      "files": [
+        {
+          "file": "test/unit/sshRunner.test.ts",
+          "status": "failed",
+          "maxDurationMs": 0
+        }
+      ]
+    },
+    {
+      "run": "timing-final",
+      "passed": 41,
+      "failed": 0,
+      "pending": 0,
+      "files": [
+        {
+          "file": "test/unit/sshRunner.test.ts",
+          "status": "passed",
+          "maxDurationMs": 3466.580697999998
+        },
+        {
+          "file": "test/unit/teamGitIndexLock.test.ts",
+          "status": "passed",
+          "maxDurationMs": 1148.3324109999999
+        },
+        {
+          "file": "test/unit/teamSchedulerRetire.test.ts",
+          "status": "passed",
+          "maxDurationMs": 220.198664
+        }
+      ]
+    },
+    {
+      "run": "restored-1",
+      "passed": 63,
+      "failed": 0,
+      "pending": 2,
+      "files": [
+        {
+          "file": "test/unit/deferredBundles.test.ts",
+          "status": "passed",
+          "maxDurationMs": 60.904495
+        },
+        {
+          "file": "test/unit/pluginDispatch.test.ts",
+          "status": "passed",
+          "maxDurationMs": 3223.410094
+        },
+        {
+          "file": "test/unit/teamSchedulerRetire.test.ts",
+          "status": "passed",
+          "maxDurationMs": 214.69638900000007
+        }
+      ]
+    },
+    {
+      "run": "restored-2",
+      "passed": 37,
+      "failed": 0,
+      "pending": 0,
+      "files": [
+        {
+          "file": "test/unit/sshRunner.test.ts",
+          "status": "passed",
+          "maxDurationMs": 4861.779248999999
+        },
+        {
+          "file": "test/unit/teamMergeBatchRepository.test.ts",
+          "status": "passed",
+          "maxDurationMs": 6172.762486000001
+        },
+        {
+          "file": "test/unit/teamStagingCopy.test.ts",
+          "status": "passed",
+          "maxDurationMs": 969.0629360000003
+        }
+      ]
+    },
+    {
+      "run": "startup-goldens",
+      "passed": 75,
+      "failed": 0,
+      "pending": 0,
+      "files": [
+        {
+          "file": "test/unit/modelApiGoldenRequests.test.ts",
+          "status": "passed",
+          "maxDurationMs": 118.01485600000069
+        },
+        {
+          "file": "test/unit/teamStartup.test.mjs",
+          "status": "passed",
+          "maxDurationMs": 301.10846800000013
+        },
+        {
+          "file": "test/unit/teamWorkerCertification.test.ts",
+          "status": "passed",
+          "maxDurationMs": 549.112329
+        }
+      ]
+    }
+  ],
+  "drillsFile": "m96-int-round3d-drills.json",
+  "prescribedDistinctPassed": 306,
+  "prescribedExistingPlatformCases": 2,
+  "quality": {
+    "command": "VITEST_MAX_WORKERS=3 npm run quality",
+    "sourceCommit": "79b6589c656489088681454ef722dee713cef26f",
+    "invocations": 1,
+    "exit": 1,
+    "stoppedAt": "duplication",
+    "passedBeforeStop": [
+      "format:check",
+      "lint:js",
+      "lint:css",
+      "typecheck:host",
+      "typecheck:webview",
+      "typecheck:unit",
+      "typecheck:e2e",
+      "typecheck:integration",
+      "check:l10n",
+      "check:host-api",
+      "deadcode",
+      "cycles"
+    ],
+    "existingPlatformGate": "lint:ps runs on Windows only",
+    "notReached": [
+      "test:unit (coverage)",
+      "build",
+      "security:audit",
+      "test:a11y",
+      "security:secrets",
+      "security:sast"
+    ],
+    "cause": "Two exact pending-paid-image consent observation blocks (6 lines, 61 tokens) violate the unchanged zero-duplication gate.",
+    "repair": "Share the exact awaited-popup, zero-dispatch and $5.00 detail assertions in a test-only helper.",
+    "repairTests": {
+      "command": "npx vitest run test/unit/paidDailyBudget.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exit": 0,
+      "passed": 17,
+      "failed": 0,
+      "pending": 0
+    },
+    "repairGate": {
+      "command": "npm run duplication",
+      "exit": 0,
+      "clones": 0,
+      "files": 1366,
+      "threshold": 0
+    },
+    "tail": [
+      "Found 1 clones.",
+      "ERROR: jscpd found too many duplicates (0.0%) over threshold (0.0%)",
+      "ERROR: \"duplication\" exited with 1.",
+      "ERROR: \"quality:gates\" exited with 1."
+    ],
+    "nextAggregateOwner": "lead; no second full run in this lane",
+    "coverageCertified": false
+  },
+  "artifactSourceCommit": "51abb217fb9a464754fbfc6cdd7577efd4afeb9d",
+  "packages": {
+    "sourceCommit": "51abb217fb9a464754fbfc6cdd7577efd4afeb9d",
+    "capBytes": 2252800,
+    "artifacts": [
+      {
+        "path": "/Users/randy/lanes/M96INT3D/temp/m96-int3d/packages-51abb217/helperless-muse-spark-code-0.14.0.vsix",
+        "bytes": 2123125,
+        "sha256": "9115ec512242ffb3661ed271ffc7831ca49fdb8b8544eb591e770e095b9cbce5",
+        "inventory": {
+          "dist/team.js": true,
+          "dist/teamScheduler.js": true,
+          "dist/teamRunners.js": true,
+          "dist/runtime.bundles.json.br": true,
+          "native/runner/runner-helper.sh": true,
+          "native/runner/runner-helper.ps1": true,
+          "native/darwin/muse-dictate": false
+        },
+        "teamUi": true
+      },
+      {
+        "path": "/Users/randy/lanes/M96INT3D/temp/m96-int3d/packages-51abb217/universal-muse-spark-code-0.14.0.vsix",
+        "bytes": 2206058,
+        "sha256": "51bc62e8fed4461af351d6b0676b201f1f11f15280b0b383c832a51d8c654508",
+        "inventory": {
+          "dist/team.js": true,
+          "dist/teamScheduler.js": true,
+          "dist/teamRunners.js": true,
+          "dist/runtime.bundles.json.br": true,
+          "native/runner/runner-helper.sh": true,
+          "native/runner/runner-helper.ps1": true,
+          "native/darwin/muse-dictate": true
+        },
+        "teamUi": true
+      },
+      {
+        "path": "/Users/randy/lanes/M96INT3D/temp/m96-int3d/packages-51abb217/muse-spark-code-acp-0.14.0.tgz",
+        "bytes": 1089030,
+        "sha256": "373458e7635cd5b958e4342f1ae29a6bd7a0781146847fc384d3204b407c07e1",
+        "inventory": {
+          "dist/team.js": true,
+          "dist/teamScheduler.js": true,
+          "dist/teamRunners.js": true,
+          "dist/runtime.bundles.json.br": true,
+          "native/runner/runner-helper.sh": true,
+          "native/runner/runner-helper.ps1": true,
+          "native/darwin/muse-dictate": false
+        },
+        "teamUi": false
+      }
+    ]
+  },
+  "bytes": {
+    "sourceCommit": "51abb217fb9a464754fbfc6cdd7577efd4afeb9d",
+    "extension": 448415,
+    "modelApi": 465328,
+    "browserStartup": 875978,
+    "teamUi": 16088,
+    "ordinaryDeferred": 51098,
+    "caps": {
+      "extension": 614400,
+      "modelApi": 486400,
+      "browserStartup": 921600,
+      "teamUi": 25600,
+      "ordinaryDeferred": 51200
+    }
+  },
+  "standaloneChecks": {
+    "productionBuild": {
+      "command": "npm run build",
+      "exit": 0,
+      "unchangedCaps": true,
+      "splitGuard": true,
+      "hostGlobals": true,
+      "noticesPackages": 83
+    },
+    "postRepairUnitTypecheck": {
+      "command": "npm run typecheck:unit",
+      "exit": 0
+    },
+    "postRepairEslint": {
+      "command": "npx eslint --max-warnings=0 test/unit/paidDailyBudget.test.ts",
+      "exit": 0
+    },
+    "postRepairFormatting": {
+      "exit": 0
+    },
+    "packageL10n": {
+      "tables": 14,
+      "problems": 0,
+      "variants": ["helperless VSIX", "universal VSIX", "ACP"]
+    },
+    "packageModuleExports": {
+      "helperlessVsixPassed": 37,
+      "universalVsixPassed": 37,
+      "acpPassed": 18,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "nativeHelper": {
+    "command": "bash native/darwin/build.sh",
+    "bytes": 290368,
+    "sha256": "df649bc293dbcc105ed9dd4c415d27dc8501c22b920350e9e7ce3d343e674395",
+    "embeddedVersion": "0.14.0",
+    "architectures": ["x86_64", "arm64"],
+    "architectureCheck": "lipo -archs native/darwin/muse-dictate",
+    "signatureCheck": "codesign --verify --strict native/darwin/muse-dictate",
+    "signatureExit": 0,
+    "newRuntimePermissionDrill": false
+  },
+  "finalHistorySecrets": {
+    "command": "gitleaks git --redact --no-banner .",
+    "sourceCommit": "51abb217fb9a464754fbfc6cdd7577efd4afeb9d",
+    "exit": 0,
+    "commits": 1387,
+    "bytes": 67127752,
+    "findings": 0,
+    "sharedRefOrConfigChanges": false
+  },
+  "remaining": [
+    "Lead decides and runs the second full-quality/coverage-profile gate; this lane ran the aggregate exactly once.",
+    "WINPUB on win11; lead merges the Windows proof in the release batch."
+  ]
+}

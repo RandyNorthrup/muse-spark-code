@@ -1,6 +1,6 @@
 // M80 W (SPEC §7.5): the fake-only test package, packed for real and run for
 // real. A private package tree is built here (the production layout:
-// dist/acp.js with dist/uiText.js and dist/modelApi.js beside it, the two
+// dist/acp.js with uiText.js, validation.js and modelApi.js beside it, the two
 // schemas), scripts/package-acp-test.mjs packs it with the real
 // test/action/exec-test-launcher.ts, and the extracted bin then runs as the
 // Action's agent: the real run-exec.mjs entry drives exec (key over stdin)
@@ -21,6 +21,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
+import { brotliCompressSync } from 'node:zlib'
 import { build, type Plugin } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
@@ -42,6 +43,7 @@ import {
   type TempLayout,
 } from '../unit/helpers/actionFixtures'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
+import { ACTION_CHILD_STDOUT_MAX_BYTES } from '../../action/lib/lifecycle.mjs'
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..')
 const TEMP = path.join(ROOT, 'temp')
@@ -77,6 +79,13 @@ const sharedUiText: Plugin = {
 }
 
 async function packageTree(): Promise<void> {
+  const installed = process.env['MUSE_ACP_PACKAGE_DIR']
+  if (installed !== undefined) {
+    // Hosted W uses the packed production runtime, including its lazy archives.
+    cpSync(installed, STAGE, { recursive: true })
+    symlinkSync(path.join(ROOT, 'test'), path.join(TREE, 'test'), 'junction')
+    return
+  }
   const dist = path.join(STAGE, 'dist')
   mkdirSync(dist, { recursive: true })
   await buildModelApiBundle(dist)
@@ -128,6 +137,10 @@ async function packageTree(): Promise<void> {
   })
   cpSync(path.join(ROOT, 'docs', 'schemas'), path.join(STAGE, 'schemas'), { recursive: true })
   writeFileSync(
+    path.join(dist, 'runtime.bundles.json.br'),
+    brotliCompressSync('{"version":1,"bundles":{}}'),
+  )
+  writeFileSync(
     path.join(STAGE, 'package.json'),
     `${JSON.stringify({ name: 'muse-spark-code-acp', version: VERSION, bin: { 'muse-spark-code-acp': 'dist/acp.js' } }, null, 2)}\n`,
   )
@@ -145,7 +158,13 @@ function wRepo(layout: TempLayout): FixtureRepo {
       cpSync(path.join(ROOT, '.gitignore'), path.join(source, '.gitignore'))
     },
     (source) => {
+      // The release PR exceeds the generic child cap; every W scenario must
+      // exercise bounded review capture before its real exec/budget admission.
       writeFileSync(path.join(source, 'notes.txt'), 'W head change\n')
+      writeFileSync(
+        path.join(source, 'large.txt'),
+        '€'.repeat(ACTION_CHILD_STDOUT_MAX_BYTES / 2) + '\n',
+      )
     },
   )
 }

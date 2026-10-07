@@ -219,6 +219,7 @@ const report = {
   modelAttempts: 0,
 }
 const facts = []
+const runtimeReadiness = Promise.withResolvers()
 const running = check.runBrowserCheck(
   {
     url: `http://localhost:${String(port)}/page`,
@@ -230,8 +231,16 @@ const running = check.runBrowserCheck(
   },
   {
     storageDir: storage,
-    prepareRuntime: async (request) =>
-      await runtime.prepareRuntime({ ...request, consent: () => Promise.resolve('download') }),
+    prepareRuntime: async (request) => {
+      try {
+        return await runtime.prepareRuntime({
+          ...request,
+          consent: () => Promise.resolve('download'),
+        })
+      } finally {
+        runtimeReadiness.resolve()
+      }
+    },
     admissionSignal: new globalThis.AbortController().signal,
     admissionStillValid: () => true,
     warn: (fact) => {
@@ -243,6 +252,9 @@ const progress = { isFinished: false }
 void running.then(() => {
   progress.isFinished = true
 })
+// Runtime acquisition has its own bounded lifetime. Count discovery polls only
+// once preparation has settled, while an early refusal can also end the wait.
+await Promise.race([runtimeReadiness.promise, running])
 
 // Mid-page: a few challenged requests seen, the page's load still held.
 let before = { browser: undefined, service: undefined }

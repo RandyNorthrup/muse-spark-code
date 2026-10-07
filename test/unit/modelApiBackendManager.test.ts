@@ -1,3 +1,5 @@
+import type { UsageRecording } from '../../src/core/usage/recording'
+import { watchSessionTurns } from './helpers/sessionTurns'
 import { describe, expect, it, vi } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import type { SessionStore } from '../../src/core/backends/modelapi/sessionStore'
@@ -8,7 +10,8 @@ import {
 import * as modelApiEntry from '../../src/host/backend/modelApiEntry'
 import { fakeMcpSource } from './helpers/fakeMcpSource'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi } from './helpers/fakeModelApi'
+import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import { createProviderRegistry } from '../../src/core/providers/providerRegistry'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { noopToolIo } from './helpers/fakeToolIo'
 import { fakeManagerDeps } from './helpers/modelApiManager'
@@ -23,6 +26,57 @@ interface HookFixture {
   readonly runHook: NonNullable<ToolIo['runHook']>
 }
 
+it('loads the provider factory only on first BYO resolution and reuses it', async () => {
+  const meta = fakeModelApi()
+  const provider = fakeModelApi()
+  const log = new FakeLogOutputChannel()
+  const ref = 'team/small'
+  const registry = createProviderRegistry({
+    models: () =>
+      Promise.resolve([
+        {
+          ref,
+          origin: 'https://example.test',
+          pricing: { kind: 'local' },
+          evidence: { capabilities: { toolCalling: true } },
+        },
+      ]),
+    createClient: () => Promise.resolve(fakeModelApiClient(provider, log)),
+    isCurrent: () => true,
+  })
+  const createProviders = vi.fn(() => Promise.resolve(registry))
+  const manager = new ModelApiBackendManager(
+    fakeManagerDeps(meta, log, {
+      workspaceRoot: '/ws',
+      bundlePath: 'src/host/backend/modelApiEntry.ts',
+      loadBundle: () => modelApiEntry,
+      createProviders,
+    }),
+  )
+  try {
+    const host = await manager.ensureHost()
+    const session = await host.startSession({
+      workspaceRoot: '/ws',
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'onRequest',
+    })
+    expect(createProviders).not.toHaveBeenCalled()
+    await session.setModel(ref)
+    await session.setModel(ref)
+    expect(createProviders).toHaveBeenCalledTimes(1)
+    expect(await host.listModels(session.sessionId)).toContainEqual(
+      expect.objectContaining({
+        modelId: ref,
+        providerId: 'team',
+        isActive: true,
+        pricing: 'local',
+      }),
+    )
+  } finally {
+    await manager.dispose()
+  }
+})
+
 /** A manager on the fake API with no waits, over the given root and store. */
 function managerOn(
   workspaceRoot: string | undefined,
@@ -32,7 +86,12 @@ function managerOn(
   extra: Partial<
     Pick<
       ModelApiBackendManagerDeps,
-      'createMcpServers' | 'ideTools' | 'isObservationPackingOn' | 'newId' | 'browserCheck'
+      | 'createMcpServers'
+      | 'ideTools'
+      | 'isObservationPackingOn'
+      | 'newId'
+      | 'browserCheck'
+      | 'legalScan'
     >
   > = {},
 ) {
@@ -105,6 +164,33 @@ describe('ModelApiBackendManager', () => {
     expect(check).not.toHaveBeenCalled()
     await attemptHost.close()
     await m.manager.dispose()
+  })
+
+  it('forwards the legal scanner to production host construction, never to a best-of-N worktree', async () => {
+    const create = vi.spyOn(modelApiEntry, 'createModelApiHost')
+    const api = fakeModelApi()
+    const legalScan = vi.fn(() => Promise.reject(new Error('scan not requested')))
+    const manager = new ModelApiBackendManager(
+      fakeManagerDeps(api, new FakeLogOutputChannel(), {
+        workspaceRoot: '/ws',
+        store: undefined,
+        legalScan,
+        bundlePath: 'src/host/backend/modelApiEntry.ts',
+        loadBundle: () => modelApiEntry,
+      }),
+    )
+    try {
+      await manager.ensureHost()
+      expect(create.mock.calls.at(-1)?.[0].host.legalScan).toBe(legalScan)
+      const attempt = await manager.buildAttemptHost('/ws-trial', () => undefined)
+      expect(create.mock.calls.at(-1)?.[0].host.legalScan).toBeUndefined()
+      await attempt.close()
+      expect(api.responseBodies()).toEqual([])
+      expect(legalScan).not.toHaveBeenCalled()
+    } finally {
+      await manager.dispose()
+      create.mockRestore()
+    }
   })
 
   it('holds a manual revert across lazy startup and a same-id replacement without creating an own round', async () => {
@@ -517,3 +603,41 @@ describe('ModelApiBackendManager', () => {
 function managerWith(overrides: { store: SessionStore }) {
   return managerOn('/ws', overrides.store).manager
 }
+
+it('records best-of-N requests once with the attempt kind and its own session', async () => {
+  const api = fakeModelApi()
+  const recording: UsageRecording = {
+    note: vi.fn(),
+    limit: vi.fn(),
+    today: () => Promise.resolve([]),
+    flush: () => Promise.resolve(),
+  }
+  const manager = new ModelApiBackendManager(
+    fakeManagerDeps(api, new FakeLogOutputChannel(), {
+      workspaceRoot: '/ws',
+      sessionBudgetUsd: () => 0,
+      usageRecording: recording,
+      bundlePath: 'source',
+      loadBundle: () => modelApiEntry,
+    }),
+  )
+  const host = await manager.buildAttemptHost('/attempt', () => undefined)
+  try {
+    const session = await host.startSession({
+      workspaceRoot: '/attempt',
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'allowAll',
+    })
+    const turns = watchSessionTurns(session)
+    api.script({ text: 'attempt result' })
+    await session.sendTurn([{ type: 'text', text: 'try' }])
+    await turns.turnDone()
+    expect(recording.note).toHaveBeenCalledExactlyOnceWith(
+      expect.anything(),
+      expect.objectContaining({ kind: 'bestOfN', session: session.sessionId }),
+    )
+  } finally {
+    await host.close()
+    await manager.dispose()
+  }
+})

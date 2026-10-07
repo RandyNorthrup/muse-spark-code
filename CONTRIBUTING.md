@@ -102,7 +102,13 @@ Use this order for a candidate branch:
   name listed in `scripts/lib/harnessServer.mjs` beside the related one),
   rendered with `npm run harness:shots -- <names>` (`--theme=dark`, `light`,
   `hc-dark` or `hc-light`; `--lang=pseudo` for clipping) and checked with
-  `node scripts/a11y.mjs <names>` in the four themes. The M87 scenarios:
+  `node scripts/a11y.mjs <names>` in the four themes. Scenes wait with
+  `whenFound`, never fixed delays; nest waits when one control reveals the
+  next. Keep `later` only for intentional host-event timing or readiness
+  polling, with a `// kept-timing: <reason>` comment immediately before it.
+  The source guard in `test/unit/harnessWaits.test.ts` checks every timer,
+  including DOM work through helpers. Axe waits for outstanding control
+  waits before scanning. The M87 scenarios:
   `context-meter`, `context-meter-warning`, `context-meter-full`,
   `palette-tips`, `slash-tips`, `stop-running`, `tool-io`,
   `tool-io-expanded`, `status-heartbeat`, `status-heartbeat-narrow`,

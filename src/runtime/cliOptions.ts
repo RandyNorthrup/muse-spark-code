@@ -4,7 +4,7 @@ import { fill } from '../shared/l10n/text'
 
 /** Compact CLI help, also checked against the installed package's tables. */
 export function formatAcpUsage(table: UiText, command: string): string {
-  return `${fill(table.acpUsage, { command })}\n${table.helpReferenceTitle}: ${command} help --all\n${sharingHelp(table)}`
+  return `${fill(table.acpUsage, { command })}\n${fill(table.acpChatGpt.usage, { command })}\n${table.helpReferenceTitle}: ${command} help --all\n${sharingHelp(table)}`
 }
 
 // One parseArgs definition per runtime route, also read by the lazy reference.
@@ -16,7 +16,22 @@ interface CliParserOption {
 type CliParserOptions = Readonly<Record<string, CliParserOption>>
 import { ACP_PAID_FLAGS } from '../shared/constants'
 
+const PROVIDER_OPTIONS = {
+  preset: { type: 'string' },
+  as: { type: 'string' },
+  address: { type: 'string' },
+  format: { type: 'string' },
+  model: { type: 'string', multiple: true },
+  privacy: { type: 'string' },
+  'private-ok': { type: 'boolean' },
+  'key-stdin': { type: 'boolean' },
+} as const satisfies CliParserOptions
+
 const COMMON_OPTIONS = {
+  ...PROVIDER_OPTIONS,
+  'usage-history': { type: 'string' },
+  'no-auto-compaction': { type: 'boolean' },
+  provider: { type: 'string' },
   backend: { type: 'string' },
   'trust-workspace': { type: 'boolean' },
   maintenance: { type: 'boolean' },
@@ -33,6 +48,8 @@ const COMMON_OPTIONS = {
 } as const satisfies CliParserOptions
 
 const EXEC_OPTIONS = {
+  provider: { type: 'string' },
+  'no-auto-compaction': { type: 'boolean' },
   backend: { type: 'string' },
   cwd: { type: 'string' },
   'prompt-file': { type: 'string' },
@@ -72,6 +89,29 @@ const REPORT_OPTIONS = {
 } as const satisfies CliParserOptions
 
 export const CLI_OPTION_REGISTRY = {
+  providersAdd: { options: PROVIDER_OPTIONS },
+  usage: {
+    options: {
+      range: { type: 'string' },
+      by: { type: 'string' },
+      from: { type: 'string' },
+      to: { type: 'string' },
+      json: { type: 'boolean' },
+      csv: { type: 'boolean' },
+      out: { type: 'string' },
+      stdio: { type: 'boolean' },
+      help: { type: 'boolean', short: 'h' },
+    },
+  },
+  legal: {
+    options: {
+      json: { type: 'boolean' },
+      format: { type: 'string' },
+      out: { type: 'string' },
+      registry: { type: 'boolean' },
+      help: { type: 'boolean', short: 'h' },
+    },
+  },
   serve: { options: COMMON_OPTIONS },
   login: { options: COMMON_OPTIONS },
   setup: { options: COMMON_OPTIONS },
@@ -86,6 +126,23 @@ export const CLI_OPTION_REGISTRY = {
 // The description map is exhaustive over the parser's option names. It never
 // chooses an English usage line or a failure message by matching its contents.
 export const CLI_OPTION_TEXT = {
+  'usage-history': 'usage-history',
+  'no-auto-compaction': 'no-auto-compaction',
+  provider: 'provider',
+  preset: 'preset',
+  as: 'as',
+  address: 'address',
+  format: 'format',
+  privacy: 'privacy',
+  'private-ok': 'private-ok',
+  range: 'range',
+  by: 'by',
+  from: 'from',
+  to: 'to',
+  json: 'json',
+  csv: 'csv',
+  stdio: 'stdio',
+  registry: 'registry',
   backend: 'backend',
   'trust-workspace': 'trust-workspace',
   maintenance: 'maintenance',
@@ -121,7 +178,9 @@ export const CLI_OPTION_TEXT = {
     | keyof typeof COMMON_OPTIONS
     | keyof typeof EXEC_OPTIONS
     | keyof typeof SCAN_OPTIONS
-    | keyof typeof REPORT_OPTIONS,
+    | keyof typeof REPORT_OPTIONS
+    | keyof typeof CLI_OPTION_REGISTRY.usage.options
+    | keyof typeof CLI_OPTION_REGISTRY.legal.options,
     keyof UiText['referenceCliOptions']
   >
 >

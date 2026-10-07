@@ -1,3 +1,6 @@
+import type { UsageCost } from '../shared/usageJournal'
+import { estimateCostUsd } from '../core/usage/insights'
+import { MODEL_API_PRICED_MODELS } from '../shared/constants'
 // What an ACP client sees of a Muse Spark conversation (PLAN.md D62): the
 // panel's AgentEvents become `session/update` notifications, a prompt's
 // content blocks become turn parts, and the backend's approval choices
@@ -23,6 +26,7 @@ import type {
   ToolKind,
 } from '@agentclientprotocol/sdk'
 import type { SessionMcpServer, TurnPart } from '../core/agent/agentBackend'
+import { resolveWorkspacePath } from '../core/workspacePath'
 import { readImageInfo } from '../core/imageDimensions'
 import type {
   AgentEvent,
@@ -171,7 +175,9 @@ export function toolKind(tool: string): ToolKind {
 /** The file a call names, as the absolute path ACP asks for. */
 function toolLocations(args: Arguments | undefined, cwd: string): ToolCallLocation[] {
   const file = stringField(args, 'path')
-  return file === undefined ? [] : [{ path: path.resolve(cwd, file) }]
+  if (file === undefined) return []
+  const resolved = resolveWorkspacePath(cwd, file, process.platform)
+  return resolved.ok ? [{ path: resolved.absolute }] : []
 }
 
 function clippedOutput(text: string): string {
@@ -188,7 +194,9 @@ function editDiff(tool: string, args: Arguments | undefined, cwd: string): ToolC
   if (file === undefined || args === undefined || !FILE_EDIT_TOOLS.has(tool)) {
     return []
   }
-  const absolute = path.resolve(cwd, file)
+  const resolved = resolveWorkspacePath(cwd, file, process.platform)
+  if (!resolved.ok) return []
+  const absolute = resolved.absolute
   const oldText = args['old_str'] ?? args['old_string']
   const newText = args['new_str'] ?? args['new_string'] ?? args['content']
   if (typeof newText !== 'string') {
@@ -253,11 +261,16 @@ export class UpdateTranslator {
   private readonly announced = new Set<string>()
   /** Each item's kind, so a delta is routed by what it belongs to. */
   private readonly kinds = new Map<string, string>()
+  private tokens = { inputTokens: 0, outputTokens: 0, cachedTokens: 0 }
+  private cost: UsageCost | undefined
+  private hasUnpricedUsage = false
 
   public constructor(
     private readonly cwd: string,
     /** Replaying a loaded history: the user's own messages go out too. */
     private readonly isReplay: boolean,
+    private readonly readCost?: () => UsageCost | undefined,
+    private readonly backend: 'modelApi' | 'museCode' = 'museCode',
   ) {}
 
   private deltaUpdates(itemId: string, field: string, delta: string): SessionUpdate[] {
@@ -338,6 +351,37 @@ export class UpdateTranslator {
 
   public updates(event: AgentEvent): SessionUpdate[] {
     switch (event.type) {
+      case 'tokenUsage': {
+        const priced: readonly string[] = Object.values(MODEL_API_PRICED_MODELS).flat()
+        const next = {
+          inputTokens: event.inputTokens,
+          outputTokens: event.outputTokens,
+          cachedTokens: event.cachedTokens ?? 0,
+        }
+        const delta = {
+          inputTokens: next.inputTokens - this.tokens.inputTokens,
+          outputTokens: next.outputTokens - this.tokens.outputTokens,
+          cachedTokens: next.cachedTokens - this.tokens.cachedTokens,
+        }
+        if (
+          this.backend === 'modelApi' &&
+          event.modelId !== undefined &&
+          priced.includes(event.modelId) &&
+          Object.values(delta).every((value) => Number.isSafeInteger(value) && value >= 0) &&
+          delta.cachedTokens <= delta.inputTokens &&
+          !this.hasUnpricedUsage
+        ) {
+          this.cost = {
+            certainty: 'computed',
+            usd: (this.cost?.usd ?? 0) + estimateCostUsd(delta, event.modelId),
+          }
+        } else {
+          this.hasUnpricedUsage = true
+          this.cost = undefined
+        }
+        this.tokens = next
+        return []
+      }
       case 'itemStarted':
       case 'itemUpdated': {
         return this.itemUpdates(event.item, false)
@@ -355,9 +399,27 @@ export class UpdateTranslator {
         return [{ sessionUpdate: 'session_info_update', title: event.name }]
       }
       case 'contextUsage': {
+        const cost = this.readCost === undefined ? this.cost : this.readCost()
+        const hasCost =
+          cost?.usd !== undefined &&
+          Number.isFinite(cost.usd) &&
+          cost.usd >= 0 &&
+          cost.certainty !== 'unpriced' &&
+          cost.certainty !== 'uncertain' &&
+          cost.certainty !== 'plan'
         return event.windowTokens === undefined
           ? []
-          : [{ sessionUpdate: 'usage_update', used: event.usedTokens, size: event.windowTokens }]
+          : [
+              {
+                sessionUpdate: 'usage_update',
+                used: event.usedTokens,
+                size: event.windowTokens,
+                ...(hasCost && {
+                  cost: { amount: cost.usd ?? 0, currency: 'USD' },
+                  _meta: { museSpark: { costCertainty: cost.certainty } },
+                }),
+              },
+            ]
       }
       case 'backendNotice': {
         return [agentText(`${event.text}${PART_SEPARATOR}`)]

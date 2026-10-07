@@ -21,6 +21,7 @@ import { existsSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { availableParallelism, tmpdir } from 'node:os'
 import path from 'node:path'
+import { performance } from 'node:perf_hooks'
 import process from 'node:process'
 import { chromium } from 'playwright-core'
 import { findChrome } from './lib/chrome.mjs'
@@ -30,6 +31,7 @@ import {
   LOOPBACK,
   PAGE_TIMEOUT_MS,
   SCENARIOS,
+  bundleFor,
   SIZED_SCENARIOS,
   serveRepo,
   withSizedPage,
@@ -37,17 +39,17 @@ import {
 
 const THEMES = ['light', 'dark', 'hc-dark', 'hc-light']
 const BUNDLE_PATH = 'dist/webview/main.js'
+const MODELS_BUNDLE_PATH = 'dist/webview/models.js'
 // The page the gate has always measured: what Chrome's 690x760 window left
 // for the page. A sized scenario (SIZED_SCENARIOS: a real 320 px panel, the
 // 1400 px column) is this tall at its own width.
 const VIEWPORT = { width: 690, height: 673 }
 const SIZED_VIEWPORT_HEIGHT = 760
 const MAX_WORKERS = 6
-// Windows headless Chrome stalled on the long transcript plus jump button
-// with four concurrent pages (M46); two workers passed twice with all rules.
+// Bound concurrent axe work on Windows as before; every page still runs.
 const WINDOWS_MAX_WORKERS = 2
-// Each worker's browser holds this many pages at once; a page spends most of
-// its time in the harness's 5 s settle, in real time now.
+// Each worker's browser holds this many pages at once; scenario events and
+// readiness still run in real time before each scan.
 const PAGES_PER_WORKER = 2
 const WINDOWS_PAGES_PER_WORKER = 1
 // axe's reasons (messageKey) for a contrast it could not decide: the text is
@@ -88,10 +90,10 @@ async function keepFocus(tab) {
   await session.send('Emulation.setFocusEmulationEnabled', { enabled: true })
 }
 
-async function axeResultOf(tab) {
+async function axeResultOf(tab, remaining) {
   const result = tab.locator('#axe-result')
-  await result.waitFor({ state: 'attached', timeout: PAGE_TIMEOUT_MS })
-  return JSON.parse(await result.textContent())
+  await result.waitFor({ state: 'attached', timeout: remaining() })
+  return JSON.parse(await result.textContent({ timeout: remaining() }))
 }
 
 /**
@@ -101,9 +103,9 @@ async function axeResultOf(tab) {
 async function scanWithScrollbars(chrome, url, sized) {
   const profileDir = await mkdtemp(path.join(tmpdir(), 'muse-a11y-sized-'))
   try {
-    return await withSizedPage(chrome, profileDir, url, sized, async (tab) => {
+    return await withSizedPage(chrome, profileDir, url, sized, async (tab, remaining) => {
       await keepFocus(tab)
-      return await axeResultOf(tab)
+      return await axeResultOf(tab, remaining)
     })
   } finally {
     await rm(profileDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
@@ -112,7 +114,7 @@ async function scanWithScrollbars(chrome, url, sized) {
 
 /** One page: `{ violations }` from axe, or `{ error }` saying why there is none. */
 async function scan(chrome, context, port, page, lang) {
-  const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${page.scenario}&theme=${page.theme}&axe=1${langQuery(lang)}`
+  const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${page.scenario}&bundle=${bundleFor(page.scenario)}&theme=${page.theme}&axe=1${langQuery(lang)}`
   const sized = SIZED_SCENARIOS[page.scenario]
   if (sized?.hasScrollbars === true) {
     try {
@@ -121,6 +123,8 @@ async function scan(chrome, context, port, page, lang) {
       return { error: String(error.message ?? error) }
     }
   }
+  const deadline = performance.now() + PAGE_TIMEOUT_MS
+  const remaining = () => Math.max(1, deadline - performance.now())
   const tab = await context.newPage()
   try {
     tab.setDefaultTimeout(PAGE_TIMEOUT_MS)
@@ -129,8 +133,8 @@ async function scan(chrome, context, port, page, lang) {
     if (sized !== undefined) {
       await tab.setViewportSize({ width: sized.width, height: SIZED_VIEWPORT_HEIGHT })
     }
-    await tab.goto(url)
-    return await axeResultOf(tab)
+    await tab.goto(url, { timeout: remaining() })
+    return await axeResultOf(tab, remaining)
   } catch (error) {
     return { error: String(error.message ?? error) }
   } finally {
@@ -207,6 +211,12 @@ async function main() {
     throw new Error('No Chrome install found; set CHROME_PATH to the browser executable')
   }
   const { lang, scenarios: requested } = harnessArgs(process.argv.slice(2))
+  if (
+    (requested.length === 0 || requested.some((name) => bundleFor(name) === 'models')) &&
+    !existsSync(path.join(repoRoot, MODELS_BUNDLE_PATH))
+  ) {
+    throw new Error(`${MODELS_BUNDLE_PATH} is missing; run \`npm run build\` first`)
+  }
   const unknown = requested.filter((name) => !SCENARIOS.includes(name))
   if (unknown.length > 0) {
     throw new Error(`Unknown scenario(s): ${unknown.join(', ')}`)

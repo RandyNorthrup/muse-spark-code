@@ -1,8 +1,8 @@
 // Refreshes the README's screenshots from the UI harness
 // (test/harness/index.html), one scenario per image as declared in
 // scripts/readme-shots.json. Each scenario opens like harness-shots does —
-// served from the repository, played under a fast-forwarded clock so the
-// shot waits for it to settle — and is captured at the entry's size.
+// served from the repository, waited through the harness's readiness scan,
+// and captured at the entry's exact viewport size.
 // Needs a Chrome install and a dev bundle (`npm run build:dev`).
 //
 // Run it as `node scripts/readme-shots.mjs` (`npm run readme:shots`): the
@@ -22,19 +22,20 @@ import path from 'node:path'
 import process from 'node:process'
 import { pathToFileURL } from 'node:url'
 import { findChrome } from './lib/chrome.mjs'
-import { screenshotUrl } from './lib/harnessCapture.mjs'
 import { langQuery, prepareLang } from './lib/harnessLang.mjs'
-import { HARNESS_PATH, LOOPBACK, SCENARIOS, serveRepo } from './lib/harnessServer.mjs'
+import {
+  HARNESS_PATH,
+  LOOPBACK,
+  SCENARIOS,
+  serveRepo,
+  withSizedPage,
+} from './lib/harnessServer.mjs'
 
 export const SHOT_LIST_FILE = 'scripts/readme-shots.json'
 export const README_FILE = 'README.md'
 export const DEFAULT_OUT_DIR = 'media/readme'
 export const BUNDLE_PATH = 'dist/webview/main.js'
 export const THEMES = new Set(['dark', 'light', 'hc-dark', 'hc-light'])
-// Chrome's headless CLI clamps windows below this width (see
-// withSizedPage in scripts/lib/harnessServer.mjs): a narrower shot has no
-// capture path here yet.
-export const MIN_CLI_WIDTH = 500
 const LANG_ID = /^[a-z]{2,3}(?:-[a-z\d]+)*$/
 const SHOT_IMAGE = /^media\/readme\/[^/]+\.png$/
 const README_IMAGE = /media\/readme\/[A-Za-z0-9][\w.-]*\.png/g
@@ -193,19 +194,27 @@ export function describeShot(shot) {
   return `${shot.file} <- ${shot.scenario} theme=${shot.theme} ${size}${lang} — ${shot.note}`
 }
 
-async function captureShot(chrome, port, shot, outDir, profileDir) {
-  if (shot.width < MIN_CLI_WIDTH) {
-    throw new Error(
-      `${shot.file} is ${String(shot.width)} px wide: headless Chrome clamps below ${String(MIN_CLI_WIDTH)} px and a narrow capture path does not exist yet`,
-    )
-  }
+export async function captureShot(chrome, port, shot, outDir, profileDir) {
   const file = path.join(outDir, path.basename(shot.file))
   await mkdir(path.dirname(file), { recursive: true })
-  await screenshotUrl(chrome, shotUrl(port, shot), file, {
-    width: shot.width,
-    height: shot.height,
+  await withSizedPage(
+    chrome,
     profileDir,
-  })
+    `${shotUrl(port, shot)}&axe=1`,
+    { width: shot.width },
+    async (page) => {
+      await page.setViewportSize({ width: shot.width, height: shot.height })
+      const session = await page.context().newCDPSession(page)
+      await session.send('Emulation.setFocusEmulationEnabled', { enabled: true })
+      const result = page.locator('#axe-result')
+      await result.waitFor({ state: 'attached' })
+      const scan = JSON.parse(await result.textContent())
+      if (scan.error !== undefined || scan.harnessErrors?.length > 0) {
+        throw new Error(`${shot.file}: ${scan.error ?? scan.harnessErrors.join('; ')}`)
+      }
+      await page.screenshot({ path: file, animations: 'disabled' })
+    },
+  )
   return file
 }
 
