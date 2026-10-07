@@ -13987,6 +13987,50 @@ merges, pushes, rebases and live/paid calls; run owned suites (at most three
 files per run), static checks and the build directly on Kubuntu. Hooks stay
 on. Record any residual by name here in §9 and in the lane certification.
 
+### M115-G — Agent scheduling admission (2026-10-06)
+
+Implement D95.8 and M115 acceptance 10 from local planning ref
+`plan/m105-m107` (the rig has no `origin/main`) against FIXM115L0's
+contracts. Grant intersection is conservative: identical tool names,
+command prefixes and path globs only; a read may inherit an edit grant on
+the same glob. Unsupported subset proofs drop authority rather than guess.
+The schedule inherits its creator's permission mode, and agents cannot pin
+or grant rescheduling authority. Re-read host authority after consent.
+
+Serialize admission, remembered orchestrator policy, creator paid allocation
+and owner expiry through an injected cross-process admission port. Lane S/U
+bind that port; T supplies minimum-spacing proofs for cron, wall-time and
+event triggers; U supplies canonical grant validation and schedule-scoped
+paid consent. No unavailable dependency gets a production substitute.
+Expose validated function-tool and MCP adapters; the Model API declarations
+accept injected schedule tools without importing the lazy engine. X/W bind
+the runtime MCP registration and backend dispatcher after their engines land.
+M96/M110 supply trusted charters, target authorization and owner lifetimes.
+Remembered orchestrator policies carry a revision; an older open consent
+cannot overwrite a newer revocation or cap edit. Host-owned depth permission
+names the creating schedule: a depth-2 child's required schema flag is not
+a transferable permission for its own descendants. Ended jobs release active
+slots but retain paid allocations/liability for U's daily ledger.
+FIXM115G/RVM115G's daily-allowance repair reads that ledger under the same
+admission transaction: the current host-local day's settled spend and
+uncertain liability, plus full caps only for active or paused schedules,
+plus the proposed cap must fit Always's allowance. Ended schedules retain
+history but no configured-cap reservation; prior-day exact spend does not
+consume today's allowance. S/U supply a required orchestrator/workspace
+daily-usage read, including removed schedules' spend/liability, and recheck
+the current day atomically at commit. Certify daily recovery, same-day spend,
+active/paused reservations and uncertain liability at the repository's
+default test timeout; reject invalid totals and propagate ledger failures.
+Model descriptions are injected for W's guarded lazy English text block;
+no new block is shipped without its declared readers. HELPREF is absent;
+W must register the three agent tools and their restrictions.
+
+Certify property tests, caps, consent races, depth, creator attribution,
+lifetime and pinning, transport validation, and every new guard with red
+drills in `docs/certification/m115-g.md`. Run the rig's bounded suites and
+static/build checks, with hooks on. Full quality belongs to W/lead under
+the shared rig rules; this lane never merges, pushes or calls a live model.
+
 ### FIXM115L0 — Freeze corrected schedule contracts (2026-10-06)
 
 Repair all six RVM115L0 P2 findings before M115's wave lanes bind the
@@ -30544,6 +30588,13 @@ production build directly on Kubuntu. The frozen Q base's U-owned
 `uiState.ts:2452` reducer and A-owned generated host-API inventory are already
 named integration handoffs in `docs/certification/m112-q.md`; do not weaken
 either gate or claim them green. No review finding is deferred.
+**M115-G bounded-lane gate delegation (2026-10-06).** The rig brief and
+`common.md` prohibit aggregate quality/full-suite runs in this worktree.
+G runs its owned suites, red drills, all five compiler projects, scoped
+lint/format, cycles, dead-code, duplication, localization, host API and
+production build here, with hooks enabled. W/lead retains full quality,
+coverage, accessibility and installed-editor/live certification on the
+integrated tree. No threshold, rule or ignore is changed.
 
 **CIFIX14T verified local result (2026-10-05).** The five owning suites
 pass 113 tests (six existing Windows-only skips); the exact restored monitor
@@ -31338,6 +31389,18 @@ before a repaired one loads (2026-09-30).
   entry; this repair adds no VS Code API or shipping binding; the engine's
   owner UUID increases the existing Node crypto source count by one.
   W regenerates it when registering E's bundle, as the original lane certification requires.
+- **FIXM115G review scope and G-ADMISSION-LEDGER binding.** RVM115G's sole
+  P2 (historical ended caps permanently consuming Always's daily allowance)
+  is repaired; no review finding is deferred. The required `dailyUsage`
+  admission port supplies workspace/orchestrator-scoped current local-day
+  settled spend and uncertain liability, including removed schedules, under
+  the same transaction as admission. Invalid money refuses and a failed
+  read propagates before commit. Safe for now: these tools remain internal
+  and unregistered, and the required port has no production fallback.
+  Follow-up: S/U bind the durable ledger and recheck current-day totals at
+  commit; W certifies that cross-process binding and every editor on the
+  integrated tree. Fake-backed lane tests certify the admission arithmetic,
+  not deployed ledger durability. Receipts: `docs/certification/m115-g.md`.
 
 - **FIXM115L0 contract scope.** All six RVM115L0 findings are repaired;
   none is deferred. These are unshipped internal schedule contracts, not

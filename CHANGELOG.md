@@ -40,6 +40,14 @@ happened, not what was planned; superseded entries are kept.
   gives the rule that prevents it and the milestone that will enforce that
   rule in the app's own orchestrator (D100).
 
+### Added
+
+- Add M115's internal agent scheduling tools and function/MCP adapters,
+  with creator attribution, conservative grant intersection, revisioned
+  orchestrator consent, active/frequency/paid caps, depth limits and owner
+  expiry with user pinning. Production registration and the shared admission,
+  grant, time and paid-ledger bindings await their M115 integration lanes.
+
 ### Fixed
 
 - Repair internal M115 delivery races: when-idle fires own withdrawable queue
@@ -57,6 +65,11 @@ happened, not what was planned; superseded entries are kept.
   transitions, so packing refs cannot replay an observed branch update.
   This repair does not enable scheduled-prompts v2 in the shipped extension.
 
+- Correct M115's internal Always daily allowance: read today's settled spend
+  and uncertain liability from the admission ledger, reserving full caps only
+  for schedules that remain active or paused. Ended historical schedules no
+  longer reserve their configured cap indefinitely; same-day spend and
+  liability still count even after a schedule is removed.
 - Correct M115's internal schedule contracts before implementation: stale
   whole-record updates cannot restore revoked grants, crash-receipt migration
   accepts fractional filesystem times, repeated fake approval requests remain
