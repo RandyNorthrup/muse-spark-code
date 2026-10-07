@@ -19,7 +19,9 @@ import {
   MODEL_API_MEDIA_PER_REQUEST,
   MODEL_API_MODEL_TEXT,
   MODEL_API_PDF_PAGE_IMAGES,
+  UI_TEXT,
 } from '../../../shared/constants'
+import type { MediaInfo } from '../../../shared/media'
 import { fill } from '../../../shared/l10n/text'
 import { pdfPageCount } from '../../pdf'
 import type {
@@ -56,12 +58,16 @@ function leftOut(part: InputContentPart): InputContentPart {
 
 export class MediaBudget {
   /** Each PDF part's weight, learned once (from the attachment, or its bytes). */
-  private readonly weights = new WeakMap<InputFilePart, number>()
+  private readonly weights = new WeakMap<InputContentPart, number>()
+  private readonly mediaChars = new WeakMap<InputContentPart, number>()
+  private readonly mediaOmissions = new WeakMap<InputContentPart, string>()
   private wasOmitted = false
 
   public constructor(private readonly maxEncodedMediaChars: number = MAX_ENCODED_MEDIA_CHARS) {}
 
   private encodedChars(part: InputContentPart): number {
+    const known = this.mediaChars.get(part)
+    if (known !== undefined) return known
     switch (part.type) {
       case 'input_image': {
         return part.image_url.length
@@ -76,15 +82,13 @@ export class MediaBudget {
   }
 
   private weightOf(part: InputContentPart): number {
+    const known = this.weights.get(part)
+    if (known !== undefined) return known
     if (part.type === 'input_image') {
       return 1
     }
     if (part.type !== 'input_file') {
       return 0
-    }
-    const known = this.weights.get(part)
-    if (known !== undefined) {
-      return known
     }
     const weight = pdfWeight(part)
     this.weights.set(part, weight)
@@ -104,16 +108,60 @@ export class MediaBudget {
     )
   }
 
+  /** Uploaded media has zero inline characters; video consumes one media slot (U3). */
+  public noteMedia(
+    part: InputContentPart,
+    info: MediaInfo,
+    encodedChars?: number,
+    omission?: string,
+  ): void {
+    let weight = info.kind === 'text' ? 0 : 1
+    if (info.kind === 'document')
+      weight = Math.min(info.pageCount ?? MODEL_API_PDF_PAGE_IMAGES, MODEL_API_PDF_PAGE_IMAGES)
+    this.weights.set(part, weight)
+    if (encodedChars !== undefined) this.mediaChars.set(part, encodedChars)
+    if (omission !== undefined) this.mediaOmissions.set(part, omission)
+  }
+
+  /** Fresh media must fit whole; only older replay can be elided. */
+  public assertMessageFits(
+    content: readonly InputContentPart[],
+    queued?: { readonly chars: number; readonly slots: number },
+  ): void {
+    const usage = this.usage(content)
+    if (usage.slots + (queued?.slots ?? 0) > MODEL_API_MEDIA_PER_REQUEST)
+      throw new Error(UI_TEXT.documentsOverBudget)
+    if (usage.chars + (queued?.chars ?? 0) > this.maxEncodedMediaChars)
+      throw new Error(UI_TEXT.mediaTotalTooLarge)
+  }
+
+  public usage(content: readonly InputContentPart[]): {
+    readonly chars: number
+    readonly slots: number
+  } {
+    return {
+      chars: content.reduce((total, part) => total + this.encodedChars(part), 0),
+      slots: content.reduce((total, part) => total + this.weightOf(part), 0),
+    }
+  }
+
   /**
    * The input with its images and PDFs, newest first, kept while they fit
    * the budget and named in a line past it. The same array when all fit.
    * A changed item keeps retained content-part identities so the caller can
    * tell which pending tool-read media actually reached that request.
    */
-  public fit(input: readonly InputItem[]): readonly InputItem[] {
-    let left = MODEL_API_MEDIA_PER_REQUEST
-    let encodedLeft = this.maxEncodedMediaChars
+  public fit(
+    input: readonly InputItem[],
+    required: readonly InputContentPart[] = [],
+  ): readonly InputItem[] {
+    this.assertMessageFits(required)
+    const reserved = this.usage(required)
+    const protectedParts = new Set(required)
+    let left = MODEL_API_MEDIA_PER_REQUEST - reserved.slots
+    let encodedLeft = this.maxEncodedMediaChars - reserved.chars
     const canRetain = (part: InputContentPart): boolean => {
+      if (protectedParts.has(part)) return true
       const weight = this.weightOf(part)
       if (weight === 0) {
         return true
@@ -140,7 +188,11 @@ export class MediaBudget {
         return item
       }
       const reversedContent = item.content.toReversed()
-      const content = reversedContent.map((part) => (canRetain(part) ? part : leftOut(part)))
+      const content = reversedContent.map((part): InputContentPart => {
+        if (canRetain(part)) return part
+        const omission = this.mediaOmissions.get(part)
+        return omission === undefined ? leftOut(part) : { type: 'input_text', text: omission }
+      })
       const isItemChanged = content.some((part, index) => part !== reversedContent[index])
       return isItemChanged ? { ...item, content: content.toReversed() } : item
     })

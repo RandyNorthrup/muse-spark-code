@@ -5,6 +5,7 @@ import {
   recordOf,
   type StoredSession,
 } from '../../src/core/backends/modelapi/sessionStore'
+import { uploaded, videoMedia } from './helpers/media/replay'
 
 const full: StoredSession = {
   version: 1,
@@ -93,6 +94,64 @@ const full: StoredSession = {
 }
 
 describe('M105 session upload references', () => {
+  it('keeps uploaded replay parts metadata-only and rejects bytes, invalid indices and non-user placement', () => {
+    const media = { ...videoMedia(), file: uploaded(videoMedia()) }
+    const entry = {
+      turnId: 't1',
+      item: {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text: 'clip.mp4 metadata' }],
+      },
+      media: [{ index: 0, media }],
+    } as const
+    const session = { ...full, replay: [entry], fileRefs: [media.file] }
+    const result = parseStoredSession(session)
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw new Error(result.reason)
+    expect(result.session.replay).toEqual([entry])
+    for (const invalid of [
+      { ...entry, media: [{ index: 0, media: { ...media, base64Data: 'MEDIA_BYTE_CANARY' } }] },
+      { ...entry, media: [{ index: 1, media }] },
+      {
+        ...entry,
+        media: [
+          { index: 0, media },
+          { index: 0, media },
+        ],
+      },
+      { ...entry, item: { ...entry.item, role: 'assistant' } },
+      {
+        ...entry,
+        item: {
+          ...entry.item,
+          content: [
+            {
+              type: 'input_image',
+              image_url: 'data:image/png;base64,MEDIA_BYTE_CANARY',
+              detail: 'auto',
+            },
+          ],
+        },
+      },
+      {
+        ...entry,
+        item: {
+          ...entry.item,
+          content: [
+            {
+              type: 'input_file',
+              filename: 'clip.mp4',
+              file_data: 'data:video/mp4;base64,MEDIA_BYTE_CANARY',
+            },
+          ],
+        },
+      },
+    ])
+      expect(parseStoredSession({ ...session, replay: [invalid] }).ok).toBe(false)
+    expect(JSON.stringify(result.session)).not.toContain('MEDIA_BYTE_CANARY')
+  })
+
   const ref = {
     fileId: 'file-one',
     provider: 'meta',

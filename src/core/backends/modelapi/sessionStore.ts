@@ -6,6 +6,8 @@
 
 import * as z from 'zod/mini'
 import { uploadedMediaRefSchema, type UploadedMediaRef } from '../../../shared/media'
+import { storedReplayMediaSchema } from '../../media/replayMedia'
+import type { StoredMediaPart } from '../../media/replayMedia'
 import {
   type ItemSnapshot,
   itemSnapshotFields,
@@ -34,6 +36,8 @@ import {
 export interface StoredReplayItem {
   readonly turnId: string
   readonly item: InputItem
+  /** Canonical metadata survives per-request model-switch omission notes. */
+  readonly media?: readonly { readonly index: number; readonly media: StoredMediaPart }[]
   /** The transcript user card that supplied this exact replay message (M53). */
   readonly userMessageId?: string
   /** Identifies a background task's terminal model note across fork cuts. */
@@ -268,12 +272,34 @@ const storedSessionFields = {
   // Optional, so a session saved before M45 still reads.
   goal: z.optional(goalRecordSchema),
   replay: z.array(
-    z.object({
-      turnId: z.string(),
-      item: storedInputItemSchema,
-      userMessageId: z.optional(z.string()),
-      backgroundTaskId: z.optional(z.string()),
-    }),
+    z
+      .object({
+        turnId: z.string(),
+        item: storedInputItemSchema,
+        userMessageId: z.optional(z.string()),
+        backgroundTaskId: z.optional(z.string()),
+        media: z.optional(z.array(storedReplayMediaSchema)),
+      })
+      .check(
+        z.refine((entry) => {
+          const media = entry.media ?? []
+          if (media.length === 0) return true
+          const { item } = entry
+          return (
+            item.type === 'message' &&
+            item.role === 'user' &&
+            new Set(media.map((part) => part.index)).size === media.length &&
+            media.every(({ index, media: part }) => {
+              const content = item.content[index]
+              return (
+                content !== undefined &&
+                ((part.file === undefined && (part.files?.length ?? 0) === 0) ||
+                  content.type === 'input_text')
+              )
+            })
+          )
+        }),
+      ),
   ),
   // Each item keeps its optional `recordedAt` (M87, PLAN.md D66): the time the
   // host stamped on a user message or reply; a file saved before has none.
@@ -389,10 +415,11 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     hookTokensAdded,
     ...rest
   } = result.data
-  const replay = rest.replay.map(({ backgroundTaskId, userMessageId, ...entry }) => ({
+  const replay = rest.replay.map(({ backgroundTaskId, userMessageId, media, ...entry }) => ({
     ...entry,
     ...(userMessageId !== undefined && { userMessageId }),
     ...(backgroundTaskId !== undefined && { backgroundTaskId }),
+    ...(media !== undefined && { media }),
   }))
   const restoredChildren: StoredChild[] = []
   const storedChildren = children ?? []
