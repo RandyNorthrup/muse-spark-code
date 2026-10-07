@@ -130,6 +130,27 @@ afterEach(async () => {
 })
 
 describe('guarded companion upload', () => {
+  it('decodes ASCII-safe metadata before validating and consuming the Unicode name', async () => {
+    const name = '録画 100% 🎥.mp4'
+    const response = await send({
+      ...headers(),
+      'x-muse-media': encodeURIComponent(
+        JSON.stringify({ requestId: 'request-1', name, isScreenRecording: false }),
+      ),
+    })
+    expect(response.status).toBe(200)
+    expect(companionMediaUploadSchema.parse(response.body).name).toBe(name)
+    expect(sources[0]?.name).toBe(name)
+  })
+  it.each(['%invalid', '%7B%22bytes%22%3A%22canary%22%7D'])(
+    'refuses malformed encoded metadata %s before intake',
+    async (metadata) => {
+      expect(await sendStatus({ ...headers(), 'x-muse-media': metadata })).toBe(400)
+      expect(admit).not.toHaveBeenCalled()
+      expect(consume).not.toHaveBeenCalled()
+      expect(await readdir(state.root)).toEqual([])
+    },
+  )
   it('streams sniffed bytes into private files and returns only metadata/token after cleanup', async () => {
     const response = await send()
     expect(response.status).toBe(200)

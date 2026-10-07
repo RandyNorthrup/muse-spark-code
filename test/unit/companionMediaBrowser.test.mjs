@@ -1,7 +1,8 @@
 import { createServer } from 'node:http'
 import { Buffer } from 'node:buffer'
-import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import path from 'node:path'
+import { tmpdir } from 'node:os'
 import * as esbuild from 'esbuild'
 import { chromium } from 'playwright-core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -17,15 +18,14 @@ const state = {
   server: undefined,
   outputs: {},
   uploads: [],
+  cookies: [],
   cancelled: new globalThis.AbortController(),
 }
 const themes = ['light', 'dark', 'hc-light', 'hc-dark']
 const normalize = (filename) => filename.replaceAll('\\', '/')
 
 beforeAll(async () => {
-  // `temp/` is gitignored and may not exist on a fresh worktree.
-  await mkdir(path.join(process.cwd(), 'temp'), { recursive: true })
-  state.root = await mkdtemp(path.join(process.cwd(), 'temp', 'e3-browser-'))
+  state.root = await mkdtemp(path.join(tmpdir(), 'e3-browser-'))
   const built = await esbuild.build({
     entryPoints: [COMPANION_BROWSER_ENTRY],
     outdir: state.root,
@@ -48,6 +48,7 @@ beforeAll(async () => {
     const filename = path.basename(requested)
     void (async () => {
       if (requested === '/upload') {
+        state.cookies.push(request.headers.cookie)
         await companionUpload({
           origin: state.origin,
           bearer: 'test-window-token',
@@ -60,6 +61,7 @@ beforeAll(async () => {
           admit: () => Promise.resolve({ ok: true }),
           consume: async (source) => {
             state.uploads.push({
+              name: source.name,
               info: source.info,
               bytes: await readFile(source.path),
               path: source.path,
@@ -112,6 +114,9 @@ afterAll(async () => {
 })
 
 describe('companion media at 320 px in real Chromium', () => {
+  it('keeps browser scratch outside the checkout in the OS temporary directory', () => {
+    expect(normalize(path.dirname(state.root))).toBe(normalize(tmpdir()))
+  })
   it('loads the controls and preview only through a lazy browser chunk', () => {
     const outputs = new Map(
       Object.entries(state.outputs).map(([name, output]) => [normalize(name), output]),
@@ -162,6 +167,49 @@ describe('companion media at 320 px in real Chromium', () => {
         .toBe(true)
     } finally {
       await page.close()
+    }
+  })
+  it.each(['録画.mp4', 'запись.mp4', 'café 100% 🎥.mp4'])(
+    'uploads Unicode filename %s through real browser headers',
+    async (name) => {
+      const page = await state.browser.newPage()
+      const previous = state.uploads.length
+      try {
+        await page.goto(state.origin)
+        await page.getByLabel('Attach file…').setInputFiles({
+          name,
+          mimeType: 'video/mp4',
+          buffer: Buffer.from(videoFixture()),
+        })
+        await expect.poll(() => state.uploads.length).toBe(previous + 1)
+        await page.locator('#root[data-attached="true"]').waitFor()
+        expect(state.uploads.at(-1).name).toBe(name)
+        expect(state.uploads.at(-1).bytes).toEqual(Buffer.from(videoFixture()))
+      } finally {
+        await page.close()
+      }
+    },
+  )
+  it('omits unrelated same-origin HttpOnly cookies while the no-cookie guard stays on', async () => {
+    const context = await state.browser.newContext()
+    const page = await context.newPage()
+    const previous = state.uploads.length
+    try {
+      await context.addCookies([
+        { name: 'unrelated-app', value: 'fake-cookie', url: state.origin, httpOnly: true },
+      ])
+      await page.goto(state.origin)
+      expect(await context.cookies()).toHaveLength(1)
+      await page.getByLabel('Attach file…').setInputFiles({
+        name: 'clip.mp4',
+        mimeType: 'video/mp4',
+        buffer: Buffer.from(videoFixture()),
+      })
+      await expect.poll(() => state.uploads.length).toBe(previous + 1)
+      expect(state.cookies.at(-1)).toBeUndefined()
+      await page.locator('#root[data-attached="true"]').waitFor()
+    } finally {
+      await context.close()
     }
   })
   it.each(themes)(

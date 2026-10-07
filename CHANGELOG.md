@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Fix companion media uploads for Unicode filenames and unrelated loopback
+  cookies: encode only header metadata and omit browser credentials while
+  keeping guarded streamed intake. Upload progress reports start and completion.
+  Settle recorder startup after panel close, dispose late previews, and make
+  browser tests use OS temporary storage on clean checkouts.
+
 - M105 integration verification: keep exact media currency arithmetic and
   ceiling display outside chat startup; preserve existing tariff text. Load
   tool rows on first use with accessible loading, failure and retry. Share

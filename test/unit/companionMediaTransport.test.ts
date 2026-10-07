@@ -14,27 +14,17 @@ const credentials = () => ({
 })
 const metadataSchema = z.object({ requestId: z.string(), name: z.string() })
 
-function setup() {
-  const xhr = new XMLHttpRequest()
-  const headers = new Map<string, string>()
-  vi.spyOn(xhr, 'open').mockImplementation(() => {
-    /* The fake absorbs browser HTTP work. */
-  })
-  vi.spyOn(xhr, 'setRequestHeader').mockImplementation((name, value) => {
-    headers.set(name, value)
-  })
-  const send = vi.spyOn(xhr, 'send').mockImplementation(() => {
-    /* The fake absorbs browser HTTP work. */
-  })
-  const abort = vi.spyOn(xhr, 'abort').mockImplementation(() => {
-    xhr.dispatchEvent(new Event('abort'))
-  })
+function setup(name = 'clip.mp4') {
+  const response = Promise.withResolvers<Response>()
+  const send = vi.fn<typeof fetch>(() => response.promise)
   const progress = vi.fn()
   const stop = new AbortController()
-  const file = new File(['file-canary'], 'clip.mp4', { type: 'video/mp4' })
-  const transport = companionMediaTransport(credentials, () => xhr)
+  const file = new File(['file-canary'], name, { type: 'video/mp4' })
+  const transport = companionMediaTransport(credentials, send)
   const pending = transport.upload(file, file.name, false, stop.signal, progress)
-  const metadata: unknown = JSON.parse(headers.get('x-muse-media') ?? '{}')
+  const init = send.mock.calls[0]?.[1]
+  const headers = new Headers(init?.headers)
+  const metadata: unknown = JSON.parse(decodeURIComponent(headers.get('x-muse-media') ?? '{}'))
   const parsed = metadataSchema.parse(metadata)
   const body = {
     ...parsed,
@@ -48,14 +38,11 @@ function setup() {
     },
   }
   function reply(value: unknown = body, status = 200, url = endpoint) {
-    Object.defineProperties(xhr, {
-      response: { value, configurable: true },
-      status: { value: status, configurable: true },
-      responseURL: { value: url, configurable: true },
-    })
-    xhr.dispatchEvent(new Event('load'))
+    const result = Response.json(value, { status })
+    Object.defineProperty(result, 'url', { value: url })
+    response.resolve(result)
   }
-  return { xhr, headers, send, abort, progress, stop, file, pending, reply, body }
+  return { response, headers, init, send, progress, stop, file, pending, reply, body }
 }
 
 beforeEach(() => {
@@ -68,17 +55,29 @@ describe('companion browser transport', () => {
     })
     const rig = setup()
     expect(read).not.toHaveBeenCalled()
-    expect(rig.send).toHaveBeenCalledWith(rig.file)
+    expect(rig.send).toHaveBeenCalledWith(endpoint, expect.objectContaining({ body: rig.file }))
     expect(rig.headers.get('Authorization')).toBe('Bearer test-window-token')
     expect(rig.headers.get('Content-Type')).toBe('application/octet-stream')
     expect(rig.headers.get('x-muse-guard')).toBe('1')
     expect(rig.headers.get('x-muse-media')).not.toContain('file-canary')
-    expect(rig.xhr.withCredentials).toBe(false)
-    rig.xhr.upload.dispatchEvent(new ProgressEvent('progress', { loaded: 1, total: rig.file.size }))
-    expect(rig.progress).toHaveBeenLastCalledWith(1, rig.file.size)
+    expect(rig.init).toMatchObject({
+      method: 'POST',
+      credentials: 'omit',
+      mode: 'cors',
+      redirect: 'error',
+      signal: rig.stop.signal,
+    })
+    expect(rig.progress).toHaveBeenCalledExactlyOnceWith(0, rig.file.size)
     rig.reply()
     await expect(rig.pending).resolves.toEqual(rig.body)
     expect(rig.progress).toHaveBeenLastCalledWith(rig.file.size, rig.file.size)
+  })
+  it('encodes Unicode and percent signs without encoding file bytes', async () => {
+    const rig = setup('録画 100% 🎥.mp4')
+    expect(rig.headers.get('x-muse-media')).toMatch(/^[\u{20}-\u{7E}]+$/u)
+    expect(rig.body.name).toBe(rig.file.name)
+    rig.reply()
+    await expect(rig.pending).resolves.toMatchObject({ name: rig.file.name })
   })
   it.each([
     ['bytes', { bytes: 'canary' }],
@@ -111,67 +110,62 @@ describe('companion browser transport', () => {
     failure.reply({ reason: UI_TEXT.media.uploadStorageUnknown }, 400)
     await expect(failure.pending).rejects.toThrow(UI_TEXT.media.uploadStorageUnknown)
   })
+  it.each(['network', 'invalid JSON'])(
+    'reports %s failure without completion progress',
+    async (kind) => {
+      const rig = setup()
+      if (kind === 'network') rig.response.reject(new TypeError('Fake network failure'))
+      else rig.response.resolve(new Response('malformed'))
+      await expect(rig.pending).rejects.toThrow(UI_TEXT.attachmentUnreadable)
+      expect(rig.progress).toHaveBeenCalledExactlyOnceWith(0, rig.file.size)
+    },
+  )
   it('rejects an HTTP error even if its body contains valid upload metadata', async () => {
     const rig = setup()
     rig.reply(rig.body, 403)
     await expect(rig.pending).rejects.toThrow(UI_TEXT.attachmentUnreadable)
   })
-  it('refuses another loopback window origin before creating HTTP objects', async () => {
-    const create = vi.fn((): XMLHttpRequest => {
-      throw new Error('Unexpected HTTP object')
-    })
-    const port = companionMediaTransport(
-      () => ({ ...credentials(), endpoint: 'http://127.0.0.1:12346/media' }),
-      create,
-    )
+  it.each([
+    'http://127.0.0.1:12346/media',
+    'https://foreign.example/media',
+    'http://192.0.2.1/media',
+  ])('refuses endpoint %s before dispatch', async (url) => {
+    const send = vi.fn<typeof fetch>()
+    const port = companionMediaTransport(() => ({ ...credentials(), endpoint: url }), send)
     await expect(
-      port.upload(new Blob(['x']), 'x', false, new AbortController().signal, () => {
-        /* No progress without dispatch. */
-      }),
+      port.upload(new Blob(['x']), 'x', false, new AbortController().signal, vi.fn()),
     ).rejects.toThrow(UI_TEXT.attachmentUnreadable)
-    expect(create).not.toHaveBeenCalled()
+    expect(send).not.toHaveBeenCalled()
   })
-  it('ignores a late load event after Stop', async () => {
+  it('ignores a late response after Stop', async () => {
     const rig = setup()
     rig.stop.abort()
-    await expect(rig.pending).rejects.toThrow(UI_TEXT.media.uploadStop)
     rig.reply()
-    expect(rig.progress).not.toHaveBeenCalled()
+    await expect(rig.pending).rejects.toThrow(UI_TEXT.media.uploadStop)
+    expect(rig.progress).toHaveBeenCalledExactlyOnceWith(0, rig.file.size)
   })
   it('Stop aborts the request; no stale token survives it', async () => {
     const rig = setup()
+    rig.init?.signal?.addEventListener('abort', () => {
+      rig.response.reject(new DOMException('Fake abort', 'AbortError'))
+    })
     rig.stop.abort()
-    expect(rig.abort).toHaveBeenCalledOnce()
+    expect(rig.init?.signal?.aborted).toBe(true)
     await expect(rig.pending).rejects.toThrow(UI_TEXT.media.uploadStop)
   })
-  it('refuses an already aborted request before creating HTTP objects', async () => {
+  it('refuses an already aborted request before dispatch', async () => {
     const stop = new AbortController()
     stop.abort()
-    const create = vi.fn(() => new XMLHttpRequest())
+    const send = vi.fn<typeof fetch>()
     await expect(
-      companionMediaTransport(credentials, create).upload(
+      companionMediaTransport(credentials, send).upload(
         new Blob(['x']),
         'x',
         false,
         stop.signal,
-        () => {
-          /* The fake absorbs browser HTTP work. */
-        },
+        vi.fn(),
       ),
     ).rejects.toThrow()
-    expect(create).not.toHaveBeenCalled()
+    expect(send).not.toHaveBeenCalled()
   })
-  it.each(['https://foreign.example/media', 'http://192.0.2.1/media'])(
-    'refuses endpoint %s before dispatch',
-    async (url) => {
-      const create = vi.fn(() => new XMLHttpRequest())
-      const port = companionMediaTransport(() => ({ ...credentials(), endpoint: url }), create)
-      await expect(
-        port.upload(new Blob(['x']), 'x', false, new AbortController().signal, () => {
-          /* The fake absorbs browser HTTP work. */
-        }),
-      ).rejects.toThrow()
-      expect(create).not.toHaveBeenCalled()
-    },
-  )
 })

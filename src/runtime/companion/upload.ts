@@ -180,7 +180,9 @@ export function companionUpload(
     response.once('close', closed)
     try {
       const raw = request.headers[options.metadataHeader]
-      const metadata = metadataSchema.parse(JSON.parse(typeof raw === 'string' ? raw : ''))
+      const metadata = metadataSchema.parse(
+        JSON.parse(decodeURIComponent(typeof raw === 'string' ? raw : '')),
+      )
       const declared = request.headers['content-length']
       const length = declared === undefined ? undefined : Number(declared)
       if (
