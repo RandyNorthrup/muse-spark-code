@@ -142,6 +142,8 @@ const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const REPORT_ENTRY = 'src/host/support/reportEntry.ts'
 const REPORT_OUTFILE = 'dist/report.js'
+const ESTIMATOR_ENTRY = 'src/host/estimator/estimatorEntry.ts'
+const ESTIMATOR_OUTFILE = 'dist/estimator.js'
 const RECORDER_ENTRY = 'src/host/support/recorderEntry.ts'
 const RECORDER_OUTFILE = 'dist/recorder.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
@@ -270,6 +272,20 @@ const reportOptions = {
   plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [REPORT_ENTRY],
   outfile: REPORT_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+// The capacity estimator's engine (M117, PLAN.md D97), loaded the first
+// time an estimate runs; it reads no `vscode` and no backend, so a stray
+// import fails this build.
+/** @type {import('esbuild').BuildOptions} */
+const estimatorOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [ESTIMATOR_ENTRY],
+  outfile: ESTIMATOR_OUTFILE,
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
@@ -624,6 +640,7 @@ if (isWatch) {
     esbuild.context(museCodeReviewerOptions),
     esbuild.context(extensionHooksOptions),
     esbuild.context(reportOptions),
+    esbuild.context(estimatorOptions),
     esbuild.context(recorderOptions),
     esbuild.context(whatsNewOptions),
     esbuild.context(judgeOptions),
@@ -677,6 +694,7 @@ if (isWatch) {
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
     extensionHooks: esbuild.build(extensionHooksOptions),
     report: esbuild.build(reportOptions),
+    estimator: esbuild.build(estimatorOptions),
     recorder: esbuild.build(recorderOptions),
     whatsNew: esbuild.build(whatsNewOptions),
     judge: esbuild.build(judgeOptions),
@@ -748,6 +766,7 @@ if (isWatch) {
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
   reportSize(EXTENSION_HOOKS_OUTFILE)
   reportSize(REPORT_OUTFILE)
+  reportSize(ESTIMATOR_OUTFILE)
   reportSize(RECORDER_OUTFILE)
   reportSize(WHATS_NEW_OUTFILE)
   reportSize(WHATS_NEW_CONTENT_OUTFILE)

@@ -226,6 +226,27 @@ export const ON_FIRST_USE = [
       'src/core/support/problemReport.ts',
     ],
   },
+  // The capacity estimator's engine (M117, PLAN.md D6, D97): the host, the
+  // CLI and the ACP agent require it the first time an estimate runs.
+  {
+    output: 'dist/estimator.js',
+    metafile: 'dist/meta/estimator.json',
+    use: 'the first estimate',
+    files: [
+      'src/host/estimator/estimatorEntry.ts',
+      'src/core/estimator/goal.ts',
+      'src/core/estimator/baseRisk.ts',
+      'src/core/estimator/calibration/fit.ts',
+      'src/core/estimator/calibration/records.ts',
+      'src/core/estimator/schedule.ts',
+      'src/core/estimator/simulate.ts',
+      'src/core/estimator/bottleneck.ts',
+      'src/core/estimator/recommend.ts',
+      'src/core/estimator/prices.ts',
+      'src/core/estimator/provision/owner.ts',
+      'src/core/estimator/provision/start.ts',
+    ],
+  },
   // The flight recorder's journal (M93, PLAN.md D6, D72): activation keeps
   // only the front that answers and queues; the journal, its policy and the
   // frame mapping load just after activation or at the first failure.

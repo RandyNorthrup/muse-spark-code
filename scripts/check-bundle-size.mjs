@@ -108,6 +108,12 @@ const BUDGETS = [
   // and the handler, loaded on the first open. 63.6 KiB when split out (its
   // own zod), plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/report.js', budgetKiB: 75 },
+  // The capacity estimator's engine (M117, PLAN.md D6, D97), loaded on the
+  // first estimate: goal and DAG, calibration, schedule and simulation,
+  // recommendations, dated prices and the first-wave starter with their
+  // shared contracts. 60.7 KiB when split out, plus 15%, rounded up to
+  // 25 KiB (PLAN.md D6).
+  { path: 'dist/estimator.js', budgetKiB: 75 },
   // The flight recorder's journal (M93), loaded just after activation or at
   // the first failure: 51.3 KiB when split out (the journal, its policy and
   // the shared protocol it validates against), plus 15%, rounded up to 25 KiB
