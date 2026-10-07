@@ -20637,6 +20637,20 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M109 — A credential vault and broker for agents (D89)
 
+**Lane O core certified (2026-10-06, MacBook rig).** Implements only D89.4's
+MCP environment/header routes and D89.14's MCP OAuth and reviewable migration.
+References remain handles through the host: the injected X feeder starts stdio
+servers against resolved command/argv/cwd; the trusted remote transport resolves
+origin-bound headers per request. OAuth runs in the broker with discovered
+RFC 9728/8414 metadata, S256 PKCE, exact issuer/resource binding, a reused injected
+M95b loopback port, serialized refresh rotation and guarded encrypted commits.
+No token-returning API or passthrough. Move to vault imports only the selected
+literal and returns a digest-bound proposed settings edit; it never saves the
+settings. Missing X/M95b/M96/W bindings are named handoffs, never production
+fakes. No activation or visual change, dependencies, paid/live calls or cap rise.
+Focused tests and byte-exact drills map to V3, V7, V9, V11, V13 and V14 in
+`docs/certification/m109-o-mcp-and-oauth.md`; lead owns joined-tree quality.
+
 **FIXM109B6 / RVM109B5 (2026-10-06).** Close both confirmed findings:
 make audit-session key erasure and reference clearing unconditional despite
 file-writer close failures, and report cleanup failure to Lock/Dispose callers;
@@ -21001,6 +21015,19 @@ only, no dependencies or live calls. Certification: `docs/certification/m109-b.m
         14 tables; budgets measured; full gate green
 
 ## 7. Gates
+
+**M109 O (2026-10-06, MacBook rig).** O's core and pool seams are certified
+on generated fakes; 52 named red drills restore byte-exact. Typechecks,
+changed-file lint/format, plain Knip, zero-clone jscpd, localization and the
+production build pass without budget or gate changes. **O-W-host-api** is the
+owned handoff: B's existing six Node-import count differences remain, with O
+adding two `node:crypto` readers (53 to 55); the 332 VS Code APIs, 31 adapters,
+25 Node built-ins and 61 theme variables are unchanged. W regenerates the
+joined record; `docs/certification/m109-o-host-api.patch` projects this base's
+complete count change. No W-owned record, README/CHANGELOG, bundle script,
+manifest or help catalog was edited. The cert supplies documentation text and
+O-X/O-C/O-BH/O-T/O-95b/O-96/O-U/H bindings. Full quality, browser/editor checks
+and integrated M109 acceptance stay lead-owned; no live/paid calls or dependency.
 
 **FIXM109B6 / RVM109B5 (2026-10-06, Mac mini).** Both findings are fixed;
 no review residual is accepted. Final restored-source verification passes all

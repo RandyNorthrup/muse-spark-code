@@ -5335,3 +5335,12 @@ export const VAULT_DEFAULTS = {
 
 export const VAULT_TOTP_DIGITS = { standard: 6, extended: 8 } as const
 export const VAULT_BASE64_GROUP_CHARS = 4
+
+// M109 O: bounded OAuth metadata/token bodies, PKCE entropy and flow lifetime.
+export const MCP_OAUTH_LIMITS = {
+  responseBytes: 64 * 1024,
+  randomBytes: 32,
+  flowMs: 120_000,
+  refreshSlackMs: 30_000,
+  maxExpiresSeconds: 365 * 24 * 60 * 60,
+}

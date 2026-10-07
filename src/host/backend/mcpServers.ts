@@ -6,6 +6,7 @@
 // (M57, PLAN.md D6); this module gives it this window's parts.
 
 import type { McpPoolDeps } from '../../core/backends/modelapi/mcp/pool'
+import type { McpVaultPoolPort } from '../../core/vault/mcpSecrets'
 import { environmentValue } from '../../core/backends/musecode/launch'
 import { readMcpServerEntries } from '../../core/backends/musecode/museConfigView'
 import { UI_TEXT } from '../../shared/constants'
@@ -14,6 +15,7 @@ import type { Logger } from '../logger'
 import { isExistingDirectory, isExistingFile, mcpServerSpawner } from './mcpProcess'
 
 export interface ModelApiMcpDeps {
+  readonly vault?: McpVaultPoolPort
   /** Awaited before a workspace-capable local stdio process can start. */
   readonly beforeWorkspaceProcessStart: () => Promise<void>
   readonly workspaceRoot: string
@@ -31,6 +33,13 @@ export interface ModelApiMcpDeps {
 }
 
 export function modelApiMcpPoolDeps(deps: ModelApiMcpDeps): McpPoolDeps {
+  const beforeStart = async (isCancelled?: () => boolean) => {
+    await deps.beforeWorkspaceProcessStart()
+    if (isCancelled?.() === true || !deps.isWorkspaceTrusted()) {
+      throw new Error(UI_TEXT.questionCancelled)
+    }
+  }
+  const vault = deps.vault
   const spawn = mcpServerSpawner({
     platform: deps.platform,
     systemRoot: environmentValue(deps.env(), deps.platform, 'SystemRoot'),
@@ -43,16 +52,27 @@ export function modelApiMcpPoolDeps(deps: ModelApiMcpDeps): McpPoolDeps {
     },
   })
   return {
+    ...(vault !== undefined && {
+      vault: {
+        async startStdio(server, launch, cwd, isCancelled) {
+          await beforeStart(isCancelled)
+          return await vault.startStdio(
+            server,
+            launch,
+            cwd,
+            () => isCancelled() || !deps.isWorkspaceTrusted(),
+          )
+        },
+        fetchFor: (server, url, headers) => vault.fetchFor(server, url, headers),
+      },
+    }),
     readSettings: () => readMcpServerEntries(readTextIfPresent(deps.settingsPath())),
     lookupEnv: (name) => environmentValue(deps.env(), deps.platform, name),
     isWorkspaceTrusted: deps.isWorkspaceTrusted,
     workspaceRoot: deps.workspaceRoot,
     platform: deps.platform,
     spawn: async (launch, cwd, isCancelled) => {
-      await deps.beforeWorkspaceProcessStart()
-      if (isCancelled?.() === true || !deps.isWorkspaceTrusted()) {
-        throw new Error(UI_TEXT.questionCancelled)
-      }
+      await beforeStart(isCancelled)
       return spawn(launch, cwd)
     },
     fetch: deps.fetch,
