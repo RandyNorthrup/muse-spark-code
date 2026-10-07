@@ -18841,9 +18841,9 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
       harness readiness, with a wait shorter than the existing case deadline.
 - [x] Repair the evidenced cause without raising deadlines, adding retries or
       skipping cases; prove the regression fails before the repair.
-- [ ] Certify 100 consecutive case-20 passes and 30 complete-file passes on
+- [x] Certify 100 consecutive case-20 passes and 30 complete-file passes on
       Windows, plus ten Linux file passes if a Linux machine is reachable.
-- [ ] Record counts, cause, fix and restored drills in
+- [x] Record counts, cause, fix and restored drills in
       docs/certification/flake-team-harness-20.md; commit with normal hooks.
 
 Scope is browser harness readiness and its owning regressions. No model call,
@@ -45688,6 +45688,19 @@ aggregate certification record.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
 ## 7. Gates
+
+**FLAKETH20 scoped gate delegation (2026-10-07, win11).** The shared lane
+rules forbid aggregate `npm run quality` and leave full-suite coverage and
+hosted/platform quality with the lead. This lane ran all five typechecks,
+changed-file lint/format, plain Knip, duplication, localization, host API,
+reference, production build and 40 focused accessibility pages, all exit 0.
+Final unchanged-deadline CI-style coverage passed 100 consecutive case-20
+repetitions and 30 separate complete-file invocations (690 executions), plus
+58 owning-suite tests. The cold-import startup failure and byte-exact red
+drills are recorded in docs/certification/flake-team-harness-20.md. Linux was
+unavailable because SSH refused its host key and WSL is not installed. No
+gate was weakened or case deadline changed; no retries, skips, dependencies
+or product source changes were introduced.
 
 **TRAIN15E release preparation gate scope (2026-10-06, win11).** The
 continuation brief explicitly requires the entire Vitest suite in batches of

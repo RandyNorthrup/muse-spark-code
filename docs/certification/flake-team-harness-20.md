@@ -76,11 +76,55 @@ The diagnostic drill also checks page-error/request/HTTP evidence, preservation
 of the original cause, no execution of the success callback, cleanup after
 failure and bounded output under 100,000-character console and DOM messages.
 
-## Verification and remaining receipts
+## Final verification
 
-The repaired startup unit file passed 30/30 at repository deadlines. Required
-final case-20 repetitions, 30 separate complete-file invocations and scoped
-static gates are in progress and will be recorded in the completion commit.
+Implementation commit: `0d1d34c2d`, with the repository's normal hooks enabled.
+Its three source files stayed byte-identical throughout final verification.
+
+| Check                                          | Result                                                                              |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Case 20, `--repeats=99 -t '20 keeps viewport'` | 100 consecutive passes, zero failures; 115,403.9 ms across repeats                  |
+| Complete file, 30 separate CLI invocations     | 30/30 passes; 23 cases each, 690 executions, zero failures or skips                 |
+| Slowest case 20 in those complete files        | 1,282.8 ms                                                                          |
+| Complete-file invocation duration              | 61.0–69.1 seconds, including preparation and coverage; 1,943.6 seconds total        |
+| Owning suites with CI-style V8 coverage        | 58 passes: teamHarness 23, harnessWaits 30, harnessCapture 5                        |
+| Typecheck                                      | All five projects, exit 0                                                           |
+| Changed-file ESLint                            | Zero warnings, exit 0; also passed in the commit hook                               |
+| Changed-file Prettier                          | Exit 0                                                                              |
+| Plain Knip and duplication                     | Exit 0; zero clones                                                                 |
+| Localization, host API and reference           | All exit 0                                                                          |
+| Production build                               | Exit 0, unchanged size/split/globals/notices gates pass                             |
+| Focused accessibility                          | 40/40 pages across four themes; zero violations, undecided rules or missing results |
+
+The accessibility sample covers empty/sign-in, Tasks, Models, Usage, team tree,
+320 px team tree, team cards and isolated Traffic surfaces. Production sizes:
+extension 462.8 / 600 KiB; original deferred webview 31.9 / 50 KiB;
+team UI 16.6 / 25 KiB.
+
+All repetitions used `CI=true`, `--coverage`, `--maxWorkers=3` and repository
+deadlines. Each complete-file invocation ran its real `beforeAll` preparation,
+created a fresh browser and retained every case. The case-20 block built once
+and used Vitest's unconditional repetitions, opening a fresh page each time.
+A single registered test is reported by Vitest's JSON reporter for this block;
+its `--repeats=99` executes that test 100 times and retains any failure.
+
+Receipts under `temp/flake-team-harness-20/`: `final-case100.json`,
+`final-full-1.json` through `final-full-30.json`, `final-full-summary.json`,
+`owning-green.json`, `gates-summary.json` and the matching command logs.
+Final source SHA-256:
+
+| Source                           | SHA-256                                                            |
+| -------------------------------- | ------------------------------------------------------------------ |
+| `test/harness/index.html`        | `18cb0a0705d1160dd81fc018b37256a242a777f48233a9b25aab16f924c24e19` |
+| `test/unit/teamHarness.test.mjs` | `e3c6b8cbf9ae78ff83bc2817d77b4e6f2542de834e6a673526fa99173df3ab61` |
+| `test/unit/harnessWaits.test.ts` | `341509a3e9d663c9bcb74802335ff6aae9870bef6a8fcd09bbdbbebf3a588c7a` |
+
+Both admission-removal drills produced exactly two failures and 28 passes,
+then restored the harness hash above. The console-listener drill restored the
+teamHarness hash above. Its ordinary evidence message was 212 characters;
+100,000-character console and root messages produced only 8,250 characters
+including the error and scenario prefix. Original cause and cleanup checks
+passed. Final source bytes match those in the owning-suite pass.
 
 All coverage invocations use `--shard=1/1`, the repository's existing CI shard
 coverage contract. This includes every selected test; global coverage thresholds
