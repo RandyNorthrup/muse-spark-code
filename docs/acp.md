@@ -339,7 +339,9 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   on a model the agent does not list moves to the default. A session the
   agent cannot set up this way is let go, and the editor's request fails.
 - **Commands**: the session's skills, run as `/name arguments`, plus M112's
-  `/questions` and `/answer <n> <text>` (reserved ahead of skills).
+  `/questions` and `/answer <n> <text>` (reserved ahead of skills), and
+  M116's `/playbook <status|record|settings ...>`, answered locally with no
+  model turn.
 - **Permission prompts**: the backend's own choices (allow once, allow for
   the session, reject). A prompt the editor cancels, or answers with a
   choice it was not offered, is rejected; nothing runs by default.
@@ -414,6 +416,19 @@ prefix; the policy favors avoiding a duplicate when admission is unknown.
 MCP elicitation forms retain their separate five-minute deadline and cannot
 be answered late. Ordinary approvals and paid-use permission prompts retain
 their existing behavior and never enter the question clock.
+
+## Playbook
+
+`/playbook status`, `/playbook record` and `/playbook settings ...` read the
+orchestrator playbook's journal-backed settings and evidence for the
+session's workspace, with no model turn. The same surface answers the
+standalone `playbook` command. Rule changes need a reason and record the
+owner; turning a rule off and naming the fallback reviewer for
+classifier-blocked reviews need a real user decision, and residuals stay
+open per milestone until a lead or owner accepts them. Panel enforcement
+(leases, outcome receipts, dispatch gating) is not installed here; see
+[the milestone certification](certification/m116.md) for what is bound and
+what waits for M96's planner.
 
 ## Paid features
 

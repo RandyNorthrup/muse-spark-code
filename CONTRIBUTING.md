@@ -253,6 +253,28 @@ with no clock; scheduled/unattended prompts defer at once, even when the
 interactive setting is 0. See [M112's contracts](docs/certification/m112-contracts.md)
 and [lane A's record](docs/certification/m112-a.md) for integration ownership.
 
+## The orchestrator playbook (M116)
+
+Orchestrated work on this repository follows nine rules: eight the team can
+configure (never to off for safety, never above their ceiling) plus the
+safety rule that always applies. A classifier or permission block is never
+retried or rerouted; only the user's pre-named fallback reviewer may take a
+blocked review, and only the user decides otherwise. Dispatch briefs render
+structurally and record their hash first; shared configuration drift reports
+after the job; residuals stay open per milestone until a lead or owner
+accepts them, and release refuses while any are open.
+
+Use the shared contracts in `src/shared/playbook.ts` and the policy in
+`src/core/orchestration/playbook/` (lanes L0/P), the brief and reports in
+`src/core/orchestration/` (lane I), the settings/record surfaces in
+`src/webview/playbook/` (lane U) and `src/runtime/playbook/` (lane W), and
+the reviewer charter in `first-party-skills/orchestrator_playbook/` (lane K).
+User-initiated surfaces stamp actor and time from trusted context; P
+re-checks authority on every change, and an agent-supplied actor never
+grants one. Certify each amendment with a red drill and record it; see
+[the milestone record](docs/certification/m116.md) for what is bound and
+the install checklist that remains.
+
 ## Text the user reads
 
 The panel follows VS Code's display language (PLAN.md D33), so text is

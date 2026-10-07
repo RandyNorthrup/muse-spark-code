@@ -212,6 +212,9 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       prepare a runtime) and the runtime's consent and command,
                       bundled skills' Muse Code installer (skills/,
                       dist/bundledSkills.js, loaded on first use),
+                      first-party skills (first-party-skills/, installed beside
+                      the vendored workflows, including the M116
+                      orchestrator-playbook reviewer charter),
                       Tab's lazy provider, ledger and menu (dist/tab.js),
                       with its status item in the activation shim,
                       commands, auth, settings, mentions,
@@ -231,6 +234,8 @@ src/core/**           backend-agnostic logic; must not import `vscode`
                       context (rules, skills, custom agents), Muse Code's
                       questions' portable registry (questions/: states, clock,
                       owner-only store port and exactly-once late delivery; M112),
+                      the orchestrator playbook (orchestration/playbook/: policy,
+                      journal, outcomes, brief, reports and integration; D96/M116),
                       memory, export, worktrees, git and GitHub (push plans,
                       REST client, draft prompts), usage,
                       dictation, Muse Voice, the paid gate, network failures,
@@ -260,8 +265,9 @@ src/runtime/reporting/** deterministic report engine and portable facade
 src/runtime/exec/**   headless arguments/protocol/egress, stdin key/scanner,
                       bounded lifecycle, ACP client/tap and per-attempt ledger
 src/runtime/**        the agent's process: arguments, backends outside VS Code,
-                      the OS credential store (D61), `auth`, `login` and
-                      `report` (M93)
+                      the OS credential store (D61), `auth`, `login`,
+                      `report` (M93) and the journal-backed `playbook` command
+                      with its ACP `/playbook` surface (M116)
 src/shared/**         constants + zod protocol shared by host and webview
 src/shared/l10n/**    the English table (en.ts), fill/plural/Intl helpers, the
                       table checks and the list of translated languages
@@ -312,6 +318,8 @@ test/harness/         the webview behind a fake host, for screenshots and the
                       plus One Dark Pro and Dracula; goldens/ holds the
                       visual-regression manifest and shot lists (M114;
                       full PNG sets stay outside git)
+                      playbook.mjs scenes run standalone as
+                      `npm run harness:playbook` until the panel port is bound
 test/hosts/           the extension and the ACP agent in other editors
                       against the fake CLI, one script per host (hosts.yml)
 scripts/**            esbuild build; bundle-size, bundle-split, host-globals,

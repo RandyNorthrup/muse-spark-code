@@ -916,6 +916,12 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       description: source.EN.referenceKeyStdin,
       text: { ui: 'referenceKeyStdin' },
     },
+    {
+      route: 'playbook',
+      name: 'playbook <status|record|settings ...>',
+      description: source.EN.referencePlaybookCommand,
+      text: { ui: 'referencePlaybookCommand' },
+    },
   )
 
   const exec = (options) =>

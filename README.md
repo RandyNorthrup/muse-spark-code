@@ -220,6 +220,38 @@ command. See the [ACP guide](docs/acp.md#deterministic-reports-m113).
 
 ![Local report tab with export actions](https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/deterministic-report.png)
 
+## Orchestrator playbook policy (M116)
+
+Nine rules govern orchestrated work: eight the team can configure (never to
+off for safety, never above their ceiling) plus the safety rule that always
+applies. A strike policy stops patches after repeated review failures; review
+coverage, finding classes and dispositions are explicit; generation leases
+fence stale reviews; and review history follows edited moves and merges.
+
+Outcomes verify before harness-managed push or completion: each newly
+reachable commit needs a passing receipt from the repository's own hooks,
+run only through native `git hook run` with the source repository's absolute
+hooksPath and a scrubbed environment. Verification discovers new branches,
+tags, notes, every worktree HEAD and private refs in every worktree; POSIX
+timeout cleanup tracks descendants by parent chain and start-time identity.
+Windows verification uses the trusted harness job runner; the M107 governor
+binding stays open.
+
+The panel, Agent map, ACP and CLI read the same journal: `/playbook
+<status|record|settings ...>` and `playbook <status|record|settings ...>`
+show status, journal evidence and settings without starting a backend or a
+model turn. Settings changes need a reason and record the owner; turning
+rules off and naming the fallback reviewer for classifier-blocked reviews
+need a real user decision. Residuals stay open per milestone until a
+lead or owner accepts them, and release refuses while any are open.
+Dispatch briefs render structurally and their hashes record before dispatch.
+See the [help reference](docs/reference.md) (`Orchestrator playbook` row
+and the `playbook` CLI command), regenerated with
+`npm run reference:generate` and verified with `npm run check:reference`.
+The reviewer charter ships as the `orchestrator-playbook` skill; turning on
+panel enforcement waits for M96's planner (see
+`docs/certification/m116.md`).
+
 ## Highlights
 
 - **Streaming chat with tools you can see.** Every read, edit, write and shell

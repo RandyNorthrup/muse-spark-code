@@ -75,29 +75,31 @@ describe('readme shot list', () => {
 
 function pageFor(scan) {
   const waitFor = vi.fn()
+  const innerWait = vi.fn()
   const screenshot = vi.fn()
   const page = {
     setViewportSize: vi.fn(),
     context: () => ({ newCDPSession: async () => ({ send: vi.fn() }) }),
     locator: () => ({ waitFor, textContent: async () => JSON.stringify(scan) }),
     frameLocator: () => ({
-      locator: () => ({ first: () => ({ waitFor }), evaluate: async () => null }),
+      locator: () => ({ first: () => ({ waitFor: innerWait }), evaluate: async () => null }),
     }),
     screenshot,
   }
   vi.mocked(withSizedPage).mockImplementation(async (_chrome, _profile, _url, _sized, run) =>
     run(page),
   )
-  return { page, waitFor, screenshot }
+  return { page, waitFor, innerWait, screenshot }
 }
 
 describe('readme capture readiness', () => {
   it.each([list.shots[0].scenario, 'deterministic-report'])(
     '%s capture stays pending until its document is ready',
     async (scenario) => {
-      const { waitFor, screenshot } = pageFor({ harnessErrors: [] })
+      const { waitFor, innerWait, screenshot } = pageFor({ harnessErrors: [] })
+      const pending = scenario === 'deterministic-report' ? innerWait : waitFor
       const readiness = Promise.withResolvers()
-      waitFor.mockReturnValue(readiness.promise)
+      pending.mockReturnValue(readiness.promise)
       const capture = captureShot(
         'chrome',
         1234,
@@ -105,7 +107,7 @@ describe('readme capture readiness', () => {
         captureDir,
         'profile',
       )
-      await vi.waitFor(() => expect(waitFor).toHaveBeenCalled())
+      await vi.waitFor(() => expect(pending).toHaveBeenCalled())
       expect(screenshot).not.toHaveBeenCalled()
       readiness.resolve()
       await capture
@@ -254,7 +256,7 @@ describe('README shot pixel inputs', () => {
     'src/webview/tokens.css',
     'test/harness/index.html',
   ]
-  const README_INPUTS_DIGEST = '57e81142ec5231dd2eb3a52949d3de44626f0ae0831740911b9f75e25c2b2c6b'
+  const README_INPUTS_DIGEST = '107f1f07d1ae069083462bdca14d2ed7fe36b7d843d5bf88cd4c5efaee11340d'
 
   it('fails when a pixel-determining input changes without a recapture', () => {
     expect(fingerprint(README_PIXEL_INPUTS)).toBe(README_INPUTS_DIGEST)

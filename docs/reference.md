@@ -447,7 +447,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### Help & Reference
 
-Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /compact, /legal, /usage, /questions, /answer, /prompt and /share plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
+Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /usage, /questions, /answer, /prompt and /share plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
 
 ```json
 {
@@ -666,7 +666,13 @@ backend: Bundled skills: project_setup, feature_delivery, quality_retrofit. muse
   "resumeAvailability": "installedMuseCodeSkills",
   "bundled": {
     "museCode": ["feature_delivery", "project_setup", "quality_retrofit"],
-    "modelApi": ["feature_delivery", "project_setup", "quality_retrofit", "muse_gadgets"]
+    "modelApi": [
+      "feature_delivery",
+      "project_setup",
+      "quality_retrofit",
+      "muse_gadgets",
+      "orchestrator_playbook"
+    ]
   }
 }
 ```
@@ -1402,11 +1408,19 @@ Surfaces: vscode:museCode. Paid: no extra feature charge; model usage still appl
 
 Commands: —. Settings: `museSpark.judge.engine`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#muse-judge)
 
+### Orchestrator playbook
+
+Show review strikes, design decisions, safety refusals and rule settings.
+
+Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#orchestrator-playbook-policy-m116)
+
 ### Support
 
 Report an issue.
 
-Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /compact, /legal, /usage, /questions, /answer, /prompt and /share plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
+Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /usage, /questions, /answer, /prompt and /share plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -2290,7 +2304,7 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.bundledSkills
 
-backend&skillInstallation: On by default: the skills that come with Muse Spark (project_setup, feature_delivery and quality_retrofit, from the high-quality-projects package) are available on the Model API backend, after any project or personal skill with the same name. Muse Code reads only its own folders, so for it they are installed with Muse Spark: Install Bundled Skills for Muse Code, which a Muse Code conversation offers once per window until you install them or choose Not now. Their delivery helpers need Python 3.12 or newer.
+backend&skillInstallation: On by default: bundled project quality workflows and first-party skills are available on the Model API backend, after any project or personal skill with the same name. Muse Code reads only its own folders, so install them with Muse Spark: Install Bundled Skills for Muse Code, offered once per window until you install them or choose Not now. The project quality workflows’ delivery helpers need Python 3.12 or newer.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
@@ -3262,5 +3276,6 @@ These are defaults; editor customizations take precedence.
 - `fontsInstall: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `exec <prompt> | exec - | exec --prompt-file <file>`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.
 - `scan-secrets <file> [--key-stdin]`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.
+- `playbook <status|record|settings ...>`: Show or change the orchestrator playbook journal for this workspace (starts no backend).
 
 For full headless argument syntax, run `muse-spark-code-acp exec --help`, or see [the ACP guide](acp.md) and [headless/CI contract](ci.md).

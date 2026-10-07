@@ -7,6 +7,79 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Preserve provider, team, legal, sharing and local usage workflows when integrating
+  reports, design polish and the orchestrator playbook. Keep existing bundle caps.
+- Load optional English before the first slash-command registry resolves, while
+  Help-only fallback text travels with the existing lazy Help page.
+- Capture report screenshots only after the sandboxed document's actual content
+  and fonts are ready; retain readiness-based capture for the main chat harness.
+
+### Added
+
+- Ship the orchestrator-playbook first-party skill (all nine rules, the
+  third-strike design-decision template, two redesigns from this repository).
+  The Model API discovers it through the existing bundled-skills path while a
+  project or personal skill with that id takes precedence; Muse Code receives
+  it through Install Bundled Skills, which now copies first-party skills
+  byte-exact beside the vendored workflows, offers Update on first-party-only
+  changes by content digest, and refuses missing sources, invalid ids,
+  non-file skills and linked roots. The reviewer charter (eight classes,
+  coverage, dispositions, exact prior-id redesign resolutions) is a lazily
+  read model-text block of its own behind the existing skills bundle, so no
+  other request changes. Orchestrated reviewer bindings belong to M116 I/W.
+- Answer `/playbook <status|record|settings ...>` locally in ACP sessions and
+  the standalone `playbook` command with no backend or model turn, over a
+  journal-backed settings/record surface. Settings changes need a reason and
+  record the owner; rule opt-outs and the fallback reviewer for
+  classifier-blocked reviews need a real user decision; residuals stay open
+  per milestone until a lead or owner accepts them and release refuses while
+  any are open; dispatch briefs render structurally with their hashes
+  recorded first. The playbook joins the help reference and the host
+  capability inventory on all four editor/backend surfaces. Panel
+  enforcement waits for M96's planner; see `docs/certification/m116.md`.
+
+### Fixed
+
+- Bind the panel's own orchestration to the shared orchestrator playbook:
+  subagent, delegate and best-of-N dispatches and the `/review` loop run
+  under the policy, with a redesign offered to Plan at the third round.
+  M96/M96c, M110, M115w and M113 stay named integration handoffs.
+- Use native Git hook dispatch and its exit verdict throughout playbook
+  verification, removing Husky startup/layout emulation and invalidating older
+  receipts. Discover private refs in every worktree. Timeout cleanup tracks
+  detached descendants by parent chain and start-time identity; prepared
+  cgroup/scope runners take precedence pending the M107 integration binding.
+
+- Close playbook verification gaps for skipped Husky bodies, newly created refs
+  and detached worktree commits. Run source hooks by absolute path, clean
+  partial worktree registrations, scrub outer failures, and handle annotated
+  tags and ref deletions without false hook violations. Reject legacy and
+  startup-invalidated cached receipts; require explicit renewal/cancellation
+  tokens, enforce hook strikes without findings, and contain hook processes
+  with POSIX groups or the mandatory Windows job-runner port.
+- Harden the shared orchestrator playbook's safety history: policy refusals
+  block same-effect retries across tools, agents and restart. Disk-journal
+  tests create and clean their own OS temporary directories.
+- Replace orchestrator shell-wrapper parsing with outcome verification.
+  Newly reachable commits need durable receipts from the repository's own
+  hooks before harness-managed push or completion; failures add a strike.
+  The command guard is an advisory early warning. Bind reviews to lane and
+  lease generation, inherit edited moves through content and Git history,
+  publish claimed lineage before admission, and reconcile every merge
+  member's maximum strikes and lifetime counts. Shared policy is implemented;
+  editor/planner bindings remain M116 I/U/W work.
+
+- Fence shared playbook replies by bridge lifetime, request and workspace so
+  late replies from a disposed surface cannot populate another workspace.
+- Show owner failures and unresolved redesigns before warnings and review
+  statistics in playbook badges and selected-agent details. Settings saves
+  preserve other drafts, restore keyboard focus, and announce success politely.
+- Refresh changed playbook fields from each saved server record, including
+  another window's lowered round limit, so stale controls cannot overwrite it.
+
+
 ### Added
 
 - Add a shared design-token source, generated editor and Muse palettes,

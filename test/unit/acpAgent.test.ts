@@ -1,4 +1,6 @@
 import { fill } from '../../src/shared/l10n/text'
+import type { PlaybookSurfacePort } from '../../src/runtime/playbook/command'
+import { surfacePort } from './playbookSurfaceFixtures'
 import * as acp from '@agentclientprotocol/sdk'
 import { MspError } from '@muse-code/sdk'
 import { describe, expect, it, vi } from 'vitest'
@@ -69,6 +71,7 @@ interface HarnessOptions {
   readonly legalScan?: AcpAgentDeps['legalScan']
 
   readonly providerSignIns?: readonly SignInMethod[]
+  readonly playbookFor?: (cwd: string, sessionId: string) => PlaybookSurfacePort
   readonly backendHost?: AgentHost
   readonly readiness?: BackendReadiness
   readonly answer?: PermissionAnswer
@@ -105,6 +108,7 @@ function harness(options: HarnessOptions = {}): Harness {
   })
   const deps: AcpAgentDeps = {
     legalScan: options.legalScan,
+    ...(options.playbookFor !== undefined && { playbookFor: options.playbookFor }),
     backend: {
       kind,
       readiness: (isRecheck) => {
@@ -788,6 +792,58 @@ describe('the ACP agent (M63)', () => {
         ]),
       }),
     )
+  })
+
+  it('handles /playbook locally without starting a model turn', async () => {
+    const port = surfacePort()
+    const factory = vi.fn(() => port)
+    const h = harness({ playbookFor: factory })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      expect(await prompt(client, sessionId, '/playbook status')).toEqual({
+        stopReason: 'end_turn',
+      })
+      expect(factory).toHaveBeenCalledWith(CWD, sessionId)
+      expect(h.host.sessions.at(-1)?.sendTurn).not.toHaveBeenCalled()
+      expect(h.updates.at(-1)).toMatchObject({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: expect.stringContaining(UI_TEXT.playbookTitle) },
+      })
+      expect(
+        await prompt(client, sessionId, '/playbook settings offload off worker maintenance'),
+      ).toEqual({ stopReason: 'end_turn' })
+      expect(port.snapshot().settings.rules.offload).toMatchObject({
+        enabled: false,
+        actor: 'owner',
+        reason: 'worker maintenance',
+      })
+      await turn(h, client, sessionId, () => undefined)
+      const announcement = h.updates.find(
+        (update) => update.sessionUpdate === 'available_commands_update',
+      )
+      expect(announcement).toMatchObject({
+        availableCommands: expect.arrayContaining([
+          expect.objectContaining({
+            name: 'playbook',
+            description: UI_TEXT.playbookHelpDescription,
+          }),
+        ]),
+      })
+      expect(factory).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  it('refuses unbound /playbook rather than sending the command to a model', async () => {
+    const h = harness()
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      expect(await prompt(client, sessionId, '/playbook')).toEqual({ stopReason: 'end_turn' })
+      expect(h.host.sessions.at(-1)?.sendTurn).not.toHaveBeenCalled()
+      expect(h.updates.at(-1)).toMatchObject({
+        sessionUpdate: 'agent_message_chunk',
+        content: { text: UI_TEXT.playbookUnavailable },
+      })
+    })
   })
 
   it('announces skills as commands and runs /selector as the skill', async () => {

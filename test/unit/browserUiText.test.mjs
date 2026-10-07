@@ -67,9 +67,8 @@ describe('the production browser English and full-table contract', () => {
     expect(EN.composerLabel).toBe(canonical.composerLabel)
     expect(() => EN.referenceSearch).toThrow('English surface is not loaded')
     const german = JSON.parse(readFileSync('l10n/ui.de.json', 'utf8'))
-    setUiText(german, 'de')
     const palette = await loadPalette()
-    const groups = palette.buildPalette({
+    const paletteContext = {
       currentModel: undefined,
       models: [],
       effort: 'high',
@@ -82,10 +81,18 @@ describe('the production browser English and full-table contract', () => {
       backend: 'modelApi',
       paidFeatures: [],
       isKeyStored: false,
-    })
+    }
+    const groups = palette.buildPalette(paletteContext)
     expect(groups.flatMap((group) => group.items).find((item) => item.id === 'compact').label).toBe(
-      german.compactItem,
+      canonical.compactItem,
     )
+    setUiText(german, 'de')
+    expect(
+      palette
+        .buildPalette(paletteContext)
+        .flatMap((group) => group.items)
+        .find((item) => item.id === 'compact').label,
+    ).toBe(german.compactItem)
     await loadHelp()
     for (const key of fixture.keys) expect(EN[key], key).toEqual(canonical[key])
     expect(UI_TEXT.referenceSearch).toBe(german.referenceSearch)

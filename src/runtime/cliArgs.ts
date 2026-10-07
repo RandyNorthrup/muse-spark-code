@@ -39,6 +39,13 @@ export type UsageCommand =
     }
 import type { ChatGptProviderAction } from './chatGptProviderCommands'
 import { questionDeferSeconds } from '../shared/questionDeadline'
+import { parsePlaybookCommand } from './playbook/command'
+
+/** U's CLI route; the runtime entry owner binds runPlaybookCommand to P's
+ * journal before the general ACP/auth parser. No model process is needed. */
+export function parsePlaybookCommandLine(argv: readonly string[]) {
+  return argv[0] === 'playbook' ? parsePlaybookCommand(argv.slice(1)) : undefined
+}
 
 export interface ServeOptions {
   readonly usageHistory?: boolean
@@ -101,6 +108,7 @@ export type RuntimeCommand =
   | { readonly command: 'legal'; readonly options: LegalOptions }
   | { readonly command: 'reports'; readonly args: readonly string[] }
   | { readonly command: 'fontsInstall'; readonly sourceDirectory: string | undefined }
+  | { readonly command: 'playbook'; readonly argv: readonly string[] }
   | { readonly command: 'serve'; readonly options: ServeOptions }
   | { readonly command: 'login'; readonly options: ServeOptions }
   | {
@@ -239,6 +247,7 @@ export function parseCommandLine<T>(
     return parseReport(argv.slice(argv[1] === 'problem' ? 2 : 1), argv[1] !== 'problem')
   if (argv[0] === 'legal') return parseLegalCommand(argv)
   if (argv[0] === 'fonts') return parseFonts(argv.slice(1))
+  if (argv[0] === 'playbook') return { command: 'playbook', argv: argv.slice(1) }
   let parsed: ReturnType<typeof parseCommandLineStrictly>
   try {
     parsed = parseCommandLineStrictly(argv)

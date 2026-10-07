@@ -17634,9 +17634,20 @@ repository's own working rule (AGENTS.md rule 14).
    orchestrator writes starts with what needs the user and whatever is
    failing (M113's **Needs you**), never buried below progress.
 9. **Never route around a safety check.**
-   - **No hook tampering:** `--no-verify`, `-c core.hooksPath=…`, `git config
-core.hooksPath`, edits under `.husky/`, or skipping a gate are refused
-     and reported.
+   - **Hook bypass is detected by outcome; the command guard is advisory.**
+     At work start the harness snapshots reachable commits. Before any
+     harness-managed push or completion, every commit newly reachable from
+     the work's refs runs the repository's own pre-commit and commit-msg on
+     its tree/message in an isolated temporary worktree under ordinary tool
+     admission. Pre-push runs once for the exact range with a clean index.
+     Push admission also checks commits introduced since the workspace's first
+     recorded work, so opening later work cannot hide an unverified ancestor. Hooks are never
+     rewritten. A passing commit has a durable commit id / hook-set digest /
+     result receipt. Failure or inability to run is a strike, blocks push
+     and completion, and shows scrubbed hook output. No receipt means no push.
+     Obvious bypass commands still receive an early warning and refusal;
+     shell wrappers, aliases and generated arguments are not parsed as a
+     security boundary.
    - **No permission laundering:** an action refused to one agent is not
      asked again through another (a delegate, a role, a tool with the same
      effect) for `PLAYBOOK_LAUNDER_WINDOW_MS` (one hour) on the same subject;
@@ -17670,8 +17681,84 @@ core.hooksPath`, edits under `.husky/`, or skipping a gate are refused
     companion page and the native hosts; ACP's `/playbook` (status, record,
     settings); the CLI's `playbook status|record|settings`; the TUI's and
     the desktop's Agent map.
+13. **Lane-0 review amendment (RVM116L0, 2026-10-06).**
+    - A module has a trusted stable `id`, assigned once and persisted with
+      its key/file-set snapshots in the journal. A changed key or file set
+      for existing code carries typed lineage: `renamedFrom`, `splitFrom`
+      or `mergedFrom`, naming module ids. A rename keeps its id; splits and
+      merges inherit the maximum predecessor round, per class and aggregate.
+      P refuses a declaration whose files overlap a struck module's last
+      file set without lineage unless a recorded lead/owner override exists.
+      No counter resets on a new lane, branch, key or file set.
+    - `beforeReview` and `afterReview` receive `implementerId`, `reviewerId`
+      and both session ids from the harness's trusted lane registry, never
+      self-declared model metadata. Every round persists these identities.
+      P refuses equal agent ids or shared sessions before consuming a review.
+    - Journal findings retain normalized severity (`P1`–`P3`); their answers
+      are finding-scoped dispositions: fixed, disputed(reason),
+      residual(name, why safe for now, follow-up), or override(lead/owner,
+      reason, time). P fixes every P1; only an explicit lead/owner override
+      can except it. P2 residuals require redesign and a named follow-up;
+      an ordinary dispute grants no exception. The trusted adapter maps
+      critical/high/medium-or-lower to P1/P2/P3 and treats missing or unknown
+      severity as P1 until clarified. P validates prior ids, scrubs free text
+      and reconstructs this policy from the journal after restart.
+    - Acceptance fakes take the prior finding id as a fixture parameter,
+      detach every lane's module data, and test board dependencies and
+      estimates independently of the plan's delivery-order literal.
+
+14. **Lane-P redesign (REDM116P, 2026-10-06).** One synchronous journal
+    reducer owns publication and emits tagged tool effects. Leases exclude
+    all members of a module family and name the lane and generation; every
+    review must present its admitted generation. Expired member leases do
+    not block another member's current work. File identities retain bounded
+    content fingerprints; edited moves inherit through Git history/rename
+    evidence and content similarity at `PLAYBOOK_CONTENT_SIMILARITY_PERCENT`.
+    Claimed lineage is published before admission. Merges reconcile maximum
+    strikes and lifetime counts throughout the family; only a complete
+    independent redesign can close an existing strike epoch.
+
+15. **RVM116P3 repair (FIXM116P3, 2026-10-06).** Keep the synchronous
+    outcome/journal architecture. Resolve the source hook directory once and
+    run native Git hooks with that absolute hooksPath and a credential/Git/
+    hook-disable scrubbed environment. Configured hook sets fail closed on
+    missing/non-executable hooks and missing Husky dispatch/body files; Husky
+    startup scripts cannot silently suppress a body. Snapshot all refs and
+    every worktree HEAD before/after work, including new branches/tags/notes.
+    Peel annotated tags; deletion-only pushes require no hook receipt. Scrub
+    outer errors, require explicit renewal/cancellation generations, contain
+    hook descendants, clean partial worktree registration, and connect hook
+    strikes to patch refusal and independent redesign even without findings.
+    Hook-digest epoch v2 invalidates earlier potentially skipped-body receipts;
+    startup presence is checked on receipt reuse. POSIX executions end their
+    process group; every Windows Git child requires the trusted harness
+    job/tree runner and refuse without it.
+    Each review finding receives a named regression and byte-exact red drill
+    in `docs/certification/m116-p.md`. No new dependency or relaxed gate.
 
 ---
+
+### FIXM116P4 — Final outcome verification repairs (2026-10-06)
+
+The final lane follows the lead's native-Git contract: delete all Husky
+startup/layout/body emulation. Only `git hook run` in the verification
+worktree, with the source repository's resolved absolute hooksPath and
+HUSKY/HUSKY_SKIP_HOOKS/GIT_* variables deleted, supplies the hook verdict.
+Git's missing-hook error fails closed for a configured hook set. Native
+Husky v9 passing/failing layouts receive real Git regressions and red drills.
+Invalidate pre-repair receipts with a new hook-digest epoch.
+
+Enumerate every worktree and snapshot its HEAD and private refs/worktree,
+refs/bisect and refs/rewritten alongside shared refs. New and moved private
+refs require receipts even when the worktree HEAD stays unchanged.
+
+Contain detached descendants through parent-chain enumeration and start-time
+identity checks in the existing process-tree module; the synchronous policy
+needs a bounded supervisor because spawnSync cannot enumerate while blocked.
+The process-tree module is the necessary shared-file extension of lane P's
+scope. Prefer a prepared Linux cgroup/scope runner when the harness provides
+one. Record the M107 governed-tree binding as an I/W integration handoff.
+No dependency, hook rewrite, gate weakening, paid call or branch merge.
 
 ### D97 — The capacity estimator (M117, 2026-10-06)
 
@@ -18917,6 +19004,12 @@ under its unchanged 50 KiB cap; retain direct surface readers in their current
 region and validate every installed table against the complete canonical shape. No push,
 rebase or paid/live model calls. Report status and next slice in
 `docs/certification/int0170.md`.
+
+- [x] M113 reports merged (`9a449170`), current workflows retained.
+- [x] M114 design merged (`bdf277a3`), captures inspected, caps unchanged.
+- [~] M116 resolved: focused 119 tests, typechecks/build and 480 harness scans pass.
+- [ ] Final committed-tree fresh-clone macOS workflow jobs and full accessibility.
+- [ ] Release lane: 0.17.0 version/README summary, hosted cross-platform CI and publication.
 
 ### CI0150M — Round 3 macOS CI repairs (2026-10-07, macmini)
 
@@ -39791,6 +39884,20 @@ M110, and fake providers for every adapter.
   identities, and retain checks by append sequence. Add failing regressions
   and byte-exact red drills for each; no dependency or guard weakening.
 
+- **RVM116P repair (2026-10-06).** Fix all nine findings in lane P,
+  without changing guard ceilings or adding packages: tokenize shell commands
+  with the installed shell-quote parser and subcommand-specific Git options;
+  retain policy refusals for same-effect retries; require lineage for current,
+  historical, Git-renamed and content-identical file sets and share subsequent
+  strikes; retain a workspace journal marker and fail closed on lost history;
+  authorize three-strikes opt-outs through the trusted user port; retain
+  redesign escalation until a recorded user decision; reserve patch work in
+  durable journal notes until review/release or expiry; use OS temporary
+  directories in tests. Each finding gets a regression and byte-exact red
+  drill in `docs/certification/m116-p.md`. The shared core applies equally to
+  all editor/runtime bindings; lane I must bind the trusted workspace and
+  authorization ports and keep a reservation alive throughout actual work.
+
 - **Lane 0's contracts,** frozen before the other lanes start:
   - **K review RVM113K corrections (2026-10-06).** Fix all seven P2
     findings within K's collectors and tests: unique repeated checklist keys;
@@ -40616,6 +40723,34 @@ Total: about 100 lane-hours.
 
 ### M116 — The orchestrator playbook (D96)
 
+**U second-review repair (RVM116U2, 2026-10-06).** Fix the one P2:
+a successful rule save reconciles every changed settings field with the
+returned authoritative record, including an unedited round-limit selector.
+Reconcile before rendering enabled controls, retain drafts for fields whose
+durable values did not change, and keep the existing focus/live-result
+behavior. Regress saving Offload after another window changes the durable
+round limit and an unrelated rule. Record a named byte-exact red drill and
+scoped default-timeout checks in `docs/certification/m116-u.md`. No redesign,
+new dependency or widened guard is needed; P/I/W handoffs stay unchanged.
+
+**U review repairs (RVM116U, 2026-10-06).** Fix all three P2 findings in
+U's shared surfaces, with no review residuals: match transport replies on a
+random 128-bit bridge lifetime id, request counter and workspace id; use
+the same ordering function for notes, badges and combined agent details
+(owner failures/unresolved redesigns, warnings, statistics); preserve
+unrelated setting drafts when saving a field patch, restore the submitting
+control's focus (or the saved rule heading), and announce successful saves
+through a polite live region. Add regressions and byte-exact red drills in
+`docs/certification/m116-u.md`. Existing P/I/W integration handoffs remain.
+
+**Status 2026-10-07: lane W integrated.** All five lanes merged (`m116/w`;
+`docs/certification/m116.md`); every P1/P2 finding verified fixed; the D100
+M116 amendments (G3, G17, G20, G24) implemented with tests and red drills;
+ACP `/playbook` and CLI `playbook` bound to the journal-backed surface;
+help/reference catalogued; full gate recorded in `m116.md`. Open: panel
+enforcement install (needs M96's planner/board), M107 governor, M110/M115w
+callers, M113 report rows, headless exec surface, installed-editor checks.
+
 **Status 2026-10-06: planned.** Small: about 60 lane-hours in lane 0 and four
 lanes. No model call is needed; every test runs on a fake review loop and a
 fake board. M96's plan is on its own branch, so the playbook's lanes sit here
@@ -40675,8 +40810,9 @@ Total: about 60 lane-hours.
 
 - **Lane 0's contracts,** frozen before the other lanes start:
   - **`src/shared/playbook.ts`:** the rule ids; the team settings with
-    their reasons; the module key; the round record (module, class, round,
-    findings, answers); the design decision (class of failure, why patches
+    their reasons; stable module id/key/file snapshots and typed lineage;
+    the round record (module, trusted agent/session identities, class,
+    round, prioritized findings, dispositions); the design decision (class of failure, why patches
     failed, the structural change, the redesign lane, the outcome); the
     why-note; the record's file
     (`<agentDataFolder>/playbook/v1/<workspaceKey>.jsonl`).
@@ -40684,7 +40820,7 @@ Total: about 60 lane-hours.
     parse: `class` on a finding; `coverage` (the classes checked) and, on a
     review after a redesign, `resolution` per prior finding.
   - **The policy's interface:** `beforeDispatch(lane, board)`,
-    `beforeReview(module)`, `afterReview(module, findings)`,
+    `beforeReview(module, agents)`, `afterReview(module, findings, agents)`,
     `beforeFixRound(module)`, `beforeMerge(lane)`, `beforeCommand(command,
 requester)`, `order(queue)`, each returning allow, or refuse with its
     why-note.
@@ -42586,6 +42722,34 @@ outstanding receipt: 628 pages (157 scenarios × four themes), exit 0, zero
 violations, zero undecided rules, zero exemptions and zero missing results.
 No timeout, exemption, worker policy or accessibility rule changed. The lead
 still owns integrated aggregate quality and actual host/release certification.
+**RVM116P lane certification (2026-10-06).** The rig brief prohibits full
+quality and all merges/pushes/rebases in P; the lead runs integrated quality.
+P runs default-timeout owning tests, typecheck, scoped lint/format, deadcode,
+duplication, localization, host API and production budgets. The generated host API
+inventory was refreshed for the new Node imports; editor bindings remain an
+integration handoff. REDM116P removes the
+shell-quote imports and the dependency-declaration handoff: the small advisory
+warning needs no shell interpreter. The help catalog and generated reference
+are checked by `check:reference`, included in `quality:gates`. Results are in `m116-p.md`.
+
+**REDM116P outcome redesign (2026-10-06).** The rig brief again prohibits
+aggregate quality, pushes and unlisted merges. The lane runs all owning tests
+at default timeout, scoped lint/format, all five typecheck projects, deadcode,
+duplication, localization, host API, the new help-reference check and production
+budgets directly on macmini. It removes the shell-quote dependency handoff,
+refreshes the generated Node import inventory, and records deliberate
+receipt/generation/merge and round-2 mutation failures with byte-exact restores
+in `docs/certification/m116-p.md`. Full joined-tree quality and trusted
+editor/planner bindings remain the lead/I/U/W integration work; no gate is
+weakened and no round-2 finding is accepted as a residual.
+**M116-U repair certification (RVM116U/RVM116U2).** The rig brief reserves the full
+quality run for the lead and requires scoped local checks with default test
+timeouts. U does not change the inherited failing bundle/knip registration
+gates: W must register the three lazy playbook entries and the two harness
+entrypoints before integration can go green. This is the existing named
+integration deferral, not a cap, ignore or rule change. Repair regressions,
+disk-mutated red drills and their byte-exact restores are recorded in
+`docs/certification/m116-u.md`.
 
 **M113-L0-RVM113L02 bounded rig certification (2026-10-06).** The brief
 reserves aggregate quality for the lead. Run complete owned unit files with
@@ -47901,6 +48065,10 @@ runs P's new `check:plan` gate, matching `quality:gates`.
 | ------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/host/models/modelsPanelEntry.ts` | `eslint-disable-next-line @typescript-eslint/unbound-method` | Capture the exact surface method for restoration and invoke it with its original receiver through `call`; the receipt test covers forwarding and refusal. | 2026-10-05 |
 
+| Location                                                | Escape hatch                                                                                  | Reason                                                                                                                                                                                          |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/host/processTree.ts`, POSIX synchronous supervisor | Generated-program catches for vanished `/proc` identities, absent `ps` rows and ESRCH signals | Descendants can exit between enumeration and identity/signal checks. Only disappearance is ignored; other failures refuse verification. The caller owns the captured PID/start-time identities. |
+
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
 | M96INT round 3a location                         | Construct                                                  | Reason                                                                                                                                                                                                      | Date       |
@@ -48021,6 +48189,8 @@ before a repaired one loads (2026-09-30).
 | `test/unit/modelApiHost.test.ts`   | `as ModelApiSession` in `resumeWithChild` and the custom-agent fork regression | The fake host constructs Model API sessions, but the shared resume/fork interface returns `AgentSession`; these two test-only casts expose `history()` for child-result assertions. Inline comments name that invariant. Production mode narrowing now selects a member of `APPROVAL_MODES` without a cast. | 2026-09-30 |
 | `test/unit/flightRecorder.test.ts` | `as never` on a hostile event kind and backend                                 | The refusal branches are reachable only with values outside `REPORT_EVENT_KINDS`/`BACKEND_KINDS`, which a typed test cannot spell; the two test-only casts feed them in. Inline comments name that invariant. Lane R product code holds no cast.                                                            | 2026-10-05 |
 | `test/unit/acpAgent.test.ts`       | `as acp.ClientCapabilities` in `wireCapabilities`                              | Non-boolean `terminal-auth` / `terminal` wire values cannot be spelled in the SDK type; the single test-only cast feeds them in after a JSON round-trip so the strict `=== true` check is exercised. Inline comment names that invariant. Lane ACPREG product code holds no cast.                           | 2026-10-06 |
+
+| `test/unit/playbookSurface.test.ts` (M116 W) | `as never` on a hostile rule name | The unknown-rule refusal branch is reachable only with a rule outside `PLAYBOOK_CONFIGURABLE_RULES`, which a typed test cannot spell; the test-only cast feeds one in and asserts nothing is persisted. An inline comment names that invariant. Lane W product code holds no cast. | 2026-10-07 |
 
 | File                                                                  | Construct                                                                              | Reason                                                                                                                                                                                                                                                                                           | Added      |
 | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
@@ -48161,6 +48331,75 @@ before a repaired one loads (2026-09-30).
   two third-party fixtures, C/N/D surfaces and lead aggregate quality retain
   their named owners. RVM114P2's header, pressed-state and History-claim findings
   are fixed; none is accepted as a residual.
+
+- **FIXM116P3-Windows-job-binding (M116 I/W handoff).** The synchronous
+  policy cannot call the existing asynchronous job registry directly. Its
+  trusted `PlaybookHookAdmission.runContained` port requires the prepared
+  job/tree runner, the original effect and scrubbed spawn options, and returns
+  only after the entire tree has ended. No Git child (including ref/index plumbing and worktree cleanup)
+  dispatches on Windows without that port. Safe for now: missing containment
+  refuses verification before dispatch; the policy remains unshipped pending
+  I/U/W binding. Follow-up: bind the real Windows job registry in I/W and run
+  the native parent/grandchild timeout fixture. macmini proves native POSIX
+  group cleanup and the Windows admission/options branches with fixture doubles;
+  it does not certify a native Windows job run.
+- **FIXM116P4-M107-governed-tree-binding (M116 I/W handoff).** The shared
+  synchronous runner prefers `PlaybookHookAdmission.runContained` on Linux
+  when a prepared cgroup/scope is available. I/W must bind M107's governed
+  tree owner and its completion barrier, and certify native Linux cgroup
+  teardown. The POSIX fallback enumerates parent chains while the hook runs,
+  retaining start-time identities before timeout reparents detached children;
+  it rechecks identity before signals and sweeps the original process group.
+  A descendant that completely reparents between polls cannot be attested
+  by enumeration; the governed creation-to-exit boundary is the handoff.
+  Safe for now: the shared policy remains unshipped pending I/U/W; native
+  macmini tests cover hanging descendants in both the original group and a
+  separate session. This is the requested integration handoff, not a claim
+  of native Linux cgroup certification.
+- **FIXM116P4 native-hook contract.** The lead explicitly replaced the prior
+  Husky compatibility refusal with Git's own exit verdict, including its
+  startup/body/layout behavior. No shell script is interpreted by policy.
+  Missing hooks in a configured set fail through native Git. Epoch v3
+  invalidates all earlier receipts without erasing their history; fresh work
+  still retains the original workspace baseline for push introduction checks.
+  FIXM116P3-Husky-startup/layout-compatibility is superseded, not an open
+  compatibility residual.
+
+- **RVM116P (2026-10-06).** The P1 and all eight P2 findings are repaired;
+  none is accepted as residual. Every repair has a named regression and a
+  observed red drill with byte-exact restoration in `m116-p.md`. The shared
+  contracts have additive REDM116P lifecycle records: bounded content
+  fingerprints, lane/member/generation leases, work baselines and hook
+  receipts/violations. Internal notes still retain real user decisions. I must supply the canonical workspace,
+  renew reservations while work runs, release canceled work, surface lost
+  history's `needsUser` error, and bind override authority to the user's actual
+  decision. These planned integrations remain outside P's certification.
+- **M116-U review repair (RVM116U2).** The second review's one P2 is fixed:
+  changed durable fields reconcile before enabled controls render, including
+  the round-limit selector after a rule save. No review residual is retained;
+  regression tests and byte-exact red-drill evidence are in
+  `docs/certification/m116-u.md`. Existing P/I/W integration handoffs below
+  remain open; no gate, budget or safety guard was widened.
+
+- **M116-U review repair (RVM116U).** All three P2 findings are fixed; none
+  is retained as a review residual. Shared bridges require a caller-supplied
+  workspace id and host replies echoing the bridge/workspace correlation
+  fields. The same shared React changes serve VS Code, native hosts and the
+  companion; shared formatting serves CLI/ACP. P/I's authenticated durable
+  bindings and W's bundle/harness/docs/help registration remain the previously
+  named integration handoffs in `docs/certification/m116-u.md`. This base has
+  no feature catalogue or reference generator; W registers the integrated
+  surfaces when those files join. U introduces no released-support claim.
+
+- **M116-L0 enforcement handoff (RVM116L0).** All six lane-0 review findings
+  are fixed in the contracts/fixtures; none is deferred as a residual.
+  Actual stable-id allocation/recovery, lineage counter inheritance,
+  struck-module overlap refusal, trusted registry identity admission and
+  severity/disposition policy belong to P and their adapter binding to I.
+  Safe for this lane: it supplies no running planner or enforcement claim.
+  Follow-up: P/I prove these invariants with real policy tests and restart
+  tests before W certifies the integrated milestone. Existing M104/help and
+  full-editor/full-quality handoffs remain in `m116-contracts.md`.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

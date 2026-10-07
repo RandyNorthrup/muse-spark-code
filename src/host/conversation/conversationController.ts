@@ -84,6 +84,7 @@ import type {
   PlanModeRestore,
 } from '../../core/review/planModeHold'
 import type { ReviewMaterial } from '../../core/review/reviewMaterial'
+import type { PanelPlaybookPort, PanelPlaybookReview } from '../../core/orchestration/panelPlaybook'
 import { isPrivateFileName } from '../../shared/privateFiles'
 import { isGitReview, type ReviewRequest } from '../../shared/reviewCommand'
 import type {
@@ -460,6 +461,9 @@ export interface ConversationDeps {
    * scan (M70's hold, D76); from the scanner's bundle with the scan.
    */
   readonly createLegalHold?: ((holdDeps: PlanModeHoldDeps) => PlanModeHold) | undefined
+  /** M116 I/W binding: lazy shared-core policy plus the trusted host registry.
+   * Absent until the host installs the integration; a configured factory fails closed. */
+  readonly playbook?: (() => PanelPlaybookPort) | undefined
   /** A tool output as a read-only editor tab named `title` (M15). */
   readonly openDocument: (title: string, content: string) => Promise<void>
   /** A file in an editor, `path` absolute or workspace-relative, the lines (1-based) selected (M16). */
@@ -1309,6 +1313,8 @@ export class ConversationController {
   private legalScanStop: AbortController | undefined
   private legalScanSequence = 0
   /** Preparation and acknowledgement still belong to a model send before activeTurnId is set. */
+  private playbookPort: PanelPlaybookPort | undefined
+  private readonly playbookReviews = new Map<PanelPlaybookReview, () => void>()
   /** Mode choices and revocation wait for the outstanding owned request; the newest wins. */
   private reviewModeSettling: Promise<void> | undefined
   private permissionModeSelection = 0
@@ -1807,6 +1813,7 @@ export class ConversationController {
     this.shareDecisions.clear()
     this.attachmentGeneration += 1
     this.sessionOpening = undefined
+    for (const stop of this.playbookReviews.values()) stop()
     // A review's Plan mode goes with its session (M70): the next session
     // starts, resumes or is adopted in the mode the user had.
     this.releasePlanHold(true)
@@ -3974,8 +3981,11 @@ export class ConversationController {
       this.deps.log.info(`${NOTICE_PREFIX}${offer.text}`)
       this.post({ type: 'notice', level: 'info', text: offer.text, actions: [...offer.actions] })
     } catch (error: unknown) {
-      // Nothing to offer is better than a wrong offer; the log says why.
+      // A broken package is said, not swallowed: without the read there is
+      // no offer, and the conversation would otherwise continue silently on
+      // stale links (GROK-m116k P2).
       this.deps.log.warn(`The bundled skills could not be offered: ${describeForLog(error)}`)
+      this.say('warning', fill(UI_TEXT.bundledSkillsOfferFailed, { reason: describe(error) }))
     }
   }
 
@@ -4468,7 +4478,15 @@ export class ConversationController {
         return
       }
       const manager = await this.bestOfN()
-      await manager.start({ prompt, attempts, requestCeilingPerAttempt }, host.info.kind)
+      const start = async () =>
+        await manager.start({ prompt, attempts, requestCeilingPerAttempt }, host.info.kind)
+      const playbook = this.playbook()
+      if (playbook) {
+        await playbook.dispatch('bestOfN', this.session?.sessionId, undefined, async (signal) => {
+          signal.throwIfAborted()
+          return await start()
+        })
+      } else await start()
     } catch (error: unknown) {
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
@@ -6910,6 +6928,7 @@ export class ConversationController {
           generation,
           isGitReview(request),
           isMaterialCurrent,
+          material ? [...material.changedFiles, ...material.untracked] : [],
         )
       })
       // A dropped session's pending command may still acknowledge its turn.
@@ -7080,6 +7099,59 @@ export class ConversationController {
   }
 
   /** The review turn on the session: the Reviewer's where the backend has one, else in Plan mode. */
+  private playbook(): PanelPlaybookPort | undefined {
+    this.playbookPort ??= this.deps.playbook?.()
+    return this.playbookPort
+  }
+
+  private async withPlaybookReview(
+    session: AgentSession,
+    parts: readonly TurnPart[],
+    files: readonly string[],
+    submit: (parts: readonly TurnPart[]) => Promise<TurnSubmission>,
+  ): Promise<TurnSubmission> {
+    const ticket = this.playbook()?.review(session.sessionId, files)
+    if (!ticket) return await submit(parts)
+    let unsubscribe: (() => void) | undefined
+    const stop = () => {
+      unsubscribe?.()
+      this.playbookReviews.delete(ticket)
+      try {
+        ticket.cancel()
+      } catch (error) {
+        this.notice('error', UI_TEXT.playbookUnavailable, undefined, error)
+      }
+    }
+    const failed = (error: unknown) => {
+      stop()
+      this.notice('error', UI_TEXT.playbookUnavailable, undefined, error)
+    }
+    this.playbookReviews.set(ticket, stop)
+    try {
+      unsubscribe = session.onEvent((event) => {
+        try {
+          ticket.observe(event)
+          if (ticket.isClosed) stop()
+        } catch (error) {
+          failed(error)
+        }
+      })
+      const submission = await submit(ticket.parts(parts))
+      // An accepted turn still belongs in the transcript even if its result cannot certify.
+      try {
+        ticket.bind(submission.turnId)
+        if (ticket.isClosed) stop()
+      } catch (error) {
+        failed(error)
+      }
+      return submission
+    } catch (error) {
+      stop()
+      throw error
+    }
+  }
+
+  /** The review turn on the session: the Reviewer's where the backend has one, else in Plan mode. */
   private async submitReview(
     session: AgentSession,
     parts: readonly TurnPart[],
@@ -7087,6 +7159,7 @@ export class ConversationController {
     generation: number,
     requiresWorkspaceTrust: boolean,
     isMaterialCurrent: (() => boolean) | undefined,
+    reviewFiles: readonly string[],
   ): Promise<TurnSubmission> {
     const isCurrent = () =>
       this.isCurrentSessionAction(session, generation) &&
@@ -7100,13 +7173,24 @@ export class ConversationController {
       throw new Error(UI_TEXT.turnStoppedByRestart)
     }
     this.requireNonConfidentialModel(session.modelId)
-    if (session.review !== undefined) {
-      return await session.review(parts, text)
+    const review = session.review
+    if (review !== undefined) {
+      return await this.withPlaybookReview(
+        session,
+        parts,
+        reviewFiles,
+        async (admitted) => await review.call(session, admitted, text),
+      )
     }
     this.notice('info', UI_TEXT.reviewPlanModeNotice)
     const previousMode = this.permissionMode
     if (previousMode === 'plan') {
-      return await session.sendTurn(parts, text)
+      return await this.withPlaybookReview(
+        session,
+        parts,
+        reviewFiles,
+        async (admitted) => await session.sendTurn(admitted, text),
+      )
     }
     const bypassEpoch = this.bypassRevocationEpoch
     const hold = this.takePlanHold(
@@ -7119,10 +7203,16 @@ export class ConversationController {
     // Auto is left for the review turn: what the Auto reviewer holds is the user's (M90).
     this.reviews?.release()
     try {
-      return await hold.send(session, parts, text, () => {
-        this.requireNonConfidentialModel(session.modelId)
-        return isCurrent()
-      })
+      return await this.withPlaybookReview(
+        session,
+        parts,
+        reviewFiles,
+        async (admitted) =>
+          await hold.send(session, admitted, text, () => {
+            this.requireNonConfidentialModel(session.modelId)
+            return isCurrent()
+          }),
+      )
     } catch (error: unknown) {
       // Plan mode was refused (nothing to put back), or the send failed and
       // the hold put the mode back already.
@@ -8649,7 +8739,16 @@ export class ConversationController {
       return
     }
     try {
-      await session.messageSubagent(subagentId, body.trim(), isFollowup)
+      const send = async () => {
+        await session.messageSubagent(subagentId, body.trim(), isFollowup)
+      }
+      const playbook = isFollowup ? this.playbook() : undefined
+      if (playbook) {
+        await playbook.dispatch('delegate', session.sessionId, subagentId, async (signal) => {
+          signal.throwIfAborted()
+          await send()
+        })
+      } else await send()
     } catch (error: unknown) {
       if (this.isCurrentSessionAction(session, generation)) {
         this.notice('error', `${UI_TEXT.agentControlFailed}: ${describe(error)}`, undefined, error)

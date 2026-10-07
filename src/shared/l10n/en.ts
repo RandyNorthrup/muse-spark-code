@@ -264,7 +264,7 @@ export const EN = {
   referencePaidContexts:
     'Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.',
   referenceAcp:
-    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /compact, /legal, /usage, /questions, /answer, /prompt and /share plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
+    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /usage, /questions, /answer, /prompt and /share plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
   referenceWebFetchTitle: 'Web fetch',
   referenceWebFetchDetail:
     'Fetch public web pages as readable text, with permission and network checks.',
@@ -304,7 +304,126 @@ export const EN = {
   referenceRules: 'Create or open AGENTS.md in the workspace root.',
   referenceWalkthrough: 'Open the Getting Started walkthrough.',
   referenceRetry: 'Retry preparation of the Windows job for plugin hooks.',
+  referencePlaybookCommand:
+    'Show or change the orchestrator playbook journal for this workspace (starts no backend).',
 
+  // M116 / D96: shared panel, Agent map, ACP, CLI and report wording.
+  playbookTitle: 'Orchestrator playbook',
+  playbookStatus: 'Status',
+  playbookRecord: 'Record',
+  playbookSettings: 'Playbook settings',
+  playbookEmpty: 'No playbook decisions recorded yet.',
+  playbookEnabled: 'On',
+  playbookDisabled: 'Off',
+  playbookReasonLabel: 'Reason for turning this rule off',
+  playbookReasonRequired: 'Give a reason before turning a rule off.',
+  playbookDisabledDetail: 'Turned off by {actor} on {date}: {reason}',
+  playbookSafetyAlwaysOn: 'Safety checks always apply. This rule cannot be turned off.',
+  playbookPatchRoundsLabel: 'Fix rounds before redesign',
+  playbookPatchRoundsHelp:
+    'The limit can be lowered. After it is reached, write a design decision and dispatch a redesign lane.',
+  playbookPatchRoundsInvalid: 'Choose one or two fix rounds; the ceiling cannot be raised.',
+  playbookFallbackReviewer: 'Fallback reviewer for classifier-blocked reviews: {reviewer}',
+  playbookFallbackNone: 'No fallback reviewer named',
+  playbookResidualAccepted: 'Residual accepted',
+  playbookLeaseRecord: 'Patch lease {status}: {module} ({lane})',
+  playbookWorkRecord: 'Work {id} on {module}: {commits} baseline commits',
+  playbookVerificationRecord: 'Hook verification {result} for {commit} ({scope})',
+  playbookPlanRedesign: 'Plan a redesign',
+  playbookDesignDecision: 'Design decision',
+  playbookDesignPending: 'Awaiting redesign review',
+  playbookCoverageLabel: 'Review coverage',
+  playbookModuleLabel: 'Module',
+  playbookClassLabel: 'Finding class',
+  playbookOutcomeLabel: 'Redesign outcome',
+  playbookUnavailable: 'The playbook is unavailable in this session.',
+  playbookHelpDescription:
+    'Show review strikes, design decisions, safety refusals and rule settings.',
+  playbookCommandUsage: 'Use `playbook status|record|settings`.',
+  playbookSave: 'Save settings',
+  playbookSaved: 'Playbook settings saved.',
+  playbookStrikeBadge: forms({ one: '{count} review round', other: '{count} review rounds' }),
+  playbookRules: {
+    threeStrikes: 'Redesign after three strikes',
+    onePassReview: 'Review every class in one pass',
+    contractsFirst: 'Contracts and prerequisites first',
+    smallFirst: 'Small work first, after dependencies',
+    offload: 'Offload heavy checks to workers',
+    continuousIntegration: 'Integrate on one rolling trunk',
+    breakOnPurpose: 'Prove tests and gates fail',
+    loudFailures: 'User items and failures first',
+    neverAround: 'Never route around a safety check',
+  },
+  playbookClasses: {
+    validation: 'Validation',
+    security: 'Security',
+    failure: 'Failure paths',
+    honesty: 'Honesty',
+    concurrency: 'Concurrency',
+    lifecycle: 'Lifecycle',
+    tests: 'Tests and gates',
+    docs: 'Documentation',
+  },
+  playbookResolutions: {
+    impossible: 'Structurally impossible',
+    caught: 'Caught by a check',
+    remains: 'Still present',
+  },
+  playbookDispositions: {
+    fixed: 'Fixed',
+    disputed: 'Disputed',
+    residual: 'Named residual',
+    override: 'Lead or owner override',
+  },
+  playbookDesignFields: {
+    failureClass: 'Class of failure',
+    whyPatchesFailed: 'Why the patches did not end it',
+    structuralChange: 'Structural change that removes the failure',
+    planLocation: 'Decision in the plan',
+    redesignLane: 'Redesign lane',
+  },
+  playbookNotes: {
+    checksPassed: 'Playbook checks passed.',
+    redesignRequired: 'Playbook: round {round} in {module} requires a redesign ({classes}).',
+    designRequired:
+      'Playbook: write a design decision for {module} before dispatching its redesign.',
+    redesignOpen: 'Playbook: {module} stays open; catching a finding does not remove its cause.',
+    redesignEscalated: 'Needs you: the redesign of {module} still has findings.',
+    coverageIncomplete:
+      'Playbook: review coverage is incomplete ({classes}); this review was not counted.',
+    answersPending: 'Playbook: answer every finding in {module} before another review.',
+    lineageRequired:
+      'Playbook: {module} needs recorded module lineage or a lead or owner override.',
+    reviewerConflict: 'Playbook: {module} needs a reviewer with a different agent id and session.',
+    contractsPending: 'Playbook: lane {lane} waits for its reviewed, merged contracts lane.',
+    prerequisiteMissing: 'Playbook: lane {lane} waits for {missing}.',
+    reordered: 'Playbook: queued by dependency, estimate, then id.',
+    offloaded: 'Playbook: heavy check assigned to worker {worker}.',
+    localCheck: 'Playbook: no worker is offered; run locally under the resource governor.',
+    ciGate: 'Playbook: run the full gate in CI.',
+    integrationRequired:
+      'Playbook: lane {lane} must include the rolling integration trunk before merging.',
+    drillMissing:
+      'Playbook: lane {lane} needs a failing drill and a byte-exact restore for each new test or gate.',
+    ownerFirst: 'Playbook: user items and failures are shown first.',
+    hookTampering:
+      'Early warning: this command appears to bypass or change hooks. Commit verification controls push and completion.',
+    hookVerificationFailed:
+      'Needs you: repository hook verification failed. Push and completion are blocked.',
+    unverifiedCommit:
+      'Safety check: every new commit needs a passing hook receipt before push or completion.',
+    gateSkipped: 'Safety check: skipping a gate is refused.',
+    permissionLaundering:
+      'Needs you: this action was already refused; another agent cannot re-ask it within {duration}.',
+    classifierBlocked:
+      'Needs you: a safety classifier blocked this action; it cannot be retried or rerouted.',
+    ruleDisabled: 'Playbook: {rule} was turned off by {actor}: {reason}',
+    briefRecorded: 'Playbook: brief for {module} recorded ({reason}).',
+    configDrift: 'Needs you: shared repository configuration drifted for {module} ({reason}).',
+    fallbackReviewer:
+      'Playbook: {actor} reviews {module} as the recorded fallback reviewer ({reason}).',
+    residualOpen: 'Needs you: {lane} has open residuals: {missing}.',
+  },
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
   paidDailyLedgerUnavailable:
@@ -3179,6 +3298,7 @@ export const EN = {
     'No bundled skills are installed for Muse Code, so nothing was removed.',
   bundledSkillsInstallFailed: 'The bundled skills could not be installed at {folder}: {reason}',
   bundledSkillsRemoveFailed: 'The bundled skills could not be removed at {folder}: {reason}',
+  bundledSkillsOfferFailed: 'The bundled skills could not be offered: {reason}',
   // The reason when the folder is there but holds no mark of the extension's install.
   bundledSkillsNotOurs:
     'a folder of that name exists that Muse Spark did not install, so it was left alone',
@@ -3303,6 +3423,7 @@ export const EN = {
     '  {command} report [options]  Print a scrubbed problem report (starts no backend, opens no browser)',
     '  {command} legal [options]  Run the read-only legal scan (no backend, no sign-in)',
     '  {command} fonts install [--from <directory>]  Install the optional fonts for standalone surfaces',
+    '  {command} playbook <status|record|settings ...>  Show or change the orchestrator playbook (starts no backend)',
     'Options:',
     '  --backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key',
     '  --trust-workspace                Load the folder’s rules, skills and memory',

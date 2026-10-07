@@ -14,6 +14,8 @@ import { randomUUID } from 'node:crypto'
 import type { UsageAdapter } from '../runtime/usage/usageAdapter'
 import { compactReference } from '../shared/cliCommands'
 import path from 'node:path'
+import { acpPlaybook } from './playbook'
+import type { PlaybookSurfacePort } from '../runtime/playbook/command'
 import {
   agent as acpAgent,
   type AgentApp,
@@ -156,6 +158,8 @@ export interface AcpAgentDeps {
   readonly onClientName?: (name: string) => void
   /** Shared journal/service, required lazily on the local /usage command. */
   readonly usage?: Pick<UsageAdapter, 'access' | 'openPage'>
+  /** I binds P's durable, authorized workspace/team adapter. */
+  readonly playbookFor?: (cwd: string, sessionId: string) => PlaybookSurfacePort
   readonly backend: AcpBackend
   readonly version: string
   readonly options: AcpAgentOptions
@@ -412,6 +416,9 @@ class AcpSession {
         `ACP session ${this.sessionId}: skills unavailable: ${failureForLog(error)}`,
       )
       observeError(this.deps, 'skillsUnavailable')
+      // A failed skill list still announces the local commands (help, the
+      // question commands when the registry is present, /playbook when the
+      // playbook is bound): the failure only empties the remote skill list.
       this.skills = []
     }
     this.send({
@@ -439,6 +446,15 @@ class AcpSession {
                 input: null,
               },
             ]),
+        ...(this.deps.playbookFor === undefined
+          ? []
+          : [
+              {
+                name: 'playbook',
+                description: UI_TEXT.playbookHelpDescription,
+                input: { hint: 'status|record|settings' },
+              },
+            ]),
         ...this.skills
           .filter(
             (skill) =>
@@ -448,7 +464,8 @@ class AcpSession {
               !['answer', 'questions', 'share', 'prompt', SLASH_COMMAND_NAMES.report].includes(
                 skill.selector,
               ) &&
-              (this.deps.usage === undefined || skill.selector !== 'usage'),
+              (this.deps.usage === undefined || skill.selector !== 'usage') &&
+              (this.deps.playbookFor === undefined || skill.selector !== 'playbook'),
           )
           .map((skill) => ({
             name: skill.selector,
@@ -1149,12 +1166,14 @@ class AcpSession {
       part.text.trim() === `/${ACP_COMPACT_COMMAND}`
     let isUsage: boolean
     let queued: readonly TurnPart[]
+    let local: Awaited<ReturnType<typeof acpPlaybook>>
     try {
+      local = await acpPlaybook(blocks, () => this.deps.playbookFor?.(this.cwd, this.sessionId))
       await this.announceCommands()
       // Reserved local commands never become a skill or a model turn, even when
       // their runtime bridge has not been bound yet or their syntax is invalid.
-      const local = parseSkillInvocation(parsed.displayText, new Set(['share', 'prompt']))
-      if (local !== undefined) {
+      const sharingLocal = parseSkillInvocation(parsed.displayText, new Set(['share', 'prompt']))
+      if (sharingLocal !== undefined) {
         if (blocks.length !== 1 || blocks[0]?.type !== 'text') {
           throw RequestError.invalidParams(undefined, UI_TEXT.promptFileInvalid)
         }
@@ -1163,7 +1182,7 @@ class AcpSession {
           throw RequestError.invalidRequest(
             undefined,
             fill(UI_TEXT.acpUnknownArgument, {
-              argument: `/${local.selector}`,
+              argument: `/${sharingLocal.selector}`,
             }),
           )
         }
@@ -1189,7 +1208,10 @@ class AcpSession {
         return 'end_turn'
       }
       isUsage = await this.usageReply(blocks, preparing)
-      queued = isUsage || isCompact ? [] : ((await this.questionRegistry?.queuedParts()) ?? [])
+      queued =
+        isUsage || isCompact || local !== undefined
+          ? []
+          : ((await this.questionRegistry?.queuedParts()) ?? [])
     } finally {
       if (this.preparing === preparing) this.preparing = undefined
     }
@@ -1201,6 +1223,14 @@ class AcpSession {
       await this.questionRegistry?.acknowledgeQueued('notTaken')
       await this.outbox
       return 'cancelled'
+    }
+    if (local !== undefined) {
+      this.send({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: local.text },
+      })
+      await this.outbox
+      return 'end_turn'
     }
     if (isUsage) {
       await this.outbox
