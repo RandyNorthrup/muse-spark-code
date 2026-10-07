@@ -28,9 +28,15 @@ happened, not what was planned; superseded entries are kept.
   gives the rule that prevents it and the milestone that will enforce that
   rule in the app's own orchestrator (D100).
 - New orchestration docs: `docs/orchestration/ssh-limits.md` (SSH connection
-  limits, how they apply, per-platform handling) backing gotchas G29–G31, and
+  limits, how they apply, per-platform handling) backing gotchas G31–G33, and
   `docs/orchestration/playbook-placement.md` (placement, load balancing and
-  moving work) for the M116 playbook skill to adopt.
+  moving work, model-agnostic) for the M116 playbook skill to adopt.
+- Orchestration gotchas renumbered in merge order after main's own G28 and
+  PR #132's G29: key installs are G30, handshake throttling G31, the Windows
+  desktop heap G32, password and probe penalties G33. Four new rows: G34
+  (smoke call per engine per machine), G35 (launch liveness probe), G36
+  (done means a clean tree, listed steps and a moved head), G37
+  (fail-closed safety checks, per-run caches in the run's workspace).
 
 ## [0.14.4] - 2026-10-06
 

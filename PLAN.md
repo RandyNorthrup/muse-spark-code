@@ -12771,9 +12771,12 @@ test that fails without the rule:
    after merging current main; G6 no duplication on unreachability
    (re-dispatch only after lease expiry, under a new epoch); G21 a new verdict
    re-runs the whole workflow; G26 the full suite after every merge into a
-   release candidate; G29 a handshake refusal or reset reports the device as
+   release candidate; G31 a handshake refusal or reset reports the device as
    throttled (unknown since a time) with jittered backoff, never a duplicated
-   lane (test `handshakeRefusalIsThrottled`).
+   lane (test `handshakeRefusalIsThrottled`); G35 every launch confirmed by a
+   liveness probe (process alive, log growing within 30 s) or reported as
+   failed to start; G36 done means a clean tree, every brief step listed as
+   done, and a moved head, otherwise the lane is continued in place.
 2. **M96 (team and board):** G3 structural rendering of briefs (no text
    substitution; the rendered brief is checked and hashed before dispatch);
    G5 three job states (running, finished, unknown since a time); G7
@@ -12783,23 +12786,29 @@ test that fails without the rule:
    also bind device lanes. Also G1 and G2 on dispatch, G12 transport-health
    signals, G14 an explicit recorded environment and preflight of hook tools,
    and G15 Windows per-process policy, closed stdin and structured results.
-   Also G28 key installs that add a missing final newline before appending and
+   Also G30 key installs that add a missing final newline before appending and
    verify each entry parses as its own line (test `keyInstallKeepsEntriesSeparate`);
-   G29 throttled-not-down handshake handling (test `handshakeRefusalIsThrottled`);
-   G30 Windows workers outside the transport session with a desktop-heap
-   diagnostic on `STATUS_DLL_INIT_FAILED` (test `windowsHeapDiagnostic`); G31 no
+   G31 throttled-not-down handshake handling (test `handshakeRefusalIsThrottled`);
+   G32 Windows workers outside the transport session with a desktop-heap
+   diagnostic on `STATUS_DLL_INIT_FAILED` (test `windowsHeapDiagnostic`); G33 no
    port probes, and one failed authentication stops and asks the user, never a
-   retry loop (tests `noPortProbes`, `authFailureStopsAfterOne`).
+   retry loop (tests `noPortProbes`, `authFailureStopsAfterOne`). G34 a working
+   smoke call per engine per machine in the capability record, with a failed
+   probe removing that engine from the machine until fixed. G37 fail-closed
+   safety checks before deletes, with per-run caches in the run's workspace.
 4. **M107 (governor):** G10 a temp root per job, removed at its end; G11
    ledger-only cleanup with an identity re-check, never by name pattern; G12
    OS-service pressure and transport failure as signals; G13 spawn-rate and
    process-count caps per job tree; G16 reparse points unlinked, never
-   recursed into; G30 transport resets and refusals lower a device's slot cap
-   automatically (test `transportHealthLowersCap`).
+   recursed into; G32 transport resets and refusals lower a device's slot cap
+   automatically (test `transportHealthLowersCap`). G37 every safety check
+   before a delete fails closed, and per-run caches live in the run's own
+   workspace, removed at teardown.
 5. **M110 (Muse Node):** G1, G2, G10, G11, G14 to G16 for the tool host and
-   sandboxes. Also the M100 rules above for G28 to G31 on its SSH route
+   sandboxes. Also the M100 rules above for G30 to G33 on its SSH route
    (tests `keyInstallKeepsEntriesSeparate`, `handshakeRefusalIsThrottled`,
-   `windowsHeapDiagnostic`, `noPortProbes`, `authFailureStopsAfterOne`).
+   `windowsHeapDiagnostic`, `noPortProbes`, `authFailureStopsAfterOne`), plus
+   G34 smoke calls and G37 fail-closed teardown on its route.
 6. **M115 (scheduled prompts):** G8 one serialized owner plus a lease, never
    process-name matching; G22 every unattended delivery verified where it
    landed.
@@ -12808,8 +12817,11 @@ test that fails without the rule:
    optional, recorded fallback reviewer for classifier-blocked reviews, set by
    the user in advance (never an automatic reroute; rule 9 stands); G24 a
    residual register per milestone that must be empty or accepted before
-   release.
-8. **M117 (estimator):** G4 base age as a schedule risk.
+   release; G36 an incomplete lane continued in place from its commits, never
+   restarted, and never marked done on exit code alone.
+8. **M117 (estimator):** G4 base age as a schedule risk; G34 the measured
+   per-engine profile (with a failed smoke probe removing that engine from
+   the machine) feeding placement.
 
 Rows marked **covered** keep their existing decision as the owner: D87.14,
 D90.25, D96, D88 and D97.
