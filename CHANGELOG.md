@@ -76,6 +76,18 @@ happened, not what was planned; superseded entries are kept.
   preserve other drafts, restore keyboard focus, and announce success politely.
 - Refresh changed playbook fields from each saved server record, including
   another window's lowered round limit, so stale controls cannot overwrite it.
+- Fix the six M116W integration-review findings (see
+  `docs/certification/m116.md`): a local ACP `/playbook` command now settles
+  an unused deferred-answer lease instead of leaving it outstanding; residual
+  acceptance binds to the residual instance (safety rationale, follow-up and
+  module) so a later same-name residual needs fresh acceptance; the journal
+  treats a `.git` file without `commondir` (submodules, separate git dirs)
+  as its own common directory instead of throwing; all five deferred playbook
+  wrappers load through the accessible surface with local failure and retry;
+  the webview startup diet (deferred slash/mention menus, diff tally, task
+  panel, effort control) recovers the startup regression with no cap raised;
+  the ACP bundle budget is restored to 850 KiB with the playbook surface in
+  its own lazily loaded bundle.
 
 ## [0.14.3] - 2026-10-06
 ### Added
