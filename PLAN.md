@@ -39830,7 +39830,9 @@ pages. No version bump or README What’s New changes; no paid/live calls.
       `fe3c3fe16`; retain the complete module measurement with milestone owners.
 - [x] Defer LegalReport and the review comment form through `deferred()`,
       preserving dismissal, focus and fresh arrivals. Harness actions use
-      `whenFound` for the newly lazy form.
+      `whenFound` for the newly lazy form and workflow-map controls; readiness
+      also requires the map's loaded tree. The first full scan's isolated
+      workflow readiness failure is retained, followed by a full rerun.
 - [x] Keep only first-paint English values in startup, with a complete
       canonical structure/slot contract for all installed languages. Load optional
       English before each lazy surface; preserve installed language state. Keep

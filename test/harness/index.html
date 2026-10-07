@@ -5040,14 +5040,12 @@
               { childId: 'c3', attempt: 1, status: 'scheduled', label: 'check the tests' },
             ]),
           })
-          later(150, () => {
-            document.querySelector('[data-entry-id="wft1"] .tool-toggle')?.click()
-          })
+          whenFound('[data-entry-id="wft1"] .tool-toggle', (control) => control.click())
         },
         // The same runs in the Agent map, with Muse Code's trigger setting noted.
         'muse-workflow-map': () => {
           steps['muse-workflow']()
-          later(600, () => document.querySelector('.agents-pill').click())
+          whenFound('.agents-pill', (pill) => pill.click())
         },
         // --- M52: due and upcoming Model API schedules, including narrow view ---
         schedules: () => {
@@ -5996,6 +5994,7 @@
         'agents-details': () => document.querySelector('.agent-details') !== null,
         'agents-result': () => document.querySelector('.agent-details') !== null,
         'agents-closed': () => document.querySelector('.agent-details') !== null,
+        'muse-workflow-map': () => document.querySelector('.agent-tree') !== null,
         'history-archived': () => document.querySelector('.history-toggle input:checked') !== null,
         ...Object.fromEntries(
           trafficScenarios.map((name) => [name, () => document.body.dataset.trafficReady === name]),
