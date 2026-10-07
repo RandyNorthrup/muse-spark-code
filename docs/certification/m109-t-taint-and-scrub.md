@@ -189,3 +189,18 @@ refuse a large complete export; integration needs a bounded bulk writer rather
 than passing slices that could reveal a split value. Decoration-only values
 are refused. Nothing here certifies the absent host/feeder bindings or another
 platform's performance, and no M109 support/release claim is made.
+
+## Local commit record
+
+- `abed26bab`: validated core provenance and sticky session taint.
+- `7c00e2720`: producing request, replay, restore and compaction provenance.
+- `08571840d`: scrub service, boundaries, final tests and 38 red drills.
+
+All commits ran the unmodified hooks, including ESLint/Prettier and gitleaks;
+no leaks were found. Hook output left the 38 source hashes unchanged. The
+closing implementation commit accidentally spells its footer `Co-AuthoredBy`.
+Its correct attribution is
+`Co-Authored-By: GPT Sol 6.1 (Codex CLI) <noreply@openai.com>`. This follow-up
+record corrects the attribution without rewriting history, as the shared rules
+require. No push, merge or rebase was performed. Own scratch logs and temporary
+journal directories were removed.
