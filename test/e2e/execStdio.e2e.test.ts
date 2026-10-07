@@ -160,6 +160,14 @@ function packagingFixture() {
     writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
   }
   writeFileSync(path.join(dir, 'l10n', 'ui.de.json'), '{}\n')
+  // M114 F: the packager stages the committed font manifest beside the
+  // runtime-only installer bundle; the fixture carries the real file, as
+  // it does the schemas, so a missing manifest still fails packaging.
+  mkdirSync(path.join(dir, 'design', 'fonts'), { recursive: true })
+  cpSync(
+    path.join(ROOT, 'design', 'fonts', 'manifest.json'),
+    path.join(dir, 'design', 'fonts', 'manifest.json'),
+  )
   writeFileSync(path.join(dir, 'LICENSE'), 'test-owned licence\n')
   writeFileSync(path.join(dir, 'docs', 'acp.md'), '# Test-owned guide\n')
   writeFileSync(path.join(dir, 'docs', 'npm-readme.md'), '# Test-owned npm page\n')
