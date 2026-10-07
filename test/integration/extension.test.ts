@@ -110,6 +110,13 @@ suite('activation', () => {
       const text = new TextDecoder().decode(await vscode.workspace.fs.readFile(target))
       assert.ok(text.startsWith('# AGENTS.md'), text.slice(0, 40))
       assert.ok(text.includes(RULES_HEADER), 'header line missing')
+      // Current VS Code resolves showTextDocument before publishing the editor snapshot.
+      await waitForTab(
+        (tab) =>
+          tab.input instanceof vscode.TabInputText &&
+          tab.input.uri.fsPath === target.fsPath &&
+          vscode.window.activeTextEditor?.document.uri.fsPath === target.fsPath,
+      )
       assert.equal(vscode.window.activeTextEditor?.document.uri.fsPath, target.fsPath)
     } finally {
       await vscode.commands.executeCommand('workbench.action.closeActiveEditor')

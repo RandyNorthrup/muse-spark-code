@@ -13,6 +13,9 @@ happened, not what was planned; superseded entries are kept.
   historical activation baseline in the checkout, and verify installed help
   against its shipped translation archive.
 - Encode companion recovery text with the shared HTML text encoder.
+- Keep Action reviews and low-budget refusals working for large release diffs
+  by retaining only the bounded review prefix before exec.
+
 
 
 ### Fixed

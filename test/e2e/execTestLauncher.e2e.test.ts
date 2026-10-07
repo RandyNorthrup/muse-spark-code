@@ -43,6 +43,7 @@ import {
   type TempLayout,
 } from '../unit/helpers/actionFixtures'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
+import { ACTION_CHILD_STDOUT_MAX_BYTES } from '../../action/lib/lifecycle.mjs'
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..')
 const TEMP = path.join(ROOT, 'temp')
@@ -157,7 +158,13 @@ function wRepo(layout: TempLayout): FixtureRepo {
       cpSync(path.join(ROOT, '.gitignore'), path.join(source, '.gitignore'))
     },
     (source) => {
+      // The release PR exceeds the generic child cap; every W scenario must
+      // exercise bounded review capture before its real exec/budget admission.
       writeFileSync(path.join(source, 'notes.txt'), 'W head change\n')
+      writeFileSync(
+        path.join(source, 'large.txt'),
+        '€'.repeat(ACTION_CHILD_STDOUT_MAX_BYTES / 2) + '\n',
+      )
     },
   )
 }

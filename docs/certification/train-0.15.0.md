@@ -1904,8 +1904,30 @@ push, rebase, merge, credential output or disabled hook.
   fails before its checker; direct job-log download returns HTTP 403 (admin
   rights required), so production-package reproduction remains necessary.
 
+- The release PR diff is 29,912,292 bytes. The original launcher fails on a
+  real 25 MB diff (Git gets SIGPIPE after the 16 MiB generic child cap),
+  before exec writes a result. Review input now retains only the existing
+  prefix, drains/counts the full stream under unchanged deadlines, and drops
+  incomplete trailing UTF-8. Generic child and published-patch caps stay.
+  The large-diff W fixture passes all six cases. Action input/Git/lifecycle
+  suites pass 106 tests. Removing the prefix slice fails both memory/file
+  tests; decoding without streaming fails the partial-code-point test. Both
+  drills are restored exactly.
+- The first fresh static job passes format, full lint, five typechecks,
+  badges, localization, reference, host API, knip and cycles, then fails the
+  zero-duplication gate on the new encoder and the lazy highlighter's existing
+  encoder. They now share one implementation. Page, sharing and highlighting
+  pass nine tests. Newly added Action fixtures also share their diff builder.
+- Latest VS Code 1.138.0 exposes a readiness race in the AGENTS.md test;
+  minimum 1.99.0 passes all 40 tests. The test now waits for its original
+  active-editor condition through the existing five-second readiness helper,
+  before making the unchanged assertion.
+
 ### Fresh-clone job verification
 
-Pending: exact Linux job runs, coverage merge, installed package checks and
-full quality. Final results will replace this pending paragraph after fixes
-are committed and tested from new clones.
+The first committed repair (`02fd30fe9`) passes all four Linux shards, the
+pinned Semgrep scan, real pinned browser restart/live captures with zero skips,
+and installed ACP stdio/headless plus installed W rehearsal. Static fails at
+duplication and latest integration fails at editor readiness as recorded above.
+Complete reruns from the next committed repair are pending, including coverage
+merge, all host matrix entries, accessibility and full quality.

@@ -43,6 +43,7 @@ interface ActionChildOutcome {
   signal: string | null
   stdout: Uint8Array
   stderr: Uint8Array
+  stdoutTotalBytes?: number
 }
 
 interface ActionChildInput {
@@ -52,6 +53,7 @@ interface ActionChildInput {
   env: Record<string, string>
   stdin?: Uint8Array
   stdoutPath?: string
+  stdoutPrefixMaxBytes?: number
   withinMs: number
   stdoutMaxBytes: number
   stderrMaxBytes: number
@@ -260,6 +262,7 @@ declare module '*/action/lib/git.mjs' {
     baseEnv: Record<string, string>
     readOnly: boolean
     stdoutPath?: string
+    stdoutPrefixMaxBytes?: number
     auth?: { kind: 'checkout' | 'push'; token: string }
     protocol?: 'https' | 'file'
     withinMs?: number

@@ -40760,12 +40760,29 @@ isolation, installed archived translations, Semgrep findings and fake-only
 Action W/low-budget failures. Preserve every budget, assertion, timeout and
 security boundary. No live/paid model calls, push, rebase or merge.
 
+The fresh jobs expose two further causes. The hosted release PR's review diff
+is 29,912,292 bytes, exceeding the generic child-output bound before the
+promised 262,144-byte review prefix can be selected. Add a dedicated read-only
+Git-diff prefix sink that drains/counts the complete stream under the same
+phase/child deadlines while retaining at most the existing review byte cap;
+ordinary child output, published patch, stderr and cancellation gates stay
+unchanged. Certify a real diff larger than the generic cap and its UTF-8 cut,
+then run W and low-budget against the actual installed production runtime.
+Latest VS Code also resolves showTextDocument before its observable active
+editor snapshot settles. Make the integration test await that same editor
+condition through its existing bounded UI readiness helper, keeping its
+original assertion and deadline.
+
 - [ ] Reproduce each owned failure and fix its cause; prove changed checks fire.
 - [ ] Commit finished pieces with hooks and explicit paths.
 - [ ] Run Linux pull-request jobs from fresh clones of committed work with
       Node 22, CI=true, original shard/coverage and package steps; record exact
       passes, failures and unavailable hosted dependencies in the Linux round 3
       section of docs/certification/train-0.15.0.md.
+
+Static duplication shares the inert text encoder with the lazy code-fence
+renderer as well as exported chats and the companion page; the zero-clone
+threshold is retained.
 
 ### CI0150A — Clean-shard artifacts and portable certification (2026-10-07)
 
