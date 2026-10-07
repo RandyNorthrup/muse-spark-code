@@ -275,7 +275,6 @@ type Overlay =
   | 'review'
   | 'prompts'
   | 'chatShare'
-  | 'sharingHelp'
   | 'help'
 
 // The palette rows that leave it open (a value changes in place); run from
@@ -1703,10 +1702,6 @@ export function App({
           closeOverlay()
           break
         }
-        case 'sharingHelp': {
-          setOverlay('sharingHelp')
-          break
-        }
         case 'shareChat': {
           setOverlay('chatShare')
           break
@@ -2385,7 +2380,6 @@ export function App({
   // map, review pane, a share file or the install confirmation is open waits for it to close, then
   // opens, so its Start is never reachable under a dialog that hides it.
   const isOtherModalOpen =
-    overlay === 'sharingHelp' ||
     overlay === 'prompts' ||
     overlay === 'chatShare' ||
     overlay === 'help' ||
@@ -2486,12 +2480,8 @@ export function App({
               onClose={closeOverlay}
             />
           ) : null}
-          {overlay === 'prompts' || overlay === 'sharingHelp' ? (
-            <PromptLibraryBridge
-              showHelp={overlay === 'sharingHelp'}
-              post={postMessage}
-              onClose={closeOverlay}
-            />
+          {overlay === 'prompts' ? (
+            <PromptLibraryBridge post={postMessage} onClose={closeOverlay} />
           ) : null}
           {overlay === 'chatShare' ? (
             <ChatShareBridge key={state.sessionId} post={postMessage} onClose={closeOverlay} />

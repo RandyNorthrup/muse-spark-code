@@ -277,6 +277,7 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
         .object({
           acpUsage: z.string(),
           helpReferenceTitle: z.string(),
+          referenceIntro: z.string(),
           promptLibrary: z.string(),
           shareReviewPrivacy: z.string(),
           promptSave: z.string(),

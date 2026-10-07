@@ -85,6 +85,7 @@ const RowView = deferred(async () => {
 })
 
 export function HistoryDialog(props: HistoryDialogProps) {
+  const [menuContainer, setMenuContainer] = useState<HTMLDivElement | null>(null)
   const { sessions, archivedIds, currentSessionId, archiveAfterDays, now } = props
   const { onResume, onSetArchived, onClose } = props
   const [query, setQuery] = useState('')
@@ -165,6 +166,7 @@ export function HistoryDialog(props: HistoryDialogProps) {
             <RowView
               key={entry.key}
               onSavePrompt={props.onSavePrompt}
+              menuContainer={menuContainer}
               row={entry.row}
               isActive={entry.index === activeIndex}
               isCurrent={entry.row.sessionId === currentSessionId}
@@ -211,6 +213,18 @@ export function HistoryDialog(props: HistoryDialogProps) {
           }}
           onKeyDown={handleKeyDown}
         />
+        {props.onSavePrompt === undefined ? null : (
+          <button
+            type="button"
+            className="button-secondary"
+            disabled={activeRow === undefined}
+            onClick={() => {
+              if (activeRow !== undefined) props.onSavePrompt?.(activeRow.sessionId)
+            }}
+          >
+            {UI_TEXT.promptSave}
+          </button>
+        )}
         <label
           className="history-toggle"
           onMouseDown={(event) => {
@@ -232,6 +246,7 @@ export function HistoryDialog(props: HistoryDialogProps) {
         </label>
       </div>
       <ListBody>{body}</ListBody>
+      <div ref={setMenuContainer} />
     </div>
   )
 }

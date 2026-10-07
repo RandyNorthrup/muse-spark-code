@@ -497,6 +497,8 @@ export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // so the manifest declares them `scope: machine` (user settings only). The
 // paid features are among them (D30): a repository cannot spend the key.
 export const MACHINE_SCOPED_SETTINGS = [
+  // Prompt/bookmark sync is each machine's privacy opt-in (D67, M118).
+  'syncPromptsAndBookmarks',
   'initialPermissionMode',
   'backend',
   'shellSandbox',

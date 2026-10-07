@@ -237,3 +237,13 @@ it('offers Save prompt on history right-click without resuming or losing archive
   fireEvent.click(archiveMark('Fix the parser', 'Archive (Delete)'))
   expect(props.onSetArchived).toHaveBeenCalledExactlyOnceWith('now', true)
 })
+
+it('keeps Save actions keyboard reachable beside noninteractive listbox options', async () => {
+  renderDialog({ onSavePrompt: vi.fn() })
+  const options = await screen.findAllByRole('option')
+  for (const option of options) expect(option.querySelector('button, [tabindex]')).toBeNull()
+  expect(screen.getByRole('button', { name: UI_TEXT.promptSave })).toBeInTheDocument()
+  fireEvent.contextMenu(options[0] ?? document.body)
+  await screen.findByRole('menuitem', { name: UI_TEXT.promptSave })
+  for (const option of options) expect(option.querySelector('[role="menu"]')).toBeNull()
+})

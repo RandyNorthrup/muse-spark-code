@@ -1,4 +1,3 @@
-import { sharingFeatures } from '../../shared/featureCatalog'
 import { useCallback, useEffect, useState } from 'react'
 import * as z from 'zod/mini'
 import { savedPromptSchema } from '../../shared/prompts'
@@ -6,7 +5,6 @@ import { UI_TEXT } from '../../shared/constants'
 import type { WebviewToHostMessage } from '../../shared/protocol'
 import type { PromptImportPreview } from '../../core/prompts/promptTypes'
 import { PromptLibrary, type PromptLibraryPort } from './PromptLibrary'
-import { Modal } from '../components/Modal'
 import { sharingRpc } from '../sharing/sharingRpc'
 
 const rowsSchema = z.strictObject({
@@ -31,11 +29,9 @@ const previewSchema = z.strictObject({ id: z.string(), text: z.string() })
 export function PromptLibraryBridge({
   post,
   onClose,
-  showHelp,
 }: {
   readonly post: (message: WebviewToHostMessage) => void
   readonly onClose: () => void
-  readonly showHelp?: boolean
 }) {
   const [rpc] = useState(() => sharingRpc(post))
   const [rows, setRows] = useState<z.infer<typeof rowsSchema>>()
@@ -55,31 +51,18 @@ export function PromptLibraryBridge({
   }
   useEffect(() => {
     rpc.open()
-    if (showHelp !== true)
-      void rpc
-        .ask('list')
-        .then((value) => {
-          setRows(rowsSchema.parse(value))
-        })
-        .catch(() => {
-          setError(UI_TEXT.promptStoreDamaged)
-        })
+    void rpc
+      .ask('list')
+      .then((value) => {
+        setRows(rowsSchema.parse(value))
+      })
+      .catch(() => {
+        setError(UI_TEXT.promptStoreDamaged)
+      })
     return () => {
       rpc.close()
     }
-  }, [rpc, refresh, showHelp])
-  if (showHelp === true)
-    return (
-      <Modal title={UI_TEXT.promptLibrary} titleId="sharing-help" onClose={onClose}>
-        {sharingFeatures().map((feature) => (
-          <p key={feature.id}>
-            <code>{feature.syntax}</code>
-            <br />
-            {feature.label}: {feature.detail}
-          </p>
-        ))}
-      </Modal>
-    )
+  }, [rpc, refresh])
   const port: PromptLibraryPort = {
     save: async (draft, previous) => {
       const saved = savedPromptSchema.parse(await rpc.ask('saveDraft', { draft, previous }))

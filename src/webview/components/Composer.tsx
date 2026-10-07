@@ -1043,6 +1043,7 @@ export function Composer(props: ComposerProps) {
       {props.onSavePrompt === undefined ? null : (
         <button
           type="button"
+          className="button-secondary"
           disabled={draft.trim() === ''}
           onClick={() => {
             props.onSavePrompt?.(draft)
@@ -1054,6 +1055,7 @@ export function Composer(props: ComposerProps) {
       {props.onSharePrompt === undefined ? null : (
         <button
           type="button"
+          className="button-secondary"
           disabled={draft.trim() === ''}
           onClick={() => {
             props.onSharePrompt?.(draft)
@@ -1065,6 +1067,7 @@ export function Composer(props: ComposerProps) {
       {props.promptLibrary === undefined && props.onUseSavedPrompt === undefined ? null : (
         <button
           type="button"
+          className="button-secondary"
           onClick={() => {
             if (props.onUseSavedPrompt === undefined) {
               setPromptLibraryOpen(true)

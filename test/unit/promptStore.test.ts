@@ -157,7 +157,7 @@ describe('portable prompt store and library', () => {
     await expect(store.write(fixture)).rejects.toThrow()
   })
   it('enforces title/body/count limits and preserves untrusted status on edit', async () => {
-    const { store } = await rig()
+    const { store, data } = await rig()
     expect(() => validatePrompt({ ...fixture, title: 'x'.repeat(81) })).toThrow()
     expect(() => validatePrompt({ ...fixture, title: ' '.repeat(3) })).toThrow()
     expect(() => validatePrompt({ ...fixture, tags: ['x'.repeat(131_073)] })).toThrow()
@@ -171,7 +171,18 @@ describe('portable prompt store and library', () => {
       { ...fixture, untrusted: true },
     )
     expect(await store.list('user')).toEqual([expect.objectContaining({ untrusted: true })])
-    for (let i = 1; i < 200; i++) await store.write({ ...fixture, id: `p-${String(i)}` })
+    // Seed valid portable files directly: admission is tested once at the cap,
+    // avoiding 199 full-directory scans and fsyncs during fixture construction.
+    await Promise.all(
+      Array.from({ length: 199 }, (_, index) => {
+        const id = `p-${String(index + 1)}`
+        return writeFile(
+          path.join(data, 'prompts', `${id}.md`),
+          serialisePromptFile({ ...fixture, id }),
+        )
+      }),
+    )
+    expect(await store.list('user')).toHaveLength(200)
     await expect(library.duplicate(fixture)).rejects.toThrow()
     await library.remove(fixture)
     expect(await store.list('user')).toHaveLength(199)

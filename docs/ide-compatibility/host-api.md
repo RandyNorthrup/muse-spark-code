@@ -434,7 +434,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 | Module                   | Files |
 | ------------------------ | ----- |
-| `node:buffer`            | 40    |
+| `node:buffer`            | 39    |
 | `node:child_process`     | 14    |
 | `node:crypto`            | 53    |
 | `node:dgram`             | 1     |
@@ -459,7 +459,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:util`              | 6     |
 | `node:vm`                | 1     |
 | `node:worker_threads`    | 4     |
-| `node:zlib`              | 5     |
+| `node:zlib`              | 4     |
 
 ## The webview's host
 

@@ -76,7 +76,6 @@ export type PaletteAction =
   /** "Open share file…" (M84): a portable JSON file read-only in the panel. */
   | { readonly type: 'openShareFile' }
   /** M118-P-REACT-BRIDGE: supplied only after the host binds these actions. */
-  | { readonly type: 'sharingHelp' }
   | { readonly type: 'shareChat' }
   | { readonly type: 'promptCommand'; readonly command: 'library' | 'use' | 'share' }
   | { readonly type: 'openLog' }
@@ -456,12 +455,6 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
         ...continueItems(context.skills),
         ...(context.arePromptCommandsBound === true
           ? ([
-              {
-                id: 'sharingHelp',
-                label: '/help',
-                tip: UI_TEXT.promptLibrary,
-                action: { type: 'sharingHelp' },
-              },
               {
                 id: 'shareChat',
                 label: UI_TEXT.shareChat,

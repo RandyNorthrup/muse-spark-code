@@ -57,5 +57,37 @@
     "file": "dist/webview/chunks/UC7SCJQM.js",
     "before": "0fa6798e1424487012820d4ecbfd4680c2aeb92963e111f354b703cff56b9013",
     "after": "0fa6798e1424487012820d4ecbfd4680c2aeb92963e111f354b703cff56b9013"
+  },
+  {
+    "name": "duplicate panel Help with sharing bound",
+    "command": ["npx", "vitest", "run", "test/unit/paletteRegistry.test.ts", "--maxWorkers=3"],
+    "exit": 1,
+    "file": "src/shared/palette.ts",
+    "before": "baa9b91e5cbed88c49b98a750a68c4db144f68d2a559d44ee8e59f36a7621817",
+    "after": "baa9b91e5cbed88c49b98a750a68c4db144f68d2a559d44ee8e59f36a7621817"
+  },
+  {
+    "name": "focusable Save nested inside History listbox option",
+    "command": ["npx", "vitest", "run", "test/unit/HistoryDialog.test.tsx", "--maxWorkers=3"],
+    "exit": 1,
+    "file": "src/webview/components/HistoryPromptRow.tsx",
+    "before": "33bc94ea6299803b81c19cb5f45628e2868677082a487477e4f888ef3174c33e",
+    "after": "33bc94ea6299803b81c19cb5f45628e2868677082a487477e4f888ef3174c33e"
+  },
+  {
+    "name": "shared cold-dialog fixtures still reject missing modal fallback",
+    "command": ["npx", "vitest", "run", "test/unit/AppLazy.test.tsx", "--maxWorkers=3"],
+    "exit": 1,
+    "file": "src/webview/App.tsx",
+    "before": "9c4108e22b1de316bad778dc7406935eae436b53bc3ff367c53ea39c3f019d74",
+    "after": "9c4108e22b1de316bad778dc7406935eae436b53bc3ff367c53ea39c3f019d74"
+  },
+  {
+    "name": "ACP staged full Help rejects missing manifest localization",
+    "command": ["node", "scripts/package-acp.mjs"],
+    "exit": 1,
+    "file": "scripts/package-acp.mjs",
+    "before": "7641c574831705564601483877dbffd8bc0201e27e5f08211385537b851e36d2",
+    "after": "7641c574831705564601483877dbffd8bc0201e27e5f08211385537b851e36d2"
   }
 ]

@@ -746,3 +746,19 @@ describe('M87 palette tips', () => {
     },
   )
 })
+
+describe('release Help and sharing menus', () => {
+  it.each([false, true])(
+    'offers one complete Help route with sharing bound: %s',
+    (arePromptCommandsBound) => {
+      const items = flattenPalette(buildPalette({ ...context, arePromptCommandsBound }))
+      const help = items.filter((item) => item.slashName === 'help' || item.label === '/help')
+      expect(help).toHaveLength(1)
+      expect(help[0]?.action).toEqual({ type: 'openHelp' })
+      if (arePromptCommandsBound) {
+        for (const id of ['shareChat', 'promptLibrary', 'promptUseSaved', 'sharePrompt'])
+          expect(items.some((item) => item.id === id)).toBe(true)
+      }
+    },
+  )
+})

@@ -764,8 +764,8 @@ export function sharingFeatures(table: UiText = UI_TEXT) {
       id: 'sharing-help',
       surface: 'editor/acp',
       syntax: '/help',
-      label: table.promptLibrary,
-      detail: table.shareReviewPrivacy,
+      label: table.helpReferenceTitle,
+      detail: table.referenceIntro,
     },
     {
       id: PROMPT_COMMAND_IDS.save,

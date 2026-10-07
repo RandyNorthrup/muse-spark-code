@@ -69,17 +69,31 @@ function deliver(message: HostToWebviewMessage): void {
   })
 }
 
+function initializedApp() {
+  const postMessage = vi.fn()
+  render(<App postMessage={postMessage} />)
+  deliver({ type: 'init', settings: testSettings, emptyStateHint: '', composerPlaceholder: '' })
+  deliver({ type: 'authState', status: 'signedIn' })
+  expect(screen.getByLabelText('Message Muse')).toBeInTheDocument()
+  return postMessage
+}
+
+function dismissLoadingModal() {
+  const loading = screen.getByRole('dialog', { name: EN.loadingOutput })
+  expect(screen.getByRole('main')).toHaveAttribute('inert')
+  fireEvent.keyDown(within(loading).getByLabelText('Close'), { key: 'Escape' })
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(screen.getByRole('main')).not.toHaveAttribute('inert')
+  expect(document.activeElement).toBe(screen.getByLabelText('Message Muse'))
+}
+
 afterEach(() => {
   setUiText(EN, 'en')
 })
 
 describe('App while its deferred panels load', () => {
   it('waits for use, keeps new form state and language, and lets a loading modal close', async () => {
-    const postMessage = vi.fn()
-    render(<App postMessage={postMessage} />)
-    deliver({ type: 'init', settings: testSettings, emptyStateHint: '', composerPlaceholder: '' })
-    deliver({ type: 'authState', status: 'signedIn' })
-    expect(screen.getByLabelText('Message Muse')).toBeInTheDocument()
+    const postMessage = initializedApp()
     expect(held.gitLoads).toBe(0)
     expect(held.usageLoads).toBe(0)
     expect(held.shareLoads).toBe(0)
@@ -121,10 +135,7 @@ describe('App while its deferred panels load', () => {
     await waitFor(() => {
       expect(held.usageLoads).toBe(1)
     })
-    fireEvent.keyDown(within(loading).getByLabelText('Close'), { key: 'Escape' })
-    expect(screen.queryByRole('dialog')).toBeNull()
-    expect(screen.getByRole('main')).not.toHaveAttribute('inert')
-    expect(document.activeElement).toBe(screen.getByLabelText('Message Muse'))
+    dismissLoadingModal()
     await act(async () => {
       held.usage.resolve(undefined)
       await held.usage.promise
@@ -151,10 +162,7 @@ describe('App while its deferred panels load', () => {
       items: [{ itemId: 'u', kind: 'userMessage', status: 'completed', text: 'Latest text' }],
     }
     deliver(latest)
-    const loadingShare = screen.getByRole('dialog', { name: EN.loadingOutput })
-    fireEvent.keyDown(within(loadingShare).getByLabelText('Close'), { key: 'Escape' })
-    expect(screen.queryByRole('dialog')).toBeNull()
-    expect(document.activeElement).toBe(screen.getByLabelText('Message Muse'))
+    dismissLoadingModal()
     setUiText({ ...EN, shareReadOnly: 'Installed read-only label' }, 'en')
     await act(async () => {
       held.share.resolve(undefined)
@@ -171,22 +179,14 @@ describe('App while its deferred panels load', () => {
   it.each(['prompts', 'chat'] as const)(
     'keeps a cold M118 %s surface modal and cancels its late import on Escape',
     async (surface) => {
-      const postMessage = vi.fn()
-      render(<App postMessage={postMessage} />)
-      deliver({ type: 'init', settings: testSettings, emptyStateHint: '', composerPlaceholder: '' })
-      deliver({ type: 'authState', status: 'signedIn' })
+      const postMessage = initializedApp()
       const loads = () => (surface === 'prompts' ? held.promptsLoads : held.chatLoads)
       expect(loads()).toBe(0)
       deliver({ type: 'openSharing', surface })
       await waitFor(() => {
         expect(loads()).toBe(1)
       })
-      const loading = screen.getByRole('dialog', { name: EN.loadingOutput })
-      expect(screen.getByRole('main')).toHaveAttribute('inert')
-      fireEvent.keyDown(within(loading).getByLabelText('Close'), { key: 'Escape' })
-      expect(screen.queryByRole('dialog')).toBeNull()
-      expect(screen.getByRole('main')).not.toHaveAttribute('inert')
-      expect(document.activeElement).toBe(screen.getByLabelText('Message Muse'))
+      dismissLoadingModal()
       await act(async () => {
         held[surface].resolve(undefined)
         await held[surface].promise
