@@ -7,7 +7,40 @@ brief overrides the common file's old merge and rig-wrapper instructions.
 No merge, rebase, push, dependency installation, credential read, external
 request, paid call, inference, desktop capture, or microphone recording.
 
-## Delivered scope
+## RVM105R2 corrections: driver
+
+Findings 2 and 4 are fixed. Shutdown is subscribed before any asynchronous
+preparation and remains latched across helper preparation, directory reservation
+and trust verification for capture and latest import. The subscription is
+released on refusal as well as after a launched run. Preview deletion shares
+an in-flight or successful promise, tries at most three removals 200 ms apart,
+and clears a rejected promise so a later Discard/Cancel can retry.
+
+The driver also renders the fixed helper code `accessDenied` through the new
+runtime-read `media.recordingAccessDenied` text in English and all fourteen
+translations; it keeps the existing screen-permission recovery distinct.
+The complete three-file recorder batch passed **100/100** (driver 59,
+native 36, compiler 5), repository timeouts, on Win11. The following controls ran
+the whole driver suite and exited 1 with the named test failure. Source bytes
+were restored in finally and checked with SHA-256 after each control:
+
+| Finding / guard            | Deliberate break                                           | Named failing regression                                                           | Receipt          |
+| -------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------- |
+| R2 / 2: early shutdown     | Move subscription back after preparation                   | shutdown during prepareHelper prevents subsequent capture and latest import launch | exit 1; restored |
+| R2 / 4: bounded retries    | Stop retries after the first attempt                       | retries a temporary preview lock and shares successful disposal                    | exit 1; restored |
+| R2 / 4: failed cache       | Keep a rejected cleanup promise                            | bounds failed deletion and retries on a later Cancel after the lock clears         | exit 1; restored |
+| R2 / 2: preparation latch  | Remove shutdown's cancellation latch before a child exists | shutdown during prepareHelper prevents subsequent capture and latest import launch | exit 1; restored |
+| R2 / 5: translated refusal | Render accessDenied as capture unavailability              | shows access denial in en at runtime instead of capture unavailability             | exit 1; restored |
+
+Driver restoration SHA-256 at drill time:
+`98c82027f00849320e05c45a7e675c38a647c5cde3157d63ce486b59fef6e447`.
+After lint fixes and the access-denied cases, all four current driver controls
+again exited 1 and restored SHA-256
+`d20b8ea9a2b2d6e08b89c217b3666cdea27187a40a85bfb3c3512b8f4f2fa162`.
+Ignored receipts: `temp/r2-shutdown-preparation.log`,
+`temp/r2-bounded-retry.log`, `temp/r2-failed-cache.log`.
+
+## Original delivered scope
 
 - `src/core/media/record/windows.ts` implements lane 0's driver and a separate
   latest-recording entry point through explicit injected ports. It has no

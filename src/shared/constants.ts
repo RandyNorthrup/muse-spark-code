@@ -980,6 +980,8 @@ export const SCREEN_RECORDING_DEFAULT_MAX_SECONDS = 120
 export const SCREEN_RECORDING_MIN_SECONDS = 10
 export const SCREEN_RECORDING_MAX_SECONDS = 600
 export const SCREEN_RECORDING_RECENT_MAX_AGE_MS = 10 * 60 * 1000
+export const SCREEN_RECORDING_REMOVE_ATTEMPTS = 3
+export const SCREEN_RECORDING_REMOVE_RETRY_MS = 200
 
 // PDFs as input (M54, PLAN.md D47): the one document type Meta's Responses
 // API reads for inference (dev.meta.ai/docs/file-handling, read

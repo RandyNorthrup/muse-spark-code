@@ -1,14 +1,21 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
+import * as z from 'zod/mini'
 import {
   windowsScreenRecorder,
   type WindowsRecorderDeps,
   type WindowsRecorderProcess,
 } from '../../src/core/media/record/windows'
-import { UI_TEXT } from '../../src/shared/l10n/text'
+import { UI_TEXT, setUiText } from '../../src/shared/l10n/text'
+import { EN } from '../../src/shared/l10n/en'
+import { TABLE_LOCALES, tableFileName } from '../../src/shared/l10n/locales'
 import {
   MILLISECONDS_PER_SECOND,
   PROCESS_TABLE_TIMEOUT_MS,
   SCREEN_RECORDING_RECENT_MAX_AGE_MS,
+  SCREEN_RECORDING_REMOVE_ATTEMPTS,
+  SCREEN_RECORDING_REMOVE_RETRY_MS,
 } from '../../src/shared/constants'
 import type { MediaInfo } from '../../src/shared/media'
 import type {
@@ -95,6 +102,7 @@ async function outcomeOf(
 
 afterEach(() => {
   vi.useRealTimers()
+  setUiText(EN, 'en')
 })
 
 describe('M105 R2 Windows screen recorder', () => {
@@ -268,6 +276,79 @@ describe('M105 R2 Windows screen recorder', () => {
     expect(harness.deps.removeDirectory).toHaveBeenCalledOnce()
   })
 
+  it.each(['prepareHelper', 'reserveDirectory', 'verifyHelper'] as const)(
+    'shutdown during %s prevents subsequent capture and latest import launch',
+    async (phase) => {
+      for (const shouldImportLatest of [false, true]) {
+        const harness = setup()
+        const controls = { release: vi.fn() }
+        const pending = new Promise<void>((resolve) => {
+          controls.release = resolve
+        })
+        const hold = async <T>(value: T) => {
+          await pending
+          return value
+        }
+        if (phase === 'prepareHelper')
+          vi.mocked(harness.deps.prepareHelper).mockImplementationOnce(() => hold(HELPER))
+        else if (phase === 'reserveDirectory')
+          vi.mocked(harness.deps.reserveDirectory).mockImplementationOnce(() => hold(DIRECTORY))
+        else vi.mocked(harness.deps.verifyHelper).mockImplementationOnce(() => hold(true))
+        const recorder = windowsScreenRecorder(harness.deps)
+        const result = shouldImportLatest ? recorder.attachLatest() : outcomeOf(recorder)
+        await vi.waitFor(() => {
+          expect(harness.deps[phase]).toHaveBeenCalledOnce()
+        })
+        harness.shutdown()
+        controls.release()
+        await expect(result).resolves.toMatchObject({ ok: false })
+        expect(harness.deps.launch).not.toHaveBeenCalled()
+        expect(harness.unsubscribe).toHaveBeenCalledOnce()
+        expect(harness.deps.removeDirectory).toHaveBeenCalledTimes(
+          phase === 'prepareHelper' ? 0 : 1,
+        )
+      }
+    },
+  )
+
+  it('retries a temporary preview lock and shares successful disposal', async () => {
+    vi.useFakeTimers()
+    const harness = setup()
+    vi.mocked(harness.deps.removeDirectory).mockRejectedValueOnce(new Error('locked'))
+    const run = await windowsScreenRecorder(harness.deps).start(OPTIONS, vi.fn())
+    harness.finish()
+    const outcome = await run.result
+    if (!outcome.ok) throw new Error('preview missing')
+    const first = outcome.preview.dispose()
+    expect(outcome.preview.dispose()).toBe(first)
+    await vi.advanceTimersByTimeAsync(SCREEN_RECORDING_REMOVE_RETRY_MS)
+    await first
+    await run.cancel()
+    expect(harness.deps.removeDirectory).toHaveBeenCalledTimes(2)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('bounds failed deletion and retries on a later Cancel after the lock clears', async () => {
+    vi.useFakeTimers()
+    const harness = setup()
+    vi.mocked(harness.deps.removeDirectory).mockRejectedValue(new Error('locked'))
+    const run = await windowsScreenRecorder(harness.deps).start(OPTIONS, vi.fn())
+    harness.finish()
+    const outcome = await run.result
+    if (!outcome.ok) throw new Error('preview missing')
+    const failed = expect(outcome.preview.dispose()).rejects.toThrow('locked')
+    await vi.advanceTimersByTimeAsync(
+      SCREEN_RECORDING_REMOVE_ATTEMPTS * SCREEN_RECORDING_REMOVE_RETRY_MS,
+    )
+    await failed
+    expect(harness.deps.removeDirectory).toHaveBeenCalledTimes(SCREEN_RECORDING_REMOVE_ATTEMPTS)
+    vi.mocked(harness.deps.removeDirectory).mockResolvedValue(undefined)
+    await run.cancel()
+    await outcome.preview.dispose()
+    expect(harness.deps.removeDirectory).toHaveBeenCalledTimes(SCREEN_RECORDING_REMOVE_ATTEMPTS + 1)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
   it('kills a helper which ignores Stop, waits for exit and refuses its unfinished output', async () => {
     vi.useFakeTimers()
     const harness = setup()
@@ -300,6 +381,28 @@ describe('M105 R2 Windows screen recorder', () => {
     harness.line({ type: 'error', code: 'permission' })
     expect(await run.result).toEqual({ ok: false, reason: UI_TEXT.media.recordingPermissionDenied })
   })
+
+  it.each(['en', ...TABLE_LOCALES])(
+    'shows access denial in %s at runtime instead of capture unavailability',
+    async (locale) => {
+      const harness = setup()
+      const recorder = windowsScreenRecorder(harness.deps)
+      let translated = EN.media.recordingAccessDenied
+      if (locale !== 'en') {
+        const raw: unknown = JSON.parse(
+          await readFile(path.resolve('l10n', tableFileName(locale)), 'utf8'),
+        )
+        translated = z.object({ media: z.object({ recordingAccessDenied: z.string() }) }).parse(raw)
+          .media.recordingAccessDenied
+        expect(translated).not.toBe(EN.media.recordingAccessDenied)
+      }
+      setUiText({ ...EN, media: { ...EN.media, recordingAccessDenied: translated } }, locale)
+      const run = await recorder.start(OPTIONS, vi.fn())
+      harness.line({ type: 'error', code: 'accessDenied' })
+      expect(await run.result).toEqual({ ok: false, reason: translated })
+      expect(harness.deps.inspect).not.toHaveBeenCalled()
+    },
+  )
 
   it('names the absence of a recent Snipping Tool recording', async () => {
     const harness = setup()

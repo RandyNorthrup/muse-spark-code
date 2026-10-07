@@ -19097,6 +19097,16 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M105 — Multimodal input: video, audio, documents, screen recordings and the Files API (D85)
 
+**R2 review corrections (RVM105R2, 2026-10-06).** Fix all six Windows
+findings in the owned helper/driver: atomic Stop/Cancel state, cancellation
+of every pending WinRT preparation operation, enforced native owner-PID
+lifetime for capture and latest import, shutdown admission before async
+driver preparation, bounded retryable private-preview deletion, and a
+translated file-access-denied refusal. Each gets a regression and a
+byte-exact red drill in `docs/certification/m105-r2-windows-recorder-(c).md`.
+No live/paid capture is authorized; this VM's direct capture stays explicitly
+unavailable, with the working-desktop/encoder receipt owed to the lead.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §2. The work lands in four
 deliveries, in order:
@@ -20032,6 +20042,13 @@ Each joins when its dependency merges, and none blocks the others.
         full gate green
 
 ## 7. Gates
+
+**M105 R2 review-fix gate delegation (2026-10-06).** The lane brief and
+shared common rules prohibit aggregate `npm run quality` on this shared rig.
+Run the complete owned test files at the repository timeout, changed-file
+lint/format, typecheck, localization, deadcode, duplication, host API and
+production build directly on Win11. The lead owes full quality/coverage and
+the hosted matrix before integration; no gate or cap is weakened.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct

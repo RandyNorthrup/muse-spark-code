@@ -8,6 +8,8 @@ import {
   MILLISECONDS_PER_SECOND,
   PROCESS_TABLE_TIMEOUT_MS,
   SCREEN_RECORDING_RECENT_MAX_AGE_MS,
+  SCREEN_RECORDING_REMOVE_ATTEMPTS,
+  SCREEN_RECORDING_REMOVE_RETRY_MS,
 } from '../../../shared/constants'
 import { UI_TEXT, fill } from '../../../shared/l10n/text'
 import { mediaInfoSchema, screenRecordingOptionsSchema } from '../../../shared/media'
@@ -24,7 +26,7 @@ const helperFrame = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('complete') }),
   z.strictObject({
     type: z.literal('error'),
-    code: z.enum(['permission', 'unavailable', 'cancelled', 'noRecent', 'limit']),
+    code: z.enum(['permission', 'accessDenied', 'unavailable', 'cancelled', 'noRecent', 'limit']),
   }),
 ])
 
@@ -81,6 +83,17 @@ function unavailable(): string {
 
 export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenRecorder {
   let active: ScreenRecordingRun | undefined
+  const remove = async (directory: string) => {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await deps.removeDirectory(directory)
+        return
+      } catch (error) {
+        if (attempt >= SCREEN_RECORDING_REMOVE_ATTEMPTS) throw error
+        await new Promise<void>((resolve) => setTimeout(resolve, SCREEN_RECORDING_REMOVE_RETRY_MS))
+      }
+    }
+  }
   const available: ScreenRecordingDriver['available'] = async () => {
     if (!deps.isLocal) return { ok: false, reason: UI_TEXT.media.recordingRemote }
     try {
@@ -116,13 +129,32 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
     const admission = refused(unavailable())
     active = admission
     let directory: string | undefined
+    let unsubscribe: (() => void) | undefined
+    let cancelChild: (() => void) | undefined
+    const state = {
+      isCancelled: false,
+      isComplete: false,
+      hasExited: false,
+      hasRequestedStop: false,
+    }
+    // Cancellation changes in a callback while preparation or inspection waits.
+    const isCancelled = () => state.isCancelled
     try {
+      unsubscribe = deps.onShutdown(() => {
+        state.isCancelled = true
+        cancelChild?.()
+      })
+      if (isCancelled()) throw new Error('shutdown')
       const helper = await deps.prepareHelper()
+      if (isCancelled()) throw new Error('shutdown')
       if (helper === undefined || !path.win32.isAbsolute(helper)) throw new Error('helper')
       directory = await deps.reserveDirectory()
+      if (isCancelled()) throw new Error('shutdown')
       if (!path.win32.isAbsolute(directory)) throw new Error('directory')
       if (!(await deps.verifyHelper(helper))) throw new Error('trust')
+      if (isCancelled()) throw new Error('shutdown')
       if (!deps.isInteractiveUserAction()) throw new Error('interaction expired')
+      const unsubscribeShutdown = unsubscribe
       const outputDirectory = directory
       const output = path.win32.join(outputDirectory, 'recording.mp4')
       const args = [
@@ -141,14 +173,6 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
             ]),
       ]
       const child = deps.launch(helper, args)
-      const state = {
-        isCancelled: false,
-        isComplete: false,
-        hasExited: false,
-        hasRequestedStop: false,
-      }
-      // Cancellation can change in a callback while the byte sniffer awaits.
-      const isCancelled = () => state.isCancelled
       let reason = unavailable()
       let countdown: ReturnType<typeof setInterval> | undefined
       let deadline: ReturnType<typeof setTimeout> | undefined
@@ -197,6 +221,10 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
         }
         if (frame.type === 'error') {
           switch (frame.code) {
+            case 'accessDenied': {
+              reason = UI_TEXT.media.recordingAccessDenied
+              break
+            }
             case 'permission': {
               reason = UI_TEXT.media.recordingPermissionDenied
               break
@@ -232,11 +260,22 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
           if (remaining === 0) end(false)
         }, MILLISECONDS_PER_SECOND)
       })
-      const unsubscribe = deps.onShutdown(() => {
+      cancelChild = () => {
         end(true)
-      })
+      }
+      if (isCancelled()) end(true)
       let cleanup: Promise<void> | undefined
-      const dispose = () => (cleanup ??= deps.removeDirectory(outputDirectory))
+      // Share in-flight/successful cleanup, but let a later discard retry a
+      // failure after a scanner's lock has outlasted the bounded attempts.
+      const removePreview = async () => {
+        try {
+          await remove(outputDirectory)
+        } catch (error) {
+          cleanup = undefined
+          throw error
+        }
+      }
+      const dispose = () => (cleanup ??= removePreview())
       const observe = async (): Promise<ScreenRecordingResult> => {
         try {
           const code = await exited
@@ -265,7 +304,7 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
         } finally {
           clearInterval(countdown)
           clearTimeout(deadline)
-          unsubscribe()
+          unsubscribeShutdown()
           active = undefined
         }
       })()
@@ -284,8 +323,9 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
       active = run
       return run
     } catch {
+      unsubscribe?.()
       active = undefined
-      if (directory !== undefined) await deps.removeDirectory(directory)
+      if (directory !== undefined) await remove(directory)
       return refused(unavailable())
     }
   }

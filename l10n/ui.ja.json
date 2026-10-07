@@ -2387,6 +2387,7 @@
     "recordingAttach": "添付",
     "recordingDiscard": "破棄",
     "recordingPermissionDenied": "画面録画の許可が拒否されました。システム設定で許可して再試行してください。",
+    "recordingAccessDenied": "画面録画へのアクセスが拒否されました。権限を確認して、もう一度お試しください。",
     "recordingOpenPermissions": "画面録画の設定を開く",
     "recordingUnavailable": "画面録画を利用できません: {reason}",
     "recordingRemote": "このウィンドウはローカル画面のないリモートホストで動作しています。コンパニオンページを使うか、録画ファイルを選んでください。",

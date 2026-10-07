@@ -2577,6 +2577,7 @@
     "recordingAttach": "Joindre",
     "recordingDiscard": "Ignorer",
     "recordingPermissionDenied": "L’autorisation d’enregistrer l’écran a été refusée. Autorisez-la dans les réglages système et réessayez.",
+    "recordingAccessDenied": "L’accès à l’enregistrement de l’écran a été refusé. Vérifiez les autorisations et réessayez.",
     "recordingOpenPermissions": "Ouvrir les réglages d’enregistrement d’écran",
     "recordingUnavailable": "Enregistrement d’écran indisponible : {reason}",
     "recordingRemote": "Cette fenêtre s’exécute sur un hôte distant sans écran local. Utilisez la page compagnon ou choisissez un fichier d’enregistrement.",

@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Windows screen-recording preparation now observes host shutdown before
+  asynchronous work, and private-preview deletion retries temporary locks
+  with a bound while allowing later cleanup to retry an exhausted failure.
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.
