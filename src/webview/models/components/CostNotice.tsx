@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../../shared/usd'
 // Before a check that bills a token, its cost is stated and asked first
 // (M95 step 8.4): the one-token request never goes without this Accept.
 // Amounts under a cent render with six digits, so a fraction of a cent
@@ -11,12 +12,15 @@ const SMALL_COST_DIGITS = 6
 const COST_DIGITS = 4
 
 /** The test cost as the language writes money: about $0.000002. */
-export function formatTestCost(costUsd: number): string {
-  return formatUsd(costUsd, costUsd < SMALL_COST_USD ? SMALL_COST_DIGITS : COST_DIGITS)
+export function formatTestCost(costUsd: UsdAmount): string {
+  return formatUsd(
+    costUsd,
+    Usd.from(costUsd).compare(Usd.from(SMALL_COST_USD)) < 0 ? SMALL_COST_DIGITS : COST_DIGITS,
+  )
 }
 
 export interface CostNoticeProps {
-  readonly costUsd: number
+  readonly costUsd: UsdAmount
   readonly onAccept: () => void
   readonly onDecline: () => void
 }

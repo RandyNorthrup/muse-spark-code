@@ -1,3 +1,4 @@
+import { ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
 import * as z from 'zod/mini'
 import { describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
@@ -41,6 +42,18 @@ function manager(isStrictToolsOn: () => boolean) {
     }),
   )
   return { api, m }
+}
+
+async function schemaSession() {
+  const h = manager(() => false)
+  const host = await h.m.ensureHost()
+  const session = await host.startSession({
+    workspaceRoot: '/ws',
+    modelId: M106_CAPTURED_META_MODEL,
+    approvalMode: 'allowAll',
+  })
+  if (!(session instanceof ModelApiSession)) throw new Error('Expected Model API session')
+  return { h, host, session }
 }
 
 describe('M106 integrated wiring', () => {
@@ -88,13 +101,7 @@ describe('M106 integrated wiring', () => {
   })
 
   it('binds the captured selected schema format before dispatch and refuses a changed model or repeated binding', async () => {
-    const h = manager(() => false)
-    const host = await h.m.ensureHost()
-    const session = await host.startSession({
-      workspaceRoot: '/ws',
-      modelId: M106_CAPTURED_META_MODEL,
-      approvalMode: 'allowAll',
-    })
+    const { h, host, session } = await schemaSession()
     expect(
       host.configureOutputSchema(
         'missing',
@@ -133,6 +140,32 @@ describe('M106 integrated wiring', () => {
         schema: closedSchema,
       },
     })
+    await h.m.dispose()
+  })
+
+  it('refuses schema binding while a turn is active and after its replay exists', async () => {
+    const { h, host, session } = await schemaSession()
+    const held = Promise.withResolvers<undefined>()
+    h.api.script({ text: 'done', hold: held.promise })
+    await session.sendTurn([{ type: 'text', text: 'work' }])
+    expect(() =>
+      host.configureOutputSchema(
+        session.sessionId,
+        M106_CAPTURED_META_MODEL,
+        'strict_schema',
+        closedSchema,
+      ),
+    ).toThrow()
+    held.resolve(undefined)
+    await session.settled()
+    expect(() =>
+      host.configureOutputSchema(
+        session.sessionId,
+        M106_CAPTURED_META_MODEL,
+        'strict_schema',
+        closedSchema,
+      ),
+    ).toThrow()
     await h.m.dispose()
   })
 

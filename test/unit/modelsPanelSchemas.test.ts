@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // The Models & Agents panel's wire contract: every message and the full
 // host-owned state parse, and no credential field crosses postMessage in
 // either direction (M95 acceptance 5 and 17).
@@ -73,7 +74,7 @@ const messages: readonly PanelToHostMessage[] = [
   { type: 'suggestions/accept', kind: 'defaultModel' },
   { type: 'suggestions/accept', kind: 'sessionBudget' },
   { type: 'suggestions/change', kind: 'defaultModel', modelRef: 'ollama/qwen3:8b' },
-  { type: 'suggestions/change', kind: 'sessionBudget', usd: 2.5 },
+  { type: 'suggestions/change', kind: 'sessionBudget', usd: Usd.from(2.5).toAmount() },
 ]
 
 const hostMessages: readonly HostToPanelMessage[] = [

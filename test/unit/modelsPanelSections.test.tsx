@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // @vitest-environment jsdom
 // The Providers and Models sections with the wizard: every wizard step,
 // the provider rows with their key and test states, the undo bar, the
@@ -178,7 +179,7 @@ describe('ProvidersSection', () => {
               wizard: makeDraft({
                 step: 'test',
                 presetId: 'openrouter',
-                test: makeTest({ status: 'needs-cost', costUsd: 0.000002 }),
+                test: makeTest({ status: 'needs-cost', costUsd: Usd.from(0.000002).toAmount() }),
               }),
             },
           }),
@@ -247,7 +248,11 @@ describe('ProvidersSection', () => {
     })
     const changeButtons = screen.getAllByRole('button', { name: UI_TEXT.suggestionChange })
     fireEvent.click(changeButtons[1] ?? fail('budget change missing'))
-    expect(post).toHaveBeenCalledWith({ type: 'suggestions/change', kind: 'sessionBudget', usd: 5 })
+    expect(post).toHaveBeenCalledWith({
+      type: 'suggestions/change',
+      kind: 'sessionBudget',
+      usd: Usd.from(5).toAmount(),
+    })
   })
 
   it('keeps Save disabled until the form is valid, with each blocker inline', () => {

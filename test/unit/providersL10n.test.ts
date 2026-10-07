@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // Provider text must follow the installed language after these modules load.
 import { afterEach, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
@@ -56,15 +57,15 @@ describe('provider localization', () => {
     expect(wizardSummary(startWizard()).lines).toContain(
       fill(fr.providerText.summary.destination, { value: '—' }),
     )
-    expect(suggestSessionBudget(undefined, 1234.5)?.reason).toBe(
+    expect(suggestSessionBudget(undefined, Usd.from(1234.5).toAmount())?.reason).toBe(
       fill(fr.providerText.suggest.history, { amount: formatUsd(1234.5, 2) }),
     )
     const model = {
       ref: 'groq/model',
       toolCalling: true,
       contextTokens: 32_768,
-      inputUsd: 1e-6,
-      outputUsd: 1e-6,
+      inputUsd: Usd.from(1e-6).toAmount(),
+      outputUsd: Usd.from(1e-6).toAmount(),
     }
     expect(suggestDefaultModel({ models: [model] })?.reason).toBe(
       fill(fr.providerText.suggest.cheapest, { ref: model.ref }),

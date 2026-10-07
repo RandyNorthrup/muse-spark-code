@@ -408,6 +408,7 @@ function setup(
     compactionModel?: ModelApiHostDeps['compactionModel']
     admitSummaryFork?: ModelApiHostDeps['admitSummaryFork']
     observationPacking?: ModelApiHostDeps['observationPacking']
+    outputContinuation?: ModelApiHostDeps['outputContinuation']
     /** A capped fixture usually keeps its reservation in memory; this tests an unavailable store. */
     hasNoStore?: boolean
     describeEnvironment?: ModelApiHostDeps['describeEnvironment']
@@ -511,6 +512,9 @@ function setup(
     compactionModel: options.compactionModel,
     admitSummaryFork: options.admitSummaryFork,
     observationPacking: options.observationPacking,
+    ...(options.outputContinuation !== undefined && {
+      outputContinuation: options.outputContinuation,
+    }),
     workspaceRoot: ROOT,
     platform: options.platform ?? 'linux',
     io,
@@ -17137,7 +17141,7 @@ describe('ModelApiHost: taking a message back before a request reads it (M87, PL
 
   describe('a cut-short reply never runs any calls (M101 item 8)', () => {
     it('refuses completed and uncompleted calls and reports a failed turn', async () => {
-      const t = setup({ files: { 'a.txt': 'alpha\n' } })
+      const t = setup({ files: { 'a.txt': 'alpha\n' }, outputContinuation: () => false })
       const { session, events, turnDone } = await startSession(t)
       t.api.script(
         {
@@ -17974,7 +17978,7 @@ describe('FIXM101C1 review regressions', () => {
     for (const stored of store.saved.values()) {
       if (stored.sessionId === session.sessionId) continue
       expect(stored.usage.outputTokens).toBeGreaterThan(0)
-      expect(stored.budgetSpentUsd).toBeGreaterThan(0)
+      expect(Usd.from(stored.budgetSpentUsd ?? '0').compare(Usd.from(0))).toBeGreaterThan(0)
     }
   })
 

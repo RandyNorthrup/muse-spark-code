@@ -21,6 +21,11 @@
     "src/shared/reference/referenceEntry.ts",
     "src/shared/reference/referenceSource.ts",
     "src/shared/wireEntry.ts",
+    // M106 actual production lazy entries, called through their emitted bundles.
+    "src/shared/structuredSchemaEntry.ts",
+    "src/core/backends/modelapi/codeIntelEntry.ts",
+    "src/core/backends/modelapi/mcpPoolEntry.ts",
+    "src/runtime/exec/execEntry.ts",
     // The help generator bundles this catalog in memory, then imports its export.
     "src/shared/featureCatalog.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.

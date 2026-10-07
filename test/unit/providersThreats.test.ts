@@ -258,8 +258,12 @@ describe('credential variables', () => {
     expect(isCredentialVariable(name)).toBe(true)
   })
 
+  it('removes CI_TOKEN under the shared process credential fence', () => {
+    expect(isCredentialVariable('CI_TOKEN')).toBe(true)
+  })
+
   it('keeps non-credential variables', () => {
-    for (const name of ['PATH', 'HOME', 'OLLAMA_HOST', 'CI_TOKEN']) {
+    for (const name of ['PATH', 'HOME', 'OLLAMA_HOST']) {
       expect(isCredentialVariable(name)).toBe(false)
     }
   })

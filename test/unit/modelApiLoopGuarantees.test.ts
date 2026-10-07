@@ -406,14 +406,18 @@ describe('M106 loop guarantees', () => {
     const next = JSON.stringify(rig.api.responseBodies()[1]?.['input'])
     expect(next).toContain('Partial.')
     expect(next).toContain(
-      '"call_id":"cut","output":"Error: response.incomplete: max_output_tokens"',
+      JSON.stringify({
+        call_id: 'cut',
+        output: `Error: ${MODEL_API_MODEL_TEXT.incompleteCallNotRun}`,
+      }).slice(1, -1),
     )
     expect(next).toContain(MODEL_API_MODEL_TEXT.continuationPrompt)
     expect(notices(rig)).toContain(UI_TEXT.modelApiContinuing)
     expect(notices(rig)).toContain(UI_TEXT.modelApiContinuationLimit)
-    expect(
-      rig.events.filter((event) => event.type === 'itemStarted' && event.item.kind === 'toolCall'),
-    ).toEqual([])
+    expect(rig.events).toContainEqual({
+      type: 'itemCompleted',
+      item: expect.objectContaining({ kind: 'toolCall', tool: 'write_file', status: 'failed' }),
+    })
     await rig.host.close()
   })
 

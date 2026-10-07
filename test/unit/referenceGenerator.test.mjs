@@ -1093,6 +1093,7 @@ describe('RVHELPREF2 runtime truth regressions', () => {
       'shell-sandbox': 'off',
       cwd: '/tmp',
       'prompt-file': '/tmp/prompt',
+      'output-schema': '/tmp/answer.json',
       'untrusted-file': '/tmp/data',
       'permission-mode': 'acceptEdits',
       model: 'muse-spark-1.3',
@@ -1126,6 +1127,8 @@ describe('RVHELPREF2 runtime truth regressions', () => {
           )
           if (!['muse-binary', 'shell-sandbox'].includes(name)) args.push('--max-budget-usd', '1')
           if (name === 'image-generation') args.push('--permission-mode', 'acceptEdits')
+          else if (name === 'output-schema-outside')
+            args.push('--output-schema', '/tmp/answer.json')
         }
         args.push(...flag)
         if (route === 'exec' && name !== 'prompt-file') args.push('prompt')

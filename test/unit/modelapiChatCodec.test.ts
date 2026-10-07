@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // Lane H (M95): the chat codec's requests and streams, per preset, against
 // the 2026-10-04 wire captures in docs/certification/m95-captures/.
 //
@@ -919,7 +920,7 @@ describe('chat codec stream decoding', () => {
       input_tokens_details: { cached_tokens: 64, cache_write_tokens: 0 },
       output_tokens_details: { reasoning_tokens: 9 },
     })
-    expect(decoded.providerCostUsd).toBe(0.00004997)
+    expect(decoded.providerCostUsd).toBe(Usd.from(0.00004997).toAmount())
   })
 
   it('decodes the OpenRouter final answer: text and usage on the finish chunk', () => {
@@ -934,7 +935,7 @@ describe('chat codec stream decoding', () => {
       input_tokens_details: { cached_tokens: 80, cache_write_tokens: 0 },
       output_tokens_details: { reasoning_tokens: 0 },
     })
-    expect(decoded.providerCostUsd).toBe(0.00004909)
+    expect(decoded.providerCostUsd).toBe(Usd.from(0.00004909).toAmount())
   })
 
   it('decodes Groq: a whole call, reasoning with a channel, a choices-less usage chunk', () => {
@@ -1546,7 +1547,7 @@ describe('chat codec guards', () => {
       cached_tokens: 0,
       cache_write_tokens: 1925,
     })
-    expect(decoded.providerCostUsd).toBe(0.0048845)
+    expect(decoded.providerCostUsd).toBe(Usd.from(0.0048845).toAmount())
   })
 
   it('rejects invalid optional usage counts and negative cost', () => {

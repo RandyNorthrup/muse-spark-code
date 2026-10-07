@@ -58,6 +58,22 @@ describe('readSettings', () => {
       ).toBe(Usd.from(5).toAmount())
     }
   })
+  it('bounds hosted search to integral counts from one through twenty', () => {
+    const log = new FakeLogOutputChannel()
+    for (const value of [1, 5, 20]) {
+      expect(
+        readSettings(fakeSettingsSource({ webSearchMaxPerRequest: value }), log)
+          .webSearchMaxPerRequest,
+      ).toBe(value)
+    }
+    for (const value of [0, 21, 1.5, '5']) {
+      expect(
+        readSettings(fakeSettingsSource({ webSearchMaxPerRequest: value }), log)
+          .webSearchMaxPerRequest,
+      ).toBe(5)
+    }
+  })
+
   it('returns the documented defaults when nothing is configured', () => {
     const log = new FakeLogOutputChannel()
     expect(readSettings(fakeSettingsSource({}), log)).toEqual({

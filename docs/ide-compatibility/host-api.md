@@ -433,20 +433,20 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 | Module                 | Files |
 | ---------------------- | ----- |
-| `node:buffer`          | 41    |
+| `node:buffer`          | 42    |
 | `node:child_process`   | 13    |
-| `node:crypto`          | 49    |
+| `node:crypto`          | 52    |
 | `node:dgram`           | 1     |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 3     |
-| `node:fs`              | 33    |
+| `node:fs`              | 34    |
 | `node:fs/promises`     | 48    |
 | `node:http`            | 5     |
 | `node:https`           | 1     |
 | `node:module`          | 1     |
 | `node:net`             | 8     |
 | `node:os`              | 9     |
-| `node:path`            | 86    |
+| `node:path`            | 87    |
 | `node:process`         | 1     |
 | `node:stream`          | 12    |
 | `node:stream/promises` | 2     |

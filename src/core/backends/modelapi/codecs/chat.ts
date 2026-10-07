@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../../../shared/usd'
 // The Chat Completions wire codec (PLAN.md D74, M95 lane H): the shared
 // implementation behind every `chat` preset (OpenRouter, Groq, DeepSeek,
 // Mistral, Together, Fireworks, Hugging Face's router, Z.ai, local servers
@@ -699,7 +700,7 @@ export interface ChatDecodeResult {
   readonly events: readonly StreamEvent[]
   readonly response: ResponseObject
   /** OpenRouter's reported `cost`, where the stream carried one. */
-  readonly providerCostUsd?: number | undefined
+  readonly providerCostUsd?: UsdAmount | undefined
 }
 
 /** Lane T supplies the shared constants when it creates a decoder. */
@@ -786,7 +787,7 @@ export class ChatStreamDecoder {
   private calls: DecodedCall[] = []
   private order: ('reasoning' | 'message' | 'calls')[] = []
   private usageRaw: ChatUsageWire | undefined
-  private costRaw: number | undefined
+  private costRaw: UsdAmount | undefined
   private finishReason: string | undefined
   private streamError: { readonly code?: string | undefined; readonly message: string } | undefined
 
@@ -1145,7 +1146,8 @@ export class ChatStreamDecoder {
     if (chunk.usage !== undefined && chunk.usage !== null) {
       const usage = chatUsageSchema.safeParse(chunk.usage)
       this.usageRaw = usage.success ? usage.data : undefined
-      this.costRaw = usage.success ? validCount(usage.data.cost) : undefined
+      const cost = usage.success ? validCount(usage.data.cost) : undefined
+      this.costRaw = cost === undefined ? undefined : Usd.from(cost).toAmount()
     }
     const choice = chunk.choices?.[0]
     const finish = choice?.finish_reason ?? choice?.native_finish_reason ?? undefined

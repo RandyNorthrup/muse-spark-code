@@ -116,6 +116,8 @@ async function setup(
     // A's date is local; preserve the same captured day on every test rig.
     now: () => new Date(1970, 0, 1).getTime() + base.now(),
     judge: options.judge,
+    outputContinuation: () => false,
+    parallelReads: () => false,
     // Hooks OFF: the golden baseline every later M91 lane must not move.
     isHooksEnabled: () => false,
     // Packing stays on (it is not a hook): scenario 4 watches a long output

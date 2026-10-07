@@ -6,6 +6,7 @@
 // provider in `providers.json`, no secret in SecretStorage.
 
 import { useState } from 'react'
+import { usdInputSchema, isPositiveUsd } from '../../shared/usd'
 import { UI_TEXT } from '../../shared/constants'
 import { fill, formatUsd, plural } from '../../shared/l10n/text'
 import type {
@@ -562,9 +563,9 @@ function SuggestionsStep({ panelState, draft, post, onClose, onNavigateModels }:
               post({ type: 'suggestions/accept', kind: 'sessionBudget' })
             }}
             onChange={() => {
-              const usd = Number(budgetOverride)
-              if (budgetOverride.trim() !== '' && Number.isFinite(usd) && usd > 0) {
-                post({ type: 'suggestions/change', kind: 'sessionBudget', usd })
+              const usd = usdInputSchema.safeParse(budgetOverride.trim())
+              if (usd.success && isPositiveUsd(usd.data)) {
+                post({ type: 'suggestions/change', kind: 'sessionBudget', usd: usd.data })
               }
             }}
           />

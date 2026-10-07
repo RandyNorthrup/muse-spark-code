@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../../../shared/usd'
 // M95 lane R: pure Responses encoding and capture-backed SSE decoding.
 // Provider policy is injected by lane P; auth, limits, retries and HTTP errors
 // belong to lane T. The shared WireCodec has not landed on this branch, so
@@ -68,7 +69,7 @@ export class ResponsesDecodeError extends Error {
 
 /** xAI's reported cost reaches settlement before canonical consumers read usage. */
 export interface ResponsesDecodeSink {
-  readonly settledCostUsd?: (costUsd: number) => void
+  readonly settledCostUsd?: (costUsd: UsdAmount) => void
 }
 
 export interface ResponsesWireCodec {
@@ -295,9 +296,13 @@ const settledCostSchema = z.object({
   cost_in_usd_ticks: tokenCountSchema,
 })
 
-function settledCostOf(usage: unknown): number | undefined {
+function settledCostOf(usage: unknown): UsdAmount | undefined {
   const parsed = settledCostSchema.safeParse(usage)
-  return parsed.success ? parsed.data.cost_in_usd_ticks * USD_PER_COST_TICK : undefined
+  return parsed.success
+    ? Usd.from(parsed.data.cost_in_usd_ticks)
+        .divide(1 / USD_PER_COST_TICK)
+        .toAmount()
+    : undefined
 }
 
 export function createResponsesCodec(

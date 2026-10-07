@@ -33273,6 +33273,25 @@ aggregate certification record.
   - [ ] Each phase-2 section certified on its own when it ships.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
+M106 W scoped validation deferral (2026-10-06): the restored scoped tree has
+one cut-short host terminal assertion and one first-use lazy Goal-body assertion
+still failing after two fixes each. Per the shared lane's two-fix stop rule these
+paths are stopped, without skips or weakened assertions; see the exact names,
+attempts and next action in `docs/certification/m106-w-wiring,-docs-and-gates-(last).md`.
+M106 is not certified and no aggregate-quality claim is made.
+
+M106 W Node build binding (2026-10-06): the standalone exec split carries the
+ACP SDK's classic Zod browser detector. The existing no-navigator gate observed
+two references in `dist/exec.js`; define navigator as unavailable for the ACP's
+Node-only build options (inherited by exec), preserving the strict gate.
+
+M106 W integration follow-up (2026-10-06): the inherited partial M95 panel,
+provider suggestions and portable codecs still expose numeric USD amounts.
+Bind those current money ports to H's canonical `UsdAmount`, parse numeric
+historical/wire amounts once at their validated boundaries, and keep numeric
+price-card rates only as the existing planned M95 pricing compatibility port.
+The focused money-port gate must stay unchanged.
+
 ## 8. Escape hatches register
 
 | Location                                         | Escape hatch                                                     | Reason                                                                                                                                                                                                                                                                       |

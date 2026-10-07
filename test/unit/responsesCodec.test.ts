@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../src/shared/usd'
 // M95 lane R: live captures are the positive wire fixtures; mutations below
 // exercise malformed/provider-additive frames without making a model call.
 import { readFileSync } from 'node:fs'
@@ -63,7 +64,7 @@ function stream(...parts: readonly string[]): ReadableStream<Uint8Array> {
 
 function collect(
   chunks: AsyncIterable<Uint8Array>,
-  costs: number[] = [],
+  costs: UsdAmount[] = [],
   codec: ResponsesWireCodec = createResponsesCodec(withRetention),
 ): Promise<StreamEvent[]> {
   return Array.fromAsync(
@@ -472,7 +473,7 @@ describe('responsesCodec decodeStream', () => {
   })
 
   it('decodes captured xAI single-delta tools, reasoning and settled cost', async () => {
-    const costs: number[] = []
+    const costs: UsdAmount[] = []
     const events = await collect(stream(...xaiTool.map((event) => frame(event))), costs)
     const deltas = events.filter((event) => event.type === 'response.function_call_arguments.delta')
     expect(deltas).toHaveLength(1)
@@ -493,7 +494,7 @@ describe('responsesCodec decodeStream', () => {
         },
       },
     })
-    expect(costs).toEqual([0.0023184])
+    expect(costs).toEqual([Usd.from('0.0023184').toAmount()])
   })
 
   it.each([
@@ -647,7 +648,7 @@ describe('responsesCodec decodeStream', () => {
   ])('rejects invalid usage before reporting a cost: %j', async (usage) => {
     const terminal = xaiTool.at(-1)!
     const response = z.record(z.string(), z.unknown()).parse(terminal['response'])
-    const costs: number[] = []
+    const costs: UsdAmount[] = []
     await expect(
       collect(
         stream(
@@ -663,14 +664,14 @@ describe('responsesCodec decodeStream', () => {
   })
 
   it('reports a settled cost once even if terminal frames repeat', async () => {
-    const costs: number[] = []
+    const costs: UsdAmount[] = []
     await collect(stream(frame(xaiTool.at(-1)!), frame(xaiText.at(-1)!)), costs)
-    expect(costs).toEqual([0.0023184])
+    expect(costs).toEqual([Usd.from('0.0023184').toAmount()])
   })
 
   it('reports cost only after a terminal event', async () => {
     const terminal = xaiTool.at(-1)!
-    const costs: number[] = []
+    const costs: UsdAmount[] = []
     const events = createResponsesCodec(withRetention).decodeStream(
       stream(frame({ ...terminal, type: 'response.in_progress' }), frame(terminal)),
       {
@@ -683,7 +684,7 @@ describe('responsesCodec decodeStream', () => {
       await events.next()
       expect(costs).toEqual([])
       await events.next()
-      expect(costs).toEqual([0.0023184])
+      expect(costs).toEqual([Usd.from('0.0023184').toAmount()])
     } finally {
       await events.return(undefined)
     }
@@ -695,7 +696,7 @@ describe('responsesCodec decodeStream', () => {
       const terminal = xaiTool.at(-1)!
       const response = z.record(z.string(), z.unknown()).parse(terminal['response'])
       const usage = z.record(z.string(), z.unknown()).parse(response['usage'])
-      const costs: number[] = []
+      const costs: UsdAmount[] = []
       await collect(
         stream(
           frame({
@@ -705,7 +706,7 @@ describe('responsesCodec decodeStream', () => {
         ),
         costs,
       )
-      expect(costs).toEqual(ticks === 0 ? [0] : [])
+      expect(costs).toEqual(ticks === 0 ? [Usd.from(0).toAmount()] : [])
     },
   )
 

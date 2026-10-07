@@ -40,8 +40,8 @@ function conditional(ifClause, thenClause) {
 }
 const resultJson = z.toJSONSchema(execResultSchema, { unrepresentable: 'any' })
 const statuses = resultJson.properties.status.enum.filter((status) => status !== 'cancelled')
-const resultConditions = statuses.map(
-  (status) =>
+const resultConditions = [
+  ...statuses.map((status) =>
     conditional(
       { properties: { status: { const: status } } },
       {
@@ -64,6 +64,7 @@ const resultConditions = statuses.map(
         },
       },
     ),
+  ),
   conditional(
     { properties: { exitCode: { const: exitCodeFor('failed', null, 'output_schema_mismatch') } } },
     {
@@ -138,7 +139,7 @@ const resultConditions = statuses.map(
     },
     { required: ['output'] },
   ),
-)
+]
 resultJson.allOf = resultConditions
 resultJson['x-runtime-invariants'] = [
   'Muse Code has null requests/cost/ledger/budget/request limit and zero paid totals; completed Model API results have accounting. Available cap matches limits and bounds total in micro-USD.',

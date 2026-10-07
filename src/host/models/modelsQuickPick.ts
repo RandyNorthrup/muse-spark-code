@@ -1,3 +1,4 @@
+import { usdInputSchema, type UsdAmount } from '../../shared/usd'
 // The quick-pick fast path (M95 lane K, PLAN.md D74, M95 step 8): **Muse
 // Spark: Add Model Provider…** runs the same flow as the panel wizard
 // without the panel: pick a provider, enter or connect the credential,
@@ -57,9 +58,9 @@ function providerItem(preset: PresetInfo): PickItem {
   }
 }
 
-function parseBudgetUsd(value: string): number | undefined {
-  const parsed = Number(value.trim().replace(',', '.'))
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined
+function parseBudgetUsd(value: string): UsdAmount | undefined {
+  const parsed = usdInputSchema.safeParse(value.trim().replace(',', '.'))
+  return parsed.success ? parsed.data : undefined
 }
 
 /**
@@ -234,7 +235,7 @@ export async function runAddProviderQuickPick(
     }
   }
   const budgetSuggestion = providers.suggestSessionBudget(ticked)
-  let sessionBudgetUsd: number | undefined
+  let sessionBudgetUsd: UsdAmount | undefined
   if (budgetSuggestion !== undefined) {
     const choice = await ui.pickOne(
       [

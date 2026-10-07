@@ -85,6 +85,13 @@ function sizeFixture(sharedBytes) {
 }
 
 describe('the production webview chunks (FIX78W)', () => {
+  it.each(['dist/acp.js', 'dist/exec.js'])(
+    'keeps standalone Node %s free of browser navigator probes',
+    (file) => {
+      expect(readFileSync(file, 'utf8')).not.toMatch(/\bnavigator\b/)
+    },
+  )
+
   it('keeps all initial JavaScript within the unchanged 900 KiB cap', () => {
     const bytes = [...initialOutputs()].reduce((sum, output) => sum + statSync(output).size, 0)
     expect(bytes).toBeLessThanOrEqual(900 * 1024)

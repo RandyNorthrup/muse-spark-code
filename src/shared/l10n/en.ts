@@ -82,11 +82,6 @@ export const EN = {
   referenceExecImages:
     'Headless images require --image-generation, acceptEdits and an affordable hard budget. No price question is shown; requests requiring permission are refused.',
   referenceCliOptions: {
-    'output-schema':
-      'Validate the final answer against a bounded JSON schema file (Model API only).',
-    'output-schema-outside': 'Allow the output schema file to resolve outside the workspace.',
-
-    'no-auto-compaction': 'Disable automatic compaction',
     backend:
       '--backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key',
     'trust-workspace':
@@ -123,6 +118,10 @@ export const EN = {
     description: '--description <text>  What was happening, in your own words',
     'no-facts': '--no-facts           Leave the support facts out',
     'no-events': '--no-events          Leave the recent events out',
+    'no-auto-compaction': 'Disable automatic compaction',
+    'output-schema':
+      'Validate the final answer against a bounded JSON schema file (Model API only).',
+    'output-schema-outside': 'Allow the output schema file to resolve outside the workspace.',
   },
   referenceScanSecrets:
     'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',

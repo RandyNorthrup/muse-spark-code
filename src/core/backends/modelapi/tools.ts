@@ -678,7 +678,7 @@ export function toolDefinitions(
         },
         ...thenRun,
       },
-      ['path', 'find', 'replace'],
+      ['path'],
       ['path'],
     ),
     define(

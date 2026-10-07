@@ -1,3 +1,4 @@
+import { type UsdAmount } from '../../shared/usd'
 // Saving the wizard (M95 lane K, PLAN.md D74, M95 acceptance 19 and the
 // Tests' first-run items): the draft lives in memory only while the wizard
 // runs. **Save** writes `providers.json` and the secret together, sets the
@@ -19,7 +20,7 @@ export interface WizardDraft {
   /** The model's qualified reference (`<providerId>/<modelId>`). */
   readonly defaultModel: string
   /** A session budget the suggestion accepted, for M82's seam when it lands. */
-  readonly sessionBudgetUsd?: number | undefined
+  readonly sessionBudgetUsd?: UsdAmount | undefined
   /** Save and use now: the conversation's model is set too. */
   readonly useNow: boolean
   readonly editing?: boolean
@@ -39,7 +40,7 @@ export interface WizardSaveOutcome {
   readonly modelRef: string
   /** Whether the conversation took the composer's model. */
   readonly composerSet: boolean
-  readonly sessionBudgetUsd: number | undefined
+  readonly sessionBudgetUsd: UsdAmount | undefined
 }
 
 /**

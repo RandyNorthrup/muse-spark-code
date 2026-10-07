@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Keep atomic edit declarations compatible with multi-edit calls; normalize
+  inherited provider-panel and codec USD amounts through the shared exact-money
+  helper, and emit all structured-result conditions in the shipped exec schemas.
+
 - Integrate the M106 lanes: bind strict-tool, parallel-read, hosted-search,
   structured-answer and retry/pacing ports across the window, attempts and
   portable runtime; preserve exact paid USD settlement and version-2 result

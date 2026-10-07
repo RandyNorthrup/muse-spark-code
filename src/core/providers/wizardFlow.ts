@@ -1,3 +1,4 @@
+import { type UsdAmount } from '../../shared/usd'
 // Adding a provider as a pure state machine (M95, PLAN.md D74): the panel
 // and the quick pick both drive it. Steps: pick a provider, the prefilled
 // form, the credential, the test, the models, OpenRouter's privacy, the
@@ -40,7 +41,7 @@ export interface WizardTestResult {
   readonly ok: boolean
   readonly modelCount?: number | undefined
   /** The one-token request's USD cost, where no free check exists. */
-  readonly costUsd?: number | undefined
+  readonly costUsd?: UsdAmount | undefined
   readonly detail?: string | undefined
 }
 
@@ -68,7 +69,7 @@ export interface WizardDraft {
   readonly endpoint?: { readonly address: string; readonly verdict: EndpointVerdict } | undefined
   readonly privateConfirmed: boolean
   readonly defaultModel?: string | undefined
-  readonly sessionBudgetUsd?: number | undefined
+  readonly sessionBudgetUsd?: UsdAmount | undefined
 }
 
 export interface WizardState {

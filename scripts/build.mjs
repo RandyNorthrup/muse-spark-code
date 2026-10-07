@@ -491,6 +491,8 @@ const browserRuntimeOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const acpOptions = {
   ...common,
+  // These artifacts run only in Node; the SDK's browser sniff must not touch its navigator getter.
+  define: { ...common.define, navigator: 'undefined' },
   plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
   entryPoints: [ACP_ENTRY],
   outfile: ACP_OUTFILE,
