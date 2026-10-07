@@ -2406,5 +2406,32 @@
     "cancelled": "操作已取消。",
     "untrusted": "請在執行儲存庫程式碼前信任工作區。",
     "unsupported": "此節點不支援此操作。"
+  },
+  "nodeWorkspace": {
+    "controlCharacter": "控制字元",
+    "selectionDeleted": "已刪除選取範圍",
+    "currentBranch": "目前分支",
+    "refresh": "重新整理",
+    "search": "搜尋檔案",
+    "path": "檔案路徑",
+    "save": "儲存檔案",
+    "saved": "檔案已儲存。",
+    "diff": "檢閱變更",
+    "original": "已儲存版本",
+    "modified": "已編輯版本",
+    "stage": "暫存檔案",
+    "fetch": "擷取變更",
+    "pull": "拉取變更",
+    "branches": "分支",
+    "branchName": "新分支名稱",
+    "createBranch": "建立分支",
+    "noFiles": "找不到檔案。",
+    "discard": "捨棄編輯",
+    "unsaved": "開啟其他檔案前，請儲存或捨棄編輯。",
+    "truncated": "此差異已截斷。請重新整理以查看目前變更。",
+    "destination": "SSH 目標",
+    "hostKey": "已驗證的主機金鑰",
+    "head": "目前提交",
+    "networkConfirm": "請確認在 {head} 的 {ref} 上對 {remote} 執行 {action}。"
   }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { nodeHttpsPort, validatedNodePort } from '../../src/webview/bridges/nodePort'
-import { NODE_HTTP_BODY_BYTES } from '../../src/shared/constants'
+import { NODE_HTTP_BODY_BYTES, NODE_MAX_FILE_BYTES, UI_TEXT } from '../../src/shared/constants'
 
 const signal = () => new AbortController().signal
 const file = { workspaceId: 'repo', path: 'hello.txt' }
@@ -76,6 +76,44 @@ describe('M110-U1 memory-only node bridge', () => {
     )
     await expect(port.request('node/files/read', file, signal())).rejects.toThrow()
     expect(cancelled).toHaveBeenCalledOnce()
+  })
+  it('H09 refuses serialized request expansion before dispatch', async () => {
+    const { port, fetcher } = fixture()
+    await expect(
+      port.request(
+        'node/files/write',
+        { ...file, text: '\0'.repeat(NODE_MAX_FILE_BYTES), expectedDigest: null },
+        signal(),
+      ),
+    ).rejects.toThrow(UI_TEXT.nodeErrors.tooLarge)
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+  it('refuses an empty JSON response body with a fixed error', async () => {
+    const { port, fetcher } = fixture()
+    fetcher.mockResolvedValueOnce(
+      new Response(null, { headers: { 'Content-Type': 'application/json' } }),
+    )
+    await expect(port.request('node/files/read', file, signal())).rejects.toThrow(
+      UI_TEXT.nodeErrors.invalidRequest,
+    )
+  })
+  it('refuses valid-looking JSON with the wrong response content type', async () => {
+    const { port, fetcher } = fixture()
+    fetcher.mockResolvedValueOnce(
+      Response.json(result, { headers: { 'Content-Type': 'text/plain' } }),
+    )
+    await expect(port.request('node/files/read', file, signal())).rejects.toThrow(
+      UI_TEXT.nodeErrors.invalidRequest,
+    )
+  })
+  it('refuses invalid UTF-8 even when replacement would produce valid JSON', async () => {
+    const { port, fetcher } = fixture()
+    const bytes = Buffer.from(JSON.stringify({ ...result, text: 'INVALID_UTF8' }))
+    bytes[bytes.indexOf('INVALID_UTF8')] = 255
+    fetcher.mockResolvedValueOnce(
+      new Response(bytes, { headers: { 'Content-Type': 'application/json' } }),
+    )
+    await expect(port.request('node/files/read', file, signal())).rejects.toThrow()
   })
   it('scrubs server failure text and refuses wrong response type or cancelled result', async () => {
     const { port, fetcher } = fixture()

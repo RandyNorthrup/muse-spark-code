@@ -2500,5 +2500,32 @@
     "cancelled": "A művelet megszakadt.",
     "untrusted": "A tároló kódjának futtatása előtt jelölje megbízhatónak a munkaterületet.",
     "unsupported": "Ez a művelet nem támogatott ezen a csomóponton."
+  },
+  "nodeWorkspace": {
+    "controlCharacter": "Vezérlőkarakter",
+    "selectionDeleted": "Kijelölés törölve",
+    "currentBranch": "Jelenlegi ág",
+    "refresh": "Frissítés",
+    "search": "Fájlok keresése",
+    "path": "Fájl elérési útja",
+    "save": "Fájl mentése",
+    "saved": "Fájl mentve.",
+    "diff": "Változások áttekintése",
+    "original": "Mentett változat",
+    "modified": "Szerkesztett változat",
+    "stage": "Fájl előkészítése",
+    "fetch": "Változások lekérése",
+    "pull": "Változások beolvasztása",
+    "branches": "Ágak",
+    "branchName": "Új ág neve",
+    "createBranch": "Ág létrehozása",
+    "noFiles": "Nem található fájl.",
+    "discard": "Szerkesztések elvetése",
+    "unsaved": "Másik fájl megnyitása előtt mentse vagy vesse el a szerkesztéseket.",
+    "truncated": "Ez a különbség csonkolva van. Frissítsen az aktuális változásokért.",
+    "destination": "SSH-cél",
+    "hostKey": "Ellenőrzött gazdagépkulcs",
+    "head": "Aktuális commit",
+    "networkConfirm": "Ellenőrizze a(z) {action} műveletet a(z) {remote} célra, a(z) {ref} ágon, a(z) {head} commitnál."
   }
 }

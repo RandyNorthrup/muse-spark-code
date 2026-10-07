@@ -2688,5 +2688,32 @@
     "cancelled": "Akce byla zrušena.",
     "untrusted": "Před spuštěním kódu repozitáře důvěřujte pracovnímu prostoru.",
     "unsupported": "Tato operace není na tomto uzlu podporována."
+  },
+  "nodeWorkspace": {
+    "controlCharacter": "Řídicí znak",
+    "selectionDeleted": "Výběr odstraněn",
+    "currentBranch": "Aktuální větev",
+    "refresh": "Obnovit",
+    "search": "Hledat soubory",
+    "path": "Cesta k souboru",
+    "save": "Uložit soubor",
+    "saved": "Soubor uložen.",
+    "diff": "Zkontrolovat změny",
+    "original": "Uložená verze",
+    "modified": "Upravená verze",
+    "stage": "Připravit soubor ke commitu",
+    "fetch": "Načíst změny",
+    "pull": "Stáhnout změny",
+    "branches": "Větve",
+    "branchName": "Název nové větve",
+    "createBranch": "Vytvořit větev",
+    "noFiles": "Nebyly nalezeny žádné soubory.",
+    "discard": "Zahodit úpravy",
+    "unsaved": "Před otevřením dalšího souboru uložte nebo zahoďte úpravy.",
+    "truncated": "Tento rozdíl je zkrácený. Obnovte pro aktuální změny.",
+    "destination": "Cíl SSH",
+    "hostKey": "Ověřený klíč hostitele",
+    "head": "Aktuální commit",
+    "networkConfirm": "Ověřte akci {action} pro {remote} na {ref} při commitu {head}."
   }
 }

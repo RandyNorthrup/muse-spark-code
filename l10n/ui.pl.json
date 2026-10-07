@@ -2688,5 +2688,32 @@
     "cancelled": "Czynność została anulowana.",
     "untrusted": "Zaufaj obszarowi roboczemu przed uruchomieniem kodu repozytorium.",
     "unsupported": "Ta operacja nie jest obsługiwana na tym węźle."
+  },
+  "nodeWorkspace": {
+    "controlCharacter": "Znak sterujący",
+    "selectionDeleted": "Zaznaczenie usunięte",
+    "currentBranch": "Bieżąca gałąź",
+    "refresh": "Odśwież",
+    "search": "Szukaj plików",
+    "path": "Ścieżka pliku",
+    "save": "Zapisz plik",
+    "saved": "Plik zapisany.",
+    "diff": "Przejrzyj zmiany",
+    "original": "Zapisana wersja",
+    "modified": "Edytowana wersja",
+    "stage": "Dodaj plik do indeksu",
+    "fetch": "Pobierz zmiany",
+    "pull": "Scal pobrane zmiany",
+    "branches": "Gałęzie",
+    "branchName": "Nazwa nowej gałęzi",
+    "createBranch": "Utwórz gałąź",
+    "noFiles": "Nie znaleziono plików.",
+    "discard": "Odrzuć edycje",
+    "unsaved": "Zapisz lub odrzuć edycje przed otwarciem innego pliku.",
+    "truncated": "Ten diff jest skrócony. Odśwież, aby zobaczyć bieżące zmiany.",
+    "destination": "Cel SSH",
+    "hostKey": "Zweryfikowany klucz hosta",
+    "head": "Bieżący commit",
+    "networkConfirm": "Potwierdź {action} do {remote} na {ref} przy commicie {head}."
   }
 }

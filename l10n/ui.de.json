@@ -2500,5 +2500,32 @@
     "cancelled": "Die Aktion wurde abgebrochen.",
     "untrusted": "Vertrauen Sie dem Arbeitsbereich, bevor Sie Repository-Code ausführen.",
     "unsupported": "Diese Operation wird auf diesem Knoten nicht unterstützt."
+  },
+  "nodeWorkspace": {
+    "controlCharacter": "Steuerzeichen",
+    "selectionDeleted": "Auswahl gelöscht",
+    "currentBranch": "Aktueller Branch",
+    "refresh": "Aktualisieren",
+    "search": "Dateien suchen",
+    "path": "Dateipfad",
+    "save": "Datei speichern",
+    "saved": "Datei gespeichert.",
+    "diff": "Änderungen prüfen",
+    "original": "Gespeicherte Version",
+    "modified": "Bearbeitete Version",
+    "stage": "Datei vormerken",
+    "fetch": "Abrufen",
+    "pull": "Änderungen einbinden",
+    "branches": "Zweige",
+    "branchName": "Name des neuen Branches",
+    "createBranch": "Branch erstellen",
+    "noFiles": "Keine Dateien gefunden.",
+    "discard": "Bearbeitungen verwerfen",
+    "unsaved": "Speichern oder verwerfen Sie Ihre Änderungen, bevor Sie eine andere Datei öffnen.",
+    "truncated": "Dieser Diff ist gekürzt. Aktualisieren Sie die Ansicht für die aktuellen Änderungen.",
+    "destination": "SSH-Ziel",
+    "hostKey": "Verifizierter Hostschlüssel",
+    "head": "Aktueller Commit",
+    "networkConfirm": "Bestätigen Sie {action} zu {remote} auf {ref} bei {head}."
   }
 }

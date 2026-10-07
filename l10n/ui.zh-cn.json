@@ -2406,5 +2406,32 @@
     "cancelled": "操作已取消。",
     "untrusted": "请在运行仓库代码前信任工作区。",
     "unsupported": "此节点不支持此操作。"
+  },
+  "nodeWorkspace": {
+    "controlCharacter": "控制字符",
+    "selectionDeleted": "已删除选区",
+    "currentBranch": "当前分支",
+    "refresh": "刷新",
+    "search": "搜索文件",
+    "path": "文件路径",
+    "save": "保存文件",
+    "saved": "文件已保存。",
+    "diff": "查看更改",
+    "original": "已保存版本",
+    "modified": "已编辑版本",
+    "stage": "暂存文件",
+    "fetch": "获取更改",
+    "pull": "拉取更改",
+    "branches": "分支",
+    "branchName": "新分支名称",
+    "createBranch": "创建分支",
+    "noFiles": "未找到文件。",
+    "discard": "放弃编辑",
+    "unsaved": "打开另一个文件前，请保存或放弃编辑。",
+    "truncated": "此差异已截断。请刷新以查看当前更改。",
+    "destination": "SSH 目标",
+    "hostKey": "已验证的主机密钥",
+    "head": "当前提交",
+    "networkConfirm": "请确认在 {head} 的 {ref} 上对 {remote} 执行 {action}。"
   }
 }

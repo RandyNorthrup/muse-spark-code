@@ -2594,5 +2594,32 @@
     "cancelled": "L’action a été annulée.",
     "untrusted": "Faites confiance à l’espace de travail avant d’exécuter le code du dépôt.",
     "unsupported": "Cette opération n’est pas prise en charge sur ce nœud."
+  },
+  "nodeWorkspace": {
+    "controlCharacter": "Caractère de contrôle",
+    "selectionDeleted": "Sélection supprimée",
+    "currentBranch": "Branche actuelle",
+    "refresh": "Actualiser",
+    "search": "Rechercher des fichiers",
+    "path": "Chemin du fichier",
+    "save": "Enregistrer le fichier",
+    "saved": "Fichier enregistré.",
+    "diff": "Examiner les modifications",
+    "original": "Version enregistrée",
+    "modified": "Version modifiée",
+    "stage": "Indexer le fichier",
+    "fetch": "Récupérer",
+    "pull": "Intégrer les changements",
+    "branches": "Branches du dépôt",
+    "branchName": "Nom de la nouvelle branche",
+    "createBranch": "Créer une branche",
+    "noFiles": "Aucun fichier trouvé.",
+    "discard": "Abandonner les modifications",
+    "unsaved": "Enregistrez ou abandonnez vos modifications avant d’ouvrir un autre fichier.",
+    "truncated": "Ce diff est tronqué. Actualisez pour voir les modifications actuelles.",
+    "destination": "Destination SSH",
+    "hostKey": "Clé d’hôte vérifiée",
+    "head": "Commit actuel",
+    "networkConfirm": "Vérifiez {action} vers {remote} sur {ref} à partir de {head}."
   }
 }

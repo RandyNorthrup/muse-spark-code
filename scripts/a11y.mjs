@@ -25,6 +25,7 @@ import process from 'node:process'
 import { chromium } from 'playwright-core'
 import { findChrome } from './lib/chrome.mjs'
 import { harnessArgs, langQuery, prepareLang } from './lib/harnessLang.mjs'
+import { buildNodeWorkspace } from '../test/harness/build-node.mjs'
 import {
   HARNESS_PATH,
   LOOPBACK,
@@ -37,6 +38,9 @@ import {
 
 const THEMES = ['light', 'dark', 'hc-dark', 'hc-light']
 const BUNDLE_PATH = 'dist/webview/main.js'
+const NODE_CASES = ['node-files', 'node-editor', 'node-diff', 'node-git', 'node-git-confirm']
+const NODE_SCENARIOS = NODE_CASES.flatMap((name) => [name, `${name}-narrow`])
+const ALL_SCENARIOS = [...SCENARIOS, ...NODE_SCENARIOS]
 // The page the gate has always measured: what Chrome's 690x760 window left
 // for the page. A sized scenario (SIZED_SCENARIOS: a real 320 px panel, the
 // 1400 px column) is this tall at its own width.
@@ -112,8 +116,11 @@ async function scanWithScrollbars(chrome, url, sized) {
 
 /** One page: `{ violations }` from axe, or `{ error }` saying why there is none. */
 async function scan(chrome, context, port, page, lang) {
-  const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${page.scenario}&theme=${page.theme}&axe=1${langQuery(lang)}`
-  const sized = SIZED_SCENARIOS[page.scenario]
+  const isNode = NODE_SCENARIOS.includes(page.scenario)
+  const harness = isNode ? 'test/harness/node.html' : HARNESS_PATH
+  const url = `http://${LOOPBACK}:${String(port)}/${harness}?scenario=${page.scenario}&theme=${page.theme}&axe=1${langQuery(lang)}`
+  const sized =
+    isNode && page.scenario.endsWith('-narrow') ? { width: 320 } : SIZED_SCENARIOS[page.scenario]
   if (sized?.hasScrollbars === true) {
     try {
       return await scanWithScrollbars(chrome, url, sized)
@@ -207,12 +214,16 @@ async function main() {
     throw new Error('No Chrome install found; set CHROME_PATH to the browser executable')
   }
   const { lang, scenarios: requested } = harnessArgs(process.argv.slice(2))
-  const unknown = requested.filter((name) => !SCENARIOS.includes(name))
+  const unknown = requested.filter((name) => !ALL_SCENARIOS.includes(name))
   if (unknown.length > 0) {
     throw new Error(`Unknown scenario(s): ${unknown.join(', ')}`)
   }
   await prepareLang(repoRoot, lang)
-  const scenarios = requested.length > 0 ? requested : SCENARIOS
+  const scenarios = requested.length > 0 ? requested : ALL_SCENARIOS
+  if (scenarios.some((name) => NODE_SCENARIOS.includes(name))) {
+    const temporary = path.resolve('temp/u1-deps/node_modules')
+    await buildNodeWorkspace(undefined, existsSync(temporary) ? temporary : undefined)
+  }
   const pages = THEMES.flatMap((theme) => scenarios.map((scenario) => ({ scenario, theme })))
   const isWindows = process.platform === 'win32'
   const maxWorkers = isWindows ? WINDOWS_MAX_WORKERS : MAX_WORKERS

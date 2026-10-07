@@ -7,6 +7,7 @@
    (:disabled and :focus-visible before :hover:enabled). */
 
 :root {
+  --ms-node-workspace-padding: 12px;
   --ms-gap: 8px;
   --ms-radius: 6px;
   --ms-icon-size: 16px;

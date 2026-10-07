@@ -8,8 +8,8 @@
     "failures": [
       "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H10 refuses a workspace root reached through a symlink above that root"
     ],
-    "before": "243c6283a1b6c99bba1d47fb129ecfb864705ac820083f82d57842172f6eaeb2",
-    "restored": "243c6283a1b6c99bba1d47fb129ecfb864705ac820083f82d57842172f6eaeb2"
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
   },
   {
     "drill": "F-links",
@@ -20,8 +20,8 @@
     "failures": [
       "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H10 refuses leaf/ancestor symlinks and hard-linked files"
     ],
-    "before": "243c6283a1b6c99bba1d47fb129ecfb864705ac820083f82d57842172f6eaeb2",
-    "restored": "243c6283a1b6c99bba1d47fb129ecfb864705ac820083f82d57842172f6eaeb2"
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
   },
   {
     "drill": "F-hardlinks",
@@ -32,8 +32,8 @@
     "failures": [
       "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H10 refuses leaf/ancestor symlinks and hard-linked files"
     ],
-    "before": "243c6283a1b6c99bba1d47fb129ecfb864705ac820083f82d57842172f6eaeb2",
-    "restored": "243c6283a1b6c99bba1d47fb129ecfb864705ac820083f82d57842172f6eaeb2"
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
   },
   {
     "drill": "F-identity-recheck",
@@ -44,8 +44,8 @@
     "failures": [
       "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H10 refuses an ancestor swap during a held-file read before returning bytes"
     ],
-    "before": "243c6283a1b6c99bba1d47fb129ecfb864705ac820083f82d57842172f6eaeb2",
-    "restored": "243c6283a1b6c99bba1d47fb129ecfb864705ac820083f82d57842172f6eaeb2"
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
   },
   {
     "drill": "F-file-cap",
@@ -56,8 +56,8 @@
     "failures": [
       "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H09 rejects oversized files, multibyte writes and uploads before publication"
     ],
-    "before": "243c6283a1b6c99bba1d47fb129ecfb864705ac820083f82d57842172f6eaeb2",
-    "restored": "243c6283a1b6c99bba1d47fb129ecfb864705ac820083f82d57842172f6eaeb2"
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
   },
   {
     "drill": "F-upload-digest",
@@ -68,8 +68,8 @@
     "failures": [
       "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H10 rejects wrong upload digest and wrong publisher receipt"
     ],
-    "before": "243c6283a1b6c99bba1d47fb129ecfb864705ac820083f82d57842172f6eaeb2",
-    "restored": "243c6283a1b6c99bba1d47fb129ecfb864705ac820083f82d57842172f6eaeb2"
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
   },
   {
     "drill": "F-publication-digest",
@@ -80,8 +80,8 @@
     "failures": [
       "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H10 rejects wrong upload digest and wrong publisher receipt"
     ],
-    "before": "243c6283a1b6c99bba1d47fb129ecfb864705ac820083f82d57842172f6eaeb2",
-    "restored": "243c6283a1b6c99bba1d47fb129ecfb864705ac820083f82d57842172f6eaeb2"
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
   },
   {
     "drill": "B-params",
@@ -164,8 +164,8 @@
     "failures": [
       "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H09 stops a directory flood before inspecting invalid entries"
     ],
-    "before": "243c6283a1b6c99bba1d47fb129ecfb864705ac820083f82d57842172f6eaeb2",
-    "restored": "243c6283a1b6c99bba1d47fb129ecfb864705ac820083f82d57842172f6eaeb2"
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
   },
   {
     "drill": "F-cursors",
@@ -176,8 +176,8 @@
     "failures": [
       "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H09 refuses invalid or over-bound cursors before filesystem access"
     ],
-    "before": "243c6283a1b6c99bba1d47fb129ecfb864705ac820083f82d57842172f6eaeb2",
-    "restored": "243c6283a1b6c99bba1d47fb129ecfb864705ac820083f82d57842172f6eaeb2"
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
   },
   {
     "drill": "F-utf8",
@@ -188,7 +188,7 @@
     "failures": [
       "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > refuses unknown workspace, missing file, invalid UTF-8 and cancellation"
     ],
-    "before": "243c6283a1b6c99bba1d47fb129ecfb864705ac820083f82d57842172f6eaeb2",
-    "restored": "243c6283a1b6c99bba1d47fb129ecfb864705ac820083f82d57842172f6eaeb2"
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
   }
 ]

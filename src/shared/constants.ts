@@ -11,6 +11,14 @@ export const PRODUCT_NAME = 'Muse Spark'
 // M110a0 lane 0: standalone home-node bounds. No node module is loaded by
 // the extension; the service/companion bindings are separate runtime entries.
 export const NODE_PROTOCOL_VERSION = 1
+// M110-U1: independent browser surface and its virtual file tree.
+export const NODE_FILE_TREE_ROW_PX = 32
+export const NODE_FILE_TREE_VISIBLE_ROWS = 12
+export const NODE_FILE_TREE_OVERSCAN_ROWS = 4
+export const NODE_WORKSPACE_ASSET = './node/files/main.js'
+export const NODE_WORKSPACE_BUDGET_KIB = 375
+export const NODE_EDITOR_BUDGET_KIB = 600
+export const NODE_DIGEST_RADIX = 16
 // M110-N: owner-only durable service files and bounded lifecycle.
 export const NODE_DIRECTORY_MODE = 0o700
 export const NODE_FILE_MODE = 0o600

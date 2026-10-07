@@ -16,6 +16,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { DeferredReportDialog } from './components/DeferredReportDialog'
 import { type ErrorReporter, reportWebviewErrorMessage, webviewErrorReport } from './errorReport'
 import { vsCodeHostBridge } from './hostBridge'
+import { mountNodeSurface } from './bridges/nodeSurface'
 import { installEmbeddedTable } from './installTable'
 import { restoredUiState } from './state/snapshot'
 import { createUiStore, listenToHost, persistStore, type UiStore } from './state/store'
@@ -60,7 +61,11 @@ function CrashReportDialog({
   )
 }
 
-if (document.body.dataset['surface'] === 'tasks') {
+if (document.body.dataset['surface'] === 'node') {
+  const tableError = installEmbeddedTable(document)
+  if (tableError !== undefined) throw tableError
+  void mountNodeSurface(rootElement, ownScriptUrl)
+} else if (document.body.dataset['surface'] === 'tasks') {
   const api = acquireVsCodeApi()
   const tableError = installEmbeddedTable(document)
   if (tableError !== undefined) {

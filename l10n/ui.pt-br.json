@@ -2594,5 +2594,32 @@
     "cancelled": "A ação foi cancelada.",
     "untrusted": "Confie no espaço de trabalho antes de executar código do repositório.",
     "unsupported": "Esta operação não é suportada neste nó."
+  },
+  "nodeWorkspace": {
+    "controlCharacter": "Caractere de controle",
+    "selectionDeleted": "Seleção excluída",
+    "currentBranch": "Branch atual",
+    "refresh": "Atualizar",
+    "search": "Pesquisar arquivos",
+    "path": "Caminho do arquivo",
+    "save": "Salvar arquivo",
+    "saved": "Arquivo salvo.",
+    "diff": "Revisar alterações",
+    "original": "Versão salva",
+    "modified": "Versão editada",
+    "stage": "Preparar arquivo",
+    "fetch": "Buscar alterações",
+    "pull": "Integrar alterações",
+    "branches": "Ramificações",
+    "branchName": "Nome da nova branch",
+    "createBranch": "Criar branch",
+    "noFiles": "Nenhum arquivo encontrado.",
+    "discard": "Descartar edições",
+    "unsaved": "Salve ou descarte as edições antes de abrir outro arquivo.",
+    "truncated": "Esta diferença foi truncada. Atualize para ver as alterações atuais.",
+    "destination": "Destino SSH",
+    "hostKey": "Chave do host verificada",
+    "head": "Commit atual",
+    "networkConfirm": "Verifique {action} para {remote} na referência {ref} a partir de {head}."
   }
 }

@@ -17,13 +17,25 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as identity from '../../src/core/fs/fileIdentity'
 import * as filesystem from 'node:fs/promises'
 import { createNodeFileMethods, type NodeFileWorkspacePort } from '../../src/runtime/node/web/files'
-import { NODE_MAX_FILE_BYTES, NODE_MAX_PAGE_ITEMS } from '../../src/shared/constants'
+import { NODE_MAX_FILE_BYTES, NODE_MAX_PAGE_ITEMS, UI_TEXT } from '../../src/shared/constants'
 
 vi.mock('node:fs/promises', { spy: true })
 
 const directories: string[] = []
 const signal = () => new AbortController().signal
 const digest = (data: string | Uint8Array) => createHash('sha256').update(data).digest('hex')
+function atSecondIdentity(
+  update: (sample: Awaited<ReturnType<typeof identity.handleIdentity>>) => Promise<void> | void,
+) {
+  const actual = identity.handleIdentity
+  let samples = 0
+  vi.spyOn(identity, 'handleIdentity').mockImplementation(async (handle) => {
+    const result = await actual(handle)
+    samples += 1
+    if (samples === 2) await update(result)
+    return result
+  })
+}
 async function fixture() {
   const root = await realpath(await mkdtemp(path.join(tmpdir(), 'm110-u1-files-')))
   directories.push(root)
@@ -64,6 +76,18 @@ afterEach(async () => {
 })
 
 describe('M110-U1 files runtime boundary', () => {
+  it('H10 binds returned bytes to the parsed path even when the caller mutates its object', async () => {
+    const { methods, file, root, port } = await fixture()
+    port.root.mockImplementationOnce(() => {
+      file.path = 'src/other.txt'
+      return Promise.resolve(root)
+    })
+    expect(await methods.read(file, signal())).toEqual({
+      path: 'src/example.txt',
+      text: 'hello\n',
+      digest: digest('hello\n'),
+    })
+  })
   it('browses, searches, reads, saves and transfers exact bytes with digest preconditions', async () => {
     const { methods, file, port } = await fixture()
     const listed = await methods.list(
@@ -138,8 +162,10 @@ describe('M110-U1 files runtime boundary', () => {
       methods.read({ workspaceId: 'repo', path: 'linked/example.txt' }, signal()),
     ).rejects.toThrow()
     await link(path.join(root, file.path), path.join(root, 'hard.txt'))
+    const opening = vi.spyOn(filesystem, 'open')
     for (const name of ['linked/example.txt', 'leaf.txt', 'hard.txt'])
       await expect(methods.read({ workspaceId: 'repo', path: name }, signal())).rejects.toThrow()
+    expect(opening).not.toHaveBeenCalled()
   })
   it('H10 refuses a workspace root reached through a symlink above that root', async () => {
     const { root, port, file } = await fixture()
@@ -151,19 +177,107 @@ describe('M110-U1 files runtime boundary', () => {
   })
   it('H10 refuses an ancestor swap during a held-file read before returning bytes', async () => {
     const { root, methods, file } = await fixture()
-    const actual = identity.handleIdentity
-    let samples = 0
-    vi.spyOn(identity, 'handleIdentity').mockImplementation(async (handle) => {
-      const result = await actual(handle)
-      samples += 1
-      if (samples === 2) {
-        await rename(path.join(root, 'src'), path.join(root, 'moved'))
-        await mkdir(path.join(root, 'src'))
-        await writeFile(path.join(root, file.path), 'substitute')
-      }
-      return result
+    atSecondIdentity(async () => {
+      await rename(path.join(root, 'src'), path.join(root, 'moved'))
+      await mkdir(path.join(root, 'src'))
+      await writeFile(path.join(root, file.path), 'substitute')
     })
     await expect(methods.read(file, signal())).rejects.toThrow()
+  })
+  it('H10 refuses a hard link created after preflight and before the opened sample', async () => {
+    const { root, methods, file } = await fixture()
+    const actual = filesystem.open
+    vi.spyOn(filesystem, 'open').mockImplementationOnce(async (...args) => {
+      const handle = await actual(...args)
+      await link(path.join(root, file.path), path.join(root, 'late-hard.txt'))
+      return handle
+    })
+    await expect(methods.read(file, signal())).rejects.toThrow()
+  })
+  it.each(['inode', 'size'] as const)(
+    'H10 refuses a changed opened %s before reading any bytes',
+    async (kind) => {
+      const { root, methods, file } = await fixture()
+      const actual = filesystem.open
+      const reads: (() => number)[] = []
+      vi.spyOn(filesystem, 'open').mockImplementationOnce(async (...args) => {
+        if (kind === 'inode')
+          await rename(path.join(root, file.path), path.join(root, 'previous.txt'))
+        await writeFile(path.join(root, file.path), kind === 'inode' ? 'other\n' : 'larger\n')
+        const handle = await actual(...args)
+        const reading = vi.spyOn(handle, 'read')
+        reads.push(() => reading.mock.calls.length)
+        return handle
+      })
+      await expect(methods.read(file, signal())).rejects.toThrow(UI_TEXT.nodeErrors.conflict)
+      expect(reads.map((count) => count())).toEqual([0])
+    },
+  )
+  it.each(['size', 'mtimeNs', 'ctimeNs'] as const)(
+    'H10 refuses a changed opened-file %s before returning bytes',
+    async (field) => {
+      const { methods, file } = await fixture()
+      atSecondIdentity((sample) => {
+        Object.defineProperty(sample, field, { value: sample[field] + 1n })
+      })
+      await expect(methods.read(file, signal())).rejects.toThrow(UI_TEXT.nodeErrors.conflict)
+    },
+  )
+  it('H10 refuses a short held read instead of returning an empty success', async () => {
+    const { methods, file } = await fixture()
+    const actual = filesystem.open
+    vi.spyOn(filesystem, 'open').mockImplementationOnce(async (...args) => {
+      const handle = await actual(...args)
+      vi.spyOn(handle, 'read').mockResolvedValue({ bytesRead: 0, buffer: Buffer.alloc(0) })
+      return handle
+    })
+    await expect(methods.read(file, signal())).rejects.toThrow(UI_TEXT.nodeErrors.conflict)
+  })
+  it('H10 refuses a non-file leaf before opening it', async () => {
+    const { methods, root } = await fixture()
+    const actual = identity.lstatIdentity
+    // A filesystem can report one link for a directory. Its kind must
+    // independently refuse admission rather than relying on link count.
+    vi.spyOn(identity, 'lstatIdentity').mockImplementation(async (name) => {
+      const result = await actual(name)
+      if (name === path.join(root, 'src')) Object.defineProperty(result, 'nlink', { value: 1n })
+      return result
+    })
+    const opening = vi.spyOn(filesystem, 'open')
+    await expect(methods.read({ workspaceId: 'repo', path: 'src' }, signal())).rejects.toThrow()
+    expect(opening).not.toHaveBeenCalled()
+  })
+  it('H09 stops a file that grows during its bounded read before a final sample', async () => {
+    const { root, methods, file } = await fixture()
+    const actual = identity.handleIdentity
+    const samples = vi.spyOn(identity, 'handleIdentity').mockImplementationOnce(async (handle) => {
+      const result = await actual(handle)
+      await truncate(path.join(root, file.path), NODE_MAX_FILE_BYTES + 1)
+      return result
+    })
+    await expect(methods.read(file, signal())).rejects.toThrow(UI_TEXT.nodeErrors.tooLarge)
+    expect(samples).toHaveBeenCalledOnce()
+  })
+  it('H08 refuses cancelled reads and listings before workspace lookup', async () => {
+    const { methods, file, port } = await fixture()
+    const controller = new AbortController()
+    controller.abort()
+    await expect(methods.read(file, controller.signal)).rejects.toThrow()
+    await expect(
+      methods.list({ workspaceId: 'repo', directory: null, cursor: null }, controller.signal),
+    ).rejects.toThrow()
+    expect(port.root).not.toHaveBeenCalled()
+  })
+  it('H08 refuses lookup delivered after cancellation before path resolution', async () => {
+    const { methods, file, port, root } = await fixture()
+    const controller = new AbortController()
+    const resolving = vi.spyOn(filesystem, 'realpath').mockClear()
+    port.root.mockImplementationOnce(() => {
+      controller.abort()
+      return Promise.resolve(root)
+    })
+    await expect(methods.read(file, controller.signal)).rejects.toThrow()
+    expect(resolving).not.toHaveBeenCalled()
   })
   it('H09 rejects oversized files, multibyte writes and uploads before publication', async () => {
     const { root, methods, file, port } = await fixture()

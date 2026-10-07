@@ -94,7 +94,7 @@ async function readBytes(root: string, relative: string, signal: AbortSignal): P
   )
   try {
     const held = await handleIdentity(handle)
-    if (!sameFile(before, held) || held.size !== before.size)
+    if (!sameFile(before, held) || held.size !== before.size || held.nlink !== NODE_SINGLE_LINK)
       throw new Error(UI_TEXT.nodeErrors.conflict)
     const bytes = await boundedRead(handle, signal)
     const after = await handleIdentity(handle)
@@ -114,6 +114,7 @@ async function readBytes(root: string, relative: string, signal: AbortSignal): P
 }
 
 async function boundedRead(handle: FileHandle, signal: AbortSignal): Promise<Buffer> {
+  signal.throwIfAborted()
   const bytes = Buffer.alloc(NODE_MAX_FILE_BYTES + 1)
   let length = 0
   for (;;) {
@@ -144,6 +145,7 @@ export function createNodeFileMethods(port: NodeFileWorkspacePort) {
       ? nodeMethods['node/files/search'].params.parse(input)
       : nodeMethods['node/files/list'].params.parse(input)
     const offset = offsetOf(params.cursor)
+    signal.throwIfAborted()
     const root = await port.root(params.workspaceId, signal)
     const directory = 'directory' in params ? params.directory : null
     const entries: NodeMethodResult<'node/files/list'>['entries'] = []
@@ -192,7 +194,10 @@ export function createNodeFileMethods(port: NodeFileWorkspacePort) {
   }
   const transfer = async (input: NodeMethodParams<'node/files/read'>, signal: AbortSignal) => {
     const params = nodeMethods['node/files/read'].params.parse(input)
-    return await readBytes(await port.root(params.workspaceId, signal), params.path, signal)
+    signal.throwIfAborted()
+    const root = await port.root(params.workspaceId, signal)
+    signal.throwIfAborted()
+    return await readBytes(root, params.path, signal)
   }
   const publish = async (
     input: NodeMethodParams<'node/files/write'> | NodeMethodParams<'node/files/upload'>,
@@ -227,9 +232,10 @@ export function createNodeFileMethods(port: NodeFileWorkspacePort) {
     list: listing,
     search: listing,
     read: async (input: NodeMethodParams<'node/files/read'>, signal: AbortSignal) => {
-      const bytes = await transfer(input, signal)
+      const params = nodeMethods['node/files/read'].params.parse(input)
+      const bytes = await transfer(params, signal)
       return nodeMethods['node/files/read'].result.parse({
-        path: input.path,
+        path: params.path,
         text: new TextDecoder('utf-8', { fatal: true }).decode(bytes),
         digest: digest(bytes),
       })

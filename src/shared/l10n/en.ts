@@ -16,6 +16,33 @@
 import { forms } from './forms'
 
 export const EN = {
+  nodeWorkspace: {
+    controlCharacter: 'Control character',
+    selectionDeleted: 'Selection deleted',
+    currentBranch: 'Current branch',
+    refresh: 'Refresh',
+    search: 'Search files',
+    path: 'File path',
+    save: 'Save file',
+    saved: 'File saved.',
+    diff: 'Review changes',
+    original: 'Saved version',
+    modified: 'Edited version',
+    stage: 'Stage file',
+    fetch: 'Fetch',
+    pull: 'Pull',
+    branches: 'Branches',
+    branchName: 'New branch name',
+    createBranch: 'Create branch',
+    noFiles: 'No files found.',
+    discard: 'Discard edits',
+    unsaved: 'Save or discard your edits before opening another file.',
+    truncated: 'This diff is truncated. Refresh for the current changes.',
+    destination: 'SSH destination',
+    hostKey: 'Verified host key',
+    head: 'Current commit',
+    networkConfirm: 'Verify {action} to {remote} on {ref} at {head}.',
+  },
   // M110a0: node labels and messages; consumers read UI_TEXT at runtime.
   nodeLabels: {
     title: 'Muse Spark Code Node (Unofficial)',

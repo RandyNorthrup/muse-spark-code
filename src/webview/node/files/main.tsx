@@ -1,0 +1,333 @@
+import { createRoot } from 'react-dom/client'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import * as z from 'zod/mini'
+import {
+  NODE_MAX_FILE_BYTES,
+  NODE_DIGEST_RADIX,
+  WEBVIEW_L10N_ELEMENT_ID,
+  UI_TEXT,
+} from '../../../shared/constants'
+import { EN } from '../../../shared/l10n/en'
+import type { NodeMethodPort, NodeMethodResult } from '../../../shared/hostApi/nodeMethods'
+import { nodeIdentifierSchema } from '../../../shared/nodeAuth'
+import { nodeRelativePathSchema } from '../../../shared/node'
+import { validatedNodePort } from '../../bridges/nodePort'
+import { installEmbeddedTable } from '../../installTable'
+import { FileTree } from './FileTree'
+import { GitPage } from '../git/GitPage'
+import type { NodePageAuthPort } from '../git/network'
+import './workspace.css'
+
+const Editor = lazy(async () => {
+  const module = await import('../editor/Editor')
+  return { default: module.Editor }
+})
+const EditorDiff = lazy(async () => {
+  const module = await import('../editor/Editor')
+  return { default: module.EditorDiff }
+})
+
+export interface NodeWorkspaceBinding {
+  readonly port: NodeMethodPort
+  readonly auth: NodePageAuthPort
+  readonly workspaceId: string
+}
+
+export function mountNodeWorkspace(element: Element, binding: NodeWorkspaceBinding): () => void {
+  // The node build has an inline fallback for this surface's keys. Project
+  // the full host table onto that same set, then apply the unchanged table,
+  // template, plural and locale checks. Leave the caller's element untouched.
+  const page = document.createElement('div')
+  const embedded = document.querySelector(`#${WEBVIEW_L10N_ELEMENT_ID}`)
+  if (embedded !== null) {
+    const input = z
+      .strictObject({ locale: z.string(), table: z.record(z.string(), z.unknown()) })
+      .parse(JSON.parse(embedded.textContent))
+    const copy = document.createElement('script')
+    copy.type = 'application/json'
+    copy.id = WEBVIEW_L10N_ELEMENT_ID
+    copy.textContent = JSON.stringify({
+      locale: input.locale,
+      table: Object.fromEntries(
+        Object.entries(input.table).filter(([key]) => Object.hasOwn(EN, key)),
+      ),
+    })
+    page.append(copy)
+  }
+  const tableError = installEmbeddedTable(page)
+  if (tableError !== undefined) throw tableError
+  nodeIdentifierSchema.parse(binding.workspaceId)
+  const root = createRoot(element)
+  root.render(<NodeWorkspace {...binding} port={validatedNodePort(binding.port)} />)
+  return () => {
+    root.unmount()
+  }
+}
+
+function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
+  const [page, setPage] = useState<'files' | 'git'>('files')
+  const [opened, setOpened] = useState<NodeMethodResult<'node/files/read'>>()
+  const [draft, setDraft] = useState('')
+  const [path, setPath] = useState('')
+  const [review, setReview] = useState(false)
+  const [generation, setGeneration] = useState(0)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  const running = useRef<AbortController | undefined>(undefined)
+  useEffect(
+    () => () => {
+      running.current?.abort()
+    },
+    [],
+  )
+  const onError = useCallback((failure: unknown) => {
+    const message = failure instanceof Error ? failure.message : ''
+    setError(
+      Object.values(UI_TEXT.nodeErrors).includes(message) ||
+        message === UI_TEXT.nodeWorkspace.unsaved
+        ? message
+        : UI_TEXT.nodeErrors.unavailable,
+    )
+  }, [])
+  const run = useCallback(
+    (work: (signal: AbortSignal) => Promise<void>) => {
+      if (running.current !== undefined) return
+      const controller = new AbortController()
+      running.current = controller
+      setBusy(true)
+      setError('')
+      setNotice('')
+      void work(controller.signal)
+        .catch((error_: unknown) => {
+          if (!controller.signal.aborted) onError(error_)
+        })
+        .finally(() => {
+          if (running.current === controller) running.current = undefined
+          if (!controller.signal.aborted) setBusy(false)
+        })
+    },
+    [onError],
+  )
+  const openFile = (name: string) => {
+    if (opened !== undefined && draft !== opened.text) {
+      onError(new Error(UI_TEXT.nodeWorkspace.unsaved))
+      return
+    }
+    run(async (signal) => {
+      const file = await port.request('node/files/read', { workspaceId, path: name }, signal)
+      if (file.path !== name) throw new Error(UI_TEXT.nodeErrors.conflict)
+      if (signal.aborted) return
+      setOpened(file)
+      setDraft(file.text)
+      setPath(file.path)
+      setReview(false)
+      setGeneration((previous) => previous + 1)
+    })
+  }
+  const save = () => {
+    if (opened === undefined) return
+    const saved = draft
+    run(async (signal) => {
+      const result = await port.request(
+        'node/files/write',
+        { workspaceId, path: opened.path, expectedDigest: opened.digest, text: saved },
+        signal,
+      )
+      if (signal.aborted) {
+        return
+      }
+
+      setOpened({ ...opened, text: saved, digest: result.digest })
+      setNotice(UI_TEXT.nodeWorkspace.saved)
+    })
+  }
+  return (
+    <main className="node-workspace" aria-label={UI_TEXT.nodeLabels.title}>
+      <h1>{UI_TEXT.nodeLabels.title}</h1>
+      <nav aria-label={UI_TEXT.nodeLabels.title} className="node-actions">
+        <button
+          type="button"
+          aria-pressed={page === 'files'}
+          onClick={() => {
+            setPage('files')
+          }}
+        >
+          {UI_TEXT.nodeLabels.files}
+        </button>
+        <button
+          type="button"
+          aria-pressed={page === 'git'}
+          onClick={() => {
+            setPage('git')
+          }}
+        >
+          {UI_TEXT.nodeLabels.git}
+        </button>
+      </nav>
+      {error !== '' && <p role="alert">{error}</p>}
+      <p role="status">{notice}</p>
+      {busy && (
+        <button
+          type="button"
+          onClick={() => {
+            running.current?.abort()
+            running.current = undefined
+            setBusy(false)
+          }}
+        >
+          {UI_TEXT.gitCancel}
+        </button>
+      )}
+      <div hidden={page !== 'files'}>
+        <FileTree port={port} workspaceId={workspaceId} onOpen={openFile} onError={onError} />
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            openFile(path)
+          }}
+        >
+          <label>
+            {UI_TEXT.nodeWorkspace.path}
+            <input
+              value={path}
+              onChange={(event) => {
+                setPath(event.target.value)
+              }}
+            />
+          </label>
+          <button disabled={busy || path === ''} type="submit">
+            {UI_TEXT.nodeLabels.editor}
+          </button>
+        </form>
+        <label>
+          {UI_TEXT.nodeLabels.upload}
+          <input
+            type="file"
+            disabled={busy}
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              event.target.value = ''
+              if (file === undefined) return
+              if (file.size > NODE_MAX_FILE_BYTES) {
+                onError(new Error(UI_TEXT.nodeErrors.tooLarge))
+                return
+              }
+              run(async (signal) => {
+                const target = nodeRelativePathSchema.parse(path === '' ? file.name : path)
+                if (path !== '' && (opened?.path !== target || draft !== opened.text))
+                  throw new Error(UI_TEXT.nodeErrors.conflict)
+                const bytes = new Uint8Array(await file.arrayBuffer())
+                const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
+                // Base64 from exact bytes, never UTF-8 conversion of a binary upload.
+                const data = btoa(Array.from(bytes, (byte) => String.fromCodePoint(byte)).join(''))
+                const digest = Array.from(hash, (byte) =>
+                  byte.toString(NODE_DIGEST_RADIX).padStart(2, '0'),
+                ).join('')
+                await port.request(
+                  'node/files/upload',
+                  {
+                    workspaceId,
+                    path: target,
+                    expectedDigest: opened?.path === target ? opened.digest : null,
+                    data,
+                    digest,
+                  },
+                  signal,
+                )
+                if (!signal.aborted) setNotice(UI_TEXT.nodeWorkspace.saved)
+              })
+            }}
+          />
+        </label>
+        {opened !== undefined && (
+          <section
+            aria-label={UI_TEXT.nodeLabels.editor}
+            onKeyDown={(event) => {
+              if (!((event.ctrlKey || event.metaKey) && event.key === 's')) {
+                return
+              }
+
+              event.preventDefault()
+              if (!busy) save()
+            }}
+          >
+            <h2>{opened.path}</h2>
+            <div className="node-actions">
+              <button type="button" disabled={busy || draft === opened.text} onClick={save}>
+                {UI_TEXT.nodeWorkspace.save}
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  setReview((previous) => !previous)
+                }}
+                aria-pressed={review}
+              >
+                {UI_TEXT.nodeWorkspace.diff}
+              </button>
+              <button
+                type="button"
+                disabled={busy || draft === opened.text}
+                onClick={() => {
+                  setDraft(opened.text)
+                  setGeneration((previous) => previous + 1)
+                  setReview(false)
+                }}
+              >
+                {UI_TEXT.nodeWorkspace.discard}
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  run(async (signal) => {
+                    const result = await port.request(
+                      'node/files/download',
+                      { workspaceId, path: opened.path },
+                      signal,
+                    )
+                    const bytes = Uint8Array.from(
+                      atob(result.data),
+                      (character) => character.codePointAt(0) ?? 0,
+                    )
+                    const actual = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
+                    if (
+                      Array.from(actual, (byte) =>
+                        byte.toString(NODE_DIGEST_RADIX).padStart(2, '0'),
+                      ).join('') !== result.digest
+                    )
+                      throw new Error(UI_TEXT.nodeErrors.conflict)
+                    signal.throwIfAborted()
+                    const url = URL.createObjectURL(new Blob([bytes]))
+                    try {
+                      const link = document.createElement('a')
+                      link.href = url
+                      link.download = opened.path.split('/').at(-1) ?? ''
+                      link.click()
+                    } finally {
+                      URL.revokeObjectURL(url)
+                    }
+                  })
+                }}
+              >
+                {UI_TEXT.nodeLabels.download}
+              </button>
+            </div>
+            <Suspense fallback={<p data-deferred-loading="true">{UI_TEXT.nodeLabels.editor}</p>}>
+              {review ? (
+                <EditorDiff original={opened.text} modified={draft} />
+              ) : (
+                <Editor key={generation} text={draft} onChange={setDraft} />
+              )}
+            </Suspense>
+          </section>
+        )}
+      </div>
+      {page === 'git' && (
+        <GitPage port={port} auth={auth} workspaceId={workspaceId} run={run} busy={busy} />
+      )}
+    </main>
+  )
+}

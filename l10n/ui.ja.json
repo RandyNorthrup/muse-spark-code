@@ -2406,5 +2406,32 @@
     "cancelled": "操作はキャンセルされました。",
     "untrusted": "リポジトリのコードを実行する前にワークスペースを信頼してください。",
     "unsupported": "このノードではこの操作はサポートされていません。"
+  },
+  "nodeWorkspace": {
+    "controlCharacter": "制御文字",
+    "selectionDeleted": "選択範囲を削除しました",
+    "currentBranch": "現在のブランチ",
+    "refresh": "更新",
+    "search": "ファイルを検索",
+    "path": "ファイルパス",
+    "save": "ファイルを保存",
+    "saved": "ファイルを保存しました。",
+    "diff": "変更を確認",
+    "original": "保存済みの版",
+    "modified": "編集した版",
+    "stage": "ファイルをステージ",
+    "fetch": "変更を取得",
+    "pull": "変更を取り込む",
+    "branches": "ブランチ",
+    "branchName": "新しいブランチ名",
+    "createBranch": "ブランチを作成",
+    "noFiles": "ファイルが見つかりません。",
+    "discard": "編集を破棄",
+    "unsaved": "別のファイルを開く前に、編集を保存または破棄してください。",
+    "truncated": "差分の一部が省略されています。更新して現在の変更を確認してください。",
+    "destination": "SSH 接続先",
+    "hostKey": "検証済みのホスト鍵",
+    "head": "現在のコミット",
+    "networkConfirm": "{head} の {ref} で {remote} への {action} を確認してください。"
   }
 }

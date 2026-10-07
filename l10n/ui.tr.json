@@ -2500,5 +2500,32 @@
     "cancelled": "İşlem iptal edildi.",
     "untrusted": "Depo kodunu çalıştırmadan önce çalışma alanına güvenin.",
     "unsupported": "Bu işlem bu düğümde desteklenmiyor."
+  },
+  "nodeWorkspace": {
+    "controlCharacter": "Denetim karakteri",
+    "selectionDeleted": "Seçim silindi",
+    "currentBranch": "Geçerli dal",
+    "refresh": "Yenile",
+    "search": "Dosyaları ara",
+    "path": "Dosya yolu",
+    "save": "Dosyayı kaydet",
+    "saved": "Dosya kaydedildi.",
+    "diff": "Değişiklikleri incele",
+    "original": "Kaydedilen sürüm",
+    "modified": "Düzenlenen sürüm",
+    "stage": "Dosyayı hazırla",
+    "fetch": "Değişiklikleri getir",
+    "pull": "Değişiklikleri birleştir",
+    "branches": "Dallar",
+    "branchName": "Yeni dal adı",
+    "createBranch": "Dal oluştur",
+    "noFiles": "Dosya bulunamadı.",
+    "discard": "Düzenlemeleri at",
+    "unsaved": "Başka bir dosyayı açmadan önce düzenlemelerinizi kaydedin veya atın.",
+    "truncated": "Bu fark kısaltılmış. Güncel değişiklikler için yenileyin.",
+    "destination": "SSH hedefi",
+    "hostKey": "Doğrulanmış sunucu anahtarı",
+    "head": "Geçerli commit",
+    "networkConfirm": "{head} commitinde {ref} üzerindeki {remote} için {action} işlemini doğrulayın."
   }
 }
