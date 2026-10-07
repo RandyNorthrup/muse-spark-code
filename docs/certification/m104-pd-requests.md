@@ -32,5 +32,33 @@ Additional concrete requests:
   `check:reference` npm script are absent at `74b99c4a0`.
   `npm.cmd run check:reference` was attempted and fails with Missing script.
   No replacement or weakened check was added.
+- A/F: register the installed Windows suite in the required installed-host
+  Windows job, with the explicit editor/version artifact; register the terminal
+  unit suite in ordinary namespace discovery. The actual editor receipt is not
+  a portable fake test. Require the real prerequisite rather than skipping or
+  silently substituting an editor.
+- B/A: provide the reviewed native OS-terminal fallback for Visual Studio's
+  undeclared terminal group. VS Code implements all three frozen terminal
+  methods, with scrubbed child environments and ownership cleanup; it adds no
+  new command/setting. Run the same F23/F37 scenarios on both native routes.
+- F: include those terminal behaviors in the feature catalog/reference and
+  aggregate documentation. Native Visual Studio metadata reads the executable's
+  exact product version; `DTE.Version` reports only the compatibility moniker
+  `17.0` for this installed 17.14 build.
 
 No new translation key or shared schema field is requested at this checkpoint.
+
+Final plain `npm.cmd run deadcode` exits 1 with five real Windows execution
+entries missing from A's graph: `bootstrapFixture.mjs`,
+`installedVscode.test.mjs`, `terminalHostServices.test.ts`, `vitest.config.mjs`
+and `vscodeEntry.ts`, all under `test/m104/windows/`. Register their actual
+entry relationships, including the C# process fixture and the separate required
+installed-Windows job; do not ignore these files. The two existing configuration
+hints (`vendor/**`, `axe-core`) are not changed by this lane.
+
+F: regenerate and review `docs/ide-compatibility/host-api.md` with
+`npm.cmd run check:host-api -- --write`. The final check exits 1 because this
+F-owned source record still describes 349 APIs; the terminal adapter yields
+353, adding native terminal disposal/argv/environment/close-event usage and
+the new `node:crypto` reader. Then rerun the check without `--write`. No host API
+gate or generated record is bypassed in this lane.

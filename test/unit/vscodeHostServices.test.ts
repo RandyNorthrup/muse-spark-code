@@ -210,26 +210,28 @@ describe('VS Code HostServices in-process boundary', () => {
           })
           return Promise.resolve(true)
         })
-        const result =
-          operation === 'apply'
-            ? r.services.request('documents/applyEdits', edits, abort.signal)
-            : operation === 'insert'
-              ? r.services.request(
-                  'editor/insertAtCursor',
-                  {
-                    uri,
-                    expectedVersion: 1,
-                    position: span.start,
-                    text: 'new',
-                    undoLabel: 'Insert',
-                  },
-                  abort.signal,
-                )
-              : r.services.request(
-                  'editor/replaceSelection',
-                  { uri, expectedVersion: 1, range: span, text: 'new', undoLabel: 'Apply' },
-                  abort.signal,
-                )
+        const requests = {
+          apply: () => r.services.request('documents/applyEdits', edits, abort.signal),
+          insert: () =>
+            r.services.request(
+              'editor/insertAtCursor',
+              {
+                uri,
+                expectedVersion: 1,
+                position: span.start,
+                text: 'new',
+                undoLabel: 'Insert',
+              },
+              abort.signal,
+            ),
+          replace: () =>
+            r.services.request(
+              'editor/replaceSelection',
+              { uri, expectedVersion: 1, range: span, text: 'new', undoLabel: 'Apply' },
+              abort.signal,
+            ),
+        }
+        const result = requests[operation]()
         const code = {
           version: 'MHP_VERSION_CONFLICT',
           dirty: 'MHP_DIRTY_BUFFER',

@@ -20,6 +20,7 @@ it(
     await mkdir(workspace, { recursive: true })
     await mkdir(home, { recursive: true })
     await rm(receipt, { force: true })
+    await rm(path.join(workspace, 'terminal-clean.txt'), { force: true })
     await writeFile(
       path.join(workspace, 'unicode space Ω.ts'),
       "const value = '😀'\r\nconst other = 2\r\n",
@@ -66,6 +67,8 @@ it(
         USERPROFILE: home,
         APPDATA: path.join(home, 'AppData/Roaming'),
         LOCALAPPDATA: path.join(home, 'AppData/Local'),
+        // A synthetic marker, never a credential: the actual terminal must remove this name.
+        M104_FIXTURE_API_KEY: 'fixture-marker',
       },
       launchArgs: [
         workspace,
@@ -87,7 +90,7 @@ it(
       platform: 'win32',
       modelAttempts: 0,
     })
-    expect(result.receipts).toHaveLength(7)
+    expect(result.receipts).toHaveLength(8)
   },
   INSTALLED_EDITOR_TIMEOUT_MS,
 )

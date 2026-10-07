@@ -6,6 +6,6 @@ export default defineConfig({
   ...base,
   test: {
     ...base.test,
-    include: ['test/m104/windows/**/*.test.mjs', 'test/unit/vscodeHostServices.test.ts'],
+    include: ['test/m104/windows/**/*.test.{ts,mjs}', 'test/unit/vscodeHostServices.test.ts'],
   },
 })

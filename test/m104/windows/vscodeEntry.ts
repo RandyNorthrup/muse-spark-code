@@ -4,6 +4,10 @@ import * as vscode from 'vscode'
 import { createVscodeHostServices } from '../../../src/host/vscode/hostServices'
 import { COMMAND_IDS, EXTENSION_QUALIFIED_ID, MHP } from '../../../src/shared/constants'
 
+// A real Windows terminal writes and exits through the editor's pty host.
+const TERMINAL_POLL_ATTEMPTS = 100
+const TERMINAL_POLL_MS = 50
+
 /** Fresh host-service code runs in the installed editor; every file belongs to its fixture. */
 export async function run(): Promise<void> {
   const receipts: string[] = []
@@ -118,6 +122,49 @@ export async function run(): Promise<void> {
     receipts.push('native diagnostic collection is read with severity/range/code intact')
   } finally {
     diagnostics.dispose()
+  }
+
+  const terminalHost = createVscodeHostServices({ globalState: state, workspaceState: state })
+  assert.equal(process.env['M104_FIXTURE_API_KEY'], 'fixture-marker')
+  const terminalCount = vscode.window.terminals.length
+  try {
+    const created = await terminalHost.request('terminal/create', {
+      cwd: root.toString(),
+      executable: 'C:/Windows/System32/cmd.exe',
+      args: ['/d', '/q'],
+      env: {},
+    })
+    assert.equal(vscode.window.terminals.length, terminalCount + 1)
+    await terminalHost.request('terminal/show', created)
+    await terminalHost.request('terminal/sendText', {
+      ...created,
+      text: 'if defined M104_FIXTURE_API_KEY (echo M104_LEAK>terminal-clean.txt) else (echo M104_CLEAN>terminal-clean.txt)',
+      addNewLine: true,
+    })
+    const proof = vscode.Uri.joinPath(root, 'terminal-clean.txt')
+    let result: string | undefined
+    for (let attempt = 0; attempt < TERMINAL_POLL_ATTEMPTS; attempt++) {
+      try {
+        result = new TextDecoder().decode(await vscode.workspace.fs.readFile(proof)).trim()
+        if (result !== '') break
+      } catch (error) {
+        if (!(error instanceof vscode.FileSystemError) || error.code !== 'FileNotFound') throw error
+      }
+      await new Promise((resolve) => setTimeout(resolve, TERMINAL_POLL_MS))
+    }
+    assert.equal(result, 'M104_CLEAN')
+    receipts.push(
+      'real native terminal executes in the fixture cwd with credential environment removed',
+    )
+  } finally {
+    await terminalHost.request('shutdown', {})
+    for (
+      let attempt = 0;
+      attempt < TERMINAL_POLL_ATTEMPTS && vscode.window.terminals.length > terminalCount;
+      attempt++
+    )
+      await new Promise((resolve) => setTimeout(resolve, TERMINAL_POLL_MS))
+    assert.equal(vscode.window.terminals.length, terminalCount)
   }
 
   const result = await host.request('initialize', {

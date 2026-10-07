@@ -85,7 +85,8 @@ namespace MuseSpark.VisualStudio
             ["tokens"] = new JObject { ["--muse-editorBackground"] = Color(background), ["--muse-foreground"] = Color(foreground) }
           };
           surfaces.Theme = theme;
-          var version = (await GetServiceAsync(typeof(EnvDTE.DTE)) as EnvDTE.DTE)?.Version ?? throw new InvalidOperationException("MHP_HOST_VERSION_UNAVAILABLE");
+          var application = (await GetServiceAsync(typeof(EnvDTE.DTE)) as EnvDTE.DTE) ?? throw new InvalidOperationException("MHP_HOST_VERSION_UNAVAILABLE");
+          var version = System.Diagnostics.FileVersionInfo.GetVersionInfo(application.FullName).ProductVersion ?? throw new InvalidOperationException("MHP_HOST_VERSION_UNAVAILABLE");
           await runtime.Peer.InitializeAsync(new JObject
           {
             ["host"] = new JObject { ["id"] = "visual-studio", ["version"] = version },

@@ -2,8 +2,15 @@
 // Features with their own existing drivers are passed to composition explicitly;
 // unbound MHP methods refuse with a typed error rather than empty success.
 import * as vscode from 'vscode'
+import { randomUUID } from 'node:crypto'
 import type * as z from 'zod/mini'
-import { MHP, MHP_ERROR_CODES, SETTINGS_SECTION, VSCODE_COMMANDS } from '../../shared/constants'
+import {
+  MHP,
+  MHP_ERROR_CODES,
+  SETTINGS_SECTION,
+  UI_TEXT,
+  VSCODE_COMMANDS,
+} from '../../shared/constants'
 import { isMhpVersionSupported } from '../../shared/hostApi/capabilities'
 import {
   MHP_METHODS,
@@ -150,10 +157,25 @@ export function createVscodeHostServices(
   context: {
     readonly globalState: StatePort
     readonly workspaceState: StatePort
+    readonly subscriptions?: vscode.Disposable[]
   },
   options: VscodeHostOptions = {},
 ): HostServices {
   let isClosed = false
+  const terminals = new Map<MhpResult<'terminal/create'>['terminalId'], vscode.Terminal>()
+  let terminalEvents: vscode.Disposable | undefined
+  const closeTerminals = (): void => {
+    isClosed = true
+    terminalEvents?.dispose()
+    terminalEvents = undefined
+    for (const terminal of terminals.values()) terminal.dispose()
+    terminals.clear()
+  }
+  const ownedTerminal = (id: MhpParams<'terminal/show'>['terminalId']): vscode.Terminal => {
+    const terminal = terminals.get(id)
+    if (terminal === undefined) fail(MHP_ERROR_CODES.invalidParams, 'MHP_TERMINAL_UNAVAILABLE')
+    return terminal
+  }
   const handlers: HostServiceHandlers = {
     initialize: (params) => {
       if (!isMhpVersionSupported(params.protocolRange))
@@ -163,6 +185,7 @@ export function createVscodeHostServices(
     },
     shutdown: () => {
       isClosed = true
+      closeTerminals()
       return Promise.resolve(null)
     },
     'workspace/folders': () =>
@@ -305,6 +328,55 @@ export function createVscodeHostServices(
         title,
       )
       return null
+    },
+    'terminal/create': async (params, signal) => {
+      checkWorkspaceTrusted()
+      if (countSecretMatches(JSON.stringify(params), []) > 0)
+        fail(MHP_ERROR_CODES.permissionDenied, 'MHP_CREDENTIAL_REFUSED')
+      const cwd = vscode.Uri.parse(params.cwd)
+      if (cwd.scheme !== 'file') fail(MHP_ERROR_CODES.invalidParams, 'MHP_TERMINAL_CWD')
+      if (terminalEvents === undefined) {
+        terminalEvents = vscode.window.onDidCloseTerminal((closed) => {
+          for (const [id, terminal] of terminals) if (terminal === closed) terminals.delete(id)
+        })
+        context.subscriptions?.push({ dispose: closeTerminals })
+      }
+      const removed: Record<string, null> = {}
+      for (const name of Object.keys(process.env))
+        if (isCredentialVariable(name)) removed[name] = null
+      const terminalId = randomUUID()
+      const terminal = vscode.window.createTerminal({
+        name: UI_TEXT.fallbackTerminal,
+        cwd,
+        shellPath: params.executable,
+        shellArgs: params.args,
+        env: { ...removed, ...params.env },
+        strictEnv: false,
+      })
+      terminals.set(terminalId, terminal)
+      try {
+        // Native creation is already admitted; a late cancelled reply must release its child.
+        await Promise.resolve()
+        checkCancelled(signal)
+        checkWorkspaceTrusted()
+        if (isClosed) fail(MHP_ERROR_CODES.cancelled, 'MHP_HOST_CLOSED')
+        return { terminalId }
+      } catch (error) {
+        if (terminals.delete(terminalId)) terminal.dispose()
+        throw error
+      }
+    },
+    'terminal/show': (params) => {
+      checkWorkspaceTrusted()
+      ownedTerminal(params.terminalId).show(true)
+      return Promise.resolve(null)
+    },
+    'terminal/sendText': (params) => {
+      checkWorkspaceTrusted()
+      if (countSecretMatches(params.text, []) > 0)
+        fail(MHP_ERROR_CODES.permissionDenied, 'MHP_CREDENTIAL_REFUSED')
+      ownedTerminal(params.terminalId).sendText(params.text, params.addNewLine)
+      return Promise.resolve(null)
     },
     'diagnostics/get': ({ uri }) => {
       const entries =
