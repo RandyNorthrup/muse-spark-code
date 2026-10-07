@@ -18984,6 +18984,30 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### INT0180B — Complete the 0.18.0 integration (2026-10-07, linuxlt)
+
+Base `5abee29bd`, branch `int/0180b`. The assigned rig brief supersedes the
+legacy common-rule stop limit and permits exactly three ordered `--no-ff`
+merges: `main-0150` (`c22be5d0d`), `m105/e3-fix` (`b95323eee`), then
+`m117/w-fix3` (`c487fe828`). Preserve both sides, union translated keys,
+regenerate inventories, keep version 0.15.0 and new notes under Unreleased.
+Do not take the still-reviewed M108 D/X delta. No push, rebase, model calls or
+fabricated native artifacts.
+
+- [~] Merge the three named inputs in order with hooks enabled.
+- [ ] Repair every remaining test, vault-default and SAST failure by cause;
+      add failing-before/passing-after regressions and byte-exact guard drills.
+- [ ] Recover startup through first-use chunks and deduplication, retaining
+      its 751,411-byte regression cap. Shrink VSIX/account closure first;
+      only their caps may use measured universal bytes +5%, rounded up to
+      25 KiB, with measurement and rationale recorded under D6.
+- [ ] Diagnose full accessibility cost and run its complete harness alone.
+- [ ] Commit fixes, clone committed source fresh, `npm ci`, `CI=true`, and
+      run every exact Linux build.yml job serially at repository deadlines.
+      Genuine macOS helper preparation remains covered by hosted CI.
+- [ ] Add completion receipts to `docs/certification/int0180.md`, including
+      commands, counts, drills, cap measurements and any external blocker.
+
 ### INT0180 — Pre-integrate 0.18.0 on the 0.15.0 candidate (2026-10-07, linuxlt)
 
 Base `2b9059676`, branch `int/0180`. Merge only `int-m105-w`,
