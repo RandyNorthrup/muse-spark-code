@@ -296,6 +296,12 @@ describe('package.json manifest', () => {
       [COMMAND_IDS.moveToBackground]: CONTEXT_KEYS.canMoveToBackground,
       // The background tasks of the conversation in front of the user (M46).
       [COMMAND_IDS.stopBackgroundTasks]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
+      // Records the screen for the conversation in front of the user (M105).
+      [COMMAND_IDS.attachScreenRecording]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
+      // Attaches the newest saved recording to the conversation in front of the user (M105).
+      [COMMAND_IDS.attachLatestScreenRecording]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
+      // Deletes the conversation in front of the user's uploaded media (M105).
+      [COMMAND_IDS.deleteUploadedFiles]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
     })
     const registered: readonly string[] = Object.values(COMMAND_IDS)
     for (const command of palette.keys()) {
