@@ -182,7 +182,17 @@ describe('phase-2 judge production delivery', () => {
     expect(gate('check-bundle-split').status).toBe(0)
   })
 
-  // Each real-gate control has its own unchanged deadline on this Windows rig.
+  it(
+    'lists every phase-2 production member in the real VSIX inventory',
+    () => {
+      const listing = vsixListing()
+      for (const name of ['judgeP2', ...children.map((child) => child.name)])
+        expect(listing).toContain(`dist/${name}.js`)
+    },
+    REAL_VSIX_CASE_MS,
+  )
+
+  // Each real-gate control has its own unchanged deadline on this rig.
   it.each(
     targets.flatMap(([name, file]) => [...judgeFiles].map((source) => ({ name, file, source }))),
   )(
