@@ -376,6 +376,42 @@ describe('M108 J account aggregation', () => {
     ).toThrow()
   })
 
+  it('preserves fractional plan percentages and matches admission without money quantization', () => {
+    const f = usageFixture()
+    const threshold = 28.1234567892
+    f.catalog[0]!.accounts[0] = usageAccount('default', {
+      planWindowPercent: { 'five-hour': threshold },
+    })
+    for (const usedPercent of [28.1234567891, threshold, 28.1234567893, 0.00000001]) {
+      const limits = {
+        read: () => ({ planWindows: { 'five-hour': { usedPercent, resetAt: null } } }),
+      }
+      const report = readAccountUsage({
+        source: f.source,
+        catalog: f.catalog,
+        period: 'day',
+        now: USAGE_NOW,
+        limits,
+      })
+      const meter = report.accounts[0]!.meters[0]!
+      const triggers = evaluateAccountThresholds({
+        account: f.catalog[0]!.accounts[0],
+        provider: 'meta',
+        now: USAGE_NOW,
+        journal: {
+          read: () => {
+            throw new Error('No journal cap')
+          },
+        },
+        limits,
+      })
+      expect(meter.value).toBe(String(usedPercent))
+      expect(meter.threshold).toBe(String(threshold))
+      expect(meter.isReached).toBe(triggers.length > 0)
+      if (usedPercent < threshold) expect(meter.progress).toBeLessThan(100)
+    }
+  })
+
   it('matches independently generated journals and the admission evaluator for every account and user meter', () => {
     const f = usageFixture()
     f.records.length = 0

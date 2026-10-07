@@ -41,7 +41,10 @@ file reader, guessed vendor wire shape or substitute usage application.
 - **J-W-BUNDLE:** W owns build/size/split scripts. Give this section a separate
   lazy output and cap: measured size × 1.15, rounded up to 25 KiB. Existing
   startup/deferred caps stay unchanged. J will measure an isolated split
-  build and prove its dynamic graph before handing off the entry.
+  build and prove its dynamic graph before handing off the entry. Load the
+  emitted section stylesheet with that mount: esbuild's dynamic JavaScript
+  import does not install its CSS. The standalone fixture explicitly links
+  the generated stylesheet for its visual/accessibility checks.
 - **J-W-DOCS-HELP:** W owns README/CHANGELOG/manifest/reference. Describe the
   usage page's account grouping, liability, threshold meters and swap/spread/
   stop history. Add the feature catalog entry when M102/M95's catalog lands;
@@ -84,16 +87,22 @@ restored verification and standalone theme measurements are recorded below.
 
 ## Executed red drills
 
-All 36 mutations ran a complete owning test file with `--maxWorkers=3`, no
+All 44 mutations ran a complete owning test file with `--maxWorkers=3`, no
 filter, skip or timeout override. Each exited 1 at the named test, then restored
 its original bytes in `finally`; each SHA-256 comparison matched. Native DOM
 query/matcher failures count as named test failures just as Vitest assertions
 do. The private runner initially expected the latter error class only; it
 restored and then rechecked both accessibility mutations by their named FAIL
 records. No production fix or timeout change was needed for that runner check.
-After the observation-instant regression/fix, all existing drills were repeated
-on the final source plus three new boundary mutations. The bundle fixture uses
-the production build's automatic JSX mode.
+All drills were repeated on the final source after the observation-instant,
+plan-percentage and lint-style repairs. The bundle fixture uses the production build's
+automatic JSX mode.
+
+The final precision regressions first failed on the existing implementation:
+`28.1234567891` was reported as `28.12345679`, and `1e-8` percent was displayed
+as `0%`. The repairs preserve plan values/thresholds and T's comparison, show
+scientific fractions through the shared Intl helper, and retain its existing
+whole-percent default and precision-specific formatter cache.
 
 | Guard deliberately broken     | Named failing test                                                                                                | Owning file                   |
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------- |
@@ -133,13 +142,22 @@ the production build's automatic JSX mode.
 | observation-query-inclusive   | uses half-open local calendar periods for selected totals and each threshold meter                                | `accountUsage.test.ts`        |
 | observation-record-inclusive  | includes reservations and committed events at the observation instant and excludes future data                    | `accountUsage.test.ts`        |
 | observation-event-inclusive   | includes reservations and committed events at the observation instant and excludes future data                    | `accountUsage.test.ts`        |
+| plan-value-precision          | preserves fractional plan percentages and matches admission without money quantization                            | `accountUsage.test.ts`        |
+| plan-threshold-precision      | preserves fractional plan percentages and matches admission without money quantization                            | `accountUsage.test.ts`        |
+| plan-comparison-precision     | preserves fractional plan percentages and matches admission without money quantization                            | `accountUsage.test.ts`        |
+| plan-progress-below-threshold | preserves fractional plan percentages and matches admission without money quantization                            | `accountUsage.test.ts`        |
+| scientific-percentage-format  | preserves fractional and scientific percentages while keeping the shared whole-percent default                    | `accountUsageText.test.ts`    |
+| shared-percentage-precision   | preserves fractional and scientific percentages while keeping the shared whole-percent default                    | `accountUsageText.test.ts`    |
+| shared-percentage-cache       | preserves fractional and scientific percentages while keeping the shared whole-percent default                    | `accountUsageText.test.ts`    |
+| shared-percentage-default     | preserves fractional and scientific percentages while keeping the shared whole-percent default                    | `accountUsageText.test.ts`    |
 
 | Restored source                              | SHA-256                                                            |
 | -------------------------------------------- | ------------------------------------------------------------------ |
-| `src/core/usage/accountUsage.ts`             | `bfffa36a64e1969d6f5b6988c104cc25a3d9fd20b33ce6f5a1976cbea8b66d8e` |
-| `src/core/usage/usageText.ts`                | `31a5e26c749799e29c57b7ec5533b33a27151f44017a2e575105b4a708b8ff7f` |
+| `src/core/usage/accountUsage.ts`             | `b8aa9cadabfea772793f0a4e91ef23a55c4f78264196735914e569a5cc802ed2` |
+| `src/core/usage/usageText.ts`                | `63d6307ce2d7bceeef154d2523715588cea3861c43b5c21b5c9ce8c1a44975ca` |
 | `src/webview/usage/AccountsSection.tsx`      | `c57e817ebed0989df12e884eea091003a287b9ff86b787a14e0334c01c628c8f` |
 | `src/webview/usage/accountsSectionLoader.ts` | `4ca0df75ccdf8c15da95f7840ab65171078c6cb3050f0802c07cc1414744e910` |
+| `src/shared/l10n/text.ts`                    | `41e5e2197b38628f76756d9f04ab7292e216c5ebfc7b406c4a595920c4199fcc` |
 
 ## Scoped browser and bundle certification
 
@@ -160,8 +178,8 @@ failed; fixing the fixture asset path produced the eight successful checks.
 No timeout was raised and no shipped source changed for that fixture fix.
 
 An isolated split caller shares its already-eager React/locale dependencies.
-J's deferred JavaScript is **9,569 bytes / 9.345 KiB**, with **299 bytes** of
-section CSS. `(9569 + 299) / 1024 × 1.15`, rounded up to a 25 KiB multiple,
+J's deferred JavaScript is **9,572 bytes / 9.348 KiB**, with **299 bytes** of
+section CSS. `(9572 + 299) / 1024 × 1.15`, rounded up to a 25 KiB multiple,
 gives an independent **25 KiB** cap. The test enforces that cap and proves the
 component/formatters/USD helpers are absent from the caller's static graph;
 no aggregation, admission or host code enters the section graph. Both graph
@@ -171,12 +189,71 @@ caps. Existing installed graphs gain no J loader or section on this base.
 
 ## Verification handoff
 
+Final review repair within J's meter/text scope: plan percentages must retain
+their captured numeric precision rather than be quantized as nano-USD. Compare
+them exactly as T does, retain their decimal strings, and use the existing
+shared Intl `formatPercent` helper with optional fractional precision. Existing
+callers keep its zero-digit default. `src/shared/l10n/text.ts` has no assigned
+owner in M108's lanes table; this small required formatter extension avoids a
+local replacement of the mandated helper. No new feature, setting or gate.
+
 Dead-code analysis passes (the same two existing configuration hints).
 Duplication analysis passes with **zero clones**, unchanged zero threshold.
-Full typecheck passed all five projects before the final observation-time fix;
-final restored checks follow in the completion receipt. No aggregate quality,
+All five TypeScript projects passed after the percentage repair; the touched
+host and unit projects passed again after the final lint-style edit. No aggregate quality,
 full coverage/unit, installed editor or live calls: the rig brief assigns the
 full gate and missing installed bindings to W/the lead. No source or gate
 owned by another implementation lane is changed; shared string additions are
 explicitly authorized by this brief. PLAN/README/CHANGELOG/manifest/catalog,
 build/split/size scripts and bridge wiring remain named W handoffs above.
+
+## Final restored completion receipt
+
+All checks ran directly on Kubuntu in this worktree, serially with one heavy
+tool at a time. No test timeout override, filtered test, skip, install, changed
+gate, full coverage/quality run, live call or editor-specific implementation.
+The final lint failures (a preferred ternary and a redundant test non-null
+assertion) were fixed without suppression; all 44 drills were repeated and
+restoration hashes rechecked afterward.
+
+| Check                                                                                                                                | Result                                                                                 |
+| ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| `npx vitest run test/unit/accountUsage.test.ts test/unit/accountUsageText.test.ts test/unit/AccountsSection.test.tsx --maxWorkers=3` | 22 passed; default deadlines                                                           |
+| `npx vitest run test/unit/accountUsageBundle.test.mjs --maxWorkers=3`                                                                | 1 passed; default deadlines                                                            |
+| Complete `accountUsage.test.ts`, `TZ=America/Santiago` and `TZ=America/New_York`, three workers                                      | 13 passed in each; default deadlines                                                   |
+| `npm run typecheck`                                                                                                                  | All five projects passed after percentage repair                                       |
+| `npm run typecheck:host`, `npm run typecheck:unit`                                                                                   | Both passed again on final restored source                                             |
+| Changed TS/TSX/MJS ESLint, Prettier, section stylelint, `git diff --check`                                                           | Exit 0                                                                                 |
+| `npm run deadcode`, `npx jscpd`                                                                                                      | Exit 0; two existing config hints, zero clones                                         |
+| `node scripts/check-l10n.mjs`                                                                                                        | Exit 0; 14 tables, 164 manifest strings, 610 source files, zero problems               |
+| `node scripts/check-host-api.mjs`                                                                                                    | Exit 1; exact W-owned record update below                                              |
+| `npm run build`                                                                                                                      | Exit 0; all unchanged size/split/global/notice guards pass; 83 bundled-package notices |
+| Standalone real section, Chrome + axe, four captured themes × two widths                                                             | Eight passes, zero WCAG/contrast violations, zero horizontal overflow                  |
+| Deliberately broken guards                                                                                                           | 44 named failures, all restored byte-exact, final hashes matched                       |
+
+**J-W-HOST-API-RECORD:** regenerate/review W's existing
+`docs/ide-compatibility/host-api.md`. The executed gate prints exactly two
+changes: inherited P's `node:crypto` count **46 → 47**, already recorded on the
+base, and `src/webview/usage/AccountsSection.css` in the existing theme-variable
+source list. Theme variables stay **61**; the source still uses **332** VS Code
+APIs, **31** files importing VS Code, and **25** Node built-ins. J adds no host
+API/import or theme-variable count. W's generated record is left untouched.
+This remains a gate failure until W makes the documented update; no claim that
+the aggregate quality gate is green.
+
+| Production graph                 | Measured KiB |  Unchanged cap KiB |
+| -------------------------------- | -----------: | -----------------: |
+| Extension activation             |        440.3 |                600 |
+| Model API                        |        450.1 |                475 |
+| Checkpoint store                 |         76.9 |                225 |
+| Main webview with static imports |        897.7 |                900 |
+| Existing webview deferred cohort |         49.7 |                 50 |
+| ACP                              |        818.6 |                850 |
+| J's isolated deferred section JS |        9.348 | 25 independent cap |
+
+The initial implementation is committed as `3e6497bfd` with repository hooks
+on: staged ESLint/Prettier/stylelint and gitleaks all passed, no leaks. The final
+percentage repair and this receipt are committed with the same unmodified hooks.
+All work remains local for the lead; no push, merge or rebase. W's named M95/M102,
+mount/CSS/budget, help/reference/docs and host-record bindings remain explicit
+integration work, rather than installed product support on this base.

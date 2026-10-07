@@ -7,7 +7,7 @@ import {
   accountUsageText,
 } from '../../src/core/usage/usageText'
 import { EN } from '../../src/shared/l10n/en'
-import { setUiText } from '../../src/shared/l10n/text'
+import { formatPercent, setUiText } from '../../src/shared/l10n/text'
 import { USAGE_NOW, usageAccount, usageEvents, usageFixture } from './helpers/accounts/usage'
 
 afterEach(() => {
@@ -15,6 +15,26 @@ afterEach(() => {
 })
 
 describe('M108 J account text', () => {
+  it('preserves fractional and scientific percentages while keeping the shared whole-percent default', () => {
+    const meter = {
+      metric: 'planWindow',
+      window: 'five-hour',
+      unit: 'percent',
+      value: '28.1234567891',
+      threshold: '28.1234567892',
+      progress: 99,
+      isReached: false,
+      resetAt: null,
+    } as const
+    expect(accountUsageMeterText(meter).value).toBe('28.1234567891% / 28.1234567892%')
+    expect(accountUsageMeterText({ ...meter, value: '1e-8' }).value).toBe(
+      '0.00000001% / 28.1234567892%',
+    )
+    expect(formatPercent(42.5)).toBe('43%')
+    expect(formatPercent(42.5, 2)).toBe('42.5%')
+    expect(formatPercent(42.5)).toBe('43%')
+  })
+
   it('shows settled spend, separate liability and tokens without binary dollar artifacts or rounding down', () => {
     const f = usageFixture()
     const report = f.report()

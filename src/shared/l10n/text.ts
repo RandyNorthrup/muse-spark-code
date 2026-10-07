@@ -79,11 +79,12 @@ export function formatNumber(value: number): string {
   return numberFormat('number', {}).format(value)
 }
 
-/** A whole percentage, as the language writes one: 42% / 42 % / %42. */
-export function formatPercent(percent: number): string {
-  return numberFormat('percent', { style: 'percent', maximumFractionDigits: 0 }).format(
-    percent / PERCENT_DIVISOR,
-  )
+/** A percentage in the display language, whole by default: 42% / 42 % / %42. */
+export function formatPercent(percent: number, maximumFractionDigits = 0): string {
+  return numberFormat(`percent:${String(maximumFractionDigits)}`, {
+    style: 'percent',
+    maximumFractionDigits,
+  }).format(percent / PERCENT_DIVISOR)
 }
 
 /** An amount of US dollars as the language writes money: $1.46 / 1,46 $ / US$1.46. */

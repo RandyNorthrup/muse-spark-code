@@ -1,7 +1,7 @@
 // Shared account summary for M102's page and terminal/ACP text ports.
 import type { AccountEvent } from '../../shared/accounts'
 import { UI_TEXT } from '../../shared/constants'
-import { fill, formatDateTime, formatNumber, plural, uiLocale } from '../../shared/l10n/text'
+import { fill, formatDateTime, formatNumber, formatPercent, plural } from '../../shared/l10n/text'
 import { formatUsd, parseUsd } from '../../shared/usd'
 import type { AccountUsageMeter, AccountUsageReport, AccountUsageRow } from './accountUsage'
 
@@ -33,10 +33,12 @@ function metricLabel(metric: AccountUsageMeter['metric']): string {
 }
 
 function percent(value: string): string {
-  return new Intl.NumberFormat(uiLocale(), {
-    style: 'percent',
-    maximumFractionDigits: (value.split('.', 2)[1] ?? '').length,
-  }).format(Number(value) / 100)
+  const [mantissa = value, exponent = '0'] = value.split('e', 2)
+  const digits = Math.min(
+    100,
+    Math.max(0, (mantissa.split('.', 2)[1] ?? '').length - Number(exponent)),
+  )
+  return formatPercent(Number(value), digits)
 }
 
 function meterValue(meter: AccountUsageMeter, value: string): string {

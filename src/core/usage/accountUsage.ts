@@ -134,6 +134,12 @@ function progress(value: bigint, cap: bigint): number {
   return Number(value >= cap ? 100 : (value * fullPercent) / cap)
 }
 
+function percentProgress(value: number, threshold: number): number {
+  return threshold === 0 || value >= threshold
+    ? 100
+    : Math.min(100 - 1, Math.floor((value / threshold) * 100))
+}
+
 function metersFor(
   thresholds: AccountThresholds,
   records: readonly z.infer<typeof recordSchema>[],
@@ -169,18 +175,17 @@ function metersFor(
   for (const [window, threshold] of windows) {
     const live = snapshot?.planWindows?.[window]
     const resetAt = live === undefined ? null : resetSchema.parse(live.resetAt)
-    const used = live === undefined ? null : parseUsd(percentage.parse(live.usedPercent))
+    const used = live === undefined ? null : percentage.parse(live.usedPercent)
     const isAvailable = used !== null && isActive(resetAt)
-    const cap = parseUsd(threshold)
     meters.push({
       metric: 'planWindow',
       window,
       unit: 'percent',
-      threshold: usdDecimal(cap),
+      threshold: String(threshold),
       resetAt,
-      value: isAvailable ? usdDecimal(used) : null,
-      progress: isAvailable ? progress(used, cap) : null,
-      isReached: isAvailable ? used >= cap : null,
+      value: isAvailable ? String(used) : null,
+      progress: isAvailable ? percentProgress(used, threshold) : null,
+      isReached: isAvailable ? used >= threshold : null,
     })
   }
   for (const window of ['requests', 'tokens'] as const) {
