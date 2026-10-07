@@ -18797,20 +18797,22 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
       full benchmark in `beforeAll` at the default hook deadline. Control the
       browser fixture's server clock so valid sessions do not expire under load;
       expiry remains an explicit clock advance, with real browser/socket timers.
-- [ ] Reproduce static gates and the native dictation build/disclaim job. Fix
+- [x] Reproduce static gates and the native dictation build/disclaim job. Fix
       causes without changing gates, budgets, test deadlines or assertions.
-- [ ] Repair the full-shard `checkSlots` fixture cost: create its immutable Git
+- [x] Repair the full-shard `checkSlots` fixture cost: create its immutable Git
       baseline once in `beforeAll`, copy it per isolated case, and certify each
       descendant/transport-failure scenario as its own test at the default
       deadline. Preserve real snapshot, install, credential and cache checks.
-- [ ] Start the forced browser-restart discovery phase after bounded runtime
+- [x] Start the forced browser-restart discovery phase after bounded runtime
       preparation completes (or the check ends). A first verified download must
       not spend the unchanged discovery poll budget before the browser exists.
       Preserve every restart, resolver, proxy, challenge and cleanup assertion.
-- [ ] Commit locally with normal hooks and explicit paths, then verify all four
-      coverage shards, merged coverage and every macOS pull-request workflow job
-      from fresh clones with Node 22 and `CI=true`, including installed packages.
-- [ ] Record macOS round 3 results and byte-exact regression drills in
+- [x] Commit locally with normal hooks and explicit paths, then reproduce all four
+      coverage shards, merged coverage and each locally runnable macOS workflow
+      job from fresh clones with Node 22 and `CI=true`, including installed
+      packages. Report shared failures and the installed E5 timeout; record
+      hosted W as unverified. These receipts do not claim all macOS CI jobs pass.
+- [x] Record macOS round 3 results and byte-exact regression drills in
       `docs/certification/train-0.15.0.md`. No merge, rebase, push, credential
       disclosure, live or paid model call is authorized.
 
