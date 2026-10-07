@@ -1659,6 +1659,7 @@ async function activateWindow(
   lifecycle.shutdown = async () => {
     nativeStarts.abort()
     accountHosts.close()
+    await promptHost?.dispose()
     await auth.stopSignIn()
     await restartBackend('the window is closing', true)
   }
@@ -3209,9 +3210,17 @@ async function activateWindow(
         })
         return
       }
-      void (message.type === 'sharingAction'
-        ? sharing().handle(surface, message)
-        : controllerFor(surface).handle(message))
+      if (message.type === 'sharingAction') {
+        void (async () => {
+          try {
+            await sharing().handle(surface, message)
+          } catch (error: unknown) {
+            logRejection(log, 'sharing action')(error)
+          }
+        })()
+        return
+      }
+      void controllerFor(surface).handle(message)
     },
   }
 
@@ -3268,7 +3277,13 @@ async function activateWindow(
       UI_TEXT,
       uiLocale(),
     ))
-  const syncPrompts = () => sharing().run('synchronise')
+  const syncPrompts = async () => {
+    try {
+      await sharing().run('synchronise')
+    } catch (error: unknown) {
+      logRejection(log, 'prompt sync')(error)
+    }
+  }
   if (
     vscode.workspace.getConfiguration(SETTINGS_SECTION).inspect<boolean>(PROMPT_SYNC_SETTING)
       ?.globalValue

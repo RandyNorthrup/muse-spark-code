@@ -39,10 +39,15 @@ vi.mock('vscode', async (importOriginal) => {
   }
 })
 const roots: string[] = []
+const contexts: PromptActivationPorts['context'][] = []
 afterEach(async () => {
+  // Windows cannot remove the store while an admitted mirror write is still running.
+  for (const context of contexts.splice(0))
+    for (const item of context.subscriptions) await item.dispose()
   control.isSyncOn = false
   control.listeners.length = 0
   vi.resetAllMocks()
+  vi.restoreAllMocks()
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
 })
 async function rig() {
@@ -77,6 +82,7 @@ async function rig() {
     },
     log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), trace: vi.fn() },
   }
+  contexts.push(ports.context)
   return { root, ports, surface, post, get, update, setKeysForSync }
 }
 
@@ -159,6 +165,7 @@ describe('M118 prompt host lifecycle', () => {
       webFetchBundle: t.ports.webFetch,
       paid: { affects: () => false },
       registerLoggedCommand: vi.fn(() => ({ dispose: () => undefined })),
+      logRejection: () => t.ports.log.warn,
       log: t.ports.log,
     })
     expect(loads).not.toHaveBeenCalled()
@@ -184,5 +191,62 @@ describe('M118 prompt host lifecycle', () => {
     for (const listener of control.listeners) listener(event)
     expect(t.setKeysForSync).toHaveBeenLastCalledWith(expect.not.arrayContaining([PROMPT_SYNC_KEY]))
     expect(control.listeners).toHaveLength(1)
+    for (const item of t.ports.context.subscriptions) await item.dispose()
+  })
+
+  it('owns the second mirror merge until disposal settles and rejects later operations', async () => {
+    const t = await rig()
+    control.isSyncOn = true
+    t.get.mockReturnValue([savedPromptFixture])
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const originalWrite = PromptStore.prototype.write
+    let isWriteFinished = false
+    const write = vi
+      .spyOn(PromptStore.prototype, 'write')
+      .mockImplementationOnce(originalWrite)
+      .mockImplementationOnce(async function (this: PromptStore, prompt, keepNewer) {
+        entered.resolve(undefined)
+        await release.promise
+        await originalWrite.call(this, prompt, keepNewer)
+        isWriteFinished = true
+      })
+    const host = createPromptHost(t.ports, EN, 'en')
+    const syncing = host.run('synchronise')
+    await entered.promise
+    const disposing = host.dispose()
+    let isDisposed = false
+    void disposing.then(() => {
+      isDisposed = true
+    })
+    try {
+      expect(t.update).toHaveBeenCalledOnce()
+      expect(t.ports.context.subscriptions).toContain(host)
+      expect(host.dispose()).toBe(disposing)
+      await expect(host.run('synchronise')).rejects.toThrow(EN.shareCancelled)
+      await expect(
+        host.handle(t.surface, {
+          type: 'sharingAction',
+          id: 'late-save',
+          action: 'saveText',
+          payload: { text: 'Late' },
+        }),
+      ).rejects.toThrow(EN.shareCancelled)
+      host.close(t.surface)
+      expect(isDisposed).toBe(false)
+      expect(isWriteFinished).toBe(false)
+      expect(write).toHaveBeenCalledTimes(2)
+    } finally {
+      release.resolve(undefined)
+      await syncing
+      await disposing
+    }
+    expect(isWriteFinished).toBe(true)
+    expect(isDisposed).toBe(true)
+    expect(t.update).toHaveBeenCalledTimes(2)
+    expect(t.ports.log.warn).not.toHaveBeenCalled()
+    // No retries: removing storage immediately after awaited disposal must succeed.
+    await rm(t.root, { recursive: true, force: true })
+    await expect(stat(t.root)).rejects.toMatchObject({ code: 'ENOENT' })
   })
 })

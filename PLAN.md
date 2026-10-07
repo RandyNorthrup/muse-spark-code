@@ -29113,6 +29113,12 @@ cloudInit)`, `status(id)`, `delete(id)`, and nothing else; each adapter's
 ### M118 — Prompt and chat sharing (D98)
 
 **Status 2026-10-06: phase 1 integrated on M118INT; bounded rig certification complete.**
+**FIX0144W follow-up (2026-10-06).** Give the lazy prompt host one lifetime
+owner that rejects new operations during disposal and awaits admitted work,
+including startup/configuration mirror merges. Extension deactivation and
+Windows test cleanup await that owner before storage is removed. Prove the
+drain and admission guards with paused-write regressions and restored red
+drills; run the M118 prompt/sharing files three times at repository defaults.
 The shared React/VS Code and CLI/ACP bindings are implemented. Native/companion
 MHP mounting waits for M104; the TUI waits for M110a0 lane T. Installed-editor
 parity and the hosted full gate remain unclaimed. About 34 lane-hours. No model call is needed.
@@ -29482,6 +29488,13 @@ Authority: the rig brief and lead decisions, refining D92/M112 from
       Q/A/editor integration handoffs. No merge, push, dependency or gate widening.
 
 ## 7. Gates
+
+**FIX0144W bounded Windows repair (2026-10-06).** The rig/shared brief
+prohibits aggregate quality and unlisted merges. Scoped default-timeout M118
+tests, typecheck, changed-file lint/format and individual static/build checks
+certify this local commit; the lead retains full hosted quality and release
+publication. No timeout, retry, threshold, rule or cap is widened. See
+`docs/certification/m118.md` for the lifetime regression and drill receipts.
 
 **REL0144 bounded release verification (2026-10-06, Kubuntu).** The rig brief
 requires the complete configured Vitest suite in at-most-three-file batches

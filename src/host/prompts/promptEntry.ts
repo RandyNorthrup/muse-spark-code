@@ -624,69 +624,102 @@ function readSurface(
 /** Factory exports one callable boundary; policy and credentials are adapted only after first use. */
 export function createPromptHost(ports: PromptActivationPorts, table: UiText, locale: string) {
   setUiText(table, locale)
-  return {
-    run: async (command: string, input?: unknown) => {
-      if (command === 'synchronise') {
-        try {
-          await runHostPromptCommand(command, input, ports, table, locale)
-          return
-        } catch (error_: unknown) {
-          ports.log.warn(safePromptFailure(error_).message)
+  const inFlight = new Set<Promise<void>>()
+  let isDisposed = false
+  let disposal: Promise<void> | undefined
+  const track = async (run: () => Promise<void>): Promise<void> => {
+    if (isDisposed) throw new Error(UI_TEXT.shareCancelled)
+    const pending = run()
+    inFlight.add(pending)
+    try {
+      await pending
+    } finally {
+      inFlight.delete(pending)
+    }
+  }
+  const host = {
+    run: (command: string, input?: unknown) =>
+      track(async () => {
+        if (command === 'synchronise') {
+          try {
+            await runHostPromptCommand(command, input, ports, table, locale)
+            return
+          } catch (error_: unknown) {
+            ports.log.warn(safePromptFailure(error_).message)
+            return
+          }
+        }
+        if (command === PROMPT_COMMAND_IDS.shareChat) {
+          const surface = ports.registry.active
+          if (surface === undefined) throw new Error(UI_TEXT.exportNothing)
+          surface.post({ type: 'openSharing', surface: 'chat' })
           return
         }
-      }
-      if (command === PROMPT_COMMAND_IDS.shareChat) {
-        const surface = ports.registry.active
-        if (surface === undefined) throw new Error(UI_TEXT.exportNothing)
-        surface.post({ type: 'openSharing', surface: 'chat' })
-        return
-      }
-      for (const name of ['save', 'use', 'library', 'copyToUser', 'sharePrompt'] as const) {
-        if (PROMPT_COMMAND_IDS[name] !== command) continue
-        await runHostPromptCommand(name, input, ports, table, locale)
-        return
-      }
-      throw new Error(UI_TEXT.promptFileInvalid)
-    },
+        for (const name of ['save', 'use', 'library', 'copyToUser', 'sharePrompt'] as const) {
+          if (PROMPT_COMMAND_IDS[name] !== command) continue
+          await runHostPromptCommand(name, input, ports, table, locale)
+          return
+        }
+        throw new Error(UI_TEXT.promptFileInvalid)
+      }),
     ready: (surface: ChatSurface) => {
       promptEvents.get(ports)?.ready(surface)
     },
     close: (surface: ChatSurface) => {
+      if (isDisposed) return
       promptEvents.get(ports)?.closed(surface)
       closeSharingSurface(surface)
       const pending = hosts.get(nativeDeps(ports))
       if (pending !== undefined)
-        void pending
-          .then((commands) => commands.panel('invalidate', {}))
-          .catch((error_: unknown) => {
-            ports.log.warn(safePromptFailure(error_).message)
-          })
+        void track(async () => {
+          const commands = await pending
+          await commands.panel('invalidate', {})
+        }).catch((error_: unknown) => {
+          ports.log.warn(safePromptFailure(error_).message)
+        })
     },
-    handle: async (
+    handle: (
       surface: ChatSurface,
       message: Extract<ConversationMessage, { type: 'sharingAction' }>,
-    ) => {
-      if (!ports.registry.has(surface)) return
-      try {
-        const value = await handleSharingAction(
-          surface,
-          message.action,
-          message.payload,
-          ports,
-          table,
-          locale,
-        )
-        if (ports.registry.has(surface))
-          surface.post({ type: 'sharingResult', id: message.id, value })
-      } catch (error: unknown) {
-        if (ports.registry.has(surface))
-          surface.post({
-            type: 'sharingResult',
-            id: message.id,
-            value: undefined,
-            error: safePromptFailure(error).message,
-          })
-      }
+    ) =>
+      track(async () => {
+        if (!ports.registry.has(surface)) return
+        try {
+          const value = await handleSharingAction(
+            surface,
+            message.action,
+            message.payload,
+            ports,
+            table,
+            locale,
+          )
+          if (ports.registry.has(surface))
+            surface.post({ type: 'sharingResult', id: message.id, value })
+        } catch (error: unknown) {
+          if (ports.registry.has(surface))
+            surface.post({
+              type: 'sharingResult',
+              id: message.id,
+              value: undefined,
+              error: safePromptFailure(error).message,
+            })
+        }
+      }),
+    dispose: (): Promise<void> => {
+      if (disposal !== undefined) return disposal
+      isDisposed = true
+      // Initialisation can publish the mirror before a second merge finishes.
+      // Keep ownership until every admitted operation has closed its file handles.
+      disposal = (async () => {
+        await Promise.allSettled(inFlight)
+        const deps = nativeHosts.get(ports)
+        if (deps !== undefined) hosts.delete(deps)
+        nativeHosts.delete(ports)
+        promptEvents.delete(ports)
+      })()
+      return disposal
     },
   }
+  ports.context.subscriptions.push(host)
+  return host
 }

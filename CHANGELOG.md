@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Prompt host shutdown awaits mirror merges and other admitted operations
+  before releasing storage, preventing Windows cleanup from racing a sync write.
 - Browser package tests build the chat, Help and What's New pages themselves,
   so a clean CI shard needs no artifacts from an earlier production build.
 - The installed ACP help check validates its complete localization table,
