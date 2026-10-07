@@ -65,6 +65,7 @@ export interface ReportsServices {
   readonly compare?: (before: ReportDocument, after: ReportDocument) => ReportDiff
   readonly renderDiff?: (
     diff: ReportDiff,
+    document: ReportDocument,
     format: Format,
     locale: string,
     theme: ReportTheme,
@@ -164,7 +165,7 @@ async function comparison(
     diff.to.contentHash !== document.header.contentHash
   )
     throw new Error(deps.text.reportUi.generationFailed)
-  return renderDiff(diff, request.format, locale, deps.theme)
+  return renderDiff(diff, document, request.format, locale, deps.theme)
 }
 
 /** stdout contains only the exact rendered artifact; diagnostics are fixed, localized words. */

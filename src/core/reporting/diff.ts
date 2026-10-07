@@ -1,5 +1,10 @@
 import { createHash } from 'node:crypto'
-import { REPORT_MAX_ROWS, REPORT_SECTION_ROWS, UI_TEXT } from '../../shared/constants'
+import {
+  REPORT_DIFF_KEY_DIGEST_HALF,
+  REPORT_MAX_ROWS,
+  REPORT_SECTION_ROWS,
+  UI_TEXT,
+} from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import {
   reportDiffSchema,
@@ -94,10 +99,13 @@ export function reportDiffSection(input: ReportDiff, isFull = false): ReportSect
   ) => {
     total += 1
     if (rows.length >= maximum) return
+    // Split the digest: a bare 64-hex run reads as a key digest to the
+    // credential scrub, which would collapse every row key to the same mark.
+    const digest = createHash('sha256')
+      .update(JSON.stringify([namespace, section.id, key, field]))
+      .digest('hex')
     rows.push({
-      key: createHash('sha256')
-        .update(JSON.stringify([namespace, section.id, key, field]))
-        .digest('hex'),
+      key: `${digest.slice(0, REPORT_DIFF_KEY_DIGEST_HALF)}-${digest.slice(REPORT_DIFF_KEY_DIGEST_HALF)}`,
       cells: {
         section: { type: 'label', value: section.label },
         row: { type: 'text', value: key },

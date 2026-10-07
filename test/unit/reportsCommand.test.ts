@@ -323,7 +323,7 @@ describe('M113 reports command', () => {
     expect(
       await runReportsCommand(['project', '--diff', 'old.json', '--format', 'text'], deps),
     ).toBe(0)
-    expect(renderDiff.mock.lastCall?.[1]).toBe('text')
+    expect(renderDiff.mock.lastCall?.[2]).toBe('text')
     expect(compare).toHaveBeenCalledTimes(2)
     expect(
       await runReportsCommand(['project', '--diff', 'previous'], {

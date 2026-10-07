@@ -3,9 +3,12 @@ import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterEach, describe, expect, it } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
-import { createReportingEngine } from '../../src/runtime/reporting/engine'
+import { createReportingEngine, createReportingServices } from '../../src/runtime/reporting/engine'
 import { reportWorkspaceKey } from '../../src/core/reporting/sources/local'
+import { compareReports } from '../../src/core/reporting/diff'
+import { finalizeReport } from '../../src/core/reporting/render/canonical'
 import { REPORT_AS_OF } from './helpers/reporting/runtime'
+import { reportDocument } from './helpers/reporting/snapshot'
 import { REPORT_THEME } from './reportRenderFixtures'
 import { referenceModel as nodeReference } from '../../src/runtime/reference.node.generated'
 import { referenceModel } from '../../src/shared/reference/reference.generated'
@@ -68,5 +71,54 @@ describe('the bound report engine', () => {
   })
   it('uses the exact same generated reference model in the compressed Node entry', () => {
     expect(nodeReference()).toEqual(referenceModel())
+  })
+  it('renders a changed comparison in every format from verified reports', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'report-engine-diff-'))
+    roots.push(root)
+    const services = createReportingServices({
+      workspaceRoot: root,
+      storageRoot: path.join(root, 'data'),
+      l10n: { table: EN, locale: 'en' },
+      generatorVersion: '0.0.0-test',
+      keepHistory: false,
+      enabledAgents: [],
+    })
+    const before = finalizeReport(reportDocument())
+    const changed = reportDocument()
+    changed.sections[0]!.rows[0]!.cells['state'] = { type: 'label', value: 'merged' }
+    const after = finalizeReport(changed)
+    const diff = compareReports(before, after)
+    const renderDiff = services.renderDiff
+    if (renderDiff === undefined) throw new Error('Expected a diff renderer')
+    for (const format of ['md', 'html', 'json', 'text'] as const) {
+      const rendered = renderDiff(diff, after, format, 'en', REPORT_THEME)
+      expect(rendered).toContain('M12')
+      expect(rendered).not.toContain('Invalid report document')
+    }
+    expect(renderDiff(diff, after, 'json', 'en', REPORT_THEME)).toContain('"id": "diff"')
+  })
+  it('renders identical reports in HTML and JSON instead of failing the comparison', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'report-engine-diff-'))
+    roots.push(root)
+    const services = createReportingServices({
+      workspaceRoot: root,
+      storageRoot: path.join(root, 'data'),
+      l10n: { table: EN, locale: 'en' },
+      generatorVersion: '0.0.0-test',
+      keepHistory: false,
+      enabledAgents: [],
+    })
+    const document = finalizeReport(reportDocument())
+    const diff = compareReports(document, document)
+    const renderDiff = services.renderDiff
+    if (renderDiff === undefined) throw new Error('Expected a diff renderer')
+    expect(renderDiff(diff, document, 'md', 'en', REPORT_THEME)).toContain('No change since')
+    expect(renderDiff(diff, document, 'text', 'en', REPORT_THEME)).toContain('No change since')
+    for (const format of ['html', 'json'] as const) {
+      const rendered = renderDiff(diff, document, format, 'en', REPORT_THEME)
+      expect(rendered).not.toContain('Invalid report document')
+    }
+    expect(renderDiff(diff, document, 'html', 'en', REPORT_THEME)).toContain('Difference')
+    expect(renderDiff(diff, document, 'json', 'en', REPORT_THEME)).toContain('"id": "diff"')
   })
 })
