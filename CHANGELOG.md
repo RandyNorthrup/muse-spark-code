@@ -12,6 +12,8 @@ happened, not what was planned; superseded entries are kept.
   expose explicit source assembly with generation fences and bounded wording;
   send real judge status to Account & usage. Native provider wrappers and
   Models-panel source injection remain unavailable without their captures.
+  Refresh private package fixtures and share identical real VSIX inventories
+  while retaining the delivery checks' existing deadlines.
 
 
 - Keep every long-reply accessibility delta while yielding through a task port,
