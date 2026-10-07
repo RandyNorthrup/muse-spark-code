@@ -161,16 +161,23 @@ describe('M117 calibration fits per engine and re-fits after each lane', () => {
     ).toThrow(/invalidCalibrationQuery/)
   })
   it('rates first-pass findings per engine, excluding unknown review state', () => {
+    // The merged review is a discriminated union: narrow the fake's known
+    // review before overriding its rounds.
+    const knownReview = (laneId: string) => {
+      const review = fakeHistoryRecord(laneId).review
+      if (review.status !== 'known') throw new Error(`fake ${laneId} review is not known`)
+      return review
+    }
     const history: HistoryRecord[] = [
       {
         ...fakeHistoryRecord('M117:a'),
         engine: 'codex',
-        review: { ...fakeHistoryRecord('M117:a').review, rounds: 2 },
+        review: { ...knownReview('M117:a'), rounds: 2 },
       },
       {
         ...fakeHistoryRecord('M117:b'),
         engine: 'codex',
-        review: { ...fakeHistoryRecord('M117:b').review, rounds: 0 },
+        review: { ...knownReview('M117:b'), rounds: 0 },
       },
       { ...fakeHistoryRecord('M117:c'), engine: 'codex', review: { status: 'unknown' } },
       { ...fakeHistoryRecord('M117:d'), engine: 'claude' },

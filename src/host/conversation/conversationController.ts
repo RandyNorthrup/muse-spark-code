@@ -170,7 +170,10 @@ import type {
   ReportWebviewError,
   ReviewFile,
   SkillOption,
+  WebviewToHostMessage,
 } from '../../shared/protocol'
+import type { EstimateInputs } from '../../shared/estimate'
+import type { EstimatorRun } from '../estimator/estimatorBundle'
 import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
 import type { AuthPort } from '../auth/authService'
 import type { CheckpointPort } from '../checkpoints/checkpointHost'
@@ -423,6 +426,8 @@ export interface ConversationDeps {
   readonly editReview: EditReviewActions
   /** `/review` (M70, PLAN.md D49): its parts, from the review's own bundle. */
   readonly review: ReviewTurnFeatures
+  /** `/estimate` (M117, PLAN.md D97): the run, from the estimator's own bundle. */
+  readonly estimator?: EstimatorRun
   /** A tool output as a read-only editor tab named `title` (M15). */
   readonly openDocument: (title: string, content: string) => Promise<void>
   /** A file in an editor, `path` absolute or workspace-relative, the lines (1-based) selected (M16). */
@@ -1058,6 +1063,8 @@ export class ConversationController {
   private accountStopsInFlight = 0
   /** The latest composer generation seen on this surface's file messages. */
   private webviewAttachmentEpoch = 0
+  /** The last estimate's inputs on this surface: what Spin it up submits. */
+  private lastEstimateInputs: EstimateInputs | undefined
 
   /** User cards whose file bytes rewind cannot restore across every backend/history path. */
   private readonly fileMessageIds = new Set<string>()
@@ -8201,6 +8208,44 @@ export class ConversationController {
    * and local facts alone. A webview failure is journalled here directly;
    * the dialog's handler loads with dist/report.js on first use.
    */
+  /**
+   * `/estimate` (M117, PLAN.md D97): run the estimate in the estimator's own
+   * bundle and forward the section, or start the audited first wave. Every
+   * refusal names its missing binding; nothing runs without the bundle.
+   */
+  private async handleEstimateMessage(
+    message: Extract<WebviewToHostMessage, { type: 'estimateRun' | 'estimateSpinUp' }>,
+  ): Promise<void> {
+    const estimator = this.deps.estimator
+    if (estimator === undefined) {
+      this.notice('warning', UI_TEXT.estimateUnavailable)
+      return
+    }
+    if (message.type === 'estimateRun') {
+      try {
+        const section = await estimator.estimate(message.request, new AbortController().signal)
+        this.lastEstimateInputs = section.inputs
+        this.post({ type: 'estimatorSection', section })
+      } catch (error: unknown) {
+        this.deps.log.error(`The estimate failed: ${describe(error)}`)
+        this.notice('warning', error instanceof Error ? error.message : String(error))
+      }
+      return
+    }
+    const inputs = this.lastEstimateInputs
+    if (inputs === undefined) {
+      this.notice('warning', UI_TEXT.estimateUsage)
+      return
+    }
+    try {
+      const started = await estimator.startWave(inputs)
+      this.notice('info', fill(UI_TEXT.estimateWaveStarted, { lanes: started.join(', ') }))
+    } catch (error: unknown) {
+      this.deps.log.error(`The first wave failed: ${describe(error)}`)
+      this.notice('warning', error instanceof Error ? error.message : String(error))
+    }
+  }
+
   private async handleReportMessage(message: ReportProblemMessage): Promise<void> {
     const reports = this.deps.reports
     if (reports === undefined) {
@@ -9139,6 +9184,11 @@ export class ConversationController {
       case 'exportReport':
       case 'reportWebviewError': {
         await this.handleReportMessage(message)
+        break
+      }
+      case 'estimateRun':
+      case 'estimateSpinUp': {
+        await this.handleEstimateMessage(message)
         break
       }
     }

@@ -275,6 +275,13 @@ export default function EstimatorPanel({
               {formatUnit(section.drift.p90Hours, 'hour')}
             </p>
           )}
+          {(section.risks ?? []).length > 0 && (
+            <p role="alert">
+              {fill(UI_TEXT.estimateStaleBase, {
+                lanes: (section.risks ?? []).map((risk) => risk.laneId).join(', '),
+              })}
+            </p>
+          )}
           <Gantt section={section} />
           <fieldset className="estimator-setups">
             <legend>{UI_TEXT.estimateMachines}</legend>
@@ -345,8 +352,9 @@ export default function EstimatorPanel({
             <h2 id={`${id}-calibration`}>{UI_TEXT.estimateCalibration}</h2>
             <ul>
               {section.calibration.map((row) => (
-                <li key={`${row.kind}:${row.machineClassId}`}>
-                  {row.kind} / {row.machineClassId}:{' '}
+                <li key={`${row.kind}:${row.machineClassId}:${row.engine ?? ''}`}>
+                  {row.kind} / {row.machineClassId}
+                  {row.engine !== undefined && ` / ${row.engine}`}:{' '}
                   {row.basis === 'uncalibratedPrior'
                     ? UI_TEXT.estimatePrior
                     : UI_TEXT.estimateFitted}{' '}

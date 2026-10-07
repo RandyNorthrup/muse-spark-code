@@ -127,6 +127,8 @@ export const EN = {
     'The estimator could not be loaded, so no estimate can run; reinstall the extension and reload the window. The log has the details.',
   // M117 W (PLAN.md D100, gotcha G4): {lanes} is the stale-base lane list.
   estimateStaleBase: 'Stale base ({lanes}): rebase before starting.',
+  // M117 W: {lanes} is the submitted first wave.
+  estimateWaveStarted: 'Started {lanes}.',
   referenceAgentControls:
     'Agent controls; Interrupt; Stop; Resume; Close agent; Reopen agent; Mark result read; Send message; Follow-up task',
 

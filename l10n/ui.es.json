@@ -99,6 +99,7 @@
   "estimateDisclosureMissing": "La información de calibración de los valores numéricos está incompleta.",
   "estimateUnavailable": "No se pudo cargar el estimador, por lo que ninguna estimación puede ejecutarse; reinstale la extensión y recargue la ventana. El registro tiene los detalles.",
   "estimateStaleBase": "Base desactualizada ({lanes}): haga rebase antes de empezar.",
+  "estimateWaveStarted": "Iniciado: {lanes}.",
   "untitledConversation": "Sin título",
   "crashTitle": "El panel encontró un error",
   "crashDetail": "Recargar vuelve a crear el panel; el host conserva la conversación.",

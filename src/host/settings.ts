@@ -345,5 +345,6 @@ export function toSettingsSnapshot(settings: ExtensionSettings): SettingsSnapsho
     archiveInactiveSessions: settings.archiveInactiveSessions,
     modelApiReplyUsage: settings.modelApiReplyUsage,
     museCodeAutoReviewer: settings.museCodeAutoReviewer,
+    'estimator.optimize': settings['estimator.optimize'],
   }
 }

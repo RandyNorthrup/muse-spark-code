@@ -99,6 +99,7 @@
   "estimateDisclosureMissing": "Sayısal değerlerin kalibrasyon bilgileri eksik.",
   "estimateUnavailable": "Tahmin aracı yüklenemedi, bu yüzden tahmin çalıştırılamaz; uzantıyı yeniden yükleyip pencereyi yeniden yükleyin. Ayrıntılar günlükte.",
   "estimateStaleBase": "Eski taban ({lanes}): başlamadan önce rebase yapın.",
+  "estimateWaveStarted": "Başlatıldı: {lanes}.",
   "untitledConversation": "Adsız",
   "crashTitle": "Panelde bir hata oluştu",
   "crashDetail": "Yeniden yükleme paneli yeniden oluşturur; konuşma konakta korunur.",

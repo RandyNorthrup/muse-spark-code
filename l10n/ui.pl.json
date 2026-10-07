@@ -99,6 +99,7 @@
   "estimateDisclosureMissing": "Informacje o kalibracji wartości liczbowych są niepełne.",
   "estimateUnavailable": "Nie można załadować estymatora, więc nie można uruchomić szacowania; zainstaluj ponownie rozszerzenie i załaduj okno. Szczegóły są w dzienniku.",
   "estimateStaleBase": "Nieaktualna baza ({lanes}): przed rozpoczęciem wykonaj rebase.",
+  "estimateWaveStarted": "Uruchomiono: {lanes}.",
   "untitledConversation": "Bez tytułu",
   "crashTitle": "W panelu wystąpił błąd",
   "crashDetail": "Ponowne załadowanie odbudowuje panel; rozmowę przechowuje host.",

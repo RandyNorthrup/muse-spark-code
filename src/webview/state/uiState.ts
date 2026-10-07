@@ -61,6 +61,7 @@ import type {
 } from '../../shared/protocol'
 import { EMPTY_PAID_TALLY, type PaidState } from '../../shared/paid'
 import type { ScheduleView } from '../../shared/schedule'
+import type { EstimateSection } from '../../shared/estimate'
 import type { BestOfNRun } from '../../shared/bestOfN'
 import type { BoardRow } from '../../shared/sessionBoard'
 import type { SessionRow } from '../../shared/sessions'
@@ -297,6 +298,8 @@ export interface UiState {
   readonly focusRequests: number
   /** Incremented per host `openUsage`; Account & usage opens when it changes (M94). */
   readonly usageRequests: number
+  /** Incremented per host `openEstimator`; the composer takes `/estimate ` when it changes (M117). */
+  readonly estimatorRequests: number
   readonly helpRequests: number
   readonly referenceValues:
     | {
@@ -429,6 +432,8 @@ export interface UiState {
   readonly goal: SessionGoal | undefined
   /** Extension-owned Model API schedules for this session (M52). */
   readonly schedules: readonly ScheduleView[]
+  /** The capacity estimator's latest section (M117, PLAN.md D97); the panel renders it. Never saved. */
+  readonly estimator: EstimateSection | undefined
   /** Git and pull requests (M71): the host's cards and the open form. */
   readonly git: GitUiState
   /** Fetched output pages keyed by `${itemId}:${outputRef}`. */
@@ -615,6 +620,7 @@ export const initialUiState: UiState = {
   handoff: undefined,
   focusRequests: 0,
   usageRequests: 0,
+  estimatorRequests: 0,
   helpRequests: 0,
   referenceValues: undefined,
   pendingInsert: undefined,
@@ -659,6 +665,7 @@ export const initialUiState: UiState = {
   todos: [],
   goal: undefined,
   schedules: [],
+  estimator: undefined,
   git: initialGitUiState,
   outputPages: {},
   toolImages: {},
@@ -2393,6 +2400,7 @@ function clearedConversation(state: UiState): UiState {
     todos: [],
     goal: undefined,
     schedules: [],
+    estimator: undefined,
     // A new conversation starts without a form; the host says what else stays.
     git: { ...state.git, form: undefined },
     outputPages: {},
@@ -2672,6 +2680,14 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'openUsage': {
       return { ...state, usageRequests: state.usageRequests + 1 }
+    }
+    case 'openEstimator': {
+      return { ...state, estimatorRequests: state.estimatorRequests + 1 }
+    }
+    case 'estimatorSection': {
+      // The estimator's latest section (M117): a new section reveals the
+      // panel, which renders it byte-identical through its validated port.
+      return { ...state, estimator: message.section }
     }
     case 'openHelp': {
       return { ...state, helpRequests: state.helpRequests + 1 }

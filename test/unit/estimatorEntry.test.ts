@@ -12,9 +12,9 @@ import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import {
   createEstimatorRun,
-  isEstimatorBundle,
   type EstimatorSourcePorts,
 } from '../../src/host/estimator/estimatorEntry'
+import { isEstimatorBundle } from '../../src/host/estimator/estimatorBundle'
 import type { EstimateGoalSnapshot } from '../../src/core/estimator/goal'
 import { ESTIMATOR_AS_OF, FakeEstimateStart } from './helpers/estimator/fakes'
 import { scheduleFleet, simulationInputs } from './helpers/estimatorScheduleFixtures'
@@ -137,6 +137,7 @@ describe('M117 estimator bundle assembly', () => {
         hourlyUsd: 0.5,
         catalogUrl: 'https://provider.invalid/rates',
         catalogDate: '2026-10-01',
+        publicCatalog: true,
       }),
     ).toContain('0.50')
     expect(run.provisionWaiting).toBe('M117-P-M109-provider')

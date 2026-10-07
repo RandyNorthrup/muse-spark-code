@@ -99,6 +99,7 @@
   "estimateDisclosureMissing": "수치의 보정 정보가 불완전합니다.",
   "estimateUnavailable": "추정 모듈을 로드할 수 없어 추정을 실행할 수 없습니다. 확장을 다시 설치하고 창을 다시 로드하세요. 자세한 내용은 로그에 있습니다.",
   "estimateStaleBase": "베이스가 오래되었습니다({lanes}). 시작하기 전에 리베이스하세요.",
+  "estimateWaveStarted": "시작됨: {lanes}.",
   "untitledConversation": "제목 없음",
   "crashTitle": "패널에서 오류가 발생했습니다",
   "crashDetail": "다시 로드하면 패널이 다시 빌드됩니다. 대화는 호스트에 보존됩니다.",

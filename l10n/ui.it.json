@@ -99,6 +99,7 @@
   "estimateDisclosureMissing": "Le informazioni di calibrazione dei valori numerici sono incomplete.",
   "estimateUnavailable": "Lo stimatore non può essere caricato, quindi nessuna stima può essere eseguita; reinstalla l’estensione e ricarica la finestra. I dettagli sono nel registro.",
   "estimateStaleBase": "Base obsoleta ({lanes}): esegui il rebase prima di iniziare.",
+  "estimateWaveStarted": "Avviato: {lanes}.",
   "untitledConversation": "Senza titolo",
   "crashTitle": "Si è verificato un errore nel pannello",
   "crashDetail": "Ricarica ricostruisce il pannello; la conversazione viene conservata dall’host.",

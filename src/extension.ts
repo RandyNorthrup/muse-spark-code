@@ -144,6 +144,8 @@ import {
 } from './host/git/conversationGitBundle'
 import { WindowHold, WorktreeRegistry } from './host/git/worktreeRegistry'
 import { lazyReview } from './host/review/reviewBundle'
+import { lazyEstimator } from './host/estimator/estimatorBundle'
+import { localFleet } from './host/estimator/localFleet'
 import { PendingPrompts, type BoardSession } from './core/sessionBoard'
 import { BestOfNCoordinator } from './core/bestOfN/bestOfNCoordinator'
 import { createMemoryFeatures } from './host/memoryFeatures'
@@ -226,6 +228,7 @@ import {
   CONVERSATION_GIT_BUNDLE_FILE,
   CONVERSATION_BUNDLE_FILE,
   BUNDLED_SKILLS_BUNDLE_FILE,
+  ESTIMATOR_BUNDLE_FILE,
   BUNDLED_SKILLS_SETTING,
   WHATS_NEW_BUNDLE_FILE,
   WHATS_NEW_CLAIMS_DIR,
@@ -264,6 +267,7 @@ import {
   MUSE_INSTALL_COMMANDS,
   OUTPUT_DOCUMENT_SCHEME,
   PRODUCT_NAME,
+  SANDBOX_NETWORK_DENIED,
   SANDBOX_NETWORK_SETTING,
   PAGE_WORKER_FILE,
   SEARCH_WORKER_FILE,
@@ -458,6 +462,11 @@ const folderLookup: FolderLookup<vscode.Uri> = {
 /** Relative to the first folder; undefined for a file anywhere else, a second folder included. */
 function relativePathInWorkspace(uri: vscode.Uri): string | undefined {
   return rootRelativePath(uri, folderLookup)
+}
+
+/** An estimator binding that refuses with its handoff name until it merges (M117). */
+function missingEstimateBinding(dependency: string): never {
+  throw new Error(fill(UI_TEXT.estimateWaiting, { dependency }))
 }
 
 /** VS Code's file search, the first folder's files only (D27). */
@@ -1985,6 +1994,41 @@ async function activateWindow(
     },
   })
 
+  // The capacity estimator (M117, PLAN.md D97): its engine loads the first
+  // time an estimate runs. The snapshot, board, broker and catalog bindings
+  // belong to unmerged milestones (M113, M96, M109, M110) and refuse with
+  // their handoff names until those merge; the fleet is this machine,
+  // measured. History appends arrive with M115's lane-finished trigger.
+  const estimator = lazyEstimator({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', ESTIMATOR_BUNDLE_FILE).fsPath,
+    log,
+    ports: () => {
+      const settings = currentSettings()
+      return {
+        snapshot: () => missingEstimateBinding('M117-W-M113-plan-reader'),
+        fleet: (lanes) => Promise.resolve(localFleet(lanes)),
+        history: () => Promise.resolve([]),
+        candidatePool: (lanes) => Promise.resolve(localFleet(lanes)),
+        board: () => ({
+          audit: () => missingEstimateBinding('M117-W-M96-board'),
+          start: () => missingEstimateBinding('M117-W-M96-board'),
+        }),
+        prices: () => ({
+          cached: () => missingEstimateBinding('M117-W-M113-catalog'),
+          store: () => missingEstimateBinding('M117-W-M113-catalog'),
+          fetchPublic: () => missingEstimateBinding('M117-W-M113-catalog'),
+        }),
+        priceLookup: () => ({
+          // No catalogs are pinned until M113 merges its Reports catalogs.
+          enabled: settings['estimator.priceLookup'],
+          networkAllowed: settings.sandboxNetwork !== SANDBOX_NETWORK_DENIED,
+          maxAgeMs: 0,
+          catalogUrls: [],
+        }),
+      }
+    },
+  })
+
   const mentions = new MentionIndex({
     listFiles: listWorkspaceFiles,
     now: () => Date.now(),
@@ -2419,6 +2463,7 @@ async function activateWindow(
   // once the surface it opened is ready to show it.
   let isReportPending = false
   let isHelpPending = false
+  let isEstimatePending = false
   const referenceBundle = referenceLoader({
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', REFERENCE_BUNDLE_FILE).fsPath,
     log,
@@ -2935,6 +2980,7 @@ async function activateWindow(
           },
           editReview: review.editReview,
           review,
+          estimator,
           openDocument,
           openFile,
           readToolImage: async (imagePath) =>
@@ -3144,6 +3190,12 @@ async function activateWindow(
       if (isHelpPending) {
         isHelpPending = false
         surface.post({ type: 'openHelp' })
+      }
+      // `Open Estimator` opened this surface (M117): the composer takes
+      // `/estimate ` once it has a page to focus in.
+      if (isEstimatePending) {
+        isEstimatePending = false
+        surface.post({ type: 'openEstimator' })
       }
       // `Report a Problem` opened this surface (M93): its dialog now has a page to show in.
       if (isReportPending) {
@@ -3570,6 +3622,18 @@ async function activateWindow(
       }
       surface.reveal()
       surface.post({ type: 'openHelp' })
+    }),
+    // Open the capacity estimator (M117, PLAN.md D97): the composer takes
+    // `/estimate ` in the conversation in view or one opened for it.
+    registerLoggedCommand(log, COMMAND_IDS.estimate, async () => {
+      const surface = registry.active
+      if (surface === undefined) {
+        isEstimatePending = true
+        await openConversation()
+        return
+      }
+      surface.reveal()
+      surface.post({ type: 'openEstimator' })
     }),
     // Report a problem (M93, PLAN.md D72): the dialog over the journal and
     // local facts, in the conversation in view or one opened for it.

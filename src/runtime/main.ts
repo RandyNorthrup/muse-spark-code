@@ -19,6 +19,7 @@ import { processGitRunner } from '../host/git'
 import { loadUiTable, readUiTableFile } from '../host/l10n'
 import {
   ACP_AGENT_NAME,
+  ESTIMATOR_BUNDLE_FILE,
   RUNTIME_QUESTIONS_BUNDLE_FILE,
   ACP_AUTH_METHODS,
   EXEC_EXIT,
@@ -37,6 +38,7 @@ import { createRuntimeBackend } from './backends'
 import { parseCommandLine, type ServeOptions } from './cliArgs'
 import { formatAcpUsage } from './cliOptions'
 import { referenceLoader } from '../host/referenceLoader'
+import { createRuntimeEstimate } from './estimator/ports'
 import { REFERENCE_BUNDLE_FILE } from '../shared/constants'
 import { UI_TEXT as referenceTable } from '../shared/l10n/text'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
@@ -361,6 +363,12 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
     signIn: signInMethod(options),
     defaultCwd: process.cwd(),
     paid: runtime.paid,
+    // The estimator's engine loads the first time `/estimate` runs; the
+    // milestone bindings refuse with their handoff names until they merge.
+    estimate: createRuntimeEstimate({
+      bundlePath: path.join(distDir, ESTIMATOR_BUNDLE_FILE),
+      log,
+    }),
     questions: (input) => {
       const registry = loadQuestions().createRuntimeQuestionRegistry(
         input,

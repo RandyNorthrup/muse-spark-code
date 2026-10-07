@@ -40,7 +40,11 @@ import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/e
 import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
 import { parseHandoffPrompt } from '../shared/handoff'
 import { parseLoopPrompt } from '../core/backends/modelapi/schedules'
-import { fill, formatNumber, plural, templateParts } from '../shared/l10n/text'
+import { fill, formatNumber, formatUsd, plural, templateParts } from '../shared/l10n/text'
+import { displayUsdNanos, usdNanos } from '../shared/usd'
+import type { EstimateRequest, EstimateSection } from '../shared/estimate'
+import { wasEstimateComposerHandled } from './estimator/composer'
+import type { EstimatorPanelPort } from './estimator/EstimatorPanel'
 import {
   availablePermissionModes,
   nextPermissionMode,
@@ -114,6 +118,10 @@ const GoalPanel = deferred(async () => {
 const SchedulePanel = deferred(async () => {
   const module = await import('./components/SchedulePanel')
   return { default: module.SchedulePanel }
+})
+const EstimatorPanel = deferred(async () => {
+  const module = await import('./estimator/EstimatorPanel')
+  return { default: module.default }
 })
 const Palette = deferred(async () => {
   const module = await import('./components/Palette')
@@ -678,6 +686,75 @@ export function App({
   const onScheduleEnable = useCallback(() => {
     postMessage({ type: 'setPaidFeature', feature: 'scheduledPrompts', isOn: true })
   }, [postMessage])
+  // `/estimate …` (M117, PLAN.md D97): the estimator panel, not a message.
+  // Runs post `estimateRun`; the host answers with `estimatorSection`, which
+  // reveals the panel and settles every pending run. Re-estimates are
+  // legitimate (the panel's Refresh), so runs are never deduplicated here.
+  const estimatePendings = useRef<((section: EstimateSection) => void)[]>([])
+  const [estimateLastRequest, setEstimateLastRequest] = useState<EstimateRequest | undefined>(
+    undefined,
+  )
+  const estimateSubscribers = useRef(new Set<(section: EstimateSection) => void>())
+  const postEstimateRun = useCallback(
+    (request: EstimateRequest) => {
+      setEstimateLastRequest(request)
+      postMessage({ type: 'estimateRun', request })
+    },
+    [postMessage],
+  )
+  const estimatorSection = state.estimator
+  useEffect(() => {
+    if (estimatorSection === undefined) return
+    for (const resolve of estimatePendings.current.splice(0)) resolve(estimatorSection)
+    for (const listener of estimateSubscribers.current) listener(estimatorSection)
+  }, [estimatorSection])
+  // The estimator's setup search follows the workspace setting (M117).
+  const estimatorOptimize = state.settings?.['estimator.optimize'] ?? 'cost'
+  const estimatorPort = useMemo<EstimatorPanelPort>(
+    () => ({
+      context: () => ({ asOf: new Date().toISOString(), optimize: estimatorOptimize }),
+      estimate: (request, signal) =>
+        new Promise<EstimateSection>((resolve, reject) => {
+          if (signal.aborted) {
+            reject(new DOMException('The estimate was replaced', 'AbortError'))
+            return
+          }
+          const onAbort = () => {
+            reject(new DOMException('The estimate was replaced', 'AbortError'))
+          }
+          signal.addEventListener('abort', onAbort, { once: true })
+          estimatePendings.current.push((section) => {
+            signal.removeEventListener('abort', onAbort)
+            resolve(section)
+          })
+          postEstimateRun(request)
+        }),
+      subscribe: (listener) => {
+        estimateSubscribers.current.add(listener)
+        return () => {
+          estimateSubscribers.current.delete(listener)
+        }
+      },
+      price: (price) => formatUsd(displayUsdNanos(usdNanos(price.hourlyUsd)), 2),
+      // Rented provisioning stays advice-only: the broker binding (M109) is
+      // absent. The handoff name's source of truth is
+      // src/host/estimator/estimatorEntry.ts; the panel only asks after an
+      // estimate already loaded the bundle on the host.
+      provision: { state: 'waiting', dependency: 'M117-P-M109-provider' },
+    }),
+    [postEstimateRun, estimatorOptimize],
+  )
+  // The extension's `museSpark.estimate` command (M117).
+  const estimatorRequests = state.estimatorRequests
+  const seenEstimatorRequests = useRef(estimatorRequests)
+  useEffect(() => {
+    if (estimatorRequests === seenEstimatorRequests.current) return
+    seenEstimatorRequests.current = estimatorRequests
+    if (store.getState().draft.trim() === '') {
+      dispatch({ type: 'draftChanged', draft: '/estimate ' })
+    }
+    dispatch({ type: 'focusRequested' })
+  }, [store, dispatch, estimatorRequests])
   // `/review …` and the palette's review rows (M70): the card first, then the
   // host's word on it, as for a message. False when the request is refused here.
   const onReview = useCallback(
@@ -752,6 +829,23 @@ export function App({
       setIsPinnedToEnd(true)
       return
     }
+    // `/estimate …` opens the estimator panel, not a message (M117): the
+    // draft clears and the host's `estimatorSection` reveals it.
+    if (
+      wasEstimateComposerHandled(text, {
+        context: () => ({ asOf: new Date().toISOString(), optimize: estimatorOptimize }),
+        open: (request) => {
+          postEstimateRun(request)
+        },
+        notice: (noticeText) => {
+          dispatch({ type: 'noticeRaised', level: 'warning', text: noticeText })
+        },
+      })
+    ) {
+      dispatch({ type: 'draftChanged', draft: '' })
+      setIsPinnedToEnd(true)
+      return
+    }
     // `/handoff …` distils the conversation for a fresh one (M74), on
     // either backend (the host says where it cannot run).
     const handoff = parseHandoffPrompt(text)
@@ -817,7 +911,18 @@ export function App({
     })
     // The reader's own message always lands in view (M15).
     setIsPinnedToEnd(true)
-  }, [store, dispatch, newLocalId, now, postMessage, onGoalCommand, onReview, onHandoff])
+  }, [
+    store,
+    dispatch,
+    newLocalId,
+    now,
+    postMessage,
+    postEstimateRun,
+    onGoalCommand,
+    onReview,
+    onHandoff,
+    estimatorOptimize,
+  ])
   // Send exactly the payload the dialog previewed. The composer may now
   // hold a newer draft, different chips or a different reference.
   const onSecretPromptSendAnyway = useCallback(() => {
@@ -1842,6 +1947,9 @@ export function App({
         backend: state.auth.backend,
         paidFeatures: state.paid.features,
         isKeyStored: state.paid.isKeyStored,
+        // The estimator is bound in this surface (M117): its row inserts
+        // `/estimate`, which the submit path handles below.
+        estimateAvailable: true,
       }),
     [
       state.paid.isKeyStored,
@@ -2508,6 +2616,13 @@ export function App({
             onRun={onScheduleRun}
             onCancel={onScheduleCancel}
             onEnable={onScheduleEnable}
+          />
+        )}
+        {estimateLastRequest === undefined || state.estimator === undefined ? null : (
+          <EstimatorPanel
+            key={state.sessionId}
+            port={estimatorPort}
+            initial={estimateLastRequest}
           />
         )}
         <TodoPanel items={state.todos} isInert={isModalOpen} onOpenInTab={onOpenTasksTab} />

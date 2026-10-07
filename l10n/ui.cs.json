@@ -99,6 +99,7 @@
   "estimateDisclosureMissing": "Údaje o kalibraci číselných hodnot nejsou úplné.",
   "estimateUnavailable": "Odhadovací modul se nepodařilo načíst, takže nelze spustit žádný odhad; přeinstalujte rozšíření a znovu načtěte okno. Podrobnosti jsou v protokolu.",
   "estimateStaleBase": "Zastaralý základ ({lanes}): před zahájením proveďte rebase.",
+  "estimateWaveStarted": "Spuštěno {lanes}.",
   "untitledConversation": "Bez názvu",
   "crashTitle": "V panelu došlo k chybě",
   "crashDetail": "Opětovné načtení panel znovu sestaví; konverzaci uchovává hostitel.",

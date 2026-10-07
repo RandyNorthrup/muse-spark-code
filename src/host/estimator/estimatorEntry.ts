@@ -31,6 +31,7 @@ import {
   historyRecordSchema,
   type CatalogPrice,
   type EstimateInputs,
+  type EstimateLane,
   type EstimateRequest,
   type EstimateSection,
 } from '../../shared/estimate'
@@ -53,9 +54,10 @@ import type { EstimateStartPort } from '../../shared/estimate'
 
 /** The milestone bindings, injected: each refuses with its handoff until it merges. */
 export interface EstimatorSourcePorts extends EstimateGoalSourcesPort {
-  fleet(): Promise<unknown>
+  /** This estimate's lanes ride along so the fleet can offer them capacity. */
+  fleet(lanes: readonly EstimateLane[]): Promise<unknown>
   history(): Promise<unknown>
-  candidatePool(): Promise<unknown>
+  candidatePool(lanes: readonly EstimateLane[]): Promise<unknown>
   board(): EstimateStartPort
   prices(): EstimatePricePort
   priceLookup(): Omit<EstimatePriceLookup, 'asOf'>
@@ -144,7 +146,7 @@ export function createEstimatorRun(
         snapshot: (goal, asOf) => ports.snapshot(goal, asOf),
       })
       signal.throwIfAborted()
-      const fleet = fleetSnapshotSchema.parse(await ports.fleet())
+      const fleet = fleetSnapshotSchema.parse(await ports.fleet(lanes))
       const history = z.array(historyRecordSchema).parse(await ports.history())
       signal.throwIfAborted()
       const inputs = estimateInputsSchema.parse({
@@ -212,7 +214,7 @@ export function createEstimatorRun(
           ? await lookupEstimatePrices({ ...lookup, asOf: parsed.asOf }, ports.prices())
           : { rows: [], sources: [], unavailable: [] }
       signal.throwIfAborted()
-      const pool = fleetSnapshotSchema.parse(await ports.candidatePool())
+      const pool = fleetSnapshotSchema.parse(await ports.candidatePool(inputs.lanes))
       const [failurePrefix = 'Estimate failed: '] = UI_TEXT.estimateFailed.split('{detail}', 2)
       const recommendation = recommendEstimate(
         inputs,
@@ -322,15 +324,7 @@ export function createEstimatorRun(
   }
 }
 
-/** Whether a required module is the estimator bundle (PLAN.md §8). */
-export interface EstimatorBundle {
-  readonly createEstimatorRun: typeof createEstimatorRun
-}
-export function isEstimatorBundle(value: unknown): value is EstimatorBundle {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'createEstimatorRun' in value &&
-    typeof value.createEstimatorRun === 'function'
-  )
-}
+/** The bundle's shape is guarded beside its loader (estimatorBundle.ts): a
+ * value imported from this entry would carry the engine back into
+ * dist/extension.js, which the bundle-split gate refuses.
+ */

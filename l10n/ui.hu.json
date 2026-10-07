@@ -99,6 +99,7 @@
   "estimateDisclosureMissing": "A számszerű értékek kalibrációs adatai hiányosak.",
   "estimateUnavailable": "A becslő nem tölthető be, ezért nem futtatható becslés; telepítse újra a bővítményt, és töltse be újra az ablakot. A részletek a naplóban vannak.",
   "estimateStaleBase": "Elavult alap ({lanes}): kezdés előtt végezzen rebase-t.",
+  "estimateWaveStarted": "Elindítva: {lanes}.",
   "untitledConversation": "Névtelen",
   "crashTitle": "Hiba történt a panelen",
   "crashDetail": "Az Újratöltés újraépíti a panelt; a beszélgetést a gazdafolyamat megőrzi.",

@@ -99,6 +99,7 @@
   "estimateDisclosureMissing": "Les informations d’étalonnage des valeurs numériques sont incomplètes.",
   "estimateUnavailable": "L’estimateur n’a pas pu être chargé, donc aucune estimation ne peut s’exécuter ; réinstallez l’extension et rechargez la fenêtre. Le journal contient les détails.",
   "estimateStaleBase": "Base obsolète ({lanes}) : rebasez avant de commencer.",
+  "estimateWaveStarted": "Démarré : {lanes}.",
   "untitledConversation": "Sans titre",
   "crashTitle": "Le panneau a rencontré une erreur",
   "crashDetail": "Recharger reconstruit le panneau ; l’hôte conserve la conversation.",

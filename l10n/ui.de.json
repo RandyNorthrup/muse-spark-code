@@ -99,6 +99,7 @@
   "estimateDisclosureMissing": "Die Kalibrierungsangaben für Zahlenwerte sind unvollständig.",
   "estimateUnavailable": "Der Schätzer konnte nicht geladen werden, daher kann keine Schätzung starten; installieren Sie die Erweiterung neu und laden Sie das Fenster neu. Details stehen im Protokoll.",
   "estimateStaleBase": "Veraltete Basis ({lanes}): vor dem Start rebasen.",
+  "estimateWaveStarted": "Gestartet: {lanes}.",
   "untitledConversation": "Unbenannt",
   "crashTitle": "Im Panel ist ein Fehler aufgetreten",
   "crashDetail": "„Neu laden“ baut das Panel neu auf; die Unterhaltung bleibt im Host erhalten.",

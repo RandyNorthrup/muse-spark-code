@@ -76,6 +76,13 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     entries: ['src/webview/TasksApp.tsx'],
     budgetKiB: 25,
   },
+  {
+    // The capacity estimator's panel (M117): 9.6 KiB when split out
+    // (2026-10-06); plus 15%, rounded up to 25 KiB.
+    name: 'estimator panel',
+    entries: ['src/webview/estimator/EstimatorPanel.tsx'],
+    budgetKiB: 25,
+  },
 ]
 
 export function webviewDeferredBudgetGroups(meta, questionBudgetKiB) {

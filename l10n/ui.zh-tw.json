@@ -99,6 +99,7 @@
   "estimateDisclosureMissing": "數值的校準揭露不完整。",
   "estimateUnavailable": "無法載入估算器，因此無法執行估算；請重新安裝擴充功能並重新載入視窗。詳細資訊見記錄檔。",
   "estimateStaleBase": "基線已過時 ({lanes})：開始前請先變基。",
+  "estimateWaveStarted": "已啟動 {lanes}。",
   "untitledConversation": "未命名",
   "crashTitle": "面板發生錯誤",
   "crashDetail": "重新載入會重建面板；對話由延伸主機保留。",
