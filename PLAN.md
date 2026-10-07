@@ -28328,6 +28328,20 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
   bytes, below 4 KiB, with unchanged caps.
 
 - **Lane 0's contracts,** frozen before the other lanes start:
+  - **C implementation scope (2026-10-06):** this base has no M104 companion,
+    MHP theme schema/capture or native bridges. C implements the token consumer
+    in `src/webview/bridges/theme/**` behind an injected `ThemePort`, with
+    complete semantic snapshots, four Muse modes, host typography, scoped
+    compatibility variables and reversible subscription ownership. The port
+    is an internal dependency, never a proposed wire shape. Its lazy entry
+    consumes the three existing generated CSS outputs and the generated
+    `hostRoles` map without duplicating palettes. Owning tests exercise fake
+    companion/JCEF/WebView2/SWT producers, validation, updates, disposal and
+    the lazy closure's separate measured budget. **M114-C-M104-BINDING** names
+    the captured-MHP adapter, real page bootstrap/build wiring and real-host
+    captures still assigned to M104/C integration; S owns public docs and
+    final visual/accessibility certification. See
+    `docs/certification/m114-c-companion-and-native-webviews.md`.
   - the token names and groups, with each role's VS Code variable and its
     Muse palette values;
   - `build-tokens.mjs`'s outputs and their paths, and the input format TH and
@@ -30356,6 +30370,17 @@ omitting the imported extended-role sheet. Lane 0/S own both inventories
 and the generated record; the lead owns aggregate quality and S owns reviewed
 goldens/shared changelog. No threshold, guard or hook is weakened, and no
 RVM114P12 finding is deferred.
+
+**M114 C scoped certification (2026-10-06).** The rig/shared lane brief
+prohibits full quality/full unit runs and another lane's owned edits. C checks
+its internal theme consumer with whole owning test files at default timeouts,
+byte-exact red drills, compiler projects, scoped lint/format, localization,
+dead-code, duplication and production build. M104's captured-wire adapter,
+companion/native bootstrap and shipped lazy-asset registration are absent
+from this base and are named integration handoffs in C's certification.
+S/lead retain the host-API inventory, public docs, real editor captures and
+the full integrated quality/visual/accessibility gates. No gate is weakened
+and internal-port fakes do not certify unavailable native engines.
 
 **CIFIX14T verified local result (2026-10-05).** The five owning suites
 pass 113 tests (six existing Windows-only skips); the exact restored monitor
