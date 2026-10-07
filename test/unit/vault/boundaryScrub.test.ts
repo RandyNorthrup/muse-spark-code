@@ -78,6 +78,12 @@ async function gatedClient() {
   return { service, secret, scrubbed, keyGate, sent, client }
 }
 
+function expectOneScrubbedSend(t: Awaited<ReturnType<typeof gatedClient>>): void {
+  expect(t.sent).toHaveLength(1)
+  expect(t.sent[0]).not.toContain(t.secret)
+  expect(t.sent[0]).toContain(REDACTED_MARK)
+}
+
 /** Starts one gated turn, resolving once its first scrub ran. */
 function startGatedTurn(t: Awaited<ReturnType<typeof gatedClient>>) {
   const stop = new AbortController()
@@ -167,9 +173,7 @@ describe('vault scrub boundaries', () => {
       await t.service.unlock(() => Promise.resolve([Buffer.from(t.secret)]))
       t.keyGate.resolve(FAKE_MODEL_API_KEY)
       await turn.result
-      expect(t.sent).toHaveLength(1)
-      expect(t.sent[0]).not.toContain(t.secret)
-      expect(t.sent[0]).toContain(REDACTED_MARK)
+      expectOneScrubbedSend(t)
     } finally {
       t.service.lock()
     }
@@ -195,9 +199,7 @@ describe('vault scrub boundaries', () => {
           guard,
         ),
       )
-      expect(t.sent).toHaveLength(1)
-      expect(t.sent[0]).not.toContain(t.secret)
-      expect(t.sent[0]).toContain(REDACTED_MARK)
+      expectOneScrubbedSend(t)
     } finally {
       t.service.lock()
     }

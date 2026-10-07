@@ -16,10 +16,9 @@ import { ACCOUNT_DEFAULT_ID, MODEL_API_BASE_URL } from '../../shared/constants'
 import { isValidModelApiKey, type SecretStore } from '../auth/credentialStore'
 
 const legacyRecordSchema = z.strictObject({
-  v: z.literal(1),
-  auth: z.enum(['apiKey', 'oauth', 'subscription']),
+  ...z.pick(credentialRecordSchema, { v: true, auth: true, secret: true }).shape,
+  // Legacy records accept any URL here; binding validation below still pins the origin.
   origin: z.url(),
-  secret: z.string().check(z.minLength(1)),
 })
 
 /** The interim vault is real SecretStorage/OS-store I/O, never a fake. */

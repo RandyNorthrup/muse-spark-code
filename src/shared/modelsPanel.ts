@@ -820,4 +820,4 @@ export const modelsAccountsSliceSchema = z
     ),
   )
 export type ModelsAccountsSlice = z.infer<typeof modelsAccountsSliceSchema>
-export { vaultPanelChangeSchema, vaultPanelStateSchema, type VaultPanelState } from './vaultPanel'
+export { vaultPanelStateSchema, type VaultPanelState } from './vaultPanel'

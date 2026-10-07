@@ -32,6 +32,8 @@
     "src/shared/reference/referenceSource.ts",
     "src/shared/wireEntry.ts",
     "src/shared/modelApiBoundariesEntry.ts",
+    // Vault schemas shared by real Node bundle readers (D6).
+    "src/shared/vaultBoundariesEntry.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.
     "src/host/tab/tabEntry.ts",
     "src/core/legal/entry.ts",

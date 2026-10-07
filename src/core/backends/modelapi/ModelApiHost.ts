@@ -6151,11 +6151,7 @@ export class ModelApiSession implements AgentSession {
       })
       content.push(lead, sent)
     }
-    const replay: ReplayItem = { turnId, item: { type: 'message', role: 'user', content } }
-    this.replay.push(replay)
-    if (pending.length > 0) {
-      this.readFileMessages.set(replay, pending)
-    }
+    this.queueReadFileReplay(turnId, content, pending)
   }
 
   /**

@@ -19006,6 +19006,10 @@ recover any excess through the newest features' existing lazy boundaries.
 
 Packaging includes the new Node dependencies and first-use surfaces; native vault
 assets follow the existing universal artifact transfer and executable-mode rules.
+Knip names the actual vault boundary build entry; unused panel re-exports are
+removed rather than ignored. Duplication fixes reuse the existing read-file
+queue method, derive legacy account fields while retaining its URL constraint,
+and share the two vault-redaction postconditions without dropping assertions.
 Estimator namespace imports preserve the shared mini-parser export contract;
 real package import checks exercise these first-use dependencies. Fresh-clone
 repairs preserve fixed auth-error text, build cold package inputs, retain new
