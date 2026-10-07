@@ -49,8 +49,11 @@ export class EstimateViewSession {
         this.error(fill(UI_TEXT.estimateFailed, { detail: 'invalid-lane-finished' }))
         return
       }
+      // Before the first result lands the lane set is unknown, so a completion
+      // cannot be checked for relevance yet: treat it as relevant and let the
+      // superseded calculation's late result fall to the generation check.
       if (
-        this.current?.inputs.lanes.some((lane) => lane.id === parsed.data.laneId) !== true ||
+        (this.current?.inputs.lanes.every((lane) => lane.id !== parsed.data.laneId) ?? false) ||
         Date.parse(parsed.data.asOf) <= Date.parse(this.latestAsOf)
       )
         return

@@ -74,11 +74,10 @@ export default function EstimatorPanel({
   const [spinning, setSpinning] = useState(false)
   const active = useRef<EstimateRequest | undefined>(undefined)
   const pending = useRef<AbortController | undefined>(undefined)
-  const spinAbort = useRef(false)
+  const spinCycle = useRef(0)
   const latestAsOf = useRef('')
 
   useEffect(() => {
-    spinAbort.current = false
     const unsubscribe = port.subscribe((value) => {
       const parsed = estimateSectionSchema.safeParse(value)
       if (!parsed.success) {
@@ -100,8 +99,18 @@ export default function EstimatorPanel({
       setSection(next)
     })
     return () => {
-      spinAbort.current = true
+      // The adapter is being replaced (or the panel closed): drop its request,
+      // forecast and activity so a late update cannot land on the next adapter.
+      // On unmount these state writes are harmless no-ops.
+      spinCycle.current += 1
       pending.current?.abort()
+      pending.current = undefined
+      active.current = undefined
+      latestAsOf.current = ''
+      setBusy(false)
+      setSpinning(false)
+      setSection(undefined)
+      setError('')
       unsubscribe()
     }
   }, [port])
@@ -165,13 +174,14 @@ export default function EstimatorPanel({
       return
     setSpinning(true)
     setError('')
+    const cycle = spinCycle.current
     try {
       await port.provision.spinUp(section, setup)
     } catch {
-      if (!spinAbort.current)
+      if (cycle === spinCycle.current)
         setError(fill(UI_TEXT.estimateFailed, { detail: 'start-unavailable' }))
     } finally {
-      if (!spinAbort.current) setSpinning(false)
+      if (cycle === spinCycle.current) setSpinning(false)
     }
   }
 

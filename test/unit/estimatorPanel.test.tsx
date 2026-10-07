@@ -256,4 +256,87 @@ describe('M117 Estimator panel', () => {
     ).toBe(true)
     expect(screen.getAllByText(UI_TEXT.estimateAdvice).length).toBeGreaterThan(0)
   })
+
+  it('permits a new estimate after replacing an adapter with pending work', async () => {
+    const first = harness()
+    const gate = Promise.withResolvers<EstimateSection>()
+    first.estimate.mockImplementation(() => gate.promise)
+    const initial = fakeEstimate().inputs.request
+    const mounted = render(<EstimatorPanel port={first.port} initial={initial} />)
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateRun }))
+    expect(screen.getByRole('button', { name: UI_TEXT.estimateRun }).hasAttribute('disabled')).toBe(
+      true,
+    )
+    const second = harness()
+    mounted.rerender(<EstimatorPanel port={second.port} initial={initial} />)
+    expect(first.estimate.mock.calls[0]?.[1].aborted).toBe(true)
+    const run = screen.getByRole('button', { name: UI_TEXT.estimateRun })
+    expect(run.hasAttribute('disabled')).toBe(false)
+    fireEvent.click(run)
+    await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
+    expect(second.estimate).toHaveBeenCalledTimes(1)
+    await act(async () => {
+      gate.resolve(fakeEstimate())
+      await gate.promise
+    })
+    expect(run.hasAttribute('disabled')).toBe(false)
+  })
+
+  it('does not provision an old adapter forecast through a replacement adapter', async () => {
+    const first = harness()
+    const firstReady: EstimatorPanelPort = {
+      ...first.port,
+      provision: { state: 'ready', spinUp: vi.fn(() => Promise.resolve()) },
+    }
+    const initial = fakeEstimate().inputs.request
+    const mounted = render(<EstimatorPanel port={firstReady} initial={initial} />)
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateRun }))
+    await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
+    const second = harness()
+    const secondSpin = vi.fn(() => Promise.resolve())
+    const secondReady: EstimatorPanelPort = {
+      ...second.port,
+      provision: { state: 'ready', spinUp: secondSpin },
+    }
+    mounted.rerender(<EstimatorPanel port={secondReady} initial={initial} />)
+    expect(screen.queryByRole('heading', { name: UI_TEXT.estimateSchedule })).toBeNull()
+    expect(screen.queryByRole('button', { name: UI_TEXT.estimateSpinUp })).toBeNull()
+    expect(secondSpin).not.toHaveBeenCalled()
+    const stale = fakeEstimate()
+    act(() => {
+      second.emit(stale)
+    })
+    expect(screen.queryByRole('heading', { name: UI_TEXT.estimateSchedule })).toBeNull()
+    expect(secondSpin).not.toHaveBeenCalled()
+  })
+
+  it('ignores a late provisioning failure from a replaced adapter', async () => {
+    const first = harness()
+    const gate = Promise.withResolvers<undefined>()
+    const firstReady: EstimatorPanelPort = {
+      ...first.port,
+      provision: {
+        state: 'ready',
+        spinUp: vi.fn(async () => {
+          await gate.promise
+        }),
+      },
+    }
+    const initial = fakeEstimate().inputs.request
+    const mounted = render(<EstimatorPanel port={firstReady} initial={initial} />)
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateRun }))
+    await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateSpinUp }))
+    const second = harness()
+    mounted.rerender(<EstimatorPanel port={second.port} initial={initial} />)
+    await act(async () => {
+      gate.reject(new Error('old adapter failed'))
+      try {
+        await gate.promise
+      } catch {
+        // The replaced adapter's late failure must not surface on the new one.
+      }
+    })
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
 })

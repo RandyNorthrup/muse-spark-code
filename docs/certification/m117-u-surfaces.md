@@ -338,3 +338,48 @@ the injected runner and update the pre-repair numeric test fixture. Then
 W can register and budget the real lazy panel/CLI/ACP entries, regenerate
 its host API record and run the aggregate gates. M113/M115/TUI/P bindings
 remain the explicit handoffs above; no production fake stands in for them.
+
+## FIXM117U review fixes (RVM117U, 2026-10-06, Mac mini)
+
+RVM117U confirmed two P2 findings and no P1/P3. Both are fixed below; no
+finding is deferred, so there are no named residuals. House pattern: one
+serialized owner of the estimator session; completions supersede through the
+plan generation and stale late results are discarded; replacing the panel's
+adapter never lets a late update land on the new one. No new dependency,
+localization key, gate change or shipped-bundle delta.
+
+| Finding                                                                                                                                                                        | Fix                                                                                                                                                                                                                                                                                            | Regression test                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| P2-1 `src/runtime/estimator/session.ts:53` — a lane completion during the first calculation is discarded because relevance is checked against `current`, still undefined       | The lane gate is skipped while `current` is unknown (`?? false`): the completion is treated as relevant and `refresh` supersedes the first calculation; its late result falls to the generation check                                                                                          | `refreshes at a lane completion received during the first estimate` (`test/unit/estimateCommand.test.ts`): first refresh pending, completion for a real fixture lane at a newer timestamp, then the first section returns — two engine calls, one publish at the completion's timestamp, late first result discarded, no error       |
+| P2-2 `src/webview/estimator/EstimatorPanel.tsx:102` — replacing the adapter retains `busy`/`section`/`active`, and an aborted calculation's `finally` declines to clear `busy` | The old subscription's cleanup drops the previous adapter's request, forecast and activity (`active`/`pending`/`latestAsOf` refs, `busy`/`spinning`/`section`/`error` state); a provisioning cycle tag replaces the abort boolean so a late `spinUp` failure cannot surface on the new adapter | `permits a new estimate after replacing an adapter with pending work`; `does not provision an old adapter forecast through a replacement adapter` (incl. a stale old-view section emitted on the new port stays ignored); `ignores a late provisioning failure from a replaced adapter` (all in `test/unit/estimatorPanel.test.tsx`) |
+
+The cleanup placement (rather than the effect body) also satisfies the
+`react-hooks/set-state-in-effect` gate with no disable comment and no PLAN §8
+row. The first panel regressions were proved against the effect-body
+placement; equivalent drills below re-prove them against the final
+cleanup placement, byte-exact.
+
+## FIXM117U guard-fire receipts (U40–U42)
+
+All runs use the complete owning file, `--maxWorkers=3`, and the repository
+default timeout on Mac mini. Each accepted mutation fails exactly the named
+regression(s) and restores the source byte-exact, checked by SHA-256.
+
+| Drill                          | Break                                                         | Owning regression(s) that fail                                                                                                                                                       | Restoration SHA-256                                                |
+| ------------------------------ | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| `U40-session-first-completion` | lane gate `?? false` → `?? true` in `session.ts`              | `refreshes at a lane completion received during the first estimate` (1 failed / 14 passed in the file)                                                                               | `ace674eb204bf10e4c43c450f5e7c289279a7c8a617a8be2d4fea475924f600c` |
+| `U41-panel-adapter-reset`      | remove the cleanup resets in `EstimatorPanel.tsx`             | `permits a new estimate after replacing an adapter with pending work`, `does not provision an old adapter forecast through a replacement adapter` (2 failed / 10 passed in the file) | `096ed32d9d9d3f4d47e77274c544591d5ee673bfc09e7540c34ac3695558f889` |
+| `U42-panel-spin-cycle`         | `spinCycle.current` → `0` in `spinUp` in `EstimatorPanel.tsx` | `ignores a late provisioning failure from a replaced adapter` (fails alone with the reset guard intact; all 3 fail with both guards broken)                                          | `096ed32d9d9d3f4d47e77274c544591d5ee673bfc09e7540c34ac3695558f889` |
+
+Accepted guard-fire receipts total 42 (U01–U39 prior, U40–U42 here).
+
+Final verification on the restored bytes, Mac mini, repository default
+timeouts: 33/33 pass (`estimateCommand` 15, `estimatorPanel` 12,
+`acpEstimate` 6) with at most three files/workers per run; all five
+typecheck projects pass; scoped ESLint zero warnings; Prettier clean;
+localization 14 tables, 166 manifest strings, 624 source files, zero
+problems; production build exits 0 with unchanged sizes (extension
+439.5/600 KiB, Model API 446.9/475 KiB — the estimator panel still has no
+shipping entry on this base, so W must measure its real lazy chunk).
+`check:host-api` still reports the known W-owned generated-record gap,
+unchanged by this lane.

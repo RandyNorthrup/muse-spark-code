@@ -30161,6 +30161,19 @@ before a repaired one loads (2026-09-30).
   Unknown quotas, resources and review data never imply unlimited capacity or
   zero demand. The lead owns aggregate quality and cross-rig certification.
 
+- **FIXM117U review outcome (2026-10-06).** Both RVM117U P2s are fixed, with
+  no deferred finding and no named residual. A lane completion received
+  before the first estimate result is treated as relevant and refreshes at
+  its timestamp; the superseded calculation's late result falls to the
+  generation check, keeping one serialized owner of the session. A replaced
+  panel adapter drops the previous request, forecast and activity in the old
+  subscription's cleanup, and a provisioning cycle tag keeps a late failure
+  off the new adapter, so no late update lands on it. Four regression tests
+  and three byte-exact red drills (U40–U42); receipts in
+  `docs/certification/m117-u-surfaces.md`. No new dependency, localization
+  key, gate change or shipped-bundle delta; the known W-owned host-API
+  record gap is unchanged.
+
 - **ENVFENCE-HELPREF (resolved in REL0142 integration, 2026-10-06).** Main's
   credential pass-through setting joins the Help permissions feature with its
   existing translated manifest description and an explicit typed condition for

@@ -363,6 +363,55 @@ describe('M117 re-estimation and TUI', () => {
     expect(port.estimate).toHaveBeenCalledTimes(2)
   })
 
+  it('refreshes at a lane completion received during the first estimate', async () => {
+    let event: (value: unknown) => void = vi.fn()
+    const publish = vi.fn()
+    const error = vi.fn()
+    const pending: {
+      request: EstimateRequest
+      signal: AbortSignal
+      resolve: (value: unknown) => void
+    }[] = []
+    const view = new EstimateViewSession(
+      options,
+      context,
+      {
+        estimate: (request, signal) =>
+          new Promise((resolve) => {
+            pending.push({ request, signal, resolve })
+          }),
+      },
+      {
+        subscribe: (listener) => {
+          event = listener
+          return vi.fn()
+        },
+      },
+      publish,
+      error,
+    )
+    const first = view.refresh()
+    expect(pending).toHaveLength(1)
+    const laneId = fakeEstimate().inputs.lanes[0]?.id
+    if (laneId === undefined) throw new Error('missing fixture lane')
+    event({ laneId, asOf: '2026-10-06T12:30:00.000Z' })
+    expect(pending).toHaveLength(2)
+    const older = pending[0],
+      newer = pending[1]
+    if (!older || !newer) throw new Error('missing pending runs')
+    expect(older.signal.aborted).toBe(true)
+    newer.resolve(result(newer.request))
+    await vi.waitFor(() => {
+      expect(publish).toHaveBeenCalledTimes(1)
+    })
+    expect(publish.mock.calls[0]?.[0]).toMatchObject({ asOf: '2026-10-06T12:30:00.000Z' })
+    older.resolve(result(older.request))
+    await first
+    expect(publish).toHaveBeenCalledTimes(1)
+    expect(error).not.toHaveBeenCalled()
+    view.dispose()
+  })
+
   it('aborts superseded work and never publishes a late or disposed result', async () => {
     const pending: {
       request: EstimateRequest
