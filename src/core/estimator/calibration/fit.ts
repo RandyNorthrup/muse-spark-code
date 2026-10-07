@@ -63,25 +63,32 @@ function metadataOf(records: readonly HistoryRecord[]): HistoryRecord[] {
   return Array.from(lanes, ([, record]) => record)
 }
 
-/** Lognormal ratios by exact kind/class and duration basis. No clock or random sampling. */
+/** Lognormal ratios by exact kind/class, engine scope and duration basis. No clock or random sampling. */
 export function fitCalibration(
   values: readonly HistoryRecord[],
   kind: string,
   machineClassId: string,
   asOf: string,
   durationBasis: HistoryRecord['durationBasis'] = 'agentTime',
+  engine?: HistoryRecord['engine'],
 ): CalibrationFit {
   if (
     !z.iso.datetime().safeParse(asOf).success ||
     !historyRecordSchema.shape.kind.safeParse(kind).success ||
     !historyRecordSchema.shape.machineClassId.safeParse(machineClassId).success ||
-    !historyRecordSchema.shape.durationBasis.safeParse(durationBasis).success
+    !historyRecordSchema.shape.durationBasis.safeParse(durationBasis).success ||
+    !historyRecordSchema.shape.engine.safeParse(engine).success
   )
     throw calibrationFailure('invalidCalibrationQuery')
+  // M117 W (playbook §4): an engine scope fits only that engine's lanes, so
+  // durations and finding rates re-fit per engine after each finished lane.
+  // The unscoped fit keeps every record, tagged or not, so tagging new
+  // history never shrinks the overall fit a lane kind relies on.
   const records = canonicalHistory(values).filter(
     (record) =>
       record.kind === kind &&
       record.machineClassId === machineClassId &&
+      (engine === undefined || record.engine === engine) &&
       Date.parse(record.finishedAt) <= Date.parse(asOf),
   )
   const durations = records.filter(
@@ -143,6 +150,7 @@ export function fitCalibration(
     calibration: {
       kind,
       machineClassId,
+      engine,
       samples: durations.length,
       basis: isFitted ? 'fitted' : 'uncalibratedPrior',
       mu,

@@ -428,8 +428,8 @@ export const historyRecordSchema = z
     source: z.enum(['board', 'git', 'playbook', 'ci']),
     // M117 W (PLAN.md D97 §4, playbook §4): which engine ran the lane, when
     // known. Calibration fits durations and finding rates per engine × kind ×
-    // machine class and re-fits after each finished lane; records without an
-    // engine join the unscoped fit only.
+    // machine class and re-fits after each finished lane; the unscoped fit
+    // keeps every record, tagged or not.
     engine: z.optional(z.enum(ESTIMATE_ENGINES)),
   })
   .check(z.refine((record) => Date.parse(record.finishedAt) >= Date.parse(record.startedAt)))
@@ -645,6 +645,9 @@ export const estimateSectionSchema = z
           estimate.calibration.map(
             (row) => `${row.kind}:${row.machineClassId}:${row.engine ?? ''}`,
           ),
+        ) &&
+        (estimate.risks ?? []).every((risk) =>
+          estimate.inputs.lanes.some((lane) => lane.id === risk.laneId),
         ) &&
         estimate.inputs.lanes.every((lane) =>
           estimate.calibration.some((row) => row.kind === lane.kind),
