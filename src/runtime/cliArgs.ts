@@ -18,6 +18,7 @@ import {
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
 import { parseExec, type ExecOptions } from './exec/execArgs'
+import { parseVaultCommand, vaultUsage, type VaultCommandOptions } from './vault/vaultCommand'
 
 export interface ServeOptions {
   /** Which account pays; chosen here, never guessed (D62). */
@@ -47,13 +48,14 @@ export interface ReportOptions {
 }
 
 export type RuntimeCommand =
+  | { readonly command: 'vault'; readonly options: VaultCommandOptions }
   | { readonly command: 'setup'; readonly options: ServeOptions; readonly maintenance: boolean }
   | { readonly command: 'exec'; readonly options: ExecOptions }
   | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
   | { readonly command: 'report'; readonly options: ReportOptions }
   | { readonly command: 'serve'; readonly options: ServeOptions }
   | { readonly command: 'login'; readonly options: ServeOptions }
-  | { readonly command: 'authSet' | 'authStatus' | 'authClear' | 'help' | 'version' }
+  | { readonly command: 'authSet' | 'authStatus' | 'authClear' | 'help' | 'vaultHelp' | 'version' }
   | { readonly command: 'invalid'; readonly reason: string; readonly exitCode?: number }
 
 /** `auth set|status|clear`: the key's three commands (D61). */
@@ -88,6 +90,14 @@ function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeatu
 }
 
 export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
+  if (argv[0] === 'vault') {
+    if (argv.length === 1 || (argv.length === 2 && (argv[1] === '--help' || argv[1] === 'help')))
+      return { command: 'vaultHelp' }
+    const options = parseVaultCommand(argv.slice(1))
+    return options === undefined
+      ? { command: 'invalid', reason: vaultUsage(), exitCode: 2 }
+      : { command: 'vault', options }
+  }
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
   if (argv[0] === 'report') return parseReport(argv.slice(1))
   let parsed: ReturnType<typeof parseCommandLineStrictly>
@@ -177,6 +187,7 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
             'fail-on-denial': { type: 'boolean' },
             ephemeral: { type: 'boolean' },
             'key-stdin': { type: 'boolean' },
+            vault: { type: 'boolean' },
             verbose: { type: 'boolean' },
             'trust-workspace': { type: 'boolean' },
             'allow-dangerously-skip-permissions': { type: 'boolean' },

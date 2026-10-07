@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- M109 H's terminal vault handlers, bound watch answers, ACP `/vault` and
+  session-only permissions, local headless `--vault` denial policy, and shared
+  value-free panel routing. These consume injected broker/panel ports; the
+  installed runtime factory and native/companion bindings remain integration
+  handoffs. Missing bindings fail explicitly; CI remains vault-free.
+
 - M109's credential-vault contracts, canonical use digest, translated panel
   labels and warnings, test-only broker and route harnesses, and threat and
   capture plan. This prepares the runtime lanes; it does not enable a vault

@@ -19699,6 +19699,17 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M105 — Multimodal input: video, audio, documents, screen recordings and the Files API (D85)
 
+**M109 H wave 1 (2026-10-06).** Implement terminal vault commands and bound
+watch answers, ACP permission mapping and local `/vault` commands, local
+headless `--vault` admission and unconditional denied exit, and value-free
+companion/native panel routing. Consume lane-0 schemas and injected B/U/M104
+ports; absent bindings fail explicitly. B's management/watch transport and
+W's installed `vault.js` runtime factory, U's panel and M104's authenticated
+bridges are named integration handoffs, not production fakes. CI's stdin-key
+lane stays vault-free. Each H guard gets a named fake regression and byte-exact
+red drill in `docs/certification/m109-h-runtime,-acp,-headless,-companion.md`.
+No UI styling, dependencies, model calls, merges, pushes or aggregate quality.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §2. The work lands in four
 deliveries, in order:
@@ -21002,6 +21013,16 @@ only, no dependencies or live calls. Certification: `docs/certification/m109-b.m
 
 ## 7. Gates
 
+**M109 H verification deferral (2026-10-06).** H58 proves unconditional
+`denied` exit and vault-session close. An additional new assertion against
+`FakeAgentHost.cancel` failed after two fixture fixes (first prevent immediate
+completion, then hold the fake turn open). Under the lane stop rule, do not
+keep rewriting that spy path. It is removed from H58 with this explicit
+record; no production cancellation or existing gate is changed. Verify actual
+engine/command-tree stop through B/X's installed session/lifetime binding at
+integration, and run the existing exec lifecycle regressions. H does not claim
+that native process-stop proof from its injected session fake.
+
 **FIXM109B6 / RVM109B5 (2026-10-06, Mac mini).** Both findings are fixed;
 no review residual is accepted. Final restored-source verification passes all
 335 tests in all 19 vault files with default timeouts, at most three files and
@@ -22159,6 +22180,8 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
+
+| `src/runtime/vault/vaultRuntime.ts` (M109 H) | `as Partial<RuntimeVaultModule>` | The installed `dist/vault.js` factory is W/H's typed build contract. Runtime checks refuse absent exports and malformed binding methods; fake module tests prove fail-closed loading. No caller-supplied path or private wire format. |
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 

@@ -50,8 +50,10 @@ import { memorySecretStore, type MemorySecretStore, readKeyLine, readPromptStdin
 import { createRunLedger } from './runLedger'
 import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
+import { type ExecVaultPort, type ExecVaultSession } from '../vault/execVault'
 
 export interface ExecDeps {
+  readonly vault?: ExecVaultPort
   options: ExecOptions
   version: string
   distDir: string
@@ -175,6 +177,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let runtime: RuntimeBackend | undefined
   let tap: SessionTap | undefined
   let transport: ExecTransport | undefined
+  let vaultSession: ExecVaultSession | undefined
+  let vaultDenial: string | undefined
   const setup: { sessionId: string | null; isUsageError: boolean } = {
     sessionId: null,
     isUsageError: true,
@@ -233,6 +237,12 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         type: 'limit',
         limit: cause.kind === 'accounting_invalid' ? 'accounting' : cause.kind,
       })
+  }
+  const denyVault = (message: string) => {
+    if (isFinishing) return
+    vaultDenial = message
+    setup.isUsageError = false
+    latch({ kind: 'denied' })
   }
   const observe = (event: AgentEvent) => {
     if (event.type === 'turnCompleted') {
@@ -296,6 +306,16 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     }
   }
   try {
+    if (
+      options.vault &&
+      (options.keyFromStdin ||
+        (deps.env['CI'] !== undefined &&
+          !['', '0', 'false'].includes(deps.env['CI'].toLowerCase())) ||
+        deps.vault === undefined)
+    ) {
+      denyVault(UI_TEXT.vault.brokerBlocked)
+      return await finish()
+    }
     const folder = await lifecycle.race(stat(cwd))
     if (!folder.isDirectory()) throw new Error(UI_TEXT.execFileUnreadable)
     let prompt: string
@@ -494,6 +514,30 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                   /* Session already stopped or closed; cancellation is best effort. */
                 })
             }
+            if (options.vault && deps.vault !== undefined) {
+              try {
+                const vault = deps.vault
+                const opening = (async () => {
+                  const session = await vault.open({
+                    cwd,
+                    sessionId: created.sessionId,
+                    signal: lifecycle.signal,
+                    source: 'headless',
+                    unattended: true,
+                    onDenied: denyVault,
+                  })
+                  if (isFinishing || lifecycle.signal.aborted) {
+                    await session.close()
+                    throw new Error(UI_TEXT.vault.noAccess)
+                  }
+                  return session
+                })()
+                vaultSession = await lifecycle.race(opening)
+              } catch {
+                denyVault(UI_TEXT.vault.brokerBlocked)
+                return
+              }
+            }
             const modelConfig = created.configOptions?.find(
               (option) => option.id === ACP_CONFIG_IDS.model,
             )
@@ -637,7 +681,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     if (lifecycle.cause !== null) {
       status = statusForStop(lifecycle.cause)
       if (lifecycle.cause.kind !== 'budget' || error === UI_TEXT.execIncomplete)
-        error = stopMessage(lifecycle.cause, options.maxRequests ?? 0)
+        error =
+          vaultDenial !== undefined && lifecycle.cause.kind === 'denied'
+            ? vaultDenial
+            : stopMessage(lifecycle.cause, options.maxRequests ?? 0)
     } else if (status !== 'auth_required' && status !== 'backend_unavailable') {
       if (
         backendErrorKind === 'authRequired' ||
@@ -766,7 +813,22 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         literals.length = 0
       }
       try {
-        await grace(Promise.all([closeSession?.(), runtime?.close()]))
+        const closingVault = vaultSession
+        await grace(
+          Promise.all([
+            closeSession?.(),
+            runtime?.close(),
+            closingVault === undefined
+              ? undefined
+              : (async () => {
+                  try {
+                    await closingVault.close()
+                  } catch {
+                    throw new Error(UI_TEXT.vault.noAccess)
+                  }
+                })(),
+          ]),
+        )
       } catch (error_: unknown) {
         log.error(error_ instanceof Error ? error_.message : String(error_))
         lifecycle.latch({ kind: 'internal' })
