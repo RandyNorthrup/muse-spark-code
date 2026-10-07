@@ -311,3 +311,35 @@ No host tools were installed. All five typecheck projects pass; localization
 still reports 14 tables and zero problems. The host-API gate reproduces exactly
 the eleven inherited J-owned stale Node-import counts documented above,
 with unchanged VS Code API/importing-file/theme counts (332/31/61).
+
+The repaired amd64 base and build images both built successfully with
+`--pull=false --network none`. Before building, an invalid `debs/unlisted.deb`
+was added to **both** artifact packs and its real SHA-256 appended to each
+pack's diagnostic `SHA256SUMS`; the separately staged image-owned inventories
+were unchanged. Neither invalid package reached dpkg-deb or dpkg (either would
+refuse its non-package bytes). Both builds passed, followed by the existing
+real compiler/tool/skill/ownership smoke as UID 10001, with read-only root,
+no capabilities, no-new-privileges, no network and executable scratch only.
+Receipt: [`m110-b0-review-amd64-smoke.json`](m110-b0-review-amd64-smoke.json).
+
+The actual saved images were measured by the unchanged compressed-layer gate:
+
+| Pack  | Repaired compressed bytes | Unchanged budget | Receipt                                |
+| ----- | ------------------------: | ---------------: | -------------------------------------- |
+| base  |               181,502,964 |      200,000,000 | `m110-b0-review-base-amd64-size.json`  |
+| build |               388,041,749 |      450,000,000 | `m110-b0-review-build-amd64-size.json` |
+
+Exact private contexts/images and full build logs remain under `temp/m110-b0/`
+and `temp/m110-b0-review-*.log`. Native ARM64 build/smoke/size qualification
+remains B0-C-OS1-ARM64; staging ARM64 bytes is not execution evidence.
+
+Remaining scoped checks passed: plain knip (only its two inherited config
+hints), jscpd (zero clones), changed-file Prettier and production build.
+Production sizes remain extension **437.0 KiB / 600**, Model API
+**447.0 KiB / 475**, bundledSkills **16.7 KiB / 50**, browserRuntime
+**20.2 KiB / 50**; split, host-global and third-party-notice checks pass.
+The only failing scoped check is the inherited B0-J-HOST-API snapshot noted
+above. Full quality/coverage/platform gates remain delegated to the lead by
+the rig/common brief. The repair commit `60bf4ad18` ran both unchanged hooks;
+lint-staged passed and gitleaks found no staged secrets. No push, merge or
+rebase was performed.
