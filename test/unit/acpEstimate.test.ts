@@ -113,6 +113,34 @@ describe('M117 ACP estimate', () => {
     expect(estimate).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps an estimate with extra context local instead of sending it to a model', async () => {
+    const run = vi.fn(() => Promise.resolve('must not run'))
+    const h = harness({ run })
+    await h.run(async (client, sessionId) => {
+      const session = h.host.sessions[0]
+      if (session === undefined) throw new Error('missing fake session')
+      session.sendTurn.mockRejectedValue(new Error('local estimate reached the model'))
+      const text: acp.ContentBlock = { type: 'text', text: '/estimate M117' }
+      const context: acp.ContentBlock = {
+        type: 'resource_link',
+        uri: 'file:///fixture.ts',
+        name: 'fixture.ts',
+      }
+      for (const blocks of [
+        [text, context],
+        [context, text],
+      ])
+        expect(await client.request('session/prompt', { sessionId, prompt: blocks })).toMatchObject(
+          {
+            stopReason: 'end_turn',
+          },
+        )
+      expect(session.sendTurn).not.toHaveBeenCalled()
+    })
+    expect(run).not.toHaveBeenCalled()
+    expect(messages(h.updates)).toContain(UI_TEXT.estimateUsage)
+  })
+
   it('cancels the local estimate, denies overlapping prompts and suppresses a late result', async () => {
     const pending = Promise.withResolvers<string>()
     const run = vi.fn((_text: string, _cwd: string, _signal: AbortSignal) => pending.promise)

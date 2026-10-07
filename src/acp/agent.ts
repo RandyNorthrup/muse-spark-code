@@ -854,11 +854,8 @@ class AcpSession {
     if (!parsed.ok) {
       throw RequestError.invalidParams(undefined, parsed.reason)
     }
-    if (
-      parsed.parts.length === 1 &&
-      parsed.parts[0]?.type === 'text' &&
-      /^\/estimate(?:\s|$)/.test(parsed.parts[0].text.trim())
-    ) {
+    const estimatePart = blocks.find((block) => block.type === 'text')
+    if (estimatePart !== undefined && /^\/estimate(?:\s|$)/.test(estimatePart.text.trim())) {
       const controller = new AbortController()
       const preparing: PreparingPrompt = { isCancelled: false, estimateAbort: controller }
       this.preparing = preparing
@@ -866,10 +863,12 @@ class AcpSession {
         await this.announceCommands()
         if ('error' in preparing) throw preparing.error
         if (this.wasEstimateCancelled(preparing)) return 'cancelled'
-        const text =
-          this.deps.estimate === undefined
-            ? fill(UI_TEXT.estimateWaiting, { dependency: 'M117-W-estimator-binding' })
-            : await this.deps.estimate.run(parsed.parts[0].text, this.cwd, controller.signal)
+        let text = UI_TEXT.estimateUsage
+        if (parsed.parts.length === 1)
+          text =
+            this.deps.estimate === undefined
+              ? fill(UI_TEXT.estimateWaiting, { dependency: 'M117-W-estimator-binding' })
+              : await this.deps.estimate.run(estimatePart.text, this.cwd, controller.signal)
         if ('error' in preparing) throw preparing.error
         if (this.wasEstimateCancelled(preparing)) return 'cancelled'
         this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })

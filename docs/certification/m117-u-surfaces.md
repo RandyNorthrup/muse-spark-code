@@ -241,3 +241,27 @@ Final owning runs before the panel commit: 27 command/ACP/panel tests and
 Vitest timeout and at most three files/workers per run. Accepted mutation
 receipts total 32, each with a named failure and SHA-256 restoration; help and
 calibration-evidence regressions also failed before their fixes.
+
+## Multipart ACP command regression
+
+A final regression exposed model dispatch for `/estimate` with an attached
+resource. It failed before the fix: the fake model dispatcher deliberately
+rejects any call and the real ACP SDK returns Internal error. The initial fix
+looked for text in normalized turn parts; that still failed when the resource
+came first, because the existing ACP converter turns a resource link into a
+text part. The final fix looks at the original validated ACP text blocks. Both
+attachment orders now return local usage, call neither the estimator nor
+`sendTurn`, and end normally. Ordinary prompts keep the existing path.
+
+| Drill                   | Owning regression                                                           | Exit |
+| ----------------------- | --------------------------------------------------------------------------- | ---: |
+| `U33-acp-original-text` | keeps an estimate with extra context local instead of sending it to a model |    1 |
+| `U34-acp-extra-context` | keeps an estimate with extra context local instead of sending it to a model |    1 |
+
+Both restore `src/acp/agent.ts` byte-exact to `7a0a5a60f94b43f8ab96a817f6750c2ee1c88ce61cc3b36efe3b23c255e2ba2c`. Accepted guard-fire receipts now total 34.
+
+After the multipart fix: the complete command/ACP/panel run passes 28 tests
+(default timeout); together with the unchanged 46-test palette/browser receipt,
+74 owning tests pass. Scoped ACP ESLint, host typecheck and unit typecheck pass
+on the final fix. All five projects passed together on the panel commit; the
+webview/e2e/integration and harness code is unchanged by this final ACP fix.
