@@ -17,6 +17,8 @@ const held = vi.hoisted(() => ({
   handoffLoads: 0,
   secretLoads: 0,
   boardLoads: 0,
+  legal: Promise.withResolvers<undefined>(),
+  legalLoads: 0,
   prompts: Promise.withResolvers<undefined>(),
   promptsLoads: 0,
   chat: Promise.withResolvers<undefined>(),
@@ -49,6 +51,11 @@ vi.mock('../../src/webview/components/SecretPromptDialog', async (original) => {
 })
 vi.mock('../../src/webview/components/SessionBoardDialog', async (original) => {
   held.boardLoads += 1
+  return await original()
+})
+vi.mock('../../src/webview/components/LegalReport', async (original) => {
+  held.legalLoads += 1
+  await held.legal.promise
   return await original()
 })
 
@@ -100,6 +107,44 @@ describe('App while its deferred panels load', () => {
     expect(held.handoffLoads).toBe(0)
     expect(held.secretLoads).toBe(0)
     expect(held.boardLoads).toBe(0)
+    expect(held.legalLoads).toBe(0)
+
+    const legal: Extract<HostToWebviewMessage, { type: 'legalScanReport' }> = {
+      type: 'legalScanReport',
+      requestId: 'legal-first',
+      result: {
+        version: 1,
+        ruleVersion: '1',
+        dataVersion: '2026-10-04',
+        scope: '',
+        distribution: 'source checkout, undistributed',
+        exclusions: [],
+        incompleteChecks: [],
+        findings: [],
+      },
+    }
+    const composer = screen.getByLabelText('Message Muse')
+    composer.focus()
+    deliver(legal)
+    expect(screen.getByRole('dialog', { name: EN.loadingOutput })).toBeInTheDocument()
+    expect(screen.getByRole('main')).toHaveAttribute('inert')
+    await waitFor(() => {
+      expect(held.legalLoads).toBe(1)
+    })
+    deliver({ ...legal, requestId: 'legal-latest', result: { ...legal.result, scope: 'src' } })
+    const legalLoading = screen.getByRole('dialog', { name: EN.loadingOutput })
+    fireEvent.keyDown(within(legalLoading).getByLabelText('Close'), { key: 'Escape' })
+    expect(document.activeElement).toBe(composer)
+    await act(async () => {
+      held.legal.resolve(undefined)
+      await held.legal.promise
+    })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    deliver({ ...legal, requestId: 'legal-latest', result: { ...legal.result, scope: 'src' } })
+    const legalReport = await screen.findByRole('dialog', { name: EN.legalScanTitle })
+    expect(legalReport).toHaveTextContent('src')
+    fireEvent.click(within(legalReport).getByLabelText('Close'))
+    expect(document.activeElement).toBe(composer)
 
     deliver({
       type: 'gitCommitForm',

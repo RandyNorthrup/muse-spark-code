@@ -77,6 +77,29 @@ const SHAPES: readonly (readonly [shape: string, text: string, redacted: string]
   ['an AWS access key id', `id AKIA${'A'.repeat(16)} end`, 'id [redacted] end'],
   ['a Slack token', `xoxb-${'1'.repeat(12)}`, '[redacted]'],
   ['a Stripe-style key', `sk_live_${'a'.repeat(24)}`, '[redacted]'],
+  // M95-S (PLAN.md D74): the BYO providers' key shapes and account ids.
+  // Each text holds only its own shape's literal, proving the literal is in
+  // the prefilter; `bedrock-api-key-` also holds `api-key` by construction.
+  ['a Groq key', `log gsk_${'a'.repeat(24)} end`, 'log [redacted] end'],
+  ['an xAI key', `log xai-${'b'.repeat(24)} end`, 'log [redacted] end'],
+  ['a Fireworks key', `log fw_${'c'.repeat(24)} end`, 'log [redacted] end'],
+  ['a Hugging Face token', `log hf_${'d'.repeat(34)} end`, 'log [redacted] end'],
+  ['a Together key', `log tgp_v1_${'e'.repeat(20)} end`, 'log [redacted] end'],
+  ['a Bedrock key', `log ABSK${'F'.repeat(16)} end`, 'log [redacted] end'],
+  ['a Bedrock gateway key', `log bedrock-api-key-${'g'.repeat(16)} end`, 'log [redacted] end'],
+  ['an OpenRouter user id', '{"user_id":"u_123"}', '{"user_id":"[redacted]"}'],
+  [
+    'a creator and workspace id',
+    'creator_user_id=c_1 workspace_id=w_2',
+    'creator_user_id=[redacted] workspace_id=[redacted]',
+  ],
+  ['an organization header', 'openai-organization: org_abc', 'openai-organization: [redacted]'],
+  ['a workspace header', 'anthropic-workspace-id: ws_1', 'anthropic-workspace-id: [redacted]'],
+  [
+    'a team id in prose',
+    'failed for team 123e4567-e89b-12d3-a456-426614174000 end',
+    'failed for team [redacted] end',
+  ],
   ['an upper-case secret variable', 'GITHUB_TOKEN=abc123 next', 'GITHUB_TOKEN=[redacted] next'],
   ['an api-key header', 'x-api-key: abc123', 'x-api-key: [redacted]'],
   ['a token authorization', 'Authorization: token abc123', 'Authorization: token [redacted]'],

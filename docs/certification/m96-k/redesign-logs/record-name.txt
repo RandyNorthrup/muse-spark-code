@@ -1,0 +1,44 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamProcessLifetime.test.ts --maxWorkers=3 --testTimeout=120000
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/lanes/REDM96K
+
+ ❯ test/unit/teamProcessLifetime.test.ts (21 tests | 1 failed) 667ms
+   ❯ M96 K launcher contract (16)
+     × reports a bad launch filename without losing the valid foreign launch 55ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > reports a bad launch filename without losing the valid foreign launch
+$ZodError: [
+  {
+    "origin": "string",
+    "code": "invalid_format",
+    "format": "regex",
+    "pattern": "/^[A-Za-z0-9_-]+$/",
+    "path": [],
+    "message": "Invalid input"
+  }
+]
+ ❯ Module.fn node_modules/zod/v4/core/parse.js:17:18
+ ❯ _.parse node_modules/zod/v4/mini/schemas.js:20:22
+ ❯ targetFor src/host/team/teamJournal.ts:129:80
+    127|     z.uuid().parse(options.owner.instanceId),
+    128|   )
+    129|   const targetFor = (name: string) => path.join(directory, `${recordNa…
+       |                                                                                ^
+    130|   let tail = Promise.resolve()
+    131|   const serialize = <T>(operation: () => Promise<T>): Promise<T> => {
+ ❯ src/host/team/teamJournal.ts:200:24
+ ❯ src/host/team/teamJournal.ts:135:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 20 passed (21)
+   Start at  12:50:05
+   Duration  1.59s (tests 46%, transform 32%, import 13%, setup 9%)

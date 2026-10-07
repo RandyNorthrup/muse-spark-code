@@ -27,17 +27,32 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 const METAFILE_DIR = path.join('dist', 'meta')
+const ACP_METAFILE_DIR = path.join('dist', 'meta-acp')
 // The ACP agent ships acp.js, the Model API backend's bundle it loads (M57)
 // and the search/page workers (scripts/build.mjs, scripts/package-acp.mjs).
 const ACP_METAFILES = [
-  path.join('dist', 'meta-acp', 'acp.json'),
+  path.join(ACP_METAFILE_DIR, 'headless.json'),
+  path.join(METAFILE_DIR, 'runtimeEngine.json'),
+  path.join(METAFILE_DIR, 'runtimeAccounting.json'),
+  path.join(METAFILE_DIR, 'providerPolicy.json'),
+  path.join(METAFILE_DIR, 'modelApiHooks.json'),
+  path.join(METAFILE_DIR, 'modelApiMcp.json'),
+  path.join(ACP_METAFILE_DIR, 'acp.json'),
   path.join('dist', 'meta-acp', 'acpQuestions.json'),
   path.join('dist', 'meta-acp', 'runtimeQuestions.json'),
   path.join(METAFILE_DIR, 'questionNotes.json'),
   path.join(METAFILE_DIR, 'modelApi.json'),
+  path.join(METAFILE_DIR, 'providers.json'),
+  path.join(METAFILE_DIR, 'usageService.json'),
+  path.join(METAFILE_DIR, 'usageCompanion.json'),
+  path.join(METAFILE_DIR, 'usageWebview.json'),
   path.join(METAFILE_DIR, 'validation.json'),
   path.join(METAFILE_DIR, 'wire.json'),
+  path.join(METAFILE_DIR, 'legalScan.json'),
   path.join(METAFILE_DIR, 'reviewer.json'),
+  path.join(METAFILE_DIR, 'team.json'),
+  path.join(METAFILE_DIR, 'teamRunners.json'),
+  path.join(METAFILE_DIR, 'teamScheduler.json'),
   path.join(METAFILE_DIR, 'foreignHooks.json'),
   path.join(METAFILE_DIR, 'hookRuntime.json'),
   path.join(METAFILE_DIR, 'recorder.json'),
@@ -64,7 +79,7 @@ const HEADER = `THIRD-PARTY SOFTWARE NOTICES
 Muse Spark Code (Unofficial)
 
 The extension's bundles (dist/extension.js, dist/modelApi.js,
-dist/sessionBoard.js, dist/reviewer.js, dist/foreignHooks.js, dist/hookRuntime.js,
+dist/sessionBoard.js, dist/reviewer.js, dist/team.js, dist/teamScheduler.js, dist/teamRunners.js, dist/foreignHooks.js, dist/hookRuntime.js,
 dist/pluginHooks.js, dist/planMarkdown.js, dist/checkpointStore.js,
 dist/review.js, dist/agentImport.js, dist/conversationGit.js, dist/codeIntel.js, dist/voice.js, dist/webFetch.js,
 dist/museCodeReviewer.js, dist/browserCheck.js, dist/browserRuntime.js, dist/bundledSkills.js,
@@ -72,7 +87,8 @@ dist/conversation.js, dist/whatsNew.js, dist/report.js, dist/recorder.js, dist/u
 dist/webview/main.js, its ESM chunks, dist/webview/main.css, dist/webview/whatsNew.js and dist/webview/whatsNew.css)
 include code from the packages below, each under its own licence,
 reproduced here as the package ships it. The vendored
-high-quality-projects-skill workflow package is also included below.
+high-quality-projects-skill workflow package and the vendored models.dev
+provider catalogue are also included below.
 The macOS dictation helper links
 only Apple's system frameworks and the Windows helper is a PowerShell
 script of this project; neither includes third-party code.
@@ -85,8 +101,8 @@ const ACP_HEADER = `THIRD-PARTY SOFTWARE NOTICES
 muse-spark-code-acp, Muse Spark Code (Unofficial) for editors that speak the
 Agent Client Protocol
 
-The agent's bundles (dist/acp.js, dist/acpQuestions.js, dist/modelApi.js, dist/reviewer.js, dist/foreignHooks.js, dist/hookRuntime.js, dist/recorder.js, dist/uiText.js, dist/uiTextRuntime.js, dist/uiTextHooks.js, dist/uiTextSurfaces.js, dist/validation.js, dist/wire.js, dist/searchWorker.js and
-dist/pageWorker.js) include code from the packages below, each under its
+The agent's bundles (dist/acp.js, dist/acpQuestions.js, dist/runtimeQuestions.js, dist/questionNotes.js, dist/modelApi.js, dist/reviewer.js, dist/team.js, dist/teamScheduler.js, dist/teamRunners.js, dist/foreignHooks.js, dist/hookRuntime.js, dist/recorder.js, dist/uiText.js, dist/uiTextRuntime.js, dist/uiTextHooks.js, dist/uiTextSurfaces.js, dist/validation.js, dist/wire.js, dist/searchWorker.js and
+dist/pageWorker.js and dist/legalScan.js) include code from the packages below, each under its
 own licence, reproduced here as the package ships it. The keyring binding (@napi-rs/keyring) is installed
 beside it as a dependency, with its own licence.
 
@@ -176,7 +192,8 @@ function render(packages, isAcp) {
     const names = group.map((entry) => `${entry.name} (${entry.licence})\n  ${entry.url}`)
     return `${RULE}\n${names.join('\n')}\n${THIN_RULE}\n\n${text}\n`
   })
-  return `${header}\n${blocks.join('\n')}`
+  const legalData = normalise(readFileSync('src/core/legal/data/NOTICE.md', 'utf8'))
+  return `${header}\n${blocks.join('\n')}\n${RULE}\nSPDX identifier data\n${THIN_RULE}\n\n${legalData}\n`
 }
 
 /** The file `--acp` names; undefined without the flag. */
@@ -200,12 +217,23 @@ const metafiles =
 const problems = []
 const packages = shippedPackageDirs(metafiles).map((dir) => describePackage(dir, problems))
 if (acpOutput === undefined) {
-  packages.push({
-    name: 'high-quality-projects-skill',
-    licence: 'MIT',
-    url: 'https://github.com/RandyNorthrup/high-quality-projects-skill',
-    text: normalise(readFileSync('vendor/high-quality-projects-skill/LICENSE', 'utf8')),
-  })
+  packages.push(
+    {
+      name: 'high-quality-projects-skill',
+      licence: 'MIT',
+      url: 'https://github.com/RandyNorthrup/high-quality-projects-skill',
+      text: normalise(readFileSync('vendor/high-quality-projects-skill/LICENSE', 'utf8')),
+    },
+    // M95 (PLAN.md D74): the provider catalogue is models.dev data, vendored
+    // with its MIT notice. Whether the ACP agent's package ships the catalogue
+    // is lane X's decision; until it does, only the extension's notices name it.
+    {
+      name: 'models.dev',
+      licence: 'MIT',
+      url: 'https://models.dev',
+      text: normalise(readFileSync('vendor/models-dev/LICENSE', 'utf8')),
+    },
+  )
 }
 if (problems.length > 0) {
   console.error(`third-party notices: ${String(problems.length)} package(s) need a review:`)

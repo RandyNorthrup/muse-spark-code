@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { SHARE_VIEW_PAGE_ITEMS, UI_TEXT } from '../../src/shared/constants'
 import { EMPTY_PAID_TALLY } from '../../src/shared/paid'
@@ -9,6 +9,7 @@ import { restoredUiState, webviewStateOf } from '../../src/webview/state/snapsho
 import { createUiStore } from '../../src/webview/state/store'
 import { initialUiState } from '../../src/webview/state/uiState'
 import { testSettings } from './helpers/fakes'
+import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
 
 function deliver(data: unknown) {
   act(() => {
@@ -166,6 +167,37 @@ function renderReady(status: 'signedIn' | 'signedOut' = 'signedIn') {
   return postMessage
 }
 
+describe('M97 deterministic legal command routing', () => {
+  it.each(['museCode', 'modelApi'] as const)(
+    'routes signed-out /legal on %s without a model message',
+    (backend) => {
+      const postMessage = renderReady('signedOut')
+      deliver({ type: 'authState', status: 'signedOut', backend })
+      fireEvent.change(textarea(), { target: { value: '/legal src' } })
+      fireEvent.keyDown(textarea(), { key: 'Enter' })
+      expect(postMessage).toHaveBeenCalledWith({
+        type: 'requestLegalScan',
+        input: { paths: ['src'] },
+      })
+      expect(postMessage.mock.calls.some(([message]) => message.type === 'sendMessage')).toBe(false)
+    },
+  )
+  it.each(['/legal --format json', '/legal ' + 'x'.repeat(1025), '/legal -fix'])(
+    'refuses malformed syntax without posting a model message: %s',
+    (draft) => {
+      const postMessage = renderReady()
+      fireEvent.change(textarea(), { target: { value: draft } })
+      fireEvent.keyDown(textarea(), { key: 'Enter' })
+      expect(
+        postMessage.mock.calls.some(
+          ([message]) => message.type === 'sendMessage' || message.type === 'requestLegalScan',
+        ),
+      ).toBe(false)
+      expect(screen.getAllByText(UI_TEXT.legalCommandUsage).length).toBeGreaterThan(0)
+    },
+  )
+})
+
 function textarea() {
   return screen.getByLabelText<HTMLTextAreaElement>('Message Muse')
 }
@@ -198,6 +230,7 @@ function storeWithSavedConversation(sessionId: string | undefined, title: string
 // Behaviour assertions share the first-open imports. Dedicated lazy-boundary
 // and production browser tests exercise cold loading, failure and retry.
 beforeAll(async () => {
+  await warmDeferredSurfaces()
   renderReady()
   fireEvent.click(screen.getByLabelText('Commands'))
   fireEvent.keyDown(await screen.findByRole('combobox'), { key: 'Escape' })
@@ -779,6 +812,47 @@ describe('App conversation', () => {
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowLeft' })
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'medium' })
     expect(screen.getByRole('menu')).toBeInTheDocument()
+  })
+
+  it('uses the selected model record tiers in the Modes menu', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'modelList',
+      models: [
+        {
+          modelId: 'anthropic/claude-sonnet-5-5',
+          displayLabel: 'Sonnet',
+          isDefault: false,
+          effortLevels: ['low', 'high'],
+        },
+      ],
+    })
+    deliver({
+      type: 'sessionInfo',
+      modelId: 'anthropic/claude-sonnet-5-5',
+      contextLimit: 1_000_000,
+    })
+    fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
+    expect(screen.queryByTitle('Max')).toBeNull()
+    expect(screen.queryByTitle('Medium')).toBeNull()
+    fireEvent.click(screen.getByTitle('Low'))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'low' })
+  })
+
+  it('keeps empty native effort lists from posting fallback tiers', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'modelList',
+      models: [
+        { modelId: 'anthropic/haiku', displayLabel: 'Haiku', isDefault: false, effortLevels: [] },
+      ],
+    })
+    deliver({ type: 'sessionInfo', modelId: 'anthropic/haiku', contextLimit: 200_000 })
+    fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
+    expect(screen.queryByText('Effort (High)')).toBeNull()
+    postMessage.mockClear()
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowRight' })
+    expect(postMessage).not.toHaveBeenCalled()
   })
 
   it('opens the Modes menu from the palette row', () => {
@@ -2015,7 +2089,7 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
     expect(
       screen.getByRole('progressbar', { name: 'Current window: 42% used' }),
     ).toBeInTheDocument()
-    expect(dialog).toHaveTextContent('muse-pro')
+    await waitFor(() => expect(dialog).toHaveTextContent('muse-pro'))
     fireEvent.keyDown(screen.getByLabelText('Close'), { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(document.activeElement).toBe(textarea())
@@ -2025,7 +2099,7 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
     renderReady()
     const dialog = await openUsageDialog()
     deliver({ type: 'usageReport', backend: 'museCode', subscription })
-    expect(dialog).toHaveTextContent('muse-pro')
+    await waitFor(() => expect(dialog).toHaveTextContent('muse-pro'))
     deliver({ type: 'conversationCleared', accountBoundary: true })
     expect(screen.queryByText('muse-pro')).toBeNull()
     expect(screen.queryByRole('dialog', { name: 'Account & usage' })).toBeNull()
@@ -3384,6 +3458,69 @@ describe('App: a refused best-of-N start (M77, the RV78 review)', () => {
     expect(
       postMessage.mock.calls.filter(([message]) => message.type === 'startBestOfN'),
     ).toHaveLength(2)
+  })
+})
+
+describe('App BYO picker and setup (M95)', () => {
+  const byoModels = [
+    ...models,
+    {
+      modelId: 'openrouter/deepseek/deepseek-v3',
+      displayLabel: 'DeepSeek V3',
+      contextLimit: 64_000,
+      isDefault: true,
+      providerId: 'openrouter',
+      providerLabel: 'OpenRouter',
+      pricing: 'priced',
+      inputUsdPerMTokens: 0.27,
+      outputUsdPerMTokens: 1.1,
+    },
+  ]
+
+  it('names the provider in the composer pill', () => {
+    renderReady()
+    deliver({ type: 'modelList', models: byoModels })
+    deliver({
+      type: 'sessionInfo',
+      modelId: 'openrouter/deepseek/deepseek-v3',
+      contextLimit: 64_000,
+    })
+    expect(screen.getByLabelText('Model')).toHaveTextContent('OpenRouter · DeepSeek V3 High')
+  })
+
+  it('keeps the bare pill for Meta models', () => {
+    renderReady()
+    deliver({ type: 'modelList', models })
+    deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_007_997 })
+    expect(screen.getByLabelText('Model')).toHaveTextContent('muse-spark-1.3 High')
+  })
+
+  it('opens the provider quick-pick from the picker footer', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'modelList', models: byoModels })
+    fireEvent.click(screen.getByLabelText('Model'))
+    fireEvent.click(screen.getByRole('option', { name: 'Add a model provider…' }))
+    expect(postMessage).toHaveBeenCalledWith({
+      type: 'hostAction',
+      action: 'addModelProvider',
+    })
+  })
+
+  it('confirms the finished setup once, then manages and dismisses', async () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'setupComplete',
+      provider: 'OpenRouter',
+      model: 'openrouter/deepseek/deepseek-v3',
+    })
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent('OpenRouter')
+    })
+    expect(screen.getByRole('status')).toHaveTextContent('openrouter/deepseek/deepseek-v3')
+    fireEvent.click(screen.getByRole('button', { name: 'Manage providers' }))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'hostAction', action: 'manageModels' })
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    expect(screen.queryByRole('button', { name: 'Manage providers' })).toBeNull()
   })
 })
 

@@ -6,7 +6,7 @@
 // picture a tool read or made, plus the approval or question card when the
 // host is waiting.
 
-import { memo, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, memo, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import {
   IO_PREVIEW_LINES,
   PATCH_DOCUMENT_MAX_PAGES,
@@ -47,6 +47,10 @@ import {
 import type { ElicitationCardProps } from './ElicitationCard'
 import { deferred } from './DeferredSurface'
 
+const TeamWorkerLabel = lazy(async () => {
+  const module = await import('./TeamUi')
+  return { default: module.TeamWorkerLabel }
+})
 import { Clipped, DiffTable } from './ToolBlocks'
 const GoalBody = deferred(async () => {
   const module = await import('./ToolBodies')
@@ -701,6 +705,11 @@ function ToolRowView({
           {images}
         </div>
       ) : null}
+      {entry.teamWorker === undefined ? null : (
+        <Suspense fallback={null}>
+          <TeamWorkerLabel worker={entry.teamWorker} />
+        </Suspense>
+      )}
       {entry.approval === undefined ? null : (
         // The card itself waits in the dock above the composer (D26).
         <div className="tool-outcome approval-docked">{UI_TEXT.approvalDockedNote}</div>

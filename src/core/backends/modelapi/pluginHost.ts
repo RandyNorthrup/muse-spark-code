@@ -300,6 +300,7 @@ export const posixProcessTree: PluginProcessTree = {
   spawn: (command, args, options) =>
     Promise.resolve(
       nodeChildHandle(
+        // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- resolvePluginRuntime supplies the absolute Node/Bun/prlimit path; host-owned arguments use no shell, plugin input uses stdin, and the environment has credentials removed (PLAN.md §8).
         nodeSpawn(command, [...args], {
           env: options.env,
           cwd: options.cwd,

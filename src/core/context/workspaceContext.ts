@@ -7,6 +7,7 @@
 // the host says their files changed. The memory is read once, as Muse Code
 // takes its snapshot at session start.
 
+import path from 'node:path'
 import { RULES_PREAMBLE } from '../../shared/constants'
 import type { MemoryScopeSnapshot } from '../memory/memoryStore'
 import type { ContextIo } from './contextFiles'
@@ -26,6 +27,7 @@ import { loadRuleFile, type RuleFile, ruleDirectoriesFor, renderRules } from './
 import {
   type BundledSkillsSource,
   bundledSkillsRoot,
+  extensionSkillsRoot,
   loadSkills,
   projectSkillsRoot,
   type SkillDefinition,
@@ -127,6 +129,18 @@ export class WorkspaceContext {
           packageRoot: bundledSkills.packageRoot,
         },
       )
+      // The extension's own skills (M97, PLAN.md D76): the same `bundled`
+      // source and setting, after the vendored package, without touching it.
+      const extensionSkills = extensionSkillsRoot(bundledSkills.packageRoot, this.deps.platform)
+      const extensionRoot = (this.deps.platform === 'win32' ? path.win32 : path.posix).dirname(
+        extensionSkills,
+      )
+      roots.push({
+        directory: extensionSkills,
+        source: 'bundled',
+        confineTo: extensionRoot,
+        packageRoot: extensionRoot,
+      })
     }
     return roots
   }

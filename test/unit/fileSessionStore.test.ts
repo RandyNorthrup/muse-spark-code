@@ -96,6 +96,26 @@ describe('createFileSessionStore', () => {
     )
   })
 
+  it('lists a header whose conversation no longer parses, and refuses to open it (M101 BYO 16)', async () => {
+    const directory = path.join(root, 'headers')
+    const { store, log } = storeIn(directory)
+    await store.save({ ...stored('whole', 'Whole'), turnIds: ['t1'] })
+    // A damaged replay: the header still reads, the session does not.
+    const raw: Record<string, unknown> = structuredClone({
+      ...stored('damaged', 'Damaged'),
+      turnIds: ['t1'],
+    })
+    raw['replay'] = ['bogus']
+    await writeFile(path.join(directory, 'damaged.json'), JSON.stringify(raw), 'utf8')
+    await expect(store.list()).resolves.toEqual([
+      headerOf({ ...stored('damaged', 'Damaged'), turnIds: ['t1'] }),
+      headerOf({ ...stored('whole', 'Whole'), turnIds: ['t1'] }),
+    ])
+    expect(log.warn).not.toHaveBeenCalled()
+    await expect(store.load('damaged')).resolves.toBeUndefined()
+    expect(log.warn).toHaveBeenCalledTimes(1)
+  })
+
   it('refuses a session id that could leave the directory', async () => {
     const { store } = storeIn(path.join(root, 'ids'))
     await expect(store.save(stored('../escape'))).rejects.toThrow('cannot name a file')

@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import * as fs from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -13,6 +13,7 @@ import { memoryToolIo } from './helpers/fakeToolIo'
 import { memorySessionStore } from './helpers/fakeSessionStore'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { startWatchedSession } from './helpers/sessionTurns'
+import { removeFolder } from './helpers/temporaryFolders'
 
 vi.mock('node:fs/promises', { spy: true })
 
@@ -22,7 +23,7 @@ afterEach(async () => {
   vi.restoreAllMocks()
   vi.unstubAllEnvs()
   for (const host of hosts.splice(0)) await host.close()
-  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
+  for (const root of roots.splice(0)) await removeFolder(root)
 })
 
 function harness(isNativeShell = false) {

@@ -1,3 +1,5 @@
+import type { UsageRecording } from '../../core/usage/recording'
+import type { ProviderUsageRow } from '../../shared/usage'
 import type { ChatShareSource } from '../../core/sharing/chatShare'
 import { QuestionRegistry } from '../../core/questions/registry'
 import type { QuestionAnswerText } from '../../core/questions/lateAnswer'
@@ -74,10 +76,20 @@ import type { BestOfNCoordinator } from '../../core/bestOfN/bestOfNCoordinator'
 import type { BoardSession, PendingPrompts } from '../../core/sessionBoard'
 import { failureForLog, isMspFailure, stderrForLog } from '../../core/backends/musecode/logText'
 import { chatReferenceText } from '../../core/chatReference'
-import type { PlanModeHold, PlanModeRestore } from '../../core/review/planModeHold'
+import type {
+  PlanModeHold,
+  PlanModeHoldDeps,
+  PlanModeRestore,
+} from '../../core/review/planModeHold'
 import type { ReviewMaterial } from '../../core/review/reviewMaterial'
 import { isPrivateFileName } from '../../shared/privateFiles'
 import { isGitReview, type ReviewRequest } from '../../shared/reviewCommand'
+import type {
+  LegalScanInput,
+  LegalScanReportMessage,
+  LegalScanResult,
+  LegalScanRunner,
+} from '../../shared/legal'
 import { FifoLimiter } from '../../core/fifoLimiter'
 import { textFileDisplay } from '../../shared/textFileDisplay'
 import { type EditorContext, editorContextText } from '../../core/editorContext'
@@ -141,11 +153,14 @@ import {
   UNSUPPORTED_BINARY_ATTACHMENT_EXTENSIONS,
   REPORT_UNKNOWN_ERROR_CODE,
   type ReportEventKind,
+  LEGAL_MARKDOWN_EXPORT_FILE,
   UI_TEXT,
   QUESTION_DEFER_DEFAULT_SECONDS,
   USER_SHELL_ITEM_KIND,
   USER_SHELL_SANDBOX_FAILURE_MARKER,
 } from '../../shared/constants'
+// M96 lane T (LANE-T-SEAM, lane 0): from shared constants at integration.
+import { TEAM_MCP_SERVER_NAME } from '../../shared/constants'
 import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
 import type { AgentEvent, ApprovalChoice, ItemSnapshot, TodoItem } from '../../shared/agentEvents'
 import { fill, plural } from '../../shared/l10n/text'
@@ -172,10 +187,12 @@ import type {
   ReviewFile,
   SkillOption,
 } from '../../shared/protocol'
-import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
+import type { AccountFacts, SubscriptionUsage } from '../../shared/usage'
+import type { UsageInsightsReport } from '../../runtime/usage/traceLogs'
 import type { AuthPort } from '../auth/authService'
 import type { CheckpointPort } from '../checkpoints/checkpointHost'
 import type { DescribedFile, EditReviewActions, ReviewNotice } from '../editor/editReview'
+import { LegalFixPreviews, type LegalFixFileAccess, type LegalFixApplier } from '../legalFix'
 import type { ReviewCollection } from '../review/reviewCollector'
 import type { ReviewTurnFeatures } from '../review/reviewBundle'
 import { errorDetail, type Logger } from '../logger'
@@ -371,6 +388,7 @@ export interface SessionMemory {
 }
 
 export interface ConversationDeps {
+  readonly usageRecording?: UsageRecording | undefined
   readonly surface: ChatSurface
   readonly auth: AuthPort
   readonly ensureHost: () => Promise<AgentHost>
@@ -424,6 +442,20 @@ export interface ConversationDeps {
   readonly editReview: EditReviewActions
   /** `/review` (M70, PLAN.md D49): its parts, from the review's own bundle. */
   readonly review: ReviewTurnFeatures
+  /**
+   * The deterministic legal scanner (M97, PLAN.md D76): lane S's scan
+   * through lane 0's contract; undefined until lane R wires the bundle.
+   */
+  readonly legalExplanation?:
+    ((result: LegalScanResult, signal: AbortSignal) => Promise<string>) | undefined
+  readonly legalMarkdown?: ((result: LegalScanResult) => string) | undefined
+  readonly legalFixApplier?: LegalFixApplier | undefined
+  readonly legalScan?: LegalScanRunner | undefined
+  /**
+   * The Plan-mode hold a live Muse Code conversation takes for a `/legal`
+   * scan (M70's hold, D76); from the scanner's bundle with the scan.
+   */
+  readonly createLegalHold?: ((holdDeps: PlanModeHoldDeps) => PlanModeHold) | undefined
   /** A tool output as a read-only editor tab named `title` (M15). */
   readonly openDocument: (title: string, content: string) => Promise<void>
   /** A file in an editor, `path` absolute or workspace-relative, the lines (1-based) selected (M16). */
@@ -432,6 +464,34 @@ export interface ConversationDeps {
   readonly readToolImage: (path: string) => Promise<ToolImageResult>
   /** The IDE tool server for `session/start`, when it is listening. */
   readonly ideMcpEndpoint: () => Promise<SessionMcpHttpServer | undefined>
+  /**
+   * M96 lane T: the `team` server for `session/start`, on team conversations
+   * only (lanes B/T own the server; extension.ts wires it). Absent: every
+   * Muse Code session starts exactly as today.
+   */
+  readonly teamMcp?:
+    | {
+        /** Whether a new conversation here runs the team; read at session start. */
+        readonly modeForNewConversation: () => 'single-model' | 'team'
+        readonly modeForSession?: (sessionId: string) => 'single-model' | 'team'
+        readonly rememberMode?: (sessionId: string, mode: 'single-model' | 'team') => Promise<void>
+        /** This conversation's endpoint: one token per conversation, refused elsewhere. */
+        readonly endpointForConversation: (
+          sessionId?: string,
+        ) => Promise<SessionMcpHttpServer | undefined>
+      }
+    | undefined
+  /**
+   * M96 lane T: the orchestrator slot. A new conversation starts on the
+   * workspace override, or the picker's model; the pill then shows the
+   * resolved model (lanes R/U1 own the Roles section; M95's lane U owns the
+   * picker's listModels/setModel regions).
+   */
+  readonly orchestratorSlot?:
+    | {
+        readonly modelForNewConversation: (pickerModelId: string) => string
+      }
+    | undefined
   readonly newAttachmentId: () => string
   /** Session history (M6). */
   readonly sessions: SessionMemory
@@ -584,12 +644,6 @@ export interface ConversationDeps {
   readonly museCodeReviewer?: MuseCodeReviewerPort
   readonly now: () => number
   readonly log: Logger
-}
-
-/** The day and the week windows of the usage insights (M14). */
-export interface UsageInsightsReport {
-  readonly day: UsageInsights
-  readonly week: UsageInsights
 }
 
 const IDLE_STATUS = 'idle'
@@ -1043,6 +1097,12 @@ export class ConversationController {
   private readonly questionApprovals = new Set<string>()
   private unsubscribe: (() => void) | undefined
   private models: readonly ModelOption[] | undefined
+  /**
+   * Models the host flagged as training on the content, from the unfiltered
+   * listing (M95): the picker never sees them where confidential, and neither
+   * does a stale `setModel`. Refreshed with every listing, forgotten with it.
+   */
+  private readonly trainingModelIds = new Set<string>()
   private modelListing: Promise<void> | undefined
   /** The backend the model catalogue was listed from; a new backend or sign-in starts a new one. */
   private modelGeneration = 0
@@ -1236,6 +1296,15 @@ export class ConversationController {
    * or refuses the next conversation.
    */
   private reviewStart: Promise<void> | undefined
+  /**
+   * A `/legal` scan on its way (M97): the deterministic scan, no turn — one
+   * at a time. Its signal stops when the session goes (`dropSession`), so a
+   * scan never answers for a conversation that moved on.
+   */
+  private legalScanStart: Promise<void> | undefined
+  private legalScanStop: AbortController | undefined
+  private legalScanSequence = 0
+  /** Preparation and acknowledgement still belong to a model send before activeTurnId is set. */
   /** Mode choices and revocation wait for the outstanding owned request; the newest wins. */
   private reviewModeSettling: Promise<void> | undefined
   private permissionModeSelection = 0
@@ -1247,6 +1316,12 @@ export class ConversationController {
    * releases only its own hold.
    */
   private readonly revertedHunks = new Map<string, symbol>()
+  /**
+   * The legal report's stored fix previews (M97 lane W): each confirm
+   * rechecks the preview's evidence and file hashes, so a changed file,
+   * a lost trust, or a dropped session refuses instead of writing.
+   */
+  private readonly legalFixPreviews = new LegalFixPreviews()
   /**
    * The turns this panel started in Plan mode that finished with the panel
    * in Plan mode throughout (M79): only their replies are plans. A restart
@@ -1296,6 +1371,14 @@ export class ConversationController {
    * open for this surface's conversation.
    */
   private tasksTabFor: { readonly sessionId: string | undefined } | undefined
+
+  /**
+   * M96 lane T: whether this conversation's sessions carry the `team`
+   * server. Decided at session start, kept unchanged at every resume in this
+   * window and workspace metadata; older sessions keep today's single-model set.
+   */
+  private teamServerAttached: boolean | undefined
+  private teamServerSessionId: string | undefined
 
   public constructor(private readonly deps: ConversationDeps) {
     this.modelId = deps.modelId
@@ -1723,9 +1806,17 @@ export class ConversationController {
     // A review's Plan mode goes with its session (M70): the next session
     // starts, resumes or is adopted in the mode the user had.
     this.releasePlanHold(true)
+    // A scan's report belongs to the conversation that asked: a scan still
+    // running stops and says nothing (M97).
+    this.legalScanStop?.abort()
+    this.legalScanStop = undefined
     this.reviewModeSettling = undefined
     this.permissionModeSelection += 1
     this.revertedHunks.clear()
+    // A dropped session's fix previews go with it (M97 lane W): later
+    // confirms refuse with `previewExpired` instead of authorizing.
+    if (this.isDisposed) this.legalFixPreviews.dispose()
+    else this.legalFixPreviews.invalidate()
     const didHaveSkills = this.skills !== undefined
     this.skills = undefined
     this.skillsRefresh = undefined
@@ -3487,6 +3578,7 @@ export class ConversationController {
     const didHaveModels = this.models !== undefined
     this.modelGeneration += 1
     this.models = undefined
+    this.trainingModelIds.clear()
     this.modelListing = undefined
     if (didHaveModels && !this.isDisposed) {
       this.post({ type: 'modelList', models: [] })
@@ -3514,14 +3606,37 @@ export class ConversationController {
     if (this.isDisposed || this.modelGeneration !== generation) {
       return
     }
+    // A confidential workspace hides the contributor tier and any BYO model
+    // whose provider or route may train on the content (M95, PLAN.md D74).
+    // The refused ids stay known for a stale `setModel` naming one.
+    this.trainingModelIds.clear()
+    for (const model of listed) {
+      if (model.trainsOnContent === true) {
+        this.trainingModelIds.add(model.modelId)
+      }
+    }
     const models = this.deps.isConfidentialWorkspace()
-      ? listed.filter((model) => !isContributorModel(model.modelId))
+      ? listed.filter(
+          (model) => !isContributorModel(model.modelId) && model.trainsOnContent !== true,
+        )
       : listed
     this.models = models.map((model) => ({
       modelId: model.modelId,
       displayLabel: model.displayLabel,
       ...(model.contextLimit !== undefined && { contextLimit: model.contextLimit }),
       isDefault: model.isDefault,
+      ...(model.providerId !== undefined && { providerId: model.providerId }),
+      ...(model.providerLabel !== undefined && { providerLabel: model.providerLabel }),
+      ...(model.pricing !== undefined && { pricing: model.pricing }),
+      ...(model.inputUsdPerMTokens !== undefined && {
+        inputUsdPerMTokens: model.inputUsdPerMTokens,
+      }),
+      ...(model.outputUsdPerMTokens !== undefined && {
+        outputUsdPerMTokens: model.outputUsdPerMTokens,
+      }),
+      ...(model.isPinned === true && { isPinned: model.isPinned }),
+      ...(model.planLimitsUrl !== undefined && { planLimitsUrl: model.planLimitsUrl }),
+      ...(model.trainsOnContent === true && { trainsOnContent: model.trainsOnContent }),
     }))
     this.post({ type: 'modelList', models: [...this.models] })
   }
@@ -3620,15 +3735,40 @@ export class ConversationController {
     }
   }
 
-  /** The IDE tool server config for a new or resumed session, when granted. */
   private async mcpServersFor(
     host: AgentHost,
+    resumeSessionId?: string,
   ): Promise<Readonly<Record<string, SessionMcpHttpServer>> | undefined> {
+    // The `team` server rides beside the `ide` server on team conversations
+    // only; single-model sessions carry today's set, byte for byte.
+    if (host.info.kind === 'museCode') {
+      if (resumeSessionId === undefined) {
+        this.teamServerAttached =
+          !this.isSideChat && this.deps.teamMcp?.modeForNewConversation() === 'team'
+        this.teamServerSessionId = undefined
+      } else if (resumeSessionId !== this.teamServerSessionId) {
+        this.teamServerAttached =
+          !this.isSideChat && this.deps.teamMcp?.modeForSession?.(resumeSessionId) === 'team'
+        this.teamServerSessionId = resumeSessionId
+      }
+    }
     if (!host.info.grantedCapabilities.includes(IDE_MCP_CAPABILITY)) {
+      if (host.info.kind === 'museCode' && this.teamServerAttached === true)
+        throw new Error(fill(UI_TEXT.teamRunnerUnavailable, { tool: TEAM_MCP_SERVER_NAME }))
       return undefined
     }
     const ideEndpoint = await this.deps.ideMcpEndpoint()
-    return ideEndpoint === undefined ? undefined : { [IDE_MCP_SERVER_NAME]: ideEndpoint }
+    const servers: Record<string, SessionMcpHttpServer> = {}
+    if (ideEndpoint !== undefined) {
+      servers[IDE_MCP_SERVER_NAME] = ideEndpoint
+    }
+    if (host.info.kind === 'museCode' && this.teamServerAttached) {
+      const team = await this.deps.teamMcp?.endpointForConversation(resumeSessionId)
+      if (team === undefined)
+        throw new Error(fill(UI_TEXT.teamRunnerUnavailable, { tool: TEAM_MCP_SERVER_NAME }))
+      servers[TEAM_MCP_SERVER_NAME] = team
+    }
+    return Object.keys(servers).length === 0 ? undefined : servers
   }
 
   private sideResumeOptions(host: AgentHost): { readonly requireSideChat: true } | undefined {
@@ -3766,10 +3906,18 @@ export class ConversationController {
     }
     const mcpServers = await this.mcpServersFor(host)
     this.requireCurrentOpening(generation)
-    this.requireNonConfidentialModel(this.modelId)
+    // M96 lane T: the orchestrator slot. A new conversation starts on the
+    // workspace override, or the picker's model; the pill then shows the
+    // resolved model through postSessionInfo.
+    let modelId = this.deps.orchestratorSlot?.modelForNewConversation(this.modelId) ?? this.modelId
+    if (modelId !== this.modelId && !(await this.allowsModel(modelId))) {
+      modelId = this.modelId
+    }
+    this.requireCurrentOpening(generation)
+    this.requireNonConfidentialModel(modelId)
     const session = await host.startSession({
       workspaceRoot,
-      modelId: this.modelId,
+      modelId,
       approvalMode: approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
       ...(this.isSideChat && { sideChat: true }),
       ...(mcpServers !== undefined && { mcpServers }),
@@ -3783,6 +3931,20 @@ export class ConversationController {
       this.requireCurrentOpening(generation)
     }
     this.modelId = session.modelId
+    if (host.info.kind === 'museCode') {
+      this.teamServerSessionId = session.sessionId
+      try {
+        await this.deps.teamMcp?.rememberMode?.(
+          session.sessionId,
+          this.teamServerAttached === true ? 'team' : 'single-model',
+        )
+        this.requireCurrentOpening(generation)
+      } catch (error: unknown) {
+        this.ideSessions.delete(session)
+        session.dispose()
+        throw error
+      }
+    }
     await this.attach(host, session, 'started')
     this.requireCurrentOpening(generation)
     if (host.info.kind === 'modelApi') {
@@ -3832,12 +3994,13 @@ export class ConversationController {
       this.deps.log.info(`Session ${target.sessionId} is not resumed: its Muse Code log is damaged`)
       throw new Error(UI_TEXT.sessionLogDamaged)
     }
-    this.resumeTarget = undefined
     if (target?.kind !== host.info.kind) {
+      this.resumeTarget = undefined
       return undefined
     }
     let loaded: LoadedSession
-    const mcpServers = await this.mcpServersFor(host)
+    const mcpServers = await this.mcpServersFor(host, target.sessionId)
+    this.resumeTarget = undefined
     try {
       this.requireNonConfidentialModel(this.modelId)
       loaded = await host.resumeSession(
@@ -3969,12 +4132,14 @@ export class ConversationController {
     for (;;) {
       const held = this.planHold
       const starting = this.reviewStart
+      const scanning = this.legalScanStart
       try {
         await this.reviewModeSettling
       } catch {
         // The mode owner handles the failure and may retire this session.
       }
       await starting
+      await scanning
       await held?.hold.waitForModeChange()
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return undefined
@@ -3982,6 +4147,7 @@ export class ConversationController {
       if (
         this.reviewModeSettling === undefined &&
         this.reviewStart === undefined &&
+        this.legalScanStart === undefined &&
         (this.planHold === held || this.planHold === undefined)
       ) {
         break
@@ -4533,7 +4699,7 @@ export class ConversationController {
         return
       }
       this.watchList(host)
-      const mcpServers = await this.mcpServersFor(host)
+      const mcpServers = await this.mcpServersFor(host, sessionId)
       this.requireNonConfidentialModel(this.modelId)
       const loaded = await host.resumeSession(
         sessionId,
@@ -6765,6 +6931,150 @@ export class ConversationController {
     }
   }
 
+  /**
+   * `/legal` (M97, PLAN.md D76): the deterministic scan and its report (lane
+   * W renders it). No model, no writes, no backend started: the scan runs
+   * the injected runner under lane 0's contract. Refusals are panel notices
+   * (the request carries no card); a cancelled or stale scan says nothing.
+   * On the Model API backend, or with no live session, the scan runs as is;
+   * on a live Muse Code conversation it holds Plan mode for the scan (M70's
+   * hold, D76), restored only while the scan still owns it.
+   */
+  private async startLegalScan(input: LegalScanInput | undefined): Promise<void> {
+    if (this.deps.workspaceRoot === undefined) {
+      this.notice('warning', UI_TEXT.noWorkspaceReason)
+      return
+    }
+    if (
+      this.activeTurnId !== undefined ||
+      this.turnSubmissionsInFlight > 0 ||
+      this.reviewStart !== undefined ||
+      this.planHold !== undefined ||
+      this.legalScanStart !== undefined
+    ) {
+      this.say('info', UI_TEXT.legalScanBusy)
+      return
+    }
+    const runner = this.deps.legalScan
+    if (runner === undefined || this.deps.createLegalHold === undefined) {
+      this.notice('warning', UI_TEXT.legalScanUnavailable)
+      return
+    }
+    if (!this.deps.isWorkspaceTrusted()) {
+      this.notice('warning', UI_TEXT.legalScanUntrusted)
+      return
+    }
+    const running = this.runLegalScan(input ?? {}, runner, this.sendInvalidationEpoch)
+    this.legalScanStart = running
+    try {
+      await running
+    } finally {
+      // A newer conversation's scan may hold the barrier by now.
+      if (this.legalScanStart === running) {
+        this.legalScanStart = undefined
+      }
+    }
+  }
+
+  /** The scan's asynchronous part: it answers its own failures and never rejects. */
+  private async runLegalScan(
+    input: LegalScanInput,
+    runner: LegalScanRunner,
+    generation: number,
+  ): Promise<void> {
+    const stop = new AbortController()
+    this.legalScanStop = stop
+    const isStale = () => this.isDisposed || generation !== this.sendInvalidationEpoch
+    // A dropped scan says nothing: the conversation moved on (or is gone).
+    const isDropped = () => isStale() || stop.signal.aborted
+    try {
+      const session = this.session
+      const result =
+        session !== undefined && this.sessionKind === 'museCode'
+          ? await this.runHeldLegalScan(input, runner, session, generation, stop.signal, isStale)
+          : await runner(input, stop.signal)
+      if (isDropped()) {
+        this.deps.log.info('Legal scan dropped: the conversation moved on')
+        return
+      }
+      if (!this.deps.isWorkspaceTrusted()) {
+        this.notice('warning', UI_TEXT.legalScanUntrusted)
+        return
+      }
+      this.legalScanSequence += 1
+      this.legalFixPreviews.setScan(
+        `legal-${String(this.legalScanSequence)}`,
+        result,
+        this.deps.workspaceRoot ?? '',
+      )
+      this.post({
+        type: 'legalScanReport',
+        requestId: `legal-${String(this.legalScanSequence)}`,
+        result,
+      } satisfies LegalScanReportMessage)
+    } catch (error: unknown) {
+      if (isDropped()) {
+        this.deps.log.info('Legal scan dropped: the conversation moved on')
+        return
+      }
+      if (!this.deps.isWorkspaceTrusted()) {
+        this.notice('warning', UI_TEXT.legalScanUntrusted)
+        return
+      }
+      // The scan failed: the log keeps the kind, the panel says why in its
+      // words (a finding holds evidence excerpts, never secret values).
+      this.deps.log.error(`startLegalScan failed: ${errorKind(error)}`)
+      this.notice(
+        'warning',
+        fill(UI_TEXT.legalScanFailed, { reason: redactSecrets(describe(error)) }),
+      )
+    } finally {
+      if (this.legalScanStop === stop) {
+        this.legalScanStop = undefined
+      }
+    }
+  }
+
+  /**
+   * The scan under the Plan-mode hold on a live Muse Code conversation
+   * (M70's hold, D76): nothing is written, so no turn runs under it. The
+   * hold is taken only while the session is still this conversation's; a
+   * release meanwhile (the user's own mode choice) leaves their choice
+   * alone, and a failed hold is dropped like a failed review's.
+   */
+  private async runHeldLegalScan(
+    input: LegalScanInput,
+    runner: LegalScanRunner,
+    session: AgentSession,
+    generation: number,
+    signal: AbortSignal,
+    isStale: () => boolean,
+  ): Promise<LegalScanResult> {
+    const createHold = this.deps.createLegalHold
+    if (createHold === undefined) {
+      throw new Error(UI_TEXT.legalScanUnavailable)
+    }
+    this.notice('info', UI_TEXT.legalScanPlanModeNotice)
+    const previousMode = this.permissionMode
+    if (previousMode === 'plan') {
+      return await runner(input, signal)
+    }
+    const bypassEpoch = this.bypassRevocationEpoch
+    const hold = this.takePlanHold(createHold, session, generation, previousMode, bypassEpoch)
+    const isCurrent = () =>
+      this.isCurrentSessionAction(session, generation) &&
+      !isStale() &&
+      this.deps.isWorkspaceTrusted()
+    try {
+      return await hold.holding(session, () => runner(input, signal), isCurrent)
+    } catch (error: unknown) {
+      // Admission and scanner failures never retry unheld. Restoration can
+      // clear planHold too; that does not establish a user mode change.
+      this.dropFailedHold(hold, session, generation)
+      throw error
+    }
+  }
+
   /** The review turn on the session: the Reviewer's where the backend has one, else in Plan mode. */
   private async submitReview(
     session: AgentSession,
@@ -6795,7 +7105,41 @@ export class ConversationController {
       return await session.sendTurn(parts, text)
     }
     const bypassEpoch = this.bypassRevocationEpoch
-    const hold: PlanModeHold = this.deps.review.createHold({
+    const hold = this.takePlanHold(
+      (holdDeps) => this.deps.review.createHold(holdDeps),
+      session,
+      generation,
+      previousMode,
+      bypassEpoch,
+    )
+    // Auto is left for the review turn: what the Auto reviewer holds is the user's (M90).
+    this.reviews?.release()
+    try {
+      return await hold.send(session, parts, text, () => {
+        this.requireNonConfidentialModel(session.modelId)
+        return isCurrent()
+      })
+    } catch (error: unknown) {
+      // Plan mode was refused (nothing to put back), or the send failed and
+      // the hold put the mode back already.
+      this.dropFailedHold(hold, session, generation)
+      throw error
+    }
+  }
+
+  /**
+   * A turn or scan holding the session in Plan mode (M70, and M97's scan):
+   * the hold, the mode the user had, the panel in Plan until it comes back.
+   * The caller's own notice says what runs under it.
+   */
+  private takePlanHold(
+    createHold: (holdDeps: PlanModeHoldDeps) => PlanModeHold,
+    session: AgentSession,
+    generation: number,
+    previousMode: PermissionMode,
+    bypassEpoch: number,
+  ): PlanModeHold {
+    const hold = createHold({
       planMode: approvalModeFor('plan', this.deps.hasApprovalUi),
       restoreMode: () =>
         approvalModeFor(this.restorableMode(previousMode, bypassEpoch), this.deps.hasApprovalUi),
@@ -6805,38 +7149,32 @@ export class ConversationController {
     })
     this.planHold = { hold, previousMode, bypassEpoch }
     this.voiceContextRevision += 1
-    // Auto is left for the review turn: what the Auto reviewer holds is the user's (M90).
-    this.reviews?.release()
     this.permissionMode = 'plan'
     this.postComposerState()
-    try {
-      return await hold.send(session, parts, text, () => {
-        this.requireNonConfidentialModel(session.modelId)
-        return isCurrent()
-      })
-    } catch (error: unknown) {
-      // Plan mode was refused (nothing to put back), or the send failed and
-      // the hold put the mode back already.
-      if (this.isHeldBy(hold)) {
-        if (
-          previousMode === BYPASS_MODE &&
-          this.restorableMode(previousMode, bypassEpoch) === FALLBACK_MODE &&
-          this.isCurrentSessionAction(session, generation)
-        ) {
-          // A failed Plan admission may have left the preceding allowAll
-          // mode in place after revocation. Do not relabel it as Manual.
-          this.retireBypassSession()
-        } else {
-          this.releasePlanHold(true)
-        }
-      }
-      throw error
-    }
+    return hold
   }
 
-  /** Read afresh after an await: whether the hold still holds the session's mode. */
-  private isHeldBy(hold: PlanModeHold): boolean {
-    return this.planHold?.hold === hold
+  /**
+   * A held turn or scan failed before its end put the mode back (M70): Plan
+   * mode was refused (nothing to put back), or the held work failed and the
+   * hold put the mode back already.
+   */
+  private dropFailedHold(hold: PlanModeHold, session: AgentSession, generation: number): void {
+    const held = this.planHold
+    if (held?.hold !== hold) {
+      return
+    }
+    if (
+      held.previousMode === BYPASS_MODE &&
+      this.restorableMode(held.previousMode, held.bypassEpoch) === FALLBACK_MODE &&
+      this.isCurrentSessionAction(session, generation)
+    ) {
+      // A failed Plan admission may have left the preceding allowAll
+      // mode in place after revocation. Do not relabel it as Manual.
+      this.retireBypassSession()
+    } else {
+      this.releasePlanHold(true)
+    }
   }
 
   /** The mode a review hands back: Bypass only while its setting still allows it (D24). */
@@ -7074,6 +7412,110 @@ export class ConversationController {
       this.notice('error', reason)
       answer(false, reason)
     }
+  }
+
+  /**
+   * The legal report's selected-fix handoff (M97 lane W): preview fixes for
+   * exactly the selected findings, then confirm exactly the shown preview.
+   * Needs no session or backend (deterministic, like the scan); the guards
+   * recheck the live mode, trust, workspace and hashes before any write.
+   * The injected applier publishes through checkpoint and conditional writes.
+   * A host without that capability refuses explicitly.
+   */
+  private async explainLegalReport(): Promise<void> {
+    const report = this.legalFixPreviews.report
+    const explain = this.deps.legalExplanation
+    if (report === undefined || explain === undefined || !this.deps.isWorkspaceTrusted()) {
+      this.notice('warning', UI_TEXT.legalExplainUnavailable)
+      return
+    }
+    if (this.legalScanStop !== undefined) {
+      this.notice('warning', UI_TEXT.legalScanBusy)
+      return
+    }
+    const stop = new AbortController()
+    this.legalScanStop = stop
+    try {
+      const paidExplanation = await explain(report, stop.signal)
+      if (
+        stop.signal.aborted ||
+        !this.deps.isWorkspaceTrusted() ||
+        this.legalFixPreviews.report !== report
+      )
+        return
+      const result = { ...report, paidExplanation }
+      this.legalFixPreviews.setScan(
+        `legal-${String(this.legalScanSequence)}`,
+        result,
+        this.deps.workspaceRoot ?? '',
+      )
+      this.post({
+        type: 'legalScanReport',
+        requestId: `legal-${String(this.legalScanSequence)}`,
+        result,
+      })
+    } catch (error: unknown) {
+      if (!stop.signal.aborted)
+        this.notice(
+          'warning',
+          fill(UI_TEXT.legalScanFailed, { reason: redactSecrets(describe(error)) }),
+        )
+    } finally {
+      if (this.legalScanStop === stop) this.legalScanStop = undefined
+    }
+  }
+
+  private legalFixFiles(): LegalFixFileAccess {
+    return {
+      resolveRelativePath: async (relativePath) => {
+        const root = this.deps.workspaceRoot
+        if (root === undefined) {
+          return
+        }
+        const confined = await this.deps.files.canonicalRelativePath(
+          path.resolve(root, relativePath),
+        )
+        return confined?.canonical === relativePath ? confined.checkedAbsolute : undefined
+      },
+      readBytes: async (absolutePath, maxBytes) => {
+        const read = await this.deps.files.readFile(absolutePath, maxBytes, absolutePath)
+        return read.bytes
+      },
+    }
+  }
+
+  private legalFixHostState() {
+    const permissionMode = () => this.permissionMode
+    const workspacePath = () => this.deps.workspaceRoot ?? ''
+    const isTrusted = () => this.deps.isWorkspaceTrusted()
+    return {
+      get permissionMode() {
+        return permissionMode()
+      },
+      get workspacePath() {
+        return workspacePath()
+      },
+      get isTrusted() {
+        return isTrusted()
+      },
+      files: this.legalFixFiles(),
+      applier: this.deps.legalFixApplier,
+    }
+  }
+
+  private async previewLegalFix(
+    message: Extract<ConversationMessage, { type: 'requestLegalFix' }>,
+  ): Promise<void> {
+    const preview = await this.legalFixPreviews.preview(message, this.legalFixHostState())
+    this.post(preview)
+  }
+
+  private async confirmLegalFix(
+    message: Extract<ConversationMessage, { type: 'confirmLegalFix' }>,
+  ): Promise<void> {
+    const result = await this.legalFixPreviews.confirm(message, this.legalFixHostState())
+    if (result.outcome !== 'refused') await this.startLegalScan(undefined)
+    this.post(result)
   }
 
   /**
@@ -7394,6 +7836,7 @@ export class ConversationController {
   }
 
   private async cancel(): Promise<void> {
+    this.legalScanStop?.abort()
     if (this.session === undefined) {
       return
     }
@@ -7414,12 +7857,50 @@ export class ConversationController {
     }
   }
 
-  /** Whether a contributor-tier model may be used here: blocked, or confirmed once. */
+  /**
+   * Whether the model may be used here: a contributor-tier model is blocked
+   * or confirmed once, and a BYO model the listing flagged as training on
+   * the content is refused in a confidential workspace (M95, PLAN.md D74).
+   * Confidential BYO selection resolves current host privacy facts, even
+   * before the wizard's first save or after a saved route changes.
+   */
   private async allowsModel(modelId: string): Promise<boolean> {
-    // The confidential check runs before the confirmation shortcut: a
-    // workspace turned confidential after an earlier yes still never sends
-    // to a contributor (training) model.
     if (this.deps.isConfidentialWorkspace() && isContributorModel(modelId)) {
+      this.notice('warning', UI_TEXT.contributorBlocked)
+      return false
+    }
+    if (this.deps.isConfidentialWorkspace() && modelId.includes('/')) {
+      const generation = this.modelGeneration
+      const actionGeneration = this.sendInvalidationEpoch
+      try {
+        const host = await this.deps.ensureHost()
+        const listed = await host.listModels()
+        if (
+          this.isDisposed ||
+          this.modelGeneration !== generation ||
+          this.sendInvalidationEpoch !== actionGeneration
+        ) {
+          return false
+        }
+        const model = listed.find((entry) => entry.modelId === modelId)
+        if (model === undefined || model.trainsOnContent === true) {
+          this.notice('warning', UI_TEXT.trainingBlocked)
+          return false
+        }
+      } catch {
+        this.notice('warning', UI_TEXT.trainingBlocked)
+        return false
+      }
+      return true
+    }
+    const isTraining =
+      this.models?.find((model) => model.modelId === modelId)?.trainsOnContent === true ||
+      this.trainingModelIds.has(modelId)
+    if (isTraining && this.deps.isConfidentialWorkspace()) {
+      this.notice('warning', UI_TEXT.trainingBlocked)
+      return false
+    }
+    if (isContributorModel(modelId) && this.deps.isConfidentialWorkspace()) {
       this.notice('warning', UI_TEXT.contributorBlocked)
       return false
     }
@@ -7528,6 +8009,7 @@ export class ConversationController {
   private async setPermissionMode(mode: PermissionMode): Promise<void> {
     if (this.session !== undefined) this.deps.judge?.discardSession(this.session.sessionId)
     this.clearJudgeCards()
+    this.legalFixPreviews.invalidate()
     if (mode !== 'plan' && this.isSideChat) {
       this.notice('info', UI_TEXT.sideChatPlanOnly)
       this.postComposerState()
@@ -8086,6 +8568,34 @@ export class ConversationController {
     this.latestUsage = subscription
     const shown = subscription
     const account = await this.deps.accountFacts(host.info.kind)
+    const providers: ProviderUsageRow[] = []
+    if (this.deps.usageRecording !== undefined) {
+      try {
+        const rows = new Map<string, ProviderUsageRow>()
+        const records = await this.deps.usageRecording.today()
+        for (const record of records) {
+          const certainty = record.cost.certainty
+          const pricing = providerPricing(certainty)
+          const prior = rows.get(record.provider)
+          rows.set(record.provider, {
+            providerId: record.provider,
+            providerLabel: record.provider,
+            pricing: prior?.pricing === 'unpriced' ? 'unpriced' : pricing,
+            inputTokens: (prior?.inputTokens ?? 0) + (record.tokens.input ?? 0),
+            outputTokens: (prior?.outputTokens ?? 0) + (record.tokens.output ?? 0),
+            costUsd:
+              record.cost.usd !== undefined &&
+              record.cost.certainty !== 'uncertain' &&
+              (prior === undefined || prior.costUsd !== undefined)
+                ? (prior?.costUsd ?? 0) + record.cost.usd
+                : undefined,
+          })
+        }
+        providers.push(...rows.values())
+      } catch {
+        // The recording port logs its fixed diagnostic once; live sources still render.
+      }
+    }
     const insights = host.info.kind === 'museCode' ? await this.deps.usageInsights() : undefined
     // An older read or a stopped host must not replace a newer observation.
     if (!this.canPostUsage(host) || this.latestUsage !== shown) {
@@ -8095,8 +8605,10 @@ export class ConversationController {
       type: 'usageReport',
       backend: host.info.kind,
       account,
+      ...(providers.length > 0 && { providers }),
       ...(shown !== undefined && { subscription: shown }),
       ...(insights !== undefined && { insights }),
+      ...(host.readPlanUsage !== undefined && { plans: [...host.readPlanUsage()] }),
     })
   }
 
@@ -8713,6 +9225,13 @@ export class ConversationController {
         break
       }
       case 'signIn': {
+        // The first-run screen's third choice (M95): not a credential but
+        // the Models & Agents wizard at "Pick a provider" (lane K's
+        // `museSpark.startWithOwnModel`; an explicit error until it lands).
+        if (message.method === 'byo') {
+          await this.runHostAction('startWithOwnModel')
+          break
+        }
         await this.deps.auth.signIn(message.method)
         this.readWaitingBrief()
         void this.warmModels()
@@ -8868,12 +9387,40 @@ export class ConversationController {
         await this.startReview(message.localId, message.text, message.request)
         break
       }
+      case 'requestLegalScan': {
+        await this.startLegalScan(message.input)
+        break
+      }
       case 'readReviewChanges': {
         await this.readReviewChanges(message.requestId, message.edits)
         break
       }
       case 'revertReviewHunk': {
         await this.revertReviewHunk(message)
+        break
+      }
+      case 'requestLegalExplanation': {
+        await this.explainLegalReport()
+        break
+      }
+      case 'exportLegalReport': {
+        const report = this.legalFixPreviews.report
+        if (report === undefined || this.deps.legalMarkdown === undefined) {
+          this.notice('warning', UI_TEXT.legalScanUnavailable)
+          break
+        }
+        await this.deps.exports.saveMarkdown(
+          LEGAL_MARKDOWN_EXPORT_FILE,
+          this.deps.legalMarkdown(report),
+        )
+        break
+      }
+      case 'requestLegalFix': {
+        await this.previewLegalFix(message)
+        break
+      }
+      case 'confirmLegalFix': {
+        await this.confirmLegalFix(message)
         break
       }
       case 'rewindConversation': {
@@ -9026,6 +9573,10 @@ export class ConversationController {
       }
       case 'hostAction': {
         await this.runHostAction(message.action)
+        break
+      }
+      case 'openUsagePage': {
+        await this.runHostAction('openUsagePage')
         break
       }
       case 'listSessions': {
@@ -9726,5 +10277,18 @@ export class ConversationController {
   public worktreeHoldReleased(): void {
     this.git.postState()
     this.postComposerState()
+  }
+}
+
+function providerPricing(certainty: string): ProviderUsageRow['pricing'] {
+  switch (certainty) {
+    case 'local':
+    case 'plan':
+    case 'unpriced': {
+      return certainty
+    }
+    default: {
+      return 'priced'
+    }
   }
 }

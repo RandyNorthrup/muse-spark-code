@@ -24,6 +24,7 @@ import { fill } from '../../../shared/l10n/text'
 import type { ContextSections } from '../../context/workspaceContext'
 import type { MemoryScopeSnapshot } from '../../memory/memoryStore'
 import { checkListText } from '../../verify/checkCommands'
+import { usageLocalDay } from '../../usage/localDay'
 
 export interface GitFacts {
   readonly branch: string
@@ -39,6 +40,8 @@ export interface EnvironmentFacts {
 }
 
 export interface InstructionFacts {
+  readonly identity?: { readonly provider: string; readonly model: string }
+
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   readonly shellToolName: string
@@ -66,7 +69,7 @@ export interface InstructionFacts {
   }
   /**
    * The session goal while it is active (M45, PLAN.md D38, `goals.ts`):
-   * last, so the sections before it stay the same from call to call.
+   * objective and rules only; mutable progress is a request-only suffix.
    */
   readonly goalSection?: string
   /**
@@ -75,6 +78,12 @@ export interface InstructionFacts {
    * Undefined on the parent conversation itself.
    */
   readonly agent?: { readonly id: string; readonly source: AgentSource; readonly prompt: string }
+  /**
+   * M96 (PLAN.md D75): the roster's stable part with the rubric and the
+   * guidance, fixed for the conversation from its first request and never
+   * rewritten. Only in a team conversation.
+   */
+  readonly teamRoster?: string
 }
 
 const PARAGRAPH = '\n\n'
@@ -94,7 +103,9 @@ function baseText(facts: InstructionFacts): string[] {
       "There is no shell tool: the workspace is in VS Code's Restricted Mode, so commands cannot run until the user trusts it. Some actions need the user's approval; a refused action comes back as a tool error, so move on instead of retrying it."
   }
   return [
-    'You are Muse Spark, a coding agent working inside Visual Studio Code through the Muse Spark Code extension.',
+    facts.identity === undefined || facts.identity.provider === 'meta'
+      ? 'You are Muse Spark, a coding agent working inside Visual Studio Code through the Muse Spark Code extension.'
+      : fill(MODEL_API_MODEL_TEXT.providerIdentity, facts.identity),
     `The workspace root is ${facts.workspaceRoot} on ${facts.platform}. Every path you give a tool is relative to it (or absolute inside it); paths outside the workspace are refused.`,
     `Use the tools for everything that touches the workspace: read_file before editing a file, edit_file for changes inside a file (find must match exactly once), write_file to create or replace a file, search and list_files to look around${hasShellTool ? ', and the shell tool to run commands' : ''}.`,
     ...(facts.hasCodeIntel ? [MODEL_API_MODEL_TEXT.codeIntelInstructions] : []),
@@ -266,10 +277,16 @@ export function instructionsFor(facts: InstructionFacts): string {
     rulesText(facts.context.rules),
     skillsText(facts.context),
     agentsText(facts.context),
+    facts.teamRoster,
     agentRoleText(facts.agent),
     memoryText(facts),
     facts.repoMap,
     facts.goalSection,
   ]
   return sections.filter((section) => section !== undefined).join(PARAGRAPH)
+}
+
+/** The host's local calendar date, captured once when a session starts (M101). */
+export function localPromptDate(now: number): string {
+  return usageLocalDay(now)
 }

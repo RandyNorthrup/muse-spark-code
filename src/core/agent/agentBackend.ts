@@ -13,8 +13,8 @@ import type {
   SessionGoal,
   TodoItem,
 } from '../../shared/agentEvents'
-import type { GoalCommandVerb, SubagentAction } from '../../shared/constants'
-import type { SubscriptionUsage } from '../../shared/usage'
+import type { GoalCommandVerb, ModelPricing, SubagentAction } from '../../shared/constants'
+import type { PlanUsageRow, SubscriptionUsage } from '../../shared/usage'
 export type { QuestionDeferralPort } from '../../shared/questions'
 import type {
   ScheduleCadence,
@@ -256,6 +256,21 @@ export interface ModelSummary {
   readonly contextLimit: number | undefined
   readonly isDefault: boolean
   readonly isActive: boolean
+  /**
+   * A BYO provider's fields (M95, PLAN.md D74): set by the Model API
+   * backend's lane from the provider registry; absent on Meta's own models.
+   * `pricing` tells the picker and usage how the price reads; per-M-token
+   * prices only where the provider prices the model; `trainsOnContent`
+   * hides the model in a confidential workspace.
+   */
+  readonly providerId?: string | undefined
+  readonly providerLabel?: string | undefined
+  readonly pricing?: ModelPricing | undefined
+  readonly inputUsdPerMTokens?: number | undefined
+  readonly outputUsdPerMTokens?: number | undefined
+  readonly isPinned?: boolean | undefined
+  readonly trainsOnContent?: boolean | undefined
+  readonly planLimitsUrl?: string | undefined
 }
 
 export interface SkillSummary {
@@ -625,6 +640,7 @@ export interface AgentHost {
    * yet (it reports one after a turn).
    */
   readUsage(): Promise<SubscriptionUsage | undefined>
+  readPlanUsage?(): readonly PlanUsageRow[]
   /** A fresh observation arrived (MSP `usage/changed`). */
   onUsageChanged(listener: (usage: SubscriptionUsage) => void): () => void
   /**

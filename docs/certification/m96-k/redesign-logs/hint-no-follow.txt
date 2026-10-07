@@ -1,0 +1,51 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamHintsAndLoad.test.ts --maxWorkers=3 --testTimeout=120000
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/lanes/REDM96K
+
+ ❯ test/unit/teamHintsAndLoad.test.ts (17 tests | 1 failed) 87ms
+   ❯ M96 K advisory hints (12)
+     × disables hints for an unsafe opened file: symlink 12ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamHintsAndLoad.test.ts > M96 K advisory hints > disables hints for an unsafe opened file: symlink
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array [
+      Object {
+        "branch": "feature/a",
+        "instanceId": "fa8ef343-ae82-4b43-97a9-d1f672715459",
+        "kind": "paths",
+        "paths": Array [
+          "src/a.ts",
+        ],
+        "repository": "/repo/.git",
+      },
+    ]
+
+
+Number of calls: 1
+
+ ❯ test/unit/teamHintsAndLoad.test.ts:307:30
+    305|       }
+    306|       expect(await reader.hints.check(intent)).toBe('continue')
+    307|       expect(f.question).not.toHaveBeenCalled()
+       |                              ^
+    308|       expect(f.disabled).toHaveBeenCalledTimes(1)
+    309|       permissionState.foreignUid = false
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 16 passed (17)
+   Start at  12:45:24
+   Duration  844ms (transform 46%, import 21%, setup 19%, tests 13%, worker 1%)

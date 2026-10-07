@@ -4,6 +4,7 @@ import {
   MissingApiKeyError,
   ModelApiClient,
   ModelApiError,
+  type ModelApiClientDeps,
   type RetryNotice,
   retryAfterMs,
 } from '../../src/core/backends/modelapi/client'
@@ -37,6 +38,7 @@ function setup(
   key: string | null = 'LLM|1|secret',
   rawFetch?: typeof fetch,
   streamIdleMs?: number,
+  reservePaidRequest?: ModelApiClientDeps['reservePaidRequest'],
 ) {
   const api = fakeModelApi()
   const sleeps: number[] = []
@@ -53,6 +55,7 @@ function setup(
     random: () => 0.5,
     log,
     ...(streamIdleMs !== undefined && { streamIdleMs }),
+    ...(reservePaidRequest !== undefined && { reservePaidRequest }),
   })
   return { api, client, sleeps, log }
 }
@@ -70,6 +73,132 @@ function bodyOf(text: string, cancel: () => void): ReadableStream<Uint8Array> {
 function collect(stream: AsyncIterable<StreamEvent>): Promise<StreamEvent[]> {
   return Array.fromAsync(stream)
 }
+
+/** The scripted failures, then success: the stream completes after exactly `expectedSleeps`. */
+async function streamRetryThenSucceed(
+  client: ModelApiClient,
+  sleeps: number[],
+  expectedSleeps: readonly number[],
+): Promise<void> {
+  const events = await collect(client.streamResponse(body, new AbortController().signal))
+  expect(events.at(-1)?.type).toBe('response.completed')
+  expect(sleeps).toEqual(expectedSleeps)
+}
+describe('Meta transport regression boundaries', () => {
+  it.each([400, 429, 500])(
+    'preserves merged paid admission and refusal settlement on HTTP %s',
+    async (status) => {
+      for (const isImage of [true, false]) {
+        const total = { spentUsd: 1, hasUnknownHistoricalFees: false }
+        const claim = {
+          claimId: 'fixture',
+          reservedUsd: 1,
+          check: vi.fn(() => total),
+          settle: vi.fn(() => Promise.resolve(total)),
+        }
+        const reserve = vi.fn(() => Promise.resolve(claim))
+        const fetch = vi.fn(() =>
+          Promise.resolve(Response.json({ error: { message: 'fixture refusal' } }, { status })),
+        )
+        const { client } = setup('plain', fetch, undefined, reserve)
+        const run = isImage
+          ? client.createImage(
+              {
+                model: 'image',
+                prompt: 'fixture',
+                n: 1,
+                size: '1024x1024',
+                response_format: 'b64_json',
+                output_format: 'png',
+              },
+              new AbortController().signal,
+            )
+          : collect(
+              client.streamResponse(
+                { ...body, tools: [{ type: 'web_search' }] },
+                new AbortController().signal,
+              ),
+            )
+        await expect(run).rejects.toMatchObject({ status })
+        expect(client.hasPaidDailyBudget).toBe(true)
+        expect(reserve).toHaveBeenCalledOnce()
+        expect(claim.check).toHaveBeenCalledTimes(fetch.mock.calls.length)
+        if (status === 500) {
+          expect(fetch).toHaveBeenCalledOnce()
+          expect(claim.settle).not.toHaveBeenCalled()
+        } else {
+          expect(claim.settle).toHaveBeenCalledWith(0)
+        }
+      }
+    },
+  )
+
+  it('settles merged paid stream usage after canonical parsing', async () => {
+    const total = { spentUsd: 1, hasUnknownHistoricalFees: false }
+    const claim = {
+      claimId: 'fixture',
+      reservedUsd: 1,
+      check: vi.fn(() => total),
+      settle: vi.fn((_actualUsd: number) => Promise.resolve(total)),
+    }
+    const reserve = vi.fn(() => Promise.resolve(claim))
+    const wire =
+      'data: {"type":"response.completed","response":{"id":"r","status":"completed","output":[],"usage":{"input_tokens":100,"output_tokens":100}}}\n\n'
+    const { client } = setup('plain', () => Promise.resolve(new Response(wire)), undefined, reserve)
+    const paidBody: CreateResponseBody = { ...body, tools: [{ type: 'web_search' }] }
+    await collect(client.streamResponse(paidBody, new AbortController().signal))
+    expect(reserve).toHaveBeenCalledWith(paidBody, 'webSearch', undefined, expect.any(AbortSignal))
+    expect(claim.settle).toHaveBeenCalledOnce()
+    expect(claim.settle.mock.calls[0]?.[0]).toBeGreaterThan(0)
+    expect(claim.settle.mock.calls[0]?.[0]).toBeLessThan(claim.reservedUsd)
+  })
+  it('uses body-free diagnostics on every successful-HTTP JSON endpoint', async () => {
+    const { client } = setup('opaque95', () => Promise.resolve(new Response('opaque95')))
+    const image = {
+      model: 'image',
+      prompt: 'fixture',
+      n: 1,
+      size: '1024x1024',
+      response_format: 'b64_json',
+      output_format: 'png',
+    } as const
+    for (const run of [
+      () => client.listModels(),
+      () => client.countInputTokens(body),
+      () => client.createImage(image, new AbortController().signal),
+      () => client.editImage({ ...image, images: [] }, new AbortController().signal),
+    ]) {
+      await expect(run()).rejects.toMatchObject({ kind: 'malformed_json' })
+      await expect(run()).rejects.not.toThrow('opaque95')
+    }
+  })
+
+  it('redacts failure fields on every response discriminator under HTTP 200', async () => {
+    const key = 'opaque95'
+    const events = [
+      'response.created',
+      'response.in_progress',
+      'response.completed',
+      'response.failed',
+      'response.incomplete',
+    ].map((type) => ({
+      type,
+      response: {
+        id: 'r',
+        status: 'incomplete',
+        output: [],
+        error: { message: key, code: key },
+        incomplete_details: { reason: key },
+      },
+    }))
+    const wire = events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join('')
+    const { client } = setup(key, () => Promise.resolve(new Response(wire)))
+    const result = await collect(client.streamResponse(body, new AbortController().signal))
+    expect(result).toHaveLength(events.length)
+    expect(JSON.stringify(result)).not.toContain(key)
+    expect(JSON.stringify(result)).toContain('[redacted]')
+  })
+})
 
 /** A fetch behind a network that inspects HTTPS: Node's "fetch failed" and its cause (M56). */
 function untrusted(): Promise<Response> {
@@ -490,6 +619,38 @@ describe('ModelApiClient', () => {
     expect(api.requests[0]?.body).not.toHaveProperty('stream')
   })
 
+  it('aborts a token recount with its owning turn signal', async () => {
+    const entered = Promise.withResolvers<undefined>()
+    const held = Promise.withResolvers<Response>()
+    let requestSignal: AbortSignal | null | undefined
+    const { client } = setup('LLM|1|secret', (_url, init) => {
+      requestSignal = init?.signal
+      entered.resolve(undefined)
+      requestSignal?.addEventListener(
+        'abort',
+        () => {
+          held.reject(new Error('cancelled'))
+        },
+        {
+          once: true,
+        },
+      )
+      return held.promise
+    })
+    const stop = new AbortController()
+    const { stream: _stream, ...countable } = body
+    const counted = client.countInputTokens(countable, stop.signal)
+    const result = expect(counted).rejects.toMatchObject({ message: 'cancelled' })
+    try {
+      await entered.promise
+      stop.abort()
+      expect(requestSignal?.aborted).toBe(true)
+    } finally {
+      held.reject(new Error('cancelled'))
+      await result
+    }
+  })
+
   it('streams the documented events in order, skipping unknown types', async () => {
     const { api, client } = setup()
     api.script({
@@ -536,10 +697,8 @@ describe('ModelApiClient', () => {
       { httpError: { status: 500 } },
       { text: 'finally' },
     )
-    const events = await collect(client.streamResponse(body, new AbortController().signal))
-    expect(events.at(-1)?.type).toBe('response.completed')
     // Retry-After 2 s + 500 ms jitter, then 2 s + jitter and 4 s + jitter of backoff.
-    expect(sleeps).toEqual([2500, 2500, 4500])
+    await streamRetryThenSucceed(client, sleeps, [2500, 2500, 4500])
     expect(log.warn).toHaveBeenCalledTimes(3)
     expect(String(log.warn.mock.calls[0]?.[0])).toContain('429')
     expect(String(log.warn.mock.calls[0]?.[0])).toContain('slow down')
@@ -552,6 +711,62 @@ describe('ModelApiClient', () => {
       status: 503,
     })
     expect(api.requests.filter((request) => request.path === '/responses')).toHaveLength(4 + 5)
+  })
+
+  it('never retries quota errors, whatever the status (M101 BYO 5)', async () => {
+    const { api, client, sleeps } = setup()
+    api.script({
+      httpError: {
+        status: 429,
+        body: {
+          error: {
+            message: 'You exceeded your current quota, please check your plan and billing details.',
+            type: 'rate_limit_error',
+            code: 'insufficient_quota',
+          },
+        },
+      },
+    })
+    await expect(
+      collect(client.streamResponse(body, new AbortController().signal)),
+    ).rejects.toMatchObject({
+      name: 'ModelApiError',
+      status: 429,
+      code: 'insufficient_quota',
+    })
+    expect(api.requests.filter((request) => request.path === '/responses')).toHaveLength(1)
+    expect(sleeps).toEqual([])
+  })
+
+  it('fails at once on a Retry-After past the cap, naming the wait (M101 BYO 5)', async () => {
+    const { api, client, sleeps } = setup()
+    api.script({
+      httpError: {
+        status: 429,
+        retryAfter: '120',
+        body: { error: { message: 'slow down', type: 'rate_limit_error' } },
+      },
+    })
+    await expect(
+      collect(client.streamResponse(body, new AbortController().signal)),
+    ).rejects.toThrow('wait 120 s before retrying, past the 60 s limit')
+    expect(api.requests.filter((request) => request.path === '/responses')).toHaveLength(1)
+    expect(sleeps).toEqual([])
+  })
+
+  it('still retries at exactly the Retry-After cap (M101 BYO 5)', async () => {
+    const { api, client, sleeps } = setup()
+    api.script(
+      {
+        httpError: {
+          status: 429,
+          retryAfter: '60',
+          body: { error: { message: 'slow down', type: 'rate_limit_error' } },
+        },
+      },
+      { text: 'finally' },
+    )
+    await streamRetryThenSucceed(client, sleeps, [60_000])
   })
 
   it('checks a child grant after a fresh key read before every HTTP retry', async () => {

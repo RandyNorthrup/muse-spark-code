@@ -3,7 +3,7 @@
 // confirmation, and the first charge asks once in the paid-use popup. Its
 // runs are tallied on their own usage line.
 
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { PaidFeatureGate, PaidUsage } from '../../src/core/paid/paidFeatures'
 import { PaidUseConsent, paidUseQuestion } from '../../src/core/paid/paidConsent'
 import { UI_TEXT, type PaidFeature } from '../../src/shared/constants'
@@ -49,13 +49,16 @@ function hookRequest(): Extract<PaidUseRequest, { feature: 'hookModels' }> {
   return { feature: 'hookModels', event: 'PreToolUse', kind: 'prompt', modelId: MODEL_ID }
 }
 
-function consentWith(answer: 'once' | 'always' | 'deny', canRemember = true) {
-  const gate = gateWith({ settings: ['hookModels'] }).gate
+function consentWith(
+  answer: 'once' | 'always' | 'deny',
+  options: { canRemember?: boolean; isOn?: boolean } = {},
+) {
+  const gate = gateWith({ settings: options.isOn === false ? [] : ['hookModels'] }).gate
   const asked: PaidUseRequest[] = []
   const grants = new Set<PaidFeature>()
   const consent = new PaidUseConsent({
     isOn: (feature) => gate.isOn(feature),
-    canRemember: () => canRemember,
+    canRemember: () => options.canRemember ?? true,
     readGrants: () => grants,
     writeGrants: (next) => {
       grants.clear()
@@ -94,30 +97,20 @@ describe('hookModels is available by default (M91, OWNER RULING 2026-10-04)', ()
 })
 
 describe('hookModels asks once per run in the paid-use popup (M91, D48)', () => {
-  it('names the event, kind, model and price in the popup', () => {
-    const { title, detail } = paidUseQuestion(hookRequest())
+  it('names the event, kind, model and price in the popup', async () => {
+    const { title, detail } = await paidUseQuestion(hookRequest())
     expect(title).toContain('PreToolUse')
     expect(detail).toContain('prompt')
     expect(detail).toContain(MODEL_ID)
     expect(detail).toContain(hookModelPrice(MODEL_ID))
-    expect(paidUseQuestion({ ...hookRequest(), dailyBudgetUsd: 2 }).detail).toContain(
-      'Shared daily paid budget: $2.00',
-    )
+    const budgetQuestion = await paidUseQuestion({ ...hookRequest(), dailyBudgetUsd: 2 })
+    expect(budgetQuestion.detail).toContain('Shared daily paid budget: $2.00')
   })
 
   it('denies without asking when the feature is off', async () => {
-    const gate = gateWith({}).gate
-    const ask = vi.fn()
-    const consent = new PaidUseConsent({
-      isOn: (feature) => gate.isOn(feature),
-      canRemember: () => true,
-      readGrants: () => new Set(),
-      writeGrants: () => Promise.resolve(),
-      ask,
-      log: new FakeLogOutputChannel(),
-    })
-    expect(await consent.allows(hookRequest())).toBe(false)
-    expect(ask).not.toHaveBeenCalled()
+    const off = consentWith('once', { isOn: false })
+    expect(await off.consent.allows(hookRequest())).toBe(false)
+    expect(off.asked).toEqual([])
   })
 
   it('asks before the use: deny stops it, allow once covers one run', async () => {

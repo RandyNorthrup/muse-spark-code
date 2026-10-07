@@ -10,6 +10,8 @@ still open, so this page does not claim certified headless or Action support,
 nor npm-registry Action support. Command receipts and precise claim limits live in
 [m80.md](certification/m80.md).
 
+ACP and headless Model API/BYO requests share a hard local-day budget in the agent data folder. Its `settings.json` accepts `{"paidDailyBudgetUsd":5}` (USD; default $5, range $0.50–$500), corresponding to the extension’s `museSpark.paidDailyBudgetUsd`. Reservations use an exclusive cross-process lock before dispatch and settle from verified usage; an interrupted or unpriced request retains its liability. Headless also requires `--max-budget-usd`, and BYO attempts use the same usage journal as interactive turns. Image generation still requires its flag and consent (or the headless flag plus hard run budget). Hosted search is unavailable in this runtime while the hard daily budget is active because its returned fees have no dispatch bound.
+
 ## One prompt, one workspace, one turn
 
 ```text
@@ -400,6 +402,13 @@ LR remains required before registry installation is called supported.
 ## Launcher bounds, cancellation and publication
 
 One owner covers input diff, exec, extraction, patch Git, scanner and publication.
+The input review diff is streamed: only `max-diff-bytes` are retained on disk
+and in memory, cut between UTF-8 code points. The remainder is drained and
+counted under the same 30-second Git/input deadlines, so the prompt can name
+the full byte count without storing a large release diff. Prefix capture is
+restricted to this read-only review input; ordinary stdout/stderr, published
+patch and scanner bounds still refuse overflow.
+
 Apply owns its isolated artifact-validation/checkout/apply/commit/push
 lifecycle; the download step runs before it. The gate, install and checkout
 steps have bounded owners of their own; the tools and input-staging steps have
@@ -696,3 +705,11 @@ ran none of L/LA/LR, read no real credential and called no model.
   eligible diagnostics, review separately; do not bypass scanner or apply guard.
 - Registry refusal: require genuine release provenance and exact identity; a
   candidate digest or separately fetched attestation cannot satisfy LR.
+
+### Reading local usage
+
+`muse-spark-code-acp --usage` (or `usage --json`) reads the same versioned local
+journal and checked page totals as the interactive page. It makes no model
+request. Headless executions record settled calls through the shared writer;
+usage files contain no prompts, paths, keys or key digests. This does not change
+M80's pending hosted/live certification or paid admission policy.

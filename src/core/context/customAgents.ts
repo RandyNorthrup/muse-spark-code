@@ -251,6 +251,58 @@ export function parseAgentFile(text: string): AgentFileParse {
   }
 }
 
+/**
+ * An M76 agent file read for lane R (M96, PLAN.md D75): the base parse
+ * unchanged, plus the role keys' raw values handed over for the role
+ * parser, and the keys that are neither M76's nor a role key. M76 itself
+ * keeps ignoring unknown keys; roles refuse them.
+ */
+export type AgentRoleFileParse =
+  | {
+      readonly ok: true
+      readonly agent: ParsedAgentFile
+      /** The raw values of the role keys the file names, before role validation. */
+      readonly roleFields: ReadonlyMap<string, string>
+      /** Keys that are neither M76's nor one of `roleKeys`. */
+      readonly unknownKeys: readonly string[]
+    }
+  | { readonly ok: false; readonly reason: string }
+
+const AGENT_BASE_KEYS: readonly string[] = [
+  'name',
+  'description',
+  'tools',
+  'model',
+  'effort',
+  PERMISSION_MODE_KEY,
+]
+
+export function parseAgentFileForRole(
+  text: string,
+  roleKeys: readonly string[],
+): AgentRoleFileParse {
+  const parsed = parseAgentFile(text)
+  if (!parsed.ok) {
+    return parsed
+  }
+  // The base parse succeeded, so the split below succeeds too.
+  const split = splitFrontMatter(text)
+  if (!split.ok) {
+    return split
+  }
+  const known = new Set([...AGENT_BASE_KEYS, ...roleKeys])
+  const roleFields = new Map<string, string>()
+  const unknownKeys: string[] = []
+  for (const [key, value] of split.fields) {
+    if (roleKeys.includes(key)) {
+      roleFields.set(key, value)
+    } else if (!known.has(key)) {
+      unknownKeys.push(key)
+    }
+  }
+  return { ok: true, agent: parsed.agent, roleFields, unknownKeys }
+}
+
 function pathModule(platform: NodeJS.Platform): path.PlatformPath {
   return platform === 'win32' ? path.win32 : path.posix
 }

@@ -49,15 +49,24 @@ function fixture(overrides = {}) {
   return { fetch, sleep, now: () => time, log }
 }
 
+// The case parses the real README with a cold Markdown parser; hosted macOS
+// with coverage took 3.4 s, near the default deadline.
+// PLAN.md §8 (2026-10-07).
+const README_BADGE_PARSE_TIMEOUT_MS = 15_000
+
 describe('README badge parsing and release comparison', () => {
-  it('finds every actual README badge, including GitHub CI and excluding screenshots', () => {
-    const urls = imageUrls(readFileSync('README.md', 'utf8'))
-    expect(urls).toHaveLength(11)
-    expect(urls.filter((url) => new URL(url).hostname === 'badgen.net')).toHaveLength(5)
-    expect(urls).toContain(
-      'https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml/badge.svg',
-    )
-  })
+  it(
+    'finds every actual README badge, including GitHub CI and excluding screenshots',
+    () => {
+      const urls = imageUrls(readFileSync('README.md', 'utf8'))
+      expect(urls).toHaveLength(11)
+      expect(urls.filter((url) => new URL(url).hostname === 'badgen.net')).toHaveLength(5)
+      expect(urls).toContain(
+        'https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml/badge.svg',
+      )
+    },
+    README_BADGE_PARSE_TIMEOUT_MS,
+  )
   it('handles quotes, unquoted src, entities, duplicate URLs and attributes containing >', () => {
     expect(
       imageUrls(`<IMG alt="label > detail" SRC='${badge.replaceAll('&', '&#38;')}'>

@@ -26,6 +26,7 @@ import {
   BUNDLED_SKILLS_SOURCES_DIR,
   BUNDLED_SKILLS_VENDOR_SEGMENTS,
   FIRST_PARTY_SKILLS_DIR,
+  EXTENSION_SKILLS_DIR,
   MODEL_TEXT,
   PERSONAL_SKILLS_DIR_SEGMENTS,
   PROJECT_SKILLS_DIR_SEGMENTS,
@@ -169,6 +170,12 @@ export function bundledSkillsRoot(packageRoot: string, platform: NodeJS.Platform
 /** The extension's own skills folder (M92, PLAN.md D71): `<extension>/first-party-skills`. */
 export function firstPartySkillsRoot(extensionRoot: string, platform: NodeJS.Platform): string {
   return pathModule(platform).join(extensionRoot, FIRST_PARTY_SKILLS_DIR)
+}
+
+/** The extension's own skill root (M97): `<extension>/skills`, beside the vendored package. */
+export function extensionSkillsRoot(packageRoot: string, platform: NodeJS.Platform): string {
+  const p = pathModule(platform)
+  return p.join(p.dirname(p.dirname(packageRoot)), EXTENSION_SKILLS_DIR)
 }
 
 /**

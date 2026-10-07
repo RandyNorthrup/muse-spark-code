@@ -6,6 +6,8 @@
    first, then state rules from lowest to highest specificity
    (:disabled and :focus-visible before :hover:enabled). */
 
+@import url('./page.css');
+
 :root {
   --ms-gap: 8px;
   --ms-radius: 6px;
@@ -32,17 +34,6 @@
      scroller, so the scrollbar never moves the transcript off the composer. */
   --ms-column-inset: max(0px, (100vw - var(--ms-column-max-width)) / 2);
   --ms-column-gutter: calc(var(--ms-column-inset) + var(--ms-gap));
-}
-
-html,
-body {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  color: var(--vscode-foreground);
-  font-family: var(--vscode-font-family);
-  font-size: var(--vscode-font-size);
-  background: var(--vscode-sideBar-background);
 }
 
 .app {
@@ -748,6 +739,15 @@ body {
 
 .popover-right {
   left: auto;
+}
+
+.popover-pointer {
+  position: fixed;
+  right: auto;
+  bottom: auto;
+  max-width: calc(100vw - var(--ms-gap) * 2);
+  max-height: 100vh;
+  overflow-y: auto;
 }
 
 .popover-header {
@@ -2979,6 +2979,30 @@ li:focus-within > .row-actions .row-actions-button,
   text-decoration: underline;
 }
 
+.plan-mark {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  min-width: 0;
+  font-size: var(--vscode-font-size);
+  overflow-wrap: anywhere;
+}
+
+.plan-usage-facts {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+}
+
+.plan-usage-facts dd {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.copilot-note {
+  margin: 4px 12px;
+  overflow-wrap: anywhere;
+}
+
 .usage-link:focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: 1px;
@@ -3770,6 +3794,142 @@ li:focus-within > .row-actions .row-actions-button,
   max-width: 100%;
 }
 
+/* --- Legal report and selected-fix handoff (M97 lane W) --- */
+
+/* The dialog reads in every theme through VS Code's own colours only; rows
+   wrap anywhere, so a 320px panel and 200% zoom never clip a finding. */
+.legal-report {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  padding: 12px 14px;
+}
+
+.legal-disclaimer {
+  margin: 0;
+  font-weight: 600;
+}
+
+.legal-summary {
+  margin: 0;
+}
+
+.legal-meta {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+  overflow-wrap: anywhere;
+}
+
+.legal-group-heading {
+  margin: 8px 0 4px;
+  font-size: 1em;
+}
+
+.legal-group-heading:focus {
+  outline: none;
+}
+
+.legal-subheading {
+  margin: 6px 0 2px;
+  font-size: 0.9em;
+}
+
+.legal-findings,
+.legal-paths,
+.legal-eligible,
+.legal-excluded {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legal-finding {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--ms-radius);
+}
+
+.legal-finding-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+  margin: 0;
+}
+
+/* The severity is a word in the text colour with a plain border, never the
+   text's colour (contrast in every theme, WCAG 1.4.3). */
+.legal-severity {
+  padding: 0 6px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--ms-radius);
+  font-size: 0.85em;
+}
+
+.legal-category {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+}
+
+.legal-id {
+  overflow-wrap: anywhere;
+}
+
+.legal-location {
+  overflow-wrap: anywhere;
+}
+
+.legal-text {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.legal-excerpt {
+  max-width: 100%;
+  margin: 0;
+  padding: 4px 6px;
+  overflow-x: auto;
+  border-radius: var(--ms-radius);
+  background: var(--vscode-textCodeBlock-background, var(--vscode-editorWidget-background));
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.85em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.legal-select {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.legal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.legal-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.legal-eligible,
+.legal-excluded,
+.legal-paths {
+  overflow-wrap: anywhere;
+}
+
 /* --- Session board and best-of-N (M77) --- */
 
 .bestofn-title {
@@ -3865,6 +4025,130 @@ li:focus-within > .row-actions .row-actions-button,
   gap: var(--ms-gap);
   border-top: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));
   padding-top: var(--ms-gap);
+}
+
+/* The team's tree and cards (M96 lane U2): an indented tree at every
+   width, the same items and actions at 320 px, and no animation of its
+   own for reduced motion to stop. */
+.team-tree-heading {
+  margin: var(--ms-gap) 0 4px;
+  font-size: 1em;
+}
+
+.team-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.team-node {
+  border-radius: var(--ms-radius);
+}
+
+.team-node[data-level='2'] {
+  margin-left: 12px;
+}
+
+.team-node[data-level='3'] {
+  margin-left: 24px;
+}
+
+.team-node[data-level='4'] {
+  margin-left: 36px;
+}
+
+.team-node:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.team-node-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+}
+
+.team-node-title {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-weight: 600;
+}
+
+.team-node-meta {
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+}
+
+.team-node-actions,
+.team-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.team-node-actions button,
+.team-card-actions button {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 4px 6px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.team-merge-details {
+  margin: 2px 0;
+  overflow-wrap: anywhere;
+}
+
+.team-merge-details ul {
+  margin: 2px 0;
+  padding-left: 16px;
+}
+
+.team-card-note {
+  margin: 2px 0;
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* A worker's own card label: the panel's chrome, never worker text. */
+.team-worker-label {
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+}
+
+.team-plan-items {
+  margin: 2px 0;
+  padding-left: 16px;
+}
+
+.team-plan-item {
+  margin: 2px 0;
+}
+
+.team-plan-disposition {
+  font-weight: 600;
+}
+
+.team-estimated {
+  font-style: italic;
+  color: var(--vscode-descriptionForeground);
+}
+
+@media (width <= 480px) {
+  .team-node[data-level='2'] {
+    margin-left: 6px;
+  }
+
+  .team-node[data-level='3'] {
+    margin-left: 12px;
+  }
+
+  .team-node[data-level='4'] {
+    margin-left: 18px;
+  }
 }
 
 /* Reduced motion (M25): every animation and transition in the panel stops,

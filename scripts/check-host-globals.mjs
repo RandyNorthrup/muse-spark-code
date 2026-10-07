@@ -21,10 +21,26 @@ const HOST_BUNDLES = [
   'dist/extension.js',
   'dist/conversation.js',
   'dist/tab.js',
+  'dist/usageService.js',
+  'dist/usageCompanion.js',
+  'dist/usagePanel.js',
   'dist/modelApi.js',
+  'dist/modelApiHooks.js',
+  'dist/modelApiMcp.js',
+  'dist/runtimeAccounting.js',
+  'dist/providerPolicy.js',
+  'dist/modelApiBoundaries.js',
+  'dist/providers.js',
+  'dist/subscriptions.js',
+  'dist/configuredProviders.js',
+  'dist/validation.js',
+  'dist/modelsPanel.js',
   'dist/review.js',
   'dist/sessionBoard.js',
   'dist/reviewer.js',
+  'dist/team.js',
+  'dist/teamRunners.js',
+  'dist/teamScheduler.js',
   // M91: the imported hooks' adapters, the hook and MCP-form runtime, and
   // the window's extension hook runner.
   'dist/foreignHooks.js',
@@ -38,6 +54,7 @@ const HOST_BUNDLES = [
   'dist/agentImport.js',
   'dist/conversationGit.js',
   'dist/bundledSkills.js',
+  'dist/legalScan.js',
   'dist/codeIntel.js',
   'dist/voice.js',
   'dist/webFetch.js',
@@ -48,6 +65,7 @@ const HOST_BUNDLES = [
   'dist/judge.js',
   'dist/searchWorker.js',
   'dist/pageWorker.js',
+  'dist/imageResizeWorker.js',
 ]
 const NAVIGATOR = /\bnavigator\b/g
 

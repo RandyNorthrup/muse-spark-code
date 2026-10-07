@@ -1,3 +1,4 @@
+import type { UsageRecording } from '../../core/usage/recording'
 import { paidWindowOnceFeatures } from '../../shared/paid'
 // The host side of the paid Model API features (M33–M35, PLAN.md D30): the
 // gate over VS Code's settings, the extension's global state and a modal
@@ -47,6 +48,7 @@ interface MementoLike {
 }
 
 export interface PaidFeaturesDeps {
+  readonly usageRecording?: UsageRecording | undefined
   readonly globalState: MementoLike
   /** Where "Allow always in this workspace" is kept (M58). */
   readonly workspaceState: MementoLike
@@ -54,7 +56,7 @@ export interface PaidFeaturesDeps {
   readonly isSettingOn: (feature: PaidFeature) => boolean
   readonly isAvailable?: (feature: PaidFeature) => boolean
   readonly isDefaultOn?: (feature: PaidFeature) => boolean
-  readonly dailyBudgetUsd?: () => number | undefined
+  readonly dailyBudgetUsd?: (feature?: PaidFeature) => number | undefined
   /** Separate from startup review, since subscription judging has no price popup. */
   readonly isJudgeOn?: (() => boolean) | undefined
   /** Whether a Model API key is stored, as last read (M44). */
@@ -86,6 +88,8 @@ function confirmationDetail(feature: PaidFeature): string {
     subagents: UI_TEXT.paidConfirmSubagents,
     autoReviewer: UI_TEXT.paidConfirmAutoReviewer,
     bestOfN: UI_TEXT.paidConfirmBestOfN,
+    legalExplanation: UI_TEXT.legalExplainConfirm,
+    teamWorkers: UI_TEXT.paidConfirmTeamWorkers,
     // Tab (M94, PLAN.md D73): the confirmation quotes both tiers' rates
     // (`paidFeaturePrice('tab')`); the per-use popup quotes the request's
     // own model instead (paidConsent.ts).
@@ -130,7 +134,8 @@ export async function askPaidUse(
   // No verified price, nothing to accept (M48, M78): refused before any popup.
   if (
     (request.feature === 'subagents' && modelApiPaidTier(request.task.modelId) === undefined) ||
-    (request.feature === 'autoReviewer' && autoReviewPrice(request.modelId) === undefined) ||
+    (request.feature === 'autoReviewer' &&
+      autoReviewPrice(request.modelId, request.pricing) === undefined) ||
     (request.feature === 'judge' &&
       (autoReviewPrice(request.modelId) === undefined ||
         !Number.isFinite(request.dailyBudgetUsd) ||
@@ -156,7 +161,7 @@ export async function askPaidUse(
   if (request.feature === 'hookModels' && modelApiPaidTier(request.modelId) === undefined) {
     return 'deny'
   }
-  const { title, detail } = paidUseQuestion(request)
+  const { title, detail } = await paidUseQuestion(request)
   const once: vscode.MessageItem = { title: UI_TEXT.allowOnce }
   const always: vscode.MessageItem = { title: UI_TEXT.paidAllowAlways }
   const deny: vscode.MessageItem = { title: UI_TEXT.paidDeny, isCloseAffordance: true }
@@ -292,10 +297,22 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
         ),
       )
     },
-    ask: (request, canRemember) => askPaidUse(request, canRemember, deps.dailyBudgetUsd?.()),
+    ask: (request, canRemember) =>
+      askPaidUse(request, canRemember, deps.dailyBudgetUsd?.(request.feature)),
     log: deps.log,
   })
-  const usage = new PaidUsage(deps.log)
+  const usage = new PaidUsage(deps.log, deps.usageRecording)
+  const openedAt = Date.now()
+  if (deps.usageRecording !== undefined) {
+    void deps.usageRecording
+      .today()
+      .then((records) => {
+        usage.restore(records.filter((record) => record.at < openedAt))
+      })
+      .catch(() => {
+        deps.log.warn('Paid usage history could not be restored')
+      })
+  }
   return {
     gate,
     consent,

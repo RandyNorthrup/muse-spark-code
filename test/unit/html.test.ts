@@ -66,8 +66,8 @@ describe('buildWebviewHtml', () => {
 
   it('marks only the read-only tasks document and keeps its CSP', () => {
     const tasks = buildWebviewHtml({ ...options, surface: 'tasks' })
-    expect(tasks).toContain('<body data-surface="tasks">')
-    expect(html).toContain('<body>')
+    expect(tasks).toContain('<body data-native-context-menu="true" data-surface="tasks">')
+    expect(html).toContain('<body data-native-context-menu="true">')
     expect(tasks).toContain("script-src 'nonce-NONCE123'")
     expect(tasks).not.toContain('unsafe-inline')
   })
@@ -103,14 +103,20 @@ describe('buildWebviewHtml', () => {
 })
 
 describe('shared host CSP for ESM chunks', () => {
-  it.each([
-    ['VS Code', 'https://file+.vscode-resource.vscode-cdn.net'],
-    ['VSCodium', 'https://file+.vscode-resource.vscode-cdn.net'],
-    ['code-server', 'https://editor.example.test'],
-    ['Theia', 'https://webview.example.test'],
-    ['shared companion UI', 'https://companion.example.test'],
-  ])('%s permits a relative lazy chunk from its asset origin', (_host, origin) => {
-    const script = `${origin}/extension/dist/webview/main.js`
+  it.each(
+    (
+      [
+        ['VS Code', 'https://file+.vscode-resource.vscode-cdn.net'],
+        ['VSCodium', 'https://file+.vscode-resource.vscode-cdn.net'],
+        ['code-server', 'https://editor.example.test'],
+        ['Theia', 'https://webview.example.test'],
+        ['shared companion UI', 'https://companion.example.test'],
+      ] as const
+    ).flatMap(([host, origin]) =>
+      ['main', 'models', 'usage'].map((entry) => [`${host} ${entry}`, origin, entry] as const),
+    ),
+  )('%s permits a relative lazy chunk from its asset origin', (_host, origin, entry) => {
+    const script = `${origin}/extension/dist/webview/${entry}.js`
     const chunk = new URL('chunks/optional.js?load=0.5', script)
     const html = buildWebviewHtml({
       scriptUri: script,

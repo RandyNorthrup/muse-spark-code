@@ -1,7 +1,10 @@
-import { readFileSync } from 'node:fs'
-import { describe, expect, it } from 'vitest'
-import { SCENARIOS } from '../../scripts/lib/harnessServer.mjs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { afterAll, describe, expect, it, vi } from 'vitest'
+import { SCENARIOS, withSizedPage } from '../../scripts/lib/harnessServer.mjs'
 import {
+  captureShot,
   checkCoverage,
   describeShot,
   parseArgs,
@@ -10,9 +13,16 @@ import {
   shotUrl,
 } from '../../scripts/readme-shots.mjs'
 
+vi.mock('../../scripts/lib/harnessServer.mjs', async (importOriginal) => ({
+  ...(await importOriginal()),
+  withSizedPage: vi.fn(),
+}))
+
 const list = parseShotList(readFileSync('scripts/readme-shots.json', 'utf8'))
 const readme = readFileSync('README.md', 'utf8')
 const harness = readFileSync('test/harness/index.html', 'utf8')
+const captureDir = mkdtempSync(path.join(tmpdir(), 'readme-shot-test-'))
+afterAll(() => rmSync(captureDir, { recursive: true, force: true }))
 
 function hasStepKey(scenario) {
   return new RegExp(String.raw`(?:^|\n)\s*['"]?${scenario}['"]?: \(\) =>`).test(harness)
@@ -43,6 +53,62 @@ describe('readme shot list', () => {
         reason: expect.stringContaining('render-images'),
       },
     ])
+  })
+})
+
+function pageFor(scan) {
+  const waitFor = vi.fn()
+  const screenshot = vi.fn()
+  const page = {
+    setViewportSize: vi.fn(),
+    context: () => ({ newCDPSession: async () => ({ send: vi.fn() }) }),
+    locator: () => ({ waitFor, textContent: async () => JSON.stringify(scan) }),
+    screenshot,
+  }
+  vi.mocked(withSizedPage).mockImplementation(async (_chrome, _profile, _url, _sized, run) =>
+    run(page),
+  )
+  return { page, waitFor, screenshot }
+}
+
+describe('readme capture readiness', () => {
+  it('keeps the capture pending while the harness is not ready', async () => {
+    const { waitFor, screenshot } = pageFor({ harnessErrors: [] })
+    const readiness = Promise.withResolvers()
+    waitFor.mockReturnValue(readiness.promise)
+    const capture = captureShot('chrome', 1234, list.shots[0], captureDir, 'profile')
+    await vi.waitFor(() => expect(waitFor).toHaveBeenCalled())
+    expect(screenshot).not.toHaveBeenCalled()
+    readiness.resolve()
+    await capture
+    expect(screenshot).toHaveBeenCalled()
+  })
+
+  it('captures the declared viewport after the harness scan settles', async () => {
+    const { page, waitFor, screenshot } = pageFor({ harnessErrors: [] })
+    const shot = { ...list.shots[0], width: 690, height: 760 }
+    const file = await captureShot('chrome', 1234, shot, captureDir, 'profile')
+    expect(page.setViewportSize).toHaveBeenCalledWith({ width: 690, height: 760 })
+    expect(withSizedPage).toHaveBeenLastCalledWith(
+      'chrome',
+      'profile',
+      `${shotUrl(1234, shot)}&axe=1`,
+      { width: 690 },
+      expect.any(Function),
+    )
+    expect(waitFor).toHaveBeenCalledWith({ state: 'attached' })
+    expect(screenshot).toHaveBeenCalledWith({ path: file, animations: 'disabled' })
+  })
+
+  it.each([
+    { error: 'scenario never became ready' },
+    { harnessErrors: ['never rendered: .question'] },
+  ])('refuses to write an image when the harness fails: %j', async (scan) => {
+    const { screenshot } = pageFor(scan)
+    await expect(captureShot('chrome', 1234, list.shots[0], captureDir, 'profile')).rejects.toThrow(
+      /never/,
+    )
+    expect(screenshot).not.toHaveBeenCalled()
   })
 })
 

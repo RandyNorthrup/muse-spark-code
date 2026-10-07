@@ -75,6 +75,7 @@ import ts from 'typescript'
 import { createRequire } from 'node:module'
 import {
   BUNDLES,
+  SUBSCRIPTION_ONLY,
   DEFERRED,
   ON_FIRST_USE,
   DEFERRED_ONLY,
@@ -87,6 +88,7 @@ import {
   ADDITIONAL_WEBVIEW_BUDGETS,
   DEFERRED_WEBVIEW_SURFACES,
   webviewStartupOutputs,
+  webviewTeamOutputs,
 } from './lib/webviewBundles.mjs'
 import { UI_TEXT_REGIONS } from './lib/uiTextRegions.mjs'
 
@@ -115,7 +117,6 @@ const UNBUNDLED = new Set(['hookFormats/clineDiscover.ts'])
 // The backend's files the activation bundle may carry, each with its reason.
 const ACTIVATION_ALLOWED = new Map([
   ['schemas.ts', 'shared boundary schemas used by activation and ACP'],
-  ['sse.ts', 'ACP event streams also use this parser'],
   ['imageGeneration.ts', "the IDE server's image tools on Muse Code (M44)"],
   ['imageToolDefinitions.ts', "the IDE server's image tools on Muse Code (M44)"],
   ['sessionStore.ts', "the stored-session format the window's session store reads (D14)"],
@@ -128,7 +129,11 @@ const ACTIVATION_ALLOWED = new Map([
 const LAZY_ONLY = [
   // TRAIN14A: stored-key image/Tab HTTP calls load the same client on first use.
   'client.ts',
+  'transport.ts',
+  'sse.ts',
+  'ndjson.ts',
   'ModelApiHost.ts',
+  'modelCapabilities.ts',
   // M78: command policy and the paid, read-only Auto reviewer load with the backend.
   'autoReviewer.ts',
   'commandRules.ts',
@@ -140,14 +145,20 @@ const LAZY_ONLY = [
   'glob.ts',
   'goals.ts',
   'hooks.ts',
-  'hookHandlers.ts',
+  'hookNames.ts',
+
   'extensionHooks.ts',
   'instructions.ts',
+  // M97: the native `legal_scan` tool's Model API side (read-only, like the
+  // code intelligence reads above): offered only with lane S's scanner.
   'mediaBudget.ts',
   'memoryTools.ts',
   'modelCallHooks.ts',
+  // M95-I: policy stays out of activation/ACP; the provider/reviewer bundles also read it.
+  'modelPolicy.ts',
   // M73: observation packing's store, its placeholder and recall_output.
   'observationPack.ts',
+  'autoCompact.ts',
   'permissions.ts',
   'promptCache.ts',
   // The built-in Reviewer's prompt and tool list (M70).
@@ -162,16 +173,13 @@ const LAZY_ONLY = [
   'verifyLedger.ts',
   'verifyLoop.ts',
   'verifyTools.ts',
-  'mcp/connection.ts',
+
   // M91-M: MCP forms' types and log text load with the backend; their checks
   // load with dist/hookRuntime.js, and the browser reuses value validation.
   'mcp/elicitation.ts',
   'mcp/functions.ts',
-  'mcp/http.ts',
-  'mcp/pool.ts',
+
   'mcp/protocol.ts',
-  'mcp/servers.ts',
-  'mcp/stdio.ts',
 ]
 
 /** The bundle's source files and the bytes each contributed, from its metafile. */
@@ -197,13 +205,31 @@ function backendFiles() {
 }
 
 const problems = []
+const EXTRA_ONLY = new Set([
+  'modelApiHooksEntry.ts',
+  'modelApiMcpEntry.ts',
+  'hookHandlers.ts',
+  'mcp/connection.ts',
+  'mcp/http.ts',
+  'mcp/pool.ts',
+  'mcp/servers.ts',
+  'mcp/stdio.ts',
+])
+const CONFIGURED_ONLY = ['authSource.ts', 'providerClient.ts']
+const PROVIDER_ONLY = []
 const onDisk = new Set(backendFiles())
 const lazy = new Set(LAZY_ONLY)
 for (const name of onDisk) {
   const lists =
     Number(ACTIVATION_ALLOWED.has(name)) +
     Number(lazy.has(name)) +
+    // The adapter is guarded in DEFERRED's modelApiBoundaries inventory.
+    Number(name === 'legalScanTool.ts') +
+    Number(CONFIGURED_ONLY.includes(name)) +
+    Number(EXTRA_ONLY.has(name)) +
+    Number(PROVIDER_ONLY.includes(name)) +
     Number(DEFERRED_ONLY.includes(name)) +
+    Number(name.startsWith('codecs/')) +
     Number(FOREIGN_HOOKS_ONLY.includes(name)) +
     Number(HOOK_RUNTIME_ONLY.includes(name)) +
     Number(PLUGIN_HOOKS_ONLY.includes(name)) +
@@ -218,6 +244,9 @@ for (const name of onDisk) {
 for (const name of [
   ...ACTIVATION_ALLOWED.keys(),
   ...lazy,
+  ...CONFIGURED_ONLY,
+  ...EXTRA_ONLY,
+  ...PROVIDER_ONLY,
   ...DEFERRED_ONLY,
   ...FOREIGN_HOOKS_ONLY,
   ...HOOK_RUNTIME_ONLY,
@@ -270,6 +299,56 @@ for (const source of [
 }
 const modelApi = inputsOf(BUNDLES.modelApi)
 const acp = inputsOf(BUNDLES.acp)
+for (const [names, owner] of [
+  [CONFIGURED_ONLY, BUNDLES.configured],
+  [PROVIDER_ONLY, BUNDLES.providers],
+]) {
+  for (const name of names) {
+    const file = `${MODEL_API_DIR}/${name}`
+    if (!inputsOf(owner).has(file)) problems.push(`${owner.output} no longer carries ${file}`)
+    for (const parent of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+      if (inputsOf(parent).has(file))
+        problems.push(`${parent.output} carries the lazy provider implementation ${file}`)
+    }
+  }
+}
+// M96 round 3a: the Node proxies defer concrete view validators to team.js.
+for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+  if (inputsOf(bundle).has('src/shared/teamView.ts')) {
+    problems.push(`${bundle.output} carries the eager team view validators`)
+  }
+}
+// M96 acceptance 47: the team factory installs these validators on activation.
+// A single-model user must never pay their eager loading cost in any backend.
+for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+  for (const file of inputsOf(bundle).keys()) {
+    if (/^src\/(core|host)\/(?:team|runners)\//.test(file)) {
+      problems.push(bundle.output + ' carries ' + file + ', which loads only with the team')
+    }
+  }
+  if (inputsOf(bundle).has('src/shared/team.ts')) {
+    problems.push(`${bundle.output} carries src/shared/team.ts, which loads only with the team`)
+  }
+}
+// The session's model text is its own object (M70 budget repair). esbuild
+// keeps property names: these belong only to MODEL_API_MODEL_TEXT, which
+// the activation and ACP loaders must discard with the unused export.
+for (const bundle of [BUNDLES.activation, BUNDLES.acp]) {
+  if (/\bcompactionPrompt:/.test(readFileSync(bundle.output, 'utf8'))) {
+    problems.push(`${bundle.output} carries the Model API session's model text`)
+  }
+}
+for (const bundle of DEFERRED) {
+  const inputs = inputsOf(bundle)
+  for (const file of bundle.files) {
+    for (const parent of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+      if (inputsOf(parent).has(file)) {
+        problems.push(`${parent.output} carries ${file}, which loads only on its first action`)
+      }
+    }
+    if (!inputs.has(file)) problems.push(`${bundle.output} no longer carries ${file}`)
+  }
+}
 const extensionHooks = inputsOf({
   output: 'dist/extensionHooks.js',
   metafile: 'dist/meta/extensionHooks.json',
@@ -653,6 +732,45 @@ for (const file of BUNDLED_SKILLS_ONLY) {
   }
 }
 
+// M97 lane R: the headless `legal` command lives in the ACP agent's runtime
+// and must never reach activation. The scanner itself (lane S,
+// src/core/legal/**) loads lazily as dist/legalScan.js; while it is absent
+// the second half passes vacuously, and it starts guarding the day it lands.
+const LEGAL_RUNTIME_ONLY = [
+  'src/runtime/legal/legalArgs.ts',
+  'src/runtime/legal/legalRegistry.ts',
+  'src/runtime/legal/legalScanner.ts',
+  'src/runtime/legal/runLegal.ts',
+]
+for (const file of LEGAL_RUNTIME_ONLY) {
+  for (const bundle of [BUNDLES.activation, BUNDLES.modelApi]) {
+    if (inputsOf(bundle).has(file)) {
+      problems.push(`${bundle.output} carries ${file}, which belongs to the headless command`)
+    }
+  }
+  if (!inputsOf(BUNDLES.acp).has(file)) {
+    problems.push(`${BUNDLES.acp.output} no longer carries ${file}`)
+  }
+}
+const legalScannerFiles = existsSync('src/core/legal')
+  ? readdirSync('src/core/legal', { recursive: true })
+      .map((name) => `src/core/legal/${String(name).split(path.sep).join('/')}`)
+      .filter((name) => name.endsWith('.ts'))
+  : []
+const legalScanInputs = inputsOf(
+  ON_FIRST_USE.find((bundle) => bundle.output === 'dist/legalScan.js'),
+)
+for (const file of legalScannerFiles) {
+  // finding.ts exports only an erased type; the barrel can also be erased.
+  if (!legalScanInputs.has(file) && !['index.ts', 'finding.ts'].includes(path.basename(file)))
+    problems.push(`dist/legalScan.js no longer carries ${file}`)
+  for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+    if (inputsOf(bundle).has(file)) {
+      problems.push(`${bundle.output} carries ${file}, which loads only with the legal scan`)
+    }
+  }
+}
+
 // Keep Tab's full source inventory guarded when adding an engine module.
 const tabFiles = ON_FIRST_USE.find((bundle) => bundle.output === 'dist/tab.js').files
 for (const file of readdirSync('src/core/tab')) {
@@ -669,6 +787,31 @@ if (
   )
 ) {
   problems.push(`${BUNDLES.acp.output} no longer loads the shared recorder`)
+}
+
+// M96 U2: a single-model chat fetches only the static ESM closure. Team
+// renderers must occur exclusively beyond dynamic-import edges.
+const webview = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
+const initialWebview = new Set()
+function visitTeamWebview(output) {
+  if (initialWebview.has(output)) return
+  initialWebview.add(output)
+  const imports = webview.outputs[output].imports
+  for (const entry of imports) {
+    if (!entry.external && entry.kind === 'import-statement') visitTeamWebview(entry.path)
+  }
+}
+visitTeamWebview('dist/webview/main.js')
+const TEAM_UI_ONLY = ['src/webview/components/TeamTree.tsx', 'src/webview/components/TeamCards.tsx']
+for (const file of TEAM_UI_ONLY) {
+  const carrying = Object.entries(webview.outputs).filter(
+    ([, output]) => (output.inputs[file]?.bytesInOutput ?? 0) > 0,
+  )
+  if (carrying.length === 0) problems.push(`webview no longer carries ${file}`)
+  for (const [output] of carrying) {
+    if (initialWebview.has(output))
+      problems.push(`${output} carries ${file} in the initial webview graph`)
+  }
 }
 
 // What's New's page script (M99) is a few lines that pass clicks back: it
@@ -692,6 +835,44 @@ if (!whatsNewPage.has(WHATS_NEW_PAGE.script)) {
   problems.push(`${WHATS_NEW_PAGE.output} no longer carries ${WHATS_NEW_PAGE.script}`)
 }
 
+const providers = inputsOf(BUNDLES.providers)
+for (const name of onDisk) {
+  if (name.startsWith('codecs/') && !providers.has(`${MODEL_API_DIR}/${name}`)) {
+    problems.push(`${BUNDLES.providers.output} no longer carries ${MODEL_API_DIR}/${name}`)
+  }
+}
+
+// M95: codecs belong exclusively to the separate providers bundle. Check
+// every emitted JS output, including future bundles and new codec files.
+for (const directory of ['dist/meta', 'dist/meta-acp']) {
+  for (const name of readdirSync(directory)) {
+    if (!name.endsWith('.json')) continue
+    const { outputs } = JSON.parse(readFileSync(path.join(directory, name), 'utf8'))
+    for (const [output, bundle] of Object.entries(outputs)) {
+      if (output === BUNDLES.providers.output || !output.endsWith('.js')) continue
+      for (const input of Object.keys(bundle.inputs)) {
+        if (
+          input.startsWith(`${MODEL_API_DIR}/codecs/`) ||
+          (input.startsWith('src/core/providers/') &&
+            !(
+              output === 'dist/providerPolicy.js' &&
+              ['credentialRecord.ts', 'modelRef.ts', 'endpointPolicy.ts'].some(
+                (file) => input === `src/core/providers/${file}`,
+              )
+            ) &&
+            !(output === BUNDLES.subscriptions.output && SUBSCRIPTION_ONLY.includes(input)) &&
+            !(
+              input === 'src/core/providers/configured.ts' && output === BUNDLES.configured.output
+            ) &&
+            !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageService.js'))
+        ) {
+          problems.push(`${output} carries ${input}, which loads only in dist/providers.js`)
+        }
+      }
+    }
+  }
+}
+
 // Model text (PLAN.md D6, 2026-10-03). One object is carried whole by every
 // bundle that reads any key of it: esbuild does not tree-shake by key. So
 // text that only lazily loaded bundles read is a block of its own in
@@ -712,20 +893,34 @@ function shippedBundles() {
         const metafile = `${dir}/${name}`
         const { outputs } = JSON.parse(readFileSync(metafile, 'utf8'))
         return Object.keys(outputs)
-          .filter((output) => output.endsWith('.js'))
+          .filter(
+            (output) =>
+              output.endsWith('.js') &&
+              (!output.startsWith('dist/webview/') ||
+                [
+                  'dist/webview/main.js',
+                  'dist/webview/models.js',
+                  'dist/webview/usage.js',
+                  'dist/webview/whatsNew.js',
+                ].includes(output)),
+          )
           .map((output) => ({ output, metafile }))
       }),
   )
 }
 const SHIPPED = shippedBundles()
-// ESM splitting moves shared constants to one common browser chunk. Identify
-// that chunk by its source, so hashes may change without loosening the text gate.
-const webviewConstants = SHIPPED.filter(
-  (bundle) =>
-    bundle.output.startsWith('dist/webview/') && inputsOf(bundle).has('src/shared/constants.ts'),
+// Each page's reachable ESM graph includes its shared and lazy chunks.
+// Only the chat graph may carry the ReviewPane's comment template.
+const webviewReview = SHIPPED.filter(
+  ({ output, metafile }) =>
+    output.startsWith('dist/webview/') &&
+    Object.hasOwn(
+      JSON.parse(readFileSync(metafile, 'utf8')).inputs,
+      'src/webview/components/ReviewPane.tsx',
+    ),
 )
-if (webviewConstants.length !== 1) {
-  problems.push('the webview must carry shared constants in exactly one JavaScript output')
+if (webviewReview.length !== 1) {
+  problems.push('exactly one webview graph must carry ReviewPane')
 }
 /** The shipped bundle that `output` names; a missing one is a problem. */
 function shipped(output) {
@@ -736,6 +931,28 @@ function shipped(output) {
   return bundle ?? { output, metafile: '' }
 }
 const TEXT_BLOCKS = [
+  {
+    block: 'MCP_POOL_MODEL_TEXT',
+    sentinels: ['mcpArgumentsNotObject', 'mcpToolUnavailable'],
+    readers: ['dist/modelApi.js', 'dist/modelApiMcp.js'],
+  },
+  {
+    block: 'TEAM_MODEL_TEXT',
+    sentinels: ['toolTheRoleToRunEG'],
+    readers: ['dist/team.js', 'dist/teamScheduler.js'],
+  },
+  {
+    block: 'TEAM_BOOTSTRAP_MODEL_TEXT',
+    sentinels: ['undeclaredTool'],
+    readers: ['dist/modelApiBoundaries.js'],
+  },
+  {
+    block: 'LEGAL_SCAN_TOOL_MODEL_TEXT',
+    sentinels: ['legalScanRestrictedMode', 'headerPolicyDescription'],
+    readers: ['dist/modelApiBoundaries.js'],
+  },
+  // M96 workers are not wired into a shipped bundle yet: forbid their text everywhere.
+  { block: 'WORKER_MODEL_TEXT', sentinels: ['boundedExcerpt'], readers: [] },
   {
     block: 'QUESTION_MODEL_TEXT',
     sentinels: ['deferredClarification'],
@@ -770,9 +987,14 @@ const TEXT_BLOCKS = [
     readers: ['dist/hookRuntime.js'],
   },
   {
+    block: 'LEGAL_EXPLANATION_MODEL_TEXT',
+    sentinels: ['legalExplanationInstructions'],
+    readers: ['dist/reviewer.js'],
+  },
+  {
     block: 'MODEL_API_MODEL_TEXT',
     sentinels: ['compactionPrompt', 'goalUnfinishedExists', 'verifyUncheckedCodeLoading'],
-    readers: [BUNDLES.modelApi.output],
+    readers: [BUNDLES.modelApi.output, 'dist/modelApiMcp.js'],
   },
   {
     block: 'CODE_INTEL_MODEL_TEXT',
@@ -804,20 +1026,20 @@ const TEXT_BLOCKS = [
   {
     block: 'REVIEW_COMMENT_MODEL_TEXT',
     sentinels: ['reviewRemovedLine'],
-    readers: webviewConstants.map(({ output }) => output),
+    readers: webviewReview.map(({ output }) => output),
   },
   // Web fetch's own words (M69): the window's fetch, the Model API
   // backend's URL checks and the ACP agent's fetch.
   {
     block: 'WEB_FETCH_MODEL_TEXT',
     sentinels: ['webFetchUntrusted', 'webFetchMovedOpen'],
-    readers: ['dist/webFetch.js', BUNDLES.modelApi.output, BUNDLES.acp.output],
+    readers: ['dist/webFetch.js', BUNDLES.modelApi.output, 'dist/runtimeEngine.js'],
   },
   // A headless run's attached files (M80): the ACP agent's runtime only.
   {
     block: 'EXEC_MODEL_TEXT',
     sentinels: ['execUntrustedLead'],
-    readers: [BUNDLES.acp.output],
+    readers: ['dist/headless.js'],
   },
   // The Auto reviewer (M78, M90): the paid reviewer and the reviewer on Muse
   // Code. dist/modelApi.js carries autoReviewer.ts for its types and policy
@@ -865,7 +1087,18 @@ function blockKeys(name) {
 const outputText = new Map()
 function textOf(output) {
   if (!outputText.has(output)) {
-    outputText.set(output, readFileSync(output, 'utf8'))
+    const metafile = {
+      'dist/webview/main.js': 'dist/meta/webview.json',
+      'dist/webview/models.js': 'dist/meta/modelsWebview.json',
+      'dist/webview/usage.js': 'dist/meta/usageWebview.json',
+      'dist/webview/whatsNew.js': 'dist/meta/whatsNewPage.json',
+    }[output]
+    const files = metafile
+      ? Object.keys(JSON.parse(readFileSync(metafile, 'utf8')).outputs).filter((file) =>
+          file.endsWith('.js'),
+        )
+      : [output]
+    outputText.set(output, files.map((file) => readFileSync(file, 'utf8')).join('\n'))
   }
   return outputText.get(output)
 }
@@ -954,10 +1187,14 @@ const visitWebview = (file) => {
   for (const imported of output.imports) if (!imported.external) visitWebview(imported.path)
 }
 visitWebview('dist/webview/main.js')
+
 const deferredWebviewSources = [
   ...DEFERRED_WEBVIEW_SURFACES.map((surface) => `src/webview/components/${surface}.tsx`),
   ...ADDITIONAL_WEBVIEW_BUDGETS.flatMap(({ entries }) => entries),
   'src/webview/highlightRuntime.ts',
+  'src/webview/components/TeamUi.tsx',
+  'src/webview/components/TeamTree.tsx',
+  'src/webview/components/TeamCards.tsx',
   'src/core/prompts/promptSearch.ts',
 ]
 for (const source of deferredWebviewSources) {
@@ -975,15 +1212,53 @@ for (const [file, output] of Object.entries(webviewMeta.outputs)) {
   if (
     output.entryPoint &&
     output.entryPoint !== 'src/webview/main.tsx' &&
+    output.entryPoint !== 'src/webview/models/models.tsx' &&
+    output.entryPoint !== 'src/webview/usage/usage.tsx' &&
     !deferredWebviewSources.includes(output.entryPoint)
   ) {
     problems.push(`Unlisted deferred webview surface ${output.entryPoint}`)
   }
 }
 const chunks = 'dist/webview/chunks'
+const otherPageChunks = new Set()
+for (const [page, entry] of [
+  ['modelsWebview', 'dist/webview/models.js'],
+  ['usageWebview', 'dist/webview/usage.js'],
+  ['whatsNewPage', 'dist/webview/whatsNew.js'],
+]) {
+  const meta = JSON.parse(readFileSync(`dist/meta/${page}.json`, 'utf8'))
+  const reachable = new Set()
+  const visit = (file) => {
+    if (reachable.has(file)) return
+    const output = meta.outputs[file]
+    if (!output || !existsSync(file)) {
+      problems.push(`Missing ${page} chunk ${file}`)
+      return
+    }
+    reachable.add(file)
+    otherPageChunks.add(file)
+    for (const imported of output.imports) if (!imported.external) visit(imported.path)
+  }
+  visit(entry)
+  for (const file of Object.keys(meta.outputs)) {
+    if (file.endsWith('.js') && !reachable.has(file))
+      problems.push(`Unreachable ${page} chunk ${file}`)
+  }
+}
 const builtChunks = readdirSync(chunks).filter((name) => name.endsWith('.js'))
 for (const file of builtChunks) {
-  if (!reachableWebview.has(`${chunks}/${file}`)) problems.push(`Stale webview chunk ${file}`)
+  if (!reachableWebview.has(`${chunks}/${file}`) && !otherPageChunks.has(`${chunks}/${file}`))
+    problems.push(`Stale webview chunk ${file}`)
+}
+
+// M96: both renderers must share one optional entry and one independent cap.
+const teamUiOutputs = webviewTeamOutputs(webviewMeta)
+for (const source of ['TeamUi', 'TeamTree', 'TeamCards']) {
+  const carrying = teamUiOutputs.filter((file) =>
+    Object.hasOwn(webviewMeta.outputs[file].inputs, `src/webview/components/${source}.tsx`),
+  )
+  if (carrying.length !== 1)
+    problems.push(`${source} must occur in the separately budgeted team UI chunk`)
 }
 
 // HELPREF: the page/data stay lazy and share the caller's React and language.
@@ -1013,9 +1288,14 @@ const validationExports = new Set(
 const nodeMetafiles = readdirSync('dist/meta')
   .filter(
     (name) =>
-      !['validation.json', 'webview.json', 'whatsNewPage.json', 'referencePage.json'].includes(
-        name,
-      ),
+      ![
+        'validation.json',
+        'webview.json',
+        'modelsWebview.json',
+        'whatsNewPage.json',
+        'usageWebview.json',
+        'referencePage.json',
+      ].includes(name),
   )
   .map((name) => `dist/meta/${name}`)
 nodeMetafiles.push(
@@ -1077,6 +1357,13 @@ if (
   problems.push('dist/validation.js no longer carries the mini-parser')
 }
 
+if (
+  inputsOf({ output: 'dist/modelsPanel.js', metafile: 'dist/meta/modelsPanel.json' }).has(
+    'src/shared/protocol.ts',
+  )
+) {
+  problems.push('dist/modelsPanel.js carries unrelated chat schemas')
+}
 if (problems.length > 0) {
   console.error(`bundle split: ${String(problems.length)} problem(s); see PLAN.md D6 and M57`)
   for (const problem of problems) {
@@ -1129,6 +1416,7 @@ console.log(
 console.log(
   `ok   ${AGENT_IMPORT.output}: carries the import (scan, converters, file access, smol-toml); ${BUNDLES.activation.output} carries none of it`,
 )
+console.log(`ok   ${BUNDLES.providers.output}: codecs and provider core load exclusively there`)
 console.log(
   `ok   model text: ${TEXT_BLOCKS.map(({ block }) => block).join(', ')} each in its readers and in no other of the ${String(SHIPPED.length)} shipped bundles; ${FILE_REFUSAL.block} pinned to ${String(FILE_REFUSAL.keys.length)} keys; ${String(modelTextKeys.length)} MODEL_TEXT keys, each read at activation`,
 )

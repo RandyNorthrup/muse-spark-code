@@ -1,3 +1,8 @@
+import { loadLegalScanner } from './legal/legalScanner'
+import type { ProviderClient } from '../core/backends/modelapi/client'
+import type { runtimeSubscriptionClient } from './chatGptProviderCommands'
+import type * as ConfiguredProvidersEntry from '../host/backend/configuredProvidersEntry'
+import type * as RuntimeAccountingEntry from './runtimeAccountingEntry'
 // The ACP agent's backend (PLAN.md D62): the panel's backend managers,
 // given in this process what VS Code gives them in the extension, one per
 // workspace folder. Muse Code signs in on its own and the subscription
@@ -11,18 +16,26 @@
 // through the client (M63c).
 
 import { randomUUID } from 'node:crypto'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
 import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
 import type { AgentHost } from '../core/agent/agentBackend'
 import type { CliSignIn } from '../core/backends/musecode/credentialFile'
-import { environmentValue } from '../core/backends/musecode/launch'
+import {
+  buildChildEnvironment,
+  environmentValue,
+  withLoopbackBypass,
+} from '../core/backends/musecode/launch'
 import { personalSkillsRoot } from '../core/context/skills'
 import { personalAgentsRoot } from '../core/context/customAgents'
 import { memoryDataRoot } from '../core/memory/memoryLocation'
 import { MemoryStore } from '../core/memory/memoryStore'
 import { WorkspaceEdits } from '../core/verify/workspaceEdits'
 import { redactSecrets } from '../core/redact'
+import { recordPaidUse } from '../core/paid/paidFeatures'
+import type { UsageRecording } from '../core/usage/recording'
+import type { UsageBudgetRead } from '../core/usage/usageService'
 import { fileContextIo } from '../host/backend/contextIo'
 import { describeEnvironment } from '../host/backend/environment'
 import { createFileSessionStore } from '../host/backend/fileSessionStore'
@@ -41,17 +54,20 @@ import { pageConverter } from '../host/web/pageConverter'
 import { createWebFetcher } from '../host/web/webFetcher'
 import { captureWorkspaceIdentity } from '../host/workspaceIdentity'
 import {
-  type EnvironmentVariable,
   FILE_REFUSAL_MODEL_TEXT,
   MENTION_INDEX_LIMIT,
   MODEL_API_BUNDLE_FILE,
   PAGE_WORKER_FILE,
   SEARCH_WORKER_FILE,
   SECRET_KEYS,
+  PROVIDER_SECRET_PREFIX,
+  PAID_PRICES_USD,
+  PROVIDERS_CONFIG_DIR_NAME,
+  PROVIDERS_FILE_NAME,
   SETTING_DEFAULTS,
   UI_TEXT,
 } from '../shared/constants'
-import { fill } from '../shared/l10n/text'
+import { fill, uiLocale } from '../shared/l10n/text'
 import type { ServeOptions } from './cliArgs'
 import {
   agentDataFolder,
@@ -59,17 +75,26 @@ import {
   paidGrantsFile,
   workspaceSessionsFolder,
 } from './dataFolder'
-import { withoutCredentials, withoutKeyringRoutes } from './credentialVariables'
+import {
+  museCodeEnvironment,
+  withoutCredentials,
+  withoutKeyringRoutes,
+} from './credentialVariables'
 import { walkFiles } from './fileWalk'
 import { paidGrantFile } from './paidGrants'
 
+import type { AssembledProviderRun } from './exec/providerExec'
+import type { RuntimeResponseAccounting } from './runtimeAccountingEntry'
 export interface ExecRuntimeOptions {
+  readonly providerRun?: AssembledProviderRun
+  readonly responseAccounting?: RuntimeResponseAccounting
   readonly isEphemeral: boolean
   readonly headlessPaid: HeadlessPaidPolicy
   readonly streamIdleMs: number
 }
 
 export interface RuntimeBackendDeps {
+  readonly usageRecording?: UsageRecording | undefined
   readonly questions?: { remove(sessionId: string): Promise<void> }
   readonly exec?: ExecRuntimeOptions
   readonly options: ServeOptions
@@ -81,12 +106,6 @@ export interface RuntimeBackendDeps {
   readonly homeDir: string
   readonly secrets: SecretStore
   readonly runGit: (args: readonly string[], cwd: string) => Promise<string>
-  /**
-   * The credential variables taken out of the agent's own environment at
-   * start (credentialVariables.ts): handed back to Muse Code's processes
-   * only, as the extension's `muse serve` inherits them (D1).
-   */
-  readonly museCodeCredentials: readonly EnvironmentVariable[]
   /** The Model API's transport. */
   readonly fetch: typeof fetch
   /** Waits between retries and rename attempts; injectable so tests do not sleep. */
@@ -95,6 +114,7 @@ export interface RuntimeBackendDeps {
 }
 
 export interface RuntimeBackend {
+  readonly readUsageBudgets: () => Promise<readonly UsageBudgetRead[]>
   readonly backend: AcpBackend
   /** Muse Code's launch and environment, for `login`. */
   readonly museCode: MuseCodeBackendManager
@@ -125,13 +145,30 @@ function independentEditorStartupPolicy(log: Logger): Promise<void> {
 
 function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undefined) {
   const { options, log } = deps
-  return new MuseCodeBackendManager({
+  // VS Code inherits its host environment (D1); the standalone runtime has
+  // a stricter boundary, shared by serve, account hosts and login.
+  const Manager = class extends MuseCodeBackendManager {
+    public override childEnvironment(): NodeJS.ProcessEnv {
+      const env = museCodeEnvironment(deps.env)
+      return withLoopbackBypass(
+        buildChildEnvironment({
+          platform: deps.platform,
+          baseEnv: env,
+          extraVariables: [],
+          systemRoot: environmentValue(env, deps.platform, 'SystemRoot'),
+          programFiles: environmentValue(env, deps.platform, 'ProgramFiles'),
+        }),
+        deps.platform,
+      )
+    }
+  }
+  return new Manager({
     // This records the actual scope boundary; it does not certify a VS Code fence.
     beforeWorkspaceHostStart: () => independentEditorStartupPolicy(log),
     log,
     extensionVersion: deps.version,
     getConfiguredBinaryPath: () => options.museBinary,
-    getEnvironmentVariables: () => deps.museCodeCredentials,
+    getEnvironmentVariables: () => [],
     workspaceRoot,
     getShellSandbox: () => options.shellSandbox,
     // No `--sandbox-network` (M56): Muse Code's default, or a managed policy's.
@@ -159,6 +196,37 @@ function modelApiManager(
   assertWorkspaceCurrent: () => void,
 ): ModelApiBackendManager {
   const { options, log, platform } = deps
+  const providerConfigFile = path.join(
+    deps.env['XDG_CONFIG_HOME'] ?? path.join(deps.homeDir, '.config'),
+    PROVIDERS_CONFIG_DIR_NAME,
+    PROVIDERS_FILE_NAME,
+  )
+  let subscriptions: Promise<ReturnType<typeof runtimeSubscriptionClient>> | undefined
+  let headlessProviders:
+    ReturnType<typeof ConfiguredProvidersEntry.createConfiguredProviderServices> | undefined
+  const subscriptionClient = () =>
+    (subscriptions ??= (async () => {
+      const bundle = await import('./chatGptProviderCommands')
+      return bundle.runtimeSubscriptionClient({
+        secrets: deps.secrets,
+        fetch: deps.fetch,
+        catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
+        configFile: providerConfigFile,
+        openBrowser: () => Promise.reject(new Error(UI_TEXT.acpChatGpt.failure)),
+        callbackText: () => UI_TEXT.acpChatGpt.callback,
+      })
+    })())
+  let accounting: Promise<typeof RuntimeAccountingEntry> | undefined
+  const accountingEntry = () => (accounting ??= import('./runtimeAccountingEntry.js'))
+  let daily: ReturnType<typeof RuntimeAccountingEntry.createRuntimeDailyBudget> | undefined
+  const dailyBudget = async () => {
+    const entry = await accountingEntry()
+    return (daily ??= entry.createRuntimeDailyBudget({
+      dataFolder: agentDataFolder(deps),
+      now: () => Date.now(),
+      sleep: deps.sleep,
+    }))
+  }
   const isWorkspaceTrusted = () => options.trustWorkspace
   const dataInput: DataFolderInput = { platform, env: deps.env, homeDir: deps.homeDir }
   const systemRoot = deps.env['SystemRoot']
@@ -244,6 +312,8 @@ function modelApiManager(
         }
   return new ModelApiBackendManager({
     log,
+    usageRecording: deps.usageRecording,
+    hasExternalPaidRecording: deps.exec !== undefined,
     getApiKey: () => credentials.getApiKey(),
     workspaceRoot,
     sessionWorkspaceRoot: storedWorkspaceRoot,
@@ -254,6 +324,101 @@ function modelApiManager(
     contextIo: fileContextIo,
     webFetch: createWebFetcher(log, pageConverter(path.join(deps.distDir, PAGE_WORKER_FILE), log)),
     fetch: deps.fetch,
+    legalScan: async (input, signal) => {
+      assertWorkspaceCurrent()
+      const handle = await loadLegalScanner({ distDir: deps.distDir }).scan({
+        workspaceRoot,
+        input,
+        signal,
+      })
+      assertWorkspaceCurrent()
+      signal.throwIfAborted()
+      return handle.result
+    },
+    createProviderClient: async (meta: ProviderClient) => {
+      let client = meta
+      const run = deps.exec?.providerRun
+      if (run !== undefined) {
+        const entry = await import('../host/backend/configuredProvidersEntry')
+        entry.setUiText(UI_TEXT, uiLocale())
+        headlessProviders = entry.createConfiguredProviderServices(meta, {
+          configFile: providerConfigFile,
+          catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
+          secrets: run.secrets,
+          hasMetaKey: () => Promise.resolve(false),
+          resolve: run.resolveHost,
+          send: async (target, body, headers, signal) => {
+            const response = await run.fetch(target.url.href, {
+              method: body === undefined ? 'GET' : 'POST',
+              headers,
+              ...(body !== undefined && { body }),
+              signal,
+            })
+            const reader = response.body?.getReader()
+            let isReleased = false
+            return {
+              status: response.status,
+              headers: Object.fromEntries(response.headers.entries()),
+              body: {
+                async *[Symbol.asyncIterator]() {
+                  if (reader === undefined) return
+                  try {
+                    for (;;) {
+                      const next = await reader.read()
+                      if (next.done) return
+                      yield next.value
+                    }
+                  } finally {
+                    reader.releaseLock()
+                    isReleased = true
+                  }
+                },
+              },
+              close: () => {
+                if (!isReleased)
+                  void reader?.cancel().catch(() => {
+                    // Cleanup follows the request's settled error or abort; a late
+                    // stream cancellation failure must not replace that outcome.
+                  })
+              },
+            }
+          },
+        })
+        client = headlessProviders.client
+      } else if (
+        deps.exec === undefined &&
+        (existsSync(providerConfigFile) ||
+          (await deps.secrets.get(PROVIDER_SECRET_PREFIX + 'chatgpt')) !== undefined)
+      ) {
+        const subscriptions = await subscriptionClient()
+        client = await subscriptions.createClient(meta)
+      }
+      const entry = await accountingEntry()
+      entry.setUiText(UI_TEXT, uiLocale())
+      return entry.withRuntimeAccounting(client, await dailyBudget(), deps.exec?.responseAccounting)
+    },
+    reservePaidRequest: async (
+      body,
+      _feature,
+      _estimated,
+      signal = new AbortController().signal,
+    ) => {
+      if ('input' in body) return
+      const budget = await dailyBudget()
+      return await budget.reserve(PAID_PRICES_USD.imageGeneration, signal)
+    },
+    ...(deps.exec === undefined && {
+      getProviderAccountId: async () => {
+        const subscriptions = await subscriptionClient()
+        return await subscriptions.accountId()
+      },
+    }),
+    ...(deps.exec?.providerRun !== undefined && {
+      getProviderAccountId: async () => {
+        if (headlessProviders === undefined) throw new Error(UI_TEXT.execModelUnpriced)
+        return await headlessProviders.accountId()
+      },
+    }),
     ...(deps.exec !== undefined && { streamIdleMs: deps.exec.streamIdleMs }),
     newId: () => randomUUID(),
     now: () => Date.now(),
@@ -292,11 +457,20 @@ function modelApiManager(
     isPaidFeatureOn: (feature) => paid.isOn(feature),
     notePaidUse: (feature, units) => {
       paid.noteUse(feature, units)
+      // Headless image settlement has its own per-attempt tap in runExec.
+      if (deps.exec === undefined) {
+        recordPaidUse(deps.usageRecording ?? ModelApiBackendManager.usageRecording, feature, units)
+      }
     },
     // The panel's default (M56); the agent has no setting for the longer retention.
     promptCacheRetention: () => SETTING_DEFAULTS.modelApiPromptCacheRetention,
+    // ACP and headless share the panel's packing/recall engine. Without a
+    // VS Code setting here, use D81.6's enabled policy in every editor.
+    isObservationPackingOn: () => true,
     // M82's cap and reply line are VS Code settings; ACP exposes neither.
     sessionBudgetUsd: () => SETTING_DEFAULTS.modelApiSessionBudgetUsd,
+    isAutoCompactionOn: () =>
+      deps.options.autoCompaction ?? SETTING_DEFAULTS.modelApiAutoCompaction,
     // D78 changes only VS Code's display default; ACP remains unchanged.
     showReplyUsage: () => false,
     // Each use asked in the editor's session (M58, PLAN.md D48). Child tasks
@@ -416,6 +590,32 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         message: fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
       }
     }
+    if (deps.exec?.providerRun !== undefined) return { state: 'ready' }
+    if (deps.exec === undefined && (key === undefined || key === '')) {
+      try {
+        if ((await deps.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) !== undefined)
+          return { state: 'ready' }
+        const configFile = path.join(
+          deps.env['XDG_CONFIG_HOME'] ?? path.join(deps.homeDir, '.config'),
+          PROVIDERS_CONFIG_DIR_NAME,
+          PROVIDERS_FILE_NAME,
+        )
+        if (existsSync(configFile)) {
+          const entry = await import('./chatGptProviderCommands')
+          const factory = entry.runtimeSubscriptionClient({
+            secrets: deps.secrets,
+            fetch: deps.fetch,
+            configFile,
+            catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
+            openBrowser: () => Promise.reject(new Error(UI_TEXT.actionFailed)),
+            callbackText: () => UI_TEXT.acpChatGpt.callback,
+          })
+          if ((await factory.accountId()) !== undefined) return { state: 'ready' }
+        }
+      } catch {
+        return { state: 'unavailable', message: UI_TEXT.acpChatGpt.storeUnavailable }
+      }
+    }
     return key === undefined || key === ''
       ? { state: 'signedOut', message: UI_TEXT.acpNoStoredKey }
       : { state: 'ready' }
@@ -465,6 +665,12 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   }
 
   return {
+    readUsageBudgets: async () => {
+      const budgets = await Promise.all(
+        Array.from(modelApiHosts.values(), ({ manager }) => manager.readUsageBudgets()),
+      )
+      return budgets.flat()
+    },
     backend: {
       kind: deps.options.backend,
       readiness: (isRecheck) =>

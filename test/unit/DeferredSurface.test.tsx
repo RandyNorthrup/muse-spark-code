@@ -143,7 +143,7 @@ it('loads on use, shows an honest failure and retries by reloading the document'
   const Surface = deferred(load)
   const onClose = vi.fn()
   const tree = (isOpen: boolean, value: string) =>
-    isOpen ? <Surface value={value} onClose={onClose} /> : <p>Chat</p>
+    isOpen ? <Surface className="review-comment" value={value} onClose={onClose} /> : <p>Chat</p>
   const view = render(tree(false, name))
   expect(load).not.toHaveBeenCalled()
   view.rerender(tree(true, name))
@@ -161,6 +161,7 @@ it('loads on use, shows an honest failure and retries by reloading the document'
       }
     })
     expect(screen.getByRole('alert')).toHaveTextContent(EN.surfaceLoadFailed)
+    expect(screen.getByRole('alert').parentElement).toHaveClass('review-comment')
     expect(screen.queryByText('chunk fetch failed')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: EN.surfaceLoadRetry }))
     expect(retrySurface).toHaveBeenCalledOnce()

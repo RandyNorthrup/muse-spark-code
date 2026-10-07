@@ -1,6 +1,7 @@
 // Landing-page templates become exact static version badges in each package.
 // Public image requests belong only to this check (and CI's release refresher).
 import { readFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { Buffer } from 'node:buffer'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -9,6 +10,7 @@ import { JSDOM } from 'jsdom'
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import { parseFragment } from 'parse5'
 import { z } from 'zod'
+import { PNG } from 'pngjs'
 
 const VERSION = z.string().regex(/^\d+\.\d+\.\d+$/)
 const REQUEST_MS = 10_000
@@ -16,6 +18,42 @@ const RASTER = /\.(?:png|jpe?g|gif|webp|avif)$/i
 const STATIC_VERSION = /^\/badge\/(Marketplace|Open%20VSX|npm|GitHub%20release)-v(.+)-[^/]+$/
 const DYNAMIC_VERSION =
   /\/(?:vs-marketplace\/v|visual-studio-marketplace\/v|open-vsx\/(?:version|v)|npm\/v|github\/(?:release|v\/release))\//
+const REPOSITORY_IMAGE_PREFIX =
+  'https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/'
+const PUBLIC_MAIN_TREE =
+  'https://api.github.com/repos/RandyNorthrup/muse-spark-code/git/trees/main?recursive=1'
+const MAIN_TREE = z.object({
+  truncated: z.literal(false),
+  tree: z.array(z.object({ path: z.string(), type: z.enum(['blob', 'tree', 'commit']) })),
+})
+
+// Hosted runners share an IP's unauthenticated API quota (HTTP 403 when spent),
+// so CI passes its job token; it goes to this GitHub API request only, never to
+// an image host.
+async function publicMainFiles(fetcher, githubToken) {
+  const reply = await fetcher(PUBLIC_MAIN_TREE, {
+    cache: 'no-store',
+    signal: globalThis.AbortSignal.timeout(REQUEST_MS),
+    ...(githubToken && { headers: { authorization: `Bearer ${githubToken}` } }),
+  })
+  if (!reply.ok) throw new Error(`Public main tree HTTP ${reply.status}`)
+  const tree = MAIN_TREE.parse(await reply.json())
+  return new Set(tree.tree.filter((entry) => entry.type === 'blob').map((entry) => entry.path))
+}
+
+async function checkoutImage(root, url) {
+  const relative = decodeURIComponent(url.slice(REPOSITORY_IMAGE_PREFIX.length))
+  if (
+    !/^[\w./-]+$/.test(relative) ||
+    relative.split('/').some((part) => ['', '.', '..'].includes(part))
+  ) {
+    throw new Error(`Invalid checkout image path: ${url}`)
+  }
+  const bytes = await readFile(path.join(root, ...relative.split('/')))
+  if (bytes.length === 0) throw new Error(`Empty checkout image: ${relative}`)
+  if (/\.png$/i.test(relative)) PNG.sync.read(bytes)
+  return relative
+}
 
 /** Parse real HTML/Markdown images, excluding examples in code spans/fences. */
 export function readmeImageUrls(markdown) {
@@ -114,11 +152,27 @@ export async function checkReadmeBadges(documents, version, options = {}) {
       if (!found.has(label)) throw new Error(`${name}: missing static ${label} version badge`)
     }
   }
+  const checkout = new Map()
+  if (options.repositoryRoot !== undefined) {
+    for (const url of images) {
+      if (url.startsWith(REPOSITORY_IMAGE_PREFIX) && !isBadgeUrl(url)) {
+        checkout.set(url, await checkoutImage(options.repositoryRoot, url))
+      }
+    }
+  }
   if (skipReason !== undefined) {
     return `Badges: ${images.size} HTTPS images; network skipped: ${skipReason}`
   }
   const fetcher = options.fetch ?? fetch
+  const mainFiles =
+    checkout.size === 0 ? new Set() : await publicMainFiles(fetcher, options.githubToken)
+  let localImages = 0
   for (const url of images) {
+    const relative = checkout.get(url)
+    if (relative !== undefined && !mainFiles.has(relative)) {
+      localImages += 1
+      continue
+    }
     const reply = await fetcher(url, {
       cache: 'no-store',
       signal: globalThis.AbortSignal.timeout(REQUEST_MS),
@@ -171,7 +225,7 @@ export async function checkReadmeBadges(documents, version, options = {}) {
       dom.window.close()
     }
   }
-  return `Badges: ${images.size} HTTPS images; SVG badges and content images verified`
+  return `Badges: ${images.size} HTTPS images; SVG badges and content images verified; ${localImages} new checkout images`
 }
 
 async function main() {
@@ -207,6 +261,8 @@ async function main() {
     await checkReadmeBadges(documents, version, {
       skipReason: process.env.BADGE_CHECK_SKIP_NETWORK,
       ci: Boolean(process.env.CI),
+      repositoryRoot: process.cwd(),
+      githubToken: process.env.GITHUB_TOKEN,
     }),
   )
 }

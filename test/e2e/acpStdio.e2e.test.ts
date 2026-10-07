@@ -11,7 +11,7 @@
 // credential file as the panel reads it (D26, PR #49).
 
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Writable } from 'node:stream'
@@ -26,11 +26,14 @@ import { formatAcpUsage } from '../../src/runtime/cliOptions'
 import { webReadable } from '../../src/runtime/webStreams'
 import { ACP_AGENT_NAME, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
+import { readUiTableFile } from '../../src/host/l10n'
+import { unpackUiTable } from '../../src/shared/l10n/packed'
 import { DEVICE_LOGIN_FILE, LOGOUT_SHELL } from '../unit/helpers/credentialShapes'
 import { memorySecrets } from '../unit/helpers/fakes'
 import { fakeModelApi } from '../unit/helpers/fakeModelApi'
 import { buildModelApiBundle } from '../unit/helpers/modelApiBundle'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
+import { buildAcpFixture, removeAcpFixture } from './acpFixture'
 import {
   fakeCredentialFile,
   installFakeCredential,
@@ -80,17 +83,7 @@ beforeAll(async () => {
   if (INSTALLED !== undefined) {
     return
   }
-  mkdirSync(path.dirname(AGENT), { recursive: true })
-  await build({
-    entryPoints: [path.join(ROOT, 'src', 'runtime', 'main.ts')],
-    outfile: AGENT,
-    bundle: true,
-    platform: 'node',
-    format: 'cjs',
-    target: 'node22',
-    external: ['@napi-rs/keyring'],
-    logLevel: 'silent',
-  })
+  await buildAcpFixture(ROOT, PACKAGE, LAID_OUT_VERSION)
   await build({
     entryPoints: [path.join(ROOT, 'src', 'runtime', 'sharing', 'sharingEntry.ts')],
     outfile: path.join(path.dirname(AGENT), 'sharingRuntime.js'),
@@ -117,26 +110,16 @@ beforeAll(async () => {
       logLevel: 'silent',
     })
   }
-  writeFileSync(path.join(PACKAGE, 'package.json'), JSON.stringify({ version: LAID_OUT_VERSION }))
-  cpSync(path.join(ROOT, 'l10n'), path.join(PACKAGE, 'l10n'), { recursive: true })
 })
 
 afterAll(async () => {
-  for (const child of children) {
-    child.kill()
-  }
   const made = [fake.installDir, signedIn, signedOut, loggedOut, workspace, dataHome]
-  await Promise.all(
-    [...made, ...(INSTALLED === undefined ? [PACKAGE] : [])].map((folder) => removeFolder(folder)),
-  )
+  await removeAcpFixture(children, [...made, ...(INSTALLED === undefined ? [PACKAGE] : [])])
 })
 
 function agentEnvironment(configHome: string): NodeJS.ProcessEnv {
   return {
     ...process.env,
-    // What the fake CLI needs (fakeMuse.ts), handed through the agent's own environment.
-    MUSE_FAKE_NODE: process.execPath,
-    MUSE_FAKE_FINGERPRINT: EXPECTED_SCHEMA_FINGERPRINT,
     NODE_PATH,
     XDG_CONFIG_HOME: configHome,
     XDG_DATA_HOME: dataHome,
@@ -271,10 +254,10 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
             }
           ).version
     expect(version.stdout.trim()).toBe(expected)
+    const usage = fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME })
     const help = spawnSync(process.execPath, [AGENT, '--help'], { encoding: 'utf8', env })
     expect(help.status).toBe(0)
     expect(help.stderr).toBe('')
-    const usage = fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME })
     expect(help.stdout.trim()).toBe(formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
     expect(help.stdout).toContain(`${ACP_AGENT_NAME} help --all\n`)
     expect(help.stdout).toContain('muse-spark-code-acp auth set|status|clear')
@@ -285,32 +268,35 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     expect(wrong.stderr).toContain(`${usage}\n`)
   })
 
-  it('prints the complete translated usage and reference hint from the installed table', () => {
+  it('prints the complete translated usage and reference hint from the installed table', async () => {
+    const translation = z
+      .object({
+        acpUsage: z.string(),
+        acpChatGpt: z.object({ usage: z.string() }),
+        helpReferenceTitle: z.string(),
+        referenceIntro: z.string(),
+        promptLibrary: z.string(),
+        shareReviewPrivacy: z.string(),
+        promptSave: z.string(),
+        promptSecretsNote: z.string(),
+        promptUseSaved: z.string(),
+        promptVariables: z.string(),
+        promptInsert: z.string(),
+        promptScopeUser: z.string(),
+        promptScopeWorkspace: z.string(),
+        promptCopyToUser: z.string(),
+        sharePrompt: z.string(),
+        shareChat: z.string(),
+        shareConversation: z.string(),
+        shareFull: z.string(),
+        promptRun: z.string(),
+        shareConfirm: z.string(),
+      })
+      .parse(unpackUiTable(JSON.parse(await readUiTableFile(PACKAGE, ['l10n', 'ui.de.json']))))
     const table = {
       ...UI_TEXT,
-      ...z
-        .object({
-          acpUsage: z.string(),
-          helpReferenceTitle: z.string(),
-          referenceIntro: z.string(),
-          promptLibrary: z.string(),
-          shareReviewPrivacy: z.string(),
-          promptSave: z.string(),
-          promptSecretsNote: z.string(),
-          promptUseSaved: z.string(),
-          promptVariables: z.string(),
-          promptInsert: z.string(),
-          promptScopeUser: z.string(),
-          promptScopeWorkspace: z.string(),
-          promptCopyToUser: z.string(),
-          sharePrompt: z.string(),
-          shareChat: z.string(),
-          shareConversation: z.string(),
-          shareFull: z.string(),
-          promptRun: z.string(),
-          shareConfirm: z.string(),
-        })
-        .parse(JSON.parse(readFileSync(path.join(PACKAGE, 'l10n', 'ui.de.json'), 'utf8'))),
+      ...translation,
+      acpChatGpt: { ...UI_TEXT.acpChatGpt, ...translation.acpChatGpt },
     }
     const help = spawnSync(process.execPath, [AGENT, '--help'], {
       encoding: 'utf8',
@@ -428,12 +414,11 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     expect(museCode.stderr.join('')).not.toContain('HTTPS_PROXY is set')
   })
 
-  it('hands META_API_KEY in its own environment to Muse Code only, as the extension does (D1)', async () => {
+  it('refuses environment credentials as Muse Code sign-in (FIXM95X)', async () => {
     const agent = startAgent(signedOut, [], { META_API_KEY: 'LLM|1|placeholder' })
-    // Signed out, but the CLI's own key variable is its credential.
-    await agent.run((client) => newSession(client))
+    await expect(agent.run((client) => newSession(client))).rejects.toMatchObject({ code: -32_000 })
     const said = agent.stderr.join('')
-    expect(said).toContain('META_API_KEY in the environment present')
+    expect(said).not.toContain('META_API_KEY in the environment present')
     expect(said).not.toContain('placeholder')
     expect(agent.wire.join('')).not.toContain('placeholder')
   })
@@ -464,7 +449,6 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
         homeDir: configHome,
         secrets: memorySecrets(),
         runGit: () => Promise.reject(new Error('no git')),
-        museCodeCredentials: [],
         fetch: () => Promise.reject(new Error('no network')),
         sleep: () => Promise.resolve(),
         log,
@@ -514,10 +498,10 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
           }),
         })
       }
-      // With META_API_KEY in its environment `muse serve` starts whatever the file says.
+      // Environment credentials cannot turn a signed-out standalone runtime into ready.
       writeFakeCredential(configHome, LOGOUT_SHELL)
       vi.stubEnv('META_API_KEY', 'LLM|1|placeholder')
-      expect(await runtime.backend.readiness(false)).toEqual({ state: 'ready' })
+      expect(await runtime.backend.readiness(false)).toMatchObject({ state: 'signedOut' })
     } finally {
       vi.unstubAllEnvs()
       await Promise.all([runtime.close(), mac.close()])
@@ -540,7 +524,6 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
       homeDir: dataHome,
       secrets,
       runGit: () => Promise.reject(new Error('no git')),
-      museCodeCredentials: [],
       fetch: api.fetch,
       sleep: () => Promise.resolve(),
       log,

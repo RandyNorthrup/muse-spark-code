@@ -1,0 +1,417 @@
+{
+  "provider": "zai",
+  "step": "anthropic-endpoint-tool-call-stream",
+  "capturedAt": "2026-10-04",
+  "billed": true,
+  "request": {
+    "method": "POST",
+    "url": "https://api.z.ai/api/anthropic/v1/messages",
+    "headers": {
+      "x-api-key": "<redacted>",
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json"
+    },
+    "body": {
+      "model": "glm-5.3-flash",
+      "max_tokens": 1024,
+      "system": [
+        {
+          "type": "text",
+          "text": "You are a capture assistant for an API wire-format test. When the user asks for the time, call the get_time tool, then answer in one short sentence.\n\nHouse rule 1: when a request mentions item 1, answer briefly, name the source of each fact, and never invent a value for field 1 or option 7.\nHouse rule 2: when a request mentions item 2, answer briefly, name the source of each fact, and never invent a value for field 2 or option 14.\nHouse rule 3: when a request mentions item 3, answer briefly, name the source of each fact, and never invent a value for field 3 or option 21.\nHouse rule 4: when a request mentions item 4, answer briefly, name the source of each fact, and never invent a value for field 4 or option 5.\nHouse rule 5: when a request mentions item 5, answer briefly, name the source of each fact, and never invent a value for field 5 or option 12.\nHouse rule 6: when a request mentions item 6, answer briefly, name the source of each fact, and never invent a value for field 6 or option 19.\nHouse rule 7: when a request mentions item 7, answer briefly, name the source of each fact, and never invent a value for field 7 or option 3.\nHouse rule 8: when a request mentions item 8, answer briefly, name the source of each fact, and never invent a value for field 8 or option 10.\nHouse rule 9: when a request mentions item 9, answer briefly, name the source of each fact, and never invent a value for field 9 or option 17.\nHouse rule 10: when a request mentions item 10, answer briefly, name the source of each fact, and never invent a value for field 10 or option 1.\nHouse rule 11: when a request mentions item 11, answer briefly, name the source of each fact, and never invent a value for field 11 or option 8.\nHouse rule 12: when a request mentions item 12, answer briefly, name the source of each fact, and never invent a value for field 12 or option 15.\nHouse rule 13: when a request mentions item 13, answer briefly, name the source of each fact, and never invent a value for field 13 or option 22.\nHouse rule 14: when a request mentions item 14, answer briefly, name the source of each fact, and never invent a value for field 14 or option 6.\nHouse rule 15: when a request mentions item 15, answer briefly, name the source of each fact, and never invent a value for field 15 or option 13.\nHouse rule 16: when a request mentions item 16, answer briefly, name the source of each fact, and never invent a value for field 16 or option 20.\nHouse rule 17: when a request mentions item 17, answer briefly, name the source of each fact, and never invent a value for field 0 or option 4.\nHouse rule 18: when a request mentions item 18, answer briefly, name the source of each fact, and never invent a value for field 1 or option 11.\nHouse rule 19: when a request mentions item 19, answer briefly, name the source of each fact, and never invent a value for field 2 or option 18.\nHouse rule 20: when a request mentions item 20, answer briefly, name the source of each fact, and never invent a value for field 3 or option 2.\nHouse rule 21: when a request mentions item 21, answer briefly, name the source of each fact, and never invent a value for field 4 or option 9.\nHouse rule 22: when a request mentions item 22, answer briefly, name the source of each fact, and never invent a value for field 5 or option 16.\nHouse rule 23: when a request mentions item 23, answer briefly, name the source of each fact, and never invent a value for field 6 or option 0.\nHouse rule 24: when a request mentions item 24, answer briefly, name the source of each fact, and never invent a value for field 7 or option 7.\nHouse rule 25: when a request mentions item 25, answer briefly, name the source of each fact, and never invent a value for field 8 or option 14.\nHouse rule 26: when a request mentions item 26, answer briefly, name the source of each fact, and never invent a value for field 9 or option 21.\nHouse rule 27: when a request mentions item 27, answer briefly, name the source of each fact, and never invent a value for field 10 or option 5.\nHouse rule 28: when a request mentions item 28, answer briefly, name the source of each fact, and never invent a value for field 11 or option 12.\nHouse rule 29: when a request mentions item 29, answer briefly, name the source of each fact, and never invent a value for field 12 or option 19.\nHouse rule 30: when a request mentions item 30, answer briefly, name the source of each fact, and never invent a value for field 13 or option 3.\nHouse rule 31: when a request mentions item 31, answer briefly, name the source of each fact, and never invent a value for field 14 or option 10.\nHouse rule 32: when a request mentions item 32, answer briefly, name the source of each fact, and never invent a value for field 15 or option 17.\nHouse rule 33: when a request mentions item 33, answer briefly, name the source of each fact, and never invent a value for field 16 or option 1.\nHouse rule 34: when a request mentions item 34, answer briefly, name the source of each fact, and never invent a value for field 0 or option 8.\nHouse rule 35: when a request mentions item 35, answer briefly, name the source of each fact, and never invent a value for field 1 or option 15.\nHouse rule 36: when a request mentions item 36, answer briefly, name the source of each fact, and never invent a value for field 2 or option 22.",
+          "cache_control": {
+            "type": "ephemeral"
+          }
+        }
+      ],
+      "messages": [
+        {
+          "role": "user",
+          "content": "What time is it in UTC right now? Call get_time, then answer in one short sentence."
+        }
+      ],
+      "tools": [
+        {
+          "name": "get_time",
+          "description": "Returns the current time in the given IANA time zone.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "timezone": {
+                "type": "string",
+                "description": "An IANA time zone such as UTC."
+              }
+            },
+            "required": ["timezone"]
+          }
+        }
+      ],
+      "tool_choice": {
+        "type": "auto"
+      },
+      "stream": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-headers": "*",
+      "access-control-allow-origin": "*",
+      "alt-svc": "h3=\":443\"; ma=3600",
+      "cache-control": "no-cache",
+      "connection": "keep-alive",
+      "content-type": "text/event-stream; charset=utf-8",
+      "date": "Sun, 04 Oct 2026 22:40:20 GMT",
+      "ga-traceid": "0743858ad5fbeff619270d82b9844d93",
+      "set-cookie": "<redacted>",
+      "transfer-encoding": "chunked",
+      "vary": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers, Origin",
+      "x-log-id": "202610050640172e28e80252044566",
+      "x-process-time": "2.953166",
+      "x-request-id": "cd5bf5cd-4804-49b6-a885-afeaa13598a1"
+    },
+    "events": [
+      {
+        "event": "message_start",
+        "data": {
+          "type": "message_start",
+          "message": {
+            "id": "msg_202610050640172e28e80252044566",
+            "type": "message",
+            "role": "assistant",
+            "model": "glm-5.3-flash",
+            "content": [],
+            "stop_reason": null,
+            "stop_sequence": null,
+            "usage": {
+              "input_tokens": 0,
+              "output_tokens": 0
+            }
+          }
+        }
+      },
+      {
+        "event": "ping",
+        "data": {
+          "type": "ping"
+        }
+      },
+      {
+        "event": "content_block_start",
+        "data": {
+          "type": "content_block_start",
+          "index": 0,
+          "content_block": {
+            "type": "thinking",
+            "thinking": "",
+            "signature": ""
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 0,
+          "delta": {
+            "type": "thinking_delta",
+            "thinking": "The"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 0,
+          "delta": {
+            "type": "thinking_delta",
+            "thinking": " user"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 0,
+          "delta": {
+            "type": "thinking_delta",
+            "thinking": " asks"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 0,
+          "delta": {
+            "type": "thinking_delta",
+            "thinking": " for"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 0,
+          "delta": {
+            "type": "thinking_delta",
+            "thinking": " time"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 0,
+          "delta": {
+            "type": "thinking_delta",
+            "thinking": " in"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 0,
+          "delta": {
+            "type": "thinking_delta",
+            "thinking": " UTC"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 0,
+          "delta": {
+            "type": "thinking_delta",
+            "thinking": "."
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 0,
+          "delta": {
+            "type": "thinking_delta",
+            "thinking": " Call"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 0,
+          "delta": {
+            "type": "thinking_delta",
+            "thinking": " get"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 0,
+          "delta": {
+            "type": "thinking_delta",
+            "thinking": "_time"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 0,
+          "delta": {
+            "type": "thinking_delta",
+            "thinking": " tool"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 0,
+          "delta": {
+            "type": "thinking_delta",
+            "thinking": " with"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 0,
+          "delta": {
+            "type": "thinking_delta",
+            "thinking": " timezone"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 0,
+          "delta": {
+            "type": "thinking_delta",
+            "thinking": " UTC"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 0,
+          "delta": {
+            "type": "thinking_delta",
+            "thinking": "."
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 0,
+          "delta": {
+            "type": "signature_delta",
+            "signature": "26d0a236d7c545a281f6d9e6"
+          }
+        }
+      },
+      {
+        "event": "content_block_stop",
+        "data": {
+          "type": "content_block_stop",
+          "index": 0
+        }
+      },
+      {
+        "event": "content_block_start",
+        "data": {
+          "type": "content_block_start",
+          "index": 1,
+          "content_block": {
+            "type": "tool_use",
+            "id": "call_07ca6e9ded894420a6a3f560",
+            "name": "get_time",
+            "input": {}
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "input_json_delta",
+            "partial_json": "{\""
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "input_json_delta",
+            "partial_json": "timezone"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "input_json_delta",
+            "partial_json": "\":\""
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "input_json_delta",
+            "partial_json": "UTC"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "input_json_delta",
+            "partial_json": "\""
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "input_json_delta",
+            "partial_json": "}"
+          }
+        }
+      },
+      {
+        "event": "content_block_stop",
+        "data": {
+          "type": "content_block_stop",
+          "index": 1
+        }
+      },
+      {
+        "event": "message_delta",
+        "data": {
+          "type": "message_delta",
+          "delta": {
+            "stop_reason": "tool_use",
+            "stop_sequence": null
+          },
+          "usage": {
+            "input_tokens": 23,
+            "output_tokens": 28,
+            "cache_read_input_tokens": 1536,
+            "server_tool_use": {
+              "web_search_requests": 0
+            },
+            "service_tier": "standard"
+          }
+        }
+      },
+      {
+        "event": "message_stop",
+        "data": {
+          "type": "message_stop"
+        }
+      }
+    ]
+  }
+}

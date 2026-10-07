@@ -1,0 +1,56 @@
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+rig=win11 slot=finm96k snapshot=0a53384c
+rig: Windows WIN-11-VM; slot finm96k; snapshot 0a53384c0ead264b9b13ff8e4c10ef7557f0ce69
+base=C:\Users\randy\gates\base-c78aedc3ea0dab3c lock=c78aedc3ea0dab3cf7e685e18926e181d01a96535223c740d26598931bce86ce
+base reused
+[33m(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.[39m
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.2 [39m[90mC:/Users/Randy/gates/rt-finm96k[39m
+
+ [31m❯[39m test/unit/teamNativeLifetime.test.ts [2m([22m[2m5 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 11639[2mms[22m[39m
+   [31m❯[39m M96 K real native lifetime [2m(5)[22m
+     [33m[2m✓[22m[39m starts a separate journalled team Muse Code host over real fake-CLI pipes[33m 874[2mms[22m[39m
+[31m     [31m×[31m preserves the real command exit code through its native container[39m[33m 5054[2mms[22m[39m
+     [33m[2m✓[22m[39m reconciles foreign journals before startup returns and preserves all foreign bytes[33m 934[2mms[22m[39m
+     [33m[2m✓[22m[39m runs marked child at below-normal priority with intent and OS confirmation on disk[33m 584[2mms[22m[39m
+     [33m[2m✓[22m[39m hard host death closes jobs and ends detached grandchildren[33m 3160[2mms[22m[39m
+ [32m✓[39m test/unit/teamHintsAndLoad.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 1182[2mms[22m[39m
+   [32m✓[39m M96 K advisory hints [2m(5)[22m
+     [33m[2m✓[22m[39m uses state home and secures a real native owner-only hints folder[33m 997[2mms[22m[39m
+ [32m✓[39m test/unit/teamProcessLifetime.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 972[2mms[22m[39m
+   [32m✓[39m M96 K launcher contract [2m(10)[22m
+     [33m[2m✓[22m[39m journals a later proved retirement and never downgrades it to uncertain[33m 307[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m test/unit/teamNativeLifetime.test.ts[2m > [22mM96 K real native lifetime[2m > [22mpreserves the real command exit code through its native container
+[31m[1mError[22m: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".[39m
+[36m [2m❯[22m test/unit/teamNativeLifetime.test.ts:[2m143:3[22m[39m
+    [90m141|[39m     await host.close()
+    [90m142|[39m   })
+    [90m143|[39m   it('preserves the real command exit code through its native containe…
+    [90m   |[39m   [31m^[39m
+    [90m144|[39m     const f = await fixture()
+    [90m145|[39m     const launched = await f.lifetime.launch(f.request('setTimeout(()=…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/unit/teamNativeLifetime.test.ts[2m > [22mM96 K real native lifetime[2m > [22mpreserves the real command exit code through its native container
+[31m[1mError[22m: EBUSY: resource busy or locked, rmdir 'C:\Users\Randy\gates\tmp-rt-finm96k\m96-native-6zEaKp'[39m
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m2 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m28 passed[39m[22m[90m (29)[39m
+[2m   Start at [22m 07:13:07
+[2m   Duration [22m 32.26s[2m (tests 46%, setup 23%, import 21%, transform 10%)[22m
+
+[2m    Isolate [22m [33m3 workers spawned[39m[2m · ~823ms startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~1.65s faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+
+exit=1
