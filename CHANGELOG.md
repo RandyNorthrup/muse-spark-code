@@ -115,6 +115,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Estimator history preparation refuses conflicting lane identities across
+  duration bases, including concurrent appends. Versioned basis tags and
+  reported skips keep unknown or mixed-basis records from blocking valid history;
+  estimator surfaces remain pending integration.
+
 - Estimator preparation rejects malformed goals and validates quota renewal,
   per-volume disk capacity, numeric calibration disclosures and module-level
   review history. The revised contracts and labels are covered in all fourteen

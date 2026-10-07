@@ -28800,6 +28800,21 @@ core.hooksPath`, an edit under `.husky/`, a delegate re-asking a refused
 
 ### M117 — The capacity estimator (D97)
 
+**FIXM117C review repair (2026-10-06).** RVM117C's one P2 is in scope:
+prevent same-lane kind/machine-class conflicts across duration bases with an
+exclusive, durable lane-identity claim before publishing an observation.
+Each new observation has a version-1 envelope with an explicit duration basis;
+legacy metadata-only records remain readable. Unknown versions/bases, mixed
+basis tags and conflicting legacy lane identities are skipped individually and
+reported by the concrete journal's `skippedRecords` snapshot; other damaged
+published records still fail closed. W must expose this snapshot with history
+honesty disclosures. Whole fsynced staging files publish through no-clobber
+hard links. Cross-basis sequential/concurrent regressions and torn-write
+controls get byte-exact red drills in `docs/certification/m117-c-calibration.md`.
+No new dependency, shared contract, command or surface; only C-owned code/tests
+and its plan, changelog and certification change. Full quality remains with
+W/the lead under the scoped rig brief; no merge, push or rebase.
+
 **Lane-0 review repair (FIXM117L0, 2026-10-06).** RVM117L0's four P2 and
 two P3 findings are all in scope before freezing the contracts. Goals consume
 the documented grammar, including the colon for named kinds. Account windows
@@ -29469,6 +29484,14 @@ outstanding receipt: 628 pages (157 scenarios × four themes), exit 0, zero
 violations, zero undecided rules, zero exemptions and zero missing results.
 No timeout, exemption, worker policy or accessibility rule changed. The lead
 still owns integrated aggregate quality and actual host/release certification.
+**FIXM117C scoped rig certification (2026-10-06).** The lane/shared brief
+prohibits aggregate quality and full unit runs, merges, pushes and rebases.
+Run owning default-timeout tests, byte-exact red drills, all five typechecks,
+scoped lint/format, deadcode, duplication, localization, reference, host API
+and production build on Mac mini. W/lead retains the integrated full quality
+and cross-rig checks. No gate, timeout, threshold or cap is weakened; the
+existing generated host-API import-count refresh remains W-owned.
+
 **FIXM117L0 scoped rig certification (2026-10-06).** The lane/shared brief
 prohibits aggregate `npm run quality` and assigns it to the lead. This repair
 runs owning test files at the repository default timeout, red drills with
@@ -30913,6 +30936,18 @@ before a repaired one loads (2026-09-30).
   credential boundaries, CSP, dependencies and bundle caps are unchanged.
   The lead retains integrated quality and real host/release certification.
   Tests, exact-restoration drills and rig receipts: docs/certification/diet1.md.
+- **FIXM117C review outcome.** RVM117C's sole P2 is fixed, with no review
+  finding deferred. Exclusive cross-basis lane claims prevent concurrent
+  identity conflicts; legacy identity conflicts and unknown/mixed basis records
+  are retained, skipped individually and reported by opaque ID/fixed code.
+  Other published corruption still fails closed. W must expose the journal's
+  `skippedRecords` diagnostics and include `.identity` claims in its storage
+  retention/deletion policy. Failed publication can retain a complete identity
+  claim without a sample; a same-identity retry is safe. The existing
+  `M117-W-host-api-record` generated-import-count refresh and aggregate quality
+  remain lead-owned handoffs, not accepted review findings. Evidence:
+  `docs/certification/m117-c-calibration.md`.
+
 - **FIXM117L0 contract review.** All six RVM117L0 findings are fixed
   before the lane-0 freeze, with regression tests and byte-exact red drills;
   no finding is accepted as a residual. Missing real
