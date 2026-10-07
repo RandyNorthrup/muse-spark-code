@@ -2424,7 +2424,7 @@
       "other": "古いエントリは {count} 回のマイナーリリースの間同期されます。削除されるまでは移行を取り消せます。"
     },
     "sshUse": "SSH 認証",
-    "sshSignUse": "Git コミットに署名",
+    "sshSignUse": "SSH キーで署名",
     "sudoUse": "sudo を実行",
     "askpassUse": "スクリプトの askpass",
     "gitUse": "Git 用 HTTPS",
@@ -2451,7 +2451,7 @@
     "approval": "{requester} が {target} に対し {item} を使って {use} を要求しています。",
     "paidWarning": "保管庫の許可は有料リクエストを承認しません。",
     "windowsElevation": "Windows の昇格には UAC を使用し、仲介できません。",
-    "seUnavailable": "対応する Mac でこのヘルパーが認証されるまで Secure Enclave 保護は利用できません。在席確認にはパスフレーズを使用してください。",
+    "seUnavailable": "Secure Enclave による保護は利用できません。在席確認にはパスフレーズを使用してください。",
     "enabledDescription": "エディター間で共有するユーザーごとの認証情報保管庫を有効にします。",
     "protectionDescription": "保管庫のキー保護を選択します。自動は利用可能なハードウェアと OS のストアを使用します。",
     "fenceDescription": "エージェントのプロセスを既存の認証情報経路から隔離します。無効でもワーカーは隔離されます。",

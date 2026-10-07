@@ -2519,7 +2519,7 @@
       "other": "A régi bejegyzések {count} kisebb kiadásig tükrözve maradnak. A migráció az eltávolításig visszavonható."
     },
     "sshUse": "SSH-hitelesítés",
-    "sshSignUse": "Git-commit aláírása",
+    "sshSignUse": "Aláírás SSH-kulccsal",
     "sudoUse": "sudo futtatása",
     "askpassUse": "Askpass parancsfájlhoz",
     "gitUse": "HTTPS a Githez",
@@ -2546,7 +2546,7 @@
     "approval": "{requester} ezt kéri: {use}, ezzel: {item}, erre: {target}.",
     "paidWarning": "A tároló engedélyei nem hagynak jóvá fizetős kéréseket.",
     "windowsElevation": "A Windows jogosultságemelése UAC-ot használ, és nem közvetíthető.",
-    "seUnavailable": "A Secure Enclave-védelem a segéd megfelelő Macen történő tanúsításáig nem elérhető. Jelenlét ellenőrzéséhez használjon jelmondatot.",
+    "seUnavailable": "A Secure Enclave védelem nem érhető el. A jelenlét megerősítéséhez használjon jelmondatot.",
     "enabledDescription": "A szerkesztők közös, felhasználónkénti hitelesítőadat-tárolójának engedélyezése.",
     "protectionDescription": "A tárolókulcs védelmének kiválasztása. Az automatikus mód az elérhető hardvert és az operációs rendszer tárolóját használja.",
     "fenceDescription": "Az ügynökfolyamatok elzárása a meglévő hitelesítési útvonalaktól. A dolgozók kikapcsoláskor is elzárva maradnak.",

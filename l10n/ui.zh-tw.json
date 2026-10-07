@@ -2424,7 +2424,7 @@
       "other": "舊項目將在 {count} 個次要版本期間保持同步。刪除前可復原移轉。"
     },
     "sshUse": "SSH 身分驗證",
-    "sshSignUse": "簽署 Git 提交",
+    "sshSignUse": "使用 SSH 金鑰簽署",
     "sudoUse": "執行 sudo",
     "askpassUse": "指令碼 askpass",
     "gitUse": "Git 的 HTTPS",
@@ -2451,7 +2451,7 @@
     "approval": "{requester} 要求使用 {item} 為 {target} 執行 {use}。",
     "paidWarning": "憑證庫授權不會核准付費要求。",
     "windowsElevation": "Windows 提升權限使用 UAC，無法透過代理服務完成。",
-    "seUnavailable": "此輔助程式在相容 Mac 上通過認證前，無法使用 Secure Enclave 保護。請使用通關片語確認使用者在場。",
+    "seUnavailable": "Secure Enclave 保護無法使用。請使用密語確認本人在場。",
     "enabledDescription": "啟用由各編輯器共用的使用者憑證庫。",
     "protectionDescription": "選擇憑證庫金鑰保護方式。自動模式使用可用硬體及作業系統儲存。",
     "fenceDescription": "隔離代理處理程序與現有憑證取得途徑。關閉此項時工作代理仍保持隔離。",

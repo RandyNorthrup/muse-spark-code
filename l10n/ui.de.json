@@ -2519,7 +2519,7 @@
       "other": "Alte Einträge werden für {count} Nebenversionen weiter gespiegelt. Bis zum Entfernen ist die Migration rückgängig zu machen."
     },
     "sshUse": "SSH-Anmeldung",
-    "sshSignUse": "Git-Commit signieren",
+    "sshSignUse": "Mit einem SSH-Schlüssel signieren",
     "sudoUse": "sudo ausführen",
     "askpassUse": "Askpass für Skripte",
     "gitUse": "HTTPS für Git",
@@ -2546,7 +2546,7 @@
     "approval": "{requester} fordert {use} mit {item} für {target} an.",
     "paidWarning": "Tresorfreigaben genehmigen keine kostenpflichtigen Anfragen.",
     "windowsElevation": "Die Rechteerhöhung unter Windows nutzt UAC und kann nicht vermittelt werden.",
-    "seUnavailable": "Secure-Enclave-Schutz ist erst nach Zertifizierung dieses Helfers auf einem geeigneten Mac verfügbar. Für Anwesenheit eine Passphrase verwenden.",
+    "seUnavailable": "Secure-Enclave-Schutz ist nicht verfügbar. Verwenden Sie eine Passphrase zur Anwesenheitsbestätigung.",
     "enabledDescription": "Den benutzerweiten Anmeldedatentresor für alle Editoren aktivieren.",
     "protectionDescription": "Schutz des Tresorschlüssels wählen. Automatisch verwendet verfügbare Hardware und den Betriebssystemspeicher.",
     "fenceDescription": "Agentenprozesse von vorhandenen Anmeldedatenwegen isolieren. Arbeiter bleiben auch bei ausgeschalteter Option isoliert.",

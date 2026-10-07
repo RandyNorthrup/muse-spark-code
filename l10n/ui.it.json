@@ -2614,7 +2614,7 @@
       "other": "Le vecchie voci restano sincronizzate per {count} versioni minori. È possibile annullare la migrazione fino alla rimozione."
     },
     "sshUse": "Autenticazione SSH",
-    "sshSignUse": "Firmare un commit Git",
+    "sshSignUse": "Firma con una chiave SSH",
     "sudoUse": "Eseguire sudo",
     "askpassUse": "Askpass per script",
     "gitUse": "HTTPS per Git",
@@ -2641,7 +2641,7 @@
     "approval": "{requester} richiede {use} con {item} per {target}.",
     "paidWarning": "Le autorizzazioni della cassaforte non approvano richieste a pagamento.",
     "windowsElevation": "L’elevazione su Windows usa UAC e non può essere mediata.",
-    "seUnavailable": "La protezione Secure Enclave attende la certificazione di questo ausiliario su un Mac compatibile. Usare una frase segreta per la presenza.",
+    "seUnavailable": "La protezione Secure Enclave non è disponibile. Usa una passphrase per confermare la presenza.",
     "enabledDescription": "Abilitare la cassaforte di credenziali per utente condivisa dagli editor.",
     "protectionDescription": "Scegliere la protezione della chiave. Automatica usa l’hardware disponibile e l’archivio del sistema.",
     "fenceDescription": "Isolare i processi degli agenti dai percorsi di credenziali esistenti. I lavoratori restano isolati se disattivato.",

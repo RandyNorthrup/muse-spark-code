@@ -2614,7 +2614,7 @@
       "other": "Les anciennes entrées restent synchronisées pendant {count} versions mineures. La migration peut être annulée jusqu’à leur suppression."
     },
     "sshUse": "Authentification SSH",
-    "sshSignUse": "Signer un commit Git",
+    "sshSignUse": "Signer avec une clé SSH",
     "sudoUse": "Exécuter sudo",
     "askpassUse": "Askpass pour les scripts",
     "gitUse": "HTTPS pour Git",
@@ -2641,7 +2641,7 @@
     "approval": "{requester} demande {use} avec {item} pour {target}.",
     "paidWarning": "Les autorisations du coffre n’approuvent pas les demandes payantes.",
     "windowsElevation": "L’élévation sous Windows utilise UAC et ne peut pas être déléguée au courtier.",
-    "seUnavailable": "La protection Secure Enclave attend la certification de cet auxiliaire sur un Mac compatible. Utilisez une phrase secrète pour la présence.",
+    "seUnavailable": "La protection Secure Enclave est indisponible. Utilisez une phrase secrète pour confirmer votre présence.",
     "enabledDescription": "Activer le coffre d’identifiants par utilisateur partagé entre les éditeurs.",
     "protectionDescription": "Choisir la protection de la clé. Le mode automatique utilise le matériel disponible et le stockage du système.",
     "fenceDescription": "Isoler les processus d’agent des accès ambiants aux identifiants. Les travailleurs restent isolés si cette option est désactivée.",

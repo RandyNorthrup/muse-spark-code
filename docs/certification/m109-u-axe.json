@@ -134,6 +134,13 @@
   },
   {
     "theme": "light",
+    "width": 690,
+    "scenario": "platform-notices",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
     "width": 320,
     "scenario": "panel",
     "overflow": false,
@@ -266,6 +273,13 @@
     "violations": []
   },
   {
+    "theme": "light",
+    "width": 320,
+    "scenario": "platform-notices",
+    "overflow": false,
+    "violations": []
+  },
+  {
     "theme": "dark",
     "width": 690,
     "scenario": "panel",
@@ -400,6 +414,13 @@
   },
   {
     "theme": "dark",
+    "width": 690,
+    "scenario": "platform-notices",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
     "width": 320,
     "scenario": "panel",
     "overflow": false,
@@ -532,6 +553,13 @@
     "violations": []
   },
   {
+    "theme": "dark",
+    "width": 320,
+    "scenario": "platform-notices",
+    "overflow": false,
+    "violations": []
+  },
+  {
     "theme": "hc-light",
     "width": 690,
     "scenario": "panel",
@@ -666,6 +694,13 @@
   },
   {
     "theme": "hc-light",
+    "width": 690,
+    "scenario": "platform-notices",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
     "width": 320,
     "scenario": "panel",
     "overflow": false,
@@ -798,6 +833,13 @@
     "violations": []
   },
   {
+    "theme": "hc-light",
+    "width": 320,
+    "scenario": "platform-notices",
+    "overflow": false,
+    "violations": []
+  },
+  {
     "theme": "hc-dark",
     "width": 690,
     "scenario": "panel",
@@ -932,6 +974,13 @@
   },
   {
     "theme": "hc-dark",
+    "width": 690,
+    "scenario": "platform-notices",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
     "width": 320,
     "scenario": "panel",
     "overflow": false,
@@ -1060,6 +1109,13 @@
     "theme": "hc-dark",
     "width": 320,
     "scenario": "allow-session",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 320,
+    "scenario": "platform-notices",
     "overflow": false,
     "violations": []
   }

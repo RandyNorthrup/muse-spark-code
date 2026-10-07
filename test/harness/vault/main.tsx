@@ -150,6 +150,7 @@ const state: VaultPanelState = {
                 : { tainted: true, reasons: [{ source: 'web', label: 'Outside page' }] },
           },
         ],
+  notices: scenario === 'platform-notices' ? ['nopasswd', 'fenceOff', 'seUnavailable'] : [],
   ambientFiles: [{ path: '/home/example/.netrc', kind: 'netrc' }],
 }
 const root = document.querySelector('#root')

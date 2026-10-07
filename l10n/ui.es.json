@@ -2614,7 +2614,7 @@
       "other": "Las entradas antiguas se mantienen sincronizadas durante {count} versiones menores. Puede deshacer la migración hasta eliminarlas."
     },
     "sshUse": "Autenticación SSH",
-    "sshSignUse": "Firmar un commit de Git",
+    "sshSignUse": "Firmar con una clave SSH",
     "sudoUse": "Ejecutar sudo",
     "askpassUse": "Askpass para scripts",
     "gitUse": "HTTPS para Git",
@@ -2641,7 +2641,7 @@
     "approval": "{requester} solicita {use} con {item} para {target}.",
     "paidWarning": "Las autorizaciones de la bóveda no aprueban solicitudes de pago.",
     "windowsElevation": "La elevación en Windows usa UAC y no puede mediarse.",
-    "seUnavailable": "La protección Secure Enclave no está disponible hasta certificar este auxiliar en un Mac compatible. Use una frase de contraseña para confirmar presencia.",
+    "seUnavailable": "La protección de Secure Enclave no está disponible. Usa una frase de contraseña para confirmar tu presencia.",
     "enabledDescription": "Activar la bóveda de credenciales por usuario compartida entre editores.",
     "protectionDescription": "Elegir la protección de la clave. Automática usa el hardware disponible y el almacén del sistema.",
     "fenceDescription": "Aislar los procesos de agentes de las vías de credenciales existentes. Los trabajadores siguen aislados cuando está desactivado.",

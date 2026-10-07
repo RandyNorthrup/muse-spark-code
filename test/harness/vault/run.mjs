@@ -38,6 +38,7 @@ const scenarios = [
   'session',
   'disclosure',
   'allow-session',
+  'platform-notices',
 ]
 const themes = isDrill ? ['light'] : ['light', 'dark', 'hc-light', 'hc-dark']
 const widths = isDrill ? [320] : [690, 320]
@@ -58,7 +59,7 @@ try {
         )
         await page
           .locator(
-            ['panel', 'empty', 'locked', 'grant'].includes(scenario)
+            ['panel', 'empty', 'locked', 'grant', 'platform-notices'].includes(scenario)
               ? '.vault-section'
               : '.vault-card',
           )

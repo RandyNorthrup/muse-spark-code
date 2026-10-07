@@ -2614,7 +2614,7 @@
       "other": "As entradas antigas continuam espelhadas por {count} versões secundárias. É possível desfazer a migração até a remoção."
     },
     "sshUse": "Autenticação SSH",
-    "sshSignUse": "Assinar um commit do Git",
+    "sshSignUse": "Assinar com uma chave SSH",
     "sudoUse": "Executar sudo",
     "askpassUse": "Askpass para scripts",
     "gitUse": "HTTPS para Git",
@@ -2641,7 +2641,7 @@
     "approval": "{requester} solicita {use} com {item} para {target}.",
     "paidWarning": "As autorizações do cofre não aprovam solicitações pagas.",
     "windowsElevation": "A elevação no Windows usa UAC e não pode ser intermediada.",
-    "seUnavailable": "A proteção Secure Enclave aguarda a certificação deste auxiliar em um Mac compatível. Use uma frase secreta para presença.",
+    "seUnavailable": "A proteção Secure Enclave não está disponível. Use uma frase secreta para confirmar a presença.",
     "enabledDescription": "Ativar o cofre de credenciais por usuário compartilhado entre editores.",
     "protectionDescription": "Escolher a proteção da chave. Automática usa o hardware disponível e o armazenamento do sistema.",
     "fenceDescription": "Isolar processos de agentes das rotas de credenciais existentes. Trabalhadores continuam isolados quando desativado.",

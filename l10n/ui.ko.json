@@ -2424,7 +2424,7 @@
       "other": "기존 항목은 {count}개 마이너 릴리스 동안 동기화됩니다. 삭제 전까지 이전을 취소할 수 있습니다."
     },
     "sshUse": "SSH 인증",
-    "sshSignUse": "Git 커밋 서명",
+    "sshSignUse": "SSH 키로 서명",
     "sudoUse": "sudo 실행",
     "askpassUse": "스크립트 askpass",
     "gitUse": "Git용 HTTPS",
@@ -2451,7 +2451,7 @@
     "approval": "{requester}이(가) {target}에 {item}을(를) 사용하여 {use}을(를) 요청합니다.",
     "paidWarning": "보관함 권한은 유료 요청을 승인하지 않습니다.",
     "windowsElevation": "Windows 권한 상승은 UAC를 사용하며 중개할 수 없습니다.",
-    "seUnavailable": "호환되는 Mac에서 이 도우미가 인증될 때까지 Secure Enclave 보호를 사용할 수 없습니다. 사용자 확인에는 암호문을 사용하세요.",
+    "seUnavailable": "Secure Enclave 보호를 사용할 수 없습니다. 사용자 확인에는 암호문을 사용하세요.",
     "enabledDescription": "편집기들이 공유하는 사용자별 자격 증명 보관함을 켭니다.",
     "protectionDescription": "보관함 키 보호를 선택합니다. 자동은 사용 가능한 하드웨어와 운영체제 저장소를 사용합니다.",
     "fenceDescription": "에이전트 프로세스를 기존 자격 증명 경로에서 격리합니다. 이 설정이 꺼져도 작업자는 격리됩니다.",

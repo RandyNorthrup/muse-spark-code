@@ -3152,7 +3152,7 @@ export const EN = {
     presenceTierWarning:
       'Every use needs your touch, PIN or passphrase. Unattended use is refused.',
     sshUse: 'SSH authentication',
-    sshSignUse: 'Sign a Git commit',
+    sshSignUse: 'Sign with an SSH key',
     sudoUse: 'Run sudo',
     askpassUse: 'Script askpass',
     gitUse: 'HTTPS for Git',
@@ -3179,8 +3179,7 @@ export const EN = {
     approval: '{requester} requests {use} with {item} for {target}.',
     paidWarning: 'Vault grants do not approve paid requests.',
     windowsElevation: 'Windows elevation uses UAC and cannot be brokered.',
-    seUnavailable:
-      'Secure Enclave protection is unavailable until this helper is certified on a capable Mac. Use a passphrase for presence.',
+    seUnavailable: 'Secure Enclave protection is unavailable. Use a passphrase for presence.',
     passphraseWarning:
       'A passphrase is required to unlock. It protects a copied disk and prevents silent unlock by programs running as you.',
     operationFailed: 'The vault operation failed. Unlock the vault and try again.',

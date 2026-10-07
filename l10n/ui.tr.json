@@ -2519,7 +2519,7 @@
       "other": "Eski kayıtlar {count} ara sürüm boyunca yansıtılır. Silinene kadar geçiş geri alınabilir."
     },
     "sshUse": "SSH kimlik doğrulaması",
-    "sshSignUse": "Git kaydını imzala",
+    "sshSignUse": "SSH anahtarıyla imzala",
     "sudoUse": "sudo çalıştır",
     "askpassUse": "Betik askpass yöntemi",
     "gitUse": "Git için HTTPS",
@@ -2546,7 +2546,7 @@
     "approval": "{requester}, {target} için {item} ile {use} istiyor.",
     "paidWarning": "Kasa izinleri ücretli istekleri onaylamaz.",
     "windowsElevation": "Windows yetki yükseltmesi UAC kullanır ve aracılanamaz.",
-    "seUnavailable": "Bu yardımcı uygun bir Mac üzerinde sertifikalanana kadar Secure Enclave koruması kullanılamaz. Varlık doğrulaması için parola kullanın.",
+    "seUnavailable": "Secure Enclave koruması kullanılamıyor. Varlık doğrulaması için bir parola ifadesi kullanın.",
     "enabledDescription": "Düzenleyicilerin paylaştığı kullanıcıya ait kimlik bilgisi kasasını etkinleştirin.",
     "protectionDescription": "Kasa anahtarının korumasını seçin. Otomatik, kullanılabilir donanımı ve işletim sistemi deposunu kullanır.",
     "fenceDescription": "Ajan süreçlerini mevcut kimlik bilgisi yollarından yalıtın. Kapalıyken de çalışanlar yalıtılır.",

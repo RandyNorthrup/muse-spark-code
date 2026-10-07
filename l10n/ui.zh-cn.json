@@ -2424,7 +2424,7 @@
       "other": "旧条目将在 {count} 个次要版本期间保持同步。删除前可撤销迁移。"
     },
     "sshUse": "SSH 身份验证",
-    "sshSignUse": "签署 Git 提交",
+    "sshSignUse": "使用 SSH 密钥签名",
     "sudoUse": "运行 sudo",
     "askpassUse": "脚本 askpass",
     "gitUse": "Git 的 HTTPS",
@@ -2451,7 +2451,7 @@
     "approval": "{requester} 请求使用 {item} 为 {target} 执行 {use}。",
     "paidWarning": "凭据库授权不会批准付费请求。",
     "windowsElevation": "Windows 提权使用 UAC，不能通过代理服务完成。",
-    "seUnavailable": "此辅助程序在兼容 Mac 上通过认证前，无法使用 Secure Enclave 保护。请使用口令确认用户在场。",
+    "seUnavailable": "Secure Enclave 保护不可用。请使用口令确认本人在场。",
     "enabledDescription": "启用由各编辑器共享的用户凭据库。",
     "protectionDescription": "选择凭据库密钥保护方式。自动模式使用可用硬件及操作系统存储。",
     "fenceDescription": "隔离代理进程与现有凭据获取途径。关闭此项时工作代理仍保持隔离。",

@@ -41,7 +41,9 @@ package or machine setting. Hooks exist and commits use the repository hooks.
   Ctrl+Alt+Shift+L (Cmd+Alt+Shift+L on macOS).
 - EN plus all fourteen real translations have the new text. The old
   model/provider disclosure wording is corrected to the owner's person-only
-  ruling. French “Session” and Portuguese “Item” were changed to natural
+  ruling. SSH signature labels name the actual operation rather than claiming
+  every namespace is a Git commit. The observed Secure Enclave unavailable
+  notice no longer claims the accepted capture is still pending. French “Session” and Portuguese “Item” were changed to natural
   longer labels after the existing English-leftover gate flagged the cognates.
 
 ## Named integration handoffs (not production fakes)
@@ -66,6 +68,8 @@ package or machine setting. Hooks exist and commits use the repository hooks.
 4. **U-W-BUILD:** `test/harness/vault/build.mjs` demonstrates the production
    multi-entry browser graph (`main`, `models`) and lazy `dist/vault.js`
    factory. W registers those entries in its build, split record and package.
+   Load the emitted `models.css` with the section and transcript/Agent map
+   card mounts: esbuild emits the stylesheet separately.
    New caps: UI 75 KiB including its reachable deferred graph and CSS,
    host 50 KiB. Add `test/harness/vault/main.tsx` and
    `test/harness/vault/run.mjs` as Knip entries (both are actual harness entrypoints). Existing
@@ -90,7 +94,8 @@ other lanes/the lead; this record does not claim those are complete.
 All commands below ran directly on the Mac mini, with one vitest/tsc/eslint/
 build at a time. No test timeout was raised and no aggregate quality run was
 performed. The focused three-file panel/native/controller run passed **58 tests**; the contracts/bundle two-file run passed **26 tests**. All five
-`npm run typecheck` projects passed. `node scripts/check-l10n.mjs` reported
+`npm run typecheck` projects passed, and the harness project passed its own
+`npx tsc -p test/harness/vault/tsconfig.json --noEmit`. `node scripts/check-l10n.mjs` reported
 **0 problems**. `npx jscpd` reported **0 clones** after the external-lock test
 also asserted that the native entry's signal is aborted immediately.
 
@@ -113,11 +118,29 @@ and equal SHA-256 before/after restoration. Every mutation ran on generated
 fake material only. Accessibility's unnamed-button and horizontal-overflow
 mutations were run with `node test/harness/vault/run.mjs --drill`: that mode
 scans the same panel and rules at 320 px without overwriting the full receipt
-or screenshots. Normal mode scans all nineteen scenes in all four themes
-at 690 and 320 px (**152 scans, zero failures**). Machine-readable named mutations with before/after SHA-256 are in
-`m109-u-drills.json`. `m109-u-axe.json` covers all nineteen scenes in four
-VS Code themes at 690 and 320 px (152 scans); screenshots are in
+or screenshots. Normal mode scans all twenty scenes in all four themes
+at 690 and 320 px (**160 scans, zero failures**).
+The platform-notices scene exercises NOPASSWD, fence-off and Secure Enclave
+unavailability together; the safe-session scene covers the session button. Machine-readable named mutations with before/after SHA-256 are in
+`m109-u-drills.json`. `m109-u-axe.json` covers all twenty scenes in four
+VS Code themes at 690 and 320 px (160 scans); screenshots are in
 `m109-u-shots/`. The harness uses generated ids and public metadata only.
+
+The separate App/AppLazy/bundle regression run passed **155 tests**; the
+final touched native/panel/bundle run passed **41 tests**. Across the seven
+owned/dependent files this verifies **237 distinct tests** at default
+repository timeouts. Changed-file ESLint, Prettier and hook CSS lint pass.
+`npm run build` passes the original budgets and split/globals/notices gates:
+extension **436.9/600 KiB**, Model API **446.8/475 KiB**. The independently
+built U graph is **31.3/75 KiB** (including emitted CSS), host **31.9/50 KiB**;
+exact byte sizes and the final source hashes are in `m109-u-bundles.json`.
+The full screenshots were refreshed and the 320 px high-contrast card and
+690 px grant form inspected. The harness closes its owned browser/server and
+removes its profile in nested finally blocks; build tests remove their own
+unique scratch directories. No temporary directory is retained at delivery.
+
+The brief's named `docs/orchestration-gotchas.md` is absent in this base and
+in the local `main` Git tree (read-only lookup). No other worktree was read.
 
 ## Threat-to-control map
 

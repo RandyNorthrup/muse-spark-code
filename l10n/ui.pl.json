@@ -2709,7 +2709,7 @@
       "other": "Stare wpisy pozostają synchronizowane przez {count} wydań podrzędnych. Migrację można cofnąć do usunięcia."
     },
     "sshUse": "Uwierzytelnianie SSH",
-    "sshSignUse": "Podpisz commit Git",
+    "sshSignUse": "Podpisz kluczem SSH",
     "sudoUse": "Uruchom sudo",
     "askpassUse": "Askpass dla skryptu",
     "gitUse": "HTTPS dla Git",
@@ -2736,7 +2736,7 @@
     "approval": "{requester} prosi o {use} z użyciem {item} dla {target}.",
     "paidWarning": "Uprawnienia sejfu nie zatwierdzają płatnych żądań.",
     "windowsElevation": "Podnoszenie uprawnień w Windows używa UAC i nie może być pośredniczone.",
-    "seUnavailable": "Ochrona Secure Enclave czeka na certyfikację pomocnika na odpowiednim Macu. Do potwierdzania obecności użyj hasła.",
+    "seUnavailable": "Ochrona Secure Enclave jest niedostępna. Użyj hasła do potwierdzania obecności.",
     "enabledDescription": "Włącz sejf poświadczeń użytkownika współdzielony przez edytory.",
     "protectionDescription": "Wybierz ochronę klucza sejfu. Tryb automatyczny używa dostępnego sprzętu i magazynu systemu.",
     "fenceDescription": "Odizoluj procesy agentów od istniejących dróg dostępu do poświadczeń. Procesy robocze pozostają izolowane po wyłączeniu.",

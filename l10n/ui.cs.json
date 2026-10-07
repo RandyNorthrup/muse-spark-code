@@ -2709,7 +2709,7 @@
       "other": "Staré záznamy zůstávají zrcadlené po dobu {count} dílčích vydání. Do odstranění lze migraci vrátit."
     },
     "sshUse": "Ověření přes SSH",
-    "sshSignUse": "Podepsat Git commit",
+    "sshSignUse": "Podpis klíčem SSH",
     "sudoUse": "Spustit sudo",
     "askpassUse": "Askpass pro skript",
     "gitUse": "HTTPS pro Git",
@@ -2736,7 +2736,7 @@
     "approval": "{requester} žádá o {use} s položkou {item} pro {target}.",
     "paidWarning": "Oprávnění trezoru neschvalují placené požadavky.",
     "windowsElevation": "Zvýšení oprávnění ve Windows používá UAC a nelze je zprostředkovat.",
-    "seUnavailable": "Ochrana Secure Enclave není dostupná, dokud není pomocník ověřen na vhodném Macu. Pro přítomnost použijte heslovou frázi.",
+    "seUnavailable": "Ochrana Secure Enclave není dostupná. Pro potvrzení přítomnosti použijte heslovou frázi.",
     "enabledDescription": "Zapnout trezor přihlašovacích údajů uživatele sdílený editory.",
     "protectionDescription": "Zvolit ochranu klíče trezoru. Automatická používá dostupný hardware a úložiště operačního systému.",
     "fenceDescription": "Izolovat procesy agentů od okolních cest k přihlašovacím údajům. Pracovníci zůstávají izolovaní i při vypnutí.",

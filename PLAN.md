@@ -21018,7 +21018,7 @@ manifest, help/docs and generated record registrations. U's owning
 panel/native/controller tests, contracts and lazy graph/budgets pass at the
 repository default timeout; typecheck, localization, duplication and the
 existing production build pass. Forty-six guards were deliberately broken,
-observed red and restored byte-exact; 152 accessibility scenes pass across
+observed red and restored byte-exact; 160 accessibility scenes pass across
 four themes and two widths. `npm run deadcode` exits 1 for the two genuine
 standalone harness entrypoints that W must register; `check:host-api` exits 1
 for the generated record that W must refresh. These are named integration
