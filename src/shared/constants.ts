@@ -100,6 +100,11 @@ export const COMMAND_IDS = {
   tabSnooze: 'museSpark.tabSnooze',
   tabMenu: 'museSpark.tabMenu',
   tabLanguages: 'museSpark.tabLanguages',
+  // M105 (PLAN.md D85): multimodal input; screen recordings preview before
+  // they attach, and uploaded files can be listed and deleted.
+  attachScreenRecording: 'museSpark.attachScreenRecording',
+  attachLatestScreenRecording: 'museSpark.attachLatestScreenRecording',
+  deleteUploadedFiles: 'museSpark.deleteUploadedFiles',
 } as const
 
 // Extension-private `globalState` keys (never machine-wide configuration).
@@ -444,6 +449,13 @@ export const SETTING_DEFAULTS = {
   // (M82): 0 is no cap. Kept by reservation (sessionBudget.ts); machine
   // scoped, since a repository must not set what is billed.
   modelApiSessionBudgetUsd: 0,
+  // M105 (PLAN.md D85): multimodal input caps (literals: this map runs
+  // before the media block below); machine scoped, since a repository must
+  // not set what is uploaded, kept or billed on the key.
+  mediaMaxUploadMiB: 200,
+  mediaUploadExpiryDays: 7,
+  screenRecordingMaxSeconds: 120,
+  mediaAudioAction: 'transcribe',
   // The Auto reviewer on Muse Code (M90, PLAN.md D69): in Auto on the Muse
   // Code backend, an approval Muse Code raises goes to one short turn of a
   // hidden side session before the user. On until turned off; machine scoped,
@@ -561,6 +573,12 @@ export const MACHINE_SCOPED_SETTINGS = [
   // What may spend on judging, on the key or the subscription (M98, PLAN.md
   // D77): a repository must not choose it.
   'judge.engine',
+  // M105 (PLAN.md D85): upload bytes, provider retention, recording length
+  // and the audio action are billed on the key, so a repository sets none.
+  'mediaMaxUploadMiB',
+  'mediaUploadExpiryDays',
+  'screenRecordingMaxSeconds',
+  'mediaAudioAction',
 ] as const
 
 // Muse Code SDK 1.3.0 hook process limits (PLAN.md M51).
@@ -1020,6 +1038,17 @@ export const MEDIA_UPLOAD_EXPIRY_SETTING = 'museSpark.mediaUploadExpiryDays'
 export const MEDIA_MAX_UPLOAD_SETTING = 'museSpark.mediaMaxUploadMiB'
 export const MEDIA_AUDIO_ACTION_SETTING = 'museSpark.mediaAudioAction'
 export const SCREEN_RECORDING_MAX_SECONDS_SETTING = 'museSpark.screenRecordingMaxSeconds'
+/** Days a provider keeps an uploaded file (M105): the manifest allows 1–30. */
+export const MEDIA_UPLOAD_EXPIRY_MIN_DAYS = 1
+export const MEDIA_UPLOAD_EXPIRY_MAX_DAYS = 30
+export const MEDIA_UPLOAD_EXPIRY_DEFAULT_DAYS = 7
+/**
+ * What the attach flow offers for audio (M105): the manifest exposes only
+ * these two; the wider MEDIA_AUDIO_ACTIONS stay lane-internal until lane V
+ * verifies them against live captures.
+ */
+export const MEDIA_AUDIO_ACTION_OPTIONS = ['transcribe', 'sendAudio'] as const
+export const MEDIA_AUDIO_ACTION_DEFAULT = 'transcribe'
 export const SCREEN_RECORDING_DEFAULT_MAX_SECONDS = 120
 export const SCREEN_RECORDING_MIN_SECONDS = 10
 export const SCREEN_RECORDING_MAX_SECONDS = 600

@@ -56,7 +56,10 @@
       "agentImportSourceAmp",
       "agentImportSourceOpenCode",
       "contextMeterUnderOne",
-      "diffTallyLines"
+      "diffTallyLines",
+      "referenceScreenRecording",
+      "referenceLatestRecording",
+      "referenceUploadedFiles"
     ],
     "cs": [
       "groupModel",
