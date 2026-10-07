@@ -118,31 +118,23 @@ describe('W-F1 native identities', () => {
     ).rejects.toThrow()
   })
 
-  it('identifies the held Windows handle without broad PowerShell module discovery', async () => {
+  it('identifies the held Windows handle by native path resolution, starting no process', async () => {
     const nativeOpen = WORKER_NATIVE_IO.openFile
     if (nativeOpen === undefined) throw new Error('Missing native handle port')
     const target = path.join(fixtureState.copy, 'inside.txt')
     const handle = await nativeOpen(target, false)
-    const actual = await vi.importActual<typeof childProcess>('node:child_process')
-    const child = actual.spawn(
-      process.execPath,
-      ['-e', `process.stdout.write(${JSON.stringify(JSON.stringify(target))})`],
-      { stdio: ['pipe', 'pipe', 'pipe'] },
-    )
-    const spawn = vi.spyOn(childProcess, 'spawn').mockReturnValue(child)
+    const spawn = vi.mocked(childProcess.spawn)
+    spawn.mockClear()
     const platform = Object.getOwnPropertyDescriptor(process, 'platform')
     if (platform === undefined) throw new Error('Missing platform descriptor')
-    vi.stubEnv('SystemRoot', String.raw`C:\Windows`)
     Object.defineProperty(process, 'platform', { value: 'win32' })
     try {
+      // A cold PowerShell with an Add-Type compile per check outran the
+      // deadline on hosted Windows; native resolution starts no process.
       expect(await handle.identify()).toMatchObject({ absolute: target })
-      const script = spawn.mock.calls[0]?.[1]?.at(-1) ?? ''
-      expect(script).toContain(String.raw`Microsoft.PowerShell.Utility\Add-Type`)
-      expect(script).not.toMatch(/(?:^|[=|]\s*)\b(?:New-Object|Add-Type|ConvertTo-Json)\b/m)
+      expect(spawn).not.toHaveBeenCalled()
     } finally {
       Object.defineProperty(process, 'platform', platform)
-      spawn.mockRestore()
-      vi.unstubAllEnvs()
       await handle.close()
     }
   })
