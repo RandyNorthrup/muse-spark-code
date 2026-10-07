@@ -317,6 +317,15 @@ describe('chooseByoTechnique', () => {
     expect(fromOutput.minOutputTokens).toBe(9)
   })
 
+  it('honors both captured output and judge minimums (P2.7)', () => {
+    const record = captured(ollama, {
+      logprobs: yes({ kind: 'topk', maxTopK: 5, dialect: 'ollama-chat', minOutputTokens: 1 }),
+      output: { minTokens: 9 },
+    })
+    expect(chosen(choose(record, capability({ minOutputTokens: 12 }))).minOutputTokens).toBe(12)
+    expect(chosen(choose(record, capability())).minOutputTokens).toBe(9)
+  })
+
   it('refuses an identity or served-version mismatch', () => {
     const record = captured(
       { ...ollama, servedVersion: 'rev-a' },

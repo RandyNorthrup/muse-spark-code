@@ -99,7 +99,11 @@ export function chooseByoTechnique(
   }
   const logprobs = agreedLogprobs(record, judge)
   if (logprobs === undefined) return unavailable
-  const minOutputTokens = outputFloor(record)
+  const recordedFloor = outputFloor(record)
+  const minOutputTokens =
+    recordedFloor === undefined
+      ? undefined
+      : Math.max(recordedFloor, judge.minOutputTokens, record.output.minTokens ?? 1)
   if (minOutputTokens === undefined) return unavailable
   const statedFormat = capturedStatedFormat(record)
   const captured = record.logprobs.state === 'yes' ? record.logprobs.value : undefined

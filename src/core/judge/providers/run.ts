@@ -5,6 +5,8 @@
 // carry the same decision on our seam; a codec maps it from a capture.
 // No `vscode` import.
 
+import { createHash } from 'node:crypto'
+import { redactSecrets } from '../../redact'
 import { type ProviderIdentity } from '../../backends/modelapi/providerClient'
 import { type ModelCapabilityRecord } from '../../providers/capabilityRecord'
 import {
@@ -16,12 +18,13 @@ import {
 import {
   JUDGE_MAX_BODY_BYTES,
   JUDGE_MAX_STATE_TOKENS,
+  JUDGE_RESULT_CACHE_MAX,
   JUDGE_TOP1_MIN_PROB,
 } from '../../../shared/constants'
 import { type JudgeDailyLedger, type JudgeLedgerClaim } from '../admission'
 import { labelForTechnique, type AnswerMaterial } from '../judge'
 import { entropyConfidence } from '../math'
-import { planJudgeBatches, type JudgePromptBatch } from '../prompt'
+import { planJudgeBatches, type JudgePromptBatch, type JudgePromptWording } from '../prompt'
 import { judgePromptWording } from '../same/wording'
 import {
   judgeOptionIndex,
@@ -75,6 +78,7 @@ export interface ByoCompletionRequest {
   readonly requestTopK?: number | undefined
   readonly requiresEffortNone: boolean
   readonly minOutputTokens: number
+  readonly maxOutputTokens: number
   readonly messages: ByoOllamaChatRequest['messages']
   readonly ollama?: ByoOllamaChatRequest | undefined
 }
@@ -84,6 +88,12 @@ export interface ByoRequestPort {
 }
 
 export interface ByoJudgeDeps {
+  /** Caller increments on every binding change, including A → B → A. */
+  readonly generation: () => number
+  /** Shared lazy model text: yes/no, one choice letter or one score digit. */
+  readonly logprobWording: JudgePromptWording
+  /** Shared bounded JSON ceiling; captured minimums can raise it. */
+  readonly statedOutputTokens: number
   readonly client: ByoProviderClient
   readonly record: () => ModelCapabilityRecord
   readonly capability: () => JudgeCapability
@@ -109,6 +119,11 @@ export interface ByoJudge {
 }
 
 interface Snapshot {
+  readonly generation: number
+  readonly record: ModelCapabilityRecord
+  readonly capability: JudgeCapability
+  readonly pricing: ModelPricing
+  readonly auth: ProviderIdentity['auth']
   readonly providerId: string
   readonly modelId: string
   readonly endpoint: string
@@ -125,7 +140,7 @@ interface Snapshot {
   readonly consentEpoch: string
   readonly consentExpiresAtMs: number
   readonly consentPrice: string
-  readonly keyReady: boolean
+  readonly keyDigest: string
   readonly captureId: string
   readonly logprobs: JudgeCapability['logprobs']
 }
@@ -142,15 +157,28 @@ export function byoPriceFingerprint(pricing: ModelPricing): string {
   if (pricing.kind !== 'priced') return pricing.kind
   if (!isValidPriceCard(pricing.card)) return 'unpriced'
   const card = pricing.card
-  return [
-    'priced',
-    card.source,
-    card.input,
-    card.output,
-    card.cachedInput ?? '',
-    card.cacheWrite ?? '',
-    card.request ?? '',
-  ].join(':')
+  return JSON.stringify({
+    kind: 'priced',
+    source: card.source,
+    input: card.input,
+    output: card.output,
+    cachedInput: card.cachedInput,
+    cacheWrite: card.cacheWrite,
+    cacheWrite1h: card.cacheWrite1h,
+    request: card.request,
+    image: card.image,
+    longContextTier:
+      card.longContextTier === undefined
+        ? undefined
+        : {
+            fromTokens: card.longContextTier.fromTokens,
+            input: card.longContextTier.input,
+            output: card.longContextTier.output,
+            cachedInput: card.longContextTier.cachedInput,
+            cacheWrite: card.longContextTier.cacheWrite,
+            cacheWrite1h: card.longContextTier.cacheWrite1h,
+          },
+  })
 }
 
 function wireBytes(value: unknown): number {
@@ -192,18 +220,25 @@ function promptQuestion(
   return { id, kind: 'score', text: question.instructions, options: question.criteria }
 }
 
-function turnContent(messages: ByoOllamaChatRequest['messages'], index: number): string {
-  const message = messages[index]
-  if (message === undefined) {
-    throw new TypeError('judge request is missing its system or user turn')
-  }
-  return message.content
+/** One redaction owner for strings and property names in judged data. */
+function redactedValue(value: unknown): unknown {
+  if (typeof value === 'string') return redactSecrets(value)
+  if (Array.isArray(value)) return value.map((item: unknown) => redactedValue(item))
+  return value === null || typeof value !== 'object'
+    ? value
+    : Object.fromEntries(
+        Object.entries(value).map(([key, item]) => [redactSecrets(key), redactedValue(item)]),
+      )
+}
+
+function cacheDigest(value: unknown): string {
+  return createHash('sha256').update(JSON.stringify(value)).digest('hex')
 }
 
 function messagesOf(batch: JudgePromptBatch): ByoOllamaChatRequest['messages'] {
   return [
-    { role: 'system', content: batch.system },
-    { role: 'user', content: batch.user },
+    { role: 'system', content: redactSecrets(batch.system) },
+    { role: 'user', content: redactSecrets(batch.user) },
   ]
 }
 
@@ -211,13 +246,14 @@ function ollamaBody(
   model: string,
   choice: ByoTechniqueChoice,
   messages: ByoOllamaChatRequest['messages'],
+  maxOutputTokens: number,
 ): ByoOllamaChatRequest {
   const body: ByoOllamaChatRequest = {
     model,
     stream: false,
     think: false,
     messages,
-    options: { num_predict: choice.minOutputTokens, temperature: 0 },
+    options: { num_predict: maxOutputTokens, temperature: 0 },
   }
   if (choice.technique === 'stated') return body
   if (choice.requestTopK === undefined) {
@@ -230,6 +266,7 @@ function completionRequest(
   snapshot: Snapshot,
   choice: ByoTechniqueChoice,
   batch: JudgePromptBatch,
+  maxOutputTokens: number,
 ): ByoCompletionRequest {
   const messages = messagesOf(batch)
   const request: ByoCompletionRequest = {
@@ -242,10 +279,11 @@ function completionRequest(
     ...(choice.requestTopK !== undefined && { requestTopK: choice.requestTopK }),
     requiresEffortNone: choice.requiresEffortNone,
     minOutputTokens: choice.minOutputTokens,
+    maxOutputTokens,
     messages,
   }
   return snapshot.format === 'ollama'
-    ? { ...request, ollama: ollamaBody(snapshot.modelId, choice, messages) }
+    ? { ...request, ollama: ollamaBody(snapshot.modelId, choice, messages, maxOutputTokens) }
     : request
 }
 
@@ -286,6 +324,27 @@ function freeClaim(): JudgeLedgerClaim {
       return Promise.resolve()
     },
   }
+}
+
+async function settleSent(
+  claim: JudgeLedgerClaim,
+  usage: ByoUsage,
+  pricing: ModelPricing,
+): Promise<number | undefined> {
+  const settled =
+    pricing.kind === 'priced'
+      ? settleUsageUsd(pricing.card, {
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
+        })
+      : 0
+  if (settled === undefined) return undefined
+  try {
+    await claim.settle(settled)
+  } catch {
+    return undefined
+  }
+  return settled
 }
 
 function answerBody(question: JudgeQuestion, material: AnswerMaterial): Record<string, unknown> {
@@ -329,54 +388,98 @@ export function createByoJudge(deps: ByoJudgeDeps): ByoJudge {
     return tokens
   }
 
-  async function isKeyReady(): Promise<boolean> {
-    if (deps.client.provider.auth === 'none') return true
-    try {
-      const digest = await deps.client.currentKeyDigest()
-      return digest.length > 0
-    } catch {
-      return false
-    }
+  if (!Number.isSafeInteger(deps.statedOutputTokens) || deps.statedOutputTokens <= 1) {
+    throw new RangeError('stated judge output needs a bounded JSON allowance')
   }
+  let keyDigest = ''
+  let cacheBinding = ''
 
-  async function snapshot(): Promise<Snapshot | JudgeOutcome> {
-    const record = deps.record()
-    const capability = deps.capability()
-    const client = deps.client.provider
-    const chat = deps.chat()
+  function readSnapshot(): Snapshot | JudgeOutcome {
+    const generation = deps.generation()
+    const record = structuredClone(deps.record())
+    const capability = structuredClone(deps.capability())
+    const client = { ...deps.client.provider }
+    const chat = { ...deps.chat() }
+    const pricing = structuredClone(deps.pricing())
+    const consent = { ...deps.consent() }
+    const isConfidential = deps.confidential()
+    const policy = deps.confidentialPolicy()
     const version = record.identity.servedVersion ?? capability.modelVersion
     if (
+      !Number.isSafeInteger(generation) ||
+      generation < 0 ||
+      generation !== deps.generation() ||
       record.identity.provider !== client.id ||
       record.identity.format !== client.format ||
       record.identity.nativeModel !== capability.model ||
       capability.providerId !== client.id ||
       capability.endpoint !== client.origin ||
-      capability.modelVersion !== version
+      capability.modelVersion !== version ||
+      [client.id, client.origin, capability.model].some((value) => redactSecrets(value) !== value)
     ) {
+      cache.clear()
+      cacheBinding = ''
       return noAnswer('capability-unavailable')
     }
-    const consent = deps.consent()
     return {
+      generation,
+      record,
+      capability,
+      pricing,
+      auth: client.auth,
       providerId: client.id,
       modelId: capability.model,
       endpoint: client.origin,
       version,
       format: client.format,
       isLocal: client.isLocal,
-      confidential: deps.confidential(),
-      policy: deps.confidentialPolicy(),
+      confidential: isConfidential,
+      policy,
       chatProviderId: chat.providerId,
       chatModelId: chat.modelId,
       chatEndpoint: chat.endpoint,
-      fingerprint: byoPriceFingerprint(deps.pricing()),
+      fingerprint: byoPriceFingerprint(pricing),
       consentState: consent.state,
       consentEpoch: consent.epoch,
       consentExpiresAtMs: consent.expiresAtMs,
       consentPrice: consent.priceFingerprint,
-      keyReady: await isKeyReady(),
+      keyDigest: client.auth === 'none' ? 'no-auth' : keyDigest,
       captureId: capability.captureId,
       logprobs: capability.logprobs,
     }
+  }
+
+  function observe(current: Snapshot): void {
+    const binding = cacheDigest(current)
+    if (binding !== cacheBinding) cache.clear()
+    cacheBinding = binding
+  }
+
+  async function snapshot(): Promise<Snapshot | JudgeOutcome> {
+    const before = readSnapshot()
+    if ('outcome' in before) return before
+    observe(before)
+    let digest = 'no-auth'
+    if (before.auth !== 'none') {
+      try {
+        digest = await deps.client.currentKeyDigest()
+      } catch {
+        digest = ''
+      }
+    }
+    // The awaited key read is itself a wait. Re-read every synchronous field
+    // before accepting its digest; caller generation also catches ABA switches.
+    const after = readSnapshot()
+    if ('outcome' in after) return after
+    const changed = rebound(before, after, before.pricing.kind === 'priced', false)
+    if (changed !== undefined) {
+      observe(after)
+      return changed
+    }
+    keyDigest = digest
+    const current = { ...after, keyDigest: digest }
+    observe(current)
+    return current
   }
 
   function consentBlock(current: Snapshot, isPriced: boolean): JudgeOutcome | undefined {
@@ -393,8 +496,14 @@ export function createByoJudge(deps: ByoJudgeDeps): ByoJudge {
     before: Snapshot,
     current: Snapshot,
     isPriced: boolean,
+    shouldCheckKey = true,
   ): JudgeOutcome | undefined {
     if (
+      current.generation !== before.generation ||
+      current.auth !== before.auth ||
+      current.isLocal !== before.isLocal ||
+      JSON.stringify(current.record) !== JSON.stringify(before.record) ||
+      JSON.stringify(current.capability) !== JSON.stringify(before.capability) ||
       current.providerId !== before.providerId ||
       current.modelId !== before.modelId ||
       current.endpoint !== before.endpoint ||
@@ -411,10 +520,15 @@ export function createByoJudge(deps: ByoJudgeDeps): ByoJudge {
     if (current.confidential !== before.confidential || current.policy !== before.policy) {
       return noAnswer('confidential-refused')
     }
-    if (!current.keyReady) return noAnswer('source-unavailable')
+    if (
+      shouldCheckKey &&
+      (current.keyDigest.length === 0 || current.keyDigest !== before.keyDigest)
+    )
+      return noAnswer('source-unavailable')
     if (current.fingerprint === 'unpriced') return noAnswer('unpriced')
     return current.fingerprint !== before.fingerprint ||
       current.consentEpoch !== before.consentEpoch ||
+      current.consentExpiresAtMs !== before.consentExpiresAtMs ||
       current.consentPrice !== before.consentPrice
       ? noAnswer('consent-needed')
       : consentBlock(current, isPriced)
@@ -424,7 +538,7 @@ export function createByoJudge(deps: ByoJudgeDeps): ByoJudge {
     if (before.confidential && (deps.source === 'separate' || before.policy !== 'allow')) {
       return noAnswer('confidential-refused')
     }
-    if (!before.keyReady) return noAnswer('source-unavailable')
+    if (before.keyDigest.length === 0) return noAnswer('source-unavailable')
     return deps.source === 'same' &&
       (before.chatModelId !== before.modelId ||
         before.chatProviderId !== before.providerId ||
@@ -433,106 +547,156 @@ export function createByoJudge(deps: ByoJudgeDeps): ByoJudge {
       : undefined
   }
 
-  async function reserve(usd: number): Promise<JudgeLedgerClaim | JudgeOutcome> {
+  function currentBlock(before: Snapshot, signal: AbortSignal): JudgeOutcome | undefined {
+    const current = readSnapshot()
+    if ('outcome' in current) return current
+    observe(current)
+    return isAborted(signal)
+      ? noAnswer('cancelled')
+      : rebound(before, current, before.pricing.kind === 'priced')
+  }
+
+  async function reserve(
+    usd: number,
+    before: Snapshot,
+    signal: AbortSignal,
+  ): Promise<JudgeLedgerClaim | JudgeOutcome> {
+    const blocked = currentBlock(before, signal)
+    if (blocked !== undefined) return blocked
     if (usd === 0) return freeClaim()
     const ledger = deps.ledger
     if (ledger === undefined) return noAnswer('over-budget')
     try {
       const remaining = await ledger.remainingUsd()
+      const moved = currentBlock(before, signal)
+      if (moved !== undefined) return moved
       if (!Number.isFinite(remaining) || remaining < 0) return noAnswer('source-unavailable')
       if (usd > remaining) return noAnswer('over-budget')
       const claim = await ledger.reserve(usd)
-      if (claim.claimId.length === 0 || claim.reservedUsd !== usd) {
-        await claim.settle(0)
-        return noAnswer('source-unavailable')
+      const changed = currentBlock(before, signal)
+      if (changed !== undefined || claim.claimId.length === 0 || claim.reservedUsd !== usd) {
+        await refund(claim)
+        return changed ?? noAnswer('source-unavailable')
       }
-      claim.check()
       return claim
     } catch {
       return noAnswer('source-unavailable')
     }
   }
 
-  async function settleSent(claim: JudgeLedgerClaim, usage: ByoUsage): Promise<number | undefined> {
-    const pricing = deps.pricing()
-    if (pricing.kind !== 'priced' || !isValidPriceCard(pricing.card)) {
-      await claim.settle(0)
-      return 0
+  async function send(
+    wire: ByoCompletionRequest,
+    claim: JudgeLedgerClaim,
+    before: Snapshot,
+    signal: AbortSignal,
+  ): Promise<JudgeOutcome | { readonly response: unknown }> {
+    const fresh = await snapshot()
+    const blocked =
+      'outcome' in fresh
+        ? fresh
+        : (rebound(before, fresh, before.pricing.kind === 'priced') ?? currentBlock(before, signal))
+    if (blocked !== undefined) {
+      await refund(claim)
+      return blocked
     }
-    const settled = settleUsageUsd(pricing.card, {
-      inputTokens: usage.inputTokens,
-      outputTokens: usage.outputTokens,
-    })
-    if (settled === undefined) return undefined
-    await claim.settle(settled)
-    return settled
+    try {
+      // No await between the synchronous binding/claim fences and dispatch.
+      claim.check()
+      const dispatchMoved = currentBlock(before, signal)
+      if (dispatchMoved !== undefined) {
+        await refund(claim)
+        return dispatchMoved
+      }
+    } catch {
+      await refund(claim)
+      return noAnswer('source-unavailable')
+    }
+    try {
+      return { response: await deps.transport.complete(wire, signal) }
+    } catch {
+      return noAnswer('engine-failure')
+    }
   }
 
   return {
     async run(request, signal = new AbortController().signal): Promise<JudgeOutcome> {
       const parsed = judgeRequestSchema.safeParse(request)
       if (!parsed.success) return noAnswer('engine-failure')
-      const first = await snapshot()
-      if ('outcome' in first) return first
+      const initial = await snapshot()
+      if ('outcome' in initial) return initial
+      const first: Snapshot = initial
       const blocked = opened(first)
       if (blocked !== undefined) return blocked
-      const record = deps.record()
-      const capability = deps.capability()
-      const questions = Object.entries(parsed.data.questions)
-      const choices: ByoTechniqueChoice[] = []
-      for (const [, question] of questions) {
-        const decision = chooseByoTechnique(record, capability, question.type)
-        if (decision.outcome !== 'chosen') return decision
-        choices.push(decision.choice)
-      }
+      const active = currentBlock(first, signal)
+      if (active !== undefined) return active
+      const safeParsed = judgeRequestSchema.safeParse({
+        state: redactedValue(parsed.data.state),
+        questions: Object.fromEntries(
+          Object.entries(parsed.data.questions).map(([id, question]) => [
+            id,
+            redactedValue(question),
+          ]),
+        ),
+      })
+      if (!safeParsed.success) return noAnswer('engine-failure')
+      const safe = safeParsed.data
+      const questions = Object.entries(safe.questions)
       const context = Math.min(
-        record.limits.contextTokens ?? Infinity,
-        capability.contextWindowTokens,
+        first.record.limits.contextTokens ?? Infinity,
+        first.capability.contextWindowTokens,
         JUDGE_MAX_STATE_TOKENS,
       )
-      const outputRoom = Math.max(...choices.map((choice) => choice.minOutputTokens))
-      if (outputRoom >= context) return noAnswer('over-context')
-      const plan = planJudgeBatches({
-        stateText: stateText(parsed.data.state),
-        questions: questions.map(([id, question]) => promptQuestion(id, question)),
-        wording: judgePromptWording(),
-        maxQuestionsPerBatch: 1,
-        contextTokenLimit: context - outputRoom,
-        measureTokens: measured,
-      })
-      if (plan.refused !== undefined) return noAnswer('over-context')
-      const planned = questions.map(([id, question], index) => {
-        const batch = plan.batches[index]
-        const choice = choices[index]
-        if (batch === undefined || choice === undefined || batch.questionIds[0] !== id) {
-          throw new TypeError('judge batch dropped a question')
-        }
-        const inputTokens = measured(batch.system) + measured(batch.user)
-        const wire = completionRequest(first, choice, batch)
-        const bytes = wireBytes(wire.ollama ?? wire)
-        const reserved = reservationUsd(deps.pricing(), inputTokens, choice.minOutputTokens)
-        return { id, question, choice, wire, bytes, reserved }
-      })
-      if (planned.some((item) => item.bytes > JUDGE_MAX_BODY_BYTES)) return noAnswer('over-context')
-      if (planned.some((item) => item.reserved === 'unpriced')) return noAnswer('unpriced')
-      const isPriced = planned.some((item) => item.reserved !== 'unpriced' && item.reserved > 0)
+      function planCall(id: string, question: JudgeQuestion, choice: ByoTechniqueChoice) {
+        const outputRoom =
+          choice.technique === 'stated'
+            ? Math.max(deps.statedOutputTokens, choice.minOutputTokens)
+            : choice.minOutputTokens
+        if (outputRoom >= context) return noAnswer('over-context')
+        if (
+          first.record.output.maxTokens !== undefined &&
+          outputRoom > first.record.output.maxTokens
+        )
+          return noAnswer('capability-unavailable')
+        const rawWording =
+          choice.technique === 'stated' ? judgePromptWording() : deps.logprobWording
+        const plan = planJudgeBatches({
+          stateText: stateText(safe.state),
+          questions: [promptQuestion(id, question)],
+          wording: {
+            ...rawWording,
+            systemInstruction: redactSecrets(rawWording.systemInstruction),
+          },
+          maxQuestionsPerBatch: 1,
+          contextTokenLimit: context - outputRoom,
+          measureTokens: (text) => measured(redactSecrets(text)),
+        })
+        if (plan.refused !== undefined) return noAnswer('over-context')
+        const batch = plan.batches[0]
+        if (batch?.questionIds[0] !== id) throw new TypeError('judge batch dropped a question')
+        const wire = completionRequest(first, choice, batch, outputRoom)
+        if (wireBytes(wire.ollama ?? wire) > JUDGE_MAX_BODY_BYTES) return noAnswer('over-context')
+        const inputTokens =
+          measured(wire.messages[0]?.content ?? '') + measured(wire.messages[1]?.content ?? '')
+        const reserved = reservationUsd(first.pricing, inputTokens, outputRoom)
+        return reserved === 'unpriced'
+          ? noAnswer('unpriced')
+          : { id, question, choice, wire, reserved }
+      }
+      const planned = []
+      for (const [id, question] of questions) {
+        const decision = chooseByoTechnique(first.record, first.capability, question.type)
+        if (decision.outcome !== 'chosen') return decision
+        const item = planCall(id, question, decision.choice)
+        if ('outcome' in item) return item
+        planned.push(item)
+      }
+      const isPriced = first.pricing.kind === 'priced'
       const consent = consentBlock(first, isPriced)
       if (consent !== undefined) return consent
-      const cacheKey = JSON.stringify({
-        source: deps.source,
-        providerId: first.providerId,
-        modelId: first.modelId,
-        endpoint: first.endpoint,
-        version: first.version,
-        confidential: first.confidential,
-        fingerprint: first.fingerprint,
-        consentEpoch: isPriced ? first.consentEpoch : '',
-        captureId: first.captureId,
-        logprobs: first.logprobs,
-        request: parsed.data,
-      })
+      // Keys retain neither judged content nor question ids or credential digest.
+      const cacheKey = cacheDigest({ binding: cacheBinding, request: safe })
       const cached = cache.get(cacheKey)
-      if (cached !== undefined) return cached
+      if (cached !== undefined) return currentBlock(first, signal) ?? cached
 
       const answers: Record<string, unknown> = {}
       const muse: Record<
@@ -551,36 +715,32 @@ export function createByoJudge(deps: ByoJudgeDeps): ByoJudge {
       let inputTokens = 0
       let outputTokens = 0
       for (const item of planned) {
-        const reservedUsd = item.reserved === 'unpriced' ? 0 : item.reserved
         const beforeSend = await snapshot()
         if ('outcome' in beforeSend) return beforeSend
-        const moved = rebound(first, beforeSend, isPriced)
+        const moved = rebound(first, beforeSend, isPriced) ?? currentBlock(first, signal)
         if (moved !== undefined) return moved
-        const claim = await reserve(reservedUsd)
+        const claim = await reserve(item.reserved, first, signal)
         if (isRefusal(claim)) return claim
+        const reservedMoved = currentBlock(first, signal)
+        if (reservedMoved !== undefined) {
+          await refund(claim)
+          return reservedMoved
+        }
         try {
           if (deps.afterWait !== undefined) await deps.afterWait()
         } catch {
           await refund(claim)
           return noAnswer('engine-failure')
         }
-        const after = await snapshot()
-        if ('outcome' in after) {
+        const waited = currentBlock(first, signal)
+        if (waited !== undefined) {
           await refund(claim)
-          return after
+          return waited
         }
-        const changed = rebound(first, after, isPriced)
-        if (changed !== undefined || isAborted(signal)) {
-          await refund(claim)
-          return changed ?? noAnswer('cancelled')
-        }
-        let response: unknown
-        try {
-          response = await deps.transport.complete(item.wire, signal)
-        } catch {
-          return noAnswer('engine-failure')
-        }
-        const decoded = decodeByoResponse(response, {
+        const sent = await send(item.wire, claim, first, signal)
+        if ('outcome' in sent) return sent
+        const responseBlock = currentBlock(first, signal)
+        const decoded = decodeByoResponse(sent.response, {
           model: first.modelId,
           technique: item.choice.technique,
           kind: item.question.type,
@@ -589,7 +749,16 @@ export function createByoJudge(deps: ByoJudgeDeps): ByoJudge {
         })
         // No parsed usage: the sent call stays a liability. Do not settle zero.
         if (decoded.outcome === 'failure') return noAnswer('engine-failure')
-        const settledFirst = await settleSent(claim, decoded.usage)
+        const settledFirst = await settleSent(claim, decoded.usage, first.pricing)
+        const settlementBlock = currentBlock(first, signal)
+        const completed = await snapshot()
+        const stale =
+          responseBlock ??
+          settlementBlock ??
+          ('outcome' in completed
+            ? completed
+            : (rebound(first, completed, isPriced) ?? currentBlock(first, signal)))
+        if (stale !== undefined) return stale
         let reserved = claim.reservedUsd
         let settled = settledFirst
         let material = decoded.outcome === 'answer' ? decoded.material : undefined
@@ -604,30 +773,14 @@ export function createByoJudge(deps: ByoJudgeDeps): ByoJudge {
             requiresEffortNone: false,
             minOutputTokens: item.choice.minOutputTokens,
           }
-          const statedWire = completionRequest(first, statedChoice, {
-            system: turnContent(item.wire.messages, 0),
-            user: turnContent(item.wire.messages, 1),
-            questionIds: [item.id],
-          })
-          const statedClaim = await reserve(reservedUsd)
+          const fallback = planCall(item.id, item.question, statedChoice)
+          if ('outcome' in fallback) return fallback
+          const statedClaim = await reserve(fallback.reserved, first, signal)
           if (isRefusal(statedClaim)) return statedClaim
-          const again = await snapshot()
-          if ('outcome' in again || isAborted(signal)) {
-            await refund(statedClaim)
-            return 'outcome' in again ? again : noAnswer('cancelled')
-          }
-          const movedAgain = rebound(first, again, isPriced)
-          if (movedAgain !== undefined) {
-            await refund(statedClaim)
-            return movedAgain
-          }
-          let statedResponse: unknown
-          try {
-            statedResponse = await deps.transport.complete(statedWire, signal)
-          } catch {
-            return noAnswer('engine-failure')
-          }
-          const stated = decodeByoResponse(statedResponse, {
+          const statedSent = await send(fallback.wire, statedClaim, first, signal)
+          if ('outcome' in statedSent) return statedSent
+          const fallbackResponseBlock = currentBlock(first, signal)
+          const stated = decodeByoResponse(statedSent.response, {
             model: first.modelId,
             technique: 'stated',
             kind: item.question.type,
@@ -636,8 +789,17 @@ export function createByoJudge(deps: ByoJudgeDeps): ByoJudge {
           })
           // The stated call was sent. A body we cannot read stays a liability.
           if (stated.outcome !== 'answer') return noAnswer('engine-failure')
-          const statedSettled = await settleSent(statedClaim, stated.usage)
+          const statedSettled = await settleSent(statedClaim, stated.usage, first.pricing)
           if (statedSettled === undefined) return noAnswer('engine-failure')
+          const fallbackSettlementBlock = currentBlock(first, signal)
+          const finished = await snapshot()
+          const staleFallback =
+            fallbackResponseBlock ??
+            fallbackSettlementBlock ??
+            ('outcome' in finished
+              ? finished
+              : (rebound(first, finished, isPriced) ?? currentBlock(first, signal)))
+          if (staleFallback !== undefined) return staleFallback
           reserved += statedClaim.reservedUsd
           settled = settledFirst + statedSettled
           material = stated.material
@@ -669,6 +831,12 @@ export function createByoJudge(deps: ByoJudgeDeps): ByoJudge {
       })
       if (!parsedResult.success) return noAnswer('engine-failure')
       const outcome: JudgeOutcome = { outcome: 'answered', result: parsedResult.data }
+      const finalBlock = currentBlock(first, signal)
+      if (finalBlock !== undefined) return finalBlock
+      if (cache.size >= JUDGE_RESULT_CACHE_MAX && !cache.has(cacheKey)) {
+        const oldest = cache.keys().next()
+        if (!oldest.done) cache.delete(oldest.value)
+      }
       cache.set(cacheKey, outcome)
       return outcome
     },
