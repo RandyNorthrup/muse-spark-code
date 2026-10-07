@@ -28027,6 +28027,51 @@ for ties without inventing a wire field. Add default-timeout regressions and
 byte-exact red drills to X's certification. W retains the existing shared
 docs/reference/build handoffs and full integrated quality gate.
 
+**Lane N final repair RVM113N4 (2026-10-06).** Fix the confirmed P2
+throwing refusal effect inside the existing admission reducer design. Catch
+synchronous effect failures at the shell boundary and send generation-tagged
+`effectFailed` events back to the reducer, including the releasing phase;
+continue pending cleanup/release effects. Prove prompt failure and subsequent
+same-host admission for an unrepresentable rate reset, and cancellation of
+a returned body when dispatch throws. Add regressions and byte-exact red
+drills to N's certification. No guard widening, dependency or other-lane edit;
+default test timeouts and existing W integration handoffs remain.
+
+**Lane N lifecycle redesign RVM113N3 (2026-10-06).** Three review rounds
+found defects in admission and response ownership, so replace that path with
+one synchronous per-host reducer, `step(state, event) -> { state, effects }`.
+It owns requested/admitted/transportReturned/transportFailed/aborted/timedOut/
+dispatched/released transitions, queued generations, response ownership and
+rate state. The shell only executes generation-tagged transport, cancellation,
+dispatch, release and refusal effects. Stale completions cancel their bodies
+and cannot publish rate/cache facts. Read the shared live network/sign-in
+decision immediately before transport dispatch; preserve authorized pages
+that return after sign-out and recheck before the next send. Preserve the
+existing public ports and tests. Enumerate abort/timeout at each lifecycle
+boundary with late completions, and prove body-cancellation and generation
+guards with byte-exact red drills. Scoped checks run directly on Kubuntu with
+default test timeouts; W retains the existing integration handoffs.
+
+**Lane N round-two repair RVM113N2 (2026-10-06).** Fix both P2 findings
+structurally within N's files: one serialized admission owner per host,
+abort/deadline-bounded waits and transport settlement, and generation checks
+that discard late transport completions. Centralize the live policy decision
+for every dispatch, including GitHub's `whenSignedIn` requirement, while
+keeping public stores eligible without sign-in. Add failing regressions and
+byte-exact red drills to N's certification. No dependency, guard widening or
+other lane's edits; the existing W integration handoffs remain.
+
+**Lane N review repair RVM113N (2026-10-06).** Fix all four P2 findings
+within N's network/cache/store modules and owned tests: parse responses before
+scrubbing decoded structured values and persisting them; validate 304 cache
+data with the parsed output schema; serialize each host's rate admission and
+dispatch through its response headers; recheck current network policy
+immediately before every send. Add failing regressions and byte-exact red
+drills in `docs/certification/m113-n-network-sources-(b).md`. No dependency,
+guard widening, command or setting change; W retains public documentation
+and integrated quality. Run scoped checks directly on Kubuntu with default
+test timeouts; the rig brief forbids aggregate quality and branch merges.
+
 **Status 2026-10-05: planned.** No model call is needed anywhere in this
 milestone. It lands in three deliveries:
 
@@ -29308,6 +29353,13 @@ bundle registration remain the named W handoffs; no gate is weakened.
   Kubuntu. The previously recorded seven unused manifest keys and generated
   host inventory remain W integration handoffs, never suppressed or claimed
   green; final command outcomes are in H's certification.
+
+**M113-N-RVM113N/RVM113N2/RVM113N3/RVM113N4 bounded rig certification (2026-10-06).** The explicit
+rig/shared brief reserves aggregate quality for the lead and forbids merges.
+Run complete owned suites (at most three files per run), default timeouts,
+scoped static checks and the production build directly in this worktree.
+Existing unused report manifest keys and host API freshness remain W's
+integration handoffs. Record every nonzero gate without weakening it.
 
 **M113-L0-RVM113L02 bounded rig certification (2026-10-06).** The brief
 reserves aggregate quality for the lead. Run complete owned unit files with
@@ -31093,6 +31145,55 @@ before a repaired one loads (2026-09-30).
   Existing W-owned codec/surface/bundle/documentation bindings and aggregate
   fleet gates remain integration handoffs; this lane changes no command,
   setting, dependency, wire contract, credential policy or guard threshold.
+
+- **M113-N-final-RVM113N4 (2026-10-06).** The sole P2 throwing-effect
+  finding is fixed; no review residuals. The shell converts synchronous
+  effect throws to generation-tagged reducer events and continues sibling
+  effects. A failed refusal in `releasing` gets a fixed `source-failed`
+  rejection while the original release proceeds once; a failed dispatch
+  retires its owned response through cancellation/refusal/release effects.
+  Stale failures cannot disturb a successor. The existing numeric rate floor
+  remains enforced, including an unrepresentable reset; no guard is widened.
+  Regression and exact-restoration drill receipts are in N's certification.
+  Existing captures/storage/wiring/lazy-bundle and W's public
+  CHANGELOG/reference/localization/host API/quality handoffs remain.
+
+- **M113-N-lifecycle-RVM113N3 (2026-10-06).** The admission reducer owns
+  queued/current generations, response ownership and rate publication. Abort,
+  deadline and transport failure retire an owner once; stale completions
+  cancel returned bodies and cannot dispatch or release a successor. A
+  successful dispatch transfers the response to the query's cleanup scope,
+  which also covers cancellation before its await continuation resumes.
+  The async shell has only resource ports and reducer states, no independent
+  lifecycle flags or promise queue. Existing authorized-page semantics and
+  N-captures/storage/wiring/lazy-bundle/W handoffs remain. Model interleavings,
+  microtask abort schedules and byte-exact drills are in N's certification;
+  no new live-service, model-call or integrated-editor claim is made.
+
+- **M113-N-review-RVM113N2 (2026-10-06).** Both P2 findings fixed;
+  no review residuals. Each host has one admission owner; its waits and
+  transport settlement race the source's existing deadline/abort signal.
+  Cancellation releases admission even when the transport never settles;
+  obsolete generations discard late responses without rate/cache updates.
+  One shared policy function checks GitHub's live sign-in requirement at
+  each dispatch; public stores retain their declared eligibility. Regression
+  and byte-exact red-drill evidence is in N's certification. Existing
+  N-captures, N-cache-storage (storage must honour cancellation),
+  N-reader-wiring (one shared reader per host with live setting/sign-in
+  getters), N-lazy-bundle and W's documentation/quality handoffs remain;
+  no live-service or integrated-editor claim is added.
+
+- **M113-N-review-RVM113N (2026-10-06).** All four P2 findings fixed;
+  no review residuals. Responses are parsed, scrubbed as decoded structured
+  values and validated before storage; 304s validate stored output separately
+  from transforming input schemas. One per-host lock covers rate admission,
+  dispatch and response-header updates; current network policy is checked
+  immediately before every send. Regression tests and byte-exact red drills
+  are in `docs/certification/m113-n-network-sources-(b).md`. Existing
+  N-captures, N-cache-storage, N-reader-wiring and other integration handoffs
+  in that record remain with their named owners; no live-service claim is
+  added. W retains unused manifest-key wiring and host API regeneration,
+  public documentation and the lead's full integrated quality run.
 
 - **M113-L0-review-RVM113L02 (2026-10-06).** The P2 comparison-capacity
   finding is fixed with no review residuals. Capacity is derived from the
