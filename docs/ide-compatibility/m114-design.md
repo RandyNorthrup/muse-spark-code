@@ -23,7 +23,11 @@ The reviewed visual contract and archive manifest live in
 read-only archive. S owns the integrated after captures; C/N/D supply equivalent
 native, node and desktop evidence when those implementations join.
 
-The font asset publication pin and feature-reference catalogue binding stay
-with the integration lead. This base lacks `src/shared/featureCatalog.ts`;
-F's exact pending rows are in [the font contract](../../design/fonts/README.md).
-No command or setting is silently invented for an editor.
+The font asset publication pin stays with the integration lead (F-DISTRIBUTION
+in [the font contract](../../design/fonts/README.md)). The feature-reference
+catalogue binding is closed: `fonts install [--from <directory>]` is registered
+in `src/shared/cliCommands.ts` with the translated `acpFontsUsage` text, its
+`--from` option lives in `CLI_OPTION_REGISTRY`, and the generated reference
+passes `npm run check:reference`. The standalone Appearance preferences (UI
+font, code font, ligatures) are not VS Code settings, so they add no catalogue
+setting rows. No command or setting is silently invented for an editor.
