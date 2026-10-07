@@ -19101,6 +19101,26 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M105 — Multimodal input: video, audio, documents, screen recordings and the Files API (D85)
 
+**E3 execution plan (linuxlt, 2026-10-06).** The `m105/e3` base has
+lane-0 media contracts and M1/M2, but no M104 companion server, MHP schemas,
+feature catalog, R3 browser recorder or U16/MSP video capture. Build against
+required injected ports; do not create replacement servers or wire guesses.
+Only E3-owned modules and shared-file regions change. W owns shipped docs,
+reference entries, build entries and budgets; the certification names each
+binding and doc handoff.
+
+- [x] Guarded streamed companion upload: exact loopback Host/Origin, bearer,
+      custom header, Fetch Metadata, no cookies, byte cap, private temporary
+      file, sniffed metadata, cancellation and cleanup; fake HTTP regressions.
+- [ ] Lazy accessible picker/drop/paste, upload Stop and recording preview UI;
+      browser recording uses R3's injected port, with explicit audio choices.
+- [ ] Native `attachments/*` adapter behind a validated injected MHP port;
+      JCEF, WebView2 and SWT fake bridges, with no bytes in bridge frames.
+- [ ] Muse Code refuses video/audio pending U16; prepare safe lazy video
+      presentation from approved resources without inventing MSP content.
+- [ ] Byte-exact red drills, scoped default-timeout verification, local
+      hook-on commits and certification; no paid/live calls or branch merges.
+
 **M2 review corrections (RVM105M2, 2026-10-06).** Fix all three P2 findings
 within the existing media gate/replay/host regions. Select the actual inline
 or Files route before checking its byte limit, including replay promotions.
@@ -20074,6 +20094,14 @@ Each joins when its dependency merges, and none blocks the others.
         full gate green
 
 ## 7. Gates
+
+**M105-E3 gate scope (2026-10-06).** The rig brief forbids full quality
+and full unit runs, and reserves integration for the lead. Run focused tests
+with repository-default timeouts and all named lane checks directly on linuxlt.
+Keep inherited W-owned bundle/split/host-record failures enforced; add no cap,
+ignore or weakened rule. New lazy browser/runtime entries await W binding.
+Receipts and doc/reference handoffs:
+`docs/certification/m105-e3-companion,-native-plugins,-muse-code-(a,-d).md`.
 
 **M105-M2 follow-up gate scope (RVM105M2, 2026-10-06).** The rig brief
 reserves full quality/full-unit and integrated cross-platform certification
