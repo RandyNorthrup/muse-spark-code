@@ -2776,7 +2776,8 @@
     "out": "--out <file>         Zapisać raport do pliku zamiast na stdout",
     "description": "--description <text>  Co się działo, własnymi słowami",
     "no-facts": "--no-facts           Pominąć dane wsparcia",
-    "no-events": "--no-events          Pominąć ostatnie zdarzenia"
+    "no-events": "--no-events          Pominąć ostatnie zdarzenia",
+    "from": "--from <directory>  Zainstalować pakiet czcionek z tego katalogu."
   },
   "referenceExecImages": "Obrazy bez interfejsu wymagają --image-generation, acceptEdits i wystarczającego twardego budżetu. Nie ma pytania o cenę; żądania wymagające uprawnienia są odrzucane.",
   "referencePopoverKeys": "Przeglądaj opcje, zmień wartość, wybierz opcję albo zamknij menu.",

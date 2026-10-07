@@ -2584,7 +2584,8 @@
     "out": "--out <file>         A jelentés fájlba írása stdout helyett",
     "description": "--description <text>  Mi történt, saját szavakkal",
     "no-facts": "--no-facts           A támogató tények kihagyása",
-    "no-events": "--no-events          A legutóbbi események kihagyása"
+    "no-events": "--no-events          A legutóbbi események kihagyása",
+    "from": "--from <directory>  A betűkészletcsomag telepítése ebből a könyvtárból."
   },
   "referenceExecImages": "A felület nélküli képekhez --image-generation, acceptEdits és elegendő szigorú keret szükséges. Nincs árjóváhagyási kérdés; az engedélyköteles kérések elutasításra kerülnek.",
   "referencePopoverKeys": "Opciók bejárása, érték módosítása, kiválasztás vagy a menü bezárása.",

@@ -248,7 +248,7 @@ function parseFonts(argv: readonly string[]): RuntimeCommand {
       args: [...argv],
       allowPositionals: true,
       strict: true,
-      options: { from: { type: 'string' }, help: { type: 'boolean', short: 'h' } },
+      options: CLI_OPTION_REGISTRY.fontsInstall.options,
     })
     if (values.help === true) return { command: 'help' }
     if (positionals.length === 1 && positionals[0] === 'install' && values.from !== '')

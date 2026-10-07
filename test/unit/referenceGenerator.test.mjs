@@ -1104,6 +1104,7 @@ describe('RVHELPREF2 runtime truth regressions', () => {
       'questions-defer-after': '60',
       out: '/tmp/report',
       description: 'description',
+      from: '/tmp/fonts',
     }
     const rows = build().cli
     for (const [route, definition] of Object.entries(source.CLI_OPTION_REGISTRY)) {
@@ -1117,6 +1118,7 @@ describe('RVHELPREF2 runtime truth regressions', () => {
         if (route === 'serve') command = []
         else if (route.startsWith('auth'))
           command = ['auth', { authSet: 'set', authStatus: 'status', authClear: 'clear' }[route]]
+        else if (route === 'fontsInstall') command = ['fonts', 'install']
         let args = [...command]
         if (['serve', 'login', 'setup', 'authSet', 'authStatus', 'authClear'].includes(route)) {
           args.push('--backend', 'modelApi', ...(route === 'setup' ? ['--trust-workspace'] : []))

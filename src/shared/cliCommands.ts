@@ -58,6 +58,12 @@ export function cliCommands() {
       text: { ui: 'reportUsage' },
     },
     {
+      route: 'fontsInstall',
+      name: 'fonts install [--from <directory>]',
+      description: UI_TEXT.acpFontsUsage,
+      text: { ui: 'acpFontsUsage' },
+    },
+    {
       route: 'help',
       name: 'help --all',
       description: UI_TEXT.referenceIntro,

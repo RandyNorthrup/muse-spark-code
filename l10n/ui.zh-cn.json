@@ -2488,7 +2488,8 @@
     "out": "--out <file>         将报告写入文件而不是 stdout",
     "description": "--description <text>  用自己的话描述当时发生了什么",
     "no-facts": "--no-facts           不包含支持信息",
-    "no-events": "--no-events          不包含最近事件"
+    "no-events": "--no-events          不包含最近事件",
+    "from": "--from <directory>  从此目录安装字体包。"
   },
   "referenceExecImages": "无界面图像需要 --image-generation、acceptEdits 和充足的硬性预算。不显示价格确认问题；需要许可的请求会被拒绝。",
   "referencePopoverKeys": "浏览选项、调整值、选择选项或关闭菜单。",

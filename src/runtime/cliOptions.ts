@@ -73,6 +73,11 @@ const REPORT_OPTIONS = {
   help: { type: 'boolean', short: 'h' },
 } as const satisfies CliParserOptions
 
+const FONTS_OPTIONS = {
+  from: { type: 'string' },
+  help: { type: 'boolean', short: 'h' },
+} as const satisfies CliParserOptions
+
 export const CLI_OPTION_REGISTRY = {
   serve: { options: COMMON_OPTIONS },
   login: { options: COMMON_OPTIONS },
@@ -83,6 +88,7 @@ export const CLI_OPTION_REGISTRY = {
   exec: { options: EXEC_OPTIONS },
   'scan-secrets': { options: SCAN_OPTIONS },
   report: { options: REPORT_OPTIONS },
+  fontsInstall: { options: FONTS_OPTIONS },
 } as const
 
 // The description map is exhaustive over the parser's option names. It never
@@ -118,12 +124,14 @@ export const CLI_OPTION_TEXT = {
   description: 'description',
   'no-facts': 'no-facts',
   'no-events': 'no-events',
+  from: 'from',
 } as const satisfies Readonly<
   Record<
     | keyof typeof COMMON_OPTIONS
     | keyof typeof EXEC_OPTIONS
     | keyof typeof SCAN_OPTIONS
-    | keyof typeof REPORT_OPTIONS,
+    | keyof typeof REPORT_OPTIONS
+    | keyof typeof FONTS_OPTIONS,
     keyof UiText['referenceCliOptions']
   >
 >

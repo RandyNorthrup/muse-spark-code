@@ -2680,7 +2680,8 @@
     "out": "--out <file>         Escribir el informe en un archivo en lugar de stdout",
     "description": "--description <text>  Qué estaba pasando, en tus palabras",
     "no-facts": "--no-facts           Omitir los datos de soporte",
-    "no-events": "--no-events          Omitir los eventos recientes"
+    "no-events": "--no-events          Omitir los eventos recientes",
+    "from": "--from <directory>  Instalar el paquete de fuentes desde este directorio."
   },
   "referenceExecImages": "Las imágenes sin interfaz requieren --image-generation, acceptEdits y un presupuesto estricto suficiente. No se pregunta por el precio; se rechazan las solicitudes que requieren permiso.",
   "referencePopoverKeys": "Recorrer opciones, ajustar un valor, elegir una opción o cerrar el menú.",

@@ -2776,7 +2776,8 @@
     "out": "--out <file>         Zapsat zprávu do souboru místo na stdout",
     "description": "--description <text>  Co se dělo, vlastními slovy",
     "no-facts": "--no-facts           Vynechat podpůrná fakta",
-    "no-events": "--no-events          Vynechat nedávné události"
+    "no-events": "--no-events          Vynechat nedávné události",
+    "from": "--from <directory>  Nainstalovat balíček písem z tohoto adresáře."
   },
   "referenceExecImages": "Obrázky bez rozhraní vyžadují --image-generation, acceptEdits a dostatečný pevný rozpočet. Cena se nepotvrzuje; požadavky vyžadující oprávnění jsou odmítnuty.",
   "referencePopoverKeys": "Procházet možnosti, upravit hodnotu, vybrat možnost nebo zavřít nabídku.",

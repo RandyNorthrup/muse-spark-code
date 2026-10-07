@@ -2488,7 +2488,8 @@
     "out": "--out <file>         stdoutの代わりにファイルにレポートを書き込む",
     "description": "--description <text>  何が起きていたかを自分の言葉で",
     "no-facts": "--no-facts           サポート情報を省く",
-    "no-events": "--no-events          最近のイベントを省く"
+    "no-events": "--no-events          最近のイベントを省く",
+    "from": "--from <directory>  このディレクトリからフォントパックをインストールします。"
   },
   "referenceExecImages": "ヘッドレス画像には --image-generation、acceptEdits、十分な厳格な予算が必要です。価格の確認は表示されず、許可が必要な要求は拒否されます。",
   "referencePopoverKeys": "選択肢を移動し、値を調整し、選択するか、メニューを閉じます。",
