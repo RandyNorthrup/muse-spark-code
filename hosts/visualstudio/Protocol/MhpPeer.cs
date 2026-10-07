@@ -42,6 +42,7 @@ namespace MuseSpark.VisualStudio.Protocol
     {
       public string Method { get; }
       public TaskCompletionSource<JToken> Completion { get; }
+      public bool ReplyReceived { get; set; }
       public Pending(string method, TaskCompletionSource<JToken> completion) { Method = method; Completion = completion; }
     }
 
@@ -212,13 +213,17 @@ namespace MuseSpark.VisualStudio.Protocol
           cancelledRequests.Remove(IdKey(id));
           return;
         }
+        if (request.ReplyReceived || (request.Completion.Task.IsCompleted && !request.Completion.Task.IsCanceled)) throw new MhpException("invalidRequest", "MHP_DUPLICATE_RESPONSE");
         try
         {
-          if (frame["error"] != null) { contract.ValidateFailure(frame); request.Completion.TrySetException(new MhpException("internalError", frame["error"]?.Value<string>("message") ?? "MHP_RUNTIME_FAILED")); }
+          if (frame["error"] != null) contract.ValidateFailure(frame);
+          else contract.ValidateResult(request.Method, frame);
+          request.ReplyReceived = true;
+          // Cancellation can be waiting for its notification write while a valid reply arrives.
+          if (request.Completion.Task.IsCanceled) return;
+          if (frame["error"] != null) request.Completion.TrySetException(new MhpException("internalError", frame["error"]?.Value<string>("message") ?? "MHP_RUNTIME_FAILED"));
           else
           {
-            contract.ValidateResult(request.Method, frame);
-            if (request.Completion.Task.IsCompleted) throw new MhpException("invalidRequest", "MHP_DUPLICATE_RESPONSE");
             if (request.Method == "initialize")
             {
               if (stopped) throw new MhpException("cancelled", "MHP_DISCONNECTED");
@@ -229,7 +234,7 @@ namespace MuseSpark.VisualStudio.Protocol
             request.Completion.TrySetResult(frame["result"] ?? JValue.CreateNull());
           }
         }
-        catch (MhpException error) { request.Completion.TrySetException(error); }
+        catch (MhpException error) { if (request.Completion.Task.IsCanceled) throw; request.Completion.TrySetException(error); }
       }
     }
 
@@ -256,7 +261,7 @@ namespace MuseSpark.VisualStudio.Protocol
           catch (OperationCanceledException) { wasCancelled = true; if (method != "initialize") await NotifyAsync("$/cancelRequest", new JObject { ["id"] = id }).ConfigureAwait(false); throw; }
         }
       }
-      finally { lock (stateLock) { pending.Remove(IdKey(id)); if (wasCancelled && cancelledRequests.Count < MaximumRequestIds) cancelledRequests.Add(IdKey(id), method); } }
+      finally { lock (stateLock) { pending.Remove(IdKey(id)); if (wasCancelled && !request.ReplyReceived && cancelledRequests.Count < MaximumRequestIds) cancelledRequests.Add(IdKey(id), method); } }
     }
 
     public Task NotifyAsync(string method, JObject parameters)

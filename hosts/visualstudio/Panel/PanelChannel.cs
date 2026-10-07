@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 using MuseSpark.VisualStudio.Protocol;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -13,10 +14,12 @@ namespace MuseSpark.VisualStudio.Panel
     private readonly MhpPeer peer;
     private readonly SchemaContract contract;
     private readonly JObject binding;
+    private readonly string themeScript;
     private readonly SemaphoreSlim sending = new SemaphoreSlim(1);
     private long outgoing;
     private long incoming;
     private bool ready;
+    private bool hasBeenReady;
     private bool disposed;
     public string SurfaceId => binding.Value<string>("surface") ?? throw Invalid();
     public string SurfaceKind => binding.Value<string>("surfaceKind") ?? throw Invalid();
@@ -37,23 +40,51 @@ namespace MuseSpark.VisualStudio.Panel
       });
       window.addEventListener('pagehide', () => listeners.clear(), { once: true });
     })();";
-    public string DocumentBootstrap => Bootstrap;
+    public string DocumentBootstrap => Bootstrap + themeScript;
 
-    public PanelChannel(MhpPeer peer, SchemaContract contract, string surface, string session, string kind)
+    public PanelChannel(MhpPeer peer, SchemaContract contract, string surface, string session, string kind, JObject? theme = null)
     {
       this.peer = peer; this.contract = contract;
       binding = new JObject { ["surface"] = surface, ["sessionId"] = session, ["surfaceKind"] = kind };
       contract.ValidatePanel(binding, "binding");
+      themeScript = theme == null ? "" : ThemeBootstrap(contract, theme);
       peer.PanelReceived += Receive;
     }
 
-    public Task OpenAsync() => LifecycleAsync("opened");
-    public Task ReloadAsync()
+    public static string ThemeBootstrap(SchemaContract contract, JObject theme)
     {
-      ready = false;
-      var frame = LifecycleFrame("reloaded");
-      frame["stateRequest"] = SurfaceKind == "whatsNew" ? JValue.CreateNull() : new JObject { ["type"] = SurfaceKind == "tasks" ? "tasksReady" : "ready" };
-      return peer.PostPanelAsync(frame);
+      SchemaContract.Validate(theme, contract.Method("initialize")["call"]?["properties"]?["params"]?["properties"]?["theme"] ?? throw Invalid());
+      var kind = theme.Value<string>("kind") ?? throw Invalid();
+      var cssKind = kind == "highContrastLight" ? "hc-light" : kind == "highContrastDark" ? "hc-dark" : kind;
+      var tokens = new JObject();
+      foreach (var property in (theme["tokens"] as JObject ?? throw Invalid()).Properties())
+      {
+        var value = property.Value.Value<string>() ?? throw Invalid();
+        if (Regex.IsMatch(value, @"[;{}<>@]|url\s*\(", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1))) throw Invalid();
+        var name = Regex.Replace(property.Name.Replace("--muse-", "--ms-"), "[A-Z]", match => "-" + match.Value.ToLowerInvariant());
+        tokens[name] = value;
+      }
+      var data = new JObject { ["kind"] = cssKind, ["tokens"] = tokens }.ToString(Formatting.None);
+      // The script is installed by WebView2 before document creation, not as HTML.
+      return "(() => { const theme = " + data + @"; const apply = () => {
+        document.documentElement.dataset.theme = theme.kind;
+        for (const [name, value] of Object.entries(theme.tokens)) document.documentElement.style.setProperty(name, value);
+      }; if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply, { once: true }); else apply(); })();";
+    }
+
+    public Task OpenAsync() => LifecycleAsync("opened");
+    public async Task ReloadAsync()
+    {
+      await sending.WaitAsync().ConfigureAwait(false);
+      try
+      {
+        if (disposed) throw new MhpException("cancelled", "MHP_SURFACE_CLOSED");
+        ready = false;
+        var frame = LifecycleFrame("reloaded");
+        frame["stateRequest"] = SurfaceKind == "whatsNew" ? JValue.CreateNull() : new JObject { ["type"] = SurfaceKind == "tasks" ? "tasksReady" : "ready" };
+        await peer.PostPanelAsync(frame).ConfigureAwait(false);
+      }
+      finally { sending.Release(); }
     }
 
     public JToken ParseWebviewMessage(string json)
@@ -81,6 +112,7 @@ namespace MuseSpark.VisualStudio.Panel
           if (message.Value<string>("type") != (SurfaceKind == "tasks" ? "tasksReady" : "ready")) throw Invalid();
           await LifecycleAsync("ready").ConfigureAwait(false);
           ready = true;
+          hasBeenReady = true;
         }
         var envelope = new JObject
         {
@@ -103,7 +135,8 @@ namespace MuseSpark.VisualStudio.Panel
       if (frame.Value<string>("kind") == "panelError") throw new MhpException("invalidRequest", frame.Value<string>("code") ?? "MHP_PANEL_INVALID_ENVELOPE");
       if (frame.Value<string>("kind") != "panel") return;
       contract.ValidatePanel(frame, "envelope");
-      if (!ready || frame.Value<string>("direction") != "toPanel" || frame.Value<long>("seq") != incoming + 1) throw Invalid();
+      // Replies already in flight may enter the bounded inbox during reload.
+      if (!hasBeenReady || frame.Value<string>("direction") != "toPanel" || frame.Value<long>("seq") != incoming + 1) throw Invalid();
       var payload = ParseRuntimeMessage(frame["payload"] ?? throw Invalid());
       incoming++;
       MessageReceived?.Invoke(this, payload);

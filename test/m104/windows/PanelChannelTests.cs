@@ -73,10 +73,13 @@ namespace MuseSpark.VisualStudio.Test
           await peer.ReceiveAsync(Envelope(1).ToString(Formatting.None));
           Assert.AreEqual("fixture", delivered?.Value<string>("text"));
           await channel.ReloadAsync();
+          // A runtime response dispatched before reload can arrive before the new page's ready.
+          await peer.ReceiveAsync(Envelope(2).ToString(Formatting.None));
           await channel.PostAsync(channel.ParseWebviewMessage("{\"type\":\"ready\"}"), CancellationToken.None);
           Assert.AreEqual(2L, Last(output).Value<long>("seq"));
-          await peer.ReceiveAsync(Envelope(2).ToString(Formatting.None));
+          await peer.ReceiveAsync(Envelope(3).ToString(Formatting.None));
           await channel.CloseAsync();
+          await Assert.ThrowsExceptionAsync<MhpException>(() => channel.ReloadAsync());
           Assert.AreEqual("closed", Last(output).Value<string>("event"));
           await Assert.ThrowsExceptionAsync<MhpException>(() => channel.PostAsync(new JObject { ["type"] = "ready" }, CancellationToken.None));
         }

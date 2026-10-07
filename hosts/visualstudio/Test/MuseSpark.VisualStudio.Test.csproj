@@ -13,6 +13,7 @@
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" />
     <Compile Include="..\Protocol\*.cs" Link="Protocol\%(Filename)%(Extension)" />
     <Compile Include="..\Editor\EditPlan.cs" Link="Editor\EditPlan.cs" />
+    <Compile Include="..\Editor\DocumentPath.cs" Link="Editor\DocumentPath.cs" />
     <Compile Include="..\Editor\CompletionPlan.cs" Link="Editor\CompletionPlan.cs" />
     <Compile Include="..\Panel\AssetPolicy.cs" Link="Panel\AssetPolicy.cs" />
     <Compile Include="..\Panel\RuntimeProcess.cs" Link="Panel\RuntimeProcess.cs" />

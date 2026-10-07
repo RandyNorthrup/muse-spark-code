@@ -20,6 +20,13 @@ Additional concrete requests:
   central test/dead-code graph as actual entries, alongside the namespace
   include. No ignore or gate reduction. The lane-local config runs Windows
   suites meanwhile; plain knip must see the same reachable graph.
+- A: include `test/m104/windows/bootstrapFixture.mjs` as a real process
+  entry; the native theme suite executes it from C# over private standard
+  input. This is executable test code, not an unused file or an ignore.
+- A/C: define the existing-contract route for metadata refresh after a native
+  host theme changes. Current initialize carries its actual theme once; the
+  native page now applies all four initial kinds and mapped CSS tokens.
+  Installed theme-switch/reconfiguration receipts remain open.
 - A/F: bring the help-reference machinery onto this base.
   `src/shared/featureCatalog.ts`, `scripts/gen-reference.mjs` and the
   `check:reference` npm script are absent at `74b99c4a0`.

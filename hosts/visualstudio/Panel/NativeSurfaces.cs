@@ -28,6 +28,7 @@ namespace MuseSpark.VisualStudio.Panel
     private int nextWindow;
     private bool disposed;
     public MhpPeer? Peer { private get; set; }
+    public JObject? Theme { private get; set; }
 
     public NativeSurfaces(AsyncPackage package, string assets, UiText text, NativeUi ui) { this.package = package; this.assets = assets; this.text = text; this.ui = ui; }
     public async Task<JToken> InvokeAsync(string method, JObject parameters, CancellationToken cancellation)
@@ -43,7 +44,7 @@ namespace MuseSpark.VisualStudio.Panel
         var id = "visual-studio:" + Guid.NewGuid().ToString("N");
         var window = await package.ShowToolWindowAsync(typeof(MuseToolWindow), nextWindow++, true, cancellation) as MuseToolWindow ?? throw Invalid();
         var frame = window.Frame as IVsWindowFrame ?? throw Invalid();
-        var channel = new PanelChannel(Peer ?? throw Invalid(), SchemaContract.Load(), id, session, kind);
+        var channel = new PanelChannel(Peer ?? throw Invalid(), SchemaContract.Load(), id, session, kind, Theme ?? throw Invalid());
         var view = new PanelView(channel, package.JoinableTaskFactory);
         try
         {

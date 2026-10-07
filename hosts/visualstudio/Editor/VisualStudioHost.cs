@@ -155,7 +155,7 @@ namespace MuseSpark.VisualStudio.Editor
     {
       ThreadHelper.ThrowIfNotOnUIThread();
       var path = FilePath(uri);
-      var document = tracked.Values.FirstOrDefault(d => string.Equals(d.FilePath, path, StringComparison.OrdinalIgnoreCase));
+      var document = tracked.Values.FirstOrDefault(d => DocumentPath.Equal(d.FilePath, path));
       if (document != null) return document;
       var view = Open(uri);
       if (!documents.TryGetTextDocument(view.TextBuffer, out document)) throw new MhpException("invalidParams", "MHP_DOCUMENT_UNAVAILABLE");
@@ -173,11 +173,7 @@ namespace MuseSpark.VisualStudio.Editor
       return view;
     }
 
-    private static string FilePath(string source)
-    {
-      if (!Uri.TryCreate(source, UriKind.Absolute, out var uri) || !uri.IsFile || uri.IsUnc) throw Invalid();
-      return uri.LocalPath;
-    }
+    private static string FilePath(string source) => DocumentPath.Parse(source);
 
     private void Refresh()
     {
@@ -300,7 +296,7 @@ namespace MuseSpark.VisualStudio.Editor
       if (readRemaining != 0 || editRemaining != 0) return VSConstants.S_OK;
       ErrorHandler.ThrowOnFailure(rdt.GetDocumentInfo(docCookie, out _, out _, out _, out var moniker, out _, out _, out var data));
       if (data != IntPtr.Zero) Marshal.Release(data);
-      var document = tracked.Values.FirstOrDefault(d => string.Equals(d.FilePath, moniker, StringComparison.OrdinalIgnoreCase));
+      var document = tracked.Values.FirstOrDefault(d => DocumentPath.Equal(d.FilePath, moniker));
       if (document != null)
       {
         document.TextBuffer.Changed -= BufferChanged; document.FileActionOccurred -= FileAction;

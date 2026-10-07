@@ -15,7 +15,9 @@ does not collect or store API keys.
 
 The in-process relay uses the export's panel envelopes, immutable surface bindings,
 direction checks and independent sequence numbers. WebView2 loads the portable
-React entry. Chat and Tasks have native containers; the surfaces capability remains
+React entry with the host's initial theme kind and mapped CSS tokens. Its inbox
+is bounded by both message count and UTF-8 bytes; responses already in flight
+remain valid during reload. Chat and Tasks have native containers; the surfaces capability remains
 undeclared until all auxiliary kinds and placements are implemented. The runtime
 therefore refuses an assembled native panel at this checkpoint. Solution trust
 starts false; native trust transitions still need their adapter. See
@@ -53,7 +55,7 @@ The headless suite exercises the actual MHP peer, exported-schema validator,
 edit/completion planners, message inbox and asset/environment policy. A fake
 runtime runs through the production Windows job helper and creates a real
 descendant; shutdown must terminate both. Tests inspect the built VSIX and its
-localized pages. All fakes are confined to `Test/`.
+localized pages. All fakes are confined to test directories.
 
 The Windows namespace also exercises real WPF consent dialogs: the supplied
 price/budget and all choices are visible, Deny preserves its opaque ID, there

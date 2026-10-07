@@ -79,6 +79,12 @@ namespace MuseSpark.VisualStudio
           var background = VSColorTheme.GetThemedColor(EnvironmentColors.ToolWindowBackgroundColorKey);
           var foreground = VSColorTheme.GetThemedColor(EnvironmentColors.ToolWindowTextColorKey);
           var isLight = background.GetBrightness() > 0.5;
+          var theme = new JObject
+          {
+            ["kind"] = System.Windows.SystemParameters.HighContrast ? (isLight ? "highContrastLight" : "highContrastDark") : (isLight ? "light" : "dark"),
+            ["tokens"] = new JObject { ["--muse-editorBackground"] = Color(background), ["--muse-foreground"] = Color(foreground) }
+          };
+          surfaces.Theme = theme;
           var version = (await GetServiceAsync(typeof(EnvDTE.DTE)) as EnvDTE.DTE)?.Version ?? throw new InvalidOperationException("MHP_HOST_VERSION_UNAVAILABLE");
           await runtime.Peer.InitializeAsync(new JObject
           {
@@ -86,11 +92,7 @@ namespace MuseSpark.VisualStudio
             ["protocolRange"] = SchemaContract.Load().Export["range"]?.DeepClone(),
             ["capabilities"] = new JArray(host.Capabilities),
             ["locale"] = text.Locale,
-            ["theme"] = new JObject
-            {
-              ["kind"] = System.Windows.SystemParameters.HighContrast ? (isLight ? "highContrastLight" : "highContrastDark") : (isLight ? "light" : "dark"),
-              ["tokens"] = new JObject { ["--muse-bg"] = Color(background), ["--muse-fg"] = Color(foreground) }
-            },
+            ["theme"] = theme,
             ["folders"] = new JArray(new JObject { ["uri"] = new Uri(workspace + Path.DirectorySeparatorChar).AbsoluteUri, ["name"] = new DirectoryInfo(workspace).Name }),
             // No implicit solution-trust grant; a native trust adapter is a separate checkpoint.
             ["trusted"] = false

@@ -100,7 +100,7 @@ namespace MuseSpark.VisualStudio.Panel
       }
       Button(text["questionCancel"], () => window.Close(), true);
       content.Children.Add(buttons); window.Content = content;
-      // No default allow button: Enter cannot turn a priced prompt into consent.
+      // No default Allow button; choices keep their supplied opaque IDs.
       using (cancellation.Register(() => Observe(async () => { await factory.SwitchToMainThreadAsync(); window.Close(); }))) window.ShowDialog();
       cancellation.ThrowIfCancellationRequested();
       return result;
@@ -109,7 +109,10 @@ namespace MuseSpark.VisualStudio.Panel
     private JToken UpdateStatus(string method, JObject parameters)
     {
       RequireUIThread();
-      var id = parameters.Value<string>("id") ?? throw Invalid();
+      var identifier = parameters["id"] ?? throw Invalid();
+      var id = identifier.Type == JTokenType.Integer || identifier.Type == JTokenType.Float
+        ? "number:" + identifier.Value<long>().ToString(System.Globalization.CultureInfo.InvariantCulture)
+        : "string:" + identifier.Value<string>();
       var visible = method == "ui/status" ? parameters.Value<bool>("visible") : !parameters.Value<bool>("done");
       if (status.TryGetValue(id, out var previous)) { status.Remove(id); previous.Close(); }
       if (!visible) return JValue.CreateNull();

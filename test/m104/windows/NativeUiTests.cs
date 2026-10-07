@@ -44,7 +44,7 @@ namespace MuseSpark.VisualStudio.Test
         }
       };
       EventManager.RegisterClassHandler(typeof(Window), FrameworkElement.LoadedEvent, loaded);
-      // The handler has no reference to the dialog and only observes this unique test title.
+      // A unique title scopes the observer to this fixture's window.
       return () => failure;
     }
     private static UiText Text() => new UiText(Path.Combine(RuntimeAndPackageTests.PluginRoot(), "assets"));
@@ -107,6 +107,32 @@ namespace MuseSpark.VisualStudio.Test
           }
           finally { if (timer() is Exception failure) throw failure; }
         }
+      });
+    }
+
+    [TestMethod]
+    // Real status windows require the native STA desktop message pump.
+    [Timeout(10000)]
+    public async Task StatusIdsRetainTheirJsonTypeAndDisposeClosesEveryWindow()
+    {
+      await OnStaAsync(context =>
+      {
+        var numericTitle = Guid.NewGuid().ToString("N");
+        var stringTitle = Guid.NewGuid().ToString("N");
+        Window? numeric = null; Window? textId = null;
+        var first = Inspect(numericTitle, window => numeric = window);
+        var second = Inspect(stringTitle, window => textId = window);
+        using (var ui = new NativeUi(context.Factory, Text(), identifier => Assert.Fail(identifier)))
+        {
+          context.Factory.Run(() => ui.InvokeAsync("ui/status", new JObject { ["id"] = 1, ["text"] = numericTitle, ["visible"] = true }, CancellationToken.None));
+          context.Factory.Run(() => ui.InvokeAsync("ui/status", new JObject { ["id"] = "1", ["text"] = stringTitle, ["visible"] = true }, CancellationToken.None));
+          Assert.IsTrue(numeric?.IsVisible == true); Assert.IsTrue(textId?.IsVisible == true);
+          context.Factory.Run(() => ui.InvokeAsync("ui/status", new JObject { ["id"] = 1.0, ["text"] = numericTitle, ["visible"] = false }, CancellationToken.None));
+          Assert.IsFalse(numeric?.IsVisible == true); Assert.IsTrue(textId?.IsVisible == true);
+        }
+        Assert.IsFalse(textId?.IsVisible == true);
+        if (first() is Exception failure) throw failure;
+        if (second() is Exception other) throw other;
       });
     }
   }
