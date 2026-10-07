@@ -18789,6 +18789,23 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### CI0150M — Round 3 macOS CI repairs (2026-10-07, macmini)
+
+- [x] Reproduce the journal coverage timeout and companion authentication race;
+      replace per-byte JavaScript newline scanning with typed-array searches,
+      retaining every line, size, UTF-8, version and schema check. Prepare the
+      full benchmark in `beforeAll` at the default hook deadline. Control the
+      browser fixture's server clock so valid sessions do not expire under load;
+      expiry remains an explicit clock advance, with real browser/socket timers.
+- [ ] Reproduce static gates and the native dictation build/disclaim job. Fix
+      causes without changing gates, budgets, test deadlines or assertions.
+- [ ] Commit locally with normal hooks and explicit paths, then verify all four
+      coverage shards, merged coverage and every macOS pull-request workflow job
+      from fresh clones with Node 22 and `CI=true`, including installed packages.
+- [ ] Record macOS round 3 results and byte-exact regression drills in
+      `docs/certification/train-0.15.0.md`. No merge, rebase, push, credential
+      disclosure, live or paid model call is authorized.
+
 ### FIX0150R — Release review repairs for runners and usage (2026-10-07, macmini)
 
 Repair PR #136 threads PRRT_kwDOUkzj5M6p1xVd, PRRT_kwDOUkzj5M6p1xVm

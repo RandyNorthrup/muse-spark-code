@@ -1863,3 +1863,46 @@ VSIX gate. **The existing 2,841,600-byte cap and every bundle cap remain unchang
 No projection from helperless bytes certifies that calculation. Aggregate
 quality, hosted/platform/native screen-reader checks and public-network checks
 remain lead-owned; no push, tag, publication, live or paid model call occurred.
+
+## CI round 3 — macOS (CI0150M, 2026-10-07)
+
+Source starts at `f033583e2` on `fix/0150-ci-m`, macmini (Intel). Hosted run
+`37606030298` reports the actual native compile successful; the failed
+“dictation helper (macos)” is the aggregate requiring every selected-tier job.
+The static job was cancelled, rather than a recorded compiler/linter failure.
+GitHub permits job metadata but refuses log download (403, admin rights).
+
+### Repairs and initial evidence
+
+With `CI=true`, both owning files reproduce the journal benchmark's 5,000 ms
+timeout under V8 coverage (5,108 ms). Trusted-root canonicalization is already
+cached; no linked-path guard is removed. Native typed-array newline search
+replaces the JavaScript per-byte loop. Full 30 × 2,000 on-disk record creation
+and the validated cold read move into `beforeAll` at the unchanged default hook
+deadline. The test still requires both reads to contain 60,000 records, zero
+warm byte reads and at most 300 ms. Final initial warm read is 86 ms.
+
+Companion browser fixtures control only `Date.now`, leaving real navigation,
+sockets and request timers. Valid credentials survive runner delays without a
+longer TTL; the expired-code case advances credential time explicitly. Existing
+fragment secrecy, independent sessions, no storage/cookies, cross-runtime bearer
+refusal and inaccessible foreign origins remain asserted. Node 22.23.3 matches
+CI's major version; its official x64 archive matches the published SHA-256
+`8a677b0219178efd6eb0e475457c4afb452b521a92f6e67845a73bd85727f2a8`.
+
+Initial complete owning files pass **28/28** with `CI=true`, `--maxWorkers=3`,
+V8 coverage and repository defaults (no `--testTimeout`). Scoped ESLint exits
+zero. Both native commands pass: universal arm64/x86_64 build, embedded version
+0.15.0, and SIGTERM relayed to the disclaimed copy with parent exit 143.
+
+Drills run against complete owning files and restore exact source bytes:
+
+- Advance the newline offset by two: **5 journal assertions fail / 14 pass**,
+  including multi-line counts, UTF-8 tails and the benchmark. Restored store
+  SHA-256 `b8d3177011f616c7db2f08723d98277fda72c69071419827b009a55f36d117e5`.
+- Prune every newly issued bearer: **3 browser cases fail / 6 pass**, including
+  independent tabs and runtimes. Restored sessions SHA-256
+  `a43de97173bdfef1ca5da3ccc4427725aacf0fdbf6efed98e13b85a119922ab5`.
+
+Full fresh-clone job results follow after the local repair commit; initial
+scoped results alone do not certify CI, merged coverage or aggregate quality.
