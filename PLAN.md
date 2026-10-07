@@ -28757,6 +28757,8 @@ active prompt busy if commit persistence fails. Certify real-registry,
 durable-file regressions against `64f0e8ed7`, then fresh-clone CI checks
 three times with default timeouts and unchanged gates/budgets. Existing
 planner/editor handoffs remain the next implementation slice.
+The crash test's child is an explicit Knip entry because its esbuild path
+is executable test input, which Knip cannot trace; no ignore or rule changes.
 
 **Round-three redesign (FIXM116I3, 2026-10-07).** Replace the destructive
 ACP queued-answer read with an exclusive, non-destructive token lease.
