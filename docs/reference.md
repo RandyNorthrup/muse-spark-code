@@ -275,7 +275,8 @@ Installed skills add dynamic slash commands. This static reference does not list
   "clientRequests": ["session/request_permission", "elicitation/create"],
   "configOptions": {
     "model": "model",
-    "effort": "effort"
+    "effort": "effort",
+    "account": "account"
   },
   "permissionModes": ["manual", "acceptEdits", "plan", "auto", "bypassPermissions"],
   "bypassFlag": "--allow-dangerously-skip-permissions",
@@ -411,6 +412,14 @@ secretDetected: When a prompt contains a detected secret, the transcript redacts
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: `museSpark.signOut`, `museSpark.restartMuseCode`, `museSpark.openInTerminal`. Settings: `museSpark.backend`, `museSpark.museBinaryPath`, `museSpark.environmentVariables`, `museSpark.modelApiReplyUsage`, `museSpark.modelApiSessionBudgetUsd`, `museSpark.confidentialWorkspace`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#get-started)
+
+### Several accounts per provider
+
+Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input.
+
+Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: `museSpark.accountSwap`, `museSpark.accountParallel`, `museSpark.accounts.severalOnThisDevice`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#several-accounts-per-provider)
 
 ### Permission mode
 
@@ -2540,6 +2549,45 @@ Type: `"integer"`. Default: `60`. Scope: `machine`.
 }
 ```
 
+### museSpark.accountSwap
+
+Swap to the next account with room at the next request boundary after a threshold trip. Each account keeps its own limits. On by default; only this machine’s setting is used.
+
+Type: `"boolean"`. Default: `true`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": true
+}
+```
+
+### museSpark.accountParallel
+
+Spread background work across accounts by headroom; each worker sticks to its account. On by default; only this machine’s setting is used.
+
+Type: `"boolean"`. Default: `true`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": true
+}
+```
+
+### museSpark.accounts.severalOnThisDevice
+
+Allow several accounts of one provider on this PC for testing, each in its own isolated local profile. Turning it on asks the provider’s vendor-terms confirmation first. Off by default; only this machine’s setting is used.
+
+Type: `"boolean"`. Default: `false`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": false
+}
+```
+
 ## Keyboard shortcuts
 
 These are defaults; editor customizations take precedence.
@@ -2586,6 +2634,8 @@ These are defaults; editor customizations take precedence.
 - `setup`: Run Setup hooks for init from spark-hooks.json in a trusted workspace.
 - `exec`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.
 - `scan-secrets`: Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.
+- `providers accounts`: Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input.
+- `developer`: Show developer options, unlock them, or manage isolated local testing profiles on this machine.
 - `report`: Usage:
   muse-spark-code-acp report [--out &lt;file&gt;] [--description &lt;text&gt;] [--no-facts] [--no-events]
   Prints the scrubbed problem report to stdout, or writes it to &lt;file&gt; with --out.
@@ -2599,6 +2649,8 @@ These are defaults; editor customizations take precedence.
 - `help / --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.
 - `--version / -v`: Print the installed agent version.
 - `serve: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode"}`
+- `serve: --provider <value>`: --provider &lt;id&gt; The provider the account belongs to (auth set, serve). `{"type":"string","repeatable":false}`
+- `serve: --account <value>`: --account &lt;id&gt; The account to use (auth set, serve, exec). `{"type":"string","repeatable":false}`
 - `serve: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --maintenance`: Run the Setup maintenance event instead of init. `{"type":"boolean","refused":true,"repeatable":false,"default":false}`
 - `serve: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false}`
@@ -2612,6 +2664,8 @@ These are defaults; editor customizations take precedence.
 - `serve: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `login: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
+- `login: --provider <value>`: --provider &lt;id&gt; The provider the account belongs to (auth set, serve). `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `login: --account <value>`: --account &lt;id&gt; The account to use (auth set, serve, exec). `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `login: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --maintenance`: Run the Setup maintenance event instead of init. `{"type":"boolean","refused":true,"repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false}`
@@ -2625,6 +2679,8 @@ These are defaults; editor customizations take precedence.
 - `login: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `login: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `setup: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
+- `setup: --provider <value>`: --provider &lt;id&gt; The provider the account belongs to (auth set, serve). `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `setup: --account <value>`: --account &lt;id&gt; The account to use (auth set, serve, exec). `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `setup: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false}`
 - `setup: --maintenance`: Run the Setup maintenance event instead of init. `{"type":"boolean","repeatable":false,"default":false,"event":"maintenance"}`
 - `setup: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
@@ -2638,6 +2694,8 @@ These are defaults; editor customizations take precedence.
 - `setup: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `setup: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `authSet: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
+- `authSet: --provider <value>`: --provider &lt;id&gt; The provider the account belongs to (auth set, serve). `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `authSet: --account <value>`: --account &lt;id&gt; The account to use (auth set, serve, exec). `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authSet: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --maintenance`: Run the Setup maintenance event instead of init. `{"type":"boolean","refused":true,"repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
@@ -2651,6 +2709,8 @@ These are defaults; editor customizations take precedence.
 - `authSet: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `authSet: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `authStatus: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
+- `authStatus: --provider <value>`: --provider &lt;id&gt; The provider the account belongs to (auth set, serve). `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `authStatus: --account <value>`: --account &lt;id&gt; The account to use (auth set, serve, exec). `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authStatus: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --maintenance`: Run the Setup maintenance event instead of init. `{"type":"boolean","refused":true,"repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
@@ -2664,6 +2724,8 @@ These are defaults; editor customizations take precedence.
 - `authStatus: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `authStatus: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `authClear: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
+- `authClear: --provider <value>`: --provider &lt;id&gt; The provider the account belongs to (auth set, serve). `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `authClear: --account <value>`: --account &lt;id&gt; The account to use (auth set, serve, exec). `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authClear: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --maintenance`: Run the Setup maintenance event instead of init. `{"type":"boolean","refused":true,"repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
@@ -2682,6 +2744,8 @@ These are defaults; editor customizations take precedence.
 - `exec: --untrusted-file <value>`: Attach this file as untrusted data; repeat the option for more files. `{"type":"string","repeatable":true,"maxItems":8,"perFileMaxBytes":1048576,"totalMaxBytes":2097152,"purpose":"untrustedFiles"}`
 - `exec: --permission-mode <value>`: Choose how Muse asks before it acts. `{"type":"string","repeatable":false,"enum":["plan","acceptEdits"],"default":"plan","purpose":"permission-mode"}`
 - `exec: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":false,"purpose":"model"}`
+- `exec: --account <value>`: --account &lt;id&gt; The account to use (auth set, serve, exec). `{"type":"string","repeatable":false,"purpose":"account"}`
+- `exec: --account-pool`: --account-pool Let exec swap accounts at your own caps, never with key-stdin in CI. `{"type":"boolean","repeatable":false,"default":false,"purpose":"account-pool"}`
 - `exec: --effort <value>`: Choose how much effort Muse puts into each reply. `{"type":"string","repeatable":false,"enum":["minimal","low","medium","high","xhigh","max"],"purpose":"effort"}`
 - `exec: --output <value>`: Choose the result format: text, json or jsonl. `{"type":"string","repeatable":false,"enum":["text","json","jsonl"],"default":"text","purpose":"output"}`
 - `exec: --max-budget-usd <value>`: Set the hard spending limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"maximum":20,"decimals":6,"required":"modelApi","unit":"USD","purpose":"max-budget-usd"}`

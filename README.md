@@ -35,6 +35,7 @@ key to the CLI.
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) ·
 [Permission modes](#permission-modes) ·
+[Several accounts](#several-accounts-per-provider) ·
 [Rules, skills and memory](#rules-skills-and-memory) ·
 [Muse Code's own tools](#muse-codes-own-tools) · [Web fetch](#web-fetch) ·
 [Browser check](#browser-check) · [The panel](#the-panel) ·
@@ -551,6 +552,31 @@ Headless `exec` still declines questions immediately, reports
 conversations and the evaluation keep their immediate cancellation or
 clarification. Scheduled/unattended prompts defer at once and keep the
 question open, even when interactive deferral is disabled.
+
+## Several accounts per provider
+
+One provider can hold several accounts, each with its own key, label, order,
+limit group and thresholds. The main conversation stays on its account; when
+an account reaches a threshold the next request can move to the next account
+with room (`museSpark.accountSwap`, on by default), and background work
+spreads across accounts by headroom (`museSpark.accountParallel`, on by
+default). Each request carries only its own account's credential, and a
+removed account's secret is gone.
+
+Manage them through the agent on the command line (credentials only from
+standard input, never an argument or a file):
+
+- `muse-spark-code-acp providers accounts list --provider <id>`
+- `muse-spark-code-acp providers accounts add --provider <id> --account <id> --label <label>`
+- `muse-spark-code-acp providers accounts thresholds --provider <id> --account <id> --thresholds <JSON>`
+- `muse-spark-code-acp auth set --provider <id> --account <id>` (then paste the key)
+- `muse-spark-code-acp exec --account <id> <prompt>` pins one run to one account
+
+`exec --account-pool` and in-session swaps need the pooled runtime and report
+unavailable; second Muse Code accounts, ChatGPT-plan recovery and the usage
+page arrive with their captures. The paid gate, daily budgets and approvals
+apply per account. [The policy record](docs/certification/m108-policy.md)
+lists each provider's account terms with dated quotes.
 
 ## Permission modes
 

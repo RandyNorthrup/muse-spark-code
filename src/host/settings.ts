@@ -129,6 +129,12 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiReplyUsage: boolean
   /** Session budget cap in USD for Model API requests; 0 is no cap (M82). */
   readonly modelApiSessionBudgetUsd: number
+  /** M108 (PLAN.md D88.5): swap at the next request boundary; on by default. */
+  readonly accountSwap: boolean
+  /** M108 (PLAN.md D88.5): spread background work across accounts; on by default. */
+  readonly accountParallel: boolean
+  /** D88 amendment b2: several accounts of one provider on this PC; off by default. */
+  readonly 'accounts.severalOnThisDevice': boolean
 }
 
 /**
@@ -204,6 +210,9 @@ const settingSchemas = {
     .check(z.minimum(PAID_DAILY_BUDGET.minimumUsd), z.maximum(PAID_DAILY_BUDGET.maximumUsd)),
   dictationEngine: z.enum(['system', 'museVoice']),
   modelApiSessionBudgetUsd: z.number().check(z.nonnegative()),
+  accountSwap: z.boolean(),
+  accountParallel: z.boolean(),
+  'accounts.severalOnThisDevice': z.boolean(),
 } as const
 
 type SettingKey = keyof typeof settingSchemas
@@ -306,6 +315,9 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     tabMultiline: readSetting(config, 'tabMultiline', log),
     tabTrigger: readSetting(config, 'tabTrigger', log),
     tabWithCopilot: readSetting(config, 'tabWithCopilot', log),
+    accountSwap: readSetting(config, 'accountSwap', log),
+    accountParallel: readSetting(config, 'accountParallel', log),
+    'accounts.severalOnThisDevice': readSetting(config, 'accounts.severalOnThisDevice', log),
   }
 }
 

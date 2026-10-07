@@ -168,7 +168,7 @@
   "command.nextOpenQuestion.title": "Next open question",
   "command.previousOpenQuestion.title": "Previous open question",
   "config.questions.deferAfterSeconds.description": "Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used.",
-  "config.accountSwap.description": "Swap to the next account with room when one reaches a threshold, at the next request boundary. Each account keeps its own limits. On by default; only this machine’s setting is used.",
+  "config.accountSwap.description": "Swap to the next account with room at the next request boundary after a threshold trip. Each account keeps its own limits. On by default; only this machine’s setting is used.",
   "config.accountParallel.description": "Spread background work across accounts by headroom; each worker sticks to its account. On by default; only this machine’s setting is used.",
   "config.accounts.severalOnThisDevice.description": "Allow several accounts of one provider on this PC for testing, each in its own isolated local profile. Turning it on asks the provider’s vendor-terms confirmation first. Off by default; only this machine’s setting is used."
 }
