@@ -627,7 +627,7 @@ describe('MuseCodeHost', () => {
     const first = vi.fn(() => {
       throw new Error('disposed completion surface / private observer detail')
     })
-    const remaining = vi.fn()
+    const remaining = vi.fn<(event: AgentEvent) => void>()
     session.onEvent(first)
     session.onEvent(remaining)
     server.notify('turn/completed', {
@@ -637,9 +637,19 @@ describe('MuseCodeHost', () => {
     })
     await settle()
     const completion = { type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' }
-    expect(first).toHaveBeenCalledExactlyOnceWith(completion)
-    expect(remaining).toHaveBeenCalledExactlyOnceWith(completion)
-    expect(log.error).toHaveBeenCalledExactlyOnceWith('MSP observer failed')
+    const diagnostic = {
+      type: 'backendNotice',
+      level: 'error',
+      text: UI_TEXT.backendListenerFailed,
+    }
+    expect(first).toHaveBeenCalledTimes(2)
+    expect(remaining.mock.calls.map(([event]) => event)).toEqual([completion, diagnostic])
+    expect(first).toHaveBeenNthCalledWith(1, completion)
+    expect(first).toHaveBeenNthCalledWith(2, diagnostic)
+    expect(log.error.mock.calls).toEqual([
+      ['Backend notification listener failed: museCode.event'],
+      ['Backend notification listener failed: backend.diagnostic'],
+    ])
   })
 
   it.each(['early events', 'open prompts'] as const)(
@@ -657,13 +667,20 @@ describe('MuseCodeHost', () => {
       const unsubscribe = session.onEvent(listener)
       expect(listener.mock.calls.map(([event]) => event)).toEqual([
         expect.objectContaining({ type: 'approvalRequested', isReplayed: true }),
+        { type: 'backendNotice', level: 'error', text: UI_TEXT.backendListenerFailed },
         expect.objectContaining({ type: 'questionRequested', isReplayed: true }),
+        { type: 'backendNotice', level: 'error', text: UI_TEXT.backendListenerFailed },
       ])
-      expect(log.error.mock.calls).toEqual([['MSP observer failed'], ['MSP observer failed']])
+      expect(log.error.mock.calls).toEqual([
+        ['Backend notification listener failed: museCode.replay'],
+        ['Backend notification listener failed: backend.diagnostic'],
+        ['Backend notification listener failed: museCode.replay'],
+        ['Backend notification listener failed: backend.diagnostic'],
+      ])
       unsubscribe()
       server.notify('session/statusChanged', { sessionId: session.sessionId, status: 'idle' })
       await settle()
-      expect(listener).toHaveBeenCalledTimes(2)
+      expect(listener).toHaveBeenCalledTimes(4)
     },
   )
 
@@ -2326,7 +2343,9 @@ describe('MuseCodeHost: a slow or wedged Muse Code (CLI recovery, 2026-10-03)', 
     })
     expect(first).toHaveBeenCalledOnce()
     expect(remaining).toHaveBeenCalledOnce()
-    expect(log.error).toHaveBeenCalledExactlyOnceWith('MSP observer failed')
+    expect(log.error).toHaveBeenCalledExactlyOnceWith(
+      'Backend notification listener failed: museCode.logDamaged',
+    )
   })
 })
 

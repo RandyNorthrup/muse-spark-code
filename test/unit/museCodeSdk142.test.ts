@@ -319,7 +319,9 @@ describe('Muse Code 1.4.2 feature ports', () => {
     expect(host.sessionCount).toBe(0)
     expect(after).toHaveBeenCalledTimes(1)
     expect(after.mock.results[0]?.value).toBe(0)
-    expect(log.error).toHaveBeenCalledExactlyOnceWith('MSP observer failed')
+    expect(log.error).toHaveBeenCalledExactlyOnceWith(
+      'Backend notification listener failed: museCode.lifecycle',
+    )
   })
 
   it('isolates throwing History observers and continues delivering started lifecycle events', async () => {
@@ -337,7 +339,9 @@ describe('Muse Code 1.4.2 feature ports', () => {
     await settle()
     expect(list).toHaveBeenCalledExactlyOnceWith({ type: 'changed', record })
     expect(visible).toHaveBeenCalledExactlyOnceWith({ type: 'started', record })
-    expect(log.error).toHaveBeenCalledExactlyOnceWith('MSP observer failed')
+    expect(log.error).toHaveBeenCalledExactlyOnceWith(
+      'Backend notification listener failed: museCode.list',
+    )
   })
 
   it.each([

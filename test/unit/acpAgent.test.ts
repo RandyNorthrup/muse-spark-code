@@ -2232,7 +2232,10 @@ describe('FIXM101C1 ACP compaction', () => {
     expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
     expect(h.updates).toContainEqual({
       sessionUpdate: 'available_commands_update',
-      availableCommands: [{ name: 'compact', description: UI_TEXT.compactDetail, input: null }],
+      availableCommands: [
+        { name: 'help', description: UI_TEXT.referenceIntro, input: null },
+        { name: 'compact', description: UI_TEXT.compactDetail, input: null },
+      ],
     })
   })
 

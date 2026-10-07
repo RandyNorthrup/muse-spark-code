@@ -9,7 +9,12 @@ import { createRuntimeBackend } from '../../src/runtime/backends'
 import { pinnedHttpsRequest } from '../../src/host/web/pinnedRequest'
 import { paidGrantsFile } from '../../src/runtime/dataFolder'
 import { paidGrantFile } from '../../src/runtime/paidGrants'
-import { type AcpPaidFeature, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
+import {
+  type AcpPaidFeature,
+  M106_CAPTURED_META_MODEL,
+  SECRET_KEYS,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import { memorySecrets } from './helpers/fakes'
 import { fakeModelApi } from './helpers/fakeModelApi'
 import { buildModelApiBundle } from './helpers/modelApiBundle'
@@ -73,6 +78,8 @@ function setup(
   extraEnv: NodeJS.ProcessEnv = {},
 ) {
   const api = fakeModelApi()
+  // D86.4/U8 proves the bound on the contributor model only.
+  if (paidFeatures.includes('webSearch')) api.models = [M106_CAPTURED_META_MODEL]
   const secrets = memorySecrets()
   secrets.values.set(SECRET_KEYS.modelApiKey, KEY)
   const { data, workspace } = shared ?? { data: folder(), workspace: folder() }
@@ -84,7 +91,7 @@ function setup(
       museBinary: '',
       shellSandbox: 'auto',
       canBypass: false,
-      allowsContributorModels: false,
+      allowsContributorModels: paidFeatures.includes('webSearch'),
       paidFeatures,
       isVerbose: false,
     },
@@ -103,7 +110,11 @@ function setup(
   const agent = createAcpAgent({
     backend: runtime.backend,
     version: '0.0.0-test',
-    options: { canBypass: false, allowsContributorModels: false, initialMode: 'manual' },
+    options: {
+      canBypass: false,
+      allowsContributorModels: paidFeatures.includes('webSearch'),
+      initialMode: 'manual',
+    },
     signIn: {
       id: 'model-api-key',
       name: 'Store a key',
