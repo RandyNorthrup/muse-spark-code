@@ -337,7 +337,16 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
 
   it('says at start that a proxy will not be used by the Model API backend, until Node’s switch is on (Q66)', async () => {
     // A port nothing is asked on: the agent sends no request before a session.
-    const proxy = { HTTPS_PROXY: 'http://127.0.0.1:9', NODE_USE_ENV_PROXY: '' }
+    // Hermetic against the runner's own proxy exports (a rig that sets
+    // http_proxy/https_proxy would otherwise make the warning name them
+    // all): only the variable under test may be set.
+    const proxy = {
+      HTTPS_PROXY: 'http://127.0.0.1:9',
+      NODE_USE_ENV_PROXY: '',
+      https_proxy: undefined,
+      http_proxy: undefined,
+      HTTP_PROXY: undefined,
+    }
     const unused = startAgent(signedIn, ['--backend', 'modelApi'], proxy)
     await unused.run(initialize)
     const said = unused.stderr.join('')
