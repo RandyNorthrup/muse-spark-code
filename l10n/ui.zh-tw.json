@@ -2598,5 +2598,26 @@
     "placementConflict": "{device} 上已有 {provider} 的帳戶。請選擇其他裝置或關閉 onePerDevicePerProvider。",
     "sendToDevice": "傳送至 {device}",
     "routeUnavailable": "所選裝置沒有可用帳戶或沒有接收轉送工作的權限。"
+  },
+  "developer": {
+    "title": "開發人員選項",
+    "badge": "開發人員模式",
+    "allowMultiple": "允許在這台電腦上使用同一提供者的多個帳號",
+    "unlockWarning": "本機測試選項，預設關閉。帳號限制、提供者條款及付費使用確認仍然適用。",
+    "multipleWarning": "允許使用隔離的本機設定檔，在這台電腦上測試同一提供者的多個帳號嗎？此選擇僅儲存在本機。",
+    "resetWarning": "重設開發人員選項嗎？本機設定檔將停止，其認證資料儲存槽及狀態資料夾將被刪除。",
+    "locked": "開發人員選項已鎖定。",
+    "unavailable": "開發人員選項無法使用。",
+    "invalidRequest": "請檢查開發人員選項請求。",
+    "expires": "開發人員模式將於 {time} 到期。",
+    "reset": "重設開發人員選項",
+    "profiles": "本機設定檔",
+    "profileInfo": "每個設定檔都有獨立的認證資料儲存槽、狀態資料夾及執行程序。到期時停止設定檔，重設時將其刪除。",
+    "provider": "提供者 ID",
+    "account": "帳號 ID",
+    "addProfile": "新增本機設定檔",
+    "helpUnlock": "點擊版本號七次，或使用開發人員選項命令解鎖。",
+    "helpTerminal": "執行 `developer` 解鎖；`developer status` 顯示本機的選項。",
+    "commandUsage": "用法：developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   }
 }

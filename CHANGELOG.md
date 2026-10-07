@@ -31,6 +31,15 @@ happened, not what was planned; superseded entries are kept.
   commands, `museSpark.questions.deferAfterSeconds`, `--questions-defer-after`
   and the ACP-local `/questions` and `/answer`, which ACP `/help` now lists.
 
+### Added
+
+- Developer options for local multi-account testing, off by default: unlock
+  with seven version clicks, the Developer options command or `developer` in
+  a terminal, then allow isolated local profiles of one provider on this PC
+  after a separate confirmation. Grants expire after 24 hours; Reset stops
+  profiles and deletes only recorded profile state. No vendor, paid, budget
+  or replay behaviour changes.
+
 ### Changed
 
 - Question choices, explanations, countdowns and dock controls now load in a

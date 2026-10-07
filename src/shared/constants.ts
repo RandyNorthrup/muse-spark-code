@@ -5368,3 +5368,16 @@ export const CONVERSATION_MODEL_TEXT = {
 
 // Shared by the eager composer and the optional command palette.
 export const PALETTE_LISTBOX_ID = 'palette-listbox'
+// M108 X: machine-local testing options. These never change vendor/paid gates.
+export const DEVELOPER_UNLOCK_MS = 24 * 60 * 60 * 1000
+export const DEVELOPER_VERSION_CLICKS = 7
+export const DEVELOPER_CLICK_WINDOW_MS = 10_000
+export const DEVELOPER_MAX_PROFILES = 8
+export const DEVELOPER_AUDIT_MAX_BYTES = 256 * 1024
+export const DEVELOPER_STATE_MAX_BYTES = 16 * 1024
+export const DEVELOPER_UI_BUDGET_BYTES = 25 * 1024
+export const DEVELOPER_DIRECTORY_MODE = 0o700
+export const DEVELOPER_FILE_MODE = 0o600
+export const DEVELOPER_COMMAND_ID = 'museSpark.developerOptions'
+export const DEVELOPER_SETTING_ID = 'museSpark.allowSeveralAccountsOnThisPc'
+export const DEVELOPER_FILES = { state: 'developer.json', audit: 'developer-audit.jsonl' } as const

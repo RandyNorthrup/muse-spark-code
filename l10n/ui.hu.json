@@ -2695,5 +2695,26 @@
     "placementConflict": "A(z) {provider} szolgáltatónak már van fiókja a(z) {device} eszközön. Válasszon másik eszközt, vagy kapcsolja ki a onePerDevicePerProvider szabályt.",
     "sendToDevice": "Küldés ide: {device}",
     "routeUnavailable": "A kiválasztott eszköznek nincs elérhető fiókja vagy engedélye a munka fogadására."
+  },
+  "developer": {
+    "title": "Fejlesztői beállítások",
+    "badge": "Fejlesztői mód",
+    "allowMultiple": "Egy szolgáltató több fiókjának engedélyezése ezen a gépen",
+    "unlockWarning": "Helyi tesztelési beállítások, alapértelmezetten kikapcsolva. A fiókkorlátok, szolgáltatói feltételek és fizetős használat jóváhagyásai továbbra is érvényesek.",
+    "multipleWarning": "Engedélyezi az elkülönített helyi profilokat egy szolgáltató több fiókjának teszteléséhez ezen a gépen? Ez a választás ezen az eszközön marad.",
+    "resetWarning": "Visszaállítja a fejlesztői beállításokat? A helyi profilok leállnak, hitelesítőadat-helyeik és állapotmappáik törlődnek.",
+    "locked": "A fejlesztői beállítások zárolva vannak.",
+    "unavailable": "A fejlesztői beállítások nem érhetők el.",
+    "invalidRequest": "Ellenőrizze a fejlesztői beállítások kérését.",
+    "expires": "A fejlesztői mód ekkor jár le: {time}.",
+    "reset": "Fejlesztői beállítások visszaállítása",
+    "profiles": "Helyi profilok",
+    "profileInfo": "Minden profilnak saját hitelesítőadat-helye, állapotmappája és futtatási folyamata van. A lejárat leállítja a profilokat; a visszaállítás törli őket.",
+    "provider": "Szolgáltatóazonosító",
+    "account": "Fiókazonosító",
+    "addProfile": "Helyi profil hozzáadása",
+    "helpUnlock": "Kattintson hétszer a verzióra, vagy használja a Fejlesztői beállítások parancsot a feloldáshoz.",
+    "helpTerminal": "A feloldáshoz futtassa a `developer` parancsot; a `developer status` megjeleníti a gép beállításait.",
+    "commandUsage": "Használat: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   }
 }

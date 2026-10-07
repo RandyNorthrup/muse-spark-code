@@ -2598,5 +2598,26 @@
     "placementConflict": "{device} にはすでに {provider} のアカウントがあります。別のデバイスを選択するか、onePerDevicePerProvider をオフにしてください。",
     "sendToDevice": "{device} に送信",
     "routeUnavailable": "選択したデバイスには利用可能なアカウントがないか、作業の転送が許可されていません。"
+  },
+  "developer": {
+    "title": "開発者向けオプション",
+    "badge": "開発者モード",
+    "allowMultiple": "このPCで同じプロバイダーの複数アカウントを許可",
+    "unlockWarning": "ローカルテスト用のオプションです。初期状態では無効です。アカウントの制限、プロバイダーの規約、有料利用の確認は引き続き適用されます。",
+    "multipleWarning": "このPCで同じプロバイダーの複数アカウントをテストするために、分離されたローカルプロファイルを許可しますか？この選択はこの端末だけに保存されます。",
+    "resetWarning": "開発者向けオプションをリセットしますか？ローカルプロファイルを停止し、認証情報の保存枠と状態フォルダーを削除します。",
+    "locked": "開発者向けオプションはロックされています。",
+    "unavailable": "開発者向けオプションは利用できません。",
+    "invalidRequest": "開発者向けオプションへの要求を確認してください。",
+    "expires": "開発者モードの有効期限は{time}です。",
+    "reset": "開発者向けオプションをリセット",
+    "profiles": "ローカルプロファイル",
+    "profileInfo": "各プロファイルには専用の認証情報の保存枠、状態フォルダー、実行プロセスがあります。有効期限が切れると停止し、リセットすると削除されます。",
+    "provider": "プロバイダーID",
+    "account": "アカウントID",
+    "addProfile": "ローカルプロファイルを追加",
+    "helpUnlock": "バージョンを7回クリックするか、開発者向けオプションのコマンドでロックを解除します。",
+    "helpTerminal": "`developer`でロックを解除します。`developer status`でこの端末のオプションを表示します。",
+    "commandUsage": "使用法: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   }
 }
