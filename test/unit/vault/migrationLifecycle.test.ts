@@ -30,6 +30,10 @@ describe('migration lifecycle across release/store owners', () => {
     first.legacy.set(first.credential.key, key)
     second.legacy.set(second.credential.key, key)
     await first.service.migrate(first.credential.key)
+    const protectedItem = await first.vault.read(first.credential.itemId)
+    protectedItem.metadata.requirePresence = true
+    await first.vault.write(protectedItem)
+    eraseItem(protectedItem)
     await second.service.migrate(second.credential.key)
     expect(second.journal.get(second.credential.key)?.sourceId).toBe('os-store-source')
     const next = generatedKey()

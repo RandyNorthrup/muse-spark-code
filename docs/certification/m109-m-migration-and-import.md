@@ -64,16 +64,109 @@ change a legacy entry after the final comparison. This is same-user legacy-store
 authority, not an atomicity claim about those APIs. No new value is released by
 an invalidated migration binding.
 
+## Ambient files and login CSV
+
+Discovery performs only directory/name/stat operations for `.ssh/id_*` (not
+`.pub`), `.git-credentials`, `.netrc`, `.npmrc`, `.aws/credentials` and
+`.docker/config.json`. Links and linked credential folders are excluded.
+Windows separators are normalized for matching, and Windows home paths use
+`path.win32`; no credential file is opened at activation or discovery.
+
+Import requires U/H's authenticated user action, reads a bounded regular file
+through a held descriptor, checks exact native identity/size/mtime, validates
+all items and collisions, commits C's atomic batch and decrypts/hash-verifies
+every copy. The preparation callback transfers item ownership; failures before
+transfer remain the callback's cleanup responsibility. All transferred material,
+source bytes and verification reads are wiped in finally, including late
+results after Lock or Dispose. Public results contain metadata and an opaque
+receipt, never material. The action assertion must bind action/path/view epoch,
+not merely test a boolean supplied in a bridge message.
+
+Keep destroys the receipt. Delete is a separate user action: it rereads and
+hashes the original, checks its identity and the still-present vault copies,
+then checks size/mtime/identity and unlinks synchronously in one JavaScript
+tick. Keep/Dispose invalidate pending Delete; Dispose also blocks pending
+Import. No receipt is issued after failed verification. A different same-user
+process can still race a filesystem name between comparison and unlink; this
+is not an OS compare-and-unlink claim (D64/V6). The original always remains on
+import failure. CSV exports get the same Keep/Delete path and U's existing
+translated export-deletion warning.
+
+Fixed plaintext decoders return private drafts for user-reviewed names, labels,
+bindings and policy: HTTPS git URLs; target-specific netrc login/password;
+literal npm auth entries; AWS static access/secret/session fields; Docker
+literal auth/identity-token entries. They refuse unsupported/ambiguous forms,
+empty results and unresolved environment substitutions. netrc default/macdef/
+account forms are refused; npm base64 auth representations are retained
+exactly for scoped environment use. Docker credential helpers are never
+invoked. S supplies SSH parsing, with its own capture/format validation.
+
+Login CSV requires an explicit reviewed column mapping, strict quoted-field
+parsing (including commas, escaped quotes and CRLF), exact row widths and
+unique headers. It requires HTTPS without URL userinfo, normalizes IDNA origins
+and rejects malformed UTF-8, NUL and empty exports. Passkey/CXF files are not
+imported. L supplies the TOTP export decoder; encoded seed text is never used
+as a binary seed. Returned seed bytes are copied and wiped. L then builds
+origin-bound webLogin items; U/H supplies reviewed metadata and the default
+Ask every time policy. No password-manager store or browser is opened.
+
+All logic is shared core. VS Code-family and runtime adapters differ only in
+legacy storage access. U/H/native bridges/companion reuse these same private
+management ports; values never cross a UI bridge. No visual/UI code changed;
+browser/editor checks are handoffs on a Chrome-capable rig per the brief.
+No feature catalog/reference generator exists on this base. W must register
+Import/Keep/Delete, Undo, retirement notices and H's `vault import` in the
+feature catalog/reference when wiring their user-facing surfaces. No new
+command/setting/script is claimed as shipped by this lane.
+
+## Final rig verification
+
+All checks below run directly on this MacBook, without a test timeout override.
+Final default-timeout Vitest verification covers the five owned test files: `migrate.test.ts`,
+`migrationLifecycle.test.ts`, `migrationAdapters.test.ts`, `importFile.test.ts`
+and `loginCsv.test.ts`: **52/52 passed** on the final restored source, in
+two invocations of three files (26 tests) and two files (26 tests).
+
+| Check                                 | Result                                                                        |
+| ------------------------------------- | ----------------------------------------------------------------------------- |
+| Full five-project `npm run typecheck` | Exit 0 on final restored-source rerun                                         |
+| Changed-file ESLint, max warnings 0   | Exit 0 on final restored-source rerun                                         |
+| Changed-file Prettier check           | Passed; final docs formatting checked in hooks                                |
+| `node scripts/check-l10n.mjs`         | 14 UI tables, 164 manifest strings, 0 problems                                |
+| Plain `npm run deadcode` (Knip)       | Exit 0; two pre-existing configuration hints, no dead code                    |
+| `npx jscpd`                           | Exit 0; 1,219 files, zero clones; threshold unchanged                         |
+| `npm run build`                       | Exit 0; size/split/host-global/notices checks pass; no cap changes            |
+| `npm run check:host-api`              | Exit 1 on generated built-in import-count drift; W-owned regeneration handoff |
+
+Build measurements: extension 436.9 KiB (600 cap), Model API 446.8 KiB (475
+cap), checkpoint store 77.1 KiB (225 cap). These are the base's existing
+shipped chunks: M's private factories enter W's planned lazy vault chunk on
+integration, so the build is not a claim that migration is already activated.
+No activation, webview or existing manifest/source-owner code was changed.
+
+The host API result keeps 332 VS Code APIs, 31 importing files, 25 Node
+built-ins and 61 theme variables. Its stale built-in rows are child_process
+13→14, crypto 46→56, fs 33→37, fs/promises 47→51, net 7→10 and path 84→90.
+This includes lane-0/B's existing drift and M's new imports. W regenerates
+`docs/ide-compatibility/host-api.md` with the normal write/check command on the
+joined tree; the generated W-owned file and gate remain untouched here.
+Full aggregate quality, browser/a11y/editor matrix and platform captures stay
+lead/W-owned under the brief. No Chrome is installed or used on this rig.
+
 ## Tests and red drills
 
 Initial default-timeout run: `migrate.test.ts` and
 `migrationAdapters.test.ts`, 13/13 passed on this MacBook. Commands use
 `npx vitest run <files> --maxWorkers=3`; no timeout override or browser suite.
-All 19 credential mutations fired in their named default-timeout tests and
+All 21 credential mutations and 23 import/decoder mutations fired in their named default-timeout tests and
 restored source bytes exactly; receipts are in
-[m109-m-credential-drills.json](m109-m-credential-drills.json). Core ESLint
-passed with zero warnings. Final import and joined verification results follow
-with the completed import slice. Full joined-tree quality and browser/editor checks
+[m109-m-credential-drills.json](m109-m-credential-drills.json) and
+[m109-m-import-drills.json](m109-m-import-drills.json). Changed-file ESLint passed with zero warnings. Native retirement/logout now
+reread the legacy entry to confirm deletion; a native false/no-op cannot
+publish success. The duplication gate initially found four blocks; shared
+record/persist helpers and test setup removed them without dropping assertions.
+The restored gate reports zero clones, and credential drills were rerun against
+the final refactored source. Full joined-tree quality and browser/editor checks
 remain lead-owned by the rig brief.
 
 Owner-codec tests cover API keys, OAuth, device pairs and internal records with
@@ -82,10 +175,23 @@ installed format. Scoped-source tests prove equal canonical values can be
 shared, different values preserve both originals, and foreign journal records
 are refused.
 
-Threat mappings: V1/V4 (hidden first-party policy and private management), V7
-(owned buffers/finally), V9 (value-free journal/public results and sanitized
-errors), V11/V16 (generation checks and verified, delayed retirement).
+| M control                                                                                   | Threat row | Named tests / drill receipt ids                                                               |
+| ------------------------------------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------- |
+| Hidden first-party policy; bound Meta origin; private user actions                          | V1, V4     | codec visibility/origin tests; M09/M12/M17, I01                                               |
+| Known-name discovery; links/regular-file/bounds checks; no other app store reads            | V5, V6     | discovery/linked-folder/bounded-source tests; I08/I12/I13/I14                                 |
+| Owned plaintext cleanup, Lock and Dispose; no values in results or forwarded errors         | V7, V9     | stale read/queued copy/Dispose/Keep tests; M07/M08/M19, I02/I03/I09/I10                       |
+| Copy/decrypt/hash verify; mirror, undo, retention, scoped journals and confirmed deletion   | V11, V16   | migration lifecycle/native delete/corrupted mirror tests; M01-M06/M10/M11/M13-M16/M18/M20/M21 |
+| Verified import receipt; source/copy/identity/final metadata rechecks                       | V11, V16   | changed/replaced/missing-copy/Delete race tests; I04-I07/I11                                  |
+| Strict CSV mapping/grammar, HTTPS/IDNA, binary TOTP decoder; literal credential drafts only | V9, V14    | CSV/ambient decoder tests; D01-D09                                                            |
+
+V2/V3/V8/V10/V12/V13/V15 retain the runtime owners in the lane-0 threat model;
+M adds no command execution, clipboard, device, unattended or model-facing
+secret route. V14's live frame/certificate/fill checks remain L's, beyond M's
+local import-origin check. C/P/B still certify encryption, slot/peer isolation,
+rollback, audit and presence; these management-port tests do not substitute
+for their platform captures.
 
 Planning status: M's credential core is implemented against the contracted
-ports; ambient discovery/import and CSV are next. M109 remains planned until
+ports, with ambient discovery/import and CSV complete. Next slice is W binding
+C/P/B, U/H user actions and later owner codecs. M109 remains planned until
 the joined store/platform/broker/UI/runtime wiring and acceptance gates pass.

@@ -5,7 +5,30 @@ import { type MigrationDeps, VaultMigrationFault } from '../../../src/core/vault
 import { generatedKey, migrationFixture } from './migrationFixture'
 import { eraseItem } from '../../../src/core/vault/migrate/material'
 
+async function readyToRetire() {
+  const f = migrationFixture()
+  f.legacy.set(f.credential.key, generatedKey())
+  await f.service.migrate(f.credential.key)
+  f.advanceRelease()
+  f.advanceRelease()
+  return f
+}
+
 describe('D89.14 credential migration', () => {
+  it('never claims retirement or logout when the native legacy store did not delete its value', async () => {
+    const f = await readyToRetire()
+    const remove = f.deps.legacy.remove
+    f.deps.legacy.remove = vi.fn(() => Promise.resolve())
+    await expect(f.service.retire(f.credential.key)).rejects.toMatchObject({ code: 'verification' })
+    expect(f.deps.onRetired).not.toHaveBeenCalled()
+    expect(f.journal.get(f.credential.key)?.phase).toBe('active')
+    await expect(f.service.delete(f.credential.key)).rejects.toMatchObject({ code: 'verification' })
+    expect(f.journal.get(f.credential.key)?.phase).toBe('deleting')
+    f.deps.legacy.remove = remove
+    await f.service.resume(f.credential.key)
+    expect(f.legacy.has(f.credential.key)).toBe(false)
+    expect(f.journal.get(f.credential.key)?.phase).toBe('deleted')
+  })
   it('rejects a corrupted mirror before publishing success and rejects value-shaped journal fields', async () => {
     const f = migrationFixture()
     f.legacy.set(f.credential.key, generatedKey())
@@ -130,7 +153,8 @@ describe('D89.14 credential migration', () => {
     f.deps.vault.write = vi.fn<MigrationDeps['vault']['write']>(async (item, authorize) => {
       authorize()
       const corrupted = structuredClone(item)
-      if (corrupted.material.kind === 'apiKey') corrupted.material.value[0] ^= 1
+      if (corrupted.material.kind === 'apiKey')
+        corrupted.material.value[0] = corrupted.material.value[0]! ^ 1
       await f.vault.write(corrupted)
       eraseItem(corrupted)
     })
@@ -176,18 +200,14 @@ describe('D89.14 credential migration', () => {
     expect(f.legacy.has(f.credential.key)).toBe(false)
   })
   it('does not delete a key changed by a downgrade or retire tampered vault bytes', async () => {
-    const f = migrationFixture()
-    f.legacy.set(f.credential.key, generatedKey())
-    await f.service.migrate(f.credential.key)
-    f.advanceRelease()
-    f.advanceRelease()
+    const f = await readyToRetire()
     const changed = generatedKey()
     f.legacy.set(f.credential.key, changed)
     await expect(f.service.retire(f.credential.key)).rejects.toMatchObject({ code: 'conflict' })
     expect(f.legacy.get(f.credential.key)).toEqual(changed)
     await f.service.store(f.credential.key, changed)
     const item = await f.vault.read(f.credential.itemId)
-    if (item.material.kind === 'apiKey') item.material.value[0] ^= 1
+    if (item.material.kind === 'apiKey') item.material.value[0] = item.material.value[0]! ^ 1
     await f.vault.write(item)
     eraseItem(item)
     await expect(f.service.retire(f.credential.key)).rejects.toMatchObject({ code: 'verification' })

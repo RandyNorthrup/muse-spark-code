@@ -14,7 +14,10 @@ function canonical(value: unknown): unknown {
   return value !== null && typeof value === 'object'
     ? Object.fromEntries(
         Object.entries(value)
-          .toSorted(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+          .toSorted(([left], [right]) => {
+            if (left < right) return -1
+            return left > right ? 1 : 0
+          })
           .map(([key, entry]) => [key, canonical(entry)]),
       )
     : value

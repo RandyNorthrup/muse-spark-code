@@ -73,6 +73,36 @@ export class VaultMigration {
     })
     lease.assertCurrent()
   }
+  private intent(
+    entry: MigrationCredential,
+    item: VaultItem,
+    phase: 'copying' | 'writing',
+    shouldRetainLegacy: boolean,
+    startedRelease: number,
+  ): MigrationRecord {
+    return {
+      key: entry.key,
+      sourceId: this.deps.journal.sourceId,
+      itemId: entry.itemId,
+      startedRelease,
+      retainLegacy: shouldRetainLegacy,
+      phase,
+      digest: itemDigest(item),
+    }
+  }
+  private async persistCopy(
+    row: MigrationRecord,
+    item: VaultItem,
+    lease: MigrationLease,
+  ): Promise<void> {
+    await this.save(row, lease)
+    lease.assertCurrent()
+    await this.deps.vault.write(item, () => {
+      lease.assertCurrent()
+    })
+    lease.assertCurrent()
+    await this.verified(row, lease)
+  }
   private async verified(row: MigrationRecord, lease: MigrationLease): Promise<void> {
     let item: VaultItem | undefined
     try {
@@ -82,6 +112,21 @@ export class VaultMigration {
       if (itemDigest(item) !== row.digest) throw new VaultMigrationFault('verification')
     } finally {
       eraseItem(item)
+    }
+  }
+  private async removeLegacy(key: string, lease: MigrationLease): Promise<void> {
+    let remaining: Uint8Array | null = null
+    try {
+      lease.assertCurrent()
+      await this.deps.legacy.remove(key, () => {
+        lease.assertCurrent()
+      })
+      lease.assertCurrent()
+      remaining = await this.deps.legacy.read(key)
+      lease.assertCurrent()
+      if (remaining !== null) throw new VaultMigrationFault('verification')
+    } finally {
+      remaining?.fill(0)
     }
   }
   private async mirror(
@@ -175,6 +220,8 @@ export class VaultMigration {
           try {
             shared = await this.deps.vault.read(existing.id)
             lease.assertCurrent()
+            validateMigrationItem(shared, entry.itemId)
+            item.metadata.requirePresence = shared.metadata.requirePresence
             if (itemDigest(shared) !== itemDigest(item)) throw new VaultMigrationFault('conflict')
             item.metadata.dates = shared.metadata.dates
             item.metadata.label = shared.metadata.label
@@ -182,22 +229,14 @@ export class VaultMigration {
             eraseItem(shared)
           }
         }
-        const row: MigrationRecord = {
-          key,
-          sourceId: this.deps.journal.sourceId,
-          itemId: entry.itemId,
-          startedRelease: old?.phase === 'copying' ? old.startedRelease : this.currentRelease(),
-          retainLegacy: true,
-          phase: 'copying',
-          digest: itemDigest(item),
-        }
-        await this.save(row, lease)
-        lease.assertCurrent()
-        await this.deps.vault.write(item, () => {
-          lease.assertCurrent()
-        })
-        lease.assertCurrent()
-        await this.verified(row, lease)
+        const row = this.intent(
+          entry,
+          item,
+          'copying',
+          true,
+          old?.phase === 'copying' ? old.startedRelease : this.currentRelease(),
+        )
+        await this.persistCopy(row, item, lease)
         sourceAgain = await this.deps.legacy.read(key)
         lease.assertCurrent()
         if (!areSameBytes(bytes, sourceAgain)) throw new VaultMigrationFault('conflict')
@@ -250,22 +289,14 @@ export class VaultMigration {
             legacy = await this.deps.legacy.read(key)
             lease.assertCurrent()
           }
-          const row: MigrationRecord = {
-            key,
-            sourceId: this.deps.journal.sourceId,
-            itemId: entry.itemId,
-            startedRelease: old?.startedRelease ?? this.currentRelease(),
-            retainLegacy: old?.retainLegacy ?? legacy !== null,
-            phase: 'writing',
-            digest: itemDigest(item),
-          }
-          await this.save(row, lease)
-          lease.assertCurrent()
-          await this.deps.vault.write(item, () => {
-            lease.assertCurrent()
-          })
-          lease.assertCurrent()
-          await this.verified(row, lease)
+          const row = this.intent(
+            entry,
+            item,
+            'writing',
+            old?.retainLegacy ?? legacy !== null,
+            old?.startedRelease ?? this.currentRelease(),
+          )
+          await this.persistCopy(row, item, lease)
           if (row.retainLegacy) await this.mirror(entry, row, lease)
           await this.save({ ...row, phase: row.retainLegacy ? 'active' : 'retired' }, lease)
         } finally {
@@ -313,11 +344,7 @@ export class VaultMigration {
       )
         return false
       await this.verifyLegacy(entry, row, lease)
-      lease.assertCurrent()
-      await this.deps.legacy.remove(key, () => {
-        lease.assertCurrent()
-      })
-      lease.assertCurrent()
+      await this.removeLegacy(key, lease)
       await this.save({ ...row, retainLegacy: false, phase: 'retired' }, lease)
       this.deps.onRetired(key)
       return true
@@ -334,10 +361,7 @@ export class VaultMigration {
         lease.assertCurrent()
       })
       lease.assertCurrent()
-      await this.deps.legacy.remove(key, () => {
-        lease.assertCurrent()
-      })
-      lease.assertCurrent()
+      await this.removeLegacy(key, lease)
       await this.save({ ...row, phase: 'deleted', digest: null }, lease)
     })
   }
