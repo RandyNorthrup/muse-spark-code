@@ -86,7 +86,7 @@ merged coverage passed the unchanged thresholds (92.69% statements, 87.67%
 branches, 93.77% functions, 93.31% lines); the run remains failed because
 assertions failed. Initial static checks passed all five typechecks, format,
 plain knip, reference, localization, host API, cycles and every production
-size/split/global gate. Logs are local artifacts under `temp/ci-int0160`.
+size/split/global gate. Logs are local artifacts under `temp/ci-first-run`.
 
 The first full accessibility gate scanned 1,028 pages (257 scenarios × four
 themes): no WCAG violations, undecided rules or exemptions, but `long` never
@@ -117,9 +117,55 @@ The final App/stream owning run passes 201 tests, unit typecheck passes,
 and duplication reports zero clones. All six deliberate integration/repair
 drills fired and restored their exact hashes.
 
-Final verification remains pending after a hooks-on repair commit: a new fresh
-clone, installation, every static check and all four coverage shards, followed
-by full accessibility and README screenshot regeneration/comparison.
+The hooks-on repair commit is `9716b149391ca5718f86ac21ff57cefaf7f08d11`.
+Its second fresh clone (`/tmp/int0160ux-ci-linn0j82/repo`) passed installation,
+all five typechecks, full lint/format, plain knip, duplication (zero clones),
+reference, all 14 UI/usage tables, host API, cycles and unchanged build gates.
+All four coverage shards passed: 16,701 tests, 75 existing skips, 818 passing
+files and seven skipped files. Merged coverage was 92.70% statements,
+87.69% branches, 93.78% functions and 93.32% lines.
+
+That run remains failed: the full accessibility gate again found four unready
+`long` pages despite zero violations across 1,028 pages. Advancing each delta
+after delivery fixed ordering but still made React render the growing reply
+333 times under load. The second structural repair delivers the identical
+100-character frames in bounded groups of 20, yields a MessageChannel task
+between groups, and keeps readiness pending through completion dispatch.
+The product's message parser still validates every frame; no text, task,
+deadline, worker, WCAG scope or accessibility assertion is removed.
+
+The legal and README gates exposed a separate startup race: the generic
+surface selector accepted the transient sign-in gate before the fake signed-in
+host drew its composer, losing report events or accessing a null textarea.
+Scene startup now waits for the actual composer or tasks surface (models keep
+their own surface). A DOM regression demonstrates the gate is insufficient,
+then inserts the composer and verifies exactly one scene start.
+
+Restored browser guard files pass 35 tests (`harnessWaits`, `harnessCapture`),
+targeted lint and unit typecheck pass. The startup guard uses the existing JavaScript DOM
+suite; no dependency, cast or type suppression is introduced.
+
+The second browser repair's pre-commit projection into that scratch clone
+passes the complete accessibility gate: 1,028 pages, zero violations,
+undecided rules, exemptions or missing results. Legal accessibility passes
+96 keyboard/zoom checks and 24 English/pseudo WCAG pages, and README capture
+regenerates all 17 entries. This is diagnostic evidence;
+the final run will use another fresh clone of committed code.
+
+| Browser mutation                                              | Complete owning suite result         | Restored SHA-256                                                   |
+| ------------------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------ |
+| Raise the batch to 400 deltas, eliminating the expected yield | `harnessWaits`: 2 failed; 27 passed  | `6b194ab2d8dd2c339ee013748fceeab3a58a12ee13679f3967eedfb819a224c0` |
+| Accept the transient sign-in gate as scene readiness          | `harnessCapture`: 1 failed; 5 passed | `6b194ab2d8dd2c339ee013748fceeab3a58a12ee13679f3967eedfb819a224c0` |
+| Release pending readiness before completion dispatch          | `harnessWaits`: 2 failed; 27 passed  | `6b194ab2d8dd2c339ee013748fceeab3a58a12ee13679f3967eedfb819a224c0` |
+
+Every mutation is restored byte-exact in `finally`. The final combined restored
+run passes all 35 tests at repository deadlines. These three guards supplement
+the six earlier integration/repair drills; the older stream drill records the
+first ordering repair, since superseded by bounded batching.
+
+Final verification remains pending after the next hooks-on repair commit:
+a new fresh clone, installation, every static check and all four coverage
+shards, followed by full accessibility and README regeneration/comparison.
 
 Additional repair drills ran on Node 22.22.2 at the same default deadlines,
 with source saved/restored in `finally` and SHA-256 equality:

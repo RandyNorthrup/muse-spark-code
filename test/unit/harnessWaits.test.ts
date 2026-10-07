@@ -156,6 +156,8 @@ function readinessPage(now: () => number) {
 function longStream() {
   const timers: ScheduledEvent[] = []
   let receive: ((message: { readonly data: unknown }) => void) | undefined
+  let nextBatch: (() => void) | undefined
+  const delivered = vi.fn<(message: unknown) => void>()
   const window = {
     addEventListener: vi.fn((_type: string, callback: NonNullable<typeof receive>) => {
       receive = callback
@@ -163,12 +165,30 @@ function longStream() {
     removeEventListener: vi.fn(() => {
       receive = undefined
     }),
+    dispatchEvent: vi.fn((message: { readonly data: { readonly event: unknown } }) => {
+      delivered(message.data.event)
+      return true
+    }),
+  }
+  const port1 = {
+    set onmessage(callback: () => void) {
+      nextBatch = callback
+    },
+    close: vi.fn(),
+  }
+  const port2 = {
+    postMessage: vi.fn(() => {
+      if (nextBatch === undefined) throw new Error('Missing next batch')
+      timers.push({ delay: 0, run: nextBatch })
+    }),
+    close: vi.fn(),
   }
   const event = vi.fn<(message: unknown) => void>((message) => {
     timers.push({
       delay: 0,
       run: () => {
         if (receive === undefined) throw new Error('Missing stream receiver')
+        delivered(message)
         receive({ data: { type: 'agentEvent', event: message } })
       },
     })
@@ -181,28 +201,39 @@ function longStream() {
     key: vi.fn(),
     event,
     report,
-    longReply: () => 'x'.repeat(250),
+    MessageEvent,
+    MessageChannel: function () {
+      return { port1, port2 }
+    },
+    longReply: () => 'x'.repeat(2050),
   }
   const start = () => {
     const source = harnessSection('long: () => {', 'focus: () => {')
-    runInNewContext(`const steps = {${source}}; steps.long();`, context)
+    const batch = harnessSection('const LONG_STREAM_BATCH_DELTAS =', 'const SETTLE_MS =')
+    runInNewContext(`${batch} const steps = {${source}}; steps.long();`, context)
   }
-  return { timers, context, event, report, window, start }
+  return { timers, context, event, delivered, report, window, port1, port2, start }
 }
 
 describe('harness scenario event readiness', () => {
-  it('yields between every long-stream delta, retaining their order and final completion', () => {
+  it('delivers every 100-character frame in order, yielding between bounded batches', () => {
     const fixture = longStream()
     fixture.start()
-    expect(fixture.event).toHaveBeenCalledTimes(1)
+    expect(fixture.event).toHaveBeenCalledOnce()
+    expect(fixture.delivered).not.toHaveBeenCalled()
     expect(fixture.context.pendingScenarioEvents).toBe(1)
-    while (fixture.timers.length > 0) runNext(fixture.timers)
-    expect(fixture.event.mock.calls.map(([message]) => message)).toEqual([
+    runNext(fixture.timers)
+    expect(fixture.delivered).toHaveBeenCalledTimes(21)
+    expect(fixture.context.pendingScenarioEvents).toBe(1)
+    expect(fixture.report).not.toHaveBeenCalled()
+    expect(fixture.port2.postMessage).toHaveBeenCalledOnce()
+    runNext(fixture.timers)
+    expect(fixture.delivered.mock.calls.map(([message]) => message)).toEqual([
       {
         type: 'itemStarted',
         item: { itemId: 'long', kind: 'agentMessage', status: 'inProgress', text: '' },
       },
-      ...[100, 100, 50].map((length) => ({
+      ...[...Array.from({ length: 20 }, () => 100), 50].map((length) => ({
         type: 'textDelta',
         itemId: 'long',
         field: 'text',
@@ -214,31 +245,38 @@ describe('harness scenario event readiness', () => {
       },
     ])
     expect(fixture.context.pendingScenarioEvents).toBe(0)
-    expect(fixture.report).toHaveBeenCalledWith('long: 3 deltas rendered')
+    expect(fixture.report).toHaveBeenCalledWith('long: 21 deltas rendered')
     expect(fixture.window.removeEventListener).toHaveBeenCalledOnce()
+    expect(fixture.port1.close).toHaveBeenCalledOnce()
+    expect(fixture.port2.close).toHaveBeenCalledOnce()
+    expect(fixture.timers).toHaveLength(0)
   })
 
-  it('keeps readiness pending until the completion frame is delivered', () => {
+  it('keeps readiness pending through dispatch of the completion frame', () => {
     const fixture = longStream()
     fixture.start()
-    for (let frame = 0; frame < 4; frame += 1) runNext(fixture.timers)
-    expect(fixture.event).toHaveBeenLastCalledWith({
+    runNext(fixture.timers)
+    fixture.window.dispatchEvent.mockImplementation((message) => {
+      expect(fixture.context.pendingScenarioEvents).toBe(1)
+      expect(fixture.report).not.toHaveBeenCalled()
+      fixture.delivered(message.data.event)
+      return true
+    })
+    runNext(fixture.timers)
+    expect(fixture.delivered).toHaveBeenLastCalledWith({
       type: 'itemCompleted',
       item: { itemId: 'long', kind: 'agentMessage', status: 'completed' },
     })
-    expect(fixture.context.pendingScenarioEvents).toBe(1)
-    expect(fixture.report).not.toHaveBeenCalled()
-    expect(fixture.window.removeEventListener).not.toHaveBeenCalled()
-    runNext(fixture.timers)
     expect(fixture.context.pendingScenarioEvents).toBe(0)
     expect(fixture.report).toHaveBeenCalledOnce()
-    expect(fixture.window.removeEventListener).toHaveBeenCalledOnce()
+    expect(fixture.port1.close).toHaveBeenCalledOnce()
+    expect(fixture.port2.close).toHaveBeenCalledOnce()
   })
 
-  it('releases the long-stream receiver when a delta fails', () => {
+  it('releases the pending stream and both ports when delivery fails', () => {
     const fixture = longStream()
     fixture.start()
-    fixture.event.mockImplementation(() => {
+    fixture.window.dispatchEvent.mockImplementation(() => {
       throw new Error('stream delta failed')
     })
     expect(() => {
@@ -248,6 +286,8 @@ describe('harness scenario event readiness', () => {
     expect(fixture.timers).toHaveLength(0)
     expect(fixture.report).not.toHaveBeenCalled()
     expect(fixture.window.removeEventListener).toHaveBeenCalledOnce()
+    expect(fixture.port1.close).toHaveBeenCalledOnce()
+    expect(fixture.port2.close).toHaveBeenCalledOnce()
   })
 
   it('requires timing reasons for readiness timers too', () => {
@@ -345,7 +385,7 @@ describe('harness scenario event readiness', () => {
 
 describe('harness scenes wait for the controls they touch', () => {
   it.each([
-    { harnessBundle: 'main', surface: 'textarea, .gate, .todo-surface, [role="alert"]' },
+    { harnessBundle: 'main', surface: '.composer textarea, .todo-surface' },
     { harnessBundle: 'models', surface: '.models-panel section' },
   ])('starts $harnessBundle after loading, exactly once', ({ harnessBundle, surface }) => {
     const html = readFileSync(new URL('../harness/index.html', import.meta.url), 'utf8')

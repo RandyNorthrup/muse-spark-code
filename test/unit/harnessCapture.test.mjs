@@ -128,3 +128,39 @@ describe('legal keyboard scenario readiness', () => {
     expect(waitFor).not.toHaveBeenCalled()
   })
 })
+
+describe('harness composer readiness', () => {
+  it('waits past the transient sign-in gate until the composer can receive scene actions', () => {
+    const html = readFileSync(new URL('../harness/index.html', import.meta.url), 'utf8')
+    const start = html.indexOf('let hasPlayedScenario =')
+    const source = html.slice(start, html.indexOf('// `?theme=', start))
+    const dom = new JSDOM('<section class="gate">Signing in</section>')
+    const played = vi.fn()
+    let probe
+    try {
+      runInNewContext(source, {
+        window: dom.window,
+        harnessBundle: 'main',
+        scenario: 'question',
+        steps: { question: played },
+        whenFound: (selector, run) => {
+          probe = () => {
+            if (dom.window.document.querySelector(selector) !== null) run()
+          }
+          probe()
+        },
+      })
+      dom.window.dispatchEvent(new dom.window.Event('DOMContentLoaded'))
+      expect(played).not.toHaveBeenCalled()
+      dom.window.document.body.insertAdjacentHTML(
+        'beforeend',
+        '<form class="composer"><textarea></textarea></form>',
+      )
+      expect(probe).toBeDefined()
+      probe?.()
+      expect(played).toHaveBeenCalledOnce()
+    } finally {
+      dom.window.close()
+    }
+  })
+})

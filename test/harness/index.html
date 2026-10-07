@@ -158,6 +158,7 @@
       // after the settle time the scenarios have always given, then every
       // 50 ms. One that never renders throws, naming it, so the accessibility
       // gate fails the page instead of scanning a half-played scenario.
+      const LONG_STREAM_BATCH_DELTAS = 20
       const SETTLE_MS = 300
       const FIND_INTERVAL_MS = 50
       const FIND_TIMEOUT_MS = 3000
@@ -1399,7 +1400,7 @@
       }
       // `?scenario=<name>` drives the UI without a human, for headless shots.
       const scenario = new URLSearchParams(location.search).get('scenario')
-      const textarea = () => document.querySelector('textarea')
+      const textarea = () => document.querySelector('.composer textarea')
       const setValue = (element, prototype, text) => {
         const setter = Object.getOwnPropertyDescriptor(prototype, 'value').set
         setter.call(element, text)
@@ -3205,42 +3206,54 @@
           key({ key: 'Enter' })
           const chunks = longReply().match(/[\s\S]{1,100}/g)
           let index = 0
-          // Advance only after the webview received the previous frame. A
-          // separate MessageChannel can outrun queued window messages and
-          // declare readiness while the reply is still only partly delivered.
-          const close = () => window.removeEventListener('message', continueStream)
-          const continueStream = ({ data }) => {
-            if (
-              data?.type !== 'agentEvent' ||
-              (data.event?.itemId ?? data.event?.item?.itemId) !== 'long'
+          // Preserve every frame, but let React paint a bounded batch rather
+          // than the growing reply after each individual window task.
+          const continuation = new MessageChannel()
+          const close = () => {
+            continuation.port1.close()
+            continuation.port2.close()
+          }
+          const deliver = (payload) =>
+            window.dispatchEvent(
+              new MessageEvent('message', { data: { type: 'agentEvent', event: payload } }),
             )
-              return
-            if (data.event.type === 'itemCompleted') {
-              pendingScenarioEvents -= 1
-              report(`long: ${String(chunks.length)} deltas rendered`)
-              close()
-              return
-            }
-            if (data.event.type !== 'itemStarted' && data.event.type !== 'textDelta') return
+          const runBatch = () => {
             try {
-              const chunk = chunks[index]
-              index += 1
-              event(
-                chunk === undefined
-                  ? {
-                      type: 'itemCompleted',
-                      item: { itemId: 'long', kind: 'agentMessage', status: 'completed' },
-                    }
-                  : { type: 'textDelta', itemId: 'long', field: 'text', delta: chunk },
-              )
+              for (let frame = 0; frame < LONG_STREAM_BATCH_DELTAS; frame += 1) {
+                const chunk = chunks[index]
+                index += 1
+                if (chunk === undefined) {
+                  deliver({
+                    type: 'itemCompleted',
+                    item: { itemId: 'long', kind: 'agentMessage', status: 'completed' },
+                  })
+                  pendingScenarioEvents -= 1
+                  report(`long: ${String(chunks.length)} deltas rendered`)
+                  close()
+                  return
+                }
+                deliver({ type: 'textDelta', itemId: 'long', field: 'text', delta: chunk })
+              }
+              continuation.port2.postMessage(null)
             } catch (error) {
               pendingScenarioEvents -= 1
               close()
               throw error
             }
           }
+          const beginStream = ({ data }) => {
+            if (
+              data?.type !== 'agentEvent' ||
+              data.event?.type !== 'itemStarted' ||
+              data.event.item?.itemId !== 'long'
+            )
+              return
+            window.removeEventListener('message', beginStream)
+            runBatch()
+          }
+          continuation.port1.onmessage = runBatch
           pendingScenarioEvents += 1
-          window.addEventListener('message', continueStream)
+          window.addEventListener('message', beginStream)
           event({
             type: 'itemStarted',
             item: { itemId: 'long', kind: 'agentMessage', status: 'inProgress', text: '' },
@@ -6112,8 +6125,8 @@
           steps[name]()
         }
       }
-      // A scenario starts once the panel has drawn its surface: the composer,
-      // a sign-in or install gate, or the crash screen. Start its bounded DOM
+      // A scenario starts after the fake signed-in host has drawn its composer
+      // or tasks surface. A transient initial sign-in gate is not readiness. Start its bounded DOM
       // wait after the module graph loads, so loading does not spend that budget.
       // A fixed delay raced the first render
       // on a loaded machine (M40: `agents` and `dictation` found no composer).
@@ -6122,9 +6135,7 @@
         if (hasPlayedScenario || scenario === null || !(scenario in steps)) return
         hasPlayedScenario = true
         const surface =
-          harnessBundle === 'models'
-            ? '.models-panel section'
-            : 'textarea, .gate, .todo-surface, [role="alert"]'
+          harnessBundle === 'models' ? '.models-panel section' : '.composer textarea, .todo-surface'
         whenFound(surface, () => steps[scenario]())
       }
       let hasPageLoaded = false

@@ -25,7 +25,9 @@ happened, not what was planned; superseded entries are kept.
   lint gate, retaining unauthenticated requests when no job token is supplied.
 
 - Deliver every long-reply harness frame before advancing the stream, keeping
-  readiness pending through completion within its existing deadline.
+  readiness pending through completion within its existing deadline. Batch
+  validated deltas between paints and wait for the actual composer before
+  scene actions, preventing startup sign-in races in questions and reports.
 
 - ACP cancellation stops the running model turn while local agent inspection
   waits, and a late cancelled read preserves newer command preparation.

@@ -18917,6 +18917,13 @@ Chrome probe shows MessageChannel completion can precede delivery of queued
 window messages, leaving only a partial reply when readiness reports done.
 Advance the stream from delivery of its own window message instead, removing
 the second task per delta and keeping readiness pending through completion.
+The second fresh clone passes every static/unit/coverage gate, but the full
+browser run still exposes per-delta React renders under load. Deliver the same
+100-character frames synchronously in bounded batches, yielding through a task
+port between batches and retaining the completion-delivery fence. Do not change
+readiness bounds, workers or axe scope. Startup must wait for the composer or
+tasks surface; the transient initial sign-in gate is not scene readiness and
+can race question input or legal report delivery. Cover that startup boundary.
 
 Packaged exec reproduces a release-base Node 22 loader-hook failure before
 any dispatch: native CommonJS import lacks implicit `require.cache`. A small
