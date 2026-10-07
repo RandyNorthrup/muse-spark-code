@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- The ACP agent offers terminal sign-in to clients that announce it with the
+  older _meta terminal-auth capability (ACP Registry).
+
 ### Documentation
 
 - A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists
