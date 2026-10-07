@@ -167,5 +167,16 @@
   "config.shell.passEnvironmentVariables.description": "Ana oturumdaki etkileşimli kabuk komutlarına aktarılacak ortam değişkenlerinin adları; normalde dışarıda tutulan kimlik bilgileri de dahil. Yalnızca adlar, asla değerler. Varsayılan: hiçbiri. Bir komut bu değerleri konuşmada ve model sağlayıcısına açığa çıkarabilir. Doğrulama/then_run, zamanlanmış işler, alt/ekip çalışanları ve kancalar, burada adları yazılsa bile kimlik bilgisi değişkenlerini asla almaz. Arka plana taşınan etkileşimli bir komut başlangıç ortamını korur. Muse Code veya açıkça yapılandırılmış MCP sunucusu ortamlarını değiştirmez.",
   "command.nextOpenQuestion.title": "Sonraki açık soru",
   "command.previousOpenQuestion.title": "Önceki açık soru",
-  "config.questions.deferAfterSeconds.description": "Muse’un çalışmaya devam edebilmesi için yanıtsız bir sorunun ertelenmesine kadar geçen saniye. Varsayılan 60; 0 hiçbir zaman demektir; 1–9, 10 olarak okunur; en fazla 3.600. Soru açık kalır ve daha sonra yanıtlanabilir. Yalnızca bu bilgisayarın ayarı kullanılır."
+  "config.questions.deferAfterSeconds.description": "Muse’un çalışmaya devam edebilmesi için yanıtsız bir sorunun ertelenmesine kadar geçen saniye. Varsayılan 60; 0 hiçbir zaman demektir; 1–9, 10 olarak okunur; en fazla 3.600. Soru açık kalır ve daha sonra yanıtlanabilir. Yalnızca bu bilgisayarın ayarı kullanılır.",
+  "command.vault.title": "Kasa",
+  "command.lockVault.title": "Kasayı şimdi kilitle",
+  "config.vault.description": "Düzenleyicilerin paylaştığı kullanıcıya ait kimlik bilgisi kasasını etkinleştirin.",
+  "config.vault.protection.description": "Kasa anahtarının korumasını seçin. Otomatik, kullanılabilir donanımı ve işletim sistemi deposunu kullanır.",
+  "config.vault.agentFence.description": "Ajan süreçlerini mevcut kimlik bilgisi yollarından yalıtın. Kapalıyken de çalışanlar yalıtılır.",
+  "config.vault.lockAfterIdleMinutes.description": "Bu kadar boşta geçen dakikadan sonra kasayı kilitleyin.",
+  "config.vault.lockOnScreenLock.description": "İşletim sistemi ekran kilidi bildirdiğinde kasayı kilitleyin.",
+  "config.vault.protection.enumDescriptions.auto": "Otomatik koruma",
+  "config.vault.protection.enumDescriptions.osStore": "İşletim sistemi kimlik bilgisi deposu",
+  "config.vault.protection.enumDescriptions.passphrase": "Parola koruması",
+  "config.vault.protection.enumDescriptions.hardware": "Donanım koruması"
 }

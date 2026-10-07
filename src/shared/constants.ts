@@ -92,6 +92,9 @@ export const COMMAND_IDS = {
   // M99 (PLAN.md D79): the release notes of this version and the ones before it.
   showWhatsNew: 'museSpark.showWhatsNew',
   openHelp: 'museSpark.openHelp',
+  // M109 (PLAN.md D89): the per-user credential vault panel and its lock.
+  vault: 'museSpark.vault',
+  lockVault: 'museSpark.lockVault',
   // M112 (PLAN.md D92): cycle the focused chat's open question cards.
   nextOpenQuestion: 'museSpark.nextOpenQuestion',
   previousOpenQuestion: 'museSpark.previousOpenQuestion',
@@ -217,6 +220,10 @@ export interface CheckCommandSetting {
 // directly as the user, gated by the approval cards, as Claude Code does.
 export const SHELL_SANDBOX_MODES = ['auto', 'muse', 'off'] as const
 export type ShellSandboxMode = (typeof SHELL_SANDBOX_MODES)[number]
+// M109 (PLAN.md D89.2): how the vault key is protected. `auto` is available
+// hardware plus the OS store, with the recovery code offered at setup.
+export const VAULT_PROTECTION_MODES = ['auto', 'osStore', 'hardware', 'passphrase'] as const
+export type VaultProtectionMode = (typeof VAULT_PROTECTION_MODES)[number]
 export const SHELL_SANDBOX_SETTING = 'museSpark.shellSandbox'
 // The shell sandbox's network, `muse serve --sandbox-network <mode>` (M56,
 // PLAN.md D43; `muse serve --help` and dev.meta.ai/docs/muse-code/permissions,
@@ -473,6 +480,13 @@ export const SETTING_DEFAULTS = {
   // since a repository must not choose what is spent. The key holds the dot:
   // VS Code declares `museSpark.judge.engine` and reads it as a subsection.
   'judge.engine': 'auto' as JudgeEngine,
+  // M109 (PLAN.md D89): the per-user credential vault, shared by every
+  // editor. All five are machine-scoped, so no workspace can change them.
+  vault: true,
+  'vault.protection': 'auto' as VaultProtectionMode,
+  'vault.agentFence': true,
+  'vault.lockAfterIdleMinutes': 240,
+  'vault.lockOnScreenLock': true,
 } as const
 export const PAID_DAILY_BUDGET = {
   minimumUsd: 0.5,
@@ -561,6 +575,13 @@ export const MACHINE_SCOPED_SETTINGS = [
   // What may spend on judging, on the key or the subscription (M98, PLAN.md
   // D77): a repository must not choose it.
   'judge.engine',
+  // M109 (PLAN.md D89): the vault's protection, fence and locks, all
+  // machine-scoped, so no workspace can change them.
+  'vault',
+  'vault.protection',
+  'vault.agentFence',
+  'vault.lockAfterIdleMinutes',
+  'vault.lockOnScreenLock',
 ] as const
 
 // Muse Code SDK 1.3.0 hook process limits (PLAN.md M51).

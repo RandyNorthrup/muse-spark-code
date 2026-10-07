@@ -17,7 +17,7 @@ import type { PaidUseRequest } from '../../src/shared/paid'
 import { approvalModeFor } from '../../src/shared/permissionModes'
 import { FAKE_MODELS, FakeAgentHost, type FakeAgentSession } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
-import { commandApproval, until } from './helpers/acpWaits'
+import { commandApproval, promptLocalText, until } from './helpers/acpWaits'
 import { acpMspHost, acpResumeEnvelope, answerMsp } from './helpers/acpMsp'
 import { fakeAcpQuestions } from './helpers/questions/acpRegistry'
 import { expectedQuestionCommandsUpdate } from './helpers/questions/fixtures'
@@ -607,16 +607,9 @@ describe('the ACP agent (M63)', () => {
 
   it('answers /help locally with the companion reference and no model turn', async () => {
     const h = harness()
-    await h.run(async (client) => {
-      const { sessionId } = await start(client)
-      expect(
-        await client.request('session/prompt', {
-          sessionId,
-          prompt: [{ type: 'text', text: '/help' }],
-        }),
-      ).toEqual({ stopReason: 'end_turn' })
-      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
-    })
+    const reply = await promptLocalText((work) => h.run(work), start, '/help')
+    expect(reply).toEqual({ stopReason: 'end_turn' })
+    expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
     expect(h.updates).toContainEqual({
       sessionUpdate: 'agent_message_chunk',
       content: { type: 'text', text: expect.stringContaining('docs/reference.md') },

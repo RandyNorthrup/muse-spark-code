@@ -167,5 +167,16 @@
   "config.shell.passEnvironmentVariables.description": "Nombres de variables de entorno que se pasan a comandos de shell interactivos de la sesión principal, incluidas las credenciales que normalmente se excluyen. Solo nombres, nunca valores. Predeterminado: ninguna. Un comando puede revelar estos valores en la conversación y al proveedor del modelo. Las verificaciones/then_run, tareas programadas, trabajadores secundarios/de equipo y hooks nunca reciben variables de credenciales, aunque se nombren aquí. Un comando interactivo movido al segundo plano conserva su entorno inicial. No cambia los entornos de Muse Code ni de servidores MCP configurados explícitamente.",
   "command.nextOpenQuestion.title": "Siguiente pregunta pendiente",
   "command.previousOpenQuestion.title": "Pregunta pendiente anterior",
-  "config.questions.deferAfterSeconds.description": "Segundos antes de aplazar una pregunta sin respuesta para que Muse pueda seguir trabajando. 60 de forma predeterminada; 0 significa nunca; 1–9 se interpretan como 10; máximo 3.600. La pregunta sigue pendiente y se puede responder más tarde. Solo se usa la configuración de este equipo."
+  "config.questions.deferAfterSeconds.description": "Segundos antes de aplazar una pregunta sin respuesta para que Muse pueda seguir trabajando. 60 de forma predeterminada; 0 significa nunca; 1–9 se interpretan como 10; máximo 3.600. La pregunta sigue pendiente y se puede responder más tarde. Solo se usa la configuración de este equipo.",
+  "command.vault.title": "Bóveda",
+  "command.lockVault.title": "Bloquear la bóveda ahora",
+  "config.vault.description": "Activar la bóveda de credenciales por usuario compartida entre editores.",
+  "config.vault.protection.description": "Elegir la protección de la clave. Automática usa el hardware disponible y el almacén del sistema.",
+  "config.vault.agentFence.description": "Aislar los procesos de agentes de las vías de credenciales existentes. Los trabajadores siguen aislados cuando está desactivado.",
+  "config.vault.lockAfterIdleMinutes.description": "Bloquear la bóveda tras este número de minutos de inactividad.",
+  "config.vault.lockOnScreenLock.description": "Bloquear la bóveda cuando el sistema informe que se bloqueó la pantalla.",
+  "config.vault.protection.enumDescriptions.auto": "Protección automática",
+  "config.vault.protection.enumDescriptions.osStore": "Almacén de credenciales del sistema",
+  "config.vault.protection.enumDescriptions.passphrase": "Protección con frase de contraseña",
+  "config.vault.protection.enumDescriptions.hardware": "Protección por hardware"
 }

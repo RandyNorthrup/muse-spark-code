@@ -38,6 +38,13 @@ import { REDACTED_MARK } from './constants'
 /** T's broker-backed service. Hosts inject it at each outgoing/storage boundary. */
 export interface SecretScrubPort {
   scrub(text: string): Promise<string>
+  /**
+   * Rotation counter the sender reads around awaits: when it moves between
+   * the scrub and the dispatch, the body is rebuilt from current values. A
+   * Lock in the same window fails the rebuild, so it never sends either.
+   * Absent for foreign ports, which the sender treats as unchanging.
+   */
+  readonly generation?: number | undefined
 }
 
 /** Scrub exact vault values before patterns; service failures never fall back to delivery. */

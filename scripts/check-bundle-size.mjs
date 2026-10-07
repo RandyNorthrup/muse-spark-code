@@ -104,6 +104,10 @@ const BUDGETS = [
   { path: 'dist/museCodeReviewer.js', budgetKiB: 75 },
   // M91 E: both-backend hooks, 45.4 KiB + 15%, rounded up to 25 KiB.
   { path: 'dist/extensionHooks.js', budgetKiB: 75 },
+  // M109 lane W: the vault's window (the panel host and the native editor),
+  // loaded on the first vault command: 32.4 KiB when split out. Measured
+  // size plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/vault.js', budgetKiB: 50 },
   // The report dialog (M93): the builder, its second scrub, the export paths
   // and the handler, loaded on the first open. 63.6 KiB when split out (its
   // own zod), plus 15%, rounded up to 25 KiB (PLAN.md D6).
@@ -143,13 +147,18 @@ const BUDGETS = [
   { path: 'dist/webview/whatsNew.js', budgetKiB: 25 },
   // HELPREF: an independent lazy page, sharing the caller's React and text.
   { path: 'dist/webview/referencePage.js', budgetKiB: 50 },
-  { path: 'dist/reference.js', budgetKiB: 100 },
+  // HELPREF plus M109's vault rows: 102.7 KiB with the joined tree (2026-10-06).
+  // Measured size plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/reference.js', budgetKiB: 125 },
   // The ACP agent (M63, PLAN.md D62), a process of its own installed once,
   // never loaded by VS Code: the engine without the webview or the Model API
   // backend (dist/modelApi.js, M57), plus the ACP SDK and the classic zod it
   // imports (445.2 of 713.2 KiB when set, 257.6 of them zod's locales). The
   // measured size plus about 15 %, rounded up to 50 KiB (D6 amendment).
-  { path: 'dist/acp.js', budgetKiB: 850 },
+  // M109 lane H's vault handlers reach it through the shared managers:
+  // 853.3 KiB with the joined tree (2026-10-06), plus about 15%, rounded up
+  // to a multiple of 50 KiB (D6 amendment).
+  { path: 'dist/acp.js', budgetKiB: 1000 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus

@@ -1344,6 +1344,27 @@
       "details": [{ "ui": "referenceAcp" }],
       "facts": {},
       "editors": ["vscode"]
+    },
+    {
+      "id": "vault",
+      "name": { "command": "museSpark.vault" },
+      "summary": { "ui": "referenceVaultPanel" },
+      "description": { "ui": "referenceVaultPanel" },
+      "commands": ["museSpark.vault", "museSpark.lockVault"],
+      "settings": [
+        "museSpark.vault",
+        "museSpark.vault.protection",
+        "museSpark.vault.agentFence",
+        "museSpark.vault.lockAfterIdleMinutes",
+        "museSpark.vault.lockOnScreenLock"
+      ],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#the-vault",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
     }
   ],
   "commands": [
@@ -1822,6 +1843,26 @@
       "categoryKey": "command.category",
       "description": "Previous open question",
       "text": { "ui": "questionPreviousOpen" },
+      "canRun": false
+    },
+    {
+      "id": "museSpark.vault",
+      "name": "Vault",
+      "nameKey": "command.vault.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Open the per-user credential vault. Values never print; the broker holds them.",
+      "text": { "ui": "referenceVaultPanel" },
+      "canRun": false
+    },
+    {
+      "id": "museSpark.lockVault",
+      "name": "Lock vault now",
+      "nameKey": "command.lockVault.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Lock the per-user credential vault now, ending every use in every window.",
+      "text": { "ui": "referenceVaultLock" },
       "canRun": false
     }
   ],
@@ -2890,6 +2931,85 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "string", "enum": ["auto", "same", "off"], "default": "auto" }
+    },
+    {
+      "id": "museSpark.vault",
+      "name": "museSpark.vault",
+      "description": "Enable the per-user credential vault shared by editors.",
+      "descriptionKey": "config.vault.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.vault.protection",
+      "name": "museSpark.vault.protection",
+      "description": "Choose vault key protection. Automatic uses available hardware plus the operating system store.",
+      "descriptionKey": "config.vault.protection.description",
+      "type": "string",
+      "default": "auto",
+      "enum": ["auto", "osStore", "hardware", "passphrase"],
+      "enumDescriptions": [
+        "Automatic protection",
+        "OS credential store",
+        "Hardware protection",
+        "Passphrase protection"
+      ],
+      "enumDescriptionKeys": [
+        "config.vault.protection.enumDescriptions.auto",
+        "config.vault.protection.enumDescriptions.osStore",
+        "config.vault.protection.enumDescriptions.hardware",
+        "config.vault.protection.enumDescriptions.passphrase"
+      ],
+      "enumTexts": {},
+      "scope": "machine",
+      "refinements": [],
+      "schema": {
+        "type": "string",
+        "enum": ["auto", "osStore", "hardware", "passphrase"],
+        "default": "auto"
+      }
+    },
+    {
+      "text": {
+        "conditions": [{ "when": "agentFence", "text": { "setting": "vault.agentFence" } }]
+      },
+      "id": "museSpark.vault.agentFence",
+      "name": "museSpark.vault.agentFence",
+      "description": "Fence agent processes from ambient credential routes. Workers remain fenced when this is off.",
+      "descriptionKey": "config.vault.agentFence.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.vault.lockAfterIdleMinutes",
+      "name": "museSpark.vault.lockAfterIdleMinutes",
+      "description": "Lock the vault after this many idle minutes.",
+      "descriptionKey": "config.vault.lockAfterIdleMinutes.description",
+      "type": "integer",
+      "default": 240,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "integer", "minimum": 0, "default": 240 }
+    },
+    {
+      "text": {
+        "conditions": [{ "when": "screenLock", "text": { "setting": "vault.lockOnScreenLock" } }]
+      },
+      "id": "museSpark.vault.lockOnScreenLock",
+      "name": "museSpark.vault.lockOnScreenLock",
+      "description": "Lock the vault when the operating system reports a screen lock.",
+      "descriptionKey": "config.vault.lockOnScreenLock.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
     },
     {
       "text": {
@@ -4472,6 +4592,7 @@
       "mac": "cmd+alt+shift+j",
       "when": "activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'"
     },
+    { "command": "museSpark.lockVault", "key": "ctrl+alt+shift+l", "mac": "cmd+alt+shift+l" },
     {
       "command": "composer.send",
       "key": "Enter / Ctrl+Enter / Cmd+Enter",

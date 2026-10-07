@@ -167,5 +167,16 @@
   "config.shell.passEnvironmentVariables.description": "傳遞給主工作階段互動式 shell 命令的環境變數名稱，包括通常被排除的憑證變數。僅填寫名稱，不填寫值。預設不傳遞。命令可能在對話中以及向模型供應商揭露這些值。驗證/then_run、排程、子代理/團隊工作者和掛鉤永遠不會接收憑證變數，即使在此列出名稱。移至背景的互動式命令保留啟動時的環境。不會變更 Muse Code 或明確設定的 MCP 伺服器環境。",
   "command.nextOpenQuestion.title": "下一個待回答的問題",
   "command.previousOpenQuestion.title": "上一個待回答的問題",
-  "config.questions.deferAfterSeconds.description": "在多少秒後暫緩未回答的問題，讓 Muse 繼續工作。預設值為 60；0 表示永不；1–9 按 10 處理；最大值為 3,600。問題會維持待回答狀態，可稍後回答。僅使用此電腦的設定。"
+  "config.questions.deferAfterSeconds.description": "在多少秒後暫緩未回答的問題，讓 Muse 繼續工作。預設值為 60；0 表示永不；1–9 按 10 處理；最大值為 3,600。問題會維持待回答狀態，可稍後回答。僅使用此電腦的設定。",
+  "command.vault.title": "憑證庫",
+  "command.lockVault.title": "立即鎖定憑證庫",
+  "config.vault.description": "啟用由各編輯器共用的使用者憑證庫。",
+  "config.vault.protection.description": "選擇憑證庫金鑰保護方式。自動模式使用可用硬體及作業系統儲存。",
+  "config.vault.agentFence.description": "隔離代理處理程序與現有憑證取得途徑。關閉此項時工作代理仍保持隔離。",
+  "config.vault.lockAfterIdleMinutes.description": "閒置達到此分鐘數後鎖定憑證庫。",
+  "config.vault.lockOnScreenLock.description": "作業系統回報螢幕鎖定時鎖定憑證庫。",
+  "config.vault.protection.enumDescriptions.auto": "自動保護",
+  "config.vault.protection.enumDescriptions.osStore": "作業系統憑證儲存",
+  "config.vault.protection.enumDescriptions.passphrase": "通關片語保護",
+  "config.vault.protection.enumDescriptions.hardware": "硬體保護"
 }

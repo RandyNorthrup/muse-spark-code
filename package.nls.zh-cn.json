@@ -167,5 +167,16 @@
   "config.shell.passEnvironmentVariables.description": "传递给主会话交互式 shell 命令的环境变量名称，包括通常被排除的凭据变量。仅填写名称，不填写值。默认不传递。命令可能在对话中以及向模型提供商暴露这些值。验证/then_run、计划任务、子代理/团队工作者和钩子永远不会接收凭据变量，即使在此列出了名称。移至后台的交互式命令保留启动时的环境。不会更改 Muse Code 或显式配置的 MCP 服务器环境。",
   "command.nextOpenQuestion.title": "下一个待回答的问题",
   "command.previousOpenQuestion.title": "上一个待回答的问题",
-  "config.questions.deferAfterSeconds.description": "在多少秒后暂缓未回答的问题，让 Muse 继续工作。默认值为 60；0 表示从不；1–9 按 10 处理；最大值为 3,600。问题会保持待回答状态，可稍后回答。仅使用此计算机的设置。"
+  "config.questions.deferAfterSeconds.description": "在多少秒后暂缓未回答的问题，让 Muse 继续工作。默认值为 60；0 表示从不；1–9 按 10 处理；最大值为 3,600。问题会保持待回答状态，可稍后回答。仅使用此计算机的设置。",
+  "command.vault.title": "凭据库",
+  "command.lockVault.title": "立即锁定凭据库",
+  "config.vault.description": "启用由各编辑器共享的用户凭据库。",
+  "config.vault.protection.description": "选择凭据库密钥保护方式。自动模式使用可用硬件及操作系统存储。",
+  "config.vault.agentFence.description": "隔离代理进程与现有凭据获取途径。关闭此项时工作代理仍保持隔离。",
+  "config.vault.lockAfterIdleMinutes.description": "空闲达到此分钟数后锁定凭据库。",
+  "config.vault.lockOnScreenLock.description": "操作系统报告锁屏时锁定凭据库。",
+  "config.vault.protection.enumDescriptions.auto": "自动保护",
+  "config.vault.protection.enumDescriptions.osStore": "操作系统凭据存储",
+  "config.vault.protection.enumDescriptions.passphrase": "口令保护",
+  "config.vault.protection.enumDescriptions.hardware": "硬件保护"
 }

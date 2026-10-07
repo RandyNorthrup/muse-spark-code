@@ -12,9 +12,9 @@ import {
 import { UI_TEXT } from '../../src/shared/constants'
 import { approval } from './helpers/vault/fixtures'
 import { commandHarness } from './helpers/vault/runtime'
-import { FakeAgentHost } from './helpers/fakeAgent'
+import { FakeAgentHost, museCodeTestBackend } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
-import { until } from './helpers/acpWaits'
+import { promptLocalText, until } from './helpers/acpWaits'
 
 function decisionOf(result: VaultApprovalAnswer): VaultApprovalAnswer['decision'] {
   return result.decision
@@ -60,11 +60,7 @@ function harness(mode: 'manual' | 'bypassPermissions' = 'manual', hasVault = tru
   const grants = memoryPaidGrants()
   const paid = new AcpPaidUse({ flagged: [], canRemember: () => true, grants, log })
   const app = createAcpAgent({
-    backend: {
-      kind: 'museCode',
-      readiness: () => Promise.resolve({ state: 'ready' }),
-      hostFor: () => Promise.resolve(host),
-    },
+    backend: museCodeTestBackend(host),
     version: 'test',
     options: { canBypass: true, allowsContributorModels: false, initialMode: mode },
     signIn: { id: 'test', name: 'test', description: 'test', args: [], command: 'test' },
@@ -168,18 +164,11 @@ describe('M109 H ACP vault', () => {
     'H32 /vault %s is local and never sent to model',
     async (command) => {
       const h = harness()
-      await h.run(async (client) => {
-        const { sessionId } = await start(client)
-        expect(
-          await client.request('session/prompt', {
-            sessionId,
-            prompt: [{ type: 'text', text: `/vault ${command}` }],
-          }),
-        ).toEqual({ stopReason: 'end_turn' })
-        expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
-        expect(h.commands.port[command]).toHaveBeenCalledOnce()
-        expect(h.commands.port.close).toHaveBeenCalledOnce()
-      })
+      const reply = await promptLocalText((work) => h.run(work), start, `/vault ${command}`)
+      expect(reply).toEqual({ stopReason: 'end_turn' })
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+      expect(h.commands.port[command]).toHaveBeenCalledOnce()
+      expect(h.commands.port.close).toHaveBeenCalledOnce()
     },
   )
   it('H33 reserved vault syntax and embedded attachments cannot fall through to model', async () => {

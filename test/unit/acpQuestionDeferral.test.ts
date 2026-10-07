@@ -11,7 +11,7 @@ import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { SteerRefusedError, type TurnSubmission } from '../../src/core/agent/agentBackend'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
-import { FakeAgentHost } from './helpers/fakeAgent'
+import { FakeAgentHost, museCodeTestBackend } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
 import { until } from './helpers/acpWaits'
 import { FakeQuestionAcpClient } from './helpers/questions/acpClient'
@@ -472,11 +472,7 @@ function agentHarness(
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   const questionBundle = vi.fn(() => questionFactories)
   const agent = createAcpAgent({
-    backend: {
-      kind: 'museCode',
-      readiness: () => Promise.resolve({ state: 'ready' }),
-      hostFor: () => Promise.resolve(host),
-    },
+    backend: museCodeTestBackend(host),
     version: 'test',
     options: {
       canBypass: false,

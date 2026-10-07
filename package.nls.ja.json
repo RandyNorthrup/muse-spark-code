@@ -167,5 +167,16 @@
   "config.shell.passEnvironmentVariables.description": "メインセッションの対話型シェルコマンドに渡す環境変数の名前。通常は除外される認証情報の変数も含みます。値ではなく名前のみを指定します。既定では何も渡しません。コマンドはこれらの値を会話やモデルプロバイダーに公開する可能性があります。検証/then_run、スケジュール、子エージェント/チームワーカー、フックには、ここに名前を指定しても認証情報の変数を渡しません。バックグラウンドに移動した対話型コマンドは起動時の環境を保持します。Muse Codeや明示的に設定したMCPサーバーの環境は変更しません。",
   "command.nextOpenQuestion.title": "次の未回答の質問",
   "command.previousOpenQuestion.title": "前の未回答の質問",
-  "config.questions.deferAfterSeconds.description": "Muse が作業を続けられるよう、未回答の質問を保留するまでの秒数。既定値は 60、0 は保留しない設定、1～9 は 10 として扱い、上限は 3,600 です。質問は未回答のまま保持され、後から回答できます。このコンピューターの設定のみを使用します。"
+  "config.questions.deferAfterSeconds.description": "Muse が作業を続けられるよう、未回答の質問を保留するまでの秒数。既定値は 60、0 は保留しない設定、1～9 は 10 として扱い、上限は 3,600 です。質問は未回答のまま保持され、後から回答できます。このコンピューターの設定のみを使用します。",
+  "command.vault.title": "保管庫",
+  "command.lockVault.title": "今すぐ保管庫をロック",
+  "config.vault.description": "エディター間で共有するユーザーごとの認証情報保管庫を有効にします。",
+  "config.vault.protection.description": "保管庫のキー保護を選択します。自動は利用可能なハードウェアと OS のストアを使用します。",
+  "config.vault.agentFence.description": "エージェントのプロセスを既存の認証情報経路から隔離します。無効でもワーカーは隔離されます。",
+  "config.vault.lockAfterIdleMinutes.description": "指定した非操作時間（分）が過ぎたら保管庫をロックします。",
+  "config.vault.lockOnScreenLock.description": "OS が画面ロックを報告したら保管庫をロックします。",
+  "config.vault.protection.enumDescriptions.auto": "自動保護",
+  "config.vault.protection.enumDescriptions.osStore": "OS の認証情報ストア",
+  "config.vault.protection.enumDescriptions.passphrase": "パスフレーズによる保護",
+  "config.vault.protection.enumDescriptions.hardware": "ハードウェアによる保護"
 }

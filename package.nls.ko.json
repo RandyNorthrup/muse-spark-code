@@ -167,5 +167,16 @@
   "config.shell.passEnvironmentVariables.description": "기본 세션의 대화형 셸 명령에 전달할 환경 변수 이름입니다. 일반적으로 제외되는 자격 증명 변수도 포함됩니다. 값이 아닌 이름만 지정하세요. 기본값: 없음. 명령이 이 값을 대화 및 모델 제공자에게 노출할 수 있습니다. 검증/then_run, 예약 작업, 하위/팀 작업자 및 훅에는 여기 이름을 지정해도 자격 증명 변수가 전달되지 않습니다. 백그라운드로 이동한 대화형 명령은 시작 시 환경을 유지합니다. Muse Code나 명시적으로 구성한 MCP 서버 환경은 변경하지 않습니다.",
   "command.nextOpenQuestion.title": "다음 미답변 질문",
   "command.previousOpenQuestion.title": "이전 미답변 질문",
-  "config.questions.deferAfterSeconds.description": "Muse가 작업을 계속할 수 있도록 미답변 질문을 보류하기까지의 초 단위 시간입니다. 기본값은 60이며, 0은 보류하지 않음, 1–9는 10으로 처리됩니다. 최댓값은 3,600입니다. 질문은 열린 상태로 유지되며 나중에 답변할 수 있습니다. 이 컴퓨터의 설정만 사용합니다."
+  "config.questions.deferAfterSeconds.description": "Muse가 작업을 계속할 수 있도록 미답변 질문을 보류하기까지의 초 단위 시간입니다. 기본값은 60이며, 0은 보류하지 않음, 1–9는 10으로 처리됩니다. 최댓값은 3,600입니다. 질문은 열린 상태로 유지되며 나중에 답변할 수 있습니다. 이 컴퓨터의 설정만 사용합니다.",
+  "command.vault.title": "보관함",
+  "command.lockVault.title": "지금 보관함 잠그기",
+  "config.vault.description": "편집기들이 공유하는 사용자별 자격 증명 보관함을 켭니다.",
+  "config.vault.protection.description": "보관함 키 보호를 선택합니다. 자동은 사용 가능한 하드웨어와 운영체제 저장소를 사용합니다.",
+  "config.vault.agentFence.description": "에이전트 프로세스를 기존 자격 증명 경로에서 격리합니다. 이 설정이 꺼져도 작업자는 격리됩니다.",
+  "config.vault.lockAfterIdleMinutes.description": "지정한 유휴 시간(분)이 지나면 보관함을 잠급니다.",
+  "config.vault.lockOnScreenLock.description": "운영체제가 화면 잠금을 보고하면 보관함을 잠급니다.",
+  "config.vault.protection.enumDescriptions.auto": "자동 보호",
+  "config.vault.protection.enumDescriptions.osStore": "운영체제 자격 증명 저장소",
+  "config.vault.protection.enumDescriptions.passphrase": "암호문 보호",
+  "config.vault.protection.enumDescriptions.hardware": "하드웨어 보호"
 }

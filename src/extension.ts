@@ -1,7 +1,8 @@
 import { judgeWindowPort } from './host/judge/judgeBundle'
 import { storeErrorCode } from './host/backend/storeErrors'
 import { isReferenceRequest, referenceLoader } from './host/referenceLoader'
-import { REFERENCE_BUNDLE_FILE } from './shared/constants'
+import { REFERENCE_BUNDLE_FILE, VAULT_BUNDLE_FILE } from './shared/constants'
+import { loadVaultControls, registerVaultCommands } from './host/vault/vaultPanelBundle'
 // Extension host entry point. Kept to registration and adapter wiring; the
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
@@ -1832,10 +1833,30 @@ async function activateWindow(
   const isIdeBrowserCheckOffered = (): boolean =>
     browserChecks.isOffered() &&
     isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork)
+  // The credential vault (M109, PLAN.md D89): the commands and the lazy
+  // loader only. The broker-backed service is an open handoff in
+  // docs/certification/m109.md; until it lands both commands refuse closed
+  // with the broker-blocked reason instead of opening an empty vault.
   context.subscriptions.push(
     vscode.commands.registerCommand(COMMAND_IDS.downloadBrowserCheckRuntime, async () => {
       await downloadBrowserRuntime(browserChecks, isIdeBrowserCheckOffered)
     }),
+    registerVaultCommands(
+      (id, run) => registerLoggedCommand(log, id, run),
+      () =>
+        loadVaultControls(
+          {
+            bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', VAULT_BUNDLE_FILE).fsPath,
+            log,
+            service: undefined,
+          },
+          () => {
+            // Unreachable while the service is missing; the entry's live
+            // host bindings land with the service.
+            throw new Error(UI_TEXT.vault.brokerBlocked)
+          },
+        ),
+    ),
   )
   const askBrowserCheck = oneQuestionPerUrl(isBrowserCheckAllowed, browserScopeKey)
   // Code intelligence over VS Code's language services (M67, PLAN.md D49):

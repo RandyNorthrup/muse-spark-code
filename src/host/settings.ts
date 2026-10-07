@@ -10,6 +10,8 @@ import {
   BACKEND_MODES,
   PAID_DAILY_BUDGET,
   type BackendMode,
+  VAULT_PROTECTION_MODES,
+  type VaultProtectionMode,
   BROWSER_CHECK_EXTRA_HOSTS_MAX,
   BROWSER_RUNTIME_MODES,
   type BrowserRuntimeMode,
@@ -129,6 +131,16 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiReplyUsage: boolean
   /** Session budget cap in USD for Model API requests; 0 is no cap (M82). */
   readonly modelApiSessionBudgetUsd: number
+  /** The per-user credential vault, shared by every editor (M109, PLAN.md D89). */
+  readonly vault: boolean
+  /** How the vault key is protected; `auto` is hardware plus the OS store. */
+  readonly 'vault.protection': VaultProtectionMode
+  /** Fence agent processes from ambient credential routes. */
+  readonly 'vault.agentFence': boolean
+  /** Idle minutes before the vault locks. */
+  readonly 'vault.lockAfterIdleMinutes': number
+  /** Lock the vault when the OS reports a screen lock. */
+  readonly 'vault.lockOnScreenLock': boolean
 }
 
 /**
@@ -204,6 +216,11 @@ const settingSchemas = {
     .check(z.minimum(PAID_DAILY_BUDGET.minimumUsd), z.maximum(PAID_DAILY_BUDGET.maximumUsd)),
   dictationEngine: z.enum(['system', 'museVoice']),
   modelApiSessionBudgetUsd: z.number().check(z.nonnegative()),
+  vault: z.boolean(),
+  'vault.protection': z.enum(VAULT_PROTECTION_MODES),
+  'vault.agentFence': z.boolean(),
+  'vault.lockAfterIdleMinutes': z.int().check(z.nonnegative()),
+  'vault.lockOnScreenLock': z.boolean(),
 } as const
 
 type SettingKey = keyof typeof settingSchemas
@@ -306,6 +323,11 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     tabMultiline: readSetting(config, 'tabMultiline', log),
     tabTrigger: readSetting(config, 'tabTrigger', log),
     tabWithCopilot: readSetting(config, 'tabWithCopilot', log),
+    vault: readSetting(config, 'vault', log),
+    'vault.protection': readSetting(config, 'vault.protection', log),
+    'vault.agentFence': readSetting(config, 'vault.agentFence', log),
+    'vault.lockAfterIdleMinutes': readSetting(config, 'vault.lockAfterIdleMinutes', log),
+    'vault.lockOnScreenLock': readSetting(config, 'vault.lockOnScreenLock', log),
   }
 }
 

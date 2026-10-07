@@ -167,5 +167,16 @@
   "config.shell.passEnvironmentVariables.description": "Namen von Umgebungsvariablen, die an interaktive Shell-Befehle der Hauptsitzung übergeben werden, einschließlich normalerweise zurückgehaltener Zugangsdaten. Nur Namen, niemals Werte. Standard: keine. Ein Befehl kann diese Werte im Gespräch und gegenüber dem Modellanbieter offenlegen. Prüfungen/then_run, Zeitpläne, untergeordnete/Team-Worker und Hooks erhalten niemals Zugangsdatenvariablen, auch wenn sie hier genannt sind. Ein in den Hintergrund verschobener interaktiver Befehl behält seine ursprüngliche Umgebung. Ändert weder Muse Code noch explizit konfigurierte MCP-Serverumgebungen.",
   "command.nextOpenQuestion.title": "Nächste offene Frage",
   "command.previousOpenQuestion.title": "Vorherige offene Frage",
-  "config.questions.deferAfterSeconds.description": "Sekunden, nach denen eine unbeantwortete Frage zurückgestellt wird, damit Muse weiterarbeiten kann. Standard: 60; 0 bedeutet nie; 1–9 werden als 10 gelesen; höchstens 3.600. Die Frage bleibt offen und kann später beantwortet werden. Nur die Einstellung dieses Computers wird verwendet."
+  "config.questions.deferAfterSeconds.description": "Sekunden, nach denen eine unbeantwortete Frage zurückgestellt wird, damit Muse weiterarbeiten kann. Standard: 60; 0 bedeutet nie; 1–9 werden als 10 gelesen; höchstens 3.600. Die Frage bleibt offen und kann später beantwortet werden. Nur die Einstellung dieses Computers wird verwendet.",
+  "command.vault.title": "Tresor",
+  "command.lockVault.title": "Tresor jetzt sperren",
+  "config.vault.description": "Den benutzerweiten Anmeldedatentresor für alle Editoren aktivieren.",
+  "config.vault.protection.description": "Schutz des Tresorschlüssels wählen. Automatisch verwendet verfügbare Hardware und den Betriebssystemspeicher.",
+  "config.vault.agentFence.description": "Agentenprozesse von vorhandenen Anmeldedatenwegen isolieren. Arbeiter bleiben auch bei ausgeschalteter Option isoliert.",
+  "config.vault.lockAfterIdleMinutes.description": "Den Tresor nach dieser Anzahl inaktiver Minuten sperren.",
+  "config.vault.lockOnScreenLock.description": "Den Tresor sperren, wenn das Betriebssystem eine Bildschirmsperre meldet.",
+  "config.vault.protection.enumDescriptions.auto": "Automatischer Schutz",
+  "config.vault.protection.enumDescriptions.osStore": "Anmeldedatenspeicher des Betriebssystems",
+  "config.vault.protection.enumDescriptions.passphrase": "Schutz durch Passphrase",
+  "config.vault.protection.enumDescriptions.hardware": "Hardwareschutz"
 }

@@ -167,5 +167,16 @@
   "config.shell.passEnvironmentVariables.description": "Nazwy zmiennych środowiskowych przekazywanych do interaktywnych poleceń powłoki głównej sesji, w tym zwykle wykluczanych danych uwierzytelniających. Tylko nazwy, nigdy wartości. Domyślnie: brak. Polecenie może ujawnić te wartości w rozmowie i dostawcy modelu. Weryfikacja/then_run, harmonogramy, pracownicy podrzędni/zespołowi i hooki nigdy nie otrzymują zmiennych uwierzytelniających, nawet jeśli są tu wymienione. Interaktywne polecenie przeniesione do tła zachowuje początkowe środowisko. Nie zmienia środowisk Muse Code ani jawnie skonfigurowanych serwerów MCP.",
   "command.nextOpenQuestion.title": "Następne otwarte pytanie",
   "command.previousOpenQuestion.title": "Poprzednie otwarte pytanie",
-  "config.questions.deferAfterSeconds.description": "Liczba sekund, po których pytanie bez odpowiedzi zostaje odroczone, aby Muse mógł kontynuować pracę. Domyślnie 60; 0 oznacza nigdy; 1–9 są odczytywane jako 10; maksimum 3600. Pytanie pozostaje otwarte i można odpowiedzieć później. Używane jest tylko ustawienie tego komputera."
+  "config.questions.deferAfterSeconds.description": "Liczba sekund, po których pytanie bez odpowiedzi zostaje odroczone, aby Muse mógł kontynuować pracę. Domyślnie 60; 0 oznacza nigdy; 1–9 są odczytywane jako 10; maksimum 3600. Pytanie pozostaje otwarte i można odpowiedzieć później. Używane jest tylko ustawienie tego komputera.",
+  "command.vault.title": "Sejf",
+  "command.lockVault.title": "Zablokuj sejf teraz",
+  "config.vault.description": "Włącz sejf poświadczeń użytkownika współdzielony przez edytory.",
+  "config.vault.protection.description": "Wybierz ochronę klucza sejfu. Tryb automatyczny używa dostępnego sprzętu i magazynu systemu.",
+  "config.vault.agentFence.description": "Odizoluj procesy agentów od istniejących dróg dostępu do poświadczeń. Procesy robocze pozostają izolowane po wyłączeniu.",
+  "config.vault.lockAfterIdleMinutes.description": "Zablokuj sejf po tej liczbie minut bezczynności.",
+  "config.vault.lockOnScreenLock.description": "Zablokuj sejf, gdy system zgłosi blokadę ekranu.",
+  "config.vault.protection.enumDescriptions.auto": "Ochrona automatyczna",
+  "config.vault.protection.enumDescriptions.osStore": "Magazyn poświadczeń systemu",
+  "config.vault.protection.enumDescriptions.passphrase": "Ochrona hasłem",
+  "config.vault.protection.enumDescriptions.hardware": "Ochrona sprzętowa"
 }

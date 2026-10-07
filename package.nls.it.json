@@ -167,5 +167,16 @@
   "config.shell.passEnvironmentVariables.description": "Nomi delle variabili di ambiente da passare ai comandi shell interattivi della sessione principale, incluse le credenziali normalmente escluse. Solo nomi, mai valori. Predefinito: nessuna. Un comando può esporre questi valori nella conversazione e al fornitore del modello. Verifiche/then_run, pianificazioni, agenti secondari/di squadra e hook non ricevono mai variabili di credenziali, anche se elencate qui. Un comando interattivo spostato in background mantiene il suo ambiente iniziale. Non modifica gli ambienti di Muse Code o dei server MCP configurati esplicitamente.",
   "command.nextOpenQuestion.title": "Domanda aperta successiva",
   "command.previousOpenQuestion.title": "Domanda aperta precedente",
-  "config.questions.deferAfterSeconds.description": "Secondi prima che una domanda senza risposta venga rimandata per consentire a Muse di continuare a lavorare. 60 per impostazione predefinita; 0 significa mai; 1–9 vengono interpretati come 10; massimo 3.600. La domanda resta aperta e può ricevere una risposta in seguito. Si usa solo l’impostazione di questo computer."
+  "config.questions.deferAfterSeconds.description": "Secondi prima che una domanda senza risposta venga rimandata per consentire a Muse di continuare a lavorare. 60 per impostazione predefinita; 0 significa mai; 1–9 vengono interpretati come 10; massimo 3.600. La domanda resta aperta e può ricevere una risposta in seguito. Si usa solo l’impostazione di questo computer.",
+  "command.vault.title": "Cassaforte",
+  "command.lockVault.title": "Blocca la cassaforte ora",
+  "config.vault.description": "Abilitare la cassaforte di credenziali per utente condivisa dagli editor.",
+  "config.vault.protection.description": "Scegliere la protezione della chiave. Automatica usa l’hardware disponibile e l’archivio del sistema.",
+  "config.vault.agentFence.description": "Isolare i processi degli agenti dai percorsi di credenziali esistenti. I lavoratori restano isolati se disattivato.",
+  "config.vault.lockAfterIdleMinutes.description": "Bloccare la cassaforte dopo questo numero di minuti di inattività.",
+  "config.vault.lockOnScreenLock.description": "Bloccare la cassaforte quando il sistema segnala il blocco dello schermo.",
+  "config.vault.protection.enumDescriptions.auto": "Protezione automatica",
+  "config.vault.protection.enumDescriptions.osStore": "Archivio credenziali del sistema",
+  "config.vault.protection.enumDescriptions.passphrase": "Protezione con frase segreta",
+  "config.vault.protection.enumDescriptions.hardware": "Protezione hardware"
 }

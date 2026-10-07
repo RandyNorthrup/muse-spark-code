@@ -167,5 +167,16 @@
   "config.shell.passEnvironmentVariables.description": "A fő munkamenet interaktív shellparancsainak átadandó környezeti változók nevei, beleértve az általában kizárt hitelesítési adatokat. Csak nevek, soha nem értékek. Alapértelmezés: nincs. A parancs felfedheti ezeket az értékeket a beszélgetésben és a modellszolgáltatónak. Az ellenőrzések/then_run, ütemezések, alárendelt/csapatmunkások és hookok soha nem kapnak hitelesítési változókat, akkor sem, ha itt szerepelnek. A háttérbe helyezett interaktív parancs megtartja a kezdeti környezetét. Nem módosítja a Muse Code vagy a kifejezetten beállított MCP-kiszolgálók környezetét.",
   "command.nextOpenQuestion.title": "Következő nyitott kérdés",
   "command.previousOpenQuestion.title": "Előző nyitott kérdés",
-  "config.questions.deferAfterSeconds.description": "Ennyi másodperc után halasztjuk el a megválaszolatlan kérdést, hogy Muse folytathassa a munkát. Alapérték: 60; a 0 jelentése soha; az 1–9 értékeket 10-ként kezeljük; maximum 3600. A kérdés nyitva marad, és később is megválaszolható. Csak ennek a gépnek a beállítását használjuk."
+  "config.questions.deferAfterSeconds.description": "Ennyi másodperc után halasztjuk el a megválaszolatlan kérdést, hogy Muse folytathassa a munkát. Alapérték: 60; a 0 jelentése soha; az 1–9 értékeket 10-ként kezeljük; maximum 3600. A kérdés nyitva marad, és később is megválaszolható. Csak ennek a gépnek a beállítását használjuk.",
+  "command.vault.title": "Tároló",
+  "command.lockVault.title": "Tároló zárolása most",
+  "config.vault.description": "A szerkesztők közös, felhasználónkénti hitelesítőadat-tárolójának engedélyezése.",
+  "config.vault.protection.description": "A tárolókulcs védelmének kiválasztása. Az automatikus mód az elérhető hardvert és az operációs rendszer tárolóját használja.",
+  "config.vault.agentFence.description": "Az ügynökfolyamatok elzárása a meglévő hitelesítési útvonalaktól. A dolgozók kikapcsoláskor is elzárva maradnak.",
+  "config.vault.lockAfterIdleMinutes.description": "A tároló zárolása ennyi tétlen perc után.",
+  "config.vault.lockOnScreenLock.description": "A tároló zárolása, amikor az operációs rendszer képernyőzárat jelez.",
+  "config.vault.protection.enumDescriptions.auto": "Automatikus védelem",
+  "config.vault.protection.enumDescriptions.osStore": "Az operációs rendszer hitelesítőadat-tárolója",
+  "config.vault.protection.enumDescriptions.passphrase": "Jelmondatos védelem",
+  "config.vault.protection.enumDescriptions.hardware": "Hardveres védelem"
 }
