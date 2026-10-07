@@ -13027,9 +13027,10 @@ D90.25, D96, D88 and D97.
 
 - **Q-M109 — A Mac for the Secure Enclave slot (2026-10-05).** D89.2's
   Secure Enclave slot needs a Mac where `SecureEnclave.isAvailable`: Apple
-  silicon, or an Intel Mac with Touch ID. The Mac mini rig is Intel without
-  Touch ID, so it cannot run the capture that shows our ad hoc signed helper
-  may create the key and keep its blob in a file (research §7). Keychain
+  silicon, or a capable Intel Mac. The Intel Mac mini rig's T2 chip reports
+  `SecureEnclave.isAvailable=true` and has exercised a generated-key blob
+  roundtrip; it does not certify per-use presence or helper-only real-item
+  access. The owner's Touch ID Mac capture remains pending. Keychain
   items with SE-backed access control or biometry need more: a provisioned
   entitlement, so a helper `.app` signed under an Apple Developer Program
   team, which only the owner can join. **Default:** macOS uses the login
@@ -26276,6 +26277,20 @@ prohibits merges, pushes and live/paid calls.
 **Status 2026-10-05: planned.** The research is
 `docs/research/credential-vault-2026-10-05.md`.
 
+**P-mac review repair (FIXM109PM, 2026-10-06).** RVM109PM P2 preserves
+validated fixed native failures across exit 1 and parser cleanup, with a named
+error and recovery action for cancelled, unavailable, keychainLocked,
+itemMissing, authentication and invalidRequest. Missing items and a locked
+Keychain get distinct native codes. P3 installs erasure before private reads,
+including partial EOF, read failures and trailing input. Each repair gets a
+failing regression and a byte-exact restored red drill in `m109-p.md`. No
+credential item or paid/live call is needed. The broker's display belongs to B
+(the broker is absent on this lane base); P supplies the failure/action pair.
+Production SE certification stays false until the owner's real-item capture
+also proves a second executable cannot read the item silently. This Intel Mac
+mini's T2 reports `SecureEnclave.isAvailable=true`; that probe is not presence
+or helper-only-access certification.
+
 - **Lanes 0, C, P, B and U** need nothing unmerged.
 - **S, X, T, O and M** follow B; **L** also needs M81's lane A1.
 - **H** follows B and U.
@@ -29699,6 +29714,12 @@ The W-owned host API record remains an explicit deferral: crypto imports
 is added; W must regenerate after integration. No review finding is deferred;
 P/B's protected complete-state anchor and W's trusted confirmation bindings
 are mandatory before this unwired core ships (named in §9).
+**FIXM109PM review repair (2026-10-06, Mac mini).** The rig brief and common
+lane rules prohibit `npm run quality` and any merge/push/rebase. Focused tests,
+local gate commands and native generated-material checks run directly here;
+the lead retains aggregate quality, the integrated host API record and hosted
+CI. This is a lane receipt, not a release certification; no gate is weakened.
+See `docs/certification/m109-p.md` for results and byte-exact red drills.
 
 **FIXM109L0 review repair (2026-10-05, Mac mini).** RVM109L0's two P2
 contract findings and its P3 fake ownership finding are fixed. A distinct
@@ -31068,6 +31089,21 @@ before a repaired one loads (2026-09-30).
   confirmation action in every editor; any future cross-history import needs
   separately designed revocation proof, never a weaker generation guard.
   No RVM109C finding is deferred.
+- **P-mac/B-error-surface (FIXM109PM, 2026-10-06).** The macOS native
+  helper and slot port now preserve six fixed named failures with distinct
+  recovery-action identifiers. The broker does not exist on this lane base;
+  B owns translating and displaying them. Safe for now: P is not bound into
+  shipped vault bundles and every failure refuses access. Follow-up: B's
+  integration must test each native code through its broker/client UI, rather
+  than collapse it to No access. See `docs/certification/m109-p.md`.
+
+- **P-mac/owner-certification (FIXM109PM, 2026-10-06).** This Intel Mac mini
+  has a T2 chip and reports `SecureEnclave.isAvailable=true`; availability is
+  not production certification. Real-item access, per-use presence and stale
+  authorization remain unproved. Safe for now: the native certification flag
+  stays false and neither SE mode is offered. Follow-up: the owner's Touch ID
+  Mac capture after 17:00 must also prove a second executable cannot read the
+  real item silently. No helper-only ACL guarantee is asserted meanwhile.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the
