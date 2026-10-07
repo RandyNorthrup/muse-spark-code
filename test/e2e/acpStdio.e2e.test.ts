@@ -11,7 +11,7 @@
 // credential file as the panel reads it (D26, PR #49).
 
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Writable } from 'node:stream'
@@ -31,6 +31,7 @@ import { memorySecrets } from '../unit/helpers/fakes'
 import { fakeModelApi } from '../unit/helpers/fakeModelApi'
 import { buildModelApiBundle } from '../unit/helpers/modelApiBundle'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
+import { buildAcpFixture, removeAcpFixture } from './acpFixture'
 import {
   fakeCredentialFile,
   installFakeCredential,
@@ -80,17 +81,7 @@ beforeAll(async () => {
   if (INSTALLED !== undefined) {
     return
   }
-  mkdirSync(path.dirname(AGENT), { recursive: true })
-  await build({
-    entryPoints: [path.join(ROOT, 'src', 'runtime', 'main.ts')],
-    outfile: AGENT,
-    bundle: true,
-    platform: 'node',
-    format: 'cjs',
-    target: 'node22',
-    external: ['@napi-rs/keyring'],
-    logLevel: 'silent',
-  })
+  await buildAcpFixture(ROOT, PACKAGE, LAID_OUT_VERSION)
   await build({
     entryPoints: [path.join(ROOT, 'src', 'runtime', 'sharing', 'sharingEntry.ts')],
     outfile: path.join(path.dirname(AGENT), 'sharingRuntime.js'),
@@ -117,18 +108,11 @@ beforeAll(async () => {
       logLevel: 'silent',
     })
   }
-  writeFileSync(path.join(PACKAGE, 'package.json'), JSON.stringify({ version: LAID_OUT_VERSION }))
-  cpSync(path.join(ROOT, 'l10n'), path.join(PACKAGE, 'l10n'), { recursive: true })
 })
 
 afterAll(async () => {
-  for (const child of children) {
-    child.kill()
-  }
   const made = [fake.installDir, signedIn, signedOut, loggedOut, workspace, dataHome]
-  await Promise.all(
-    [...made, ...(INSTALLED === undefined ? [PACKAGE] : [])].map((folder) => removeFolder(folder)),
-  )
+  await removeAcpFixture(children, [...made, ...(INSTALLED === undefined ? [PACKAGE] : [])])
 })
 
 function agentEnvironment(configHome: string): NodeJS.ProcessEnv {

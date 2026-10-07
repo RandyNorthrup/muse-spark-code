@@ -17,6 +17,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- ACP Registry and stdio release tests share their real-agent fixture build
+  and cleanup, preserving installed-package coverage without copied setup.
 - Checkpoint disposal tests retire the captured owner after filter-free Git
   discovery exits 1, so the cancellation assertion exercises disposal reliably.
 - Windows shell credential regressions await the matching background completion

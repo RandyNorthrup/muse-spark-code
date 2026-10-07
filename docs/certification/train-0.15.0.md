@@ -1607,7 +1607,20 @@ The existing sharing drill and these two records remain in temp/rel0150m.
 
 ### Remaining acceptance work
 
-Normal hook-enabled infrastructure merge commit is next. Full configured
+The first complete static pass clears full-repository ESLint with zero warnings,
+all five compiler projects, full formatting, plain knip, cycles, reference,
+localization and the production build. Duplication catches three inherited
+ACP Registry/stdio fixture blocks (34 lines / 196 tokens). A shared test-only
+real-agent build/cleanup removes the copies; the unchanged zero-duplication
+gate is now green, and both complete ACP files pass **13/13** at repository
+defaults. The host-API gate catches the earlier two-walkthrough generated
+count; regenerating after the manifest union records one walkthrough. Final
+static checks will rerun on this repaired tree. No threshold, ignore, assertion
+or deadline is weakened. PowerShell lint exits zero with its existing Linux
+skip; native Windows analysis remains the lead's platform gate.
+
+Infrastructure merge is committed as `4eac2793`, both parents retained; normal
+ESLint/Prettier/Gitleaks hooks pass. Full configured
 sweep: **822 files / 274 batches**, at most three files and workers, no
 --testTimeout. Full ESLint, final five-project compiler/static gates, all
 accessibility pages, screenshot comparison and actual packages are pending.

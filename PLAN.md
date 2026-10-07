@@ -18777,10 +18777,10 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ### REL0150M — Bring 0.14.4 and 0.14.5 into 0.15.0 (2026-10-06, linuxlt)
 
-- [~] Merge `rel-0145` then `chore/infra-0150-m`, each with `git merge --no-ff`;
-  preserve all train and sharing features, newer translated text and both
-  harness readiness inventories. Regenerate reference and host API records.
-- [ ] Keep version 0.15.0 and the dependency union; regenerate the lock and prove
+- [x] Merge `rel-0145` then `chore/infra-0150-m`, each with `git merge --no-ff`;
+      preserve all train and sharing features, newer translated text and both
+      harness readiness inventories. Regenerate reference and host API records.
+- [x] Keep version 0.15.0 and the dependency union; regenerate the lock and prove
       clean installation. Keep one current What's New, with Earlier 0.14.5 and
       Earlier 0.14.4 before older notes; preserve every changelog release.
 - [ ] Run the complete configured suite in batches of at most three files using
@@ -18794,11 +18794,17 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 - [ ] Record all checks, fixes and byte-exact regression drills in
       `docs/certification/train-0.15.0.md`; commit locally with hooks, never push.
 
-First merge is committed as `50a4947a` with normal hooks; the infrastructure
-merge is resolved and its owning tests pass, with its hook-enabled commit next.
+Both ordered merges are committed with normal hooks: `50a4947a` and
+`4eac2793`. Infrastructure owning tests and restored regression drills pass.
 The dependency union and clean ordinary npm ci check are complete. Generated
 reference/host records and locale unions are clean; final full-tree acceptance
 checks, all 17 screenshot captures and universal measurement remain pending.
+
+The merged ACP Registry and stdio suites duplicate their real packaged-agent
+build and cleanup. Consolidate only that test fixture setup to satisfy the
+unchanged zero-duplication gate; retain separate capability and lifecycle tests,
+installed-package coverage and default deadlines. Regenerate the host API record
+after the manifest's single-walkthrough union.
 
 The rig brief authorizes the full suite and listed full-repository gates despite
 common.md's scoped-file rule. Aggregate `npm run quality` remains reserved for

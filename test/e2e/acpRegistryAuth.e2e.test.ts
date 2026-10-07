@@ -7,16 +7,15 @@
 // a terminal (or agent) sign-in; a client announcing neither must not.
 
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { cpSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Writable } from 'node:stream'
 import * as acp from '@agentclientprotocol/sdk'
 import { EXPECTED_SCHEMA_FINGERPRINT } from '@muse-code/sdk'
-import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { webReadable } from '../../src/runtime/webStreams'
-import { removeFolder } from '../unit/helpers/temporaryFolders'
+import { buildAcpFixture, removeAcpFixture } from './acpFixture'
 import { installFakeMuse } from './fakeMuse'
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..')
@@ -37,30 +36,16 @@ beforeAll(async () => {
   if (INSTALLED !== undefined) {
     return
   }
-  mkdirSync(path.dirname(AGENT), { recursive: true })
-  await build({
-    entryPoints: [path.join(ROOT, 'src', 'runtime', 'main.ts')],
-    outfile: AGENT,
-    bundle: true,
-    platform: 'node',
-    format: 'cjs',
-    target: 'node22',
-    external: ['@napi-rs/keyring'],
-    logLevel: 'silent',
-  })
-  writeFileSync(path.join(PACKAGE, 'package.json'), JSON.stringify({ version: '0.0.0-registry' }))
-  cpSync(path.join(ROOT, 'l10n'), path.join(PACKAGE, 'l10n'), { recursive: true })
+  await buildAcpFixture(ROOT, PACKAGE, '0.0.0-registry')
 })
 
 afterAll(async () => {
-  for (const child of children) {
-    child.kill()
-  }
-  await Promise.all(
-    [fake.installDir, workspace, dataHome, ...(INSTALLED === undefined ? [PACKAGE] : [])].map(
-      (folder) => removeFolder(folder),
-    ),
-  )
+  await removeAcpFixture(children, [
+    fake.installDir,
+    workspace,
+    dataHome,
+    ...(INSTALLED === undefined ? [PACKAGE] : []),
+  ])
 })
 
 function startAgent(): {
