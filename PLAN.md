@@ -12751,6 +12751,57 @@ prompts into a chat in any workspace".
    the next patch release after 0.14.3; phase 2 (gists) the one after;
    phase 3 with M110, M96, M113 and M115.
 
+### D100 — Orchestration gotchas become product rules (2026-10-06)
+
+The owner, 2026-10-06: "make sure that anything you find in your efforts to
+orchestrate these agents you document any gotchas and lets make sure that we
+will account for it in our app". The register is
+[`docs/orchestration-gotchas.md`](docs/orchestration-gotchas.md). It records
+what went wrong while a fleet of up to 30 agents built this project across
+three rigs, the rule that prevents it, and the owning decision. New gotchas are
+added there in the same session they are found. Plans and reviews of M96,
+M96c, M100, M107, M110, M115, M116 and M117 check it.
+
+Amendments (rows marked **amend**). Each lands in its milestone with a named
+test that fails without the rule:
+
+1. **M96c (scheduler and merge queue):** G1 input manifests, content-addressed
+   and verified before start; G2 base objects transferred and the base commit
+   verified on the worker; G4 base recorded per job, and the full gate re-run
+   after merging current main; G6 no duplication on unreachability
+   (re-dispatch only after lease expiry, under a new epoch); G21 a new verdict
+   re-runs the whole workflow; G26 the full suite after every merge into a
+   release candidate.
+2. **M96 (team and board):** G3 structural rendering of briefs (no text
+   substitution; the rendered brief is checked and hashed before dispatch);
+   G5 three job states (running, finished, unknown since a time); G7
+   continuous, event-driven completion delivery.
+3. **M100 (paired devices):** the M110 node rules of D90.25 (G5 unknown
+   state, G6 lease-epoch re-dispatch and quarantine, G27 the result channel)
+   also bind device lanes. Also G1 and G2 on dispatch, G12 transport-health
+   signals, G14 an explicit recorded environment and preflight of hook tools,
+   and G15 Windows per-process policy, closed stdin and structured results.
+4. **M107 (governor):** G10 a temp root per job, removed at its end; G11
+   ledger-only cleanup with an identity re-check, never by name pattern; G12
+   OS-service pressure and transport failure as signals; G13 spawn-rate and
+   process-count caps per job tree; G16 reparse points unlinked, never
+   recursed into.
+5. **M110 (Muse Node):** G1, G2, G10, G11, G14 to G16 for the tool host and
+   sandboxes.
+6. **M115 (scheduled prompts):** G8 one serialized owner plus a lease, never
+   process-name matching; G22 every unattended delivery verified where it
+   landed.
+7. **M116 (playbook):** G3 together with M96; G17 a snapshot of shared
+   repository configuration before a job and drift reported after it; G20 an
+   optional, recorded fallback reviewer for classifier-blocked reviews, set by
+   the user in advance (never an automatic reroute; rule 9 stands); G24 a
+   residual register per milestone that must be empty or accepted before
+   release.
+8. **M117 (estimator):** G4 base age as a schedule risk.
+
+Rows marked **covered** keep their existing decision as the owner: D87.14,
+D90.25, D96, D88 and D97.
+
 ## 3. Open questions (need the owner)
 
 - **Q-M115 — What M115 needs from the owner (2026-10-06).** Nothing here

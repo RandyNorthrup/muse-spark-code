@@ -303,6 +303,10 @@ action/**             composite proposal Action, bounded trusted launcher,
 docs/ci.md            headless/CI contract, security and accounting assumptions
 docs/schemas/**       generated versioned event/result schemas, shipped in npm
 docs/acp.md           the ACP agent's guide, shipped as its package's README
+docs/orchestration-gotchas.md
+                      what went wrong orchestrating the agent fleet, the rule
+                      that prevents it, and the milestone that enforces it in
+                      the app (D100); add a row when you find a new one
 media/                icons, banner, social preview, README screenshots
 ```
 
