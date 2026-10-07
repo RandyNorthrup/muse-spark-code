@@ -2,7 +2,11 @@
 import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { hostRoles } from '../../design/tokens/generated/consumers.json'
-import { mountThemeBridge, type ThemePort } from '../../src/webview/bridges/theme/themeBridge'
+import {
+  mountThemeBridge,
+  type ThemeBridgeOptions,
+  type ThemePort,
+} from '../../src/webview/bridges/theme/themeBridge'
 import { loadThemeBridge } from '../../src/webview/bridges/theme/loadThemeBridge'
 
 function fakePort(initial: unknown) {
@@ -31,17 +35,23 @@ const disposers: (() => void)[] = []
 afterEach(() => {
   for (const dispose of disposers.splice(0)) dispose()
   document.body.replaceChildren()
+  for (const owned of document.head.querySelectorAll('style[data-ms-theme-vars]')) owned.remove()
 })
 
-function mount(initial: unknown) {
+function mount(initial: unknown, options?: ThemeBridgeOptions) {
   const root = document.createElement('main')
   const sibling = document.createElement('aside')
   document.body.append(root, sibling)
   const producer = fakePort(initial)
   const onInvalid = vi.fn()
-  const dispose = mountThemeBridge(root, producer.port, onInvalid)
+  const dispose = mountThemeBridge(root, producer.port, onInvalid, options)
   disposers.push(dispose)
   return { root, sibling, producer, onInvalid, dispose }
+}
+
+/** The bridge-owned declarations element for a mounted root, if any. */
+function ownedStyle(root: Element): HTMLStyleElement | null {
+  return root.ownerDocument.head.querySelector('style[data-ms-theme-vars]')
 }
 
 describe('M114 internal theme consumer (M104 wire adapters are an integration handoff)', () => {
@@ -61,12 +71,15 @@ describe('M114 internal theme consumer (M104 wire adapters are an integration ha
         )
         producer.emit({ mode, roles })
         expect(root.dataset['msTheme']).toBe(mode)
+        // A strict page policy refuses inline `style` writes, so accepted
+        // host values must land in the bridge-owned sheet, never inline.
+        expect(root.style.length).toBe(0)
+        const text = ownedStyle(root)?.textContent ?? ''
         const aliases = new Set<string>()
         for (const [key, { variable, vscode }] of Object.entries(hostRoles)) {
-          expect(root.style.getPropertyValue(variable), key).toBe(roles[key])
+          expect(text, key).toContain(`${variable}:${roles[key] ?? ''}`)
           for (const alias of vscode) {
-            if (!aliases.has(alias))
-              expect(root.style.getPropertyValue(alias)).toBe(`var(${variable})`)
+            if (!aliases.has(alias)) expect(text, alias).toContain(`${alias}:var(${variable})`)
             aliases.add(alias)
           }
         }
@@ -84,11 +97,35 @@ describe('M114 internal theme consumer (M104 wire adapters are an integration ha
       mode: 'light',
       roles: { 'colour.text': '#123456', 'typography.font-code': 'Consolas, monospace' },
     })
-    expect(root.style.getPropertyValue('--ms-text')).toBe('#123456')
+    expect(ownedStyle(root)?.textContent ?? '').toContain('--ms-text:#123456')
     producer.emit({ mode: 'dark', roles: {} })
-    expect(root.style.getPropertyValue('--ms-text')).toBe('')
-    expect(root.style.getPropertyValue('--ms-font-code')).toBe('')
-    expect(root.style.getPropertyValue('--vscode-foreground')).toBe('var(--ms-text)')
+    const text = ownedStyle(root)?.textContent ?? ''
+    expect(text).not.toContain('--ms-text:')
+    expect(text).not.toContain('--ms-font-code:')
+    expect(text).toContain('--vscode-foreground:var(--ms-text)')
+  })
+
+  it('carries the page nonce on the owned element', () => {
+    const { root } = mount({ mode: 'dark', roles: {} }, { nonce: 'test-nonce' })
+    expect(ownedStyle(root)?.getAttribute('nonce')).toBe('test-nonce')
+  })
+
+  it('leaves the root untouched and reports when the page refuses the owned sheet', () => {
+    const root = document.createElement('main')
+    document.body.append(root)
+    // A strict policy exposes no sheet on the refused element; simulate it.
+    const sheet = vi.spyOn(HTMLStyleElement.prototype, 'sheet', 'get').mockReturnValue(null)
+    try {
+      const producer = fakePort({ mode: 'dark', roles: { 'colour.text': '#abcdef' } })
+      const onInvalid = vi.fn()
+      const dispose = mountThemeBridge(root, producer.port, onInvalid)
+      disposers.push(dispose)
+      expect(onInvalid).toHaveBeenCalledTimes(1)
+      expect(root.outerHTML).toBe('<main></main>')
+      expect(ownedStyle(root)).toBeNull()
+    } finally {
+      sheet.mockRestore()
+    }
   })
 
   it.each([
@@ -137,8 +174,9 @@ describe('M114 internal theme consumer (M104 wire adapters are an integration ha
       roles: { 'colour.text': 'rgb(12 34 56)', 'colour.hover': '#abcdef80' },
     })
     expect(onInvalid).not.toHaveBeenCalled()
-    expect(root.style.getPropertyValue('--ms-text')).toBe('rgb(12 34 56)')
-    expect(root.style.getPropertyValue('--ms-hover')).toBe('#abcdef80')
+    const text = ownedStyle(root)?.textContent ?? ''
+    expect(text).toContain('--ms-text:rgb(12 34 56)')
+    expect(text).toContain('--ms-hover:#abcdef80')
   })
 
   it('restores prior values, priorities, attributes and classes, and ignores late events', () => {

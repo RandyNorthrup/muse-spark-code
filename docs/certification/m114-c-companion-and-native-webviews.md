@@ -149,3 +149,50 @@ hosts, preference media queries, focus/IME/draft) are unverified here and go
 to the assigned rig with the M104 binding: **M114-C-CHROMIUM-RERUN** — run
 the two owning files on Win11 VM (this lane's assigned rig) or another
 unsandboxed host at integration, at default timeouts, before S certifies.
+
+## Grok P1/P2 fixes (lane M114W, 2026-10-07, same Kubuntu rig)
+
+All three findings are fixed at the root in the merged code. No gate weakened;
+no new string, dependency, or cap. Browser launch is still sandbox-blocked on
+this rig (retried: system Chrome, bundled Chromium 1234/headless shell incl.
+`--single-process`, Firefox — all SIGTRAP/EPERM), so Chromium-rendered proof
+stays with **M114-C-CHROMIUM-RERUN**; everything runnable here is green at the
+repo's default vitest timeout.
+
+- **P1 (inline styles the CSP rejects, failure ignored).**
+  `src/webview/bridges/theme/themeBridge.ts`: accepted host values no longer
+  ride `style.setProperty`. Each mount mints one scope class and writes every
+  declaration into a bridge-owned `<style data-ms-theme-vars>` element, which
+  carries the page nonce (`ThemeBridgeOptions.nonce`, plumbed through
+  `loadThemeBridge`'s new optional argument for M104). Dataset and mode
+  classes are set only after the sheet verifies; a refused sheet (`null`,
+  the strict-policy signal) removes the element, leaves the root untouched
+  and calls `onInvalid`. Disposal removes the element and the scope class.
+- **P2 (suite never loads the lazy palettes).** New shared builder
+  `test/unit/themeBridgeFixture.mjs`: the served page links every emitted
+  stylesheet (`/fixture.css` first, then the extracted lazy chunk) and admits
+  only the bridge nonce in `style-src`. `themeBridgeBrowser.test.mjs` uses it
+  and additionally asserts the lazy CSS carries `[data-ms-theme]` and
+  `color-scheme`. New browser-free guard `themeBridgeFixture.test.mjs`
+  asserts the same assembly through the bundler alone (runs anywhere).
+- **P2 (HC stop-button colour never set).** `src/webview/styles.css`: the
+  high-contrast stop rule falls back to `var(--ms-chart-danger)` for
+  `border-color` and `color` when `--vscode-errorForeground` is absent
+  (companion/native). No-op in the VS Code panel, where the editor defines
+  the variable. The Chromium suite gains a hover test in both HC modes;
+  sibling `errorForeground` uses elsewhere stay lane 0's role
+  (handoff M114-C-HOST-ERROR). `docs/certification/m114-p2-after/manifest.json`:
+  styles.css sha refreshed (one line; no capture mentions the stop control).
+
+Byte-exact red drills (break, watch fail, restore, sha matches): P1 — old
+implementation vs new suite, 8 failures incl. the refusal test (re-drilled
+alone after the lint rework); P2a — single-link page vs fixture guard, fails
+naming the unlinked `themeEntry-*.css`; P2b — fallback removed, scratch
+var-resolution probe flips valid→invalid. Suite
+`test/unit/themeBridge.test.ts` is 42/42; fixture guard 1/1; inventory 3/3.
+
+Still open for the lead: `m114Audit.test.mjs` file-inventory and
+`m114PanelEvidence.test.mjs` source-hash failures are integration drift from
+other lanes (e.g. `ApprovalDock.tsx`, `AgentMap.tsx`; none in this diff) plus
+sandbox-blocked captures — not touched, reported as found. The a11y harness
+(`node scripts/a11y.mjs`) needs the same blocked Chrome and was not run.

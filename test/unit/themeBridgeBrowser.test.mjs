@@ -1,61 +1,20 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
+import { buildThemeFixture, themeFixtureHtml } from './themeBridgeFixture.mjs'
 
 const consumer = JSON.parse(readFileSync('design/tokens/generated/consumers.json', 'utf8'))
 const modes = ['light', 'dark', 'hc-light', 'hc-dark']
 const runtime = {}
-const fixture = `
-import './src/webview/styles.css';
-import {loadThemeBridge} from './src/webview/bridges/theme/loadThemeBridge';
-let snapshot = {mode:'dark', roles:{}};
-let receive;
-const controller = new AbortController();
-globalThis.theme = {
-  change(value) { snapshot = value; receive(value); },
-  stop() { controller.abort(); },
-  invalid: 0, unsubscribed: 0,
-};
-const port = {current: () => snapshot, subscribe(fn) {
-  receive = fn;
-  return () => { globalThis.theme.unsubscribed++; };
-}};
-await loadThemeBridge(globalThis.document.querySelector('main'), port,
-  () => { globalThis.theme.invalid++; }, controller.signal);
-globalThis.theme.ready = true;
-`
-const html = `<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'none'">
-<title>Theme fixture</title><link rel="stylesheet" href="/fixture.css"></head><body>
-<main><section class="composer"><label for="draft">Prompt</label><textarea id="draft" class="composer-input"></textarea>
-<button class="button-primary">Send</button><button class="button-secondary" disabled>Disabled</button>
-<pre><code>code</code></pre></section></main><aside>Sibling</aside>
-<script type="module" src="/fixture.js"></script></body></html>`
 
 beforeAll(async () => {
-  const result = await build({
-    stdin: { contents: fixture, resolveDir: process.cwd(), sourcefile: 'fixture.js' },
-    outdir: path.resolve('temp/m114-c-browser'),
-    entryNames: 'fixture',
-    bundle: true,
-    splitting: true,
-    format: 'esm',
-    platform: 'browser',
-    target: 'chrome128',
-    minify: true,
-    metafile: true,
-    write: false,
-  })
-  runtime.meta = result.metafile
-  runtime.assets = new Map(
-    result.outputFiles.map((file) => [
-      `/${path.relative(path.resolve('temp/m114-c-browser'), file.path).replaceAll('\\', '/')}`,
-      file.text,
-    ]),
-  )
+  const built = await buildThemeFixture()
+  runtime.meta = built.meta
+  runtime.assets = built.assets
+  runtime.nonce = built.nonce
+  runtime.html = themeFixtureHtml(built.assets, built.nonce)
   const chrome = findChrome()
   if (!chrome) throw new Error('Chrome is required for theme consumer verification')
   runtime.browser = await chromium.launch(
@@ -73,7 +32,7 @@ async function open(preferences = {}) {
   })
   await page.route('**/*', (route) => {
     const url = new URL(route.request().url())
-    const content = url.pathname === '/' ? html : runtime.assets.get(url.pathname)
+    const content = url.pathname === '/' ? runtime.html : runtime.assets.get(url.pathname)
     if (content === undefined || url.hostname !== '127.0.0.1') return route.abort()
     let contentType = 'text/javascript'
     if (url.pathname === '/') contentType = 'text/html'
@@ -148,6 +107,25 @@ describe('M114 companion/native theme CSS in Chromium (internal port fakes)', ()
       )
       .join('\n')
     expect(js).not.toMatch(/colorSpace|contrastPairs|#181818|@font-face|https?:/)
+    // The lazy theme sheets are separate CSS outputs: the page must link
+    // every emitted stylesheet (a dynamic JS import never injects them),
+    // and the policy must admit the nonce the bridge carries.
+    const sheets = runtime.assets
+      .keys()
+      .filter((name) => name.endsWith('.css'))
+      .toArray()
+    expect(sheets.length).toBeGreaterThanOrEqual(2)
+    for (const sheet of sheets) expect(runtime.html).toContain(`href="${sheet}"`)
+    expect(runtime.html).toContain(`style-src 'self' 'nonce-${runtime.nonce}'`)
+    const lazyCssText = lazyCss
+      .map(([name]) =>
+        runtime.assets.get(
+          `/${path.relative(path.resolve('temp/m114-c-browser'), path.resolve(name)).replaceAll('\\', '/')}`,
+        ),
+      )
+      .join('\n')
+    expect(lazyCssText).toContain('[data-ms-theme]')
+    expect(lazyCssText).toContain('color-scheme')
     console.info(
       `M114 C lazy closure: ${jsBytes} JavaScript bytes; ${cssBytes} CSS bytes (25 KiB each)`,
     )
@@ -291,6 +269,42 @@ describe('M114 companion/native theme CSS in Chromium (internal port fakes)', ()
       await page.close()
     }
   })
+
+  it.each(['hc-dark', 'hc-light'])(
+    'companion %s stop control keeps a valid error colour on hover',
+    async (mode) => {
+      // `--vscode-errorForeground` is never set on a companion page, so the
+      // high-contrast stop rule must fall back to a Muse token. Without the
+      // fallback the declaration is invalid and the colour merely inherits.
+      const page = await open()
+      try {
+        await change(page, mode)
+        await page.locator('.send-button-stop').hover()
+        const stop = await page.evaluate(() => {
+          const probe = globalThis.document.createElement('span').style
+          const normalize = (value) => {
+            probe.removeProperty('color')
+            probe.setProperty('color', value)
+            return probe.getPropertyValue('color')
+          }
+          const button = globalThis.getComputedStyle(
+            globalThis.document.querySelector('.send-button-stop'),
+          )
+          const root = globalThis.getComputedStyle(globalThis.document.querySelector('main'))
+          return {
+            colour: normalize(button.color),
+            border: normalize(button.borderColor),
+            fallback: normalize(root.getPropertyValue('--ms-chart-danger')),
+          }
+        })
+        expect(stop.fallback).not.toBe('')
+        expect(stop.colour).toBe(stop.fallback)
+        expect(stop.border).toBe(stop.fallback)
+      } finally {
+        await page.close()
+      }
+    },
+  )
 
   it('theme changes preserve keyboard focus, IME events and the typed draft', async () => {
     const page = await open()

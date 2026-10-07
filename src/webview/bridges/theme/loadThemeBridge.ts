@@ -1,4 +1,4 @@
-import type { ThemePort } from './themeBridge'
+import type { ThemeBridgeOptions, ThemePort } from './themeBridge'
 
 /** M104 calls this only for companion/native roots, before mounting the panel. */
 export async function loadThemeBridge(
@@ -6,11 +6,12 @@ export async function loadThemeBridge(
   port: ThemePort,
   onInvalid: () => void,
   signal: AbortSignal,
+  options?: ThemeBridgeOptions,
 ): Promise<(() => void) | undefined> {
   const isAborted = () => signal.aborted
   const { mountThemeBridge } = await import('./themeEntry')
   if (isAborted()) return undefined
-  const dispose = mountThemeBridge(root, port, onInvalid)
+  const dispose = mountThemeBridge(root, port, onInvalid, options)
   const stop = () => {
     signal.removeEventListener('abort', stop)
     dispose()

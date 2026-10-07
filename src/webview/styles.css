@@ -622,8 +622,8 @@ body {
 .vscode-high-contrast .send-button-stop:focus-visible:enabled,
 .vscode-high-contrast-light .send-button-stop:hover:enabled,
 .vscode-high-contrast-light .send-button-stop:focus-visible:enabled {
-  border-color: var(--vscode-errorForeground);
-  color: var(--vscode-errorForeground);
+  border-color: var(--vscode-errorForeground, var(--ms-chart-danger));
+  color: var(--vscode-errorForeground, var(--ms-chart-danger));
   background: transparent;
 }
 

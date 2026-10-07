@@ -11,7 +11,7 @@
   "sources": [
     {
       "file": "src/webview/styles.css",
-      "sha256": "e776eda325c8b9a8cf26a32f89a5bfb80580ba33c4c0a355413cc5c2b2d0119d"
+      "sha256": "049cab4401f29ec86459552659ecc75d1323d6216dee7f66e93a94e66ab0ff9d"
     },
     {
       "file": "src/webview/whatsNew/whatsNew.css",

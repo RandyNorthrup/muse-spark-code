@@ -8,6 +8,16 @@ export interface ThemePort {
   subscribe(receive: (snapshot: unknown) => void): () => void
 }
 
+/** Page-controlled options for the internal consumer. */
+export interface ThemeBridgeOptions {
+  /**
+   * The page's style nonce. Host values ride in a bridge-owned `<style>`
+   * element carrying it, which a strict `style-src` policy admits. Inline
+   * `style` writes would be refused there: a nonce never covers them.
+   */
+  readonly nonce?: string
+}
+
 const snapshotSchema = z.strictObject({
   mode: z.enum(['light', 'dark', 'hc-light', 'hc-dark']),
   // Check original keys before record parsing can discard __proto__.
@@ -62,33 +72,34 @@ function isValidValue(role: string, value: string, probe: CSSStyleDeclaration): 
   return probe.getPropertyValue(property) !== ''
 }
 
-/** Own only this root's theme properties; disposal restores them byte-for-byte. */
+/** Marks the bridge-owned declarations element, for tests and disposal. */
+const OWNED_ATTRIBUTE = 'data-ms-theme-vars'
+
+/** Mint one scope class per mount; the counter is this module's only state. */
+const scopeSequence = { value: 0 }
+
+/** Own only this root's theme state; disposal removes it byte-for-byte. */
 export function mountThemeBridge(
   root: HTMLElement,
   port: ThemePort,
   onInvalid: () => void,
+  options?: ThemeBridgeOptions,
 ): () => void {
   const previousMode = root.dataset['msTheme']
   const previousClasses = themeClasses.filter((name) => root.classList.contains(name))
-  const properties = new Set(
-    Object.values(hostRoles).flatMap(({ variable, vscode }) => [variable, ...vscode]),
-  )
-  const previousStyles = [...properties].map((property) => ({
-    property,
-    value: root.style.getPropertyValue(property),
-    priority: root.style.getPropertyPriority(property),
-  }))
+  // Scopes the owned declarations to this root when several share a page.
+  scopeSequence.value += 1
+  const scopeClass = `ms-theme-vars-${scopeSequence.value.toString()}`
   const probe = root.ownerDocument.createElement('span').style
   let isActive = true
+  let owned: HTMLStyleElement | undefined
 
   const restore = () => {
-    for (const { property, value, priority } of previousStyles) {
-      if (value === '') root.style.removeProperty(property)
-      else root.style.setProperty(property, value, priority)
-    }
+    owned?.remove()
+    owned = undefined
     if (previousMode === undefined) delete root.dataset['msTheme']
     else root.dataset['msTheme'] = previousMode
-    root.classList.remove(...themeClasses)
+    root.classList.remove(...themeClasses, scopeClass)
     root.classList.add(...previousClasses)
   }
 
@@ -104,21 +115,40 @@ export function mountThemeBridge(
     }
 
     const { mode, roles } = parsed.data
-    root.dataset['msTheme'] = mode
-    root.classList.remove(...themeClasses)
-    root.classList.add(modeClasses[mode])
+    // Values are validated literals (no `;{}` or line breaks), so they
+    // cannot break out of their declarations below.
+    const declarations: string[] = []
     const aliases = new Set<string>()
     for (const [role, { variable, vscode }] of Object.entries(hostRoles)) {
+      // A missing role stays absent so the generated Muse palette shows
+      // through; the shared aliases always resolve through it.
       const value = roles[role]
-      if (value === undefined) root.style.removeProperty(variable)
-      else root.style.setProperty(variable, value)
+      if (value !== undefined) declarations.push(`${variable}:${value}`)
       // Shared components still read some VS Code variables directly. The
       // first role wins a shared alias (raised and overlay share one).
       for (const alias of vscode) {
-        if (!aliases.has(alias)) root.style.setProperty(alias, `var(${variable})`)
+        if (!aliases.has(alias)) declarations.push(`${alias}:var(${variable})`)
         aliases.add(alias)
       }
     }
+    if (owned === undefined) {
+      owned = root.ownerDocument.createElement('style')
+      owned.setAttribute(OWNED_ATTRIBUTE, '')
+      if (options?.nonce !== undefined) owned.setAttribute('nonce', options.nonce)
+    }
+    owned.textContent = `.${scopeClass}{${declarations.join(';')}}`
+    if (!owned.isConnected) root.ownerDocument.head.append(owned)
+    if (owned.sheet === null) {
+      // A strict page policy refused the owned element: leave the root
+      // exactly as it was and report, instead of showing a half theme.
+      owned.remove()
+      owned = undefined
+      onInvalid()
+      return
+    }
+    root.dataset['msTheme'] = mode
+    root.classList.remove(...themeClasses)
+    root.classList.add(modeClasses[mode], scopeClass)
   }
 
   // Subscribe before reading so a change during startup cannot be missed.
