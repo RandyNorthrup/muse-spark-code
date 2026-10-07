@@ -29,6 +29,9 @@ happened, not what was planned; superseded entries are kept.
   validated deltas between paints and wait for the actual composer before
   scene actions, preventing startup sign-in races in questions and reports.
 
+- Parse the full changelog in release-test setup so version and Highlights
+  assertions keep their existing deadlines under load.
+
 - ACP cancellation stops the running model turn while local agent inspection
   waits, and a late cancelled read preserves newer command preparation.
 - Agent receipts read patch references through the child that owns them and

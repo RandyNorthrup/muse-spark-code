@@ -18924,6 +18924,12 @@ port between batches and retaining the completion-delivery fence. Do not change
 readiness bounds, workers or axe scope. Startup must wait for the composer or
 tasks surface; the transient initial sign-in gate is not scene readiness and
 can race question input or legal report delivery. Cover that startup boundary.
+The next fresh full shard exposes another load-sensitive fixture: parsing the
+entire changelog takes 6.508 seconds inside its five-second highlights test.
+Move that unchanged full parse into `beforeAll`, retaining both release/version
+assertions and the repository's existing test and hook deadlines. Prove the
+highlights assertion still rejects a missing release Highlights section with
+a byte-restored changelog mutation; do not shorten or bypass content validation.
 
 Packaged exec reproduces a release-base Node 22 loader-hook failure before
 any dispatch: native CommonJS import lacks implicit `require.cache`. A small

@@ -167,6 +167,30 @@ Final verification remains pending after the next hooks-on repair commit:
 a new fresh clone, installation, every static check and all four coverage
 shards, followed by full accessibility and README regeneration/comparison.
 
+## Third fresh-clone finding: release fixture setup
+
+The third fresh clone of `8a9549a38a9488df1c83c2653e42ea742d59e2d1`
+passes every static/build check. Shards 1, 3 and 4 pass (4,313, 4,280 and
+4,411 tests). Shard 2 has one failure: `changelogVersion` parses the entire
+changelog inside its Highlights assertion and takes 6.508 s, exceeding the
+unchanged 5 s test deadline. Its other 3,697 tests pass. Existing skips remain
+75, and no assertion, file or test is filtered out. Merged coverage exceeds
+all thresholds (92.70%, 87.69%, 93.77%, 93.32%); the merge command correctly
+returns nonzero because the assertion run timed out.
+
+Move the identical complete parse into `beforeAll`, the setup pattern named
+by the rig brief. Keep both the dated-release and Highlights assertions and
+all existing hook/test deadlines. The setup fixture is scoped inside its
+suite to satisfy `unicorn/no-top-level-assignment-in-function` without a
+suppression. The complete owning file passes twice on
+Node 22.22.2 at repository deadlines. Renaming only 0.15.0's `### Highlights`
+heading makes the Highlights assertion fail (one failed, one passed).
+`CHANGELOG.md` is restored in `finally` with SHA-256
+`f57ff2f0261ce3cdeb7f272cb9f65942fd4393638330ba333ab44c852a52aef6`;
+the restored complete file passes both tests. This is the tenth recorded
+integration/repair drill, including the superseded first stream guard.
+The final scoped setup passes both tests again and targeted lint exits zero.
+
 Additional repair drills ran on Node 22.22.2 at the same default deadlines,
 with source saved/restored in `finally` and SHA-256 equality:
 
