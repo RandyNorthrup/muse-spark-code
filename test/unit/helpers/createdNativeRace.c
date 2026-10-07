@@ -16,8 +16,16 @@ static void planted_file(int parent, const char *name) {
   if (fd < 0 || write(fd, "personal manifest", 17) != 17) _exit(90);
   close(fd);
 }
+static void planted_keep(int parent, const char *directory) {
+  char file[160]; snprintf(file, sizeof(file), "%s/keep", directory);
+  int fd = openat(parent, file, O_WRONLY | O_CREAT | O_EXCL, 0600);
+  if (fd < 0 || write(fd, "personal", 8) != 8) _exit(100);
+  close(fd);
+}
+static char original_name[128];
 static int published_race;
 static int race_move(int parent, const char *source, int target_parent, const char *target, unsigned flags) {
+  if (!strncmp(target, ".muse-trash-", 12)) snprintf(original_name, sizeof(original_name), "%s", source);
   if (!strncmp(target, ".muse-trash-", 12) && enabled(parent, ".race-rename")) {
     if (mkdirat(parent, target, 0700)) _exit(91);
   }
@@ -54,10 +62,16 @@ static int race_closedir(DIR *d) {
   struct stat s; if (fstat(dirfd(d), &s)) _exit(94);
   if (trash_parent >= 0 && enabled(trash_parent, ".race-root")) {
     if (renameat(trash_parent, trash_name, trash_parent, "saved-root") || mkdirat(trash_parent, trash_name, 0700)) _exit(95);
+    if (enabled(trash_parent, ".race-root-personal")) planted_keep(trash_parent, trash_name);
+    if (enabled(trash_parent, ".race-restore")) {
+      if (mkdirat(trash_parent, original_name, 0700)) _exit(101);
+      planted_keep(trash_parent, original_name);
+    }
     trash_parent = -1;
   }
   if (nested_parent >= 0 && s.st_ino == nested_inode && enabled(nested_parent, "../.race-nested")) {
     if (renameat(nested_parent, "nested", nested_parent, "saved-nested") || mkdirat(nested_parent, "nested", 0700)) _exit(96);
+    if (enabled(nested_parent, "../.race-nested-personal")) planted_keep(nested_parent, "nested");
     nested_parent = -1;
   }
   return closedir(d);
@@ -69,6 +83,26 @@ static int race_linkat(int parent, const char *source, int target_parent, const 
   }
   return linkat(parent, source, target_parent, target, flags);
 }
+// Owner and last-unlink races exercise the Darwin lane where Node fs cannot interpose.
+static int race_owner_stat(int fd, struct stat *sample) {
+  int result = fstat(fd, sample);
+  if (!result && S_ISDIR(sample->st_mode) && enabled(fd, "../.race-owner")) sample->st_uid++;
+  return result;
+}
+static int race_final_unlink(int parent, const char *name, int flags) {
+  if ((flags & AT_REMOVEDIR) && !strncmp(name, ".muse-trash-", 12) && enabled(parent, ".race-final")) {
+    if (renameat(parent, name, parent, "saved-final") || mkdirat(parent, name, 0700)) _exit(98);
+    if (enabled(parent, ".race-final-populated")) {
+      char file[160]; snprintf(file, sizeof(file), "%s/keep", name);
+      int fd = openat(parent, file, O_WRONLY | O_CREAT | O_EXCL, 0600);
+      if (fd < 0 || write(fd, "personal", 8) != 8) _exit(99);
+      close(fd);
+    }
+  }
+  return unlinkat(parent, name, flags);
+}
+#define fstat race_owner_stat
+#define unlinkat race_final_unlink
 #define renameat2 race_move
 #define renameatx_np race_move
 #define mkdirat race_mkdir

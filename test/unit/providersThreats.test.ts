@@ -10,8 +10,9 @@
 import { describe, expect, it } from 'vitest'
 import { buildSessionExport } from '../../src/core/export/sessionTransfer'
 import { MAY_HOLD_SECRET, redactableSlices, redactSecrets } from '../../src/core/redact'
-import { hookEnvironment } from '../../src/host/backend/toolIo'
 import { isCredentialVariable } from '../../src/core/credentialEnvironment'
+import { hookEnvironment } from '../../src/host/backend/toolIo'
+
 import { createLogger } from '../../src/host/logger'
 import { withoutCredentials } from '../../src/runtime/credentialVariables'
 import {
@@ -266,6 +267,10 @@ describe('credential variables', () => {
     for (const name of ['PATH', 'HOME', 'OLLAMA_HOST']) {
       expect(isCredentialVariable(name)).toBe(false)
     }
+    expect(isCredentialVariable('CI_TOKEN')).toBe(true)
+    expect(isCredentialVariable('ci_token')).toBe(true)
+    expect(withoutCredentials({ PATH: '/bin', CI_TOKEN: 'synthetic' })).toEqual({ PATH: '/bin' })
+    expect(hookEnvironment({ CI_TOKEN: 'synthetic' }, 'linux', ['CI_TOKEN'])).toEqual({})
   })
 
   it('withholds a provider credential from hooks even when granted', () => {

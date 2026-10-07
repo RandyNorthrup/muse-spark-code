@@ -13,6 +13,7 @@ import {
   regionalUiText,
   uiTextProperties,
   compactBrowserEnglish,
+  compressedReference,
 } from '../../scripts/lib/uiTextRegions.mjs'
 
 import { removeFolder } from './helpers/temporaryFolders'
@@ -173,4 +174,29 @@ it('round-trips every browser English key, value and plural form inline', async 
   expect(JSON.stringify(bundle.EN)).toBe(JSON.stringify(EN))
   expect(built.browserSource).toContain('DecompressionStream')
   expect(built.browserSource).not.toContain('import(')
+})
+
+it('round-trips every production Node reference field through the native codec', async () => {
+  const result = await build({
+    entryPoints: ['src/shared/reference/reference.generated.ts'],
+    bundle: true,
+    write: false,
+    platform: 'node',
+    format: 'cjs',
+    minify: true,
+    plugins: [compressedReference(true)],
+  })
+  const module = { exports: {} }
+  const actual = vm.runInNewContext(
+    `${result.outputFiles[0].text}\nmodule.exports.referenceModel()`,
+    {
+      module,
+      exports: module.exports,
+      require: createRequire(import.meta.url),
+    },
+  )
+  expect(actual).toEqual(
+    JSON.parse(readFileSync('src/shared/reference/reference.generated.json', 'utf8')),
+  )
+  expect(result.outputFiles[0].text).toContain('brotliDecompressSync')
 })

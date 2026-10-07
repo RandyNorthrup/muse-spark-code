@@ -74,9 +74,13 @@ describe('resource sampler OS adapter', () => {
     const text = await io.run(process.execPath, ['-e', code, literal])
     expect(text).not.toBeNull()
     const parsed: unknown = JSON.parse(text!)
+    // CoreFoundation adds this non-credential variable even to an empty child environment.
+    const posixEnvironment = process.platform === 'darwin' ? ['__CF_USER_TEXT_ENCODING'] : []
+    const expectedEnvironment =
+      process.platform === 'win32' ? ['SystemRoot', 'windir'] : posixEnvironment
     expect(parsed).toEqual({
       args: [literal],
-      env: process.platform === 'win32' ? ['SystemRoot', 'windir'] : [],
+      env: expectedEnvironment,
     })
     expect(await io.run(process.execPath, ['-e', 'process.exit(1)'])).toBeNull()
     expect(await io.run(path.join(os.tmpdir(), 'm107-no-such-executable'), [])).toBeNull()

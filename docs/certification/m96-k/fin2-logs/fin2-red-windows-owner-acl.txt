@@ -1,0 +1,67 @@
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+rig=win11 slot=finm96k2-red snapshot=6be3492b
+rig: Windows WIN-11-VM; slot finm96k2-red; snapshot 6be3492b69c5e2cf953f37fcce8c1da76847f5a6
+base=C:\Users\randy\gates\base-c78aedc3ea0dab3c lock=c78aedc3ea0dab3cf7e685e18926e181d01a96535223c740d26598931bce86ce
+base reused
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 C:/Users/Randy/gates/rt-finm96k2-red
+
+ ✓ test/unit/teamNativeLifetime.test.ts (5 tests) 5170ms
+   ✓ M96 K real native lifetime (5)
+     ✓ starts a separate journalled team Muse Code host over real fake-CLI pipes 609ms
+     ✓ preserves the real command exit code through its native container 1267ms
+     ✓ reconciles foreign journals before startup returns and preserves all foreign bytes 798ms
+     ✓ runs marked child at below-normal priority with intent and OS confirmation on disk 622ms
+     ✓ prepared Windows owner (1)
+       ✓ hard host death closes jobs and ends detached grandchildren 1110ms
+ ✓ test/unit/teamProcessLifetime.test.ts (15 tests) 1615ms
+ ❯ test/unit/teamHintsAndLoad.test.ts (9 tests | 1 failed) 768ms
+   ❯ M96 K advisory hints (5)
+     × uses state home and secures a real native owner-only hints folder 592ms
+     ✓ publishes only the strict projection, sums all windows and removes its own hint 36ms
+     ✓ asks once across rewrites and other tasks; new path and drop ask again 109ms
+     ✓ Wait lasts only while fresh collision exists; stale, absent and malformed hints never lock 20ms
+     ✓ disables hints once when folder cannot be used 4ms
+   ✓ M96 K load sampler (2)
+     ✓ uses CPU time deltas, trips only after sustained pressure, then recovers 2ms
+     ✓ holds new local work immediately on low memory, and recovers at threshold 0ms
+   ✓ M96 K orphan decisions (2)
+     ✓ finds marked descendants even when direct child ended; does not stop without click 2ms
+     ✓ refuses changed PID or marker after second check, and labels PID-only match uncertain 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamHintsAndLoad.test.ts > M96 K advisory hints > uses state home and secures a real native owner-only hints folder
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array []
+
+
+Number of calls: 1
+
+ ❯ test/unit/teamHintsAndLoad.test.ts:102:26
+    100|     })
+    101|     await hints.publish(hintState)
+    102|     expect(disabled).not.toHaveBeenCalled()
+       |                          ^
+    103|     if (process.platform === 'win32') {
+    104|       const ps = windowsPowerShell(process.env['SystemRoot'] ?? '', {})
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 28 passed (29)
+   Start at  09:04:29
+   Duration  10.40s (tests 76%, import 11%, transform 6%, setup 6%)
+
+exit=1

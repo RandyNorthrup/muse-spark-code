@@ -1,4 +1,4 @@
-import { type UsdAmount } from '../../../shared/usd'
+import type { UsdAmount } from '../../../shared/usd'
 // The M91 hook handler types (PLAN.md D70, lane H): `http`, `mcp_tool`,
 // `prompt` and `agent`. `command` stays in hooks.ts, exactly as today.
 //
@@ -197,13 +197,6 @@ export type HookAnswerParser = (
 ) => TypedHookAnswer
 
 /** The hook events a prompt or agent handler may run on (D70, Claude's set). */
-export const HOOK_MODEL_EVENTS: ReadonlySet<string> = new Set([
-  'PreToolUse',
-  'PermissionRequest',
-  'UserPromptSubmit',
-  'Stop',
-  'SubagentStop',
-])
 
 function normalizedHost(host: string): string {
   return host.toLowerCase().replace(/\.+$/, '')

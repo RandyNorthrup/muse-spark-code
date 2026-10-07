@@ -39,6 +39,7 @@ export type PaletteAction =
   | { readonly type: 'clearConversation' }
   | { readonly type: 'openHistory' }
   | { readonly type: 'openUsage' }
+  | { readonly type: 'openUsagePage' }
   | { readonly type: 'openAgents' }
   | { readonly type: 'openModelPicker' }
   /** The models view's footer rows (M95): the provider quick-pick, the Models & Agents panel. */
@@ -78,6 +79,9 @@ export type PaletteAction =
   | { readonly type: 'importSession' }
   /** "Open share file…" (M84): a portable JSON file read-only in the panel. */
   | { readonly type: 'openShareFile' }
+  /** M118-P-REACT-BRIDGE: supplied only after the host binds these actions. */
+  | { readonly type: 'shareChat' }
+  | { readonly type: 'promptCommand'; readonly command: 'library' | 'use' | 'share' }
   | { readonly type: 'openLog' }
   /** "Report an issue…" (M93, PLAN.md D72): the scrubbed report's preview, never a bare link. */
   | { readonly type: 'openReport' }
@@ -88,6 +92,8 @@ export type PaletteAction =
   | { readonly type: 'setPaidFeature'; readonly feature: PaidFeature; readonly isOn: boolean }
   /** `/review ` in the prompt, for what to review (M70). */
   | { readonly type: 'startReview' }
+  /** `/legal ` in the prompt, for the read-only legal scan (M97). */
+  | { readonly type: 'startLegalScan' }
   /** A review preset (M70): the request as the host takes it. */
   | { readonly type: 'review'; readonly request: ReviewRequest }
   /** The review pane over the conversation's changes (M70). */
@@ -125,6 +131,7 @@ export interface UsageTotals {
 }
 
 export interface PaletteContext {
+  readonly arePromptCommandsBound?: boolean
   readonly currentModel:
     { readonly modelId: string; readonly contextLimit: number | undefined } | undefined
   readonly models: readonly ModelOption[]
@@ -278,10 +285,14 @@ function museConfigItems(backend: BackendKind | undefined): readonly PaletteItem
 function paidItems(context: PaletteContext): readonly PaletteItem[] {
   return usablePaidFeatures(context.backend, context.isKeyStored).map((feature) => {
     const isOn = context.paidFeatures.includes(feature)
+    const price = paidFeaturePrice(feature)
     return {
       id: `paid:${feature}`,
       label: fill(UI_TEXT.paidToggleLabel, { feature: paidFeatureName(feature) }),
-      detail: paidFeaturePrice(feature),
+      detail: price,
+      ...(feature === 'teamWorkers' && {
+        tip: fill(UI_TEXT.paidConfirmTeamWorkers, { price }),
+      }),
       widget: { kind: 'toggle', isOn },
       action: { type: 'setPaidFeature', feature, isOn: !isOn },
     }
@@ -452,6 +463,33 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           action: { type: 'openHistory' },
         },
         ...continueItems(context.skills),
+        ...(context.arePromptCommandsBound === true
+          ? ([
+              {
+                id: 'shareChat',
+                label: UI_TEXT.shareChat,
+                action: { type: 'shareChat' },
+              },
+              {
+                id: 'promptLibrary',
+                label: UI_TEXT.promptLibrary,
+                tip: UI_TEXT.promptSecretsNote,
+                action: { type: 'promptCommand', command: 'library' },
+              },
+              {
+                id: 'promptUseSaved',
+                label: UI_TEXT.promptUseSaved,
+                tip: UI_TEXT.promptRun,
+                action: { type: 'promptCommand', command: 'use' },
+              },
+              {
+                id: 'sharePrompt',
+                label: UI_TEXT.sharePrompt,
+                tip: UI_TEXT.shareReviewPrivacy,
+                action: { type: 'promptCommand', command: 'share' },
+              },
+            ] satisfies readonly PaletteItem[])
+          : []),
         // Saved plans (M79): the same on both backends.
         {
           id: 'plans',
@@ -529,11 +567,16 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           label: `${UI_TEXT.effortItem} (${effortLabel(context.effort)})`,
           widget: {
             kind: 'slider',
-            levels: effortLevelsFor(context.currentModel?.modelId),
+            levels:
+              context.models.find((model) => model.modelId === context.currentModel?.modelId)
+                ?.effortLevels ?? effortLevelsFor(context.currentModel?.modelId),
             current: context.effort,
           },
           action: { type: 'setEffort', effort: context.effort },
           isSlider: true,
+          isDisabled:
+            context.models.find((model) => model.modelId === context.currentModel?.modelId)
+              ?.effortLevels?.length === 0,
         },
         {
           id: 'thinking',
@@ -602,6 +645,14 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           action: { type: 'openUsage' },
         },
         {
+          id: 'usagePage',
+          label: UI_TEXT.usagePageTitle,
+          detail: UI_TEXT.paletteUsagePage,
+          tip: UI_TEXT.paletteUsagePage,
+          slashName: 'usage page',
+          action: { type: 'openUsagePage' },
+        },
+        {
           id: 'usage',
           label: UI_TEXT.sessionUsage,
           widget: { kind: 'value', text: usageValue(context.usage) },
@@ -662,6 +713,14 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           label: UI_TEXT.goalItem,
           detail: UI_TEXT.goalItemDetail,
           action: { type: 'startGoal' },
+        },
+        // The read-only legal scan (M97, PLAN.md D76), on both backends.
+        {
+          id: 'legal',
+          label: UI_TEXT.legalScanItem,
+          detail: UI_TEXT.legalScanItemDetail,
+          tip: UI_TEXT.legalScanItemDetail,
+          action: { type: 'startLegalScan' },
         },
         ...scheduleItems(context.backend),
         ...exportItems(context.backend),

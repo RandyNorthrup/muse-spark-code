@@ -81,6 +81,7 @@ describe('judge activation routing', () => {
         modelApiAutoReviewer: false,
         modelApiBestOfN: false,
         modelApiTab: false,
+        legalExplanation: false,
       },
       true,
     )

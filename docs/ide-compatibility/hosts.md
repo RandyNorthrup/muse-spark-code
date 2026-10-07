@@ -126,7 +126,44 @@ worktrees and the evaluation retain their distinct immediate policies.
 
 ## M107 resource feature qualification
 
+## M118 sharing integration (2026-10-06)
+
 The editor statuses above do not imply M107 resource qualification.
 [The resource matrix](resources.md) records the common governor, each surface
 and its pending binding. This join tests portable policy and shared components
 on Kubuntu; it does not move any editor's status or certify a native bridge.
+The VS Code/shared React bridge binds `sharingAction`, `sharingResult` and
+`openSharing` to the lazy shared prompt/chat core. VS Code derivatives take the
+same VSIX path; this integration does not repeat their installed-host receipts.
+ACP binds `/help`, `/prompt save|list|use|share` and `/share chat`. On this base
+ACP can return prepared prompt text and an exact share preview, but has no
+composer or final-click bridge: Use never sends; sharing cancels safely.
+
+| Editor/surface          | M118 evidence                                                                                                                                    | Remaining integration                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| VS Code and derivatives | Own-message/history menus, composer, editor selection and shared React tested with fake host/backend; real VSIX packaging checked in M118 record | Per-derivative installed GUI receipts remain required                                          |
+| JetBrains               | Shared native-menu adapter fake tests                                                                                                            | M104 validated envelopes for menu snapshots/invocations, prompt load, preview and confirmation |
+| Visual Studio           | Same shared adapter                                                                                                                              | Same M104 ports                                                                                |
+| Eclipse                 | Same shared adapter                                                                                                                              | Same M104 ports                                                                                |
+| Zed                     | Existing ACP local command route; shared adapter fake tests                                                                                      | M104 composer/final-click and menu ports                                                       |
+| Xcode                   | Existing ACP local command route; shared adapter fake tests                                                                                      | Same M104 ports                                                                                |
+| Neovim                  | Existing ACP local command route; shared adapter fake tests                                                                                      | Same M104 ports                                                                                |
+| Emacs                   | Existing ACP local command route; shared adapter fake tests                                                                                      | Same M104 ports                                                                                |
+| Sublime Text            | Shared adapter fake tests; ACP local command implementation                                                                                      | Same M104 ports; installed ACP client receipt                                                  |
+| Companion page          | Shared React implementation                                                                                                                      | M104 mounting and validated envelopes                                                          |
+| TUI                     | Shared runtime builder and adapter fake tests                                                                                                    | M110a0 lane T picker, `SharingUi.preparePrompt`, `insertPrompt`, exact-preview `confirmShare`  |
+| Standalone CLI          | Real lazy runtime entry and installed fake-only receipts in M118 record                                                                          | No composer; Use returns prepared text                                                         |
+
+M104 is absent on this base, so no new MHP wire method is invented. Existing
+React envelopes are named above. Their action names are `list`, `saveDraft`,
+`remove`, `duplicate`, `insert`, `importPreview`, `acceptImport`,
+`sharePromptPreview`, `confirmPromptShare`, `saveText`, `saveHistory`, `use`,
+`shareSaved`, `chatContext`, `chatPreview`, `chatConfirm`, `remember`, `invalidate`.
+The pending native DTOs are `nativePromptMenus`/`invokeNativePromptMenu` with
+host-owned `{menuId, contextId}` snapshots, `promptLoadSchema` with
+`{promptId, scope, chat, action: 'insert', send: false}`, and
+`confirmedShareSchema` with `{step: 'confirmed', previewId, request}`.
+M104 must carry equivalent strict DTOs through its validated envelopes and abort
+pending actions on closure/replacement. These are local DTO names, not claims
+that MHP message methods are already available. Phase 2 gists and phase 3
+node/team/email destinations remain unavailable.

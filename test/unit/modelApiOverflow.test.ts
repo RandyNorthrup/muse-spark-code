@@ -4,6 +4,7 @@ import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
 import type { ModelApiHostDeps } from '../../src/core/backends/modelapi/ModelApiHost'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import type { ModelApiClientDeps } from '../../src/core/backends/modelapi/client'
+import { metaResolvedModel, modelPolicyFor } from '../../src/core/backends/modelapi/modelPolicy'
 import type { ContextModel, ContextOverflowEvent } from '../../src/core/providers/overflow'
 import { EN } from '../../src/shared/l10n/en'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -28,6 +29,15 @@ async function setup(
   const overflowEvents: ContextOverflowEvent[] = []
   const host = new ModelApiHost({
     ...fakeModelApiHostDeps({ client, workspaceRoot: '/ws', io, log }),
+    // Qualified fixtures are admitted BYO rows; contextModel owns their windows.
+    models: {
+      resolve: (ref) =>
+        Promise.resolve({
+          ...metaResolvedModel(ref, client),
+          contextTokens: contextModel?.(ref)?.contextTokens,
+          policy: modelPolicyFor(ref, { capabilities: { toolCalling: true } }),
+        }),
+    },
     contextModel,
     confirmContributorModel: () => Promise.resolve(true),
     onContextOverflow: (event) => {

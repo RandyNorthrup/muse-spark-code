@@ -1,0 +1,14 @@
+# Certification prose describing synthetic secret-write tests; detector matched ordinary words, no credential.
+0bffa2de1f7ac8929b3417a79beeda63230cb459:docs/certification/m95-x.md:generic-api-key:73
+# Synthetic opaque credential in isolated auth-source unit fixtures; the fixture and its value are absent from the current tree.
+8ff88046fd3b4d77ad6427f0112e9eb4d51a024e:test/unit/authSource.test.ts:generic-api-key:8
+# Synthetic opaque credential in isolated auth-source unit fixtures; the fixture and its value are absent from the current tree.
+56f16e9b3971a4c5636112b79139a5808a96cf4a:test/unit/authSource.test.ts:generic-api-key:7
+# Synthetic opaque credential in isolated auth-source unit fixtures; the fixture and its value are absent from the current tree.
+3ac94a4d304bffbe3f4e3940c181721455edd0de:test/unit/authSource.test.ts:generic-api-key:7
+# Synthetic opaque credential in isolated auth-source unit fixtures; the fixture and its value are absent from the current tree.
+a3d14effbcf57f25290efd80e32e562e30186b7b:test/unit/authSource.test.ts:generic-api-key:7
+# Synthetic opaque credential in isolated auth-source unit fixtures; the fixture and its value are absent from the current tree.
+de54295168f00474c4fe08bb47e4f17379097ad3:test/unit/authSource.test.ts:generic-api-key:7
+# SHA-256 certification digest following a key-state mutation heading; not a credential.
+9eedecba166ad8cd55f4f64ad260a7d4353b90de:docs/certification/star-line.md:generic-api-key:60

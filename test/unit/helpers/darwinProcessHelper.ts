@@ -14,7 +14,7 @@ export async function darwinProcessHelper(): Promise<{
   const native = path.join(folder, 'native', 'darwin')
   try {
     await mkdir(native, { recursive: true })
-    for (const file of ['Dictation.swift', 'Info.plist', 'build.sh'])
+    for (const file of ['Dictation.swift', 'MuseSparkCreated.c', 'Info.plist', 'build.sh'])
       await copyFile(path.resolve('native/darwin', file), path.join(native, file))
     await copyFile(path.resolve('package.json'), path.join(folder, 'package.json'))
     await promisify(execFile)('/bin/bash', [path.join(native, 'build.sh')], {

@@ -4,11 +4,11 @@
 // Loads the actual Node bundles; no editor, credential read or model call.
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { brotliDecompressSync } from 'node:zlib'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { runInNewContext } from 'node:vm'
-import { z } from 'zod'
 import { loadL10n } from './lib/l10nSource.mjs'
 
 const packageRoot = process.argv[2]
@@ -18,7 +18,7 @@ function loadBundle(file, exportName) {
   const require = createRequire(file)
   const module = { exports: {} }
   let tableLoads = 0
-  runInNewContext(readFileSync(file, 'utf8'), {
+  const context = {
     module,
     exports: module.exports,
     require: (name) => {
@@ -45,7 +45,10 @@ function loadBundle(file, exportName) {
     clearInterval: globalThis.clearInterval,
     __dirname: path.dirname(file),
     __filename: file,
-  })
+  }
+  Object.assign(context.require, { resolve: require.resolve, cache: require.cache })
+  module._compile = (source) => runInNewContext(source, context)
+  runInNewContext(readFileSync(file, 'utf8'), context)
   assert.ok(tableLoads > 0, `${file} did not load its English fallback`)
   assert.equal(typeof module.exports[exportName], 'function')
 }
@@ -57,36 +60,44 @@ loadBundle(path.resolve('dist/review.js'), 'createReviewFeatures')
 loadBundle(path.resolve(packageRoot, 'dist/modelApi.js'), 'createModelApiHost')
 const agent = path.resolve(packageRoot, 'dist/acp.js')
 const table = createRequire(agent)('./uiText.js').EN
-const { ACP_AGENT_NAME, formatAcpUsage } = await loadL10n(process.cwd())
-const usageTable = z.object({
-  acpUsage: z.string(),
-  helpReferenceTitle: z.string(),
-  referenceCliOptions: z.object({
-    'resource-governor': z.string(),
-    'cpu-max': z.string(),
-    'memory-max': z.string(),
-  }),
-})
+const {
+  ACP_AGENT_NAME,
+  EN,
+  tableProblems,
+  formatAcpUsage,
+  TABLE_LOCALES,
+  readArchivedUiTable,
+  L10N_TABLE_MAX_BYTES,
+  L10N_TABLE_ARCHIVE_FILE,
+} = await loadL10n(process.cwd())
 // --help takes no backend or credential-store action. An English locale
 // variable, because with none the agent takes the runtime's own locale.
 function checkUsage(table, locale) {
+  // Validate the complete installed table without stripping the sharing
+  // labels and descriptions consumed by formatAcpUsage.
+  const tableLocale = locale.split(/[.@]/, 1)[0].replaceAll('_', '-')
+  assert.deepEqual(tableProblems(EN, table, { locale: tableLocale, isStrict: false }), [], locale)
   const help = execFileSync(process.execPath, [agent, '--help'], {
     encoding: 'utf8',
     env: { LC_ALL: locale },
   })
-  assert.equal(help.trim(), formatAcpUsage(usageTable.parse(table), ACP_AGENT_NAME).trim(), locale)
+  assert.equal(help.trim(), formatAcpUsage(table, ACP_AGENT_NAME).trim(), locale)
 }
 checkUsage(table, 'en_US.UTF-8')
-const tables = readdirSync(path.join(packageRoot, 'l10n'))
-  .filter((file) => /^ui\.[\w-]+\.json$/.test(file))
-  .toSorted((a, b) => a.localeCompare(b))
-assert.ok(tables.length > 0, 'the installed ACP package has no translated tables')
-for (const file of tables) {
-  checkUsage(
-    JSON.parse(readFileSync(path.join(packageRoot, 'l10n', file), 'utf8')),
-    file.slice('ui.'.length, -'.json'.length),
-  )
+const archiveFile = path.join(packageRoot, 'l10n', L10N_TABLE_ARCHIVE_FILE)
+const archive = existsSync(archiveFile)
+  ? brotliDecompressSync(readFileSync(archiveFile), {
+      maxOutputLength: L10N_TABLE_MAX_BYTES * TABLE_LOCALES.length,
+    }).toString('utf8')
+  : undefined
+for (const locale of TABLE_LOCALES) {
+  const text =
+    archive === undefined
+      ? readFileSync(path.join(packageRoot, 'l10n', `ui.${locale}.json`), 'utf8')
+      : readArchivedUiTable(archive, locale)
+  assert.ok(text, `the installed ACP package lacks ${locale}`)
+  checkUsage(JSON.parse(text), locale)
 }
 console.log(
-  `ok   extension, Model API, review and installed ACP tarball load the shared English fallback; complete ACP help matches English and ${tables.length} installed languages`,
+  `ok   extension, Model API, review and installed ACP tarball load the shared English fallback; complete ACP help matches English and ${TABLE_LOCALES.length} installed languages`,
 )

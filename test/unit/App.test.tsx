@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { SHARE_VIEW_PAGE_ITEMS, UI_TEXT } from '../../src/shared/constants'
 import { EMPTY_PAID_TALLY } from '../../src/shared/paid'
@@ -9,6 +9,7 @@ import { restoredUiState, webviewStateOf } from '../../src/webview/state/snapsho
 import { createUiStore } from '../../src/webview/state/store'
 import { initialUiState } from '../../src/webview/state/uiState'
 import { testSettings } from './helpers/fakes'
+import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
 
 function deliver(data: unknown) {
   act(() => {
@@ -166,6 +167,37 @@ function renderReady(status: 'signedIn' | 'signedOut' = 'signedIn') {
   return postMessage
 }
 
+describe('M97 deterministic legal command routing', () => {
+  it.each(['museCode', 'modelApi'] as const)(
+    'routes signed-out /legal on %s without a model message',
+    (backend) => {
+      const postMessage = renderReady('signedOut')
+      deliver({ type: 'authState', status: 'signedOut', backend })
+      fireEvent.change(textarea(), { target: { value: '/legal src' } })
+      fireEvent.keyDown(textarea(), { key: 'Enter' })
+      expect(postMessage).toHaveBeenCalledWith({
+        type: 'requestLegalScan',
+        input: { paths: ['src'] },
+      })
+      expect(postMessage.mock.calls.some(([message]) => message.type === 'sendMessage')).toBe(false)
+    },
+  )
+  it.each(['/legal --format json', '/legal ' + 'x'.repeat(1025), '/legal -fix'])(
+    'refuses malformed syntax without posting a model message: %s',
+    (draft) => {
+      const postMessage = renderReady()
+      fireEvent.change(textarea(), { target: { value: draft } })
+      fireEvent.keyDown(textarea(), { key: 'Enter' })
+      expect(
+        postMessage.mock.calls.some(
+          ([message]) => message.type === 'sendMessage' || message.type === 'requestLegalScan',
+        ),
+      ).toBe(false)
+      expect(screen.getAllByText(UI_TEXT.legalCommandUsage).length).toBeGreaterThan(0)
+    },
+  )
+})
+
 function textarea() {
   return screen.getByLabelText<HTMLTextAreaElement>('Message Muse')
 }
@@ -198,6 +230,7 @@ function storeWithSavedConversation(sessionId: string | undefined, title: string
 // Behaviour assertions share the first-open imports. Dedicated lazy-boundary
 // and production browser tests exercise cold loading, failure and retry.
 beforeAll(async () => {
+  await warmDeferredSurfaces()
   renderReady()
   fireEvent.click(screen.getByLabelText('Commands'))
   fireEvent.keyDown(await screen.findByRole('combobox'), { key: 'Escape' })
@@ -779,6 +812,47 @@ describe('App conversation', () => {
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowLeft' })
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'medium' })
     expect(screen.getByRole('menu')).toBeInTheDocument()
+  })
+
+  it('uses the selected model record tiers in the Modes menu', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'modelList',
+      models: [
+        {
+          modelId: 'anthropic/claude-sonnet-5-5',
+          displayLabel: 'Sonnet',
+          isDefault: false,
+          effortLevels: ['low', 'high'],
+        },
+      ],
+    })
+    deliver({
+      type: 'sessionInfo',
+      modelId: 'anthropic/claude-sonnet-5-5',
+      contextLimit: 1_000_000,
+    })
+    fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
+    expect(screen.queryByTitle('Max')).toBeNull()
+    expect(screen.queryByTitle('Medium')).toBeNull()
+    fireEvent.click(screen.getByTitle('Low'))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'low' })
+  })
+
+  it('keeps empty native effort lists from posting fallback tiers', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'modelList',
+      models: [
+        { modelId: 'anthropic/haiku', displayLabel: 'Haiku', isDefault: false, effortLevels: [] },
+      ],
+    })
+    deliver({ type: 'sessionInfo', modelId: 'anthropic/haiku', contextLimit: 200_000 })
+    fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
+    expect(screen.queryByText('Effort (High)')).toBeNull()
+    postMessage.mockClear()
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowRight' })
+    expect(postMessage).not.toHaveBeenCalled()
   })
 
   it('opens the Modes menu from the palette row', () => {
@@ -2015,7 +2089,7 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
     expect(
       screen.getByRole('progressbar', { name: 'Current window: 42% used' }),
     ).toBeInTheDocument()
-    expect(dialog).toHaveTextContent('muse-pro')
+    await waitFor(() => expect(dialog).toHaveTextContent('muse-pro'))
     fireEvent.keyDown(screen.getByLabelText('Close'), { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(document.activeElement).toBe(textarea())
@@ -2025,7 +2099,7 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
     renderReady()
     const dialog = await openUsageDialog()
     deliver({ type: 'usageReport', backend: 'museCode', subscription })
-    expect(dialog).toHaveTextContent('muse-pro')
+    await waitFor(() => expect(dialog).toHaveTextContent('muse-pro'))
     deliver({ type: 'conversationCleared', accountBoundary: true })
     expect(screen.queryByText('muse-pro')).toBeNull()
     expect(screen.queryByRole('dialog', { name: 'Account & usage' })).toBeNull()
@@ -2277,7 +2351,7 @@ describe('App: a right-click away from the selected text (the review of F2, P1)'
     expect(screen.getByRole('menuitem', { name: UI_TEXT.copyResponse })).toBeInTheDocument()
   })
 
-  it('opens no quote menu from a row with no actions of its own', () => {
+  it('opens the own user row menu without quoting selection from another row', () => {
     renderReady()
     reply('m1', 'Use pnpm.')
     send('which one?')
@@ -2289,7 +2363,9 @@ describe('App: a right-click away from the selected text (the review of F2, P1)'
       isCollapsed: false,
     } as unknown as Selection)
     fireEvent.contextMenu(screen.getByText('which one?'))
-    expect(screen.queryByRole('menu')).toBeNull()
+    expect(screen.queryByRole('menu', { name: UI_TEXT.quoteMenuLabel })).toBeNull()
+    expect(screen.getByRole('menuitem', { name: UI_TEXT.promptSave })).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
     // On the row that holds the text, the quote menu still opens (M17).
     fireEvent.contextMenu(passage)
     expect(screen.getByRole('menu', { name: UI_TEXT.quoteMenuLabel })).toBeInTheDocument()
@@ -3734,5 +3810,117 @@ describe('App: explicit held prompt resend (RVM92E P2)', () => {
     const before = postMessage.mock.calls.length
     fireEvent.click(await screen.findByRole('button', { name: UI_TEXT.secretPromptSendAnyway }))
     expect(postMessage.mock.calls).toHaveLength(before)
+  })
+})
+
+describe('M118 shared message context menu', () => {
+  it('saves exactly the own user prompt text and retains Share', () => {
+    const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
+    const text = '  Preserve this prompt\r\nwith trailing spaces  '
+    const store = storeWithSavedConversation('saved-session', 'Saved', text)
+    render(<App postMessage={postMessage} store={store} />)
+    act(() => {
+      const initialise = { type: 'hostMessage', message: init, at: 1 } as const
+      store.dispatch(initialise)
+      store.dispatch({
+        type: 'hostMessage',
+        message: { type: 'authState', status: 'signedIn' },
+        at: 1,
+      })
+      store.dispatch({
+        type: 'hostMessage',
+        message: { type: 'surfaceState', sessionId: 'saved-session' },
+        at: 2,
+      })
+    })
+    const passage = screen.getByText('Preserve this prompt with trailing spaces')
+    fireEvent.contextMenu(passage)
+    expect(screen.getByRole('menuitem', { name: UI_TEXT.sharePrompt })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.promptSave }))
+    expect(postMessage).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: 'sharingAction', action: 'saveText', payload: { text } }),
+    )
+    expect(
+      postMessage.mock.calls.flat().filter((message) => message.type === 'sendMessage'),
+    ).toHaveLength(0)
+  })
+})
+
+describe('M118 prompt action failure notices', () => {
+  it.each([
+    { entry: 'composer', label: UI_TEXT.promptSave, action: 'saveText' },
+    { entry: 'composer', label: UI_TEXT.sharePrompt, action: 'shareText' },
+    { entry: 'composer', label: UI_TEXT.promptUseSaved, action: 'use' },
+    { entry: 'message', label: UI_TEXT.promptSave, action: 'saveText' },
+    { entry: 'message', label: UI_TEXT.sharePrompt, action: 'shareText' },
+    { entry: 'history', label: UI_TEXT.promptSave, action: 'saveHistory' },
+    { entry: 'palette', label: UI_TEXT.promptUseSaved, action: 'use' },
+    { entry: 'palette', label: UI_TEXT.sharePrompt, action: 'shareSaved' },
+  ])('shows the host failure for $entry $action', async ({ entry, label, action }) => {
+    const post = renderReady()
+    const text = 'Public prompt for sharing'
+    switch (entry) {
+      case 'composer': {
+        fireEvent.change(textarea(), { target: { value: text } })
+        fireEvent.click(screen.getByRole('button', { name: UI_TEXT.promptLibrary }))
+        fireEvent.click(await screen.findByRole('menuitem', { name: label }))
+        break
+      }
+      case 'message': {
+        loadHistory([historyUser('u1', 't1', text)])
+        fireEvent.contextMenu(screen.getByText(text))
+        fireEvent.click(screen.getByRole('menuitem', { name: label }))
+        break
+      }
+      case 'history': {
+        fireEvent.click(screen.getByLabelText('Session history'))
+        deliver({
+          type: 'sessionList',
+          archivedIds: [],
+          sessions: [
+            {
+              sessionId: 'old',
+              title: 'Saved public prompt',
+              isNamed: false,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              status: 'notLoaded',
+              turnCount: 1,
+              isFork: false,
+            },
+          ],
+        })
+        fireEvent.contextMenu(await screen.findByRole('option', { name: /Saved public prompt/ }))
+        fireEvent.click(screen.getByRole('menuitem', { name: label }))
+        break
+      }
+      case 'palette': {
+        const filter = openPalette()
+        fireEvent.change(filter, { target: { value: label } })
+        fireEvent.keyDown(filter, { key: 'Enter' })
+        break
+      }
+      default: {
+        throw new Error('Unknown test entry point')
+      }
+    }
+    const request = post.mock.calls
+      .map(([message]) => message)
+      .findLast((message) => message.type === 'sharingAction')
+    expect(request).toMatchObject({ type: 'sharingAction', action })
+    if (request?.type !== 'sharingAction') throw new Error('Missing sharing request')
+    deliver({
+      type: 'sharingResult',
+      id: request.id,
+      value: undefined,
+      error: UI_TEXT.shareConfidential,
+    })
+    expect(
+      await screen.findByText(UI_TEXT.shareConfidential, { selector: '.notice-error' }),
+    ).toBeInTheDocument()
+    expect(document.querySelector('[aria-live="polite"]')).toHaveTextContent(
+      UI_TEXT.shareConfidential,
+    )
+    expect(post.mock.calls.some(([message]) => message.type === 'sendMessage')).toBe(false)
   })
 })

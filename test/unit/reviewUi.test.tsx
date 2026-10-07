@@ -5,14 +5,17 @@
 // conversation's changes, accepts or reverts each, and sends a comment on a
 // line to the agent.
 
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../../src/shared/protocol'
 import { App } from '../../src/webview/App'
 import { MarkdownView } from '../../src/webview/components/MarkdownView'
 import { initialUiState, reviewHunkKey, uiReducer } from '../../src/webview/state/uiState'
 import { testSettings } from './helpers/fakes'
+import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
+
+beforeAll(warmDeferredSurfaces)
 
 function deliver(data: HostToWebviewMessage) {
   act(() => {
@@ -232,7 +235,7 @@ describe('the review pane (M70)', () => {
         name: `${UI_TEXT.reviewComment}: change 1 of src/a.ts`,
       }),
     )
-    fireEvent.change(within(dialog).getByLabelText(UI_TEXT.reviewCommentLabel), {
+    fireEvent.change(await within(dialog).findByLabelText(UI_TEXT.reviewCommentLabel), {
       target: { value: 'Keep this at 1' },
     })
     fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.reviewSendNext }))
@@ -269,7 +272,7 @@ describe('the review pane (M70)', () => {
         name: `${UI_TEXT.reviewComment}: change 1 of src/a.ts`,
       }),
     )
-    const line = within(dialog).getByLabelText<HTMLSelectElement>(UI_TEXT.reviewCommentLine)
+    const line = await within(dialog).findByLabelText<HTMLSelectElement>(UI_TEXT.reviewCommentLine)
     fireEvent.change(line, {
       target: {
         value: [...line.options].find((option) => option.text === 'Removed line 4: const x = 1')
@@ -312,6 +315,12 @@ function renderFindings(json: string) {
   )
   return onOpenFile
 }
+
+beforeAll(async () => {
+  renderFindings('{"findings":[]}')
+  await screen.findByText(UI_TEXT.reviewNoFindings)
+  cleanup()
+})
 
 describe('a review’s findings (M70)', () => {
   it('lists each finding with its severity; its location opens the file at its lines', () => {

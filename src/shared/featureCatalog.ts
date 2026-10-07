@@ -1,7 +1,7 @@
 import { PAID_USE_REGISTRY } from './paid'
 // HELPREF: reviewed feature relationships. The generator validates every id
 // against the manifest and reuses its translated text and the palette's tips.
-import { COMMAND_IDS, type SETTING_DEFAULTS } from './constants'
+import { COMMAND_IDS, type SETTING_DEFAULTS, PROMPT_COMMAND_IDS, UI_TEXT } from './constants'
 import type { UiText } from './l10n/en'
 
 type PlainReferenceText =
@@ -30,7 +30,9 @@ const UI_CONDITIONS: Readonly<
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
   resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
   resourceMemoryMaxPercentDescription: 'resourceMemoryThreshold',
+  providerOpenRouterServices: 'openRouterServices=absent',
   referenceSandbox: 'platform=win32&shellSandbox',
+  autoCompactionAwaitingEvaluation: 'autoCompactionEvaluation',
   referenceBrowser: 'workspaceTrust',
   referenceBestOfNRequirements: 'bestOfNAdmission',
   referenceSecretPrompt: 'secretDetected',
@@ -73,6 +75,7 @@ const SETTING_CONDITIONS: Readonly<
   browserCheckExtraHosts: 'browserNetworkAdmission',
   notifyOnBackgroundTurn: 'turnState&windowFocus',
   modelApiSessionBudgetUsd: 'sessionBudget',
+
   modelApiObservationPacking: 'conversationStart',
   modelApiAutoCompaction: 'conversationStart&modelPricing',
   modelApiStrictTools: 'conversationStart&tools.strict',
@@ -102,8 +105,30 @@ export function referenceDescription(text: ReferenceText): ReferenceText {
   if ('ui' in text) when = UI_CONDITIONS[text.ui]
   else if ('fallbackKey' in text) when = NLS_CONDITIONS[text.fallbackKey]
   else if ('setting' in text) when = settingConditions[text.setting]
-  else if ('cli' in text && text.cli === 'fail-on-denial') when = 'permission=denied'
-  else if ('cli' in text && ['cpu-max', 'memory-max'].includes(text.cli)) when = 'resourceThreshold'
+  else if ('cli' in text) {
+    switch (text.cli) {
+      case 'cpu-max':
+      case 'memory-max': {
+        when = 'resourceThreshold'
+        break
+      }
+      case 'fail-on-denial': {
+        when = 'permission=denied'
+        break
+      }
+      case 'no-auto-compaction': {
+        when = 'autoCompactionEvaluation'
+        break
+      }
+      case 'private-ok': {
+        when = 'privateNetwork'
+        break
+      }
+      default: {
+        when = undefined
+      }
+    }
+  }
   return when === undefined ? text : { conditions: [{ when, text }] }
 }
 
@@ -131,6 +156,10 @@ interface CommandReference {
 }
 
 export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> = {
+  openUsagePage: { description: { ui: 'paletteUsagePage' }, canRun: true },
+  legalScan: { description: { ui: 'legalScanItemDetail' }, canRun: false },
+  connectChatGpt: { description: { ui: 'startWithOwnModelDetail' }, canRun: false },
+  connectCopilot: { description: { ui: 'startWithOwnModelDetail' }, canRun: false },
   openInSidebar: { description: { ui: 'referenceSidebar' }, canRun: true },
   openInNewTab: { description: { ui: 'referenceNewTab' }, canRun: true },
   focusInput: { description: { ui: 'referenceFocus' }, canRun: false },
@@ -177,6 +206,12 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   startWithOwnModel: { description: { command: COMMAND_IDS.startWithOwnModel }, canRun: false },
   modelsAndAgents: { description: { command: COMMAND_IDS.modelsAndAgents }, canRun: true },
   addModelProvider: { description: { command: COMMAND_IDS.addModelProvider }, canRun: false },
+  savePrompt: { description: { ui: 'promptSecretsNote' }, canRun: false },
+  useSavedPrompt: { description: { ui: 'promptRun' }, canRun: false },
+  promptLibrary: { description: { ui: 'promptLibrary' }, canRun: true },
+  copyToMyPrompts: { description: { ui: 'promptScopeUser' }, canRun: false },
+  sharePrompt: { description: { ui: 'shareReviewPrivacy' }, canRun: false },
+  shareChat: { description: { ui: 'shareReviewPrivacy' }, canRun: false },
   openHelp: { description: { ui: 'referenceIntro' }, canRun: true },
   nextOpenQuestion: { description: { ui: 'questionNextOpen' }, canRun: false },
   previousOpenQuestion: { description: { ui: 'questionPreviousOpen' }, canRun: false },
@@ -228,7 +263,99 @@ export function featureCatalog(): readonly Feature[] {
         'resourceRelocate',
       ],
       'keeping-your-machine-responsive',
+      undefined,
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'providers',
+      { ui: 'modelsPanelTitle' },
+      { ui: 'startWithOwnModelDetail' },
+      [
+        'startWithOwnModel',
+        'modelsAndAgents',
+        'addModelProvider',
+        'connectChatGpt',
+        'connectCopilot',
+      ],
+      ['suggestedProvider'],
+      'backends',
       ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'prompt-library',
+      { ui: 'promptLibrary' },
+      { ui: 'referencePromptMenu' },
+      ['savePrompt', 'useSavedPrompt', 'promptLibrary', 'copyToMyPrompts'],
+      ['syncPromptsAndBookmarks'],
+      'sharing',
+      undefined,
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'usage',
+      { ui: 'usagePageTitle' },
+      { ui: 'paletteUsagePage' },
+      ['openUsagePage'],
+      ['usageHistory', 'usageHistoryDays'],
+      'usage-and-cost',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'team-workers',
+      { ui: 'paidTeamWorkersName' },
+      { setting: 'modelApiTeamWorkers' },
+      [],
+      ['modelApiTeamWorkers'],
+      'the-panel',
+      ['modelApi'],
+      true,
+    ),
+    feature(
+      'legal',
+      { ui: 'legalScanTitle' },
+      { ui: 'legalScanItemDetail' },
+      ['legalScan'],
+      ['legalHeaderPolicy', 'legalRegistryLookups'],
+      'legal-scan-m97',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'legal-explanation',
+      { ui: 'paidLegalExplanationName' },
+      { ui: 'legalExplainConfirm' },
+      [],
+      ['legalExplanation'],
+      'legal-scan-m97',
+      ['museCode', 'modelApi'],
+      true,
+    ),
+    feature(
+      'compaction',
+      { ui: 'compactItem' },
+      { ui: 'autoCompactionAwaitingEvaluation' },
+      [],
+      ['modelApiAutoCompaction'],
+      'observation-packing-model-api',
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'chat-sharing',
+      { ui: 'shareChat' },
+      { ui: 'shareReviewPrivacy' },
+      ['shareChat', 'sharePrompt'],
+      [],
+      'sharing',
+      undefined,
       false,
       ['vscode', 'acp'],
     ),
@@ -276,14 +403,6 @@ export function featureCatalog(): readonly Feature[] {
       [],
       [],
       'the-panel',
-    ),
-    feature(
-      'providers',
-      { command: COMMAND_IDS.modelsAndAgents },
-      { setting: 'suggestedProvider' },
-      ['startWithOwnModel', 'modelsAndAgents', 'addModelProvider'],
-      ['suggestedProvider'],
-      'models-and-providers',
     ),
     feature(
       'strict-tools',
@@ -863,6 +982,7 @@ export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
 const REFERENCE_DETAILS: Readonly<
   Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
 > = {
+  providers: ['providerOpenRouterServices'],
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],
   account: ['signInBrowserDetail', 'signInApiKeyDetail', 'installDetail', 'referenceSecretPrompt'],
@@ -889,4 +1009,124 @@ const REFERENCE_DETAILS: Readonly<
   'custom-agents': ['referencePaidContexts'],
   'conversation-actions': ['referenceWindowsSessions'],
   questions: ['referenceQuestionsDeferral'],
+}
+
+/** Runtime localized inventory for M118; the reference generator uses the English fallback. */
+export function sharingFeatures(table: UiText = UI_TEXT) {
+  return [
+    {
+      id: 'sharing-help',
+      surface: 'editor/acp',
+      syntax: '/help',
+      label: table.helpReferenceTitle,
+      detail: table.referenceIntro,
+    },
+    {
+      id: PROMPT_COMMAND_IDS.save,
+      surface: 'editor',
+      syntax: 'museSpark.savePrompt',
+      label: table.promptSave,
+      detail: table.promptSecretsNote,
+    },
+    {
+      id: PROMPT_COMMAND_IDS.use,
+      surface: 'editor',
+      syntax: 'museSpark.useSavedPrompt',
+      label: table.promptUseSaved,
+      detail: `${table.promptVariables}; ${table.promptInsert}`,
+    },
+    {
+      id: PROMPT_COMMAND_IDS.library,
+      surface: 'editor',
+      syntax: 'museSpark.promptLibrary',
+      label: table.promptLibrary,
+      detail: `${table.promptScopeUser}; ${table.promptScopeWorkspace}`,
+    },
+    {
+      id: PROMPT_COMMAND_IDS.copyToUser,
+      surface: 'editor',
+      syntax: 'museSpark.copyToMyPrompts',
+      label: table.promptCopyToUser,
+      detail: table.promptScopeUser,
+    },
+    {
+      id: PROMPT_COMMAND_IDS.sharePrompt,
+      surface: 'editor',
+      syntax: 'museSpark.sharePrompt',
+      label: table.sharePrompt,
+      detail: table.shareReviewPrivacy,
+    },
+    {
+      id: PROMPT_COMMAND_IDS.shareChat,
+      surface: 'editor',
+      syntax: 'museSpark.shareChat',
+      label: table.shareChat,
+      detail: `${table.shareConversation}; ${table.shareFull}`,
+    },
+    {
+      // Activation observes machine consent before any sharing command is used.
+      id: 'museSpark.syncPromptsAndBookmarks',
+      surface: 'setting',
+      syntax: 'museSpark.syncPromptsAndBookmarks',
+      label: table.promptLibrary,
+      detail: table.promptScopeUser,
+    },
+    {
+      id: 'share',
+      surface: 'acp',
+      syntax: '/share chat [--mode full|conversation] [--format md|html|json]',
+      label: table.shareChat,
+      detail: table.shareReviewPrivacy,
+    },
+    {
+      id: 'prompt',
+      surface: 'acp',
+      syntax:
+        '/prompt save --title TITLE [--scope user|workspace] -- TEXT; /prompt list; /prompt use ID; /prompt share ID',
+      label: table.promptLibrary,
+      detail: table.promptRun,
+    },
+    {
+      id: 'share-cli',
+      surface: 'cli',
+      syntax: 'share chat SESSION_ID [--mode full|conversation] [--format md|html|json]',
+      label: table.shareChat,
+      detail: table.shareConfirm,
+    },
+    {
+      id: 'prompts-save-cli',
+      surface: 'cli',
+      syntax: 'prompts save --title TITLE [--scope user|workspace] [--cwd FOLDER] < prompt.txt',
+      label: table.promptLibrary,
+      detail: table.promptRun,
+    },
+    {
+      id: 'prompts-list-cli',
+      surface: 'cli',
+      syntax: 'prompts list [--search TEXT] [--tag TAG] [--cwd FOLDER]',
+      label: table.promptLibrary,
+      detail: table.promptScopeUser,
+    },
+    {
+      id: 'prompts-use-cli',
+      surface: 'cli',
+      syntax: 'prompts use ID [--scope user|workspace] [--chat active|new] [--cwd FOLDER]',
+      label: table.promptUseSaved,
+      detail: `${table.promptVariables}; ${table.promptInsert}`,
+    },
+    {
+      id: 'prompts-share-cli',
+      surface: 'cli',
+      syntax:
+        'prompts share ID [--scope user|workspace] [--format md|html|json] [--destination copy|file|browser] [--out FILE]',
+      label: table.sharePrompt,
+      detail: table.shareConfirm,
+    },
+  ]
+}
+
+export function sharingHelp(table: UiText = UI_TEXT): string {
+  return sharingFeatures(table)
+    .map((feature) => `${feature.syntax}\n${feature.label}: ${feature.detail}`)
+    .join('\n\n')
 }

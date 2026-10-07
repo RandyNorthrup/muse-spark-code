@@ -77,6 +77,12 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
     ['vscode:museCode'],
   ]),
   ['output-schema', ['acp:modelApi']],
+  ['providers', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  ['usage', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  ['legal', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  ['legal-explanation', ['vscode:museCode', 'vscode:modelApi']],
+  ['team-workers', ['vscode:modelApi']],
+  ['compaction', ['vscode:modelApi', 'acp:modelApi']],
   ['custom-agents', ['vscode:modelApi']],
   ['mcp-elicitation', ['vscode:modelApi']],
   ...[
@@ -132,6 +138,10 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
     'support',
   ].map((id): [string, readonly string[]] => [id, ['vscode:museCode', 'vscode:modelApi']]),
   ...['acp'].map((id): [string, readonly string[]] => [id, ['acp:museCode', 'acp:modelApi']]),
+  ...['prompt-library', 'chat-sharing', 'resources'].map((id): [string, readonly string[]] => [
+    id,
+    ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi'],
+  ]),
   // M112: ACP asks through forms or text and answers with /questions and /answer.
   ['questions', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ...['web-fetch', 'images'].map((id): [string, readonly string[]] => [
@@ -144,9 +154,21 @@ export const REFERENCE_CAPABILITIES = Object.fromEntries<readonly string[]>(capa
 export const REFERENCE_FEATURE_IDS = Object.keys(REFERENCE_CAPABILITIES)
 export { referenceKeyboardActions, WEBVIEW_KEYBINDINGS, webviewKey } from '../keybindings'
 export const REFERENCE_ACTION_FEATURES = {
+  openUsagePage: 'usage',
   startWithOwnModel: 'providers',
   addModelProvider: 'providers',
   manageModels: 'providers',
+  openTeamTaskTranscript: 'team-workers',
+  stopTeamTask: 'team-workers',
+  reviewTeamDiff: 'team-workers',
+  decideTeamMerge: 'team-workers',
+  answerTeamWaiting: 'team-workers',
+  openTeamRoles: 'team-workers',
+  resetTeamEntry: 'team-workers',
+  stopAllTeamTasks: 'team-workers',
+  requestLegalExplanation: 'legal-explanation',
+  exportLegalReport: 'legal',
+  sharingAction: 'prompt-library',
   openSettings: 'support',
   openKeybindings: 'support',
   openLog: 'support',
@@ -312,6 +334,7 @@ export {
 
 export { MODEL_API_TOOLS, MODEL_API_SUBAGENT_TOOLS, VERIFY_TOOLS } from '../constants'
 export const REFERENCE_TOOL_FEATURES: Readonly<Record<string, string>> = {
+  legal_scan: 'legal',
   read_file: 'attachments',
   write_file: 'chat',
   edit_file: 'edit-review',

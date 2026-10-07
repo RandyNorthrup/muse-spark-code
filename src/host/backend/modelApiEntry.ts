@@ -1,3 +1,10 @@
+import { MODEL_API_MAX_RETRIES, UI_TEXT } from '../../shared/constants'
+import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
+import {
+  type ResponseAttemptGuard,
+  ModelApiClient,
+  type ModelApiClientDeps,
+} from '../../core/backends/modelapi/client'
 // The Model API backend's bundle (M57, PLAN.md D6): esbuild builds this file
 // into dist/modelApi.js, which `ModelApiBackendManager` requires the first
 // time that backend starts, so the host, its tools, hooks and MCP client stay
@@ -7,20 +14,33 @@
 // bundle's table before it builds anything. The English fallback remains
 // available when this backend is loaded outside the extension.
 
-import { ModelApiClient, type ModelApiClientDeps } from '../../core/backends/modelapi/client'
+// T's one request loop and framing API are shared by the lazy provider adapters.
+export {
+  RequestTransport,
+  ModelApiError,
+  isModelApiError,
+  rateLimitHeaders,
+  parseJsonResponse,
+  redactModelApiError,
+  ignoreClosingError,
+  redactSecrets,
+} from '../../core/backends/modelapi/transport'
+export { parseSse, boundedChunks, streamLimitError } from '../../core/backends/modelapi/sse'
+export { parseNdjson } from '../../core/backends/modelapi/ndjson'
+export { streamEventSchema, usageSchema } from '../../core/backends/modelapi/schemas'
+export { pinnedHttpsRequest, pinnedPostRequest } from '../web/pinnedRequest'
 import type { ExtensionHookDefinition } from '../../core/backends/modelapi/extensionHooks'
-import {
-  type HookDefinition,
-  type HookLoadDeps,
-  loadHookDefinitions,
-  sparkHooksFiles,
-} from '../../core/backends/modelapi/hooks'
+import type { HookDefinition, HookLoadDeps } from '../../core/backends/modelapi/hooks'
 import {
   metaModelFacts,
   metaSideCallFormats,
   metaHostedCapabilities,
 } from '../../core/backends/modelapi/modelCapabilities'
+
+import { sparkHooksFiles } from '../../core/backends/modelapi/hookNames'
+
 import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
+
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import type { ModelApiBundleDeps } from './modelApiBundle'
@@ -88,29 +108,55 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
             hostDeps.log.warn(`Hooks: ${message}`)
           },
         }
-  const mcpEntry =
+  let providers: ReturnType<NonNullable<typeof deps.createProviders>> | undefined
+  const resolveProviders = async () => {
+    if (deps.createProviders === undefined) throw new Error(UI_TEXT.modelsPanelUnavailable)
+    providers ??= deps.createProviders()
+    try {
+      return await providers
+    } catch (error: unknown) {
+      providers = undefined
+      throw error
+    }
+  }
+  const meta = new ModelApiClient(deps.client)
+  const client = (await deps.createProviderClient?.(meta)) ?? meta
+  const mcp =
     deps.createMcpServers === undefined
       ? undefined
-      : await import('../../core/backends/modelapi/mcpPoolEntry.js')
+      : await import('../../core/backends/modelapi/modelApiMcpEntry.js')
+  mcp?.setUiText(deps.uiText, deps.uiLocale)
   const host = new ModelApiHost({
     ...hostDeps,
     modelFacts: hostDeps.modelFacts ?? metaModelFacts,
     sideCallFormats: hostDeps.sideCallFormats ?? metaSideCallFormats,
     modelCapabilities: hostDeps.modelCapabilities ?? metaHostedCapabilities,
-    client: new ModelApiClient(deps.client),
+    client,
+    ...('models' in client && { models: client.models }),
+    ...(deps.createProviders !== undefined && {
+      models: {
+        resolve: async (ref: string) => {
+          const registry = await resolveProviders()
+          return await registry.resolve(ref)
+        },
+        list: async () => {
+          const { list } = await resolveProviders()
+          if (list === undefined) throw new Error(UI_TEXT.modelsPanelUnavailable)
+          return await list()
+        },
+      },
+    }),
     mcpServers:
-      mcpEntry === undefined
+      mcp === undefined
         ? undefined
-        : await deps.createMcpServers?.((poolDeps) =>
-            mcpEntry.createMcpPool(poolDeps, deps.uiText, deps.uiLocale),
-          ),
+        : await deps.createMcpServers?.((poolDeps) => new mcp.McpServerPool(poolDeps)),
     loadHooks: async () => {
       const sources = sourcesFor()
       // Hooks imported in another agent's format live in spark-hooks.json and
       // join the same per-session snapshot, after Muse Code's (M91 lane W).
-      return sources === undefined
-        ? []
-        : [...(await loadHookDefinitions(sources)), ...(await loadForeignHooks(sources))]
+      if (sources === undefined) return []
+      const hooks = await import('../../core/backends/modelapi/modelApiHooksEntry.js')
+      return [...(await hooks.loadHookDefinitions(sources)), ...(await loadForeignHooks(sources))]
     },
     // spark-hooks.json loads beside Muse Code's sources, under the same
     // trust gate and opt-in, into the same per-session snapshot (M91 lane E).
@@ -135,3 +181,22 @@ export function createModelApiClient(
   setUiText(table, locale)
   return new ModelApiClient(deps)
 }
+
+export async function* streamLegalExplanation(
+  deps: ModelApiClientDeps,
+  body: CreateResponseBody,
+  signal: AbortSignal,
+  guard: ResponseAttemptGuard,
+  table: UiText,
+  locale: string,
+): AsyncGenerator<StreamEvent> {
+  setUiText(table, locale)
+  yield* new ModelApiClient(deps).streamResponse(
+    body,
+    signal,
+    undefined,
+    { retriesUsed: MODEL_API_MAX_RETRIES },
+    guard,
+  )
+}
+export { setUiText } from '../../shared/l10n/text'

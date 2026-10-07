@@ -1,0 +1,57 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamNativeLifetime.test.ts --maxWorkers=3 --testTimeout=120000
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/lanes/FIXM96K
+
+ ❯ test/unit/teamNativeLifetime.test.ts (11 tests | 1 failed) 35057ms
+   ❯ M96 K real native lifetime (11)
+     × rechecks the leader identity before KILL after TERM 30102ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > rechecks the leader identity before KILL after TERM
+AssertionError: expected [ { childExited: true, …(1) } ] to deeply equal [ { childExited: false, …(1) } ]
+
+- Expected
++ Received
+
+  [
+    {
+-     "childExited": false,
++     "childExited": true,
+      "descendants": "uncertain",
+    },
+  ]
+
+ ❯ test/unit/teamNativeLifetime.test.ts:403:40
+    401|         return true
+    402|       })
+    403|       expect(await lifetime.dispose()).toEqual([{ childExited: false, …
+       |                                        ^
+    404|       expect(signal.mock.calls).toEqual([[-confirmation.pid, 'SIGTERM'…
+    405|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > rechecks the leader identity before KILL after TERM
+Error: Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+ ❯ test/unit/teamNativeLifetime.test.ts:50:1
+     48|   await rm(native.directory, { recursive: true, force: true })
+     49| })
+     50| afterEach(async () => {
+       | ^
+     51|   vi.restoreAllMocks()
+     52|   for (const stop of stops.splice(0)) await stop()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 10 passed (11)
+   Start at  10:35:52
+   Duration  35.98s (tests 98%, transform 1%, import 1%)
+

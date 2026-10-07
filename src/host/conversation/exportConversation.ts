@@ -28,6 +28,8 @@ import {
 import type { ItemSnapshot } from '../../shared/agentEvents'
 import { plural } from '../../shared/l10n/text'
 import { backendLabel } from '../../shared/palette'
+import type { ChatShareRequest, ChatShareSource } from '../../core/sharing/chatShare'
+import type { ChatSharePreview } from '../../core/sharing/shareRelease'
 
 /** The portable file before it is written (M84): what the preview opens and says. */
 export interface ExportPreview {
@@ -55,6 +57,36 @@ export interface ConversationExports {
 }
 
 export type ExportPreviewChoice = 'redacted' | 'full' | 'dismissed'
+
+/** M118's lazy implementation is injected by the host, independent of its editor. */
+export interface ConversationSharing {
+  readonly isConfidentialWorkspace: () => boolean | undefined
+  readonly preparePreview: (
+    read: () => Promise<ChatShareSource>,
+    request: ChatShareRequest,
+  ) => Promise<ChatSharePreview>
+}
+
+/** Sharing reads the same history as export, without writing or opening a destination. */
+export async function previewConversationShare(
+  host: Pick<AgentHost, 'readSession'>,
+  session: Pick<AgentSession, 'sessionId'>,
+  request: ChatShareRequest,
+  now: Date,
+  sharing: ConversationSharing,
+): Promise<ChatSharePreview> {
+  if (sharing.isConfidentialWorkspace() !== false) throw new Error(UI_TEXT.shareConfidential)
+  return await sharing.preparePreview(async () => {
+    const history = await host.readSession(session.sessionId)
+    if (history.mode === HISTORY_MODE_NONE) throw new Error(UI_TEXT.exportHistoryUnavailable)
+    return {
+      sessionId: session.sessionId,
+      title: titleOf(history.name, history.items),
+      exportedAt: now.toISOString(),
+      items: history.items,
+    }
+  }, request)
+}
 
 /**
  * `historyUnavailable`: Muse Code answered with history mode `none` (a

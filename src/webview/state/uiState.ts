@@ -39,7 +39,7 @@ import {
   WORKFLOW_KIND,
 } from '../../shared/constants'
 import { QUESTION_STATES, type OpenQuestion } from '../../shared/questions'
-import { fill, formatNumber } from '../../shared/l10n/text'
+import { fill, formatNumber, plural } from '../../shared/l10n/text'
 import type {
   AttachmentSummary,
   AuthStatus,
@@ -61,6 +61,9 @@ import type {
   SkillOption,
 } from '../../shared/protocol'
 import { EMPTY_PAID_TALLY, type PaidState } from '../../shared/paid'
+import { isLegalPrompt } from '../../shared/legalCommand'
+import type { LegalScanResult } from '../../shared/legal'
+import type { LegalFixPreviewMessage, LegalFixResultMessage } from '../../shared/legalFix'
 import type { ScheduleView } from '../../shared/schedule'
 import type { BestOfNRun } from '../../shared/bestOfN'
 import type { BoardRow } from '../../shared/sessionBoard'
@@ -68,9 +71,11 @@ import type { SessionRow } from '../../shared/sessions'
 import type {
   AccountFacts,
   ProviderUsageRow,
+  PlanUsageRow,
   SubscriptionUsage,
   UsageInsights,
 } from '../../shared/usage'
+import type { TeamTreeData, TeamUsageSummary, TeamWorkerLabel } from '../../shared/teamView'
 import { goalStatusLabel, toolLabel } from '../toolPresentation'
 import {
   type GitFormEdit,
@@ -103,6 +108,14 @@ import {
   type UsageSummary,
   type WorkflowChild,
 } from './transcriptEntries'
+import {
+  mergeTeamEntry,
+  teamEntryForItem,
+  teamWorkers,
+  isRunningTeamWorker,
+  isFinishedTeamWorker,
+  teamWorkerStatusLabel,
+} from './teamEntries'
 
 export type {
   ChildTranscript,
@@ -124,6 +137,9 @@ export interface UsageReport {
   readonly insights: { readonly day: UsageInsights; readonly week: UsageInsights } | undefined
   /** This window's tallies per BYO provider (M95); undefined until one is used. */
   readonly providers: readonly ProviderUsageRow[] | undefined
+  /** The Team section (M96 lane U2); absent where the team cannot run. */
+  readonly team?: TeamUsageSummary | undefined
+  readonly plans?: readonly PlanUsageRow[] | undefined
 }
 
 /**
@@ -330,6 +346,7 @@ export interface UiState {
     readonly hasCli?: boolean | undefined
     readonly hasCliSession?: boolean | undefined
     readonly installState?: 'running' | 'failed' | undefined
+    readonly planAccount?: Extract<HostToWebviewMessage, { type: 'authState' }>['planAccount']
   }
   readonly model:
     { readonly modelId: string; readonly contextLimit: number | undefined } | undefined
@@ -349,6 +366,8 @@ export interface UiState {
   readonly activeTurnId: string | undefined
   /** The last turn the host reported finished (M25): a late `turnAccepted` for it starts nothing. */
   readonly lastCompletedTurnId: string | undefined
+  /** Plan-limit dismissal belongs to the conversation, surviving surface/model changes. */
+  readonly dismissedPlanTurnId: string | undefined
   /** Promoted-steer turn corrections received before their local card is accepted. */
   readonly pendingReplayTurns: Readonly<Record<string, string>>
   /**
@@ -360,6 +379,12 @@ export interface UiState {
   readonly context: ContextSummary | undefined
   /** undefined until the host answered `readUsage` for this window. */
   readonly usageReport: UsageReport | undefined
+  /**
+   * The Agent map's team tree (M96 lane U2); undefined where the team
+   * cannot run (off, Solo, single-model mode, no runnable role): the map,
+   * the pill and the dialog are today's.
+   */
+  readonly teamTree: TeamTreeData | undefined
   /** What the next message replies to or quotes (M17); the composer chip. */
   readonly reference: ChatReference | undefined
   /** Subagent transcripts by child session id (M14). */
@@ -448,6 +473,13 @@ export interface UiState {
   readonly reviewPane: ReviewPaneState | undefined
   /** What the user did with each change in the pane (M70), by `reviewHunkKey`; never saved. */
   readonly reviewHunks: Readonly<Record<string, ReviewHunkState>>
+  /** The legal scan's latest report (M97 lane W), with the request it answers; never saved. */
+  readonly legalReport: { readonly requestId: string; readonly result: LegalScanResult } | undefined
+  /** The selected-fix preview the report last asked for (M97 lane W); never saved. */
+  readonly legalFixRequestId?: string | undefined
+  readonly legalFixPreview: LegalFixPreviewMessage | undefined
+  /** What the last confirmed fix batch ended as (M97 lane W); never saved. */
+  readonly legalFixResult: LegalFixResultMessage | undefined
   /** Monotonic counter behind locally generated transcript ids. */
   readonly localSequence: number
   /**
@@ -538,6 +570,7 @@ export type UiAction =
   | { readonly type: 'conversationCleared' }
   /** The × on the composer banner (M14). */
   | { readonly type: 'bannerDismissed' }
+  | { readonly type: 'planLimitDismissed'; readonly turnId: string }
   /** The × on the open-file chip. */
   | { readonly type: 'editorContextDismissed' }
   /** The user chose on an approval card; lock that stage until the host moves on. */
@@ -599,6 +632,9 @@ export type UiAction =
   | { readonly type: 'setupCompleteDismissed' }
   /** Cancel (or Escape, the × or the backdrop) on the report dialog (M93 lane W). */
   | { readonly type: 'reportClosed' }
+  /** The × (or Escape, or the backdrop) on the legal report (M97 lane W). */
+  | { readonly type: 'legalReportClosed' }
+  | { readonly type: 'legalFixRequested'; readonly requestId: string }
 
 export const initialUiState: UiState = {
   pendingApprovalResolutions: [],
@@ -649,11 +685,13 @@ export const initialUiState: UiState = {
   transcript: [],
   activeTurnId: undefined,
   lastCompletedTurnId: undefined,
+  dismissedPlanTurnId: undefined,
   pendingReplayTurns: {},
   admittedMessageIds: [],
   usage: undefined,
   context: undefined,
   usageReport: undefined,
+  teamTree: undefined,
   reference: undefined,
   childTranscripts: {},
   childOwners: {},
@@ -680,6 +718,9 @@ export const initialUiState: UiState = {
   toolImages: {},
   reviewPane: undefined,
   reviewHunks: {},
+  legalReport: undefined,
+  legalFixPreview: undefined,
+  legalFixResult: undefined,
   localSequence: 0,
   sequence: 0,
   editorContext: undefined,
@@ -1106,6 +1147,7 @@ function toolEntry(item: ItemSnapshot): TranscriptEntry {
     isBackground: isBackgrounded(item) === true,
     backgroundInitiator: item.backgroundInitiator,
     paid: item.paid,
+    teamWorker: item.teamWorker,
     images: reportedImages(item),
     verifySummary: item.verifySummary,
     thenRun: item.thenRun,
@@ -1211,13 +1253,16 @@ function entryFor(item: ItemSnapshot, at: number, seq: number): TranscriptEntry 
       return workflowEntry(item)
     }
     default: {
-      return {
-        kind: 'item',
-        id: item.itemId,
-        itemKind: item.kind,
-        status: item.status,
-        text: item.fallbackText ?? item.text,
-      }
+      // The team's cards (M96 lane U2); anything else keeps today's row.
+      return (
+        teamEntryForItem(item) ?? {
+          kind: 'item',
+          id: item.itemId,
+          itemKind: item.kind,
+          status: item.status,
+          text: item.fallbackText ?? item.text,
+        }
+      )
     }
   }
 }
@@ -1261,6 +1306,7 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
         isBackground: isBackgrounded(item) ?? entry.isBackground,
         backgroundInitiator: item.backgroundInitiator ?? entry.backgroundInitiator,
         paid: item.paid ?? entry.paid,
+        teamWorker: item.teamWorker ?? entry.teamWorker,
         images: reportedImages(item) ?? entry.images,
         verifySummary: item.verifySummary ?? entry.verifySummary,
         thenRun: item.thenRun ?? entry.thenRun,
@@ -1317,6 +1363,14 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
     }
     case 'item': {
       return { ...entry, status: item.status, text: item.fallbackText ?? item.text ?? entry.text }
+    }
+    case 'teamPlan':
+    case 'teamSwitch':
+    case 'teamWaiting':
+    case 'teamMerge':
+    case 'teamReport': {
+      // The team's cards (M96 lane U2): the host's latest status wins.
+      return mergeTeamEntry(entry, item) ?? entry
     }
     default: {
       return entry
@@ -1850,6 +1904,7 @@ function completeTurn(
             id: `error:${event.turnId}`,
             text: event.reason ?? event.errorKind ?? UI_TEXT.turnFailed,
             ...(reportRef !== undefined && { reportRef }),
+            ...(event.errorKind !== undefined && { errorKind: event.errorKind }),
           },
         ]
       : []
@@ -1858,6 +1913,7 @@ function completeTurn(
       ...state,
       activeTurnId: undefined,
       lastCompletedTurnId: event.turnId,
+      dismissedPlanTurnId: event.terminal === 'completed' ? undefined : state.dismissedPlanTurnId,
       strayItems: without(state.strayItems, event.turnId),
       transcript: [
         ...settleAll(
@@ -2418,6 +2474,7 @@ function clearedConversation(state: UiState): UiState {
     reference: undefined,
     activeTurnId: undefined,
     lastCompletedTurnId: undefined,
+    dismissedPlanTurnId: undefined,
     usage: undefined,
     context: undefined,
     todos: [],
@@ -2429,6 +2486,9 @@ function clearedConversation(state: UiState): UiState {
     toolImages: {},
     reviewPane: undefined,
     reviewHunks: {},
+    legalReport: undefined,
+    legalFixPreview: undefined,
+    legalFixResult: undefined,
     share: undefined,
     isImported: false,
   }
@@ -2676,6 +2736,14 @@ function withOpenQuestions(
 
 function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: number): UiState {
   switch (message.type) {
+    case 'sharingResult': {
+      return message.error === undefined
+        ? state
+        : announce(withNotice(state, 'error', message.error), message.error)
+    }
+    case 'openSharing': {
+      return state
+    }
     case 'init': {
       return {
         ...state,
@@ -2779,6 +2847,8 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         // No account identity accompanies authState: discard prior-account
         // usage even if the backend name stays the same.
         usageReport: undefined,
+        // The tree names the account's models: it goes with the usage.
+        teamTree: undefined,
         auth: {
           status: message.status,
           detail: message.detail,
@@ -2790,6 +2860,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           hasCli: message.hasCli,
           hasCliSession: message.hasCliSession,
           installState: message.installState,
+          planAccount: message.planAccount,
         },
       }
     }
@@ -2921,7 +2992,9 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           ...(message.serviceStatus !== undefined && { serviceStatus: message.serviceStatus }),
           account: message.account,
           insights: message.insights,
+          team: message.team,
           providers: message.providers === undefined ? undefined : [...message.providers],
+          plans: message.plans,
         },
       }
     }
@@ -2933,6 +3006,42 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         },
         fill(UI_TEXT.setupComplete, { provider: message.provider, model: message.model }),
       )
+    }
+    case 'teamTree': {
+      // The ledger's live view (M96 lane U2): the tree replaces wholesale.
+      const before = new Map(
+        (state.teamTree === undefined ? [] : teamWorkers(state.teamTree)).map((worker) => [
+          worker.taskId,
+          worker.status,
+        ]),
+      )
+      const finished = teamWorkers(message.tree).filter((worker) => {
+        const previous = before.get(worker.taskId)
+        return (
+          previous !== undefined &&
+          isRunningTeamWorker(previous) &&
+          isFinishedTeamWorker(worker.status)
+        )
+      })
+      const finishedById = new Map(finished.map((worker) => [worker.taskId, worker]))
+      const summaries = Array.from(finishedById.values(), (worker) =>
+        fill(UI_TEXT.teamWorkerFinished, {
+          task: worker.brief,
+          status: teamWorkerStatusLabel(worker.status),
+        }),
+      )
+      return announce(
+        { ...state, teamTree: message.tree },
+        summaries.length === 0 ? undefined : summaries.join(' '),
+      )
+    }
+    case 'clearTeamTree': {
+      return {
+        ...state,
+        teamTree: undefined,
+        usageReport:
+          state.usageReport === undefined ? undefined : { ...state.usageReport, team: undefined },
+      }
     }
     case 'sharePreview': {
       return {
@@ -3014,6 +3123,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
             schedules: isSameSession ? state.schedules : [],
             activeTurnId: message.activeTurnId,
             lastCompletedTurnId: undefined,
+            dismissedPlanTurnId: isSameSession ? state.dismissedPlanTurnId : undefined,
             pendingReplayTurns: {},
             admittedMessageIds: [],
             usage: isSameSession ? state.usage : undefined,
@@ -3426,6 +3536,27 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     case 'reviewHunkResult': {
       return reviewHunkSettled(state, message)
     }
+    case 'legalScanReport': {
+      // A new scan invalidates the older selection's preview and outcome:
+      // the report the dialog shows is always the one the handoff guards.
+      const report = { requestId: message.requestId, result: message.result }
+      const text =
+        message.result.findings.length === 0
+          ? UI_TEXT.legalScanEmpty
+          : plural(UI_TEXT.legalFindingsCount, message.result.findings.length)
+      return announce(
+        { ...state, legalReport: report, legalFixPreview: undefined, legalFixResult: undefined },
+        `${UI_TEXT.legalScanTitle}: ${text}`,
+      )
+    }
+    case 'legalFixPreview': {
+      return message.requestId !== undefined && message.requestId !== state.legalFixRequestId
+        ? state
+        : { ...state, legalFixPreview: message }
+    }
+    case 'legalFixResult': {
+      return { ...state, legalFixResult: message }
+    }
     case 'userShellRefused': {
       // The command comes back to an empty prompt, to be fixed and run again (M46).
       const restored =
@@ -3708,6 +3839,11 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         attachmentsToRelease: state.attachmentsToRelease.filter((id) => !action.ids.includes(id)),
       }
     }
+    case 'planLimitDismissed': {
+      return action.turnId === state.lastCompletedTurnId
+        ? { ...state, dismissedPlanTurnId: action.turnId }
+        : state
+    }
     case 'bannerDismissed': {
       return { ...state, banner: undefined }
     }
@@ -3749,6 +3885,24 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         ...state,
         report: undefined,
         closedReportSession: Math.max(state.closedReportSession, state.report?.session ?? 0),
+      }
+    }
+    case 'legalFixRequested': {
+      return {
+        ...state,
+        legalFixRequestId: action.requestId,
+        legalFixPreview: undefined,
+        legalFixResult: undefined,
+      }
+    }
+    case 'legalReportClosed': {
+      return {
+        ...state,
+        legalReport: undefined,
+        focusRequests: state.focusRequests + 1,
+        legalFixRequestId: undefined,
+        legalFixPreview: undefined,
+        legalFixResult: undefined,
       }
     }
     case 'conversationCleared': {
@@ -3806,6 +3960,7 @@ export function userShellCommandOf(draft: string): string | undefined {
 
 /** Whether the composer may submit right now (a running turn is steered; `!` needs a command). */
 export function canSend(state: UiState): boolean {
+  if (isLegalPrompt(state.draft)) return true
   if (state.auth.status !== 'signedIn') {
     return false
   }
@@ -3940,6 +4095,8 @@ export interface WaitingApproval {
   readonly entryId: string
   readonly toolName: string
   readonly approval: PendingApproval
+  /** A worker's own approval: the card's role-agent-task label (M96 lane U2). */
+  readonly teamWorker?: TeamWorkerLabel | undefined
 }
 
 /** The approvals waiting, oldest first: the order their rows stand in. */
@@ -3949,7 +4106,12 @@ export function waitingApprovals(
   const waiting: WaitingApproval[] = []
   for (const entry of transcript) {
     if (entry.kind === 'tool' && entry.approval !== undefined) {
-      waiting.push({ entryId: entry.id, toolName: entry.tool, approval: entry.approval })
+      waiting.push({
+        entryId: entry.id,
+        toolName: entry.tool,
+        approval: entry.approval,
+        teamWorker: entry.teamWorker,
+      })
     }
   }
   return waiting

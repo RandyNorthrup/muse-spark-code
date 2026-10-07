@@ -7,7 +7,7 @@ import { webviewKey } from '../../shared/keybindings'
 // focus through a "Show archived" toggle too (M25): the switch used to take
 // it, and the arrows, Enter and Esc stopped working until the next click.
 
-import { type KeyboardEvent, type MouseEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
 import { plural } from '../../shared/l10n/text'
 import {
@@ -18,14 +18,9 @@ import {
   type SessionRow,
 } from '../../shared/sessions'
 import { scrollRowIntoView } from '../listNavigation'
+import { deferred } from './DeferredSurface'
 import { HistoryIcon } from './icons'
 import { ListBody } from './ListBody'
-import { deferred } from './DeferredSurface'
-
-const RowView = deferred(async () => {
-  const entry = await import('./HistoryRow')
-  return { default: entry.HistoryRow }
-}, false)
 import {
   PaletteList,
   PaletteSearchInput,
@@ -41,6 +36,7 @@ export interface HistoryDialogProps {
   readonly currentSessionId: string | undefined
   readonly archiveAfterDays: number
   readonly now: () => number
+  readonly onSavePrompt?: (sessionId: string) => void
   readonly onResume: (sessionId: string) => void
   readonly onSetArchived: (sessionId: string, isArchived: boolean) => void
   /** Muse Code only. The host confirms deletion and waits for its terminal notification. */
@@ -51,26 +47,26 @@ export interface HistoryDialogProps {
 const ROW_ID_PREFIX = 'history-row-'
 // Archives or restores the highlighted row from the search box (M37).
 
-function keepSearchFocus(event: MouseEvent<HTMLElement>): void {
-  event.preventDefault()
-}
-
 /** What the list renders: group titles and numbered rows, in order. */
 export type HistoryEntry =
   | { readonly kind: 'title'; readonly key: string; readonly title: string }
   | { readonly kind: 'row'; readonly key: string; readonly index: number; readonly row: SessionRow }
 
 export function layoutHistory(groups: readonly SessionGroup[]): readonly HistoryEntry[] {
+  const entries: HistoryEntry[] = []
   let index = 0
-  return groups.flatMap((group): HistoryEntry[] => [
-    { kind: 'title', key: `title:${group.id}`, title: group.title },
-    ...group.rows.map((row): HistoryEntry => ({
-      kind: 'row',
-      key: row.sessionId,
-      index: index++,
-      row,
-    })),
-  ])
+  for (const group of groups) {
+    entries.push({ kind: 'title', key: `title:${group.id}`, title: group.title })
+    for (const row of group.rows) {
+      entries.push({
+        kind: 'row',
+        key: row.sessionId,
+        index: index++,
+        row,
+      })
+    }
+  }
+  return entries
 }
 
 function metaOf(row: SessionRow, nowMs: number, openCount = 0): string {
@@ -85,7 +81,13 @@ function metaOf(row: SessionRow, nowMs: number, openCount = 0): string {
     .join(' · ')
 }
 
+const RowView = deferred(async () => {
+  const module = await import('./HistoryPromptRow')
+  return { default: module.HistoryPromptRow }
+})
+
 export function HistoryDialog(props: HistoryDialogProps) {
+  const [menuContainer, setMenuContainer] = useState<HTMLDivElement | null>(null)
   const { sessions, archivedIds, currentSessionId, archiveAfterDays, now } = props
   const { onResume, onSetArchived, onDelete, onClose } = props
   const [query, setQuery] = useState('')
@@ -169,6 +171,8 @@ export function HistoryDialog(props: HistoryDialogProps) {
           ) : (
             <RowView
               key={entry.key}
+              onSavePrompt={props.onSavePrompt}
+              menuContainer={menuContainer}
               row={entry.row}
               isActive={entry.index === activeIndex}
               isCurrent={entry.row.sessionId === currentSessionId}
@@ -216,7 +220,25 @@ export function HistoryDialog(props: HistoryDialogProps) {
           }}
           onKeyDown={handleKeyDown}
         />
-        <label className="history-toggle" onMouseDown={keepSearchFocus}>
+        {props.onSavePrompt === undefined ? null : (
+          <button
+            type="button"
+            className="button-secondary"
+            disabled={activeRow === undefined}
+            onClick={() => {
+              if (activeRow !== undefined) props.onSavePrompt?.(activeRow.sessionId)
+            }}
+          >
+            {UI_TEXT.promptSave}
+          </button>
+        )}
+        <label
+          className="history-toggle"
+          onMouseDown={(event) => {
+            // A click toggles the switch without taking the focus.
+            event.preventDefault()
+          }}
+        >
           <input
             type="checkbox"
             checked={isShowingArchived}
@@ -231,6 +253,7 @@ export function HistoryDialog(props: HistoryDialogProps) {
         </label>
       </div>
       <ListBody>{body}</ListBody>
+      <div ref={setMenuContainer} />
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { resourceEnvironment } from '../../resources/launch'
+import { resourceEnvironment, type ResourceLease } from '../../resources/launch'
 // M91 lane X: the plugin host. Amp and OpenCode plugins run OUT OF PROCESS
 // in a short-lived child under the user's own runtime (pluginChild.ts is the
 // entry; the host writes one JSON request line on stdin and reads one JSON
@@ -26,7 +26,7 @@ import { resourceEnvironment } from '../../resources/launch'
 //   for node, PLUGIN_RESPONSE_MAX_BYTES UTF-8 bytes per answer frame [14].
 import { Buffer } from 'node:buffer'
 import { admitResource, stopResourceTree } from '../../resources/admission'
-import type { ResourceLease } from '../../resources/launch'
+
 import { type ChildProcess, spawn as nodeSpawn } from 'node:child_process'
 import { withoutCredentials } from '../../credentialEnvironment'
 import { statSync } from 'node:fs'

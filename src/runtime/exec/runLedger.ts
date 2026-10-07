@@ -19,6 +19,7 @@ export interface TierPrice {
   readonly output: UsdAmount
 }
 export interface ResponseTicket {
+  readonly contextTokens?: number | undefined
   readonly n: number
   readonly kind: 'responses'
   readonly model: string
@@ -64,9 +65,15 @@ export interface RunLedger {
     model: string
     maxOutputTokens: number
     price: TierPrice
+    readonly contextTokens?: number | undefined
+    readonly reserveUsd?: UsdAmount | undefined
   }): ResponseTicket | { refused: Refusal }
   admitImage(endpoint: 'images.generations' | 'images.edits'): ImageTicket | { refused: Refusal }
-  settleResponse(ticket: ResponseTicket, outcome: ResponseSettlement): SettlementResult
+  settleResponse(
+    ticket: ResponseTicket,
+    outcome: ResponseSettlement,
+    pricing?: { readonly costUsd: UsdAmount | undefined },
+  ): SettlementResult
   settleImage(ticket: ImageTicket, outcome: ImageSettlement): SettlementResult
   close(): void
   readonly lastResponse: LastResponse | null
@@ -182,9 +189,15 @@ export function createRunLedger(input: { capUsd: UsdAmount; maxRequests: number 
         return refuse('request_shape')
       let amount: bigint
       try {
-        if (Usd.from(price.cachedInput).compare(Usd.from(price.input)) > 0)
+        if (
+          request.reserveUsd === undefined &&
+          Usd.from(price.cachedInput).compare(Usd.from(price.input)) > 0
+        )
           return refuse('unpriced')
-        amount = charge(price, MODEL_API_CONTEXT_WINDOW - m, m)
+        amount =
+          request.reserveUsd === undefined
+            ? charge(price, MODEL_API_CONTEXT_WINDOW - m, m)
+            : units(Usd.from(request.reserveUsd).toAmount())
       } catch {
         return refuse('unpriced')
       }
@@ -214,7 +227,7 @@ export function createRunLedger(input: { capUsd: UsdAmount; maxRequests: number 
       })
       return active
     },
-    settleResponse(ticket, outcome) {
+    settleResponse(ticket, outcome, pricing) {
       const amount = take(ticket)
       const terminal = outcome.kind === 'http' ? null : outcome.terminal
       const sample = outcome.kind === 'http' ? undefined : outcome.usage
@@ -233,11 +246,16 @@ export function createRunLedger(input: { capUsd: UsdAmount; maxRequests: number 
             BigInt(u.total_tokens) === BigInt(u.input_tokens) + BigInt(u.output_tokens))
         if (isConsistent) {
           validity = 'valid'
-          const cost = charge(ticket.price, u.input_tokens, u.output_tokens, cached)
+          let cost =
+            pricing === undefined
+              ? charge(ticket.price, u.input_tokens, u.output_tokens, cached)
+              : undefined
+          if (pricing?.costUsd !== undefined) cost = units(pricing.costUsd)
           if (
-            u.input_tokens > MODEL_API_CONTEXT_WINDOW - ticket.maxOutputTokens ||
+            u.input_tokens >
+              (ticket.contextTokens ?? MODEL_API_CONTEXT_WINDOW) - ticket.maxOutputTokens ||
             u.output_tokens > ticket.maxOutputTokens ||
-            cost > amount
+            (cost !== undefined && cost > amount)
           )
             latch = 'breach'
           else if (terminal === 'completed' && outcome.kind === 'eof' && !outcome.parseInvalid)

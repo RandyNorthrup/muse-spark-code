@@ -13,6 +13,7 @@ import {
   useSyncExternalStore,
 } from 'react'
 import type { QuestionAnswer } from '../shared/agentEvents'
+import type { PlanNoticePort } from './components/PlanUi'
 import type { OpenQuestionAnswer } from '../shared/questions'
 import {
   type CheckpointAvailability,
@@ -20,6 +21,7 @@ import {
   type EffortLevel,
   GOAL_SLASH_COMMAND,
   HANDOFF_SLASH_COMMAND,
+  LEGAL_SLASH_COMMAND,
   LOOP_SLASH_COMMAND,
   HOOK_RUN_SLASH_COMMAND,
   type GoalCommandVerb,
@@ -36,7 +38,10 @@ import {
   type ReviewRequest,
   reviewRequestSchema,
 } from '../shared/reviewCommand'
+import { isLegalPrompt, parseLegalPrompt } from '../shared/legalCommand'
+import type { LegalScanRequestMessage, LegalFinding } from '../shared/legal'
 import { editorContextLabel } from '../shared/editorContext'
+
 import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/effort'
 import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
 import { parseHandoffPrompt } from '../shared/handoff'
@@ -51,22 +56,27 @@ import { paidFeatureName, paidFeaturePrice, usablePaidFeatures } from '../shared
 import { buildPalette, type PaletteAction } from '../shared/palette'
 import { type SlashCommand, slashCommandsOf } from '../shared/slashCommands'
 import type { GitAction, GitDraftKind } from '../shared/git'
-import type {
-  ChatReference,
-  LineRange,
-  NoticeAction,
-  ReportEventRef,
-  ReviewFile,
-  SignInMethod,
-  WebviewToHostMessage,
+import {
+  type ChatReference,
+  type LineRange,
+  type NoticeAction,
+  type ReportEventRef,
+  type ReviewFile,
+  type SignInMethod,
+  type WebviewToHostMessage,
+  parseHostToWebviewMessage,
 } from '../shared/protocol'
+
 import type { GitFormEdit } from './state/gitState'
 import type { ApprovalDecisionInput } from './components/ApprovalCard'
 import { AttentionDock } from './components/AttentionDock'
 import { QuestionSurface } from './components/QuestionSurface'
 import { Composer, type ImageData, type SlashPaletteSlot } from './components/Composer'
 import { DiffTally } from './components/DiffTally'
-import { EffortSlider } from './components/EffortSlider'
+const EffortSlider = deferred(async () => {
+  const module = await import('./components/EffortSlider')
+  return { default: module.EffortSlider }
+})
 import { EmptyState } from './components/EmptyState'
 import { Header } from './components/Header'
 import { DeferredReportDialog } from './components/DeferredReportDialog'
@@ -75,7 +85,10 @@ import { modeIcon } from './components/modeIcons'
 import type { PaletteKeys, PaletteView } from './components/Palette'
 import type { MenuEntry } from './components/PopoverMenu'
 import { TodoPanel } from './components/TodoPanel'
+import type { TeamTreeActions } from './components/TeamTree'
+import { teamRunningTaskCount, teamTaskCount } from './state/teamEntries'
 import { type QueuedCardRef, Transcript } from './components/Transcript'
+import type { TeamCardActions } from './components/TeamCards'
 import { diffTally } from './diffTally'
 import { type ErrorReporter, webviewErrorReport } from './errorReport'
 import { createUiStore, listenToHost, type UiStore } from './state/store'
@@ -104,6 +117,11 @@ import type { QuoteIntent } from './components/QuoteMenu'
 import { deferred } from './components/DeferredSurface'
 import { Modal } from './components/Modal'
 import type { ResourceSurfaceLoader } from './resources/resourcePort'
+
+const LegalReport = deferred(async () => {
+  const module = await import('./components/LegalReport')
+  return { default: module.LegalReport }
+}, true)
 
 const SignIn = deferred(async () => {
   const module = await import('./components/SignIn')
@@ -136,8 +154,12 @@ const AgentMap = deferred(async () => {
 }, true)
 const UsageDialog = deferred(async () => {
   const module = await import('./components/UsageDialog')
-  return { default: module.UsageDialog }
+  return { default: module.UsageSurface }
 }, true)
+const PlanUi = deferred(async () => {
+  const module = await import('./components/PlanUi')
+  return { default: module.PlanUi }
+})
 const BestOfNDialog = deferred(async () => {
   const module = await import('./components/BestOfNDialog')
   return { default: module.BestOfNDialog }
@@ -182,12 +204,22 @@ const SessionBoardDialog = deferred(async () => {
   return { default: SessionBoardDialog }
 })
 
+const PromptLibraryBridge = deferred(async () => {
+  const { PromptLibraryBridge } = await import('./prompts/PromptLibraryBridge')
+  return { default: PromptLibraryBridge }
+}, true)
+const ChatShareBridge = deferred(async () => {
+  const { ChatShareBridge } = await import('./sharing/ChatShareBridge')
+  return { default: ChatShareBridge }
+}, true)
+
 const ShareView = deferred(async () => {
   const { ShareView } = await import('./components/ShareView')
   return { default: ShareView }
 }, true)
 
 export interface AppProps {
+  readonly planNoticePort?: PlanNoticePort
   readonly postMessage: (message: WebviewToHostMessage) => void
   /**
    * The UI store. main.tsx owns one that outlives a crashed tree and keeps
@@ -268,6 +300,8 @@ type Overlay =
   | 'usage'
   | 'agents'
   | 'review'
+  | 'prompts'
+  | 'chatShare'
   | 'help'
 
 // The palette rows that leave it open (a value changes in place); run from
@@ -286,6 +320,8 @@ const LOOP_PROMPT_START = `/${LOOP_SLASH_COMMAND} `
 const HOOK_PROMPT_START = `/${HOOK_RUN_SLASH_COMMAND} `
 // What choosing `/review` leaves: the command, ready for what to review (M70).
 const REVIEW_PROMPT_START = `/${REVIEW_SLASH_COMMAND} `
+// What choosing `/legal` leaves: the command, ready for a file subset (M97).
+const LEGAL_PROMPT_START = `/${LEGAL_SLASH_COMMAND} `
 // What choosing `/handoff` leaves in the prompt: the command, ready for the goal (M74).
 const HANDOFF_PROMPT_START = `/${HANDOFF_SLASH_COMMAND} `
 const GATED_STATUSES = new Set(['noCli', 'installing', 'signedOut', 'signingIn', 'error'])
@@ -399,6 +435,9 @@ function promptStartFor(action: PaletteAction): string | undefined {
     case 'startReview': {
       return REVIEW_PROMPT_START
     }
+    case 'startLegalScan': {
+      return LEGAL_PROMPT_START
+    }
     case 'startHandoff': {
       return HANDOFF_PROMPT_START
     }
@@ -414,6 +453,7 @@ export function App({
   newLocalId = defaultLocalId,
   now = defaultNow,
   resources,
+  planNoticePort,
 }: AppProps) {
   const ResourceView = resources?.View
   // Callbacks read the store's current state when they run instead of
@@ -423,7 +463,44 @@ export function App({
   const [isOwnStore] = useState(externalStore === undefined)
   const state = useSyncExternalStore(store.subscribe, store.getState)
   const { dispatch } = store
+  const selectedModel = state.models.find((model) => model.modelId === state.model?.modelId)
+  const selectedProvider = providerOf(state.model?.modelId ?? '') ?? selectedModel?.providerId
+  const hasPlan =
+    state.auth.status === 'signedIn' &&
+    (selectedProvider === 'chatgpt' ||
+      selectedProvider === 'copilot' ||
+      selectedModel?.pricing === 'plan')
+  const [isPlanModalOpen, setPlanModalOpen] = useState<boolean>()
   const [chosenOverlay, setOverlay] = useState<Overlay | undefined>(undefined)
+  const sharingAction = useCallback(
+    (action: string, payload: unknown = {}) => {
+      postMessage({ type: 'sharingAction', id: newLocalId(), action, payload })
+    },
+    [postMessage, newLocalId],
+  )
+  const savePrompt = useCallback(
+    (text: string) => {
+      sharingAction('saveText', { text })
+    },
+    [sharingAction],
+  )
+  const sharePrompt = useCallback(
+    (text: string) => {
+      sharingAction('shareText', { text })
+    },
+    [sharingAction],
+  )
+  useEffect(() => {
+    const receive = (event: MessageEvent<unknown>) => {
+      const parsed = parseHostToWebviewMessage(event.data)
+      if (parsed.ok && parsed.message.type === 'openSharing')
+        setOverlay(parsed.message.surface === 'chat' ? 'chatShare' : 'prompts')
+    }
+    window.addEventListener('message', receive)
+    return () => {
+      window.removeEventListener('message', receive)
+    }
+  }, [])
   // The review pane's changes go with their conversation (a clear, another
   // session), and the pane goes with them (M70).
   const overlay =
@@ -721,8 +798,30 @@ export function App({
     },
     [dispatch, newLocalId, postMessage],
   )
+  // `/legal …` and the palette's legal row (M97): the host runs the
+  // deterministic scan and answers with the report (lane W renders it), so
+  // no card is submitted. The parse is total over the schema, so the input
+  // always posts as parsed.
+  const onLegalScan = useCallback(
+    (text: string): boolean => {
+      if (!isLegalPrompt(text)) return false
+      const input = parseLegalPrompt(text)
+      if (input === undefined) {
+        dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.legalCommandUsage })
+        return true
+      }
+      postMessage({ type: 'requestLegalScan', input } satisfies LegalScanRequestMessage)
+      setIsPinnedToEnd(true)
+      return true
+    },
+    [dispatch, postMessage],
+  )
   const onSubmit = useCallback(() => {
     const current = store.getState()
+    if (onLegalScan(current.draft.trim())) {
+      dispatch({ type: 'draftChanged', draft: '' })
+      return
+    }
     if (current.draft.trim() === `/${SLASH_COMMAND_NAMES.help}`) {
       dispatch({ type: 'draftChanged', draft: '' })
       setOverlay('help')
@@ -839,7 +938,17 @@ export function App({
     })
     // The reader's own message always lands in view (M15).
     setIsPinnedToEnd(true)
-  }, [store, dispatch, newLocalId, now, postMessage, onGoalCommand, onReview, onHandoff])
+  }, [
+    store,
+    dispatch,
+    newLocalId,
+    now,
+    postMessage,
+    onGoalCommand,
+    onReview,
+    onLegalScan,
+    onHandoff,
+  ])
   // Send exactly the payload the dialog previewed. The composer may now
   // hold a newer draft, different chips or a different reference.
   const onSecretPromptSendAnyway = useCallback(() => {
@@ -1072,6 +1181,44 @@ export function App({
     },
     [postMessage],
   )
+  // The legal report's selected-fix handoff (M97 lane W): preview fixes for
+  // exactly the selected findings, then confirm exactly the shown preview.
+  // The host rechecks mode, trust, workspace and hashes before any write.
+  const onRequestLegalFix = useCallback(
+    (findings: readonly LegalFinding[], isProjectLicenseIncluded: boolean) => {
+      const report = store.getState().legalReport
+      if (report === undefined) {
+        return
+      }
+      const requestId = newLocalId()
+      dispatch({ type: 'legalFixRequested', requestId })
+      postMessage({
+        type: 'requestLegalFix',
+        requestId,
+        scan: {
+          scanId: report.requestId,
+          ruleVersion: report.result.ruleVersion,
+          dataVersion: report.result.dataVersion,
+          scope: report.result.scope,
+        },
+        findings: [...findings],
+        includeProjectLicense: isProjectLicenseIncluded,
+      })
+    },
+    [postMessage, store, dispatch, newLocalId],
+  )
+  const onConfirmLegalFix = useCallback(
+    (previewId: string) => {
+      postMessage({ type: 'confirmLegalFix', previewId })
+    },
+    [postMessage],
+  )
+  const onRescanLegal = useCallback(() => {
+    postMessage({ type: 'requestLegalScan' })
+  }, [postMessage])
+  const onCloseLegalReport = useCallback(() => {
+    dispatch({ type: 'legalReportClosed' })
+  }, [dispatch])
   const onRefuseLink = useCallback(() => {
     dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.linkOutsideWorkspace })
   }, [dispatch])
@@ -1120,6 +1267,51 @@ export function App({
       onQuestionAction(userInputId, undefined)
     },
     [onQuestionAction],
+  )
+  // The team's waiting and merge cards (M96 lane U2): the answers post to
+  // the host, which lanes T/A/W answer. The cards lock locally until the
+  // host's next update replaces the row.
+  const teamActions = useMemo<TeamCardActions>(
+    () => ({
+      onAnswerWaiting: (waitingId, choice) => {
+        postMessage({ type: 'answerTeamWaiting', waitingId, choice })
+      },
+      onDecideMerge: (taskId, decision) => {
+        postMessage({ type: 'decideTeamMerge', taskId, decision })
+      },
+      onReviewDiff: (taskId) => {
+        postMessage({ type: 'reviewTeamDiff', taskId })
+      },
+    }),
+    [postMessage],
+  )
+  // The Agent map's team tree (M96 lane U2): every button posts to the
+  // host; the tree itself renders from the host's `teamTree` message.
+  const teamTreeActions = useMemo<TeamTreeActions>(
+    () => ({
+      onOpenTranscript: (taskId) => {
+        postMessage({ type: 'openTeamTaskTranscript', taskId })
+      },
+      onStopTask: (taskId) => {
+        postMessage({ type: 'stopTeamTask', taskId })
+      },
+      onReviewDiff: (taskId) => {
+        postMessage({ type: 'reviewTeamDiff', taskId })
+      },
+      onDecideMerge: (taskId, decision) => {
+        postMessage({ type: 'decideTeamMerge', taskId, decision })
+      },
+      onEditRole: (roleId) => {
+        postMessage({ type: 'openTeamRoles', roleId })
+      },
+      onResetEntry: (entryId) => {
+        postMessage({ type: 'resetTeamEntry', entryId })
+      },
+      onStopAll: () => {
+        postMessage({ type: 'stopAllTeamTasks' })
+      },
+    }),
+    [postMessage],
   )
   const onClarifyQuestion = useCallback(
     (userInputId: string, text: string) => {
@@ -1680,6 +1872,15 @@ export function App({
           closeOverlay()
           break
         }
+        case 'shareChat': {
+          setOverlay('chatShare')
+          break
+        }
+        case 'promptCommand': {
+          if (action.command === 'library') setOverlay('prompts')
+          else sharingAction(action.command === 'use' ? 'use' : 'shareSaved')
+          break
+        }
         case 'openHistory': {
           openOverlay('history')
           break
@@ -1785,11 +1986,7 @@ export function App({
         case 'newWorktree':
         case 'removeWorktree':
         case 'addModelProvider':
-        case 'manageModels': {
-          postMessage({ type: 'hostAction', action: action.type })
-          closeOverlay()
-          break
-        }
+        case 'manageModels':
         case 'openPullRequestInConversation': {
           postMessage({ type: 'hostAction', action: action.type })
           closeOverlay()
@@ -1831,6 +2028,12 @@ export function App({
           closeOverlay()
           break
         }
+        case 'startLegalScan': {
+          // The prompt becomes `/legal ` for a file subset (M97).
+          dispatch({ type: 'draftChanged', draft: LEGAL_PROMPT_START })
+          closeOverlay()
+          break
+        }
         case 'review': {
           onReview(action.request, reviewCommandText(action.request))
           closeOverlay()
@@ -1854,12 +2057,14 @@ export function App({
       onNewConversation,
       onReview,
       openReviewPane,
+      sharingAction,
     ],
   )
 
   const paletteGroups = useMemo(
     () =>
       buildPalette({
+        arePromptCommandsBound: true,
         currentModel: state.model,
         models: state.models,
         effort: state.effort,
@@ -1934,7 +2139,8 @@ export function App({
     [onPromptAction],
   )
   const onSlashMenuOpen = useCallback(() => {
-    if (store.getState().skills === undefined) {
+    const current = store.getState()
+    if (current.auth.status === 'signedIn' && current.skills === undefined) {
       postMessage({ type: 'listSkills' })
     }
   }, [store, postMessage])
@@ -1984,9 +2190,12 @@ export function App({
   const runningAgentCount =
     agents.filter((agent) => agent.status === 'inProgress').length +
     workflowAgents.filter((child) => isChildRunning(child)).length
-  const effortLevels = effortLevelsFor(state.model?.modelId)
+  const effortLevels =
+    state.models.find((model) => model.modelId === state.model?.modelId)?.effortLevels ??
+    effortLevelsFor(state.model?.modelId)
   const onStepEffort = useCallback(
     (direction: -1 | 1) => {
+      if (effortLevels.length === 0) return false
       onSelectEffort(effortAt(effortLevels, effortIndex(effortLevels, state.effort) + direction))
       return true
     },
@@ -2100,6 +2309,8 @@ export function App({
           onOpenLink={onOpenExternal}
           onCopy={onCopy}
           // Imported history (M84) is someone else's file: Copy only, as in a share file.
+          onSavePrompt={state.isImported ? undefined : savePrompt}
+          onSharePrompt={state.isImported ? undefined : sharePrompt}
           onInsert={state.isImported ? undefined : onInsert}
           onReadOutput={onReadOutput}
           onOpenOutput={onOpenOutput}
@@ -2155,6 +2366,7 @@ export function App({
           onQuote={onQuote}
           onCopyQuote={onCopyQuote}
           onCloseQuoteMenu={onCloseQuoteMenu}
+          teamActions={teamActions}
           onEditQueued={onEditQueued}
           // A Model API steer waits for the next request; Muse Code's reaches the turn at once.
           canEditSteered={state.auth.backend === 'modelApi'}
@@ -2200,16 +2412,18 @@ export function App({
           entries={modeEntries}
           align="right"
           footer={
-            <div className="effort-row">
-              <span className="effort-row-label">
-                {UI_TEXT.effortItem} ({effortLabel(state.effort)})
-              </span>
-              <EffortSlider
-                levels={effortLevels}
-                current={state.effort}
-                onSelect={onSelectEffort}
-              />
-            </div>
+            effortLevels.length === 0 ? undefined : (
+              <div className="effort-row">
+                <span className="effort-row-label">
+                  {UI_TEXT.effortItem} ({effortLabel(state.effort)})
+                </span>
+                <EffortSlider
+                  levels={effortLevels}
+                  current={state.effort}
+                  onSelect={onSelectEffort}
+                />
+              </div>
+            )
           }
           onSelect={onSelectMode}
           onStep={onStepEffort}
@@ -2277,11 +2491,16 @@ export function App({
         onClose={closeOverlay}
         workflows={workflows}
         workflowTriggerMode={state.usageReport?.account?.workflowTriggerMode}
+        team={state.teamTree}
+        teamActions={teamTreeActions}
       />
     ) : null
   const history =
     overlay === 'history' ? (
       <HistoryDialog
+        onSavePrompt={(sessionId) => {
+          sharingAction('saveHistory', { sessionId })
+        }}
         sessions={state.sessions}
         openQuestionCounts={state.openQuestionCounts}
         archivedIds={state.archivedIds}
@@ -2325,23 +2544,9 @@ export function App({
   const usageDialog =
     overlay === 'usage' ? (
       <UsageDialog
-        auth={state.auth}
-        onInstallMuseCode={() => {
-          postMessage({ type: 'installMuseCode' })
-        }}
-        onSetupSignIn={(method) => {
-          closeOverlay()
-          onSignIn(method)
-        }}
-        onForgetPaidUse={() => {
-          postMessage({ type: 'forgetPaidUse' })
-        }}
-        report={state.usageReport}
-        usage={state.usage}
-        context={state.context}
-        modelId={state.model?.modelId}
-        modelPricing={state.models.find((model) => model.modelId === state.model?.modelId)?.pricing}
-        paid={state.paid}
+        state={state}
+        postMessage={postMessage}
+        onSetupSignIn={onSignIn}
         now={now}
         onOpenExternal={onOpenExternal}
         onClose={closeOverlay}
@@ -2351,6 +2556,8 @@ export function App({
   // map, review pane, a share file or the install confirmation is open waits for it to close, then
   // opens, so its Start is never reachable under a dialog that hides it.
   const isOtherModalOpen =
+    overlay === 'prompts' ||
+    overlay === 'chatShare' ||
     overlay === 'help' ||
     overlay === 'usage' ||
     overlay === 'agents' ||
@@ -2358,11 +2565,41 @@ export function App({
     reviewPane !== null ||
     isInstallConfirmOpen ||
     state.share !== undefined
+  // The legal report opens over the transcript when its scan answers, like
+  // the handoff brief: it waits while another modal owns the panel (M74),
+  // and closes with Escape, the × button or the backdrop (M97 lane W).
+  const legalReport =
+    isOtherModalOpen ||
+    state.report !== undefined ||
+    state.secretPrompt !== undefined ||
+    state.legalReport === undefined ? null : (
+      <LegalReport
+        key={state.legalReport.requestId}
+        result={state.legalReport.result}
+        preview={state.legalFixPreview}
+        fixResult={state.legalFixResult}
+        permissionMode={state.permissionMode}
+        onRequestFix={onRequestLegalFix}
+        onConfirm={onConfirmLegalFix}
+        onExplain={() => {
+          postMessage({ type: 'requestLegalExplanation' })
+        }}
+        onExport={() => {
+          postMessage({ type: 'exportLegalReport' })
+        }}
+        onRescan={onRescanLegal}
+        onOpenFile={onOpenFile}
+        onClose={onCloseLegalReport}
+      />
+    )
   // The report dialog (M93) keeps the same policy: it waits for those, and a
   // brief that arrives while it is open waits for it in turn, so two modals
   // never share the panel and the open one keeps focus.
   const handoffDialog =
-    isOtherModalOpen || state.report !== undefined || state.handoff === undefined ? null : (
+    isOtherModalOpen ||
+    legalReport !== null ||
+    state.report !== undefined ||
+    state.handoff === undefined ? null : (
       <HandoffDialog
         goal={state.handoff.goal}
         todos={state.handoff.todos}
@@ -2402,11 +2639,14 @@ export function App({
     )
   // Behind a modal nothing takes focus or clicks (M25): the modal traps Tab,
   // the rest of the panel is inert.
+  const isPlanDialogOpen = hasPlan && (isPlanModalOpen ?? true)
   const isModalOpen =
     isOtherModalOpen ||
+    legalReport !== null ||
     state.handoff !== undefined ||
     state.secretPrompt !== undefined ||
-    state.report !== undefined
+    state.report !== undefined ||
+    isPlanDialogOpen
 
   return (
     <QuestionSurface
@@ -2434,6 +2674,10 @@ export function App({
             agentCount={agentCount}
             runningAgentCount={runningAgentCount}
             runningTaskCount={backgroundTasks.filter((task) => isRunningTask(task)).length}
+            teamTaskCount={state.teamTree === undefined ? 0 : teamTaskCount(state.teamTree)}
+            runningTeamTaskCount={
+              state.teamTree === undefined ? 0 : teamRunningTaskCount(state.teamTree)
+            }
             onOpenAgents={onOpenAgents}
             onOpenSideChat={canOpenSideChat ? onOpenSideChat : undefined}
           />
@@ -2449,6 +2693,12 @@ export function App({
               onClose={closeOverlay}
             />
           ) : null}
+          {overlay === 'prompts' ? (
+            <PromptLibraryBridge post={postMessage} onClose={closeOverlay} />
+          ) : null}
+          {overlay === 'chatShare' ? (
+            <ChatShareBridge key={state.sessionId} post={postMessage} onClose={closeOverlay} />
+          ) : null}
           {usageDialog}
           {agentMap}
           {reviewPane}
@@ -2457,6 +2707,27 @@ export function App({
         {handoffDialog}
         {secretPromptDialog}
         {reportDialog}
+        {legalReport}
+        <Suspense fallback={null}>
+          {hasPlan ? (
+            <PlanUi
+              surface="dialog"
+              state={state}
+              providerId={selectedProvider}
+              isOtherModalOpen={
+                isOtherModalOpen ||
+                state.report !== undefined ||
+                state.secretPrompt !== undefined ||
+                state.handoff !== undefined
+              }
+              onModalChange={setPlanModalOpen}
+              onChooseModel={onOpenModelPicker}
+              store={store}
+              postMessage={postMessage}
+              port={planNoticePort}
+            />
+          ) : null}
+        </Suspense>
         {state.share === undefined ? null : (
           <>
             <ShareView
@@ -2565,16 +2836,18 @@ export function App({
         <div className="composer-area" inert={isModalOpen}>
           {floating}
           {isBodyGated || state.setupComplete === undefined ? null : (
-            <SetupBanner
-              provider={state.setupComplete.provider}
-              model={state.setupComplete.model}
-              onManageProviders={() => {
-                postMessage({ type: 'hostAction', action: 'manageModels' })
-              }}
-              onDismiss={() => {
-                dispatch({ type: 'setupCompleteDismissed' })
-              }}
-            />
+            <Suspense fallback={null}>
+              <SetupBanner
+                provider={state.setupComplete.provider}
+                model={state.setupComplete.model}
+                onManageProviders={() => {
+                  postMessage({ type: 'hostAction', action: 'manageModels' })
+                }}
+                onDismiss={() => {
+                  dispatch({ type: 'setupCompleteDismissed' })
+                }}
+              />
+            </Suspense>
           )}
           <JudgeStatusLine status={state.judge} />
           {ResourceView === undefined || resources === undefined ? null : (
@@ -2582,13 +2855,35 @@ export function App({
               <ResourceView port={resources.port} isInert={isModalOpen} />
             </Suspense>
           )}
+          {hasPlan && selectedProvider === 'copilot' ? (
+            <Suspense fallback={null}>
+              <PlanUi surface="note" onOpenExternal={onOpenExternal} />
+            </Suspense>
+          ) : null}
           <Composer
+            onSavePrompt={savePrompt}
+            onSharePrompt={sharePrompt}
+            onUseSavedPrompt={() => {
+              sharingAction('use')
+            }}
             draft={state.draft}
             placeholder={state.composerPlaceholder}
             settings={state.settings}
             canSend={canSend(state)}
             isRunning={isRunning}
             modelLabel={modelLabelFor(state)}
+            planMark={
+              hasPlan ? (
+                <Suspense fallback={null}>
+                  <PlanUi
+                    surface="mark"
+                    model={selectedModel}
+                    providerId={selectedProvider}
+                    onOpenExternal={onOpenExternal}
+                  />
+                </Suspense>
+              ) : undefined
+            }
             permissionMode={state.permissionMode}
             context={state.context}
             paidBadge={paidBadgeFor(state)}

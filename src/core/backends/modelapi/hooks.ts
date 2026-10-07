@@ -9,6 +9,7 @@
 
 import * as z from 'zod/mini'
 import path from 'node:path'
+import { sparkHooksFiles } from './hookNames'
 import { Buffer } from 'node:buffer'
 import { createContext, Script } from 'node:vm'
 import {
@@ -33,24 +34,17 @@ import {
   HOOK_CONTROL_CODE_LIMIT,
   HOOK_NEWLINE_CODE,
   HOOK_DELETE_CODE,
-  CODE_INTEL_TOOLS,
   MILLISECONDS_PER_SECOND,
-  MODEL_API_TOOLS,
   PLUGIN_FORMATS,
   PLUGIN_HOOK_TIMEOUT_MS,
   PROJECT_HOOKS_SEGMENTS,
-  SPARK_HOOKS_SEGMENTS,
 } from '../../../shared/constants'
 import { type ContextIo, decodeContextText } from '../../context/contextFiles'
 import { confineWorkspacePath } from '../../workspacePath'
 import { unlessAborted } from '../../timeouts'
+import { HOOK_MODEL_EVENTS } from './hookNames'
 import type { ShellResult, ToolIo } from './tools'
-import {
-  HOOK_MODEL_EVENTS,
-  type HookHandlerType,
-  type TypedHookAnswer,
-  type TypedHookHandlers,
-} from './hookHandlers'
+import type { HookHandlerType, TypedHookAnswer, TypedHookHandlers } from './hookHandlers'
 
 export const HOOK_EVENTS = [
   'SessionStart',
@@ -1155,47 +1149,7 @@ export function matchingHooks(
   })
 }
 
-/**
- * Both spark-hooks.json files (M91): the user's beside Muse Code's settings
- * file, which is the settingsPath (`<config>/muse/settings.json`), and the
- * project's under `.muse`.
- */
-export function sparkHooksFiles(deps: Pick<HookLoadDeps, 'settingsPath' | 'workspaceRoot'>): {
-  readonly user: string
-  readonly project: string
-} {
-  return {
-    user: path.join(path.dirname(deps.settingsPath), SPARK_HOOKS_SEGMENTS.user[1]),
-    project: path.join(deps.workspaceRoot, ...SPARK_HOOKS_SEGMENTS.project),
-  }
-}
-
-/** Muse Code matcher aliases for the Model API backend's built-in tools. */
-export function toolMatcherNames(name: string): readonly string[] {
-  switch (name) {
-    case MODEL_API_TOOLS.bash:
-    case MODEL_API_TOOLS.powershell: {
-      return [name, 'Bash', 'shell']
-    }
-    case MODEL_API_TOOLS.readFile: {
-      return [name, 'Read']
-    }
-    case MODEL_API_TOOLS.writeFile: {
-      return [name, 'Write']
-    }
-    // A rename (M67) edits files as edit_file does: an `Edit` hook sees it too.
-    case MODEL_API_TOOLS.editFile:
-    case CODE_INTEL_TOOLS.renameSymbol: {
-      return [name, 'Edit']
-    }
-    case MODEL_API_TOOLS.search: {
-      return [name, 'Grep']
-    }
-    default: {
-      return [name]
-    }
-  }
-}
+export { toolMatcherNames } from './hookNames'
 
 /** A hook's answer; an imported hook's may carry a documented replacement (M91 lane W). */
 export type HookAnswer = TypedHookAnswer & {

@@ -1,9 +1,10 @@
-// 0.14.2 Help reference: measured universal VSIX + 5%, rounded up to 25 KiB; PLAN.md D6.
+// REL0160B: measured universal VSIX 2,911,436 bytes +5%, rounded up
+// to 25 KiB = 3,072,000 bytes. Authorized rebuild budget (PLAN.md D6).
 import { statSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-const MAX_VSIX_BYTES = 2400 * 1024
+export const MAX_VSIX_BYTES = 3000 * 1024
 
 export function checkVsixSize(file) {
   const size = statSync(file).size

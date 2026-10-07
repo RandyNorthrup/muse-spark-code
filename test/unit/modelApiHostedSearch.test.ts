@@ -1,3 +1,4 @@
+import { createProviderRegistry } from '../../src/core/providers/providerRegistry'
 import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { sumUsd } from '../../src/shared/usd'
 import type { PaidUseDecision } from '../../src/shared/paid'
@@ -165,6 +166,19 @@ async function host(
       io: memoryToolIo({}, '/ws'),
       log: t.log,
     }),
+    models: createProviderRegistry({
+      models: () =>
+        Promise.resolve([
+          {
+            ref: 'custom/model',
+            origin: 'https://api.meta.ai',
+            pricing: { kind: 'priced', card: { input: 0, output: 0, source: 'user' } },
+            evidence: { capabilities: { toolCalling: true }, maxOutputTokens: 100 },
+          },
+        ]),
+      createClient: () => Promise.resolve(t.instance),
+      isCurrent: () => true,
+    }),
     store,
     now: () => new Date(1970, 0, 1).getTime(),
     isPaidFeatureOn: (feature) =>
@@ -221,7 +235,7 @@ describe('M106 hosted-search bounds', () => {
       capabilities: () => CAPABILITIES,
       pricing: {
         webSearchPriceUsd: (model) =>
-          model === 'custom-model' ? Usd.from('0.01').toAmount() : Usd.from('0.0025').toAmount(),
+          model === 'custom/model' ? Usd.from('0.01').toAmount() : Usd.from('0.0025').toAmount(),
       },
       consent: (request) => {
         if (isFirst) {
@@ -241,15 +255,18 @@ describe('M106 hosted-search bounds', () => {
     })
     const old = t.consent.mock.calls[0]?.[0]
     if (old?.feature !== 'webSearch' || old.quote === undefined) throw new Error('Missing quote')
-    await t.session.setModel('custom-model')
+    await t.session.setModel('custom/model')
     held.resolve(old.quote)
     await pending
     expect(t.consent).toHaveBeenCalledTimes(2)
     expect(t.consent.mock.calls[1]?.[0]).toMatchObject({
-      quote: { model: 'custom-model', tariffUsd: Usd.from('0.01').toAmount() },
+      quote: { model: 'custom/model', tariffUsd: Usd.from('0.01').toAmount() },
+    })
+    expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'completed',
     })
     expect(t.api.responseBodies()[0]).toMatchObject({
-      model: 'custom-model',
+      model: 'custom/model',
       tools: expect.arrayContaining([{ type: 'web_search' }]),
     })
     expect(paidCostUsd('webSearch', usage.current)).toBe(Usd.from('0.01').toAmount())
@@ -365,7 +382,7 @@ describe('M106 hosted-search bounds', () => {
   it('quotes and tallies a verified USD 0.01 per-call provider tariff end to end', async () => {
     const usage = new PaidUsage(new FakeLogOutputChannel())
     const t = await host({
-      modelId: 'custom-model',
+      modelId: 'custom/model',
       capabilities: () => CAPABILITIES,
       maxCalls: () => 1,
       pricing: {
@@ -383,9 +400,13 @@ describe('M106 hosted-search bounds', () => {
     expect(request).toMatchObject({
       feature: 'webSearch',
       priceUsd: Usd.from('0.01').toAmount(),
-      quote: { model: 'custom-model', tariffUsd: Usd.from('0.01').toAmount() },
+      quote: { model: 'custom/model', tariffUsd: Usd.from('0.01').toAmount() },
     })
-    expect(paidUseQuestion(request).detail).toContain('$10.00 per 1,000 searches')
+    const copy = await paidUseQuestion(request)
+    expect(copy.detail).toContain('$10.00 per 1,000 searches')
+    expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'completed',
+    })
     const tally = paidTallySchema.parse(usage.current)
     expect(tally.webSearchCharges).toEqual([{ units: 1, priceUsd: Usd.from('0.01').toAmount() }])
     expect(paidCostUsd('webSearch', tally)).toBe(Usd.from('0.01').toAmount())
@@ -775,7 +796,7 @@ describe('M106 hosted-search bounds', () => {
   })
 
   it('has no unverified tariff for another provider', () => {
-    expect(webSearchPriceUsd('custom-model')).toBeUndefined()
+    expect(webSearchPriceUsd('custom/model')).toBeUndefined()
     expect(webSearchPriceUsd(BODY.model)).toBe(Usd.from('0.0025').toAmount())
   })
 

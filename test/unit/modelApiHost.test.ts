@@ -1,3 +1,4 @@
+import { metaResolvedModel, modelPolicyFor } from '../../src/core/backends/modelapi/modelPolicy'
 import { FORMAT_QUIRKS } from '../../src/core/providers/presets'
 import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { isPositiveUsd, legacyUsdSchema } from '../../src/shared/usd'
@@ -414,6 +415,7 @@ function setup(
     budgetScope?: ModelApiHostDeps['budgetScope']
     admitResponseAttempt?: ModelApiHostDeps['admitResponseAttempt']
     compactionModel?: ModelApiHostDeps['compactionModel']
+    models?: ModelApiHostDeps['models']
     admitSummaryFork?: ModelApiHostDeps['admitSummaryFork']
     observationPacking?: ModelApiHostDeps['observationPacking']
     outputContinuation?: ModelApiHostDeps['outputContinuation']
@@ -517,6 +519,19 @@ function setup(
         })
   const host = new ModelApiHost({
     client,
+    ...(options.models !== undefined && { models: options.models }),
+    ...(options.compactionModel !== undefined && {
+      models: {
+        resolve: (ref: string) =>
+          Promise.resolve({
+            ...metaResolvedModel(ref, client),
+            policy: modelPolicyFor(ref, {
+              capabilities: { toolCalling: true },
+              effortLevels: ['none', 'minimal', 'low', 'medium', 'high'],
+            }),
+          }),
+      },
+    }),
     compactionModel: options.compactionModel,
     admitSummaryFork: options.admitSummaryFork,
     observationPacking: options.observationPacking,
@@ -3054,10 +3069,7 @@ describe('ModelApiSession: session budget (M82)', () => {
       type: 'itemUpdated',
       item: {
         usage: { inputTokens: 10, outputTokens: 5 },
-        costUsd: estimateCostUsd(
-          { inputTokens: 10, outputTokens: 5, cachedTokens: 0 },
-          'muse-spark-1.3-contributor',
-        ),
+        costUsd: undefined,
       },
     })
     const scope = await watched.session.ownedBudgetScope()
@@ -9571,7 +9583,16 @@ describe('ModelApiSession subagents (M48)', () => {
       expect(session.status).toBe('idle')
     })
     expect(t.subagentUsage).toEqual([
-      { modelId: 'muse-spark-1.3', inputTokens: 30, outputTokens: 7, cachedTokens: 4 },
+      {
+        modelId: 'muse-spark-1.3',
+        inputTokens: 30,
+        outputTokens: 7,
+        cachedTokens: 4,
+        cacheWriteTokens: 0,
+        cacheWriteTokens1h: undefined,
+        images: 0,
+        costUsd: Usd.from('0.00006285').toAmount(),
+      },
     ])
     expect(session.snapshot().goal).toMatchObject({ tokens_used: 40 })
     expect(session.snapshot().usage).toMatchObject({ inputTokens: 33, outputTokens: 9 })
@@ -18121,6 +18142,12 @@ describe('FIXM101C1 review regressions', () => {
     const held = Promise.withResolvers<string>()
     let isHolding = false
     const t = setup({
+      models: {
+        resolve: (ref) =>
+          Promise.resolve(
+            metaResolvedModel(ref, fakeModelApiClient(fakeModelApi(), new FakeLogOutputChannel())),
+          ),
+      },
       getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
       apiKey: () => {
         if (!isHolding) return Promise.resolve(FAKE_MODEL_API_KEY)

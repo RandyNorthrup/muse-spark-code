@@ -197,12 +197,7 @@ export function describeShot(shot) {
   return `${shot.file} <- ${shot.scenario} theme=${shot.theme} ${size}${lang} — ${shot.note}`
 }
 
-async function captureShot(chrome, port, shot, outDir, profileDir) {
-  if (shot.width < MIN_CLI_WIDTH) {
-    throw new Error(
-      `${shot.file} is ${String(shot.width)} px wide: README mappings require at least ${String(MIN_CLI_WIDTH)} px`,
-    )
-  }
+export async function captureShot(chrome, port, shot, outDir, profileDir) {
   const file = path.join(outDir, path.basename(shot.file))
   await mkdir(path.dirname(file), { recursive: true })
   await withSizedPage(
@@ -210,15 +205,17 @@ async function captureShot(chrome, port, shot, outDir, profileDir) {
     profileDir,
     `${shotUrl(port, shot)}&axe=1`,
     { width: shot.width },
-    async (page, remaining) => {
+    async (page) => {
       await page.setViewportSize({ width: shot.width, height: shot.height })
+      const session = await page.context().newCDPSession(page)
+      await session.send('Emulation.setFocusEmulationEnabled', { enabled: true })
       const result = page.locator('#axe-result')
-      await result.waitFor({ state: 'attached', timeout: remaining() })
-      const report = JSON.parse(await result.textContent({ timeout: remaining() }))
-      if (report.error !== undefined || report.harnessErrors?.length > 0) {
-        throw new Error(`Screenshot scenario failed: ${shot.scenario}`)
+      await result.waitFor({ state: 'attached' })
+      const scan = JSON.parse(await result.textContent())
+      if (scan.error !== undefined || scan.harnessErrors?.length > 0) {
+        throw new Error(`${shot.file}: ${scan.error ?? scan.harnessErrors.join('; ')}`)
       }
-      await page.screenshot({ path: file, animations: 'disabled', timeout: remaining() })
+      await page.screenshot({ path: file, animations: 'disabled' })
     },
   )
   return file

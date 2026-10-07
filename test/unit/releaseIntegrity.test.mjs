@@ -2,7 +2,7 @@ import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'nod
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ensureGithubRelease } from '../../scripts/github-release.mjs'
-import { checkVsixSize } from '../../scripts/check-vsix-size.mjs'
+import { checkVsixSize, MAX_VSIX_BYTES } from '../../scripts/check-vsix-size.mjs'
 import { bundledPackages, nativePackages, shippedBom } from '../../scripts/release-sbom.mjs'
 
 const fixture = { directory: '', artifact: '' }
@@ -122,11 +122,12 @@ describe('GitHub Release reruns', () => {
 
 describe('compressed universal VSIX budget', () => {
   it('accepts exactly the measured budget', () => {
-    writeFileSync(fixture.artifact, new Uint8Array(2400 * 1024))
-    expect(checkVsixSize(fixture.artifact)).toBe(2400 * 1024)
+    expect(MAX_VSIX_BYTES).toBe(3_072_000)
+    writeFileSync(fixture.artifact, new Uint8Array(MAX_VSIX_BYTES))
+    expect(checkVsixSize(fixture.artifact)).toBe(MAX_VSIX_BYTES)
   })
   it('refuses one byte over budget', () => {
-    writeFileSync(fixture.artifact, new Uint8Array(2400 * 1024 + 1))
+    writeFileSync(fixture.artifact, new Uint8Array(MAX_VSIX_BYTES + 1))
     expect(() => checkVsixSize(fixture.artifact)).toThrow('budget')
   })
   it('refuses a missing package', () => {

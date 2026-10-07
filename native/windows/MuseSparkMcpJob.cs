@@ -146,9 +146,9 @@ public static class MuseSparkMcpJob {
       control.Flush();
       var answer = new List<byte>();
       var one = new byte[1];
-      DateTime deadline = DateTime.UtcNow.AddMilliseconds(HANDSHAKE_TIMEOUT_MS);
+      var clock = System.Diagnostics.Stopwatch.StartNew();
       while (answer.Count < HANDSHAKE_MAX_BYTES) {
-        int remaining = (int)(deadline - DateTime.UtcNow).TotalMilliseconds;
+        int remaining = HANDSHAKE_TIMEOUT_MS - (int)clock.ElapsedMilliseconds;
         if (remaining <= 0) throw new TimeoutException("MCP owner confirmation timed out");
         var reading = control.ReadAsync(one, 0, 1);
         if (!reading.Wait(remaining)) throw new TimeoutException("MCP owner confirmation timed out");
@@ -165,8 +165,45 @@ public static class MuseSparkMcpJob {
   }
 
   public static int Run(string executable, string[] arguments, string cwd, uint parentPid,
+    string[] childEnvironment, bool verbatimArguments, string controlPipe, string controlNonce) {
+    return Run(executable, arguments, cwd, parentPid, childEnvironment, verbatimArguments,
+      controlPipe, controlNonce, 0, null);
+  }
+
+  // Team launches persist the suspended child's kernel identity before resume.
+  // Other callers retain the original eight-argument entry and behavior.
+  public static int Run(string executable, string[] arguments, string cwd, uint parentPid,
+    string[] childEnvironment, bool verbatimArguments, string controlPipe, string controlNonce,
+    Action<uint, IntPtr> beforeResume) {
+    return Run(executable, arguments, cwd, parentPid, childEnvironment, verbatimArguments,
+      controlPipe, controlNonce, 0, beforeResume);
+  }
+
+  public static int Run(string executable, string[] arguments, string cwd, uint parentPid,
+    string[] childEnvironment, bool verbatimArguments, string controlPipe, string controlNonce,
+    ulong jobMemoryLimit) {
+
+    return Run(executable, arguments, cwd, parentPid, childEnvironment, verbatimArguments,
+      controlPipe, controlNonce, jobMemoryLimit, false, null);
+  }
+
+  public static int Run(string executable, string[] arguments, string cwd, uint parentPid,
+    string[] childEnvironment, bool verbatimArguments, string controlPipe, string controlNonce,
+    ulong jobMemoryLimit, Action<uint, IntPtr> beforeResume) {
+    return Run(executable, arguments, cwd, parentPid, childEnvironment, verbatimArguments,
+      controlPipe, controlNonce, jobMemoryLimit, false, beforeResume);
+  }
+
+  public static int Run(string executable, string[] arguments, string cwd, uint parentPid,
     string[] childEnvironment, bool verbatimArguments, string controlPipe, string controlNonce,
     ulong jobMemoryLimit, bool debugPipes) {
+    return Run(executable, arguments, cwd, parentPid, childEnvironment, verbatimArguments,
+      controlPipe, controlNonce, jobMemoryLimit, debugPipes, null);
+  }
+
+  public static int Run(string executable, string[] arguments, string cwd, uint parentPid,
+    string[] childEnvironment, bool verbatimArguments, string controlPipe, string controlNonce,
+    ulong jobMemoryLimit, bool debugPipes, Action<uint, IntPtr> beforeResume) {
     IntPtr job = IntPtr.Zero, input = IntPtr.Zero, output = IntPtr.Zero, error = IntPtr.Zero;
     IntPtr parent = IntPtr.Zero;
     IntPtr attributeList = IntPtr.Zero, handleList = IntPtr.Zero;
@@ -258,6 +295,7 @@ public static class MuseSparkMcpJob {
       if (!AssignProcessToJobObject(job, process.hProcess))
         throw new Win32Exception(Marshal.GetLastWin32Error());
       assigned = true;
+      if (beforeResume != null) beforeResume(process.dwProcessId, process.hProcess);
       if (WaitForSingleObject(parent, 0) != WAIT_TIMEOUT) throw new Exception("creating Node process exited before resume");
       if (ResumeThread(process.hThread) == 0xffffffff)
         throw new Win32Exception(Marshal.GetLastWin32Error());

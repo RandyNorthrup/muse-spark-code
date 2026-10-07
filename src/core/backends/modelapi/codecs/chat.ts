@@ -29,6 +29,7 @@ import {
   UI_TEXT,
 } from '../../../../shared/constants'
 import { cleanWireText, isBlankWireText, nativeCallId, type CallIdFormat } from './shared'
+export { parseNativeModelsList as parseChatModelsList } from '../../../providers/modelMetadata'
 import type {
   CreateResponseBody,
   FunctionOutputPart,

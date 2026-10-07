@@ -28,10 +28,17 @@ import path from 'node:path'
 import { noticePackageDir } from './lib/noticesInput.mjs'
 
 const METAFILE_DIR = path.join('dist', 'meta')
+const ACP_METAFILE_DIR = path.join('dist', 'meta-acp')
 // The ACP agent ships acp.js, the Model API backend's bundle it loads (M57)
 // and the search/page workers (scripts/build.mjs, scripts/package-acp.mjs).
 const ACP_METAFILES = [
-  path.join('dist', 'meta-acp', 'acp.json'),
+  path.join(ACP_METAFILE_DIR, 'headless.json'),
+  path.join(METAFILE_DIR, 'runtimeEngine.json'),
+  path.join(METAFILE_DIR, 'runtimeAccounting.json'),
+  path.join(METAFILE_DIR, 'providerPolicy.json'),
+  path.join(METAFILE_DIR, 'modelApiHooks.json'),
+  path.join(METAFILE_DIR, 'modelApiMcp.json'),
+  path.join(ACP_METAFILE_DIR, 'acp.json'),
   path.join('dist', 'meta-acp', 'acpQuestions.json'),
   path.join('dist', 'meta-acp', 'runtimeQuestions.json'),
   path.join(METAFILE_DIR, 'questionNotes.json'),
@@ -42,9 +49,17 @@ const ACP_METAFILES = [
   path.join(METAFILE_DIR, 'modelApi.json'),
   path.join(METAFILE_DIR, 'resourceGovernor.json'),
   path.join(METAFILE_DIR, 'resourceAdmission.json'),
+  path.join(METAFILE_DIR, 'providers.json'),
+  path.join(METAFILE_DIR, 'usageService.json'),
+  path.join(METAFILE_DIR, 'usageCompanion.json'),
+  path.join(METAFILE_DIR, 'usageWebview.json'),
   path.join(METAFILE_DIR, 'validation.json'),
   path.join(METAFILE_DIR, 'wire.json'),
+  path.join(METAFILE_DIR, 'legalScan.json'),
   path.join(METAFILE_DIR, 'reviewer.json'),
+  path.join(METAFILE_DIR, 'team.json'),
+  path.join(METAFILE_DIR, 'teamRunners.json'),
+  path.join(METAFILE_DIR, 'teamScheduler.json'),
   path.join(METAFILE_DIR, 'foreignHooks.json'),
   path.join(METAFILE_DIR, 'hookRuntime.json'),
   path.join(METAFILE_DIR, 'recorder.json'),
@@ -70,7 +85,7 @@ const HEADER = `THIRD-PARTY SOFTWARE NOTICES
 Muse Spark Code (Unofficial)
 
 The extension's bundles (dist/extension.js, dist/modelApi.js,
-dist/resourceGovernor.js, dist/resourceAdmission.js, dist/sessionBoard.js, dist/reviewer.js, dist/foreignHooks.js, dist/hookRuntime.js,
+dist/resourceGovernor.js, dist/resourceAdmission.js, dist/sessionBoard.js, dist/reviewer.js, dist/team.js, dist/teamScheduler.js, dist/teamRunners.js, dist/foreignHooks.js, dist/hookRuntime.js,
 dist/pluginHooks.js, dist/planMarkdown.js, dist/checkpointStore.js,
 dist/review.js, dist/agentImport.js, dist/conversationGit.js, dist/codeIntel.js, dist/voice.js, dist/webFetch.js,
 dist/museCodeReviewer.js, dist/browserCheck.js, dist/browserRuntime.js, dist/bundledSkills.js,
@@ -94,8 +109,8 @@ const ACP_HEADER = `THIRD-PARTY SOFTWARE NOTICES
 muse-spark-code-acp, Muse Spark Code (Unofficial) for editors that speak the
 Agent Client Protocol
 
-The agent's bundles (dist/acp.js, dist/acpQuestions.js, dist/runtimeQuestions.js, dist/questionNotes.js, dist/resourceGovernor.js, dist/resourceAdmission.js, dist/modelApi.js, dist/reviewer.js, dist/foreignHooks.js, dist/hookRuntime.js, dist/recorder.js, dist/uiText.js, dist/uiTextRuntime.js, dist/uiTextHooks.js, dist/uiTextSurfaces.js, dist/validation.js, dist/wire.js, dist/searchWorker.js and
-dist/pageWorker.js) include code from the packages below, each under its
+The agent's bundles (dist/acp.js, dist/acpQuestions.js, dist/runtimeQuestions.js, dist/questionNotes.js, dist/resourceGovernor.js, dist/resourceAdmission.js, dist/modelApi.js, dist/reviewer.js, dist/team.js, dist/teamScheduler.js, dist/teamRunners.js, dist/foreignHooks.js, dist/hookRuntime.js, dist/recorder.js, dist/uiText.js, dist/uiTextRuntime.js, dist/uiTextHooks.js, dist/uiTextSurfaces.js, dist/validation.js, dist/wire.js, dist/searchWorker.js and
+dist/pageWorker.js and dist/legalScan.js) include code from the packages below, each under its
 own licence, reproduced here as the package ships it. The keyring binding (@napi-rs/keyring) is installed
 beside it as a dependency, with its own licence.
 
@@ -176,7 +191,8 @@ function render(packages, isAcp) {
     return `${RULE}\n${names.join('\n')}\n${THIN_RULE}\n\n${text}\n`
   })
   const native = `${RULE}\nOpenSSL (Linux native helper, Apache-2.0)\n${THIN_RULE}\n\n${readFileSync(path.join('native', 'openssl-NOTICE.txt'), 'utf8').trimEnd()}\n`
-  return `${header}\n${blocks.join('\n')}\n${native}`
+  const legalData = normalise(readFileSync('src/core/legal/data/NOTICE.md', 'utf8'))
+  return `${header}\n${native}\n${blocks.join('\n')}\n${RULE}\nSPDX identifier data\n${THIN_RULE}\n\n${legalData}\n`
 }
 
 /** The file `--acp` names; undefined without the flag. */

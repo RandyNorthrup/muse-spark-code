@@ -108,6 +108,9 @@ The PNGs beside the records are that day's harness renders.
 - [M89](m89.md): the bundled high-quality-projects skills: a third skill source on the Model API backend, the install, update offer and removal for Muse Code, junctions and symlinks proven on the three rigs (PLAN.md D68)
 - [M95 research](m95-research.md): bring-your-own model providers and subscription sign-in: five wire formats, the leaders' provider setup, where our Model API backend is Meta-specific, the adapter seam, OpenRouter, and what each provider allows for plan sign-in today (PLAN.md D74, M95, M95b, M95c)
 - [M95 captures](m95-captures.md): the live wire of the twelve keyed cloud presets (OpenAI, xAI, Anthropic, Gemini, OpenRouter, Groq, Mistral, Together, Fireworks, DeepSeek, Hugging Face, Z.ai): model lists, a streamed tool call and its follow-up, usage, cache pairs, error shapes, 46 model-call attempts counted (frames in `m95-captures/`; PLAN.md D74, M95 step 13)
+
+- [M96 research](m96-research.md): agent roles and orchestration: Claude Code, Codex, Roo, Kilo, Cline, VS Code and Cursor; five multi-agent frameworks; external agents over ACP and their terms; long MCP calls; what this repository already has; what D75 takes and adds; the lead's fleet practice, its incidents and the facts behind the scheduler and the coordinator (PLAN.md D75, M96, M96c, M96d)
+
 - [Muse Code's unasked file writes](musecode-write-asks.md): why the sandbox is off for a Windows profile workspace, what Muse Code 1.4.2 lets a client do about unasked file writes (nothing over MSP), probes with forced tool calls and no model call, #26 retested on 1.4.2, the once-per-window sandbox-off warning, the Diagnostics line and the honest Plan line (PLAN.md D7, D12, §9)
 - [Other agents' folders are protected writes](protect-agent-folders.md): other coding agents' folders, MCP and instruction files join the protected-write list on the Model API backend, and Muse Code's file-write approvals are judged by the same list, outside the workspace too (PLAN.md D24)
 - [Docs truth audit of the 0.12.0 tree](docs-truth-audit-0120.md): every user-facing claim checked against the code, the Model API Auto line, redaction at the panel boundary, confidential-workspace checks at every dispatch, fixed-word CLI failure logs and the scanner's exit docs
@@ -116,3 +119,7 @@ The PNGs beside the records are that day's harness renders.
 - [Defaults on](defaults.md): D78 availability, first-use paid consent, shared daily claims and monotonic Stop, with FIXDEF review drills
 - [M92](m92.md): Muse Gadgets guidance, the shared token table, secret prompts and one-time shell approvals, with the M92e review fixes
 - [0.13.0 release train](train-0.13.0.md): ordered history-preserving integration, conflict resolutions, failed full-gate receipt, budget-stop evidence and nine regression drills
+- [0.15.0 release train](train-0.15.0.md): ordered integrations and current-main reference, immutable goldens, deterministic exec fixtures, actual helperless/universal VSIX diet and unchanged-cap hold, default-timeout owning receipts and guard-fire records
+
+- [M95 lane X review corrections](m95-x.md): credential allowlist, provider commit recovery, captured probes, path/DNS guards and translated counts, with regression drills and named integration residuals.
+- [M102 integration](m102.md): usage integration on M95's joined transport, lazy ACP usage and headless loading, golden and guard-fire evidence; round three records the stopped provider-accounting path, cold exec package timeout and universal VSIX cap blocker.

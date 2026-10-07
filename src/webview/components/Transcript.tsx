@@ -9,7 +9,17 @@
 // only the row it changes. The rows carry no alert roles: the app's single
 // live region reads failures and turn ends out once (M25).
 
-import { memo, type ReactNode, useDeferredValue, useId, useMemo, useRef, useState } from 'react'
+import {
+  lazy,
+  Suspense,
+  memo,
+  type ReactNode,
+  useDeferredValue,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import type { CitationSummary, QuestionAnswer } from '../../shared/agentEvents'
 import { UI_TEXT } from '../../shared/constants'
 import {
@@ -49,6 +59,7 @@ import { type QuoteIntent, QuoteMenu } from './QuoteMenu'
 import { MarkdownView } from './MarkdownView'
 import { ReasoningRow } from './ReasoningRow'
 import { StatusLine } from './StatusLine'
+import type { TeamCardActions } from './TeamCards'
 import { ToolRow, type ToolRowProps } from './ToolRow'
 import { UserShellRow } from './UserShellRow'
 import { deferred } from './DeferredSurface'
@@ -56,6 +67,11 @@ import { deferred } from './DeferredSurface'
 import { PaidBadge } from './PaidBadge'
 import { type GooeyItem, useRowMenu } from './GooeyMenu'
 import type { MenuPoint } from '../gooeyLayout'
+
+const TeamCard = lazy(async () => {
+  const module = await import('./TeamUi')
+  return { default: module.TeamCard }
+})
 
 const WorkflowRunView = deferred(async () => {
   const module = await import('./WorkflowRun')
@@ -147,9 +163,18 @@ export interface TranscriptProps {
   readonly onCopyQuote?: (() => void) | undefined
   readonly onCloseQuoteMenu?: (() => void) | undefined
   /**
+   * The team's waiting and merge cards' answers (M96 lane U2); absent
+   * where the host takes none (history, single-model mode): the cards read
+   * only then.
+   */
+  readonly teamActions?: TeamCardActions | undefined
+  /**
    * Edit on a queued card (M87, PLAN.md D66): the ids the host gave it, for
    * `withdrawQueued`. Absent while nothing can take a message back.
    */
+  /** M118-P-REACT-BRIDGE: same handler as the native Save prompt command. */
+  readonly onSharePrompt?: ((text: string) => void) | undefined
+  readonly onSavePrompt?: ((text: string) => void) | undefined
   readonly onEditQueued?: ((card: QueuedCardRef) => void) | undefined
   /**
    * Whether a steered message can still be taken back before a request reads
@@ -307,6 +332,8 @@ const UserCard = memo(function UserCard({
   restoreNote,
   conversationNote,
   quoteMenu,
+  onSharePrompt,
+  onSavePrompt,
   onEditQueued,
   canEditSteered,
 }: {
@@ -320,6 +347,8 @@ const UserCard = memo(function UserCard({
   readonly restoreNote: string | undefined
   readonly conversationNote: string | undefined
   readonly quoteMenu: ReactNode
+  readonly onSharePrompt: ((text: string) => void) | undefined
+  readonly onSavePrompt: ((text: string) => void) | undefined
   readonly onEditQueued: ((card: QueuedCardRef) => void) | undefined
   readonly canEditSteered: boolean
 }) {
@@ -432,6 +461,32 @@ const UserCard = memo(function UserCard({
       },
     ]
   }
+  if (onSavePrompt !== undefined)
+    items = [
+      ...items,
+      {
+        id: 'prompt.save.message',
+        label: UI_TEXT.promptSave,
+        icon: <ReplyIcon />,
+        onSelect: () => {
+          menu.close()
+          onSavePrompt(entry.text)
+        },
+      },
+    ]
+  if (onSharePrompt !== undefined)
+    items = [
+      ...items,
+      {
+        id: 'prompt.share.message',
+        label: UI_TEXT.sharePrompt,
+        icon: <ReplyIcon />,
+        onSelect: () => {
+          menu.close()
+          onSharePrompt(entry.text)
+        },
+      },
+    ]
   const menu = useRowMenu(
     items,
     hasQueuedMenu ? UI_TEXT.queuedMenuLabel : UI_TEXT.rewindMenuLabel,
@@ -442,6 +497,13 @@ const UserCard = memo(function UserCard({
       className={`message message-user message-${entry.status}`}
       data-entry-id={entry.id}
       data-role="user"
+      data-vscode-context={JSON.stringify({
+        'museSpark.promptSource': 'userMessage',
+        'museSpark.promptText': entry.text,
+        'museSpark.transcriptRole': 'user',
+        'museSpark.messageIsOwn': true,
+        'museSpark.chatAvailable': true,
+      })}
       {...menu.rowProps}
     >
       {hasChips ? (
@@ -843,7 +905,19 @@ function OtherRow({
 }: {
   readonly entry: Exclude<
     TranscriptEntry,
-    StepEntry | { kind: 'user' | 'assistant' | 'userShell' | 'workflow' }
+    | StepEntry
+    | {
+        kind:
+          | 'user'
+          | 'assistant'
+          | 'userShell'
+          | 'workflow'
+          | 'teamPlan'
+          | 'teamSwitch'
+          | 'teamWaiting'
+          | 'teamMerge'
+          | 'teamReport'
+      }
   >
   readonly onReportProblem?: ((entryId: string, ref: ReportEventRef) => void) | undefined
 }) {
@@ -1074,6 +1148,9 @@ function TranscriptList(props: TranscriptProps) {
     onQuote,
     onCopyQuote,
     onCloseQuoteMenu,
+    teamActions,
+    onSharePrompt,
+    onSavePrompt,
     onEditQueued,
     canEditSteered = false,
   } = props
@@ -1152,6 +1229,8 @@ function TranscriptList(props: TranscriptProps) {
             }
             conversationNote={conversationNote}
             quoteMenu={quoteMenuFor(entry.id)}
+            onSharePrompt={onSharePrompt}
+            onSavePrompt={onSavePrompt}
             onEditQueued={onEditQueued}
             canEditSteered={canEditSteered}
           />
@@ -1195,6 +1274,22 @@ function TranscriptList(props: TranscriptProps) {
       case 'workflow': {
         return <WorkflowRow key={entry.id} entry={entry} />
       }
+      case 'teamPlan':
+      case 'teamSwitch':
+      case 'teamWaiting':
+      case 'teamMerge':
+      case 'teamReport': {
+        return (
+          <Suspense key={entry.id} fallback={null}>
+            <TeamCard entry={entry} actions={teamActions} />
+          </Suspense>
+        )
+      }
+      case 'subagent':
+      case 'item':
+      case 'error': {
+        return <MemoOtherRow key={entry.id} entry={entry} onReportProblem={onReportProblem} />
+      }
       case 'notice': {
         if (onNoticeAction !== undefined && entry.actions !== undefined) {
           return (
@@ -1217,9 +1312,6 @@ function TranscriptList(props: TranscriptProps) {
             onRedo={onRedo}
           />
         )
-      }
-      default: {
-        return <MemoOtherRow key={entry.id} entry={entry} onReportProblem={onReportProblem} />
       }
     }
   }

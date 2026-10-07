@@ -60,7 +60,12 @@
       "wireFormats.responses",
       "wireFormats.chat",
       "wireFormats.anthropic",
-      "pickerMetaGroup"
+      "pickerMetaGroup",
+      "teamRoleFileRefused",
+      "teamJsonRefused",
+      "teamSwitchRow",
+      "legalScanItem",
+      "legalUsage"
     ],
     "cs": [
       "groupModel",
@@ -79,7 +84,9 @@
       "agentImportKindAgent",
       "providerFilters.cloud",
       "modelColumns.name",
-      "usageLimit"
+      "usageLimit",
+      "teamTemplates.solo",
+      "teamCapabilityWarning"
     ],
     "tr": [
       "groupModel",
@@ -89,7 +96,9 @@
       "usagePlan",
       "gitChangeCounts",
       "modelColumns.name",
-      "usageLimit"
+      "usageLimit",
+      "teamTemplates.solo",
+      "teamCapabilityWarning"
     ],
     "pl": [
       "groupModel",
@@ -109,7 +118,9 @@
       "agentImportKindHook",
       "agentImportKindAgent",
       "modelColumns.name",
-      "usageLimit"
+      "usageLimit",
+      "teamTemplates.solo",
+      "teamCapabilityWarning"
     ],
     "de": [
       "groupSkills",
@@ -143,7 +154,17 @@
       "shellDirectory",
       "providerFilters.cloud",
       "providerFilters.aggregator",
-      "usageLimit"
+      "usageLimit",
+      "teamOrchestratorSlot",
+      "teamIntensityLevels.minimal",
+      "teamIntensityLevels.max",
+      "teamTemplates.solo",
+      "teamSetupSteps.pools",
+      "teamCapabilityWarning",
+      "teamTemplateSolo",
+      "teamTreeLabel",
+      "teamOrchestrator",
+      "teamUsageTitle"
     ],
     "es": [
       "hooksItem",
@@ -155,7 +176,12 @@
       "verifyErrors.one",
       "gitChangeCounts",
       "agentImportKindHook",
-      "modelLocal"
+      "modelLocal",
+      "teamRolesTitle",
+      "teamTemplates.solo",
+      "teamSetupSteps.pools",
+      "teamCapabilityWarning",
+      "teamUsageTokens"
     ],
     "pt-br": [
       "agentTokens",
@@ -166,7 +192,11 @@
       "gitPushBranchLine",
       "gitChangeCounts",
       "agentImportKindHook",
-      "modelLocal"
+      "modelLocal",
+      "teamTemplates.solo",
+      "teamSetupSteps.pools",
+      "teamCapabilityWarning",
+      "teamUsageTokens"
     ],
     "fr": [
       "modesTitle",
@@ -189,7 +219,12 @@
       "agentImportKindHook",
       "agentImportKindAgent",
       "providerFilters.cloud",
-      "modelLocal"
+      "modelLocal",
+      "teamIntensityLevels.max",
+      "teamTemplates.solo",
+      "teamSetupSteps.pools",
+      "teamTemplateSolo",
+      "teamIntensityLevels.minimal"
     ],
     "it": [
       "usageAccount",
@@ -202,7 +237,12 @@
       "providerFields.provider",
       "providerFields.privacy",
       "modelColumns.inputPrice",
-      "modelColumns.outputPrice"
+      "modelColumns.outputPrice",
+      "teamIntensityLevels.max",
+      "teamTemplates.solo",
+      "teamCapabilityWarning",
+      "teamTreeLabel",
+      "teamUsageTitle"
     ],
     "zh-cn": ["toolLabels.shell"],
     "zh-tw": ["toolLabels.shell"],
@@ -211,10 +251,12 @@
       "imageBuyPrompt",
       "gitChangeCounts",
       "agentImportKindHook",
-      "usageLimit"
+      "usageLimit",
+      "teamIntensityLevels.max",
+      "teamCapabilityWarning"
     ],
-    "ko": ["gitChangeCounts"],
-    "ru": ["gitChangeCounts"]
+    "ko": ["gitChangeCounts", "teamCapabilityWarning"],
+    "ru": ["gitChangeCounts", "teamCapabilityWarning"]
   },
   "manifest": {
     "*": ["viewsContainers.museSpark.title", "command.category", "config.title"],
@@ -224,5 +266,33 @@
     "pt-br": ["views.chatView.name"],
     "fr": ["command.hooks.title"],
     "it": ["views.chatView.name"]
+  },
+  "usage": {
+    "*": ["chartBucket"],
+    "cs": ["editor", "kindHook", "model"],
+    "de": [
+      "editor",
+      "kindHook",
+      "kindReviewer",
+      "kindSubagent",
+      "kindWorker",
+      "nameColumn",
+      "originSubagent"
+    ],
+    "es": ["certaintyLocal", "certaintyPlan", "editor", "kindHook", "kindWorker", "tokens"],
+    "fr": [
+      "dateColumn",
+      "images",
+      "kindHook",
+      "kindTurn",
+      "kindWorker",
+      "originTurn",
+      "priceCatalogue"
+    ],
+    "hu": ["kindHook"],
+    "it": ["editor", "kindHook", "kindWorker", "recordCount.one"],
+    "pl": ["certaintyPlan", "kindHook", "model"],
+    "pt-br": ["certaintyLocal", "editor", "kindHook", "kindWorker", "tokens"],
+    "tr": ["certaintyPlan", "model"]
   }
 }

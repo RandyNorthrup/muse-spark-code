@@ -502,6 +502,46 @@ const MISTRAL_PRESET: ProviderPreset = {
   wireCapture: true,
 }
 
+// --- Plan-key presets (M95b S). The wiring lane consumes this separate list
+// when it installs plan pricing; do not expose a plan as pay-as-you-go first.
+
+export interface PlanKeyPreset extends ProviderPreset {
+  readonly pricing: { readonly kind: 'plan' }
+  readonly limitsUrl: string
+}
+
+/** Mistral uses the captured API endpoint and the same keys for plan credits. */
+export const PLAN_KEY_PRESETS: readonly PlanKeyPreset[] = [
+  {
+    id: 'mistral-plan',
+    label: MISTRAL_PRESET.label,
+    get description() {
+      return MISTRAL_PRESET.description
+    },
+    category: MISTRAL_PRESET.category,
+    format: MISTRAL_PRESET.format,
+    origin: MISTRAL_PRESET.origin,
+    auth: MISTRAL_PRESET.auth,
+    authHeader: MISTRAL_PRESET.authHeader,
+    keyPage: MISTRAL_PRESET.keyPage,
+    keyShape: MISTRAL_PRESET.keyShape,
+    get keyHint() {
+      return MISTRAL_PRESET.keyHint
+    },
+    keyTest: MISTRAL_PRESET.keyTest,
+    modelsList: MISTRAL_PRESET.modelsList,
+    quirks: MISTRAL_PRESET.quirks,
+    wireCapture: MISTRAL_PRESET.wireCapture,
+    pricing: { kind: 'plan' },
+    limitsUrl: 'https://docs.mistral.ai/admin/billing-usage/subscriptions',
+  },
+]
+
+/** Captured plan-key data only; names/model slugs are never fabricated. */
+export function planKeyPresetById(id: string): PlanKeyPreset | undefined {
+  return PLAN_KEY_PRESETS.find((preset) => preset.id === id)
+}
+
 const TOGETHER_PRESET: ProviderPreset = {
   id: 'together',
   label: 'Together',

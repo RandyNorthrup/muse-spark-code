@@ -19,6 +19,8 @@ import {
   type EnvironmentVariable,
   JUDGE_ENGINES,
   type JudgeEngine,
+  LEGAL_HEADER_POLICIES,
+  type LegalHeaderPolicy,
   PROMPT_CACHE_RETENTIONS,
   QUESTION_DEFER_MAX_SECONDS,
   type PromptCacheRetention,
@@ -28,6 +30,8 @@ import {
   SETTINGS_SECTION,
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
+  USAGE_HISTORY_DAYS_MIN,
+  USAGE_HISTORY_DAYS_MAX,
   TAB_DAILY_BUDGET_MAX_USD,
   TAB_DAILY_BUDGET_MIN_USD,
   TAB_MODELS,
@@ -44,6 +48,8 @@ import { type SettingsSnapshot, settingsSnapshotShape } from '../shared/protocol
 import type { Logger } from './logger'
 
 export interface ExtensionSettings extends SettingsSnapshot {
+  readonly usageHistory: boolean
+  readonly usageHistoryDays: number
   readonly paidDailyBudgetUsd: UsdAmount
   readonly dictationEngine: 'system' | 'museVoice'
   /** Absolute path to the `muse` executable; empty means "discover". */
@@ -51,6 +57,7 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly environmentVariables: readonly EnvironmentVariable[]
   readonly 'shell.passEnvironmentVariables': readonly string[]
   /** M112 (D92): seconds before an unanswered question defers; 0 never. */
+  readonly syncPromptsAndBookmarks: boolean
   readonly 'questions.deferAfterSeconds': number
   /** Shell sandbox posture for `muse serve` (PLAN.md D12). */
   readonly shellSandbox: ShellSandboxMode
@@ -74,6 +81,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiSubagents: boolean
   /** Best-of-N availability; an explicit run and consent choose its extra attempts. */
   readonly modelApiBestOfN: boolean
+  /** Team tasks billed to a key (M96 lane A, PLAN.md D75): on only with the price accepted too. */
+  readonly modelApiTeamWorkers: boolean
   /** Configured hooks are enabled by default (D78), in trusted workspaces only. */
   readonly modelApiHooks: boolean
   /** The Model API shell keeps its directory between calls (M91 lane S): on until turned off. */
@@ -137,6 +146,10 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiReplyUsage: boolean
   /** Session budget cap in USD for Model API requests; 0 is no cap (M82). */
   readonly modelApiSessionBudgetUsd: UsdAmount
+  /** Copyright/SPDX header hygiene for the read-only legal scan (M97). */
+  readonly legalRegistryLookups: boolean
+  readonly legalExplanation: boolean
+  readonly legalHeaderPolicy: LegalHeaderPolicy
 }
 
 /**
@@ -157,6 +170,7 @@ const settingSchemas = {
   museBinaryPath: z.string(),
   environmentVariables: z.array(environmentVariableSchema),
   'shell.passEnvironmentVariables': z.array(z.string().check(z.regex(/^[A-Za-z_][A-Za-z0-9_]*$/))),
+  syncPromptsAndBookmarks: z.boolean(),
   'questions.deferAfterSeconds': z.int().check(z.gte(0), z.lte(QUESTION_DEFER_MAX_SECONDS)),
   shellSandbox: z.enum(SHELL_SANDBOX_MODES),
   backend: z.enum(BACKEND_MODES),
@@ -171,6 +185,7 @@ const settingSchemas = {
   modelApiScheduledPrompts: z.boolean(),
   modelApiSubagents: z.boolean(),
   modelApiBestOfN: z.boolean(),
+  modelApiTeamWorkers: z.boolean(),
   modelApiHooks: z.boolean(),
   modelApiShellKeepsDirectory: z.boolean(),
   modelApiHookModels: z.boolean(),
@@ -227,6 +242,13 @@ const settingSchemas = {
   ),
   dictationEngine: z.enum(['system', 'museVoice']),
   modelApiSessionBudgetUsd: legacyUsdSchema,
+  legalRegistryLookups: z.boolean(),
+  legalExplanation: z.boolean(),
+  legalHeaderPolicy: z.enum(LEGAL_HEADER_POLICIES),
+  usageHistory: z.boolean(),
+  usageHistoryDays: z
+    .int()
+    .check(z.minimum(USAGE_HISTORY_DAYS_MIN), z.maximum(USAGE_HISTORY_DAYS_MAX)),
 } as const
 
 type SettingKey = keyof typeof settingSchemas
@@ -285,6 +307,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     museBinaryPath: readSetting(config, 'museBinaryPath', log),
     environmentVariables: readSetting(config, 'environmentVariables', log),
     'shell.passEnvironmentVariables': readSetting(config, 'shell.passEnvironmentVariables', log),
+    syncPromptsAndBookmarks: readSetting(config, 'syncPromptsAndBookmarks', log),
     'questions.deferAfterSeconds': readSetting(config, 'questions.deferAfterSeconds', log),
     shellSandbox: readSetting(config, 'shellSandbox', log),
     backend: readSetting(config, 'backend', log),
@@ -299,6 +322,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiScheduledPrompts: readSetting(config, 'modelApiScheduledPrompts', log),
     modelApiSubagents: readSetting(config, 'modelApiSubagents', log),
     modelApiBestOfN: readSetting(config, 'modelApiBestOfN', log),
+    modelApiTeamWorkers: readSetting(config, 'modelApiTeamWorkers', log),
     modelApiHooks: readSetting(config, 'modelApiHooks', log),
     modelApiShellKeepsDirectory: readSetting(config, 'modelApiShellKeepsDirectory', log),
     modelApiHookModels: readSetting(config, 'modelApiHookModels', log),
@@ -320,6 +344,8 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     notifyOnBackgroundTurn: readSetting(config, 'notifyOnBackgroundTurn', log),
     modelApiReplyUsage: readSetting(config, 'modelApiReplyUsage', log),
     paidDailyBudgetUsd: readSetting(config, 'paidDailyBudgetUsd', log),
+    usageHistory: readSetting(config, 'usageHistory', log),
+    usageHistoryDays: readSetting(config, 'usageHistoryDays', log),
     dictationEngine: readSetting(config, 'dictationEngine', log),
     modelApiSessionBudgetUsd: readSetting(config, 'modelApiSessionBudgetUsd', log),
     modelApiCommandRules: readSetting(config, 'modelApiCommandRules', log),
@@ -336,6 +362,9 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     tabMultiline: readSetting(config, 'tabMultiline', log),
     tabTrigger: readSetting(config, 'tabTrigger', log),
     tabWithCopilot: readSetting(config, 'tabWithCopilot', log),
+    legalRegistryLookups: readSetting(config, 'legalRegistryLookups', log),
+    legalExplanation: readSetting(config, 'legalExplanation', log),
+    legalHeaderPolicy: readSetting(config, 'legalHeaderPolicy', log),
   }
 }
 

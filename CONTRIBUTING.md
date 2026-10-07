@@ -102,7 +102,13 @@ Use this order for a candidate branch:
   name listed in `scripts/lib/harnessServer.mjs` beside the related one),
   rendered with `npm run harness:shots -- <names>` (`--theme=dark`, `light`,
   `hc-dark` or `hc-light`; `--lang=pseudo` for clipping) and checked with
-  `node scripts/a11y.mjs <names>` in the four themes. The M87 scenarios:
+  `node scripts/a11y.mjs <names>` in the four themes. Scenes wait with
+  `whenFound`, never fixed delays; nest waits when one control reveals the
+  next. Keep `later` only for intentional host-event timing or readiness
+  polling, with a `// kept-timing: <reason>` comment immediately before it.
+  The source guard in `test/unit/harnessWaits.test.ts` checks every timer,
+  including DOM work through helpers. Axe waits for outstanding control
+  waits before scanning. The M87 scenarios:
   `context-meter`, `context-meter-warning`, `context-meter-full`,
   `palette-tips`, `slash-tips`, `stop-running`, `tool-io`,
   `tool-io-expanded`, `status-heartbeat`, `status-heartbeat-narrow`,
@@ -409,6 +415,30 @@ and a byte-exact restoration recorded before certification.
 
 The Windows release-shell fixtures use Git Bash's installed path when it
 exists, otherwise Bash from PATH. A missing Bash remains a test failure.
+
+## Portable prompts and sharing
+
+A `.muse-prompt.md` file starts with `---`, one JSON metadata object, and a
+closing `---` on its own line. The remaining body is preserved verbatim,
+including CRLF and trailing spaces. Use `serialisePromptFile` and
+`parsePromptFile` from `src/shared/prompts.ts`; do not implement another
+front-matter parser. Metadata includes schema version, id, title, scope,
+tags, variables, timestamps and the untrusted flag. The strict schema and
+128 KiB reader cap reject malformed or oversized files.
+
+Use the same `PromptStore` and agent data folder on every surface. Personal
+prompts are not keyed by workspace. Loading is insert-only and must never
+submit a model turn. Import requires a complete preview and explicit scope
+confirmation. `buildChatShare` owns the portable chat projection, scrub and
+formats; keep the conversation mode an allow-list. Destination adapters
+receive exact reviewed bytes and recheck policy at their real sinks.
+
+Update `src/shared/featureCatalog.ts` with sharing commands/settings and
+regenerate `docs/sharing-reference.md` using `node scripts/gen-reference.mjs`.
+Run `npm run check:reference`, the owning tests, localization, host API,
+bundle split/size and the sharing accessibility scenes. Certification must
+distinguish fake bridges from mounted editor receipts and name pending M104
+or TUI bindings.
 
 Every new command, setting or feature updates `src/shared/featureCatalog.ts`
 in the same PR (and the shared CLI table for runtime commands). Run

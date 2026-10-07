@@ -9,7 +9,7 @@ const root = path.resolve(import.meta.dirname, '..')
 const { outputFiles } = await esbuild.build({
   stdin: {
     contents:
-      "export * as z from 'zod/mini'; export { execResultSchema, execEventV2Schema, exitCodeFor } from './src/runtime/exec/execProtocol'; export { EXEC_PROHIBITED_UPDATE_PATTERN, EXEC_RAW_TOOL_FIELDS } from './src/shared/constants'",
+      "export * as z from 'zod/mini'; export { execResultSchema, execEventV2Schema, exitCodeFor } from './src/runtime/exec/execProtocol'; export { shareJsonSchema } from './src/shared/share'; export { EXEC_PROHIBITED_UPDATE_PATTERN, EXEC_RAW_TOOL_FIELDS } from './src/shared/constants'",
     resolveDir: root,
     loader: 'ts',
     sourcefile: 'exec-schema-entry.ts',
@@ -25,6 +25,7 @@ const {
   z,
   execResultSchema,
   execEventV2Schema,
+  shareJsonSchema,
   exitCodeFor,
   EXEC_PROHIBITED_UPDATE_PATTERN,
   EXEC_RAW_TOOL_FIELDS,
@@ -190,11 +191,25 @@ function eventJsonFor(schema) {
   return eventJson
 }
 await mkdir(path.join(root, 'docs/schemas'), { recursive: true })
-for (const [name, version, schema] of [
-  ['result', 2, resultJson],
-  ['event', 2, eventJsonFor(execEventV2Schema)],
+const shareJson = z.toJSONSchema(shareJsonSchema)
+shareJson['x-runtime-invariants'] = [
+  'Conversation mode admits only userMessage and agentMessage, and no activity fields within messages; unknown kinds are excluded.',
+  'Code blocks obey options.codeBlocks; attachment names obey options.attachmentNames; contents require their id in options.attachmentContents; diffs require options.diffs.',
+  'Every string is scrubbed with registered-secret and shared redaction plus workspace/home/absolute-path normalisation before preview.',
+  'No destination is invoked before exact-preview confirmation and a fresh non-confidential-workspace check; phase one allows copy/file/browser only.',
+  'Prompt variables exactly match unique placeholders; createdAt <= updatedAt; imported prompts remain untrusted and never auto-run.',
+]
+for (const [name, schema] of [
+  ['result', resultJson],
+  ['event', eventJsonFor(execEventV2Schema)],
+  ['share', shareJson],
 ]) {
-  const file = path.join(root, `docs/schemas/exec-${name}-v${version}.schema.json`)
+  const file = path.join(
+    root,
+    name === 'share'
+      ? 'docs/schemas/share-v1.schema.json'
+      : `docs/schemas/exec-${name}-v2.schema.json`,
+  )
   const bytes = await format(JSON.stringify(schema), {
     ...(await resolveConfig(file)),
     filepath: file,

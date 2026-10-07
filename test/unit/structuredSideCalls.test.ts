@@ -1,3 +1,4 @@
+import { metaResolvedModel } from '../../src/core/backends/modelapi/modelPolicy'
 import { describe, expect, it, vi } from 'vitest'
 import { reviewPaidCall } from '../../src/core/backends/modelapi/reviewerEntry'
 import {
@@ -86,6 +87,7 @@ async function reviewTurn(
   return await reviewPaidCall(
     {
       ...rig.observed,
+      resolved: metaResolvedModel(rig.confirmed.modelId, rig.deps.client),
       deps: deps ?? {
         ...rig.deps,
         sideCallFormats: () => ({ state: 'yes', value: ['strict_schema'] }),

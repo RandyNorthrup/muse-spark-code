@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import type * as fs from 'node:fs'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   assertDownloadChecksum,
   assertSnapshotSize,
@@ -85,6 +85,8 @@ function downloadFixture(): Record<string, unknown> {
         modalities: ['text', 'image'],
         release_date: '2026-09-01',
         temperature: true,
+        reasoning_options: [{ type: 'effort', values: ['none', 'low', 'high'] }],
+        structured_output: true,
         cost: { input: 1.25, output: 10, cache_read: 0.125, cache_write: 2, reasoning: 3 },
         limit: { context: 400_000, output: 128_000, input: 272_000 },
       },
@@ -258,6 +260,9 @@ describe('catalogue filter', () => {
       tool_call: true,
       reasoning: true,
       attachment: true,
+      temperature: true,
+      reasoning_options: [{ type: 'effort', values: ['none', 'low', 'high'] }],
+      structured_output: true,
       modalities: ['text', 'image'],
       release_date: '2026-09-01',
       cost: { input: 1.25, output: 10, cache_read: 0.125, cache_write: 2, reasoning: 3 },
@@ -582,16 +587,23 @@ describe('sync validation before writes', () => {
     }
   })
 
-  it('reproduces the sealed snapshot offline from the saved HTTP capture', async () => {
-    const dir = vendorDir()
+  describe('offline saved HTTP capture replay', () => {
+    let dir = ''
+    beforeAll(() => {
+      dir = vendorDir()
+      // This one directory survives all three replays, proving repeatability.
+      dirs.splice(dirs.indexOf(dir), 1)
+    })
+    afterAll(() => {
+      rmSync(dir, { recursive: true, force: true })
+    })
     const manifest: { downloadSha256: string; fetchedAt: string } = JSON.parse(
       readFileSync(path.join(VENDOR_ROOT, 'VENDOR.json'), 'utf8'),
     )
-    const fetcher = vi.fn<typeof fetch>().mockRejectedValue(new Error('Network forbidden'))
-    vi.stubGlobal('fetch', fetcher)
-    try {
-      // Repeated offline syncs must stay byte-identical and fit the normal deadline.
-      for (let replay = 0; replay < 3; replay += 1) {
+    it.each([0, 1, 2])('reproduces the sealed snapshot offline: replay %i', async () => {
+      const fetcher = vi.fn<typeof fetch>().mockRejectedValue(new Error('Network forbidden'))
+      vi.stubGlobal('fetch', fetcher)
+      try {
         await run(
           [
             '--sync',
@@ -611,10 +623,10 @@ describe('sync validation before writes', () => {
           expect(actual.length).toBe(expected.length)
           expect(digest(actual)).toBe(digest(expected))
         }
+      } finally {
+        vi.unstubAllGlobals()
       }
-    } finally {
-      vi.unstubAllGlobals()
-    }
+    })
   })
 
   it('seals valid filtered data with the original download digest', () => {

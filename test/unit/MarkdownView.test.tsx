@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { MarkdownView } from '../../src/webview/components/MarkdownView'
+import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
+
+beforeAll(warmDeferredSurfaces)
 
 function renderMarkdown(text: string) {
   const onOpenLink = vi.fn()

@@ -165,9 +165,12 @@ describe('package.json manifest', () => {
       { scope?: string }
     >
     for (const key of Object.keys(SETTING_DEFAULTS)) {
+      // FIN2's disclosed registry lookup is a per-window offline choice;
+      // paid explanation and budget settings remain machine-scoped (D15).
+      const workspaceScope = key === 'legalRegistryLookups' ? 'window' : undefined
       const expected = (MACHINE_SCOPED_SETTINGS as readonly string[]).includes(key)
         ? 'machine'
-        : undefined
+        : workspaceScope
       expect(properties[`${SETTINGS_SECTION}.${key}`]?.scope, key).toBe(expected)
     }
     expect(manifest.capabilities.untrustedWorkspaces.supported).toBe('limited')
@@ -302,6 +305,7 @@ describe('package.json manifest', () => {
       // Exports the conversation in front of the user (M30).
       [COMMAND_IDS.exportConversation]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
       // Imports an export file into the conversation in front of the user, or reads one (M84).
+      [COMMAND_IDS.legalScan]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
       [COMMAND_IDS.importSession]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
       [COMMAND_IDS.openShareFile]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
       // git worktrees of the open folder's repository (M32).

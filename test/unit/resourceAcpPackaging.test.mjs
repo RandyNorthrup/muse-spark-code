@@ -8,12 +8,15 @@ vi.mock('node:fs', () => ({
   existsSync: vi.fn(),
   mkdirSync: vi.fn(),
   readFileSync: vi.fn(),
+  readdirSync: vi.fn(() => []),
   rmSync: vi.fn(),
   statSync: vi.fn(),
   writeFileSync: vi.fn(),
 }))
 vi.mock('node:child_process', () => ({ execFileSync: vi.fn() }))
 vi.mock('../../scripts/check-badges.mjs', () => ({ renderPackageReadme: (text) => text }))
+// Archive contents are exercised by the actual tarball suites; these rows own copy/refusal order.
+vi.mock('../../scripts/lib/packageArchive.mjs', () => ({ packRuntimeArchive: vi.fn() }))
 
 beforeEach(() => {
   vi.resetModules()
@@ -29,6 +32,10 @@ beforeEach(() => {
         repository: { url: 'https://example.invalid/project.git' },
         engines: { node: '>=22' },
         devDependencies: { '@napi-rs/keyring': '0.0.0' },
+      })
+    if (file.replaceAll('\\', '/') === 'dist/meta/usageWebview.json')
+      return JSON.stringify({
+        outputs: { 'dist/webview/usage.js': {}, 'dist/webview/usage.css': {} },
       })
     return file.endsWith('.schema.json') ? '{}' : 'fixture landing page'
   })
@@ -50,7 +57,15 @@ it('M107 copies both resource bundles and all three exec schemas into the ACP pa
     'exec-event-v2.schema.json',
   ])
     expect(normalized).toContainEqual([`docs/schemas/${file}`, `dist/acp-package/schemas/${file}`])
-  expect(execFileSync.mock.calls.at(-1)[0]).toBe('npm')
+  expect(execFileSync.mock.calls).toContainEqual([
+    'npm',
+    ['pack', '--pack-destination', '..'],
+    expect.objectContaining({ cwd: expect.stringContaining('acp-package') }),
+  ])
+  expect(execFileSync.mock.calls.at(-1).slice(0, 2)).toEqual([
+    process.execPath,
+    ['test/packaging/moduleExports.test.mjs', 'acp', expect.stringContaining('fixture.tgz')],
+  ])
 })
 
 it.each(['resourceGovernor.js', 'resourceAdmission.js'])(
@@ -104,3 +119,21 @@ it.each(['x64', 'arm64'])(
     expect(execFileSync).not.toHaveBeenCalled()
   },
 )
+
+it('ships the Darwin helper and refuses its absence before staging', async () => {
+  await import('../../scripts/package-acp.mjs')
+  expect(
+    copyFileSync.mock.calls.map(([source, target]) => [
+      source.replaceAll('\\', '/'),
+      target.replaceAll('\\', '/'),
+    ]),
+  ).toContainEqual(['native/darwin/muse-dictate', 'dist/acp-package/native/darwin/muse-dictate'])
+  vi.resetModules()
+  vi.clearAllMocks()
+  existsSync.mockImplementation(
+    (file) => file.replaceAll('\\', '/') !== 'native/darwin/muse-dictate',
+  )
+  await expect(import('../../scripts/package-acp.mjs')).rejects.toThrow('Required Darwin')
+  expect(copyFileSync).not.toHaveBeenCalled()
+  expect(execFileSync).not.toHaveBeenCalled()
+})

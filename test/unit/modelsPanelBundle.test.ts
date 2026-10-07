@@ -13,7 +13,13 @@ import { EN } from '../../src/shared/l10n/en'
 
 describe('isModelsPanelBundle', () => {
   it('accepts the factory and refuses anything else', () => {
-    expect(isModelsPanelBundle({ createModelsPanelFeatures: () => ({}) })).toBe(true)
+    expect(
+      isModelsPanelBundle({
+        createModelsPanelFeatures: () => ({}),
+        createSubscriptionFeatures: () => ({}),
+      }),
+    ).toBe(true)
+    expect(isModelsPanelBundle({ createModelsPanelFeatures: () => ({}) })).toBe(false)
     for (const bad of [undefined, null, {}, { createModelsPanelFeatures: 'x' }]) {
       expect(isModelsPanelBundle(bad)).toBe(false)
     }
@@ -41,6 +47,10 @@ describe('isModelsPanelSeam', () => {
     for (const bad of [undefined, null, [], 'seam', 7]) {
       expect(isModelsPanelSeam(bad)).toBe(false)
     }
+  })
+  it('accepts unavailable optional OpenRouter ports but refuses malformed services', () => {
+    expect(isModelsPanelSeam({ ...seam, exchanger: undefined, usage: undefined })).toBe(true)
+    expect(isModelsPanelSeam({ ...seam, exchanger: 'not a service' })).toBe(false)
   })
 })
 

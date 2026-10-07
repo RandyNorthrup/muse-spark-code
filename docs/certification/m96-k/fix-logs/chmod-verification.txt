@@ -1,0 +1,62 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamHintsAndLoad.test.ts --maxWorkers=3 --testTimeout=120000
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/lanes/FIXM96K
+
+ ❯ test/unit/teamHintsAndLoad.test.ts (11 tests | 1 failed) 88ms
+   ❯ M96 K advisory hints (6)
+     × refuses forged hints and publication when successful chmod leaves permissive bits 12ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamHintsAndLoad.test.ts > M96 K advisory hints > refuses forged hints and publication when successful chmod leaves permissive bits
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 2 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array [
+      Object {
+        "branch": "feature/a",
+        "instanceId": "8829253a-4171-4a6f-a721-948a68ee0e66",
+        "kind": "paths",
+        "paths": Array [
+          "src/a.ts",
+        ],
+        "repository": "/repo/.git",
+      },
+    ]
+
+  2nd vi.fn() call:
+
+    Array [
+      Object {
+        "instanceId": "8829253a-4171-4a6f-a721-948a68ee0e66",
+        "kind": "server",
+        "server": "browser",
+      },
+    ]
+
+
+Number of calls: 2
+
+ ❯ test/unit/teamHintsAndLoad.test.ts:230:30
+    228|       permissionState.ignoresChmod = true
+    229|       expect(await mine.hints.check({ ...intent, exclusiveServers: ['b…
+    230|       expect(f.question).not.toHaveBeenCalled()
+       |                              ^
+    231|       expect(f.disabled).toHaveBeenCalledTimes(1)
+    232|       const publisher = f.make()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 10 passed (11)
+   Start at  10:23:30
+   Duration  1.03s (transform 50%, import 22%, setup 17%, tests 10%, worker 1%)
+

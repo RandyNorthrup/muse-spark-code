@@ -2,7 +2,7 @@
 import { Buffer } from 'node:buffer'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { useEffect } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   DICTATION_HOLD_MS,
   MAX_ATTACHMENTS_PER_MESSAGE,
@@ -19,6 +19,20 @@ import {
   type SlashPaletteSlot,
 } from '../../src/webview/components/Composer'
 import { testSettings } from './helpers/fakes'
+
+beforeEach(() => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      public observe = vi.fn()
+      public disconnect = vi.fn()
+    },
+  )
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 /** The "/" list's commands (M38): two commands and a skill. */
 const slashCommands: readonly SlashCommand[] = [
@@ -138,6 +152,132 @@ function largePdf(name: string): File {
   Object.defineProperty(file, 'size', { value: MAX_DOCUMENT_BYTES })
   return file
 }
+
+function openPromptMenu(gesture: 'toolbar' | 'context', textarea: HTMLTextAreaElement): void {
+  if (gesture === 'toolbar') {
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.promptLibrary }))
+  } else {
+    expect(fireEvent.contextMenu(textarea, { clientX: 120, clientY: 140 })).toBe(false)
+  }
+}
+
+it.each(['toolbar', 'context'] as const)(
+  'offers exact composer prompt text through the %s menu without sending',
+  async (gesture) => {
+    const onSavePrompt = vi.fn(),
+      onSharePrompt = vi.fn(),
+      onUseSavedPrompt = vi.fn()
+    const { props, textarea } = renderComposer({
+      draft: 'Exact\r\ncomposer text',
+      onSavePrompt,
+      onSharePrompt,
+      onUseSavedPrompt,
+    })
+    const context = textarea.closest('footer')?.dataset['vscodeContext']
+    expect(context === undefined ? undefined : JSON.parse(context)).toEqual({
+      'museSpark.promptSource': 'composer',
+      'museSpark.promptText': 'Exact\r\ncomposer text',
+      'museSpark.composerHasText': true,
+      'museSpark.chatAvailable': true,
+    })
+    // One compact menu button, never a row of prompt buttons above the box.
+    for (const name of [UI_TEXT.promptSave, UI_TEXT.sharePrompt, UI_TEXT.promptUseSaved]) {
+      expect(screen.queryByRole('button', { name })).toBeNull()
+    }
+    const openMenu = () => {
+      openPromptMenu(gesture, textarea)
+    }
+    openMenu()
+    const menu = await screen.findByRole('menu', { name: UI_TEXT.promptLibrary })
+    expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map((item) => item.textContent),
+    ).toEqual([UI_TEXT.promptSave, UI_TEXT.sharePrompt, UI_TEXT.promptUseSaved])
+    fireEvent.click(within(menu).getByRole('menuitem', { name: UI_TEXT.promptSave }))
+    expect(screen.queryByRole('menu', { name: UI_TEXT.promptLibrary })).toBeNull()
+    expect(document.activeElement).toBe(textarea)
+    openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: UI_TEXT.sharePrompt }))
+    openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: UI_TEXT.promptUseSaved }))
+    expect(onSavePrompt).toHaveBeenCalledWith('Exact\r\ncomposer text')
+    expect(onSharePrompt).toHaveBeenCalledWith('Exact\r\ncomposer text')
+    expect(onUseSavedPrompt).toHaveBeenCalledTimes(1)
+    expect(props.onSubmit).not.toHaveBeenCalled()
+  },
+)
+
+it.each(['toolbar', 'context'] as const)(
+  'keeps save and share out of the %s menu while the draft is empty',
+  async (gesture) => {
+    const { textarea } = renderComposer({
+      draft: '  ',
+      onSavePrompt: vi.fn(),
+      onSharePrompt: vi.fn(),
+      onUseSavedPrompt: vi.fn(),
+    })
+    openPromptMenu(gesture, textarea)
+    const menu = await screen.findByRole('menu', { name: UI_TEXT.promptLibrary })
+    expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map((item) => item.textContent),
+    ).toEqual([UI_TEXT.promptUseSaved])
+    fireEvent.keyDown(menu, { key: 'Escape' })
+    expect(screen.queryByRole('menu', { name: UI_TEXT.promptLibrary })).toBeNull()
+    expect(document.activeElement).toBe(textarea)
+  },
+)
+
+it('leaves VS Code right-click native and keeps its toolbar prompt menu', async () => {
+  document.body.dataset['nativeContextMenu'] = 'true'
+  try {
+    const { textarea } = renderComposer({ onUseSavedPrompt: vi.fn() })
+    expect(fireEvent.contextMenu(textarea)).toBe(true)
+    expect(screen.queryByRole('menu', { name: UI_TEXT.promptLibrary })).toBeNull()
+    openPromptMenu('toolbar', textarea)
+    expect(await screen.findByRole('menu', { name: UI_TEXT.promptLibrary })).toBeInTheDocument()
+  } finally {
+    delete document.body.dataset['nativeContextMenu']
+  }
+})
+
+it('keeps the browser clipboard menu reachable with Shift-right-click', async () => {
+  const { textarea } = renderComposer({ onUseSavedPrompt: vi.fn() })
+  openPromptMenu('context', textarea)
+  await screen.findByRole('menu', { name: UI_TEXT.promptLibrary })
+  expect(fireEvent.contextMenu(textarea, { shiftKey: true })).toBe(true)
+  expect(screen.queryByRole('menu', { name: UI_TEXT.promptLibrary })).toBeNull()
+})
+
+it('shows no prompt menu button when no prompt action is available', () => {
+  const { textarea } = renderComposer({ draft: 'Text' })
+  expect(screen.queryByRole('button', { name: UI_TEXT.promptLibrary })).toBeNull()
+  expect(fireEvent.contextMenu(textarea)).toBe(true)
+})
+
+it('returns focus to the input when the prompt button closes its menu', async () => {
+  const { textarea } = renderComposer({ draft: 'Text', onSavePrompt: vi.fn() })
+  const button = screen.getByRole('button', { name: UI_TEXT.promptLibrary })
+  fireEvent.click(button)
+  await screen.findByRole('menu', { name: UI_TEXT.promptLibrary })
+  expect(button).toHaveAttribute('aria-expanded', 'true')
+  fireEvent.click(button)
+  expect(screen.queryByRole('menu', { name: UI_TEXT.promptLibrary })).toBeNull()
+  expect(document.activeElement).toBe(textarea)
+})
+
+it('closes the attached slash list while the prompt menu is open', async () => {
+  const { props, view, textarea } = renderComposer({ onUseSavedPrompt: vi.fn() })
+  textarea.focus()
+  const typed = type(view, props, '/co')
+  expect(screen.getByRole('listbox', { name: 'Slash commands' })).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.promptLibrary }))
+  await screen.findByRole('menu', { name: UI_TEXT.promptLibrary })
+  expect(screen.queryByRole('listbox', { name: 'Slash commands' })).toBeNull()
+  expect(typed).not.toHaveAttribute('aria-controls')
+})
 
 function pasteOrDropFile(
   gesture: 'paste' | 'drop',

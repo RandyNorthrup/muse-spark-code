@@ -35,6 +35,7 @@ async function fixture() {
   let hasExited = false
   let isFailed = false
   const registry = await CreatedRegistry.open(path.join(root, 'registry.json'), () => now, {
+    directories: process.platform === 'linux' ? undefined : nativeCreated,
     files: nativeCreated,
     exited: () => Promise.resolve(hasExited),
     archivedAndClean: () => Promise.resolve(false),

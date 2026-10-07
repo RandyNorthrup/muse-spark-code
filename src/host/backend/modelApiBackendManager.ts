@@ -1,4 +1,7 @@
 import { Usd, type UsdAmount } from '../../shared/usd'
+import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
+import type { UsageRecording } from '../../core/usage/recording'
+import type { UsageBudgetRead } from '../../core/usage/usageService'
 // Owns the Model API host for this extension host (M7): one in-process
 // `ModelApiHost` over the real `fetch`, the stored key and the workspace's
 // files, with the MCP servers of Muse Code's settings (M50), which it starts
@@ -11,6 +14,7 @@ import { Usd, type UsdAmount } from '../../shared/usd'
 // other failure: the caller hears a sentence, the log gets the cause, and the
 // next call tries again.
 
+import type { ModelResolver } from '../../core/backends/modelapi/modelPolicy'
 import { createHash } from 'node:crypto'
 import type { EnvironmentFacts } from '../../core/backends/modelapi/instructions'
 import type { NetworkAdvice } from '../../core/networkFailure'
@@ -23,6 +27,7 @@ import type {
 import type { ResponseAttemptGuard, ModelApiClientDeps } from '../../core/backends/modelapi/client'
 import type { OwnedSessionBudgetScope } from '../../core/backends/modelapi/sessionBudget'
 import type { SessionStore } from '../../core/backends/modelapi/sessionStore'
+import type { LegalScanRunner } from '../../shared/legal'
 import type { ScheduleStore } from '../../shared/schedule'
 import type { ToolIo } from '../../core/backends/modelapi/tools'
 import type { VerifyHooks } from '../../core/backends/modelapi/verifyLoop'
@@ -60,8 +65,13 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly paidAuthority?: ModelApiClientDeps['paidAuthority']
   readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
   readonly judge?: ModelApiHostDeps['judge']
+  readonly createProviderClient?: ModelApiBundleDeps['createProviderClient']
+  readonly getProviderAccountId?: () => Promise<string | undefined>
   readonly log: Logger
   readonly getApiKey: () => Promise<string | undefined>
+  readonly getAccountId?: (() => Promise<string | undefined>) | undefined
+  readonly createProviders?: (() => Promise<ModelResolver>) | undefined
+  readonly hasMetaCredential?: (() => boolean) | undefined
   readonly workspaceRoot: string | undefined
   readonly io: ToolIo
   /** Existing file-listing adapter rooted in each actual attempt worktree. */
@@ -136,6 +146,7 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
     | ((workspaceRoot: string, newPool: McpPoolFactory) => McpToolSource | Promise<McpToolSource>)
     | undefined
   /** The extension's own IDE tools, offered in process (M50). */
+  readonly legalScan?: LegalScanRunner | undefined
   readonly ideTools?: readonly McpTool[] | undefined
   /** The window's web fetch, run in this bundle for the backend's `web_fetch` (M69). */
   readonly webFetch?: WebFetcher | undefined
@@ -194,11 +205,13 @@ interface HostVariant {
   readonly budgetScope?: OwnedSessionBudgetScope | undefined
   readonly admitResponseAttempt?: ResponseAttemptGuard | undefined
   readonly noteResponseUsage?: ((modelId: string, usage: SubagentUsage) => void) | undefined
+  readonly usageKind?: ModelApiHostDeps['usageKind']
   readonly workspaceRoot: string
   readonly store: SessionStore | undefined
   readonly scheduleStore: ScheduleStore | undefined
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
   readonly isPaidFeatureOn: ModelApiBackendManagerDeps['isPaidFeatureOn']
+  readonly legalScan: LegalScanRunner | undefined
   readonly ideTools: readonly McpTool[] | undefined
   readonly allowsPaidUse: ModelApiBackendManagerDeps['allowsPaidUse']
   readonly isPaidUseRemembered: ModelApiBackendManagerDeps['isPaidUseRemembered']
@@ -217,6 +230,8 @@ function describe(error: unknown): string {
 }
 
 export class ModelApiBackendManager {
+  /** Runtime/activation injects the same journal into every owned host. */
+  public static usageRecording: UsageRecording | undefined
   private host: ModelApiHost | undefined
   /**
    * The host being built (PLAN.md D25): every caller waits for the stored
@@ -282,8 +297,14 @@ export class ModelApiBackendManager {
   private async createHost(variant: HostVariant): Promise<ModelApiHost> {
     const bundle = this.loadBundle()
     const host = await bundle.createModelApiHost({
+      ...(this.deps.createProviders !== undefined && {
+        createProviders: this.deps.createProviders,
+      }),
       uiText: UI_TEXT,
       uiLocale: uiLocale(),
+      ...(this.deps.createProviderClient !== undefined && {
+        createProviderClient: this.deps.createProviderClient,
+      }),
       client: {
         ...(this.deps.paidAuthority !== undefined && { paidAuthority: this.deps.paidAuthority }),
         ...(this.deps.reservePaidRequest !== undefined && {
@@ -333,11 +354,18 @@ export class ModelApiBackendManager {
         store: variant.store,
         scheduleStore: variant.scheduleStore,
         getAccountId: async () => {
+          if (this.deps.getAccountId !== undefined) return await this.deps.getAccountId()
           const key = await this.deps.getApiKey()
-          return key === undefined ? undefined : createHash('sha256').update(key).digest('hex')
+          return key === undefined
+            ? await this.deps.getProviderAccountId?.()
+            : createHash('sha256').update(key).digest('hex')
         },
         admitResponseAttempt: variant.admitResponseAttempt,
         noteResponseUsage: variant.noteResponseUsage,
+        usageRecording: this.deps.usageRecording ?? ModelApiBackendManager.usageRecording,
+        hasExternalPaidRecording: this.deps.hasExternalPaidRecording,
+        usageKind: variant.usageKind,
+        hasMetaCredential: this.deps.hasMetaCredential,
         ...(variant.budgetScope !== undefined && { budgetScope: variant.budgetScope }),
         describeEnvironment: variant.describeEnvironment,
         isPaidFeatureOn: variant.isPaidFeatureOn,
@@ -373,6 +401,7 @@ export class ModelApiBackendManager {
           outputContinuation: this.deps.outputContinuation,
         }),
 
+        legalScan: variant.legalScan,
         ideTools: variant.ideTools,
         webFetch: variant.webFetch,
         browserCheck: variant.browserCheck,
@@ -426,6 +455,7 @@ export class ModelApiBackendManager {
       scheduleStore: this.deps.scheduleStore,
       describeEnvironment: this.deps.describeEnvironment,
       isPaidFeatureOn: this.deps.isPaidFeatureOn,
+      legalScan: this.deps.legalScan,
       ideTools: this.deps.ideTools,
       allowsPaidUse: this.deps.allowsPaidUse,
       isPaidUseRemembered: this.deps.isPaidUseRemembered,
@@ -457,6 +487,31 @@ export class ModelApiBackendManager {
    * could change the main checkout (the review of PR #89). Closed by the
    * run when the attempt settles.
    */
+  public streamLegalExplanation(
+    body: CreateResponseBody,
+    signal: AbortSignal,
+    guard: ResponseAttemptGuard,
+  ): AsyncIterable<StreamEvent> {
+    const stream = this.loadBundle().streamLegalExplanation
+    if (stream === undefined) throw new Error(UI_TEXT.legalExplainUnavailable)
+    return stream(
+      {
+        fetch: this.deps.fetch,
+        baseUrl: MODEL_API_BASE_URL,
+        apiKey: this.deps.getApiKey,
+        sleep: this.deps.sleep,
+        now: this.deps.now,
+        random: this.deps.random,
+        log: this.deps.log,
+      },
+      body,
+      signal,
+      guard,
+      UI_TEXT,
+      uiLocale(),
+    )
+  }
+
   public async buildAttemptHost(
     worktreeRoot: string,
     admitRequest: ResponseAttemptGuard,
@@ -491,6 +546,7 @@ export class ModelApiBackendManager {
           listFiles: (signal) => this.deps.listAttemptFiles(worktreeRoot, signal),
           runShell: () => Promise.resolve(unstartedShell(MODEL_TEXT.shellBestOfNAttempt)),
         },
+        usageKind: 'bestOfN',
         noteResponseUsage: (modelId, usage) => {
           if (generation === this.generation) noteUsage?.(modelId, usage)
         },
@@ -518,6 +574,7 @@ export class ModelApiBackendManager {
         scheduleStore: undefined,
         describeEnvironment: () => this.deps.describeAttemptEnvironment(worktreeRoot),
         isPaidFeatureOn: () => false,
+        legalScan: undefined,
         ideTools: undefined,
         allowsPaidUse: () => Promise.resolve(false),
         isPaidUseRemembered: () => false,
@@ -548,9 +605,15 @@ export class ModelApiBackendManager {
   }
 
   /** Hash-only identity, without starting the host or requiring a workspace. */
+  public readUsageBudgets(): Promise<UsageBudgetRead[]> {
+    return this.host?.readUsageBudgets() ?? Promise.resolve([])
+  }
+
   public async accountId(): Promise<string | undefined> {
     const key = await this.deps.getApiKey()
-    return key === undefined ? undefined : createHash('sha256').update(key).digest('hex')
+    return key === undefined
+      ? await this.deps.getProviderAccountId?.()
+      : createHash('sha256').update(key).digest('hex')
   }
 
   /** The host, created on first use with the stored sessions read. Rejects without a workspace. */

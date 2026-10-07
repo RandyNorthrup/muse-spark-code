@@ -1,6 +1,6 @@
 // M80 W (SPEC §7.5): the fake-only test package, packed for real and run for
 // real. A private package tree is built here (the production layout:
-// dist/acp.js with dist/uiText.js and dist/modelApi.js beside it, the two
+// dist/acp.js with uiText.js, validation.js and modelApi.js beside it, the two
 // schemas), scripts/package-acp-test.mjs packs it with the real
 // test/action/exec-test-launcher.ts, and the extracted bin then runs as the
 // Action's agent: the real run-exec.mjs entry drives exec (key over stdin)
@@ -21,6 +21,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
+import { brotliCompressSync } from 'node:zlib'
 import { build, type Plugin } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
@@ -170,8 +171,13 @@ async function packageTree(): Promise<void> {
     'exec-event-v1.schema.json',
     'exec-result-v2.schema.json',
     'exec-event-v2.schema.json',
+    'share-v1.schema.json',
   ])
     cpSync(path.join(ROOT, 'docs', 'schemas', schema), path.join(STAGE, 'schemas', schema))
+  writeFileSync(
+    path.join(dist, 'runtime.bundles.json.br'),
+    brotliCompressSync('{"version":1,"bundles":{}}'),
+  )
   writeFileSync(
     path.join(STAGE, 'package.json'),
     `${JSON.stringify({ name: 'muse-spark-code-acp', version: VERSION, bin: { 'muse-spark-code-acp': 'dist/acp.js' } }, null, 2)}\n`,
@@ -275,6 +281,7 @@ describe('M80 W fake-only test package', { timeout: TIMEOUT }, () => {
       'exec-event-v2.schema.json',
       'exec-result-v1.schema.json',
       'exec-result-v2.schema.json',
+      'share-v1.schema.json',
     ])
     expect(readFileSync(path.join(STAGE, 'package.json'), 'utf8')).not.toContain('exec-test')
     expect(readFileSync(LAUNCHER, 'utf8')).toContain('w-report-')

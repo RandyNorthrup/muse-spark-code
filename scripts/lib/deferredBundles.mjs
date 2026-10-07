@@ -3,11 +3,22 @@
 import path from 'node:path'
 
 export const BUNDLES = {
+  providers: { output: 'dist/providers.js', metafile: 'dist/meta/providers.json' },
+  subscriptions: { output: 'dist/subscriptions.js', metafile: 'dist/meta/subscriptions.json' },
+  configured: {
+    output: 'dist/configuredProviders.js',
+    metafile: 'dist/meta/configuredProviders.json',
+  },
   activation: { output: 'dist/extension.js', metafile: 'dist/meta/extension.json' },
   modelApi: { output: 'dist/modelApi.js', metafile: 'dist/meta/modelApi.json' },
   acp: { output: 'dist/acp.js', metafile: 'dist/meta-acp/acp.json' },
-  providers: { output: 'dist/providers.js', metafile: 'dist/meta/providers.json' },
 }
+export const SUBSCRIPTION_ONLY = [
+  'src/core/providers/subscriptions/chatgpt.ts',
+  'src/core/providers/subscriptions/registry.ts',
+]
+export const CONFIGURED_TRANSPORT_ONLY = ['authSource.ts', 'providerClient.ts']
+export const SHARED_TRANSPORT_ONLY = ['transport.ts', 'sse.ts', 'ndjson.ts']
 const MODEL_API_DIR = 'src/core/backends/modelapi'
 export const MODEL_API_OPTIONAL_ONLY = [
   'codeIntelEntry.ts',
@@ -35,7 +46,7 @@ export const FOREIGN_HOOKS_ONLY = [
   'hookFormats/contracts/vscode.ts',
   'hookFormats/contracts/windsurf.ts',
 ]
-export const HOOK_RUNTIME_ONLY = ['hookRuntimeEntry.ts']
+export const HOOK_RUNTIME_ONLY = ['hookRuntimeEntry.ts', 'hookHandlers.ts']
 
 export const PLUGIN_HOOKS_ONLY = [
   'pluginHooksEntry.ts',
@@ -52,7 +63,7 @@ export const DEFERRED = [
   {
     output: 'dist/exec.js',
     metafile: 'dist/meta-acp/exec.json',
-    files: ['src/runtime/exec/execEntry.ts', 'src/runtime/exec/runExec.ts'],
+    files: ['src/runtime/exec/execEntry.ts'],
   },
   {
     output: 'dist/modelApiCodeIntel.js',
@@ -68,6 +79,108 @@ export const DEFERRED = [
     files: ['src/shared/structuredSchemaEntry.ts'],
   },
 
+  {
+    output: 'dist/runtimeEngine.js',
+    metafile: 'dist/meta/runtimeEngine.json',
+    files: ['src/runtime/runtimeEngineEntry.ts'],
+  },
+  {
+    output: 'dist/providerPolicy.js',
+    metafile: 'dist/meta/providerPolicy.json',
+    files: ['src/host/backend/providerPolicyEntry.ts'],
+  },
+  {
+    output: 'dist/runtimeAccounting.js',
+    metafile: 'dist/meta/runtimeAccounting.json',
+    files: ['src/runtime/runtimeAccountingEntry.ts'],
+  },
+  {
+    output: 'dist/modelApiHooks.js',
+    metafile: 'dist/meta/modelApiHooks.json',
+    files: ['src/core/backends/modelapi/modelApiHooksEntry.ts'],
+  },
+  {
+    output: 'dist/modelApiMcp.js',
+    metafile: 'dist/meta/modelApiMcp.json',
+    files: [
+      'src/core/backends/modelapi/modelApiMcpEntry.ts',
+      'src/core/backends/modelapi/mcp/pool.ts',
+      'src/core/backends/modelapi/mcp/connection.ts',
+      'src/core/backends/modelapi/mcp/http.ts',
+      'src/core/backends/modelapi/mcp/stdio.ts',
+      'src/core/backends/modelapi/mcp/servers.ts',
+    ],
+  },
+  {
+    output: 'dist/modelApiBoundaries.js',
+    metafile: 'dist/meta/modelApiBoundaries.json',
+    files: [
+      'src/shared/modelApiBoundariesEntry.ts',
+      'src/core/backends/modelapi/schemas.ts',
+      'src/shared/teamConversation.ts',
+      'src/shared/paidBoundary.ts',
+      'src/shared/usd.ts',
+      'src/shared/legal.ts',
+      'src/core/backends/modelapi/legalScanTool.ts',
+    ],
+  },
+  {
+    output: 'dist/teamScheduler.js',
+    metafile: 'dist/meta/teamScheduler.json',
+    files: [
+      'src/core/team/teamSchedulerEntry.ts',
+      'src/core/team/scheduler/board.ts',
+      'src/core/team/scheduler/slots.ts',
+      'src/core/team/teamPool.ts',
+    ],
+  },
+  {
+    output: 'dist/teamRunners.js',
+    metafile: 'dist/meta/teamRunners.json',
+    files: [
+      'src/host/runners/teamRunnersEntry.ts',
+      'src/host/runners/sshRunner.ts',
+      'src/host/team/checkSlots.ts',
+      'src/host/modelsPanelTraffic.ts',
+    ],
+  },
+  {
+    output: 'dist/team.js',
+    metafile: 'dist/meta/team.json',
+    files: ['src/core/team/teamEntry.ts', 'src/core/team/teamTools.ts', 'src/core/team/roster.ts'],
+  },
+
+  {
+    output: 'dist/headless.js',
+    metafile: 'dist/meta-acp/headless.json',
+    files: ['src/runtime/exec/runExec.ts'],
+  },
+  {
+    output: 'dist/usageService.js',
+    metafile: 'dist/meta/usageService.json',
+    files: [
+      'src/runtime/usage/usageServiceEntry.ts',
+      'src/runtime/usage/usageAcp.ts',
+      'src/core/usage/usageService.ts',
+      'src/core/usage/journalStore.ts',
+      'src/core/usage/aggregate.ts',
+      'src/core/usage/usageText.ts',
+    ],
+  },
+  {
+    output: 'dist/usageCompanion.js',
+    metafile: 'dist/meta/usageCompanion.json',
+    files: ['src/runtime/usage/usageCompanionEntry.ts', 'src/runtime/companion/server.ts'],
+  },
+  {
+    output: 'dist/usagePanel.js',
+    metafile: 'dist/meta/usagePanel.json',
+    files: [
+      'src/host/usage/usagePanelEntry.ts',
+      'src/host/usage/usagePanel.ts',
+      'src/host/paid/paidDailyBudget.ts',
+    ],
+  },
   {
     output: 'dist/reference.js',
     metafile: 'dist/meta/reference.json',
@@ -131,6 +244,36 @@ export const ON_FIRST_USE = [
       'src/runtime/resources/entry.ts',
       'src/runtime/resources/host.ts',
       'src/runtime/resources/settings.ts',
+    ],
+  },
+  {
+    output: 'dist/legalScan.js',
+    metafile: 'dist/meta/legalScan.json',
+    use: 'the first legal scan',
+    files: [
+      'src/core/legal/compat.ts',
+      'src/core/legal/data.ts',
+      'src/core/legal/depLicenses.ts',
+      'src/core/legal/dependencies.ts',
+      'src/core/legal/distribution.ts',
+      'src/core/legal/ecosystems/cargo.ts',
+      'src/core/legal/ecosystems/composer.ts',
+      'src/core/legal/ecosystems/gems.ts',
+      'src/core/legal/ecosystems/go.ts',
+      'src/core/legal/ecosystems/jvm.ts',
+      'src/core/legal/ecosystems/npm.ts',
+      'src/core/legal/ecosystems/nuget.ts',
+      'src/core/legal/ecosystems/python.ts',
+      'src/core/legal/ecosystems/toml.ts',
+      'src/core/legal/entry.ts',
+      'src/core/legal/files.ts',
+      'src/core/legal/headerFix.ts',
+      'src/core/legal/headers.ts',
+      'src/core/legal/markdown.ts',
+      'src/core/legal/projectLicense.ts',
+      'src/core/legal/scan.ts',
+      'src/core/legal/spdx.ts',
+      'src/core/legal/workspace.ts',
     ],
   },
   {
@@ -313,6 +456,28 @@ export const ON_FIRST_USE = [
 /** The same parent exclusions and destination requirements used by the CLI. */
 export function checkDeferredBundles(inputsOf) {
   const problems = []
+  for (const [names, owner] of [
+    [CONFIGURED_TRANSPORT_ONLY, BUNDLES.configured],
+    [SHARED_TRANSPORT_ONLY, BUNDLES.modelApi],
+  ]) {
+    for (const name of names) {
+      const source = `${MODEL_API_DIR}/${name}`
+      if (!inputsOf(owner).has(source)) problems.push(`${owner.output} no longer carries ${source}`)
+      for (const parent of Object.values(BUNDLES)) {
+        if (parent === owner) continue
+        if (inputsOf(parent).has(source))
+          problems.push(`${parent.output} carries ${source}, which loads only in ${owner.output}`)
+      }
+    }
+  }
+  if (!inputsOf(BUNDLES.configured).has('src/core/providers/configured.ts'))
+    problems.push('dist/configuredProviders.js no longer carries src/core/providers/configured.ts')
+  for (const source of SUBSCRIPTION_ONLY) {
+    if (!inputsOf(BUNDLES.subscriptions).has(source))
+      problems.push(`dist/subscriptions.js no longer carries ${source}`)
+    if (inputsOf(BUNDLES.providers).has(source))
+      problems.push(`dist/providers.js carries ${source}, which loads only on subscription use`)
+  }
   for (const bundle of [...DEFERRED, ...ON_FIRST_USE]) {
     const inputs = inputsOf(bundle)
     const parents =
@@ -359,33 +524,44 @@ export function checkDeferredBundles(inputsOf) {
         `${BUNDLES.acp.output} carries ${file}, which loads only from the recorder bundle`,
       )
   }
+  const providerSources = ['anthropic', 'chat', 'gemini', 'ollama', 'responses'].map(
+    (name) => `${MODEL_API_DIR}/codecs/${name}.ts`,
+  )
+  for (const source of providerSources) {
+    if (!inputsOf(BUNDLES.providers).has(source))
+      problems.push(`dist/providers.js no longer carries ${source}`)
+  }
+  for (const bundle of [
+    ...Object.values(BUNDLES),
+    ...DEFERRED,
+    ...ON_FIRST_USE,
+    { output: 'dist/modelsPanel.js', metafile: 'dist/meta/modelsPanel.json' },
+    { output: 'dist/pageWorker.js', metafile: 'dist/meta/pageWorker.json' },
+  ]) {
+    if (bundle === BUNDLES.providers) continue
+    for (const source of inputsOf(bundle).keys()) {
+      if (
+        (source.startsWith(`${MODEL_API_DIR}/codecs/`) ||
+          source.startsWith('src/core/providers/')) &&
+        !(bundle === BUNDLES.subscriptions && SUBSCRIPTION_ONLY.includes(source)) &&
+        !(source === 'src/core/providers/configured.ts' && bundle === BUNDLES.configured) &&
+        !(
+          bundle.output === 'dist/providerPolicy.js' &&
+          ['credentialRecord.ts', 'modelRef.ts', 'endpointPolicy.ts'].some(
+            (file) => source === `src/core/providers/${file}`,
+          )
+        ) &&
+        !(source === 'src/core/providers/priceCard.ts' && bundle.output === 'dist/usageService.js')
+      )
+        problems.push(`${bundle.output} carries ${source}, which loads only in dist/providers.js`)
+    }
+  }
   const wire = { output: 'dist/wire.js', metafile: 'dist/meta/wire.json' }
   for (const file of ['src/shared/protocol.ts', 'src/shared/agentEvents.ts']) {
     if (!inputsOf(wire).has(file)) problems.push(`${wire.output} no longer carries ${file}`)
     for (const bundle of [...Object.values(BUNDLES), ...DEFERRED, ...ON_FIRST_USE]) {
       if (inputsOf(bundle).has(file))
         problems.push(`${bundle.output} duplicates shared wire schemas in ${file}`)
-    }
-  }
-  // M95 remains isolated in the combined release graph; drills use these same checks.
-  const providerFiles = ['anthropic', 'chat', 'gemini', 'ollama', 'responses'].map(
-    (name) => `${MODEL_API_DIR}/codecs/${name}.ts`,
-  )
-  const providers = inputsOf(BUNDLES.providers)
-  for (const file of providerFiles) {
-    if (!providers.has(file)) problems.push(`${BUNDLES.providers.output} no longer carries ${file}`)
-  }
-  for (const bundle of [
-    ...Object.values(BUNDLES).filter((entry) => entry !== BUNDLES.providers),
-    ...DEFERRED,
-    ...ON_FIRST_USE,
-    { output: 'dist/modelsPanel.js', metafile: 'dist/meta/modelsPanel.json' },
-    { output: 'dist/pageWorker.js', metafile: 'dist/meta/pageWorker.json' },
-  ]) {
-    for (const file of inputsOf(bundle).keys()) {
-      if (file.startsWith(`${MODEL_API_DIR}/codecs/`) || file.startsWith('src/core/providers/')) {
-        problems.push(`${bundle.output} carries ${file}, which loads only in dist/providers.js`)
-      }
     }
   }
   const imageWorker = {
@@ -478,6 +654,17 @@ export const sharedValidation = {
 /** @type {import('esbuild').Plugin} */
 const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/resources/resourceGovernorEntry.ts'), 'dist/resourceGovernor.js'],
+  [path.resolve('src/runtime/runtimeEngineEntry.ts'), 'dist/runtimeEngine.js'],
+  [path.resolve('src/host/backend/providerPolicyEntry.ts'), 'dist/providerPolicy.js'],
+  [path.resolve('src/runtime/runtimeAccountingEntry.ts'), 'dist/runtimeAccounting.js'],
+  [path.resolve('src/core/backends/modelapi/modelApiHooksEntry.ts'), 'dist/modelApiHooks.js'],
+  [path.resolve('src/core/backends/modelapi/modelApiMcpEntry.ts'), 'dist/modelApiMcp.js'],
+  [path.resolve('src/runtime/exec/runExec.ts'), 'dist/headless.js'],
+  [path.resolve('src/runtime/usage/usageAcp.ts'), 'dist/usageService.js'],
+  [path.resolve('src/host/backend/providersEntry.ts'), 'dist/providers.js'],
+  [path.resolve('src/host/backend/subscriptionsEntry.ts'), 'dist/subscriptions.js'],
+  [path.resolve('src/host/backend/configuredProvidersEntry.ts'), 'dist/configuredProviders.js'],
+  [path.resolve('src/runtime/chatGptProviderCommands.ts'), 'dist/subscriptions.js'],
   [path.resolve('src/core/questions/deferralEntry.ts'), 'dist/questionNotes.js'],
   [path.resolve('src/core/backends/modelapi/mcpPoolEntry.ts'), 'dist/mcpPool.js'],
   [path.resolve('src/runtime/exec/execEntry.ts'), 'dist/exec.js'],
@@ -485,6 +672,9 @@ const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
   [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],
+  [path.resolve('src/core/team/teamEntry.ts'), 'dist/team.js'],
+  [path.resolve('src/core/team/teamSchedulerEntry.ts'), 'dist/teamScheduler.js'],
+  [path.resolve('src/host/runners/teamRunnersEntry.ts'), 'dist/teamRunners.js'],
   [path.resolve('src/core/backends/modelapi/reviewerEntry.ts'), 'dist/reviewer.js'],
   [path.resolve('src/core/backends/modelapi/foreignHooksEntry.ts'), 'dist/foreignHooks.js'],
   [path.resolve('src/core/backends/modelapi/hookRuntimeEntry.ts'), 'dist/hookRuntime.js'],
@@ -495,13 +685,32 @@ const DEFERRED_OUTFILES = new Map([
 export const deferredCohort = {
   name: 'deferred-cohort',
   setup(build) {
+    // The shared request/framing implementations stay in the existing backend
+    // bundle; providers and ACP require its exported API only when used.
+    build.onResolve({ filter: /\/(?:transport|sse|ndjson|modelApiEntry)(?:\.ts)?$/ }, (args) => {
+      if (args.kind === 'entry-point') return
+      const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
+      if (
+        (['transport.ts', 'sse.ts', 'ndjson.ts'].every(
+          (name) => source !== path.resolve(`src/core/backends/modelapi/${name}`),
+        ) &&
+          source !== path.resolve('src/host/backend/modelApiEntry.ts')) ||
+        path.resolve(build.initialOptions.outfile ?? '') === path.resolve('dist/modelApi.js')
+      )
+        return
+      return { path: './modelApi.js', external: true }
+    })
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands)(?:\.[jt]s)?$/,
       },
       (args) => {
-        if (args.kind !== 'dynamic-import') return
+        if (
+          args.kind !== 'dynamic-import' &&
+          !/(?:providerPolicyEntry|providersEntry|subscriptionsEntry|runExec)$/.test(args.path)
+        )
+          return
         const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
         const output = DEFERRED_OUTFILES.get(source)
         return output === undefined
@@ -548,5 +757,33 @@ export const sharedStructuredSchema = {
       path: './structuredSchema.js',
       external: true,
     }))
+  },
+}
+
+// Share captured Model API validators and pure team admission across Node
+// consumers; browser validators retain their original inline implementation.
+/** @type {import('esbuild').Plugin} */
+export const sharedModelApiBoundaries = {
+  name: 'shared-model-api-boundaries',
+  setup(build) {
+    build.onResolve(
+      {
+        filter: /\/(?:schemas|teamConversation|paidBoundary|usd|legal|legalScanTool)(?:\.[jt]s)?$/,
+      },
+      (args) => {
+        const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+        return [
+          'src/core/backends/modelapi/schemas.ts',
+          'src/shared/teamConversation.ts',
+          'src/shared/paidBoundary.ts',
+          'src/shared/usd.ts',
+          'src/shared/usd.ts',
+          'src/shared/legal.ts',
+          'src/core/backends/modelapi/legalScanTool.ts',
+        ].some((file) => source === path.resolve(file))
+          ? { path: './modelApiBoundaries.js', external: true }
+          : undefined
+      },
+    )
   },
 }

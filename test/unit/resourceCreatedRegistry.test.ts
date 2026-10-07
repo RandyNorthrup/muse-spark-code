@@ -13,8 +13,8 @@ import {
 } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { describe, expect, it, vi } from 'vitest'
-import { nativeCreated, useCreatedNative } from './helpers/createdNative'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { compileCreatedVariant, nativeCreated, useCreatedNative } from './helpers/createdNative'
 import { CreatedRegistry } from '../../src/core/resources/createdRegistry'
 import { TreeTempRoots } from '../../src/host/resources/tempRoots'
 import { fileIdentityKey, lstatIdentity } from '../../src/core/fs/fileIdentity'
@@ -23,6 +23,15 @@ import { RESOURCE_TEMP_KEEP_MS, RESOURCE_TEMP_MARKER } from '../../src/shared/co
 useCreatedNative()
 
 vi.mock('node:fs/promises', { spy: true })
+const nativeVariants: {
+  race?: (args: readonly string[]) => Promise<string>
+  device?: (args: readonly string[]) => Promise<string>
+} = {}
+beforeAll(async () => {
+  if (process.platform !== 'darwin') return
+  nativeVariants.race = await compileCreatedVariant('test/unit/helpers/createdNativeRace.c')
+  nativeVariants.device = await compileCreatedVariant('test/unit/helpers/createdNativeDevice.c')
+})
 
 async function fixture() {
   const base = path.join(process.cwd(), 'temp')
@@ -33,6 +42,7 @@ async function fixture() {
   let isArchivedAndClean = false
   let available = 100
   const proof = {
+    directories: process.platform === 'linux' ? undefined : vi.fn(nativeCreated),
     files: vi.fn(nativeCreated),
     createdByTree: vi.fn(() => Promise.resolve(true)),
     exited: vi.fn(() => Promise.resolve(hasExited)),
@@ -67,6 +77,132 @@ async function fixture() {
       available = bytes
     },
     cleanup: () => rm(root, { recursive: true, force: true }),
+  }
+}
+
+/** Same protections through Darwin's real native syscall lane, rather than Node-only spies. */
+async function nativeInterleaving(site: string): Promise<void> {
+  const h = await fixture()
+  try {
+    const directories = h.proof.directories
+    if (
+      directories === undefined ||
+      nativeVariants.race === undefined ||
+      nativeVariants.device === undefined
+    )
+      throw new Error('Native interleaving fixture is not prepared')
+    const personal = path.join(h.root, 'personal')
+    await mkdir(personal, { mode: 0o700 })
+    const isCreateReplacement = site.startsWith('create')
+    if (isCreateReplacement || site === 'owner') {
+      if (isCreateReplacement) {
+        if (site === 'create') await writeFile(path.join(personal, 'keep'), 'personal')
+        await rename(personal, path.join(h.registry.base, 'personal'))
+        await writeFile(path.join(h.registry.base, '.race-create'), '')
+        // A pre-existing inode must precede the native mkdir clock.
+        await new Promise((resolve) => setTimeout(resolve, 20))
+      } else await writeFile(path.join(h.registry.base, '.race-owner'), '')
+      directories.mockImplementation(nativeVariants.race)
+      await expect(h.registry.createTemp('tree')).rejects.toThrow('helper refused')
+      const createdNames = await readdir(h.registry.base)
+      const names = createdNames.filter((name) => name.startsWith('muse-tree-'))
+      expect(names).toHaveLength(1)
+      expect(await readdir(path.join(h.registry.base, names[0]!))).toEqual(
+        site === 'create' ? ['keep'] : [],
+      )
+      if (site === 'create')
+        expect(await readFile(path.join(h.registry.base, names[0]!, 'keep'), 'utf8')).toBe(
+          'personal',
+        )
+      h.exit()
+      expect(await h.registry.clean()).toMatchObject({ removed: 0, refused: [expect.any(String)] })
+      return
+    }
+    const temp = await h.retiredTemp()
+    const id = directories.mock.calls.find(
+      ([args]) => args[0] === 'create' && args[3] === path.basename(temp.root),
+    )?.[0][4]
+    if (id === undefined) throw new Error('Missing captured creation identity')
+    const saved = path.join(h.root, 'saved')
+    if (site === 'source' || site === 'base') {
+      await writeFile(path.join(personal, 'keep'), 'personal')
+      directories.mockImplementation(async (args) => {
+        if (site === 'source') {
+          await rename(temp.root, saved)
+          await rename(personal, temp.root)
+        } else {
+          const replacement = path.join(personal, path.basename(temp.root))
+          await mkdir(replacement)
+          await writeFile(path.join(replacement, 'keep'), 'personal')
+          await rename(h.registry.base, saved)
+          await rename(personal, h.registry.base)
+        }
+        return await nativeCreated(args)
+      })
+      await expect(h.registry.remove(temp.root)).rejects.toThrow('helper refused')
+      expect(await readFile(path.join(temp.root, 'keep'), 'utf8')).toBe('personal')
+      const original = site === 'source' ? saved : path.join(saved, path.basename(temp.root))
+      expect(await readdir(original)).toContain(RESOURCE_TEMP_MARKER)
+      return
+    }
+    const trash = path.join(h.registry.base, `.muse-trash-${id}`)
+    if (site === 'device') {
+      await mkdir(path.join(temp.root, 'mounted'))
+      await writeFile(path.join(temp.root, 'mounted', 'keep'), 'mounted personal')
+      directories.mockImplementation(nativeVariants.device)
+      await expect(h.registry.remove(temp.root)).rejects.toThrow('helper refused')
+      expect(await readFile(path.join(trash, 'mounted', 'keep'), 'utf8')).toBe('mounted personal')
+      return
+    }
+    if (site === 'final') {
+      for (const isPopulated of [false, true]) {
+        const created = isPopulated ? await h.retiredTemp() : temp
+        await writeFile(path.join(h.registry.base, '.race-final'), '')
+        if (isPopulated) await writeFile(path.join(h.registry.base, '.race-final-populated'), '')
+        directories.mockImplementation(nativeVariants.race)
+        if (isPopulated)
+          await expect(h.registry.remove(created.root)).rejects.toThrow('helper refused')
+        else expect(await h.registry.remove(created.root)).toBe(true)
+        const createdId = directories.mock.calls.find(
+          ([args]) => args[0] === 'create' && args[3] === path.basename(created.root),
+        )?.[0][4]
+        expect(createdId).toBeDefined()
+        const replacement = path.join(h.registry.base, `.muse-trash-${String(createdId)}`)
+        if (isPopulated)
+          expect(await readFile(path.join(replacement, 'keep'), 'utf8')).toBe('personal')
+        else await expect(readdir(replacement)).rejects.toMatchObject({ code: 'ENOENT' })
+        expect(await readdir(path.join(h.registry.base, 'saved-final'))).toEqual([])
+        await rm(path.join(h.registry.base, 'saved-final'), { recursive: true })
+        directories.mockImplementation(nativeCreated)
+      }
+      return
+    }
+    const isNested = site.startsWith('nested')
+    const isPopulated = site.endsWith('personal')
+    if (isNested) await mkdir(path.join(temp.root, 'nested'), { mode: 0o700 })
+    const treeMarker = isNested ? 'nested' : 'root'
+    const marker = site === 'quarantine' ? 'rename' : treeMarker
+    await writeFile(path.join(h.registry.base, `.race-${marker}`), '')
+    if (isPopulated || site === 'restore')
+      await writeFile(path.join(h.registry.base, `.race-${site}`), '')
+    directories.mockImplementation(nativeVariants.race)
+    await expect(h.registry.remove(temp.root)).rejects.toThrow('helper refused')
+    if (isNested) {
+      expect(await readdir(path.join(trash, 'nested'))).toEqual(isPopulated ? ['keep'] : [])
+      if (isPopulated)
+        expect(await readFile(path.join(trash, 'nested', 'keep'), 'utf8')).toBe('personal')
+      expect(await readdir(path.join(trash, 'saved-nested'))).toEqual([])
+    } else {
+      expect(await readdir(trash)).toEqual(isPopulated ? ['keep'] : [])
+      if (isPopulated) expect(await readFile(path.join(trash, 'keep'), 'utf8')).toBe('personal')
+      if (site === 'quarantine') expect(await readdir(temp.root)).toContain(RESOURCE_TEMP_MARKER)
+      else expect(await readdir(path.join(h.registry.base, 'saved-root'))).toEqual([])
+      if (site === 'restore')
+        expect(await readFile(path.join(temp.root, 'keep'), 'utf8')).toBe('personal')
+    }
+    expect(await h.registry.clean()).toMatchObject({ removed: 0, refused: [id] })
+  } finally {
+    await h.cleanup()
   }
 }
 
@@ -178,7 +314,9 @@ describe('D87.14 creation registry and tree temp roots', () => {
       await h.registry.finish('owner', false)
       await rename(created, original)
       await mkdir(created)
-      await expect(h.registry.remove(created)).rejects.toThrow('identity changed')
+      await expect(h.registry.remove(created)).rejects.toThrow(
+        process.platform === 'darwin' ? 'helper refused' : 'identity changed',
+      )
       await rm(created, { recursive: true })
       await symlink(outsider, created, 'junction')
       expect(await h.registry.remove(created)).toBe(false)
@@ -418,6 +556,10 @@ describe('D87.14 creation registry and tree temp roots', () => {
     }
   })
   it('quarantines and rechecks a concurrent root swap without deleting the personal directory', async () => {
+    if (process.platform === 'darwin') {
+      await nativeInterleaving('source')
+      return
+    }
     const h = await fixture()
     try {
       const temp = await new TreeTempRoots(h.registry.base, h.registry).create('tree')
@@ -444,6 +586,10 @@ describe('D87.14 creation registry and tree temp roots', () => {
     }
   })
   it('pins the base and protects a personal directory when an ancestor is swapped after realpath', async () => {
+    if (process.platform === 'darwin') {
+      await nativeInterleaving('base')
+      return
+    }
     const h = await fixture()
     try {
       const moved = path.join(h.root, 'saved-base')
@@ -538,7 +684,9 @@ describe('D87.14 creation registry and tree temp roots', () => {
       if (typeof id !== 'string') throw new Error('Missing creation id')
       const trash = path.join(h.registry.base, `.muse-trash-${id}`)
       await mkdir(trash)
-      await expect(h.registry.remove(temp.root)).rejects.toThrow('quarantine already exists')
+      await expect(h.registry.remove(temp.root)).rejects.toThrow(
+        process.platform === 'darwin' ? 'helper refused' : 'quarantine already exists',
+      )
       expect(await readdir(trash)).toEqual([])
       expect(await readdir(temp.root)).toContain(RESOURCE_TEMP_MARKER)
     } finally {
@@ -598,6 +746,10 @@ describe('D87.14 creation registry and tree temp roots', () => {
     }
   })
   it('keeps a personal trash replacement swapped after the marker check during base verification', async () => {
+    if (process.platform === 'darwin') {
+      await nativeInterleaving('root-personal')
+      return
+    }
     const h = await fixture()
     try {
       const temp = await h.retiredTemp()
@@ -671,6 +823,10 @@ describe('D87.14 creation registry and tree temp roots', () => {
     }
   })
   it('refuses a populated replacement between mkdir and open without stamping or recording its identity', async () => {
+    if (process.platform === 'darwin') {
+      await nativeInterleaving('create')
+      return
+    }
     const h = await fixture()
     try {
       const personal = path.join(h.root, 'personal')
@@ -702,6 +858,10 @@ describe('D87.14 creation registry and tree temp roots', () => {
     }
   })
   it('refuses a different-device subdirectory without descending into it', async () => {
+    if (process.platform === 'darwin') {
+      await nativeInterleaving('device')
+      return
+    }
     const h = await fixture()
     try {
       const temp = await h.retiredTemp()
@@ -765,6 +925,10 @@ describe('D87.14 creation registry and tree temp roots', () => {
     }
   })
   it('requires current-user ownership of the directory opened immediately after mkdir', async () => {
+    if (process.platform === 'darwin') {
+      await nativeInterleaving('owner')
+      return
+    }
     const h = await fixture()
     try {
       const intercept = vi.spyOn(fs, 'open').mockImplementation(async (file, flags, mode) => {
@@ -792,6 +956,10 @@ describe('D87.14 creation registry and tree temp roots', () => {
     }
   })
   it('holds a checked nested directory when its name is replaced before empty-only rmdir', async () => {
+    if (process.platform === 'darwin') {
+      await nativeInterleaving('nested-personal')
+      return
+    }
     const h = await fixture()
     try {
       const temp = await h.retiredTemp()
@@ -844,6 +1012,10 @@ describe('D87.14 creation registry and tree temp roots', () => {
     }
   })
   it('refuses a same-device bind mount using the held directory mount ID', async () => {
+    if (process.platform === 'darwin') {
+      await nativeInterleaving('device')
+      return
+    }
     const h = await fixture()
     try {
       const temp = await h.retiredTemp()
@@ -873,6 +1045,10 @@ describe('D87.14 creation registry and tree temp roots', () => {
   it.each(['quarantine', 'nested'])(
     'keeps an empty %s replacement during the walk',
     async (site) => {
+      if (process.platform === 'darwin') {
+        await nativeInterleaving(site === 'nested' ? 'nested' : 'root')
+        return
+      }
       const h = await fixture()
       try {
         const temp = await h.retiredTemp()
@@ -909,6 +1085,10 @@ describe('D87.14 creation registry and tree temp roots', () => {
     },
   )
   it.each(['quarantine', 'restore'])('never overwrites a raced %s destination', async (phase) => {
+    if (process.platform === 'darwin') {
+      await nativeInterleaving(phase === 'restore' ? 'restore' : 'quarantine')
+      return
+    }
     const h = await fixture()
     try {
       const temp = await h.retiredTemp()
@@ -981,6 +1161,10 @@ describe('D87.14 creation registry and tree temp roots', () => {
     }
   })
   it('refuses an empty replacement after native mkdir before Node opens or stamps it', async () => {
+    if (process.platform === 'darwin') {
+      await nativeInterleaving('create-empty')
+      return
+    }
     const h = await fixture()
     try {
       const personal = path.join(h.root, 'personal')
@@ -1006,6 +1190,10 @@ describe('D87.14 creation registry and tree temp roots', () => {
     }
   })
   it('documents the final empty-name window while nonempty substitutions keep all file content', async () => {
+    if (process.platform === 'darwin') {
+      await nativeInterleaving('final')
+      return
+    }
     for (const isPopulated of [false, true]) {
       const h = await fixture()
       try {

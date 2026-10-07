@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { EventEmitter } from 'node:events'
 import {
   lstatSync,
@@ -18,6 +19,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { LaunchResolution } from '../../src/core/backends/musecode/launch'
 import { authClear, authSet, authStatus, login } from '../../src/runtime/authCommands'
 import { createRuntimeBackend, type ExecRuntimeOptions } from '../../src/runtime/backends'
+import type { UsageRecording } from '../../src/core/usage/recording'
 import { WorkspaceEdits } from '../../src/core/verify/workspaceEdits'
 import { VerifyLedger } from '../../src/core/backends/modelapi/verifyLedger'
 import { isSamePath } from '../../src/core/paths'
@@ -575,19 +577,19 @@ describe('createRuntimeBackend', () => {
     env: NodeJS.ProcessEnv = {},
     distDir = dist.folder,
     fetch: typeof globalThis.fetch = fakeModelApi().fetch,
-    exec?: ExecRuntimeOptions,
+    exec?: ExecRuntimeOptions | UsageRecording,
+    homeDir = folder(),
   ) {
     return createRuntimeBackend({
       options: { ...DEFAULTS, ...options },
-      ...(exec !== undefined && { exec }),
+      ...(exec !== undefined && ('note' in exec ? { usageRecording: exec } : { exec })),
       version: '0.0.0-test',
       distDir,
       platform: process.platform,
       env,
-      homeDir: folder(),
+      homeDir,
       secrets,
       runGit: () => Promise.reject(new Error('no git')),
-      museCodeCredentials: [],
       fetch,
       sleep: () => Promise.resolve(),
       log,
@@ -648,6 +650,9 @@ describe('createRuntimeBackend', () => {
         await session.sendTurn([{ type: 'text', text: 'Read big.txt and find the literal' }])
         await turnDone()
         expect(JSON.stringify(api.responseBodies()[0]?.['tools'])).toContain(
+          MODEL_API_TOOLS.recallOutput,
+        )
+        expect(JSON.stringify(api.responseBodies()[3]?.['tools'])).toContain(
           MODEL_API_TOOLS.recallOutput,
         )
         const original = responseOutputsByCall(api, 1).get('read')
@@ -928,7 +933,6 @@ describe('createRuntimeBackend', () => {
         homeDir: home,
         secrets: memorySecrets(),
         runGit: () => Promise.reject(new Error('no git')),
-        museCodeCredentials: [],
         fetch: fakeModelApi().fetch,
         sleep: () => Promise.resolve(),
         log,
@@ -940,6 +944,115 @@ describe('createRuntimeBackend', () => {
     expect(grants.read(workspace)).toEqual(new Set())
   })
 
+  it('refuses an ACP model request after headless has reserved the shared daily budget', async () => {
+    const home = folder()
+    const env = { LOCALAPPDATA: home, XDG_DATA_HOME: home }
+    const data = agentDataFolder({ platform: process.platform, env, homeDir: home })
+    mkdirSync(data, { recursive: true })
+    writeFileSync(path.join(data, 'settings.json'), '{"paidDailyBudgetUsd":1}')
+    const { createRuntimeDailyBudget } = await import('../../src/runtime/runtimeAccountingEntry')
+    const daily = createRuntimeDailyBudget({
+      dataFolder: data,
+      sleep: () => Promise.resolve(),
+      now: Date.now,
+    })
+    await daily.reserve(Usd.from(1).toAmount(), new AbortController().signal)
+    const api = fakeModelApi()
+    const secrets = memorySecrets()
+    secrets.values.set(SECRET_KEYS.modelApiKey, FAKE_MODEL_API_KEY)
+    const runtime = backend(
+      { backend: 'modelApi', trustWorkspace: true },
+      secrets,
+      env,
+      dist.folder,
+      api.fetch,
+      undefined,
+      home,
+    )
+    try {
+      const root = folder()
+      const host = await runtime.backend.hostFor(root)
+      const session = await host.startSession({
+        workspaceRoot: root,
+        modelId: 'muse-spark-1.3',
+        approvalMode: 'allowAll',
+      })
+      const turns = watchSessionTurns(session)
+      const done = turns.turnDone()
+      await session.sendTurn([{ type: 'text', text: 'Do not spend' }])
+      await done
+      expect(api.responseBodies()).toHaveLength(0)
+      expect(turns.events).toContainEqual(
+        expect.objectContaining({
+          type: 'turnCompleted',
+          terminal: 'failed',
+          reason: expect.stringContaining('budget'),
+        }),
+      )
+    } finally {
+      await runtime.close()
+    }
+  })
+  it.each(['imageGeneration'] as const)(
+    'records ordinary ACP %s through the shared paid producer',
+    async (feature) => {
+      const api = fakeModelApi()
+      const tap: UsageRecording = {
+        note: vi.fn(),
+        limit: vi.fn(),
+        today: () => Promise.resolve([]),
+        flush: () => Promise.resolve(),
+      }
+      const secrets = memorySecrets()
+      secrets.values.set(SECRET_KEYS.modelApiKey, FAKE_MODEL_API_KEY)
+      const runtime = backend(
+        { backend: 'modelApi', paidFeatures: [feature], trustWorkspace: true },
+        secrets,
+        {},
+        dist.folder,
+        api.fetch,
+        tap,
+      )
+      const ask = vi.fn().mockResolvedValue('once')
+      runtime.paid.attach(ask)
+      const root = folder()
+      const host = await runtime.backend.hostFor(root)
+      const session = await host.startSession({
+        workspaceRoot: root,
+        modelId: 'muse-spark-1.3',
+        approvalMode: 'allowAll',
+      })
+      const turns = watchSessionTurns(session)
+      api.script(
+        {
+          calls: [
+            {
+              name: 'generate_image',
+              arguments: '{"prompt":"draw","path":"picture.png"}',
+              callId: 'image-call',
+            },
+          ],
+        },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'use the paid feature' }])
+      await turns.turnDone()
+      expect(ask).toHaveBeenCalledOnce()
+      const paidNotes = vi
+        .mocked(tap.note)
+        .mock.calls.filter(([, context]) => context.kind === 'image')
+      expect(paidNotes).toEqual([
+        [
+          undefined,
+          expect.objectContaining({
+            outcome: 'completed',
+            units: { images: 1 },
+          }),
+        ],
+      ])
+      await runtime.close()
+    },
+  )
   it('keeps paid-use grants in the agent’s data folder (M58)', () => {
     const home = folder()
     const input = { platform: 'linux' as const, env: { XDG_DATA_HOME: home }, homeDir: home }
@@ -977,7 +1090,7 @@ describe('credential variables (AGENTS.md rule 8; Codex on a209130)', () => {
     expect(original['META_API_KEY']).toBe('LLM|1|placeholder')
   })
 
-  it('hands them back to Muse Code only, where META_API_KEY counts as its credential (D1)', () => {
+  it('never hands stripped credentials back to Muse Code (FIXM95X)', () => {
     vi.stubEnv('META_API_KEY', '')
     try {
       const runtime = createRuntimeBackend({
@@ -989,13 +1102,12 @@ describe('credential variables (AGENTS.md rule 8; Codex on a209130)', () => {
         homeDir: folder(),
         secrets: memorySecrets(),
         runGit: () => Promise.reject(new Error('no git')),
-        museCodeCredentials: [{ name: 'META_API_KEY', value: 'LLM|1|placeholder' }],
         fetch: fakeModelApi().fetch,
         sleep: () => Promise.resolve(),
         log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
       })
-      expect(runtime.museCode.childEnvironment()['META_API_KEY']).toBe('LLM|1|placeholder')
-      expect(runtime.museCode.hasEnvironmentKey()).toBe(true)
+      expect(runtime.museCode.childEnvironment()['META_API_KEY']).toBeUndefined()
+      expect(runtime.museCode.hasEnvironmentKey()).toBe(false)
     } finally {
       vi.unstubAllEnvs()
     }

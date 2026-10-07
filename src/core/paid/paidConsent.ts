@@ -16,8 +16,8 @@ import { randomUUID } from 'node:crypto'
 // words are here, so VS Code's modal and the ACP agent's permission request
 // (D62) say the same.
 
-import { PAID_FEATURES, type PaidFeature, UI_TEXT } from '../../shared/constants'
-import { fill, formatNumber, formatUsd } from '../../shared/l10n/text'
+import { PAID_FEATURES, type PaidFeature, UI_TEXT, DEFAULT_MODEL_ID } from '../../shared/constants'
+import { fill, formatNumber, formatUsd, uiLocale } from '../../shared/l10n/text'
 import {
   paidFeaturePrice,
   freezePaidQuote,
@@ -32,18 +32,23 @@ import {
   subagentTaskPrice,
 } from '../../shared/paid'
 import { Usd } from '../../shared/usd'
-import { DEFAULT_MODEL_ID } from '../../shared/constants'
+
 import type { CoreLogger } from '../logging'
 import { PaidAuthority, paidAuthorityKey, type PaidGrant } from './paidAuthority'
+
+async function paidTeamRuntime() {
+  const entry = await import('../team/teamEntry')
+  return entry.createTeamRuntime(UI_TEXT, uiLocale())
+}
 
 /** The popup's three answers. */
 export type PaidUseAnswer = 'once' | 'always' | 'deny'
 
 /** The popup's question and what it says about the use, in the display language. */
-export function paidUseQuestion(request: PaidUseRequest): {
+export async function paidUseQuestion(request: PaidUseRequest): Promise<{
   readonly title: string
   readonly detail: string
-} {
+}> {
   switch (request.feature) {
     case 'judge': {
       const price = autoReviewPrice(request.modelId)
@@ -117,7 +122,7 @@ export function paidUseQuestion(request: PaidUseRequest): {
       }
     }
     case 'autoReviewer': {
-      const price = autoReviewPrice(request.modelId)
+      const price = autoReviewPrice(request.modelId, request.pricing)
       if (price === undefined) throw new Error(UI_TEXT.autoReviewerFailed)
       return {
         title: fill(UI_TEXT.paidUseAutoReviewerTitle, { tool: request.tool }),
@@ -128,6 +133,14 @@ export function paidUseQuestion(request: PaidUseRequest): {
         }),
       }
     }
+    case 'legalExplanation': {
+      const price = autoReviewPrice(request.modelId)
+      if (price === undefined) throw new Error(UI_TEXT.subagentTariffUnknown)
+      return {
+        title: UI_TEXT.legalExplainPaid,
+        detail: fill(UI_TEXT.legalExplainConsent, { price, model: request.modelId }),
+      }
+    }
     case 'bestOfN': {
       return {
         title: fill(UI_TEXT.paidBestOfNTitle, { attempts: formatNumber(request.attempts) }),
@@ -136,6 +149,10 @@ export function paidUseQuestion(request: PaidUseRequest): {
           price: bestOfNPrice(request.modelId, request.attempts, request.requestCeilingPerAttempt),
         }),
       }
+    }
+    case 'teamWorkers': {
+      const runtime = await paidTeamRuntime()
+      return runtime.teamWorkerQuestion(request)
     }
     case 'hookModels': {
       return {
@@ -196,6 +213,11 @@ export interface PaidUseConsentDeps {
   /** The features allowed always in this workspace, still valid (the host drops lapsed ones). */
   readonly readGrants: () => ReadonlySet<PaidFeature>
   readonly writeGrants: (grants: ReadonlySet<PaidFeature>) => Promise<void>
+  /** Valid workspace scopes, invalidated with price acceptance/setting changes like ordinary grants.
+   * Both stores are required to offer team Always; a feature-only legacy grant never authorizes it.
+   */
+  readonly readTeamGrants?: () => ReadonlySet<string>
+  readonly writeTeamGrants?: (grants: ReadonlySet<string>) => Promise<void>
   /** The popup; "always" is offered only when `canRemember` is true. */
   readonly ask: (request: PaidUseRequest, canRemember: boolean) => Promise<PaidUseAnswer>
   readonly authority?: PaidAuthority
@@ -456,6 +478,7 @@ export class PaidUseConsent {
   /** Whether the feature is on and allowed always here, so its next use asks nothing. */
   public isRemembered(feature: PaidFeature): boolean {
     return (
+      feature !== 'teamWorkers' &&
       this.deps.isOn(feature) &&
       this.deps.canRemember() &&
       ((this.deps.readQuoteGrant === undefined &&
@@ -498,7 +521,14 @@ export class PaidUseConsent {
     if (!this.isEnabled(feature)) {
       return false
     }
-    if (!requiresAsking && this.isRemembered(feature)) {
+    if (request.feature === 'teamWorkers') {
+      const runtime = await paidTeamRuntime()
+      return await runtime.canUseTeam(this.deps, request, requiresAsking, () => {
+        this.notify()
+      })
+    }
+    const isRemembered = this.isRemembered(feature)
+    if (!requiresAsking && isRemembered) {
       this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
       return true
     }
@@ -545,7 +575,7 @@ export class PaidUseConsent {
     this.revocation += 1
     this.authority.revokeAll(this.quoteGeneration())
     await this.deps.revokeQuoteGrants?.()
-    if (this.deps.readGrants().size === 0) {
+    if (this.deps.readGrants().size === 0 && (this.deps.readTeamGrants?.().size ?? 0) === 0) {
       if (hasWindowOnce) {
         this.deps.log.info('Paid uses ask again in this window')
         this.notify()
@@ -553,6 +583,7 @@ export class PaidUseConsent {
       return
     }
     await this.deps.writeGrants(new Set())
+    await this.deps.writeTeamGrants?.(new Set())
     this.deps.log.info('Paid uses ask again in this workspace')
     this.notify()
   }

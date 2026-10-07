@@ -1,0 +1,198 @@
+{
+  "base": "e23ec61cc205a28963a9db5c9d56360a2a9bd3ee",
+  "rig": "kubuntu",
+  "baselineExit": 0,
+  "restoredExit": 0,
+  "baselineTests": 22,
+  "restoredTests": 22,
+  "command": [
+    "rig-test.sh",
+    "kubuntu",
+    "C:/Users/Randy/Coding/mx-m96k",
+    "m96-k",
+    "test/unit/teamProcessLifetime.test.ts",
+    "test/unit/teamHintsAndLoad.test.ts"
+  ],
+  "drills": [
+    {
+      "name": "intent",
+      "file": "processLifetime.ts",
+      "test": "starts no process when the intent cannot be written",
+      "redExit": 1,
+      "before": "2DEFAB597105B1BA58CC6572BD26E37ACA24769DFA093B108D898FC5E4CC3911",
+      "mutated": "9613856692C0D10B58275F00D1B0B7255A1F013312AC627B357DB2EFE8BA85AC",
+      "after": "2DEFAB597105B1BA58CC6572BD26E37ACA24769DFA093B108D898FC5E4CC3911"
+    },
+    {
+      "name": "marker",
+      "file": "processLifetime.ts",
+      "test": "flushes intent before spawn, adds marker, then records OS confirmation and separate end",
+      "redExit": 1,
+      "before": "2DEFAB597105B1BA58CC6572BD26E37ACA24769DFA093B108D898FC5E4CC3911",
+      "mutated": "922CFD615F875026F71F3CE6B0CBB7F12186672E61F3465A1DFDE8FF6C78ADA4",
+      "after": "2DEFAB597105B1BA58CC6572BD26E37ACA24769DFA093B108D898FC5E4CC3911"
+    },
+    {
+      "name": "dispose",
+      "file": "processLifetime.ts",
+      "test": "dispose cannot miss a pending intent; no process is created after dispose",
+      "redExit": 1,
+      "before": "2DEFAB597105B1BA58CC6572BD26E37ACA24769DFA093B108D898FC5E4CC3911",
+      "mutated": "7E4B0491A1462DD82BEE723B98FA79B81A51E21C61790642B7EB47DC736D4BC9",
+      "after": "2DEFAB597105B1BA58CC6572BD26E37ACA24769DFA093B108D898FC5E4CC3911"
+    },
+    {
+      "name": "load-recheck",
+      "file": "processLifetime.ts",
+      "test": "rechecks load after the asynchronous intent and starts nothing under pressure",
+      "redExit": 1,
+      "before": "2DEFAB597105B1BA58CC6572BD26E37ACA24769DFA093B108D898FC5E4CC3911",
+      "mutated": "AADBC5F9A4C7DDA4D406FFC645020F043CFEF39D1BAE4DE661925BFEBFF89F6A",
+      "after": "2DEFAB597105B1BA58CC6572BD26E37ACA24769DFA093B108D898FC5E4CC3911"
+    },
+    {
+      "name": "process-group-proof",
+      "file": "processLifetime.ts",
+      "test": "rejects descendant proof from a process group",
+      "redExit": 1,
+      "before": "2DEFAB597105B1BA58CC6572BD26E37ACA24769DFA093B108D898FC5E4CC3911",
+      "mutated": "1978BBD7ED809FDA5A7A503AF4E25FDDF5BA003B2C29729796AC4423B1FA713B",
+      "after": "2DEFAB597105B1BA58CC6572BD26E37ACA24769DFA093B108D898FC5E4CC3911"
+    },
+    {
+      "name": "recovery-descendants",
+      "file": "processLifetime.ts",
+      "test": "keeps ended children without descendant proof in recovery",
+      "redExit": 1,
+      "before": "2DEFAB597105B1BA58CC6572BD26E37ACA24769DFA093B108D898FC5E4CC3911",
+      "mutated": "11DBDA4F4C396B116358B2F9E6B3E48173F04FF725A82073EE09B728CE0398D4",
+      "after": "2DEFAB597105B1BA58CC6572BD26E37ACA24769DFA093B108D898FC5E4CC3911"
+    },
+    {
+      "name": "failed-child",
+      "file": "processLifetime.ts",
+      "test": "keeps a failed confirmation child available to dispose when retirement is uncertain",
+      "redExit": 1,
+      "before": "2DEFAB597105B1BA58CC6572BD26E37ACA24769DFA093B108D898FC5E4CC3911",
+      "mutated": "B03690F00CAAA46C8DD064C0E19BD4F771A5F1E42AB6E51ECBC57007BB7223C4",
+      "after": "2DEFAB597105B1BA58CC6572BD26E37ACA24769DFA093B108D898FC5E4CC3911"
+    },
+    {
+      "name": "owner-isolation",
+      "file": "windowIdentity.ts",
+      "test": "leaves another live window journal byte-exact until Take over",
+      "redExit": 1,
+      "before": "EAFFB89A736131577B06657DB7CB27855740F056B8E93C91C7A3F6ACCDC42A58",
+      "mutated": "9DD6CE5304E4D8BAF0162309F8283E339A219EB7478E26854729FE8E301E47FE",
+      "after": "EAFFB89A736131577B06657DB7CB27855740F056B8E93C91C7A3F6ACCDC42A58"
+    },
+    {
+      "name": "takeover-durable",
+      "file": "windowIdentity.ts",
+      "test": "grants no takeover when its durable receipt fails",
+      "redExit": 1,
+      "before": "EAFFB89A736131577B06657DB7CB27855740F056B8E93C91C7A3F6ACCDC42A58",
+      "mutated": "639AE5CC5408A11F411FBF43C4C7E0A80BCE51FFBFAF2A30E3C82F570E22A7F0",
+      "after": "EAFFB89A736131577B06657DB7CB27855740F056B8E93C91C7A3F6ACCDC42A58"
+    },
+    {
+      "name": "record-path",
+      "file": "teamJournal.ts",
+      "test": "writes and validates real files; refuses traversal and invalid state",
+      "redExit": 1,
+      "before": "718CDAB15FF6783FFD23BCED3B8B3AEDA774B772290B5485A5DA2FF008389C6F",
+      "mutated": "2DD7A4AFAFDC5488DB8160638B33314689FB2CBA6591BAC9A1C6CFE441E994ED",
+      "after": "718CDAB15FF6783FFD23BCED3B8B3AEDA774B772290B5485A5DA2FF008389C6F"
+    },
+    {
+      "name": "broken-file",
+      "file": "teamJournal.ts",
+      "test": "moves only its own unreadable file aside, preserving exact bytes",
+      "redExit": 1,
+      "before": "718CDAB15FF6783FFD23BCED3B8B3AEDA774B772290B5485A5DA2FF008389C6F",
+      "mutated": "2D964B2788A29421195165728D53392DBDDB7D9A575B7F912F8B7FB92C467995",
+      "after": "718CDAB15FF6783FFD23BCED3B8B3AEDA774B772290B5485A5DA2FF008389C6F"
+    },
+    {
+      "name": "fsync",
+      "file": "teamJournal.ts",
+      "test": "starts no process when the intent fsync fails",
+      "redExit": 1,
+      "before": "718CDAB15FF6783FFD23BCED3B8B3AEDA774B772290B5485A5DA2FF008389C6F",
+      "mutated": "69DF3A49B5CA0A7E4E4F385255687A22D2EB9960BB8ED446B063CD558C9F8431",
+      "after": "718CDAB15FF6783FFD23BCED3B8B3AEDA774B772290B5485A5DA2FF008389C6F"
+    },
+    {
+      "name": "canonical-path",
+      "file": "teamJournal.ts",
+      "test": "refuses a journal storage path through a link",
+      "redExit": 1,
+      "before": "718CDAB15FF6783FFD23BCED3B8B3AEDA774B772290B5485A5DA2FF008389C6F",
+      "mutated": "8B7D94BF74454A8E7C2D08CDB2E02327C6170CE29BA6FF344395BACB9FA49067",
+      "after": "718CDAB15FF6783FFD23BCED3B8B3AEDA774B772290B5485A5DA2FF008389C6F"
+    },
+    {
+      "name": "memory",
+      "file": "loadGuard.ts",
+      "test": "holds new local work immediately on low memory, and recovers at threshold",
+      "redExit": 1,
+      "before": "FBF99D5FA59646ABA25FE15E97238F412CE15DCF4B1932CD41FC02E214F0F973",
+      "mutated": "E4E1647EA14564DCEDA7DB0A6DB1DACBAEE73FCC8F20591603D0D7FC09A09D92",
+      "after": "FBF99D5FA59646ABA25FE15E97238F412CE15DCF4B1932CD41FC02E214F0F973"
+    },
+    {
+      "name": "cpu",
+      "file": "loadGuard.ts",
+      "test": "uses CPU time deltas, trips only after sustained pressure, then recovers",
+      "redExit": 1,
+      "before": "FBF99D5FA59646ABA25FE15E97238F412CE15DCF4B1932CD41FC02E214F0F973",
+      "mutated": "F35C90CD626102B51BD5911536821FB4D0FACCE3D94E21629029F9D56E99A893",
+      "after": "FBF99D5FA59646ABA25FE15E97238F412CE15DCF4B1932CD41FC02E214F0F973"
+    },
+    {
+      "name": "orphan-click",
+      "file": "orphanRecovery.ts",
+      "test": "finds marked descendants even when direct child ended; does not stop without click",
+      "redExit": 1,
+      "before": "D8BE5F993126E2C25C4E44202E7E8E4A3AF033464379B14EFBA3CA3886BFC864",
+      "mutated": "F9B80B8967D31A71E3A1FAFE574C7DB7D55BF07E2C04CF2298F1C59CC2687020",
+      "after": "D8BE5F993126E2C25C4E44202E7E8E4A3AF033464379B14EFBA3CA3886BFC864"
+    },
+    {
+      "name": "orphan-recheck",
+      "file": "orphanRecovery.ts",
+      "test": "refuses changed PID or marker after second check, and labels PID-only match uncertain",
+      "redExit": 1,
+      "before": "D8BE5F993126E2C25C4E44202E7E8E4A3AF033464379B14EFBA3CA3886BFC864",
+      "mutated": "9DAA7E96135AC607882EBCAD2D68310A3A762D83F376CE26FB0CF8F48466E849",
+      "after": "D8BE5F993126E2C25C4E44202E7E8E4A3AF033464379B14EFBA3CA3886BFC864"
+    },
+    {
+      "name": "orphan-ended",
+      "file": "orphanRecovery.ts",
+      "test": "finds marked descendants even when direct child ended; does not stop without click",
+      "redExit": 1,
+      "before": "D8BE5F993126E2C25C4E44202E7E8E4A3AF033464379B14EFBA3CA3886BFC864",
+      "mutated": "09F6CDC2A013D7EBFD4F75A504722449FD12A84ADB5996554450043CE09EDE1E",
+      "after": "D8BE5F993126E2C25C4E44202E7E8E4A3AF033464379B14EFBA3CA3886BFC864"
+    },
+    {
+      "name": "hint-freshness",
+      "file": "windowHints.ts",
+      "test": "Wait lasts only while fresh collision exists; stale, absent and malformed hints never lock",
+      "redExit": 1,
+      "before": "34D38F62BC63B61F4F4DC1D17D7622511BE1441FDF81455D86260C2CC5CF248F",
+      "mutated": "CF5D5CE878AC5BBB5C3667D809805F8DDA1FFB7F2F744675BAB33266E5FADA82",
+      "after": "34D38F62BC63B61F4F4DC1D17D7622511BE1441FDF81455D86260C2CC5CF248F"
+    },
+    {
+      "name": "hint-once",
+      "file": "windowHints.ts",
+      "test": "asks once across rewrites and other tasks; new path and drop ask again",
+      "redExit": 1,
+      "before": "34D38F62BC63B61F4F4DC1D17D7622511BE1441FDF81455D86260C2CC5CF248F",
+      "mutated": "3A75A6B152E6247CEF0B7067945C1CB6D19CC3F6A312C4FAE9B5C15CECDCCB65",
+      "after": "34D38F62BC63B61F4F4DC1D17D7622511BE1441FDF81455D86260C2CC5CF248F"
+    }
+  ]
+}

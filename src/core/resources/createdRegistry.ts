@@ -418,19 +418,24 @@ export class CreatedRegistry {
         }
       })
     } else {
-      z.strictObject({ removed: z.literal(true) }).parse(
-        JSON.parse(
-          await this.proof.directories([
-            'remove',
-            this.base,
-            this.baseIdentity ?? '',
-            path.basename(entry.path),
-            entry.id,
-            entry.tokenHash,
-            storedIdentity,
-          ]),
-        ),
-      )
+      try {
+        z.strictObject({ removed: z.literal(true) }).parse(
+          JSON.parse(
+            await this.proof.directories([
+              'remove',
+              this.base,
+              this.baseIdentity ?? '',
+              path.basename(entry.path),
+              entry.id,
+              entry.tokenHash,
+              storedIdentity,
+            ]),
+          ),
+        )
+      } catch (error: unknown) {
+        this.refused.add(entry.id)
+        throw error
+      }
     }
     this.entries.delete(entry.id)
     this.made.delete(entry.id)

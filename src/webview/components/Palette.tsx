@@ -512,7 +512,7 @@ export function Palette(props: PaletteProps) {
               )
             }
             case 'disabled': {
-              return (
+              return view === 'models' ? null : (
                 // A note, not an option: its tip is the pointer's title only.
                 // An ARIA attribute here would void the presentation role and
                 // leave the listbox a child it may not hold (lane W's full a11y run).

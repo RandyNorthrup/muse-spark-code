@@ -15,15 +15,15 @@ import path from 'node:path'
 import process from 'node:process'
 
 const SEMGREP = 'semgrep'
+// Large TypeScript taint analyses share a heap: retain every rule and deadline, scan serially.
+const MAX_WORKERS = 1
 const SEMGREP_ARGS = [
   'scan',
+  '--jobs',
+  String(MAX_WORKERS),
   '--config',
   'auto',
   '--error',
-  // Large TypeScript taint analyses contend for the shared heap in parallel;
-  // serial scanning completes every rule at the unchanged default deadline.
-  '--jobs',
-  '1',
   '--exclude=dist',
   '--exclude=coverage',
   '--exclude=node_modules',

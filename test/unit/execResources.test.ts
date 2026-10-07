@@ -273,7 +273,6 @@ describe('M107 H headless flags and v2 egress', () => {
         stderr: err,
         storeSecrets: memorySecrets(),
         runGit: () => Promise.resolve(''),
-        museCodeCredentials: [],
         fetch: vi.fn(() => Promise.reject(new Error('network forbidden'))),
         sleep: () => Promise.resolve(),
         now: () => fixture.clock.now(),

@@ -319,6 +319,7 @@ describe('DK admission, safe points and spawn environment', () => {
       path.join(root, 'registry.json'),
       () => clock.now(),
       {
+        directories: process.platform === 'linux' ? undefined : nativeCreated,
         files: nativeCreated,
         exited: (owner) => Promise.resolve(host.hasRetired(owner)),
         archivedAndClean: () => Promise.resolve(false),
@@ -399,6 +400,7 @@ describe('DK admission, safe points and spawn environment', () => {
       read,
     })
     const registry = await CreatedRegistry.open(path.join(root, 'registry.json'), () => 0, {
+      directories: process.platform === 'linux' ? undefined : nativeCreated,
       files: nativeCreated,
       exited: () => Promise.resolve(true),
       archivedAndClean: () => Promise.resolve(false),

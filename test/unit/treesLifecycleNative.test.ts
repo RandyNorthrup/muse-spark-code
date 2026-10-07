@@ -21,9 +21,11 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
     let helperPath = ''
     let fixture: Awaited<ReturnType<typeof darwinProcessHelper>> | undefined
     beforeAll(async () => {
-      if (process.platform !== 'darwin') return
-      fixture = await darwinProcessHelper()
-      helperPath = fixture.helperPath
+      if (process.platform === 'darwin') {
+        fixture = await darwinProcessHelper()
+        helperPath = fixture.helperPath
+      }
+      reuse = await preparePidReuse()
     }, 120_000)
     afterAll(async () => {
       await fixture?.remove()
@@ -91,7 +93,7 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
         await removeFolder(folder)
       }
     })
-    it('attempts PID reuse across fast births and never signals a later process through an old ticket', async () => {
+    async function preparePidReuse() {
       const folder = await mkdtemp(path.join(tmpdir(), 'm107-t2-reuse-'))
       const fixturePids = new Set<number>()
       const reader =
@@ -103,6 +105,7 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
             })
       let prior: { registry: ResourceTreeRegistry; ticket: ResourceTicket } | undefined
       const births = new Set<string>()
+      const observations = []
       try {
         const file = path.join(folder, 'lifecycle')
         await runTreeProgram(
@@ -121,11 +124,11 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
           try {
             await once(child.stdout, 'data')
             const root = await reader.identity(child.pid!)
-            expect(root).not.toBeNull()
+            if (root === null) throw new Error('Missing native identity')
             const ticket: ResourceTicket = {
               id: `reuse-${String(attempt)}`,
-              root: root!,
-              scope: { type: 'group', pgid: root!.pid },
+              root: root,
+              scope: { type: 'group', pgid: root.pid },
               kind: 'check',
               class: 'foreground',
               sessionId: null,
@@ -134,25 +137,40 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
             await registry.register(ticket)
             if (prior !== undefined) {
               const result = await prior.registry.signal(prior.ticket, prior.ticket.root, 'SIGKILL')
-              expect(['gone', 'identity-changed']).toContain(result)
-              expect(await reader.identity(root!.pid)).toEqual(root)
+              observations.push({
+                result,
+                expected: root,
+                current: await reader.identity(root.pid),
+              })
               prior.registry.unregister(prior.ticket)
             }
-            births.add(`${String(root!.pid)}/${root!.startTime}`)
+            births.add(`${String(root.pid)}/${root.startTime}`)
             prior = { registry, ticket }
           } finally {
             child.stdin.end()
             await death
           }
         }
-        expect(births.size).toBe(32)
-        expect(await prior!.registry.signal(prior!.ticket, prior!.ticket.root, 'SIGKILL')).toBe(
-          'gone',
-        )
+        return {
+          count: births.size,
+          observations,
+          final: await prior!.registry.signal(prior!.ticket, prior!.ticket.root, 'SIGKILL'),
+        }
       } finally {
         prior?.registry.unregister(prior.ticket)
         await removeFolder(folder)
       }
+    }
+    let reuse: Awaited<ReturnType<typeof preparePidReuse>>
+    // Thirty-two real births and native probes are setup; every safety assertion stays at five seconds.
+    it('attempts PID reuse across fast births and never signals a later process through an old ticket', () => {
+      expect(reuse.count).toBe(32)
+      expect(reuse.observations).toHaveLength(31)
+      for (const observation of reuse.observations) {
+        expect(['gone', 'identity-changed']).toContain(observation.result)
+        expect(observation.current).toEqual(observation.expected)
+      }
+      expect(reuse.final).toBe('gone')
     })
     it('kills recorded setsid/double-fork descendants after both parents exit without group signalling', async () => {
       const folder = await mkdtemp(path.join(tmpdir(), 'm107-t2-descendants-'))

@@ -36,6 +36,10 @@ import type { WizardSaveOutcome } from '../providers/wizardSave'
 import { OPENROUTER_ORIGIN } from '../providers/openRouter'
 
 export interface ModelsPanelDeps {
+  readonly connectChatGpt?: (() => Promise<void>) | undefined
+  readonly connectCopilot?: (() => Promise<void>) | undefined
+  readonly removeSubscription?: ((id: string) => Promise<void>) | undefined
+  readonly isConfidential?: (() => boolean) | undefined
   readonly extensionUri: vscode.Uri
   readonly l10n: UiTable
   readonly log: Logger
@@ -63,6 +67,9 @@ function modelPriceNote(model: ProviderModelRow): ModelRow['priceNote'] {
     }
     case model.isFree: {
       return 'free'
+    }
+    case model.priceFingerprint === 'plan': {
+      return 'plan'
     }
     default: {
       return model.inputPerMillion === undefined ? 'unpriced' : 'priced'
@@ -221,6 +228,8 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       }
       return [card.data]
     })
+    state.subscriptionsAvailable = deps.connectChatGpt !== undefined
+    state.copilotAvailable = deps.connectCopilot !== undefined && deps.isConfidential?.() !== true
     const providerStates = await providers.providerStates()
     state.providers = providerStates.map(({ entry, hasKey, origin }) => {
       const preset = state.presets.find((candidate) => candidate.id === entry.preset)
@@ -248,6 +257,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     const all: ModelRow[] = []
     const families = new Map<string, string>()
     for (const [providerId, models] of rows) {
+      if (providerId === 'copilot' && deps.isConfidential?.() === true) continue
       const saved = state.providers.find((entry) => entry.id === providerId)
       const draft = state.drafts.wizard?.presetId === providerId ? state.drafts.wizard : undefined
       for (const model of models) {
@@ -414,10 +424,24 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         await vscode.env.openExternal(vscode.Uri.parse(url.href))
         return
       }
+      case 'providers/connectSubscription': {
+        const connect = message.providerId === 'chatgpt' ? deps.connectChatGpt : deps.connectCopilot
+        if (connect === undefined) throw new Error(UI_TEXT.actionFailed)
+        await connect()
+        await scan(await entryOf(message.providerId))
+        break
+      }
       case 'providers/select': {
         const preset = providers.preset(message.presetId)
         if (preset === undefined) {
           throw new Error(UI_TEXT.actionFailed)
+        }
+        if (preset.auth === 'subscription') {
+          const connect = preset.id === 'chatgpt' ? deps.connectChatGpt : deps.connectCopilot
+          if (connect === undefined) throw new Error(UI_TEXT.actionFailed)
+          await connect()
+          await scan(await entryOf(preset.id))
+          break
         }
         credentials.delete('wizard')
         state.drafts.wizard = newDraft(preset)
@@ -482,7 +506,8 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         const preset = providers.preset(entry.preset)
         if (
           preset === undefined ||
-          (message.type === 'providers/connect' && preset.id !== 'openrouter')
+          (message.type === 'providers/connect' &&
+            (preset.id !== 'openrouter' || preset.connectLabel === undefined))
         ) {
           throw new Error(UI_TEXT.actionFailed)
         }
@@ -604,6 +629,13 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         break
       }
       case 'providers/remove': {
+        const entry = await entryOf(message.providerId)
+        if (entry.auth === 'subscription') {
+          if (deps.removeSubscription === undefined) throw new Error(UI_TEXT.actionFailed)
+          await deps.removeSubscription(entry.id)
+          rows.delete(entry.id)
+          break
+        }
         const removed = await providers.remove(message.providerId)
         if (removed !== undefined) {
           state.pendingRemovals.push({ providerId: removed.id, label: removed.id })

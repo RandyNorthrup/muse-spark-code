@@ -15,6 +15,7 @@ export const BUNDLES: {
   readonly activation: Bundle
   readonly modelApi: Bundle
   readonly acp: Bundle
+  readonly providers: Bundle
 }
 export const DEFERRED: readonly DeferredBundle[]
 export const ON_FIRST_USE: readonly DeferredBundle[]
@@ -33,3 +34,4 @@ export const deferredCohort: Plugin
 
 export const MODEL_API_OPTIONAL_ONLY: readonly string[]
 export const sharedStructuredSchema: Plugin
+export const sharedModelApiBoundaries: Plugin

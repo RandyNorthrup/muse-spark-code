@@ -11,6 +11,7 @@
 // paid.ts). Every update of a turn goes out before the turn's response.
 
 import { randomUUID } from 'node:crypto'
+import type { UsageAdapter } from '../runtime/usage/usageAdapter'
 import { compactReference } from '../shared/cliCommands'
 import path from 'node:path'
 import {
@@ -44,6 +45,7 @@ import {
 } from '../core/agent/agentBackend'
 import { editAutomaticallyChoice } from '../core/agent/approvalRules'
 import { failureForLog } from '../core/backends/musecode/logText'
+import { unlessAborted } from '../core/timeouts'
 import type { CoreLogger } from '../core/logging'
 import { type PaidUseAnswer, paidUseQuestion } from '../core/paid/paidConsent'
 import type { AgentEvent } from '../shared/agentEvents'
@@ -101,6 +103,7 @@ import {
   promptParts,
   UpdateTranslator,
 } from './translate'
+import type { AcpSharingPort } from './sharing'
 
 // Muse Code runs a session's MCP servers only with this grant (M63c).
 const [SESSION_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
@@ -138,13 +141,28 @@ export interface SignInMethod {
   readonly args: readonly string[]
   /** The command a user runs by hand where the client cannot (`muse-spark-code-acp auth set`). */
   readonly command: string
+  /** Terminal provider actions verify their own local result, independently of Meta. */
+  readonly verify?: () => Promise<string | undefined>
 }
 
 export interface AcpAgentDeps {
+  readonly legalScan?:
+    | ((
+        cwd: string,
+        signal: AbortSignal,
+        isRegistryOn: boolean,
+        canLookupRegistry: (hosts: readonly string[]) => Promise<boolean>,
+      ) => Promise<string>)
+    | undefined
+
+  readonly onClientName?: (name: string) => void
+  /** Shared journal/service, required lazily on the local /usage command. */
+  readonly usage?: Pick<UsageAdapter, 'access' | 'openPage'>
   readonly backend: AcpBackend
   readonly version: string
   readonly options: AcpAgentOptions
   readonly signIn: SignInMethod
+  readonly providerSignIns?: readonly SignInMethod[]
   /** The folder a `session/list` without one lists (the agent's own). */
   readonly defaultCwd: string
   /** The flagged paid features; the agent asks before each use (M63c, M58). */
@@ -152,6 +170,8 @@ export interface AcpAgentDeps {
   readonly log: CoreLogger
   /** The process-wide lazy governor; subscriptions do not start it. */
   readonly resources?: RuntimeResources
+  /** M118-X-ACP: P/C storage/rendering and the host's explicit preview/insert bridge. */
+  readonly sharing?: AcpSharingPort
   /** Required Q/runtime binding: portable registry plus durable idle-answer queue. */
   readonly questions: AcpQuestionRegistryFactory | 'decline'
   readonly questionClock?: QuestionClock
@@ -205,7 +225,9 @@ type PromptOutcome = { readonly reason: StopReason } | { readonly error: unknown
 
 interface PreparingPrompt {
   isCancelled: boolean
+  readonly abort: AbortController
   error?: unknown
+  abandonElicitation?: () => void
 }
 
 /** Identity of the latest load or resume; kept while earlier releases finish. */
@@ -253,6 +275,7 @@ class AcpSession {
    * A prompt before its turn starts, while the session's skills are first
    * announced: the session is busy, and a cancel ends the prompt there.
    */
+  private legalStop: AbortController | undefined
   private preparing: PreparingPrompt | undefined
   private skills: readonly SkillSummary[] = []
   private areCommandsAnnounced = false
@@ -407,17 +430,37 @@ class AcpSession {
     this.send({
       sessionUpdate: 'available_commands_update',
       availableCommands: [
+        ...(this.deps.sharing
+          ?.commands()
+          .filter((command) => command.name !== SLASH_COMMAND_NAMES.help) ?? []),
         { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
         { name: ACP_COMPACT_COMMAND, description: UI_TEXT.compactDetail, input: null },
-        ...(this.deps.resources === undefined ? [] : resourceCommands()),
+        ...(this.deps.legalScan === undefined
+          ? []
+          : [{ name: 'legal', description: UI_TEXT.legalScanDisclaimer, input: null }]),
+        ...(this.deps.usage === undefined
+          ? []
+          : [
+              {
+                name: 'usage',
+                description: UI_TEXT.acpUsageDescription,
+                input: null,
+              },
+            ]),
+        ...(this.deps.resources === undefined
+          ? []
+          : resourceCommands().filter(
+              (command) => command.name !== 'usage' || this.deps.usage === undefined,
+            )),
         ...this.skills
           .filter(
             (skill) =>
-              ![SLASH_COMMAND_NAMES.help, 'answer', 'questions', ACP_COMPACT_COMMAND].includes(
-                skill.selector,
-              ) &&
-              (this.deps.resources === undefined ||
-                !['resources', 'usage'].includes(skill.selector)),
+              skill.selector !== SLASH_COMMAND_NAMES.help &&
+              skill.selector !== ACP_COMPACT_COMMAND &&
+              skill.selector !== 'legal' &&
+              !['answer', 'questions', 'share', 'prompt', 'resources'].includes(skill.selector) &&
+              ((this.deps.usage === undefined && this.deps.resources === undefined) ||
+                skill.selector !== 'usage'),
           )
           .map((skill) => ({
             name: skill.selector,
@@ -757,6 +800,89 @@ class AcpSession {
     }
   }
 
+  private async runLegalScan(
+    scan: NonNullable<AcpAgentDeps['legalScan']>,
+    isRegistryOn: boolean,
+  ): Promise<StopReason> {
+    const stop = new AbortController()
+    const preparing: PreparingPrompt = { isCancelled: false, abort: stop }
+    this.legalStop = stop
+    this.preparing = preparing
+    try {
+      const text = await scan(this.cwd, stop.signal, isRegistryOn, async (hosts) => {
+        const response = permissionResponse(
+          await unlessAborted(
+            this.client.request('session/request_permission', {
+              sessionId: this.sessionId,
+              toolCall: {
+                toolCallId: 'legal-registry-notice',
+                title: fill(UI_TEXT.legalRegistryNotice, { hosts: hosts.join(', ') }),
+                kind: 'other',
+                status: 'pending',
+                content: [],
+                locations: [],
+              },
+              options: [
+                { optionId: 'legal-registry-allow', name: UI_TEXT.allowOnce, kind: 'allow_once' },
+                { optionId: 'legal-registry-deny', name: UI_TEXT.paidDeny, kind: 'reject_once' },
+              ],
+            }),
+            stop.signal,
+          ),
+        )
+        return (
+          response.outcome.outcome === 'selected' &&
+          response.outcome.optionId === 'legal-registry-allow'
+        )
+      })
+      if (stop.signal.aborted || preparing.isCancelled || this.isDisposed) return 'cancelled'
+      this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+      await this.outbox
+      return 'end_turn'
+    } catch {
+      if (stop.signal.aborted) return 'cancelled'
+      throw RequestError.internalError(undefined, UI_TEXT.legalScanUnavailable)
+    } finally {
+      if (this.legalStop === stop) this.legalStop = undefined
+      if (this.preparing === preparing) this.preparing = undefined
+    }
+  }
+
+  private async usageReply(
+    blocks: readonly ContentBlock[],
+    preparing: PreparingPrompt,
+  ): Promise<boolean> {
+    const [block] = blocks
+    const usage = this.deps.usage
+    if (
+      usage === undefined ||
+      blocks.length !== 1 ||
+      block?.type !== 'text' ||
+      !['/usage', '/usage page', '/usage open'].includes(block.text.trim())
+    )
+      return false
+    const entry = await import('../runtime/usage/usageAcp')
+    entry.setUiText(UI_TEXT, uiLocale())
+    await entry.replyAcpUsage({
+      usage,
+      preparing,
+      canReply: () => this.canReplyUsage(preparing),
+      send: (text) => {
+        this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+      },
+      canElicitUrl: this.clientCapabilities.elicitation?.url != null,
+      sessionId: this.sessionId,
+      request: (params, signal) =>
+        this.client.request('elicitation/create', params, { cancellationSignal: signal }),
+      log: this.deps.log,
+    })
+    return true
+  }
+
+  private canReplyUsage(preparing: PreparingPrompt): boolean {
+    return !preparing.isCancelled && !this.isDisposed
+  }
+
   /**
    * The question before a paid use (M58, PLAN.md D48): a row naming what is
    * about to be billed and its price, and a permission prompt on it with the
@@ -767,7 +893,8 @@ class AcpSession {
     const preparing = this.preparing
     // Unique for the client's lifetime: a session loaded again starts afresh.
     const toolCallId = `${ACP_PAID_TOOL_CALL_PREFIX}${randomUUID()}`
-    const { title, detail } = paidUseQuestion(request)
+    const { title, detail } = await paidUseQuestion(request)
+    if (!this.isCurrentPaidPrompt(pending, preparing)) return 'deny'
     const content = [{ type: 'content' as const, content: { type: 'text' as const, text: detail } }]
     this.send({
       sessionUpdate: 'tool_call',
@@ -967,11 +1094,17 @@ class AcpSession {
       throw RequestError.invalidParams(undefined, parsed.reason)
     }
     if (
+      ['/legal', '/legal --offline'].includes(parsed.displayText.trim()) &&
+      this.deps.legalScan !== undefined &&
+      parsed.parts.every((part) => part.type === 'text')
+    )
+      return await this.runLegalScan(this.deps.legalScan, parsed.displayText.trim() === '/legal')
+    if (
       parsed.parts.length === 1 &&
       parsed.parts[0]?.type === 'text' &&
       parsed.parts[0].text.trim() === `/${SLASH_COMMAND_NAMES.help}`
     ) {
-      const preparing: PreparingPrompt = { isCancelled: false }
+      const preparing: PreparingPrompt = { isCancelled: false, abort: new AbortController() }
       this.preparing = preparing
       try {
         await this.announceCommands()
@@ -988,24 +1121,72 @@ class AcpSession {
         content: {
           type: 'text',
           text: compactReference([
+            ACP_COMPACT_COMMAND,
+            ...(this.deps.legalScan === undefined ? [] : ['legal']),
+            ...(this.deps.usage === undefined ? [] : ['usage']),
             ...this.skills
               .map((skill) => skill.selector)
-              .filter((name) => !['answer', 'questions'].includes(name)),
+              .filter((name) => !['answer', 'questions', 'share', 'prompt'].includes(name)),
             ...(this.questionRegistry === undefined ? [] : ['questions', 'answer']),
+            ...(this.deps.sharing?.commands().map((command) => command.name) ?? []),
           ]),
         },
       })
       await this.outbox
       return 'end_turn'
     }
-    const preparing: PreparingPrompt = { isCancelled: false }
+    const preparing: PreparingPrompt = { isCancelled: false, abort: new AbortController() }
     this.preparing = preparing
+    const [part] = parsed.parts
+    const isCompact =
+      parsed.parts.length === 1 &&
+      part?.type === 'text' &&
+      part.text.trim() === `/${ACP_COMPACT_COMMAND}`
+    let isUsage: boolean
     let queued: readonly TurnPart[]
     try {
       await this.announceCommands()
-      queued = (await this.questionRegistry?.queuedParts()) ?? []
+      // Reserved local commands never become a skill or a model turn, even when
+      // their runtime bridge has not been bound yet or their syntax is invalid.
+      const local = parseSkillInvocation(parsed.displayText, new Set(['share', 'prompt']))
+      if (local !== undefined) {
+        if (blocks.length !== 1 || blocks[0]?.type !== 'text') {
+          throw RequestError.invalidParams(undefined, UI_TEXT.promptFileInvalid)
+        }
+        const sharing = this.deps.sharing
+        if (sharing === undefined) {
+          throw RequestError.invalidRequest(
+            undefined,
+            fill(UI_TEXT.acpUnknownArgument, {
+              argument: `/${local.selector}`,
+            }),
+          )
+        }
+        const isActive = () =>
+          !this.isDisposed &&
+          this.preparing === preparing &&
+          !preparing.isCancelled &&
+          !('error' in preparing)
+        if (!isActive()) return 'cancelled'
+        const text = await unlessAborted(
+          sharing.execute(parsed.displayText, {
+            cwd: this.cwd,
+            sessionId: this.sessionId,
+            isActive,
+            signal: preparing.abort.signal,
+          }),
+          preparing.abort.signal,
+        )
+        if ('error' in preparing) throw preparing.error
+        if (text === undefined || !isActive()) return 'cancelled'
+        this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+        await this.outbox
+        return 'end_turn'
+      }
+      isUsage = await this.usageReply(blocks, preparing)
+      queued = isUsage || isCompact ? [] : ((await this.questionRegistry?.queuedParts()) ?? [])
     } finally {
-      this.preparing = undefined
+      if (this.preparing === preparing) this.preparing = undefined
     }
     if ('error' in preparing) {
       await this.questionRegistry?.acknowledgeQueued('notTaken')
@@ -1015,6 +1196,10 @@ class AcpSession {
       await this.questionRegistry?.acknowledgeQueued('notTaken')
       await this.outbox
       return 'cancelled'
+    }
+    if (isUsage) {
+      await this.outbox
+      return 'end_turn'
     }
     // Outcomes are values: a host exit before turn/start answers must not
     // reject a promise that the prompt has not yet reached (Node would exit).
@@ -1031,12 +1216,7 @@ class AcpSession {
       }
     })
     try {
-      const [part] = parsed.parts
-      if (
-        parsed.parts.length === 1 &&
-        part?.type === 'text' &&
-        part.text.trim() === `/${ACP_COMPACT_COMMAND}`
-      ) {
+      if (isCompact) {
         // The same AgentSession core serves interactive ACP and runExec. A
         // compact starts synchronously, so cancellation need not wait for it.
         await this.questionRegistry?.acknowledgeQueued('notTaken')
@@ -1085,8 +1265,12 @@ class AcpSession {
   }
 
   public async cancel(): Promise<void> {
+    this.legalStop?.abort()
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
+      this.preparing.abandonElicitation?.()
+      this.preparing.abort.abort()
+      this.preparing = undefined
       this.deps.log.info(`ACP session ${this.sessionId}: cancelled before its turn started`)
       return
     }
@@ -1114,6 +1298,8 @@ class AcpSession {
     const error = RequestError.internalError(undefined, description)
     if (this.preparing !== undefined) {
       this.preparing.error = error
+      this.preparing.abandonElicitation?.()
+      this.preparing.abort.abort()
     }
     this.pending?.reject(error)
     this.pending = undefined
@@ -1140,10 +1326,14 @@ class AcpSession {
       return
     }
     this.isDisposed = true
+    this.legalStop?.abort()
     this.questions?.dispose()
     if (this.questions === undefined) this.questionRegistry?.dispose()
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
+      this.preparing.abandonElicitation?.()
+      this.preparing.abort.abort()
+      this.preparing = undefined
     }
     const wasRunning = this.pending !== undefined || this.activeTurnId !== undefined
     this.pending?.resolve('cancelled')
@@ -1183,9 +1373,15 @@ class AgentState {
    * allows a terminal method only then), otherwise by the user, whose
    * `authenticate` this checks.
    */
-  private authMethod(): AuthMethod {
-    const { id, name, description, args, command } = this.deps.signIn
-    return this.clientCapabilities.auth?.terminal === true
+  private authMethod(method: SignInMethod): AuthMethod {
+    const { id, name, description, args, command } = method
+    // Registry clients may announce terminal support with the older `_meta`
+    // `terminal-auth` flag instead of `auth.terminal`. Only a literal `true`
+    // counts on either form; any other value is no announcement.
+    const hasTerminal =
+      this.clientCapabilities.auth?.terminal === true ||
+      this.clientCapabilities._meta?.['terminal-auth'] === true
+    return hasTerminal
       ? { type: 'terminal', id, name, description, args: [...args] }
       : { id, name, description: fill(UI_TEXT.acpSignInByHand, { command }) }
   }
@@ -1391,13 +1587,22 @@ class AgentState {
         mcpCapabilities: { http: this.deps.backend.kind === 'museCode', sse: false },
         sessionCapabilities: { list: {}, resume: {}, close: {} },
       },
-      authMethods: [this.authMethod()],
+      authMethods: [this.deps.signIn, ...(this.deps.providerSignIns ?? [])].map((method) =>
+        this.authMethod(method),
+      ),
       agentInfo: { name: ACP_AGENT_NAME, title: ACP_AGENT_TITLE, version: this.deps.version },
     }
   }
 
   /** Confirms the sign-in took; the client asks again if not. */
-  public async authenticate(): Promise<Record<string, never>> {
+  public async authenticate(methodId: string): Promise<Record<string, never>> {
+    const provider = this.deps.providerSignIns?.find((method) => method.id === methodId)
+    if (provider?.verify !== undefined) {
+      const failure = await provider.verify()
+      if (failure !== undefined) throw RequestError.authRequired(undefined, failure)
+      return {}
+    }
+    if (methodId !== this.deps.signIn.id) throw RequestError.invalidParams()
     await this.requireReady(true)
     return {}
   }
@@ -1542,8 +1747,11 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
     state.askPaidUse(sessionId, request, canRemember),
   )
   return acpAgent({ name: ACP_AGENT_NAME })
-    .onRequest('initialize', (context) => state.initialize(context.params.clientCapabilities))
-    .onRequest('authenticate', () => state.authenticate())
+    .onRequest('initialize', (context) => {
+      deps.onClientName?.(context.params.clientInfo?.name ?? 'ACP')
+      return state.initialize(context.params.clientCapabilities)
+    })
+    .onRequest('authenticate', (context) => state.authenticate(context.params.methodId))
     .onRequest('session/new', (context) =>
       state.newSession(context.params.cwd, context.params.mcpServers, context.client),
     )

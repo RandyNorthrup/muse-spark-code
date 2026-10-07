@@ -1,0 +1,62 @@
+[
+  {
+    "name": "clustered-options",
+    "file": "src/core/team/workers/workerFence.ts",
+    "test": "test/unit/teamGitClassifier.test.ts",
+    "exit": 1,
+    "failed": 3,
+    "passed": 11,
+    "beforeSha256": "f3b42426a6beb4452fc485570f393df296954d117a5b7380a3bacb05c12c811a",
+    "restoredSha256": "f3b42426a6beb4452fc485570f393df296954d117a5b7380a3bacb05c12c811a"
+  },
+  {
+    "name": "wrapper-client",
+    "file": "src/core/team/workers/workerFence.ts",
+    "test": "test/unit/teamGitClassifier.test.ts",
+    "exit": 1,
+    "failed": 9,
+    "passed": 5,
+    "beforeSha256": "f3b42426a6beb4452fc485570f393df296954d117a5b7380a3bacb05c12c811a",
+    "restoredSha256": "f3b42426a6beb4452fc485570f393df296954d117a5b7380a3bacb05c12c811a"
+  },
+  {
+    "name": "doubled-git",
+    "file": "src/core/team/workers/workerFence.ts",
+    "test": "test/unit/teamGitClassifier.test.ts",
+    "exit": 1,
+    "failed": 1,
+    "passed": 13,
+    "beforeSha256": "f3b42426a6beb4452fc485570f393df296954d117a5b7380a3bacb05c12c811a",
+    "restoredSha256": "f3b42426a6beb4452fc485570f393df296954d117a5b7380a3bacb05c12c811a"
+  },
+  {
+    "name": "global-pagination",
+    "file": "src/core/team/workers/workerFence.ts",
+    "test": "test/unit/teamGitClassifier.test.ts",
+    "exit": 1,
+    "failed": 1,
+    "passed": 13,
+    "beforeSha256": "f3b42426a6beb4452fc485570f393df296954d117a5b7380a3bacb05c12c811a",
+    "restoredSha256": "f3b42426a6beb4452fc485570f393df296954d117a5b7380a3bacb05c12c811a"
+  },
+  {
+    "name": "shared-file-reader",
+    "file": "src/core/team/teamConfig.ts",
+    "test": "test/unit/team/teamConfig.test.ts",
+    "exit": 1,
+    "failed": 1,
+    "passed": 10,
+    "beforeSha256": "bc11e12c451d8338172dc9060ca52db6aeab912edf7c6fa5669c6e66933cbdc1",
+    "restoredSha256": "bc11e12c451d8338172dc9060ca52db6aeab912edf7c6fa5669c6e66933cbdc1"
+  },
+  {
+    "name": "state-label-union",
+    "file": "src/shared/l10n/en.ts",
+    "test": "test/unit/teamConstants.test.ts",
+    "exit": 1,
+    "failed": 1,
+    "passed": 48,
+    "beforeSha256": "f0da5bd5a7b0cc33ef3aa07e482c0e6661e41321c34c634c2453738259fd3f28",
+    "restoredSha256": "f0da5bd5a7b0cc33ef3aa07e482c0e6661e41321c34c634c2453738259fd3f28"
+  }
+]

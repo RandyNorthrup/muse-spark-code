@@ -23,6 +23,8 @@ Model API key, and never mixes the two. The same project ships the
 > Unofficial. Not affiliated with or endorsed by Meta. "Muse Spark" and
 > "Muse Code" are Meta trademarks. You bring your own credentials.
 
+[Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
+
 ## Install
 
 Node.js 22 or later is required.
@@ -222,3 +224,15 @@ about to be billed and its price.
 - [VS Code extension on the Marketplace](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code)
 - [VS Code extension on Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code)
 - [MIT license](https://github.com/RandyNorthrup/muse-spark-code/blob/main/LICENSE)
+
+## Local usage history
+
+`/usage` prints the shared journal summary; `/usage page` supplies the authenticated
+loopback companion link. The terminal also accepts `usage`, `usage --json`,
+`usage --csv`, `usage open`, `usage serve --stdio` and root `--usage` JSON.
+Use `--usage-history=off` when serving ACP to stop new records. The history and
+exports stay on this machine; raw calls roll up after 30 days and daily history
+defaults to 365 days. Deleting it leaves spend ledgers and grants intact. The
+companion uses a one-use fragment code, an in-memory bearer per window and
+fetch-streamed events, with no cookies. See the README Usage and cost section
+for storage folders and the M102 certification for editor/rig receipts.

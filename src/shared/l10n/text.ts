@@ -90,12 +90,16 @@ export function formatPercent(percent: number): string {
 /** An amount of US dollars as the language writes money: $1.46 / 1,46 $ / US$1.46. */
 export function formatUsd(amount: number | string | Usd, fractionDigits = 2): string {
   const exact = amount instanceof Usd ? amount : Usd.from(amount)
-  const decimal = exact.toString()
-  const leadingZeros = /^0\.(0*)[1-9]/.exec(decimal)?.[1]?.length
+  const leadingZeros = /^0\.(0*)[1-9]/.exec(exact.toString())?.[1]?.length
   const precision = Math.max(
     fractionDigits,
     leadingZeros === undefined || leadingZeros < 2 ? 0 : leadingZeros + 2,
   )
+  return formatUsdAtPrecision(exact, precision)
+}
+
+/** A verified quote's chosen precision, without changing its exact amount. */
+export function formatUsdAtPrecision(exact: Usd, precision: number): string {
   const rounded = exact.ceiling(precision).toString()
   const [whole = '0', fraction = ''] = rounded.split('.', 2)
   const formatter = numberFormat(`usd:${String(precision)}`, {
@@ -142,8 +146,8 @@ export function formatBytes(bytes: number): string {
 
 export type DurationUnit = 'second' | 'minute' | 'hour' | 'day'
 
-/** A short amount of time in one unit: 3s / 3 Sek. / 3秒. */
-export function formatUnit(value: number, unit: DurationUnit): string {
+/** A localized duration or byte count in narrow units. */
+export function formatUnit(value: number, unit: DurationUnit | 'byte'): string {
   return numberFormat(`unit:${unit}`, {
     style: 'unit',
     unit,

@@ -65,14 +65,28 @@ import {
   openQuestionsMessageSchema,
 } from './questions'
 import { bestOfNRunSchema } from './bestOfN'
+import { legalScanReportMessageSchema, legalScanRequestMessageSchema } from './legal'
+import {
+  confirmLegalFixMessageSchema,
+  legalFixPreviewMessageSchema,
+  legalFixResultMessageSchema,
+  requestLegalFixMessageSchema,
+} from './legalFix'
 import { boardRowSchema } from './sessionBoard'
 import { sessionRowSchema } from './sessions'
 import {
   accountFactsSchema,
   providerUsageRowSchema,
   subscriptionUsageSchema,
+  planUsageReportSchema,
   usageInsightsSchema,
 } from './usage'
+import type { TeamTreeAction, TeamTreeUpdate } from './team'
+import { teamTreeSchema, teamUsageSchema } from './teamView'
+
+const stringSchema = z.string()
+const numberSchema = z.number()
+const booleanSchema = z.boolean()
 
 // Settings the webview needs to render. Host-only settings (binary path,
 // environment variables) are deliberately absent. The shape is exported so the
@@ -80,39 +94,39 @@ import {
 export const settingsSnapshotShape = {
   preferredLocation: z.enum(PREFERRED_LOCATIONS),
   initialPermissionMode: z.enum(PERMISSION_MODES),
-  autosave: z.boolean(),
-  attachOpenFile: z.boolean(),
-  useCtrlEnterToSend: z.boolean(),
-  hideOnboarding: z.boolean(),
-  focusView: z.boolean(),
-  respectGitIgnore: z.boolean(),
-  confidentialWorkspace: z.boolean(),
-  allowDangerouslySkipPermissions: z.boolean(),
+  autosave: booleanSchema,
+  attachOpenFile: booleanSchema,
+  useCtrlEnterToSend: booleanSchema,
+  hideOnboarding: booleanSchema,
+  focusView: booleanSchema,
+  respectGitIgnore: booleanSchema,
+  confidentialWorkspace: booleanSchema,
+  allowDangerouslySkipPermissions: booleanSchema,
   /** Days of inactivity after which the History dialog hides a session; 0 never. */
-  archiveInactiveSessions: z.number(),
+  archiveInactiveSessions: numberSchema,
   /** Tokens and the dollar estimate under each Model API reply (M82); off by default. */
-  modelApiReplyUsage: z.boolean(),
+  modelApiReplyUsage: booleanSchema,
   /** The Auto reviewer on Muse Code (M90): the Modes menu words Auto with it. */
-  museCodeAutoReviewer: z.boolean(),
+  museCodeAutoReviewer: booleanSchema,
 } as const
 
 const settingsSnapshotSchema = z.object(settingsSnapshotShape)
 
 /** One applied edit the host can revert: the tool item and its patch document. */
-const editRefSchema = z.object({ itemId: z.string(), outputRef: z.string() })
+const editRefSchema = z.object({ itemId: stringSchema, outputRef: stringSchema })
 export type EditRef = z.infer<typeof editRefSchema>
 
 // Rewind the conversation to before a user card (M53): a fork cut just
 // before its turn, its prompt back in the composer.
 const rewindConversationSchema = z.object({
   type: z.literal('rewindConversation'),
-  sourceSessionId: z.string().check(z.minLength(1)),
-  itemId: z.string().check(z.minLength(1)),
-  turnId: z.string(),
-  lastTurnId: z.optional(z.string()),
-  text: z.string(),
-  imageCount: z.number(),
-  attachmentEpoch: z.optional(z.number()),
+  sourceSessionId: stringSchema.check(z.minLength(1)),
+  itemId: stringSchema.check(z.minLength(1)),
+  turnId: stringSchema,
+  lastTurnId: z.optional(stringSchema),
+  text: stringSchema,
+  imageCount: numberSchema,
+  attachmentEpoch: z.optional(numberSchema),
 })
 
 const indexSchema = z.int().check(z.gte(0))
@@ -123,11 +137,11 @@ const indexSchema = z.int().check(z.gte(0))
  * its hunks. `refusal` says why its hunks cannot be reverted here.
  */
 const reviewFileSchema = z.object({
-  itemId: z.string(),
-  outputRef: z.string(),
+  itemId: stringSchema,
+  outputRef: stringSchema,
   fileIndex: indexSchema,
-  path: z.string(),
-  refusal: z.optional(z.string()),
+  path: stringSchema,
+  refusal: z.optional(stringSchema),
   hunks: z.array(patchHunkSchema),
 })
 export type ReviewFile = z.infer<typeof reviewFileSchema>
@@ -137,8 +151,8 @@ export type ReviewFile = z.infer<typeof reviewFileSchema>
 // it (PLAN.md D15). The webview keeps its own conversation snapshot beside
 // it (M25, src/webview/state/snapshot.ts); the host never reads that part.
 const persistedStateSchema = z.object({
-  sessionId: z.optional(z.string()),
-  sideChat: z.optional(z.boolean()),
+  sessionId: z.optional(stringSchema),
+  sideChat: z.optional(booleanSchema),
 })
 export type PersistedState = z.infer<typeof persistedStateSchema>
 
@@ -174,9 +188,9 @@ export type BackendKind = (typeof BACKEND_KINDS)[number]
  */
 export const chatReferenceSchema = z.object({
   intent: z.enum(CHAT_REFERENCE_INTENTS),
-  role: z.string(),
-  entryId: z.optional(z.string()),
-  text: z.string(),
+  role: stringSchema,
+  entryId: z.optional(stringSchema),
+  text: stringSchema,
 })
 export type ChatReference = z.infer<typeof chatReferenceSchema>
 
@@ -222,6 +236,8 @@ export const HOST_ACTIONS = [
    * of its own. The conversation controller answers it itself.
    */
   'openTasksTab',
+  /** M102: the shared Usage & cost page. */
+  'openUsagePage',
   /** The bundled skills' offer for Muse Code (M89, PLAN.md D68): Install, Update, Not now. */
   'installBundledSkills',
   'updateBundledSkills',
@@ -257,70 +273,73 @@ export type NoticeAction = (typeof NOTICE_ACTIONS)[number]
 // are Meta's); `pricing` tells the picker and usage how the price reads;
 // per-M-token prices only where the provider prices the model.
 const modelOptionSchema = z.object({
-  modelId: z.string(),
-  displayLabel: z.string(),
-  contextLimit: z.optional(z.number()),
-  isDefault: z.boolean(),
-  providerId: z.optional(z.string()),
-  providerLabel: z.optional(z.string()),
+  modelId: stringSchema,
+  displayLabel: stringSchema,
+  contextLimit: z.optional(numberSchema),
+  isDefault: booleanSchema,
+  providerId: z.optional(stringSchema),
+  providerLabel: z.optional(stringSchema),
   pricing: z.optional(z.enum(MODEL_PRICINGS)),
-  inputUsdPerMTokens: z.optional(z.number()),
-  outputUsdPerMTokens: z.optional(z.number()),
+  /** Plan-key preset's limits page; no credential or account identity. */
+  planLimitsUrl: z.optional(z.url().check(z.refine((url) => url.startsWith('https://')))),
+  inputUsdPerMTokens: z.optional(numberSchema),
+  outputUsdPerMTokens: z.optional(numberSchema),
   /** Pinned in the Models section: first in the composer's picker (M95). */
-  isPinned: z.optional(z.boolean()),
+  isPinned: z.optional(booleanSchema),
   /** The provider or route may train on the content (hidden when confidential). */
-  trainsOnContent: z.optional(z.boolean()),
+  trainsOnContent: z.optional(booleanSchema),
+  effortLevels: z.optional(z.array(z.enum(EFFORT_LEVELS))),
 })
 export type ModelOption = z.infer<typeof modelOptionSchema>
 
 const skillOptionSchema = z.object({
-  selector: z.string(),
-  displayName: z.string(),
-  description: z.string(),
-  argumentHint: z.optional(z.string()),
+  selector: stringSchema,
+  displayName: stringSchema,
+  description: stringSchema,
+  argumentHint: z.optional(stringSchema),
 })
 export type SkillOption = z.infer<typeof skillOptionSchema>
 
 // An image, or (M54, PLAN.md D47) a PDF: no pixel size, and its page count
 // when the page tree could be read.
 const attachmentSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  mediaType: z.string(),
-  width: z.optional(z.number()),
-  height: z.optional(z.number()),
-  sizeBytes: z.number(),
-  pageCount: z.optional(z.number()),
+  id: stringSchema,
+  name: stringSchema,
+  mediaType: stringSchema,
+  width: z.optional(numberSchema),
+  height: z.optional(numberSchema),
+  sizeBytes: numberSchema,
+  pageCount: z.optional(numberSchema),
 })
 export type AttachmentSummary = z.infer<typeof attachmentSchema>
 
-const mentionItemSchema = z.object({ path: z.string(), isFolder: z.boolean() })
+const mentionItemSchema = z.object({ path: stringSchema, isFolder: booleanSchema })
 export type MentionItem = z.infer<typeof mentionItemSchema>
 
 // The active editor as the composer chip shows it (M5). The selected text
 // itself stays in the host; the webview only needs the label.
 const editorContextSummarySchema = z.object({
   /** Workspace-relative with forward slashes. */
-  relativePath: z.string(),
+  relativePath: stringSchema,
   /** 1-based, inclusive. */
-  startLine: z.number(),
-  endLine: z.number(),
+  startLine: numberSchema,
+  endLine: numberSchema,
   /** True when nothing is highlighted (a bare caret). */
-  isEmpty: z.boolean(),
+  isEmpty: booleanSchema,
 })
 export type EditorContextSummary = z.infer<typeof editorContextSummarySchema>
 
 const composerStateSchema = z.object({
   type: z.literal('composerState'),
   effort: z.enum(EFFORT_LEVELS),
-  isThinkingEnabled: z.boolean(),
+  isThinkingEnabled: booleanSchema,
   permissionMode: z.enum(PERMISSION_MODES),
 })
 
 // The Plan-mode reply a plan action names (M79): its session and its item.
 const planReplyFields = {
-  sourceSessionId: z.string().check(z.minLength(1)),
-  itemId: z.string().check(z.minLength(1)),
+  sourceSessionId: stringSchema.check(z.minLength(1)),
+  itemId: stringSchema.check(z.minLength(1)),
 } as const
 
 // Report a problem (M93, PLAN.md D72): the report workflow's wire shapes,
@@ -397,14 +416,21 @@ export const reportDraftItemSchema = z.object({
 export type ReportDraftItem = z.infer<typeof reportDraftItemSchema>
 
 const webviewToHostMessageSchema = z.discriminatedUnion('type', [
+  // M118: the lazy implementation validates the action-specific payload.
+  z.strictObject({
+    type: z.literal('sharingAction'),
+    id: z.string(),
+    action: z.string(),
+    payload: z.unknown(),
+  }),
   z.object({ type: z.literal('readReference') }),
   z.object({ type: z.literal('openReferenceSetting'), key: z.string() }),
   z.object({ type: z.literal('runReferenceCommand'), command: z.string() }),
   // Sent once when the React app has mounted and is listening for messages.
-  z.object({ type: z.literal('ready'), attachmentEpoch: z.optional(z.number()) }),
+  z.object({ type: z.literal('ready'), attachmentEpoch: z.optional(numberSchema) }),
   // The composer gained or lost keyboard focus; drives the
   // `museSpark.inputFocused` context key behind Ctrl+Esc.
-  z.object({ type: z.literal('inputFocusChanged'), focused: z.boolean() }),
+  z.object({ type: z.literal('inputFocusChanged'), focused: booleanSchema }),
   // The panel's document gained focus (M25): it becomes the surface the
   // keybindings (New Conversation, Alt+T) act on.
   z.object({ type: z.literal('surfaceFocused') }),
@@ -413,19 +439,19 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('webviewError'),
     source: z.enum(WEBVIEW_ERROR_SOURCES),
-    message: z.string().check(z.maxLength(WEBVIEW_ERROR_MESSAGE_MAX_CHARS)),
-    stack: z.optional(z.string().check(z.maxLength(WEBVIEW_ERROR_STACK_MAX_CHARS))),
+    message: stringSchema.check(z.maxLength(WEBVIEW_ERROR_MESSAGE_MAX_CHARS)),
+    stack: z.optional(stringSchema.check(z.maxLength(WEBVIEW_ERROR_STACK_MAX_CHARS))),
   }),
   // The user pressed Send. `localId` lets the host confirm or reject the
   // optimistic echo the webview already rendered; `attachmentIds` name the
   // images the host is holding for this message.
   z.object({
     type: z.literal('sendMessage'),
-    localId: z.string(),
-    text: z.string(),
-    attachmentIds: z.array(z.string()),
+    localId: stringSchema,
+    text: stringSchema,
+    attachmentIds: z.array(stringSchema),
     /** The editor-context chip was on: the host adds the active file / selection. */
-    includeEditorContext: z.optional(z.boolean()),
+    includeEditorContext: z.optional(booleanSchema),
     /** The message replies to an output or quotes a passage (M17). */
     reference: z.optional(chatReferenceSchema),
     /**
@@ -461,14 +487,14 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('signOut') }),
   // Re-check for the CLI / restart the backend after an error.
   z.object({ type: z.literal('retryBackend') }),
-  z.object({ type: z.literal('openExternal'), url: z.string() }),
+  z.object({ type: z.literal('openExternal'), url: stringSchema }),
   // Composer controls.
-  z.object({ type: z.literal('setModel'), modelId: z.string() }),
+  z.object({ type: z.literal('setModel'), modelId: stringSchema }),
   z.object({ type: z.literal('setEffort'), effort: z.enum(EFFORT_LEVELS) }),
-  z.object({ type: z.literal('setThinking'), enabled: z.boolean() }),
+  z.object({ type: z.literal('setThinking'), enabled: booleanSchema }),
   z.object({ type: z.literal('setPermissionMode'), mode: z.enum(PERMISSION_MODES) }),
   // "/clear": forget this surface's session; the next send starts a new one.
-  z.object({ type: z.literal('clearConversation'), attachmentEpoch: z.optional(z.number()) }),
+  z.object({ type: z.literal('clearConversation'), attachmentEpoch: z.optional(numberSchema) }),
   // "/compact": ask the host to summarise older context.
   z.object({ type: z.literal('compact') }),
   // "/handoff …": distil this conversation into a brief for a fresh one
@@ -476,29 +502,29 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // after the command. The host cards the accepted request itself.
   z.object({
     type: z.literal('requestHandoff'),
-    requestId: z.string(),
-    goal: z.optional(z.string()),
+    requestId: stringSchema,
+    goal: z.optional(stringSchema),
   }),
   // The handoff dialog's Start: the brief as edited. Cancel only dismisses.
-  z.object({ type: z.literal('confirmHandoff'), requestId: z.string(), brief: z.string() }),
-  z.object({ type: z.literal('cancelHandoff'), requestId: z.string() }),
+  z.object({ type: z.literal('confirmHandoff'), requestId: stringSchema, brief: stringSchema }),
+  z.object({ type: z.literal('cancelHandoff'), requestId: stringSchema }),
   // The session goal (M45, PLAN.md D38): `/goal …` in the prompt or the goal
   // strip's controls. `set` and `edit` carry the objective.
   z.object({
     type: z.literal('goalCommand'),
-    requestId: z.string(),
+    requestId: stringSchema,
     verb: z.enum(GOAL_COMMANDS),
-    objective: z.optional(z.string()),
+    objective: z.optional(stringSchema),
   }),
   // Model API schedules only (M52): validated before crossing into the host.
   z.object({
     type: z.literal('scheduleCreate'),
     cadence: scheduleCadenceSchema,
-    prompt: z.string(),
+    prompt: stringSchema,
   }),
   z.object({ type: z.literal('scheduleList') }),
-  z.object({ type: z.literal('scheduleCancel'), id: z.string() }),
-  z.object({ type: z.literal('scheduleRun'), id: z.string(), occurrenceMs: z.number() }),
+  z.object({ type: z.literal('scheduleCancel'), id: stringSchema }),
+  z.object({ type: z.literal('scheduleRun'), id: stringSchema, occurrenceMs: numberSchema }),
   // "/export" and "Export session log…" (M30): Markdown, or Muse Code's JSON log.
   z.object({ type: z.literal('exportConversation'), format: z.enum(EXPORT_FORMATS) }),
   // "Import session…" and "Open share file…" (M84): a portable JSON file
@@ -508,7 +534,7 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // The palette opened: (re)load the session's skills.
   z.object({ type: z.literal('listSkills') }),
   // @-mention menu: `requestId` lets the webview drop stale answers.
-  z.object({ type: z.literal('searchMentions'), requestId: z.number(), query: z.string() }),
+  z.object({ type: z.literal('searchMentions'), requestId: numberSchema, query: stringSchema }),
   // "+" / "Attach file…": native open dialog; images (and, on the Model API
   // backend, PDFs: M54) become attachments, other files `@path` mentions.
   z.object({ type: z.literal('pickFile') }),
@@ -518,23 +544,24 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // stays for the wire's sake; the host tells them apart by their bytes.
   z.object({
     type: z.literal('attachImageData'),
-    name: z.string(),
-    mediaType: z.string(),
-    base64: z.string().check(z.maxLength(MAX_ATTACHMENT_BASE64_CHARS)),
-    requestId: z.optional(z.string()),
-    attachmentEpoch: z.optional(z.number()),
+    name: stringSchema,
+    mediaType: stringSchema,
+    base64: stringSchema.check(z.maxLength(MAX_ATTACHMENT_BASE64_CHARS)),
+    requestId: z.optional(stringSchema),
+    attachmentEpoch: z.optional(numberSchema),
   }),
-  z.object({ type: z.literal('removeAttachment'), id: z.string() }),
+  z.object({ type: z.literal('removeAttachment'), id: stringSchema }),
   // Editor resources dropped onto the composer (`text/uri-list`).
-  z.object({ type: z.literal('droppedUris'), uris: z.array(z.string()) }),
+  z.object({ type: z.literal('droppedUris'), uris: z.array(stringSchema) }),
   z.object({ type: z.literal('hostAction'), action: z.enum(HOST_ACTIONS) }),
+  z.strictObject({ type: z.literal('openUsagePage') }),
   // Approval card: one of the request's `availableChoices`.
   z.object({
     type: z.literal('decideApproval'),
-    approvalId: z.string(),
-    choiceId: z.string(),
+    approvalId: stringSchema,
+    choiceId: stringSchema,
     requirementId: requirementRefSchema,
-    feedback: z.optional(z.string()),
+    feedback: z.optional(stringSchema),
   }),
   // Question card: Cancel declines the prompt; the model sees a cancelled result (M16).
   z.object({ type: z.literal('cancelQuestion'), userInputId: z.string() }),
@@ -553,54 +580,81 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Question card: one answer per question.
   z.object({
     type: z.literal('answerQuestion'),
-    userInputId: z.string(),
+    userInputId: stringSchema,
     answers: z.array(answerSchema),
   }),
   // Question card: an explanation instead of the options (M46, `userInput/clarify`).
   z.object({
     type: z.literal('clarifyQuestion'),
-    userInputId: z.string(),
-    text: z.string().check(z.maxLength(CLARIFICATION_MAX_CHARS)),
+    userInputId: stringSchema,
+    text: stringSchema.check(z.maxLength(CLARIFICATION_MAX_CHARS)),
   }),
   // A running command to the background (the row's button, M46); Ctrl+B is
   // the host's own command.
-  z.object({ type: z.literal('moveToBackground'), itemId: z.string() }),
+  z.object({ type: z.literal('moveToBackground'), itemId: stringSchema }),
   // A background task's Stop, or the user's own command's (M46).
-  z.object({ type: z.literal('stopTask'), itemId: z.string() }),
+  z.object({ type: z.literal('stopTask'), itemId: stringSchema }),
   // The Agent map's Stop all (M46).
   z.object({ type: z.literal('stopAllTasks') }),
+  // The team tree and cards (M96 lane U2): the host answers these once
+  // lanes T/A/W land. The webview only posts them; nothing team-related
+  // loads or changes requests until the host sends a team.
+  // A team task's transcript, opened from the tree.
+  z.object({ type: z.literal('openTeamTaskTranscript'), taskId: stringSchema }),
+  // A team task's Stop, from the tree.
+  z.object({ type: z.literal('stopTeamTask'), taskId: stringSchema }),
+  // A team task's branch against its base, in the diff editor.
+  z.object({ type: z.literal('reviewTeamDiff'), taskId: stringSchema }),
+  // The merge card's answer, through the orchestrator's `merge`.
+  z.object({
+    type: z.literal('decideTeamMerge'),
+    taskId: stringSchema,
+    decision: z.enum(['merge', 'discard']),
+  }),
+  // The "waiting for you" card's answer: queue, the main agent, raise, cancel.
+  z.object({
+    type: z.literal('answerTeamWaiting'),
+    waitingId: stringSchema,
+    choice: z.enum(['queue', 'self', 'raise', 'cancel']),
+  }),
+  // Roles, pools and caps are edited in the Roles section, never in the tree.
+  z.object({ type: z.literal('openTeamRoles'), roleId: z.optional(stringSchema) }),
+  // A pool entry's Reset, which asks first and names its window.
+  z.object({ type: z.literal('resetTeamEntry'), entryId: stringSchema }),
+  // The Agent map's Stop all team tasks.
+  z.object({ type: z.literal('stopAllTeamTasks') }),
   // A `!` prompt (M46): the command, without the `!`.
-  z.object({ type: z.literal('runUserShell'), command: z.string() }),
+  z.object({ type: z.literal('runUserShell'), command: stringSchema }),
   // Tool row: fetch one page of a stored output or patch document.
   z.object({
     type: z.literal('readOutput'),
-    itemId: z.string(),
-    outputRef: z.string(),
-    offsetBytes: z.number(),
+    itemId: stringSchema,
+    outputRef: stringSchema,
+    offsetBytes: numberSchema,
   }),
   // Tool row: the picture a tool read or made, by the path it named (M43).
   z.object({
     type: z.literal('readToolImage'),
-    itemId: z.string(),
-    path: z.string(),
+    itemId: stringSchema,
+    path: stringSchema,
   }),
   // Tool row: open the whole output in an editor tab (M15). `text` is the
   // transcript's copy; a stored output (`outputRef`) is paged in full instead.
   z.object({
     type: z.literal('openOutput'),
-    itemId: z.string(),
-    label: z.string(),
-    text: z.string(),
-    outputRef: z.optional(z.string()),
+    itemId: stringSchema,
+    label: stringSchema,
+    text: stringSchema,
+    outputRef: z.optional(stringSchema),
   }),
   // Code block actions.
-  z.object({ type: z.literal('copyText'), text: z.string() }),
-  z.object({ type: z.literal('insertCode'), text: z.string() }),
+  z.object({ type: z.literal('copyText'), text: stringSchema }),
+  z.object({ type: z.literal('insertCode'), text: stringSchema }),
   // Replace the active editor's selection with the block (M5).
-  z.object({ type: z.literal('applyCode'), text: z.string() }),
+  z.object({ type: z.literal('applyCode'), text: stringSchema }),
   // Edit review (M5): the stored patch of a completed edit-family item in the
   // diff editor (the inline diff's "Click to expand" since M15).
-  z.object({ type: z.literal('openEditDiff'), itemId: z.string(), outputRef: z.string() }),
+  z.object({ type: z.literal('openEditDiff'), itemId: stringSchema, outputRef: stringSchema }),
   // An edit row's Revert (M87, PLAN.md D66 item 17): that edit's stored patch
   // reverse-applied after the file-action confirmation, as one step of
   // "Rewind code to here" is (M13, M72).
@@ -608,9 +662,9 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // A tool row's path: open the file, selecting the changed lines when known (M16, `LineRange`).
   z.object({
     type: z.literal('openFile'),
-    path: z.string(),
-    startLine: z.optional(z.number()),
-    endLine: z.optional(z.number()),
+    path: stringSchema,
+    startLine: z.optional(numberSchema),
+    endLine: z.optional(numberSchema),
   }),
   // Rewind code to a message: revert every edit after it, newest first (M13).
   // With `fork` ("Fork conversation and rewind code", M72) the host forks
@@ -621,8 +675,8 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     edits: z.array(editRefSchema),
     fork: z.optional(
       z.object({
-        lastTurnId: z.optional(z.string()),
-        attachmentEpoch: z.optional(z.number()),
+        lastTurnId: z.optional(stringSchema),
+        attachmentEpoch: z.optional(numberSchema),
       }),
     ),
   }),
@@ -630,21 +684,21 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // shows is `localId`, reading `text`; answered by turnAccepted or sendFailed.
   z.object({
     type: z.literal('startReview'),
-    localId: z.string(),
-    text: z.string(),
+    localId: stringSchema,
+    text: stringSchema,
     request: reviewRequestSchema,
   }),
   // The review pane opened (M70): the conversation's edits, oldest first.
   z.object({
     type: z.literal('readReviewChanges'),
-    requestId: z.string(),
+    requestId: stringSchema,
     edits: z.array(editRefSchema),
   }),
   // The review pane's Revert on one hunk (M70).
   z.object({
     type: z.literal('revertReviewHunk'),
-    itemId: z.string(),
-    outputRef: z.string(),
+    itemId: stringSchema,
+    outputRef: stringSchema,
     fileIndex: indexSchema,
     hunkIndex: indexSchema,
   }),
@@ -654,76 +708,87 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // well once the files are restored ("Rewind conversation and restore files").
   z.object({
     type: z.literal('restoreFiles'),
-    sourceSessionId: z.string().check(z.minLength(1)),
-    turnId: z.string().check(z.minLength(1)),
+    sourceSessionId: stringSchema.check(z.minLength(1)),
+    turnId: stringSchema.check(z.minLength(1)),
     rewind: z.optional(rewindConversationSchema),
   }),
   // A restore's Redo (M72, M86): what it replaced goes back, only in the
   // conversation it was offered in.
   z.object({
     type: z.literal('redoRestore'),
-    restoreId: z.string().check(z.minLength(1)),
-    sourceSessionId: z.string().check(z.minLength(1)),
+    restoreId: stringSchema.check(z.minLength(1)),
+    sourceSessionId: stringSchema.check(z.minLength(1)),
   }),
   // Session history (M6).
   z.object({ type: z.literal('listSessions') }),
   // The session board (M77): every conversation in the window and its worktrees.
   z.object({ type: z.literal('requestSessionBoard') }),
+  // The read-only legal scan (M97, PLAN.md D76): the report asks the host
+  // to run the deterministic scanner; answered by `legalScanReport`.
+  legalScanRequestMessageSchema,
+  z.strictObject({ type: z.literal('requestLegalExplanation') }),
+  z.strictObject({ type: z.literal('exportLegalReport') }),
+  // The selected-fix handoff (M97 lane W): the report asks the host to
+  // preview fixes for exactly the selected findings, then confirms exactly
+  // the preview it showed; answered by `legalFixPreview` and
+  // `legalFixResult`.
+  requestLegalFixMessageSchema,
+  confirmLegalFixMessageSchema,
   z.object({
     type: z.literal('activateBoardSession'),
-    sessionId: z.string(),
+    sessionId: stringSchema,
     backend: z.enum(BACKEND_KINDS),
   }),
   // Best-of-N on the Model API (M77): the same prompt in N worktrees. The
   // host checks the bounds and answers with `bestOfNUpdate` or a notice.
   z.object({
     type: z.literal('startBestOfN'),
-    prompt: z.string(),
+    prompt: stringSchema,
     attempts: z.int(),
     requestCeilingPerAttempt: z.int(),
   }),
   // "Take this one": apply and stage this attempt's frozen preview.
   z.object({
     type: z.literal('takeBestOfNAttempt'),
-    runId: z.string(),
-    attemptId: z.string(),
+    runId: stringSchema,
+    attemptId: stringSchema,
   }),
-  z.object({ type: z.literal('openBestOfNAttempt'), runId: z.string(), attemptId: z.string() }),
-  z.object({ type: z.literal('cancelBestOfN'), runId: z.string() }),
+  z.object({ type: z.literal('openBestOfNAttempt'), runId: stringSchema, attemptId: stringSchema }),
+  z.object({ type: z.literal('cancelBestOfN'), runId: stringSchema }),
   // The Agent map reads a subagent's own session (M14).
-  z.object({ type: z.literal('readChildSession'), sessionId: z.string() }),
+  z.object({ type: z.literal('readChildSession'), sessionId: stringSchema }),
   // The Agent map's owner controls (M18, M48), including reopen and readResult.
   z.object({
     type: z.literal('subagentControl'),
-    subagentId: z.string(),
+    subagentId: stringSchema,
     action: z.enum(SUBAGENT_ACTIONS),
   }),
   // A note to a running subagent, or a follow-up task for a finished one (M18).
   z.object({
     type: z.literal('subagentMessage'),
-    subagentId: z.string(),
-    body: z.string(),
-    isFollowup: z.boolean(),
+    subagentId: stringSchema,
+    body: stringSchema,
+    isFollowup: booleanSchema,
   }),
   z.object({
     type: z.literal('resumeSession'),
-    sessionId: z.string(),
-    attachmentEpoch: z.optional(z.number()),
+    sessionId: stringSchema,
+    attachmentEpoch: z.optional(numberSchema),
   }),
   z.object({
     type: z.literal('setSessionArchived'),
-    sessionId: z.string(),
-    isArchived: z.boolean(),
+    sessionId: stringSchema,
+    isArchived: booleanSchema,
   }),
   /** Fork the current session through `lastTurnId` (all turns when absent). */
   z.object({
     type: z.literal('forkSession'),
-    lastTurnId: z.optional(z.string()),
-    attachmentEpoch: z.optional(z.number()),
+    lastTurnId: z.optional(stringSchema),
+    attachmentEpoch: z.optional(numberSchema),
   }),
   z.object({
     type: z.literal('openSideChat'),
-    sourceSessionId: z.string().check(z.minLength(1)),
+    sourceSessionId: stringSchema.check(z.minLength(1)),
   }),
   // Plans as files (M79): the latest Plan-mode reply saved under
   // `.agents/plans/`, or implemented in a fresh conversation. The host reads
@@ -732,7 +797,7 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('implementPlan'), ...planReplyFields }),
   // The palette's Plans… (M79): the host lists them in a pick.
   z.object({ type: z.literal('showPlans') }),
-  z.object({ type: z.literal('renameSession'), name: z.string() }),
+  z.object({ type: z.literal('renameSession'), name: stringSchema }),
   // Account & usage (M8): ask for the subscription window; answered by usageReport.
   z.object({ type: z.literal('readUsage') }),
   // Voice dictation (M9): the microphone button / Ctrl+D. Recognised text
@@ -743,7 +808,7 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('setPaidFeature'),
     feature: z.enum(PAID_FEATURES),
-    isOn: z.boolean(),
+    isOn: booleanSchema,
   }),
   // Account & usage's "Ask again" (M58): no paid feature stays allowed
   // always in this workspace.
@@ -803,9 +868,16 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   }),
 ])
 
-export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema>
+export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema> | TeamTreeAction
 
 const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
+  z.strictObject({
+    type: z.literal('sharingResult'),
+    id: z.string(),
+    value: z.unknown(),
+    error: z.optional(z.string()),
+  }),
+  z.strictObject({ type: z.literal('openSharing'), surface: z.enum(['prompts', 'chat']) }),
   // Posted on attach and each registry change; terminal updates settle both views.
   openQuestionsMessageSchema,
   // Palette/key navigation uses the same contract as the chip's Next/Previous.
@@ -821,10 +893,10 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // Reply to `ready`: everything the shell needs to render its first frame.
   z.object({
     type: z.literal('init'),
-    emptyStateHint: z.string(),
-    composerPlaceholder: z.string(),
+    emptyStateHint: stringSchema,
+    composerPlaceholder: stringSchema,
     settings: settingsSnapshotSchema,
-    sideChat: z.optional(z.boolean()),
+    sideChat: z.optional(booleanSchema),
   }),
   // A `museSpark.*` setting changed while the webview was open.
   z.object({ type: z.literal('settingsChanged'), settings: settingsSnapshotSchema }),
@@ -834,20 +906,20 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('openUsage') }),
   // The host dropped this surface's conversation (M25): New Conversation
   // from a keybinding, or the echo of the webview's own clear.
-  z.object({ type: z.literal('conversationCleared'), accountBoundary: z.optional(z.boolean()) }),
+  z.object({ type: z.literal('conversationCleared'), accountBoundary: z.optional(booleanSchema) }),
   // Sent first on every `ready` (M25): the session and turn the host holds
   // for this surface, so a reloaded webview keeps the transcript it saved
   // only when that conversation is still the live one.
   z.object({
     type: z.literal('surfaceState'),
-    sessionId: z.optional(z.string()),
-    activeTurnId: z.optional(z.string()),
+    sessionId: z.optional(stringSchema),
+    activeTurnId: z.optional(stringSchema),
     /** The host's monotonic browser-file guard; older saved webviews raise their epoch. */
-    attachmentEpoch: z.optional(z.number()),
+    attachmentEpoch: z.optional(numberSchema),
   }),
   // Insert text at the composer caret (Alt+K mention reference).
-  z.object({ type: z.literal('insertText'), text: z.string() }),
-  z.object({ type: z.literal('restoreDraft'), text: z.string() }),
+  z.object({ type: z.literal('insertText'), text: stringSchema }),
+  z.object({ type: z.literal('restoreDraft'), text: stringSchema }),
   // The active editor changed (M5); undefined when no text file is active.
   z.object({
     type: z.literal('editorContext'),
@@ -857,41 +929,53 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('authState'),
     status: z.enum(AUTH_STATUSES),
-    detail: z.optional(z.string()),
+    detail: z.optional(stringSchema),
     /** Which backend the window uses once signed in (M7). */
     backend: z.optional(z.enum(BACKEND_KINDS)),
     /** The sign-in paths the gate offers; both when absent. */
     methods: z.optional(z.array(z.enum(SIGN_IN_METHODS))),
     verificationUrl: z.optional(z.url()),
-    userCode: z.optional(z.string()),
-    installCommand: z.optional(z.string()),
-    hasCli: z.optional(z.boolean()),
-    hasCliSession: z.optional(z.boolean()),
+    userCode: z.optional(stringSchema),
+    installCommand: z.optional(stringSchema),
+    hasCli: z.optional(booleanSchema),
+    hasCliSession: z.optional(booleanSchema),
     installState: z.optional(z.enum(['running', 'failed'])),
+    /** Host-authored identity for plan notice persistence; no raw account id or credential. */
+    planAccount: z.optional(
+      z.object({
+        providerId: z.string().check(z.regex(/^(?!meta$)[a-z][a-z0-9-]{0,31}$/u)),
+        accountIdHash: z.string().check(z.regex(/^[a-f0-9]{64}$/u)),
+      }),
+    ),
   }),
   // The active session's model (shown in the composer pill) and identity.
   z.object({
     type: z.literal('sessionInfo'),
-    modelId: z.string(),
-    sideChat: z.optional(z.boolean()),
-    contextLimit: z.optional(z.number()),
-    sessionId: z.optional(z.string()),
+    modelId: stringSchema,
+    sideChat: z.optional(booleanSchema),
+    contextLimit: z.optional(numberSchema),
+    sessionId: z.optional(stringSchema),
     // `false` where the host refuses rename and fork (D26); absent means offered.
-    canEditSessions: z.optional(z.boolean()),
+    canEditSessions: z.optional(booleanSchema),
   }),
   // A decision the host did not take (D26): the approval card can be answered again.
-  z.object({ type: z.literal('approvalReopened'), approvalId: z.string() }),
+  z.object({ type: z.literal('approvalReopened'), approvalId: stringSchema }),
   // A decision refused as stale (D26): the card shows, on itself, that the
   // request moved to another step and waits for a choice there.
-  z.object({ type: z.literal('approvalMovedOn'), approvalId: z.string() }),
+  z.object({ type: z.literal('approvalMovedOn'), approvalId: stringSchema }),
   // The host no longer waits on this prompt (D26): its card goes, with no outcome.
   z.object({
     type: z.literal('promptDropped'),
-    approvalId: z.optional(z.string()),
-    userInputId: z.optional(z.string()),
+    approvalId: z.optional(stringSchema),
+    userInputId: z.optional(stringSchema),
   }),
   // The session board (M77): every conversation's state for the board.
   z.object({ type: z.literal('sessionBoard'), rows: z.array(boardRowSchema) }),
+  // The read-only legal scan's report (M97, PLAN.md D76).
+  legalScanReportMessageSchema,
+  // The selected-fix handoff's answers (M97 lane W).
+  legalFixPreviewMessageSchema,
+  legalFixResultMessageSchema,
   // Best-of-N (M77): the run after every change: attempts starting and
   // finishing, their diff stats, the take and the end.
   z.object({ type: z.literal('bestOfNUpdate'), run: bestOfNRunSchema }),
@@ -899,26 +983,26 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('sessionList'),
     sessions: z.array(sessionRowSchema),
-    archivedIds: z.array(z.string()),
+    archivedIds: z.array(stringSchema),
     openQuestionCounts: z.optional(z.record(z.string(), z.number().check(z.int(), z.minimum(0)))),
   }),
   // A resumed or forked session's history: the transcript is rebuilt from it.
   z.object({
     type: z.literal('historyLoaded'),
-    sessionId: z.string(),
-    sideChat: z.optional(z.boolean()),
+    sessionId: stringSchema,
+    sideChat: z.optional(booleanSchema),
     items: z.array(itemSnapshotSchema),
-    name: z.optional(z.string()),
+    name: z.optional(stringSchema),
     todos: z.array(todoItemSchema),
     // The session goal (M45): `null` when the history says there is none;
     // absent when the history could not say (Muse Code serves the goal only
     // with a snapshot), so the panel keeps what it knew of the same session.
     goal: z.optional(z.nullable(sessionGoalSchema)),
     // The turn still running in the session (D26): Stop and steering stay.
-    activeTurnId: z.optional(z.string()),
+    activeTurnId: z.optional(stringSchema),
     // The turns of these items this panel sent in Plan mode (M79): their user
     // cards keep `isPlanTurn`, so a reload keeps Save plan and Implement.
-    planTurnIds: z.optional(z.array(z.string())),
+    planTurnIds: z.optional(z.array(stringSchema)),
     // The session holds imported history (M84, PLAN.md D49): its code
     // blocks offer Copy only, as a share file's do.
     imported: z.optional(z.literal(true)),
@@ -936,26 +1020,36 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     insights: z.optional(z.object({ day: usageInsightsSchema, week: usageInsightsSchema })),
     /** This window's tallies per BYO provider (M95); absent until one is used. */
     providers: z.optional(z.array(providerUsageRowSchema)),
+    /** The Usage Team section (M96 lane U2); absent where the team cannot run. */
+    team: z.optional(teamUsageSchema),
+    plans: z.optional(planUsageReportSchema),
   }),
   // A finished provider setup (M95): the wizard saved a provider and set the
   // composer's model. The panel confirms once, then leaves first run.
   providerSetupSchema,
+  // The Agent map's team tree, the ledger's live view (M96 lane U2);
+  // absent where the team cannot run. Sent on every change.
+  z.object({
+    type: z.literal('teamTree'),
+    tree: teamTreeSchema,
+  }),
+  z.object({ type: z.literal('clearTeamTree') }),
   // A subagent's own transcript for the Agent map (M14).
   z.object({
     type: z.literal('childTranscript'),
-    sessionId: z.string(),
-    name: z.optional(z.string()),
+    sessionId: stringSchema,
+    name: z.optional(stringSchema),
     items: z.array(itemSnapshotSchema),
   }),
   // A local share file rendered read-only (M84, PLAN.md D49): the panel
   // shows it in a modal that can act on nothing. `exportedAt` is ISO 8601.
   z.object({
     type: z.literal('sharePreview'),
-    title: z.string(),
-    exportedAt: z.string(),
+    title: stringSchema,
+    exportedAt: stringSchema,
     sourceBackend: z.enum(BACKEND_KINDS),
-    modelId: z.string(),
-    redacted: z.boolean(),
+    modelId: stringSchema,
+    redacted: booleanSchema,
     items: z.array(itemSnapshotSchema),
   }),
   // Voice dictation (M9): sent on surfaceReady and on every change. `reason`
@@ -965,7 +1059,7 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('dictationState'),
     status: z.enum(DICTATION_UI_STATUSES),
-    reason: z.optional(z.string()),
+    reason: z.optional(stringSchema),
     engine: z.optional(z.enum(DICTATION_ENGINES)),
   }),
   // The paid features that are on and this window's tally (M33, PLAN.md
@@ -978,8 +1072,8 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // `sendFailed` follows with the same `localId`.
   z.object({
     type: z.literal('briefSubmitted'),
-    localId: z.string().check(z.minLength(1)),
-    text: z.string(),
+    localId: stringSchema.check(z.minLength(1)),
+    text: stringSchema,
     attachments: z.array(attachmentSchema),
   }),
   // The host accepted a sendMessage. Model API also returns its durable user-item ID.
@@ -987,19 +1081,19 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // of it: `started`, `queued` or `steered`, kept open (D36).
   z.object({
     type: z.literal('turnAccepted'),
-    localId: z.string(),
-    turnId: z.string(),
-    userMessageId: z.optional(z.string().check(z.minLength(1))),
-    disposition: z.optional(z.string()),
+    localId: stringSchema,
+    turnId: stringSchema,
+    userMessageId: z.optional(stringSchema.check(z.minLength(1))),
+    disposition: z.optional(stringSchema),
   }),
   // The host could not submit a sendMessage. `attachmentsKept` (M25): the
   // host still holds the message's images, so the composer shows them again;
   // absent, the webview asks the host to drop any it still holds.
   z.object({
     type: z.literal('sendFailed'),
-    localId: z.string(),
-    reason: z.string(),
-    attachmentsKept: z.optional(z.boolean()),
+    localId: stringSchema,
+    reason: stringSchema,
+    attachmentsKept: z.optional(booleanSchema),
   }),
   // A queued message was taken back (M87, PLAN.md D66): its card goes and
   // its text returns to the composer. `attachmentsKept`, as on `sendFailed`
@@ -1025,24 +1119,28 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     redactedText: z.string(),
   }),
   // The command's admission result. Correlation protects a newer composer draft.
-  z.object({ type: z.literal('goalCommandResult'), requestId: z.string(), accepted: z.boolean() }),
+  z.object({
+    type: z.literal('goalCommandResult'),
+    requestId: stringSchema,
+    accepted: booleanSchema,
+  }),
   // `/handoff` (M74): the distilled brief is ready to review, with the open
   // items the new conversation's todo list starts with. Nothing starts until
   // the user confirms it; the dialog sends the edited text back.
   z.object({
     type: z.literal('handoffReady'),
-    requestId: z.string(),
-    brief: z.string(),
-    goal: z.optional(z.string()),
-    todos: z.array(z.string()),
+    requestId: stringSchema,
+    brief: stringSchema,
+    goal: z.optional(stringSchema),
+    todos: z.array(stringSchema),
   }),
   // A request's or a confirm's admission result. Correlation protects a
   // newer draft or dialog: only an accepted request clears the composer's
   // `/handoff …`, and a refused confirm keeps the dialog.
   z.object({
     type: z.literal('handoffCommandResult'),
-    requestId: z.string(),
-    accepted: z.boolean(),
+    requestId: stringSchema,
+    accepted: booleanSchema,
   }),
   // One backend-agnostic conversation event (see agentEvents.ts).
   // `reportRef` (M93): a failed turn the host recorded; its error row
@@ -1060,19 +1158,19 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   composerStateSchema,
   z.object({
     type: z.literal('mentionResults'),
-    requestId: z.number(),
+    requestId: numberSchema,
     items: z.array(mentionItemSchema),
   }),
   z.object({
     type: z.literal('attachmentAdded'),
     attachment: attachmentSchema,
-    requestId: z.optional(z.string()),
+    requestId: z.optional(stringSchema),
   }),
   z.object({
     type: z.literal('attachmentRejected'),
-    name: z.string(),
-    reason: z.string(),
-    requestId: z.optional(z.string()),
+    name: stringSchema,
+    reason: stringSchema,
+    requestId: z.optional(stringSchema),
   }),
   z.object({ type: z.literal('attachmentsCleared') }),
   // A one-line message for the transcript (failed host command, warnings).
@@ -1084,8 +1182,8 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('notice'),
     level: z.enum(NOTICE_LEVELS),
-    text: z.string(),
-    redoRestoreId: z.optional(z.string()),
+    text: stringSchema,
+    redoRestoreId: z.optional(stringSchema),
     actions: z.optional(z.array(z.enum(NOTICE_ACTIONS))),
     reportRef: z.optional(reportEventRefSchema),
   }),
@@ -1093,29 +1191,29 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // for another try (a file left as it is, a turn running).
   z.object({
     type: z.literal('restoreRedone'),
-    restoreId: z.string(),
-    isSpent: z.boolean(),
+    restoreId: stringSchema,
+    isSpent: booleanSchema,
   }),
   // Turn checkpoints (M72): whether this window takes them, and which turns
   // of the conversation shown have one (their cards offer "Restore files").
   z.object({
     type: z.literal('checkpointState'),
     availability: z.enum(CHECKPOINT_AVAILABILITIES),
-    canRestore: z.boolean(),
-    legacyTurnIds: z.optional(z.array(z.string())),
+    canRestore: booleanSchema,
+    legacyTurnIds: z.optional(z.array(stringSchema)),
     restoreBlocker: z.optional(z.enum(CHECKPOINT_RESTORE_BLOCKERS)),
-    sessionId: z.optional(z.string()),
-    turnIds: z.array(z.string()),
+    sessionId: z.optional(stringSchema),
+    turnIds: z.array(stringSchema),
   }),
   // One page of a stored tool output / patch document (answer to readOutput).
   z.object({
     type: z.literal('outputPage'),
-    itemId: z.string(),
-    outputRef: z.string(),
-    offsetBytes: z.number(),
-    byteLen: z.number(),
-    content: z.string(),
-    eof: z.boolean(),
+    itemId: stringSchema,
+    outputRef: stringSchema,
+    offsetBytes: numberSchema,
+    byteLen: numberSchema,
+    content: stringSchema,
+    eof: booleanSchema,
   }),
   // The host did not move or stop this task (M46): the row's button is free again.
   z.object({ type: z.literal('taskRefused'), itemId: z.string() }),
@@ -1131,31 +1229,31 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // `reason` says why there is nothing to list at all.
   z.object({
     type: z.literal('reviewChanges'),
-    requestId: z.string(),
+    requestId: stringSchema,
     files: z.array(reviewFileSchema),
-    omittedEdits: z.number(),
-    reason: z.optional(z.string()),
+    omittedEdits: numberSchema,
+    reason: z.optional(stringSchema),
   }),
   // What became of a hunk's Revert (M70); `reason` when it was not reverted.
   z.object({
     type: z.literal('reviewHunkResult'),
-    itemId: z.string(),
+    itemId: stringSchema,
     fileIndex: indexSchema,
     hunkIndex: indexSchema,
-    isReverted: z.boolean(),
-    reason: z.optional(z.string()),
+    isReverted: booleanSchema,
+    reason: z.optional(stringSchema),
   }),
   // A `!` command that did not run (M46): why, and the command, which goes
   // back into an empty prompt.
-  z.object({ type: z.literal('userShellRefused'), command: z.string(), reason: z.string() }),
+  z.object({ type: z.literal('userShellRefused'), command: stringSchema, reason: stringSchema }),
   // The picture a tool row asked for (answer to readToolImage, M43): a data
   // URI of the file, or why it could not be shown.
   z.object({
     type: z.literal('toolImage'),
-    itemId: z.string(),
-    path: z.string(),
-    dataUri: z.optional(z.string()),
-    error: z.optional(z.string()),
+    itemId: stringSchema,
+    path: stringSchema,
+    dataUri: z.optional(stringSchema),
+    error: z.optional(stringSchema),
   }),
   // Report a problem (M93 lane W): the sealed draft the preview shows
   // byte-identical, with the removable items it contains. Labels are built
@@ -1201,7 +1299,29 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   }),
 ])
 
-export type HostToWebviewMessage = z.infer<typeof hostToWebviewMessageSchema>
+export type HostToWebviewMessage = z.infer<typeof hostToWebviewMessageSchema> | TeamTreeUpdate
+
+const teamSchemas: {
+  action: z.ZodMiniType<TeamTreeAction> | undefined
+  update: z.ZodMiniType<TeamTreeUpdate> | undefined
+} = { action: undefined, update: undefined }
+
+/**
+ * The team activation factory installs its lazy validators into each
+ * receiving bundle through this port. Until then team messages refuse;
+ * single-model activation carries only their types, never team.ts.
+ */
+export function installTeamProtocolSchemas(schemas: {
+  readonly action: z.ZodMiniType<TeamTreeAction>
+  readonly update: z.ZodMiniType<TeamTreeUpdate>
+}): void {
+  teamSchemas.action = schemas.action
+  teamSchemas.update = schemas.update
+}
+
+function hasMessageType(input: unknown, type: string): boolean {
+  return typeof input === 'object' && input !== null && 'type' in input && input.type === type
+}
 
 export type ParseResult<T> =
   { readonly ok: true; readonly message: T } | { readonly ok: false; readonly error: string }
@@ -1214,9 +1334,19 @@ function parseWith<T>(schema: z.ZodMiniType<T>, input: unknown): ParseResult<T> 
 }
 
 export function parseWebviewToHostMessage(input: unknown): ParseResult<WebviewToHostMessage> {
-  return parseWith(webviewToHostMessageSchema, input)
+  return parseWith<WebviewToHostMessage>(
+    teamSchemas.action !== undefined && hasMessageType(input, 'teamTreeAction')
+      ? teamSchemas.action
+      : webviewToHostMessageSchema,
+    input,
+  )
 }
 
 export function parseHostToWebviewMessage(input: unknown): ParseResult<HostToWebviewMessage> {
-  return parseWith(hostToWebviewMessageSchema, input)
+  return parseWith<HostToWebviewMessage>(
+    teamSchemas.update !== undefined && hasMessageType(input, 'teamTree')
+      ? teamSchemas.update
+      : hostToWebviewMessageSchema,
+    input,
+  )
 }

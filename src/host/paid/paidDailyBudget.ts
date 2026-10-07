@@ -1,3 +1,4 @@
+import { reportingAmount } from '../../core/usage/reportingAmount'
 import { randomUUID } from 'node:crypto'
 import { PaidAuthority } from '../../core/paid/paidAuthority'
 import { Usd, legacyUsdSchema, usdInputSchema, type UsdAmount } from '../../shared/usd'
@@ -16,6 +17,7 @@ import { modelApiPaidTier } from '../../shared/paid'
 import { createSessionBudgetJournal } from '../backend/sessionBudgetJournal'
 import { storeErrorCode } from '../backend/storeErrors'
 import { writeFileAtomically } from '../fsAtomic'
+import type { UsageBudgetRead } from '../../core/usage/usageService'
 
 const limitSchema = z.object({
   limitUsd: legacyUsdSchema.check(
@@ -51,7 +53,7 @@ export function createPaidDailyBudget(deps: {
     path.join(deps.directory, scope, PAID_DAILY_BUDGET.overrideFile)
   const stopPath = (scope: string) =>
     path.join(deps.directory, scope, PAID_DAILY_BUDGET.stopDirectory)
-  const readLimit = (scope: string) => {
+  const readLimit = (scope: string, isDisplay = false) => {
     let isStopped = false
     try {
       statSync(stopPath(scope))
@@ -60,7 +62,7 @@ export function createPaidDailyBudget(deps: {
       if (storeErrorCode(error) !== 'ENOENT')
         throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
     }
-    if (isStopped) throw new Error(UI_TEXT.paidDailyStopped)
+    if (isStopped && !isDisplay) throw new Error(UI_TEXT.paidDailyStopped)
     let limit: z.infer<typeof limitSchema>
     try {
       limit = limitSchema.parse(JSON.parse(readFileSync(limitPath(scope), 'utf8')))
@@ -69,7 +71,7 @@ export function createPaidDailyBudget(deps: {
         throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
       limit = { limitUsd: deps.capUsd(), stopped: false }
     }
-    if (limit.stopped) throw new Error(UI_TEXT.paidDailyStopped)
+    if (!isDisplay && limit.stopped) throw new Error(UI_TEXT.paidDailyStopped)
     return limit.limitUsd
   }
   const capUsd = () => readLimit(day())
@@ -224,7 +226,7 @@ export function createPaidDailyBudget(deps: {
     signal = new AbortController().signal,
   ) => {
     signal.throwIfAborted()
-    if (!deps.isModelApi()) return
+    if (feature !== 'legalExplanation' && !deps.isModelApi()) return
     if (
       feature === 'webSearch' ||
       ('tools' in body && body.tools.some((tool) => tool.type === 'web_search'))
@@ -278,6 +280,38 @@ export function createPaidDailyBudget(deps: {
       throw error
     }
   }
+  const readToday = async (): Promise<readonly UsageBudgetRead[]> => {
+    const scope = day()
+    const total = await journal.readExisting(scope, PAID_DAILY_BUDGET.accountId)
+    let isStopped = false
+    let cap: number
+    try {
+      cap = Number(readLimit(scope))
+    } catch (error: unknown) {
+      if (!(error instanceof Error) || error.message !== UI_TEXT.paidDailyStopped) throw error
+      isStopped = true
+      cap = Number(readLimit(scope, true))
+    }
+    const reset = new Date(deps.now())
+    reset.setHours(0, 0, 0, 0)
+    reset.setDate(reset.getDate() + 1)
+    return [
+      {
+        budget: {
+          id: scope,
+          kind: 'paidDaily',
+          spentUsd: Number(total?.spentUsd ?? 0),
+          ...(total?.uncertainUsd !== undefined && {
+            uncertainUsd: reportingAmount(total.uncertainUsd),
+          }),
+          capUsd: cap,
+          stopped: isStopped,
+          raisedToday: Usd.from(cap).compare(Usd.from(deps.capUsd())) > 0,
+          resetsAt: reset.getTime(),
+        },
+      },
+    ]
+  }
   const latestDay = async () => {
     const scope = day()
     readLimit(scope)
@@ -329,6 +363,7 @@ export function createPaidDailyBudget(deps: {
   return {
     reserveExact,
     capUsd,
+    readToday,
     reserve,
     judgeLedger,
     latestDay,

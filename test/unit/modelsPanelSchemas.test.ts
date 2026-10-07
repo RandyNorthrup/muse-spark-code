@@ -28,6 +28,8 @@ const messages: readonly PanelToHostMessage[] = [
   { type: 'modelsPanel/ready' },
   { type: 'openExternal', url: 'https://platform.openai.com/api-keys' },
   { type: 'providers/select', presetId: 'openrouter' },
+  { type: 'providers/connectSubscription', providerId: 'chatgpt' },
+  { type: 'providers/connectSubscription', providerId: 'copilot' },
   { type: 'providers/edit', providerId: 'ollama' },
   { type: 'providers/prefill', fields: { address: 'https://openrouter.ai' } },
   {
@@ -203,4 +205,13 @@ describe('modelsPanel carries no credential', () => {
       }).ok,
     ).toBe(false)
   })
+})
+
+it('pins subscription messages to their two supported providers and rejects credentials', () => {
+  for (const message of [
+    { type: 'providers/connectSubscription', providerId: 'meta' },
+    { type: 'providers/connectSubscription', providerId: 'chatgpt', token: 'synthetic' },
+    { type: 'providers/connectSubscription' },
+  ])
+    expect(parsePanelToHostMessage(message).ok).toBe(false)
 })

@@ -1,16 +1,19 @@
 import { Usd, type UsdAmount } from '../../../../shared/usd'
 // M95 lane R: pure Responses encoding and capture-backed SSE decoding.
-// Provider policy is injected by lane P; auth, limits, retries and HTTP errors
+// Provider policy is injected by lane P; auth, retries and HTTP errors
 // belong to lane T. The shared WireCodec has not landed on this branch, so
 // ResponsesWireCodec is the explicit seam for its transport adapter.
 
 import type { ModelCapabilities } from '../../../providers/capabilities'
 import * as z from 'zod/mini'
 import { CODEC_EMPTY_TOOL_OUTPUT, CODEC_IMAGE_WITHOUT_VISION } from '../../../../shared/constants'
+export { parseNativeModelsList as parseResponsesModelsList } from '../../../providers/modelMetadata'
 import {
   type CreateResponseBody,
+  errorBodySchema,
   eventTypeSchema,
   type FunctionCallItem,
+  type FunctionToolDefinition,
   functionCallItemSchema,
   type FunctionOutputPart,
   type InputContentPart,
@@ -21,26 +24,32 @@ import {
   responseSchema,
   type StreamEvent,
   streamEventSchema,
+  type Usage,
   usageSchema,
   webSearchCallItemSchema,
   withStrictTools,
+  type WebSearchToolDefinition,
 } from '../schemas'
 import { parseSse } from '../sse'
 import { cleanWireText, isBlankWireText } from './shared'
 
-export interface ResponsesCodecQuirks {
-  readonly sendPromptCacheRetention: boolean
-  readonly sendPromptCacheKey: boolean
-  /**
-   * M101 lane P1 (BYO item 1): the model's image input. `false` sends the
-   * image-omitted placeholder so the turn keeps its shape; unknown keeps
-   * today's bytes and sends the image. Lane P fills this per model.
-   */
-  readonly vision?: boolean | undefined
-  /** Selected model's effective supportsStrictTools; absent stays off. */
-  readonly supportsStrictTools?: boolean | undefined
-}
-
+export type ResponsesCodecQuirks =
+  | {
+      readonly vision?: boolean | undefined
+      readonly supportsStrictTools?: boolean | undefined
+      readonly profile?: 'api'
+      readonly sendPromptCacheRetention: boolean
+      readonly sendPromptCacheKey: boolean
+    }
+  | {
+      readonly profile: 'chatgpt'
+      readonly vision?: boolean | undefined
+      readonly supportsStrictTools?: boolean | undefined
+      /** Stable across turns; supplied by the host, never derived from a token. */
+      readonly toolNamespace: string
+      /** The caller's namespace description, preserved as in the M95b capture. */
+      readonly toolNamespaceDescription?: string
+    }
 /**
  * M101 lane P1 (BYO item 2): per-request replay provenance. Replayed call
  * ids resolve only against the model that produced them (Pi
@@ -67,14 +76,66 @@ export class ResponsesDecodeError extends Error {
   }
 }
 
+const CHATGPT_PLAN_LIMIT_CODE = 'subscription_sharing_usage_limit_exceeded'
+
+/** The plan endpoint reports this in an HTTP 200 SSE stream (M95b capture). */
+export class ChatgptPlanLimitError extends Error {
+  public readonly code = CHATGPT_PLAN_LIMIT_CODE
+
+  public constructor(message: string) {
+    super(message)
+    this.name = 'ChatgptPlanLimitError'
+  }
+}
+
+/** Cancellation is local; no output-cap parameter is sent to the plan endpoint. */
+export class ResponsesOutputCapError extends Error {
+  public constructor(
+    public readonly maxOutputTokens: number,
+    public readonly outputTokens: number,
+    /** Validated report for canonical failure settlement; never rejected output. */
+    public readonly usage?: Usage,
+  ) {
+    super('ResponsesOutputCapError: client output cap exceeded')
+    this.name = 'ResponsesOutputCapError'
+  }
+}
+
+/** Per-request host dependencies, kept out of the pure request encoder. */
+export interface ResponsesOutputCap {
+  readonly maxOutputTokens: number
+  /**
+   * Cumulative tokens after this validated event, including tool arguments
+   * and whole final items without double-counting earlier deltas. The host
+   * supplies its model's counter; the codec never guesses chars per token.
+   */
+  readonly countOutputTokens: (event: StreamEvent) => number
+  /** Abort only this request's active transport when the cap is crossed. */
+  readonly abort: () => void
+}
+
 /** xAI's reported cost reaches settlement before canonical consumers read usage. */
 export interface ResponsesDecodeSink {
   readonly settledCostUsd?: (costUsd: UsdAmount) => void
+  /** Mandatory for the ChatGPT profile, unused by the API-key profile. */
+  readonly outputCap?: ResponsesOutputCap
+}
+
+// Meta's canonical tools declare strict:false. This wire seam also accepts
+// strict:true declarations (the M95b capture) without changing those schemas.
+type ResponsesRequestBody = Omit<CreateResponseBody, 'tools'> & {
+  readonly tools: readonly (
+    | WebSearchToolDefinition
+    | (Omit<FunctionToolDefinition, 'strict'> & { readonly strict: boolean })
+  )[]
 }
 
 export interface ResponsesWireCodec {
   readonly format: 'responses'
-  encodeRequest(body: CreateResponseBody, options?: ResponsesEncodeOptions): Record<string, unknown>
+  encodeRequest(
+    body: ResponsesRequestBody,
+    options?: ResponsesEncodeOptions,
+  ): Record<string, unknown>
   decodeStream(
     chunks: AsyncIterable<Uint8Array>,
     sink?: ResponsesDecodeSink,
@@ -295,6 +356,7 @@ const itemFrameSchema = z.object({ item: nativeItemSchema })
 const settledCostSchema = z.object({
   cost_in_usd_ticks: tokenCountSchema,
 })
+const nestedErrorEventSchema = z.object({ type: z.literal('error'), ...errorBodySchema.shape })
 
 function settledCostOf(usage: unknown): UsdAmount | undefined {
   const parsed = settledCostSchema.safeParse(usage)
@@ -305,6 +367,27 @@ function settledCostOf(usage: unknown): UsdAmount | undefined {
     : undefined
 }
 
+function withinOutputCap(event: StreamEvent, cap: ResponsesOutputCap | undefined): StreamEvent {
+  if (cap === undefined) return event
+  const counted = cap.countOutputTokens(event)
+  if (!Number.isSafeInteger(counted) || counted < 0) {
+    throw new ResponsesDecodeError('invalid output counter', 0)
+  }
+  // Encrypted reasoning is not observable in deltas. Reported output usage
+  // includes it; it can only stop the reply once that usage arrives.
+  const reported = 'response' in event ? (event.response.usage?.output_tokens ?? 0) : 0
+  const outputTokens = Math.max(counted, reported)
+  if (outputTokens > cap.maxOutputTokens) {
+    cap.abort()
+    throw new ResponsesOutputCapError(
+      cap.maxOutputTokens,
+      outputTokens,
+      'response' in event ? (event.response.usage ?? undefined) : undefined,
+    )
+  }
+  return event
+}
+
 export function createResponsesCodec(
   quirks: ResponsesCodecQuirks,
   capabilitiesForModel?: (modelId: string) => ModelCapabilities | undefined,
@@ -312,9 +395,13 @@ export function createResponsesCodec(
   return {
     format: 'responses',
     encodeRequest(
-      body: CreateResponseBody,
+      body: ResponsesRequestBody,
       options?: ResponsesEncodeOptions,
     ): Record<string, unknown> {
+      const isChatgpt = quirks.profile === 'chatgpt'
+      if (isChatgpt && body.tools.some((tool) => tool.type !== 'function')) {
+        throw new ResponsesDecodeError('unsupported ChatGPT hosted tool', 0)
+      }
       // M101 lane P1 (BYO items 1, 2, 13): the input replays replay-safe.
       // An input left with nothing after the mapping is refused outright
       // instead of sent as a guaranteed 400.
@@ -328,34 +415,61 @@ export function createResponsesCodec(
               vision: capabilities?.vision === true,
               supportsStrictTools: capabilities?.supportsStrictTools === true,
             }
-      const mapped = replayInput(body.input, effective, model, options?.replayOrigins)
+      const mapped = isChatgpt
+        ? body.input
+        : replayInput(body.input, effective, model, options?.replayOrigins)
       if (mapped.length === 0) {
         throw new Error('responses codec: the request keeps no replayable input')
       }
       return {
         model: body.model,
-        input: mapped,
-        instructions: cleanWireText(body.instructions),
-        tools: withStrictTools(
-          body.tools,
-          options?.shouldUseStrictTools !== false && effective.supportsStrictTools === true,
-        ),
+        input: isChatgpt ? body.input : mapped,
+        instructions: isChatgpt ? body.instructions : cleanWireText(body.instructions),
+        tools: isChatgpt
+          ? [
+              {
+                type: 'namespace',
+                name: quirks.toolNamespace,
+                ...(quirks.toolNamespaceDescription !== undefined && {
+                  description: quirks.toolNamespaceDescription,
+                }),
+                tools: body.tools,
+              },
+            ]
+          : withStrictTools(
+              body.tools,
+              options?.shouldUseStrictTools !== false && effective.supportsStrictTools === true,
+            ),
+
         tool_choice: body.tool_choice,
         reasoning: body.reasoning,
         stream: body.stream,
         store: body.store,
         include: body.include,
-        max_output_tokens: body.max_output_tokens,
-        ...(quirks.sendPromptCacheKey && { prompt_cache_key: body.prompt_cache_key }),
-        ...(quirks.sendPromptCacheRetention && {
-          prompt_cache_retention: body.prompt_cache_retention,
+        ...(!isChatgpt && { max_output_tokens: body.max_output_tokens }),
+        ...((isChatgpt || quirks.sendPromptCacheKey) && {
+          prompt_cache_key: body.prompt_cache_key,
         }),
+        ...(!isChatgpt &&
+          quirks.sendPromptCacheRetention && {
+            prompt_cache_retention: body.prompt_cache_retention,
+          }),
       }
     },
     async *decodeStream(
       chunks: AsyncIterable<Uint8Array>,
       sink?: ResponsesDecodeSink,
     ): AsyncGenerator<StreamEvent> {
+      const outputCap = quirks.profile === 'chatgpt' ? sink?.outputCap : undefined
+      if (outputCap === undefined && quirks.profile === 'chatgpt') {
+        throw new ResponsesDecodeError('missing ChatGPT output cap', 0)
+      }
+      if (
+        outputCap !== undefined &&
+        (!Number.isSafeInteger(outputCap.maxOutputTokens) || outputCap.maxOutputTokens <= 0)
+      ) {
+        throw new ResponsesDecodeError('invalid output cap', 0)
+      }
       let hasReportedCost = false
       for await (const frame of parseSse(chunks)) {
         if (frame.data.trim() === '' || frame.data === DONE_SENTINEL) {
@@ -376,6 +490,14 @@ export function createResponsesCodec(
         if (!KNOWN_EVENT_TYPES.has(typed.data.type)) {
           continue
         }
+        if (quirks.profile === 'chatgpt' && typed.data.type === 'error') {
+          const nested = nestedErrorEventSchema.safeParse(json)
+          if (!nested.success) {
+            throw new ResponsesDecodeError('invalid nested error', frame.data.length)
+          }
+          const { code, message } = nested.data.error
+          json = { type: 'error', code, message }
+        }
         const known = streamEventSchema.safeParse(json)
         if (!known.success) {
           throw new ResponsesDecodeError('invalid event', frame.data.length)
@@ -385,6 +507,13 @@ export function createResponsesCodec(
           if (!parsed.success) {
             throw new ResponsesDecodeError('invalid response', frame.data.length)
           }
+          if (
+            quirks.profile === 'chatgpt' &&
+            known.data.type === 'response.failed' &&
+            parsed.data.response.error?.code === CHATGPT_PLAN_LIMIT_CODE
+          ) {
+            throw new ChatgptPlanLimitError(parsed.data.response.error.message)
+          }
           if (!hasReportedCost && TERMINAL_WITH_USAGE.has(known.data.type)) {
             const costUsd = settledCostOf(parsed.data.response.usage)
             if (costUsd !== undefined) {
@@ -392,15 +521,22 @@ export function createResponsesCodec(
               sink?.settledCostUsd?.(costUsd)
             }
           }
-          yield { ...known.data, response: parsed.data.response }
+          yield withinOutputCap({ ...known.data, response: parsed.data.response }, outputCap)
         } else if ('item' in known.data) {
           const parsed = itemFrameSchema.safeParse(json)
           if (!parsed.success) {
             throw new ResponsesDecodeError('invalid item', frame.data.length)
           }
-          yield { ...known.data, item: parsed.data.item }
+          yield withinOutputCap({ ...known.data, item: parsed.data.item }, outputCap)
         } else {
-          yield known.data
+          if (
+            quirks.profile === 'chatgpt' &&
+            known.data.type === 'error' &&
+            known.data.code === CHATGPT_PLAN_LIMIT_CODE
+          ) {
+            throw new ChatgptPlanLimitError(known.data.message)
+          }
+          yield withinOutputCap(known.data, outputCap)
         }
       }
     },

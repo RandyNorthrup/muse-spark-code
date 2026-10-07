@@ -22,10 +22,70 @@ Code” are Meta trademarks. You bring your own credentials.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-**Contents:** [What's new](#whats-new-in-0143) · [Get started](#get-started) ·
+**Contents:** [What's new](#whats-new-in-0160) · [Get started](#get-started) ·
 [Work in the panel](#work-in-the-panel)
 
-## What's new in 0.14.3
+## What's new in 0.16.0
+
+- **Loop guarantees.** Strict tool contracts, bounded hosted search and streamed
+  argument previews help you follow Model API tool calls. Independent reads can
+  run concurrently while their results keep call order. The loop bounds
+  continuations, refuses cut-short tool execution and stops repeated unchanged
+  calls. Structured side calls validate answers; headless runs can require a
+  bounded final-answer schema. See [Agent loop guarantees](#agent-loop-guarantees)
+  for capability gates and remaining native-reader qualifications.
+- **CPU and memory thresholds.** Set machine-scoped limits to throttle new
+  background work. Eligible queued tasks and checks can relocate through an
+  existing approved device or runner route; other work stays local.
+- **Disk floors.** Disk-heavy launches wait below the free-space floor and
+  critical-volume writes refuse with a reason. Temporary cleanup requires
+  recorded ownership and proved tree exit. See
+  [Keeping your machine responsive](#keeping-your-machine-responsive) for the
+  settings, available routes and remaining integration qualifications.
+
+### Earlier in 0.15.0
+
+- **Bring your own models.** Add OpenAI, Anthropic and Gemini keys or local
+  models in **Models & Agents**. ChatGPT sign-in is a Subscription Sharing
+  preview for eligible Plus/Pro accounts; Copilot uses a compatible VS Code
+  host's models. Features follow each selected model's capabilities.
+- **Agent roles and teams.** Configure role pools, task limits and worker
+  review. Paid workers require consent and share the daily budget.
+- **/legal.** Scan licensing, copyright and source evidence without a model
+  call, export the report, and confirm supported header repairs. The report
+  states its coverage limits; it is not a legal certificate.
+- **Automatic compaction and Pi/SoL-Pi sync.** The shared engine preserves
+  packed output, literal recall and cache-stable prompts. Automatic compaction
+  is implemented and its setting defaults on, but production remains inactive
+  pending the paired evaluation.
+- **Usage & Cost.** Open the local page for provider and team totals, token
+  counts, budgets and exports. Reported, estimated and unknown costs stay distinct.
+
+### Earlier in 0.14.5
+
+- **Prompt actions in one small menu.** Save, share and use saved prompts
+  from the bookmark button on the composer toolbar or the right-click menu;
+  the three full-width buttons that covered the chat box are gone.
+- **ACP Registry sign-in.** Clients that announce terminal sign-in the older
+  way now get the sign-in option too.
+
+### Earlier in 0.14.4
+
+- **Save your prompts.** Right-click one of your own messages and choose
+  **Save**, or save from the composer or editor. Your personal prompt library
+  is available in every workspace; workspace prompts stay with their project.
+- **Reuse prepared text.** Search the library and fill its variables before
+  inserting a prompt. **Use** prepares the text; it does not submit a model
+  request.
+- **Share prompts and chats.** Choose a conversation-only or full export,
+  review the exact Markdown, HTML or JSON preview, then confirm copying,
+  saving or opening it in your browser. Confidential or unknown content is
+  refused with an explanation; detected secrets and private paths are scrubbed.
+- **ACP and terminal.** Use local `/prompt` and `/share chat` commands in ACP
+  editors, or `muse-spark-code-acp prompts` and `share chat` in the terminal.
+  Help & Reference lists the commands and the opt-in prompt sync setting.
+
+### Earlier in 0.14.3
 
 - **Questions never block.** A question Muse asks you is pinned in the
   attention dock above the composer and kept in the transcript. After a minute
@@ -45,7 +105,7 @@ Code” are Meta trademarks. You bring your own credentials.
 - **Faster startup.** Optional panels and menus load when first opened, keeping
   the chat panel quick to start.
 
-### Earlier in 0.14.2
+**0.14.2**
 
 - **Help & Reference.** Type `/help` or run **Muse Spark: Open Help & Reference**
   for every command, setting, slash command, keyboard shortcut, CLI/ACP option
@@ -57,7 +117,7 @@ Code” are Meta trademarks. You bring your own credentials.
 - **Editors and terminal.** Use `/help` in the chat panel and ACP editors, or
   `muse-spark-code-acp help --all` in the terminal.
 
-### Earlier in 0.14.1
+**0.14.1**
 
 - **Safer shell commands.** Commands the agent runs no longer see your
   credential variables (API keys, tokens, passwords). Name any you want passed
@@ -70,7 +130,7 @@ Code” are Meta trademarks. You bring your own credentials.
 - **Fix:** stopped or timed-out commands on macOS and Linux now wait until
   their processes have exited.
 
-### Earlier in 0.14.0
+**0.14.0**
 
 - **Tab completions** (see [Tab completions](https://github.com/RandyNorthrup/muse-spark-code#tab-completions)). Alt+\ invokes
   ghost text. First-use consent names the model price and the separate
@@ -109,6 +169,9 @@ to the CLI. Linux users can use the Model API if the CLI is unavailable.
 
 ## Work in the panel
 
+- Open Usage & cost for journal totals, provider limits and budgets; ACP and CLI
+  use the same local records and read-only companion page.
+
 - Stream Markdown, code, reasoning and tool output; attach images or supported
   files, mention workspace context, and use slash commands and saved prompts.
 - Resume, archive, rename, fork and export conversations; rewind conversation
@@ -129,24 +192,28 @@ to the CLI. Linux users can use the Model API if the CLI is unavailable.
     <td align="center" width="50%"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/agents.png" alt="The Agent map over a transcript: the 2 agents pill, this conversation, two agents, one running and one with its result ready, with their duration and tokens"><br><sub>Subagents: the <b>2 agents</b> pill and the Agent map</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/palette.png" alt="A slash typed in the prompt and the palette above it: Context, Model and Customize groups with effort dots and a thinking toggle"><br><sub>Type <code>/</code>: the palette above the prompt</sub></td>
-    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/slash-commands.png" alt="The prompt holding /co and the Slash commands list above it: /compact, /config, /cost, /changes, /clear, /export, /handoff, /resume, /review and more, each with its description"><br><sub>A letter more: the slash commands, ranked as you type</sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/palette.png" alt="A slash typed in the prompt and the palette above it: Context actions, Git and pull request actions, and the model and effort controls"><br><sub>Type <code>/</code>: context, Git and model actions above the prompt</sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/slash-commands.png" alt="The prompt holding /co and the ranked Slash commands list above it: /commit, /compact, /config, /cost, /changes, /clear, /export, /handoff and /help, each with its description"><br><sub>A letter more: the slash commands, ranked as you type</sub></td>
   </tr>
   <tr>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/approval.png" alt="An approval card docked above the message box: Muse wants to Set-Content, step 1 of 2, a feedback box, and Allow once, Always allow in this workspace and Reject, one line each at one height; above it the diff tally, 2 files changed +3 −1 with Review; in the conversation the earlier steps fold into Read a file and edited 2 files, and the PowerShell row says it waits for your approval"><br><sub>An approval card, docked above the message box, with the CLI's own choices</sub></td>
-    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/question.png" alt="A question card with Colour and Toppings tabs, radio buttons, an Other answer, Submit greyed out, Explain instead and Cancel"><br><sub>A question card: tabs, radios or checkboxes, Other, Submit, Explain instead and Cancel</sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/question.png" alt="A question pinned above the composer and also shown in the transcript: Colour and Toppings tabs, radio buttons, Other, disabled Submit, Explain instead and Cancel"><br><sub>Questions stay in the dock and transcript, with choices, Other and Explain instead</sub></td>
   </tr>
   <tr>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/quote.png" alt="A reply right-clicked in its highlighted passage: three blue pills, Copy, Ask about this and Comment on this, fanned out from the pointer"><br><sub>Highlight, right-click: <b>Copy</b>, <b>Ask about this</b> or <b>Comment on this</b></sub></td>
-    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/rewind.png" alt="A sent message's ⋯ menu as blue pills: Fork conversation from here, Fork conversation and rewind code, and Rewind, whose second burst offers Rewind conversation to here and Rewind code to here"><br><sub>Every sent message's ⋯: fork, fork and rewind the code, or <b>Rewind</b> for the conversation or the code</sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/rewind.png" alt="A sent message's menu with three blue pills: Fork conversation from here, Fork conversation and rewind code, and Rewind"><br><sub>Every sent message's ⋯: fork, fork and rewind code, or open <b>Rewind</b></sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/modes.png" alt="The Modes menu: Manual, Edit automatically, Plan, Auto, each with its one-line description, and the effort row"><br><sub>Permission modes, one line each, <code>Shift+Tab</code> to cycle</sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/modes.png" alt="The Modes menu: Manual, Edit automatically, Plan and Auto, with descriptions and the effort row"><br><sub>Permission modes and effort; <code>Shift+Tab</code> cycles modes</sub></td>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/history.png" alt="The History dialog: sessions grouped by day, search, Show archived"><br><sub>History: search, resume, archive</sub></td>
   </tr>
   <tr>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/usage.png" alt="The Account & usage modal on Muse Code: auth method, plan, backend, the current window and week bars, this conversation's tokens and context, what is contributing to usage by day or week, and Add Model API key"><br><sub>Account & usage: windows, tokens, and what is eating the usage</sub></td>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/voice.png" alt="The composer listening: the red microphone and the Listening placeholder over a new conversation with its keyboard tips"><br><sub>Voice dictation: tap or hold, <code>Ctrl+D</code></sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/open-question.png" alt="An Open question in the attention dock: Colour, Blue, Green, Other, Submit and Explain instead; its folded transcript row and the 1 open question chip with Previous and Next controls remain visible"><br><sub>Answer an open question from the dock; its transcript row and navigation chip keep it easy to find</sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/help.png" alt="Help and Reference searched for Next open question, showing question-handling details, the deferral setting, and links to Next and Previous open question"><br><sub>Type <code>/help</code>: search the reference for features, commands, settings and shortcuts</sub></td>
   </tr>
 </table>
 

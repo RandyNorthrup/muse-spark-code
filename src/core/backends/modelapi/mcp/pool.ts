@@ -15,7 +15,7 @@ import {
   MCP_TOOLS_MAX_PER_SERVER,
   MCP_TRANSPORTS,
   MILLISECONDS_PER_SECOND,
-  MODEL_API_MODEL_TEXT,
+  MCP_POOL_MODEL_TEXT,
 } from '../../../../shared/constants'
 import type { CoreLogger } from '../../../logging'
 import { withDeadline } from '../../../timeouts'
@@ -30,7 +30,7 @@ import {
   mcpFunctionName,
 } from './functions'
 import { McpHttpTransport } from './http'
-import { McpError, type McpToolInfo } from './protocol'
+import { type CallToolResult, McpError, type McpToolInfo } from './protocol'
 import {
   type McpLaunch,
   type McpServerPlan,
@@ -71,6 +71,23 @@ export interface McpPoolSnapshot {
 export interface McpToolRef {
   readonly server: string
   readonly tool: string
+  readonly isReadOnly: boolean
+}
+
+/** The bridge pins an admission to this server's current offered catalogue. */
+export interface BridgeToolRef extends McpToolRef {
+  readonly catalogueGeneration: number
+}
+
+/**
+ * One offered function with its server's raw MCP tool (M96 lane B): the team
+ * bridge's `tools/list` serves the server's own description, not the Model
+ * API's fitted definition.
+ */
+export interface BridgeOfferedTool {
+  readonly functionName: string
+  readonly server: string
+  readonly tool: McpToolInfo
   readonly isReadOnly: boolean
 }
 
@@ -144,6 +161,7 @@ interface OfferedTool {
 interface LiveServer {
   resourceStop?: AbortController | undefined
   readonly spec: McpServerSpec
+  catalogueGeneration: number
   state: McpServerState
   connection: McpConnection | undefined
   tools: readonly OfferedTool[]
@@ -215,6 +233,7 @@ export class McpServerPool implements McpToolSource {
     this.fault = undefined
     this.servers = plan.specs.map((spec) => ({
       spec,
+      catalogueGeneration: 0,
       state: initialState(spec, isTrusted),
       connection: undefined,
       tools: [],
@@ -362,6 +381,7 @@ export class McpServerPool implements McpToolSource {
   }
 
   private withdraw(server: LiveServer): void {
+    server.catalogueGeneration += 1
     for (const offered of server.tools) {
       this.byFunction.delete(offered.functionName)
     }
@@ -427,6 +447,19 @@ export class McpServerPool implements McpToolSource {
     }
   }
 
+  private parseCallArgs(argsJson: string): Record<string, unknown> {
+    let args: unknown
+    try {
+      args = argsJson.trim() === '' ? {} : JSON.parse(argsJson)
+    } catch {
+      args = undefined
+    }
+    if (typeof args !== 'object' || args === null || Array.isArray(args)) {
+      throw new McpError(MCP_POOL_MODEL_TEXT.mcpArgumentsNotObject)
+    }
+    return Object.fromEntries(Object.entries(args))
+  }
+
   /** Answers one server's `elicitation/create` only when the call belongs to one session. */
   private async answerElicitation(
     server: string,
@@ -478,12 +511,13 @@ export class McpServerPool implements McpToolSource {
     return this.servers.flatMap((server) => server.tools.map((offered) => offered.definition))
   }
 
-  public find(functionName: string): McpToolRef | undefined {
+  public find(functionName: string): BridgeToolRef | undefined {
     const found = this.byFunction.get(functionName)
     return found === undefined
       ? undefined
       : {
           server: found.server.spec.name,
+          catalogueGeneration: found.server.catalogueGeneration,
           tool: found.offered.tool.name,
           isReadOnly: found.offered.isReadOnly,
         }
@@ -495,20 +529,26 @@ export class McpServerPool implements McpToolSource {
     signal: AbortSignal,
     onElicitation?: McpElicitationHandler,
   ): Promise<McpCallOutcome> {
+    return mcpCallOutcome(await this.callRaw(functionName, argsJson, signal, onElicitation))
+  }
+
+  /**
+   * The raw `tools/call` result (M96 lane B): the team bridge proxies it to
+   * MCP clients, which need the server's own content blocks rather than the
+   * model's outcome. Throws the same `McpError` as `call`.
+   */
+  public async callRaw(
+    functionName: string,
+    argsJson: string,
+    signal: AbortSignal,
+    onElicitation?: McpElicitationHandler,
+  ): Promise<CallToolResult> {
     const found = this.byFunction.get(functionName)
     const connection = found?.server.connection
     if (found === undefined || connection === undefined) {
-      throw new McpError(`${functionName} ${MODEL_API_MODEL_TEXT.mcpToolUnavailable}`)
+      throw new McpError(`${functionName} ${MCP_POOL_MODEL_TEXT.mcpToolUnavailable}`)
     }
-    let args: unknown
-    try {
-      args = argsJson.trim() === '' ? {} : JSON.parse(argsJson)
-    } catch {
-      args = undefined
-    }
-    if (typeof args !== 'object' || args === null || Array.isArray(args)) {
-      throw new McpError(MODEL_API_MODEL_TEXT.mcpArgumentsNotObject)
-    }
+    const args = this.parseCallArgs(argsJson)
     if (onElicitation !== undefined) {
       const routes = this.elicitationRoutes.get(found.server.spec.name) ?? []
       routes.push(onElicitation)
@@ -520,7 +560,7 @@ export class McpServerPool implements McpToolSource {
         Object.fromEntries(Object.entries(args)),
         { timeoutMs: found.server.spec.toolTimeoutMs, signal },
       )
-      return mcpCallOutcome(result)
+      return result
     } finally {
       if (onElicitation !== undefined) {
         const routes = this.elicitationRoutes.get(found.server.spec.name)
@@ -535,6 +575,19 @@ export class McpServerPool implements McpToolSource {
         }
       }
     }
+  }
+
+  /**
+   * Every offered function with its raw tool (M96 lane B): the team bridge's
+   * `tools/list`, filtered per caller there.
+   */
+  public bridgeTools(): readonly BridgeOfferedTool[] {
+    return Array.from(this.byFunction, ([functionName, { server, offered }]) => ({
+      functionName,
+      server: server.spec.name,
+      tool: offered.tool,
+      isReadOnly: offered.isReadOnly,
+    }))
   }
 
   /** Every server stopped (a stdio one's process tree killed); nothing is offered afterwards. */

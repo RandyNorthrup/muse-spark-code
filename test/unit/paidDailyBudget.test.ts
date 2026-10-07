@@ -3,6 +3,7 @@ import { mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import * as z from 'zod/mini'
 import type { CreateImageBody, CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import { estimateInput, requestParts } from '../../src/core/backends/modelapi/sessionBudget'
@@ -90,6 +91,14 @@ function defaultImagePaid() {
   })
 }
 
+async function expectPendingImageConsent(api: ReturnType<typeof fakeModelApi>): Promise<void> {
+  await vi.waitFor(() => {
+    expect(confirmModal).toHaveBeenCalledOnce()
+  })
+  expect(api.imageBodies()).toEqual([])
+  expect(vi.mocked(confirmModal).mock.calls[0]?.[1]?.detail).toContain('$5.00')
+}
+
 async function failureOf(work: Promise<unknown>, state?: { isSettled: boolean }): Promise<unknown> {
   try {
     await work
@@ -163,6 +172,43 @@ describe('D78 interactive paid daily budget', () => {
       expect(await ordinaryRequest(isPacking, true, false)).toBe(plain)
     },
   )
+  it('reads usage without seeding a ledger and retains outstanding reservations in the meter', async () => {
+    const daily = budget()
+    expect(await daily.readToday()).toEqual([
+      {
+        budget: expect.objectContaining({
+          kind: 'paidDaily',
+          spentUsd: 0,
+          capUsd: 5,
+          stopped: false,
+        }),
+      },
+    ])
+    expect(await readdir(state.directory)).toEqual([])
+    const claim = requireClaim(await daily.reserve(IMAGE, 'imageGeneration', undefined))
+    const before = await readdir(state.directory)
+    const reserved = await daily.readToday()
+    expect(reserved[0]?.budget.spentUsd).toBeGreaterThan(0)
+    expect(reserved[0]?.budget.uncertainUsd).toBe(reserved[0]?.budget.spentUsd)
+    expect(await readdir(state.directory)).toEqual(before)
+    await claim.settle(Usd.from(0).toAmount())
+    const settled = await daily.readToday()
+    expect(settled[0]?.budget.spentUsd).toBe(0)
+  })
+
+  it('declares recall when packing is enabled and keeps paid admission byte-exact in each mode', async () => {
+    const plain = await ordinaryRequest(false, false, false)
+    const packing = await ordinaryRequest(true, false, false)
+    expect(plain).not.toContain('"name":"recall_output"')
+    expect(packing).toContain('"name":"recall_output"')
+    const request = z.object({ prompt_cache_key: z.string() })
+    expect(request.parse(JSON.parse(packing)).prompt_cache_key).not.toBe(
+      request.parse(JSON.parse(plain)).prompt_cache_key,
+    )
+    expect(packing).not.toBe(plain)
+    expect(await ordinaryRequest(false, true, false)).toBe(plain)
+    expect(await ordinaryRequest(true, true, false)).toBe(packing)
+  })
 
   it('keeps a later committed Stop in force when another window publishes a held raise', async () => {
     const daily = budget(0.5)
@@ -382,11 +428,7 @@ describe('D78 interactive paid daily budget', () => {
     )
     try {
       await session.sendTurn([{ type: 'text', text: 'Draw a tree' }])
-      await vi.waitFor(() => {
-        expect(confirmModal).toHaveBeenCalledOnce()
-      })
-      expect(api.imageBodies()).toEqual([])
-      expect(vi.mocked(confirmModal).mock.calls[0]?.[1]?.detail).toContain('$5.00')
+      await expectPendingImageConsent(api)
       allow?.()
       await watched.turnDone()
       expect(api.imageBodies()).toHaveLength(1)
@@ -550,9 +592,7 @@ describe('D78 interactive paid daily budget', () => {
     await paid.gate.review()
     expect(confirmModal).not.toHaveBeenCalled()
     const pending = use()
-    expect(confirmModal).toHaveBeenCalledOnce()
-    expect(api.imageBodies()).toEqual([])
-    expect(vi.mocked(confirmModal).mock.calls[0]?.[1]?.detail).toContain('$5.00')
+    await expectPendingImageConsent(api)
     answer.resolve(undefined)
     await pending
     expect(api.imageBodies()).toEqual([])
@@ -587,3 +627,13 @@ it.each(['1.00000000000000015', '0.50000000000000004'])(
     expect(raw).toEqual({ limitUsd: entered, stopped: false })
   },
 )
+// TRAIN15D: M97 explanations use this ledger even while Muse Code owns chat.
+it('reserves and settles legal explanation spend on Muse Code while other extras keep their backend policy', async () => {
+  const daily = budget(5, false)
+  expect(await daily.reserve(IMAGE, 'imageGeneration', undefined)).toBeUndefined()
+  const claim = requireClaim(await daily.reserve(BODY, 'legalExplanation', 100))
+  expect(Number(claim.reservedUsd)).toBeGreaterThan(0)
+  await claim.settle(Usd.from(0.01).toAmount())
+  const settled = await daily.latestDay()
+  expect(settled.spentUsd).toBe(Usd.from(0.01).toAmount())
+})

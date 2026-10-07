@@ -6,10 +6,15 @@ import { AttentionDock } from '../../src/webview/components/AttentionDock'
 import { QuestionSurface, useAttentionSurface } from '../../src/webview/components/QuestionSurface'
 import { questionFixture } from './helpers/questions/fixtures'
 
-const loading = vi.hoisted(() => Promise.withResolvers<undefined>())
+const loading = vi.hoisted(() => ({
+  ...Promise.withResolvers<undefined>(),
+  loaded: Promise.withResolvers<undefined>(),
+}))
 vi.mock('../../src/webview/components/QuestionUi', async (original) => {
   await loading.promise
-  return await original()
+  const module = await original()
+  loading.loaded.resolve(undefined)
+  return module
 })
 
 function DraftControl() {
@@ -69,7 +74,7 @@ describe('the first lazy question', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Seed draft' }))
     await act(async () => {
       loading.resolve(undefined)
-      await loading.promise
+      await loading.loaded.promise
     })
     const explanations = await screen.findAllByLabelText('Your explanation')
     expect(explanations).toHaveLength(2)

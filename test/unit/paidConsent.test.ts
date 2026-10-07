@@ -1,5 +1,5 @@
 import { quotedSearch } from './helpers/paidQuote'
-import { freezePaidQuote } from '../../src/shared/paid'
+import { freezePaidQuote, type PaidUseRequest } from '../../src/shared/paid'
 import { Usd } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -8,7 +8,7 @@ import {
   type PaidUseAnswer,
 } from '../../src/core/paid/paidConsent'
 import { UI_TEXT, type PaidFeature } from '../../src/shared/constants'
-import type { PaidUseRequest } from '../../src/shared/paid'
+
 import { FakeLogOutputChannel } from './helpers/fakes'
 
 function consentWith(
@@ -41,16 +41,19 @@ function consentWith(
 const SEARCH: PaidUseRequest = { feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() }
 
 describe('paidUseQuestion: verified hosted-search tariffs', () => {
-  it('discloses a positive sub-cent per-thousand search price', () => {
-    expect(
-      paidUseQuestion({ feature: 'webSearch', priceUsd: Usd.from(0.0000002).toAmount() }).detail,
-    ).toContain('$0.00020 per 1,000 searches')
+  it('discloses a positive sub-cent per-thousand search price', async () => {
+    const question = await paidUseQuestion({
+      feature: 'webSearch',
+      priceUsd: Usd.from(0.0000002).toAmount(),
+    })
+    expect(question.detail).toContain('$0.00020 per 1,000 searches')
   })
 
-  it.each([-1, NaN, Infinity])('refuses an invalid search tariff of %s', (priceUsd) => {
-    expect(() =>
-      paidUseQuestion({ feature: 'webSearch', priceUsd: Usd.from(priceUsd).toAmount() }),
-    ).toThrow(/finite decimal|Web search is unavailable/)
+  it.each([-1, NaN, Infinity])('refuses an invalid search tariff of %s', async (priceUsd) => {
+    await expect(
+      async () =>
+        await paidUseQuestion({ feature: 'webSearch', priceUsd: Usd.from(priceUsd).toAmount() }),
+    ).rejects.toThrow(/finite decimal|Web search is unavailable/)
   })
 })
 
@@ -291,8 +294,8 @@ function tabConsentWith(
 }
 
 describe('paidUseQuestion: Tab (M94 lane L, PLAN.md D73)', () => {
-  it('names Tab, the model, its rates and today’s budget', () => {
-    const question = paidUseQuestion(TAB_REQUEST)
+  it('names Tab, the model, its rates and today’s budget', async () => {
+    const question = await paidUseQuestion(TAB_REQUEST)
     expect(question.title).toBe(UI_TEXT.paidUseTabTitle)
     expect(question.detail).toContain('muse-spark-1.3')
     expect(question.detail).toContain('$1.250/1M input')
@@ -300,8 +303,8 @@ describe('paidUseQuestion: Tab (M94 lane L, PLAN.md D73)', () => {
     expect(question.detail).toContain('Allow once covers this window until it closes')
   })
 
-  it('adds the training note for the contributor model only', () => {
-    const contributor = paidUseQuestion({
+  it('adds the training note for the contributor model only', async () => {
+    const contributor = await paidUseQuestion({
       feature: 'tab',
       modelId: 'muse-spark-1.3-contributor',
       budgetUsd: Usd.from(1).toAmount(),
@@ -309,17 +312,18 @@ describe('paidUseQuestion: Tab (M94 lane L, PLAN.md D73)', () => {
     expect(contributor.detail).toContain('muse-spark-1.3-contributor')
     expect(contributor.detail).toContain('$0.100/1M input')
     expect(contributor.detail).toContain(UI_TEXT.tabTrainingContributor)
-    expect(paidUseQuestion(TAB_REQUEST).detail).not.toContain('trains on')
+    const standard = await paidUseQuestion(TAB_REQUEST)
+    expect(standard.detail).not.toContain('trains on')
   })
 
-  it('has no rate to quote for an unpriced model', () => {
-    expect(() =>
+  it('has no rate to quote for an unpriced model', async () => {
+    await expect(
       paidUseQuestion({
         feature: 'tab',
         modelId: 'muse-spark-future',
         budgetUsd: Usd.from(1).toAmount(),
       }),
-    ).toThrow(UI_TEXT.subagentTariffUnknown)
+    ).rejects.toThrow(UI_TEXT.subagentTariffUnknown)
   })
 })
 

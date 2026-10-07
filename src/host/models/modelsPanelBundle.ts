@@ -54,6 +54,7 @@ export async function recoverProviderRemovals(
 
 /** The panel bundle's one export. */
 export interface ModelsPanelBundle {
+  readonly createSubscriptionFeatures: typeof ModelsPanelEntry.createSubscriptionFeatures
   readonly createModelsPanelFeatures: typeof ModelsPanelEntry.createModelsPanelFeatures
   readonly setComposerModelConfirmed?: typeof ModelsPanelEntry.setComposerModelConfirmed
   readonly publishProviderSetup?: typeof ModelsPanelEntry.publishProviderSetup
@@ -64,6 +65,8 @@ export function isModelsPanelBundle(value: unknown): value is ModelsPanelBundle 
   return (
     typeof value === 'object' &&
     value !== null &&
+    'createSubscriptionFeatures' in value &&
+    typeof value.createSubscriptionFeatures === 'function' &&
     'createModelsPanelFeatures' in value &&
     typeof value.createModelsPanelFeatures === 'function'
   )
@@ -75,7 +78,8 @@ function isObjectRecord(value: unknown): value is Record<string, unknown> {
 
 /**
  * Whether a required module carries the lane-P/T seam the panel's factory
- * takes: every seam member present and an object. Signatures are taken on
+ * takes: required members are objects; absent OpenRouter services stay absent.
+ * Signatures are taken on
  * trust (PLAN.md §8): entry, loader and package come from one source tree,
  * one `npm run build` and one package.
  */
@@ -83,21 +87,15 @@ export function isModelsPanelSeam(value: unknown): value is ModelsPanelEntry.Mod
   if (!isObjectRecord(value)) {
     return false
   }
-  for (const name of [
-    'store',
-    'catalog',
-    'policy',
-    'tester',
-    'fetcher',
-    'exchanger',
-    'usage',
-    'pkce',
-    'suggest',
-  ]) {
+  for (const name of ['store', 'catalog', 'policy', 'tester', 'fetcher', 'pkce', 'suggest']) {
     const member = value[name]
     if (typeof member !== 'object' || member === null) {
       return false
     }
+  }
+  for (const name of ['exchanger', 'usage']) {
+    const member = value[name]
+    if (member !== undefined && (typeof member !== 'object' || member === null)) return false
   }
   return true
 }

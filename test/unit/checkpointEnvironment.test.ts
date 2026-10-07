@@ -231,9 +231,12 @@ describe('automatic prompt Git helper exclusion (M72)', () => {
       const h = await committedWorkspace()
       const fixture = factsOver(h)
       fixture.process.mockImplementationOnce(async (args, cwd) => {
-        const result = await realGit(args, cwd, undefined, undefined, fixture.check)
-        await fixture.manager.dispose()
-        return result
+        try {
+          return await realGit(args, cwd, undefined, undefined, fixture.check)
+        } finally {
+          // Filter-free discovery exits 1; dispose after that outcome too.
+          await fixture.manager.dispose()
+        }
       })
       expect(await fixture.facts()).toEqual({ git: undefined })
       expect(fixture.process).toHaveBeenCalledOnce()

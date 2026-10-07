@@ -12,6 +12,9 @@ import {
   userShell,
   warmRowMenus,
 } from './helpers/transcriptFixtures'
+import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
+
+beforeAll(warmDeferredSurfaces)
 
 beforeAll(async () => {
   await warmRowMenus()

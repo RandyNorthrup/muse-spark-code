@@ -3,35 +3,50 @@
 import { execFileSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { brotliCompressSync, constants as zlibConstants } from 'node:zlib'
-import { loadL10n } from './lib/l10nSource.mjs'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { packRuntimeArchive } from './lib/packageArchive.mjs'
+import { compactVsix } from './lib/compactVsix.mjs'
+import { pathToFileURL } from 'node:url'
 import { listFiles, pack } from '@vscode/vsce/out/package.js'
 import { renderPackageReadme } from './check-badges.mjs'
 
 const RECENT_RELEASES = 2
 const HISTORY = 'https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md'
 const COMPACT_JSON =
-  /^(?:l10n\/ui\.[^/]+\.json|package(?:\.nls(?:\.[^/]+)?)?\.json|dist\/whatsNew\.json)$/
+  /^(?:l10n\/(?:ui|usage)\.[^/]+\.json|dist\/(?:providerCatalog|whatsNew)\.json|package(?:\.nls(?:\.[^/]+)?)?\.json)$/
 
 export function packagedChangelog(text) {
   const headings = text.matchAll(/^## \[\d+\.\d+\.\d+\].*$/gm).toArray()
   if (headings.length === 0) throw new Error('No released changelog section')
   const end = headings[RECENT_RELEASES]?.index ?? text.length
-  return `${text.slice(0, end).trimEnd()}\n\n[Complete release history](${HISTORY}).\n`
+  const firstRelease = headings[0].index
+  const prefix = text.slice(0, firstRelease)
+  const highlights = prefix
+    .split(/^### /m)
+    .filter((part) => part.startsWith('Highlights\n'))
+    .map((part) => part.slice('Highlights\n'.length).trim())
+    .join('\n\n')
+  const unreleased = prefix.includes('## [Unreleased]')
+    ? `# Changelog\n\n## [Unreleased]\n\n${highlights === '' ? '' : `### Highlights\n\n${highlights}\n\n`}[Complete Unreleased notes](${HISTORY}#unreleased).\n\n`
+    : prefix
+  return `${unreleased}${text.slice(firstRelease, end).trimEnd()}\n\n[Complete release history](${HISTORY}).\n`
 }
 
 export async function stageVsix(root, stage) {
   // The stage is build output in this worktree, never a user-selected folder.
   if (stage !== path.join(root, 'dist', 'vsix-package')) throw new Error('Invalid VSIX stage')
-  const { L10N_COMPRESSION_QUALITY, L10N_TABLE_ARCHIVE_FILE } = await loadL10n(
-    path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'),
-  )
   const files = await listFiles({ cwd: root, dependencies: false })
-  const webview = JSON.parse(readFileSync(path.join(root, 'dist/meta/webview.json'), 'utf8'))
-  for (const file of Object.keys(webview.outputs)) {
-    if (!file.endsWith('.js')) continue
-    if (!files.includes(file)) throw new Error(`Webview output excluded from VSIX: ${file}`)
+  for (const page of [
+    'webview',
+    'modelsWebview',
+    'whatsNewPage',
+    'usageWebview',
+    'referencePage',
+  ]) {
+    const webview = JSON.parse(readFileSync(path.join(root, `dist/meta/${page}.json`), 'utf8'))
+    for (const file of Object.keys(webview.outputs)) {
+      if (!file.endsWith('.js')) continue
+      if (!files.includes(file)) throw new Error(`Webview output excluded from VSIX: ${file}`)
+    }
   }
   for (const arch of ['x64', 'arm64'])
     if (files.every((file) => file.replaceAll('\\', '/') !== `native/linux/${arch}/muse-created`))
@@ -64,19 +79,7 @@ export async function stageVsix(root, stage) {
     tables.some(([, table]) => JSON.stringify(Object.keys(table)) !== JSON.stringify(keys))
   )
     throw new Error('Translation tables have inconsistent key order')
-  const archive = {
-    version: 1,
-    keys,
-    locales: tables.map(([locale]) => locale),
-    values: tables.map(([, table]) => keys.map((key) => table[key])),
-  }
-  mkdirSync(path.join(stage, 'l10n'), { recursive: true })
-  writeFileSync(
-    path.join(stage, 'l10n', L10N_TABLE_ARCHIVE_FILE),
-    brotliCompressSync(JSON.stringify(archive), {
-      params: { [zlibConstants.BROTLI_PARAM_QUALITY]: L10N_COMPRESSION_QUALITY },
-    }),
-  )
+  await packRuntimeArchive(root, stage, files, tables)
   writeFileSync(
     path.join(stage, 'README.md'),
     renderPackageReadme(
@@ -104,9 +107,18 @@ async function main() {
     cwd: root,
     stdio: 'inherit',
   })
+  execFileSync(process.execPath, ['test/packaging/moduleExports.test.mjs', 'vsix', stage], {
+    cwd: root,
+    stdio: 'inherit',
+  })
   const manifest = JSON.parse(readFileSync(path.join(stage, 'package.json'), 'utf8'))
   const archive = path.join(root, `${manifest.name}-${manifest.version}.vsix`)
-  await pack({ cwd: stage, dependencies: false, packagePath: archive })
+  const result = await pack({ cwd: stage, dependencies: false, packagePath: archive })
+  await compactVsix(archive, result.files)
+  execFileSync(process.execPath, ['scripts/compress-vsix.mjs', archive], {
+    cwd: root,
+    stdio: 'inherit',
+  })
   execFileSync(process.execPath, ['scripts/check-vsix-size.mjs', archive], {
     cwd: root,
     stdio: 'inherit',

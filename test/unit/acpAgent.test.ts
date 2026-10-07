@@ -3,9 +3,15 @@ import { fill } from '../../src/shared/l10n/text'
 import * as acp from '@agentclientprotocol/sdk'
 import { MspError } from '@muse-code/sdk'
 import { describe, expect, it, vi } from 'vitest'
-import { type AcpAgentDeps, type BackendReadiness, createAcpAgent } from '../../src/acp/agent'
+import {
+  type AcpAgentDeps,
+  type BackendReadiness,
+  createAcpAgent,
+  type SignInMethod,
+} from '../../src/acp/agent'
 import * as questionFactories from '../../src/acp/questionDeferralEntry'
 import { AcpPaidUse } from '../../src/acp/paid'
+import * as paidConsent from '../../src/core/paid/paidConsent'
 import type { AgentHost, AgentSession, ModelSummary } from '../../src/core/agent/agentBackend'
 import type {
   AgentEvent,
@@ -20,7 +26,10 @@ import { FAKE_MODELS, FakeAgentHost, type FakeAgentSession } from './helpers/fak
 import { memoryPaidGrants } from './helpers/paidGrants'
 import { commandApproval, until } from './helpers/acpWaits'
 import { acpMspHost, acpResumeEnvelope, answerMsp } from './helpers/acpMsp'
-import { fakeAcpQuestions } from './helpers/questions/acpRegistry'
+import { chatGptAuthenticationMethods } from '../../src/runtime/chatGptProviderCommands'
+import { createRuntimeChatGptHost } from '../../src/runtime/chatGptHost'
+import { memorySecrets } from './helpers/fakes'
+import { fakeAcpQuestions, FakeAcpQuestionRegistry } from './helpers/questions/acpRegistry'
 import { expectedQuestionCommandsUpdate } from './helpers/questions/fixtures'
 
 // M63 (PLAN.md D62): the agent driven by the ACP SDK's own client, in
@@ -58,6 +67,9 @@ interface Harness {
 }
 
 interface HarnessOptions {
+  readonly legalScan?: AcpAgentDeps['legalScan']
+
+  readonly providerSignIns?: readonly SignInMethod[]
   readonly backendHost?: AgentHost
   readonly readiness?: BackendReadiness
   readonly answer?: PermissionAnswer
@@ -73,7 +85,7 @@ interface HarnessOptions {
   readonly paid?: readonly AcpPaidFeature[]
   /** `--trust-workspace`: "Allow always" is offered and kept (M58). */
   readonly isTrusted?: boolean
-  readonly questionPolicy?: 'decline'
+  readonly questionPolicy?: AcpAgentDeps['questions']
 }
 
 function harness(options: HarnessOptions = {}): Harness {
@@ -93,6 +105,7 @@ function harness(options: HarnessOptions = {}): Harness {
     log,
   })
   const deps: AcpAgentDeps = {
+    legalScan: options.legalScan,
     backend: {
       kind,
       readiness: (isRecheck) => {
@@ -115,6 +128,7 @@ function harness(options: HarnessOptions = {}): Harness {
       args: ['login'],
       command: 'muse-spark-code-acp login',
     },
+    ...(options.providerSignIns !== undefined && { providerSignIns: options.providerSignIns }),
     defaultCwd: CWD,
     paid,
     log,
@@ -426,7 +440,60 @@ async function runMcpForm(
   })
 }
 
+/** Client capabilities carrying non-boolean wire values, as a registry client may send. */
+function wireCapabilities(json: string): acp.ClientCapabilities {
+  const parsed: unknown = JSON.parse(json)
+  // The SDK type rejects non-boolean flags; the agent's zod layer validates
+  // them at runtime, so the test holds them as unknown and casts once here.
+  return parsed as acp.ClientCapabilities
+}
+
 describe('the ACP agent (M63)', () => {
+  it('exposes all three ChatGPT actions to terminal and manual editors and verifies them independently of Meta', async () => {
+    const secrets = memorySecrets()
+    const fetcher = vi.fn<typeof fetch>(() => Promise.resolve(Response.json({})))
+    const methods = chatGptAuthenticationMethods(() =>
+      createRuntimeChatGptHost({
+        secrets,
+        fetch: fetcher,
+        openBrowser: () => Promise.resolve(),
+        callbackText: () => '',
+      }),
+    )
+    const h = harness({
+      providerSignIns: methods,
+      readiness: { state: 'signedOut', message: 'No Meta account' },
+    })
+    await h.run(async (client) => {
+      const terminal = await client.request('initialize', {
+        protocolVersion: acp.PROTOCOL_VERSION,
+        clientCapabilities: { auth: { terminal: true } },
+      })
+      expect(terminal.authMethods?.slice(1)).toMatchObject(
+        methods.map((method) => ({ type: 'terminal', id: method.id, args: method.args })),
+      )
+      const manual = await client.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION })
+      expect(manual.authMethods?.slice(1).map((method) => method.description)).toEqual(
+        methods.map((method) => `Run “${method.command}” in a terminal, then try again.`),
+      )
+      await expect(client.request('authenticate', { methodId: 'chatgpt-status' })).resolves.toEqual(
+        {},
+      )
+      await expect(client.request('authenticate', { methodId: 'chatgpt-remove' })).resolves.toEqual(
+        {},
+      )
+      await expect(client.request('authenticate', { methodId: 'chatgpt-add' })).rejects.toThrow()
+      await expect(client.request('authenticate', { methodId: 'copilot-add' })).rejects.toThrow()
+    })
+    expect(h.rechecks).toEqual([])
+    expect(fetcher).not.toHaveBeenCalled()
+    const ready = harness()
+    await ready.run(async (client) => {
+      await client.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION })
+      await expect(client.request('authenticate', { methodId: 'copilot-add' })).rejects.toThrow()
+    })
+    expect(ready.rechecks).toEqual([])
+  })
   it('initializes with its capabilities, and a terminal sign-in only for a client that runs one', async () => {
     const h = harness()
     const [plain, terminal] = await h.run(async (client) => [
@@ -458,6 +525,58 @@ describe('the ACP agent (M63)', () => {
         args: ['login'],
       },
     ])
+  })
+
+  it('offers terminal sign-in for the older _meta terminal-auth flag, only for a literal true', async () => {
+    const terminal = [
+      {
+        type: 'terminal',
+        id: 'muse-code-login',
+        name: 'Sign in',
+        description: 'Sign in to Muse Code',
+        args: ['login'],
+      },
+    ]
+    const byHand = [
+      {
+        id: 'muse-code-login',
+        name: 'Sign in',
+        description: 'Run “muse-spark-code-acp login” in a terminal, then try again.',
+      },
+    ]
+    const h = harness()
+    const [meta, both, neither, junkMeta, junkAuth, junkRecord] = await h.run(async (client) => [
+      await client.request('initialize', {
+        protocolVersion: acp.PROTOCOL_VERSION,
+        clientCapabilities: { _meta: { 'terminal-auth': true } },
+      }),
+      await client.request('initialize', {
+        protocolVersion: acp.PROTOCOL_VERSION,
+        clientCapabilities: { auth: { terminal: true }, _meta: { 'terminal-auth': true } },
+      }),
+      await client.request('initialize', {
+        protocolVersion: acp.PROTOCOL_VERSION,
+        clientCapabilities: {},
+      }),
+      await client.request('initialize', {
+        protocolVersion: acp.PROTOCOL_VERSION,
+        clientCapabilities: wireCapabilities('{"_meta":{"terminal-auth":"yes"}}'),
+      }),
+      await client.request('initialize', {
+        protocolVersion: acp.PROTOCOL_VERSION,
+        clientCapabilities: wireCapabilities('{"auth":{"terminal":1},"_meta":{"terminal-auth":0}}'),
+      }),
+      await client.request('initialize', {
+        protocolVersion: acp.PROTOCOL_VERSION,
+        clientCapabilities: wireCapabilities('{"_meta":{"terminal-auth":{"nested":true}}}'),
+      }),
+    ])
+    expect(meta.authMethods).toEqual(terminal)
+    expect(both.authMethods).toEqual(terminal)
+    expect(neither.authMethods).toEqual(byHand)
+    expect(junkMeta.authMethods).toEqual(byHand)
+    expect(junkAuth.authMethods).toEqual(byHand)
+    expect(junkRecord.authMethods).toEqual(byHand)
   })
 
   it('passes the editor’s MCP servers to Muse Code, logging their names only', async () => {
@@ -522,14 +641,14 @@ describe('the ACP agent (M63)', () => {
       code: -32_000,
     })
     await expect(
-      signedOut.run((client) => client.request('authenticate', { methodId: 'x' })),
+      signedOut.run((client) => client.request('authenticate', { methodId: 'muse-code-login' })),
     ).rejects.toMatchObject({ code: -32_000 })
     const missing = harness({ readiness: { state: 'unavailable', message: 'no CLI' } })
     await expect(missing.run((client) => start(client))).rejects.toMatchObject({ code: -32_603 })
     const ready = harness()
-    expect(await ready.run((client) => client.request('authenticate', { methodId: 'x' }))).toEqual(
-      {},
-    )
+    expect(
+      await ready.run((client) => client.request('authenticate', { methodId: 'muse-code-login' })),
+    ).toEqual({})
     await ready.run((client) => start(client))
     // Only authenticate, after a sign-in in the terminal, asks afresh (PR #49).
     expect(ready.rechecks).toEqual([true, false])
@@ -627,7 +746,9 @@ describe('the ACP agent (M63)', () => {
       sessionUpdate: 'agent_message_chunk',
       content: {
         type: 'text',
-        text: expect.stringContaining(`${UI_TEXT.groupSlashCommands}: /help, /questions, /answer`),
+        text: expect.stringContaining(
+          `${UI_TEXT.groupSlashCommands}: /help, /compact, /questions, /answer`,
+        ),
       },
     })
     expect(h.permissions).toHaveLength(0)
@@ -1808,6 +1929,43 @@ describe('paid features in the agent (M63c, M58)', () => {
     expect(h.updates.filter((update) => update.sessionUpdate === 'tool_call_update')).toEqual([])
   })
 
+  it.each(['cancelled', 'completed'])(
+    'emits no paid card if the prompt is %s while the price question loads',
+    async (terminal) => {
+      const entered = Promise.withResolvers<undefined>()
+      const released = Promise.withResolvers<undefined>()
+      const question = paidConsent.paidUseQuestion
+      const loading = vi
+        .spyOn(paidConsent, 'paidUseQuestion')
+        .mockImplementationOnce(async (request) => {
+          entered.resolve(undefined)
+          await released.promise
+          return await question(request)
+        })
+      const h = harness({
+        kind: 'modelApi',
+        paid: ['webSearch'],
+        answer: choose('paid-allow-once'),
+      })
+      try {
+        await h.run(async (client) => {
+          const active = await running(h, client)
+          const { sessionId } = active
+          const allowed = h.paid.allows(CWD, sessionId, WEB_SEARCH, false)
+          await entered.promise
+          await finishRunningPrompt(client, active, terminal)
+          released.resolve(undefined)
+          expect(await allowed).toBeUndefined()
+        })
+        expect(h.permissions).toEqual([])
+        expect(h.updates.filter((update) => update.sessionUpdate === 'tool_call')).toEqual([])
+      } finally {
+        released.resolve(undefined)
+        loading.mockRestore()
+      }
+    },
+  )
+
   it('denies without asking a feature it has no flag for, and subagents always', async () => {
     const h = harness({ kind: 'modelApi', paid: ['webSearch'], answer: choose('paid-allow-once') })
     expect(await answersInOneSession(h, [IMAGE, SUBAGENT_TASK])).toEqual([false, false])
@@ -2233,6 +2391,35 @@ describe('ACP session ownership across asynchronous releases', () => {
 })
 
 describe('FIXM101C1 ACP compaction', () => {
+  it('keeps queued late answers for the next model turn while compacting locally', async () => {
+    let registry: FakeAcpQuestionRegistry | undefined
+    const h = harness({
+      kind: 'modelApi',
+      questionPolicy: (input) => {
+        registry = new FakeAcpQuestionRegistry(input)
+        registry.queued.push({
+          sessionId: input.session.sessionId,
+          userInputId: 'late-1',
+          displayText: 'Late answer',
+          text: 'Keep this answer for the next turn.',
+        })
+        return registry
+      },
+    })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      h.host.sessions[0]?.compact.mockResolvedValue({ status: 'accepted', reason: undefined })
+      const response = await client.request('session/prompt', {
+        sessionId,
+        prompt: [{ type: 'text', text: '/compact' }],
+      })
+      expect(response.stopReason).toBe('end_turn')
+      expect(registry?.queuedParts).not.toHaveBeenCalled()
+      expect(registry?.queued).toHaveLength(1)
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    })
+  })
+
   it('routes /compact to the shared backend and advertises it through the SDK (R6)', async () => {
     const h = harness({ kind: 'modelApi' })
     const response = await h.run(async (client) => {
@@ -2293,5 +2480,67 @@ describe('FIXM101C1 ACP compaction', () => {
       expect(session?.cancel).toHaveBeenCalledOnce()
       expect(session?.sendTurn).not.toHaveBeenCalled()
     })
+  })
+})
+
+describe('ACP legal command across editor clients', () => {
+  it('returns the shared report without sending a model turn on either backend', async () => {
+    for (const kind of ['museCode', 'modelApi'] satisfies readonly ('museCode' | 'modelApi')[]) {
+      const scan = vi.fn(() => Promise.resolve('Deterministic report. Not legal advice.'))
+      const h = harness({ kind, legalScan: scan })
+      await h.run(async (client) => {
+        const { sessionId } = await start(client)
+        expect(await prompt(client, sessionId, '/legal')).toMatchObject({ stopReason: 'end_turn' })
+      })
+      expect(scan).toHaveBeenCalledOnce()
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+      expect(h.updates).toContainEqual({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: 'Deterministic report. Not legal advice.' },
+      })
+    }
+  })
+})
+
+it('ACP legal offline mode avoids registry permission and a model turn', async () => {
+  const scan = vi.fn<NonNullable<AcpAgentDeps['legalScan']>>((_cwd, _signal, registry) =>
+    Promise.resolve(registry ? 'online' : 'local metadata only'),
+  )
+  const h = harness({ legalScan: scan })
+  await h.run(async (client) => {
+    const { sessionId } = await start(client)
+    expect(await prompt(client, sessionId, '/legal --offline')).toMatchObject({
+      stopReason: 'end_turn',
+    })
+  })
+  expect(h.permissions).toEqual([])
+  expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+  expect(h.updates).toContainEqual({
+    sessionUpdate: 'agent_message_chunk',
+    content: { type: 'text', text: 'local metadata only' },
+  })
+})
+it('ACP registry disclosure names hosts and honors denial before model dispatch', async () => {
+  const scan = vi.fn<NonNullable<AcpAgentDeps['legalScan']>>(
+    async (_cwd, _signal, registry, notice) =>
+      registry && (await notice(['registry.npmjs.org', 'pypi.org']))
+        ? 'registry metadata'
+        : 'unknown local metadata',
+  )
+  const h = harness({
+    legalScan: scan,
+    answer: () => ({ outcome: { outcome: 'selected', optionId: 'legal-registry-deny' } }),
+  })
+  await h.run(async (client) => {
+    const { sessionId } = await start(client)
+    expect(await prompt(client, sessionId, '/legal')).toMatchObject({ stopReason: 'end_turn' })
+  })
+  expect(h.permissions).toHaveLength(1)
+  expect(h.permissions[0]?.toolCall.title).toContain('registry.npmjs.org, pypi.org')
+  expect(h.permissions[0]?.toolCall.title).toContain('package names and versions')
+  expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+  expect(h.updates).toContainEqual({
+    sessionUpdate: 'agent_message_chunk',
+    content: { type: 'text', text: 'unknown local metadata' },
   })
 })

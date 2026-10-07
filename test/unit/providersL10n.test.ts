@@ -1,6 +1,8 @@
 import { Usd } from '../../src/shared/usd'
 // Provider text must follow the installed language after these modules load.
 import { afterEach, describe, expect, it } from 'vitest'
+import { readFileSync, readdirSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import * as z from 'zod/mini'
 import fr from '../../l10n/ui.fr.json'
 import ru from '../../l10n/ui.ru.json'
@@ -30,6 +32,25 @@ afterEach(() => {
 })
 
 describe('provider localization', () => {
+  const tables = new URL('../../l10n/', import.meta.url)
+  it.each(readdirSync(tables).filter((file) => /^ui\.[a-z-]+\.json$/u.test(file)))(
+    'keeps provider and release commands in %s help',
+    (file) => {
+      const value: unknown = JSON.parse(readFileSync(fileURLToPath(new URL(file, tables)), 'utf8'))
+      const help = z.object({ acpUsage: z.string() }).parse(value).acpUsage
+      for (const command of [
+        'auth set|status|clear --provider <id>',
+        'providers list|add|test|remove',
+        'report [options]',
+        'setup [--maintenance]',
+        'legal [options]',
+        '--no-auto-compaction',
+      ]) {
+        expect.soft(help).toContain(command)
+      }
+    },
+  )
+
   it('reads preset descriptions, hints, labels and privacy at call time', () => {
     const openai = presetById('openai')
     expect(openai?.description).toBe(EN.providerText.descriptions.openai)

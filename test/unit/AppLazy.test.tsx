@@ -17,6 +17,12 @@ const held = vi.hoisted(() => ({
   handoffLoads: 0,
   secretLoads: 0,
   boardLoads: 0,
+  legal: Promise.withResolvers<undefined>(),
+  legalLoads: 0,
+  prompts: Promise.withResolvers<undefined>(),
+  promptsLoads: 0,
+  chat: Promise.withResolvers<undefined>(),
+  chatLoads: 0,
 }))
 
 vi.mock('../../src/webview/components/GitPanel', async (original) => {
@@ -47,11 +53,45 @@ vi.mock('../../src/webview/components/SessionBoardDialog', async (original) => {
   held.boardLoads += 1
   return await original()
 })
+vi.mock('../../src/webview/components/LegalReport', async (original) => {
+  held.legalLoads += 1
+  await held.legal.promise
+  return await original()
+})
+
+vi.mock('../../src/webview/prompts/PromptLibraryBridge', async (original) => {
+  held.promptsLoads += 1
+  await held.prompts.promise
+  return await original()
+})
+vi.mock('../../src/webview/sharing/ChatShareBridge', async (original) => {
+  held.chatLoads += 1
+  await held.chat.promise
+  return await original()
+})
 
 function deliver(message: HostToWebviewMessage): void {
   act(() => {
     window.dispatchEvent(new MessageEvent('message', { data: message }))
   })
+}
+
+function initializedApp() {
+  const postMessage = vi.fn()
+  render(<App postMessage={postMessage} />)
+  deliver({ type: 'init', settings: testSettings, emptyStateHint: '', composerPlaceholder: '' })
+  deliver({ type: 'authState', status: 'signedIn' })
+  expect(screen.getByLabelText('Message Muse')).toBeInTheDocument()
+  return postMessage
+}
+
+function dismissLoadingModal() {
+  const loading = screen.getByRole('dialog', { name: EN.loadingOutput })
+  expect(screen.getByRole('main')).toHaveAttribute('inert')
+  fireEvent.keyDown(within(loading).getByLabelText('Close'), { key: 'Escape' })
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(screen.getByRole('main')).not.toHaveAttribute('inert')
+  expect(document.activeElement).toBe(screen.getByLabelText('Message Muse'))
 }
 
 afterEach(() => {
@@ -60,17 +100,51 @@ afterEach(() => {
 
 describe('App while its deferred panels load', () => {
   it('waits for use, keeps new form state and language, and lets a loading modal close', async () => {
-    const postMessage = vi.fn()
-    render(<App postMessage={postMessage} />)
-    deliver({ type: 'init', settings: testSettings, emptyStateHint: '', composerPlaceholder: '' })
-    deliver({ type: 'authState', status: 'signedIn' })
-    expect(screen.getByLabelText('Message Muse')).toBeInTheDocument()
+    const postMessage = initializedApp()
     expect(held.gitLoads).toBe(0)
     expect(held.usageLoads).toBe(0)
     expect(held.shareLoads).toBe(0)
     expect(held.handoffLoads).toBe(0)
     expect(held.secretLoads).toBe(0)
     expect(held.boardLoads).toBe(0)
+    expect(held.legalLoads).toBe(0)
+
+    const legal: Extract<HostToWebviewMessage, { type: 'legalScanReport' }> = {
+      type: 'legalScanReport',
+      requestId: 'legal-first',
+      result: {
+        version: 1,
+        ruleVersion: '1',
+        dataVersion: '2026-10-04',
+        scope: '',
+        distribution: 'source checkout, undistributed',
+        exclusions: [],
+        incompleteChecks: [],
+        findings: [],
+      },
+    }
+    const composer = screen.getByLabelText('Message Muse')
+    composer.focus()
+    deliver(legal)
+    expect(screen.getByRole('dialog', { name: EN.loadingOutput })).toBeInTheDocument()
+    expect(screen.getByRole('main')).toHaveAttribute('inert')
+    await waitFor(() => {
+      expect(held.legalLoads).toBe(1)
+    })
+    deliver({ ...legal, requestId: 'legal-latest', result: { ...legal.result, scope: 'src' } })
+    const legalLoading = screen.getByRole('dialog', { name: EN.loadingOutput })
+    fireEvent.keyDown(within(legalLoading).getByLabelText('Close'), { key: 'Escape' })
+    expect(document.activeElement).toBe(composer)
+    await act(async () => {
+      held.legal.resolve(undefined)
+      await held.legal.promise
+    })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    deliver({ ...legal, requestId: 'legal-latest', result: { ...legal.result, scope: 'src' } })
+    const legalReport = await screen.findByRole('dialog', { name: EN.legalScanTitle })
+    expect(legalReport).toHaveTextContent('src')
+    fireEvent.click(within(legalReport).getByLabelText('Close'))
+    expect(document.activeElement).toBe(composer)
 
     deliver({
       type: 'gitCommitForm',
@@ -106,10 +180,7 @@ describe('App while its deferred panels load', () => {
     await waitFor(() => {
       expect(held.usageLoads).toBe(1)
     })
-    fireEvent.keyDown(within(loading).getByLabelText('Close'), { key: 'Escape' })
-    expect(screen.queryByRole('dialog')).toBeNull()
-    expect(screen.getByRole('main')).not.toHaveAttribute('inert')
-    expect(document.activeElement).toBe(screen.getByLabelText('Message Muse'))
+    dismissLoadingModal()
     await act(async () => {
       held.usage.resolve(undefined)
       await held.usage.promise
@@ -136,10 +207,7 @@ describe('App while its deferred panels load', () => {
       items: [{ itemId: 'u', kind: 'userMessage', status: 'completed', text: 'Latest text' }],
     }
     deliver(latest)
-    const loadingShare = screen.getByRole('dialog', { name: EN.loadingOutput })
-    fireEvent.keyDown(within(loadingShare).getByLabelText('Close'), { key: 'Escape' })
-    expect(screen.queryByRole('dialog')).toBeNull()
-    expect(document.activeElement).toBe(screen.getByLabelText('Message Muse'))
+    dismissLoadingModal()
     setUiText({ ...EN, shareReadOnly: 'Installed read-only label' }, 'en')
     await act(async () => {
       held.share.resolve(undefined)
@@ -153,4 +221,25 @@ describe('App while its deferred panels load', () => {
     expect(loaded).not.toHaveTextContent('Old text')
     expect(held.shareLoads).toBe(1)
   })
+  it.each(['prompts', 'chat'] as const)(
+    'keeps a cold M118 %s surface modal and cancels its late import on Escape',
+    async (surface) => {
+      const postMessage = initializedApp()
+      const loads = () => (surface === 'prompts' ? held.promptsLoads : held.chatLoads)
+      expect(loads()).toBe(0)
+      deliver({ type: 'openSharing', surface })
+      await waitFor(() => {
+        expect(loads()).toBe(1)
+      })
+      dismissLoadingModal()
+      await act(async () => {
+        held[surface].resolve(undefined)
+        await held[surface].promise
+      })
+      expect(screen.queryByRole('dialog')).toBeNull()
+      expect(postMessage.mock.calls.flat()).not.toContainEqual(
+        expect.objectContaining({ type: 'sharingAction' }),
+      )
+    },
+  )
 })

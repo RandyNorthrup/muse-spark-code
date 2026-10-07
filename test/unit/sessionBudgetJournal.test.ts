@@ -8,7 +8,7 @@ import * as fs from 'node:fs/promises'
 import type * as FsPromises from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   parseStoredSession,
   type StoredChild,
@@ -214,6 +214,56 @@ function paidChild(paid: 'webSearch' | 'imageGeneration'): StoredChild {
   }
 }
 
+async function prepareChargeSequence() {
+  const t = await setup()
+  const usage = new PaidUsage(new FakeLogOutputChannel())
+  const daily = createPaidDailyBudget({
+    directory: path.join(t.directory, 'property-daily'),
+    sleep: () => Promise.resolve(),
+    now: () => new Date(2026, 9, 6, 12).getTime(),
+    capUsd: () => Usd.from(0.5).toAmount(),
+    isModelApi: () => true,
+  })
+  let random = 20_261_006
+  let expectedUnits = 0n
+  const tariff = '0.000033750123456789012345'
+  const quote = freezePaidQuote({
+    id: 'property',
+    feature: 'webSearch',
+    provider: 'verified-test',
+    model: 'test-model',
+    modelRevision: 0,
+    tariffUsd: Usd.from(tariff).toAmount(),
+    unit: 'search',
+    capturedAt: 0,
+  })
+  const steps = []
+  for (let index = 0; index < 40; index += 1) {
+    random = (random * 1_664_525 + 1_013_904_223) >>> 0
+    const units = (random % 20) + 1
+    expectedUnits += BigInt(units)
+    const settlement = searchSettlement(quote, units, true)
+    await t.budget.record(SESSION, ACCOUNT, settlement.costUsd)
+    const dailyClaim = await daily.reserveExact(settlement.costUsd)
+    await dailyClaim.settle(settlement.costUsd)
+    usage.add('webSearch', units, settlement)
+    // The oracle uses independent scaled integer arithmetic, never production addition.
+    const expected = String(33_750_123_456_789_012_345n * expectedUnits).padStart(25, '0')
+    const decimal = `${expected.slice(0, -24)}.${expected.slice(-24)}`
+      .replace(/0+$/, '')
+      .replace(/\.$/, '')
+    const sessionTotal = await t.budget.read(SESSION, ACCOUNT)
+    const dailyTotal = await daily.latestDay()
+    steps.push({
+      expected: Usd.from(decimal).toAmount(),
+      session: sessionTotal.spentUsd,
+      daily: dailyTotal.spentUsd,
+      tally: paidCostUsd('webSearch', usage.current),
+    })
+  }
+  return { steps, tariff, expectedUnits, total: paidCostUsd('webSearch', usage.current) }
+}
+
 describe('the real-disk session budget journal (M82)', () => {
   it('preserves the reviewer tariff product through admission and persistence without binary ports', async () => {
     const t = await setup()
@@ -226,51 +276,20 @@ describe('the real-disk session budget journal (M82)', () => {
     expect(raw).toMatchObject({ reservedUsd: allowance })
   })
 
-  it('random charge sequences sum exactly and daily ledger session and tally agree', async () => {
-    const t = await setup()
-    const usage = new PaidUsage(new FakeLogOutputChannel())
-    const daily = createPaidDailyBudget({
-      directory: path.join(t.directory, 'property-daily'),
-      sleep: () => Promise.resolve(),
-      now: () => new Date(2026, 9, 6, 12).getTime(),
-      capUsd: () => Usd.from(0.5).toAmount(),
-      isModelApi: () => true,
-    })
-    let random = 20_261_006
-    let expectedUnits = 0n
-    const tariff = '0.000033750123456789012345'
-    const quote = freezePaidQuote({
-      id: 'property',
-      feature: 'webSearch',
-      provider: 'verified-test',
-      model: 'test-model',
-      modelRevision: 0,
-      tariffUsd: Usd.from(tariff).toAmount(),
-      unit: 'search',
-      capturedAt: 0,
-    })
-    for (let index = 0; index < 40; index += 1) {
-      random = (random * 1_664_525 + 1_013_904_223) >>> 0
-      const units = (random % 20) + 1
-      expectedUnits += BigInt(units)
-      const settlement = searchSettlement(quote, units, true)
-      await t.budget.record(SESSION, ACCOUNT, settlement.costUsd)
-      const dailyClaim = await daily.reserveExact(settlement.costUsd)
-      await dailyClaim.settle(settlement.costUsd)
-      usage.add('webSearch', units, settlement)
-      // The oracle uses independent scaled integer arithmetic, never production addition.
-      const expected = String(33_750_123_456_789_012_345n * expectedUnits).padStart(25, '0')
-      const decimal = `${expected.slice(0, -24)}.${expected.slice(-24)}`
-        .replace(/0+$/, '')
-        .replace(/\.$/, '')
-      const sessionTotal = await t.budget.read(SESSION, ACCOUNT)
-      expect(sessionTotal.spentUsd).toBe(Usd.from(decimal).toAmount())
-      const dailyTotal = await daily.latestDay()
-      expect(dailyTotal.spentUsd).toBe(Usd.from(decimal).toAmount())
-      expect(paidCostUsd('webSearch', usage.current)).toBe(Usd.from(decimal).toAmount())
+  let charges: Awaited<ReturnType<typeof prepareChargeSequence>>
+  // Forty real journal/daily writes are shared setup; assertions retain the default deadline.
+  beforeAll(async () => {
+    charges = await prepareChargeSequence()
+  })
+  it('random charge sequences sum exactly and daily ledger session and tally agree', () => {
+    expect(charges.steps).toHaveLength(40)
+    for (const step of charges.steps) {
+      expect(step.session).toBe(step.expected)
+      expect(step.daily).toBe(step.expected)
+      expect(step.tally).toBe(step.expected)
     }
-    expect(multiplyUsd(Usd.from(tariff).toAmount(), Number(expectedUnits))).toBe(
-      paidCostUsd('webSearch', usage.current),
+    expect(multiplyUsd(Usd.from(charges.tariff).toAmount(), Number(charges.expectedUnits))).toBe(
+      charges.total,
     )
   })
 

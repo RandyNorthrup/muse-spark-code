@@ -1,4 +1,5 @@
 import { Usd, isPositiveUsd } from '../../../shared/usd'
+import type { ResponseObservation, ConfirmedModelRequest, ResponseAttemptGuard } from './client'
 // Paid Auto review execution: loaded only after the paid-use popup allows it.
 // Session-owned fences and journal observers are passed through unchanged.
 import type { ModelApiHostDeps, DirectResponseBudget } from './ModelApiHost'
@@ -9,18 +10,28 @@ import {
   type ReviewBreaker,
   type ReviewRequest,
 } from './autoReviewer'
-import type { ConfirmedModelRequest, ResponseAttemptGuard } from './client'
-import type { CreateResponseBody, StreamEvent, Usage } from './schemas'
-import { isFunctionCallItem } from './schemas'
+
 import {
-  helperRequestSettlement,
+  type CreateResponseBody,
+  type StreamEvent,
+  type Usage,
+  isFunctionCallItem,
+} from './schemas'
+
+import {
   estimateInput,
   requestParts,
   reserveRequest,
   type OwnedSessionBudgetScope,
   type SessionBudgetClaim,
+  helperRequestSettlement,
 } from './sessionBudget'
-import { estimateCostUsd } from '../../usage/insights'
+import {
+  effortForPolicy,
+  modelPricedUsage,
+  outputLimitFor,
+  type ResolvedModel,
+} from './modelPolicy'
 import type { AgentEvent, ItemSnapshot } from '../../../shared/agentEvents'
 import {
   AUTO_REVIEW_ROW_TOOL,
@@ -52,7 +63,10 @@ interface ReviewerContext {
     | 'noteReviewerUsage'
     | 'sideCallFormats'
     | 'forceSideCallTool'
+    | 'now'
+    | 'usageRecording'
   >
+  readonly resolved: ResolvedModel
   readonly table: UiText
   readonly locale: string
   readonly breaker: ReviewBreaker
@@ -216,11 +230,14 @@ async function requestReviewer(
         instructions: AUTO_REVIEWER_MODEL_TEXT.autoReviewerInstructions,
         tools: [],
         tool_choice: 'auto',
-        reasoning: { effort: MODEL_API_EFFORT_OFF, summary: 'auto' },
+        reasoning: {
+          effort: effortForPolicy(context.resolved.policy, MODEL_API_EFFORT_OFF),
+          summary: 'auto',
+        },
         stream: true,
         store: false,
         include: ['reasoning.encrypted_content'],
-        max_output_tokens: AUTO_REVIEWER_MAX_OUTPUT_TOKENS,
+        max_output_tokens: outputLimitFor(context.resolved.policy, AUTO_REVIEWER_MAX_OUTPUT_TOKENS),
       }),
       attempt,
       context.deps.forceSideCallTool,
@@ -234,6 +251,10 @@ async function requestReviewer(
   let directBudget: DirectResponseBudget | undefined
   let reservedUsd = Usd.from(0).toAmount()
   let wasRefused = false
+  const startedAt = context.deps.now()
+  let observation: ResponseObservation = {}
+  let outcome: 'completed' | 'incomplete' | 'failed' | 'cancelled' = 'failed'
+  let served: string | undefined
   try {
     if (budgetScope !== undefined) {
       const total = await budgetScope.journal.read(budgetScope.sessionId, budgetScope.accountId)
@@ -245,16 +266,20 @@ async function requestReviewer(
           spentUsd: total.spentUsd,
           estimatedInputTokens: input,
           modelId,
+          maxOutputTokens: body.max_output_tokens,
+          ...(modelId.includes('/') && { price: context.resolved.price }),
         })
         body = {
           ...body,
           max_output_tokens: Math.min(body.max_output_tokens, reservation.maxOutputTokens),
         }
       }
-      reservedUsd = estimateCostUsd(
-        { inputTokens: input, outputTokens: body.max_output_tokens, cachedTokens: 0 },
-        modelId,
-      )
+      reservedUsd =
+        context.resolved.price.reserve({
+          inputTokens: input,
+          outputTokens: body.max_output_tokens,
+          cachedTokens: 0,
+        }) ?? Usd.from(0).toAmount()
       claim = await budgetScope.journal.reserve(
         budgetScope.sessionId,
         budgetScope.accountId,
@@ -269,6 +294,29 @@ async function requestReviewer(
         required(actualKeyDigest)
       },
       {
+        observe: (next: ResponseObservation) => {
+          observation = {
+            ...observation,
+            ...next,
+            rateLimited: observation.rateLimited === true || next.rateLimited === true,
+          }
+          if (
+            next.headers !== undefined &&
+            (Object.keys(next.headers).length > 0 || next.rateLimited === true)
+          ) {
+            context.deps.usageRecording?.limit(
+              {
+                backend: 'modelApi',
+                provider: context.resolved.policy.identity.provider,
+                source: 'headers',
+                observedAt: context.deps.now(),
+                windows: [],
+                raw: next.headers,
+              },
+              next.rateLimited === true,
+            )
+          }
+        },
         paidFeature: 'autoReviewer' as const,
         ...(required.paidEstimatedInputTokens !== undefined && {
           paidEstimatedInputTokens: required.paidEstimatedInputTokens,
@@ -279,7 +327,7 @@ async function requestReviewer(
         },
       },
     )
-    const events = context.deps.client.streamResponse(
+    const events = context.resolved.client.streamResponse(
       body,
       AbortSignal.any([signal, AbortSignal.timeout(AUTO_REVIEWER_TIMEOUT_MS)]),
       undefined,
@@ -303,6 +351,7 @@ async function requestReviewer(
       ) {
         text += event.item.arguments
       }
+      if ('response' in event) served = event.response.model
       const part = reviewPart(event)
       text += part.text
       if (part.usage !== undefined) {
@@ -313,24 +362,61 @@ async function requestReviewer(
         usage = part.usage
       }
       if (part.failure !== undefined) {
+        if (part.failure === 'response.incomplete') outcome = 'incomplete'
         throw new Error(`the review ended with ${part.failure}`)
       }
     }
     if (!hasCompleted && attempt.mode !== 'text')
       throw new Error('the structured review has no completed response')
+    outcome = 'completed'
   } catch (error: unknown) {
+    if (signal.aborted) outcome = 'cancelled'
     wasRefused = context.isRefused(error)
     if (signal.aborted) {
       throw context.abortError()
     }
     throw error
   } finally {
+    context.deps.usageRecording?.note(usage ?? undefined, {
+      backend: 'modelApi',
+      provider: context.resolved.policy.identity.provider,
+      model: modelId,
+      ...(served !== undefined && { served }),
+      kind: 'reviewer',
+      startedAt,
+      pricing:
+        context.resolved.policy.identity.provider === 'meta'
+          ? undefined
+          : context.resolved.policy.pricing,
+      durationMs: Math.max(0, context.deps.now() - startedAt),
+      ...observation,
+      outcome: wasRefused ? 'refused' : outcome,
+      providerCostUsd:
+        usage?.provider_cost_usd === undefined
+          ? undefined
+          : Usd.from(usage.provider_cost_usd).toAmount(),
+      uncertain: directBudget?.isSent === true && !wasRefused && usage == null,
+      retainedLiabilityUsd: reservedUsd,
+    })
     if (usage !== null && usage !== undefined && context.isCountedUsage(usage)) {
-      context.deps.noteReviewerUsage(modelId, {
-        inputTokens: usage.input_tokens,
-        outputTokens: usage.output_tokens,
-        cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
-      })
+      try {
+        context.deps.noteReviewerUsage(modelId, {
+          inputTokens: usage.input_tokens,
+          outputTokens: usage.output_tokens,
+          cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
+          ...(modelId.includes('/') && {
+            ...modelPricedUsage(usage),
+            cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
+            costUsd: context.resolved.price.settle(modelPricedUsage(usage), {
+              cost: usage.provider_cost_usd,
+            }),
+          }),
+        })
+      } catch {
+        // CAPPAR replaces legacy tariff-only observers. The request count
+        // remains explicitly unknown, and its journal claim still settles.
+        context.deps.log.warn('Auto review usage observer failed; its paid tally remains unknown')
+      }
     }
     if (claim !== undefined) {
       const settlement = helperRequestSettlement(
@@ -340,9 +426,13 @@ async function requestReviewer(
         directBudget?.isSent === true,
         wasRefused,
         reservedUsd,
+        context.resolved.price,
       )
       await claim.settle(settlement.costUsd, settlement.isUnknown)
     }
   }
   return text
 }
+
+export { explainLegal } from '../../paid/legalExplanation'
+export { setUiText as setLegalExplanationLanguage } from '../../../shared/l10n/text'

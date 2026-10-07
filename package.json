@@ -2,7 +2,7 @@
   "name": "muse-spark-code",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.14.3",
+  "version": "0.16.0",
   "publisher": "RandyNorthrup",
   "license": "MIT",
   "private": true,
@@ -327,6 +327,57 @@
         "command": "museSpark.addModelProvider",
         "title": "%command.addModelProvider.title%",
         "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.openUsagePage",
+        "title": "%command.openUsagePage.title%",
+        "category": "%command.category%",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "museSpark.legalScan",
+        "title": "%command.legalScan.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.connectChatGpt",
+        "title": "%command.connectChatGpt%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.connectCopilot",
+        "title": "%command.connectCopilot%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.sharePrompt",
+        "title": "%command.sharePrompt.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.promptLibrary",
+        "title": "%command.promptLibrary.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.savePrompt",
+        "title": "%command.savePrompt.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.useSavedPrompt",
+        "title": "%command.useSavedPrompt.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.copyToMyPrompts",
+        "title": "%command.copyToMyPrompts.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.shareChat",
+        "title": "%command.shareChat.title%",
+        "category": "%command.category%"
       }
     ],
     "keybindings": [
@@ -444,6 +495,10 @@
         {
           "command": "museSpark.stopBackgroundTasks",
           "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
+        },
+        {
+          "command": "museSpark.legalScan",
+          "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
         }
       ],
       "view/title": [
@@ -451,6 +506,45 @@
           "command": "museSpark.openInNewTab",
           "when": "view == museSpark.chatView",
           "group": "navigation"
+        },
+        {
+          "command": "museSpark.openUsagePage",
+          "when": "view == museSpark.chatView",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "museSpark.savePrompt",
+          "when": "editorHasSelection",
+          "group": "museSpark@1"
+        }
+      ],
+      "webview/context": [
+        {
+          "command": "museSpark.savePrompt",
+          "when": "(webviewId == 'museSpark.chatPanel' || webviewId == 'museSpark.chatView') && museSpark.transcriptRole == user && museSpark.messageIsOwn",
+          "group": "museSpark@1"
+        },
+        {
+          "command": "museSpark.savePrompt",
+          "when": "(webviewId == 'museSpark.chatPanel' || webviewId == 'museSpark.chatView') && museSpark.composerHasText",
+          "group": "museSpark@1"
+        },
+        {
+          "command": "museSpark.useSavedPrompt",
+          "when": "(webviewId == 'museSpark.chatPanel' || webviewId == 'museSpark.chatView') && museSpark.chatAvailable",
+          "group": "museSpark@2"
+        },
+        {
+          "command": "museSpark.sharePrompt",
+          "when": "(webviewId == 'museSpark.chatPanel' || webviewId == 'museSpark.chatView') && museSpark.transcriptRole == user && museSpark.messageIsOwn",
+          "group": "museSpark@3"
+        },
+        {
+          "command": "museSpark.sharePrompt",
+          "when": "(webviewId == 'museSpark.chatPanel' || webviewId == 'museSpark.chatView') && museSpark.composerHasText",
+          "group": "museSpark@3"
         }
       ]
     },
@@ -1041,7 +1135,8 @@
           "minimum": 0.5,
           "maximum": 500,
           "description": "%config.paidDailyBudgetUsd.description%",
-          "scope": "machine"
+          "scope": "machine",
+          "markdownDescription": "%config.paidDailyBudgetUsd%"
         },
         "museSpark.dictationEngine": {
           "type": "string",
@@ -1278,6 +1373,59 @@
           "description": "%config.webSearchMaxPerRequest.description%",
           "minimum": 1,
           "maximum": 20
+        },
+        "museSpark.modelApiTeamWorkers": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.modelApiTeamWorkers.description%",
+          "scope": "machine"
+        },
+        "museSpark.usageHistory": {
+          "type": "boolean",
+          "default": true,
+          "description": "%setting.usageHistory.description%",
+          "scope": "machine"
+        },
+        "museSpark.usageHistoryDays": {
+          "type": "integer",
+          "default": 365,
+          "minimum": 30,
+          "maximum": 1825,
+          "description": "%setting.usageHistoryDays.description%",
+          "scope": "machine"
+        },
+        "museSpark.legalHeaderPolicy": {
+          "type": "string",
+          "enum": [
+            "required",
+            "optional",
+            "off"
+          ],
+          "enumDescriptions": [
+            "%config.legalHeaderPolicy.enumDescriptions.required%",
+            "%config.legalHeaderPolicy.enumDescriptions.optional%",
+            "%config.legalHeaderPolicy.enumDescriptions.off%"
+          ],
+          "default": "optional",
+          "description": "%config.legalHeaderPolicy.description%"
+        },
+        "museSpark.legalRegistryLookups": {
+          "type": "boolean",
+          "default": true,
+          "scope": "window",
+          "description": "%config.legalRegistryLookups.description%"
+        },
+        "museSpark.legalExplanation": {
+          "type": "boolean",
+          "default": true,
+          "scope": "machine",
+          "markdownDescription": "%config.legalExplanation%"
+        },
+        "museSpark.syncPromptsAndBookmarks": {
+          "type": "boolean",
+          "scope": "machine",
+          "default": false,
+          "description": "%config.syncPromptsAndBookmarks.description%"
         }
       }
     },
@@ -1393,7 +1541,8 @@
     "prepare": "husky",
     "security:sast": "node scripts/sast.mjs",
     "schema:exec": "node scripts/exec-schema.mjs",
-    "reference:generate": "node scripts/gen-reference.mjs"
+    "reference:generate": "node scripts/gen-reference.mjs",
+    "test:legal-a11y": "node scripts/legal-a11y.mjs"
   },
   "lint-staged": {
     "{*.{ts,tsx,mjs},!(vendor)/**/*.{ts,tsx,mjs}}": [
@@ -1467,6 +1616,7 @@
     "pngjs": "7.0.0",
     "react-markdown": "10.1.0",
     "remark-gfm": "4.0.1",
-    "smol-toml": "1.9.0"
+    "smol-toml": "1.9.0",
+    "lz-string": "1.5.0"
   }
 }

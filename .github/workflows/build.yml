@@ -190,6 +190,7 @@ jobs:
       # Every scenario/theme; identical browser bundle. Measured Ubuntu 4m54s,
       # Windows 8m11s (run 37211362498). Platform behavior stays in native tests.
       - run: npm run test:a11y
+      - run: npm run test:legal-a11y
 
   integration:
     name: integration (${{ matrix.os }})
@@ -386,11 +387,12 @@ jobs:
             extension/native/windows/dictate.ps1 extension/native/windows/capture.ps1 \
             extension/native/windows/MuseSparkJob.cs extension/native/windows/MuseSparkMcpJob.cs \
             extension/native/windows/MuseSparkMcpLauncher.cs extension/native/darwin/muse-dictate \
-            extension/dist/extension.js extension/dist/conversation.js extension/dist/modelApi.js extension/dist/searchWorker.js \
+            extension/dist/extension.js extension/dist/conversation.js extension/dist/prompts.js extension/dist/modelApi.js extension/dist/searchWorker.js \
             extension/dist/pageWorker.js extension/dist/planMarkdown.js extension/dist/checkpointStore.js \
             extension/dist/review.js extension/dist/agentImport.js extension/dist/conversationGit.js extension/dist/bundledSkills.js \
             extension/dist/uiTextRuntime.js extension/dist/uiTextHooks.js extension/dist/uiTextSurfaces.js \
             extension/dist/uiText.js extension/dist/validation.js extension/dist/wire.js extension/dist/browserCheck.js extension/dist/browserRuntime.js \
+            extension/dist/legalScan.js extension/dist/legal-data/NOTICE.md extension/dist/legal-data/provenance.json \
             extension/dist/sessionBoard.js extension/dist/reviewer.js \
             extension/dist/foreignHooks.js extension/dist/hookRuntime.js extension/dist/extensionHooks.js extension/dist/pluginHooks.js \
             extension/dist/codeIntel.js extension/dist/voice.js extension/dist/museCodeReviewer.js \
@@ -417,27 +419,30 @@ jobs:
         run: |
           listing="$(tar -tzf dist/muse-spark-code-acp-*.tgz)"
           for entry in package/package.json package/dist/uiTextRuntime.js package/dist/uiTextHooks.js package/dist/uiTextSurfaces.js \
-            package/dist/acp.js package/dist/modelApi.js package/dist/uiText.js package/dist/validation.js package/dist/wire.js package/dist/reviewer.js \
+            package/dist/acp.js package/dist/sharingRuntime.js package/dist/modelApi.js package/dist/uiText.js package/dist/validation.js package/dist/wire.js package/dist/reviewer.js \
+            package/dist/providers.js package/dist/subscriptions.js package/dist/configuredProviders.js package/dist/providerCatalog.js \
             package/dist/foreignHooks.js package/dist/hookRuntime.js package/dist/extensionHooks.js \
             package/dist/recorder.js package/dist/resourceGovernor.js package/dist/resourceAdmission.js \
             package/dist/exec.js package/dist/mcpPool.js package/dist/modelApiCodeIntel.js package/dist/structuredSchema.js \
             package/dist/searchWorker.js package/dist/pageWorker.js \
+            package/native/darwin/muse-dictate \
             package/native/linux/x64/muse-created package/native/linux/arm64/muse-created \
             package/native/windows/MuseSparkJob.cs package/native/windows/MuseSparkMcpJob.cs \
             package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md \
             package/schemas/exec-result-v1.schema.json package/schemas/exec-event-v1.schema.json \
-            package/schemas/exec-result-v2.schema.json package/schemas/exec-event-v2.schema.json; do
+            package/schemas/exec-result-v2.schema.json package/schemas/exec-event-v2.schema.json \
+            package/dist/runtime.bundles.json.br package/dist/legalScan.js \
+            package/dist/legal-data/NOTICE.md package/dist/legal-data/provenance.json \
+            package/schemas/share-v1.schema.json; do
             if ! grep -Fxq -- "$entry" <<< "$listing"; then
               echo "::error::$entry is missing from the agent's package" >&2
               exit 1
             fi
           done
-          for table in l10n/ui.*.json; do
-            if ! grep -Fxq -- "package/$table" <<< "$listing"; then
-              echo "::error::$table is missing from the agent's package" >&2
-              exit 1
-            fi
-          done
+          if ! grep -Fxq -- "package/l10n/ui.tables.json.br" <<< "$listing"; then
+            echo "::error::runtime table archive is missing from the agent's package" >&2
+            exit 1
+          fi
           echo "the agent's package holds $(wc -l <<< "$listing") entries, the required ones included"
       # The bundles load the shared English table at runtime: the extension
       # and Model API bundles from this build, the agent as npm installs it.
@@ -450,7 +455,9 @@ jobs:
       - name: built headless process and package guards (fake transport only)
         env:
           MUSE_ACP_PACKAGE_DIR: ${{ runner.temp }}/acp-install/node_modules/muse-spark-code-acp
-        run: npx vitest run test/e2e/execStdio.e2e.test.ts
+        run: |
+          npx vitest run test/e2e/execStdio.e2e.test.ts
+          npx vitest run test/e2e/acpStdio.e2e.test.ts -t "the ACP registry release gate"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: muse-spark-code-acp

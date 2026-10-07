@@ -27,6 +27,26 @@ const DAY_TWO_FIRST = new Date(2026, 9, 5, 0, 0, 0, 0).getTime()
 const DATE_ONE = '2026-10-04'
 const DATE_TWO = '2026-10-05'
 
+it('reads retained Tab liability separately without changing admission files', async () => {
+  const directory = path.join(root, 'usage-read')
+  const { ledger } = ledgerAt(directory, 'writer', DAY_ONE)
+  const claim = reservationOf(await ledger.admit(Usd.from(0.25).toAmount(), Usd.from(1).toAmount()))
+  const file = path.join(directory, DATE_ONE, 'writer.json')
+  const original = await readFile(file)
+  expect(await ledger.todayUsage()).toEqual({
+    ok: true,
+    totalUsd: Usd.from(0.25).toAmount(),
+    uncertainUsd: Usd.from(0.25).toAmount(),
+  })
+  expect(await readFile(file)).toEqual(original)
+  await ledger.settle(claim, Usd.from(0.05).toAmount())
+  expect(await ledger.todayUsage()).toEqual({
+    ok: true,
+    totalUsd: Usd.from(0.05).toAmount(),
+    uncertainUsd: Usd.from(0).toAmount(),
+  })
+})
+
 function ledgerWithClock(
   directory: string,
   windowId: string,

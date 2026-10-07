@@ -9,17 +9,18 @@ import * as esbuild from 'esbuild'
 
 const L10N_DIR = 'src/shared/l10n'
 const ENTRY = [
-  "export { ACP_AGENT_NAME, L10N_TABLE_MAX_BYTES, L10N_COMPRESSION_QUALITY, L10N_BROWSER_COMPRESSION_LEVEL, L10N_TABLE_ARCHIVE_FILE } from '../constants'",
+  "export { ACP_AGENT_NAME, L10N_TABLE_MAX_BYTES, L10N_COMPRESSION_QUALITY, L10N_BROWSER_COMPRESSION_LEVEL, L10N_TABLE_ARCHIVE_FILE, USAGE_TABLE_ARCHIVE_FILE } from '../constants'",
   "export { formatAcpUsage } from '../../runtime/cliOptions'",
   "export { readArchivedUiTable } from './tableArchive'",
   "export { encodeWhatsNewContent } from '../../core/whatsNew/whatsNewContent'",
   "export { EN } from './en'",
+  "export { USAGE_EN } from './usageEn'",
   "export { tableProblems } from './check'",
   "export { isPluralForms } from './forms'",
   "export { TABLE_DIRECTORY, TABLE_LOCALES, tableFileName } from './locales'",
 ].join('\n')
 
-/** `{ EN, tableProblems, isPluralForms, TABLE_DIRECTORY, TABLE_LOCALES, tableFileName }`. */
+/** `{ EN, USAGE_EN, tableProblems, isPluralForms, TABLE_DIRECTORY, TABLE_LOCALES, tableFileName }`. */
 export async function loadL10n(repoRoot) {
   const { outputFiles } = await esbuild.build({
     stdin: {

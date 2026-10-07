@@ -63,7 +63,7 @@ export async function saveWizardDraft(
   if (draft.provider.auth !== 'none' && (draft.credential ?? '').trim() === '') {
     throw new Error(`Provider ${draft.provider.id} needs a key`)
   }
-  const address = deps.policy.check(draft.provider.address)
+  const address = await deps.policy.check(draft.provider.address)
   if (address.kind === 'refused') {
     throw new Error(fill(UI_TEXT.providerAddressInvalid, { detail: address.detail }))
   }

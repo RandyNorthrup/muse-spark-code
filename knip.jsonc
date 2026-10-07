@@ -17,6 +17,16 @@
     "src/extension.ts",
     "src/core/resources/resourceGovernorEntry.ts",
     "src/core/resources/admission.ts",
+    "src/runtime/exec/runExec.ts",
+    "src/runtime/runtimeAccountingEntry.ts",
+    "src/runtime/runtimeEngineEntry.ts",
+    "src/host/backend/providerPolicyEntry.ts",
+    "src/core/backends/modelapi/modelApiHooksEntry.ts",
+    "src/core/backends/modelapi/modelApiMcpEntry.ts",
+    "src/runtime/usage/usageServiceEntry.ts",
+    "src/runtime/usage/usageCompanionEntry.ts",
+    "src/host/usage/usagePanelEntry.ts",
+    "src/webview/usage/usage.tsx",
     "src/host/conversation/conversationEntry.ts",
     "src/shared/validationEntry.ts",
     // Help data: separate lazy runtime and generator build entries.
@@ -30,12 +40,20 @@
     "src/runtime/exec/execEntry.ts",
     // The help generator bundles this catalog in memory, then imports its export.
     "src/shared/featureCatalog.ts",
+    "src/shared/modelApiBoundariesEntry.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.
     "src/host/tab/tabEntry.ts",
+    "src/core/legal/entry.ts",
+    "src/host/prompts/promptEntry.ts",
     // The Model API backend's own bundle (M57), required by path at runtime.
     "src/host/backend/modelApiEntry.ts",
     "src/host/backend/providersEntry.ts",
+    "src/host/backend/subscriptionsEntry.ts",
+    "src/host/backend/configuredProvidersEntry.ts",
     "src/host/models/modelsPanelEntry.ts",
+
+    // The Node-only team schema proxy selected by the production resolver (M96, D6).
+    "src/host/teamViewBundle.ts",
     "src/host/sessionBoardEntry.ts",
     "src/core/backends/modelapi/reviewerEntry.ts",
     "src/core/backends/modelapi/foreignHooksEntry.ts",
@@ -83,17 +101,28 @@
     // The Models & Agents panel's own entry (M95 lane M), required by path.
     "src/webview/models/models.tsx",
     "src/runtime/main.ts",
+    "src/runtime/sharing/sharingEntry.ts",
     // M112 A: same-build ACP question factory, loaded by path on first use.
     "src/acp/questionDeferralEntry.ts",
     "src/runtime/questions/questionRegistryEntry.ts",
     "src/core/questions/deferralEntry.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
+    // Standalone browser checks invoked by path; usageHost is bundled by them.
+    "test/harness/usage-check.mjs",
+    "test/harness/usage-companion.mjs",
+    "test/harness/usage-accounts.mjs",
+    "test/harness/usage-contrast.mjs",
+    "test/harness/usageHost.mjs",
+    // Native loader regression child, run by both package scripts after build.
+    "test/packaging/moduleExports.test.mjs",
     "test/e2e/**/*.test.ts",
     // DIET1 production browser smoke, invoked directly as documented in README.
     "test/e2e/webviewDiet.mjs",
     "test/e2e/fake-muse/serve.mjs",
     // The fake stdio MCP server the M50 tests start as a child process.
     "test/unit/helpers/fakeMcpServer.mjs",
+    // The fake stdio ACP agent the M96 lane W tests start as a child process.
+    "test/unit/helpers/fakeTeamAcpAgent.mjs",
     // A bounded orphan-child process drill, launched by path at runtime.
     "test/unit/helpers/fakeMcpOrphan.mjs",
     // The Windows job drills launch these finite binary, owner-exit and

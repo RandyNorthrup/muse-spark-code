@@ -14,12 +14,13 @@
 import {
   LONG_SESSION_MS,
   MODEL_API_PRICES_PER_MILLION,
-  CONTRIBUTOR_MODEL_SUFFIX,
+  UI_TEXT,
   REMINDER_RUN_TOOL_COUNT_MAX,
   TOKENS_PER_MILLION,
   USD_USAGE_DISPLAY_DECIMALS,
 } from '../../shared/constants'
 import { formatUsd as formatMoney } from '../../shared/l10n/text'
+import { modelApiPaidTier } from '../../shared/paid'
 import type { UsageInsights } from '../../shared/usage'
 import { Usd, type UsdAmount } from '../../shared/usd'
 
@@ -191,9 +192,9 @@ export interface BillableUsage {
  * prices (the tier is the model's: contributor models carry the suffix).
  */
 export function estimateCostUsd(usage: BillableUsage, modelId: string): UsdAmount {
-  const prices = modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
-    ? MODEL_API_PRICES_PER_MILLION.contributor
-    : MODEL_API_PRICES_PER_MILLION.standard
+  const tier = modelApiPaidTier(modelId)
+  if (tier === undefined) throw new Error(UI_TEXT.subagentTariffUnknown)
+  const prices = MODEL_API_PRICES_PER_MILLION[tier]
   const cached = Math.min(usage.cachedTokens, usage.inputTokens)
   const fresh = usage.inputTokens - cached
   return Usd.from(prices.input)

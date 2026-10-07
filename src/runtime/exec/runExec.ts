@@ -1,6 +1,15 @@
 import { Usd, sumUsd, type UsdAmount } from '../../shared/usd'
-import * as acp from '@agentclientprotocol/sdk'
+import type * as acp from '@agentclientprotocol/sdk'
 import { constants as fileFlags, stat, realpath, open, type FileHandle } from 'node:fs/promises'
+import {
+  createUsageRecording,
+  isUsageWriterBundle,
+  type UsageRecording,
+} from '../../core/usage/recording'
+import { requireFile } from '../../host/lazyBundle'
+import { agentDataFolder } from '../dataFolder'
+import { randomUUID } from 'node:crypto'
+
 import path from 'node:path'
 import type { Readable } from 'node:stream'
 import {
@@ -9,10 +18,10 @@ import {
   sameFile,
   type FileIdentity,
 } from '../../core/fs/fileIdentity'
-import { createAcpAgent } from '../../acp/agent'
 import { isValidModelApiKey, type SecretStore } from '../../host/auth/credentialStore'
 import type { Logger } from '../../host/logger'
 import type { AgentEvent } from '../../shared/agentEvents'
+import { uiLocale, fill, formatUsd, plural } from '../../shared/l10n/text'
 import {
   ACP_AGENT_NAME,
   ACP_COMPACT_COMMAND,
@@ -33,16 +42,15 @@ import {
   NO_COMPACTABLE_HISTORY,
   MODEL_API_PRICES_PER_MILLION,
   PAID_PRICES_USD,
+  MODEL_API_IMAGE_MODEL,
   SECRET_KEYS,
   UI_TEXT,
-  type EnvironmentVariable,
 } from '../../shared/constants'
 import { effortLevelsFor } from '../../shared/effort'
-import { fill, formatUsd, plural } from '../../shared/l10n/text'
+
 import { modelApiPaidTier } from '../../shared/paid'
-import { createRuntimeBackend, type RuntimeBackend } from '../backends'
+import type { RuntimeBackend } from '../backends'
 import { type ExecOptions, serveOptionsFor } from './execArgs'
-import { createExecClient } from './execClient'
 import { execFetch, type ExecTransport } from './execFetch'
 import { statusForStop, type Lifecycle, type StopCause } from './execLimits'
 import { createExecLogger, type ExecSink } from './execOutput'
@@ -58,7 +66,14 @@ import {
   type TokenTotals,
 } from './execProtocol'
 import type { FdWriter } from './fdWriter'
-import { memorySecretStore, type MemorySecretStore, readKeyLine, readPromptStdin } from './keyInput'
+import {
+  memorySecretStore,
+  type MemorySecretStore,
+  readKeyLine,
+  readProviderKeyLine,
+  readPromptStdin,
+} from './keyInput'
+import type { AssembledProviderRun } from './providerExec'
 import { createRunLedger } from './runLedger'
 import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
@@ -101,8 +116,11 @@ export const execOutputSchemaPort: ExecOutputSchemaPort = {
     signal.throwIfAborted()
   },
 }
+export { setUiText } from '../../shared/l10n/text'
 
 export interface ExecDeps {
+  readonly usageRecording?: UsageRecording | undefined
+  readonly isUsageHistoryEnabled?: (() => boolean) | undefined
   options: ExecOptions
   version: string
   distDir: string
@@ -115,7 +133,6 @@ export interface ExecDeps {
   stderr: FdWriter
   storeSecrets: SecretStore
   runGit: (args: readonly string[], cwd: string) => Promise<string>
-  museCodeCredentials: readonly EnvironmentVariable[]
   fetch: typeof fetch
   sleep: (ms: number) => Promise<void>
   now: () => number
@@ -125,6 +142,7 @@ export interface ExecDeps {
   /** Construction is lazy; W/C1 inject this same host into runtime spawn adapters. */
   createResources?: (overrides: Partial<ResourceSettings>) => RuntimeResources
   resourceOverrides?: Partial<ResourceSettings>
+  runProvider?: ProviderExecRunner | undefined
   outputSchema?: ExecOutputSchemaPort
   /** Filesystem seam for races and Windows junctions; production uses the native filesystem. */
   schemaFileIo?: {
@@ -176,6 +194,16 @@ async function readSchemaFile(
     await handle.close()
   }
 }
+
+/** What the provider turn receives: the lifecycle, the run's deps and the assembly. */
+export interface ProviderRunRequest {
+  readonly lifecycle: Lifecycle
+  readonly deps: ExecDeps
+  readonly run: AssembledProviderRun
+}
+
+/** A test runner's provider turn on the same validated and pinned run. */
+export type ProviderExecRunner = (request: ProviderRunRequest) => Promise<number>
 
 function stopMessage(cause: StopCause, maxRequests: number): string {
   switch (cause.kind) {
@@ -261,6 +289,27 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       if (!isFinished) rawLog.error(message)
     },
   }
+  const usageRecording =
+    deps.usageRecording ??
+    createUsageRecording({
+      client: 'cli',
+      now: deps.now,
+      newId: () => randomUUID(),
+      isEnabled: () => deps.isUsageHistoryEnabled?.() ?? true,
+      log,
+      writer: async (onWriteError) => {
+        const bundle = requireFile(path.join(deps.distDir, 'usageService.js'))
+        if (!isUsageWriterBundle(bundle)) throw new Error('Usage writer factory unavailable')
+        return await bundle.createUsageWriter({
+          dataFolder: agentDataFolder(deps),
+          writerId: randomUUID(),
+          now: deps.now,
+          isEnabled: () => deps.isUsageHistoryEnabled?.() ?? true,
+          onWriteError,
+        })
+      },
+    })
+  let restoreUsageRecording: (() => void) | undefined
   const limits = {
     budgetUsd: options.budgetUsd ?? null,
     maxRequests: options.maxRequests ?? null,
@@ -275,6 +324,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           maxRequests: options.maxRequests,
         })
       : undefined
+  let providerRun: AssembledProviderRun | undefined
   let memory: MemorySecretStore | undefined
   let runtime: RuntimeBackend | undefined
   let tap: SessionTap | undefined
@@ -304,6 +354,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let outputSchema: OutputSchema | undefined
   let outputValidation: 'provider' | 'local' = 'provider'
   const emitted = new Set<string>()
+  const imageStarts = new Map<number, number>()
   const sink = createResourceExecSink({
     format: options.output,
     out: deps.stdout,
@@ -379,6 +430,56 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     }
     drain(sink)
   }
+  /**
+   * A BYO provider run (M95, PLAN.md D74): everything is resolved and
+   * checked up front — the provider from the runner's own user file, a
+   * model naming it, a bound credential, a re-checked endpoint and the
+   * pinned fetch — then the ordinary ACP engine runs the turn.
+   */
+  async function runWithProvider(): Promise<number | undefined> {
+    const [{ assembleProviderRun }, { providersFilePath, resolveEndpointHost }] = await Promise.all(
+      [import('./providerExec'), import('../providersCommands')],
+    )
+    const providerId = options.provider ?? ''
+    // Past argument parsing: failures from here are the run's, not usage,
+    // unless assembly says otherwise.
+    setup.isUsageError = false
+    const assembled = await lifecycle.race(
+      assembleProviderRun({
+        filePath: providersFilePath({
+          platform: deps.platform,
+          homeDir: deps.homeDir,
+          xdgConfigHome: deps.env['XDG_CONFIG_HOME'],
+        }),
+        readFile: async (filePath) => {
+          const bytes = await deps.readFile(filePath, EXEC_PROMPT_MAX_BYTES, lifecycle.signal)
+          return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+        },
+        secrets: deps.storeSecrets,
+        resolveHost: resolveEndpointHost,
+        readKey: (shape) => readProviderKeyLine(deps.stdin, lifecycle.signal, shape),
+        providerId,
+        model: options.model,
+        keyFromStdin: options.keyFromStdin,
+        baseFetch: deps.fetch,
+      }),
+    )
+    if (!assembled.ok) {
+      if (assembled.failure.kind === 'usage') {
+        setup.isUsageError = true
+      } else {
+        status = 'auth_required'
+      }
+      error = assembled.failure.reason
+      return await finish()
+    }
+    memory = assembled.run.memory
+    for (const literal of assembled.run.literals) {
+      literals.push(literal)
+    }
+    providerRun = assembled.run
+    return await deps.runProvider?.({ lifecycle, deps, run: assembled.run })
+  }
   void (async () => {
     try {
       await lifecycle.stopped
@@ -411,6 +512,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     }
   }
   try {
+    if (options.provider !== undefined) {
+      const result = await runWithProvider()
+      if (result !== undefined) return result
+    }
     const folder = await lifecycle.race(stat(cwd))
     if (!folder.isDirectory()) throw new Error(UI_TEXT.execFileUnreadable)
     if (options.outputSchema !== undefined) {
@@ -469,8 +574,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           },
         })),
       ]
-      let secrets = deps.storeSecrets
-      if (options.keyFromStdin) {
+      let secrets = providerRun?.secrets ?? deps.storeSecrets
+      if (providerRun === undefined && options.keyFromStdin) {
         const key = await lifecycle.race(readKeyLine(deps.stdin, lifecycle.signal))
         if (!key.ok) {
           status = 'auth_required'
@@ -495,7 +600,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         store: secrets.store.bind(secrets),
         delete: secrets.delete.bind(secrets),
       }
-      if (ledger !== undefined)
+      if (ledger !== undefined && providerRun === undefined)
         transport = execFetch({
           fetch: async (url, init) => {
             const response = await deps.fetch(url, init)
@@ -511,6 +616,29 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           lifecycle,
           onLatch: latch,
           emit: (event) => {
+            if (event.type === 'paid_use' && event.n !== null) {
+              if (event.phase === 'admitted') imageStarts.set(event.n, deps.now())
+              else {
+                const startedAt = imageStarts.get(event.n)
+                if (startedAt !== undefined) {
+                  imageStarts.delete(event.n)
+                  usageRecording.note(undefined, {
+                    backend: 'modelApi',
+                    provider: 'meta',
+                    model: MODEL_API_IMAGE_MODEL,
+                    kind: 'image',
+                    startedAt,
+                    session: setup.sessionId ?? undefined,
+                    durationMs: Math.max(0, deps.now() - startedAt),
+                    units: { images: event.phase === 'refunded' ? 0 : event.units },
+                    outcome: event.phase === 'returned' ? 'completed' : 'failed',
+                    uncertain: event.phase === 'uncertain',
+                    providerCostUsd: event.phase === 'uncertain' ? undefined : event.usd,
+                    retainedLiabilityUsd: event.phase === 'uncertain' ? event.usd : undefined,
+                  })
+                }
+              }
+            }
             if (!isFinishing) sink.emit(event)
           },
           onResponseStart: (n) => {
@@ -521,6 +649,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             if (!isFinishing) drain(sink)
           },
         })
+      const engine = await import('../runtimeEngineEntry')
+      engine.setUiText(UI_TEXT, uiLocale())
+      restoreUsageRecording = engine.installUsageRecording(usageRecording)
+      const { createRuntimeBackend } = engine
       runtime = createRuntimeBackend({
         options: serveOptionsFor(options),
         version: deps.version,
@@ -530,12 +662,30 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         homeDir: deps.homeDir,
         secrets: watchedSecrets,
         runGit: deps.runGit,
-        museCodeCredentials: deps.museCodeCredentials,
         fetch: transport?.fetch ?? deps.fetch,
         sleep: (ms) => lifecycle.race(deps.sleep(ms)),
         log,
+        usageRecording,
         exec: {
           isEphemeral: options.ephemeral,
+          ...(providerRun !== undefined && { providerRun }),
+          ...(providerRun !== undefined &&
+            ledger !== undefined && {
+              responseAccounting: {
+                ledger,
+                refuse: (reason) => {
+                  if (reason === 'closed') latch({ kind: 'internal' })
+                  else latch({ kind: reason })
+                },
+                started: (n) => {
+                  tap?.beginResponse(n)
+                },
+                settled: (outcome) => {
+                  tap?.settleResponse(outcome)
+                  if (!isFinishing) drain(sink)
+                },
+              },
+            }),
           streamIdleMs: EXEC_STREAM_IDLE_MS,
           headlessPaid: (request, requiresAsking) => {
             const isAllowed =
@@ -568,6 +718,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         return await finish()
       }
       tap = observeBackend(runtime.backend)
+      const { createAcpAgent, createExecClient } = engine
       const agent = createAcpAgent({
         questions: 'decline',
         backend: tap.backend,
@@ -609,7 +760,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           try {
             await lifecycle.race(
               connection.request('initialize', {
-                protocolVersion: acp.PROTOCOL_VERSION,
+                protocolVersion: engine.PROTOCOL_VERSION,
                 clientCapabilities: {},
               }),
             )
@@ -701,7 +852,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 )
               setup.isUsageError = false
             }
-            if (ledger !== undefined) {
+            if (ledger !== undefined && providerRun === undefined) {
               if (tier === undefined) {
                 setup.isUsageError = true
                 error = UI_TEXT.execModelUnpriced
@@ -966,6 +1117,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             )
       return code
     } finally {
+      await grace(usageRecording.flush())
+      restoreUsageRecording?.()
       isFinished = true
       memory?.clear()
       literals.length = 0

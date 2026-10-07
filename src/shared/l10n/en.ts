@@ -139,6 +139,76 @@ export const EN = {
   feedbackSubmitted: 'Feedback submitted.',
   feedbackFailed: 'Could not submit feedback.',
   feedbackResult: 'Muse Code returned: {result}',
+  // M102: the shared usage page; its full table is a separate lazy family.
+  usagePageTitle: 'Usage & cost',
+  paletteUsagePage: 'Track cost, tokens and limits across editors.',
+  openUsagePage: 'Open usage page',
+  acpUsageDescription: 'Show usage and cost across models, or open the usage page.',
+  companionLaunchFailed:
+    'Could not open the panel. Return to your editor and open Muse Spark Code again to get a fresh launch link.',
+  // M118: prompt library and local sharing; read UI_TEXT at use time.
+  promptLimits: 'The prompt exceeds the size limit, or this scope has too many prompts.',
+  promptWorkspaceRequired: 'Open a workspace to save workspace prompts.',
+  promptScopeDamaged:
+    '{scope}: The prompt store is unreadable or damaged. Its files were kept unchanged.',
+  promptImportConfirmScope: 'Save imported prompt in {scope}',
+  promptStoreDamaged: 'The prompt store is unreadable or damaged. Its files were kept unchanged.',
+  promptStoreBusy: 'The prompt store is busy or changed. Try again.',
+  promptSecretsNote: 'Prompts are stored as plain text. Do not save passwords or keys.',
+  promptSearch: 'Search prompts and tags',
+  promptEmpty: 'No saved prompts match.',
+  promptDuplicate: 'Duplicate',
+  promptRun: 'Review variables and insert',
+  promptEdit: 'Edit prompt',
+  promptDelete: 'Delete prompt',
+  promptDeleteConfirm: 'Delete this prompt?',
+  promptLink: 'Import from link or raw gist URL',
+  promptFromFile: 'Import from file',
+  promptImportConfirm: 'Save imported prompt',
+  promptSave: 'Save prompt',
+  promptUseSaved: 'Use saved prompt…',
+  promptLibrary: 'Prompt library',
+  referencePromptMenu:
+    'Composer toolbar or right-click: Save, Share, Use saved. Outside VS Code, Shift-right-click keeps native clipboard actions. Prompts are plain text; save no secrets.',
+  promptCopyToUser: 'Copy to my prompts',
+  promptTitle: 'Title',
+  promptBody: 'Prompt text',
+  promptTags: 'Tags',
+  promptVariables: 'Variables',
+  promptScopeUser: 'All workspaces',
+  promptScopeWorkspace: 'This workspace',
+  promptImport: 'Import prompt…',
+  promptUntrusted:
+    'Imported prompt: untrusted text. Review the text and variables before inserting.',
+  promptInsert: 'Insert into chat',
+  promptFileInvalid: 'The prompt file is invalid or unsupported.',
+  shareChat: 'Share chat…',
+  sharePrompt: 'Share prompt…',
+  shareFull: 'Full transcript',
+  shareConversation: 'Conversation only',
+  shareCodeBlocks: 'Include code blocks',
+  shareAttachmentNames: 'Include attachment names',
+  shareDiffs: 'Include diffs',
+  sharePreview: 'Preview',
+  shareConfirm: 'Confirm sharing',
+  shareCopy: 'Copy',
+  shareFile: 'Save file…',
+  shareBrowser: 'Open in browser',
+  shareConfidential: 'Sharing is blocked while this workspace is confidential.',
+  shareReviewPrivacy:
+    'Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.',
+  shareCancelled: 'Sharing cancelled',
+  shareMode: 'Sharing mode',
+  shareDecision: 'Decision',
+  shareFormat: 'File format',
+  shareRangeFrom: 'From message',
+  shareRangeTo: 'Through message',
+  shareAllMessages: 'All messages',
+  shareAttachmentContents: 'Include selected attachment contents',
+  shareRangeInvalid: 'Choose an ordered range of messages from this conversation.',
+  shareTooLarge: 'This share exceeds the file size or transcript limit.',
+  shareAttachmentUnavailable: 'Selected attachment content is unavailable in this range.',
+  sharePreviewExpired: 'The preview changed or expired. Preview again before sharing.',
   referenceAgentControls:
     'Agent controls; Interrupt; Stop; Resume; Close agent; Reopen agent; Mark result read; Send message; Follow-up task',
 
@@ -160,13 +230,33 @@ export const EN = {
   referencePopoverKeys: 'Navigate options, adjust a value, choose an option or close the popover.',
   referenceExecImages:
     'Headless images require --image-generation, acceptEdits and an affordable hard budget. No price question is shown; requests requiring permission are refused.',
+  referenceProviders:
+    'List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.',
   referenceCliOptions: {
-    json: 'JSON: Resources',
     'resource-governor':
       '--resource-governor on|off: Keep this machine responsive by throttling or deferring harness work. On by default.',
     'cpu-max': '--cpu-max <percent>: Throttle when CPU stays above this percentage for 30 seconds.',
     'memory-max':
       '--memory-max <percent>: Throttle when used memory stays above this percentage for two samples.',
+    'usage-history': '--usage-history: Track cost, tokens and limits across editors.',
+
+    provider: '--provider: Provider',
+    preset: '--preset: Provider',
+    as: '--as: Provider',
+    address: '--address: Address',
+    format: '--format <format>: Export',
+    privacy: '--privacy: Any provider may be used, including ones that train on data.',
+    'private-ok':
+      '--private-ok: {origin} is on a private network; re-run with --private-ok to confirm.',
+    range: '--range today|7d|30d|90d|custom: Range',
+    by: '--by provider|model|kind|client: Group by',
+    from: '--from YYYY-MM-DD: From',
+    to: '--to YYYY-MM-DD: To',
+    json: '--json: Versioned JSON',
+    csv: '--csv: Summary CSV',
+    stdio: 'usage serve --stdio: Serve usage over standard input and standard output',
+    registry:
+      '--registry: Before the first lookup: {hosts}. Only package names and versions are sent over HTTPS; no source, paths or lockfile contents are uploaded. Turn off Legal Registry Lookups for offline scans.',
     backend:
       '--backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key',
     'trust-workspace':
@@ -303,9 +393,9 @@ export const EN = {
   referenceCodeOutput:
     'Copy copies code; Insert writes at the editor cursor; Apply replaces the editor selection. Open tool output to read the full result; clipped output can be paged. Select transcript text to quote it in the composer, ask about it, add a comment or copy it.',
   referencePaidContexts:
-    'Interactive Model API extras ask before spending and use the shared daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; that daily ledger does not cover them. ACP paid features default off, require Model API flags and editor permission; ordinary ACP has no mandatory hard budget. Headless images require acceptEdits, the flag and a hard budget. Account & usage can forget workspace paid-use grants.',
+    'Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.',
   referenceAcp:
-    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /questions, /answer, /resources, /resources resume, /usage resources and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
+    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt and /share plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
   referenceWebFetchTitle: 'Web fetch',
   referenceWebFetchDetail:
     'Fetch public web pages as readable text, with permission and network checks.',
@@ -365,6 +455,41 @@ export const EN = {
   paidDailyStop: 'Stop until tomorrow',
   paidDailyRaisePrompt:
     'Enter today’s limit in USD (0.50–500), enough for the pending reservations.',
+  planUi: {
+    copilotConnect: 'Use my Copilot models',
+    copilotUnavailable: 'Copilot models are unavailable. Enable Copilot and try again.',
+    copilotQuota: 'Your Copilot quota is exhausted. Manage usage or choose another model.',
+    copilotRateLimit: 'Copilot is rate limited. Try again later.',
+    copilotConsent: 'Allow access to Copilot in its consent dialog to continue.',
+    expired: 'ChatGPT granted too little time to finish this request. Sign in again.',
+    retry: 'ChatGPT is temporarily unavailable. Try again.',
+    // M95b: plan billing, allowance recovery and Copilot's required content note.
+    chatGptMark: 'Using ChatGPT plan',
+    providerMark: 'Using {provider} plan',
+    manage: 'Manage usage',
+    noticeTitle: 'You’re using your ChatGPT plan',
+    noticeDetail: 'ChatGPT Plus/Pro requests share your allowance; they add none.',
+    credits:
+      'Apps may spend credits after plan limits if enabled. Check ChatGPT’s Manage usage settings.',
+    understood: 'Got it',
+    limitTitle: 'ChatGPT plan usage limit reached',
+    limitDetail:
+      'Wait for a reset or choose an API-key model. Reset time is unknown. You choose billing changes.',
+    chooseModel: 'Choose another model',
+    usageHeading: 'Plan usage',
+    usageDetail:
+      'Plan allowance or credits pay, outside this app’s dollar cap. Quota and reset time are unknown.',
+    requests: 'Requests',
+    reportedTokens: 'Reported tokens',
+    estimatedTokens: 'Estimated tokens',
+    unknownTokens: 'Unknown tokens (requests)',
+    // {input}, {output}, {requests}: localized counts, including the sampled requests.
+    tokenCounts: '{input} input · {output} output · requests: {requests}',
+    reduced: 'Reduced',
+    aiContent:
+      'AI content can be inaccurate. Copilot adds rules and uses AI credits. Unreported token usage is estimated.',
+    reportContent: 'Report harmful content',
+  },
   untitledConversation: 'Untitled',
   crashTitle: 'The panel hit an error',
   crashDetail: 'Reload rebuilds the panel; the conversation is kept by the host.',
@@ -563,6 +688,8 @@ export const EN = {
     'paid:autoReviewer': 'Turn the paid Auto reviewer on or off.',
     'paid:bestOfN': 'Turn paid Best of N on or off.',
     'paid:tab': 'Turn paid Tab completions on or off.',
+    'paid:legalExplanation':
+      'Turn paid explanations of legal findings on or off. The stored Model API key is billed.',
     'paid:judge': 'Turn paid Judge advice on or off.',
     'paid:hookModels': 'Turn paid model hooks on or off.',
     // M91: `/hook run`, a Manual hook from spark-hooks.json.
@@ -819,7 +946,10 @@ export const EN = {
   mcpNoSettings: 'Muse Code has no settings file yet, so no MCP servers. It would be at {path}',
   mcpUnreadable: 'Muse Code’s settings file could not be read:',
   mcpNone: 'No MCP servers are configured in {path}',
-  mcpCount: forms({ one: '{count} MCP server in {path}', other: '{count} MCP servers in {path}' }),
+  mcpCount: forms({
+    one: '{count} MCP server in {path}',
+    other: '{count} MCP servers in {path}',
+  }),
   mcpOptional: 'optional',
   mcpRequired: 'required (Muse Code stops if it fails)',
   mcpDisabled: 'turned off',
@@ -880,6 +1010,44 @@ export const EN = {
     'No MCP server is loaded: {servers} set both “required” and “mode”. Keep only “mode”.',
   mcpNoServersUnreadable:
     'No MCP server is loaded: Muse Code’s settings file could not be read ({reason}).',
+  // Shared resources (M96 lane B, D75): the registry, the leases and the bridge.
+  teamResourcesTitle: 'Tools and devices',
+  teamResourcesDetail: 'Which MCP servers and devices the team shares, and who may use them',
+  teamResourcesKindLabel: 'Kind',
+  teamResourcesKindExclusive: 'Exclusive',
+  teamResourcesKindExclusiveDetail:
+    'One at a time: a browser, a device or a fixed port. Calls wait for the lease.',
+  teamResourcesKindShared: 'Shared',
+  teamResourcesKindSharedDetail: 'Up to its limit at once. Further calls wait in its queue.',
+  teamResourcesKindFree: 'Free',
+  teamResourcesKindFreeDetail: 'No lease. Any worker calls it any time.',
+  teamResourcesRolesLabel: 'Roles that may use it',
+  // {count}: the shared resource's concurrency limit, a number.
+  teamResourcesLimitLabel: 'At most {count} at once',
+  // {role}: the holding role's name; {taskId}: the holding task's id.
+  teamResourceBusy: 'resource busy, held by {role} task {taskId}',
+  teamToolBindingChanged:
+    'The tool or its permissions changed while waiting, or its lease is no longer held. The call was refused; list the tools again before retrying.',
+  teamLeaseTakeBack: 'Take back',
+  teamLeaseTakeBackDetail:
+    'The lease moves to the orchestrator; the holder’s next call is told the resource is busy.',
+  teamLeaseRestartServer: 'Restart server',
+  teamLeaseRestartServerDetail:
+    'Ends the server the window started; the lease is released once its process has exited.',
+  teamLeaseReleaseAnyway: 'Release anyway',
+  teamLeaseReleaseAnywayDetail:
+    'Releases the lease as your decision. The earlier call may still be acting on the resource.',
+  // {server}: the exclusive server's name.
+  teamLeaseElsewhereTitle: 'Another window runs {server}',
+  // {window}: the other window's name; {server}: the exclusive server's name.
+  teamLeaseElsewhereDetail:
+    '{window} is using {server}. Starting it here too can take it from that window.',
+  teamLeaseStartAnyway: 'Start here anyway',
+  teamLeaseWait: 'Wait',
+  teamLeaseOpenWindow: 'Open that window',
+  // {server}: the exclusive server's name.
+  teamMoveToBridgeDetail:
+    'Remove {server} from Muse Code’s settings file (the extension never writes it), and add it to the extension’s own MCP configuration, where the bridge serves it to every worker.',
   hooksTitle: 'Muse Code hooks',
   hooksTitleModelApi: 'Model API hooks',
   hooksWarning: 'Hooks run through your shell, outside Muse Code’s sandbox and approvals',
@@ -1331,6 +1499,9 @@ export const EN = {
   attachmentsLabel: 'Attachments',
   removeAttachment: 'Remove',
   attachmentTooLarge: 'Images must be 10 MB or smaller.',
+  modelAttachmentUnsupported: 'This model does not support this attachment.',
+  providerCapabilityUnsupported: 'Selected model does not support these request settings.',
+  modelAttachmentOverLimit: "This attachment exceeds the model's limits.",
   attachmentUnsupported: 'Only PNG, JPEG, GIF and WebP images can be attached.',
   attachmentLimit: 'At most 20 files per message.',
   attachmentUnreadable: 'The file could not be read.',
@@ -2157,6 +2328,232 @@ export const EN = {
   agentMapTitle: 'Agent map',
   agentMapHint: 'click an agent for details',
   agentMapEmpty: 'No subagents in this conversation.',
+  // M96c (D75): scheduler, Traffic, recovery and user-level runners.
+  teamTraffic: {
+    title: 'Traffic',
+    score: 'Priority {priority} × critical path {criticalPath} × fit {fit}',
+    afterTask: 'After task {task}: {path}',
+    size: 'Size',
+    waitingApproval: 'Waiting for approval',
+    attemptRunning: 'Attempt running',
+    attemptRetiring: 'Attempt retiring',
+    attemptRetired: 'Attempt retired',
+    attemptUncertain: 'Attempt uncertain',
+    attemptInterrupted: 'Attempt interrupted',
+    diverging: 'Diverging',
+    flaky: 'Flaky check',
+    notReviewed: 'Not reviewed',
+    sameModelReview: 'Same-model review',
+    priority: 'Priority',
+    writeSet: 'Write-set',
+    resources: 'Resources',
+    diskUse: 'Disk use',
+    queuePosition: 'Queue position {position}: {reason}',
+    workerCount: forms({ one: '{count} worker', other: '{count} workers' }),
+    machineLoad: forms({
+      one: '{count} window runs {workers} on this machine.',
+      other: '{count} windows run {workers} on this machine.',
+    }),
+    board: 'Task board',
+    lanes: 'Lanes',
+    leases: 'Leases',
+    otherWindows: 'Other windows',
+    recovery: 'Recovery',
+    conflicts: 'Predicted conflicts',
+    mergeQueue: 'Merge queue',
+    metrics: 'Metrics',
+    noTasks: 'No tasks on the board',
+    pauseQueue: 'Pause queue',
+    resumeQueue: 'Resume queue',
+    runNext: 'Run next',
+    hold: 'Hold',
+    release: 'Release',
+    reassign: 'Reassign…',
+    handOffAnyway: 'Hand off anyway',
+    continueAnyway: 'Continue anyway',
+    restartTeamHost: 'Restart the team host',
+    cancel: 'Cancel task',
+    serialize: 'Serialize',
+    letBothRun: 'Let both run',
+    openWindow: 'Open that window',
+    takeBack: 'Take back',
+    pause: 'Pause',
+    retry: 'Retry',
+    remove: 'Remove',
+    landNow: 'Land now',
+    landWithoutChecks: 'Land without checks',
+    undoBatch: 'Undo batch',
+    cleanup: 'Clean up',
+    apply: 'Apply',
+    openTerminal: 'Open a terminal here',
+    recover: 'Recover',
+    stop: 'Stop process',
+    keep: 'Keep',
+    showTerminal: 'Show in a terminal',
+    takeOver: 'Take over',
+    newTask: 'Continue here as a new task',
+    includeEdits: 'Include its uncommitted edits',
+    hostBusy: 'Host busy',
+    exclusiveWriter: 'Exclusive writer',
+  },
+  teamTrafficDetails: {
+    changedSinceOpened:
+      'This work changed since you opened it. Review the current state and try again.',
+    freeSlots: 'Free slots',
+    processWorkers: 'Process workers',
+    heavyCommands: 'Heavy commands',
+    raiseLimit: 'Raise a limit…',
+    resume: 'Resume task',
+    discard: 'Discard task',
+    restartServer: 'Restart server',
+    releaseAnyway: 'Release anyway',
+    waiting: 'Waiting',
+    checking: 'Checking batch',
+    serial: 'Serial admission',
+    returned: 'Candidate sent back',
+    admitted: 'Admitted',
+    matched: 'Matched',
+    uncertain: 'Uncertain',
+    staleHint: 'Stale hint',
+    advisoryExceeded: 'The advisory total exceeds this window’s worker cap.',
+    ownerMayBeLive: 'Another window may still own this work. Taking over can break its task.',
+    predictedRate: 'Predicted conflicts per writing task',
+    mergeRate: 'Merge conflicts per landing',
+    reviewRounds: 'Review rounds after the first',
+    reassignments: 'Reassignments',
+    candidatesReturned: 'Candidates sent back',
+    runnerInvalid: 'Check the runner fields. Credentials and SSH options are not allowed.',
+    runnerId: 'Runner ID',
+  },
+  teamStallReasons: {
+    noProgress: 'No progress',
+    outOfSteps: 'Request limit reached',
+    rateLimited: 'Rate limited',
+    usageLimited: 'Usage limit reached',
+    providerDown: 'Provider unavailable',
+    crashed: 'Worker crashed',
+  },
+  teamSharedFileKinds: { text: 'Plain text', 'json-table': 'JSON table', changelog: 'Changelog' },
+  teamTaskSizes: { S: 'Small', M: 'Medium', L: 'Large', XL: 'Extra large' },
+  teamTaskStates: {
+    queued: 'Queued',
+    ready: 'Ready',
+    running: 'Running',
+    blocked: 'Blocked',
+    review: 'In review',
+    merge: 'Awaiting merge',
+    merged: 'Merged',
+    done: 'Done',
+    discarded: 'Discarded',
+    failed: 'Failed',
+    cancelled: 'Cancelled',
+    redesign: 'Needs redesign',
+    waitingApproval: 'Waiting for approval',
+    waitingForYou: 'Waiting for you',
+    capped: 'Capped',
+    interrupted: 'Interrupted',
+    notStaffed: 'Not staffed',
+  },
+  teamPriorities: {
+    urgent: 'Urgent',
+    high: 'High',
+    normal: 'Normal',
+    low: 'Low',
+  },
+  teamSchedulerSettings: {
+    integrationFlow: 'Integration flow',
+    full: 'Full',
+    reviewAutomatically: 'Review automatically',
+    manual: 'Manual',
+    onStall: 'When a task stalls',
+    reassign: 'Reassign',
+    ask: 'Ask',
+    stop: 'Stop',
+    sharedFiles: 'Shared files',
+    dependencyInstallation: 'Dependency installation',
+    checkSlots: 'Check slots',
+    perCopy: 'Each working copy',
+  },
+  teamTrafficMetrics: {
+    utilisation: 'Lane utilisation',
+    queueDepth: 'Queue depth',
+    waitMedian: 'Median wait',
+    waitP90: '90th percentile wait',
+    conflictRate: 'Conflict rate',
+    reworkRate: 'Rework rate',
+    costPerMerge: 'Cost per merged change',
+    timeToMerge: 'Time to merge',
+    estimated: 'Estimated',
+    reported: 'Reported',
+    today: 'Today',
+    week: 'This week',
+    allTime: 'All time',
+  },
+  teamRunners: {
+    title: 'Runners',
+    add: 'Add runner…',
+    testAll: 'Test runners',
+    test: 'Test runner',
+    destination: 'SSH destination',
+    port: 'SSH port',
+    os: 'Operating system',
+    workFolder: 'Work folder',
+    maxJobs: 'Maximum jobs',
+    labels: 'Labels',
+    commandClasses: 'Command classes',
+    tests: 'Tests',
+    builds: 'Builds',
+    typeChecks: 'Type checks',
+    declared: 'Declared commands',
+    setupCommand: 'Setup command',
+    cacheKey: 'Cache key',
+    environmentNames: 'Environment names',
+    online: 'Online',
+    offline: 'Offline',
+    busy: 'All slots busy',
+    testFailed: 'Runner self-test failed',
+    commandTooLong:
+      'The Windows runner command exceeds the process command-line limit. Shorten the setup command or check.',
+    hostKeyNotice:
+      'Connect once from your own terminal to verify and trust this host key: {fingerprint}.',
+    inputHangNotice:
+      'The remote shell waited for input. Use the scheduled-task wrapper and test again.',
+    environmentNotice: 'Only these environment names are passed. Credentials are always excluded.',
+    trustNotice: 'Runners execute project code and receive snapshots only in a trusted workspace.',
+  },
+  teamTrafficNotices: {
+    queuePaused:
+      'The queue is paused after a reload. Resume queue to start queued tasks; paid work checks consent again.',
+    windowCaps: 'Caps apply to this window. Other windows’ counts are advisory.',
+    uncertainAttempt:
+      'The earlier attempt has not stopped. Its slots remain counted and its working copy cannot be reused.',
+    userDecision:
+      'Continuing is your decision, not proof that every descendant stopped. An earlier process may still act on its resources.',
+    handoffUnavailable:
+      'A replacement cannot start: {reason}. Raise a limit or restart the team host.',
+    snapshotChanged:
+      'The working snapshot or check identity changed. The queue will merge and test again.',
+    lockHeld:
+      'Git’s lock is held: {path}. Apply later or open a terminal; the extension never removes another process’s lock.',
+    changedDuringLanding:
+      'Changed during landing: {path}. Undo merge is available only while the landed bytes still match.',
+    unverifiedCheck: 'Unverified check: {command}. No matching command was run by this attempt.',
+    journalBroken:
+      'The team journal could not be read: {path}. The broken file was kept; review recovery before resuming.',
+    dependencyBlocked:
+      'Dependency {task} did not finish successfully. This task is blocked; re-delegate or cancel it.',
+    paidNotice:
+      'Paid extras are enabled for your chosen setup. Before the first charge, accept the price: {price}. Shared daily budget: {budget}, set by museSpark.paidDailyBudgetUsd. Your subscription does not pay for these calls.',
+  },
+  teamSchedulerCommands: {
+    showTeamTraffic: 'Show Team Traffic',
+    pauseTeamQueue: 'Pause Team Queue',
+    resumeTeamQueue: 'Resume Team Queue',
+    addRunner: 'Add Runner…',
+    testRunners: 'Test Runners',
+    cleanUpAgentBranches: 'Clean Up Agent Branches',
+    showAllWorkspacesAgents: 'Show All Workspaces’ Agents',
+  },
   // A subagent's or background task's status as Muse Code reports it; one
   // not listed here is shown as it came.
   agentStatuses: {
@@ -2238,6 +2635,83 @@ export const EN = {
   backgroundTasksLabel: 'Background tasks',
   backgroundBadge: 'background',
   subagentRowLabel: 'Agent',
+  // The team tree and cards (M96 lane U2): the Agent map's team tree, the
+  // delegation, switch, waiting-for-you and merge cards, the worker label's
+  // group excluded (it splices technical names), and the Usage Team section.
+  teamTreeLabel: 'Team',
+  teamWorkerMerged: 'merged',
+  teamWorkerDiscarded: 'discarded',
+  teamRunningOf: '{used} of {amount} running',
+  teamWorkerFinished: 'Team task {task}: {status}.',
+  teamTreeKeyboardHint:
+    'Use arrow keys to move. F2 focuses actions; Left and Right choose an action; Escape returns to the item.',
+  teamMergeAffectedFiles: 'Affected files',
+  teamMergeProtectedPaths: 'Protected paths',
+  teamMergeConflictPaths: 'Conflict paths',
+  teamMergeDetailsMissing:
+    'File details are unavailable. Review the diff before requesting a new merge card.',
+  teamMergeReviewVerdict: 'Review verdict',
+  teamMergeNoPaths: 'None',
+  teamRunningCount: forms({ one: '{count} running', other: '{count} running' }),
+  teamMergeMorePaths: forms({ one: 'and {count} more', other: 'and {count} more' }),
+  teamOrchestrator: 'Orchestrator',
+  teamOrchestratorDefault: 'Default',
+  teamOrchestratorOverride: 'Override',
+  // An entry the host gave no model name; {number} counts from 1.
+  teamEntryUntitled: 'Entry {number}',
+  // A pool entry's state; one not listed here is shown as it came.
+  teamEntryStates: {
+    ready: 'ready',
+    capped: 'capped',
+    rateLimited: 'rate limited',
+    usageLimited: 'at usage limit',
+    unavailable: 'unavailable',
+  },
+  teamCapUsed: '{used} of {amount}',
+  teamEstimated: 'estimated',
+  teamOpenTranscript: 'Open transcript',
+  teamReviewDiff: 'Review diff',
+  teamMergeAction: 'Merge',
+  teamDiscardAction: 'Discard',
+  teamResetEntry: 'Reset',
+  teamEditRole: 'Edit in Roles section',
+  teamStopAll: 'Stop all team tasks',
+  teamQueuedGroup: 'Queued',
+  teamUnmergedGroup: 'Unmerged',
+  teamInterruptedGroup: 'Interrupted',
+  teamTasksCount: forms({ one: '{count} team task', other: '{count} team tasks' }),
+  teamPlanTitle: 'Delegation plan',
+  teamPlanDelegated: 'Delegated',
+  teamPlanKept: 'Kept by the main agent',
+  teamPlanDryRun: 'Plan only: nothing started or spent.',
+  // Why a task moved entries; one not listed here is shown as it came.
+  teamSwitchReasons: {
+    cap: 'cap reached',
+    concurrency: 'no free slot',
+    rateLimited: 'rate limited',
+    usageLimit: 'usage limit',
+    unavailable: 'unavailable',
+    reset: 'reset',
+    usageLimited: 'usage limit',
+    notStaffed: 'not staffed',
+  },
+  teamWaitingTitle: 'Waiting for you',
+  teamWaitingQueue: 'Queue it',
+  teamWaitingSelf: 'Main agent does it',
+  teamWaitingRaise: 'Raise a limit…',
+  teamWaitingCancel: 'Cancel',
+  teamMergeTitle: 'Merge',
+  teamMergeNotReviewed: 'Not reviewed',
+  teamMergeSameModel: 'Reviewed by the same model',
+  teamMergeBranchMoved: 'The branch moved during the task.',
+  teamMergeConflict: 'Conflicts need resolving before merge.',
+  teamReportTitle: 'Report',
+  teamUsageTitle: 'Team',
+  teamUsageToday: 'Today',
+  teamUsageWindow: 'This window',
+  teamUsageTasks: 'Tasks',
+  teamUsageTokens: 'Tokens',
+  teamUsageCost: 'Cost',
   usageAccount: 'Account',
   usageAddModelApiKey: 'Add Model API key',
   usageReplaceModelApiKey: 'Replace Model API key',
@@ -2270,7 +2744,10 @@ export const EN = {
   usageInsightUnavailable: 'Not available on this backend: the Model API has no local trace logs.',
   usageInsightNoLogs: 'No Muse Code trace logs were found on this machine yet.',
   usageInsightTotals: '{attempts} across {sessions}',
-  modelAttemptsCount: forms({ one: '{count} model attempt', other: '{count} model attempts' }),
+  modelAttemptsCount: forms({
+    one: '{count} model attempt',
+    other: '{count} model attempts',
+  }),
   sessionsCount: forms({ one: '{count} session', other: '{count} sessions' }),
   durationNow: 'now',
   contextCompactTitle: 'Click to compact now',
@@ -2406,7 +2883,6 @@ export const EN = {
     // model's own call, and the automatic check after a round of edits.
     run_checks: 'Run checks',
     verify_edits: 'Check edits',
-
     // M67: code intelligence, native on the Model API and on the ide server.
     find_definition: 'Definition',
     find_references: 'References',
@@ -2729,9 +3205,12 @@ export const EN = {
     '  {command} [options]              Serve the Agent Client Protocol on stdin and stdout',
     '  {command} [options] login        Sign in to Muse Code in this terminal',
     '  {command} auth set|status|clear  Store, check or remove the Meta Model API key',
+    '  {command} auth set|status|clear --provider <id>  Store, check or remove a provider key (read from stdin)',
+    '  {command} providers list|add|test|remove  Manage model providers',
     '  {command} exec [options] <prompt>  Run one headless turn',
     '  {command} scan-secrets <file> [--key-stdin]  Count likely secrets in one file (prints only the number)',
     '  {command} report [options]  Print a scrubbed problem report (starts no backend, opens no browser)',
+    '  {command} legal [options]  Run the read-only legal scan (no backend, no sign-in)',
     'Options:',
     '  --backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key',
     '  --trust-workspace                Load the folder’s rules, skills and memory',
@@ -2820,6 +3299,58 @@ export const EN = {
     one: '{count} secret match',
     other: '{count} secret matches',
   }),
+  // M95 lane X (PLAN.md D74): the ACP agent's provider commands. Every key
+  // below also lives in all 14 `l10n/ui.*.json` tables.
+  // {provider}: the provider id; {store}: where the key lives; {origin}: the bound origin.
+  providerKeyStored: 'The {provider} key is stored in {store}.',
+  providerKeyNotStored: 'No key was entered, so nothing was stored.',
+  providerKeyPresent: 'A {provider} key is stored in {store}, bound to {origin}.',
+  providerKeyAbsent: 'No {provider} key is stored.',
+  providerKeyCleared: 'The {provider} key was removed from this computer’s credential store.',
+  // {provider}: the id as typed; {hint}: the key's shape as a hint.
+  providerUnknown: 'Unknown provider: {provider}.',
+  providerKeyShape: 'That key is not shaped like {provider} keys ({hint}).',
+  providerKeyNeeded: '{provider} needs its key from stdin (--key-stdin).',
+  providerNotConfigured: '{provider} is not configured; add it with providers add first.',
+  providerSecretUnreadable: 'The stored {provider} credential cannot be read; enter the key again.',
+  // {reason}: the technical detail (a file error or a refused write).
+  providerSaveFailed: 'Could not save the providers file ({reason}).',
+  // {stored}: the origin the credential was stored for; {current}: where the provider points now.
+  providerOriginMismatch:
+    'The {provider} credential was stored for {stored} but the provider now points at {current}; enter the key again.',
+  providersNoneFound: 'No providers are configured.',
+  // {origin}: the exact origin the code goes to.
+  providerAdded: 'Added {provider}; code goes to {origin}.',
+  providerAlreadyConfigured: '{provider} is already configured; remove it first to add it again.',
+  // {count}: the models the free check listed.
+  providerTestOk: forms({
+    one: 'Key works · {count} model.',
+    other: 'Key works · {count} models.',
+  }),
+  providerProbeUnreachable: 'The provider could not be reached.',
+  providerProbeUnparseable: 'The model list could not be read.',
+  providerProbeNoKey: 'No key was supplied.',
+  providerProbeRebinding: 'The address changed networks; the request was refused.',
+  providerSaveSecretFailed: 'The credential store operation failed.',
+  providerSaveWriteConflict: 'The file could not be written or changed during saving; retry.',
+  providerSaveBusy: 'Another provider update is running or its lock could not be acquired; retry.',
+  providerSaveRecoveryFailed:
+    'Saving failed and the {provider} credential could not be restored. Check auth status and re-enter or clear its key before retrying.',
+  providerTestOkKey: 'Key works.',
+  // {reason}: why the test failed, in plain words.
+  providerPaidTest:
+    '{provider} has no free check; add it from the Models & Agents panel, where the test cost is asked first.',
+  // {origin}: the private-network address, asked once before it is saved.
+  providerPrivateNeedsConfirm:
+    '{origin} is on a private network; re-run with --private-ok to confirm.',
+  // {reason}: the endpoint policy's refusal.
+  providerEndpointRefused: 'That address cannot be used ({reason}).',
+  providerNoRequestPath: '{provider} cannot run here yet; its wire capture is still pending.',
+  execProviderNeedsModelApi: '--provider needs --backend modelApi.',
+  execProviderModelRequired: 'This provider run needs --model provider/model.',
+  // {provider}: the provider id the run asked for.
+  execProviderNotReady:
+    'Provider runs need the provider transport lane; request validation passed for {provider}.',
   execUsage: 'exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -',
   execScanUsage: 'scan-secrets <file> [--key-stdin]',
   execSummary:
@@ -2981,6 +3512,35 @@ export const EN = {
     'The same prompt runs in separate worktrees, each billed to your Model API key. {price} Each run asks for approval in every permission mode, including Bypass, unless you allow best-of-N always in this workspace. Actual cost depends on tokens used; other paid tools cost extra. Model API backend only.',
   usagePaidBestOfNAttempts: forms({ one: '{count} attempt', other: '{count} attempts' }),
   usagePaidBestOfNIncluded: 'Reported token estimate: {cost}',
+  // Team workers billed to a key (M96 lane A, PLAN.md D75): the paid feature,
+  // its per-task popup lines and its confirmation. {budget} is the shared
+  // daily team budget in the display language's money format.
+  paidTeamWorkersName: 'Team workers',
+  paidTeamWorkerRates:
+    '{model}: {input} input, {cached} cached input, {output} output per million tokens; up to {tokens} tokens per task.',
+  paidTeamWorkerUnpriced:
+    'The price is unknown; up to {tokens} tokens per task. Daily token limits apply.',
+  paidTeamWorkerTokenBudget: 'Shared daily team token ceiling: {tokens} tokens.',
+  paidTeamWorkerLine: '{role} on {model}: {rates}',
+  paidTeamWorkerBudget: 'Shared daily team budget: {budget}.',
+  paidTeamWorkersTitle: 'Approve paid team tasks?',
+  paidTeamWorkersDetail:
+    '{tasks}\n\nBilled to your API key for each task’s provider. Actual cost depends on tokens used. Allow once covers these tasks only.',
+  paidConfirmTeamWorkers:
+    'Team tasks run on models billed to your Model API key. {price} The first delegate call that starts key tasks asks for approval in every permission mode, including Bypass, unless you allow team workers always in this workspace. Subscription and local tasks are not paid uses. Actual cost depends on tokens used; other paid tools cost extra.',
+  usagePaidTeamTasks: forms({ one: '{count} team task', other: '{count} team tasks' }),
+  // Team pool selection (M96 lane A, PLAN.md D75): the switch row and its
+  // reasons, and the two refusals callers surface. {measure} and {window}
+  // are D75's code words (tokens/day); {used} and {amount} are formatted
+  // counts in the display language.
+  teamSwitchReasonCap: '{measure}/{window} cap met, {used} of {amount} used',
+  teamSwitchReasonConcurrency: 'no free running slot',
+  teamSwitchReasonRateLimited: 'rate-limited by the provider',
+  teamSwitchReasonUsageLimit: 'subscription usage limit reached',
+  teamSwitchReasonUnavailable: 'agent unavailable',
+  teamSwitchReasonReset: 'headroom back after reset',
+  teamPoolNotStaffed: 'Role {role} has no entries in its pool: it is not staffed.',
+  teamCapExceeded: '{entry} has no {measure}/{window} headroom left ({used} of {amount} used).',
   // Inline completions (M94, PLAN.md D73): the paid feature, the
   // once-per-window popup (Q-M94a), the status bar with its menu, the snooze
   // and the Account & usage row. {price} is a dollar amount in the display
@@ -3178,6 +3738,14 @@ export const EN = {
     'No verified price is available for this model. The child task cannot start.',
   subagentPlanMode: 'Plan mode refuses paid child tasks; switch mode and approve a new task.',
   subagentWebSearchOff: 'Web search was turned off before this child request; no request was sent.',
+  // M96 (PLAN.md D75): the orchestrator's writing tools wait while an
+  // in-place worker task runs, in every mode.
+  teamInPlaceOrchestratorRefused:
+    'A team worker is writing in this workspace: edits, the shell and merges wait until its task ends.',
+  // M96 (PLAN.md D75): a team conversation whose last ready entry went away
+  // keeps its tools; from the next turn `delegate` is refused.
+  teamSingleModelAgain: 'Only one model is ready: the team applies from a new conversation.',
+  teamRunnerUnavailable: '{tool} is unavailable: the team runner has not loaded in this window.',
   webSearchFailed: 'The search failed',
   // Under a reply that cites web pages (M33).
   citationsHeading: 'Sources',
@@ -3415,7 +3983,10 @@ export const EN = {
   verifyWarnings: forms({ one: '{count} warning', other: '{count} warnings' }),
   verifyClean: 'No errors or warnings',
   // {count}: edited files whose problems were not read (no report in time, …).
-  verifyUnchecked: forms({ one: '{count} file not checked', other: '{count} files not checked' }),
+  verifyUnchecked: forms({
+    one: '{count} file not checked',
+    other: '{count} files not checked',
+  }),
   // {name}: a check's name from museSpark.checkCommands, as the user wrote it.
   checkOutcomes: {
     passed: '{name} passed',
@@ -3537,6 +4108,8 @@ export const EN = {
   providerImport: 'Import',
   providerImportPreviewTitle: 'Import preview',
   importNeedsKey: 'needs a key',
+  providerOpenRouterServices:
+    'OpenRouter account connection and key usage are not available yet. Paste a key to use models.',
   refreshModels: 'Refresh models',
   scanNewModels: forms({
     one: '{count} new model since the last scan',
@@ -3558,6 +4131,11 @@ export const EN = {
     newBadge: 'New',
   },
   // How a model without a dollar price is marked.
+  modelToolCallingUnavailable: 'Tool calling has not been verified for this model.',
+  paidProviderPrice:
+    'Per million tokens: input {input}, cache read {cached}, cache write {write}, one-hour write {write1h}, output {output}. Per request {request}; per image {image}.',
+  paidProviderPriceTier:
+    'From {threshold} input tokens: input {input}, output {output} per million.',
   modelUnpriced: 'unpriced',
   modelLocal: 'local',
   modelPlan: 'plan',
@@ -3621,6 +4199,27 @@ export const EN = {
   // {id}: the provider id, as written.
   acpProviderAdded: 'Added provider {id}.',
   acpProviderRemoved: 'Removed provider {id}.',
+  acpChatGpt: {
+    usage: 'Usage: muse-spark-code-acp providers add|remove|status chatgpt',
+    actions: {
+      add: 'Continue with ChatGPT',
+      remove: 'Remove ChatGPT sign-in',
+      status: 'Check ChatGPT sign-in',
+    },
+    notice:
+      'ChatGPT Plus or Pro is required. Requests use your plan allowance; OpenAI may spend additional credits if you enabled them in ChatGPT. Continue in your browser to sign in.',
+    alreadyAdded: 'ChatGPT is already added. Remove it before signing in again.',
+    states: {
+      'signed-in': 'ChatGPT is signed in.',
+      expired:
+        'ChatGPT sign-in has expired; it will refresh on use, or remove it and sign in again.',
+      'signed-out': 'ChatGPT is not signed in.',
+    },
+    callback: 'ChatGPT sign-in is complete. Return to your editor or terminal.',
+    failure: 'ChatGPT sign-in could not be completed. Try again or remove it and sign in again.',
+    storeUnavailable:
+      'This computer’s credential store is unavailable. Sign in from an interactive desktop session with an unlocked credential store; on Linux, start Secret Service first.',
+  },
   execProviderNotConfigured: 'Provider {id} is not configured.',
   // M95 providers: evaluated through UI_TEXT at use time.
   providerText: {
@@ -3797,6 +4396,679 @@ export const EN = {
   ollamaMalformedFrame: 'Malformed Ollama stream frame.',
   ollamaStreamLimit: 'Ollama exceeded the stream size or item limit.',
   ollamaFinishReason: 'Ollama finished with reason "{reason}".',
+  // M96 lane R (PLAN.md D75): agent roles. {role}: the role id.
+  teamCapabilityNoTools: 'This model cannot call tools, so it cannot run the {role} role.',
+  // {tokens}: the model's window; {minimum}: what every role needs.
+  teamCapabilitySmallWindow:
+    'This model’s context window ({tokens} tokens) is below the {minimum} tokens every role needs.',
+  // {tokens}: the model's window; {recommended}: the role's recommendation; {role}: the role id.
+  teamCapabilityWarnWindow:
+    'This model’s context window ({tokens} tokens) is below the {recommended} tokens recommended for the {role} role.',
+  // {role}: the role id.
+  teamCapabilityWarnImages:
+    'This model takes no image input, which the {role} role works better with.',
+  teamCapabilityWarnReasoning:
+    'This model has no reasoning tier, which the {role} role works better with.',
+  // {model}: the model id; {role}: the role id.
+  teamCapabilityUnknown:
+    'The capabilities of {model} are unknown; it was not checked for the {role} role.',
+  // A role or team.json file refused whole. {file}: the file; {detail}: the technical reason.
+  teamRoleFileRefused: '{file}: {detail}',
+  teamRoleResolutionUnknown:
+    'Role resolution refused because an input is missing, unreadable, malformed or ambiguous.',
+  teamRoleGlobUnproven: 'Write-path inclusion cannot be proved.',
+  teamRoleNotFound: 'Role {role} is not in the complete catalogue.',
+  teamJsonRefused: '{file}: {detail}',
+  // {id}: the project role; {detail}: the wider asks.
+  teamRoleNeedsAllowance:
+    'The project role {id} asks for {detail}; it runs read-only until allowed for this workspace.',
+  // M96 (PLAN.md D75): the team. Every role, pool, task, ledger and hint
+  // string the Roles section, the Agent map and the cards show. Text the
+  // model reads is TEAM_MODEL_TEXT in constants.ts and stays English.
+  teamRolesTitle: 'Roles',
+  teamAgentsTitle: 'Agent map',
+  teamHistoryTitle: 'Team history',
+  teamOrchestratorSlot: 'Orchestrator',
+  teamResetToDefault: 'Reset to Default',
+  teamAddCustomRole: 'Add custom role',
+  teamCharterEnforced: 'The harness enforces this',
+  teamAccessModes: {
+    readOnly: 'Read-only',
+    ownBranch: 'Own branch',
+    inPlace: 'In place',
+  },
+  teamInPlaceConfirm:
+    'A worker in this role writes in your own tree, beside your own edits. Only writers you allow here run this way: never a repository, a project role or a template.',
+  teamToolChecklist: 'Tool set',
+  teamAddEntry: 'Add entry',
+  teamDefaultEntry: 'Default',
+  // {model}: what Default resolves to now, for example a model and backend.
+  teamDefaultResolves: 'Default ({model})',
+  // {model}: the entry's model; {reason} or {warning}: what the check found.
+  teamCapabilityRefused: '{model} cannot take this role: {reason}.',
+  teamCapabilityWarning: '{model}: {warning}.',
+  teamIntensityTitle: 'Intensity',
+  // M96 lane F (PLAN.md D75): team templates, autofill, intensity, model
+  // settings, cap validation, preview and transfer.
+  teamTemplateSolo: 'Solo',
+  teamTemplatePair: 'Pair (code + review)',
+  teamTemplateFull: 'Full team',
+  teamTemplateCustom: 'Custom',
+  // {step}: the guided first run's step number.
+  teamSetupStep: 'Set-up step {step}',
+  teamIntensityLevels: {
+    minimal: 'Minimal',
+    light: 'Light',
+    balanced: 'Balanced',
+    heavy: 'Heavy',
+    max: 'Max',
+  },
+  // {cost}: the level's dollars per hour; {tokens}: its tokens per hour.
+  teamIntensityCost: '{cost} per hour, about {tokens} tokens',
+  teamTemplates: {
+    solo: 'Solo',
+    pair: 'Pair (code + review)',
+    full: 'Full team',
+    custom: 'Custom',
+  },
+  teamTemplateDetails: {
+    solo: 'No delegation: exactly today’s chat.',
+    pair: 'Engineering and code review on different vendors.',
+    full: 'Research, design, engineering, QA, code review and docs, with marketing offered.',
+    custom: 'Start empty and add what you need.',
+  },
+  teamSetupSteps: {
+    template: 'Template',
+    agents: 'Agents found',
+    pools: 'Pools',
+    limits: 'Limits',
+    preview: 'Preview',
+  },
+  // Cap prefills, each with its reason (D75). {amount}: the suggested cap;
+  // {window}: its window; {role}: the role; {count}: the learned tasks.
+  teamCapPrefillDefault: '{amount} per {window}: the default for {role}.',
+  teamCapPrefillLearned: '{amount}: the median of your last {count} {role} tasks.',
+  // Inline cap validation (D75). {label}: the cap; {minimum}: one request's
+  // minimum in tokens.
+  teamCapBelowMinimum: '{label} is below one request’s minimum ({minimum}).',
+  teamCapTaskAboveDay: 'A task cap above the same measure’s day cap never fills.',
+  teamCapDollarsUnpriced: 'A dollar cap needs a priced model: use a token cap.',
+  teamCapUnpricedNeedsCaps:
+    'A model without a price joins a pool only with token caps in both the task and the day window.',
+  teamCapConcurrentAboveGlobal: 'Above the global caps: it runs at the ceiling.',
+  teamCapDayAboveBudget: 'Above the team’s daily budget: it stops at the budget.',
+  teamSuggestionAccept: 'Accept',
+  teamSuggestionChange: 'Change',
+  teamSuggestionDismiss: 'Dismiss',
+  // Autofill suggestions, each with its reason (D75).
+  teamSuggestReviewVendor: 'Review on {model}: another vendor than {other}.',
+  teamSuggestCheapest: '{model} passes the capability check and costs least here.',
+  teamSuggestFallback: 'One entry only: add a fallback ({model}).',
+  teamSuggestBudgetCaps: 'Day caps that fit the daily budget left: {amount}.',
+  teamSuggestLearned: '{median} from your last {count} {role} tasks.',
+  teamPreviewTitle: 'Preview',
+  teamPreviewSample: 'Sample task',
+  // {cost}: the labelled cost of one orchestrator turn.
+  teamTryWithOrchestrator: 'Try with the orchestrator ({cost})',
+  teamImportDraft: 'Opened as a draft: entries you lack show as missing.',
+  teamEntryMissing: 'Missing: map it to one of your agents or remove it.',
+  teamIncludeTranscripts: 'Include transcripts',
+  // The tree's states (D75). Entry states with a time or reason ride in the
+  // templates below.
+  // {time}: when the mark lifts; {reason}: why the entry cannot run.
+  teamEntryRateLimited: 'Rate-limited until {time}.',
+  teamEntryUsageLimited: 'At its usage limit until {time}.',
+  teamEntryUnavailable: 'Unavailable: {reason}.',
+  teamEntryCapped: 'Capped: {reason}.',
+  teamResumeAction: 'Resume',
+  teamTakeBack: 'Take back',
+  teamMoveToBridge: 'Move to the shared bridge',
+  teamResetRecord: 'Reset record',
+  // One transcript row per switch (D75). {role}: the role; {from} and {to}:
+  // the entries; {reason}: one of teamSwitchReasons with its figures.
+  teamSwitchRow: '{role}: {from} → {to}, {reason}',
+  teamWaitingForYou: 'Waiting for you',
+  teamChoiceQueue: 'Queue it',
+  teamChoiceSelf: 'Main agent does it',
+  teamChoiceRaise: 'Raise a limit…',
+  teamChoiceCancel: 'Cancel',
+  teamNotStaffed: 'Not staffed: the pool is empty.',
+  teamOnlyOneModel: 'Only one model is ready: the team applies from a new conversation.',
+  teamUndoMerge: 'Undo merge',
+  teamBranchMoved: 'The branch moved during the task.',
+  // {file}: the file whose merge conflicts.
+  teamMergeConflicted: '{file} has conflicts.',
+  teamNoSecondModel:
+    'The team is on, but only one model is ready, so this conversation works as today. Add a second model to a role to start the team.',
+  // The paid feature `teamWorkers` (D48, rule 12): asked once before the
+  // first charge, with the price and the shared daily budget. {price}: each
+  // model's prices; {ceiling}: each task's ceiling; {budget}: the shared
+  // daily budget.
+  teamWorkersName: 'Team workers',
+  teamPaidTitle: 'Let team workers use your key?',
+  teamPaidDetail: '{price}\nEach task is capped at {ceiling}. Shared daily budget: {budget}.',
+  // {task} and {day}: the token ceilings of an unpriced key model.
+  teamPaidUnknownPrice:
+    'The price is unknown: this entry runs under token ceilings of {task} per task and {day} per day.',
+  // {command}: the external agent's command line.
+  teamPaidExternalOnce:
+    '{command} runs under its own rules, billed however it is paid. The first task in each workspace asks once.',
+  // Lane K's hints, orphans, probes and refusals (M96, D75). {file}: the
+  // file or journal; {server}: the exclusive server; {unread}: the tasks
+  // that could not be read.
+  teamHintContinue: 'Continue',
+  teamHintWait: 'Wait',
+  teamHintOpenWindow: 'Open that window',
+  teamHintStartAnyway: 'Start here anyway',
+  teamHintsOff: 'Team hints are off: the hints folder cannot be used. Nothing else changes.',
+  teamHintFileClash: '{file} is open in another window.',
+  teamHintServerRunning: '{server} runs in another window.',
+  teamRetry: 'Retry',
+  teamOpenTerminalHere: 'Open a terminal here',
+  teamRestartServer: 'Restart server',
+  teamTestAgain: 'Test again',
+  teamOpenProviderSettings: 'Open provider settings',
+  teamOrphanKeep: 'Keep',
+  teamOrphanShowTerminal: 'Show in a terminal',
+  teamJournalBroken: '{file} did not parse and was moved aside. {unread} tasks could not be read.',
+  teamNoSubtaskSlot: 'No free slot for a sub-task: the orchestrator does it itself.',
+  teamHostBusy: 'Host busy',
+  // Lane M96-0b: recovery and landing actions (round-4 plan). Button labels
+  // use the plan's exact words; each explanation names what the action ends
+  // or risks. {sessions}: the team worker sessions to end; {server}: the
+  // exclusive server; {files}: the files that changed; {task}: the old task.
+  teamRestartTeamHost: 'Restart the team host',
+  teamRestartTeamHostDetail:
+    'Ends only this window’s team worker sessions ({sessions}). The conversation’s own sessions are untouched.',
+  teamContinueAnyway: 'Continue anyway',
+  teamContinueAnywayWarning:
+    'Retirement cannot be proved here (macOS, and Linux without a user scope). Continuing records your decision that the earlier attempt has stopped, not proof.',
+  teamReleaseAnyway: 'Release anyway',
+  teamReleaseAnywayWarning:
+    'Releases {server} as your decision, not as proof: the earlier call may still be acting on the resource.',
+  teamTakeOver: 'Take over',
+  teamTakeOverWarning:
+    'Take over marks the old task interrupted in this window’s records and offers to discard its copy and branch. If the other window is still open, its task breaks.',
+  teamContinueHereAsNewTask: 'Continue here as a new task',
+  teamContinueHereAsNewTaskDetail:
+    'Starts a new task in a fresh working copy from the old task’s last commit. The old task keeps its id, its copy, its branch and its journal row, untouched.',
+  teamIncludeUncommittedEdits: 'Include its uncommitted edits',
+  teamIncludeUncommittedEditsDetail:
+    'Reads a snapshot of the old copy through a temporary index: a read, never a write.',
+  teamLandingApply: 'Apply',
+  teamChangedDuringLanding: forms({
+    one: '{count} file changed during landing: {files}.',
+    other: '{count} files changed during landing: {files}.',
+  }),
+  // A Roles-section setting: probing is setup traffic, authorized by
+  // configuring a second model.
+  teamCheckModelsOnOpen: 'Check the team’s models when this window opens',
+  teamCheckModelsOnOpenDetail:
+    'When on, and a role has a distinct custom model, the panel probes the team’s models once when the window opens. Configuring a second model is what authorizes this traffic.',
+  teamDuplicateJournal:
+    'Another window’s journal ({task}) may belong to a window that is still open. Nothing here writes its copy, branch or journal row.',
+  teamThrottledByProvider: 'throttled by provider',
+  // {low}, {high}: dollars per hour; {tokens}: tokens per hour.
+  teamLevelCost: '{low}–{high} per hour, {tokens} tokens',
+  teamLevelCostTokens: '{tokens} tokens per hour',
+  teamSettingCostEffort: 'Higher effort is slower, about twice the tokens per step up',
+  teamSettingCostThinking: 'Thinking adds reasoning tokens to every task',
+  teamSettingCostServiceTier: 'Priority tiers cost more per token',
+  teamSettingCostMaxOutput: 'A higher cap lets long answers finish, at their token cost',
+  teamSettingCostSampling: 'Sampling changes style, not cost',
+  teamSettingCostVerbosity: 'Higher verbosity uses more output tokens',
+  teamSettingCostParallel: 'Parallel tool calls finish faster at the same token cost',
+  teamSettingCostContextCap: 'A lower cap compacts earlier and bounds each reservation',
+  // {minimum}: the token floor below which a cap cannot serve one request.
+  teamCapTokenTooSmall: 'Below one request’s minimum of {minimum} tokens',
+  teamCapInvalidAmount: 'Use a finite positive cap; token and task counts must be whole numbers',
+  teamCapInvalidConcurrent: 'Running concurrency must be a whole number of at least one',
+  teamCapDollarUnpriced: 'A dollar cap needs a priced model; use a token cap',
+  // {budget}: the team's daily budget.
+  teamCapDayAboveBudgetDetail: 'Above the team’s daily budget of {budget}',
+  // {maximum}: the global running limit.
+  teamCapConcurrentAboveGlobalDetail: 'Above the global limit of {maximum} running',
+  teamCapUnpricedKeyNeedsCaps: 'An unpriced key model needs both a task and a day token cap',
+  // {model}: the suggested model; {vendor}: its vendor.
+  teamSuggestReviewVendorDetail:
+    'Review on {model} ({vendor}), a different vendor from engineering',
+  // {model}: the suggested model; {role}: the role it would serve.
+  teamSuggestCheapestDetail: '{model} is the cheapest model that can do {role} work',
+  teamSuggestFreeLocal: '{model} is free and local, and can do {role} work',
+  // {role}: the single-entry pool; {model}: the suggested second entry.
+  teamSuggestFallbackDetail: '{role} has one entry; add {model} as its fallback',
+  // {role}: the role; {amount}: the suggested day cap.
+  teamSuggestBudget: '{role} day cap of {amount}, from the remaining daily budget',
+  teamPreviewFeatureTests: 'A feature with tests',
+  teamPreviewResearchLibrary: 'Research a library',
+  teamPreviewReviewBranch: 'Review my branch',
+  // {low}, {high}: the estimated cost range; {tokens}: the token figure.
+  teamPreviewCost: '{low}–{high} for about {tokens} tokens',
+  teamPreviewCostTokens: 'About {tokens} tokens; no priced entry takes part',
+  teamPreviewCostUnknown: 'About {tokens} tokens; price unknown',
+  teamLevelCostUnknown: '{tokens} tokens per hour; price unknown',
+  // {count}: the steps the caps moved off the first entry.
+  teamPreviewSwitches: forms({
+    one: '{count} switch forced by caps',
+    other: '{count} switches forced by caps',
+  }),
+  // {cost}: the one orchestrator turn's estimated cost.
+  teamPreviewDryRunCost: 'Try with the orchestrator first: one turn, about {cost}',
+  // {key}: the unknown setting; the whole file is refused.
+  teamImportUnknownKey: 'Unknown setting {key}: the file was refused whole',
+  // {model}: the entry's model reference.
+  teamImportMissingEntry:
+    '{model} is not installed here; map it to one of your models or remove it',
+  legalRegistryNotice:
+    'Before the first lookup: {hosts}. Only package names and versions are sent over HTTPS; no source, paths or lockfile contents are uploaded. Turn off Legal Registry Lookups for offline scans.',
+  legalRegistryOfflineUnknown:
+    'Offline: missing dependency license findings remain unknown because registry lookups are disabled or declined.',
+  legalRegistryFact: '{name}@{version}: the registry declares {license}.',
+  legalRegistryRecommendation:
+    'Verify the original terms and distribution obligations; registry metadata does not prove rights.',
+  legalRegistryMetadataOnly:
+    'Registry metadata is supplemental; original license terms and local incomplete findings still require review.',
+  legalScanTitle: 'Legal scan',
+  legalScanDisclaimer: 'Not legal advice; for distribution decisions consult a lawyer.',
+  legalScanEmpty: 'The scan completed with no findings.',
+  legalFindingsCount: forms({
+    one: '{count} finding',
+    other: '{count} findings',
+  }),
+  legalFilesScanned: 'Files scanned: {count}',
+  legalScanIncomplete: 'Incomplete: {checks}',
+  legalScanFailed: 'The legal scan failed: {reason}',
+  legalScanUnavailable:
+    'The legal scanner could not be loaded; reinstall the extension and reload the window. The log has the details.',
+  legalSeverities: {
+    blocker: 'Blocker',
+    'should-fix': 'Should fix',
+    advice: 'Advice',
+  },
+  legalCategories: {
+    license: 'License',
+    copyrightHeader: 'Copyright header',
+    spdxIdentifier: 'SPDX identifier',
+    noticeFile: 'Notice file',
+    dependencyLicense: 'Dependency license',
+    distribution: 'Distribution',
+    codeQualityHeader: 'Code quality header',
+  },
+  legalHeaderPolicies: {
+    required: 'Required',
+    optional: 'Optional',
+    off: 'Off',
+  },
+  legalFixable: 'Fixable',
+  legalNotFixable: 'Recommendation only',
+  legalEvidenceLabel: 'Evidence: {evidence}',
+  legalConfidenceLabel: 'Confidence: {confidence}',
+  legalScanItem: '/legal',
+  legalCommandUsage: 'Usage: /legal [workspace-relative path …]. Options are not supported.',
+  legalScanItemDetail: 'Scan the workspace for licensing, attribution and header findings',
+  legalScanBusy: 'A legal scan starts once the current turn has ended.',
+  legalScanUntrusted:
+    'The legal scan reads the workspace, which Restricted Mode does not allow. Trust this workspace to use it.',
+  legalScanPlanModeNotice:
+    'This legal scan holds the conversation in Plan mode while it reads the workspace, and the permission mode you had comes back when it ends.',
+  legalDistributionLine: 'Distribution: {distribution}',
+  legalRegistryLine:
+    'Registry ({hosts}): {queried} queried, {found} found, {skipped} skipped, {bytes} received.',
+  legalRegistryOff: 'Registry enrichment off. Rerun with --registry to enrich missing licenses.',
+  legalWroteFile: 'Legal scan report written to {path}.',
+  legalFormatInvalid: 'The format must be text or json.',
+  legalExclusionsLine: 'Excluded: {exclusions}',
+  legalScanNoDistribution: 'The scan did not complete, so no distribution was assumed.',
+  legalUsage: 'legal [--format text|json] [--out <file>] [--registry]',
+  legalReportFindings: 'Legal findings',
+  legalFixSelect: 'Fix {id}',
+  legalSelectedCount: forms({ one: '{count} selected', other: '{count} selected' }),
+  legalFixAllSafe: 'Fix all safe ones',
+  legalPreviewFixes: 'Preview fixes',
+  legalFixPreviewTitle: 'Fix preview',
+  legalFixApply: 'Apply fixes',
+  legalFixOwnership:
+    'Confirm that these files are project-owned and that the license and copyright in the preview apply to them: {paths}',
+  legalFixDenied: 'The edits were not approved.',
+  legalExportMarkdown: 'Export Markdown…',
+  legalFixFiles: 'Files to change',
+  legalFixExcluded: 'Not included',
+  legalFixReasonNotFixable: 'No safe fix; recommendation only.',
+  legalFixReasonProjectLicense: 'Project license changes need separate confirmation.',
+  legalFixReasonUnknown: 'Not part of this scan.',
+  legalFixReasonTooLarge: 'Too large to guard; fix it by hand.',
+  legalFixNothingSelected:
+    'Select at least one finding to fix, even in Bypass mode. Nothing is pre-authorized by the scan.',
+  legalFixSeparateConfirm: 'I separately confirm the project license change.',
+  legalFixRefusedPlan: 'Fixes are refused in Plan mode, which never writes.',
+  legalFixRefusedTrust: 'Fixes are refused while the workspace is untrusted.',
+  legalFixRefusedWorkspace: 'The workspace changed since the preview. Ask for a fresh preview.',
+  legalFixRefusedStale: 'The evidence changed since the preview. Run a fresh scan.',
+  legalFixRefusedExpired: 'The preview expired. Ask for a fresh preview.',
+  legalFixRefusedUnavailable: 'Applying fixes is unavailable in this build.',
+  legalFixRescanHint: 'Run a fresh scan to confirm what remains.',
+  legalExplainPaid: 'Explain findings (paid)',
+  paidLegalExplanationName: 'Explain findings',
+  legalExplainConsent:
+    'Explain these findings on {model}, billed to your Model API key at {price}. The subscription pays none. Only finding IDs, categories, severity and recognized license IDs are sent; no source, paths or excerpts.',
+  legalExplainConfirm:
+    'Optional Model API explanation: {price}. Each use asks for consent and shares the daily paid budget.',
+  legalExplainUnavailable:
+    'Enable paid legal explanations in Account & usage and store a Model API key first.',
+  legalScanner: {
+    m001: 'compatibility reader over {v0}',
+    m002: '{v0} is dual-licensed; {v1} is a clean choice beside {v2}. Confirm the chosen terms before shipping.',
+    m003: 'Record which license branch the distribution complies with.',
+    m004: '{v0} declares {v1} as alternative copyleft terms; distribution requires choosing and satisfying the applicable source and linking obligations.',
+    m005: 'Confirm the chosen license branch and its obligations with a lawyer.',
+    m006: '{v0} ships under {v1} while the project declares {v2}: distributing the combination may oblige source disclosure of the combined work. This is a question, not a verdict.',
+    m007: 'Confirm with a lawyer whether this distribution triggers the copyleft obligations, and on which code.',
+    m008: '{v0} declares {v1} in development scope only.',
+    m009: 'Confirm it never ships; a shipped strong-copyleft dependency may oblige source disclosure.',
+    m010: '{v0} declares {v1} with distribution unknown: if this combination ships, source disclosure may be obliged.',
+    m011: 'Establish whether the dependency ships, then confirm the obligations with a lawyer.',
+    m012: '{v0} declares {v1}{v2}: file-level copyleft stays with its covered files, and LGPL linking needs its source and relinking terms.',
+    m013: 'Keep covered files under their terms, preserve their notices, and confirm LGPL linkage evidence.',
+    m014: '{v0} declares {v1}{v2}: source-available or restricted terms, not an open-source grant. Recognition is not approval.',
+    m015: 'Review the terms against this exact distribution with a lawyer; confirm a BUSL change date or Commons Clause scope where one applies.',
+    m016: '{v0} declares {v1}, which this reader does not classify: confirm the terms by hand.',
+    m017: 'Review the license text against this distribution.',
+    m018: '{v0} ships under {v1} terms: no license grant travels with it.',
+    m019: 'Confirm private ownership of this exact version, or remove it from the shipment.',
+    m020: '{v0} declares {v1} terms outside the shipped set.',
+    m021: 'Confirm it never ships; a shipped proprietary dependency needs ownership proof.',
+    m022: 'not checked: {v0} package {v1}@{v2} has no license evidence',
+    m023: '{v0} declares the license {v1}, which is not a well-formed SPDX expression: {v2}.',
+    m024: 'Correct the declaration from the package metadata, or confirm the terms by hand.',
+    m025: '{v0} declares the custom reference {v1}: its terms need a human read.',
+    m026: 'Confirm the referenced license text and its compatibility with the distribution.',
+    m027: '{v0} declares {v1}, a deprecated SPDX identifier form; a trailing + no longer names which later versions apply.',
+    m028: 'Use the current -only or -or-later identifier the package intends.',
+    m029: '{v0} declares the exception {v1}, which is not on the SPDX exception list.',
+    m030: 'Confirm the exception text; an exception changes the analysis.',
+    m031: 'License evidence conflict for {v0}: {v1}. No source silently settles the conflict.',
+    m032: 'Review the original license and declarations together before deciding which terms apply.',
+    m033: 'not checked: conflicting license evidence for {v0} needs human review',
+    m034: '{v0} reader at {v1}',
+    m035: 'not checked: artifact freshness is not established by file-name evidence alone',
+    m036: 'not checked: bundle inputs are absent or stale against the workspace inventory',
+    m037: forms({
+      one: 'distribution read from {count} known bundle inputs',
+      other: 'distribution read from {count} known bundle inputs',
+    }),
+    m038: 'source checkout, distribution unknown: no bundle inputs or package inventory evidence',
+    m039: 'not checked: distribution set unknown (no bundle metafile or package files evidence); shipped obligations assume nothing ships',
+    m040: 'not checked: package pattern count exceeds the bounded inventory',
+    m041: 'not checked: package files contains unsupported patterns; distribution is approximate',
+    m042: 'not checked: .vscodeignore pattern {v0} uses unsupported syntax, so the shipped set is approximate',
+    m043: 'not checked: package inventories do not establish embedded bundle inputs or artifact freshness',
+    m044: 'distribution approximated from package files and .vscodeignore; unbuilt artifacts may differ',
+    m045: 'distribution reader',
+    m046: forms({
+      one: '{count} dependency may ship with no notice file present to attribute them.',
+      other: '{count} dependencies may ship with no notice file present to attribute them.',
+    }),
+    m047: 'Add THIRD_PARTY_NOTICES or the equivalent notice file covering the shipped set.',
+    m048: '{v0} may ship but no present notice file names it.',
+    m049: 'Attribute the package in THIRD_PARTY_NOTICES or the equivalent notice file.',
+    m050: 'not checked: {v0} has no readable NOTICE attribution',
+    m051: 'distribution reader at {v0}',
+    m052: '{v0} carries an upstream NOTICE file with no attribution in the present notices.',
+    m053: 'Preserve the applicable NOTICE attribution in THIRD_PARTY_NOTICES or the equivalent notice file.',
+    m054: 'Refused path outside the workspace or beyond its bounds',
+    m055: 'not checked: complex REUSE patterns, precedence and ownership relationships; only complete exact-path annotations are honored',
+    m056: 'asset inventory at {v0}',
+    m057: '{v0} has no observed per-file provenance declaration; its filename alone cannot establish ownership or distribution rights.',
+    m058: 'Record the asset source, author and applicable terms from verified ownership in a sidecar or REUSE declaration.',
+    m059: 'source reference at {v0}',
+    m060: '{v0} contains a source reference whose provenance and applicable terms need review; a reference alone does not prove copying or infringement.',
+    m061: 'Verify the original source, author, date, license and attribution for any copied material; keep legitimate upstream headers.',
+    m062: 'not checked: copyright header checks are off by policy',
+    m063: 'not checked: {v0} is unreadable or binary header material',
+    m064: 'header reader at {v0}',
+    m065: '{v0} has no copyright line in its first lines, but the header policy requires one.',
+    m066: 'Add the project copyright line from verified ownership; never replace a third-party header.',
+    m067: '{v0} has no SPDX-License-Identifier line, but the header policy requires one.',
+    m068: 'Add the SPDX identifier matching the applicable license.',
+    m069: '{v0} has no {v1} in its first lines.',
+    m070: 'Add the project copyright header for hygiene; the policy leaves it optional.',
+    m071: '{v0} has a copyright line, but {v1}.',
+    m072: 'Correct the date with the holder; an earlier year alone is never stale.',
+    m073: '{v0} declares SPDX-License-Identifier {v1}, which does not parse: {v2}.',
+    m074: 'Write the identifier as an SPDX expression (AND, OR and WITH in uppercase).',
+    m075: 'Confirm the referenced text exists beside the file or in REUSE.toml.',
+    m076: '{v0} declares {v1}, a deprecated SPDX identifier form.',
+    m077: 'Use the current identifier from the SPDX License List.',
+    m078: '{v0} carries distinct SPDX declarations {v1} and {v2}.',
+    m079: 'Confirm the applicable terms for each declaration; preserve legitimate upstream licenses.',
+    m080: '{v0} declares {v1}, outside the project licenses {v2}.',
+    m081: 'Confirm the file carries third-party terms (keep its header) or correct the identifier.',
+    m082: 'project license reader at {v0}',
+    m083: 'Write the license as an SPDX expression (AND, OR and WITH in uppercase, parentheses where needed).',
+    m084: 'not checked: full SPDX text matching and modified terms; title and clause matching is heuristic',
+    m085: '{v0} reads as no recognized license text; its terms need a human read.',
+    m086: 'Confirm what license the file grants and declare it in the manifest.',
+    m087: '{v0} points at {v1}, which is absent from the workspace.',
+    m088: 'Add the referenced license file or correct the manifest field.',
+    m089: '{v0} marks the project UNLICENSED: proprietary, all rights reserved by default.',
+    m090: 'Ship it only to its intended recipients; a public distribution needs a license grant.',
+    m091: 'project license reader at {v0} and {v1}',
+    m092: '{v0} declares {v1} but the license file reads as {v2}.',
+    m093: 'Reconcile the two before shipping: fix the metadata or replace the license file, with explicit confirmation for a license change.',
+    m094: 'project license reader',
+    m095: 'The manifests disagree with no license file to settle it: {v0}.',
+    m096: 'Reconcile the manifests before shipping, with explicit confirmation for a license change.',
+    m097: 'The manifest declares terms but no root license file was found.',
+    m098: 'Add the applicable license text from verified ownership before distribution.',
+    m099: 'The README declares {v0} but the project declares {v1}.',
+    m100: 'Reconcile the README with the license file and manifest before shipping.',
+    m101: 'The license {v0} is declared only in the README; there is no license file or manifest field.',
+    m102: 'Add a LICENSE file and a manifest license field from verified ownership.',
+    m103: 'No LICENSE file, manifest license field or README declaration found: undistributed code is all rights reserved by default.',
+    m104: 'Choose a license with explicit confirmation and declare it in a LICENSE file and the manifest.',
+    m105: '{v0} carries license-like text the reader does not recognize: vendored code needs attribution in the notices.',
+    m106: '{v0} carries {v1} terms inside the workspace: vendored code needs attribution in the notices.',
+    m107: 'Confirm the vendored code is attributed in THIRD_PARTY_NOTICES or the equivalent notice file.',
+    m108: 'Unknown header policy',
+    m109: 'Too many selected paths',
+    m110: 'not checked: assets, copied code provenance, proprietary terms and complete license-text matching require human review',
+    m111: 'Legal scan cancelled',
+    m112: 'scan stopped at limit: elapsed time',
+    m113: 'not checked: {v0} cannot be read as text',
+    m114: 'scan stopped at limit: {v0} exceeds the bounded text read budget',
+    m115: forms({
+      one: 'not checked: the scan stopped after reading {count} file; {v1} more not read',
+      other: 'not checked: the scan stopped after reading {count} files; {v1} more not read',
+    }),
+    m116: forms({
+      one: 'not checked: dependency evidence bound reached; {count} entry omitted',
+      other: 'not checked: dependency evidence bound reached; {count} entries omitted',
+    }),
+    m117: 'not checked: license text for {v0} at {v1} is unrecognized',
+    m118: 'license text reader at {v0}',
+    m119: forms({
+      one: 'The distribution set is unknown and {count} production dependency exist: obligations are read against an undistributed source checkout.',
+      other:
+        'The distribution set is unknown and {count} production dependencies exist: obligations are read against an undistributed source checkout.',
+    }),
+    m120: 'Supply bundle inputs or package inventory evidence so shipped obligations are exact.',
+    m121: 'scan stopped at limit: report truncated for {v0}',
+    m122: forms({
+      one: 'report truncated: {count} finding omitted past the {v1}-finding bound; blockers and should-fix findings kept first',
+      other:
+        'report truncated: {count} findings omitted past the {v1}-finding bound; blockers and should-fix findings kept first',
+    }),
+    m123: forms({
+      one: 'report truncated: {count} generated exclusions omitted past the bound',
+      other: 'report truncated: {count} generated exclusions omitted past the bound',
+    }),
+    m124: 'The scan built an invalid result: {v0}',
+    m125: 'not checked: an evidence field exceeds the report bound and was truncated',
+    m126: 'Unexpected character {v0}',
+    m127: 'WITH must name a license exception',
+    m128: 'Unexpected end of the expression',
+    m129: 'Missing closing parenthesis',
+    m130: 'Unexpected operator without a license beside it',
+    m131: 'Empty license expression',
+    m132: 'Unexpected text after the expression',
+    m133: 'License expression exceeds the text bound',
+    m134: 'License expression nesting exceeds the bound',
+    m135: 'Malformed license identifier',
+    m136: 'License expression alternatives exceed the bound',
+    m137: 'Legal scan root is not a directory',
+    m138: 'not checked: {v0} is a link or escaped directory',
+    m139: 'scan stopped at limit: directory-entry budget reached; remaining tree not enumerated',
+    m140: 'not checked: {v0} changed during enumeration',
+    m141: 'not checked: {v0} is repository internals',
+    m142: 'not checked: {v0} is a link',
+    m143: 'not checked: {v0} is a special file',
+    m144: 'not checked: {v0} could not be admitted',
+    m145: 'not checked: {v0} contains path crates whose ownership and resolved metadata are unknown',
+    m146: 'not checked: {v0} contains inherited or nested Cargo declarations not resolved statically',
+    m147: forms({
+      one: 'not checked: {count} Cargo lock entry carry no license metadata in the lock and no vendored crate manifest covers them',
+      other:
+        'not checked: {count} Cargo lock entries carry no license metadata in the lock and no vendored crate manifest covers them',
+    }),
+    m148: forms({
+      one: 'not checked: {count} Cargo requirements have no resolved version in any Cargo.lock',
+      other: 'not checked: {count} Cargo requirements have no resolved version in any Cargo.lock',
+    }),
+    m149: 'not checked: no Cargo manifests or locks found',
+    m150: 'not checked: {v0} is not valid JSON, so its requirements and license are unknown',
+    m151: 'not checked: {v0} is not valid JSON, so its locked versions are unknown',
+    m152: 'not checked: license evidence conflict for {v0} between {v1} and {v2}',
+    m153: forms({
+      one: 'not checked: {count} Composer requirements have no locked version in any composer.lock',
+      other:
+        'not checked: {count} Composer requirements have no locked version in any composer.lock',
+    }),
+    m154: forms({
+      one: 'not checked: {count} Composer packages carry no license metadata in the lock or installed data',
+      other:
+        'not checked: {count} Composer packages carry no license metadata in the lock or installed data',
+    }),
+    m155: 'not checked: no composer.json, composer.lock or installed.json found',
+    m156: 'not checked: {v0} uses executable code, which never runs; only its static assignments are read',
+    m157: 'not checked: {v0} is read statically; computed Ruby metadata and conditional assignments are not evaluated',
+    m158: forms({
+      one: 'not checked: {count} gem requirements have no locked version in any Gemfile.lock',
+      other: 'not checked: {count} gem requirements have no locked version in any Gemfile.lock',
+    }),
+    m159: forms({
+      one: 'not checked: {count} gems carry no license metadata; present gem specifications would close the gap',
+      other:
+        'not checked: {count} gems carry no license metadata; present gem specifications would close the gap',
+    }),
+    m160: 'not checked: no Gemfile, Gemfile.lock or gemspec files found',
+    m161: 'not checked: Go replacement targets, tool-package module mapping and non-vendored transitive selection require review; checksums can include unused versions',
+    m162: forms({
+      one: 'not checked: {count} Go modules carry no license metadata; checksums and module path alone are not licenses, so vendored license text would close the gap',
+      other:
+        'not checked: {count} Go modules carry no license metadata; checksums and module paths alone are not licenses, so vendored license text would close the gap',
+    }),
+    m163: forms({
+      one: 'not checked: {count} Go tool requirements have no resolved version; their licenses are unknown',
+      other:
+        'not checked: {count} Go tool requirements have no resolved version; their licenses are unknown',
+    }),
+    m164: 'not checked: no go.mod, go.sum or vendor/modules.txt found',
+    m165: 'not checked: license metadata conflict for {v0} between {v1} and {v2}: {v3} versus {v4}',
+    m166: 'not checked: {v0} is read statically; executable logic, catalogs and computed declarations are not evaluated',
+    m167: 'not checked: Maven transitive graph, parent properties and profiles are not resolved by static POM declarations',
+    m168: forms({
+      one: 'not checked: {count} Maven/Gradle requirements have no resolved version in any lockfile or catalog',
+      other:
+        'not checked: {count} Maven/Gradle requirements have no resolved version in any lockfile or catalog',
+    }),
+    m169: forms({
+      one: 'not checked: {count} Maven/Gradle packages carry no license metadata; present artifact POMs would close the gap',
+      other:
+        'not checked: {count} Maven/Gradle packages carry no license metadata; present artifact POMs would close the gap',
+    }),
+    m170: 'not checked: no POMs, Gradle declarations, locks or catalogs found',
+    m171: 'not checked: {v0} has unreadable npm lock metadata',
+    m172: 'not checked: {v0} uses an unsupported npm lock version',
+    m173: 'not checked: {v0} exceeds the npm nested lock depth bound',
+    m174: forms({
+      one: 'not checked: {count} npm lock entry in {v1} carry no license metadata and no installed package data covers them',
+      other:
+        'not checked: {count} npm lock entries in {v1} carry no license metadata and no installed package data covers them',
+    }),
+    m175: 'not checked: {v0} has no readable Yarn package entries',
+    m176: forms({
+      one: 'not checked: {v0} records versions but no license metadata for {count} packages; installed package data would close the gap',
+      other:
+        'not checked: {v0} records versions but no license metadata for {count} packages; installed package data would close the gap',
+    }),
+    m177: 'not checked: {v0} uses an unsupported pnpm lock version or has no readable packages section',
+    m178: 'not checked: license evidence conflict for {v0}@{v1} between {v2} and {v3}',
+    m179: forms({
+      one: 'not checked: {count} npm requirements have no resolved version in any lockfile; their transitive licenses are unknown',
+      other:
+        'not checked: {count} npm requirements have no resolved version in any lockfile; their transitive licenses are unknown',
+    }),
+    m180: 'not checked: no npm manifests, locks or installed metadata found',
+    m181: 'not checked: NuGet conditional or dynamic project declarations, version ranges and multi-framework conflicts require review',
+    m182: forms({
+      one: 'not checked: {count} NuGet requirements have no resolved version in any lock, asset or central version file',
+      other:
+        'not checked: {count} NuGet requirements have no resolved version in any lock, asset or central version file',
+    }),
+    m183: forms({
+      one: 'not checked: {count} NuGet packages carry no license metadata; present .nuspec file would close the gap',
+      other:
+        'not checked: {count} NuGet packages carry no license metadata; present .nuspec files would close the gap',
+    }),
+    m184: 'not checked: no NuGet declarations, locks or asset files found',
+    m185: 'not checked: {v0} includes {v1}; arbitrary include names are not recursively resolved',
+    m186: 'not checked: {v0} includes {v1}, which is absent from the workspace',
+    m187: 'not checked: {v0} contains a requirements option or editable source not resolved statically',
+    m188: forms({
+      one: 'not checked: {count} requirement line in {v1} use a form the reader does not parse',
+      other: 'not checked: {count} requirement lines in {v1} use a form the reader does not parse',
+    }),
+    m189: 'not checked: {v0} names no project, so its requirements are unattributed',
+    m190: 'not checked: {v0} has no readable package stanzas',
+    m191: forms({
+      one: 'not checked: {v0} records versions but no license metadata for {count} packages; present distribution metadata would close the gap',
+      other:
+        'not checked: {v0} records versions but no license metadata for {count} packages; present distribution metadata would close the gap',
+    }),
+    m192: 'not checked: installed metadata version differs for {v0}; locked license unknown',
+    m193: 'not checked: Python static declarations do not establish complete transitive coverage without lock and installed metadata; dynamic build metadata is never evaluated',
+    m194: forms({
+      one: 'not checked: {count} Python packages have no matching license metadata',
+      other: 'not checked: {count} Python packages have no matching license metadata',
+    }),
+    m195: forms({
+      one: 'not checked: {count} Python requirements have no resolved version; their transitive licenses are unknown',
+      other:
+        'not checked: {count} Python requirements have no resolved version; their transitive licenses are unknown',
+    }),
+    m196: 'not checked: no Python manifests, locks or distribution metadata found',
+    unknown: 'unknown',
+    unresolved: 'unresolved',
+    noLicense: 'no license',
+    shipment: ' in the shipment',
+    copyrightSpdxLines: 'copyright or SPDX-License-Identifier lines',
+    spdxLine: 'an SPDX-License-Identifier line',
+    copyrightLine: 'a copyright line',
+    invalidYear: 'the year {value} is not a four-digit year',
+    impossibleYear: 'the year {value} is impossible',
+    reversedYears: 'the range {value} ends before it starts',
+    selectedPaths: forms({ one: '{count} selected path', other: '{count} selected paths' }),
+    moreUnchecked: forms({
+      one: 'and {count} more unchecked item omitted past the bound',
+      other: 'and {count} more unchecked items omitted past the bound',
+    }),
+    declaration: '{file} declares {license}',
+    licenseFile: 'a license file',
+    bundleLoad: '{file} could not be loaded',
+    bundleShape: '{file} has an unexpected shape',
+    invalidResult: 'the scanner returned an invalid result',
+  },
+  legalScanAgain: 'Scan again',
 }
 
 /** The shape every table has: English's keys, with any language's plural forms. */

@@ -1,4 +1,4 @@
-import { Usd } from '../../src/shared/usd'
+import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -7,9 +7,9 @@ import {
   MissingApiKeyError,
   ModelApiClient,
   ModelApiError,
+  type ModelApiClientDeps,
   type RetryNotice,
   retryAfterMs,
-  type ModelApiClientDeps,
   type ResponseAttemptGuard,
 } from '../../src/core/backends/modelapi/client'
 import {
@@ -17,7 +17,11 @@ import {
   metaPacingLimits,
   type RequestPacer,
 } from '../../src/core/backends/modelapi/pacing'
-import type { CreateResponseBody, StreamEvent } from '../../src/core/backends/modelapi/schemas'
+import {
+  type CreateResponseBody,
+  type StreamEvent,
+  errorBodySchema,
+} from '../../src/core/backends/modelapi/schemas'
 import {
   MODEL_API_MAX_RETRIES,
   MODEL_API_STREAM_IDLE_MS,
@@ -28,7 +32,6 @@ import {
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeModelApi, streamFor } from './helpers/fakeModelApi'
 import { readRateCaptures } from './helpers/modelApiRateCapture'
-import { errorBodySchema } from '../../src/core/backends/modelapi/schemas'
 
 it('parses the captured U9 strict-schema 400 without retrying or inferring a missing code (M106)', async () => {
   const capture = z
@@ -847,13 +850,7 @@ describe('M106 client pacing and retry boundaries', () => {
   })
 
   it('never retries an ambiguously billed paid 504 or releases its retained liability', async () => {
-    const total = { spentUsd: Usd.from(1).toAmount(), hasUnknownHistoricalFees: false }
-    const claim = {
-      claimId: 'claim-1',
-      reservedUsd: Usd.from(1).toAmount(),
-      check: vi.fn(() => total),
-      settle: vi.fn(() => Promise.resolve(total)),
-    }
+    const claim = paidClaimFixture()
     const t = setup(undefined, undefined, undefined, {
       reservePaidRequest: () => Promise.resolve(claim),
     })
@@ -908,6 +905,122 @@ async function streamRetryThenSucceed(
   expect(events.at(-1)?.type).toBe('response.completed')
   expect(sleeps).toEqual(expectedSleeps)
 }
+describe('Meta transport regression boundaries', () => {
+  it.each([400, 429, 500])(
+    'preserves merged paid admission and refusal settlement on HTTP %s',
+    async (status) => {
+      for (const isImage of [true, false]) {
+        const claim = paidClaimFixture()
+        const reserve = vi.fn(() => Promise.resolve(claim))
+        const fetch = vi.fn(() =>
+          Promise.resolve(Response.json({ error: { message: 'fixture refusal' } }, { status })),
+        )
+        const { client } = setup('plain', fetch, undefined, { reservePaidRequest: reserve })
+        const run = isImage
+          ? client.createImage(
+              {
+                model: 'image',
+                prompt: 'fixture',
+                n: 1,
+                size: '1024x1024',
+                response_format: 'b64_json',
+                output_format: 'png',
+              },
+              new AbortController().signal,
+            )
+          : collect(
+              client.streamResponse(
+                { ...body, max_tool_calls: 1, tools: [{ type: 'web_search' }] },
+                new AbortController().signal,
+              ),
+            )
+        await expect(run).rejects.toMatchObject({ status })
+        expect(client.hasPaidDailyBudget).toBe(true)
+        expect(reserve).toHaveBeenCalledOnce()
+        expect(claim.check).toHaveBeenCalledTimes(fetch.mock.calls.length)
+        if (status === 500) {
+          expect(fetch).toHaveBeenCalledOnce()
+          if (isImage) expect(claim.settle).not.toHaveBeenCalled()
+          else expect(claim.settle).toHaveBeenCalledWith(claim.reservedUsd, true)
+        } else {
+          expect(claim.settle).toHaveBeenCalledWith(Usd.from(0).toAmount())
+        }
+      }
+    },
+  )
+
+  it('settles merged paid stream usage after canonical parsing', async () => {
+    const claim = paidClaimFixture()
+    const reserve = vi.fn(() => Promise.resolve(claim))
+    const wire =
+      'data: {"type":"response.completed","response":{"id":"r","status":"completed","output":[],"usage":{"input_tokens":100,"output_tokens":100}}}\n\n'
+    const { client } = setup('plain', () => Promise.resolve(new Response(wire)), undefined, {
+      reservePaidRequest: reserve,
+    })
+    const paidBody: CreateResponseBody = {
+      ...body,
+      max_tool_calls: 1,
+      tools: [{ type: 'web_search' }],
+    }
+    await collect(client.streamResponse(paidBody, new AbortController().signal))
+    expect(reserve).toHaveBeenCalledWith(
+      paidBody,
+      'webSearch',
+      undefined,
+      expect.any(AbortSignal),
+      expect.any(String),
+    )
+    expect(claim.settle).toHaveBeenCalledOnce()
+    expect(Number(claim.settle.mock.calls[0]?.[0])).toBeGreaterThan(0)
+    expect(Number(claim.settle.mock.calls[0]?.[0])).toBeLessThan(Number(claim.reservedUsd))
+  })
+  it('uses body-free diagnostics on every successful-HTTP JSON endpoint', async () => {
+    const { client } = setup('opaque95', () => Promise.resolve(new Response('opaque95')))
+    const image = {
+      model: 'image',
+      prompt: 'fixture',
+      n: 1,
+      size: '1024x1024',
+      response_format: 'b64_json',
+      output_format: 'png',
+    } as const
+    for (const run of [
+      () => client.listModels(),
+      () => client.countInputTokens(body),
+      () => client.createImage(image, new AbortController().signal),
+      () => client.editImage({ ...image, images: [] }, new AbortController().signal),
+    ]) {
+      await expect(run()).rejects.toMatchObject({ kind: 'malformed_json' })
+      await expect(run()).rejects.not.toThrow('opaque95')
+    }
+  })
+
+  it('redacts failure fields on every response discriminator under HTTP 200', async () => {
+    const key = 'opaque95'
+    const events = [
+      'response.created',
+      'response.in_progress',
+      'response.completed',
+      'response.failed',
+      'response.incomplete',
+    ].map((type) => ({
+      type,
+      response: {
+        id: 'r',
+        status: 'incomplete',
+        output: [],
+        error: { message: key, code: key },
+        incomplete_details: { reason: key },
+      },
+    }))
+    const wire = events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join('')
+    const { client } = setup(key, () => Promise.resolve(new Response(wire)))
+    const result = await collect(client.streamResponse(body, new AbortController().signal))
+    expect(result).toHaveLength(events.length)
+    expect(JSON.stringify(result)).not.toContain(key)
+    expect(JSON.stringify(result)).toContain('[redacted]')
+  })
+})
 
 /** A fetch behind a network that inspects HTTPS: Node's "fetch failed" and its cause (M56). */
 function untrusted(): Promise<Response> {
@@ -1725,3 +1838,13 @@ it('retains the original final HTTP failure when the status observer throws', as
     'Backend notification listener failed: modelApi.serviceFailure',
   )
 })
+
+function paidClaimFixture() {
+  const total = { spentUsd: Usd.from(1).toAmount(), hasUnknownHistoricalFees: false }
+  return {
+    claimId: 'fixture',
+    reservedUsd: Usd.from(1).toAmount(),
+    check: vi.fn(() => total),
+    settle: vi.fn((_actualUsd: UsdAmount) => Promise.resolve(total)),
+  }
+}

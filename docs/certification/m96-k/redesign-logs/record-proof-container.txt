@@ -1,0 +1,64 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamProcessLifetime.test.ts --maxWorkers=3 --testTimeout=120000
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/lanes/REDM96K
+
+ ❯ test/unit/teamProcessLifetime.test.ts (21 tests | 2 failed) 645ms
+   ❯ M96 K launcher contract (16)
+     × warns about a damaged proved-end record and recovers other launches: processGroup 53ms
+     × rejects descendant proof from a process group 56ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > warns about a damaged proved-end record and recovers other launches: processGroup
+AssertionError: expected [] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+- [
+-   "/tmp/m96-k-8MNoBV/team/journal/3b2303e0-ac43-44e5-ab08-051516c4721a/launch-damaged.json",
+- ]
++ []
+
+ ❯ test/unit/teamProcessLifetime.test.ts:367:26
+    365|         { id: child.launchId },
+    366|       ])
+    367|       expect(unreadable).toEqual([damaged])
+       |                          ^
+    368|       expect(await readFile(damaged, 'utf8')).toBe(damagedBytes)
+    369|       expect(await readFile(file, 'utf8')).toBe(original)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > rejects descendant proof from a process group
+AssertionError: promise resolved "{ childExited: true, …(1) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "childExited": true,
++   "descendants": "proved",
+  }
+
+ ❯ test/unit/teamProcessLifetime.test.ts:410:30
+    408|     })
+    409|     const child = await lifetime.launch(request)
+    410|     await expect(child.ended).rejects.toThrow('RETIREMENT_PROOF_INVALI…
+       |                              ^
+    411|     expect(await lifetime.recoveryRecords(f.journal)).toHaveLength(1)
+    412|     await lifetime.dispose()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 19 passed (21)
+   Start at  12:49:55
+   Duration  1.57s (tests 45%, transform 32%, import 13%, setup 9%)

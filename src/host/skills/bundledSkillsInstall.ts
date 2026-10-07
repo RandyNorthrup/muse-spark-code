@@ -28,6 +28,7 @@ import {
   BUNDLED_SKILLS_RETIRED_WORD,
   BUNDLED_SKILLS_STAGING_WORD,
   BUNDLED_SKILLS_VENDOR_FILE,
+  EXTENSION_QUALIFIED_ID,
   SKILL_FILE_NAME,
   SKILL_ID_PATTERN,
 } from '../../shared/constants'
@@ -39,6 +40,11 @@ export interface BundledSkillsPaths {
   readonly skillsRoot: string
   /** Its sibling `<config home>/muse/skill-sources`, where the copy goes. */
   readonly sourcesRoot: string
+  /**
+   * The installed extension's own `skills/` (M97): its skills link straight
+   * at the extension, with no copy and no tag. Absent where none ship.
+   */
+  readonly extensionSkillsRoot?: string | undefined
 }
 
 /** How a link is made: Node's `fs.symlink`, unless a test watches the calls. */
@@ -140,6 +146,45 @@ function copyFolder(paths: BundledSkillsPaths): string {
   return path.join(paths.sourcesRoot, BUNDLED_SKILLS_PACKAGE_NAME)
 }
 
+/**
+ * The installed extension's own skill ids (M97): every folder under its
+ * `skills/` holding a SKILL.md with a matching id. A missing root lists as
+ * empty, like a missing catalog root; anything else throws.
+ */
+async function extraSkillIds(extensionSkillsRoot: string | undefined): Promise<readonly string[]> {
+  if (extensionSkillsRoot === undefined) {
+    return []
+  }
+  let names: readonly string[]
+  try {
+    names = await fs.readdir(extensionSkillsRoot)
+  } catch (error: unknown) {
+    if (errorCode(error) === NOT_FOUND) {
+      return []
+    }
+    throw error
+  }
+  const ids: string[] = []
+  for (const name of names) {
+    if (!SKILL_ID_PATTERN.test(name)) {
+      continue
+    }
+    let isFile = false
+    try {
+      const stat = await fs.stat(path.join(extensionSkillsRoot, name, SKILL_FILE_NAME))
+      isFile = stat.isFile()
+    } catch (error: unknown) {
+      if (errorCode(error) !== NOT_FOUND) {
+        throw error
+      }
+    }
+    if (isFile) {
+      ids.push(name)
+    }
+  }
+  return ids.toSorted((left, right) => left.localeCompare(right, 'en'))
+}
+
 /** The tag and the skill ids the vendored package's VENDOR.json lists. */
 async function readVendor(vendorRoot: string): Promise<VendoredPackage> {
   const file = path.join(vendorRoot, BUNDLED_SKILLS_VENDOR_FILE)
@@ -215,6 +260,18 @@ function isSamePath(a: string, b: string): boolean {
   return path.relative(a, b) === ''
 }
 
+/** An extension-owned skill in any installed version directory, identified by product id. */
+function isExtensionSkillTarget(target: string, id: string): boolean {
+  if (path.basename(target) !== id || path.basename(path.dirname(target)) !== BUNDLED_SKILLS_DIR)
+    return false
+  const directory = path.basename(path.dirname(path.dirname(target))).toLowerCase()
+  const prefix = `${EXTENSION_QUALIFIED_ID.toLowerCase()}-`
+  return (
+    directory.startsWith(prefix) &&
+    /^\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(directory.slice(prefix.length))
+  )
+}
+
 /** Whether `child` lies strictly inside `parent` (case-insensitively on Windows, as `path` compares). */
 function isInside(parent: string, child: string): boolean {
   const relative = path.relative(parent, child)
@@ -244,7 +301,11 @@ async function copyTree(from: string, to: string): Promise<void> {
 }
 
 /** The links in Muse Code's skills folder that lead into the copy's `skills/`, by name. */
-async function linksInto(skillsRoot: string, copySkills: string): Promise<readonly string[]> {
+async function linksInto(
+  skillsRoot: string,
+  copySkills: string,
+  isExtension = false,
+): Promise<readonly string[]> {
   let names: readonly string[]
   try {
     names = await fs.readdir(skillsRoot)
@@ -257,7 +318,10 @@ async function linksInto(skillsRoot: string, copySkills: string): Promise<readon
   const ours: string[] = []
   for (const name of names) {
     const target = await linkTarget(path.join(skillsRoot, name))
-    if (target !== undefined && isInside(copySkills, target)) {
+    if (
+      target !== undefined &&
+      (isInside(copySkills, target) || (isExtension && isExtensionSkillTarget(target, name)))
+    ) {
       ours.push(name)
     }
   }
@@ -297,7 +361,8 @@ async function renameIn(
 export async function bundledSkillsStatus(paths: BundledSkillsPaths): Promise<BundledSkillsStatus> {
   const vendor = await readVendor(paths.vendorRoot)
   const state = await copyState(copyFolder(paths))
-  const common = { vendorTag: vendor.tag, skillIds: vendor.skillIds }
+  const skillIds = [...vendor.skillIds, ...(await extraSkillIds(paths.extensionSkillsRoot))]
+  const common = { vendorTag: vendor.tag, skillIds }
   switch (state.kind) {
     case 'absent': {
       return { kind: 'notInstalled', ...common }
@@ -364,9 +429,18 @@ export async function installBundledSkills(
     }
     at = deps.skillsRoot
     await fs.mkdir(deps.skillsRoot, { recursive: true })
-    for (const id of vendor.skillIds) {
+    // The vendored skills link at the copy; the extension's own link
+    // straight at the extension, with no copy and no tag (M97).
+    const extensionRoot = deps.extensionSkillsRoot
+    const extra = await extraSkillIds(extensionRoot)
+    const links = [
+      ...vendor.skillIds.map((id) => ({ id, target: path.join(copySkills, id) })),
+      ...(extensionRoot === undefined
+        ? []
+        : extra.map((id) => ({ id, target: path.join(extensionRoot, id) }))),
+    ]
+    for (const { id, target } of links) {
       const link = path.join(deps.skillsRoot, id)
-      const target = path.join(copySkills, id)
       at = link
       let existing: string | undefined
       try {
@@ -383,15 +457,32 @@ export async function installBundledSkills(
       // Ours only when it leads to this very skill of the copy.
       if (existing !== undefined && isSamePath(existing, target)) {
         installed.push(id)
+      } else if (
+        existing !== undefined &&
+        extensionRoot !== undefined &&
+        isInside(extensionRoot, target) &&
+        isExtensionSkillTarget(existing, id)
+      ) {
+        await fs.unlink(link)
+        try {
+          await makeLink(target, link, linkType)
+        } catch (error: unknown) {
+          await fs.symlink(existing, link, linkType)
+          throw error
+        }
+        installed.push(id)
       } else {
         skipped.push(id)
       }
     }
     // An earlier release's skill this one dropped: its link would lead nowhere.
     at = deps.skillsRoot
-    const ourLinks = await linksInto(deps.skillsRoot, copySkills)
+    const ourLinks = [...(await linksInto(deps.skillsRoot, copySkills))]
+    if (extensionRoot !== undefined) {
+      ourLinks.push(...(await linksInto(deps.skillsRoot, extensionRoot, true)))
+    }
     for (const name of ourLinks) {
-      if (vendor.skillIds.includes(name)) {
+      if (vendor.skillIds.includes(name) || extra.includes(name)) {
         continue
       }
       at = path.join(deps.skillsRoot, name)
@@ -437,11 +528,24 @@ export async function removeBundledSkills(
   let at = folder
   try {
     const state = await copyState(folder)
+    // No copy of ours: only the extension's own links can be ours (M97).
     if (state.kind !== 'ours') {
+      if (paths.extensionSkillsRoot !== undefined) {
+        at = paths.skillsRoot
+        const extraLinks = await linksInto(paths.skillsRoot, paths.extensionSkillsRoot, true)
+        for (const name of extraLinks) {
+          at = path.join(paths.skillsRoot, name)
+          await fs.unlink(at)
+          removed.push(name)
+        }
+      }
       return { removed, hadCopy: false, failure: undefined }
     }
     at = paths.skillsRoot
-    const ourLinks = await linksInto(paths.skillsRoot, path.join(folder, BUNDLED_SKILLS_DIR))
+    const ourLinks = [...(await linksInto(paths.skillsRoot, path.join(folder, BUNDLED_SKILLS_DIR)))]
+    if (paths.extensionSkillsRoot !== undefined) {
+      ourLinks.push(...(await linksInto(paths.skillsRoot, paths.extensionSkillsRoot, true)))
+    }
     for (const name of ourLinks) {
       at = path.join(paths.skillsRoot, name)
       await fs.unlink(at)

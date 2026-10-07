@@ -83,8 +83,11 @@ import { MEMORY_TOOL_DEFINITIONS } from './memoryTools'
 
 import type { ToolClass } from './permissions'
 import { type FunctionOutputPart, type FunctionToolDefinition, withStrictTools } from './schemas'
+
+import { LEGAL_SCAN_DESCRIPTION, LEGAL_SCAN_PARAMETERS } from './legalScanTool'
 import { RECALL_TOOL_DEFINITION } from './observationPack'
 import { SUBAGENT_TOOL_DEFINITIONS } from './subagentTools'
+import type { TEAM_TOOL_DEFINITIONS } from '../../team/teamTools'
 import { runChecksDefinition, THEN_RUN_PROPERTY } from './verifyTools'
 
 import type { ShellResult } from '../../shellResult'
@@ -492,6 +495,13 @@ const TOOL_CLASSES: Readonly<Record<string, ToolClass>> = {
   [MODEL_API_SUBAGENT_TOOLS.sendMessage]: 'interactive',
   [MODEL_API_SUBAGENT_TOOLS.readResult]: 'interactive',
   [MODEL_API_SUBAGENT_TOOLS.cancel]: 'interactive',
+  // The team runner owns delegation and merge consent (D75), just as each
+  // run_checks command owns its approval. No ordinary card grants a paid use.
+  roster: 'read',
+  collect: 'read',
+  delegate: 'interactive',
+  cancel: 'interactive',
+  merge: 'interactive',
   // M49 (PLAN.md D41): a memory write is judged as an edit, never a protected one.
   [MODEL_API_TOOLS.readMemory]: 'read',
   [MODEL_API_TOOLS.addMemory]: 'edit',
@@ -512,6 +522,9 @@ const TOOL_CLASSES: Readonly<Record<string, ToolClass>> = {
   // M81 (PLAN.md D49): it starts a browser that reaches the page's host, so
   // it asks per host as web fetch does; Plan refuses it.
   [MODEL_API_TOOLS.browserCheck]: 'network',
+  // M97 (PLAN.md D76): the deterministic scan reads, in every mode; it
+  // never writes, runs a command or installs.
+  [MODEL_API_TOOLS.legalScan]: 'read',
   // M67 (PLAN.md D49): the language services read, in every mode; a rename is an edit.
   [CODE_INTEL_TOOLS.findDefinition]: 'read',
   [CODE_INTEL_TOOLS.findReferences]: 'read',
@@ -591,6 +604,8 @@ export interface ToolDefinitionOptions {
   readonly hasImageGeneration?: boolean
   /** Child sessions cannot spawn again (M48, PLAN.md D45). */
   readonly hasSubagents?: boolean
+  /** A team conversation declares the team's five tools instead (M96, PLAN.md D75). */
+  readonly teamTools?: typeof TEAM_TOOL_DEFINITIONS
   /** Child sessions cannot ask the panel or set its task list. */
   readonly isSubagent?: boolean
   /** Muse Code's memory tools, trusted workspaces only (M49, PLAN.md D41). */
@@ -603,6 +618,8 @@ export interface ToolDefinitionOptions {
   readonly hasWebFetch?: boolean
   /** The browser check, trusted workspaces only, when the host can run one (M81, PLAN.md D49). */
   readonly hasBrowserCheck?: boolean
+  /** The deterministic legal scan (M97, PLAN.md D76): a scanner is behind it. */
+  readonly hasLegalScan?: boolean
   /** The code intelligence tools, while VS Code's language services are at hand (M67). */
   readonly hasCodeIntel?: boolean
 }
@@ -827,6 +844,10 @@ export function toolDefinitions(
           define(tool.name, tool.description, tool.properties, tool.required),
         )
       : []),
+    // M96 (PLAN.md D75): the orchestrator's five, never beside M48's six.
+    ...(options.teamTools ?? []).map((tool) =>
+      define(tool.name, tool.description, tool.properties, tool.required),
+    ),
     ...(options.hasMemory === true
       ? MEMORY_TOOL_DEFINITIONS.map((tool) =>
           define(tool.name, tool.description, tool.properties, tool.required),
@@ -860,6 +881,9 @@ export function toolDefinitions(
       ? MODEL_API_CODE_INTEL_DEFINITIONS.map((tool) =>
           define(CODE_INTEL_TOOLS[tool.tool], tool.description, tool.properties, tool.required),
         )
+      : []),
+    ...(options.hasLegalScan === true
+      ? [define(MODEL_API_TOOLS.legalScan, LEGAL_SCAN_DESCRIPTION, LEGAL_SCAN_PARAMETERS, [])]
       : []),
   ]
   return withStrictTools(definitions, options.shouldUseStrictTools === true)

@@ -7,8 +7,26 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Changed
+
+- Rebuild 0.16.0 on the complete 0.15.0 candidate, preserving loop guarantees,
+  machine resource controls, provider/team/usage/legal features and prompt sharing.
+  Regenerate the combined reference and localization tables. Remove duplicated
+  headless engine loading and measure the combined deferred bundles with D6's
+  authorized 5% margin rounded to 25 KiB.
+
+
 ### Fixed
 
+- Compose exact money ports across the provider, team, usage and headless train;
+  keep subscription Plan turns independent of API budget journals and validate
+  output caps before clamping.
+- Ship and require the Darwin helper in ACP archives, retain native cleanup
+  refusals, and load each resource surface's own English fallback within its cap.
+- Pass Semgrep's worker option once, preserving the serial scan and every rule
+  and deadline after the release merge.
+- Install companion launch recovery labels through DOM text content, keeping
+  translated markup inert before the authenticated app starts.
 - Keep paid/reply browser fixtures on canonical decimal USD and wait for the
   real settled harness when capturing README scenes with lazy imports.
 - Remove the obsolete source-map-js audit exception once the locked tree no
@@ -28,7 +46,8 @@ happened, not what was planned; superseded entries are kept.
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive
-  `Retry-After` waits; provider transport binding remains pending.
+  `Retry-After` waits. Provider-specific retry-table binding remains pending for non-Meta transports;
+  this does not certify endpoint quota refusal.
   One-shot OAuth callbacks retain every parameter and destroy keep-alive
   connections on settlement. Custom servers accept validated compatibility
   overrides. Session saves coalesce into one in-flight write plus the latest;
@@ -65,11 +84,8 @@ happened, not what was planned; superseded entries are kept.
   gives the rule that prevents it and the milestone that will enforce that
   rule in the app's own orchestrator (D100).
 
-## [0.16.0] - 2026-10-06
+## [0.16.0] - 2026-10-07
 
-> Release draft: the 0.14.4/0.15.0 main sync is pending; M106 and M107 are joined. The package
-> version has not been promoted. M107's remaining qualifications are recorded
-> in [the release certification](docs/certification/rel0160.md).
 
 ### Highlights
 
@@ -288,6 +304,231 @@ happened, not what was planned; superseded entries are kept.
   the conversation and draft saved. Cold menus respect outside dismissal and
   late imports cannot take focus; failed menus accept Escape and return focus
   to their trigger.
+- Make provider, headless, deferred-bundle and VSIX tests independent of stale
+  build outputs in clean CI shards. Reuse VSCE collection and reject oversized
+  runtime members before parsing; existing budgets and test deadlines stay fixed.
+- Bind historical worker certification to checked-in, byte-exact source fixtures
+  so fresh clones need no rig-only Git objects.
+- Canonicalize trusted usage-journal roots on macOS while retaining linked-store
+  refusals. Team processes set below-normal priority before their command runs.
+- CI fixtures share the ACP budget's home, wait for legal-dialog focus and
+  prompt-menu controls, and use Playwright's installed browser when available.
+  Windows worker checks retain alias refusals on volumes without 8.3 names.
+- Validate newly added README screenshots from the checkout while continuing
+  public image checks for files already on main; missing local images fail.
+- Make usage, reference, provider and companion tests independent of stale build
+  output and repeated cold setup on hosted runners, preserving default deadlines,
+  all randomized cases, offline replays and native Windows security checks.
+
+### Pending
+
+- Provider-specific retry-table binding remains pending for non-Meta transports;
+  the shared retry classifier does not certify endpoint quota refusal.
+
+## [0.15.0] - 2026-10-06
+
+### Highlights
+
+- **Bring your own models.** Add OpenAI, Anthropic or Gemini keys, connect local models, or try ChatGPT and Copilot sign-in in Models & Agents; features follow the selected model's capabilities. <!-- try: command museSpark.modelsAndAgents -->
+- **Agent roles and teams.** Configure role pools, task limits and worker review, with explicit paid-worker consent and the shared daily budget. <!-- try: command museSpark.modelsAndAgents -->
+- **Scan with /legal.** Review licensing, copyright and source evidence without a model call, then export the report or confirm supported header fixes. <!-- try: command museSpark.legalScan -->
+- **Long-task context and upstream sync.** Pi and SoL-Pi ports preserve packed output, literal recall and cache-stable prompts; automatic compaction is implemented but remains inactive pending its paired evaluation. <!-- try: setting museSpark.modelApiAutoCompaction -->
+- **Usage and cost.** Open the local Usage & Cost page for provider and team totals, reported or estimated tokens, budgets and exports. <!-- try: command museSpark.openUsagePage -->
+
+### Added
+
+- **Models & Agents.** Add origin-bound provider keys, discover and select
+  models, pin favourites, test local endpoints, and import or export configuration
+  without secrets. OpenAI, Anthropic, Gemini, OpenRouter and other captured
+  provider formats share the in-process harness; features are enabled according
+  to each model's capability record. A confidential workspace hides and refuses
+  models that train on its content.
+- **Subscription sign-in previews.** Eligible ChatGPT Plus/Pro accounts can use
+  Subscription Sharing through the system browser. Compatible VS Code hosts can
+  expose Copilot models through their Language Model API. Plan requests retain
+  their provider's limits and do not consume the harness's USD cap. Installed
+  editor and live success certification retains the limits in M95b's record.
+- **Roles and teams.** Configure role charters, tools, model pools, task limits,
+  templates and intensity. Workers use isolated workspaces, show their role and
+  task in the transcript and Agent map, and support review before merging.
+  Paid workers ask for consent naming model prices, task ceilings and the shared
+  daily budget; subscriptions do not pay for these extras.
+- **/legal.** Scan manifests, locks, local license evidence, SPDX expressions,
+  headers and source/asset provenance without a model call. Public npm/PyPI
+  metadata lookups disclose the registries and package identifiers first;
+  offline scans remain available. Bounds and incomplete coverage stay visible.
+- Export legal reports as Markdown and confirm supported evidence-based header
+  repairs through the guarded edit path. Optional Model API explanations ask
+  for paid-use consent and share the daily reservation/settlement ledger.
+- **Usage & Cost.** A local page groups usage by provider, model, request kind
+  and client, with charts, budgets, limits and exports. Reported and estimated
+  tokens, unpriced/local requests and uncertain costs remain distinct. Shared
+  ACP/headless accounting reserves its daily budget before dispatch.
+- Record the orchestration gotchas and the product rules they motivate in
+  docs/orchestration-gotchas.md (D100).
+
+### Changed
+
+- Port Pi and SoL-Pi context improvements: sticky packed output, literal recall,
+  cache-stable prompts, selected-model strict tool schemas and bounded replay
+  image resizing. Manual compaction is available in ACP. Automatic compaction
+  remains inactive until its paired evaluation passes, even with its setting on.
+- Generate Help & Reference for providers, teams, legal scan, compaction, usage
+  and the merged question workflows, including current CLI routes and paid limits.
+- Apply selected-model cache pricing, bounded one-shot sign-in callbacks,
+  validated custom compatibility overrides and coalesced session saves.
+- Chat, Models and Usage share browser dependencies once. Legal reports,
+  review comments, optional English, keyboard contexts and panel bodies load on
+  first use with accessible loading, failure and retry. Complete translations
+  and the inherited startup/deferred ratchets are preserved.
+- Package runtime translations and exact lazy Node sources losslessly. The
+  approved universal 0.15.0 VSIX budget is 2775 KiB; individual bundle caps stay
+  unchanged. ACP help includes every merged local command in all 14 languages.
+
+### Fixed
+
+- Strip credential-shaped environment variables from runner setup, checks, Git
+  and SSH children, and refuse credential names in remote forwarding configuration.
+- Preserve measured cache-hit percentages and token speeds after usage retention;
+  roll up costs with the same micro-dollar rounding as detailed usage totals.
+- Resolve provider addresses before adding, editing or importing configuration;
+  keep private-network confirmation and metadata refusals. Local scans contact
+  preset model-list endpoints. Hide unavailable OpenRouter account connection
+  and key-usage services with an explicit status; pasted keys remain supported.
+- Export subscription provider configuration without secrets. Confirmed imports
+  clear credentials for imported and removed providers, validate default model
+  references before confirmation, and publish providers/default atomically.
+- Keep deferred question controls and team-worker attention labels together
+  after the release merge. Local ACP compaction preserves queued late answers.
+- Preserve safe Windows team storage aliases, publish private
+  hints with the current user's verified ownership, and admit bounded native
+  process confirmations containing long executable paths.
+- Keep team settlement durable, retain worker labels in the combined attention
+  dock, and preserve queued late answers alongside local ACP commands.
+- Restore legal-export focus after a cancelled native save dialog and keep
+  signed-out /legal navigation free of unnecessary sign-in warnings.
+- Gemini rejects proxy-null usage and negative counters rather than reporting
+  stale token totals.
+- Keep Windows shell directory tracking on the native long workspace path and
+  normalize Windows paths in bundle and package checks.
+- Make package, browser and process fixtures deterministic at the repository's
+  default test deadline. Accessibility scenarios wait for their actual lazy
+  controls and loaded content before scanning.
+- Legal keyboard and zoom checks wait for scripted scenario actions before
+  native input, preserving focus assertions without racing preview setup.
+- History rows load correctly in production builds and keep their Archive
+  shortcut when optional keyboard contexts are deferred.
+- ACP Registry and stdio release tests share their real-agent fixture build
+  and cleanup, preserving installed-package coverage without copied setup.
+- Translated ACP help retains provider and legal commands alongside sharing,
+  and names the automatic compaction opt-out in every installed language.
+- Agent map harness scenes select their titled pill when Side chat is also
+  available. Package and localization fixtures include the merged sharing graph;
+  shutdown coverage waits for prompt storage before backend and usage cleanup.
+- Checkpoint disposal tests retire the captured owner after filter-free Git
+  discovery exits 1, so the cancellation assertion exercises disposal reliably.
+- Built-exec tests isolate package image requests with local screenshots and
+  test-owned badge responses, so unpublished PR assets cannot block the engine
+  tests. The real package badge validation and independent public-image gate
+  still run.
+- Test infrastructure warms deferred panel and row modules before behavior
+  suites, keeping cold transforms outside the default UI query deadlines.
+  A source check catches new deferred imports missing from warm-up.
+- Test infrastructure: harness scenes wait for the controls they touch,
+  including lazy panels, and finish startup and control waits before
+  accessibility scans. The scrolling scene waits for its rendered reply and
+  New messages control. A source guard catches unexplained fixed-delay
+  interactions; screenshots use the same readiness checks.
+- Shared-panel hosts without VS Code's native context menu open the compact
+  Prompt library menu at the pointer when right-clicking the composer input.
+  Save, Share and Use saved keep the toolbar's conditions and exact draft;
+  Escape returns focus. Shift-right-click preserves the host's clipboard menu.
+
+### Documentation
+
+- The npm landing page carries the same quiet GitHub star link as the other
+  landing pages, with a regression check for its exact sentence and placement.
+- README screenshots refreshed for the question dock, Git actions, slash
+  commands and paid usage; added open-question and Help & Reference
+  views, with matching captions on both landing pages.
+
+## [0.14.5] - 2026-10-06
+
+### Fixed
+
+- Composer prompt actions sit in one compact Prompt library menu on the
+  composer toolbar (Save prompt, Share prompt, Use saved prompt), also in the
+  right-click menu, instead of three full-width buttons covering the chat box.
+- The ACP agent offers terminal sign-in to clients that announce it with the
+  older `_meta` terminal-auth capability (ACP Registry).
+
+## [0.14.4] - 2026-10-06
+
+### Added
+
+- Save your own messages, composer text and editor selections into a personal
+  prompt library usable across workspaces, or a project-local library. Search,
+  tags, literal variable substitution and reviewed portable imports prepare
+  text for insertion without submitting a model request.
+- Share prompts and conversations as Markdown, HTML or versioned JSON with an
+  exact preview and confirmation before copy, file or browser destinations.
+  Conversation-only shares use an allow-list; confidential or unknown content
+  is refused with an explanation, and secrets and private paths are scrubbed.
+- Local ACP `/prompt` and `/share chat` commands and terminal `prompts` and
+  `share chat` routes use the shared stores and renderer. Help & Reference
+  includes all six editor commands, both features and the opt-in sync setting.
+  ACP composer insertion and final-action UI still depend on M104/M110a0;
+  installed-editor parity is not claimed.
+
+### Fixed
+
+- History Save menus stay keyboard reachable beside listbox options, and
+  composer prompt actions and the input meet minimum target sizes.
+- Cold prompt and chat dialogs retain modal loading, Escape dismissal and
+  focus restoration; a late import cannot reopen a dismissed dialog.
+- Exports from symlinked workspaces bind atomic writes to checked canonical
+  targets. Cancellation covers a pending Save dialog; prompt sync changes
+  activate the mirror before first use, and action failures appear as notices.
+- Full shares retain displayed command outcomes, verification failures, status,
+  exit codes and citations. Late confirmation cannot close another session's
+  dialog; colon-prefixed absolute paths are scrubbed without damaging URLs,
+  slash commands, division, HTML tags or regex literals.
+- Standalone ACP full Help ships its manifest localization tables and is
+  checked from the staged package in every shipped language before packing.
+- Panel `/help` uses the complete Help & Reference catalog through one palette
+  route while retaining all prompt and chat actions.
+- Problem reports recognize the shipped prompt bundle alongside the question
+  deferral bundle. Translated ACP compact help includes the sharing routes.
+- Windows shell credential regressions await the matching background completion
+  before cleanup and probe raw environment values within the default test deadline.
+- Prompt host shutdown awaits mirror merges and other admitted operations
+  before releasing storage, preventing Windows cleanup from racing a sync write.
+- Browser package tests build the chat, Help and What's New pages themselves,
+  so a clean CI shard needs no artifacts from an earlier production build.
+- The installed ACP help check validates its complete localization table,
+  retaining prompt and sharing labels in its exact output comparison.
+- Chat-share HTML encodes markup delimiters in one pass. Privacy regexes have
+  literal-metacharacter controls and documented, specific audit exceptions
+  for their escaped workspace, home and username fragments.
+
+### Performance
+
+- Prompt library and chat preview load on first use with their own measured
+  25 KiB budgets. Optional tool details, review findings, effort controls and
+  History rows also load lazily, preserving the existing startup regression
+  baseline, 900 KiB startup cap and 50 KiB original deferred cap.
+- The Node Help bundle packs its complete reference with a native lossless
+  codec while keeping the browser schema and every reference field intact.
+  Its existing 100 KiB cap and the 2400 KiB VSIX cap are unchanged.
+- Bundle tests build only the production browser fixture they inspect, keeping
+  verification within the repository's default timeouts.
+
+### Documentation
+
+- A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists
+  what went wrong while a fleet of agents built this project. For each one it
+  gives the rule that prevents it and the milestone that will enforce that
+  rule in the app's own orchestrator (D100).
 
 ## [0.14.3] - 2026-10-06
 
@@ -1041,7 +1282,6 @@ happened, not what was planned; superseded entries are kept.
   required check names and the release artifacts are unchanged. In a merge
   group, gitleaks runs its pinned, checksum-checked CLI, because the gitleaks
   action refuses that event.
-
 - **The extension loads less at startup**: `dist/extension.js` is
   552.6 KiB, down from 590.6 KiB, under its unchanged 600 KiB budget
   (PLAN.md D6, 2026-10-03 and 2026-10-04). Model text that only a lazily
@@ -1388,7 +1628,7 @@ happened, not what was planned; superseded entries are kept.
   - **Results and schemas:** the result and events are versioned (v1) and
     validated, and their JSON Schemas ship in the package's `schemas/`;
     `npm run schema:exec` regenerates them. `muse-spark-code-acp
-scan-secrets <file>` counts likely secrets in one file and prints only
+    scan-secrets <file>` counts likely secrets in one file and prints only
     the number.
   - **The Action:** `action/` reviews, or proposes a fix for, a
     same-repository pull request on GitHub-hosted runners (a private
@@ -1459,7 +1699,7 @@ scan-secrets <file>` counts likely secrets in one file and prints only
   shows the generic failure card. A
   command covered by an always-allow rule could run in the empty folder
   before cancellation lands. On
-  ALLOW the approval is answered _Allow once_ (never an "always" choice) for
+  ALLOW the approval is answered *Allow once* (never an "always" choice) for
   each stage while subject and user request stay the same, and the tool row says "Decided: approved (Auto
   reviewer)" with its reason; on ASK, an unreadable answer, no answer
   within 45 seconds, an error, a busy side session or a tripped breaker,
@@ -1875,7 +2115,6 @@ scan-secrets <file>` counts likely secrets in one file and prints only
     Muse Code refused the decision and still waits on that very step.
   - The log names the step each answer was for: a multi-step command
     decided step by step had read as repeated answers.
-
 - **A step Muse Code moved without saying so no longer strands its
   card.** After **Always allow in this workspace**, Muse Code 1.4.2 can
   show a step its new rule already allows, refuse the decision for it as
@@ -2498,7 +2737,6 @@ scan-secrets <file>` counts likely secrets in one file and prints only
   presence rather than enabling restore. Native/old/unknown uncertainty
   survives window close, PID death and age. Explicit confirmed recovery removes
   only the exact stale presence marker, preserving checkpoints and history.
-
 - **Checkpoints never touch the workspace's `.git`.** They live in a shadow
   repository under the extension profile's canonical-root global storage, run with hooks,
   fsmonitor, your git configuration and the workspace's filters all off,
@@ -3826,7 +4064,7 @@ The first community fix, and the README brought up to date with the panel.
   drill's budget and measurements are current, and the three upstream Muse
   Code issues are linked from Troubleshooting. Its eleven screenshots are
   rendered from the shipped panel by the UI harness (`npm run
-harness:shots`) and say so; the 0.1.1 captures are gone.
+  harness:shots`) and say so; the 0.1.1 captures are gone.
 
 ## [0.5.1] - 2026-09-23
 
@@ -4259,7 +4497,7 @@ certified per milestone under `docs/certification/`.
   a chat opens, `muse sandbox windows check` runs once per extension host and
   a `setup_required` result raises a notification with _Set up now_ / _Not
   now_ / _Don't ask again_; _Set up now_ relaunches `muse sandbox windows
-setup` through the UAC prompt, re-checks, and reports. The new command
+  setup` through the UAC prompt, re-checks, and reports. The new command
   **Muse Spark: Set Up Shell Sandbox** runs the same flow on demand, and a
   shell tool failing with `sandbox enforcement unavailable` re-offers it. The
   transcript notice now names that command instead of a terminal recipe.

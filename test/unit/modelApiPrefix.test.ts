@@ -11,6 +11,7 @@ import {
   type ModelApiHostDeps,
 } from '../../src/core/backends/modelapi/ModelApiHost'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
+import { metaResolvedModel, modelPolicyFor } from '../../src/core/backends/modelapi/modelPolicy'
 import { localPromptDate } from '../../src/core/backends/modelapi/instructions'
 import { parseStoredSession } from '../../src/core/backends/modelapi/sessionStore'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -30,6 +31,15 @@ async function setup(changes: Partial<ModelApiHostDeps> = {}, modelId = 'muse-sp
   const io = memoryToolIo({}, '/ws')
   const host = new ModelApiHost({
     ...fakeModelApiHostDeps({ client, workspaceRoot: '/ws', io, log }),
+    ...(changes.modelFacts !== undefined && {
+      models: {
+        resolve: (ref: string) =>
+          Promise.resolve({
+            ...metaResolvedModel(ref, client),
+            policy: modelPolicyFor(ref, changes.modelFacts?.(ref)),
+          }),
+      },
+    }),
     ...changes,
   })
   const session = await host.startSession({

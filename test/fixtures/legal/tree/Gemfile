@@ -1,0 +1,5 @@
+source "https://rubygems.org"
+
+gem "rake", "= 13.0.0"
+
+system("touch /tmp/legal-scanner-pwned")

@@ -6,7 +6,7 @@
 // SecretStorage records and the injected lane-P/T seams.
 
 import type * as vscode from 'vscode'
-import { UI_TEXT } from '../../shared/constants'
+import { PROVIDER_SECRET_PREFIX, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { SecretStore } from '../auth/credentialStore'
 import type { ProviderCredentialStore as CredentialStore } from './credentialRecords'
@@ -69,8 +69,9 @@ export interface ProvidersHostDeps {
   readonly policy: AddressPolicy
   readonly tester: KeyTester
   readonly fetcher: ModelFetcher
-  readonly exchanger: CodeExchanger
-  readonly usage: KeyUsageReader
+  readonly exchanger: CodeExchanger | undefined
+  readonly usage: KeyUsageReader | undefined
+  readonly onKeyUsage?: (snapshot: KeyUsageSnapshot) => void
   readonly pkce: PkceSource
   readonly suggest: SuggestionEngine
   readonly scanStore: ScanStore
@@ -122,7 +123,7 @@ export interface ProvidersHost {
     shouldImport: (preview: ImportPreview) => Promise<boolean>,
   ) => Promise<number>
   readonly connectOpenRouter: (isRemote: boolean) => Promise<{ key: string } | undefined>
-  readonly openRouterUsage: (credential: string) => Promise<KeyUsageSnapshot>
+  readonly openRouterUsage: (credential: string) => Promise<KeyUsageSnapshot | undefined>
   readonly probe: (preset: PresetInfo) => Promise<readonly LocalProbeResult[]>
   readonly suggestDefaultModel: (
     candidates: readonly ProviderModelRow[],
@@ -140,7 +141,7 @@ async function credentialFor(
   credentials: CredentialStore,
   entry: ProviderEntry,
 ): Promise<string | undefined> {
-  if (entry.auth === 'none') {
+  if (entry.auth === 'none' || entry.auth === 'subscription') {
     return undefined
   }
   const record = await credentials.getProviderCredential(entry.id)
@@ -213,7 +214,7 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
     suggestedPreset: (settingValue) =>
       workspaceSuggestedPreset(settingValue, (id) => deps.catalog.has(id)),
     confirmAddress: async (address) => {
-      const verdict = deps.policy.check(address)
+      const verdict = await deps.policy.check(address)
       if (verdict.kind !== 'private') {
         return verdict
       }
@@ -243,6 +244,11 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
       const states: ProviderState[] = []
       const entries = await deps.store.list()
       for (const entry of entries) {
+        if (entry.auth === 'subscription') {
+          const present = await deps.secrets.get(`${PROVIDER_SECRET_PREFIX}${entry.id}`)
+          states.push({ entry, hasKey: present !== undefined, origin: entry.address })
+          continue
+        }
         const record = await deps.credentials.getProviderCredential(entry.id)
         states.push({ entry, hasKey: record !== undefined, origin: record?.origin })
       }
@@ -263,7 +269,7 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
     completePendingRemovals: () => removal.completePending(),
     exportConfig: () => exportProviders(deps.store),
     previewImport: async (text) =>
-      previewProvidersImport(
+      await previewProvidersImport(
         await deps.store.list(),
         text,
         deps.policy,
@@ -274,6 +280,7 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
         importProviders(
           {
             store: deps.store,
+            credentials: deps.credentials,
             policy: deps.policy,
             confirm: shouldImport,
             presetAddress: (preset) => deps.catalog.get(preset)?.origin,
@@ -282,6 +289,7 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
         ),
       ),
     connectOpenRouter: async (isRemote) => {
+      if (deps.exchanger === undefined) return
       const connection = await connectOpenRouterAccount({
         pkce: deps.pkce,
         exchange: deps.exchanger,
@@ -300,7 +308,12 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
       })
       return connection === undefined ? undefined : { key: connection.key }
     },
-    openRouterUsage: (credential) => readOpenRouterKeyUsage(deps.usage, credential),
+    openRouterUsage: async (credential) => {
+      if (deps.usage === undefined) return
+      const snapshot = await readOpenRouterKeyUsage(deps.usage, credential)
+      deps.onKeyUsage?.(snapshot)
+      return snapshot
+    },
     probe: (preset) => probeLocalServers(preset.localProbes, deps.loopbackFetch),
     suggestDefaultModel: (candidates) => deps.suggest.defaultModel(candidates),
     suggestSessionBudget: (modelPrices) => deps.suggest.sessionBudget(modelPrices),

@@ -191,7 +191,13 @@ describe.runIf(process.platform === 'darwin')('native Darwin process identity', 
         // This kernel returns ESRCH for proc_pidinfo of a zombie; absence is exited too.
         expect(await runTreeProgram(helperPath, ['proc-identity', String(zombie)])).toBe('[null]')
         expect(await reader.identity(zombie!)).toBeNull()
-        expect(await registry.members(ticket)).toEqual([root])
+        // A numerical OS-wide snapshot can be unavailable during process churn.
+        let members = await registry.members(ticket)
+        for (let attempt = 0; members.length === 0 && attempt < 100; attempt++) {
+          await setTimeout(1)
+          members = await registry.members(ticket)
+        }
+        expect(members).toEqual([root])
       } finally {
         child.stdin.end()
         await death

@@ -159,6 +159,7 @@ export type EndpointRefusalReason =
   | 'link-local'
   | 'metadata'
   | 'unusable-address'
+  | 'unresolved-address'
   | 'mixed-answers'
   | 'invalid-url'
 
@@ -229,7 +230,7 @@ export function checkEndpointUrl(urlText: string, answers: readonly string[]): E
     return refusal('invalid-url')
   }
   if (answers.length === 0) {
-    return refusal('unusable-address')
+    return refusal('unresolved-address')
   }
   const classes = answers.map((answer) => classifyAddress(answer))
   if (classes.includes('metadata')) {

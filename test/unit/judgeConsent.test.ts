@@ -139,23 +139,24 @@ describe('Judge first-charge consent hook', () => {
     expect(modal).toHaveBeenCalledTimes(1)
   })
 
-  it('refuses an invalid first-charge budget and an unpriced model before showing a popup', () => {
+  it('refuses an invalid first-charge budget and an unpriced model before showing a popup', async () => {
     for (const dailyBudgetUsd of [-1, NaN, Infinity]) {
-      expect(() => {
-        paidUseQuestion({
-          feature: 'judge',
-          modelId: 'muse-spark-1.3',
-          dailyBudgetUsd: Usd.from(dailyBudgetUsd).toAmount(),
-        })
-      }).toThrow()
+      await expect(
+        async () =>
+          await paidUseQuestion({
+            feature: 'judge',
+            modelId: 'muse-spark-1.3',
+            dailyBudgetUsd: Usd.from(dailyBudgetUsd).toAmount(),
+          }),
+      ).rejects.toThrow()
     }
-    expect(() => {
+    await expect(
       paidUseQuestion({
         feature: 'judge',
         modelId: 'unknown',
         dailyBudgetUsd: Usd.from(2).toAmount(),
-      })
-    }).toThrow()
+      }),
+    ).rejects.toThrow()
     expect(modal).not.toHaveBeenCalled()
   })
 

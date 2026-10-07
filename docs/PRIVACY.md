@@ -22,6 +22,73 @@ workspaces and keys in this profile share it; it stores no prompts or keys
 and sends nothing. Failed or unreadable storage refuses spending. Tab's
 independent $1/day journal is excluded. ACP and headless policies are unchanged.
 
+## Legal scan (M97 candidate)
+
+The deterministic phase of an explicit `/legal` request stays local: the deterministic scanner reads a
+bounded workspace snapshot and starts no model, backend, auth, shell command,
+package manager, hook, formatter or build. The report is held in the panel;
+scan does not save it to a file. The reserved headless `exec legal-scan`
+command (and its older `legal` alias) writes a report
+only with an explicit `--out` destination. Reports can identify local paths,
+package names/versions, source URLs and bounded evidence excerpts. Known
+credential formats and email values are scrubbed in findings. Scope paths pass the same scrubber after the S/W repairs. Other identifying text may remain, so treat exported reports
+as workspace information.
+
+The Model API native tool and Muse Code's authenticated loopback `ide` tool
+use the same scanner. When a model requests the tool in a normal coding turn,
+the scrubbed findings become a tool result and can be sent to Meta under that
+backend's existing terms and billing. Running the panel's deterministic scan
+itself makes no paid call. Optional model explanations require the paid feature setting, stored Model API key, priced consent and the shared daily budget. Only technical categories, severity and recognized license IDs are sent to Meta; source, paths, excerpts and package names are excluded. Missing returned usage retains reserved cost as unknown liability. Selected header repairs are
+local user edits: the preview stays local, requires separate ownership
+confirmation, and uses guarded conditional writes. Markdown export is saved
+only after an explicit request and destination choice; it uses the same
+scrubbed report facts and disclaimer.
+
+Editor registry enrichment is available by default, after a one-time workspace
+notice naming `registry.npmjs.org` and/or `pypi.org` as applicable and disclosing
+that only package names and versions are sent. Disable
+`museSpark.legalRegistryLookups` for local-only scanning. ACP uses the same
+notice through the editor permission prompt, remembered for this agent process;
+`/legal --offline` disables it. Headless commands remain off unless `--registry`
+is supplied. Only fixed public HTTPS registries are queried; redirects are
+refused. Private registry configuration, source, paths, source excerpts, keys,
+headers and lockfile bodies are never uploaded. No persistent registry cache
+is kept. Unknown local findings remain when enrichment is declined or offline;
+registry metadata supplements evidence and never enables a fix or settles
+ownership. This feature does not certify legal compliance.
+
+## ChatGPT and Copilot subscriptions (M95b integration)
+
+When you choose a ChatGPT model, OpenAI receives the conversation history,
+instructions, attachments supported by the codec, tool definitions and tool
+results at `https://api.openai.com/v1/responses`, as it would for an OpenAI
+API-key request. `store: false` is requested; OpenAI's terms govern retention.
+Sign-in, ID-token validation, refresh and revocation contact
+`https://auth.openai.com`. Catalogue discovery contacts OpenAI's models
+endpoint without sending a conversation. The opaque installation identifier is
+random, never an account name. OpenAI may rewrite a request's cache key; we do
+not use it as account identity.
+
+The extension keeps its issued client, access and refresh tokens only in VS
+Code SecretStorage. The standalone ACP runtime uses the operating system's
+credential store. Lock and installation-id files contain no token. The
+webview, tools, hooks and child processes never receive the grant. Remove
+revokes and deletes this product's record, including deletion after a revoke
+failure. Other applications' OAuth files are not consulted.
+After the ID token is verified, only a SHA-256 hash of its issuer and subject
+is retained for the plan notice. The webview receives that hash, never the raw
+subject, email or name. It scopes acknowledgement to the verified account;
+legacy grants without identity keep the disclosure visible.
+
+With a Copilot model, the same conversation and tool results go through VS
+Code's language-model API to GitHub's Copilot service and its selected model
+provider. VS Code owns consent and credentials; this product does not extract
+them. GitHub's retention and training terms, including terms applicable to
+individual plans, apply. Copilot is unavailable in confidential workspaces.
+The plan notice identifies AI-generated content and includes GitHub's report
+link. Token estimates and dispatched-request tallies stay locally in the
+extension's state; ACP ChatGPT tallies currently live for the process lifetime.
+
 ## What the extension sends, and to whom
 
 - **Your prompts, attachments and mentioned files.** Everything you type into
@@ -516,6 +583,25 @@ does not yet execute them in this build. When that lane lands, a local
 
 ## What stays on your machine
 
+### Usage history and browser companion
+
+The shared `usage/` journal stores checked counters, model and editor labels,
+price provenance and allow-listed limit snapshots. It excludes prompts, tool
+arguments, file/workspace paths, account ids, secrets and key digests. It stays
+in the local user-data folder described in the README: raw calls for 30 days,
+then daily rollups for the configured retention (365 days by default). Disabling
+history stops new writes; existing history remains until retention or explicit
+delete. Delete asks with the record count and cannot remove spend ledgers or paid
+grants. Exports are local files created only by a save, download or explicit
+CLI output path. No usage history is uploaded.
+
+The companion serves the same page only on `127.0.0.1`. A one-use fragment code
+is exchanged for a per-window bearer held in memory; authenticated fetch calls
+and event streams stay on loopback. No cookies, browser credential storage,
+telemetry or remote page assets are used. Closing ACP closes its listener; an
+otherwise inactive listener expires after 30 minutes. The code leaves the
+address bar after exchange.
+
 - Conversation history on the Muse Code backend is the CLI's own session
   store under `~/.local/share/muse` (Meta's format). The extension reads it
   to show the History dialog, and copies it only into the panel's own
@@ -869,11 +955,17 @@ retention/cleanup bounds, platform limits and support claims.
 
 ## Resource governor (M107 integration candidate)
 
+## Prompt and chat sharing
+
 Machine readings and thresholds stay in the harness process. Tree identity
 (PID and birth, job/cgroup/group membership) exists only for local ownership
 proof; resource status, events and history schemas exclude it. The governor
 neither inspects command lines nor inventories the person's own processes.
 Ordinary existing child environment/credential filtering is preserved.
+Sharing is local and starts only from an explicit action. A preview holds the
+exact scrubbed bytes in memory; only its final confirmation permits copy,
+file save or local browser opening. No hosted destination is implemented.
+Confidential workspaces, or unavailable policy, refuse sharing.
 
 The optional retained journal is a separate M102 binding: per-minute CPU and
 memory percentages, available-memory buckets, optional GPU/disk readings,
@@ -883,6 +975,12 @@ names or environment go into its records. The shared history section and
 portable text summary validate the same aggregates; no durable resource
 journal is installed by this W join. M102 consent, retention, scoped reads and
 rollups must be applied before persistence.
+Conversation-only shares contain user and assistant text. Full shares may
+contain portable tool arguments and outputs, commands, outcomes, shown
+reasoning and approval decisions. Code blocks and attachment names are
+optional. Diffs and explicitly selected attachment text require separate
+options; history that retains only metadata cannot supply attachment bytes.
+No live handles, replay credentials or arbitrary backend objects are exported.
 
 Relocation's planned peer status is only `level` and the headroom bucket
 `ample`, `some` or `none`. It does not send raw machine readings, processes or
@@ -892,3 +990,24 @@ new network authorization. Local disk watch paths and temporary-root manifests
 are ownership evidence; public status/history exposes no path. Disk cleanup
 review and installed-host acceptance remain open in
 [M107's record](certification/m107.md).
+Every string, including identifiers, titles, names and chosen contents, goes
+through the credential/account/path scrub. Registered values are refreshed
+before preview and confirmation in the editor. Workspace paths become
+relative; home, user and unrelated absolute paths become redaction markers.
+An unknown secret shape can survive, so inspect the preview. Local output
+files are privately written and confined; opening HTML loads no scripts or
+remote assets.
+
+Saving a prompt is separate from sharing: the portable local prompt file
+retains its body and metadata verbatim. Personal files use the agent data
+folder; workspace files use `.muse/prompts/`. Do not save secrets or commit
+private prompts. Settings Sync copies personal prompts only with explicit
+global opt-in. Raw HTTPS import uses the existing pinned public-address
+transport under a 128 KiB decoded-byte cap and refuses confidential policy.
+Imported text is untrusted, reviewed before acceptance, and never executed
+by import or loading.
+
+In the ACP runtime, sharing refreshes its already-known credential-variable
+values and the stored key of an active Model API backend. A key that becomes
+known after preview invalidates release if it appears anywhere in the portable
+document, including JSON strings. Standalone save/list/use never read a key.

@@ -7,6 +7,7 @@
 // host is waiting.
 
 import { lazy, memo, type ReactNode, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+
 import {
   IO_PREVIEW_LINES,
   PATCH_DOCUMENT_MAX_PAGES,
@@ -47,8 +48,11 @@ import {
 import type { ElicitationCardProps } from './ElicitationCard'
 import { deferred } from './DeferredSurface'
 
+const TeamWorkerLabel = lazy(async () => {
+  const module = await import('./TeamUi')
+  return { default: module.TeamWorkerLabel }
+})
 import { Clipped, DiffTable } from './ToolBlocks'
-
 import { verifySummaryText } from '../../shared/verifyText'
 import { ThenRunBlock, VerifyBody } from './VerifyParts'
 
@@ -721,6 +725,11 @@ function ToolRowView({
           {images}
         </div>
       ) : null}
+      {entry.teamWorker === undefined ? null : (
+        <Suspense fallback={null}>
+          <TeamWorkerLabel worker={entry.teamWorker} />
+        </Suspense>
+      )}
       {entry.approval === undefined ? null : (
         // The card itself waits in the dock above the composer (D26).
         <div className="tool-outcome approval-docked">{UI_TEXT.approvalDockedNote}</div>

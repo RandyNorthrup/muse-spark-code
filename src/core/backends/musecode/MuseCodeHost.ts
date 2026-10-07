@@ -1,3 +1,4 @@
+import type { UsageRecording } from '../../usage/recording'
 // One `muse serve` process and the MSP sessions multiplexed over it.
 //
 // Built on the SDK's raw `Connection` rather than its `MuseClient` facade:
@@ -53,35 +54,33 @@ import {
   subscriptionUsageSchema,
   usageReadResultSchema,
 } from '../../../shared/usage'
-import type {
-  AgentHost,
-  AgentSession,
-  ApprovalDecision,
-  CompactOutcome,
-  GoalCommand,
-  GoalCommandOutcome,
-  GoalRefusal,
-  HostExit,
-  HostInfo,
-  ListSessionsOptions,
-  LoadedSession,
-  ModelSummary,
-  MuseCodeFault,
-  OutputPage,
-  OutputPageRequest,
-  QueuedMessageRef,
-  SessionEventListener,
-  SessionHistoryOutcome,
-  SessionListEvent,
-  SessionMcpServer,
-  SessionPage,
-  SkillSummary,
-  StartSessionOptions,
-  TurnPart,
-  TurnSubmission,
-  WithdrawOutcome,
-} from '../../agent/agentBackend'
 import {
+  type AgentHost,
+  type AgentSession,
+  type ApprovalDecision,
+  type CompactOutcome,
+  type GoalCommand,
+  type GoalCommandOutcome,
+  type GoalRefusal,
+  type HostExit,
+  type HostInfo,
+  type ListSessionsOptions,
+  type LoadedSession,
+  type ModelSummary,
+  type MuseCodeFault,
+  type OutputPage,
+  type OutputPageRequest,
+  type QueuedMessageRef,
+  type SessionEventListener,
+  type SessionHistoryOutcome,
+  type SessionListEvent,
+  type SessionMcpServer,
+  type SessionPage,
+  type SkillSummary,
+  type StartSessionOptions,
+  type TurnPart,
+  type TurnSubmission,
+  type WithdrawOutcome,
   DecisionNotAppliedError,
   GoalRefusedError,
   isPromptSettledError,
@@ -91,6 +90,7 @@ import {
   SessionNotLoadedError,
   SteerRefusedError,
 } from '../../agent/agentBackend'
+
 import type { CoreLogger } from '../../logging'
 import { notify } from '../../events/notify'
 import {
@@ -660,6 +660,72 @@ export function describeExit(
       }
 }
 
+/** Each cumulative MSP report is journaled immediately as a known delta. */
+export class MuseUsageDeltas {
+  private baseline: { inputTokens: number; outputTokens: number } | undefined
+  private startedAt: number | undefined
+  private currentModel: string
+  public constructor(
+    private readonly recording: UsageRecording,
+    private readonly sessionId: string,
+    modelId: string,
+    isNew: boolean,
+    private readonly now: () => number = Date.now,
+  ) {
+    this.currentModel = modelId
+    if (isNew) this.baseline = { inputTokens: 0, outputTokens: 0 }
+  }
+  public receive(event: AgentEvent, isReplay = false): void {
+    if (isReplay) {
+      if (event.type === 'tokenUsage')
+        this.baseline = { inputTokens: event.inputTokens, outputTokens: event.outputTokens }
+      return
+    }
+    if (event.type === 'turnStarted') {
+      this.startedAt = this.now()
+      return
+    }
+    if (event.type === 'turnCompleted') {
+      this.startedAt = undefined
+      return
+    }
+    if (event.type === 'modelChanged') {
+      this.currentModel = event.modelId
+      return
+    }
+    if (event.type !== 'tokenUsage') return
+    const next = { inputTokens: event.inputTokens, outputTokens: event.outputTokens }
+    const prior = this.baseline
+    this.baseline = next
+    if (event.modelId !== undefined) this.currentModel = event.modelId
+    if (
+      prior === undefined ||
+      next.inputTokens < prior.inputTokens ||
+      next.outputTokens < prior.outputTokens
+    )
+      return
+    const input = next.inputTokens - prior.inputTokens
+    const output = next.outputTokens - prior.outputTokens
+    if (input === 0 && output === 0) return
+    const at = this.now()
+    const startedAt = this.startedAt ?? at
+    this.recording.note(
+      { input_tokens: input, output_tokens: output },
+      {
+        backend: 'museCode',
+        provider: 'museCode',
+        model: this.currentModel,
+        session: this.sessionId,
+        kind: 'turn',
+        pricing: { kind: 'plan' },
+        startedAt,
+        durationMs: Math.max(0, at - startedAt),
+        outcome: 'incomplete',
+      },
+    )
+  }
+}
+
 export class MuseSession implements AgentSession {
   private readonly listeners = new Set<SessionEventListener>()
   /** One card per prompt and stage, and the open ones for a late listener (D26). */
@@ -693,6 +759,7 @@ export class MuseSession implements AgentSession {
     private readonly onDispose: () => void,
     /** The host granted `userShell` at the handshake (M46): `!` commands may run. */
     private readonly canRunUserShell: boolean,
+    private readonly usageDeltas?: MuseUsageDeltas,
   ) {
     this.log = channel.log
     this.timeouts = channel.timeouts
@@ -943,11 +1010,12 @@ export class MuseSession implements AgentSession {
   }
 
   /** @internal Called by the host dispatcher. */
-  public receive(mapped: MappedNotification): void {
+  public receive(mapped: MappedNotification, isReplay = false): void {
     if ('closedApprovalId' in mapped) {
       this.prompts.close(mapped.closedApprovalId)
       return
     }
+    this.usageDeltas?.receive(mapped.event, isReplay)
     if (mapped.event.type === 'turnWithdrawn') {
       this.unqueuedTurns.add(mapped.event.turnId)
     }
@@ -1321,6 +1389,9 @@ export class MuseSession implements AgentSession {
 }
 
 export class MuseCodeHost implements AgentHost {
+  /** Injected once by the editor/runtime before hosts are constructed. */
+  public static usageRecording: UsageRecording | undefined
+  private readonly observedUsage = new Set<number>()
   private readonly sessions = new Map<string, MuseSession>()
   private readonly exitListeners = new Set<(exit: HostExit) => void>()
   private readonly listListeners = new Set<(event: SessionListEvent) => void>()
@@ -1352,6 +1423,7 @@ export class MuseCodeHost implements AgentHost {
     private readonly log: CoreLogger,
     private readonly timeouts: CommandTimeouts = DEFAULT_TIMEOUTS,
     private readonly features: MuseCodeFeaturePorts = {},
+    private readonly usageRecording = MuseCodeHost.usageRecording,
   ) {
     this.channel = {
       connection: host.connection,
@@ -1465,7 +1537,7 @@ export class MuseCodeHost implements AgentHost {
         : mapped
     const session = this.sessions.get(admitted.sessionId)
     if (session !== undefined) {
-      session.receive(admitted)
+      session.receive(admitted, isReplay)
       return true
     }
     if (this.opening > 0) {
@@ -1570,6 +1642,29 @@ export class MuseCodeHost implements AgentHost {
     if (method === USAGE_CHANGED) {
       const parsed = subscriptionUsageSchema.safeParse(params)
       if (parsed.success) {
+        const usage = parsed.data
+        if (!this.observedUsage.has(usage.observedAtMs)) {
+          this.observedUsage.add(usage.observedAtMs)
+          this.usageRecording?.limit({
+            backend: 'museCode',
+            provider: 'museCode',
+            source: 'museCode',
+            observedAt: usage.observedAtMs,
+            windows: [
+              {
+                id: 'window',
+                usedPercent: usage.window.usedPercent,
+                resetsAt: usage.window.resetsAtMs,
+                windowMins: usage.window.windowDurationMins,
+              },
+              {
+                id: 'weekly',
+                usedPercent: usage.weekly.usedPercent,
+                resetsAt: usage.weekly.resetsAtMs,
+              },
+            ],
+          })
+        }
         notify(this.usageListeners, parsed.data, this.log, 'museCode.usage', (event) => {
           this.reportListenerFailure(event)
         })
@@ -1608,7 +1703,11 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /** Registers the handle for a session this connection now holds. */
-  private track(record: { readonly sessionId: string }, modelId: string): MuseSession {
+  private track(
+    record: { readonly sessionId: string },
+    modelId: string,
+    isNew = false,
+  ): MuseSession {
     const existing = this.sessions.get(record.sessionId)
     if (existing !== undefined) {
       // A second surface on the same session: closing one must not deafen the other.
@@ -1623,6 +1722,9 @@ export class MuseCodeHost implements AgentHost {
         this.sessions.delete(record.sessionId)
       },
       this.info.grantedCapabilities.includes(MSP_USER_SHELL_CAPABILITY),
+      this.usageRecording === undefined
+        ? undefined
+        : new MuseUsageDeltas(this.usageRecording, record.sessionId, modelId, isNew),
     )
     this.sessions.set(record.sessionId, handle)
     const waiting = this.unclaimed.get(record.sessionId) ?? []
@@ -1999,7 +2101,7 @@ export class MuseCodeHost implements AgentHost {
         throw ceilingOr(error)
       }
       const { session } = sessionStartResultSchema.parse(result)
-      return this.track(session, session.modelId ?? options.modelId)
+      return this.track(session, session.modelId ?? options.modelId, true)
     })
   }
 

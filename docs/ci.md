@@ -10,6 +10,8 @@ still open, so this page does not claim certified headless or Action support,
 nor npm-registry Action support. Command receipts and precise claim limits live in
 [m80.md](certification/m80.md).
 
+ACP and headless Model API/BYO requests share a hard local-day budget in the agent data folder. Its `settings.json` accepts `{"paidDailyBudgetUsd":5}` (USD; default $5, range $0.50–$500), corresponding to the extension’s `museSpark.paidDailyBudgetUsd`. Reservations use an exclusive cross-process lock before dispatch and settle from verified usage; an interrupted or unpriced request retains its liability. Headless also requires `--max-budget-usd`, and BYO attempts use the same usage journal as interactive turns. Image generation still requires its flag and consent (or the headless flag plus hard run budget). Hosted search is unavailable in this runtime while the hard daily budget is active because its returned fees have no dispatch bound.
+
 ## One prompt, one workspace, one turn
 
 ```text
@@ -702,6 +704,8 @@ ran none of L/LA/LR, read no real credential and called no model.
 
 ## Resource governor in headless runs
 
+### Reading local usage
+
 M107 adds `--resource-governor on|off`, `--cpu-max <30–100>` and
 `--memory-max <40–98>` to the exec parser and Help reference. Omitted flags
 retain machine settings; flags override only the run. Settings use the
@@ -759,3 +763,8 @@ extension. Provider-specific evidence is injected at the backend factory;
 unknown capabilities stay off. Native Muse Code effort, deletion and feedback
 remain unavailable until their captured feature ports are supplied. These
 limits apply equally to every ACP editor and to headless execution.
+`muse-spark-code-acp --usage` (or `usage --json`) reads the same versioned local
+journal and checked page totals as the interactive page. It makes no model
+request. Headless executions record settled calls through the shared writer;
+usage files contain no prompts, paths, keys or key digests. This does not change
+M80's pending hosted/live certification or paid admission policy.

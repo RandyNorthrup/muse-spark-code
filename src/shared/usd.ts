@@ -27,6 +27,14 @@ function radix(): bigint {
   return BigInt(USD_DECIMAL_RADIX)
 }
 
+/** Positive remainder rounds a liability upward; negative amounts round toward zero. */
+function ceilingDivide(numerator: bigint, denominator: bigint): bigint {
+  return (
+    numerator / denominator +
+    (numerator % denominator > USD_DECIMAL_ZERO ? USD_DECIMAL_ONE : USD_DECIMAL_ZERO)
+  )
+}
+
 export class Usd {
   public static from(amount: number | string): Usd {
     const match = DECIMAL.exec(String(amount))
@@ -44,36 +52,38 @@ export class Usd {
     return new Usd(units, places)
   }
 
-  private constructor(
-    private readonly coefficient: bigint,
-    private readonly places: number,
-  ) {}
+  readonly #coefficient: bigint
+  readonly #places: number
+  private constructor(coefficient: bigint, places: number) {
+    this.#coefficient = coefficient
+    this.#places = places
+  }
 
-  private aligned(places: number): bigint {
-    return this.coefficient * radix() ** BigInt(places - this.places)
+  #aligned(places: number): bigint {
+    return this.#coefficient * radix() ** BigInt(places - this.#places)
   }
 
   /** Refuse precision loss at fixed-unit boundaries. */
   public units(places: number): bigint {
-    if (places >= this.places) return this.aligned(places)
-    const divisor = radix() ** BigInt(this.places - places)
-    if (this.coefficient % divisor !== USD_DECIMAL_ZERO)
+    if (places >= this.#places) return this.#aligned(places)
+    const divisor = radix() ** BigInt(this.#places - places)
+    if (this.#coefficient % divisor !== USD_DECIMAL_ZERO)
       throw new Error('USD amount is not representable')
-    return this.coefficient / divisor
+    return this.#coefficient / divisor
   }
 
   public add(amount: Usd): Usd {
-    const places = Math.max(this.places, amount.places)
-    return new Usd(this.aligned(places) + amount.aligned(places), places)
+    const places = Math.max(this.#places, amount.#places)
+    return new Usd(this.#aligned(places) + amount.#aligned(places), places)
   }
 
   public subtract(amount: Usd): Usd {
-    return this.add(new Usd(-amount.coefficient, amount.places))
+    return this.add(new Usd(-amount.#coefficient, amount.#places))
   }
 
   public times(count: number): Usd {
     if (!Number.isSafeInteger(count)) throw new Error('USD multiplier must be a safe integer')
-    return new Usd(this.coefficient * BigInt(count), this.places)
+    return new Usd(this.#coefficient * BigInt(count), this.#places)
   }
 
   /** Prices are divided by powers of ten (per thousand/per million), exactly. */
@@ -82,34 +92,30 @@ export class Usd {
     if (!Number.isSafeInteger(places) || places < 0) {
       throw new Error('USD divisor must be a positive power of ten')
     }
-    return new Usd(this.coefficient, this.places + places)
+    return new Usd(this.#coefficient, this.#places + places)
   }
 
   /** Non-terminating division rounds liabilities UP to nano-USD, by policy. */
   public divideIntegerCeiling(divisor: number): Usd {
     if (!Number.isSafeInteger(divisor) || divisor <= 0)
       throw new Error('USD divisor must be positive')
-    const places = Math.max(this.places, USD_LIABILITY_DECIMALS)
-    const numerator = this.aligned(places)
+    const places = Math.max(this.#places, USD_LIABILITY_DECIMALS)
+    const numerator = this.#aligned(places)
     const denominator = BigInt(divisor)
-    return new Usd(
-      numerator / denominator +
-        (numerator % denominator > USD_DECIMAL_ZERO ? USD_DECIMAL_ONE : USD_DECIMAL_ZERO),
-      places,
-    )
+    return new Usd(ceilingDivide(numerator, denominator), places)
   }
 
   public compare(amount: Usd): number {
-    const difference = this.subtract(amount).coefficient
+    const difference = this.subtract(amount).#coefficient
     if (difference === USD_DECIMAL_ZERO) return 0
     return difference < USD_DECIMAL_ZERO ? -1 : 1
   }
 
   /** Whole output tokens affordable at an exact per-token price. */
   public floorDivide(price: Usd): bigint {
-    const places = Math.max(this.places, price.places)
-    const numerator = this.aligned(places)
-    const denominator = price.aligned(places)
+    const places = Math.max(this.#places, price.#places)
+    const numerator = this.#aligned(places)
+    const denominator = price.#aligned(places)
     if (denominator <= USD_DECIMAL_ZERO) throw new Error('USD token price must be positive')
     const whole = numerator / denominator
     return numerator < USD_DECIMAL_ZERO && numerator % denominator !== USD_DECIMAL_ZERO
@@ -119,23 +125,18 @@ export class Usd {
 
   /** Display policy: ceiling to the requested decimal precision, never under-report. */
   public ceiling(places: number): Usd {
-    if (places >= this.places) return this
-    const divisor = radix() ** BigInt(this.places - places)
-    const quotient = this.coefficient / divisor
-    const remainder = this.coefficient % divisor
-    return new Usd(
-      quotient + (remainder > USD_DECIMAL_ZERO ? USD_DECIMAL_ONE : USD_DECIMAL_ZERO),
-      places,
-    )
+    if (places >= this.#places) return this
+    const divisor = radix() ** BigInt(this.#places - places)
+    return new Usd(ceilingDivide(this.#coefficient, divisor), places)
   }
 
   public toString(): string {
-    const isNegative = this.coefficient < USD_DECIMAL_ZERO
-    const digits = (isNegative ? -this.coefficient : this.coefficient)
+    const isNegative = this.#coefficient < USD_DECIMAL_ZERO
+    const digits = (isNegative ? -this.#coefficient : this.#coefficient)
       .toString()
-      .padStart(this.places + 1, '0')
-    const whole = this.places === 0 ? digits : digits.slice(0, -this.places)
-    const fraction = this.places === 0 ? '' : digits.slice(-this.places).replace(/0+$/, '')
+      .padStart(this.#places + 1, '0')
+    const whole = this.#places === 0 ? digits : digits.slice(0, -this.#places)
+    const fraction = this.#places === 0 ? '' : digits.slice(-this.#places).replace(/0+$/, '')
     return `${isNegative ? '-' : ''}${whole}${fraction === '' ? '' : `.${fraction}`}`
   }
 

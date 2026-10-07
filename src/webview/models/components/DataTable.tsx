@@ -1,10 +1,10 @@
+import { webviewKey } from '../../../shared/keybindings'
 // A sortable keyboard grid that becomes cards at narrow widths (M95:
 // the dropdowns follow the combobox pattern, the table is a grid with
 // arrow keys and Enter; at 320 px the table is a list of cards). Sort
 // headers are buttons; the active row is tracked with
 // aria-activedescendant so the grid keeps the single Tab stop.
 
-import { webviewKey } from '../../../shared/keybindings'
 import { type KeyboardEvent, type ReactNode, useState } from 'react'
 
 export interface DataColumn {
@@ -72,7 +72,7 @@ export function DataTable({
     if (event.target !== event.currentTarget) {
       return
     }
-    switch (webviewKey('models.grid', event)) {
+    switch (webviewKey('models.table', event)) {
       case 'next': {
         event.preventDefault()
         move(1)

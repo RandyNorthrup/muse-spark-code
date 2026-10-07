@@ -1,14 +1,15 @@
 // Build the real shipped Node entries once with the production plugins.
 // Each drill changes its own metafile copy, never shared dist/ files.
+import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdtempSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import { build } from 'esbuild'
-import { compressedReference } from '../../scripts/lib/compressedReference.mjs'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+
 import * as z from 'zod/mini'
 import { EN } from '../../src/shared/l10n/en'
 import { L10N_COMPRESSION_QUALITY } from '../../src/shared/constants'
@@ -26,12 +27,15 @@ import {
   sharedWire,
   sharedResourceAdmission,
   sharedStructuredSchema,
+  sharedModelApiBoundaries,
 } from '../../scripts/lib/deferredBundles.mjs'
 import type * as validation from '../../src/shared/validationEntry'
 import type * as resourceGovernor from '../../src/core/resources/resourceGovernorEntry'
 import type * as runtimeResources from '../../src/runtime/resources/entry'
 import { resourceSettingsSchema } from '../../src/shared/resources'
+import { deferredTeamView } from '../../scripts/lib/deferredTeamView.mjs'
 import { removeFolder } from './helpers/temporaryFolders'
+import { legalReportEnvelopeSchema } from '../../src/runtime/legal/runLegal'
 
 const metafileSchema = z.looseObject({
   inputs: z.record(z.string(), z.unknown()),
@@ -60,6 +64,7 @@ const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'muse-deferred-bundles-'))
 const bundleTexts = new Map<string, string>()
 const inputMaps = new Map<string, ReadonlyMap<string, number>>()
 const supportModules = new Map<string, unknown>()
+const gatePrograms = new Map<string, string>()
 const parserSchema = z.object({
   object: z.custom<typeof validation.object>((value) => typeof value === 'function'),
   string: z.custom<typeof validation.string>((value) => typeof value === 'function'),
@@ -79,53 +84,68 @@ beforeAll(async () => {
     define: { 'process.env.NODE_ENV': '"production"' },
   } as const
   const builds = await Promise.all([
-    build({
-      ...common,
-      outdir: 'dist',
-      entryPoints: {
-        extension: 'src/extension.ts',
-        questionNotes: 'src/core/questions/deferralEntry.ts',
-        reference: 'src/shared/reference/referenceEntry.ts',
-        providers: 'src/host/backend/providersEntry.ts',
-        modelsPanel: 'src/host/models/modelsPanelEntry.ts',
-        conversation: 'src/host/conversation/conversationEntry.ts',
-        modelApi: 'src/host/backend/modelApiEntry.ts',
-        mcpPool: 'src/core/backends/modelapi/mcpPoolEntry.ts',
-        modelApiCodeIntel: 'src/core/backends/modelapi/codeIntelEntry.ts',
-        sessionBoard: 'src/host/sessionBoardEntry.ts',
-        reviewer: 'src/core/backends/modelapi/reviewerEntry.ts',
-        foreignHooks: 'src/core/backends/modelapi/foreignHooksEntry.ts',
-        hookRuntime: 'src/core/backends/modelapi/hookRuntimeEntry.ts',
-        pluginHooks: 'src/core/backends/modelapi/pluginHooksEntry.ts',
-        tab: 'src/host/tab/tabEntry.ts',
-        judge: 'src/host/judge/judgeEntry.ts',
-        report: 'src/host/support/reportEntry.ts',
-        recorder: 'src/host/support/recorderEntry.ts',
-        codeIntel: 'src/host/ide/codeIntelEntry.ts',
-        voice: 'src/host/voice/voiceEntry.ts',
-        webFetch: 'src/host/web/webFetchEntry.ts',
-        museCodeReviewer: 'src/host/review/museCodeReviewerEntry.ts',
-        whatsNew: 'src/host/whatsNew/whatsNewEntry.ts',
-        browserCheck: 'src/host/browser/browserCheckEntry.ts',
-        browserRuntime: 'src/host/browser/browserRuntimeEntry.ts',
-        checkpointStore: 'src/host/checkpoints/checkpointStoreEntry.ts',
-        pageWorker: 'src/host/web/pageWorker.ts',
-        searchWorker: 'src/host/backend/searchWorker.ts',
-        imageResizeWorker: 'src/core/imageResizeWorker.ts',
-        resourceGovernor: 'src/core/resources/resourceGovernorEntry.ts',
-        resourceAdmission: 'src/core/resources/admission.ts',
-      },
-      plugins: [
-        compressedReference,
-        sharedUiText,
-        sharedValidation,
-        deferredCohort,
-        sharedWire,
-        sharedResourceAdmission,
-        sharedStructuredSchema,
-      ],
-      external: ['vscode', '@napi-rs/keyring'],
-    }),
+    ...Object.entries({
+      resourceGovernor: 'src/core/resources/resourceGovernorEntry.ts',
+      resourceAdmission: 'src/core/resources/admission.ts',
+      mcpPool: 'src/core/backends/modelapi/mcpPoolEntry.ts',
+      modelApiCodeIntel: 'src/core/backends/modelapi/codeIntelEntry.ts',
+      questionNotes: 'src/core/questions/deferralEntry.ts',
+      reference: 'src/shared/reference/referenceEntry.ts',
+      runtimeEngine: 'src/runtime/runtimeEngineEntry.ts',
+      providerPolicy: 'src/host/backend/providerPolicyEntry.ts',
+      modelApiHooks: 'src/core/backends/modelapi/modelApiHooksEntry.ts',
+      modelApiMcp: 'src/core/backends/modelapi/modelApiMcpEntry.ts',
+      runtimeAccounting: 'src/runtime/runtimeAccountingEntry.ts',
+      legalScan: 'src/core/legal/entry.ts',
+      imageResizeWorker: 'src/core/imageResizeWorker.ts',
+      extension: 'src/extension.ts',
+      conversation: 'src/host/conversation/conversationEntry.ts',
+      modelApi: 'src/host/backend/modelApiEntry.ts',
+      providers: 'src/host/backend/providersEntry.ts',
+      subscriptions: 'src/host/backend/subscriptionsEntry.ts',
+      configuredProviders: 'src/host/backend/configuredProvidersEntry.ts',
+      usageService: 'src/runtime/usage/usageServiceEntry.ts',
+      usageCompanion: 'src/runtime/usage/usageCompanionEntry.ts',
+      usagePanel: 'src/host/usage/usagePanelEntry.ts',
+      headless: 'src/runtime/exec/runExec.ts',
+      modelsPanel: 'src/host/models/modelsPanelEntry.ts',
+      sessionBoard: 'src/host/sessionBoardEntry.ts',
+      reviewer: 'src/core/backends/modelapi/reviewerEntry.ts',
+      foreignHooks: 'src/core/backends/modelapi/foreignHooksEntry.ts',
+      hookRuntime: 'src/core/backends/modelapi/hookRuntimeEntry.ts',
+      pluginHooks: 'src/core/backends/modelapi/pluginHooksEntry.ts',
+      tab: 'src/host/tab/tabEntry.ts',
+      judge: 'src/host/judge/judgeEntry.ts',
+      report: 'src/host/support/reportEntry.ts',
+      recorder: 'src/host/support/recorderEntry.ts',
+      codeIntel: 'src/host/ide/codeIntelEntry.ts',
+      voice: 'src/host/voice/voiceEntry.ts',
+      webFetch: 'src/host/web/webFetchEntry.ts',
+      museCodeReviewer: 'src/host/review/museCodeReviewerEntry.ts',
+      whatsNew: 'src/host/whatsNew/whatsNewEntry.ts',
+      browserCheck: 'src/host/browser/browserCheckEntry.ts',
+      browserRuntime: 'src/host/browser/browserRuntimeEntry.ts',
+      checkpointStore: 'src/host/checkpoints/checkpointStoreEntry.ts',
+      pageWorker: 'src/host/web/pageWorker.ts',
+      searchWorker: 'src/host/backend/searchWorker.ts',
+    }).map(([name, entry]) =>
+      build({
+        ...common,
+        outfile: `dist/${name}.js`,
+        entryPoints: [entry],
+        plugins: [
+          sharedUiText,
+          sharedValidation,
+          deferredCohort,
+          sharedWire,
+          sharedResourceAdmission,
+          sharedStructuredSchema,
+          deferredTeamView,
+          sharedModelApiBoundaries,
+        ],
+        external: ['vscode', '@napi-rs/keyring'],
+      }),
+    ),
     build({
       ...common,
       outdir: 'dist',
@@ -143,6 +163,8 @@ beforeAll(async () => {
         sharedWire,
         sharedResourceAdmission,
         sharedStructuredSchema,
+        deferredTeamView,
+        sharedModelApiBoundaries,
       ],
       external: ['@napi-rs/keyring'],
     }),
@@ -150,6 +172,31 @@ beforeAll(async () => {
       ...common,
       outdir: 'dist',
       entryPoints: { wire: 'src/shared/wireEntry.ts' },
+      plugins: [sharedUiText, sharedValidation, deferredTeamView, sharedModelApiBoundaries],
+    }),
+    build({
+      ...common,
+      outdir: 'dist',
+      entryPoints: {
+        team: 'src/core/team/teamEntry.ts',
+        teamScheduler: 'src/core/team/teamSchedulerEntry.ts',
+        teamRunners: 'src/host/runners/teamRunnersEntry.ts',
+      },
+      plugins: [
+        sharedUiText,
+        sharedValidation,
+        deferredCohort,
+        sharedWire,
+        sharedResourceAdmission,
+        sharedStructuredSchema,
+        sharedModelApiBoundaries,
+      ],
+      external: ['vscode', '@napi-rs/keyring'],
+    }),
+    build({
+      ...common,
+      outdir: 'dist',
+      entryPoints: { modelApiBoundaries: 'src/shared/modelApiBoundariesEntry.ts' },
       plugins: [sharedUiText, sharedValidation],
     }),
     build({
@@ -186,7 +233,7 @@ beforeAll(async () => {
         outputs: { [`dist/${name}.js`]: details },
       })
       fixtures.set(
-        `dist/${['acp', 'exec', 'acpQuestions', 'runtimeQuestions'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
+        `dist/${['acp', 'exec', 'headless', 'acpQuestions', 'runtimeQuestions'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
         {
           bytes: Buffer.from(JSON.stringify(meta)),
           meta,
@@ -195,6 +242,27 @@ beforeAll(async () => {
     }
   }
   parsers.push(parserSchema.parse(loadSupportBundle('validation')))
+})
+
+beforeAll(async () => {
+  mkdirSync(path.join(fixtureRoot, 'dist'), { recursive: true })
+  for (const [name, text] of bundleTexts) writeFileSync(bundleFile(name), text)
+  writeFileSync(path.join(fixtureRoot, 'package.json'), readFileSync('package.json'))
+  await Promise.all(
+    ['check-bundle-size', 'check-host-globals'].map(async (name) => {
+      const built = await build({
+        entryPoints: [`scripts/${name}.mjs`],
+        bundle: true,
+        write: false,
+        platform: 'node',
+        format: 'cjs',
+        logLevel: 'silent',
+      })
+      const output = built.outputFiles[0]
+      if (output === undefined) throw new Error(`Missing gate program: ${name}`)
+      gatePrograms.set(name, output.text)
+    }),
+  )
 })
 
 afterAll(() => {
@@ -208,7 +276,7 @@ afterAll(() => {
 afterAll(() => removeFolder(fixtureRoot))
 
 function bundleFile(name: string) {
-  return path.join(fixtureRoot, `${name}.js`)
+  return path.join(fixtureRoot, 'dist', `${name}.js`)
 }
 
 function loadSupportBundle(name: string): unknown {
@@ -221,10 +289,11 @@ function loadSupportBundle(name: string): unknown {
     { filename: entry },
   )
   Reflect.apply(run, undefined, [
-    (file: string): unknown =>
-      file.startsWith('./') && bundleTexts.has(path.basename(file, '.js'))
-        ? loadSupportBundle(path.basename(file, '.js'))
-        : createRequire(entry)(file),
+    (file: string): unknown => {
+      if (file.startsWith('./') && bundleTexts.has(path.basename(file, '.js')))
+        return loadSupportBundle(path.basename(file, '.js'))
+      return file === 'vscode' ? {} : createRequire(entry)(file)
+    },
     module,
     module.exports,
     path.dirname(entry),
@@ -232,6 +301,65 @@ function loadSupportBundle(name: string): unknown {
   ])
   supportModules.set(name, module.exports)
   return module.exports
+}
+
+// Run the unchanged CLI gates against the private real scanner. Other Node
+// entries use the production builds above; unrelated browser outputs are fakes
+// (their closure budgets have a dedicated bundleSize suite).
+function runLegalGate(name: string) {
+  const program = gatePrograms.get(name)
+  if (program === undefined) throw new Error(`Missing gate program: ${name}`)
+  const scanner = readFileSync(bundleFile('legalScan'), 'utf8')
+  const textOf = (file: string) =>
+    file.replaceAll('\\', '/') === 'dist/legalScan.js'
+      ? scanner
+      : (bundleTexts.get(path.basename(file.replaceAll('\\', '/'), '.js')) ?? '')
+  const meta = {
+    outputs: {
+      ...Object.fromEntries(
+        ['main', 'models', 'usage', 'whatsNew'].map((page) => [
+          `dist/webview/${page}.js`,
+          { imports: [] },
+        ]),
+      ),
+      'dist/webview/models-body.js': {
+        imports: [],
+        entryPoint: 'src/webview/models/panel.tsx',
+      },
+      'dist/webview/usage-body.js': {
+        imports: [],
+        entryPoint: 'src/webview/usage/UsageApp.tsx',
+      },
+    },
+  }
+  let status = 0
+  const stdout: string[] = []
+  const stderr: string[] = []
+  vm.runInNewContext(program, {
+    require: (file: string): unknown => {
+      if (file !== 'node:fs') throw new Error(`Unexpected gate dependency: ${file}`)
+      return {
+        existsSync: () => true,
+        readFileSync: (file: string) =>
+          file.endsWith('.json') ? JSON.stringify(meta) : textOf(file),
+        statSync: (file: string) => ({ size: Buffer.byteLength(textOf(file)) }),
+      }
+    },
+    process: {
+      exit: (code: number) => {
+        status = code
+      },
+    },
+    console: {
+      log: (line: string) => {
+        stdout.push(line)
+      },
+      error: (line: string) => {
+        stderr.push(line)
+      },
+    },
+  })
+  return { status, stdout: stdout.join('\n'), stderr: stderr.join('\n') }
 }
 
 function bundleText(name: string) {
@@ -393,6 +521,126 @@ describe('deferred cohort bundles', () => {
     }
   })
 
+  it('installs the caller language in the compiled subscription command factory', async () => {
+    const loaded = loadSupportBundle('modelsPanel')
+    if (
+      typeof loaded !== 'object' ||
+      loaded === null ||
+      !('createSubscriptionFeatures' in loaded) ||
+      typeof loaded.createSubscriptionFeatures !== 'function'
+    )
+      throw new Error('Missing subscription factory')
+    const fetcher = vi.fn(() => Promise.reject(new Error('No provider calls')))
+    const options = {
+      l10n: {
+        locale: 'fr',
+        table: {
+          ...EN,
+          planUi: { ...EN.planUi, copilotUnavailable: 'synthetic French model recovery' },
+        },
+      },
+      log: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), trace: vi.fn() },
+      secrets: {
+        get: () => Promise.resolve(undefined),
+        store: () => Promise.resolve(),
+        delete: () => Promise.resolve(),
+      },
+      globalStorageUri: { fsPath: path.resolve('temp') },
+      configFile: 'synthetic-unused.json',
+      globalState: { get: () => undefined, update: () => Promise.resolve() },
+      isRemote: false,
+      isConfidential: () => false,
+      access: { canSendRequest: () => false, onDidChange: () => ({ dispose: vi.fn() }) },
+      fetch: fetcher,
+      connected: () => Promise.resolve(),
+      disconnected: () => Promise.resolve(),
+    }
+    try {
+      const features: unknown = Reflect.apply(loaded.createSubscriptionFeatures, undefined, [
+        options,
+      ])
+      if (
+        typeof features !== 'object' ||
+        features === null ||
+        !('connectCopilot' in features) ||
+        typeof features.connectCopilot !== 'function'
+      )
+        throw new Error('Missing subscription action')
+      await expect(Reflect.apply(features.connectCopilot, undefined, [])).rejects.toThrow(
+        options.l10n.table.planUi.copilotUnavailable,
+      )
+      expect(fetcher).not.toHaveBeenCalled()
+    } finally {
+      Reflect.apply(loaded.createSubscriptionFeatures, undefined, [
+        { ...options, l10n: { table: EN, locale: 'en' } },
+      ])
+    }
+  })
+  it('installs the caller language before translated ChatGPT failures leave the lazy bundle', () => {
+    const loaded = loadSupportBundle('subscriptions')
+    if (
+      typeof loaded !== 'object' ||
+      loaded === null ||
+      !('runtimeChatGptCommandDeps' in loaded) ||
+      typeof loaded.runtimeChatGptCommandDeps !== 'function' ||
+      !('setUiText' in loaded) ||
+      typeof loaded.setUiText !== 'function'
+    )
+      throw new Error('Missing provider factory')
+    const table = {
+      ...EN,
+      acpChatGpt: { ...EN.acpChatGpt, storeUnavailable: 'synthetic French desktop recovery' },
+    }
+    try {
+      const deps: unknown = Reflect.apply(loaded.runtimeChatGptCommandDeps, undefined, [
+        {
+          uiText: table,
+          locale: 'fr',
+          configFile: 'synthetic-unused.json',
+          secrets: {
+            get: () => Promise.resolve(undefined),
+            store: () => Promise.resolve(),
+            delete: () => Promise.resolve(),
+          },
+          fetch,
+          openBrowser: () => Promise.resolve(),
+          callbackText: () => '',
+          print: vi.fn(),
+          printError: vi.fn(),
+        },
+      ])
+      if (
+        typeof deps !== 'object' ||
+        deps === null ||
+        !('text' in deps) ||
+        typeof deps.text !== 'object' ||
+        deps.text === null ||
+        !('failure' in deps.text) ||
+        typeof deps.text.failure !== 'function'
+      )
+        throw new Error('Missing translated command text')
+      const message: unknown = Reflect.apply(deps.text.failure, undefined, ['store-unavailable'])
+      expect(message).toBe(table.acpChatGpt.storeUnavailable)
+    } finally {
+      Reflect.apply(loaded.setUiText, undefined, [EN, 'en'])
+    }
+  })
+  it('keeps ChatGPT runtime and core in subscriptions.js behind the real ACP dynamic import', () => {
+    const acpInputs = inputs('acp')
+    expect(bundleText('acp')).toContain('./subscriptions.js')
+    for (const file of [
+      'src/runtime/chatGptProviderCommands.ts',
+      'src/runtime/chatGptHost.ts',
+      'src/core/providers/subscriptions/chatgpt.ts',
+    ]) {
+      expect(inputs('subscriptions')).toContain(file)
+      expect(acpInputs).not.toContain(file)
+    }
+    const bundle = loadSupportBundle('subscriptions')
+    expect(bundle).toHaveProperty('runtimeChatGptCommandDeps', expect.any(Function))
+    expect(bundle).toHaveProperty('runChatGptProviderCommand', expect.any(Function))
+    expect(bundle).toHaveProperty('chatGptAuthenticationMethods', expect.any(Function))
+  })
   it('loads the activation entry without requiring either action bundle', () => {
     const entry = bundleFile('extension')
     expect(bundleText('extension')).toContain('conversation.js')
@@ -440,6 +688,80 @@ describe('deferred cohort bundles', () => {
     }
   })
 
+  it('emits the legal scanner once and keeps it out of both initial bundles', () => {
+    expect(inputs('legalScan')).toContain('src/core/legal/entry.ts')
+    expect(inputs('extension')).not.toContain('src/core/legal/entry.ts')
+    const acp: unknown = fixture('dist/meta-acp/acp.json').meta
+    expect(metafileSchema.parse(acp).outputs['dist/acp.js']?.inputs).not.toHaveProperty(
+      'src/core/legal/entry.ts',
+    )
+  })
+  it('runs the production headless scanner with pure JSON and no network, backend or keyring', () => {
+    const entry = bundleFile('acp')
+    const wrapper = `
+      const entry = process.argv[1];
+      const denied = (surface) => { process.stderr.write('unexpected ' + surface); throw new Error(surface); };
+      globalThis.fetch = () => denied('network');
+      require('node:child_process').spawn = () => denied('backend');
+      const Module = require('node:module');
+      const original = Module._load;
+      Module._load = function(request, ...rest) {
+        if (request === '@napi-rs/keyring') return denied('keyring');
+        return Reflect.apply(original, this, [request, ...rest]);
+      };
+      process.argv = [process.execPath, entry, 'legal', '--format', 'json'];
+      require(entry);
+    `
+    const result = spawnSync(process.execPath, ['-e', wrapper, entry], {
+      cwd: path.resolve('test/fixtures/legal/tree'),
+      encoding: 'utf8',
+      timeout: 120_000,
+    })
+    expect(result.error).toBeUndefined()
+    expect([0, 1, 2]).toContain(result.status)
+    // Locale diagnostics belong on stderr; any forbidden surface emits our sentinel.
+    expect(result.stderr).not.toContain('unexpected')
+    const body: unknown = JSON.parse(result.stdout)
+    const report = legalReportEnvelopeSchema.parse(body)
+    expect(report.result.ruleVersion).not.toBe('unavailable')
+    expect(report.registry).toMatchObject({ enabled: false, queried: [] })
+    expect(report.disclaimer.length).toBeGreaterThan(0)
+  })
+
+  it('fires the legal scanner cap and restores the artifact byte-exact', () => {
+    const file = bundleFile('legalScan')
+    const original = readFileSync(file)
+    const hash = createHash('sha256').update(original).digest('hex')
+    try {
+      writeFileSync(file, Buffer.alloc(150 * 1024 + 1))
+      const red = runLegalGate('check-bundle-size')
+      expect(red.status).toBe(1)
+      expect(red.stdout).toContain('OVER dist/legalScan.js')
+    } finally {
+      writeFileSync(file, original)
+    }
+    expect(createHash('sha256').update(readFileSync(file)).digest('hex')).toBe(hash)
+    const green = runLegalGate('check-bundle-size')
+    expect(green.status, green.stderr).toBe(0)
+  })
+
+  it('fires the legal scanner host-global guard and restores the artifact byte-exact', () => {
+    const file = bundleFile('legalScan')
+    const original = readFileSync(file)
+    const hash = createHash('sha256').update(original).digest('hex')
+    try {
+      writeFileSync(file, Buffer.concat([original, Buffer.from('\nvoid navigator;\n')]))
+      const red = runLegalGate('check-host-globals')
+      expect(red.status).toBe(1)
+      expect(red.stdout).toContain('FAIL dist/legalScan.js')
+    } finally {
+      writeFileSync(file, original)
+    }
+    expect(createHash('sha256').update(readFileSync(file)).digest('hex')).toBe(hash)
+    const green = runLegalGate('check-host-globals')
+    expect(green.status, green.stderr).toBe(0)
+  })
+
   it('keeps board and best-of-N execution out of activation', () => {
     const files = inputs('extension')
     expect(files).not.toContain('src/host/bestOfN/bestOfNManager.ts')
@@ -482,6 +804,22 @@ describe('deferred cohort bundles', () => {
       }
     }
     expect(inputs('providers')).toContain('src/core/providers/providersFile.ts')
+  })
+
+  it('shares the captured Model API validators and pure team admission across Node consumers', () => {
+    for (const source of [
+      'src/core/backends/modelapi/schemas.ts',
+      'src/shared/teamConversation.ts',
+      'src/shared/paidBoundary.ts',
+      'src/shared/legal.ts',
+      'src/core/backends/modelapi/legalScanTool.ts',
+    ]) {
+      expect(inputs('modelApiBoundaries')).toContain(source)
+      for (const parent of ['extension', 'modelApi', 'acp', 'providers']) {
+        expect(inputs(parent)).not.toContain(source)
+      }
+    }
+    expect(bundleText('modelApi')).toContain('./modelApiBoundaries.js')
   })
 
   it('keeps paid review execution out of the session first-turn bundle', () => {
@@ -561,6 +899,15 @@ describe('deferred cohort bundles', () => {
   })
 
   it.each([
+    ['providerPolicy', 'src/host/backend/providerPolicyEntry.ts', 'missing'],
+    ['providerPolicy', 'src/core/backends/modelapi/codecs/chat.ts', 'in dist/providers.js'],
+    ['hookRuntime', 'src/core/backends/modelapi/hookHandlers.ts', 'missing'],
+    ['modelApiMcp', 'src/core/backends/modelapi/mcp/pool.ts', 'missing'],
+    ['runtimeAccounting', 'src/runtime/runtimeAccountingEntry.ts', 'missing'],
+    ['modelApi', 'src/core/backends/modelapi/hookHandlers.ts', 'on its first action'],
+    ['modelApi', 'src/core/backends/modelapi/mcp/pool.ts', 'on its first action'],
+    ['acp', 'src/runtime/runtimeAccountingEntry.ts', 'on its first action'],
+    ['reviewer', 'src/core/backends/modelapi/reviewerEntry.ts', 'missing'],
     [
       'acp',
       'src/acp/questionDeferral.ts',
@@ -574,7 +921,7 @@ describe('deferred cohort bundles', () => {
     ['reviewer', 'src/core/backends/modelapi/reviewerEntry.ts', 'missing'],
     ['modelApiCodeIntel', 'src/core/backends/modelapi/codeIntelCalls.ts', 'missing'],
     ['mcpPool', 'src/core/backends/modelapi/mcp/pool.ts', 'missing'],
-    ['exec', 'src/runtime/exec/runExec.ts', 'missing'],
+    ['headless', 'src/runtime/exec/runExec.ts', 'missing'],
     ['structuredSchema', 'src/shared/structuredSchemaEntry.ts', 'missing'],
     ['modelApi', 'src/core/backends/modelapi/codeIntelCalls.ts', 'on its first action'],
     ['modelApi', 'src/core/backends/modelapi/mcp/pool.ts', 'on its first action'],
@@ -610,12 +957,28 @@ describe('deferred cohort bundles', () => {
     ['providers', 'src/core/backends/modelapi/codecs/responses.ts', 'missing'],
     ['providers', 'src/core/backends/modelapi/codecs/chat.ts', 'missing'],
     ['providers', 'src/core/backends/modelapi/codecs/ollama.ts', 'missing'],
+    ['extension', 'src/core/legal/entry.ts', 'on the first legal scan'],
+    ['subscriptions', 'src/core/providers/subscriptions/chatgpt.ts', 'missing'],
+    ['subscriptions', 'src/core/providers/subscriptions/registry.ts', 'missing'],
+    ['configuredProviders', 'src/core/providers/configured.ts', 'missing'],
+    ['configuredProviders', 'src/core/backends/modelapi/authSource.ts', 'missing'],
+    ['configuredProviders', 'src/core/backends/modelapi/providerClient.ts', 'missing'],
+    ['usageService', 'src/runtime/usage/usageAcp.ts', 'missing'],
+    ['acp', 'src/runtime/usage/usageAcp.ts', 'on its first action'],
+    ['headless', 'src/runtime/exec/runExec.ts', 'missing'],
+    ['acp', 'src/runtime/exec/runExec.ts', 'on its first action'],
+    ['modelApi', 'src/core/backends/modelapi/ndjson.ts', 'missing'],
+    ['modelApi', 'src/core/backends/modelapi/transport.ts', 'missing'],
+    ['modelApi', 'src/core/backends/modelapi/sse.ts', 'missing'],
+    ['extension', 'src/core/backends/modelapi/transport.ts', 'in dist/modelApi.js'],
+    ['acp', 'src/core/backends/modelapi/authSource.ts', 'in dist/configuredProviders.js'],
+    ['providers', 'src/core/backends/modelapi/sse.ts', 'in dist/modelApi.js'],
     // M90: the Auto reviewer on Muse Code, required on the first review.
     ['extension', 'src/host/review/museCodeReviewer.ts', 'on the first review'],
   ])(
     'fires the %s split guard for %s and restores its metafile byte-exact',
     (name, source, use) => {
-      const file = `dist/${name === 'acp' || name === 'exec' ? 'meta-acp' : 'meta'}/${name}.json`
+      const file = `dist/${['acp', 'headless'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`
       const meta = structuredClone(fixture(file).meta)
       const original = JSON.stringify(meta)
       const hash = createHash('sha256').update(original).digest('hex')

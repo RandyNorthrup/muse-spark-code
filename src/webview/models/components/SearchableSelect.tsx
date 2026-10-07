@@ -1,3 +1,4 @@
+import { webviewKey } from '../../../shared/keybindings'
 // The searchable provider dropdown (M95 step 8.1): type-ahead over each
 // row's name and one-line description, with filter chips (Cloud, On this
 // computer, Subscription sign-in, Aggregator). Follows the combobox
@@ -5,7 +6,7 @@
 // picks one, Escape closes.
 
 import { type KeyboardEvent, type ReactNode, useId, useMemo, useState } from 'react'
-import { webviewKey } from '../../../shared/keybindings'
+
 import { UI_TEXT } from '../../../shared/constants'
 import { scrollRowIntoView, wrapIndex } from '../../listNavigation'
 

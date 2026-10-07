@@ -1,5 +1,6 @@
 // HELPREF: code/manifest-derived reference and freshness gate. No model calls.
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import LZString from 'lz-string'
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import * as esbuild from 'esbuild'
@@ -227,6 +228,21 @@ export function referenceFacts(source) {
     (platform) => source.locateCaptureHelper(platformProbe(platform)).isAvailable,
   )
   return {
+    providers: {
+      management: ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi'],
+      modelRequests: 'modelApi',
+    },
+    'team-workers': {
+      dispatch: 'integrationPending',
+      controls: 'capturedTaskState',
+      tariff: 'selectedProviderModel',
+    },
+    usage: {
+      journal: 'sharedAcpHeadlessLocalDay',
+      companion: 'loopback',
+      credentials: 'neverExported',
+    },
+    compaction: { automatic: 'evaluationPending', manual: '/compact' },
     acp: {
       operations: source.evidence['src/acp/agent.ts']
         .matchAll(/\.on(?:Request|Notification)\('([^']+)'/g)
@@ -497,7 +513,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
                     configuredDefault: false,
                     flag: source.ACP_PAID_FLAGS[paidId],
                     consent: 'editorPermission',
-                    ledger: false,
+                    ledger: 'runtime:paidDailyBudgetUsd',
                   },
                 ]
               return [
@@ -507,7 +523,9 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
                   key: 'SecretStorage',
                   explicitOptIn: paidId !== 'tab',
                   consent: source.PAID_USE_REGISTRY[paidId].once,
-                  ledger: paidId === 'tab' && 'tabDailyBudgetUsd',
+                  ledger:
+                    { tab: 'tabDailyBudgetUsd', legalExplanation: 'paidDailyBudgetUsd' }[paidId] ??
+                    false,
                 },
               ]
             }),
@@ -758,6 +776,15 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     ...(entry.text !== undefined && { text: source.referenceDescription(entry.text) }),
   }))
   const optionFacts = {
+    'usage-history': { enum: ['on', 'off'], default: 'on' },
+    'no-auto-compaction': { purpose: 'disableAutoCompaction', effective: 'evaluationPending' },
+    privacy: { enum: ['zdr', 'no-training', 'any'] },
+    range: { enum: ['today', '7d', '30d', '90d', 'custom'], default: '30d' },
+    by: { enum: ['provider', 'model', 'kind', 'client'] },
+    from: { format: 'YYYY-MM-DD' },
+    to: { format: 'YYYY-MM-DD' },
+    stdio: { route: 'usage serve', protocol: 'usageCompanion' },
+    registry: { route: 'legal', consent: 'explicitFlag', privateRegistries: 'neverRead' },
     'untrusted-file': {
       maxItems: source.EXEC_UNTRUSTED_FILES_MAX,
       perFileMaxBytes: source.EXEC_UNTRUSTED_FILE_MAX_BYTES,
@@ -825,12 +852,56 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
           ...(option.name === 'maintenance' && route !== 'setup' && { refused: true }),
           repeatable: option.multiple === true,
           ...optionFacts[option.name],
+          ...(['serve', 'login'].includes(route) &&
+            [
+              'provider',
+              'preset',
+              'as',
+              'address',
+              'format',
+              'model',
+              'privacy',
+              'private-ok',
+              'key-stdin',
+            ].includes(option.name) && { refused: true }),
+          ...(['authSet', 'authStatus', 'authClear'].includes(route) &&
+            [
+              'preset',
+              'as',
+              'address',
+              'format',
+              'model',
+              'privacy',
+              'private-ok',
+              'key-stdin',
+            ].includes(option.name) && { refused: true }),
+          ...(route === 'providersAdd' &&
+            option.name === 'format' && {
+              enum: ['chat', 'responses', 'anthropic'],
+              preset: 'custom',
+            }),
+          ...(route === 'providersAdd' && option.name === 'privacy' && { preset: 'openrouter' }),
+          ...(option.name === 'format' && route === 'legal' && { enum: ['text', 'json'] }),
+          ...(option.name === 'json' && { output: 'json' }),
+          ...(option.name === 'csv' && { output: 'csv' }),
+          ...(option.name === 'private-ok' && { consent: 'privateNetwork' }),
           ...(option.type === 'boolean' && { default: false }),
           ...(['login', 'authSet', 'authStatus', 'authClear'].includes(route) &&
+            ![
+              'preset',
+              'as',
+              'address',
+              'format',
+              'model',
+              'privacy',
+              'private-ok',
+              'key-stdin',
+            ].includes(option.name) &&
+            !(route === 'login' && option.name === 'provider') &&
             !(
               route === 'login'
                 ? ['muse-binary', 'verbose', 'help', 'version']
-                : ['help', 'version']
+                : ['help', 'version', 'provider']
             ).includes(option.name) && {
               purpose: 'acceptedUnused',
             }),
@@ -1246,7 +1317,6 @@ export async function generateReference(root, isCheck = false) {
   const tipKeys = [...new Set(texts.filter((text) => 'tip' in text).map((text) => text.tip))]
   const cliKeys = Object.keys(source.EN.referenceCliOptions)
   const textKeys = [...new Set([...uiKeys, ...tipKeys, ...cliKeys])]
-  const textIndices = new Map(textKeys.map((key, index) => [JSON.stringify(key), index]))
   const keyArray = (keys) =>
     `[${keys.map((key) => `textKeys[${textKeys.indexOf(key)}]`).join(',')}]`
   const schema = `
@@ -1352,25 +1422,28 @@ export async function generateReference(root, isCheck = false) {
   const remap = (json) => json.replaceAll(tokens, (token) => remappedTokens.get(token) ?? token)
   for (const [index, { fragment }] of orderedPool.entries()) pool[index] = remap(fragment)
   packed = remap(packed)
-  // Share text identifiers with their boundary enums instead of shipping them twice.
-  const encodeTextKeys = (json) =>
-    json.replaceAll(tokens, (token, offset) => {
-      const index = textIndices.get(token)
-      if (index === undefined) return token
-      const expression = `textKeys[${index}]`
-      return json[offset + token.length] === ':' ? `[${expression}]` : expression
-    })
+  // Lossless generated data; decoded dictionaries and models retain schema validation.
+  const encodedPayload = LZString.compressToBase64(
+    JSON.stringify({
+      pool: pool.map((fragment) => JSON.parse(fragment)),
+      model: JSON.parse(packed),
+    }),
+  )
   const formatting = await resolveConfig(path.join(root, MODULE))
   const module = await format(
     `// Generated by scripts/gen-reference.mjs; do not edit.
 import * as z from 'zod/mini'
+import LZString from 'lz-string'
 import type { ReferenceModel } from './types'
 const textKeys = ${JSON.stringify(textKeys)} as const
 export function referenceModel(): ReferenceModel {
   const referenceRadix = ${source.REFERENCE_POOL_RADIX}
   const numericPrefix = ${JSON.stringify(numericPrefix)}
   const stringPrefixes = ${JSON.stringify(stringPrefixes)}
-  const pool: readonly unknown[] = ${encodeTextKeys(JSON.stringify(pool.map((fragment) => JSON.parse(fragment))))}
+  const packed = z.object({ pool: z.array(z.unknown()), model: z.unknown() }).parse(
+    JSON.parse(LZString.decompressFromBase64(${JSON.stringify(encodedPayload)})),
+  )
+  const pool = packed.pool
   const expand = (value: unknown): unknown => {
     if (typeof value === 'string') {
       if (value.startsWith(numericPrefix)) return Number(value.slice(numericPrefix.length))
@@ -1394,7 +1467,7 @@ export function referenceModel(): ReferenceModel {
       return [name, expand(entry)]
     }))
   }
-  return parseReferenceModel(expand(${encodeTextKeys(packed)}))
+  return parseReferenceModel(expand(packed.model))
 }
 ${schema}
 `,

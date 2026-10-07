@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { beforeAll, describe, expect, it } from 'vitest'
 import type { WorkflowEntry } from '../../src/webview/state/uiState'
 import { renderTranscript, tool } from './helpers/transcriptFixtures'
@@ -11,6 +11,9 @@ import {
   WORKFLOW_SCRIPT_PATH,
   WORKFLOW_TOOL_ITEM,
 } from './helpers/workflowFixtures'
+import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
+
+beforeAll(warmDeferredSurfaces)
 
 const USAGE = { inputTokens: 9995, outputTokens: 135, cachedTokens: 5105, reasoningTokens: 70 }
 
@@ -196,8 +199,10 @@ describe('a workflow run’s card (M47)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Workflow/ }))
     expect(await screen.findByText(/workflows are disabled for this run/)).toBeInTheDocument()
     const row = document.querySelector('[data-entry-id="resume"]')
+    await waitFor(() => {
+      expect(row).toHaveTextContent('workflows are disabled for this run')
+    })
     expect(row).not.toHaveTextContent('run.js')
-    expect(row).toHaveTextContent('workflows are disabled for this run')
     expect(row).not.toHaveTextContent('Launched')
   })
 })

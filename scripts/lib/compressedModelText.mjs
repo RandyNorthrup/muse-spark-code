@@ -45,7 +45,7 @@ export function compressedModelText(isProduction) {
             const keys = entries.map(([key], index) => `${key}:values[${String(index)}]`).join(',')
             // The IIFE is pure because its only input is our canonical literal table.
             // Unused blocks still disappear completely, including their decoder.
-            const contents = `/* @__PURE__ */(()=>{const values=JSON.parse(require('node:zlib').brotliDecompressSync(Buffer.from(${JSON.stringify(packed)},'base64')).toString('utf8'));return {${keys}}})()`
+            const contents = `/* @__PURE__ */(()=>{const values=unpackModelText(${JSON.stringify(packed)});return {${keys}}})()`
             replacements.push({ start: literal.getStart(tree), end: literal.end, contents })
           }
         }
@@ -56,6 +56,7 @@ export function compressedModelText(isProduction) {
             contents.slice(0, replacement.start) +
             replacement.contents +
             contents.slice(replacement.end)
+        contents = `const unpackModelText=(packed)=>JSON.parse(require('node:zlib').brotliDecompressSync(Buffer.from(packed,'base64')).toString('utf8'));\n${contents}`
         return {
           contents,
           loader: 'ts',

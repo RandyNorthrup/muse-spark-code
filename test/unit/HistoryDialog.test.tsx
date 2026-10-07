@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { UI_TEXT } from '../../src/shared/constants'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import type { SessionRow } from '../../src/shared/sessions'
 import {
@@ -71,6 +72,12 @@ function optionTitles(): string[] {
 function archiveMark(title: string, tooltip: string): HTMLElement {
   return within(screen.getByRole('option', { name: new RegExp(title) })).getByTitle(tooltip)
 }
+
+beforeAll(async () => {
+  renderDialog()
+  await screen.findAllByRole('option')
+  cleanup()
+})
 
 describe('layoutHistory', () => {
   it('numbers rows across groups', () => {
@@ -263,4 +270,25 @@ describe('HistoryDialog', () => {
     fireEvent.keyDown(list, { key: 'Escape' })
     expect(props.onClose).toHaveBeenCalledOnce()
   })
+})
+
+it('offers Save prompt on history right-click without resuming or losing archive', async () => {
+  const save = vi.fn()
+  const { props } = renderDialog({ onSavePrompt: save })
+  fireEvent.contextMenu(screen.getByText('Fix the parser'))
+  fireEvent.click(await screen.findByRole('menuitem', { name: UI_TEXT.promptSave }))
+  expect(save).toHaveBeenCalledExactlyOnceWith('now')
+  expect(props.onResume).not.toHaveBeenCalled()
+  fireEvent.click(archiveMark('Fix the parser', 'Archive (Delete)'))
+  expect(props.onSetArchived).toHaveBeenCalledExactlyOnceWith('now', true)
+})
+
+it('keeps Save actions keyboard reachable beside noninteractive listbox options', async () => {
+  renderDialog({ onSavePrompt: vi.fn() })
+  const options = await screen.findAllByRole('option')
+  for (const option of options) expect(option.querySelector('button, [tabindex]')).toBeNull()
+  expect(screen.getByRole('button', { name: UI_TEXT.promptSave })).toBeInTheDocument()
+  fireEvent.contextMenu(options[0] ?? document.body)
+  await screen.findByRole('menuitem', { name: UI_TEXT.promptSave })
+  for (const option of options) expect(option.querySelector('[role="menu"]')).toBeNull()
 })

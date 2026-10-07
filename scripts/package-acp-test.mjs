@@ -42,6 +42,7 @@ for (const file of [
     'wire.js',
     'resourceGovernor.js',
     'resourceAdmission.js',
+    'runtime.bundles.json.br',
   ].map((name) => path.join(SOURCE, 'dist', name)),
   ...[
     'exec-result-v1.schema.json',

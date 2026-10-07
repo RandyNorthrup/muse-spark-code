@@ -13,9 +13,17 @@
 // presets (lane P) own the origin, the model reference and the price card.
 
 import * as z from 'zod/mini'
+import {
+  nativeModelMetadataSchema,
+  type NativeModelMetadata,
+} from '../../../providers/modelMetadata'
+import { capturedCapabilities } from '../../../providers/capturedCapabilities'
+import type { ModelCapabilityRecord } from '../../../providers/capabilityRecord'
+import { PROVIDER_MANUAL_THINKING_BUDGET } from '../../../../shared/constants'
+import { UI_TEXT } from '../../../../shared/l10n/text'
 
+import { ModelApiError } from '../transport'
 import { CODEC_EMPTY_TOOL_OUTPUT, CODEC_IMAGE_WITHOUT_VISION } from '../../../../shared/constants'
-import { ModelApiError } from '../client'
 import { cleanJsonStrings, cleanWireText, isBlankWireText } from './shared'
 import type {
   CreateResponseBody,
@@ -156,7 +164,7 @@ const geminiErrorSchema = z.object({
 
 const geminiModelsListSchema = z.object({
   models: z.array(
-    z.object({
+    z.looseObject({
       name: z.string(),
       inputTokenLimit: z.optional(z.number()),
       outputTokenLimit: z.optional(z.number()),
@@ -607,8 +615,14 @@ function toContents(
 export function encodeGeminiRequest(
   body: CreateResponseBody,
   nativeModelId: string,
-  options?: GeminiEncodeOptions,
+  settings?: GeminiEncodeOptions | ModelCapabilityRecord,
+  recordOrBudget?: ModelCapabilityRecord | number,
+  explicitBudget?: number,
 ): GeminiNativeRequest {
+  const options = settings !== undefined && !('identity' in settings) ? settings : undefined
+  let capabilityRecord = typeof recordOrBudget === 'object' ? recordOrBudget : undefined
+  if (settings !== undefined && 'identity' in settings) capabilityRecord = settings
+  const thinkingBudget = typeof recordOrBudget === 'number' ? recordOrBudget : explicitBudget
   // M101 lane P1 (BYO item 11): Gemini 3 and later take the full tool
   // schema; older models keep the OpenAPI 3.0 subset. The generation comes
   // from the catalog override when lane P supplies one, else the model id.
@@ -624,6 +638,38 @@ export function encodeGeminiRequest(
         : { parameters: toGeminiSchemaSubset(tool.parameters) }),
     }))
   const thinkingLevel = geminiThinkingLevelForEffort(body.reasoning.effort)
+  const record = capabilityRecord ?? capturedCapabilities('gemini', nativeModelId)
+  if (body.reasoning.effort !== 'none' && record.reasoning.supported.state === 'no')
+    throw new Error(`${UI_TEXT.providerCapabilityUnsupported} (gemini_reasoning_unsupported)`)
+  if (
+    body.reasoning.effort === 'none' &&
+    (record.reasoning.forced.state === 'yes' || record.reasoning.canDisable.state === 'no')
+  )
+    throw new Error(`${UI_TEXT.providerCapabilityUnsupported} (gemini_thinking_cannot_disable)`)
+  const modes = record.reasoning.modes.state === 'yes' ? record.reasoning.modes.value : []
+  const isBudgetUsed = modes.includes('budget')
+  const budget =
+    body.reasoning.effort === 'none'
+      ? 0
+      : (thinkingBudget ??
+        Math.max(record.reasoning.budget?.min ?? 0, PROVIDER_MANUAL_THINKING_BUDGET))
+  if (
+    isBudgetUsed &&
+    (!Number.isSafeInteger(budget) ||
+      budget < (record.reasoning.budget?.min ?? 0) ||
+      (body.reasoning.effort !== 'none' && budget <= 0) ||
+      budget > (record.reasoning.budget?.max ?? Infinity) ||
+      budget >= body.max_output_tokens)
+  )
+    throw new Error(`${UI_TEXT.providerCapabilityUnsupported} (gemini_invalid_thinking_budget)`)
+  if (thinkingLevel !== undefined && !isBudgetUsed && !modes.includes('level'))
+    throw new Error(`${UI_TEXT.providerCapabilityUnsupported} (gemini_unknown_thinking_mode)`)
+  const supportedLevel =
+    thinkingLevel !== undefined &&
+    record.reasoning.effortLevels.state === 'yes' &&
+    record.reasoning.effortLevels.value.includes(thinkingLevel)
+      ? thinkingLevel
+      : undefined
   const request: Record<string, unknown> = {
     ...(body.instructions !== '' && {
       systemInstruction: { parts: [{ text: cleanWireText(body.instructions) }] },
@@ -636,9 +682,14 @@ export function encodeGeminiRequest(
   }
   request['generationConfig'] = {
     maxOutputTokens: body.max_output_tokens,
-    ...(thinkingLevel !== undefined && {
-      thinkingConfig: { thinkingLevel, includeThoughts: true },
-    }),
+    ...(isBudgetUsed
+      ? { thinkingConfig: { thinkingBudget: budget, includeThoughts: true } }
+      : thinkingLevel !== undefined && {
+          thinkingConfig: {
+            ...(supportedLevel !== undefined && { thinkingLevel: supportedLevel }),
+            includeThoughts: true,
+          },
+        }),
   }
   return { path: geminiStreamPath(nativeModelId), body: request }
 }
@@ -1070,6 +1121,7 @@ export function parseGeminiError(status: number, body: unknown): ModelApiError {
 
 /** One `models.list` entry the preset keeps: the id with its window, when listed. */
 export interface GeminiListedModel {
+  readonly native?: NativeModelMetadata
   readonly id: string
   readonly inputTokenLimit: number | undefined
   readonly outputTokenLimit: number | undefined
@@ -1095,6 +1147,7 @@ export function parseGeminiModelsList(body: unknown): readonly GeminiListedModel
       id: entry.name.startsWith('models/') ? entry.name.slice('models/'.length) : entry.name,
       inputTokenLimit: entry.inputTokenLimit,
       outputTokenLimit: entry.outputTokenLimit,
+      native: nativeModelMetadataSchema.parse(entry),
     })
   }
   return models
