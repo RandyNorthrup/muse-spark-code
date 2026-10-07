@@ -4151,5 +4151,45 @@
   "promptDeleteConfirm": "Eliminare questo prompt?",
   "promptLink": "Importa da link o URL di gist grezzo",
   "promptFromFile": "Importa da file",
-  "promptImportConfirm": "Salva prompt importato"
+  "promptImportConfirm": "Salva prompt importato",
+  "agentActivities": {
+    "active": "Attivo",
+    "waiting": "In attesa",
+    "inactive": "Inattivo"
+  },
+  "agentOutcomes": {
+    "complete": "Completo",
+    "incomplete": "Incompleto",
+    "failed": "Fallito",
+    "cancelled": "Annullato",
+    "unverified": "Terminato, non verificato"
+  },
+  "agentWaitingReasons": {
+    "approval": "approvazione",
+    "input": "immissione",
+    "queued": "in coda",
+    "interrupted": "interrotto",
+    "idle": "nessuna attività recente"
+  },
+  "agentStopReasons": {
+    "normal": "Fine normale",
+    "budget": "Budget esaurito",
+    "error": "Errore",
+    "cancelled": "Fermato dall’utente",
+    "unknown": "Non disponibile"
+  },
+  "agentContinue": "Continua",
+  "agentRetry": "Riprova",
+  "agentReceipt": "Resoconto dell’agente",
+  "agentReceiptFiles": "File modificati",
+  "agentReceiptChecks": "Comandi e verifiche",
+  "agentReceiptStop": "Motivo di arresto",
+  "agentReceiptUnfinished": "Elementi incompleti",
+  "agentReceiptHistory": "Cronologia dei tentativi",
+  "agentReceiptUnavailable": "Questo backend non ha fornito queste prove.",
+  "agentReceiptTruncated": "Il resoconto ha raggiunto il limite di dimensione; alcune prove sono omesse.",
+  "agentRecoveryConfirm": "{action}: {objective}? Si applicano autorizzazioni e budget attuali.",
+  "agentRetryUnavailable": "Il nuovo tentativo non è disponibile: questo backend non fornisce un punto di controllo isolato dell’albero di lavoro. Le modifiche dello spazio condiviso vengono conservate.",
+  "agentContinueUnavailable": "La continuazione non è disponibile per questo agente o il suo stato attuale.",
+  "referenceAgentOutcomes": "Gli agenti mostrano attività e risultati basati su prove. Seleziona un agente terminato per il resoconto limitato e la cronologia. Continua conserva sessione e modifiche dopo conferma; Riprova richiede un punto di controllo isolato. Le prove mancanti restano non verificate. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }

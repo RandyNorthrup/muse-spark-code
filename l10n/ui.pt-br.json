@@ -4151,5 +4151,45 @@
   "promptDeleteConfirm": "Excluir este prompt?",
   "promptLink": "Importar de link ou URL de gist bruto",
   "promptFromFile": "Importar de arquivo",
-  "promptImportConfirm": "Salvar prompt importado"
+  "promptImportConfirm": "Salvar prompt importado",
+  "agentActivities": {
+    "active": "Ativo",
+    "waiting": "Aguardando",
+    "inactive": "Inativo"
+  },
+  "agentOutcomes": {
+    "complete": "Completo",
+    "incomplete": "Incompleto",
+    "failed": "Falhou",
+    "cancelled": "Cancelado",
+    "unverified": "Encerrado, não verificado"
+  },
+  "agentWaitingReasons": {
+    "approval": "aprovação",
+    "input": "entrada",
+    "queued": "na fila",
+    "interrupted": "interrompido",
+    "idle": "sem atividade recente"
+  },
+  "agentStopReasons": {
+    "normal": "Fim normal",
+    "budget": "Orçamento esgotado",
+    "error": "Erro",
+    "cancelled": "Parado pelo usuário",
+    "unknown": "Indisponível"
+  },
+  "agentContinue": "Continuar",
+  "agentRetry": "Tentar novamente",
+  "agentReceipt": "Registro do agente",
+  "agentReceiptFiles": "Arquivos alterados",
+  "agentReceiptChecks": "Comandos e verificações",
+  "agentReceiptStop": "Motivo da parada",
+  "agentReceiptUnfinished": "Itens inacabados",
+  "agentReceiptHistory": "Histórico de tentativas",
+  "agentReceiptUnavailable": "Este backend não forneceu estas evidências.",
+  "agentReceiptTruncated": "O registro atingiu o limite de tamanho; algumas evidências foram omitidas.",
+  "agentRecoveryConfirm": "{action}: {objective}? Aplicam-se as permissões e os orçamentos atuais.",
+  "agentRetryUnavailable": "Nova tentativa indisponível: este backend não fornece um ponto de controle isolado da árvore de trabalho. As alterações do espaço compartilhado são mantidas.",
+  "agentContinueUnavailable": "Continuar está indisponível para este agente ou seu estado atual.",
+  "referenceAgentOutcomes": "Os agentes mostram atividade e resultados baseados em evidências. Selecione um agente encerrado para seu registro limitado e histórico. Continuar mantém a sessão e as alterações após confirmação; tentar novamente exige um ponto de controle isolado. Evidências ausentes aparecem como não verificadas. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }

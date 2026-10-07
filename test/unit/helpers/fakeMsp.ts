@@ -5,6 +5,19 @@
 import { Connection, type DuplexTransport } from '@muse-code/sdk'
 import type { MspHost } from '../../../src/core/backends/musecode/MuseCodeHost'
 
+/** M4's captured patch/output shapes, with a child-owned path for receipt regressions. */
+export function childPatchOutput(params: Record<string, unknown>): Record<string, unknown> {
+  if (params['sessionId'] !== 'child-1') throw new Error('wrong output owner')
+  return {
+    content: JSON.stringify({ files: [{ path: 'child.ts', hunks: [] }] }),
+    encoding: 'utf8',
+    mediaType: 'application/json',
+    offsetBytes: 0,
+    byteLen: 100,
+    eof: true,
+  }
+}
+
 /** Any JSON-RPC frame the client can write: a request, or a response to ours. */
 interface JsonRpcFrame {
   readonly id?: number | string

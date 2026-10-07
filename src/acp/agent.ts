@@ -12,6 +12,10 @@
 
 import { randomUUID } from 'node:crypto'
 import type { UsageAdapter } from '../runtime/usage/usageAdapter'
+import { agentListingText, listedAgents, listedAgentId } from '../core/agent/agentListing'
+import { buildAgentReceipt } from '../shared/agentReceipt'
+import { recoveryStamp } from '../shared/agentRecovery'
+import { agentStateText } from '../shared/agentOutcome'
 import { compactReference } from '../shared/cliCommands'
 import path from 'node:path'
 import {
@@ -430,13 +434,18 @@ class AcpSession {
                 input: null,
               },
             ]),
+        {
+          name: 'agents',
+          description: UI_TEXT.referenceAgentOutcomes,
+          input: { hint: '[receipt|continue|retry] [ID]' },
+        },
         ...this.skills
           .filter(
             (skill) =>
               skill.selector !== SLASH_COMMAND_NAMES.help &&
               skill.selector !== ACP_COMPACT_COMMAND &&
               skill.selector !== 'legal' &&
-              !['answer', 'questions', 'share', 'prompt'].includes(skill.selector) &&
+              !['answer', 'questions', 'share', 'prompt', 'agents'].includes(skill.selector) &&
               (this.deps.usage === undefined || skill.selector !== 'usage'),
           )
           .map((skill) => ({
@@ -865,6 +874,88 @@ class AcpSession {
    * about to be billed and its price, and a permission prompt on it with the
    * popup's answers. Anything but Allow once or Allow always is Deny.
    */
+  private async agentCommand(line: string, preparing: PreparingPrompt): Promise<string> {
+    const isCancelled = () => preparing.isCancelled
+    const [, action, id, ...extra] = line.split(/\s+/)
+    const history = await this.host.readSession(this.sessionId)
+    this.ensureHeld()
+    if (isCancelled()) return UI_TEXT.paidDeny
+    if (action === undefined) return agentListingText(history.items, Date.now())
+    if (id === undefined || extra.length > 0 || !['receipt', 'continue', 'retry'].includes(action))
+      throw RequestError.invalidParams(undefined, UI_TEXT.referenceAgentOutcomes)
+    const agent = listedAgents(history.items).find((item) => listedAgentId(item) === id)
+    if (agent === undefined)
+      throw RequestError.invalidParams(undefined, UI_TEXT.agentContinueUnavailable)
+    if (action === 'receipt') {
+      const childHistory =
+        agent.childSessionId === undefined
+          ? undefined
+          : await this.host.readSession(agent.childSessionId)
+      const items = childHistory?.items ?? [agent]
+      this.ensureHeld()
+      const { agentReceiptFiles } = await import('../core/agent/agentReceiptFiles')
+      const files = await agentReceiptFiles(items, (request) =>
+        this.host.readSessionOutput(agent.childSessionId ?? this.sessionId, request),
+      )
+      const receipt =
+        this.host.info.kind === 'modelApi'
+          ? (agent.agentEvidence?.attempts?.at(-1)?.receipt ??
+            buildAgentReceipt(
+              files,
+              agent.agentEvidence,
+              agent.result?.text ?? agent.result?.summary,
+            ))
+          : buildAgentReceipt(
+              files,
+              agent.agentEvidence,
+              agent.result?.text ?? agent.result?.summary,
+            )
+      return `${UI_TEXT.agentReceipt}\n${agentStateText({ status: agent.status, controlStatus: agent.controlStatus, evidence: agent.agentEvidence }, Date.now())}\n${JSON.stringify({ ...receipt, attempts: agent.agentEvidence?.attempts ?? [] }, undefined, 2)}`
+    }
+    const title = action === 'continue' ? UI_TEXT.agentContinue : UI_TEXT.agentRetry
+    const response = permissionResponse(
+      await this.client.request('session/request_permission', {
+        sessionId: this.sessionId,
+        toolCall: {
+          toolCallId: randomUUID(),
+          title: fill(UI_TEXT.agentRecoveryConfirm, {
+            action: title,
+            objective: agent.objective ?? id,
+          }),
+          kind: 'other',
+          status: 'pending',
+        },
+        options: [
+          { optionId: 'recover', name: title, kind: 'allow_once' },
+          { optionId: 'deny', name: UI_TEXT.paidDeny, kind: 'reject_once' },
+        ],
+      }),
+    )
+    this.ensureHeld()
+    if (
+      isCancelled() ||
+      response.outcome.outcome !== 'selected' ||
+      response.outcome.optionId !== 'recover'
+    )
+      return UI_TEXT.paidDeny
+    // Re-read after the owner's prompt: a live update invalidates its authority.
+    const currentHistory = await this.host.readSession(this.sessionId)
+    const current = listedAgents(currentHistory.items).find((item) => listedAgentId(item) === id)
+    this.ensureHeld()
+    if (isCancelled()) return UI_TEXT.paidDeny
+    if (current === undefined || recoveryStamp(current) !== recoveryStamp(agent))
+      return UI_TEXT.agentContinueUnavailable
+    if (agent.subagentId === undefined)
+      return action === 'retry' ? UI_TEXT.agentRetryUnavailable : UI_TEXT.agentContinueUnavailable
+    try {
+      await this.session.controlSubagent(id, action === 'continue' ? 'continue' : 'retry')
+    } catch {
+      return action === 'retry' ? UI_TEXT.agentRetryUnavailable : UI_TEXT.agentContinueUnavailable
+    }
+    const latest = await this.host.readSession(this.sessionId)
+    return agentListingText(latest.items, Date.now())
+  }
+
   public async askPaidUse(request: PaidUseRequest, canRemember: boolean): Promise<PaidUseAnswer> {
     const pending = this.pending
     const preparing = this.preparing
@@ -1043,6 +1134,26 @@ class AcpSession {
     this.ensureHeld()
     const [first] = blocks
     if (
+      blocks.length === 1 &&
+      first?.type === 'text' &&
+      /^\/agents(?:\s|$)/.test(first.text.trim())
+    ) {
+      const isReadOnly = /^\/agents(?:\s+receipt\s+\S+)?\s*$/.test(first.text.trim())
+      if (this.preparing !== undefined || (!isReadOnly && this.pending !== undefined))
+        throw RequestError.invalidRequest(undefined, UI_TEXT.acpPromptBusy)
+      const preparing: PreparingPrompt = { isCancelled: false, abort: new AbortController() }
+      this.preparing = preparing
+      try {
+        await this.announceCommands()
+        const text = await this.agentCommand(first.text.trim(), preparing)
+        if (!preparing.isCancelled && !this.isDisposed) this.questionNotice(text)
+        await this.outbox
+        return preparing.isCancelled ? 'cancelled' : 'end_turn'
+      } finally {
+        if (this.preparing === preparing) this.preparing = undefined
+      }
+    }
+    if (
       this.questionRegistry !== undefined &&
       blocks.length === 1 &&
       first?.type === 'text' &&
@@ -1094,7 +1205,10 @@ class AcpSession {
             ...(this.deps.usage === undefined ? [] : ['usage']),
             ...this.skills
               .map((skill) => skill.selector)
-              .filter((name) => !['answer', 'questions', 'share', 'prompt'].includes(name)),
+              .filter(
+                (name) => !['answer', 'questions', 'share', 'prompt', 'agents'].includes(name),
+              ),
+            'agents',
             ...(this.questionRegistry === undefined ? [] : ['questions', 'answer']),
             ...(this.deps.sharing?.commands().map((command) => command.name) ?? []),
           ]),
@@ -1239,7 +1353,6 @@ class AcpSession {
       this.preparing.abort.abort()
       this.preparing = undefined
       this.deps.log.info(`ACP session ${this.sessionId}: cancelled before its turn started`)
-      return
     }
     if (this.pending === undefined && this.activeTurnId === undefined) {
       return

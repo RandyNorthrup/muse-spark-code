@@ -3863,5 +3863,45 @@
   "promptDeleteConfirm": "이 프롬프트를 삭제할까요?",
   "promptLink": "링크 또는 원시 gist URL에서 가져오기",
   "promptFromFile": "파일에서 가져오기",
-  "promptImportConfirm": "가져온 프롬프트 저장"
+  "promptImportConfirm": "가져온 프롬프트 저장",
+  "agentActivities": {
+    "active": "활성",
+    "waiting": "대기 중",
+    "inactive": "비활성"
+  },
+  "agentOutcomes": {
+    "complete": "완료",
+    "incomplete": "미완료",
+    "failed": "실패",
+    "cancelled": "취소됨",
+    "unverified": "종료, 미검증"
+  },
+  "agentWaitingReasons": {
+    "approval": "승인",
+    "input": "입력",
+    "queued": "대기열",
+    "interrupted": "중단됨",
+    "idle": "최근 활동 없음"
+  },
+  "agentStopReasons": {
+    "normal": "정상 종료",
+    "budget": "예산 소진",
+    "error": "오류",
+    "cancelled": "사용자가 중지함",
+    "unknown": "사용 불가"
+  },
+  "agentContinue": "계속",
+  "agentRetry": "다시 시도",
+  "agentReceipt": "에이전트 기록",
+  "agentReceiptFiles": "변경된 파일",
+  "agentReceiptChecks": "명령 및 검사",
+  "agentReceiptStop": "중지 이유",
+  "agentReceiptUnfinished": "미완료 항목",
+  "agentReceiptHistory": "시도 기록",
+  "agentReceiptUnavailable": "이 백엔드는 이 증거를 제공하지 않았습니다.",
+  "agentReceiptTruncated": "기록이 크기 제한에 도달하여 일부 증거가 생략되었습니다.",
+  "agentRecoveryConfirm": "{action}: {objective}? 현재 권한과 예산이 적용됩니다.",
+  "agentRetryUnavailable": "다시 시도할 수 없습니다. 이 백엔드는 격리된 작업 트리 체크포인트를 제공하지 않습니다. 공유 작업 공간의 변경 사항은 유지됩니다.",
+  "agentContinueUnavailable": "이 에이전트 또는 현재 상태에서는 계속할 수 없습니다.",
+  "referenceAgentOutcomes": "에이전트는 활동과 증거 기반 결과를 표시합니다. 종료된 에이전트를 선택하면 제한된 기록과 시도 내역을 볼 수 있습니다. 확인 후 계속하면 세션과 변경 사항이 유지되며, 다시 시도하려면 격리된 체크포인트가 필요합니다. 증거가 없으면 미검증으로 표시됩니다. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }

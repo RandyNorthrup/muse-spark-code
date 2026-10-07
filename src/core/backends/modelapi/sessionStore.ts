@@ -6,6 +6,11 @@
 
 import * as z from 'zod/mini'
 import {
+  agentEvidenceSchema,
+  agentFileSchema,
+  type AgentEvidence,
+} from '../../../shared/agentOutcome'
+import {
   type ItemSnapshot,
   itemSnapshotFields,
   type TodoItem,
@@ -56,6 +61,7 @@ export interface StoredUsage {
 }
 
 export interface StoredChild {
+  readonly evidence?: AgentEvidence | undefined
   readonly id: string
   readonly role: string
   readonly objective: string
@@ -298,6 +304,8 @@ const storedSessionFields = {
       turnId: z.string(),
       item: z.object({
         ...itemSnapshotFields,
+        agentEvidence: z.optional(agentEvidenceSchema),
+        changedFiles: z.optional(z.array(agentFileSchema)),
         usage: z.optional(storedUsageSchema),
         costUsd: z.optional(z.number().check(z.nonnegative())),
       }),
@@ -328,6 +336,7 @@ export const storedSessionSchema = z.object({
         parentTurnId: z.string(),
         checkpointRecording: z.optional(z.boolean()),
         startedAt: z.number(),
+        evidence: z.optional(agentEvidenceSchema),
         state: z.enum(['queued', 'running', 'interrupted', 'result_ready', 'closed']),
         result: z.optional(
           z.object({

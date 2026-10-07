@@ -3560,6 +3560,95 @@
           steps.agents()
           whenFound('.agent-node-clickable', (node) => node.click())
         },
+        ...Object.fromEntries(
+          [
+            'active',
+            'approval',
+            'input',
+            'queued',
+            'interrupted',
+            'complete',
+            'incomplete',
+            'failed',
+            'cancelled',
+            'unverified',
+          ].map((state) => [
+            `agent-${state}`,
+            () => {
+              window.harnessBackend = 'modelApi'
+              send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+              transcriptFixture()
+              const waiting = ['approval', 'input', 'queued', 'interrupted'].includes(state)
+              const ended = !waiting && state !== 'active'
+              const evidence = {
+                stopReason:
+                  state === 'incomplete'
+                    ? 'budget'
+                    : state === 'failed'
+                      ? 'error'
+                      : state === 'cancelled'
+                        ? 'cancelled'
+                        : state === 'unverified'
+                          ? 'unknown'
+                          : 'normal',
+                reportedComplete: state === 'complete' ? true : undefined,
+                unfinished: state === 'incomplete' ? ['Run the final checks'] : [],
+                worktree: 'shared',
+                finalCheck: 'passed',
+                attempt: 1,
+                ...(waiting && { waiting: state }),
+                ...(state === 'active' && { inFlight: true }),
+              }
+              if (ended)
+                evidence.attempts = [
+                  {
+                    number: 1,
+                    outcome: state,
+                    receipt: {
+                      files: [{ path: 'src/parser.ts', added: 7, removed: 2 }],
+                      checks: [
+                        {
+                          command: 'npm test',
+                          exitCode: state === 'failed' ? 1 : 0,
+                          durationMs: 1400,
+                        },
+                      ],
+                      stopReason: evidence.stopReason,
+                      unfinished: evidence.unfinished,
+                      finalMessage: 'The parser change was reviewed.',
+                      truncated: false,
+                    },
+                  },
+                ]
+              event({
+                type: 'itemUpdated',
+                item: {
+                  itemId: 'outcome-agent',
+                  kind: 'subagent',
+                  status: ended
+                    ? state === 'failed'
+                      ? 'failed'
+                      : state === 'cancelled'
+                        ? 'cancelled'
+                        : 'completed'
+                    : 'inProgress',
+                  subagentId: 'outcome-agent',
+                  objective: 'Verify the parser change',
+                  role: 'verifier',
+                  controlStatus: ended
+                    ? 'resultReady'
+                    : state === 'queued' || state === 'interrupted'
+                      ? state
+                      : 'running',
+                  agentEvidence: evidence,
+                  result: ended ? { summary: 'The parser change was reviewed.' } : undefined,
+                },
+              })
+              whenFound('.agents-pill', (pill) => pill.click())
+              if (ended) whenFound('.agent-node-clickable', (node) => node.click())
+            },
+          ]),
+        ),
         'agents-result': () => {
           window.harnessBackend = 'modelApi'
           send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
@@ -6251,6 +6340,26 @@
         'prompt-menu-narrow': () =>
           document.querySelector('.popover-pointer [role="menuitem"]') !== null,
         'prompt-menu-toolbar': () => document.querySelector('.popover [role="menuitem"]') !== null,
+        ...Object.fromEntries(
+          [
+            'active',
+            'approval',
+            'input',
+            'queued',
+            'interrupted',
+            'complete',
+            'incomplete',
+            'failed',
+            'cancelled',
+            'unverified',
+          ].map((state) => [
+            `agent-${state}`,
+            () =>
+              ['complete', 'incomplete', 'failed', 'cancelled', 'unverified'].includes(state)
+                ? document.querySelector('.agent-details h4') !== null
+                : document.querySelector('.agent-node-clickable .agent-node-meta') !== null,
+          ]),
+        ),
         'prompt-library': () => document.querySelector('.prompt-library li') !== null,
         'prompt-library-narrow': () => document.querySelector('.prompt-library li') !== null,
         'chat-sharing': () => document.querySelector('.chat-share-preview') !== null,

@@ -4295,5 +4295,45 @@
   "promptDeleteConfirm": "Удалить этот запрос?",
   "promptLink": "Импорт по ссылке или URL исходного gist",
   "promptFromFile": "Импорт из файла",
-  "promptImportConfirm": "Сохранить импортированный запрос"
+  "promptImportConfirm": "Сохранить импортированный запрос",
+  "agentActivities": {
+    "active": "Активен",
+    "waiting": "Ожидает",
+    "inactive": "Неактивен"
+  },
+  "agentOutcomes": {
+    "complete": "Завершено",
+    "incomplete": "Не завершено",
+    "failed": "Ошибка",
+    "cancelled": "Отменено",
+    "unverified": "Завершено, не проверено"
+  },
+  "agentWaitingReasons": {
+    "approval": "подтверждение",
+    "input": "ввод",
+    "queued": "в очереди",
+    "interrupted": "прервано",
+    "idle": "нет недавней активности"
+  },
+  "agentStopReasons": {
+    "normal": "Нормальное завершение",
+    "budget": "Бюджет исчерпан",
+    "error": "Ошибка",
+    "cancelled": "Остановлено пользователем",
+    "unknown": "Недоступно"
+  },
+  "agentContinue": "Продолжить",
+  "agentRetry": "Повторить",
+  "agentReceipt": "Отчёт агента",
+  "agentReceiptFiles": "Изменённые файлы",
+  "agentReceiptChecks": "Команды и проверки",
+  "agentReceiptStop": "Причина остановки",
+  "agentReceiptUnfinished": "Незавершённые пункты",
+  "agentReceiptHistory": "История попыток",
+  "agentReceiptUnavailable": "Этот бэкенд не предоставил эти данные.",
+  "agentReceiptTruncated": "Отчёт достиг ограничения размера; часть данных опущена.",
+  "agentRecoveryConfirm": "{action}: {objective}? Действуют текущие разрешения и бюджеты.",
+  "agentRetryUnavailable": "Повтор недоступен: бэкенд не предоставляет изолированную контрольную точку рабочего дерева. Изменения общего рабочего пространства сохраняются.",
+  "agentContinueUnavailable": "Продолжение недоступно для этого агента или его текущего состояния.",
+  "referenceAgentOutcomes": "Агенты показывают активность и результаты, подтверждённые данными. Выберите завершившего агента для ограниченного отчёта и истории попыток. Продолжение после подтверждения сохраняет сеанс и изменения; повтор требует изолированной контрольной точки. Отсутствующие данные отмечаются как непроверенные. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }

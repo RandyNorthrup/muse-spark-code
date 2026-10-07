@@ -119,7 +119,7 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
     'support',
   ].map((id): [string, readonly string[]] => [id, ['vscode:museCode', 'vscode:modelApi']]),
   ...['acp'].map((id): [string, readonly string[]] => [id, ['acp:museCode', 'acp:modelApi']]),
-  ...['prompt-library', 'chat-sharing'].map((id): [string, readonly string[]] => [
+  ...['prompt-library', 'chat-sharing', 'agent-outcomes'].map((id): [string, readonly string[]] => [
     id,
     ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi'],
   ]),

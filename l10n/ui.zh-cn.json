@@ -3863,5 +3863,45 @@
   "promptDeleteConfirm": "删除此提示词？",
   "promptLink": "从链接或gist原始内容网址导入",
   "promptFromFile": "从文件导入",
-  "promptImportConfirm": "保存导入的提示词"
+  "promptImportConfirm": "保存导入的提示词",
+  "agentActivities": {
+    "active": "活跃",
+    "waiting": "等待",
+    "inactive": "非活跃"
+  },
+  "agentOutcomes": {
+    "complete": "完成",
+    "incomplete": "未完成",
+    "failed": "失败",
+    "cancelled": "已取消",
+    "unverified": "已结束，未验证"
+  },
+  "agentWaitingReasons": {
+    "approval": "批准",
+    "input": "输入",
+    "queued": "排队中",
+    "interrupted": "已中断",
+    "idle": "近期无活动"
+  },
+  "agentStopReasons": {
+    "normal": "正常结束",
+    "budget": "预算耗尽",
+    "error": "错误",
+    "cancelled": "用户停止",
+    "unknown": "不可用"
+  },
+  "agentContinue": "继续",
+  "agentRetry": "重试",
+  "agentReceipt": "代理记录",
+  "agentReceiptFiles": "更改的文件",
+  "agentReceiptChecks": "命令与检查",
+  "agentReceiptStop": "停止原因",
+  "agentReceiptUnfinished": "未完成项目",
+  "agentReceiptHistory": "尝试历史",
+  "agentReceiptUnavailable": "此后端未提供这些证据。",
+  "agentReceiptTruncated": "记录已达到大小上限，部分证据已省略。",
+  "agentRecoveryConfirm": "{action}：{objective}？将应用当前权限和预算。",
+  "agentRetryUnavailable": "无法重试：此后端不提供隔离的工作树检查点。共享工作区的更改会保留。",
+  "agentContinueUnavailable": "此代理或其当前状态无法继续。",
+  "referenceAgentOutcomes": "代理显示活动状态和基于证据的结果。选择已结束的代理可查看有大小限制的记录及尝试历史。确认后继续会保留会话和更改；重试需要隔离的检查点。缺失的证据显示为未验证。ACP：/agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }

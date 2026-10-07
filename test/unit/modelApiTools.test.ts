@@ -495,7 +495,7 @@ describe('toolDefinitions / classifyTool', () => {
     }).map((tool) => tool.name)
     expect(child).not.toContain('subagent_spawn')
     expect(child).not.toContain('ask_user')
-    expect(child).not.toContain('todo_write')
+    expect(child).toContain('todo_write')
     expect(child).toContain('read_file')
   })
 })

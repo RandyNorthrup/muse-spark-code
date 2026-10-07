@@ -1129,6 +1129,33 @@ lose one of the writes.
 The `.muse-memory.lock` file can remain after its owner exits; its presence
 or stored PID alone does not show that a write is in progress.
 
+### Agent outcomes
+
+The Agent map separates **Active**, **Waiting** (approval, input, queued or
+interrupted) and **Inactive** from an ended agent's outcome: **Complete**,
+**Incomplete**, **Failed**, **Cancelled**, or **Ended, unverified**. Completion
+needs structured evidence. Budget limits, unfinished task lists and missing
+required checks are incomplete; failed final checks are failed. Final-message
+prose never certifies success. An ordinary native end without proof remains
+unverified.
+
+Select an ended agent for its redacted, size-limited receipt: reported file
+changes and line counts, commands/checks with supplied exits and durations,
+stop reason, final message, and observed attempt history. Missing evidence is
+labelled unavailable. **Continue** asks first, keeps the same child session and
+workspace edits, and sends failure/unfinished items followed by the original
+objective. Current permissions, paid-use consent and budgets still apply.
+**Retry** asks first and refuses when no isolated checkpoint is available.
+Today's children share the workspace or provide no captured checkpoint; shared
+changes are kept. Native ended-child recovery remains unavailable until its
+preservation guarantees are captured; interrupted Resume is unchanged.
+
+Other editors use ACP's local commands without a model request:
+`/agents`, `/agents receipt ID`, `/agents continue ID`, and `/agents retry ID`.
+Recovery asks through the editor's permission prompt even in Bypass. Workflow
+children and background tasks appear too; missing per-agent evidence and
+unsupported recovery are explicit.
+
 ### Custom agents
 
 On the Model API backend the model can run specialised agents, each with its

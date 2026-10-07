@@ -36,6 +36,11 @@ export function expectedQuestionCommandsUpdate(): SessionUpdate {
     availableCommands: [
       { name: 'help', description: UI_TEXT.referenceIntro, input: null },
       { name: 'compact', description: UI_TEXT.compactDetail, input: null },
+      {
+        name: 'agents',
+        description: UI_TEXT.referenceAgentOutcomes,
+        input: { hint: '[receipt|continue|retry] [ID]' },
+      },
       { name: 'answer', description: UI_TEXT.acpAnswerHelp, input: { hint: '<n> <text>' } },
       { name: 'questions', description: UI_TEXT.acpQuestionsHelp, input: null },
     ],

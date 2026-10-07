@@ -8,10 +8,12 @@ import type { UsageRecording } from '../../usage/recording'
 // through a fake in-memory transport.
 
 import { Buffer } from 'node:buffer'
+import { observeAgentItem, observeChildReceipt } from '../../agent/agentObservation'
 import { type Connection, MspError, ProtocolError } from '@muse-code/sdk'
 import * as z from 'zod/mini'
 import {
   type AgentEvent,
+  type ItemSnapshot,
   type QuestionAnswer,
   type RequirementRef,
   requirementRefSchema,
@@ -264,6 +266,21 @@ const readOutputResultSchema = z.object({
   byteLen: z.number(),
   eof: z.boolean(),
 })
+
+function parseOutputPage(result: unknown): OutputPage {
+  const page = readOutputResultSchema.parse(result)
+  if (page.encoding !== BASE64_ENCODING) {
+    return page
+  }
+  // Binary media arrives base64 (tdd SS4.7.4): shown only if it is text after all.
+  let text: string
+  try {
+    text = STRICT_UTF8.decode(Buffer.from(page.content, BASE64_ENCODING))
+  } catch {
+    throw new Error(`${UI_TEXT.outputIsBinary} (${page.mediaType})`)
+  }
+  return { ...page, content: text, encoding: UTF8_ENCODING }
+}
 
 const DEFAULT_DISPOSITION = 'started'
 
@@ -701,6 +718,8 @@ export class MuseUsageDeltas {
 }
 
 export class MuseSession implements AgentSession {
+  private readonly observedAgents = new Map<string, ItemSnapshot>()
+
   private readonly listeners = new Set<SessionEventListener>()
   /** One card per prompt and stage, and the open ones for a late listener (D26). */
   private readonly prompts = new PromptLedger()
@@ -943,6 +962,22 @@ export class MuseSession implements AgentSession {
     return error
   }
 
+  /** Merge captured native attempt history for both live updates and local inspection. */
+  public observeAgent(item: ItemSnapshot): ItemSnapshot {
+    if (item.kind !== 'subagent' && item.kind !== 'workflow') return item
+    const observed = observeAgentItem(this.observedAgents.get(item.itemId), item, Date.now())
+    this.observedAgents.set(item.itemId, observed)
+    return observed
+  }
+  public observeChild(sessionId: string, history: SessionHistoryOutcome): void {
+    const observed = new Map(this.observedAgents)
+    for (const item of observed.values()) {
+      if (item.kind !== 'subagent' || item.childSessionId !== sessionId) continue
+      const updated = observeChildReceipt(item, history.items, history.todos)
+      this.emit({ type: 'itemUpdated', item: updated })
+      this.observedAgents.set(item.itemId, updated)
+    }
+  }
   /** Muse Code reported this session's event log failed (`noteLogFault`). */
   public onLogDamaged(listener: () => void): () => void {
     this.logDamagedListeners.add(listener)
@@ -991,6 +1026,8 @@ export class MuseSession implements AgentSession {
     if (this.isDisposed) {
       return
     }
+    if (['itemStarted', 'itemUpdated', 'itemCompleted'].includes(event.type) && 'item' in event)
+      event = { ...event, item: this.observeAgent(event.item) }
     const admitted = this.prompts.admit(event)
     if (admitted === undefined) {
       return
@@ -1237,6 +1274,11 @@ export class MuseSession implements AgentSession {
 
   /** Captured owner verbs on a child (M18); M48's uncaptured verbs stay unavailable. */
   public async controlSubagent(subagentId: string, action: SubagentAction): Promise<void> {
+    if (action === 'continue' || action === 'retry') {
+      throw new Error(
+        action === 'retry' ? UI_TEXT.agentRetryUnavailable : UI_TEXT.agentContinueUnavailable,
+      )
+    }
     if (action === 'reopen' || action === 'readResult') {
       throw new Error(`subagent/${action}`)
     }
@@ -1282,18 +1324,7 @@ export class MuseSession implements AgentSession {
       offsetBytes: request.offsetBytes,
       lengthBytes: request.lengthBytes,
     })
-    const page = readOutputResultSchema.parse(result)
-    if (page.encoding !== BASE64_ENCODING) {
-      return page
-    }
-    // Binary media arrives base64 (tdd SS4.7.4): shown only if it is text after all.
-    let text: string
-    try {
-      text = STRICT_UTF8.decode(Buffer.from(page.content, BASE64_ENCODING))
-    } catch {
-      throw new Error(`${UI_TEXT.outputIsBinary} (${page.mediaType})`)
-    }
-    return { ...page, content: text, encoding: UTF8_ENCODING }
+    return parseOutputPage(result)
   }
 
   /**
@@ -1800,6 +1831,14 @@ export class MuseCodeHost implements AgentHost {
     }
   }
 
+  /** Captured item/readOutput also reads a child without loading its session. */
+  public async readSessionOutput(
+    sessionId: string,
+    request: OutputPageRequest,
+  ): Promise<OutputPage> {
+    return parseOutputPage(await this.command('item/readOutput', { sessionId, ...request }))
+  }
+
   /** One page of this workspace's stored sessions, newest activity first. */
   public async listSessions(options: ListSessionsOptions): Promise<SessionPage> {
     const result = await this.command('session/list', {
@@ -1862,7 +1901,13 @@ export class MuseCodeHost implements AgentHost {
       sessionId,
       excludeItems: false,
     })
-    const history = historyOutcome(sessionEnvelopeSchema.parse(result))
+    const read = historyOutcome(sessionEnvelopeSchema.parse(result))
+    const session = this.sessions.get(sessionId)
+    const history = {
+      ...read,
+      items: read.items.map((item) => session?.observeAgent(item) ?? item),
+    }
+    for (const parent of this.sessions.values()) parent.observeChild(sessionId, history)
     return options?.recoverGoal === true && history.goal === undefined
       ? { ...history, goal: await this.goalFromView(sessionId) }
       : history

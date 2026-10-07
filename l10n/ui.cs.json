@@ -4295,5 +4295,45 @@
   "promptDeleteConfirm": "Smazat tento prompt?",
   "promptLink": "Importovat z odkazu nebo adresy surového gistu",
   "promptFromFile": "Importovat ze souboru",
-  "promptImportConfirm": "Uložit importovaný prompt"
+  "promptImportConfirm": "Uložit importovaný prompt",
+  "agentActivities": {
+    "active": "Aktivní",
+    "waiting": "Čeká",
+    "inactive": "Neaktivní"
+  },
+  "agentOutcomes": {
+    "complete": "Dokončeno",
+    "incomplete": "Nedokončeno",
+    "failed": "Selhalo",
+    "cancelled": "Zrušeno",
+    "unverified": "Ukončeno, neověřeno"
+  },
+  "agentWaitingReasons": {
+    "approval": "schválení",
+    "input": "vstup",
+    "queued": "ve frontě",
+    "interrupted": "přerušeno",
+    "idle": "žádná nedávná aktivita"
+  },
+  "agentStopReasons": {
+    "normal": "Normální konec",
+    "budget": "Rozpočet vyčerpán",
+    "error": "Chyba",
+    "cancelled": "Zastaveno uživatelem",
+    "unknown": "Nedostupné"
+  },
+  "agentContinue": "Pokračovat",
+  "agentRetry": "Zkusit znovu",
+  "agentReceipt": "Záznam agenta",
+  "agentReceiptFiles": "Změněné soubory",
+  "agentReceiptChecks": "Příkazy a kontroly",
+  "agentReceiptStop": "Důvod ukončení",
+  "agentReceiptUnfinished": "Nedokončené položky",
+  "agentReceiptHistory": "Historie pokusů",
+  "agentReceiptUnavailable": "Tento backend tyto důkazy neposkytl.",
+  "agentReceiptTruncated": "Záznam dosáhl limitu velikosti; některé důkazy byly vynechány.",
+  "agentRecoveryConfirm": "{action}: {objective}? Platí aktuální oprávnění a rozpočty.",
+  "agentRetryUnavailable": "Opakování není dostupné: backend neposkytuje izolovaný kontrolní bod pracovního stromu. Změny sdíleného pracovního prostoru zůstanou zachovány.",
+  "agentContinueUnavailable": "Pokračování není pro tohoto agenta nebo jeho aktuální stav dostupné.",
+  "referenceAgentOutcomes": "Agenti zobrazují aktivitu a výsledky podložené důkazy. Výběrem ukončeného agenta otevřete omezený záznam a historii pokusů. Pokračování po potvrzení zachová relaci a změny; opakování vyžaduje izolovaný kontrolní bod. Chybějící důkazy jsou neověřené. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }

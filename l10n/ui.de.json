@@ -4007,5 +4007,45 @@
   "promptDeleteConfirm": "Diesen Prompt löschen?",
   "promptLink": "Aus Link oder Roh-Gist-URL importieren",
   "promptFromFile": "Aus Datei importieren",
-  "promptImportConfirm": "Importierten Prompt speichern"
+  "promptImportConfirm": "Importierten Prompt speichern",
+  "agentActivities": {
+    "active": "Aktiv",
+    "waiting": "Wartend",
+    "inactive": "Inaktiv"
+  },
+  "agentOutcomes": {
+    "complete": "Vollständig",
+    "incomplete": "Unvollständig",
+    "failed": "Fehlgeschlagen",
+    "cancelled": "Abgebrochen",
+    "unverified": "Beendet, ungeprüft"
+  },
+  "agentWaitingReasons": {
+    "approval": "Genehmigung",
+    "input": "Eingabe",
+    "queued": "in Warteschlange",
+    "interrupted": "unterbrochen",
+    "idle": "keine aktuelle Aktivität"
+  },
+  "agentStopReasons": {
+    "normal": "Normal beendet",
+    "budget": "Budget ausgeschöpft",
+    "error": "Fehler",
+    "cancelled": "Vom Benutzer gestoppt",
+    "unknown": "Nicht verfügbar"
+  },
+  "agentContinue": "Fortsetzen",
+  "agentRetry": "Erneut versuchen",
+  "agentReceipt": "Agentenbeleg",
+  "agentReceiptFiles": "Geänderte Dateien",
+  "agentReceiptChecks": "Befehle und Prüfungen",
+  "agentReceiptStop": "Stoppgrund",
+  "agentReceiptUnfinished": "Unerledigte Aufgaben",
+  "agentReceiptHistory": "Versuchsverlauf",
+  "agentReceiptUnavailable": "Dieses Backend hat diese Nachweise nicht bereitgestellt.",
+  "agentReceiptTruncated": "Der Beleg hat seine Größenbegrenzung erreicht; einige Nachweise fehlen.",
+  "agentRecoveryConfirm": "{action}: {objective}? Aktuelle Berechtigungen und Budgets gelten.",
+  "agentRetryUnavailable": "Erneuter Versuch nicht verfügbar: Dieses Backend bietet keinen isolierten Worktree-Kontrollpunkt. Änderungen im gemeinsamen Arbeitsbereich bleiben erhalten.",
+  "agentContinueUnavailable": "Fortsetzen ist für diesen Agenten oder seinen aktuellen Zustand nicht verfügbar.",
+  "referenceAgentOutcomes": "Agenten zeigen Aktivität und nachweisgestützte Ergebnisse. Wählen Sie einen beendeten Agenten für seinen begrenzten Beleg und Versuchsverlauf. Fortsetzen bewahrt nach Bestätigung Sitzung und Änderungen; ein erneuter Versuch erfordert einen isolierten Kontrollpunkt. Fehlende Nachweise gelten als ungeprüft. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }

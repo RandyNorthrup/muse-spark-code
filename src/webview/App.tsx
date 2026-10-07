@@ -2478,6 +2478,7 @@ export function App({
         onSelectAgent={setSelectedAgentId}
         onReadChild={onReadChild}
         onControl={onControlAgent}
+        onOpenFile={onOpenFile}
         onMessage={onMessageAgent}
         onStopTask={onStopTask}
         onStopAllTasks={onStopAllTasks}

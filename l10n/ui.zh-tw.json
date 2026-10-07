@@ -3863,5 +3863,45 @@
   "promptDeleteConfirm": "刪除此提示詞？",
   "promptLink": "從連結或gist原始內容網址匯入",
   "promptFromFile": "從檔案匯入",
-  "promptImportConfirm": "儲存匯入的提示詞"
+  "promptImportConfirm": "儲存匯入的提示詞",
+  "agentActivities": {
+    "active": "活躍",
+    "waiting": "等待",
+    "inactive": "非活躍"
+  },
+  "agentOutcomes": {
+    "complete": "完成",
+    "incomplete": "未完成",
+    "failed": "失敗",
+    "cancelled": "已取消",
+    "unverified": "已結束，未驗證"
+  },
+  "agentWaitingReasons": {
+    "approval": "核准",
+    "input": "輸入",
+    "queued": "排隊中",
+    "interrupted": "已中斷",
+    "idle": "近期無活動"
+  },
+  "agentStopReasons": {
+    "normal": "正常結束",
+    "budget": "預算耗盡",
+    "error": "錯誤",
+    "cancelled": "使用者停止",
+    "unknown": "無法使用"
+  },
+  "agentContinue": "繼續",
+  "agentRetry": "重試",
+  "agentReceipt": "代理記錄",
+  "agentReceiptFiles": "變更的檔案",
+  "agentReceiptChecks": "命令與檢查",
+  "agentReceiptStop": "停止原因",
+  "agentReceiptUnfinished": "未完成項目",
+  "agentReceiptHistory": "嘗試歷史",
+  "agentReceiptUnavailable": "此後端未提供這些證據。",
+  "agentReceiptTruncated": "記錄已達大小上限，部分證據已省略。",
+  "agentRecoveryConfirm": "{action}：{objective}？將套用目前權限和預算。",
+  "agentRetryUnavailable": "無法重試：此後端不提供隔離的工作樹檢查點。共用工作區的變更會保留。",
+  "agentContinueUnavailable": "此代理或其目前狀態無法繼續。",
+  "referenceAgentOutcomes": "代理顯示活動狀態和根據證據的結果。選取已結束的代理可查看有大小限制的記錄及嘗試歷史。確認後繼續會保留工作階段和變更；重試需要隔離的檢查點。缺少的證據顯示為未驗證。ACP：/agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }

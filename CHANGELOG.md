@@ -7,6 +7,34 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Agent activity and structured outcomes, with bounded redacted receipts and
+  retained Model API attempt history. Continue asks before resuming the same
+  child and keeps its edits. Retry explains when an isolated checkpoint is
+  unavailable. Native ends without completion evidence remain unverified.
+  ACP editors get local `/agents` listing, receipts and confirmed recovery.
+  Model API children can keep their own task list without replacing the parent's.
+
+### Fixed
+
+- ACP cancellation stops the running model turn while local agent inspection
+  waits, and a late cancelled read preserves newer command preparation.
+- Agent receipts read patch references through the child that owns them and
+  preserve earlier native attempt receipts while a new attempt is running.
+- Child completion evidence belongs to the current turn. Parent Model API
+  request bytes and cache prefixes keep their original tool order.
+- Windows shell credential regressions await the matching background completion
+  before cleanup and probe raw environment values within the default test deadline.
+- Prompt host shutdown awaits mirror merges and other admitted operations
+  before releasing storage, preventing Windows cleanup from racing a sync write.
+- Browser package tests build the chat, Help and What's New pages themselves,
+  so a clean CI shard needs no artifacts from an earlier production build.
+- The installed ACP help check validates its complete localization table,
+  retaining prompt and sharing labels in its exact output comparison.
+- Chat-share HTML encodes markup delimiters in one pass. Privacy regexes have
+  literal-metacharacter controls and documented, specific audit exceptions
+  for their escaped workspace, home and username fragments.
 - Keep every long-reply accessibility delta while yielding through a task port,
   avoiding nested timer throttling within the existing readiness deadline.
 

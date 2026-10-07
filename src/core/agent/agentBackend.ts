@@ -621,6 +621,8 @@ export interface AgentHost {
     sessionId: string,
     options?: { readonly recoverGoal?: boolean },
   ): Promise<SessionHistoryOutcome>
+  /** Stored output in its own session, without loading it (M119). */
+  readSessionOutput(sessionId: string, request: OutputPageRequest): Promise<OutputPage>
   resumeSession(
     sessionId: string,
     modelId: string,

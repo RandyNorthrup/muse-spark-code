@@ -1,12 +1,15 @@
 // A workflow run (M47, PLAN.md D40) as Muse Code reports it over MSP: its
 // name, its status and what started it, its agents (label, state, time,
-// tokens) and what it returned. Owner controls wait for a live accepted
-// command capture. Pausing and resuming a run are the terminal UI's alone
+// tokens) and what it returned. Recovery controls explain the captured
+// backend limit after owner confirmation. Pausing and resuming a run are the terminal UI's alone
 // (no MSP verb), and a workflow agent keeps no
 // session of its own to read, so there is no transcript to open. The
 // transcript's card and the Agent map show this same view.
 
-import { UI_TEXT } from '../../shared/constants'
+import { UI_TEXT, type SubagentAction } from '../../shared/constants'
+import { AgentReceiptDisclosure } from './AgentReceiptBody'
+import { buildAgentReceipt } from '../../shared/agentReceipt'
+import { agentActivity, endedOutcome, agentStateText } from '../../shared/agentOutcome'
 import { fill, plural } from '../../shared/l10n/text'
 import { formatTokenWindow } from '../../shared/palette'
 import { agentStatusLabel, formatDurationMs } from '../agentFormat'
@@ -21,6 +24,7 @@ import {
   workflowTokens,
 } from '../workflowDetails'
 import { Clipped } from './ToolBlocks'
+import { useAgentClock } from '../useAgentClock'
 
 const RUNNING = 'inProgress'
 const COMPLETED = 'completed'
@@ -62,7 +66,7 @@ function joined(parts: readonly (string | undefined)[]): string {
   return parts.filter((part) => part !== undefined).join(' · ')
 }
 
-function agentMeta(child: WorkflowChild): string {
+function agentMeta(child: WorkflowChild, now: number): string {
   return joined([
     child.attempt > 1 ? fill(UI_TEXT.workflowAttempt, { attempt: child.attempt }) : undefined,
     child.durationMs === undefined ? undefined : formatDurationMs(child.durationMs),
@@ -70,29 +74,89 @@ function agentMeta(child: WorkflowChild): string {
       ? undefined
       : tokensText(child.usage.inputTokens + child.usage.outputTokens),
     childStatusLabel(child),
+    agentStateText(
+      {
+        status: child.terminal ?? (isChildRunning(child) ? 'inProgress' : child.status),
+        controlStatus: child.status === 'scheduled' ? 'queued' : undefined,
+        evidence: child.agentEvidence,
+      },
+      now,
+    ),
   ])
 }
 
 function WorkflowAgent({
   child,
   index,
+  onControl,
+  entryId,
 }: {
   readonly child: WorkflowChild
   readonly index: number
+  readonly entryId: string
+  readonly onControl: ((id: string, action: SubagentAction) => void) | undefined
 }) {
+  const now = useAgentClock()
   const name = childName(child, index)
+  const signals = {
+    status: child.terminal ?? (isChildRunning(child) ? 'inProgress' : child.status),
+    controlStatus: child.status === 'scheduled' ? 'queued' : undefined,
+    evidence: child.agentEvidence,
+  }
+  const isEnded = agentActivity(signals, now).activity === 'inactive'
+  const outcome = endedOutcome(signals)
+  const isRecoverable = isEnded && (outcome === 'failed' || outcome === 'incomplete')
   return (
     <li className="workflow-agent">
       <span className={agentDot(child)} aria-hidden="true" />
       <span className="workflow-agent-name" dir="auto">
         {name}
       </span>
-      <span className="workflow-agent-meta">{agentMeta(child)}</span>
+      <span className="workflow-agent-meta" aria-live="polite">
+        {agentMeta(child, now)}
+      </span>
+      {isEnded ? (
+        <AgentReceiptDisclosure
+          attempts={child.agentEvidence?.attempts?.slice(0, -1)}
+          readReceipt={() =>
+            child.agentEvidence?.attempts?.at(-1)?.receipt ??
+            buildAgentReceipt([], child.agentEvidence)
+          }
+        />
+      ) : null}
+      {isRecoverable && onControl !== undefined ? (
+        <div className="agent-control-row">
+          <button
+            type="button"
+            className="tool-more"
+            onClick={() => {
+              onControl(`${entryId}/${child.childId}`, 'continue')
+            }}
+          >
+            {UI_TEXT.agentContinue}
+          </button>
+          <button
+            type="button"
+            className="tool-more"
+            onClick={() => {
+              onControl(`${entryId}/${child.childId}`, 'retry')
+            }}
+          >
+            {UI_TEXT.agentRetry}
+          </button>
+        </div>
+      ) : null}
     </li>
   )
 }
 
-export function WorkflowRunView({ entry }: { readonly entry: WorkflowEntry }) {
+export function WorkflowRunView({
+  entry,
+  onControl,
+}: {
+  readonly entry: WorkflowEntry
+  readonly onControl?: ((id: string, action: SubagentAction) => void) | undefined
+}) {
   const outcome = workflowOutcome(entry.message)
   const tokens = workflowTokens(entry)
   const name = workflowName(entry)
@@ -115,7 +179,13 @@ export function WorkflowRunView({ entry }: { readonly entry: WorkflowEntry }) {
       {entry.children.length === 0 ? null : (
         <ul className="workflow-agents" aria-label={UI_TEXT.workflowAgentsLabel}>
           {entry.children.map((child, index) => (
-            <WorkflowAgent key={child.childId} child={child} index={index} />
+            <WorkflowAgent
+              key={child.childId}
+              child={child}
+              index={index}
+              entryId={entry.id}
+              onControl={onControl}
+            />
           ))}
         </ul>
       )}
