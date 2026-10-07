@@ -191,6 +191,37 @@ the restored complete file passes both tests. This is the tenth recorded
 integration/repair drill, including the superseded first stream guard.
 The final scoped setup passes both tests again and targeted lint exits zero.
 
+The third committed browser run passes all 1,028 accessibility pages, the
+96 legal keyboard/zoom checks and 24 English/pseudo WCAG pages, and all
+17 README captures. Its sole unit failure remains the release fixture above.
+
+## Screenshot-helper readiness regression
+
+The responsive probe exposes `waitForHarness` referencing the removed
+`AXE_AFTER_MS` global. The shared helper now calls the harness's existing
+bounded `whenReady` after theme installation; that gate already waits for
+scene actions, fonts and paints. Error checks and browser cleanup remain.
+The new regression executes the actual evaluation string without that old
+global. Before the fix, the complete `harnessCapture` file has one failure
+(`ReferenceError: AXE_AFTER_MS is not defined`) and six passes.
+
+Restoring the obsolete reference deliberately produces the same one failure
+and six passes. The helper is restored byte-exact in `finally`, SHA-256
+`b3c6efee9ec0adfbc2790d224f3edaad33b8c16d4267ba18c7d97b9629e5f540`.
+The complete restored `harnessCapture`, `harnessWaits` and `changelogVersion`
+files pass 38 tests at repository deadlines. This is the eleventh recorded
+drill; no delay, deadline, ignored rule or test skip is introduced.
+Targeted lint passes with explicit Node imports in the VM regression.
+
+Pre-commit real-browser projection of this helper passes 36 responsive,
+keyboard and WCAG checks: failed agent, incomplete agent and open question,
+at 320, 690 and 1,400 px in each of the four themes. The probe sets the
+harness's fixed 690 px body to the same 100% sizing used by narrow scenarios
+before scene startup. Document width never exceeds the viewport. Enter on
+Continue dispatches the expected agent control; Enter on the transcript's
+Answer moves focus to the dock's control. The final committed run will repeat
+this proof in its new clone.
+
 Additional repair drills ran on Node 22.22.2 at the same default deadlines,
 with source saved/restored in `finally` and SHA-256 equality:
 

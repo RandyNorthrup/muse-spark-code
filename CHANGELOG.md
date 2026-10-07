@@ -32,6 +32,9 @@ happened, not what was planned; superseded entries are kept.
 - Parse the full changelog in release-test setup so version and Highlights
   assertions keep their existing deadlines under load.
 
+- Screenshot helpers use the harness's bounded scene readiness instead of a
+  removed idle-delay constant, preserving theme, font, paint and error checks.
+
 - ACP cancellation stops the running model turn while local agent inspection
   waits, and a late cancelled read preserves newer command preparation.
 - Agent receipts read patch references through the child that owns them and

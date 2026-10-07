@@ -18930,6 +18930,11 @@ Move that unchanged full parse into `beforeAll`, retaining both release/version
 assertions and the repository's existing test and hook deadlines. Prove the
 highlights assertion still rejects a missing release Highlights section with
 a byte-restored changelog mutation; do not shorten or bypass content validation.
+The responsive probe also exposes a stale `AXE_AFTER_MS` reference in the
+shared screenshot helper after the harness replaced idle timing with bounded
+readiness. Remove the obsolete delay and retain theme, scene, font/paint and
+error readiness through `whenReady`; exercise the actual evaluation string
+without that removed global, and prove the guard fires before restoring it.
 
 Packaged exec reproduces a release-base Node 22 loader-hook failure before
 any dispatch: native CommonJS import lacks implicit `require.cache`. A small

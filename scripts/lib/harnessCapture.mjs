@@ -9,7 +9,6 @@ import { PAGE_TIMEOUT_MS } from './harnessServer.mjs'
 /** Wait for controls, fonts and paints before capturing at any viewport size. */
 export async function waitForHarness(page) {
   await page.evaluate(`themed
-      .then(() => new Promise(resolve => setTimeout(resolve, AXE_AFTER_MS)))
       .then(() => whenReady(params.get('scenario') ?? 'none'))
       .then(() => {
         if (harnessErrors.length > 0) throw new Error(harnessErrors.join('; '))
