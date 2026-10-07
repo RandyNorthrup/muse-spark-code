@@ -3283,6 +3283,82 @@ export const EN = {
   exportThenRunLabel: 'Then ran:',
   // {command}: the then_run command; {outcome}: why it did not run.
   exportThenRunSkipped: 'then_run `{command}`: {outcome}',
+  // M108: shared by the Models panel, usage page, ACP and runtime.
+  accounts: {
+    title: 'Accounts',
+    defaultLabel: 'Default account',
+    add: 'Add account',
+    remove: 'Remove account',
+    label: 'Label',
+    order: 'Pool order',
+    limitGroup: 'Shares limits with',
+    thresholds: 'Thresholds',
+    spend: 'Spend in USD',
+    inputTokens: 'Input tokens',
+    outputTokens: 'Output tokens',
+    requests: 'Requests',
+    month: 'Month',
+    planWindow: 'Plan-window usage',
+    rateHeadroom: 'Rate-limit headroom',
+    swap: 'Swap accounts',
+    parallel: 'Use accounts in parallel',
+    swapDescription:
+      'Swap at the next request boundary when a threshold is reached. Each account keeps its own limits.',
+    parallelDescription:
+      'Spread background work by headroom and keep each worker on its assigned account.',
+    current: 'Current account',
+    swapNotice: 'Now on {provider} · {account}: {previous} reached {threshold}.',
+    coldCache: 'Estimated context re-read cost: {cost}.',
+    stopped: '{provider} has no account with room. Resets {reset}.',
+    resetUnknown: '{provider} has no account with room. Reset time is unknown.',
+    sharedGroup: '{account} shares the same vendor limit group; another key adds no capacity.',
+    policy: 'Vendor account policy',
+    policyOn: 'Pooling available',
+    policyConfirm: 'Confirmation required',
+    notOffered: 'This product cannot be added.',
+    checked: 'Checked {date}',
+    stale: 'This policy was checked more than {duration} ago. Re-check it before release.',
+    confirmWarning:
+      '{provider}’s terms restrict or prohibit using several accounts to get past vendor limits. The vendor may act against your accounts.',
+    legitimate: 'I confirm that these accounts are legitimately mine to use this way.',
+    confirm: 'Confirm',
+    ownCapsOnly: 'Only at my own caps',
+    cancel: 'Cancel',
+    revoke: 'Revoke confirmation',
+    localConfirmation: 'Confirmations stay on this machine.',
+    museCodeUnavailable:
+      'Muse Code accounts are unavailable until sign-in and serving from a separate config home have been captured.',
+    chatgptRecovery:
+      'Pause ChatGPT plan requests, open Usage, and choose credits or your own API key.',
+    museCodeRecovery:
+      'Upgrade your Muse Code plan, wait for its reset, or use your own pay-as-you-go key. Paid use asks for consent.',
+    paidConsent:
+      '{provider} · {account}\n{price}\nShared daily budget: {budget}. Charges go to this account; its first paid use needs your consent.',
+    credentialHelp:
+      'Use the password box or standard input. Keys never belong in `providers.json`.',
+    summary: '{provider} · {account}: {requests}; {cost} spent.',
+    headroomAmple: 'Ample headroom',
+    headroomSome: 'Some headroom',
+    headroomNone: 'No headroom',
+    multipleAllowed: 'Several accounts allowed',
+    multipleConditions: 'Several accounts with conditions',
+    multipleOnePerson: 'One account per person',
+    multipleUnclear: 'Several accounts unclear',
+    sourceDate: 'Source date: {date}',
+    userCap: 'User cap',
+    vendorLimit: 'Vendor limit',
+    swapEvent: 'Account swap',
+    spreadEvent: 'Work spread',
+    stopEvent: 'Work stopped',
+    sourceUndated: 'No source date shown',
+    invalidAccount: 'Check the account id, label, order, limit group and thresholds.',
+    removeConfirm:
+      'Remove {account}? Its stored credential will be deleted and its sign-in revoked.',
+    requestCount: forms({
+      one: '{count} request',
+      other: '{count} requests',
+    }),
+  },
 }
 
 /** The shape every table has: English's keys, with any language's plural forms. */
