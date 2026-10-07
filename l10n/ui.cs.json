@@ -2766,7 +2766,7 @@
       "agentCreation": "Výchozí oprávnění agentů vytvářet plány: zeptat se, vždy v rámci limitů nebo nikdy. Ve výchozím stavu se zeptat."
     },
     "runtime": {
-      "usage": "Použití: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Návratové kódy: 0 úspěch, 1 odmítnutí, 2 nesprávné použití, 3 upozornění na úklid.",
+      "usage": "Použití: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Návratové kódy: 0 úspěch, 1 odmítnutí, 2 nesprávné použití, 3 upozornění na úklid.",
       "accepted": "Požadavek na plán přijat",
       "empty": "Žádné plány ani nadcházející spuštění.",
       "unavailable": "Plány nejsou na tomto hostiteli dostupné. Je nutné připojení plánovače běhového prostředí.",
@@ -2780,6 +2780,22 @@
       "cleanupFailed": "Požadavek na plán byl dokončen, ale úklid selhal. Uchovejte přijaté ID; návratový kód 3 znamená, že úklid vyžaduje pozornost.",
       "hostUnavailable": "Hostitel plánů se pro tento pracovní prostor nespustil. Ovládání plánů není dostupné; běžný chat zůstává dostupný.",
       "wakeBarrierTimeout": "Plánované spuštění překročilo časový limit čekání na synchronizaci běhu na pozadí. Žádná plánovaná práce nezačala."
+    },
+    "reportAction": {
+      "unavailable": "Doručování zpráv není na tomto hostiteli dostupné. Je vyžadován deterministický modul zpráv.",
+      "grantRequired": "Tento cíl zprávy je mimo aktuální oprávnění plánu.",
+      "failed": "Doručení zprávy selhalo nebo je jeho výsledek nejistý.",
+      "invalidResult": "Modul zpráv vrátil neplatné potvrzení doručení.",
+      "kind": "Druh zprávy",
+      "format": "Formát",
+      "args": "Argumenty",
+      "destinations": "Cíle",
+      "formats": {
+        "markdown": "Dokument Markdown",
+        "html": "Dokument HTML",
+        "json": "Dokument JSON",
+        "text": "Prostý text"
+      }
     }
   }
 }

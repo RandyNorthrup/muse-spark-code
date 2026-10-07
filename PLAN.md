@@ -6845,6 +6845,29 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### M115 RA — report action (2026-10-06)
+
+Implement only RA from D95/M115 in planning commit
+`8a93e7fbd22e5600366dc902d8daf791f7fcc89f` (those sections are absent on
+this lane's base). The existing v2 action union remains the store contract.
+Add destination receipts and unique destination identities, a deterministic
+report delivery adapter over M113 Q's injected runner, destination-grant
+checks, CLI `--report`/repeatable `--to`, and the shared editor's report field.
+Reports have exact zero cost and reserve no money; occurrence time is their
+`asOf`. S retains all trigger/claim/collision/catch-up behavior. G retains
+agent admission, intersection, consent, caps, depth and lifetime; RA's
+`schedule_report` entry requires G's admitting port and cannot manufacture
+destination authority. Q resolves stored root/recipient/connection ids and
+owns confinement, preview/consent, scrub, network policy and delivery.
+
+S/G/V and M113 Q are absent on this base. Required injected ports have no
+production fake. RA owns only its report regions in the existing X adapter
+and lane-0 schema; the new editor field is supplied for V's lazy chunk.
+Named bindings, editor parity, help-reference entries and the measured
+optional UI budget are recorded in
+`docs/certification/m115-ra-report-action.md`. W owns shipping registration,
+docs and aggregate quality. No paid/live call, merge, rebase or push.
+
 ### FIXM115X5 — RVM115X4 repair (2026-10-06)
 
 Keep the native adapter architecture and repair both P1 findings and the P2

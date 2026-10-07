@@ -23,6 +23,7 @@ import {
   SCHEDULE_NAME_MAX_CHARS,
   SCHEDULE_RULE_MAX_CHARS,
   SCHEDULE_RUN_ID_MAX_CHARS,
+  SCHEDULE_REPORT_FORMATS,
   SCHEDULE_TIMELINE_HOURS,
 } from './constants'
 import {
@@ -202,12 +203,15 @@ export const scheduleActionSchema = z.discriminatedUnion('kind', [
     kind: z.literal('report'),
     reportKind: identifier,
     args: z.record(identifier, z.union([text, z.number(), z.boolean()])),
-    format: z.enum(['markdown', 'json', 'html', 'text']),
-    destinations: z
-      .array(scheduleReportDestinationSchema)
-      .check(z.minLength(1), z.maxLength(SCHEDULE_MAX_DESTINATIONS)),
+    format: z.enum(SCHEDULE_REPORT_FORMATS),
+    destinations: z.array(scheduleReportDestinationSchema).check(
+      z.minLength(1),
+      z.maxLength(SCHEDULE_MAX_DESTINATIONS),
+      z.refine((items) => new Set(items.map((item) => item.id)).size === items.length),
+    ),
   }),
 ])
+export type ScheduleReportAction = Extract<z.infer<typeof scheduleActionSchema>, { kind: 'report' }>
 export const schedulePaidConsentSchema = z.strictObject({
   modelId: text,
   accountId: text,
@@ -330,8 +334,24 @@ export const scheduleGrantAuditSchema = z.strictObject({
   kind: z.enum(['created', 'changed', 'revoked', 'used']),
   runId: z.optional(runId),
   ruleId: z.optional(identifier),
+  destinationId: z.optional(identifier),
   actionClass: z.optional(z.enum(SCHEDULE_ACTION_CLASSES)),
 })
+
+// M113 Q's application-level settlement, not a provider wire response.
+export const scheduleReportOutcomeSchema = z.discriminatedUnion('status', [
+  z.strictObject({ status: z.literal('delivered'), attempts: z.int().check(z.gte(0)) }),
+  z.strictObject({
+    status: z.literal('deferred'),
+    attempts: z.int().check(z.gte(0)),
+    reason: z.literal('inactiveSession'),
+  }),
+  z.strictObject({
+    status: z.enum(['failed', 'uncertain', 'refused']),
+    attempts: z.int().check(z.gte(0)),
+  }),
+])
+export const scheduleReportResultsSchema = z.record(identifier, scheduleReportOutcomeSchema)
 
 export const scheduleFireRecordSchema = z.strictObject({
   runId,
@@ -352,6 +372,7 @@ export const scheduleFireRecordSchema = z.strictObject({
     retainedLiabilityUsd: money,
   }),
   event: z.optional(scheduleEventSchema),
+  report: z.optional(scheduleReportResultsSchema),
 })
 export type ScheduleFireRecord = z.infer<typeof scheduleFireRecordSchema>
 

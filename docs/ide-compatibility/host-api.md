@@ -423,32 +423,33 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `workspace.textDocuments`                                                            | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                        |
 | `workspace.workspaceFolders`                                                         | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`                                                                                                                                                                                                                                                                                              |
 
-## Node built-ins the host imports (25)
+## Node built-ins the host imports (26)
 
 | Module                 | Files |
 | ---------------------- | ----- |
 | `node:buffer`          | 39    |
-| `node:child_process`   | 13    |
-| `node:crypto`          | 46    |
+| `node:child_process`   | 14    |
+| `node:crypto`          | 50    |
 | `node:dgram`           | 1     |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 3     |
-| `node:fs`              | 33    |
-| `node:fs/promises`     | 47    |
+| `node:fs`              | 34    |
+| `node:fs/promises`     | 49    |
 | `node:http`            | 4     |
 | `node:https`           | 1     |
 | `node:module`          | 1     |
 | `node:net`             | 7     |
-| `node:os`              | 9     |
-| `node:path`            | 84    |
-| `node:process`         | 1     |
+| `node:os`              | 10    |
+| `node:path`            | 89    |
+| `node:perf_hooks`      | 1     |
+| `node:process`         | 3     |
 | `node:stream`          | 12    |
 | `node:stream/promises` | 2     |
 | `node:string_decoder`  | 1     |
 | `node:timers/promises` | 3     |
 | `node:tls`             | 1     |
 | `node:url`             | 4     |
-| `node:util`            | 5     |
+| `node:util`            | 7     |
 | `node:vm`              | 1     |
 | `node:worker_threads`  | 4     |
 | `node:zlib`            | 4     |
@@ -459,6 +460,6 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | ------------------ | ----------------------------------------------------------------------------------- |
 | `acquireVsCodeApi` | `src/webview/hostBridge.ts`, `src/webview/main.tsx`, `src/webview/whatsNew/main.ts` |
 
-Theme variables the styles read (61), from `src/webview/components/HeartbeatTrace.tsx`, `src/webview/styles.css`, `src/webview/whatsNew/whatsNew.css`:
+Theme variables the styles read (61), from `src/webview/components/HeartbeatTrace.tsx`, `src/webview/schedules/reportAction.css`, `src/webview/styles.css`, `src/webview/whatsNew/whatsNew.css`:
 
 `--vscode-badge-background`, `--vscode-badge-foreground`, `--vscode-button-background`, `--vscode-button-border`, `--vscode-button-foreground`, `--vscode-button-hoverBackground`, `--vscode-button-secondaryBackground`, `--vscode-button-secondaryForeground`, `--vscode-button-secondaryHoverBackground`, `--vscode-charts-red`, `--vscode-checkbox-border`, `--vscode-contrastBorder`, `--vscode-debugTokenExpression-number`, `--vscode-debugTokenExpression-string`, `--vscode-descriptionForeground`, `--vscode-diffEditor-insertedLineBackground`, `--vscode-diffEditor-removedLineBackground`, `--vscode-disabledForeground`, `--vscode-editor-background`, `--vscode-editor-font-family`, `--vscode-editor-font-size`, `--vscode-editorCursor-foreground`, `--vscode-editorWarning-foreground`, `--vscode-editorWidget-background`, `--vscode-editorWidget-border`, `--vscode-editorWidget-foreground`, `--vscode-errorForeground`, `--vscode-focusBorder`, `--vscode-font-family`, `--vscode-font-size`, `--vscode-foreground`, `--vscode-gitDecoration-addedResourceForeground`, `--vscode-gitDecoration-deletedResourceForeground`, `--vscode-input-background`, `--vscode-input-border`, `--vscode-input-foreground`, `--vscode-input-placeholderForeground`, `--vscode-inputValidation-errorBackground`, `--vscode-inputValidation-errorBorder`, `--vscode-inputValidation-errorForeground`, `--vscode-inputValidation-warningBackground`, `--vscode-inputValidation-warningForeground`, `--vscode-list-activeSelectionBackground`, `--vscode-list-activeSelectionForeground`, `--vscode-list-hoverBackground`, `--vscode-list-warningForeground`, `--vscode-panel-border`, `--vscode-progressBar-background`, `--vscode-sideBar-background`, `--vscode-symbolIcon-functionForeground`, `--vscode-symbolIcon-keywordForeground`, `--vscode-testing-iconFailed`, `--vscode-testing-iconPassed`, `--vscode-textBlockQuote-border`, `--vscode-textCodeBlock-background`, `--vscode-textLink-activeForeground`, `--vscode-textLink-foreground`, `--vscode-textPreformat-foreground`, `--vscode-toolbar-hoverBackground`, `--vscode-widget-border`, `--vscode-widget-shadow`

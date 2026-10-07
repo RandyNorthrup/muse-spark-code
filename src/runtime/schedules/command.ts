@@ -12,6 +12,7 @@ import { formatDateTime, formatNumber } from '../../shared/l10n/text'
 import { workspaceKey } from '../dataFolder'
 import type { ScheduleCommandOptions, ScheduleCallerContext } from './args'
 import { scheduleLauncherReason } from './registration'
+import { scheduleCliReportAction, type ScheduleReportCliPort } from './reportCli'
 
 /** S supplies admission, claims and final settlement; X never dispatches a turn itself. */
 export interface ScheduleControlPort {
@@ -54,12 +55,31 @@ export async function settleScheduleCommand(
   return result
 }
 
-function requestOf(options: ScheduleCommandOptions, cwd: string): ScheduleRequest {
+async function requestOf(
+  options: ScheduleCommandOptions,
+  cwd: string,
+  reports?: ScheduleReportCliPort,
+): Promise<ScheduleRequest> {
   const key = workspaceKey(cwd)
   switch (options.operation) {
     case 'add': {
       const draft: unknown = JSON.parse(options.draft ?? '')
-      return scheduleRequestSchema.parse({ method: 'schedules/create', workspaceKey: key, draft })
+      const request = scheduleRequestSchema.parse({
+        method: 'schedules/create',
+        workspaceKey: key,
+        draft,
+      })
+      if (request.method !== 'schedules/create' || options.reportKind === undefined) return request
+      const resolved = await scheduleCliReportAction(options, cwd, reports)
+      return scheduleRequestSchema.parse({
+        ...request,
+        draft: {
+          ...request.draft,
+          action: resolved.action,
+          paidCapUsd: 0,
+          grant: { ...request.draft.grant, destinationIds: resolved.destinationIds, paidCapUsd: 0 },
+        },
+      })
     }
     case 'list': {
       return scheduleRequestSchema.parse({ method: 'schedules/list', workspaceKey: key })
@@ -157,9 +177,10 @@ export async function runScheduleCommand(
   options: ScheduleCommandOptions,
   cwd: string,
   control: ScheduleControlPort,
+  reports?: ScheduleReportCliPort,
 ): Promise<ScheduleCommandResult> {
   return await settleScheduleCommand(
-    () => executeScheduleCommand(options, cwd, control),
+    () => executeScheduleCommand(options, cwd, control, reports),
     () => control.close(),
   )
 }
@@ -168,6 +189,7 @@ async function executeScheduleCommand(
   options: ScheduleCommandOptions,
   cwd: string,
   control: ScheduleControlPort,
+  reports?: ScheduleReportCliPort,
 ): Promise<ScheduleCommandResult> {
   let response: unknown
   try {
@@ -177,7 +199,9 @@ async function executeScheduleCommand(
     } else {
       let request: ScheduleRequest
       try {
-        request = requestOf(options, cwd)
+        if (reports === undefined && options.reportKind !== undefined)
+          return failure(options, UI_TEXT.scheduleV2.reportAction.unavailable)
+        request = await requestOf(options, cwd, reports)
       } catch {
         return failure(options, UI_TEXT.scheduleV2.runtime.invalidRequest)
       }

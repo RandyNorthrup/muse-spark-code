@@ -2670,7 +2670,7 @@
       "agentCreation": "Permission par défaut des agents pour créer des planifications : demander, toujours dans les limites ou jamais. Demander par défaut."
     },
     "runtime": {
-      "usage": "Utilisation: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Codes de sortie : 0 réussite, 1 refus, 2 erreur d’utilisation, 3 avertissement de nettoyage.",
+      "usage": "Utilisation: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Codes de sortie : 0 réussite, 1 refus, 2 erreur d’utilisation, 3 avertissement de nettoyage.",
       "accepted": "Demande de planification acceptée",
       "empty": "Aucune planification ni exécution à venir.",
       "unavailable": "Les planifications sont indisponibles sur cet hôte. La connexion au planificateur du runtime est requise.",
@@ -2684,6 +2684,22 @@
       "cleanupFailed": "La demande de planification est terminée, mais le nettoyage a échoué. Conservez l’identifiant accepté ; le code de sortie 3 indique que le nettoyage nécessite une intervention.",
       "hostUnavailable": "Le service de planification n’a pas pu démarrer pour cet espace de travail. Les commandes de planification sont indisponibles ; le chat habituel reste disponible.",
       "wakeBarrierTimeout": "Le lancement planifié a dépassé le délai d’attente de la synchronisation en arrière-plan. Aucune tâche planifiée n’a démarré."
+    },
+    "reportAction": {
+      "unavailable": "La remise des rapports est indisponible sur cet hôte. Le moteur déterministe de rapports est requis.",
+      "grantRequired": "Cette destination du rapport dépasse les autorisations actuelles de la programmation.",
+      "failed": "La remise du rapport a échoué ou son résultat est incertain.",
+      "invalidResult": "Le moteur de rapports a renvoyé un reçu de destination invalide.",
+      "kind": "Type de rapport",
+      "format": "Format du rapport",
+      "args": "Paramètres du rapport",
+      "destinations": "Destinations du rapport",
+      "formats": {
+        "markdown": "Document Markdown",
+        "html": "Document HTML",
+        "json": "Document JSON",
+        "text": "Texte brut"
+      }
     }
   }
 }

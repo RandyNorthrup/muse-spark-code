@@ -2670,7 +2670,7 @@
       "agentCreation": "Permiso predeterminado para que los agentes creen programaciones: preguntar, siempre dentro de los límites o nunca. Preguntar por defecto."
     },
     "runtime": {
-      "usage": "Uso: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Códigos de salida: 0 éxito, 1 rechazo, 2 uso incorrecto, 3 advertencia de limpieza.",
+      "usage": "Uso: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Códigos de salida: 0 éxito, 1 rechazo, 2 uso incorrecto, 3 advertencia de limpieza.",
       "accepted": "Solicitud de programación aceptada",
       "empty": "No hay programaciones ni ejecuciones próximas.",
       "unavailable": "Las programaciones no están disponibles en este host. Se requiere la conexión con el programador del entorno de ejecución.",
@@ -2684,6 +2684,22 @@
       "cleanupFailed": "La solicitud de programación terminó, pero la limpieza falló. Conserve el ID aceptado; el código de salida 3 indica que la limpieza necesita atención.",
       "hostUnavailable": "No se pudo iniciar el servicio de programación en este espacio de trabajo. Los controles no están disponibles; el chat habitual sigue disponible.",
       "wakeBarrierTimeout": "La ejecución programada agotó el tiempo de espera de la sincronización en segundo plano. No se inició ninguna tarea programada."
+    },
+    "reportAction": {
+      "unavailable": "La entrega de informes no está disponible en este host. Se requiere el ejecutor determinista de informes.",
+      "grantRequired": "Este destino del informe queda fuera de la autorización actual de la programación.",
+      "failed": "La entrega del informe falló o su resultado es incierto.",
+      "invalidResult": "El ejecutor de informes devolvió un comprobante de destino no válido.",
+      "kind": "Tipo de informe",
+      "format": "Formato",
+      "args": "Argumentos",
+      "destinations": "Destinos",
+      "formats": {
+        "markdown": "Documento Markdown",
+        "html": "Documento HTML",
+        "json": "Documento JSON",
+        "text": "Texto sin formato"
+      }
     }
   }
 }

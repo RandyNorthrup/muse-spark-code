@@ -2478,7 +2478,7 @@
       "agentCreation": "エージェントによるスケジュール作成の既定の権限：確認、上限内で常に許可、または許可しない。既定では確認します。"
     },
     "runtime": {
-      "usage": "使用法: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] 終了コード: 0 成功、1 拒否、2 使用方法の誤り、3 後処理の警告。",
+      "usage": "使用法: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] 終了コード: 0 成功、1 拒否、2 使用方法の誤り、3 後処理の警告。",
       "accepted": "スケジュール要求を受け付けました",
       "empty": "スケジュールや今後の実行はありません。",
       "unavailable": "このホストではスケジュールを利用できません。ランタイムのスケジューラーとの接続が必要です。",
@@ -2492,6 +2492,22 @@
       "cleanupFailed": "スケジュール要求は完了しましたが、後処理に失敗しました。受理された ID を保存してください。終了コード 3 は後処理への対応が必要であることを示します。",
       "hostUnavailable": "このワークスペースのスケジュールホストを起動できませんでした。スケジュール操作は利用できませんが、通常のチャットは引き続き利用できます。",
       "wakeBarrierTimeout": "スケジュール実行はバックグラウンド同期の待機中にタイムアウトしました。スケジュールされた処理は開始されていません。"
+    },
+    "reportAction": {
+      "unavailable": "このホストではレポートを配信できません。決定論的なレポート実行エンジンが必要です。",
+      "grantRequired": "このレポートの配信先はスケジュールの現在の許可範囲外です。",
+      "failed": "レポートの配信に失敗したか、結果が不明です。",
+      "invalidResult": "レポート実行エンジンが無効な配信先の受領記録を返しました。",
+      "kind": "レポートの種類",
+      "format": "形式",
+      "args": "引数",
+      "destinations": "配信先",
+      "formats": {
+        "markdown": "Markdown 文書",
+        "html": "HTML 文書",
+        "json": "JSON 文書",
+        "text": "プレーンテキスト"
+      }
     }
   }
 }

@@ -2766,7 +2766,7 @@
       "agentCreation": "Разрешение агентам создавать расписания по умолчанию: спрашивать, всегда в пределах лимитов или никогда. По умолчанию спрашивать."
     },
     "runtime": {
-      "usage": "Использование: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Коды выхода: 0 успех, 1 отказ, 2 ошибка использования, 3 предупреждение об очистке.",
+      "usage": "Использование: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Коды выхода: 0 успех, 1 отказ, 2 ошибка использования, 3 предупреждение об очистке.",
       "accepted": "Запрос на планирование принят",
       "empty": "Нет расписаний или предстоящих запусков.",
       "unavailable": "Расписания недоступны на этом хосте. Требуется подключение планировщика среды выполнения.",
@@ -2780,6 +2780,22 @@
       "cleanupFailed": "Запрос расписания завершён, но очистка не удалась. Сохраните принятый идентификатор; код выхода 3 означает, что очистка требует внимания.",
       "hostUnavailable": "Не удалось запустить процесс расписаний для этой рабочей области. Управление расписаниями недоступно; обычный чат по-прежнему доступен.",
       "wakeBarrierTimeout": "Превышено время ожидания фоновой синхронизации при запуске по расписанию. Запланированная работа не началась."
+    },
+    "reportAction": {
+      "unavailable": "Доставка отчётов недоступна на этом хосте. Необходим детерминированный модуль отчётов.",
+      "grantRequired": "Этот адресат отчёта не входит в текущие разрешения расписания.",
+      "failed": "Доставка отчёта завершилась ошибкой или её результат неизвестен.",
+      "invalidResult": "Модуль отчётов вернул недопустимое подтверждение доставки.",
+      "kind": "Вид отчёта",
+      "format": "Формат",
+      "args": "Аргументы",
+      "destinations": "Адресаты",
+      "formats": {
+        "markdown": "Документ Markdown",
+        "html": "Документ HTML",
+        "json": "Документ JSON",
+        "text": "Обычный текст"
+      }
     }
   }
 }

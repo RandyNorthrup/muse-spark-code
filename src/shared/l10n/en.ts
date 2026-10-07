@@ -18,9 +18,26 @@ import { forms } from './forms'
 export const EN = {
   // M115 lane 0: strings for the lazy schedule surfaces and adapters.
   scheduleV2: {
+    reportAction: {
+      formats: {
+        markdown: 'Markdown document',
+        html: 'HTML document',
+        json: 'JSON document',
+        text: 'Plain text',
+      },
+      unavailable:
+        'Report delivery is unavailable in this host. The deterministic report runner is required.',
+      grantRequired: 'This report destination is outside the schedule’s current grant.',
+      failed: 'Report delivery failed or its outcome is uncertain.',
+      invalidResult: 'The report runner returned an invalid destination receipt.',
+      kind: 'Report kind',
+      format: 'Format',
+      args: 'Arguments',
+      destinations: 'Destinations',
+    },
     runtime: {
       usage:
-        'Usage: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]. Exit codes: 0 success, 1 refusal, 2 usage, 3 cleanup warning.',
+        'Usage: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]. Exit codes: 0 success, 1 refusal, 2 usage, 3 cleanup warning.',
       accepted: 'Schedule request accepted',
       empty: 'No schedules or upcoming fires.',
       unavailable:

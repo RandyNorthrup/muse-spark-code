@@ -2670,7 +2670,7 @@
       "agentCreation": "Permissão padrão para agentes criarem agendamentos: perguntar, sempre dentro dos limites ou nunca. Perguntar por padrão."
     },
     "runtime": {
-      "usage": "Uso: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Códigos de saída: 0 sucesso, 1 recusa, 2 uso incorreto, 3 aviso de limpeza.",
+      "usage": "Uso: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Códigos de saída: 0 sucesso, 1 recusa, 2 uso incorreto, 3 aviso de limpeza.",
       "accepted": "Solicitação de agendamento aceita",
       "empty": "Nenhum agendamento ou execução próxima.",
       "unavailable": "Os agendamentos não estão disponíveis neste host. É necessária a conexão com o agendador do ambiente de execução.",
@@ -2684,6 +2684,22 @@
       "cleanupFailed": "A solicitação de agendamento terminou, mas a limpeza falhou. Guarde o ID aceito; o código de saída 3 indica que a limpeza requer atenção.",
       "hostUnavailable": "Não foi possível iniciar o serviço de agendamento neste espaço de trabalho. Os controles estão indisponíveis; o chat comum continua disponível.",
       "wakeBarrierTimeout": "A execução agendada excedeu o tempo de espera da sincronização em segundo plano. Nenhuma tarefa agendada foi iniciada."
+    },
+    "reportAction": {
+      "unavailable": "A entrega de relatórios não está disponível neste host. É necessário o executor determinístico de relatórios.",
+      "grantRequired": "Este destino do relatório está fora da permissão atual do agendamento.",
+      "failed": "A entrega do relatório falhou ou seu resultado é incerto.",
+      "invalidResult": "O executor de relatórios retornou um comprovante de destino inválido.",
+      "kind": "Tipo de relatório",
+      "format": "Formato",
+      "args": "Argumentos",
+      "destinations": "Destinos",
+      "formats": {
+        "markdown": "Documento Markdown",
+        "html": "Documento HTML",
+        "json": "Documento JSON",
+        "text": "Texto simples"
+      }
     }
   }
 }

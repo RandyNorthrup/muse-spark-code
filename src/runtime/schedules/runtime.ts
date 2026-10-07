@@ -12,9 +12,11 @@ import type { RuntimeSchedulesBinding } from './binding'
 import type { RuntimeScheduleHost } from './host'
 import type { ScheduleBackgroundCoordinator } from './background'
 import type { ScheduleSurface } from './surface'
+import type { ScheduleReportCliPort } from './reportCli'
 import { scheduleLauncherReason, type ScheduleWakeAuthorization } from './registration'
 
 export interface ScheduleRuntimeDeps {
+  readonly reportCli?: ScheduleReportCliPort
   /** S supplies a scoped control, with a real close for that invocation. */
   readonly controlFor: (cwd: string, caller: ScheduleCallerContext) => Promise<ScheduleControlPort>
   readonly host: RuntimeScheduleHost
@@ -121,7 +123,7 @@ export class ScheduleRuntime implements RuntimeSchedulesBinding {
       ...authorization,
     })
     return await settleScheduleCommand(
-      () => runScheduleCommand(options, cwd, control),
+      () => runScheduleCommand(options, cwd, control, this.deps.reportCli),
       () => (options.operation === 'run-due' ? this.close() : Promise.resolve()),
     )
   }
