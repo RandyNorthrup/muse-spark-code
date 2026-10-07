@@ -8,6 +8,29 @@ review, session history, rewind).
 
 Status legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` deferred.
 
+**FIX0150P release-review repair (2026-10-07, linuxlt).** Own only PR #136's
+six threads on `panelSeam.ts` and `importExport.ts`; base `0113c131e`.
+Resolve configured endpoint hosts before classification, retain private and
+metadata refusals, and distinguish unresolved answers from unusable addresses.
+Populate local probes from preset ports and model-list paths. Existing
+OpenRouter exchange/usage services are absent: hide unavailable actions and
+reads with localized, honest status while preserving pasted-key inference.
+Export subscription configuration without credentials; validate imported
+defaults and provider identities before confirmation, clear replaced/removed
+credentials, and publish providers/default in one atomic file write.
+
+- [x] Add regressions and run them on the release base before repairs.
+- [x] Repair endpoint checks, local probes and unavailable OpenRouter surfaces.
+- [x] Repair subscription export, credential cleanup and atomic import.
+- [ ] Clean CI-style owning suites three times at default deadlines; five
+      typechecks, changed-file lint/format, localization/reference, plain knip,
+      duplication, host API and build checks; hooks-on commits, no push.
+
+The rig brief overrides common.md's clean prohibition for
+`git clean -xdf -e node_modules` and delegates full quality to the lead.
+No merge, live/paid calls, dependencies, gate changes or other review threads.
+Receipts and guard-fire drills: `docs/certification/fix0150p.md`.
+
 ---
 
 ## 1. Assumptions
@@ -40753,6 +40776,13 @@ is relaxed. No live or paid calls, push, rebase or merge.
       bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
 
 ## 7. Gates
+
+**FIX0150P scoped release-review verification (2026-10-07, linuxlt).**
+The rig/common briefs prohibit a full quality run in this lane. Full quality
+and cross-platform release certification remain with the lead; this lane
+runs the prescribed complete owning suites and scoped static/build gates
+without weakening thresholds, timeouts, isolation or hooks. Detailed red/base
+and restored-green receipts belong in `docs/certification/fix0150p.md`.
 
 **CI0150A scoped certification.** CI0150-common.md requires three clean
 repetitions of complete owning files and individual static gates; the rig note

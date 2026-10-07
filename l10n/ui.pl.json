@@ -3239,6 +3239,7 @@
   "providerImport": "Importuj",
   "providerImportPreviewTitle": "Podgląd importu",
   "importNeedsKey": "wymaga klucza",
+  "providerOpenRouterServices": "Łączenie konta OpenRouter i odczyt użycia klucza nie są jeszcze dostępne. Wklej klucz, aby korzystać z modeli.",
   "refreshModels": "Odśwież modele",
   "scanNewModels": {
     "one": "{count} nowy model od ostatniego skanowania",

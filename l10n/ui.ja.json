@@ -2930,6 +2930,7 @@
   "providerImport": "インポート",
   "providerImportPreviewTitle": "インポートのプレビュー",
   "importNeedsKey": "キーが必要です",
+  "providerOpenRouterServices": "OpenRouterアカウントの接続とキーの使用状況の取得はまだ利用できません。モデルを使うにはキーを貼り付けてください。",
   "refreshModels": "モデルを更新",
   "scanNewModels": {
     "other": "前回のスキャン以降の新しいモデル {count} 件"

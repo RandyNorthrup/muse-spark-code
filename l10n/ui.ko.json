@@ -2930,6 +2930,7 @@
   "providerImport": "가져오기",
   "providerImportPreviewTitle": "가져오기 미리 보기",
   "importNeedsKey": "키 필요",
+  "providerOpenRouterServices": "OpenRouter 계정 연결과 키 사용량 조회는 아직 제공되지 않습니다. 모델을 사용하려면 키를 붙여넣으세요.",
   "refreshModels": "모델 새로 고침",
   "scanNewModels": {
     "other": "마지막 검사 이후 새 모델 {count}개"

@@ -27,6 +27,7 @@ const UI_CONDITIONS: Readonly<
   Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
 > = {
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
+  providerOpenRouterServices: 'openRouterServices=absent',
   referenceSandbox: 'platform=win32&shellSandbox',
   autoCompactionAwaitingEvaluation: 'autoCompactionEvaluation',
   referenceBrowser: 'workspaceTrust',
@@ -827,6 +828,7 @@ export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
 const REFERENCE_DETAILS: Readonly<
   Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
 > = {
+  providers: ['providerOpenRouterServices'],
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],
   account: ['signInBrowserDetail', 'signInApiKeyDetail', 'installDetail', 'referenceSecretPrompt'],

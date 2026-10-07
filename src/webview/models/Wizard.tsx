@@ -315,6 +315,11 @@ function CredentialStep({
           </button>
         )}
       </div>
+      {preset?.id === 'openrouter' && !preset.connectOAuth && (
+        <p className="models-hint" role="status">
+          {UI_TEXT.providerOpenRouterServices}
+        </p>
+      )}
       {draft.keyPresent && (
         <p className="models-hint" role="status">
           {fill(UI_TEXT.keyStoredNote, {

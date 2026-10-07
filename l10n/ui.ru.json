@@ -3239,6 +3239,7 @@
   "providerImport": "Импорт",
   "providerImportPreviewTitle": "Предпросмотр импорта",
   "importNeedsKey": "нужен ключ",
+  "providerOpenRouterServices": "Подключение учётной записи OpenRouter и просмотр использования ключа пока недоступны. Вставьте ключ для использования моделей.",
   "refreshModels": "Обновить модели",
   "scanNewModels": {
     "one": "{count} новая модель с последней проверки",

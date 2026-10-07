@@ -3136,6 +3136,7 @@
   "providerImport": "Importar",
   "providerImportPreviewTitle": "Prévia da importação",
   "importNeedsKey": "precisa de uma chave",
+  "providerOpenRouterServices": "A conexão da conta OpenRouter e a consulta de uso da chave ainda não estão disponíveis. Cole uma chave para usar os modelos.",
   "refreshModels": "Atualizar os modelos",
   "scanNewModels": {
     "one": "{count} modelo novo desde a última verificação",

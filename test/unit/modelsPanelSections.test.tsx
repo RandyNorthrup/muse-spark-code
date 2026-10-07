@@ -51,6 +51,44 @@ function props(
 }
 
 describe('ProvidersSection', () => {
+  it('hides unavailable OpenRouter connect and usage with an honest status (PR136 VE)', () => {
+    const post = vi.fn()
+    const state = makeState({
+      providers: [makeProvider({ id: 'openrouter', presetId: 'openrouter', auth: 'apiKey' })],
+    })
+    state.presets = state.presets.map((preset) => ({ ...preset, connectOAuth: false }))
+    const { rerender } = render(<ProvidersSection {...props(state, post)} />)
+    expect(screen.queryByRole('button', { name: UI_TEXT.reconnectAccount })).toBeNull()
+    expect(
+      screen.getByText(
+        'OpenRouter account connection and key usage are not available yet. Paste a key to use models.',
+      ),
+    ).toBeDefined()
+    rerender(
+      <ProvidersSection
+        {...props(
+          {
+            ...state,
+            providers: [],
+            drafts: {
+              edits: {},
+              wizard: makeDraft({ step: 'credential', presetId: 'openrouter' }),
+            },
+          },
+          post,
+          { wizardOpen: true },
+        )}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: 'Connect OpenRouter account' })).toBeNull()
+    expect(
+      screen.getByText(
+        'OpenRouter account connection and key usage are not available yet. Paste a key to use models.',
+      ),
+    ).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.enterKey }))
+    expect(post).toHaveBeenCalledWith({ type: 'providers/enterKey', mode: 'new' })
+  })
   it('connects subscription actions from explicit clicks and hides Copilot when the host refuses it', () => {
     const post = vi.fn()
     const state = makeState({ subscriptionsAvailable: true, copilotAvailable: true })

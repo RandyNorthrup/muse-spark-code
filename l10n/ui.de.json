@@ -3033,6 +3033,7 @@
   "providerImport": "Importieren",
   "providerImportPreviewTitle": "Importvorschau",
   "importNeedsKey": "braucht einen Schlüssel",
+  "providerOpenRouterServices": "Die Verbindung mit einem OpenRouter-Konto und die Anzeige der Schlüsselnutzung sind noch nicht verfügbar. Fügen Sie einen Schlüssel ein, um Modelle zu nutzen.",
   "refreshModels": "Modelle aktualisieren",
   "scanNewModels": {
     "one": "{count} neues Modell seit der letzten Suche",

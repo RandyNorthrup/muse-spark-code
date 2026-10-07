@@ -3239,6 +3239,7 @@
   "providerImport": "Importovat",
   "providerImportPreviewTitle": "Náhled importu",
   "importNeedsKey": "potřebuje klíč",
+  "providerOpenRouterServices": "Připojení účtu OpenRouter a údaje o využití klíče zatím nejsou dostupné. Pro použití modelů vložte klíč.",
   "refreshModels": "Aktualizovat modely",
   "scanNewModels": {
     "one": "{count} nový model od posledního prohledání",

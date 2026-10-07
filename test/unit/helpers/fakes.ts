@@ -333,11 +333,12 @@ export function memoryProvidersStore(
       current.push(entry)
       return Promise.resolve()
     },
-    replaceAll: (next) => {
+    replaceAll: (next, replacement) => {
       const previous = [...current]
       current.length = 0
       current.push(...next)
       replaced.push([...next])
+      if (replacement !== undefined) defaultModel = replacement.defaultModel
       return Promise.resolve(previous)
     },
     setDefaultModel: (ref) => {

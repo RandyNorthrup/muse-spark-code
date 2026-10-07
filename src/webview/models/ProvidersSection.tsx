@@ -81,7 +81,11 @@ function TestLine({
 function KeyUsage({ provider }: { readonly provider: ProviderState }) {
   const usage = provider.keyUsage
   if (usage === undefined) {
-    return null
+    return provider.presetId === 'openrouter' ? (
+      <p className="models-hint" role="status">
+        {UI_TEXT.providerOpenRouterServices}
+      </p>
+    ) : null
   }
   const rows: (readonly [string, number])[] = []
   if (usage.dayUsd !== undefined) {
@@ -251,15 +255,19 @@ function ProviderRow({
         >
           {UI_TEXT.changeKey}
         </button>
-        <button
-          type="button"
-          className="models-button"
-          onClick={() => {
-            post({ type: 'providers/connect', providerId: provider.id })
-          }}
-        >
-          {UI_TEXT.reconnectAccount}
-        </button>
+        {panelState.presets.some(
+          (preset) => preset.id === provider.presetId && preset.connectOAuth,
+        ) && (
+          <button
+            type="button"
+            className="models-button"
+            onClick={() => {
+              post({ type: 'providers/connect', providerId: provider.id })
+            }}
+          >
+            {UI_TEXT.reconnectAccount}
+          </button>
+        )}
         <button
           type="button"
           className="models-button"

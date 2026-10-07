@@ -92,6 +92,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Resolve provider addresses before adding, editing or importing configuration;
+  keep private-network confirmation and metadata refusals. Local scans contact
+  preset model-list endpoints. Hide unavailable OpenRouter account connection
+  and key-usage services with an explicit status; pasted keys remain supported.
+- Export subscription provider configuration without secrets. Confirmed imports
+  clear credentials for imported and removed providers, validate default model
+  references before confirmation, and publish providers/default atomically.
 - Keep deferred question controls and team-worker attention labels together
   after the release merge. Local ACP compaction preserves queued late answers.
 - Preserve safe Windows team storage aliases, publish private

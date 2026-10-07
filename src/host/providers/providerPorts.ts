@@ -23,8 +23,8 @@ export interface ModelsPanelSeam {
   readonly policy: AddressPolicy
   readonly tester: KeyTester
   readonly fetcher: ModelFetcher
-  readonly exchanger: CodeExchanger
-  readonly usage: KeyUsageReader
+  readonly exchanger: CodeExchanger | undefined
+  readonly usage: KeyUsageReader | undefined
   readonly pkce: PkceSource
   readonly suggest: SuggestionEngine
 }
@@ -89,7 +89,10 @@ export interface ProvidersStore {
   /** Puts back an entry `remove` took (Undo). */
   restore(entry: ProviderEntry): Promise<void>
   /** Replaces the whole file (a confirmed import); the file's previous entries. */
-  replaceAll(entries: readonly ProviderEntry[]): Promise<readonly ProviderEntry[]>
+  replaceAll(
+    entries: readonly ProviderEntry[],
+    options?: { readonly defaultModel: string | undefined },
+  ): Promise<readonly ProviderEntry[]>
   /** Names the composer's default model (`providers.json`'s `defaultModel`). */
   setDefaultModel(ref: string | undefined): Promise<void>
   /** The default model reference, or undefined when none is set. */
@@ -207,7 +210,7 @@ export type AddressCheck =
 
 /** Lane P's `endpointPolicy.ts`: URL rules and the address classifier. */
 export interface AddressPolicy {
-  check(address: string): AddressCheck
+  check(address: string): AddressCheck | Promise<AddressCheck>
 }
 
 /** PKCE S256 pair for an OAuth connect (lane P's `pkce.ts`). */

@@ -48,6 +48,10 @@ describe('isModelsPanelSeam', () => {
       expect(isModelsPanelSeam(bad)).toBe(false)
     }
   })
+  it('accepts unavailable optional OpenRouter ports but refuses malformed services', () => {
+    expect(isModelsPanelSeam({ ...seam, exchanger: undefined, usage: undefined })).toBe(true)
+    expect(isModelsPanelSeam({ ...seam, exchanger: 'not a service' })).toBe(false)
+  })
 })
 
 function seamLoader(loadBundle: (file: string) => unknown) {
