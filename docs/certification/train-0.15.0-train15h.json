@@ -4973,6 +4973,40 @@
         "PASS P2-2: cold row menu dismissed by Escape; late import cannot take focus",
         "PASS P2-2: cold row menu dismissed by navigation; late import cannot take focus"
       ]
+    },
+    {
+      "id": "production-post-drills",
+      "command": "C:\\Users\\Randy\\gates\\tools\\node\\node.exe",
+      "args": [
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "test/unit/webviewBundle.test.mjs",
+        "test/unit/browserUiText.test.mjs",
+        "test/unit/browserKeybindings.test.mjs",
+        "--maxWorkers=3"
+      ],
+      "started": "2026-10-07T01:43:57.563Z",
+      "ended": "2026-10-07T01:44:14.175Z",
+      "exit": 0,
+      "log": "temp/train15h/production-post-drills.log",
+      "result": ["Test Files  3 passed (3)", "Tests  33 passed (33)"]
+    },
+    {
+      "id": "arrival-post-drills",
+      "command": "C:\\Users\\Randy\\gates\\tools\\node\\node.exe",
+      "args": [
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "test/unit/AppLazy.test.tsx",
+        "test/unit/bundleSize.test.mjs",
+        "test/unit/reviewUi.test.tsx",
+        "--maxWorkers=3"
+      ],
+      "started": "2026-10-07T01:44:14.175Z",
+      "ended": "2026-10-07T01:44:28.009Z",
+      "exit": 0,
+      "log": "temp/train15h/arrival-post-drills.log",
+      "result": ["Test Files  3 passed (3)", "Tests  44 passed (44)"]
     }
   ],
   "drills": [
@@ -5123,6 +5157,156 @@
       "result": [
         "Test Files  1 failed (1)",
         "Tests  1 failed | 12 passed (13)",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯"
+      ]
+    },
+    {
+      "id": "drill-eager-comment",
+      "command": "C:\\Users\\Randy\\gates\\tools\\node\\node.exe",
+      "args": [
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "test/unit/webviewBundle.test.mjs",
+        "--maxWorkers=3"
+      ],
+      "started": "2026-10-07T01:42:11.327Z",
+      "ended": "2026-10-07T01:43:02.773Z",
+      "exit": 1,
+      "log": "temp/train15h/drill-eager-comment.log",
+      "drill": {
+        "file": "src/webview/components/ReviewPane.tsx",
+        "before": "17cc35f2c04a2d6b3e8496a07ad03bfc58a24b0dd1207b1ade31c4d453dfeed3",
+        "mutated": "4c4dfc7b915878b1cce524477fbc1af74dc59eb09f33938bffeddc4516944101",
+        "restored": "17cc35f2c04a2d6b3e8496a07ad03bfc58a24b0dd1207b1ade31c4d453dfeed3"
+      },
+      "result": [
+        "Test Files  1 failed (1)",
+        "Tests  2 failed | 26 passed (28)",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯"
+      ]
+    },
+    {
+      "id": "drill-english-budget",
+      "command": "C:\\Users\\Randy\\gates\\tools\\node\\node.exe",
+      "args": [
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "test/unit/bundleSize.test.mjs",
+        "--maxWorkers=3"
+      ],
+      "started": "2026-10-07T01:43:02.794Z",
+      "ended": "2026-10-07T01:43:04.170Z",
+      "exit": 1,
+      "log": "temp/train15h/drill-english-budget.log",
+      "drill": {
+        "file": "scripts/lib/webviewBundles.mjs",
+        "before": "da5f34eb8843b5faf0e1054d1675635ecd0f2186a0dc60468691e72e00118967",
+        "mutated": "697feb551f8556c628a87701775162f6553dc1bdd37fd160c2bf147bd20e9c93",
+        "restored": "da5f34eb8843b5faf0e1054d1675635ecd0f2186a0dc60468691e72e00118967"
+      },
+      "result": [
+        "Test Files  1 failed (1)",
+        "Tests  1 failed | 29 passed (30)",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯"
+      ]
+    },
+    {
+      "id": "drill-comment-budget",
+      "command": "C:\\Users\\Randy\\gates\\tools\\node\\node.exe",
+      "args": [
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "test/unit/bundleSize.test.mjs",
+        "--maxWorkers=3"
+      ],
+      "started": "2026-10-07T01:43:04.191Z",
+      "ended": "2026-10-07T01:43:05.540Z",
+      "exit": 1,
+      "log": "temp/train15h/drill-comment-budget.log",
+      "drill": {
+        "file": "scripts/check-bundle-size.mjs",
+        "before": "aadd52227ba2dc8e73e0dd21715d8102574dfcb50c1226a305a5d70cf2f66eb8",
+        "mutated": "d063399f0443d349c3e43504bb3508ce6ba04fee7377271ba3e875d76b0b5f99",
+        "restored": "aadd52227ba2dc8e73e0dd21715d8102574dfcb50c1226a305a5d70cf2f66eb8"
+      },
+      "result": [
+        "Test Files  1 failed (1)",
+        "Tests  1 failed | 29 passed (30)",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯"
+      ]
+    },
+    {
+      "id": "drill-cold-legal-modal",
+      "command": "C:\\Users\\Randy\\gates\\tools\\node\\node.exe",
+      "args": [
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "test/unit/AppLazy.test.tsx",
+        "--maxWorkers=3"
+      ],
+      "started": "2026-10-07T01:43:05.561Z",
+      "ended": "2026-10-07T01:43:47.535Z",
+      "exit": 1,
+      "log": "temp/train15h/drill-cold-legal-modal.log",
+      "drill": {
+        "file": "src/webview/App.tsx",
+        "before": "82fca2e9f3103cef6bf876397beeba99c9b19a973ec2ab65a13a8512a2af680e",
+        "mutated": "4de6b3d5ae652f03c8a2f8c3d1f7606f4f28fd819c6bef6549516dd248cf9873",
+        "restored": "82fca2e9f3103cef6bf876397beeba99c9b19a973ec2ab65a13a8512a2af680e"
+      },
+      "result": [
+        "Test Files  1 failed (1)",
+        "Tests  1 failed (1)",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯"
+      ]
+    },
+    {
+      "id": "drill-english-values",
+      "command": "C:\\Users\\Randy\\gates\\tools\\node\\node.exe",
+      "args": [
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "test/unit/browserUiText.test.mjs",
+        "--maxWorkers=3"
+      ],
+      "started": "2026-10-07T01:43:47.567Z",
+      "ended": "2026-10-07T01:43:55.087Z",
+      "exit": 1,
+      "log": "temp/train15h/drill-english-values.log",
+      "drill": {
+        "file": "scripts/lib/uiTextRegions.mjs",
+        "before": "e955dc6a6ba58b8720d1e33a03a973f5b2edbcdb19fb12a766803cf582b70c5c",
+        "mutated": "4c82897541b848b2d2c14121e1a411d3d9034510914b661d964248072c6c7ede",
+        "restored": "e955dc6a6ba58b8720d1e33a03a973f5b2edbcdb19fb12a766803cf582b70c5c"
+      },
+      "result": [
+        "Test Files  1 failed (1)",
+        "Tests  1 failed | 2 passed (3)",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯"
+      ]
+    },
+    {
+      "id": "drill-unknown-keyboard",
+      "command": "C:\\Users\\Randy\\gates\\tools\\node\\node.exe",
+      "args": [
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "test/unit/browserKeybindings.test.mjs",
+        "--maxWorkers=3"
+      ],
+      "started": "2026-10-07T01:43:55.112Z",
+      "ended": "2026-10-07T01:43:57.541Z",
+      "exit": 1,
+      "log": "temp/train15h/drill-unknown-keyboard.log",
+      "drill": {
+        "file": "scripts/lib/browserKeybindings.mjs",
+        "before": "cc0cf7beb30194c0c7ba791f23803105663419198e80d6b1f94186e1c5b28d24",
+        "mutated": "2513643e22b05b85c21726cce9e9c5448c8f361f45d465ff7b9c6a4823df8e23",
+        "restored": "cc0cf7beb30194c0c7ba791f23803105663419198e80d6b1f94186e1c5b28d24"
+      },
+      "result": [
+        "Test Files  1 failed (1)",
+        "Tests  1 failed | 1 passed (2)",
         "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯"
       ]
     }
@@ -5358,7 +5542,7 @@
       "result": ["Reference: 59 features, 51 commands, 67 settings, 28 slash, 213 CLI; current"]
     }
   ],
-  "package-results": [
+  "initial-package-results": [
     {
       "id": "helperless-after",
       "command": "C:\\WINDOWS\\system32\\cmd.exe",
@@ -5404,7 +5588,7 @@
       "log": "temp/train15h/package-inventory-universal-after.log"
     }
   ],
-  "package-measurement": {
+  "initial-package-measurement": {
     "helperless": {
       "bytes": 2589075,
       "sha256": "b5735d8687a9f4249c6678e676b08bb76b8aed232dad4872aac2f4c6b259a441"
@@ -5412,6 +5596,68 @@
     "universal": {
       "bytes": 2668623,
       "sha256": "2477d3e13882408805259121e0e58ef31716c35793aaa776eae3efece49a3513"
+    },
+    "helper": {
+      "bytes": 289568,
+      "sha256": "f42e757a0d78a6bc6a6af22c3bcf34fc7d082eb9e8130d9336024a55c19f0f36"
+    },
+    "candidateCapBytes": 2816000,
+    "candidateCapKiB": 2750
+  },
+  "package-results": [
+    {
+      "id": "helperless-after",
+      "command": "C:\\Users\\Randy\\gates\\tools\\node\\node.exe",
+      "args": ["scripts/package-vsix.mjs"],
+      "started": "2026-10-07T01:45:08.718Z",
+      "ended": "2026-10-07T01:46:34.412Z",
+      "exit": 0,
+      "log": "temp/train15h/package-helperless-after.log"
+    },
+    {
+      "id": "inventory-helperless-after",
+      "command": "python",
+      "args": [
+        "temp/train15f/vsix-inventory.py",
+        "temp/train15h/helperless-after.vsix",
+        "temp/train15h/helperless-after.json"
+      ],
+      "started": "2026-10-07T01:46:34.415Z",
+      "ended": "2026-10-07T01:46:34.629Z",
+      "exit": 0,
+      "log": "temp/train15h/package-inventory-helperless-after.log"
+    },
+    {
+      "id": "universal-after",
+      "command": "C:\\Users\\Randy\\gates\\tools\\node\\node.exe",
+      "args": ["scripts/package-vsix.mjs"],
+      "started": "2026-10-07T01:46:34.662Z",
+      "ended": "2026-10-07T01:47:49.703Z",
+      "exit": 0,
+      "log": "temp/train15h/package-universal-after.log"
+    },
+    {
+      "id": "inventory-universal-after",
+      "command": "python",
+      "args": [
+        "temp/train15f/vsix-inventory.py",
+        "temp/train15h/universal-after.vsix",
+        "temp/train15h/universal-after.json"
+      ],
+      "started": "2026-10-07T01:47:49.706Z",
+      "ended": "2026-10-07T01:47:49.840Z",
+      "exit": 0,
+      "log": "temp/train15h/package-inventory-universal-after.log"
+    }
+  ],
+  "package-measurement": {
+    "helperless": {
+      "bytes": 2589075,
+      "sha256": "3ee00bcd87da758def415f18bc8b05515af49a50a54b09e548904b691baaf7c3"
+    },
+    "universal": {
+      "bytes": 2668623,
+      "sha256": "5cef0448872023dfeeee9b62f9c5b82863c364a29d00adde67200be07b2cc6ae"
     },
     "helper": {
       "bytes": 289568,
@@ -8294,8 +8540,419 @@
       }
     ]
   },
+  "a11y-first-result": {
+    "command": "node scripts/a11y.mjs",
+    "started": "2026-10-07T00:16:29.031Z",
+    "ended": "2026-10-07T00:57:30.397Z",
+    "exit": 1,
+    "summary": "a11y: 864 pages (216 scenarios × 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 1 pages without a result",
+    "log": "temp/train15h/a11y-first-full.log"
+  },
+  "a11y-result": {
+    "command": "node scripts/a11y.mjs",
+    "started": "2026-10-07T01:00:58.058Z",
+    "ended": "2026-10-07T01:41:46.159Z",
+    "exit": 0,
+    "summary": "a11y: 864 pages (216 scenarios × 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result",
+    "log": "temp/train15h/a11y-full.log"
+  },
+  "commit-result": {
+    "implementationHead": "389e7a0eb634f6aabf6126663f6310a6b54b7c3a",
+    "exit": 0,
+    "hooks": ["lint-staged: ESLint --fix and Prettier", "gitleaks: staged scan, no leaks"],
+    "log": "temp/train15h/commit-implementation.log",
+    "harnessHead": "e8d68d62859aa02aff8b9801516924dd22e30097",
+    "harnessHooks": {
+      "exit": 0,
+      "tools": ["lint-staged: Prettier", "gitleaks: staged scan, no leaks"],
+      "log": "temp/train15h/commit-harness.log"
+    }
+  },
+  "artifacts-result": {
+    "archiveChecks": [
+      {
+        "id": "helperless-after",
+        "bytes": 2589075,
+        "browserOutputsVerified": 78,
+        "unexpectedPayloads": 0,
+        "helper": null
+      },
+      {
+        "id": "universal-after",
+        "bytes": 2668623,
+        "browserOutputsVerified": 78,
+        "unexpectedPayloads": 0,
+        "helper": {
+          "name": "extension/native/darwin/muse-dictate",
+          "compressed": 79400,
+          "bytes": 289568,
+          "mode": "0o100755"
+        }
+      }
+    ],
+    "firstPaint": [
+      "src/webview/main.tsx",
+      "src/webview/components/JudgeStatusLine.tsx",
+      "src/webview/App.tsx",
+      "src/webview/components/ApprovalDock.tsx",
+      "src/webview/components/ApprovalCard.tsx",
+      "src/webview/components/Composer.tsx",
+      "src/webview/base64.ts",
+      "src/webview/dictationGesture.ts",
+      "src/webview/components/AttachmentChips.tsx",
+      "src/webview/components/ContextMeter.tsx",
+      "src/webview/components/MenuOption.tsx",
+      "src/webview/components/MentionMenu.tsx",
+      "src/webview/components/modeIcons.tsx",
+      "src/webview/components/SlashMenu.tsx",
+      "src/webview/components/DiffTally.tsx",
+      "src/webview/components/Onboarding.tsx",
+      "src/webview/components/EmptyState.tsx",
+      "src/webview/components/Header.tsx",
+      "src/webview/components/DeferredReportDialog.tsx",
+      "src/webview/components/Transcript.tsx",
+      "src/webview/stepSummary.ts",
+      "src/webview/streamSplit.ts",
+      "src/webview/components/ExternalLink.tsx",
+      "src/webview/components/GooeyMenu.tsx",
+      "src/webview/components/QuoteMenu.tsx",
+      "src/webview/components/ReasoningRow.tsx",
+      "src/webview/components/StatusLine.tsx",
+      "src/webview/components/HeartbeatTrace.tsx",
+      "src/webview/heartbeatBeam.ts",
+      "src/webview/components/StatusMark.tsx",
+      "src/webview/components/ToolRow.tsx",
+      "src/webview/components/QuestionCard.tsx",
+      "src/webview/components/ElicitationCard.tsx",
+      "src/webview/components/ToolBodies.tsx",
+      "src/webview/components/VerifyParts.tsx",
+      "src/webview/components/UserShellRow.tsx",
+      "src/webview/diffTally.ts",
+      "src/webview/state/snapshot.ts",
+      "src/webview/state/store.ts",
+      "src/webview/components/ErrorBoundary.tsx",
+      "src/webview/styles.css",
+      "src/webview/components/MarkdownView.tsx",
+      "src/webview/components/CodeBlock.tsx",
+      "src/webview/useCopiedFlag.ts",
+      "src/webview/components/ReviewFindings.tsx",
+      "src/webview/highlight.ts",
+      "src/webview/links.ts",
+      "src/webview/components/TodoPanel.tsx",
+      "src/webview/components/icons.tsx",
+      "src/webview/diff.ts",
+      "src/webview/components/PaidBadge.tsx",
+      "src/webview/workflowDetails.ts",
+      "src/webview/components/WorkflowRun.tsx",
+      "src/webview/state/gitState.ts",
+      "src/webview/toolDetails.ts",
+      "src/webview/state/transcriptEntries.ts",
+      "src/webview/state/uiState.ts",
+      "src/webview/components/ToolBlocks.tsx",
+      "src/webview/toolPresentation.ts",
+      "src/webview/state/teamEntries.ts",
+      "src/webview/agentFormat.ts",
+      "src/webview/components/GoalParts.tsx",
+      "src/webview/components/EffortSlider.tsx",
+      "src/webview/listNavigation.ts",
+      "src/webview/errorReport.ts",
+      "src/webview/hostBridge.ts",
+      "src/webview/installTable.ts",
+      "src/webview/surfaceRetry.ts",
+      "src/webview/components/DeferredSurface.tsx",
+      "src/webview/components/Modal.tsx"
+    ],
+    "hashes": {
+      "dist/webview/main.js": "c0408d03a8b65dd523f2fcab02a51b1cb739eadea09680f48b3794f5591866f2",
+      "dist/webview/chunks/CY3CRGC5.js": "66c6c7059f2b6ea6033340c08da36835ff36c2ff7fafe1f1179dfc2b94812b09",
+      "dist/webview/chunks/2TEO5AI5.js": "4e766cd11d666a4a56ba6c3b28fbe5fb748cdff2b7761fe23d6a1cbf6371574b",
+      "dist/webview/chunks/RWI26BG4.js": "7db12a0798a1128db88b3f1fbd7f3c990f1272655616ca044cddb9ed10200329",
+      "dist/webview/chunks/546DMFNU.js": "e0fc3034429cbc1fcedd90f979502dbdd7bdebef1edb38a1f3de114257fa9501",
+      "dist/webview/chunks/OMGFRT2N.js": "9dbaaa1b267ebd74b96fc498735a78d76804f1e96e532871291c937cf83694e7",
+      "dist/webview/chunks/HLP3ZYR4.js": "a2a493e8951d4f8cc707d9be8f506291432096ffeeed60c48b1ca5b6547e37a1",
+      "dist/webview/chunks/FIJ3WDLK.js": "f8db4aaf42dd73398f07d984f45101e52577df9f295133d82f5ec1605ad36978",
+      "dist/webview/chunks/HBKIDVEA.js": "e38ebd9cfa34283f8697b09eecd6cb13b0fd3513b629ce368a10867da831c031",
+      "dist/webview/chunks/EM7LIE3Y.js": "bc0952783afd0747c7b98fa9105949a45c9f47634983d80749ce58eb329156da",
+      "dist/webview/chunks/WUXPPNOM.js": "7f3ef1129b4c30f303ab8c8217d3f004f18735744ca21c21740c975685a517d3",
+      "dist/webview/chunks/IKQKJ2OV.js": "1152619d6b555f4ce07850f72e02d0da524e70218500a38ee306defb6dca7aae",
+      "dist/webview/chunks/Z47UMZSJ.js": "deab69465ae3985acf00071bda2b1d03050b584b674608114316882f625ab1f1",
+      "dist/webview/chunks/4RMM3L7L.js": "20e1f4acfb9a6d6f91d32dcbc203391f82c382e739fb5f0f4e5c76fa6d14c6d6",
+      "dist/webview/chunks/NAWAKHGB.js": "bd8e9ca14609154b3885a29326bf0139f67b660c216781d46a0124b4b7abf432",
+      "dist/webview/chunks/TS4UWHXF.js": "cb4ed8a210e86191e6dc0335aefcd2933c88a4e9c7a13c347fd9c6eab2168b0f",
+      "dist/webview/chunks/JMBP3HCA.js": "fb8765b5137c11a37be123e08ca806f7ad3a888fd4e93ab8c36b23ea0a518949",
+      "dist/webview/chunks/RPGN5LMO.js": "9bd73469a9f49cba939a94e91954b06b29baf337ad42e45e4c4b1d9c9a4a58ae",
+      "dist/webview/chunks/V37RRMKH.js": "b4e319017d2209de9245f9abc282ef727365e308f33cff284c0a8989aaa343f8",
+      "dist/webview/chunks/NMG3SN4V.js": "a45a549d1b707abebbf1e58df9d0fdd5d6d79ad4992f1287b65f178fbbc694dc",
+      "dist/webview/chunks/DINT534D.js": "735c3d4b029466ff3692e115b251aa1411c8334b37e51f07a2a2ab492585ce81",
+      "dist/webview/chunks/IWD4PGGA.js": "db7bd4cec08e5af26f0ab271df553e4df8b15d8080114c7d67587c4aa5fba015",
+      "dist/webview/chunks/TASE6KAH.js": "7790e2c364ae5bbdf14dc015ea86b5788dac09d94832ff3ca94c9e416c017e2c",
+      "dist/webview/chunks/MJLF7ZCI.js": "c67ac75b56fe70b84848479cc4f08454fb4f94cd283480cc502cfba77f5f7d2b",
+      "dist/webview/chunks/B62MN6FE.js": "54279e21e75f7509e0230eafb69c42ac6a75ace22b16898d69d0f5533ec8e0c9",
+      "dist/webview/chunks/C4KWUHT7.js": "c1abf15385bee0e079000188a26623933b1593e0a38a30e6b4b27b5f330cb166",
+      "dist/webview/chunks/53MS2SEJ.js": "40566905432018c9aeae3180179c6d678db05700a62f7cf034f0a0ac16aa90ed",
+      "dist/webview/chunks/BPMFWXU3.js": "c1e0cb5f088a9f9494ccdb15ee84a348f74b1d79973c475d70828727fd2b164c",
+      "dist/webview/chunks/SE4TZJDB.js": "89ed044d8965e9e91e8f4e7371b466725fdcbf7b7a96bc9a0ccd549810bb37f7",
+      "dist/webview/chunks/SSA5QJM6.js": "8c9ecc8fb11093a6e6d055ecd23516c615598704f1649cbb8f98cc13e12ce926",
+      "dist/webview/chunks/FWNC6A5K.js": "4a36a747a7969b8c6978255c760030188ca92dd27ec81dfa1cb5e3a859d32c41",
+      "dist/webview/chunks/PPRNERS7.js": "a1361e1b3572a658f1b664f80c643a378b7ce59d433b009936bf91592adf00e0",
+      "dist/webview/chunks/YE33GTCS.js": "180b4faffc01aea751e9255ed2e31308e7220caaa9aa9882eeb14c4638667625",
+      "dist/webview/chunks/I5RNT7NQ.js": "509e28ec0db497e892cf5b58b4dbaf489134015ef6f890af52bc37900eb10377",
+      "dist/webview/chunks/CRJQKXK6.js": "6873114664b6dec213c2fad6eb84e4a99a011eb3d6e52a307325f0e0b1ff099f",
+      "dist/webview/chunks/3O65KZHF.js": "9577373ec6580f1b3bada255e2259fe495f257fbc5d308a56133e052fe3bddda",
+      "dist/webview/chunks/V67FHP3Q.js": "23b9e397dd4995f400ebecce2605e362e06166fb995b17af75cf923041c20fe0",
+      "dist/webview/chunks/FES2AHAS.js": "cf3b72e205f6ff520218313758e512d4d13dedd063c8ae42857548970cbb63c0",
+      "dist/webview/chunks/QFSHOLDI.js": "8c52618e8aee878508ad1b59848207ae3dde9691409cae951c756be523922fcf",
+      "dist/webview/chunks/UEJ7IGD3.js": "033e3920e8f3ab59ac4a522a2569de72242943bc2031a9506890960fecc7f028",
+      "dist/webview/chunks/CVSLD3QR.js": "9c428c014b641914a214c30a2e163e9b09697a79f7bbcd9b864d155e6cffa309",
+      "dist/webview/chunks/JYX3N7N7.js": "c8eb1b244988ddddc775757aee0cda133a6bed8ea963e6af2ebaeebed90485e2",
+      "dist/webview/chunks/MQEIEY3K.js": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "dist/webview/chunks/Z4E2XZTF.js": "b47cc407455346099f763e6737805f3eea85034319842ff5cd7f93d3e7164920",
+      "dist/webview/chunks/WQBK2C6S.js": "3a744283fae958718194ea1b26eccf444441d8e881ce8da35eb2f43341f50a48",
+      "dist/webview/chunks/R6RQPWYB.js": "216725c99222eeb616c8ae34ee7b3d6d3cb4c269762118477033282c4cb879b8",
+      "dist/webview/chunks/75FBV4Z5.js": "c4ddea2b47903360c5fa0f694edfd18a4eeed0c6b2572dd6f8ef4fe5f489c8a5",
+      "dist/webview/chunks/ZDXOLOKV.js": "8a7eefd5e231016e6630cb820ff7ade801aeae27417dab3b80e3e411d3a3dffd",
+      "dist/webview/chunks/UHRGKUCJ.js": "c60a8a0556c6c9492b9d9183a593b2e5e509a7cb9fe4e1d7f57827536b5044f5",
+      "dist/webview/chunks/PGDXLOLW.js": "5496f010f573497d67cf1fb9763b59c7ddc4591cc285909846f94d314fb12892",
+      "dist/webview/chunks/DVFFJOZW.js": "65dde11326cdcfe6a02cfbcb9374857e1393332a6d53f96cdfb8d19e185e4ce4",
+      "dist/webview/chunks/LCK5CIG2.js": "d7372c9dd0584cbce22840ee01f536181470c084efda5a620b838bbe957f4104",
+      "dist/webview/chunks/4HJZ7PMG.js": "578e89658a9a31e0632d259d96600da8f9c7ed3e04ecbe6036e5d6237ee47e60",
+      "dist/webview/chunks/5F6H56ST.js": "3223b7c0d6e900930a42fa99af813bc810be751e783893d7aaca434bf7317c9d",
+      "dist/webview/chunks/OPXTRENS.js": "bd8f7c3b448680b31fcf6dd5c2eaeb289a3728cb9feb0c165ae8057fade46f37",
+      "dist/webview/chunks/UIMAUX3X.js": "61440675a33effcc9058c53fabd6019cde52d52aad68b427a9cea1d6789b7096",
+      "dist/webview/chunks/EIMZORSW.js": "64d795df015143d52b684873741fad5313e159f1bec2804a0c66ae7f4cb0b109",
+      "dist/webview/chunks/AQEOCVDL.js": "cabb44136c95e7cf7bdf732736c35cd53e3f707849696f85f27bf7d893b3be98",
+      "dist/webview/chunks/BNY2TXV2.js": "8ada20ba02e3d128bcfaab81b68ffd79230adc4c69fb8ac3e63aa00d7def656c",
+      "dist/webview/chunks/TCR3UFJ5.js": "615b450151614b749605f85058a1b54b73a12e9b30c60de4b10460b344dd8d7e",
+      "dist/webview/chunks/FGB4DTOZ.js": "963e19c466bceefdfe25e1cdf43998a6c61d683c4097d8a03c60bdbdb78978a1",
+      "dist/webview/chunks/NRAWRB6C.js": "b8c39c6a27c4c56def5bb0fab10751778d610f6f275de9282b8b21b6c42fe0ee",
+      "dist/webview/chunks/K3I2222N.js": "b4d9f70a0e5ed777781b7046707c69a50259d0e3137df5801051db671fb81463",
+      "dist/webview/chunks/HSLUQXDV.js": "1ac756f8c16806d5ef79ae74bb74f309304792515676c9149bb060ed67518db8",
+      "dist/webview/chunks/ILBHBZJ6.js": "c319a04f62bf0a8084d9021866312dc587fb5176b9ad69f62cbde42e7dd685dc",
+      "dist/webview/chunks/ERVO4XPN.js": "654003ec78946899d61e130641425b342a14d330b83b5cc679682a6d8e6de45f",
+      "dist/webview/chunks/KXHD7T5F.js": "2f42095ad698a1b451609bf15db23bf793b91878250255679aefb44531d6f084",
+      "dist/webview/chunks/N67LH7HJ.js": "2e37691188fa12fb40fd89c0b9511a40ee79aac8119c209c5413ddf8990074b3",
+      "dist/webview/chunks/26XAQMFN.js": "eac511664bad9a8d9fefa8806f37f54eeae9905fcc30a7f3e3717fed5ad948d3",
+      "dist/webview/referencePage.js": "d1b4ffb0504cc051ed6ea3f385f412e9f2b40a1a102b129c0cfd538a7667a9f0",
+      "dist/webview/referencePage.css": "a626209c39c66293106ef59c4b8ea722f97d679fbe6dda90ce0a7f39fab95968",
+      "dist/webview/chunks/3SEV55JW.js": "c8357de2b375aa229dc2f40fbc66ff9ce66af80579a24cae51e1d7a284880934",
+      "dist/webview/chunks/UTNWMCSI.js": "a8f969691914df84b21a714cce53802ff9bd81cc780105238b9c00f513c488d7",
+      "dist/webview/chunks/GJ6CXBXC.js": "df0463a19a5e366e02dc928908e6a320c36a6d5e34fc93461845f8be221d9358",
+      "dist/webview/chunks/ZRC2HL35.js": "9fb04fd2c522179fae699d8a2ecab4e7a72cc6bd950b9b9cd2dcfd022703705e",
+      "dist/webview/chunks/JAVUN3MZ.js": "c40710e50f30773aa3b81ddcf087c9b941194c2ab5f1e7ea3895efa3b3aa226e",
+      "dist/webview/chunks/DK4JB5D4.js": "862f566b97bf3fec173bad36c7522868e5872c68ace56b62b27d91e76586a4fa",
+      "dist/webview/main.css": "0cfc02f8ef4817feb47c105360fdec167999dd9d9bafd24fbdba8f40f9e3f061"
+    }
+  },
+  "stability-result": {
+    "outputs": 78,
+    "unchanged": true,
+    "archives": [
+      {
+        "archive": "helperless-after",
+        "outputs": 78,
+        "allHashesMatch": true
+      },
+      {
+        "archive": "universal-after",
+        "outputs": 78,
+        "allHashesMatch": true
+      }
+    ],
+    "compared": [
+      "Production outputs used for full accessibility",
+      "Final restored production outputs",
+      "Actual JS/CSS bytes in both VSIX ZIPs"
+    ],
+    "hashes": {
+      "dist/webview/main.js": "c0408d03a8b65dd523f2fcab02a51b1cb739eadea09680f48b3794f5591866f2",
+      "dist/webview/chunks/CY3CRGC5.js": "66c6c7059f2b6ea6033340c08da36835ff36c2ff7fafe1f1179dfc2b94812b09",
+      "dist/webview/chunks/2TEO5AI5.js": "4e766cd11d666a4a56ba6c3b28fbe5fb748cdff2b7761fe23d6a1cbf6371574b",
+      "dist/webview/chunks/RWI26BG4.js": "7db12a0798a1128db88b3f1fbd7f3c990f1272655616ca044cddb9ed10200329",
+      "dist/webview/chunks/546DMFNU.js": "e0fc3034429cbc1fcedd90f979502dbdd7bdebef1edb38a1f3de114257fa9501",
+      "dist/webview/chunks/OMGFRT2N.js": "9dbaaa1b267ebd74b96fc498735a78d76804f1e96e532871291c937cf83694e7",
+      "dist/webview/chunks/HLP3ZYR4.js": "a2a493e8951d4f8cc707d9be8f506291432096ffeeed60c48b1ca5b6547e37a1",
+      "dist/webview/chunks/FIJ3WDLK.js": "f8db4aaf42dd73398f07d984f45101e52577df9f295133d82f5ec1605ad36978",
+      "dist/webview/chunks/HBKIDVEA.js": "e38ebd9cfa34283f8697b09eecd6cb13b0fd3513b629ce368a10867da831c031",
+      "dist/webview/chunks/EM7LIE3Y.js": "bc0952783afd0747c7b98fa9105949a45c9f47634983d80749ce58eb329156da",
+      "dist/webview/chunks/WUXPPNOM.js": "7f3ef1129b4c30f303ab8c8217d3f004f18735744ca21c21740c975685a517d3",
+      "dist/webview/chunks/IKQKJ2OV.js": "1152619d6b555f4ce07850f72e02d0da524e70218500a38ee306defb6dca7aae",
+      "dist/webview/chunks/Z47UMZSJ.js": "deab69465ae3985acf00071bda2b1d03050b584b674608114316882f625ab1f1",
+      "dist/webview/chunks/4RMM3L7L.js": "20e1f4acfb9a6d6f91d32dcbc203391f82c382e739fb5f0f4e5c76fa6d14c6d6",
+      "dist/webview/chunks/NAWAKHGB.js": "bd8e9ca14609154b3885a29326bf0139f67b660c216781d46a0124b4b7abf432",
+      "dist/webview/chunks/TS4UWHXF.js": "cb4ed8a210e86191e6dc0335aefcd2933c88a4e9c7a13c347fd9c6eab2168b0f",
+      "dist/webview/chunks/JMBP3HCA.js": "fb8765b5137c11a37be123e08ca806f7ad3a888fd4e93ab8c36b23ea0a518949",
+      "dist/webview/chunks/RPGN5LMO.js": "9bd73469a9f49cba939a94e91954b06b29baf337ad42e45e4c4b1d9c9a4a58ae",
+      "dist/webview/chunks/V37RRMKH.js": "b4e319017d2209de9245f9abc282ef727365e308f33cff284c0a8989aaa343f8",
+      "dist/webview/chunks/NMG3SN4V.js": "a45a549d1b707abebbf1e58df9d0fdd5d6d79ad4992f1287b65f178fbbc694dc",
+      "dist/webview/chunks/DINT534D.js": "735c3d4b029466ff3692e115b251aa1411c8334b37e51f07a2a2ab492585ce81",
+      "dist/webview/chunks/IWD4PGGA.js": "db7bd4cec08e5af26f0ab271df553e4df8b15d8080114c7d67587c4aa5fba015",
+      "dist/webview/chunks/TASE6KAH.js": "7790e2c364ae5bbdf14dc015ea86b5788dac09d94832ff3ca94c9e416c017e2c",
+      "dist/webview/chunks/MJLF7ZCI.js": "c67ac75b56fe70b84848479cc4f08454fb4f94cd283480cc502cfba77f5f7d2b",
+      "dist/webview/chunks/B62MN6FE.js": "54279e21e75f7509e0230eafb69c42ac6a75ace22b16898d69d0f5533ec8e0c9",
+      "dist/webview/chunks/C4KWUHT7.js": "c1abf15385bee0e079000188a26623933b1593e0a38a30e6b4b27b5f330cb166",
+      "dist/webview/chunks/53MS2SEJ.js": "40566905432018c9aeae3180179c6d678db05700a62f7cf034f0a0ac16aa90ed",
+      "dist/webview/chunks/BPMFWXU3.js": "c1e0cb5f088a9f9494ccdb15ee84a348f74b1d79973c475d70828727fd2b164c",
+      "dist/webview/chunks/SE4TZJDB.js": "89ed044d8965e9e91e8f4e7371b466725fdcbf7b7a96bc9a0ccd549810bb37f7",
+      "dist/webview/chunks/SSA5QJM6.js": "8c9ecc8fb11093a6e6d055ecd23516c615598704f1649cbb8f98cc13e12ce926",
+      "dist/webview/chunks/FWNC6A5K.js": "4a36a747a7969b8c6978255c760030188ca92dd27ec81dfa1cb5e3a859d32c41",
+      "dist/webview/chunks/PPRNERS7.js": "a1361e1b3572a658f1b664f80c643a378b7ce59d433b009936bf91592adf00e0",
+      "dist/webview/chunks/YE33GTCS.js": "180b4faffc01aea751e9255ed2e31308e7220caaa9aa9882eeb14c4638667625",
+      "dist/webview/chunks/I5RNT7NQ.js": "509e28ec0db497e892cf5b58b4dbaf489134015ef6f890af52bc37900eb10377",
+      "dist/webview/chunks/CRJQKXK6.js": "6873114664b6dec213c2fad6eb84e4a99a011eb3d6e52a307325f0e0b1ff099f",
+      "dist/webview/chunks/3O65KZHF.js": "9577373ec6580f1b3bada255e2259fe495f257fbc5d308a56133e052fe3bddda",
+      "dist/webview/chunks/V67FHP3Q.js": "23b9e397dd4995f400ebecce2605e362e06166fb995b17af75cf923041c20fe0",
+      "dist/webview/chunks/FES2AHAS.js": "cf3b72e205f6ff520218313758e512d4d13dedd063c8ae42857548970cbb63c0",
+      "dist/webview/chunks/QFSHOLDI.js": "8c52618e8aee878508ad1b59848207ae3dde9691409cae951c756be523922fcf",
+      "dist/webview/chunks/UEJ7IGD3.js": "033e3920e8f3ab59ac4a522a2569de72242943bc2031a9506890960fecc7f028",
+      "dist/webview/chunks/CVSLD3QR.js": "9c428c014b641914a214c30a2e163e9b09697a79f7bbcd9b864d155e6cffa309",
+      "dist/webview/chunks/JYX3N7N7.js": "c8eb1b244988ddddc775757aee0cda133a6bed8ea963e6af2ebaeebed90485e2",
+      "dist/webview/chunks/MQEIEY3K.js": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "dist/webview/chunks/Z4E2XZTF.js": "b47cc407455346099f763e6737805f3eea85034319842ff5cd7f93d3e7164920",
+      "dist/webview/chunks/WQBK2C6S.js": "3a744283fae958718194ea1b26eccf444441d8e881ce8da35eb2f43341f50a48",
+      "dist/webview/chunks/R6RQPWYB.js": "216725c99222eeb616c8ae34ee7b3d6d3cb4c269762118477033282c4cb879b8",
+      "dist/webview/chunks/75FBV4Z5.js": "c4ddea2b47903360c5fa0f694edfd18a4eeed0c6b2572dd6f8ef4fe5f489c8a5",
+      "dist/webview/chunks/ZDXOLOKV.js": "8a7eefd5e231016e6630cb820ff7ade801aeae27417dab3b80e3e411d3a3dffd",
+      "dist/webview/chunks/UHRGKUCJ.js": "c60a8a0556c6c9492b9d9183a593b2e5e509a7cb9fe4e1d7f57827536b5044f5",
+      "dist/webview/chunks/PGDXLOLW.js": "5496f010f573497d67cf1fb9763b59c7ddc4591cc285909846f94d314fb12892",
+      "dist/webview/chunks/DVFFJOZW.js": "65dde11326cdcfe6a02cfbcb9374857e1393332a6d53f96cdfb8d19e185e4ce4",
+      "dist/webview/chunks/LCK5CIG2.js": "d7372c9dd0584cbce22840ee01f536181470c084efda5a620b838bbe957f4104",
+      "dist/webview/chunks/4HJZ7PMG.js": "578e89658a9a31e0632d259d96600da8f9c7ed3e04ecbe6036e5d6237ee47e60",
+      "dist/webview/chunks/5F6H56ST.js": "3223b7c0d6e900930a42fa99af813bc810be751e783893d7aaca434bf7317c9d",
+      "dist/webview/chunks/OPXTRENS.js": "bd8f7c3b448680b31fcf6dd5c2eaeb289a3728cb9feb0c165ae8057fade46f37",
+      "dist/webview/chunks/UIMAUX3X.js": "61440675a33effcc9058c53fabd6019cde52d52aad68b427a9cea1d6789b7096",
+      "dist/webview/chunks/EIMZORSW.js": "64d795df015143d52b684873741fad5313e159f1bec2804a0c66ae7f4cb0b109",
+      "dist/webview/chunks/AQEOCVDL.js": "cabb44136c95e7cf7bdf732736c35cd53e3f707849696f85f27bf7d893b3be98",
+      "dist/webview/chunks/BNY2TXV2.js": "8ada20ba02e3d128bcfaab81b68ffd79230adc4c69fb8ac3e63aa00d7def656c",
+      "dist/webview/chunks/TCR3UFJ5.js": "615b450151614b749605f85058a1b54b73a12e9b30c60de4b10460b344dd8d7e",
+      "dist/webview/chunks/FGB4DTOZ.js": "963e19c466bceefdfe25e1cdf43998a6c61d683c4097d8a03c60bdbdb78978a1",
+      "dist/webview/chunks/NRAWRB6C.js": "b8c39c6a27c4c56def5bb0fab10751778d610f6f275de9282b8b21b6c42fe0ee",
+      "dist/webview/chunks/K3I2222N.js": "b4d9f70a0e5ed777781b7046707c69a50259d0e3137df5801051db671fb81463",
+      "dist/webview/chunks/HSLUQXDV.js": "1ac756f8c16806d5ef79ae74bb74f309304792515676c9149bb060ed67518db8",
+      "dist/webview/chunks/ILBHBZJ6.js": "c319a04f62bf0a8084d9021866312dc587fb5176b9ad69f62cbde42e7dd685dc",
+      "dist/webview/chunks/ERVO4XPN.js": "654003ec78946899d61e130641425b342a14d330b83b5cc679682a6d8e6de45f",
+      "dist/webview/chunks/KXHD7T5F.js": "2f42095ad698a1b451609bf15db23bf793b91878250255679aefb44531d6f084",
+      "dist/webview/chunks/N67LH7HJ.js": "2e37691188fa12fb40fd89c0b9511a40ee79aac8119c209c5413ddf8990074b3",
+      "dist/webview/chunks/26XAQMFN.js": "eac511664bad9a8d9fefa8806f37f54eeae9905fcc30a7f3e3717fed5ad948d3",
+      "dist/webview/referencePage.js": "d1b4ffb0504cc051ed6ea3f385f412e9f2b40a1a102b129c0cfd538a7667a9f0",
+      "dist/webview/referencePage.css": "a626209c39c66293106ef59c4b8ea722f97d679fbe6dda90ce0a7f39fab95968",
+      "dist/webview/chunks/3SEV55JW.js": "c8357de2b375aa229dc2f40fbc66ff9ce66af80579a24cae51e1d7a284880934",
+      "dist/webview/chunks/UTNWMCSI.js": "a8f969691914df84b21a714cce53802ff9bd81cc780105238b9c00f513c488d7",
+      "dist/webview/chunks/GJ6CXBXC.js": "df0463a19a5e366e02dc928908e6a320c36a6d5e34fc93461845f8be221d9358",
+      "dist/webview/chunks/ZRC2HL35.js": "9fb04fd2c522179fae699d8a2ecab4e7a72cc6bd950b9b9cd2dcfd022703705e",
+      "dist/webview/chunks/JAVUN3MZ.js": "c40710e50f30773aa3b81ddcf087c9b941194c2ab5f1e7ea3895efa3b3aa226e",
+      "dist/webview/chunks/DK4JB5D4.js": "862f566b97bf3fec173bad36c7522868e5872c68ace56b62b27d91e76586a4fa",
+      "dist/webview/main.css": "0cfc02f8ef4817feb47c105360fdec167999dd9d9bafd24fbdba8f40f9e3f061"
+    }
+  },
+  "final-gates": [
+    {
+      "id": "remaining-drills",
+      "command": "C:\\Users\\Randy\\gates\\tools\\node\\node.exe",
+      "args": ["temp/train15h/remaining-drills.mjs"],
+      "started": "2026-10-07T01:42:11.224Z",
+      "ended": "2026-10-07T01:44:28.021Z",
+      "exit": 0,
+      "log": "temp/train15h/remaining-drills-runner.log"
+    },
+    {
+      "id": "final-packages",
+      "command": "C:\\Users\\Randy\\gates\\tools\\node\\node.exe",
+      "args": ["temp/train15h/packages.mjs", "--stage-only"],
+      "started": "2026-10-07T01:45:08.549Z",
+      "ended": "2026-10-07T01:47:49.864Z",
+      "exit": 0,
+      "log": "temp/train15h/final-packages-runner.log"
+    },
+    {
+      "id": "final-measurement",
+      "command": "C:\\Users\\Randy\\gates\\tools\\node\\node.exe",
+      "args": ["temp/train15h/measure.mjs"],
+      "started": "2026-10-07T01:47:49.865Z",
+      "ended": "2026-10-07T01:47:50.317Z",
+      "exit": 0,
+      "log": "temp/train15h/final-measurement-runner.log"
+    },
+    {
+      "id": "final-artifacts",
+      "command": "C:\\Users\\Randy\\gates\\tools\\node\\node.exe",
+      "args": ["temp/train15h/artifacts.mjs"],
+      "started": "2026-10-07T01:47:50.318Z",
+      "ended": "2026-10-07T01:47:50.465Z",
+      "exit": 0,
+      "log": "temp/train15h/final-artifacts-runner.log"
+    },
+    {
+      "id": "format-receipts",
+      "command": "C:\\Users\\Randy\\gates\\tools\\node\\node.exe",
+      "args": [
+        "node_modules/prettier/bin/prettier.cjs",
+        "--write",
+        "PLAN.md",
+        "docs/certification/train-0.15.0.md",
+        "docs/certification/train-0.15.0-train15h.json"
+      ],
+      "started": "2026-10-07T01:47:53.160Z",
+      "ended": "2026-10-07T01:48:07.475Z",
+      "exit": 0,
+      "log": "temp/train15h/format-receipts.log"
+    },
+    {
+      "id": "changed-paths",
+      "command": "git",
+      "args": ["diff", "--name-only", "fe3c3fe16"],
+      "started": "2026-10-07T01:48:07.477Z",
+      "ended": "2026-10-07T01:48:07.590Z",
+      "exit": 0,
+      "log": "temp/train15h/changed-paths.log"
+    },
+    {
+      "id": "format-final",
+      "command": "C:\\Users\\Randy\\gates\\tools\\node\\node.exe",
+      "args": [
+        "node_modules/prettier/bin/prettier.cjs",
+        "--check",
+        "CHANGELOG.md",
+        "PLAN.md",
+        "README.md",
+        "docs/certification/train-0.15.0-train15h.json",
+        "docs/certification/train-0.15.0.md",
+        "scripts/build.mjs",
+        "scripts/check-bundle-size.mjs",
+        "scripts/lib/browserKeybindings.mjs",
+        "scripts/lib/uiTextRegions.mjs",
+        "scripts/lib/webviewBundles.mjs",
+        "src/webview/App.tsx",
+        "src/webview/components/DeferredSurface.tsx",
+        "src/webview/components/ReviewCommentForm.tsx",
+        "src/webview/components/ReviewPane.tsx",
+        "test/e2e/webviewDiet.mjs",
+        "test/harness/index.html",
+        "test/unit/AppLazy.test.tsx",
+        "test/unit/DeferredSurface.test.tsx",
+        "test/unit/browserKeybindings.test.mjs",
+        "test/unit/browserUiText.test.mjs",
+        "test/unit/bundleSize.test.mjs",
+        "test/unit/legalReport.test.tsx",
+        "test/unit/reviewUi.test.tsx",
+        "test/unit/webviewBundle.test.mjs"
+      ],
+      "started": "2026-10-07T01:48:07.591Z",
+      "ended": "2026-10-07T01:48:25.566Z",
+      "exit": 0,
+      "log": "temp/train15h/format-final.log"
+    }
+  ],
   "limitations": [
     "Aggregate quality and hosted/native/live release matrices remain with the lead under the scoped rig brief.",
     "No network, live/paid models or credentials; packaging skips only network badge freshness."
-  ]
+  ],
+  "accessibilityArtifact": "docs/certification/train-0.15.0-train15h-a11y.txt",
+  "drillArtifact": "docs/certification/train-0.15.0-train15h-drills.txt",
+  "cycles": {
+    "command": "npm.cmd run cycles",
+    "exit": 0,
+    "inputs": 788,
+    "log": "temp/train15h/cycles-final.log",
+    "result": "No circular dependency found"
+  }
 }

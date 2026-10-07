@@ -1213,24 +1213,36 @@ off-viewport Retry in the generic menu placeholder: the form now supplies its
 inline class to loading/failure states. Entry and English fetch failures retry
 through the existing saved-state document reload.
 
-Six deliberate regressions fail their intended owning assertion and restore
+12 deliberate regressions fail their intended owning assertion and restore
 byte-exact by SHA-256: remove canonical template slots, accept an unregistered
 computed reader, alter primary-key matching, lower the new legal budget by
 1 KiB, eagerly import the legal report, and restore the menu-positioned inline
 fallback. A first attempted physical-budget increase remains green because
 the independent closure cap still rejects overflow; the exact-boundary
-mutation then proves the boundary assertion fires. No gate is weakened.
+mutation then proves the boundary assertion fires. Further drills prove the
+comment form stays deferred, both additional budgets reject their boundary
+mutation, cold legal loading remains modal, all English values arrive, and
+unknown keyboard contexts fail. No gate is weakened.
 
-All final owning files run in batches of at most three at the repository's
+All 19 final owning files (501 unique tests) run in batches of at most three at the repository's
 default test deadline. The receipt records complete command results and
 expected mutation failures separately from restored checks. Typecheck (all
 five projects), scoped lint, plain knip, duplication, localization, host API
-and reference pass. Aggregate quality remains the lead's check, as explicitly
+and reference pass, as does dpdm cycle detection (788 inputs). Aggregate quality remains the lead's check, as explicitly
 required by the rig brief/common.md and recorded in PLAN section 7.
 
-Actual helperless VSIX: **2,589,075 bytes**; universal: **2,668,623 bytes**. Both retain the 2,841,600-byte cap. The certified macOS helper is restored byte-exact; inventories and hashes are in the receipt.
+Actual helperless VSIX: **2,589,075 bytes**; universal: **2,668,623 bytes**. Both retain the 2,841,600-byte cap. The certified macOS helper is restored byte-exact; inventories and hashes are in the receipt. All 78 browser JS/CSS outputs are present in both archives. Final
+restored production output hashes match the packaged and accessibility-tested
+outputs byte-exact.
 
-Accessibility: Full 864-page run pending; no result claimed yet.
+The first full accessibility run reports no violations but one missing result
+for light/muse-workflow-map. Its original fixed-delay click could miss the
+arriving button. The harness now waits with whenFound for the workflow control
+and requires the loaded map tree before declaring readiness. The original
+failure and four-theme isolated passes are preserved; the complete second run
+uses the same 216 scenarios, four themes and original deadlines.
+
+Accessibility: a11y: 864 pages (216 scenarios × 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result
 
 Exact per-input owners/bytes, commands, deliberate failures, restored hashes
 and package inventories: [TRAIN15H receipt](train-0.15.0-train15h.json).

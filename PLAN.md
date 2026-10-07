@@ -39839,7 +39839,7 @@ pages. No version bump or README What’s New changes; no paid/live calls.
       canonical keyboard matching with optional contexts beside their surfaces.
 - [x] Register independent 25-KiB budgets from measured closures plus 15%,
       rounded up to 25 KiB. Keep the 900/50-KiB caps and 733.8/32.1-KiB ratchets.
-- [ ] Certify complete owning suites, deliberate failures and byte-exact
+- [x] Certify complete owning suites, deliberate failures and byte-exact
       restoration, full accessibility, static gates and actual VSIX measurements
       in `docs/certification/train-0.15.0.md` and its TRAIN15H receipt.
 
