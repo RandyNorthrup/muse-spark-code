@@ -22,6 +22,8 @@ directory. When JCEF is unavailable, the plugin requests the runtime's
 companion route instead.
 
 Native surfaces have tool-window, editor-tab and modeless-window placements.
+The runtime can close each correlated placement. Auxiliary kinds without a
+native asset/binding adapter fail explicitly instead of opening a chat page.
 Native theme values cover every token consumed by the current shared CSS,
 with `--muse-` aliases for the forthcoming shared bridge. Commands, status
 widgets and progress indicators are scoped to the project and disposed with it.

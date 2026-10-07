@@ -19,6 +19,10 @@ class PanelSurface(
   private val callbacks: PanelCallbacks,
   private val budget: QueueBudget = QueueBudget(boundary),
 ) {
+  init {
+    require(kind in setOf("chat", "tasks", "whatsNew")) { "MHP_CAPABILITY_UNAVAILABLE" }
+  }
+
   private var nextToHost = 1L
   private var nextToPanel = 1L
   private var ready = false

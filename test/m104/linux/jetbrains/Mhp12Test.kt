@@ -22,6 +22,19 @@ fun fixtureMetadata(): JsonObject =
 
 class Mhp12Test {
   @Test
+  fun unavailableAuxiliaryKindsCannotBecomeChatBindings() {
+    val boundary = JsonBoundary()
+    for (kind in listOf("models", "traffic", "settings", "walkthrough", "diff", "usage", "maker")) {
+      try {
+        PanelSurface("unavailable", "session", kind, boundary, PanelCallbacks({ _, _ -> }, { 0 }, { _, _ -> }, { _, _ -> }))
+        org.junit.Assert.fail("Unavailable $kind became a native binding")
+      } catch (failure: IllegalArgumentException) {
+        assertEquals("MHP_CAPABILITY_UNAVAILABLE", failure.message)
+      }
+    }
+  }
+
+  @Test
   fun frozenArrayMaximumRejectsOversizedPayloads() {
     val boundary = JsonBoundary()
     val bounded = json("type" to "array", "maxItems" to 1)

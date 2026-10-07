@@ -66,3 +66,10 @@
    prescribed catalog/generator/check when moving the shared documentation.
    Validation: the normal reference check reports native bootstrap, prompts
    and the exact remaining editor/version limitations without support promotion.
+9. **Lead/owner — containment qualification.** Resolve or explicitly accept
+   the remaining process-tree limitations before platform promotion. JetBrains
+   retains observed PID/start identities and group/job containment, but sampling
+   can miss a child detached and reparented entirely between observations.
+   Eclipse and the raw companion shims retain documented parent-first,
+   reparenting and Stop-tree gaps. Validation needs exact installed-host tree
+   receipts and the accepted boundary, rather than an implied leak exemption.

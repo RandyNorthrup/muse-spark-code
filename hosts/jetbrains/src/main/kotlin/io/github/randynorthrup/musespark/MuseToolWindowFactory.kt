@@ -210,6 +210,11 @@ class JetBrainsPanelHost(
         requireNotNull(locations[params["surfaceId"].asString]) { "MHP_PANEL_UNKNOWN_SURFACE" }.focus()
         jsonValue(null)
       }
+      "surfaces/close" -> {
+        val location = requireNotNull(locations.remove(params["surfaceId"].asString)) { "MHP_PANEL_UNKNOWN_SURFACE" }
+        Disposer.dispose(location)
+        jsonValue(null)
+      }
       "surfaces/state" -> {
         val panel = requireNotNull(panels[params["surfaceId"].asString]) { "MHP_PANEL_UNKNOWN_SURFACE" }
         json(

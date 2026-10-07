@@ -70,6 +70,9 @@ class NativeHostServicesTest : BasePlatformTestCase() {
     val file = myFixture.addFileToProject("diagnostics.xml", "<root><child></root>").virtualFile
     PsiTestUtil.addContentRoot(module, file.parent)
     myFixture.configureFromExistingVirtualFile(file)
+    // Drain fixture/VFS events before the SDK's non-cancellable highlighting check.
+    com.intellij.testFramework.PlatformTestUtil
+      .dispatchAllEventsInIdeEventQueue()
     assertTrue(myFixture.doHighlighting().any { it.severity >= com.intellij.lang.annotation.HighlightSeverity.ERROR })
     return services()
   }
