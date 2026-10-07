@@ -7,6 +7,15 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Close the M104PE independent review (four P2, one P3) in the Linux/JVM hosts:
+  Eclipse and JetBrains now implement the complete 1.3 `ui`, `surfaces`,
+  `commands` and `diagnostics` groups (file open/save, settings, runtime HTML
+  presentation, command run, version-attested settled diagnostics) and keep
+  typed unsupported-capability refusals instead of internal errors; JetBrains
+  construction failure restarts in companion mode; the Eclipse Window-menu
+  command activates the runtime's owned surface instead of publishing an
+  unowned session; the native fixture and both host guides negotiate and
+  document MHP 1.3. JVM suites need a display-capable rig before integration.
 - Ship the shared host protocol in the VSIX so the extension loads, and verify
   activation with the production split. Portable cleanup closes auxiliary views
   after conversation cancellation. Presentation actions retire completed IDs,
