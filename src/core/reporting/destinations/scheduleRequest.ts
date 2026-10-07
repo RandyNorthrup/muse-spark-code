@@ -1,5 +1,6 @@
 import { scheduledReportActionSchema, type ScheduledReportAction } from './types'
 import type { ReportOptions } from '../../../shared/reportSchema'
+import { UI_TEXT } from '../../../shared/constants'
 
 export interface ReportScheduleEditorPort {
   // V/X/M115 bind the same shared editor on every host. No new scheduler or
@@ -20,5 +21,11 @@ export async function saveReportSchedule(
   input: unknown,
   port: ReportScheduleEditorPort,
 ): Promise<void> {
-  await port.saveReportSchedule(scheduledReportActionSchema.parse(input))
+  const validation = scheduledReportActionSchema.safeParse(input)
+  if (!validation.success) throw new Error(UI_TEXT.reportUi.generationFailed)
+  try {
+    await port.saveReportSchedule(validation.data)
+  } catch {
+    throw new Error(UI_TEXT.reportUi.generationFailed)
+  }
 }

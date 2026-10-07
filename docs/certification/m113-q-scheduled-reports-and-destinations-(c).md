@@ -224,3 +224,63 @@ and the orphan is never claimed/deleted as an owned file. A crash or lost reply
 after an external dispatch stays uncertain and is not automatically retried;
 the user must reconcile it. The shared scrub's unknown-token-format residual
 also applies here; known canaries are tested in each delivered representation.
+
+## RVM113Q corrections — 2026-10-06
+
+All eight findings are fixed, including P3; no review finding is deferred.
+The correction stays in Q's files. No dependency, paid/live call, installation,
+merge, rebase, push, gate change or hook bypass. The explicit rig brief overrides
+the shared common file's generic merge step; aggregate quality remains the
+lead's integrated gate, as recorded in PLAN §7.
+
+| Finding                               | Correction                                                                                                                                                                                                                                                                                                                                                                                                                     | Regression                                                                                                                                                                                                                                                                         | Red drill                                                                                                          |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| 1 P1 revoked save grant               | `saveExclusive` requires one canonical-root owner across occurrences and destinations, bound to the action hash. `ReportSaveAdmission` refreshes the complete live grant before conditional writes/removal, while the owner's synchronous assertion runs at atomic mutations without an extra await after the filesystem's final checks. Revoked/stale effects return refused. Node saves receive the same required admission. | `records refused when the workspace grant is revoked after report staging`; `aborts on grant revocation immediately before … mutation` (report, manifest, pruned manifest, removal, generation); `binds save effects to the serialized owner generation on local and node storage` | `P1-live-grant`, `P1-write-and-prune-grant`, `P1-final-generation`, `P1-removal-generation`, `P1-owner-generation` |
+| 2 P2 shared retention                 | Manifest filenames hash the schedule/destination pair; contents also require both identities. No destination can claim another's retained files.                                                                                                                                                                                                                                                                               | `keeps retention and ownership separate for destinations sharing a root`                                                                                                                                                                                                           | `P2-destination-retention`                                                                                         |
+| 3 P2 older overwrite                  | Default `{kind}-{date}-{time}.{ext}` includes UTC milliseconds. An older occurrence cannot replace a newer owned custom-name entry.                                                                                                                                                                                                                                                                                            | `uses occurrence-unique default filenames down to milliseconds`; `refuses an older occurrence replacing a newer custom filename`                                                                                                                                                   | `P2-default-occurrence-name`, `P2-millisecond-name`, `P2-older-replacement`                                        |
+| 4 P2 inherited destination IDs        | Terminal-outcome lookup requires an own property. Unknown persisted IDs fail before dispatch. Template tokens also require own keys.                                                                                                                                                                                                                                                                                           | `dispatches schema-valid destination id …` (constructor, toString, hasOwnProperty); `rejects unknown persisted destination ids before dispatch`; unsafe `{__proto__}` template                                                                                                     | `P2-own-outcome-id`, `P2-unknown-outcome-id`, `P2-template-prototype-token`                                        |
+| 5 P2 redacted scope                   | Identity compares the verified scope to the options scope through the same production scrubber. A different generator scope still refuses.                                                                                                                                                                                                                                                                                     | `generates and resumes a legitimate redacted workspace scope` (Windows separators)                                                                                                                                                                                                 | `P2-redacted-scope`                                                                                                |
+| 6 P2 changed resumed bytes            | Validated occurrence records reuse the entire persisted payload; document integrity and action format/locale/theme remain checked. Locale changes cannot rerender it.                                                                                                                                                                                                                                                          | `resumes persisted rendered bytes after the installed locale table changes`                                                                                                                                                                                                        | `P2-frozen-rendered-payload`                                                                                       |
+| 7 P2 interactive exception disclosure | Interactive schedule save uses safe validation and fixed text for input and store/broker errors. Mail connection-policy lookup and schema failures use fixed TLS text.                                                                                                                                                                                                                                                         | `sanitizes unknown action keys and broker exceptions at interactive schedule save`; `sanitizes broker policy exceptions before interactive verification dispatch`                                                                                                                  | `P2-interactive-input`, `P2-interactive-schedule-broker`, `P2-interactive-mail-broker`                             |
+| 8 P3 identical picker names           | Each unselected choice and selected group names its root, recipient, repository/issue or storage plus destination ID, using existing translated labels around technical detail.                                                                                                                                                                                                                                                | `names each configured target visibly and accessibly before selection`                                                                                                                                                                                                             | `P3-picker-target-identity`                                                                                        |
+
+Machine-readable observed failures and source SHA-256 restoration receipts:
+[m113-q-review-drills.json](m113-q-review-drills.json). Every drill runs a complete
+owning test file at the repository timeout, requires the named regression to
+fail, and restores the original bytes in `finally`. No timeout override or
+test-name filtering is used.
+
+The required M115/M110 save-owner binding now accepts the action hash and
+supplies an assertion that throws `ReportSaveRefusedError` on revocation or a
+stale generation. It serializes the canonical root across all destinations,
+holds ownership until mutation settlement, and implements node admission on
+the node itself. Grant roots are canonical roots captured at consent and are
+checked again on refresh. There is no optional/no-op production guard. Test
+fakes alone provide finite assertions and services. The owner is a required
+integration port because this base still has no M115 scheduler or M110 node
+binding; this corrects Q's run path without inventing a second scheduler.
+
+The new manifest format deliberately never adopts a legacy schedule-only
+manifest: existing unknown files remain foreign and are preserved. Q is
+unmerged/unshipped, so no product migration is claimed. If a development user
+has old artifacts, remove/migrate them only through a separately approved
+owner tool. A report published before revocation may remain as an orphan if
+the manifest write is then denied; no rollback mutation follows revoked
+consent. This is the existing honest failure/orphan contract, not delivery.
+
+W's existing docs/reference/bundle handoff also includes the corrected default
+template, destination-specific retention, live save admission, fixed interactive
+errors and target labels in README, CHANGELOG Unreleased and help when the
+destinations are actually wired. No new command or available feature is claimed
+by these fixes to the unshipped destination implementation.
+
+Final corrected-tree commands and actual gate results are recorded below.
+
+Correction checkpoint: **90 tests passed across all six owning files**, with
+default timeout and `--maxWorkers=3`. After final test-only lint corrections,
+the complete save/runner files passed again (56 tests). **20 red drills** fired
+and restored source SHA-256 exactly, including the additional destination-ID
+manifest guard (`P2-manifest-destination-identity`) and frozen format/locale/theme
+guard (`P2-frozen-metadata`). Scope and generation regressions also cover roots
+being removed from an otherwise allowed grant. Scoped ESLint is green with
+zero warnings; hooks are present and remain enabled for the correction commit.

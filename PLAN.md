@@ -11476,7 +11476,8 @@ Needs: <items>.`).
          as that schedule's allowed root), the workspace's `reports/`
          folder, or a node's storage (M110's data volume, shown in its web
          UI). A name template (`{kind}`, `{scope}`, `{date}`, `{time}`,
-         `{hash8}`, `{ext}`; `{kind}-{date}.{ext}` by default) and a
+         `{hash8}`, `{ext}`; `{kind}-{date}-{time}.{ext}` by default, with
+         milliseconds preserved so each occurrence has its own name) and a
          retention of the newest N (`REPORT_SAVE_RETENTION_DEFAULT`, 30),
          which deletes only files that schedule wrote (its own manifest).
          Paths are canonicalised and confined to the allowed root (no link
@@ -27547,6 +27548,20 @@ lane T and M111b. One short live check per backend (step 3).
 
 ### M113 — Deterministic reports: `/report` (D93)
 
+**Lane Q review corrections (RVM113Q, 2026-10-06).** Fix all eight
+findings within Q: a serialized destination/root owner supplies a live,
+generation-bound assertion to every atomic save mutation, and the runner
+rechecks the complete grant before publication and retention removal. Give
+each destination its own manifest identity; make default names unique to
+the occurrence (including milliseconds) and refuse older replacements at
+custom colliding names. Use own-property outcome lookup, compare scrubbed
+scope identities, resume the persisted rendered payload byte-for-byte,
+sanitize interactive validation/broker errors, and name picker targets before
+selection. Add regressions and byte-exact red drills to Q's certification.
+No dependency, guard weakening or live/model call. Existing W wiring,
+reference and integration-gate handoffs remain; bounded rig checks replace
+aggregate quality for this lane under the explicit rig/shared brief.
+
 **Status 2026-10-05: planned.** No model call is needed anywhere in this
 milestone. It lands in three deliveries:
 
@@ -28738,6 +28753,16 @@ anywhere joined it).
       `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
 
 ## 7. Gates
+
+**M113-Q-RVM113Q bounded rig certification (2026-10-06).** The rig/shared
+brief prohibits aggregate quality and confines changes to Q. Complete owning
+test files run with repository-default timeouts and at most three workers;
+scoped lint/format, all-project typechecking, deadcode, duplication,
+localization, reference, host API and production build checks run directly
+on win11. No gate is weakened. Existing unused report manifest keys,
+generated host API inventory and destination shipping registration remain
+named W integration handoffs in Q's certification, with their actual exit
+codes recorded. The lead must pass complete integrated quality before shipping.
 
 **M113-R-RVM113R bounded rig certification (2026-10-06).** The lane brief
 reserves full `npm run quality` to the lead and confines changes to R's
@@ -30120,6 +30145,22 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M113-Q-review-RVM113Q (2026-10-06).** All eight findings are fixed;
+  no review residual is deferred. Saving requires a serialized canonical-root
+  owner bound to the action generation, a live grant refresh before each
+  conditional write/removal, and a synchronous owner assertion immediately
+  before every atomic mutation. A revoked or stale effect records refused;
+  published bytes from before revocation are retained, without compensating
+  writes after consent ends. Destination-specific manifests isolate retention;
+  default UTC names preserve milliseconds and older custom-name replacements
+  refuse. Persisted rendered payloads resume unchanged. Fixed interactive
+  errors and pre-selection target names are covered by regressions and
+  byte-exact drills in Q's certification. M115/M110 must supply the required
+  cross-process owner and generation assertions, including on node volumes;
+  Q supplies no production fallback. The pre-existing final filesystem race,
+  orphan-on-manifest-failure limit, shape-only scrub and W integration/shipping
+  handoffs remain, without any expanded guard or support claim.
 
 - **M113-R-review-RVM113R2 (2026-10-06).** The single P2 is fixed;
   no review finding is deferred. Known workspace paths consume the full

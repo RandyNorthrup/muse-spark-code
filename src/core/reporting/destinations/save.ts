@@ -19,6 +19,17 @@ import {
 import type { ReportDeliveryPayload, ReportDestination } from './types'
 
 type SaveDestination = Extract<ReportDestination, { type: 'save' }>
+export interface ReportSaveAdmission {
+  /** Re-read the complete revocable grant; null means revoked. */
+  recheck(): Promise<readonly string[] | null>
+  /** The serialized owner's generation and live grant, checked without an await. */
+  assertCurrent(): void
+}
+export class ReportSaveRefusedError extends Error {
+  constructor() {
+    super(UI_TEXT.reportUi.saveFailed)
+  }
+}
 const fileName = z.string().check(
   z.minLength(1),
   z.maxLength(REPORT_FILENAME_MAX_CHARS),
@@ -26,6 +37,7 @@ const fileName = z.string().check(
 )
 const manifestSchema = z.strictObject({
   scheduleId: z.string().check(z.regex(REPORT_STORAGE_KEY_PATTERN)),
+  destinationId: z.string().check(z.regex(REPORT_STORAGE_KEY_PATTERN)),
   entries: z
     .array(
       z.strictObject({
@@ -63,11 +75,12 @@ export function reportSaveName(
     kind: payload.document.header.kind,
     scope: payload.document.header.scope.replaceAll(/[^\p{L}\p{N}._-]+/gu, '-'),
     date: date ?? '',
-    time: (clock ?? '').replaceAll(':', '-').replace(/\.\d+Z$/, 'Z'),
+    time: (clock ?? '').replaceAll(':', '-'),
     hash8: payload.document.header.contentHash.slice(0, REPORT_HASH_PREFIX_CHARS),
     ext: payload.format === 'text' ? 'txt' : payload.format,
   }
   const name = destination.template.replaceAll(/\{(\w+)\}/g, (_match, key: string) => {
+    if (!Object.hasOwn(values, key)) throw new Error(UI_TEXT.reportUi.saveFailed)
     const value = values[key]
     if (value === undefined) throw new Error(UI_TEXT.reportUi.saveFailed)
     return value
@@ -108,30 +121,53 @@ export async function saveReport(
   destination: SaveDestination,
   payload: ReportDeliveryPayload,
   allowedRoots: readonly string[],
+  admission: ReportSaveAdmission,
 ): Promise<string> {
-  if (!REPORT_STORAGE_KEY_PATTERN.test(scheduleId) || !path.isAbsolute(destination.root))
+  if (
+    !REPORT_STORAGE_KEY_PATTERN.test(scheduleId) ||
+    !REPORT_STORAGE_KEY_PATTERN.test(destination.id) ||
+    !path.isAbsolute(destination.root)
+  )
     throw new Error(UI_TEXT.reportUi.saveFailed)
   const root = await canonicalPath(destination.root, { followsBrokenLinks: true })
   // The grant holds canonical roots captured on consent, not freshly resolved aliases.
   if (allowedRoots.every((allowed) => !isWithinFolder(root, allowed, process.platform)))
     throw new Error(UI_TEXT.reportUi.saveFailed)
-  const manifestPath = path.join(root, `.${scheduleId}.report-manifest.json`)
+  const recheck = async () => {
+    const roots = await admission.recheck()
+    if (
+      roots === null ||
+      roots.every((allowed) => !isWithinFolder(root, allowed, process.platform))
+    )
+      throw new ReportSaveRefusedError()
+    admission.assertCurrent()
+  }
+  await recheck()
+  const identity = fingerprint(JSON.stringify([scheduleId, destination.id]))
+  const manifestPath = path.join(root, `.${identity}.report-manifest.json`)
   const boundManifest = await confined(manifestPath, root, allowedRoots)
   if (!isSamePath(boundManifest, manifestPath, process.platform))
     throw new Error(UI_TEXT.reportUi.saveFailed)
   const oldManifest = await existingContent(manifestPath)
   const manifest =
     oldManifest === null
-      ? { scheduleId, entries: [] }
+      ? { scheduleId, destinationId: destination.id, entries: [] }
       : manifestSchema.parse(JSON.parse(oldManifest))
-  if (manifest.scheduleId !== scheduleId) throw new Error(UI_TEXT.reportUi.saveFailed)
+  if (manifest.scheduleId !== scheduleId || manifest.destinationId !== destination.id)
+    throw new Error(UI_TEXT.reportUi.saveFailed)
   const name = reportSaveName(destination, payload)
   const target = path.join(root, name)
   const boundTarget = await confined(target, root, allowedRoots)
   if (!isSamePath(boundTarget, target, process.platform))
     throw new Error(UI_TEXT.reportUi.saveFailed)
   const owned = manifest.entries.find((entry) => entry.name === name)
+  if (
+    owned !== undefined &&
+    Date.parse(owned.occurrence) > Date.parse(payload.document.header.asOf)
+  )
+    throw new Error(UI_TEXT.reportUi.saveFailed)
   const canReplace = async () => {
+    await recheck()
     if (owned === undefined) {
       // Refuse a foreign file without reading its bytes: it may be a credential.
       try {
@@ -145,8 +181,15 @@ export async function saveReport(
     const current = await existingContent(target)
     return current === null || fingerprint(current) === owned.fingerprint
   }
-  const written = await writeFileIfUnchanged(target, canReplace, payload.attachment, {
+  const writeOptions = {
     sleep: delay,
+    assertCanWrite: () => {
+      admission.assertCurrent()
+    },
+  }
+  await recheck()
+  const written = await writeFileIfUnchanged(target, canReplace, payload.attachment, {
+    ...writeOptions,
     expectedCanonicalPath: boundTarget,
   })
   if (written !== 'written') throw new Error(UI_TEXT.reportUi.saveFailed)
@@ -163,12 +206,16 @@ export async function saveReport(
       Number(a.name > b.name) - Number(a.name < b.name),
   )
   // Persist ownership before pruning. An interrupted prune is safely retried.
+  await recheck()
   const recorded = await writeFileIfUnchanged(
     manifestPath,
-    async () => (await existingContent(manifestPath)) === oldManifest,
-    `${JSON.stringify({ scheduleId, entries })}\n`,
+    async () => {
+      await recheck()
+      return (await existingContent(manifestPath)) === oldManifest
+    },
+    `${JSON.stringify({ scheduleId, destinationId: destination.id, entries })}\n`,
     {
-      sleep: delay,
+      ...writeOptions,
       expectedCanonicalPath: boundManifest,
     },
   )
@@ -179,19 +226,27 @@ export async function saveReport(
     const bound = await confined(expiredPath, root, allowedRoots)
     if (!isSamePath(bound, expiredPath, process.platform))
       throw new Error(UI_TEXT.reportUi.saveFailed)
+    await recheck()
     await deleteFileIfUnchanged(expiredPath, entry.fingerprint, {
       expectedCanonicalPath: bound,
+      assertCanWrite: () => {
+        admission.assertCurrent()
+      },
       remove: (file) => rm(file),
     })
   }
   if (expired.length > 0) {
-    const expected = `${JSON.stringify({ scheduleId, entries })}\n`
+    const expected = `${JSON.stringify({ scheduleId, destinationId: destination.id, entries })}\n`
     const retained = entries.slice(expired.length)
+    await recheck()
     const pruned = await writeFileIfUnchanged(
       manifestPath,
-      fingerprint(expected),
-      `${JSON.stringify({ scheduleId, entries: retained })}\n`,
-      { sleep: delay, expectedCanonicalPath: boundManifest },
+      async () => {
+        await recheck()
+        return (await existingContent(manifestPath)) === expected
+      },
+      `${JSON.stringify({ scheduleId, destinationId: destination.id, entries: retained })}\n`,
+      { ...writeOptions, expectedCanonicalPath: boundManifest },
     )
     if (pruned !== 'written') throw new Error(UI_TEXT.reportUi.saveFailed)
   }

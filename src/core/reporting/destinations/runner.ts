@@ -8,11 +8,11 @@ import { reportOptionsSchema } from '../../../shared/reportSchema'
 import { createReportRenderers } from '../render'
 import { verifyReport } from '../render/canonical'
 import type { ReportLocalePort } from '../render/display'
-import type { ReportRedaction } from '../render/redaction'
+import { reportScrubber, type ReportRedaction } from '../render/redaction'
 import { openReportInBrowser, type ReportBrowserPort } from './browser'
 import { type ReportEmailDelivery } from './email'
 import { type ReportPostDelivery } from './post'
-import { saveReport } from './save'
+import { saveReport, ReportSaveRefusedError, type ReportSaveAdmission } from './save'
 import {
   scheduledReportActionSchema,
   reportOccurrenceRecordSchema,
@@ -34,12 +34,22 @@ export interface ScheduledReportPorts {
   readonly email: ReportEmailDelivery
   readonly post: ReportPostDelivery
   readonly browser: ReportBrowserPort
+  // M115/M110 serialize the canonical root across occurrences/destinations.
+  // The owner checks the action generation and live grant synchronously; a
+  // revoked/stale effect throws ReportSaveRefusedError. Hold ownership to settlement.
+  saveExclusive<T>(
+    scheduleId: string,
+    destination: Extract<ReportDestination, { type: 'save' }>,
+    actionKey: string,
+    work: (assertCurrent: () => void) => Promise<T>,
+  ): Promise<T>
   // M110 calls saveReport on its own volume, under the same root lease and grant.
   readonly nodeSave: (
     scheduleId: string,
     destination: Extract<ReportDestination, { type: 'save' }>,
     payload: ReportDeliveryPayload,
     roots: readonly string[],
+    admission: ReportSaveAdmission,
   ) => Promise<void>
   readonly sleep: (ms: number) => Promise<void>
 }
@@ -78,9 +88,23 @@ export class ScheduledReportRunner {
         if (!authority.allowed) return { status: 'refused', attempts: attempt - 1 }
         const roots = authority.roots
         if (destination.type === 'save') {
-          if (destination.storage === 'node')
-            await this.ports.nodeSave(scheduleId, destination, payload, roots)
-          else await saveReport(scheduleId, destination, payload, roots)
+          await this.ports.saveExclusive(
+            scheduleId,
+            destination,
+            createHash('sha256').update(JSON.stringify(action)).digest('hex'),
+            async (assertCurrent) => {
+              const admission: ReportSaveAdmission = {
+                assertCurrent,
+                recheck: async () => {
+                  const current = await this.ports.authority.authorize(scheduleId, action)
+                  return current.allowed ? current.roots : null
+                },
+              }
+              if (destination.storage === 'node')
+                await this.ports.nodeSave(scheduleId, destination, payload, roots, admission)
+              else await saveReport(scheduleId, destination, payload, roots, admission)
+            },
+          )
           return { status: 'delivered', attempts: attempt }
         }
         if (destination.type === 'browser') {
@@ -109,7 +133,8 @@ export class ScheduledReportRunner {
           return { status: receipt.status, attempts: attempt }
         if (attempt === REPORT_DELIVERY_ATTEMPTS) return { status: 'failed', attempts: attempt }
         await this.ports.sleep(REPORT_DELIVERY_RETRY_MS * attempt)
-      } catch {
+      } catch (error: unknown) {
+        if (error instanceof ReportSaveRefusedError) return { status: 'refused', attempts: attempt }
         // Raw SMTP/OAuth/GitHub errors can contain secrets or account details.
         // Without a parsed pre-dispatch receipt, the send's outcome is unknown.
         return { status: destination.type === 'save' ? 'failed' : 'uncertain', attempts: attempt }
@@ -176,20 +201,26 @@ export class ScheduledReportRunner {
           ...options,
           network: options.network && authority.network,
         }))
-      const payload = this.render(action, document)
+      const payload = previous?.payload ?? this.render(action, document)
+      if (previous !== null) verifyReport(payload.document, this.ports.redaction)
       if (
         payload.document.header.asOf !== occurrence ||
         payload.document.header.kind !== options.kind ||
-        payload.document.header.scope !== options.scope
+        payload.document.header.scope !== reportScrubber(this.ports.redaction)(options.scope) ||
+        payload.format !== action.format ||
+        payload.locale !== action.locale ||
+        JSON.stringify(payload.theme) !== JSON.stringify(action.theme)
       )
         throw new Error(UI_TEXT.reportUi.generationFailed)
       const outcomes: Record<string, ReportDeliveryOutcome> = { ...previous?.outcomes }
+      if (Object.keys(outcomes).some((id) => action.destinations.every((item) => item.id !== id)))
+        throw new Error(UI_TEXT.reportUi.generationFailed)
       await this.ports.occurrences.write(scheduleId, occurrence, { actionKey, payload, outcomes })
       for (const destination of action.destinations) {
         // Failure/uncertainty are terminal. A deferred browser may resume when
         // the user returns; successful destinations are never sent twice.
         if (
-          outcomes[destination.id] !== undefined &&
+          Object.hasOwn(outcomes, destination.id) &&
           outcomes[destination.id]?.status !== 'deferred'
         )
           continue

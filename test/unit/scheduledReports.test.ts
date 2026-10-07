@@ -1,4 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
+import { mkdtemp, readdir, rm } from 'node:fs/promises'
+import path from 'node:path'
+import os from 'node:os'
+import * as atomic from '../../src/host/fsAtomic'
+import { ReportSaveRefusedError } from '../../src/core/reporting/destinations/save'
+import { finalizeReport } from '../../src/core/reporting/render/canonical'
+import { EN } from '../../src/shared/l10n/en'
 import { ScheduledReportRunner } from '../../src/core/reporting/destinations/runner'
 import {
   openReportSchedule,
@@ -67,6 +74,194 @@ describe('scheduled report occurrence runner', () => {
     const deliveryResult2 = await runner.run('one', OCCURRENCE, action)
     expect(deliveryResult2['browser']?.status).toBe('delivered')
     expect(rig.ports.generation.generate).toHaveBeenCalledTimes(1)
+  })
+  it('resumes persisted rendered bytes after the installed locale table changes', async () => {
+    const rig = runnerRig()
+    const runner = new ScheduledReportRunner(rig.ports)
+    const action = reportAction([browser])
+    rig.browser.hasActiveSession.mockResolvedValue(false)
+    await runner.run('one', OCCURRENCE, action)
+    const frozen = structuredClone(rig.records.get(OCCURRENCE)!.payload)
+    vi.spyOn(rig.ports.locale, 'textForLocale').mockImplementation(() => ({
+      ...EN,
+      reportKinds: { ...EN.reportKinds, project: 'Changed installed title' },
+    }))
+    rig.browser.hasActiveSession.mockResolvedValue(true)
+    await runner.run('one', OCCURRENCE, action)
+    expect(rig.browser.publishHtml).toHaveBeenCalledWith('one', OCCURRENCE, frozen.html, 'node')
+    expect(rig.records.get(OCCURRENCE)?.payload).toEqual(frozen)
+  })
+  it.each(['format', 'locale', 'theme'])(
+    'refuses frozen payload metadata mismatching action %s',
+    async (field) => {
+      const rig = runnerRig()
+      const runner = new ScheduledReportRunner(rig.ports)
+      const action = reportAction([browser])
+      rig.browser.hasActiveSession.mockResolvedValue(false)
+      await runner.run('one', OCCURRENCE, action)
+      const record = rig.records.get(OCCURRENCE)!
+      const payload = { ...record.payload }
+      switch (field) {
+        case 'format': {
+          payload.format = 'html'
+          break
+        }
+        case 'locale': {
+          payload.locale = 'de'
+          break
+        }
+        case 'theme': {
+          {
+            payload.theme = { ...payload.theme, background: '#0a0b0c' }
+            // No default
+          }
+          break
+        }
+      }
+      rig.records.set(OCCURRENCE, { ...record, payload })
+      await expect(runner.run('one', OCCURRENCE, action)).rejects.toThrow(
+        UI_TEXT.reportUi.generationFailed,
+      )
+      expect(rig.browser.publishHtml).not.toHaveBeenCalled()
+    },
+  )
+  it.each(['constructor', 'toString', 'hasOwnProperty'])(
+    'dispatches schema-valid destination id %s',
+    async (id) => {
+      const rig = runnerRig()
+      const action = reportAction([{ ...post, id }])
+      expect(scheduledReportActionSchema.safeParse(action).success).toBe(true)
+      const runner = new ScheduledReportRunner(rig.ports)
+      const outcomes = await runner.run('one', OCCURRENCE, action)
+      expect(Object.hasOwn(outcomes, id)).toBe(true)
+      expect(outcomes[id]).toEqual({ status: 'delivered', attempts: 1 })
+      await runner.run('one', OCCURRENCE, action)
+      expect(rig.postPort.publish).toHaveBeenCalledTimes(1)
+    },
+  )
+  it('rejects unknown persisted destination ids before dispatch', async () => {
+    const rig = runnerRig()
+    const runner = new ScheduledReportRunner(rig.ports)
+    const action = reportAction([browser])
+    rig.browser.hasActiveSession.mockResolvedValue(false)
+    await runner.run('one', OCCURRENCE, action)
+    const record = rig.records.get(OCCURRENCE)!
+    rig.records.set(OCCURRENCE, {
+      ...record,
+      outcomes: { missing: { status: 'delivered', attempts: 1 } },
+    })
+    await expect(runner.run('one', OCCURRENCE, action)).rejects.toThrow(
+      UI_TEXT.reportUi.generationFailed,
+    )
+    expect(rig.browser.publishHtml).not.toHaveBeenCalled()
+  })
+  it('generates and resumes a legitimate redacted workspace scope', async () => {
+    const rig = runnerRig()
+    const redaction = { workspaceRoot: 'C:/work/project' }
+    const document = structuredClone(deliveryPayload().document)
+    document.header.scope = String.raw`C:\work\project`
+    vi.spyOn(rig.ports.generation, 'generate').mockResolvedValue(
+      finalizeReport(document, redaction),
+    )
+    const action = reportAction([browser])
+    action.options.scope = String.raw`C:\work\project`
+    const runner = new ScheduledReportRunner({ ...rig.ports, redaction })
+    rig.browser.hasActiveSession.mockResolvedValue(false)
+    const deferred = await runner.run('one', OCCURRENCE, action)
+    expect(deferred['browser']?.status).toBe('deferred')
+    expect(rig.records.get(OCCURRENCE)?.payload.document.header.scope).toBe('./')
+    rig.browser.hasActiveSession.mockResolvedValue(true)
+    const delivered = await runner.run('one', OCCURRENCE, action)
+    expect(delivered['browser']?.status).toBe('delivered')
+    const fresh = runnerRig()
+    await expect(
+      new ScheduledReportRunner({ ...fresh.ports, redaction }).run('one', OCCURRENCE, action),
+    ).rejects.toThrow()
+    expect(fresh.browser.publishHtml).not.toHaveBeenCalled()
+  })
+  it.each(['revoked', 'roots removed'])(
+    'records refused when the workspace grant is revoked after report staging (%s)',
+    async (change) => {
+      const root = await mkdtemp(path.join(os.tmpdir(), 'm113-q-run-save-'))
+      const rig = runnerRig()
+      const authorize = vi.spyOn(rig.ports.authority, 'authorize')
+      authorize.mockResolvedValue({ allowed: true, roots: [root], network: false, creator: 'user' })
+      const original = atomic.writeFileIfUnchanged
+      const write = vi
+        .spyOn(atomic, 'writeFileIfUnchanged')
+        .mockImplementation((file, expected, content, options) =>
+          original(file, expected, content, {
+            ...options,
+            staged: () => {
+              authorize.mockResolvedValue({
+                allowed: change !== 'revoked',
+                roots: [],
+                network: false,
+                creator: 'user',
+              })
+              return Promise.resolve()
+            },
+          }),
+        )
+      try {
+        const action = reportAction([
+          {
+            type: 'save',
+            id: 'save',
+            root,
+            storage: 'local',
+            template: '{kind}.{ext}',
+            retention: 1,
+          },
+        ])
+        const result = await new ScheduledReportRunner(rig.ports).run('one', OCCURRENCE, action)
+        expect(result['save']?.status).toBe('refused')
+        expect(rig.records.get(OCCURRENCE)?.outcomes['save']?.status).toBe('refused')
+        expect(await readdir(root)).toEqual([])
+      } finally {
+        write.mockRestore()
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+  )
+  it('binds save effects to the serialized owner generation on local and node storage', async () => {
+    for (const storage of ['local', 'node'] as const) {
+      const rig = runnerRig()
+      const assertion = vi.fn(() => {
+        throw new ReportSaveRefusedError()
+      })
+      vi.spyOn(rig.ports, 'saveExclusive').mockImplementation(
+        async (_schedule, _destination, actionKey, work) => {
+          expect(actionKey).toMatch(/^[a-f0-9]{64}$/)
+          return await work(assertion)
+        },
+      )
+      vi.spyOn(rig.ports, 'nodeSave').mockImplementation(
+        (_schedule, _destination, _payload, _roots, admission) => {
+          admission.assertCurrent()
+          return Promise.resolve()
+        },
+      )
+      vi.spyOn(rig.ports.authority, 'authorize').mockResolvedValue({
+        allowed: true,
+        roots: ['C:/reports'],
+        network: false,
+        creator: 'user',
+      })
+      const action = reportAction([
+        {
+          type: 'save',
+          id: 'save',
+          root: 'C:/reports',
+          storage,
+          template: '{kind}.{ext}',
+          retention: 1,
+        },
+      ])
+      const result = await new ScheduledReportRunner(rig.ports).run('one', OCCURRENCE, action)
+      expect(result['save']?.status).toBe('refused')
+      expect(assertion).toHaveBeenCalled()
+    }
   })
   it('bounds retries to three known pre-dispatch failures', async () => {
     const rig = runnerRig()
@@ -211,5 +406,21 @@ describe('scheduled report occurrence runner', () => {
       new ScheduledReportRunner(rig.ports).run('one', OCCURRENCE, malformed),
     ).rejects.toThrow(UI_TEXT.reportUi.generationFailed)
     expect(rig.postPort.publish).not.toHaveBeenCalled()
+  })
+  it('sanitizes unknown action keys and broker exceptions at interactive schedule save', async () => {
+    const canary = 'ghp_' + 'a'.repeat(36)
+    const port = {
+      openReportSchedule: vi.fn(() => Promise.resolve()),
+      saveReportSchedule: vi.fn(() => Promise.resolve()),
+    }
+    const malformed = { ...reportAction([post]), [canary]: 'input' }
+    await expect(saveReportSchedule(malformed, port)).rejects.toThrow(
+      UI_TEXT.reportUi.generationFailed,
+    )
+    expect(port.saveReportSchedule).not.toHaveBeenCalled()
+    port.saveReportSchedule.mockRejectedValue(new Error(canary))
+    await expect(saveReportSchedule(reportAction([post]), port)).rejects.toThrow(
+      UI_TEXT.reportUi.generationFailed,
+    )
   })
 })

@@ -56,7 +56,11 @@ describe('shared lazy report destination picker', () => {
     )
     expect(input.onConnect).toHaveBeenCalledWith('gmail')
     expect(input.onConnect).toHaveBeenCalledWith('outlook')
-    fireEvent.click(screen.getByRole('checkbox', { name: UI_TEXT.reportUi.browserDestination }))
+    fireEvent.click(
+      screen.getByRole('checkbox', {
+        name: `${UI_TEXT.reportUi.browserDestination}: node (browser)`,
+      }),
+    )
     expect(input.onChange).toHaveBeenCalledWith(
       input.destinations.filter((item) => item.type !== 'browser'),
     )
@@ -89,5 +93,47 @@ describe('shared lazy report destination picker', () => {
     // supplies no layout and axe cannot evaluate contrast without canvas.
     const results = await axe.run(container, { rules: { 'color-contrast': { enabled: false } } })
     expect(results.violations).toEqual([])
+  })
+  it('names each configured target visibly and accessibly before selection', () => {
+    const input = props()
+    const choices = [
+      ...input.choices,
+      {
+        type: 'post' as const,
+        id: 'issue-13',
+        target: { repository: 'owner/project', number: 13, kind: 'issueComment' as const },
+      },
+      { type: 'browser' as const, id: 'local-browser', storage: 'local' as const },
+      {
+        type: 'save' as const,
+        id: 'archive',
+        root: 'C:/archive',
+        storage: 'local' as const,
+        template: '{kind}.{ext}',
+        retention: 30,
+      },
+      {
+        type: 'email' as const,
+        id: 'other-email',
+        address: 'other@example.test',
+        connection: CONNECTION,
+      },
+    ]
+    render(<DestinationPicker {...input} choices={choices} destinations={[]} />)
+    for (const detail of [
+      'owner/project #12 (post)',
+      'owner/project #13 (issue-13)',
+      'node (browser)',
+      'local (local-browser)',
+      'C:/reports (save)',
+      'C:/archive (archive)',
+      `${ADDRESS} (email)`,
+      'other@example.test (other-email)',
+    ]) {
+      const checkbox = screen.getByRole('checkbox', {
+        name: new RegExp(detail.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)),
+      })
+      expect(checkbox.closest('label')?.textContent).toContain(detail)
+    }
   })
 })

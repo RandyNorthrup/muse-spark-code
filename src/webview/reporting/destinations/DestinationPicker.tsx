@@ -37,6 +37,28 @@ function destinationLabel(type: ReportDestination['type']): string {
     }
   }
 }
+function choiceLabel(destination: ReportDestination): string {
+  let detail: string
+  switch (destination.type) {
+    case 'save': {
+      detail = destination.root
+      break
+    }
+    case 'browser': {
+      detail = destination.storage
+      break
+    }
+    case 'email': {
+      detail = destination.address
+      break
+    }
+    case 'post': {
+      detail = `${destination.target.repository} #${String(destination.target.number)}`
+      break
+    }
+  }
+  return `${destinationLabel(destination.type)}: ${detail} (${destination.id})`
+}
 
 /** Loaded by M115's schedule editor on the first Report action, on every host. */
 export function DestinationPicker(props: DestinationPickerProps) {
@@ -60,7 +82,7 @@ export function DestinationPicker(props: DestinationPickerProps) {
               )
             }}
           />
-          {destinationLabel(choice.type)}
+          {choiceLabel(choice)}
         </label>
       ))}
       <label htmlFor={`${prefix}-format`}>{UI_TEXT.reportUi.format}</label>
@@ -81,7 +103,7 @@ export function DestinationPicker(props: DestinationPickerProps) {
       </select>
       {props.destinations.map((destination) => (
         <fieldset key={destination.id}>
-          <legend>{destinationLabel(destination.type)}</legend>
+          <legend>{choiceLabel(destination)}</legend>
           {destination.type === 'save' && (
             <>
               <button

@@ -62,6 +62,7 @@ export async function runScheduledReportFixture(): Promise<string> {
       open: () => Promise.reject(new Error('Inactive fixture never opens')),
     },
     nodeSave: () => Promise.reject(new Error('Fixture prohibits node saves')),
+    saveExclusive: () => Promise.reject(new Error('Fixture prohibits saves')),
     sleep: () => Promise.resolve(),
   }
   await new ScheduledReportRunner(ports).run('one', '2026-10-06T12:00:00+00:00', {

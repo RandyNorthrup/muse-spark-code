@@ -95,13 +95,20 @@ export class ReportEmailDelivery {
   ) {}
 
   private async connectionAllowed(connection: ReportMailConnection): Promise<boolean> {
-    const validation = connectionPolicySchema.safeParse(
-      await this.port.connectionPolicy(reportConnectionSchema.parse(connection)),
-    )
-    if (!validation.success) throw new Error(UI_TEXT.reportUi.tlsRequired)
-    return (
-      validation.data.connectedByUser && validation.data.tls && validation.data.certificateChecked
-    )
+    try {
+      const validation = connectionPolicySchema.safeParse(
+        await this.port.connectionPolicy(reportConnectionSchema.parse(connection)),
+      )
+      if (validation.success)
+        return (
+          validation.data.connectedByUser &&
+          validation.data.tls &&
+          validation.data.certificateChecked
+        )
+    } catch {
+      // Provider details and unknown schema keys never escape the interactive boundary.
+    }
+    throw new Error(UI_TEXT.reportUi.tlsRequired)
   }
 
   private async reserve(): Promise<boolean> {

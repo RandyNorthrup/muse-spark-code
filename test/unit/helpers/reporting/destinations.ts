@@ -145,6 +145,7 @@ export function runnerRig() {
     post: new ReportPostDelivery(postPort),
     browser,
     nodeSave: vi.fn(() => Promise.resolve()),
+    saveExclusive: async (_schedule, _destination, _actionKey, work) => await work(vi.fn()),
     sleep: vi.fn(() => Promise.resolve()),
   }
   return { ports, mail, browser, postPort, records }

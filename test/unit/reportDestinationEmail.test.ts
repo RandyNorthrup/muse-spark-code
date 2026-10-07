@@ -160,6 +160,16 @@ describe('report email verification, consent and vault transport', () => {
       status: 'uncertain',
     })
   })
+  it('sanitizes broker policy exceptions before interactive verification dispatch', async () => {
+    const rig = mailRig()
+    const canary = 'ghp_' + 'a'.repeat(36)
+    rig.port.connectionPolicy.mockRejectedValue(new Error(canary))
+    await expect(rig.email.requestVerification(ADDRESS, CONNECTION)).rejects.toThrow(
+      UI_TEXT.reportUi.tlsRequired,
+    )
+    expect(rig.port.send).not.toHaveBeenCalled()
+    expect(rig.store.state.reservations).toEqual([])
+  })
   it('enforces six per rolling hour across instances, counting verification and failures', async () => {
     const rig = mailRig()
     await rig.verify()
