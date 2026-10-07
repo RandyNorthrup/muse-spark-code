@@ -48,11 +48,13 @@ happened, not what was planned; superseded entries are kept.
   queued-answer commit failures explicitly warn that retained answers may
   repeat on the next prompt.
 
-- Redesign ACP's queued late-answer delivery as a non-destructive token lease.
-  Local `/playbook` commands never lease; only successful model submission
-  persists removal. Failed sends release without writing, and restart before
-  commit retains answers. Failed commit writes keep the durable prefix and
-  release ownership, so future prompts cannot strand it.
+- Commit ACP's non-destructive queued-answer lease only when its carrying
+  turn starts with the model. Queued submissions retain their durable prefix
+  until that turn starts; withdrawal, unqueue, Stop, release, exit and refused
+  or failed submissions retain answers without announcing delivery. Model
+  API confirms actual request dispatch after submit hooks and admission.
+  Local commands never lease. Failed commit writes retain answers, warn that
+  they may repeat, and keep a still-active turn busy and stoppable.
 
 - Bind the panel's own orchestration to the shared orchestrator playbook:
   subagent, delegate and best-of-N dispatches and the `/review` loop run

@@ -28745,6 +28745,19 @@ Total: about 100 lane-hours.
 
 ### M116 — The orchestrator playbook (D96)
 
+**Round-four delivery repair (FIXM116I4, 2026-10-07, implemented; CI certification in progress).**
+Commit an ACP queued-answer lease only when its carrying turn reaches the
+model. A `queued` submission keeps ownership bound to its turn id until
+`turnStarted`; withdrawal, Stop, release, host exit and failed/refused sends
+release without a durable write or sent announcement. Model API's early
+`started` ack precedes submit hooks, so use its existing `messageAdmitted`
+event, emitted for the initial user message at the client's request-start
+boundary, to confirm dispatch after hooks and request admission. Keep the
+active prompt busy if commit persistence fails. Certify real-registry,
+durable-file regressions against `64f0e8ed7`, then fresh-clone CI checks
+three times with default timeouts and unchanged gates/budgets. Existing
+planner/editor handoffs remain the next implementation slice.
+
 **Round-three redesign (FIXM116I3, 2026-10-07).** Replace the destructive
 ACP queued-answer read with an exclusive, non-destructive token lease.
 Local commands never acquire it. Only successful model submission commits
@@ -31012,6 +31025,7 @@ before a repaired one loads (2026-09-30).
 | File                                                                                | Construct                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
 | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
+| `src/acp/agent.ts` (FIXM116I4)                                                      | `let pending!: PendingPrompt`                                      | The Promise executor assigns the local prompt synchronously before its first use, retaining Node 20-compatible construction without a cast or extracting a resolver. The inline comment states the invariant; lifecycle tests cover start, refusal and early completion.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | 2026-10-07 |
 
 ## 9. Security assumptions and accepted residual risk
 

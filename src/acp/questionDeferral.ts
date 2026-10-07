@@ -51,7 +51,7 @@ export interface AcpQuestionRegistry {
   queue(message: QuestionDelivery): Promise<QuestionDeliveryOutcome>
   /** Exclusive non-destructive peek; an empty queue needs no lease. */
   peekQueued(): Promise<AcpQueuedAnswerLease | undefined>
-  /** Persist removal only after successful model submission. */
+  /** Persist removal only after the carrying turn starts with the model. */
   commitQueued(token: symbol): Promise<void>
   /** Release ownership without writing or removing answers. */
   releaseQueued(token: symbol): Promise<void>
@@ -311,6 +311,7 @@ export class AcpQuestionDeferral {
     return outcome
   }
 
+  /** Called only after the carrying turn reaches the model and removal is durable. */
   public sentQueued(): void {
     this.queuedAnswers.clear()
     this.deps.notice(UI_TEXT.announceLateAnswerSent)

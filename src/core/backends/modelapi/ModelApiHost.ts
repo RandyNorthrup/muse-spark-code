@@ -791,6 +791,8 @@ const GOAL_WAKING_VERBS: ReadonlySet<GoalCommandVerb> = new Set(['set', 'edit', 
 
 interface ActiveTurn {
   readonly turnId: string
+  /** Initial message awaiting its first request, after submit/model hooks and admission. */
+  pendingUserMessageId?: string | undefined
   readonly abort: AbortController
   readonly confirmedRequest?: ConfirmedModelRequest
   /** Steered input, appended before the next model call. */
@@ -3404,6 +3406,7 @@ export class ModelApiSession implements AgentSession {
   private responseAttemptGuard(
     body: CreateResponseBody,
     directBudget?: DirectResponseBudget,
+    turnId?: string,
   ): ResponseAttemptGuard {
     const reservation = directBudget === undefined ? this.openReservation : undefined
     const guard: ResponseAttemptGuard = (keyDigest) => {
@@ -3509,6 +3512,16 @@ export class ModelApiSession implements AgentSession {
           directBudget.isSent = true
         }
         this.deps.admitResponseAttempt?.onRequestStarted?.()
+        const turn = this.active
+        if (
+          turnId === undefined ||
+          turn?.turnId !== turnId ||
+          turn.pendingUserMessageId === undefined
+        )
+          return
+        const userMessageId = turn.pendingUserMessageId
+        turn.pendingUserMessageId = undefined
+        this.emit({ type: 'messageAdmitted', userMessageId })
       },
     })
   }
@@ -4161,7 +4174,7 @@ export class ModelApiSession implements AgentSession {
     const reservation = this.sending(body)
     const requestReplay = [...this.replay]
     let final: ResponseObject | undefined
-    const admitAttempt = this.responseAttemptGuard(body)
+    const admitAttempt = this.responseAttemptGuard(body, undefined, turnId)
     const responseStream = this.deps.client.streamResponse(
       body,
       signal,
@@ -10275,6 +10288,7 @@ export class ModelApiSession implements AgentSession {
     this.mediaNoticeSent = false
     const turn: ActiveTurn = {
       turnId: queued.turnId,
+      ...(queued.userMessageId !== undefined && { pendingUserMessageId: queued.userMessageId }),
       abort: new AbortController(),
       steered: [],
       acceptedTextAttachmentBytes: textAttachmentBytes(queued.parts),

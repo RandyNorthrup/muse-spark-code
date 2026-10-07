@@ -245,6 +245,7 @@ export function featureCatalog(): readonly Feature[] {
       'the-panel',
     ),
     feature('code-output', { ui: 'copyCode' }, { ui: 'referenceCodeOutput' }, [], [], 'the-panel'),
+    // ACP queued late answers retire only at model start (request admission on Model API).
     feature(
       'questions',
       { ui: 'questionSubmit' },
