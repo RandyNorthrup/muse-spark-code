@@ -78,6 +78,13 @@ const sharedUiText: Plugin = {
 }
 
 async function packageTree(): Promise<void> {
+  const installed = process.env['MUSE_ACP_PACKAGE_DIR']
+  if (installed !== undefined) {
+    // Hosted W uses the packed production runtime, including its lazy archives.
+    cpSync(installed, STAGE, { recursive: true })
+    symlinkSync(path.join(ROOT, 'test'), path.join(TREE, 'test'), 'junction')
+    return
+  }
   const dist = path.join(STAGE, 'dist')
   mkdirSync(dist, { recursive: true })
   await buildModelApiBundle(dist)

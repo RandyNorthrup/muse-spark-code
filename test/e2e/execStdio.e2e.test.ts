@@ -14,7 +14,6 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
-  symlinkSync,
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
@@ -28,12 +27,19 @@ import { execEventSchema, validateResult } from '../../src/runtime/exec/execProt
 import type { ExecResult } from '../../src/runtime/exec/execProtocol'
 import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
+import { buildProductionPackage, packageImagePreload } from '../unit/helpers/productionPackage'
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..')
 const TEMP = path.join(ROOT, 'temp')
 mkdirSync(TEMP, { recursive: true })
 const WORK = mkdtempSync(path.join(TEMP, 'm80d-stdio-'))
 const BUILD_ROOT = path.join(WORK, 'build')
+const production = { isBuilt: false }
+function prepareProduction(): void {
+  if (production.isBuilt) return
+  buildProductionPackage(ROOT, BUILD_ROOT)
+  production.isBuilt = true
+}
 const INSTALLED = process.env['MUSE_ACP_PACKAGE_DIR']
 const PACKAGE = INSTALLED ?? path.join(WORK, 'agent')
 const AGENT = path.join(PACKAGE, 'dist', 'acp.js')
@@ -169,9 +175,6 @@ if (!existsSync(marker)) {
       .replace("'./check-badges.mjs'", () =>
         JSON.stringify(pathToFileURL(path.join(ROOT, 'scripts/check-badges.mjs')).href),
       )
-      .replace("'scripts/check-badges.mjs'", () =>
-        JSON.stringify(path.join(ROOT, 'scripts/check-badges.mjs')),
-      )
       .replace("'test/packaging/moduleExports.test.mjs'", () => JSON.stringify(exportCheck)),
   )
   mkdirSync(path.join(dir, 'scripts/lib'), { recursive: true })
@@ -282,10 +285,16 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     'usageService',
     'usageCompanion',
   ]) {
-    cpSync(path.join(ROOT, 'dist', `${bundle}.js`), path.join(dir, 'dist', `${bundle}.js`))
+    cpSync(path.join(BUILD_ROOT, 'dist', `${bundle}.js`), path.join(dir, 'dist', `${bundle}.js`))
   }
-  cpSync(path.join(ROOT, 'dist/providerCatalog.json'), path.join(dir, 'dist/providerCatalog.json'))
-  cpSync(path.join(ROOT, 'dist/providerCatalog.js'), path.join(dir, 'dist/providerCatalog.js'))
+  cpSync(
+    path.join(BUILD_ROOT, 'dist/providerCatalog.json'),
+    path.join(dir, 'dist/providerCatalog.json'),
+  )
+  cpSync(
+    path.join(BUILD_ROOT, 'dist/providerCatalog.js'),
+    path.join(dir, 'dist/providerCatalog.js'),
+  )
   for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs']) {
     writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
   }
@@ -306,9 +315,9 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
       cpSync(path.join(ROOT, 'l10n', table), path.join(dir, 'l10n', table))
   }
   cpSync(path.join(ROOT, 'l10n/untranslated.json'), path.join(dir, 'l10n/untranslated.json'))
-  cpSync(path.join(ROOT, 'dist/webview'), path.join(dir, 'dist/webview'), { recursive: true })
+  cpSync(path.join(BUILD_ROOT, 'dist/webview'), path.join(dir, 'dist/webview'), { recursive: true })
   cpSync(
-    path.join(ROOT, 'dist/meta/usageWebview.json'),
+    path.join(BUILD_ROOT, 'dist/meta/usageWebview.json'),
     path.join(dir, 'dist/meta/usageWebview.json'),
   )
   cpSync(path.join(ROOT, 'native/runner'), path.join(dir, 'native/runner'), { recursive: true })
@@ -340,6 +349,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
   }
 
   beforeAll(() => {
+    prepareProduction()
     const dir = packagingFixture()
     preparedPackage = {
       dir,
@@ -742,78 +752,8 @@ function result(stdout: string): ExecResult {
 describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
   beforeAll(async () => {
     if (INSTALLED === undefined) {
-      // The bundle-split suite mutates its metafiles. Rebuilding its dist/
-      // here can delete chunks or truncate those files during a guard check.
-      mkdirSync(BUILD_ROOT, { recursive: true })
-      for (const folder of [
-        'src',
-        'scripts',
-        'vendor',
-        'native',
-        'l10n',
-        'docs',
-        'test/integration',
-        'test/packaging',
-      ]) {
-        cpSync(path.join(ROOT, folder), path.join(BUILD_ROOT, folder), { recursive: true })
-      }
-      for (const file of [
-        'package.json',
-        'tsconfig.json',
-        'LICENSE',
-        'CHANGELOG.md',
-        'README.md',
-      ]) {
-        cpSync(path.join(ROOT, file), path.join(BUILD_ROOT, file))
-      }
-      for (const file of readdirSync(ROOT)) {
-        if (/^package\.nls.*\.json$/.test(file))
-          cpSync(path.join(ROOT, file), path.join(BUILD_ROOT, file))
-      }
-      symlinkSync(
-        path.join(ROOT, 'node_modules'),
-        path.join(BUILD_ROOT, 'node_modules'),
-        'junction',
-      )
-      const built = command(
-        path.join(BUILD_ROOT, 'scripts', 'build.mjs'),
-        BUILD_ROOT,
-        ['--production'],
-        {},
-        BUILD_TIMEOUT,
-      )
-      expect(built.status, built.stderr).toBe(0)
-      // Packaging runs the real badge validator in a child. Its HTTP boundary
-      // needs a fake too: a PR's screenshots do not exist on public main yet.
-      // Only this package process tree receives the preload; CI's independent
-      // public badge gate and the agent's own transport are unchanged.
-      writeFileSync(
-        PACKAGE_PRELOAD,
-        String.raw`
-          const { appendFileSync, readFileSync } = require('node:fs');
-          const path = require('node:path');
-          const root = ${JSON.stringify(ROOT)};
-          const images = ${JSON.stringify(PACKAGE_IMAGES)};
-          globalThis.fetch = async input => {
-            const url = new URL(String(input));
-            appendFileSync(images, JSON.stringify(url.href) + '\n');
-            if (url.origin === 'https://raw.githubusercontent.com' &&
-                url.pathname.startsWith('/RandyNorthrup/muse-spark-code/main/media/')) {
-              const file = path.join(root, url.pathname.split('/main/')[1]);
-              return new Response(readFileSync(file), { headers: { 'content-type': 'image/png' } });
-            }
-            if (!['img.shields.io', 'badgen.net', 'github.com'].includes(url.hostname)) {
-              throw new Error('Unexpected package image: ' + url.href);
-            }
-            const text = url.pathname.startsWith('/badge/')
-              ? decodeURIComponent(url.pathname.slice('/badge/'.length)).replace(/-[^-]+$/, '')
-              : 'test-owned badge';
-            return new Response('<svg xmlns="http://www.w3.org/2000/svg"><text>' + text + '</text></svg>', {
-              headers: { 'content-type': 'image/svg+xml' },
-            });
-          };
-        `,
-      )
+      prepareProduction()
+      packageImagePreload(PACKAGE_PRELOAD, BUILD_ROOT, PACKAGE_IMAGES)
       const packed = command(
         path.join(BUILD_ROOT, 'scripts', 'package-acp.mjs'),
         BUILD_ROOT,

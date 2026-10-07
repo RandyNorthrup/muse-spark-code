@@ -40752,6 +40752,21 @@ pages. No version bump or README What’s New changes; no paid/live calls.
       restoration, full accessibility, static gates and actual VSIX measurements
       in `docs/certification/train-0.15.0.md` and its TRAIN15H receipt.
 
+### CI0150L — Linux hosted CI round 3 (2026-10-07)
+
+Scope: the Linux rig brief and CI0150-os-common: private clean-shard ACP
+packaging artifacts, checked-in pre-K activation sources, package badge/image
+isolation, installed archived translations, Semgrep findings and fake-only
+Action W/low-budget failures. Preserve every budget, assertion, timeout and
+security boundary. No live/paid model calls, push, rebase or merge.
+
+- [ ] Reproduce each owned failure and fix its cause; prove changed checks fire.
+- [ ] Commit finished pieces with hooks and explicit paths.
+- [ ] Run Linux pull-request jobs from fresh clones of committed work with
+      Node 22, CI=true, original shard/coverage and package steps; record exact
+      passes, failures and unavailable hosted dependencies in the Linux round 3
+      section of docs/certification/train-0.15.0.md.
+
 ### CI0150A — Clean-shard artifacts and portable certification (2026-10-07)
 
 Scope: six owning suites in the CI0150A brief. Clean hosted shards have no
@@ -40772,6 +40787,13 @@ is relaxed. No live or paid calls, push, rebase or merge.
       bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
 
 ## 7. Gates
+
+**CI0150L rolling verification.** The round-3 rig brief explicitly requires
+committing finished pieces after owning tests pass, then verifying committed
+work in fresh clones. Full quality and Linux CI jobs remain pending until that
+fresh-clone run and are not claimed green by an intermediate commit. Record
+any external hosted dependency that cannot run on this rig in the Linux round-3
+certification section; no threshold, ignore, timeout or assertion changes.
 
 **FIX0150R scoped certification.** The rig brief requires complete owning test
 files in batches of at most three, with three clean `CI=true` repetitions and

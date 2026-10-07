@@ -9,6 +9,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Make clean CI shards own their ACP build and README image inputs, retain the
+  historical activation baseline in the checkout, and verify installed help
+  against its shipped translation archive.
+- Encode companion recovery text with the shared HTML text encoder.
+
+
+### Fixed
+
 - Make provider, headless, deferred-bundle and VSIX tests independent of stale
   build outputs in clean CI shards. Reuse VSCE collection and reject oversized
   runtime members before parsing; existing budgets and test deadlines stay fixed.

@@ -1863,3 +1863,49 @@ VSIX gate. **The existing 2,841,600-byte cap and every bundle cap remain unchang
 No projection from helperless bytes certifies that calculation. Aggregate
 quality, hosted/platform/native screen-reader checks and public-network checks
 remain lead-owned; no push, tag, publication, live or paid model call occurred.
+
+## CI round 3 — Linux (CI0150L, 2026-10-07)
+
+Worktree `/home/randy/lanes/CI0150L`, branch `fix/0150-ci-l`, base
+`f033583e2`. Node 22.23.3 and npm 11.19.0 are private local toolchain installs;
+Semgrep 1.178.0 uses a private Python 3.12 environment. No live/paid model call,
+push, rebase, merge, credential output or disabled hook.
+
+### Repairs and deliberate failures
+
+- Clean-shard package suites now build production inputs in their own folder,
+  once per file, including all lazy modules, usage assets and README images.
+  The initial clean run fails on missing `temp/` and `dist/acp.js`; built exec
+  independently fails on `build/media/readme/banner.png`. The repaired three
+  files pass 47 tests with `CI=true`, Node 22 and `--maxWorkers=3`.
+- Both source and packaged README checks receive a scripted public-main tree:
+  the existing banner still gets a public-image response, while new images
+  must decode from the private checkout. No network-skip variable is used for
+  real badge validation; inert package-admission fixtures retain their own
+  separate no-op image boundary.
+- The immutable pre-K comparison uses 193 checked-in source inputs from
+  `ad916bbc`, not a Git object. Fixture SHA-256 is
+  `6d361ac567eb3894eaff407045daef7fcdd23cceb05cb436bd6f7f024172f4f7`.
+  Baseline/current are 561,384/473,885 bytes with current production plugins.
+  Deliberately retaining 100,000 extra bytes produces growth 12,526 against
+  the unchanged 3,072-byte limit and fails. A single extra fixture byte fails
+  its digest assertion. Both files are restored byte-exact; the suite passes.
+- ACP help reads its shipped archive through `readUiTableFile` and unpacks
+  the original table shape. PLAN's VSIXDIET2/TRAIN15F decisions require that
+  archive; plaintext tables are not reintroduced into the package.
+- Semgrep's original scan finds eight issues: three plaintext WebSocket
+  examples in research and five findings around companion recovery HTML.
+  Research now spells out the same plain protocol, ports and paths in prose.
+  Companion uses the shared single-pass element/attribute encoder; the
+  targeted page scan passes, as do its two tests. No rule or ignore changes.
+- Source ACP, companion page and local W rehearsal: 21 tests pass. W rehearsal
+  now also accepts the actual installed ACP runtime so archived/lazy production
+  layout can be checked, beyond its source-built fixture. Hosted W-review
+  fails before its checker; direct job-log download returns HTTP 403 (admin
+  rights required), so production-package reproduction remains necessary.
+
+### Fresh-clone job verification
+
+Pending: exact Linux job runs, coverage merge, installed package checks and
+full quality. Final results will replace this pending paragraph after fixes
+are committed and tested from new clones.
