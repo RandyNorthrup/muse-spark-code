@@ -526,6 +526,59 @@ store the process cannot read reads as no stored key. Anything typed into
 the draft, but like shell history it still passes through the terminal, so
 keep secrets out of it.
 
+## Local prompts and sharing
+
+`/help` lists the sharing catalog. ACP reserves `/prompt save|list|use|share`
+and `/share chat` as local commands: they never become skills or model turns.
+Save preserves the text after the unquoted `--` separator, including CRLF
+and trailing spaces. Personal prompts use the same agent data folder as the
+extension and appear in every workspace. Workspace prompts stay in
+`.muse/prompts/`. Use returns prepared text when no composer bridge exists;
+variable/untrusted review without that bridge refuses explicitly.
+
+Examples of the standalone installed command:
+
+```sh
+muse-spark-code-acp --help
+printf 'Review this code without changing it.\n' | muse-spark-code-acp prompts save --title Review --scope user
+muse-spark-code-acp prompts list
+muse-spark-code-acp prompts use PROMPT_ID --scope user --cwd EMPTY_WORKSPACE
+muse-spark-code-acp prompts share PROMPT_ID --format md --destination save --out review.md
+```
+
+Replace `PROMPT_ID` and `EMPTY_WORKSPACE` with the saved id and a workspace
+folder. Save/list/use load no backend or key. Use produces prepared text,
+without sending. In an interactive terminal, untrusted prompts and variables
+are reviewed before inputs are expanded and again before use.
+
+Chat sharing uses `muse-spark-code-acp share chat SESSION_ID --mode
+conversation --format md`; `full` includes portable activity. Markdown, HTML
+and JSON share the same scrub. Copy/save/open are local destinations;
+`--destination save` requires `--out` within the workspace; `open` creates a
+private local HTML file within that workspace. Standalone chat reads the Muse Code
+backend; ACP reads its selected backend. A confidential
+workspace refuses; the standalone policy reads `.vscode/settings.json`, and
+malformed or unreadable policy refuses. Settings with JSON comments currently
+refuse rather than guessing. Full mode never disables privacy.
+
+A noninteractive share prints exact scrubbed content and a JSON cancelled
+preview, with exit 7. Review it, then repeat the identical command with an
+explicit `--destination`, the same `--exported-at`, `--out`, and
+`--confirm PREVIEW_ID`. The digest binds cwd, path/root, options, time and
+bytes. Any change needs a new preview; there is no blanket `--yes`. Interactive
+sharing asks for a final confirmation. No file/clipboard/browser operation
+occurs during preview. Private atomic writes recheck live policy and abort. Sharing also scrubs the
+agent's already-known credential values; active Model API ACP sessions refresh
+their stored key for preview and release. A newly sensitive document refuses
+release and needs a new preview.
+
+ACP currently returns exact previews through its existing text response and
+cancels release: it has no final sharing button or composer insertion on this
+base. These wait for M104's validated host bridge, alongside native menus and
+the companion page. The TUI waits for M110a0 lane T. See the
+[M118 record](certification/m118.md) for exact actions and editor rows. Gist
+publishing, hosted links, team destinations and email remain phase 2/3.
+
 ## Help and reference
 
 Send `/help` in an ACP session for its local command list and the [generated reference](reference.md). Run `muse-spark-code-acp help --all` in a terminal for the complete reference. Help starts no backend and makes no model request.

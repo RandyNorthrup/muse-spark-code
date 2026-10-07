@@ -5,8 +5,8 @@
 // conversation's changes, accepts or reverts each, and sends a comment on a
 // line to the agent.
 
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../../src/shared/protocol'
 import { App } from '../../src/webview/App'
@@ -312,6 +312,12 @@ function renderFindings(json: string) {
   )
   return onOpenFile
 }
+
+beforeAll(async () => {
+  renderFindings('{"findings":[]}')
+  await screen.findByText(UI_TEXT.reviewNoFindings)
+  cleanup()
+})
 
 describe('a review’s findings (M70)', () => {
   it('lists each finding with its severity; its location opens the file at its lines', () => {

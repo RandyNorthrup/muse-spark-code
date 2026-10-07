@@ -270,3 +270,8 @@ For remote development, capture happens on the user's device while execution occ
 10. Build the IntelliJ/Android Studio and Visual Studio native hosts using the shared React bundle.
 
 The next engineering milestone should deliver a portable runtime/contract foundation plus a small number of verified hosts. The broader matrix defines the expansion path, and each support claim follows measured behavior in the relevant editor.
+
+M118's shared sharing core and React/ACP/CLI bindings are integrated; native
+menus and the companion page still wait on M104, and TUI mounting waits on
+M110a0 lane T. Exact pending envelopes/DTOs and each editor's availability are
+listed in [the host record](ide-compatibility/hosts.md#m118-sharing-integration-2026-10-06).

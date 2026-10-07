@@ -2,7 +2,7 @@
   "name": "muse-spark-code",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.14.3",
+  "version": "0.14.4",
   "publisher": "RandyNorthrup",
   "license": "MIT",
   "private": true,
@@ -299,6 +299,36 @@
         "category": "%command.category%"
       },
       {
+        "command": "museSpark.sharePrompt",
+        "title": "%command.sharePrompt.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.promptLibrary",
+        "title": "%command.promptLibrary.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.savePrompt",
+        "title": "%command.savePrompt.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.useSavedPrompt",
+        "title": "%command.useSavedPrompt.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.copyToMyPrompts",
+        "title": "%command.copyToMyPrompts.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.shareChat",
+        "title": "%command.shareChat.title%",
+        "category": "%command.category%"
+      },
+      {
         "command": "museSpark.openHelp",
         "title": "%command.openHelp.title%",
         "category": "%command.category%"
@@ -436,6 +466,40 @@
           "command": "museSpark.openInNewTab",
           "when": "view == museSpark.chatView",
           "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "museSpark.savePrompt",
+          "when": "editorHasSelection",
+          "group": "museSpark@1"
+        }
+      ],
+      "webview/context": [
+        {
+          "command": "museSpark.savePrompt",
+          "when": "(webviewId == 'museSpark.chatPanel' || webviewId == 'museSpark.chatView') && museSpark.transcriptRole == user && museSpark.messageIsOwn",
+          "group": "museSpark@1"
+        },
+        {
+          "command": "museSpark.savePrompt",
+          "when": "(webviewId == 'museSpark.chatPanel' || webviewId == 'museSpark.chatView') && museSpark.composerHasText",
+          "group": "museSpark@1"
+        },
+        {
+          "command": "museSpark.useSavedPrompt",
+          "when": "(webviewId == 'museSpark.chatPanel' || webviewId == 'museSpark.chatView') && museSpark.chatAvailable",
+          "group": "museSpark@2"
+        },
+        {
+          "command": "museSpark.sharePrompt",
+          "when": "(webviewId == 'museSpark.chatPanel' || webviewId == 'museSpark.chatView') && museSpark.transcriptRole == user && museSpark.messageIsOwn",
+          "group": "museSpark@3"
+        },
+        {
+          "command": "museSpark.sharePrompt",
+          "when": "(webviewId == 'museSpark.chatPanel' || webviewId == 'museSpark.chatView') && museSpark.composerHasText",
+          "group": "museSpark@3"
         }
       ]
     },
@@ -1147,6 +1211,12 @@
           "description": "%config.shell.passEnvironmentVariables.description%",
           "scope": "machine"
         },
+        "museSpark.syncPromptsAndBookmarks": {
+          "type": "boolean",
+          "scope": "machine",
+          "default": false,
+          "description": "%config.syncPromptsAndBookmarks.description%"
+        },
         "museSpark.questions.deferAfterSeconds": {
           "type": "integer",
           "default": 60,
@@ -1236,7 +1306,7 @@
     "typecheck:e2e": "tsc -p test/e2e/tsconfig.json --noEmit",
     "typecheck:integration": "tsc -p test/integration/tsconfig.json --noEmit",
     "deadcode": "knip",
-    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/shared/wireEntry.ts src/extension.ts src/host/conversation/conversationEntry.ts src/host/judge/judgeEntry.ts src/host/tab/tabEntry.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/core/backends/modelapi/foreignHooksEntry.ts src/core/backends/modelapi/pluginHooksEntry.ts src/core/backends/modelapi/hookRuntimeEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts src/acp/questionDeferralEntry.ts src/host/browser/browserCheckEntry.ts src/host/browser/browserRuntimeEntry.ts src/host/whatsNew/whatsNewEntry.ts src/webview/whatsNew/main.ts src/host/git/conversationGitEntry.ts src/runtime/questions/questionRegistryEntry.ts",
+    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/shared/wireEntry.ts src/extension.ts src/host/conversation/conversationEntry.ts src/host/judge/judgeEntry.ts src/host/tab/tabEntry.ts src/host/prompts/promptEntry.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/core/backends/modelapi/foreignHooksEntry.ts src/core/backends/modelapi/pluginHooksEntry.ts src/core/backends/modelapi/hookRuntimeEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts src/runtime/sharing/sharingEntry.ts src/host/browser/browserCheckEntry.ts src/host/browser/browserRuntimeEntry.ts src/host/whatsNew/whatsNewEntry.ts src/webview/whatsNew/main.ts src/host/git/conversationGitEntry.ts src/acp/questionDeferralEntry.ts src/runtime/questions/questionRegistryEntry.ts",
     "duplication": "jscpd",
     "test": "run-s test:unit test:integration",
     "test:unit": "vitest run --coverage",

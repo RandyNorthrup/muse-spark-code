@@ -1,3 +1,4 @@
+import type { ChatShareSource } from '../../core/sharing/chatShare'
 import { QuestionRegistry } from '../../core/questions/registry'
 import type { QuestionAnswerText } from '../../core/questions/lateAnswer'
 import type {
@@ -1156,6 +1157,8 @@ export class ConversationController {
    * sent instead of queueing another behind it on a busy host.
    */
   private readonly outputReads = new Map<string, Promise<void>>()
+  private readonly shareDiffs = new Map<string, { readonly ref: string; readonly text: string }>()
+  private readonly shareDecisions = new Map<string, string>()
   /**
    * Stored-output reads sent at once, the rest waiting in order (CLI
    * recovery): a read still waiting when its session is no longer this
@@ -1357,6 +1360,13 @@ export class ConversationController {
   private post(message: HostToWebviewMessage): void {
     // Streamed text still waiting goes first, so nothing overtakes it.
     this.flushDelta()
+    if (message.type === 'outputPage' && message.offsetBytes === 0 && message.eof)
+      this.shareDiffs.set(message.itemId, { ref: message.outputRef, text: message.content })
+    if (message.type === 'agentEvent' && message.event.type === 'approvalResolved')
+      this.shareDecisions.set(
+        message.event.itemId,
+        `${message.event.decision} (${message.event.resolvedBy})${message.event.reason === undefined ? '' : `: ${message.event.reason}`}`,
+      )
     switch (message.type) {
       case 'agentEvent': {
         this.deps.surface.post({ ...message, event: redactDiagnosticEvent(message.event) })
@@ -1706,6 +1716,8 @@ export class ConversationController {
    * a dropped turn would otherwise run on, unwatched and billed.
    */
   private dropSession(isTurnCancelled = true, isOwnedRecovery = false): void {
+    this.shareDiffs.clear()
+    this.shareDecisions.clear()
     this.attachmentGeneration += 1
     this.sessionOpening = undefined
     // A review's Plan mode goes with its session (M70): the next session
@@ -9154,6 +9166,48 @@ export class ConversationController {
   }
 
   /** A setting change retires contributor work, including in-flight preparations. */
+  public shareSessionId(): string | undefined {
+    return this.session?.sessionId
+  }
+
+  /** M118 reads the export history; session replacement invalidates a pending read. */
+  public async readShareSource(
+    sessionId: string | undefined,
+    exportedAt: string,
+  ): Promise<ChatShareSource> {
+    if (this.deps.isConfidentialWorkspace()) throw new Error(UI_TEXT.shareConfidential)
+    const current = this.session
+    const id = sessionId ?? current?.sessionId
+    if (id === undefined) throw new Error(UI_TEXT.exportNothing)
+    if (this.activeTurnId !== undefined) throw new Error(UI_TEXT.exportWaitForTurn)
+    const host = await this.deps.ensureHost()
+    const history = await host.readSession(id)
+    if (this.isDisposed || current !== this.session) throw new Error(UI_TEXT.sharePreviewExpired)
+    if (history.mode === 'none') throw new Error(UI_TEXT.exportHistoryUnavailable)
+    return {
+      sessionId: id,
+      title: history.name ?? UI_TEXT.exportDefaultTitle,
+      exportedAt,
+      items: history.items.map((item) => {
+        const shown = id === current?.sessionId ? this.shareDiffs.get(item.itemId) : undefined
+        return shown !== undefined && item.outputRef?.id === shown.ref
+          ? { ...item, visibleOutput: shown.text }
+          : item
+      }),
+      ...(id === current?.sessionId && {
+        decisions: new Map(this.shareDecisions),
+        diffs: new Map(
+          history.items.flatMap((item) => {
+            const shown = this.shareDiffs.get(item.itemId)
+            return shown !== undefined && item.patchRef?.id === shown.ref
+              ? [[item.itemId, shown.text]]
+              : []
+          }),
+        ),
+      }),
+    }
+  }
+
   public confidentialWorkspaceChanged(): void {
     if (
       this.deps.isConfidentialWorkspace() &&

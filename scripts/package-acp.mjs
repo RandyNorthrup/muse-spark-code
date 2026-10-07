@@ -20,6 +20,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -31,6 +32,7 @@ import { renderPackageReadme } from './check-badges.mjs'
 const STAGE = path.join('dist', 'acp-package')
 const BUNDLES = [
   'acp.js',
+  'sharingRuntime.js',
   'acpQuestions.js',
   'runtimeQuestions.js',
   'questionNotes.js',
@@ -67,7 +69,9 @@ const PACKAGE_NAME = 'muse-spark-code-acp'
 // detailed guide and is linked from the landing page instead.
 const README = path.join('docs', 'npm-readme.md')
 const NOTICES = 'THIRD_PARTY_NOTICES.txt'
-const SCHEMAS = ['exec-result-v1.schema.json', 'exec-event-v1.schema.json']
+const SCHEMAS = ['exec-result-v1.schema.json', 'exec-event-v1.schema.json', 'share-v1.schema.json']
+// Standalone full Help reads the manifest's labels beside package.json.
+const NLS_FILES = readdirSync('.').filter((file) => /^package\.nls(?:\.[\w-]+)?\.json$/.test(file))
 
 /** The keyring binding's version, as this repository locks it. */
 function lockedVersion(manifest) {
@@ -114,6 +118,7 @@ cpSync('l10n', path.join(STAGE, 'l10n'), {
   recursive: true,
   filter: (source) => !source.endsWith('untranslated.json'),
 })
+for (const file of NLS_FILES) copyFileSync(file, path.join(STAGE, file))
 copyFileSync('LICENSE', path.join(STAGE, 'LICENSE'))
 writeFileSync(
   path.join(STAGE, 'README.md'),
@@ -155,7 +160,7 @@ const agentManifest = {
     'llm',
   ],
   bin: { [PACKAGE_NAME]: 'dist/acp.js' },
-  files: ['dist', 'native', 'l10n', 'schemas', 'README.md', 'LICENSE', NOTICES],
+  files: ['dist', 'native', 'l10n', 'schemas', ...NLS_FILES, 'README.md', 'LICENSE', NOTICES],
   engines: { node: manifest.engines.node },
   dependencies: { [NATIVE_DEPENDENCY]: keyringVersion },
 }
@@ -163,6 +168,16 @@ writeFileSync(path.join(STAGE, 'package.json'), `${JSON.stringify(agentManifest,
 execFileSync(process.execPath, ['scripts/check-badges.mjs', '--packaged-acp', STAGE], {
   stdio: 'inherit',
 })
+// Exercise the real staged CLI without credentials, a server or a model call.
+for (const file of NLS_FILES) {
+  const locale =
+    file === 'package.nls.json' ? 'en' : file.slice('package.nls.'.length, -'.json'.length)
+  execFileSync(process.execPath, [path.join(STAGE, 'dist', 'acp.js'), 'help', '--all'], {
+    env: { ...process.env, LC_ALL: locale },
+    stdio: 'pipe',
+  })
+}
+console.log(`ACP full Help: ${NLS_FILES.length} staged languages verified`)
 
 const packed = execFileSync('npm', ['pack', '--pack-destination', '..'], {
   cwd: path.resolve(STAGE),

@@ -15,8 +15,9 @@ import {
   USER_SHELL_ITEM_KIND,
   USER_SHELL_PREFIX,
 } from '../../shared/constants'
-import { fill, plural } from '../../shared/l10n/text'
+import { fill, formatDateTime, plural } from '../../shared/l10n/text'
 import { thenRunOutcomeText, verifySummaryText } from '../../shared/verifyText'
+import type { ChatShareDocument } from '../sharing/chatShare'
 
 export interface TranscriptExport {
   readonly title: string
@@ -237,7 +238,41 @@ export function transcriptItemMarkdown(item: ItemSnapshot): string | undefined {
   }
 }
 
-export function renderTranscriptMarkdown(input: TranscriptExport): string {
+export function renderTranscriptMarkdown(input: TranscriptExport | ChatShareDocument): string {
+  if ('target' in input) {
+    const sections = input.items.map((item) => {
+      let heading = item.kind
+      if (item.kind === USER_MESSAGE) heading = UI_TEXT.exportUserHeading
+      else if (item.kind === AGENT_MESSAGE) heading = UI_TEXT.exportAgentHeading
+      const lines = [`## ${heading}`, '', item.text ?? '']
+      const fields = [
+        [UI_TEXT.exportToolNoName, item.tool],
+        [UI_TEXT.exportArgumentsLabel, item.args],
+        [UI_TEXT.exportOutputLabel, item.output],
+        [UI_TEXT.exportShellHeading, item.command],
+        [UI_TEXT.shareDecision, item.decision],
+        [UI_TEXT.exportThinkingHeading, item.reasoning],
+        [UI_TEXT.diffTallyLabel, item.diff],
+      ]
+      for (const [label, value] of fields) {
+        if (value !== undefined) lines.push('', label ?? '', '', fenced(value))
+      }
+      const attachments = item.attachments ?? []
+      for (const attachment of attachments) {
+        if (attachment.name !== undefined) lines.push('', attachment.name)
+        if (attachment.content !== undefined) lines.push('', fenced(attachment.content))
+      }
+      return lines.join('\n').trimEnd()
+    })
+    return [
+      `# ${input.title}`,
+      '',
+      fill(UI_TEXT.exportTimeLine, { time: formatDateTime(Date.parse(input.createdAt)) }),
+      '',
+      ...sections,
+      '',
+    ].join('\n')
+  }
   const header = [
     `# ${input.title}`,
     '',

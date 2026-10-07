@@ -139,6 +139,28 @@ function largePdf(name: string): File {
   return file
 }
 
+it('offers exact composer prompt text to the shared menus without sending', () => {
+  const onSavePrompt = vi.fn(),
+    onSharePrompt = vi.fn()
+  const { props, textarea } = renderComposer({
+    draft: 'Exact\r\ncomposer text',
+    onSavePrompt,
+    onSharePrompt,
+  })
+  const context = textarea.closest('footer')?.dataset['vscodeContext']
+  expect(context === undefined ? undefined : JSON.parse(context)).toEqual({
+    'museSpark.promptSource': 'composer',
+    'museSpark.promptText': 'Exact\r\ncomposer text',
+    'museSpark.composerHasText': true,
+    'museSpark.chatAvailable': true,
+  })
+  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.promptSave }))
+  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.sharePrompt }))
+  expect(onSavePrompt).toHaveBeenCalledWith('Exact\r\ncomposer text')
+  expect(onSharePrompt).toHaveBeenCalledWith('Exact\r\ncomposer text')
+  expect(props.onSubmit).not.toHaveBeenCalled()
+})
+
 function pasteOrDropFile(
   gesture: 'paste' | 'drop',
   textarea: HTMLTextAreaElement,

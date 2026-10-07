@@ -1,0 +1,79 @@
+.prompt-library {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.prompt-library label,
+.prompt-library form,
+.prompt-library li {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.prompt-library input,
+.prompt-library textarea,
+.prompt-library select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border, transparent);
+}
+
+.prompt-library textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.prompt-library h3,
+.prompt-library p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.prompt-library li {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-block: 12px;
+  border-top: 1px solid var(--vscode-panel-border);
+}
+
+.prompt-library li h3,
+.prompt-library li p {
+  grid-column: 1 / -1;
+}
+
+.prompt-library-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.prompt-library button {
+  padding: 4px 8px;
+  border: 1px solid var(--vscode-panel-border);
+  min-height: var(--ms-button-height);
+  border-radius: var(--ms-radius);
+  color: var(--vscode-button-secondaryForeground);
+  font: inherit;
+  background: var(--vscode-button-secondaryBackground);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.prompt-library button:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+.prompt-library pre {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.prompt-library mark {
+  color: var(--vscode-list-activeSelectionForeground);
+  background: var(--vscode-list-activeSelectionBackground);
+}
