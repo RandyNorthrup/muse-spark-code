@@ -53,6 +53,8 @@ muse-spark-code-acp scan-secrets fix.patch
 | --ephemeral                         | off                    | Model API only; suppress the session store.                                                                                 |
 | --key-stdin                         | off                    | Model API only; non-TTY stdin.                                                                                              |
 | --muse-binary, --shell-sandbox      | serve defaults         | Muse Code only.                                                                                                             |
+| --account <id>                      | default                | Pin one run to one account; refused with --key-stdin in CI.                                                                 |
+| --account-pool                      | off                    | Let exec swap accounts at the run's own caps; refused with --key-stdin in CI.                                               |
 | --verbose                           | off                    | Trace on redacted stderr.                                                                                                   |
 
 Budget grammar is unsigned ASCII decimal `[0-9]+(?:\.[0-9]{1,6})?`,

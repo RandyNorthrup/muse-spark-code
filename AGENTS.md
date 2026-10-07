@@ -244,8 +244,10 @@ src/acp/**            the ACP agent (D62): the ACP side of a session and the
 src/runtime/exec/**   headless arguments/protocol/egress, stdin key/scanner,
                       bounded lifecycle, ACP client/tap and per-attempt ledger
 src/runtime/**        the agent's process: arguments, backends outside VS Code,
-                      the OS credential store (D61), `auth`, `login` and
-                      `report` (M93)
+                      the OS credential store (D61), `auth`, `login`,
+                      `report` (M93), `providers accounts` and the runtime
+                      account services (dist/runtimeAccounts.js, loaded on the
+                      first accounts, developer or keyed headless command; M108)
 src/shared/**         constants + zod protocol shared by host and webview
 src/shared/l10n/**    the English table (en.ts), fill/plural/Intl helpers, the
                       table checks and the list of translated languages

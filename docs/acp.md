@@ -239,7 +239,9 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   on a model the agent does not list moves to the default. A session the
   agent cannot set up this way is let go, and the editor's request fails.
 - **Commands**: the session's skills, run as `/name arguments`, plus M112's
-  `/questions` and `/answer <n> <text>` (reserved ahead of skills).
+  `/questions` and `/answer <n> <text>` (reserved ahead of skills), and
+  M108's `/accounts <list|current|use <id>|thresholds [id]>`, answered
+  locally with no model turn.
 - **Permission prompts**: the backend's own choices (allow once, allow for
   the session, reject). A prompt the editor cancels, or answers with a
   choice it was not offered, is rejected; nothing runs by default.
@@ -314,6 +316,19 @@ prefix; the policy favors avoiding a duplicate when admission is unknown.
 MCP elicitation forms retain their separate five-minute deadline and cannot
 be answered late. Ordinary approvals and paid-use permission prompts retain
 their existing behavior and never enter the question clock.
+
+## Several accounts per provider (M108)
+
+`/accounts list` shows the session's accounts, `/accounts current` the one
+in use, `/accounts use <id>` moves the session to the named account, and
+`/accounts thresholds [id]` shows the configured use thresholds. The same
+surface answers with no model turn. A session may also start on one account
+through the `account` session option. Adding, removing and ordering accounts
+happens in the panel or through `providers accounts` in a terminal; keys are
+taken only from standard input, never an argument or a file. Swap and stop
+notices arrive as session text naming the account now in use or the reset
+time. See [the milestone certification](certification/m108.md) for what is
+bound and what waits for a capture or an installed editor.
 
 ## Paid features
 

@@ -7,6 +7,23 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Several accounts per provider: each account keeps its own key, label,
+  order, limit group and use thresholds. The conversation swaps to the next
+  account with room at the next request boundary (`museSpark.accountSwap`,
+  on), background work spreads across accounts by headroom
+  (`museSpark.accountParallel`, on), and each account stays pinned to one
+  device or node. Several accounts on one PC are for testing behind
+  `museSpark.accounts.severalOnThisDevice` (off) with developer options.
+  Manage them in the panel's Accounts section, through
+  `providers accounts` and `auth set` (standard input only), ACP's
+  `/accounts` and the `account` session option, or exec's `--account` and
+  `--account-pool`. Per-account meters and swap/stop events join Account &
+  usage. The paid gate, daily budgets and approvals apply per account. The
+  [policy record](docs/certification/m108-policy.md) lists each provider's
+  account terms with dated quotes; see `docs/certification/m108.md`.
+
 ### Documentation
 
 - A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists

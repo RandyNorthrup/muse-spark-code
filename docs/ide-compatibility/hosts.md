@@ -106,6 +106,26 @@ Scheduled/unattended prompts defer immediately and keep the question open,
 including with interactive deferral disabled; headless exec, best-of-N,
 worktrees and the evaluation retain their distinct immediate policies.
 
+## M108 account surfaces — integration status
+
+2026-10-07: integration binds the panel Accounts section, the usage page's
+account meters, ACP's `/accounts` and the `account` session option, the
+`providers accounts` CLI and exec's `--account`/`--account-pool`, over the
+shared core and the lazy `dist/runtimeAccounts.js` bundle. Second Muse Code
+accounts and cross-account replay/cache facts wait for the Q-M108 captures;
+installed-editor rows above retain their existing status. Recorded in
+[M108's record](../certification/m108.md).
+
+| Surface                                                                                                 | Accounts path                                                                                                            | Swap, usage and notices                              | Binding / evidence                                                                   |
+| ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| VS Code family, Remote SSH, WSL, containers, Codespaces                                                 | Accounts section in Models & Agents; picker, pill and threshold editors                                                  | Swap/stop rows, per-account meters on the usage page | Integrated panel/usage bindings; harness scenes and axe; installed-host checks: lead |
+| JetBrains native/JCEF, Visual Studio/WebView2, Eclipse/SWT                                              | Same shared panel through M104                                                                                           | Same rows through their mounting                     | M104; waiting for their integration                                                  |
+| Companion page                                                                                          | Same panel through the companion                                                                                         | Same rows                                            | Companion adapter (H); installed check: lead                                         |
+| ACP with forms, ACP without forms (Zed, Xcode, JetBrains, Neovim, Emacs, Sublime and other ACP clients) | `/accounts list\|current\|use <id>\|thresholds [id]>`, `account` session option                                          | Swap/stop session text                               | H's session owner and router; fake ACP suites green; installed-client checks: lead   |
+| Standalone CLI                                                                                          | `providers accounts list\|add\|remove\|order\|thresholds`, `auth set --provider <id> --account <id>` from standard input | Threshold editors take JSON                          | H's command module; unit suites green                                                |
+| Headless exec                                                                                           | `--account <id>` pins one run; `--account-pool` swaps at the run's own caps                                              | Pool refused with `--key-stdin` in CI                | runExec admission; `execAccounts` suites green                                       |
+| TUI, Muse Desktop, Muse Code second accounts                                                            | Their mounting / own config home                                                                                         | Their rows                                           | Waiting for their integration (Muse Code: Q-M108 capture)                            |
+
 ## Native and scientific
 
 | Editor                    | Route                               | Milestone | Status  |
