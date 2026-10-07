@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Bind the panel's own orchestration to the shared orchestrator playbook:
+  subagent, delegate and best-of-N dispatches and the `/review` loop run
+  under the policy, with a redesign offered to Plan at the third round.
+  M96/M96c, M110, M115w and M113 stay named integration handoffs.
 - Use native Git hook dispatch and its exit verdict throughout playbook
   verification, removing Husky startup/layout emulation and invalidating older
   receipts. Discover private refs in every worktree. Timeout cleanup tracks
