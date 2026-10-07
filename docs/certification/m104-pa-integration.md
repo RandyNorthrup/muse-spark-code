@@ -349,3 +349,60 @@ extension entry loads successfully with only VS Code's supplied module stubbed,
 exports `activate`/`deactivate`, requires the adjacent `hostProtocol.js` and
 retains deferred conversation loading. This is a real package module-load
 receipt; installed-editor qualification remains with F.
+
+## FIXM104PA4 — RVM104PA4 repairs (2026-10-07)
+
+Base: `554de87b6`, macmini, this same worktree (branch `m104/pa`). Both
+review findings are P2; no P1 or P3 was reported. Both are fixed in lane
+A's files. No merge, dependency, guard widening, support promotion,
+credential read or live/paid call is part of this repair. Residual R3-2
+is closed by the P2-2 repair below. Scoped checks run directly here with
+repository deadlines (`--maxWorkers=3`, never `--testTimeout`).
+
+| Finding                                                                                         | Repair and regression                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R4-1 P2, state publication remounts the pending action's page                                   | `presentationUi.tsx` no longer takes a fresh `PresentationBoundary` key on every `show`: a published state reconciles into the mounted page, and only a crashed boundary takes a fresh key (crash fallback and reload behaviour unchanged). `planDiff.test.tsx` keeps a pending plan read mounted across a republication (preview text plus Open/Implement controls survive) and retains an accepted diff decision across a same-version republication.                                                                                                                                                                     |
+| R4-2 P2, close requests past conversation cancellation have no serialized owner (residual R3-2) | `runPanel.ts` retires replaced companion pages through one exported `retireCompanionPages` step while the session is still held: each page's server context is retired and its surface is handed to the feature owners (`surfaceClosed`, e.g. `PortableTasks.closed`), so release-time cleanup finds nothing orphaned to close and `replaceProfile` proceeds to the replacement instead of stalling on `MHP_TASKS_CLOSE_FAILED` / `MHP_COMPOSITION_RELEASE_FAILED`. No guard is widened. `runtimePanelState.test.ts` covers the handoff (contexts retired, unrelated session kept, owner released) and the ownerless prune. |
+
+### Deliberate red controls
+
+Each mutation broke only the named guard, failed the named regression, and
+was restored (P2-1 byte-exact at drill time; a lint-driven boolean rename
+followed under the same green tests. P2-2 byte-exact at drill time; a
+type-narrowing-only call-site edit followed under the same green tests).
+Final source SHA-256: `presentationUi.tsx`
+`9737e434aa6d796e900114e159e1c5a64a16621e96b86dd8f17cfd4a59001c51`,
+`runPanel.ts`
+`b97ab8300f5a61583b5226556e8fd2b5ab22b7b7530c81befaae6a408bdf1ad4`.
+
+| Mutation                                        | Named failing regression                                                                                                                                    |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Remount the boundary on every publication again | `keeps a pending plan read mounted across a state publication`; `retains an accepted decision across a same-version state publication` (2 failed, 7 passed) |
+| Omit the retire owner handoff                   | `retires replaced pages and hands each surface to its feature owner` (1 failed, 12 passed)                                                                  |
+
+### Scoped gate receipts
+
+- Restored Vitest: `planDiff.test.tsx` 9 pass; `runtimePanelState.test.ts`
+  13 pass; `presentation.test.ts` + `browserBridge.test.ts` with planDiff 21
+  pass across 3 files. Every run uses `--maxWorkers=3` and repository
+  deadlines; no name filter, skip or `--testTimeout`.
+- `npm run typecheck`: all configured projects pass.
+- Changed-file ESLint zero warnings, Prettier check, `node
+scripts/check-l10n.mjs`: fourteen tables, zero problems.
+- No build, packaging, or aggregate quality run in this lane; those stay
+  with the lead's four-machine gate.
+
+### Named follow-up (not a residual finding)
+
+Full companion-transport end-to-end for R4-2 (runPanel on companion with an
+acquired Tasks view, profile switch, replacement configured) was drafted
+(browser-wire plan verified step by step against the server and controller
+sources) but cannot execute on this rig: its sandbox
+denies loopback binds (`listen EPERM 127.0.0.1`), so `startCompanionServer`
+fails here — the existing `companionMhp.test.ts` socket tests fail on this
+rig for the same pre-existing environmental reason. The committed
+link-level regression above runs here and fails without the guard. The E2E
+remains a follow-up for a socket-capable rig; it needs the real bundle
+factory stack (engines/context/presentation/checkpointStore bundles),
+a checkpoint namespace for the fake backend, and the drafted HTTP
+browser emulation. No RVM104PA4 P1/P2/P3 residual remains.

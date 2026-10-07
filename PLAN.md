@@ -19179,6 +19179,18 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**FIXM104PA4 / RVM104PA4 (2026-10-07).** Close the re-review's two P2
+findings in lane A's files, closing residual R3-2. State publication
+reconciles into the mounted presentation page (fresh boundary key only
+after a crash); companion retire hands each replaced page to its feature
+owner through one serialized `retireCompanionPages` step while the session
+is still held, so no guard is widened. Failing regressions with SHA-256
+restoration go in `docs/certification/m104-pa-integration.md`. Scoped
+sequential checks run directly on macmini at repository deadlines; no
+merge, dependency, guard widening, support promotion, build, packaging or
+live/paid call. No RVM104PA4 residual remains; the companion E2E is a
+named follow-up (this rig's sandbox denies loopback binds).
+
 **FIXM104PA3 / RVM104PA3 (2026-10-06).** Repair all six review findings in
 lane A: ship the shared host protocol in the VSIX and production deferred-bundle
 fixtures; preserve disposal requests after conversation cancellation; retire
