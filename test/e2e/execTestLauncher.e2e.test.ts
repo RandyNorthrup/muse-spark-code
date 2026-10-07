@@ -123,6 +123,13 @@ async function packageTree(): Promise<void> {
     entryPoints: {
       recorder: path.join(ROOT, 'src/host/support/recorderEntry.ts'),
       wire: path.join(ROOT, 'src/shared/wireEntry.ts'),
+      validationSchema: path.join(ROOT, 'src/host/validationSchemaEntry.ts'),
+      judgeP2: path.join(ROOT, 'src/runtime/judge/judgeEntry.ts'),
+      judgeSources: path.join(ROOT, 'src/runtime/judge/judgeSourcesEntry.ts'),
+      judgeLint: path.join(ROOT, 'src/runtime/judge/judgeLintEntry.ts'),
+      judgeHook: path.join(ROOT, 'src/runtime/judge/judgeHookEntry.ts'),
+      judgeLocal: path.join(ROOT, 'src/runtime/judge/judgeLocalEntry.ts'),
+      judgeUses: path.join(ROOT, 'src/runtime/judge/judgeUsesEntry.ts'),
       uiTextRuntime: UI_TEXT_ENTRY,
       uiTextHooks: UI_TEXT_ENTRY,
       uiTextSurfaces: UI_TEXT_ENTRY,
