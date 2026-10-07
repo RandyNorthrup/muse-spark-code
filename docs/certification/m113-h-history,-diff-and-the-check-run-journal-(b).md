@@ -416,3 +416,151 @@ regression, then restored SHA-256
 
 Finding 1 remains in active correction; the preceding certification's claim
 of no remaining lock residual is superseded by RVM113H2.
+
+## RVM113H2 — compare-and-delete leases (2026-10-06)
+
+Both review P2 findings are fixed. The first piece is committed as
+`1cad751ff`, with normal lint-staged and gitleaks hooks (zero leaks).
+This replaces the preceding PID/inode-based recovery claim; no third failed
+review is claimed to be resolved without this replacement.
+
+An O_EXCL lock contains a strict `{pid, startedAt, token}` record. The token
+is random per transaction. Only disappearance of that exact OS birth identity
+proves staleness. A recoverer renames the current lock to a unique `lease-*`
+tombstone, reads the moved record and deletes only the token it proved stale.
+A replacement token is restored atomically. Every pending tombstone prevents
+new work from being admitted through the temporarily free lock name. An
+orphaned tombstone is recovered with the same exact-process test. Release also
+moves and compares its token; it searches tombstones if its lease was moved.
+A creator whose inode was displaced cannot delete the restored lease.
+The final native-identity check follows the tombstone scan: a live restore
+between the initial identity check and the scan cannot admit a displaced
+creator. The dedicated regression holds the original writer during exactly
+that schedule and verifies rejection without a callback or lock deletion.
+Existing confinement, no-link/native-identity, byte and private-mode guards,
+probe credentials and wait/probe/backoff bounds remain unchanged. The obsolete
+initialization-grace constant is removed; no new tunable or dependency exists.
+
+The controlled race runs in both writer orders, against the real
+`CheckRunJournal`. The second writer pauses after reading prior evidence while
+the first recoverer resumes its stale decision. Both appends resolve, the
+source reports `ok`, both records survive in append order, and the observed
+maximum is one active writer. The pending-tombstone schedule separately moves
+a live lease between a newcomer's initial scan and O_EXCL acquisition; no work
+starts until the live writer releases. The exhaustive finite model schedules
+two writers and two independent recoverers, including writer crashes at all
+seven boundaries and recoverer crashes before/after the rename. Its negative
+controls demonstrate two admitted writers when either the tombstone guard
+or final identity check is absent. Identity sampling, the scan and final
+admission are separate model steps; neither the model nor the implementation
+assumes their combined check is atomic.
+An initial model wrongly treated rename(ENOENT) as a successful move of an
+empty lease; the model now represents that syscall failure without changing
+production to fit it.
+
+The complete history suite passes: 34 tests, default five-second per-test
+limit, `--maxWorkers=3`, Kubuntu. Both additional red drills run that entire
+suite, fail semantically (never merely by timeout), and restore SHA-256
+`8954e8ac9c73aa5650697bd42bb6e4b78dabad590d5a4904762919023fd791a9`:
+
+| Finding | Drill             | Named failing regression                                               | Result                                  |
+| ------- | ----------------- | ---------------------------------------------------------------------- | --------------------------------------- |
+| 1       | `lease-token`     | preserves both journal appends when a/b recovers first                 | both orders observe two writers; exit 1 |
+| 1       | `lease-admission` | blocks admission while a live lease is in a pending recovery tombstone | newcomer callback ran early; exit 1     |
+
+**Named availability residual: M113-H-unknown-owner-lease.** An empty or malformed
+owner record cannot prove an exact process is gone. It is preserved and writes
+fail within the contention bound. The paused-creator regression proves a live
+unfinished creator is never reclaimed; the three malformed-record cases prove
+absence of deletion authority. After a real crash before initialization,
+manual repair requires all relevant writers to have stopped. W must document
+that limit; safe automatic publication/recovery requires separate review.
+PLAN §9 records what, safety and follow-up. Neither review P2 is left unfixed.
+The host/runtime storage ports, providers and editor parity are unchanged;
+W's codec, surface, catalogue, bundle and user-documentation handoffs remain.
+No model, paid or network call, dependency, install, merge, rebase or push.
+
+The production lock change stays within the existing storage module. Most of
+its regression addition is the controlled scheduler and finite interleaving
+model explicitly required by the round-two brief. No helper module, backend
+surface or configurable option is added. The first probe lint command briefly
+overlapped an initial unit run; final heavy checks and all drills are sequential.
+The first typecheck caught a missing `options` field in the new source-read
+fixture; the existing `reportOptions()` fixture supplies it. Lint findings were
+fixed in code, with no rule override. The model refinement also corrected its
+release terminal state; it now separates seven writer boundaries and never
+counts released work as still active.
+
+Final round-two drills ran the complete 34-test history suite on the final
+formatted implementation. Every run exited 1 at semantic assertions, with no
+timeout override, filtered name or skipped test. The source and test files
+were restored byte-exact after every mutation. Source restored SHA-256:
+`9c47dca825b5d7290d8b979dd60f6edcae981d92e2cfb3bee0992dd62095f08c`;
+model test restored SHA-256:
+`63b709a893fe82291fbcf3fb6150ef70e3312e71bbfda1feb6104d69666c5ee0`.
+
+| Finding / residual | Final drill             | Named failing regression                                                                            | Semantic failures |
+| ------------------ | ----------------------- | --------------------------------------------------------------------------------------------------- | ----------------: |
+| 2                  | `probe-retry`           | retries a transient own-process identity failure within the probe bound                             |                 2 |
+| 2                  | `probe-cache`           | allows later writes after exhausted own-process probes                                              |                 1 |
+| 1                  | `lease-token`           | preserves both journal appends when a/b recovers first                                              |                 2 |
+| 1                  | `lease-admission`       | blocks admission while a live lease is in a pending recovery tombstone                              |                 1 |
+| 1                  | `lease-final-identity`  | refuses a creator displaced by restoration between its identity check and tombstone scan            |                 1 |
+| unknown owner      | `lease-unknown-owner`   | preserves a creator paused before its lease record is initialized; all three incomplete-owner cases |                 5 |
+| 1 model            | `lease-model-admission` | models two writers across every crash and recovery order with at most one admitted writer           |                 1 |
+
+The unknown-owner mutation additionally fires the existing total-deadline
+regression. Final receipts are ignored files under `temp/m113h2-final-drill-*`.
+The finite model's two negative controls separately prove that the tombstone
+barrier and final identity sample are needed; disabling its barrier deliberately
+fails its positive invariant. Native Windows/macOS process probes were not
+executed on this Linux rig; the shared source and separator-normalized tests
+are ready for the lead's fleet run, without claiming those native receipts.
+
+Final unmodified verification on Kubuntu:
+
+| Command / scope                                                      | Result                                                                                            |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `npm run typecheck`                                                  | Exit 0, all five projects                                                                         |
+| Scoped ESLint (history, constants, history tests)                    | Exit 0, no override                                                                               |
+| Changed-file Prettier and `git diff --check`                         | Exit 0                                                                                            |
+| Complete `reportHistory.test.ts`, `--maxWorkers=3`                   | Exit 0: 34 tests                                                                                  |
+| Complete `reportDiff.test.ts` and `checkRuns.test.ts`, separate runs | Exit 0: 8 + 9 tests                                                                               |
+| Complete `verifyLoop.test.ts`                                        | Exit 0: 77 tests                                                                                  |
+| Complete golden-request and packing files, one two-file run          | Exit 0: 36 tests; feature-off request/cache invariants preserved                                  |
+| `npm run deadcode`                                                   | Exit 0; only the two existing configuration hints                                                 |
+| `npx --no-install jscpd`                                             | Exit 0, 1,198 files, zero clones                                                                  |
+| `npm run check:reference`                                            | Exit 0; 53 features, 44 commands, 59 settings, 26 slash and 116 CLI entries, current              |
+| `npm run build`                                                      | Exit 0; every size/split/host-global/notices check passes                                         |
+| `npm run check:l10n`                                                 | Exit 1; 14 UI tables validated, exactly the same seven W-owned unused manifest keys               |
+| `npm run check:host-api`                                             | Exit 1; the same W-owned generated Node import-count inventory deltas, 332 VS Code APIs unchanged |
+
+Exactly 164 final tests pass across the six complete suites. Every final run
+uses repository-default timeouts, at most two files per run and three workers.
+The first three-file final batch failed four history tests during the shared
+rig's busy interval: the pending-lease contender exhausted its real two-second
+wait, three history cases reached the default five-second test limit and one
+cleanup hook reached its default ten-second limit. The rig then reported load
+22.61/22.67/24.40 and full 511 MiB swap. The complete unchanged history file
+passed on its own (44.92 seconds overall; every test within its own default
+limit). The remaining suites then passed sequentially. No source fix, fake,
+threshold, timeout, runner config, skipped test or test-name filter was used
+to make that rerun pass. The failed receipt is retained as
+`temp/m113h2-final-history-diff-journal.log`; the final history receipt is
+`temp/m113h2-final-history-single.log`.
+
+The seven manifest keys are `command.showReport.title`,
+`config.reports.network.description`, its three `enumDescriptions` keys
+(`whenSignedIn`, `always`, `off`), `config.reports.keepHistory.description`
+and `config.reports.agentSources.description`. Host inventory remains the
+previously recorded child_process 13→14, crypto 46→48, fs 33→34,
+fs/promises 47→48, path 84→85, timers/promises 3→4 and util 5→6.
+These two failures remain explicit W handoffs in PLAN §7; neither is
+suppressed or certified green. The lane brief reserves full quality/fleet
+coverage and native Windows/macOS receipts for the lead.
+
+All production caps are unchanged and pass: extension 439.5/600 KiB,
+Model API 447.4/475 KiB, ACP 821.5/850 KiB, checkpoint store 76.9/225 KiB.
+This is not a measurement of the future reporting bundle: its registration,
+consumer bindings and bundle measurement remain W-owned. Final runner/drill
+scripts and receipts are ignored files in this worktree's `temp/` directory.

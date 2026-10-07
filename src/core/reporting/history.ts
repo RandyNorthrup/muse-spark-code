@@ -14,7 +14,6 @@ import {
   REPORT_WRITER_LOCK_WAIT_MS,
   REPORT_WRITER_LOCK_BACKOFF_MS,
   REPORT_WRITER_LOCK_BACKOFF_MAX_MS,
-  REPORT_WRITER_LOCK_INITIALIZE_MS,
   REPORT_WRITER_LOCK_PROBE_MS,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
@@ -71,6 +70,7 @@ function validName(name: string): void {
 const lockOwnerSchema = z.strictObject({
   pid: z.int().check(z.positive()),
   startedAt: z.string().check(z.minLength(1), z.maxLength(REPORT_MAX_ID_CHARS)),
+  token: z.uuid(),
 })
 const execFileAsync = promisify(execFile)
 const processBirth: { own?: Promise<string | undefined> } = {}
@@ -312,74 +312,145 @@ export class ReportStorage {
     const lock = fileFor('writer.lock')
     const startedAt = await startOf(process.pid)
     if (startedAt === undefined) throw new Error(UI_TEXT.reportUi.saveFailed)
-    const owner = lockOwnerSchema.parse({ pid: process.pid, startedAt })
+    const owner = lockOwnerSchema.parse({ pid: process.pid, startedAt, token: randomUUID() })
     const deadline = performance.now() + REPORT_WRITER_LOCK_WAIT_MS
     let backoff = REPORT_WRITER_LOCK_BACKOFF_MS
-    let unfinishedIdentity
-    let unfinishedSince = performance.now()
-    let handle
-    while (handle === undefined) {
+    const readOwner = async (name: string) => {
+      const text = await files.read(name)
+      if (text === undefined) return
+      try {
+        const parsed = lockOwnerSchema.safeParse(JSON.parse(text))
+        return parsed.success ? parsed.data : undefined
+      } catch {
+        // An incomplete record cannot establish that its exact owner is dead.
+        return
+      }
+    }
+    const tombstones = async () => {
+      const names = await files.list()
+      return names.filter((name) => name.startsWith('lease-'))
+    }
+    const isDead = async (recorded: z.infer<typeof lockOwnerSchema>) =>
+      (await startOf(recorded.pid, Math.max(1, Math.floor(deadline - performance.now())))) !==
+      recorded.startedAt
+    // Rename creates a barrier at the same instant the lock name becomes free.
+    // Unique tombstone names are never reused, so deletion cannot hit a replacement.
+    const didRetire = async (
+      name: string,
+      token: string,
+      ownIdentity?: Awaited<ReturnType<typeof handleIdentity>>,
+    ): Promise<boolean> => {
+      const tomb = `lease-${randomUUID()}`
       await confined()
+      await regular(fileFor(name))
+      await rename(fileFor(name), fileFor(tomb))
+      const moved = await readOwner(tomb)
+      if (
+        moved?.token === token ||
+        (moved === undefined &&
+          ownIdentity !== undefined &&
+          sameFile(ownIdentity, await regular(fileFor(tomb))))
+      ) {
+        await confined()
+        await unlink(fileFor(tomb))
+        return true
+      }
+      // This may replace a tentative creator, which must recheck its identity
+      // and every pending tombstone before work. It cannot replace active work:
+      // the tombstone has blocked admission since the original rename.
+      await confined()
+      await rename(fileFor(tomb), lock)
+      return false
+    }
+    const recoverTombstones = async () => {
+      const names = await tombstones()
+      for (const name of names) {
+        const recorded = await readOwner(name)
+        if (recorded === undefined) continue
+        await confined()
+        if (await isDead(recorded)) await unlink(fileFor(name))
+        else await rename(fileFor(name), lock)
+      }
+    }
+    const pause = async () => {
+      const remaining = deadline - performance.now()
+      if (remaining <= 0) throw new Error(UI_TEXT.reportUi.saveFailed)
+      await delay(Math.min(backoff, remaining))
+      backoff = Math.min(backoff * 2, REPORT_WRITER_LOCK_BACKOFF_MAX_MS)
+    }
+    for (;;) {
+      await confined()
+      try {
+        await recoverTombstones()
+      } catch {
+        // A concurrent recovery can consume a unique tombstone; failed reads
+        // supply no deletion authority. Every retry stays inside the deadline.
+        await pause()
+        continue
+      }
+      let handle
       try {
         handle = await open(lock, 'wx', REPORT_STORAGE_FILE_MODE)
       } catch (error: unknown) {
         if (!hasCode(error, 'EEXIST')) throw error
         try {
-          const held = await regular(lock)
-          const text = await files.read('writer.lock')
-          if (text !== undefined) {
-            let recorded
+          const recorded = await readOwner('writer.lock')
+          if (recorded !== undefined && (await isDead(recorded)))
+            await didRetire('writer.lock', recorded.token)
+        } catch {
+          // No failed or changing owner read authorizes removal.
+        }
+        await pause()
+        continue
+      }
+      const identity = await handleIdentity(handle)
+      const release = async () => {
+        const releaseDeadline = performance.now() + REPORT_WRITER_LOCK_WAIT_MS
+        for (;;) {
+          // Recovery may have moved our lease. Retiring its unique name cancels
+          // any delayed restore, so a released token cannot be resurrected.
+          const names = await tombstones()
+          names.push('writer.lock')
+          for (const name of names) {
             try {
-              recorded = lockOwnerSchema.safeParse(JSON.parse(text))
-            } catch {
-              // A crash can interrupt the initial owner-record write.
-            }
-            let isStale = false
-            if (recorded?.success === true) {
-              isStale =
-                (await startOf(recorded.data.pid, Math.max(1, deadline - performance.now()))) !==
-                recorded.data.startedAt
-            } else {
-              if (unfinishedIdentity === undefined || !sameFile(unfinishedIdentity, held)) {
-                unfinishedIdentity = held
-                unfinishedSince = performance.now()
+              if (name !== 'writer.lock') {
+                const recorded = await readOwner(name)
+                if (recorded?.token !== owner.token) continue
               }
-              isStale = performance.now() - unfinishedSince >= REPORT_WRITER_LOCK_INITIALIZE_MS
-            }
-            if (isStale) {
-              await confined()
-              if (sameFile(held, await regular(lock))) await unlink(lock)
+              if (await didRetire(name, owner.token, identity)) return
+            } catch (error: unknown) {
+              if (!hasCode(error, 'ENOENT')) throw error
             }
           }
-        } catch {
-          // A growing owner record can fail the bounded reader's identity/size check.
-          // Failed checks never supply an owner or authorize deletion; retry within the deadline.
+          if (performance.now() >= releaseDeadline) throw new Error(UI_TEXT.reportUi.saveFailed)
+          await delay(REPORT_WRITER_LOCK_BACKOFF_MS)
         }
-        const remaining = deadline - performance.now()
-        if (remaining <= 0) throw new Error(UI_TEXT.reportUi.saveFailed, { cause: error })
-        await delay(Math.min(backoff, remaining))
-        backoff = Math.min(backoff * 2, REPORT_WRITER_LOCK_BACKOFF_MAX_MS)
       }
-    }
-    const identity = await handleIdentity(handle)
-    const release = async () => {
-      await confined()
       try {
-        if (sameFile(identity, await regular(lock))) await unlink(lock)
-      } catch (error: unknown) {
-        if (!hasCode(error, 'ENOENT')) throw error
+        await handle.writeFile(JSON.stringify(owner), 'utf8')
+        await handle.sync()
+        await confined()
+        if (!sameFile(identity, await regular(lock))) throw new Error(UI_TEXT.reportUi.saveFailed)
+        const pending = await tombstones()
+        if (pending.length > 0) {
+          await pause()
+          continue
+        }
+        // Restoring a live tombstone can displace us while the scan is pending.
+        if (!sameFile(identity, await regular(lock))) throw new Error(UI_TEXT.reportUi.saveFailed)
+        return await work(files)
+      } finally {
+        // A restore can displace a tentative creator. Its unlinked inode owns
+        // no lease to release and cannot authorize deleting the restored one.
+        let isLinked: boolean
+        try {
+          const held = await handleIdentity(handle)
+          isLinked = Number(held.nlink) !== 0
+        } finally {
+          await handle.close()
+        }
+        if (isLinked) await release()
       }
-    }
-    try {
-      await handle.writeFile(JSON.stringify(owner), 'utf8')
-      await handle.sync()
-      await confined()
-      // A creator paused before initializing its record may have been recovered.
-      if (!sameFile(identity, await regular(lock))) throw new Error(UI_TEXT.reportUi.saveFailed)
-      return await work(files)
-    } finally {
-      await handle.close()
-      await release()
     }
   }
 }

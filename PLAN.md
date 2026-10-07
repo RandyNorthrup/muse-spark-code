@@ -28730,6 +28730,14 @@ anywhere joined it).
 
 ## 7. Gates
 
+- **M113-H2 lane certification (2026-10-06).** The lane brief prohibits
+  the full quality run on this shared rig; the lead owns fleet quality.
+  H runs scoped suites, typecheck, lint, format, deadcode, duplication,
+  localization, reference, host inventory and production build directly on
+  Kubuntu. The previously recorded seven unused manifest keys and generated
+  host inventory remain W integration handoffs, never suppressed or claimed
+  green; final command outcomes are in H's certification.
+
 **M113-L0-RVM113L02 bounded rig certification (2026-10-06).** The brief
 reserves aggregate quality for the lead. Run complete owned unit files with
 default timeouts and the scoped static/build checks directly on Kubuntu;
@@ -30098,10 +30106,34 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **M113-H-review-RVM113H2 (2026-10-06).** Both P2 findings are fixed:
+  O_EXCL leases hold PID, OS birth identity and a random token. Recovery
+  renames to a unique tombstone and deletes only the observed stale token;
+  a different token is restored. Pending tombstones block admission and
+  survive recoverer crashes. Native identity is checked again after the scan,
+  so restoring a live lease cannot admit a displaced creator. Release uses
+  the same compare-and-delete path.
+  Own-process probes retry within the existing bound, cache success only and
+  permit a later transaction after failure. Controlled races preserve both
+  real journal appends; the two-writer/two-recoverer interleaving model
+  includes crashes at every writer boundary and both recovery orders.
+  Named byte-restored red drills are in H's certification. No P1/P3 was
+  reported; no review finding is deferred.
+- **M113-H-unknown-owner-lease (2026-10-06).** A crash during initial
+  O_EXCL record creation can leave an empty or malformed lease. Its exact
+  process identity is unknowable, so it cannot safely be declared stale.
+  Writes fail explicitly within the unchanged contention bound, preserving
+  evidence and excluding a second writer. A paused creator is retained and
+  can finish. An actually abandoned unknown-owner file needs manual repair
+  after all relevant writers stop. Follow-up: W documents this recovery
+  limitation; any automatic repair needs a separately reviewed atomic
+  publication design. This is an availability residual, not deletion
+  authority inferred from elapsed time. No guard or threshold is widened.
+
 - **M113-H-review-RVM113H (2026-10-06).** All six P2 findings are fixed,
   with no review residual. HEAD capture precedes the final path guard;
-  writer ownership records PID and OS process start time, recovering dead,
-  reused and unfinished owners while retaining live owners. Contention uses
+  writer ownership records PID and OS process start time. The RVM113H2 entry
+  supersedes its stale/unfinished-owner recovery certification. Contention uses
   a separate two-second monotonic wait with bounded backoff and an explicit
   failure on exhaustion. History prunes before publishing, refuses an
   over-cap read and retries pruning on the next write. Diff metadata and

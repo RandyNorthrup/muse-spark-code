@@ -4035,8 +4035,6 @@ export const REPORT_HISTORY_MAX_PER_KIND = 50
 export const REPORT_WRITER_LOCK_WAIT_MS = 2000
 export const REPORT_WRITER_LOCK_BACKOFF_MS = 25
 export const REPORT_WRITER_LOCK_BACKOFF_MAX_MS = 100
-// A creator paused before writing its owner record must recheck its inode before work.
-export const REPORT_WRITER_LOCK_INITIALIZE_MS = 250
 export const REPORT_WRITER_LOCK_PROBE_MS = 2000
 // Linux /proc/<pid>/stat fields after the closing command-name parenthesis start at 3.
 export const REPORT_PROCESS_START_FIELD_INDEX = 19
