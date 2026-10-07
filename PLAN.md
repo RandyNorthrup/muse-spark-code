@@ -5302,7 +5302,7 @@ we make". His standing ruling: enhancements are on by default.
 **STAR — a quiet GitHub star line (owner, 2026-10-05).** Use the same
 sentence, "Enjoying Muse Spark Code? A star on GitHub helps other people
 find it.", linked to `https://github.com/RandyNorthrup/muse-spark-code`,
-near the top of the GitHub and packaged Marketplace/Open VSX READMEs, in
+near the top of the GitHub, npm and packaged Marketplace/Open VSX READMEs, in
 the What's New footer, and in the Getting Started welcome markdown and
 step description. Translate the footer and manifest description in all
 14 languages. Reuse `PageWriter.link` and the host's indexed
@@ -13455,8 +13455,19 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ### INFRA015 — Integrate screenshot refresh and test infrastructure (2026-10-06)
 
-Status: three branches merged in order; STAR regression proven red before the
-npm README change. Accessibility, screenshot comparison and final gates pending.
+Completed on `linuxlt`: three ordered no-fast-forward merges preserve all
+incoming heads; npm STAR regression and two integrated guards fail deliberately
+and restore byte-exact. Final default-timeout tests pass 506 assertions in 30
+complete files. All 724 accessibility pages pass with zero violations, undecided
+rules or missing results. All 17 README captures match committed UI; seven are
+pixel-identical and the others differ only in animated/clock/caret paint.
+Five-project typecheck, full lint, plain Knip, zero-clone duplication, reference,
+localization, host API and production size/split/host-global/notice gates pass.
+The actual Linux VSIX is 2,290,386 bytes (2236.705 KiB), below 2400 KiB; packaged
+README links and version are verified. Certification: `docs/certification/infra015.md`.
+Full quality, hosted cross-platform checks, external badges and universal macOS
+helper packaging remain lead-owned; no local implementation blocker remains.
+
 Linux rig `linuxlt`, branch `chore/infra-0150` from
 `8c6351d73`. Merge `fix/test-warm-deferred`, `fix/harness-waits`, then
 `docs/readme-shots-1006`, each with `git merge --no-ff`. Preserve both sides
@@ -29440,6 +29451,18 @@ Authority: the rig brief and lead decisions, refining D92/M112 from
       Q/A/editor integration handoffs. No merge, push, dependency or gate widening.
 
 ## 7. Gates
+
+**INFRA015 scoped integration certification (2026-10-06, linuxlt).** The rig
+brief authorizes the three named no-fast-forward merges and requires full
+accessibility, README preview comparison, owning default-timeout tests, static
+checks, production build and a VSIX under the existing 2400 KiB cap. The shared
+lane rules prohibit aggregate quality/full-unit runs and external network
+requests; integrated quality, coverage and hosted cross-platform certification
+remain lead-owned. Packaging retains the existing explicit network-skip reason
+for external badge requests while checking staged badge/version contents. This
+Linux package cannot certify the separately built macOS dictation helper.
+No timeout, cap, hook, threshold, ignore or rule level changes. Receipts:
+`docs/certification/infra015.md`.
 
 **HARNESSWAIT scoped rig certification (2026-10-06).** The rig/shared brief
 prohibits aggregate `npm run quality` and full unit-suite runs. Run the complete
