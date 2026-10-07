@@ -28800,6 +28800,35 @@ core.hooksPath`, an edit under `.husky/`, a delegate re-asking a refused
 
 ### M117 — The capacity estimator (D97)
 
+**Lane P implementation (2026-10-06).** After the explicitly required
+`m117/s` and `m117/c` no-fast-forward merges, implement D97.7 only in
+`src/core/estimator/provision/**`, owning fake-only tests and
+`docs/certification/m117-p-spin-it-up.md`. A serialized first-wave owner
+uses S's measured-resource schedule, excludes running/merged lanes, puts
+contracts first and requires M116's live prerequisite audit before M96's
+board submits any lane. A five-operation adapter pins the connected
+provider's HTTPS origin and exact operation paths before every broker call;
+redirects, billing, payment, sign-up and account paths are refused. Captured
+provider codecs and the credential-owning M109 transport are injected;
+no external wire shape or credential is invented.
+
+Provisioning requires all installer/pairing bindings and an explicit run
+budget, with no default. Quotes retain exact nano-USD fractions for each
+server's hourly rate times its explicitly selected maximum billed hours;
+all prices and the whole total are shown before separate confirmation of
+each server. Serialized admission reserves liability before create and
+retains it on an uncertain outcome. The chosen billed lifetime is also a
+mandatory teardown deadline: **Keep** postpones idle teardown only, never
+extends the funded lifetime. M110f's generated cloud-init enforces that
+deadline, and M110d pairs only after installation. Idle notices recheck
+activity after the answer; wipe precedes provider deletion and deletion
+requires a status receipt. No timers, provider network clients, payment
+fields, production fakes, commands or UI are added here. Missing real
+bindings remain named handoffs and rented setups remain advice-only.
+W owns product docs/reference, lazy wiring/budgets, the full quality gate
+and browser/all-editor certification. P records each new guard's named red
+drill and byte-exact restoration; final tests use repository timeouts.
+
 **FIXM117C review repair (2026-10-06).** RVM117C's one P2 is in scope:
 prevent same-lane kind/machine-class conflicts across duration bases with an
 exclusive, durable lane-identity claim before publishing an observation.
@@ -29524,6 +29553,17 @@ unit files directly on Mac mini, one heavy command at a time. Each reviewed
 fix and new admission proof has a named byte-exact red drill, followed by
 green verification. All gate levels, caps and the 2,000 ms benchmark bound
 are unchanged. Receipts: `docs/certification/m117-s-schedule-and-simulation.md`.
+**M117-P scoped rig certification (2026-10-06).** The explicit lane/shared
+brief prohibits aggregate quality/full suites and assigns them to W/lead.
+P runs its owning fake-only files directly on MacBook Pro, at most three per
+run with repository timeouts, one heavy command at a time. Typechecks,
+scoped lint/format, deadcode, duplication, localization, reference, host API
+and the unchanged production size/split/global/notices gates are required.
+Every new guard has a named deliberate failure and SHA-256 restoration in
+`docs/certification/m117-p-spin-it-up.md`. Only the two expressly listed
+S/C no-fast-forward merges are authorized; hooks stay on. No UI is changed;
+W owns browser/all-editor and lazy-estimator bundle certification.
+
 **FIXM117R scoped rig certification (2026-10-06).** The lane/shared brief
 prohibits aggregate `npm run quality`; the lead owns that gate. Run owning
 recommendation, price and exact-money tests with the default timeout, red
@@ -31009,6 +31049,20 @@ before a repaired one loads (2026-09-30).
   followed by a standalone pass and a complete unchanged 70/70 green run;
   the certificate retains all samples without claiming calibrated timing or
   its cause. The named handoff includes aggregate/cross-rig performance acceptance.
+- **M117-P provisioning bindings.** The P core uses injected five-operation,
+  connected-provider broker/codec, board/playbook and cloud-init/install/pair/
+  wipe ports; none exposes a credential value. Actual M96/M109/M110d/M110f/
+  M116 bindings and captured service codecs remain the named handoffs in
+  `docs/certification/m117-p-spin-it-up.md`. Until bound, rentals remain
+  advice-only. The hard run cap applies to exact admitted hourly-tariff
+  liability for explicitly selected billed lifetimes. Real all-in billing
+  policy and independent funded-deadline enforcement must be verified by
+  M109/M110f before enabling creation: provider minimums, extras, taxes and
+  delayed/failed deletion can otherwise exceed an hourly estimate. Uncertain
+  creates keep their reservations; Keep cannot extend funded liability.
+  W retains product docs/reference, aggregate quality and the existing
+  C-owned generated host-API import-count refresh.
+
 - **FIXM117R review outcome.** All three RVM117R P2 findings are fixed with
   exact-money and existing-fleet regressions and eleven deliberate failures
   followed by byte-exact restoration; no finding is deferred. R's existing
