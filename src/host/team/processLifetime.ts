@@ -31,7 +31,6 @@ import {
 const NATIVE_POLL_MS = 10
 const NATIVE_CONFIRM_MS = 5000
 const LAUNCH_GATE_FD = 3
-const TEAM_CONFIG_VARIABLE = 'MUSE_SPARK_TEAM_LAUNCH'
 
 /** A separate team MSP host, never the conversation's host. W supplies the
  * resolved CLI command/flags and credential-free environment. The handshake
@@ -845,21 +844,18 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
           fail(error)
         })
       }
-      const payload = Buffer.from(
-        JSON.stringify({
-          file: request.command,
-          args: request.args,
-          cwd: request.cwd,
-          env: Object.entries(request.env).flatMap(([key, value]) =>
-            value === undefined ? [] : [`${key}=${value}`],
-          ),
-        }),
-      ).toString('base64')
+      const strings = (values: readonly string[]) =>
+        `[string[]]@(${values.map((value) => powerShellQuoted(value)).join(',')})`
+      const environment = Object.entries(request.env).flatMap(([key, value]) =>
+        value === undefined ? [] : [`${key}=${value}`],
+      )
       const powershell = windowsPowerShell(systemRoot, request.env)
-      const script = `${loadJobAssembly(assembly)}; $p = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:${TEAM_CONFIG_VARIABLE})) | ConvertFrom-Json; exit [MuseSparkJob]::RunTeam($p.file, [string[]]$p.args, $p.cwd, ${String(process.pid)}, [string[]]$p.env, ${powerShellQuoted(ownerPipe)}, ${powerShellQuoted(nonce)}, ${powerShellQuoted(statusPipe)}, ${powerShellQuoted(group)}, $${request.priority === 'belowNormal' ? 'true' : 'false'})`
+      // .NET and quoted literals only: ConvertFrom-Json discovers PowerShell
+      // modules on a cold runner before the native confirmation clock can fire.
+      const script = `${loadJobAssembly(assembly)}; exit [MuseSparkJob]::RunTeam(${powerShellQuoted(request.command)}, ${strings(request.args)}, ${powerShellQuoted(request.cwd)}, ${String(process.pid)}, ${strings(environment)}, ${powerShellQuoted(ownerPipe)}, ${powerShellQuoted(nonce)}, ${powerShellQuoted(statusPipe)}, ${powerShellQuoted(group)}, $${request.priority === 'belowNormal' ? 'true' : 'false'})`
       const child = spawn(powershell.file, [...WINDOWS_POWERSHELL_COMMAND_ARGS, script], {
         cwd: request.cwd,
-        env: { ...request.env, ...powershell.env, [TEAM_CONFIG_VARIABLE]: payload },
+        env: powershell.env,
         windowsHide: true,
         stdio: ['pipe', 'pipe', 'pipe'],
       })
@@ -904,12 +900,14 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
             await withDeadline(closed, NATIVE_CONFIRM_MS, 'TEAM_WINDOWS_RETIREMENT_TIMEOUT')
             return await ended
           }
-          if (send === undefined)
-            // No native control channel: keep uncertainty rather than signal an unverified PID.
-            return {
-              childExited: child.exitCode !== null || child.signalCode !== null,
-              descendants: 'uncertain',
-            }
+          if (send === undefined) {
+            // This is our own spawned helper, still awaiting the control gate.
+            // Kill-on-close ends its job, but without END no proof is invented.
+            // Await close before its caller removes the cwd or loaded assembly.
+            child.kill()
+            await withDeadline(closed, NATIVE_CONFIRM_MS, 'TEAM_WINDOWS_RETIREMENT_TIMEOUT')
+            return await ended
+          }
           const failure = new AbortController()
           try {
             await withDeadline(

@@ -26,6 +26,8 @@ import { formatAcpUsage } from '../../src/runtime/cliOptions'
 import { webReadable } from '../../src/runtime/webStreams'
 import { ACP_AGENT_NAME, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
+import { readUiTableFile } from '../../src/host/l10n'
+import { unpackUiTable } from '../../src/shared/l10n/packed'
 import { DEVICE_LOGIN_FILE, LOGOUT_SHELL } from '../unit/helpers/credentialShapes'
 import { memorySecrets } from '../unit/helpers/fakes'
 import { fakeModelApi } from '../unit/helpers/fakeModelApi'
@@ -255,12 +257,7 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     const help = spawnSync(process.execPath, [AGENT, '--help'], { encoding: 'utf8', env })
     expect(help.status).toBe(0)
     expect(help.stderr).toBe('')
-    const usage = formatAcpUsage(UI_TEXT, ACP_AGENT_NAME)
-    const helpUsage = [
-      usage,
-      fill(UI_TEXT.accounts.cliUsage, { command: ACP_AGENT_NAME }),
-      fill(UI_TEXT.accounts.execHelp, { command: ACP_AGENT_NAME }),
-    ].join('\n')
+    const helpUsage = formatAcpUsage(UI_TEXT, ACP_AGENT_NAME)
     expect(help.stdout.trim()).toBe(helpUsage)
     expect(help.stdout).toContain(`${ACP_AGENT_NAME} help --all\n`)
     expect(help.stdout).toContain('muse-spark-code-acp auth set|status|clear')
@@ -272,7 +269,7 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     expect(wrong.stderr).toContain(`${fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME })}\n`)
   })
 
-  it('prints the complete translated usage and reference hint from the installed table', () => {
+  it('prints the complete translated usage and reference hint from the installed table', async () => {
     const translation = z
       .object({
         acpUsage: z.string(),
@@ -296,25 +293,21 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
         promptRun: z.string(),
         shareConfirm: z.string(),
       })
-      .parse(JSON.parse(readFileSync(path.join(PACKAGE, 'l10n', 'ui.de.json'), 'utf8')))
+      .parse(unpackUiTable(JSON.parse(await readUiTableFile(PACKAGE, ['l10n', 'ui.de.json']))))
     const accountTranslation = z
       .object({
         acpUsage: z.string(),
         helpReferenceTitle: z.string(),
         accounts: z.object({ cliUsage: z.string(), execHelp: z.string() }),
       })
-      .parse(JSON.parse(readFileSync(path.join(PACKAGE, 'l10n', 'ui.de.json'), 'utf8')))
+      .parse(unpackUiTable(JSON.parse(await readUiTableFile(PACKAGE, ['l10n', 'ui.de.json']))))
     const table = {
       ...UI_TEXT,
       ...translation,
       accounts: { ...UI_TEXT.accounts, ...accountTranslation.accounts },
       acpChatGpt: { ...UI_TEXT.acpChatGpt, ...translation.acpChatGpt },
     }
-    const verwendung = [
-      formatAcpUsage(table, ACP_AGENT_NAME),
-      fill(table.accounts.cliUsage, { command: ACP_AGENT_NAME }),
-      fill(table.accounts.execHelp, { command: ACP_AGENT_NAME }),
-    ].join('\n')
+    const verwendung = formatAcpUsage(table, ACP_AGENT_NAME)
     const help = spawnSync(process.execPath, [AGENT, '--help'], {
       encoding: 'utf8',
       env: { ...process.env, NODE_PATH, LC_ALL: 'de_DE.UTF-8' },

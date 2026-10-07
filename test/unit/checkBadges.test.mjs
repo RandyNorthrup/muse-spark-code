@@ -28,6 +28,11 @@ const shields = (value) =>
 const response = (body = svg(), contentType = 'image/svg+xml', status = 200) =>
   new globalThis.Response(body, { status, headers: { 'content-type': contentType } })
 
+// The case starts the real badge CLI cold under Node; a hosted runner with
+// coverage took 3.1 s, near the default deadline.
+// PLAN.md §8 (2026-10-07).
+const COLD_CLI_TIMEOUT_MS = 15_000
+
 describe('badge discovery and package templates', () => {
   it('finds HTML, Markdown and reference images, deduplicates and ignores code examples', () => {
     expect(
@@ -119,21 +124,27 @@ describe('badge policy guards', () => {
       'forbidden in CI',
     )
   })
-  it('wires the check into quality, CI and both packagers and rejects the CI environment override', () => {
-    expect(JSON.parse(readFileSync('package.json', 'utf8')).scripts['quality:gates']).toContain(
-      'check:badges',
-    )
-    expect(readFileSync('.github/workflows/build.yml', 'utf8')).toContain('typecheck check:badges')
-    expect(readFileSync('scripts/package-vsix.mjs', 'utf8')).toContain(
-      "['scripts/check-badges.mjs', '--packaged-vsix', stage]",
-    )
-    expect(() =>
-      execFileSync(process.execPath, ['scripts/check-badges.mjs'], {
-        env: { ...process.env, CI: 'true', BADGE_CHECK_SKIP_NETWORK: 'fake-only test' },
-        stdio: 'pipe',
-      }),
-    ).toThrow('forbidden in CI')
-  })
+  it(
+    'wires the check into quality, CI and both packagers and rejects the CI environment override',
+    () => {
+      expect(JSON.parse(readFileSync('package.json', 'utf8')).scripts['quality:gates']).toContain(
+        'check:badges',
+      )
+      expect(readFileSync('.github/workflows/build.yml', 'utf8')).toContain(
+        'typecheck check:badges',
+      )
+      expect(readFileSync('scripts/package-vsix.mjs', 'utf8')).toContain(
+        "['scripts/check-badges.mjs', '--packaged-vsix', stage]",
+      )
+      expect(() =>
+        execFileSync(process.execPath, ['scripts/check-badges.mjs'], {
+          env: { ...process.env, CI: 'true', BADGE_CHECK_SKIP_NETWORK: 'fake-only test' },
+          stdio: 'pipe',
+        }),
+      ).toThrow('forbidden in CI')
+    },
+    COLD_CLI_TIMEOUT_MS,
+  )
 })
 
 describe('public image responses', () => {
@@ -275,6 +286,24 @@ describe('checkout images ahead of public main', () => {
       f.fetch.mockResolvedValue(globalThis.Response.json(body))
       await expect(f.check()).rejects.toThrow()
     }
+  })
+  it('sends a job token to the GitHub API inventory only, never to an image host', async () => {
+    const f = fixture(['media/readme/new.png'])
+    await expect(
+      checkReadmeBadges([{ ...document(f.url), labels: [] }], version, {
+        repositoryRoot: f.root,
+        fetch: f.fetch,
+        ci: true,
+        githubToken: 'job-token',
+      }),
+    ).resolves.toContain('0 new checkout images')
+    const [[treeUrl, treeOptions], [imageUrl, imageOptions]] = f.fetch.mock.calls
+    expect(new URL(treeUrl).hostname).toBe('api.github.com')
+    expect(treeOptions.headers).toEqual({ authorization: 'Bearer job-token' })
+    expect(imageUrl).toBe(f.url)
+    expect(imageOptions.headers).toBeUndefined()
+    await f.check()
+    expect(f.fetch.mock.calls[2][1].headers).toBeUndefined()
   })
   it('refuses an unavailable public-main inventory', async () => {
     const f = fixture()

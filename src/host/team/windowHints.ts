@@ -1,12 +1,12 @@
-import { constants as fsConstants, type Stats } from 'node:fs'
-import { chmod, mkdir, open, readdir, rm, stat } from 'node:fs/promises'
+import { constants as fsConstants, realpathSync, type Stats } from 'node:fs'
+import { chmod, lstat, mkdir, open, readdir, rm, stat } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import process from 'node:process'
 import path from 'node:path'
 import { homedir } from 'node:os'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
-import { canonicalPath } from '../canonicalPath'
+import { canonicalPath, isMissingPath } from '../canonicalPath'
 import { renameReplacing } from '../fsAtomic'
 import { storeErrorCode } from '../backend/storeErrors'
 import { runProgram, windowsPowerShell } from '../processTree'
@@ -32,7 +32,7 @@ async function secureNativeWindowsDirectory(directory: string): Promise<void> {
   const systemRoot = process.env['SystemRoot']
   if (systemRoot === undefined) throw new Error('TEAM_HINT_ACL_UNAVAILABLE')
   const powershell = windowsPowerShell(systemRoot, { SystemRoot: systemRoot })
-  const script = `$ErrorActionPreference='Stop'; $directory = New-Object IO.DirectoryInfo(${powerShellQuoted(directory)}); $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User; $acl = New-Object Security.AccessControl.DirectorySecurity; $acl.SetOwner($sid); $acl.SetAccessRuleProtection($true,$false); $rule = New-Object Security.AccessControl.FileSystemAccessRule($sid,'FullControl','ContainerInherit,ObjectInherit','None','Allow'); $acl.AddAccessRule($rule); $directory.SetAccessControl($acl); $read = $directory.GetAccessControl(); $rules = @($read.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])); if (!$read.AreAccessRulesProtected -or $read.GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $sid.Value -or $rules.Count -ne 1 -or $rules[0].IdentityReference.Value -ne $sid.Value -or $rules[0].AccessControlType -ne 'Allow' -or $rules[0].FileSystemRights -ne 'FullControl') { throw 'TEAM_HINT_ACL_UNVERIFIED' }; 'secured'`
+  const script = `$ErrorActionPreference='Stop'; $directory = [IO.DirectoryInfo]::new(${powerShellQuoted(directory)}); $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User; $acl = [Security.AccessControl.DirectorySecurity]::new(); $acl.SetOwner($sid); $acl.SetAccessRuleProtection($true,$false); $rule = [Security.AccessControl.FileSystemAccessRule]::new($sid,'FullControl','ContainerInherit,ObjectInherit','None','Allow'); $acl.AddAccessRule($rule); $directory.SetAccessControl($acl); $read = $directory.GetAccessControl(); $rules = @($read.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])); if (!$read.AreAccessRulesProtected -or $read.GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $sid.Value -or $rules.Count -ne 1 -or $rules[0].IdentityReference.Value -ne $sid.Value -or $rules[0].AccessControlType -ne 'Allow' -or $rules[0].FileSystemRights -ne 'FullControl') { throw 'TEAM_HINT_ACL_UNVERIFIED' }; 'secured'`
   const result = await runProgram(
     powershell.file,
     [...WINDOWS_POWERSHELL_COMMAND_ARGS, script],
@@ -107,7 +107,7 @@ async function readNativeWindowsHintFile(target: string, maximum: number): Promi
   const systemRoot = process.env['SystemRoot']
   if (systemRoot === undefined) throw new Error('TEAM_HINT_ACL_UNAVAILABLE')
   const powershell = windowsPowerShell(systemRoot, { SystemRoot: systemRoot })
-  const script = `$ErrorActionPreference='Stop'; Add-Type -TypeDefinition ${powerShellQuoted(WINDOWS_HINT_READER)}; [MuseTeamHintReader]::Read(${powerShellQuoted(target)}, ${String(maximum)})`
+  const script = String.raw`$ErrorActionPreference='Stop'; Microsoft.PowerShell.Utility\Add-Type -TypeDefinition ${powerShellQuoted(WINDOWS_HINT_READER)}; [MuseTeamHintReader]::Read(${powerShellQuoted(target)}, ${String(maximum)})`
   return await runProgram(
     powershell.file,
     [...WINDOWS_POWERSHELL_COMMAND_ARGS, script],
@@ -121,7 +121,7 @@ async function ownNativeWindowsHintFile(target: string): Promise<void> {
   const powershell = windowsPowerShell(systemRoot, { SystemRoot: systemRoot })
   // Elevated Windows processes otherwise create files owned by Administrators.
   // Only the fresh exclusive temporary file receives this owner; readers never repair ACLs.
-  const script = `$ErrorActionPreference='Stop'; $file = New-Object IO.FileInfo(${powerShellQuoted(target)}); $acl = $file.GetAccessControl(); $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User; $acl.SetOwner($sid); $file.SetAccessControl($acl); if ($file.GetAccessControl().GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $sid.Value) { throw 'TEAM_HINT_FILE_UNSAFE' }`
+  const script = `$ErrorActionPreference='Stop'; $file = [IO.FileInfo]::new(${powerShellQuoted(target)}); $acl = $file.GetAccessControl(); $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User; $acl.SetOwner($sid); $file.SetAccessControl($acl); if ($file.GetAccessControl().GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $sid.Value) { throw 'TEAM_HINT_FILE_UNSAFE' }`
   await runProgram(powershell.file, [...WINDOWS_POWERSHELL_COMMAND_ARGS, script], powershell.env)
 }
 
@@ -179,7 +179,28 @@ export interface HintIntent {
 }
 
 async function assertHintPath(target: string) {
-  if ((await canonicalPath(target)) !== target) throw new Error('TEAM_HINT_PATH_CHANGED')
+  const canonical = await canonicalPath(target)
+  if (canonical.replaceAll('\\', '/') === target.replaceAll('\\', '/')) return
+  // Windows TEMP may use an 8.3 name while realpath returns its long spelling.
+  // Accept only a native spelling of that same path, with no linked ancestor.
+  let current = target
+  const tail: string[] = []
+  let native: string | undefined
+  for (;;) {
+    try {
+      const information = await lstat(current)
+      if (information.isSymbolicLink()) throw new Error('TEAM_HINT_PATH_CHANGED')
+      native ??= path.join(realpathSync.native(current), ...tail.toReversed())
+    } catch (error: unknown) {
+      if (!isMissingPath(error)) throw error
+      if (native === undefined) tail.push(path.basename(current))
+    }
+    const parent = path.dirname(current)
+    if (parent === current) break
+    current = parent
+  }
+  if (native?.replaceAll('\\', '/') !== canonical.replaceAll('\\', '/'))
+    throw new Error('TEAM_HINT_PATH_CHANGED')
 }
 
 /** Advisory only. The caller still performs trust, caps, leases and paid admission. */

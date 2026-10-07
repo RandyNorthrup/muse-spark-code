@@ -31,7 +31,7 @@ afterEach(async () => {
   for (const close of cleanup.splice(0)) await close()
 })
 
-async function fixture() {
+async function fixture(hasControl = true, hasEnded = true) {
   const state: { lifetime?: TeamProcessLifetime } = {}
   const directory = await realpath(await mkdtemp(path.join(os.tmpdir(), 'm96-windows-control-')))
   const actualChildProcess = await vi.importActual<typeof childProcess>('node:child_process')
@@ -88,14 +88,22 @@ async function fixture() {
   })
   const lifetime = createTeamProcessLifetime({ journal, driver, isHostBusy: () => false })
   state.lifetime = lifetime
-  const pending = lifetime.launch({
+  const request = {
     command: 'fixture.exe',
-    args: [],
+    args: ["quoted'$(fixture);", 'line\nbreak', '漢'],
     cwd: directory,
     taskId: 'windows-control',
     env: {},
-    priority: 'normal',
-  })
+    priority: 'normal' as const,
+  }
+  if (!hasControl) {
+    const launched = driver.launch(request, 'fixture-unconfirmed')
+    void launched.confirmation.catch(() => {
+      /* Retirement closes an unconfirmed helper; the rejection is expected. */
+    })
+    return { lifetime, journal, launched, child, control: undefined, writes: [] }
+  }
+  const pending = lifetime.launch(request)
   while (servers.length !== 2) await delay(1)
   const writes: string[] = []
   const control = new Duplex({
@@ -113,20 +121,63 @@ async function fixture() {
     Buffer.from('CONFIRMED 42042 fixture-start QzpcZml4dHVyZS5leGU= S-1-5-21-123\n'),
   )
   const launched = await pending
-  control.emit('data', Buffer.from('END proved\n'))
+  if (hasEnded) control.emit('data', Buffer.from('END proved\n'))
   return { lifetime, journal, launched, child, control, writes }
 }
 
 describe('M96 K Windows END control stream', () => {
   it('retirement after END sends no STOP and waits for helper close before saving proved end', async () => {
     const f = await fixture()
-    expect(f.control.writableEnded).toBe(true)
+    expect(f.control?.writableEnded).toBe(true)
     const retirement = f.lifetime.dispose()
     expect(await Promise.race([retirement, delay(30, 'pending')])).toBe('pending')
     expect(f.writes.map((text) => text.split(' ', 1)[0])).toEqual(['GO'])
     f.child.kill()
     expect(await retirement).toEqual([{ childExited: true, descendants: 'proved' }])
     expect(await f.lifetime.recoveryRecords(f.journal)).toEqual([])
+  })
+
+  it('releases the helper DLL lock before retirement without a connected control pipe returns', async () => {
+    const f = await fixture(false)
+    let isLocked = true
+    f.child.once('close', () => {
+      isLocked = false
+    })
+    const removeHelper = vi.fn(() => {
+      if (isLocked) throw Object.assign(new Error('helper DLL still loaded'), { code: 'EPERM' })
+    })
+    const outcome = await f.launched.retire()
+    expect(removeHelper).not.toHaveBeenCalled()
+    expect(removeHelper).not.toThrow()
+    expect(outcome).toEqual({ childExited: true, descendants: 'uncertain' })
+    expect(f.child.exitCode !== null || f.child.signalCode !== null).toBe(true)
+  })
+
+  it('keeps cleanup pending until the stopped job is empty and its helper has closed', async () => {
+    const f = await fixture(true, false)
+    let isLocked = true
+    f.child.once('close', () => {
+      isLocked = false
+    })
+    const retirement = f.launched.retire()
+    expect(f.writes.at(-1)?.split(' ', 1)[0]).toBe('STOP')
+    expect(await Promise.race([retirement, delay(30, 'locked')])).toBe('locked')
+    f.control?.emit('data', Buffer.from('END proved\n'))
+    expect(await Promise.race([retirement, delay(30, 'locked')])).toBe('locked')
+    expect(isLocked).toBe(true)
+    f.child.kill()
+    expect(await retirement).toEqual({ childExited: true, descendants: 'proved' })
+    expect(isLocked).toBe(false)
+  })
+
+  it('starts the team helper without discovering PowerShell modules', async () => {
+    const f = await fixture()
+    const script = vi.mocked(childProcess.spawn).mock.calls.at(-1)?.[1]?.at(-1) ?? ''
+    expect(script).not.toContain('ConvertFrom-Json')
+    expect(script).toContain('[MuseSparkJob]::RunTeam')
+    expect(script).toContain("[string[]]@('quoted''$(fixture);','line\nbreak','漢')")
+    f.child.kill()
+    await f.launched.ended
   })
 
   it('retirement after END has a deadline when helper closure is missing', async () => {

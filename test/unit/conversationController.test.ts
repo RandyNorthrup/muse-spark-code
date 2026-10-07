@@ -966,6 +966,11 @@ function setup(
   }
 }
 
+// The handoff refusal case runs three conversations, one with an over-limit
+// brief; a hosted runner with coverage took 4.7 s, near the default deadline.
+// PLAN.md §8 (2026-10-07).
+const HANDOFF_REFUSALS_TIMEOUT_MS = 20_000
+
 describe('ConversationController: deferred best-of-N', () => {
   const built = { folder: '' }
   const folders: string[] = []
@@ -14406,42 +14411,46 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
     expect(ready).toMatchObject({ type: 'handoffReady', requestId: 'h2', brief: BRIEF })
   })
 
-  it('refuses a confirm after the conversation changed, and a brief that is too large or empty', async () => {
-    const conversation = await handoffConversation()
-    const { t, controller } = conversation
-    await distil(conversation, 'h1')
-    await controller.backendStopping(false)
-    await expectConfirmRefused(t, controller, 'h1', EDITED)
-    expect(notices(t).at(-1)).toMatchObject({
-      level: 'info',
-      text: UI_TEXT.handoffChangedNotStarted,
-    })
+  it(
+    'refuses a confirm after the conversation changed, and a brief that is too large or empty',
+    async () => {
+      const conversation = await handoffConversation()
+      const { t, controller } = conversation
+      await distil(conversation, 'h1')
+      await controller.backendStopping(false)
+      await expectConfirmRefused(t, controller, 'h1', EDITED)
+      expect(notices(t).at(-1)).toMatchObject({
+        level: 'info',
+        text: UI_TEXT.handoffChangedNotStarted,
+      })
 
-    const large = await handoffConversation()
-    large.api.script({ text: 'x'.repeat(PLAN_FILE_MAX_BYTES + 1) })
-    large.t.surface.posted.length = 0
-    await large.controller.handle(handoff('h1'))
-    await vi.waitFor(() => {
-      expect(notices(large.t).length).toBeGreaterThan(0)
-    })
-    expect(notices(large.t).at(-1)).toMatchObject({ level: 'warning' })
-    expect(notices(large.t).at(-1)?.text).toContain(String(PLAN_FILE_MAX_BYTES / 1024))
-    expect(large.t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
+      const large = await handoffConversation()
+      large.api.script({ text: 'x'.repeat(PLAN_FILE_MAX_BYTES + 1) })
+      large.t.surface.posted.length = 0
+      await large.controller.handle(handoff('h1'))
+      await vi.waitFor(() => {
+        expect(notices(large.t).length).toBeGreaterThan(0)
+      })
+      expect(notices(large.t).at(-1)).toMatchObject({ level: 'warning' })
+      expect(notices(large.t).at(-1)?.text).toContain(String(PLAN_FILE_MAX_BYTES / 1024))
+      expect(large.t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
 
-    const empty = await handoffConversation()
-    empty.api.script({ text: '' })
-    empty.t.surface.posted.length = 0
-    await empty.controller.handle(handoff('h1'))
-    await vi.waitFor(() => {
-      expect(notices(empty.t).length).toBeGreaterThan(0)
-    })
-    // The reason in the user's language too, from the table (M40).
-    expect(notices(empty.t).at(-1)).toMatchObject({
-      level: 'error',
-      text: `${UI_TEXT.handoffFailed}: ${UI_TEXT.handoffNoBrief}`,
-    })
-    expect(empty.t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
-  })
+      const empty = await handoffConversation()
+      empty.api.script({ text: '' })
+      empty.t.surface.posted.length = 0
+      await empty.controller.handle(handoff('h1'))
+      await vi.waitFor(() => {
+        expect(notices(empty.t).length).toBeGreaterThan(0)
+      })
+      // The reason in the user's language too, from the table (M40).
+      expect(notices(empty.t).at(-1)).toMatchObject({
+        level: 'error',
+        text: `${UI_TEXT.handoffFailed}: ${UI_TEXT.handoffNoBrief}`,
+      })
+      expect(empty.t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
+    },
+    HANDOFF_REFUSALS_TIMEOUT_MS,
+  )
 })
 
 // CLI recovery: requests held by a silenced fake, answered by hand.

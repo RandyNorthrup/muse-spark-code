@@ -18041,7 +18041,12 @@ test that fails without the rule:
    after merging current main; G6 no duplication on unreachability
    (re-dispatch only after lease expiry, under a new epoch); G21 a new verdict
    re-runs the whole workflow; G26 the full suite after every merge into a
-   release candidate.
+   release candidate; G50 a handshake refusal or reset reports the device as
+   throttled (unknown since a time) with jittered backoff, never a duplicated
+   lane (test `handshakeRefusalIsThrottled`); G35 every launch confirmed by a
+   liveness probe (process alive, log growing within 30 s) or reported as
+   failed to start; G36 done means a clean tree, every brief step listed as
+   done, and a moved head, otherwise the lane is continued in place.
 2. **M96 (team and board):** G3 structural rendering of briefs (no text
    substitution; the rendered brief is checked and hashed before dispatch);
    G5 three job states (running, finished, unknown since a time); G7
@@ -18051,15 +18056,32 @@ test that fails without the rule:
    also bind device lanes. Also G1 and G2 on dispatch, G12 transport-health
    signals, G14 an explicit recorded environment and preflight of hook tools,
    and G15 Windows per-process policy, closed stdin and structured results.
+   Also G49 key installs that add a missing final newline before appending and
+   verify each entry parses as its own line (test `keyInstallKeepsEntriesSeparate`);
+   G50 throttled-not-down handshake handling (test `handshakeRefusalIsThrottled`);
+   G51 Windows workers outside the transport session with a desktop-heap
+   diagnostic on `STATUS_DLL_INIT_FAILED` (test `windowsHeapDiagnostic`); G52 no
+   port probes, and one failed authentication stops and asks the user, never a
+   retry loop (tests `noPortProbes`, `authFailureStopsAfterOne`). G34 a working
+   smoke call per engine per machine in the capability record, with a failed
+   probe removing that engine from the machine until fixed. G37 fail-closed
+   safety checks before deletes, with per-run caches in the run's workspace.
 4. **M107 (governor):** G10 a temp root per job, removed at its end; G11
    ledger-only cleanup with an identity re-check, never by name pattern; G12
    OS-service pressure and transport failure as signals; G13 spawn-rate and
    process-count caps per job tree; G16 reparse points unlinked, never
    recursed into; G30 independent tool installations outside the checked
    workspace, since an ignored path can still incur discovery cost; G32 native
-   UI checks join complete scenario readiness before interacting with controls.
+   UI checks join complete scenario readiness before interacting with controls;
+   G51 transport resets and refusals lower a device's slot cap
+   automatically (test `transportHealthLowersCap`). G37 every safety check
+   before a delete fails closed, and per-run caches live in the run's own
+   workspace, removed at teardown.
 5. **M110 (Muse Node):** G1, G2, G10, G11, G14 to G16 for the tool host and
-   sandboxes.
+   sandboxes. Also the M100 rules above for G49 to G52 on its SSH route
+   (tests `keyInstallKeepsEntriesSeparate`, `handshakeRefusalIsThrottled`,
+   `windowsHeapDiagnostic`, `noPortProbes`, `authFailureStopsAfterOne`), plus
+   G34 smoke calls and G37 fail-closed teardown on its route.
 6. **M115 (scheduled prompts):** G8 one serialized owner plus a lease, never
    process-name matching; G22 every unattended delivery verified where it
    landed.
@@ -18069,15 +18091,49 @@ test that fails without the rule:
    the user in advance (never an automatic reroute; rule 9 stands); G24 a
    residual register per milestone that must be empty or accepted before
    release; G31 UI condition targets distinguish controls that share a style
-   class, with the harness's two-pill regression as the concrete example.
-8. **M117 (estimator):** G4 base age as a schedule risk.
-9. **M105 (multimodal integration):** G28 a producer→consumer delivery test
-   through the real port before a handoff closes (named test:
-   modelApiMedia 'delivers a read_file video through replay as its
-   file-id', which fails with the consumer stashed); G29 budget findings
-   quote the repository gate's command and numbers, re-measured on the
-   integration tree (the startup gate `node scripts/check-bundle-size.mjs`
-   itself is the enforcing test).
+   class, with the harness's two-pill regression as the concrete example;
+   G36 an incomplete lane continued in place from its commits, never
+   restarted, and never marked done on exit code alone.
+8. **M117 (estimator):** G4 base age as a schedule risk; G34 the measured
+   per-engine profile (with a failed smoke probe removing that engine from
+   the machine) feeding placement.
+9. **M96c (scheduler and merge queue, 2026-10-07):** G39 a completion ledger
+   (running, done-unprocessed with its age, processed) with an alarm on any
+   done-unprocessed lane older than 15 minutes (test
+   `doneUnprocessedAlarmsAtFifteenMinutes`); G40 committed heads of
+   critical-path lanes integrated on at least an hourly cadence (test
+   `criticalPathPullsCommittedHeads`); G41 one owning lane per file before
+   launch, checked at merge (test `fileOwnershipCheckedAtMerge`); G46
+   reviewer inputs inside the workspace or inlined, and no verdict means
+   re-dispatch (tests `reviewerInputInsideWorkspace`, `noVerdictRedispatches`);
+   G47 a repair leg takes a failure class with its complete evidence (the
+   whole log, every caller and every workflow running the failing check),
+   never a single instance (test `repairLegCoversFailureClass`); G48 a
+   bulk-edit leg checks each sweep hit against the effective state before
+   editing and reports its false positives (test
+   `sweepHitsVerifiedBeforeBulkEdit`).
+10. **M107 (governor, 2026-10-07):** G38 stopping a run kills its whole
+    process tree, with a device-watcher sweep for orphans whose start time
+    matches no live run (test `orphanSweepKillsStaleTree`); M100 and M110
+    bind the same rule through process groups or job objects per run.
+11. **M116 (playbook, 2026-10-07):** G42 pipelined, stacked release
+    integration with early draft PRs (test `releasesPipelineOnCandidate`);
+    G43 a worker green labelled worker-certified unless verified from a
+    clean tree with CI's environment on the slowest platform (test
+    `workerGreenIsNotCiEquivalent`); G44 a draft PR opened when integration
+    starts (test `draftPrAtIntegrationStart`); G45 hotfixes run the full
+    prep checks (test `hotfixRunsFullPrepChecks`); G46 and G47 with M96c,
+    the reviewer charter asking where else a failing check runs.
+12. **M117 (estimator, 2026-10-07):** G39 a bottleneck card for
+    done-unprocessed lanes with their ages (test
+    `bottleneckCardShowsUnprocessedAges`).
+13. **M105 (multimodal integration):** G50 a producer→consumer delivery test
+    through the real port before a handoff closes (named test:
+    modelApiMedia 'delivers a read_file video through replay as its
+    file-id', which fails with the consumer stashed); G51 budget findings
+    quote the repository gate's command and numbers, re-measured on the
+    integration tree (the startup gate `node scripts/check-bundle-size.mjs`
+    itself is the enforcing test).
 
 Rows marked **covered** keep their existing decision as the owner: D87.14,
 D90.25, D96, D88 and D97.
@@ -30113,6 +30169,21 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+**WINTEAM hosted Windows repair (2026-10-07, kubuntu).** Own the native
+lifetime, window hints/load and worker-fence suites, with the minimal product
+changes and Windows-control regressions they need. Resolve short/long native
+path spellings without admitting links or replacement roots. Avoid unqualified
+PowerShell module discovery in bounded native helpers. Retire and await the
+owned helper even before its control pipe connects; no folder or assembly may
+be removed while it still holds them. Reduce native hint hook preparation to
+the operations its assertions need. Prove short-path, locked-helper and slow
+module-discovery regressions red/green and restore deliberate drills byte-exact.
+Run complete owning files three times at repository deadlines on Linux, plus
+the five typechecks and scoped/static gates. Hosted windows-latest and full
+quality remain the lead's gates under the shared lane brief. No merge, push,
+live/paid call, dependency or weakened gate is authorized. Receipts:
+`docs/certification/winteam.md`.
+
 **M96INT round 3d (2026-10-05, macmini).** Merge `main-0.14.0`
 (`2d4d72bd`) with `--no-ff`, retaining the release fixes and M96's runtime,
 team UI and package diet. Reconcile generated inventories by their scripts.
@@ -41897,6 +41968,137 @@ pages. No version bump or README What’s New changes; no paid/live calls.
       restoration, full accessibility, static gates and actual VSIX measurements
       in `docs/certification/train-0.15.0.md` and its TRAIN15H receipt.
 
+### MACSLOW — Hosted macOS memory and slow setup (2026-10-07)
+
+Authority: `/Users/randy/lanes/_ctx/MACSLOW.rig.md` and shared
+`_ctx/codex/common.md`, on `fix/0150-macslow` from `ccce6e6ac`.
+Own only unit compiler memory, companion browser lifecycle/readiness, usage
+localization fixtures and exec stdio cold build/package setup. Measure unit
+compiler peak RSS before and after; split the checking work structurally while
+retaining every configured file and strict option. Prepare immutable expensive
+fixtures once per file, keep isolated mutable cases, and pair browser event
+observation with its trigger so cleanup cannot strand a rejection.
+
+- [ ] Measure and repair each owned cause without timeout changes, retries or skips.
+- [ ] Prove compiler coverage and changed fixture/security checks fail on deliberate
+      regressions, restoring every mutation byte-exact.
+- [ ] Run three clean `CI=true` complete-file passes at default test deadlines
+      with at most three workers, plus measured compiler and scoped static/build gates.
+- [ ] Commit finished pieces with hooks and explicit paths; never merge or push.
+
+The brief expressly authorizes `git clean -xdf -e node_modules`, overriding
+common.md's clean prohibition. Aggregate quality remains lead-owned under
+common.md; this lane runs the listed gates directly on macmini. No live/paid
+calls, credentials, new dependencies, increased budgets or timeout changes.
+Receipts belong in `docs/certification/macslow.md`.
+
+### CI0150L — Linux hosted CI round 3 (2026-10-07)
+
+Scope: the Linux rig brief and CI0150-os-common: private clean-shard ACP
+packaging artifacts, checked-in pre-K activation sources, package badge/image
+isolation, installed archived translations, Semgrep findings and fake-only
+Action W/low-budget failures. Preserve every budget, assertion, timeout and
+security boundary. No live/paid model calls, push, rebase or merge.
+
+The fresh jobs expose two further causes. The hosted release PR's review diff
+is 29,912,292 bytes, exceeding the generic child-output bound before the
+promised 262,144-byte review prefix can be selected. Add a dedicated read-only
+Git-diff prefix sink that drains/counts the complete stream under the same
+phase/child deadlines while retaining at most the existing review byte cap;
+ordinary child output, published patch, stderr and cancellation gates stay
+unchanged. Certify a real diff larger than the generic cap and its UTF-8 cut,
+then run W and low-budget against the actual installed production runtime.
+Latest VS Code also resolves showTextDocument before its observable active
+editor snapshot settles. Make the integration test await that same editor
+condition through its existing bounded UI readiness helper, keeping its
+original assertion and deadline.
+
+- [ ] Reproduce each owned failure and fix its cause; prove changed checks fire.
+- [ ] Commit finished pieces with hooks and explicit paths.
+- [ ] Run Linux pull-request jobs from fresh clones of committed work with
+      Node 22, CI=true, original shard/coverage and package steps; record exact
+      passes, failures and unavailable hosted dependencies in the Linux round 3
+      section of docs/certification/train-0.15.0.md.
+
+Static duplication shares the inert text encoder with the lazy code-fence
+renderer as well as exported chats and the companion page; the zero-clone
+threshold is retained.
+
+The first full rerun exposes the private ChatGPT fixture's combined build and
+pack crossing its unchanged 60-second cold archive bound. Native export
+certification's baseline and packaged observations are independent isolated
+workers; start that pair together, retain every export/call comparison, and
+measure the cold fixture again. No timer, retry or assertion is changed.
+
+The concurrent rerun also exposes E5's unread-output fixture generating
+104,858 five-character SSE deltas before its large-write marker. This case
+tests a blocked output pipe, not fragmentation throughput. Add a test-only
+single-text-delta reply option and use it only for the existing 512 KiB
+blocked reply; keep its marker, unread stdout, signal, 5.4-second exit
+assertion and 30-second test deadline unchanged.
+
+The isolated three-core shard still measures 62.3 seconds for the combined
+cold ChatGPT setup. Its packer serializes three independent, bounded Brotli
+archives (tables, code and usage). Compress those concurrently with Node's
+bounded zlib worker pool, preserving quality 11, decoded caps, canonical
+ordering and exact compressed bytes. Certify byte equivalence with the
+original synchronous compressor and deliberately change its quality to prove
+the new comparison fails.
+
+The complete shard 3 exposes the usage journal's warm-cache benchmark doing
+its 60,000-record fixture construction and cold scan inside the five-second
+warm test. Prepare and assert that cold snapshot once in the default-bounded
+setup; keep the five-second test, 300 ms warm bound, full record count and
+no-reread assertions. Clean failed setup roots at file teardown too.
+
+The complete Linux aggregate passes 988 WCAG pages, then legal accessibility
+refuses Playwright's bare `google-chrome` executable path. Resolve installed
+browser candidates and explicit overrides to existing absolute paths through
+the shared finder, keeping overrides authoritative and refusing missing
+installs. Remove the test harness's duplicate PATH resolver. Certify PATH
+selection and override refusals, the real legal keyboard/zoom/WCAG gate, then
+repeat the complete committed Linux job set. No browser or job timer changes.
+
+The four-CPU WCAG job has a structural floor: 988 pages each sleep five
+seconds, in six lanes, consuming nearly fourteen minutes before axe and the
+legal gate under a fifteen-minute job cap. Replace that blanket sleep with
+tracked fake-host/scenario callbacks and the existing bounded readiness
+condition. Preserve every scheduled event delay, streaming pump yield, font
+and animation wait, two paint frames, error capture, focus rule and per-page
+deadline. Readiness's own deadline/poll/frame timers stay untracked. Prove
+nested callbacks, callback failure cleanup and readiness blocking/deadlines
+with counterfactuals; rerun the complete job set from the committed repair.
+
+The Linux aggregate's local SAST launcher then refuses duplicated `--jobs`
+arguments: the inherited two-worker option and a later serial option both
+reach Semgrep 1.178.0. Keep one named serial worker limit, as the existing
+large-taint-analysis rationale requires; do not change rules, excludes,
+severity or scan deadlines. Certify the actual local launcher against the
+pinned scanner as well as CI's direct command.
+
+The next full shard's cold package still crosses 60 seconds under concurrent
+job load. Profile its unchanged production build, compression, fifteen
+language-help processes and isolated native-loader checks. Remove remaining
+serialized independent work or repeated setup while retaining every language,
+export/call comparison and the existing cold setup deadline; then rerun the
+complete Linux job set. The interrupted wave is not a passing receipt.
+The measured post-archive validation through staged Help takes 13.2 seconds
+of a 41.8-second cold fixture, including localization and badge gates. Run
+Help's independent commands in bounded batches of three,
+settling each batch before reporting a failure. Keep all fifteen language
+checks, each original command/environment/output bound and every package
+assertion. Final fresh-clone jobs run one at a time, as hosted jobs receive
+independent machines; no test launch delay or product priority change.
+
+The serial aggregate passes 16,622 tests and coverage, then the completed
+long-stream harness scene exceeds its existing ten-second readiness bound in
+two high-contrast themes. Its repeated zero-delay timers incur the browser's
+nested-timer clamp. Use one MessageChannel task queue for that scene's
+continuations, preserving every 100-character delta and an event-loop yield;
+track each continuation, close both ports on completion/error, and retain all
+readiness/paint/deadline checks. Certify complete chunk order and failure
+cleanup, then repeat the complete fresh-clone job set without retries or skips.
+
 ### CI0150A — Clean-shard artifacts and portable certification (2026-10-07)
 
 Scope: six owning suites in the CI0150A brief. Clean hosted shards have no
@@ -41940,6 +42142,18 @@ and estimator JSON-pointer/HTML handling; no scanner rule is waived. Full CI
 records each failure and missing native artifact; no threshold or rule is
 weakened. See `docs/certification/int0180.md`.
 
+**MACSLOW bounded certification (2026-10-07, macmini).** The lane's shared
+rules prohibit aggregate quality and delegate it to the lead. Run complete
+owned files directly, at default timeouts, three times after the explicitly
+authorized clean; run each requested compiler/static/build gate separately.
+The unit gate retains all 1,864 configured roots and strict options across five
+sequential programs, sharing ambient declarations and matcher setup. Measured
+peak RSS falls from 2,767,564,800 to 1,688,055,808 bytes (39%); no heap override,
+timeout, retry, skip or other gate changes. Initial compiler probes exposed
+ambient-type resolution and cross-file matcher/declaration scope; preserve
+both through repository-local temporary configs and the shared support roots.
+Final evidence is recorded in `docs/certification/macslow.md`.
+
 **CI0150M round 3 aggregate status (2026-10-07).** The attempted unmodified
 `npm run quality` passes static gates, then fails whole-repository tests in
 unowned clean-artifact/localization suites and load-sensitive cases. The common
@@ -41967,6 +42181,13 @@ timeout, and dedicated browser/credential-store checks have the exact residuals
 listed in §3 and the train record. Original coverage thresholds are exceeded;
 the merge command still fails because it replays failed package suite setup.
 No gate, refusal, assertion, timeout, retry or skip is weakened to claim green.
+
+**CI0150L rolling verification.** The round-3 rig brief explicitly requires
+committing finished pieces after owning tests pass, then verifying committed
+work in fresh clones. Full quality and Linux CI jobs remain pending until that
+fresh-clone run and are not claimed green by an intermediate commit. Record
+any external hosted dependency that cannot run on this rig in the Linux round-3
+certification section; no threshold, ignore, timeout or assertion changes.
 
 **FIX0150R scoped certification.** The rig brief requires complete owning test
 files in batches of at most three, with three clean `CI=true` repetitions and
@@ -48293,6 +48514,20 @@ the shared install now contains the pinned source-map-js 1.2.2. Windows
 proof remains WINPUB on win11 for the lead's release batch.
 
 ## 8. Escape hatches register
+
+| 0.15.0 hosted-CI location                                                                                                                                                                      | Escape hatch                                                                                                                                                                 | Reason                                                                                                                                                                                                                                                                                                                                                                                           | Removal                                                                                                                                                   |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/unit/teamHintsAndLoad.test.ts` (`native owner-only folder`, `native Windows hint permissions`)                                                                                           | `NATIVE_WINDOWS_HINT_TIMEOUT_MS` (30 s) per-suite deadline instead of the 5 s unit default                                                                                   | Each native Windows hint read starts Windows PowerShell and compiles the C# hint reader (`windowHints.ts`); two or three per test land at about 5 s on a cold hosted runner (reproduced at 5,045 ms on a local Windows 11 host). The suites test real ACL and handle behaviour, so faking them would remove the evidence.                                                                        | Precompile `MuseTeamHintReader` once into the cached, content-addressed job assembly (as `MuseSparkJob`), then return the suites to the default deadline. |
+| `test/unit/usageL10nGate.test.mjs` (`beforeAll`)                                                                                                                                               | `L10N_GATE_SETUP_TIMEOUT_MS` (30 s) setup deadline instead of the 10 s hook default                                                                                          | Setup runs one cold, complete localization gate over the copied sources: a TypeScript parse of every file naming a text table. Hosted macOS with coverage exceeded 10 s. The gate now caches parses by content and skips files without a table name, so later checks take about 2 s instead of 21 s; the duplicate cold CLI build was removed, since CI's static gates run that CLI on every OS. | Narrow the load-order scan to files that import a text table, or ship it as its own gate step, then return to the default hook deadline.                  |
+| `test/unit/teamNativeLifetime.test.ts` (`M96 K real native lifetime`)                                                                                                                          | `NATIVE_PROCESS_SUITE_TIMEOUT_MS` (20 s) per-suite and setup deadline                                                                                                        | Each case starts the team host, journals and the fake CLI as real processes over real pipes; the first case exceeded 5 s on hosted macOS with coverage, and the setup that compiles the Windows job helper exceeded 10 s in a loaded Windows shard.                                                                                                                                              | Start one shared fake-CLI host per file in `beforeAll` and reuse it across cases, then return to the default deadline.                                    |
+| `test/unit/teamHarness.test.mjs` (`RVM96B browser regressions`)                                                                                                                                | `REAL_HARNESS_CASE_TIMEOUT_MS` (20 s) per-case deadline                                                                                                                      | Each case opens a fresh page and loads the full production webview bundle from a local server; one case passed 5 s in a loaded hosted Windows shard with coverage.                                                                                                                                                                                                                               | Reuse one page per theme with in-page scenario switching, then return to the default deadline.                                                            |
+| `package.json` `typecheck:unit`                                                                                                                                                                | `--max-old-space-size=4096` for the single unit TypeScript program                                                                                                           | Measured peak 2.48 GB (`--extendedDiagnostics`, 2026-10-07), above Node's default heap on hosted macOS; splitting the project instead re-checked shared sources and pushed the static gate past its 15-minute limit.                                                                                                                                                                             | Remove when the unit project fits the default heap (smaller project references).                                                                          |
+| `test/unit/vsixCompression.test.mjs`                                                                                                                                                           | `REAL_VSIX_COMPRESSION_TIMEOUT_MS` (30 s) per-case deadline                                                                                                                  | Python writes a real archive and the real compressor rewrites it at maximum compression; hosted Windows with coverage timed out at 5 s (5.9 s measured).                                                                                                                                                                                                                                         | Compress a smaller real table at a lower level for the metadata checks and keep one full-size case in the packaging job.                                  |
+| `test/unit/whatsNewContent.test.ts` (real CHANGELOG cases)                                                                                                                                     | `REAL_CHANGELOG_TIMEOUT_MS` (30 s) per-case deadline                                                                                                                         | The cases parse and encode every release of the real CHANGELOG.md; hosted macOS with coverage timed out at 5 s (5.4 s measured).                                                                                                                                                                                                                                                                 | Parse the real changelog once per file and share the result between the cases.                                                                            |
+| `test/unit/usageCompanionChunks.test.ts`                                                                                                                                                       | `REAL_BROWSER_PAGE_TIMEOUT_MS` (30 s) per-case deadline                                                                                                                      | The case loads the real shared vendor and Usage bundles in a real Chromium page; hosted macOS with coverage timed out at 5 s.                                                                                                                                                                                                                                                                    | Build the bundles in `beforeAll` (its own hook deadline), leaving only the page load in the case.                                                         |
+| `test/unit/conversationController.test.ts` (handoff refusals), `test/unit/ReferencePage.test.tsx` (C03)                                                                                        | `HANDOFF_REFUSALS_TIMEOUT_MS`, `FULL_REFERENCE_SEARCH_TIMEOUT_MS` (20 s) per-case deadlines                                                                                  | Each case loops over several real conversations or reference sections; hosted runners with coverage took 4.7 s, within half a second of the default.                                                                                                                                                                                                                                             | Split each loop into `it.each` cases, then return to the default deadline.                                                                                |
+| `test/unit/legalScan.test.ts` (scan cap), `test/unit/checkBadges.test.mjs` (CLI wiring)                                                                                                        | `LEGAL_CAP_SCAN_TIMEOUT_MS`, `COLD_CLI_TIMEOUT_MS` (15 s) per-case deadlines                                                                                                 | The cap case scans one file past the scan limit and the wiring case starts the badge CLI cold under Node; hosted runners with coverage took 3.5 s and 3.1 s.                                                                                                                                                                                                                                     | Lower the cap in a test-only scanner option; check the CI override in-process instead of a cold CLI.                                                      |
+| `test/unit/ollamaCodec.test.ts` (stream cap), `test/unit/vsixPackaging.test.mjs` (oversized archive), `test/unit/refreshBadges.test.mjs` (README badges), `test/unit/companionBrowser.test.ts` | `OLLAMA_STREAM_CAP_TIMEOUT_MS`, `REAL_OVERSIZED_PACKAGE_TIMEOUT_MS` (30 s), `README_BADGE_PARSE_TIMEOUT_MS` (15 s) per-case; `REAL_BROWSER_CASE_TIMEOUT_MS` (20 s) per-suite | A second sweep at 2 s over two full CI runs: the stream-cap case took 5.2 s and the companion browser case passed 5 s on hosted runners; the others took 3.4 to 4.0 s. The same run showed hosted macOS (3 vCPUs) oversubscribed by four workers plus coverage; `vitest.config.ts` now uses cores minus one there, capped at the measured four.                                                  | Read the stream cap from a test-sized option; share one browser context per file; drop each deadline once a hosted run measures the case under 2.5 s.     |
 
 | REL0144 location                                                | Escape hatch                                                                                                   | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

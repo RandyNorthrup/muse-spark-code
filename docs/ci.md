@@ -404,6 +404,13 @@ LR remains required before registry installation is called supported.
 ## Launcher bounds, cancellation and publication
 
 One owner covers input diff, exec, extraction, patch Git, scanner and publication.
+The input review diff is streamed: only `max-diff-bytes` are retained on disk
+and in memory, cut between UTF-8 code points. The remainder is drained and
+counted under the same 30-second Git/input deadlines, so the prompt can name
+the full byte count without storing a large release diff. Prefix capture is
+restricted to this read-only review input; ordinary stdout/stderr, published
+patch and scanner bounds still refuse overflow.
+
 Apply owns its isolated artifact-validation/checkout/apply/commit/push
 lifecycle; the download step runs before it. The gate, install and checkout
 steps have bounded owners of their own; the tools and input-staging steps have

@@ -392,6 +392,19 @@ describe('safeGit against armed fixture programs (G23)', PROCESS_SUITE, () => {
     const patch = readFileSync(paths.staging, 'utf8')
     expect(patch).toContain('+third')
     expect(patch).toContain('+brand new')
+    await expect(
+      safeGit({
+        owner,
+        git,
+        cwd: paths.checkout,
+        args: patchArgs,
+        paths,
+        baseEnv,
+        readOnly: true,
+        stdoutPath: paths.staging,
+        stdoutPrefixMaxBytes: 10,
+      }),
+    ).rejects.toThrow('only for the read-only review diff')
     arm(paths.checkout)
     await expect(generateDiff({ owner, git, paths, baseEnv, staged })).rejects.toThrow(
       /does not allow/,

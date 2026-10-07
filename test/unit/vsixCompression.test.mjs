@@ -42,17 +42,24 @@ function python(args) {
   return spawnSync(PYTHON, args, { encoding: 'utf8' })
 }
 
+// Python writes a real archive and the real compressor rewrites it; hosted
+// Windows with coverage took 5.9 s, past the default deadline.
+// PLAN.md §8 (2026-10-07).
+const REAL_VSIX_COMPRESSION_TIMEOUT_MS = 30_000
+
 describe('VSIX maximum compression', () => {
-  it('preserves archive metadata, ordinary bytes and every translated value', () => {
-    const dir = mkdtempSync(path.join(fixtureRoot, 'archive-'))
-    const archive = path.join(dir, 'fixture.vsix')
-    // Indexed packaging requires every English leaf, including whole plural
-    // objects. Use a complete real table rather than the old three-key stub.
-    const translatedFile = path.resolve('l10n/ui.cs.json')
-    try {
-      const made = python([
-        '-c',
-        `
+  it(
+    'preserves archive metadata, ordinary bytes and every translated value',
+    () => {
+      const dir = mkdtempSync(path.join(fixtureRoot, 'archive-'))
+      const archive = path.join(dir, 'fixture.vsix')
+      // Indexed packaging requires every English leaf, including whole plural
+      // objects. Use a complete real table rather than the old three-key stub.
+      const translatedFile = path.resolve('l10n/ui.cs.json')
+      try {
+        const made = python([
+          '-c',
+          `
 import sys, json
 from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
 with ZipFile(sys.argv[1], 'w', compression=ZIP_DEFLATED) as z:
@@ -67,18 +74,18 @@ with ZipFile(sys.argv[1], 'w', compression=ZIP_DEFLATED) as z:
     z.writestr('extension/package.nls.cs.json', ui)
     z.writestr('extension/dist/legal-data/provenance.json', ui)
 `,
-        archive,
-        translatedFile,
-      ])
-      expect(made.status, made.stderr).toBe(0)
-      const run = spawnSync(process.execPath, [compressor, archive], {
-        encoding: 'utf8',
-        cwd: fixtureRoot,
-      })
-      expect(run.status, run.stderr).toBe(0)
-      const checked = python([
-        '-c',
-        `
+          archive,
+          translatedFile,
+        ])
+        expect(made.status, made.stderr).toBe(0)
+        const run = spawnSync(process.execPath, [compressor, archive], {
+          encoding: 'utf8',
+          cwd: fixtureRoot,
+        })
+        expect(run.status, run.stderr).toBe(0)
+        const checked = python([
+          '-c',
+          `
 import sys, json
 from zipfile import ZipFile
 with ZipFile(sys.argv[1]) as z:
@@ -99,17 +106,19 @@ with ZipFile(sys.argv[1]) as z:
     assert z.testzip() is None
     print(json.dumps(packed, ensure_ascii=True))
 `,
-        archive,
-        translatedFile,
-      ])
-      expect(checked.status, checked.stderr).toBe(0)
-      expect(unpackUiTable(JSON.parse(checked.stdout))).toEqual(
-        JSON.parse(readFileSync(translatedFile, 'utf8')),
-      )
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  })
+          archive,
+          translatedFile,
+        ])
+        expect(checked.status, checked.stderr).toBe(0)
+        expect(unpackUiTable(JSON.parse(checked.stdout))).toEqual(
+          JSON.parse(readFileSync(translatedFile, 'utf8')),
+        )
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    },
+    REAL_VSIX_COMPRESSION_TIMEOUT_MS,
+  )
   it('refuses malformed translated JSON without replacing the original archive', () => {
     const dir = mkdtempSync(path.join(fixtureRoot, 'archive-'))
     const archive = path.join(dir, 'fixture.vsix')

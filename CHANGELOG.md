@@ -7,6 +7,52 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Keep every long-reply accessibility delta while yielding through a task port,
+  avoiding nested timer throttling within the existing readiness deadline.
+
+- Check every staged ACP help language in bounded parallel batches, keeping
+  cold package certification within its existing deadline.
+
+### Fixed
+
+- Accept Windows short temp-path spellings for team hints while refusing linked
+  folders; avoid broad PowerShell module discovery in team native helpers and
+  await unconfirmed helper closure before cleaning up its files.
+- Check unit types in sequential projects to reduce hosted macOS memory, warm
+  the shared companion browser before security cases, and observe launch readiness
+  and network events directly. Reuse localization setup and separate the exec
+  suite's one production build from its cold package deadline.
+
+- Pass one serial worker limit to the local Semgrep launcher so aggregate
+  quality runs reach the scan with the pinned CLI.
+
+- Wait for actual scheduled harness events before accessibility scans instead
+  of sleeping five seconds on every page, keeping timed scenes and all checks.
+
+- Resolve installed browser paths before legal accessibility checks launch
+  Playwright, including PATH-only Linux installs and explicit overrides.
+
+- Prepare the large usage-journal benchmark before timing its warm read,
+  retaining its 300 ms and no-reread checks with the normal test deadline.
+
+- Compress the independent package archives concurrently at the same production
+  quality and with identical bytes, keeping cold CI setup within its deadline.
+
+- Exercise headless unread-output shutdown with the same large write in one
+  synthetic text delta, avoiding more than 100,000 unnecessary fake frames.
+
+- Keep cold package certification within its existing setup deadline by
+  observing the source and packaged native exports in isolated workers together.
+
+- Make clean CI shards own their ACP build and README image inputs, retain the
+  historical activation baseline in the checkout, and verify installed help
+  against its shipped translation archive.
+- Encode companion recovery text with the shared HTML text encoder.
+- Keep Action reviews and low-budget refusals working for large release diffs
+  by retaining only the bounded review prefix before exec.
+
+
+
 ### Fixed
 
 - Pre-integration preserves release provider, media and account contracts;
@@ -129,6 +175,27 @@ happened, not what was planned; superseded entries are kept.
 
 - Provider-specific retry-table binding remains pending for non-Meta transports;
   the shared retry classifier does not certify endpoint quota refusal.
+
+### Documentation
+
+- New orchestration docs: `docs/orchestration/ssh-limits.md` (SSH connection
+  limits, how they apply, per-platform handling) backing gotchas G50–G52, and
+  `docs/orchestration/playbook-placement.md` (placement, load balancing and
+  moving work, model-agnostic) for the M116 playbook skill to adopt.
+- Orchestration gotcha rows numbered after the rows 0.15.0 shipped: key
+  installs G49, handshake throttling G50, the Windows desktop heap G51,
+  password and probe penalties G52. New rows G34 (smoke call per engine per
+  machine), G35 (launch liveness probe), G36 (done means a clean tree, listed
+  steps and a moved head) and G37 (fail-closed safety checks, per-run caches
+  in the run's workspace).
+- Eleven orchestration gotcha rows G38–G48 (orphan process trees, the
+  completion ledger with a 15-minute alarm, cadence pulls of critical-path
+  heads, one owning lane per file, pipelined releases, clean-tree
+  certification, early draft PRs, hotfixes running full prep checks,
+  reviewer inputs inside the workspace, one repair per failure class,
+  sweep hits checked before a bulk edit), with D100 amendments for M96c,
+  M107, M116 and M117. The playbook placement chapter gains lessons 11–20
+  covering the same failures, still model-agnostic.
 
 ## [0.15.0] - 2026-10-06
 
