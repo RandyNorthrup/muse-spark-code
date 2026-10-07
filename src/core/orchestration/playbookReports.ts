@@ -1,12 +1,12 @@
 import {
   playbookRecordSchema,
   type PlaybookLane,
+  type PlaybookPolicy,
   type PlaybookRecord,
   type PlaybookReportItem,
   type PlaybookWhyNote,
 } from '../../shared/playbook'
 import { UI_TEXT } from '../../shared/l10n/text'
-import type { PlaybookIntegrationPolicy } from './playbookIntegration'
 
 export type PlaybookReportKind = 'playbook' | 'milestone' | 'fleet'
 
@@ -179,7 +179,7 @@ export function collectResidualRegister(
 /** M113 supplies its current rows, including its residual register and Needs you facts.
  * The integration preserves their payloads and applies the same ordering in all editors. */
 export function collectPlaybookReport<T extends PlaybookReportItem>(
-  policy: PlaybookIntegrationPolicy,
+  policy: Pick<PlaybookPolicy, 'orderReport'> & { getRecord(): readonly PlaybookRecord[] },
   kind: PlaybookReportKind,
   rows: readonly T[],
   showNote: (note: PlaybookWhyNote) => void,

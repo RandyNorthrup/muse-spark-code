@@ -28755,7 +28755,9 @@ unknown admission can repeat an answer rather than silently lose it. Test
 local commands, send success/failure, restart, stale tokens and concurrent
 prompts. Shared CLI/ACP/React record text consumes the residual register's
 unbound disposition and explains why a legacy acceptance covers nothing,
-with translations in all fourteen tables. Certify both regressions against
+with translations in all fourteen tables. Report presentation uses only
+browser-safe shared policy types; runtime integration types stay outside
+the browser project. Certify both regressions against
 `f2f55ad85`, then run scoped CI checks in a fresh committed clone. Existing
 planner/editor integration handoffs remain open. Both review findings now
 have scoped passing regressions and observed historical failures; fresh-clone

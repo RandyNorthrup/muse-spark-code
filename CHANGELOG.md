@@ -43,7 +43,8 @@ happened, not what was planned; superseded entries are kept.
 - Show an unbound legacy residual acceptance with its no-match reason in
   CLI, ACP and shared React playbook records, preserving the original
   decision details. Identical bound/unbound entries are distinguished by
-  journal position. All fourteen languages include the new labels/reasons;
+  journal position. The reader uses browser-safe shared policy contracts. All
+  fourteen languages include the new labels/reasons;
   queued-answer commit failures explicitly warn that retained answers may
   repeat on the next prompt.
 
