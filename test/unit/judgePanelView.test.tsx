@@ -270,6 +270,64 @@ describe('judge panel view', () => {
     expect(facts.querySelectorAll(':scope > dd')).toHaveLength(terms.length)
     unmount()
   })
+
+  it('shows the judge usage dialog in four themes at 320px', async () => {
+    const snapshot = projectJudgePanel(
+      modelApiFacts({ engine: 'separate', effectiveSource: 'separate', experimental: true }),
+    )
+    expect(snapshot.untested).toBe(true)
+    document.title = 'Muse Spark Code'
+    document.documentElement.lang = 'en'
+    for (const [name, theme] of themes) {
+      applyTheme(theme)
+      const { container, unmount } = render(
+        <div style={{ width: '320px' }}>
+          <UsageDialogContent
+            report={{
+              backend: 'museCode',
+              subscription: undefined,
+              account: undefined,
+              insights: undefined,
+              providers: undefined,
+            }}
+            usage={undefined}
+            context={undefined}
+            modelId={undefined}
+            modelPricing={undefined}
+            paid={{
+              features: [],
+              tally: EMPTY_PAID_TALLY,
+              isKeyStored: false,
+              alwaysAllowed: [],
+            }}
+            judgeUsage={snapshot}
+            auth={initialUiState.auth}
+            onInstallMuseCode={vi.fn()}
+            onSetupSignIn={vi.fn()}
+            onForgetPaidUse={vi.fn()}
+            now={() => 0}
+            onOpenExternal={vi.fn()}
+            onClose={vi.fn()}
+          />
+        </div>,
+      )
+      expect(
+        await screen.findByRole('heading', { name: UI_TEXT.paidJudgeName }),
+      ).toBeInTheDocument()
+      expect(screen.getByText(UI_TEXT.judgeSourceUntested)).toBeInTheDocument()
+      expect(screen.getByText(judgePanelStatusText(snapshot))).toBeInTheDocument()
+      const facts = container.querySelector(':scope .judge-usage dl.usage-facts')
+      if (facts === null) {
+        throw new Error(`missing usage facts (${name})`)
+      }
+      expect(facts.querySelector(':scope > div')).toBeNull()
+      const result = await axe.run(container, {
+        rules: { 'color-contrast': { enabled: false } },
+      })
+      expect(result.violations, name).toEqual([])
+      unmount()
+    }
+  })
 })
 
 function navRule(): string {

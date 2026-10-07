@@ -141,7 +141,7 @@ by the fix itself, not by revert.
    at 320px".
 
 Fix checks (default timeouts, `--maxWorkers=3`): `judgePanel.test.ts`
-22 passed, `judgePanelView.test.tsx` 8 passed, `judgePanelHost` /
+22 passed, `judgePanelView.test.tsx` 9 passed, `judgePanelHost` /
 `judgeSharedBudget` / `judgeTransport` 19 passed, `judgeUsage` /
 `modelsSections` / `judgeConsent` 16 passed. `npm run typecheck`: all
 five projects passed. Full `npm run lint` and Prettier on the touched
@@ -159,10 +159,20 @@ so that overage is pre-existing and not a lane regression.
 
 Browser receipt: the scripted harness (`harness-shots.mjs`, `usage-*.mjs`)
 needs a loopback listener and a Chrome child process, and this rig's
-sandbox denies `listen(2)` with EPERM and aborts headless Chrome with
-SIGABRT, so no scripted shot or live geometry run was possible here. In
-its place: the real `JudgeUsageRows` output was server-rendered from the
+sandbox denies both. Concrete evidence, re-probed 2026-10-07: `bind(2)`
+fails with EPERM on 127.0.0.1, 0.0.0.0 and ::1 (node `net` probe); every
+headless Chrome launch aborts with SIGABRT in `_RegisterApplication` /
+`TransformProcessType` (no WindowServer/GUI session; crash log
+`Google Chrome-2026-10-06-233808.ips`, EXC_CRASH), including a bare
+`data:` URL with `--no-sandbox`; no Playwright browsers are installed,
+and the Docker daemon is down. So no scripted `paid-usage` / `judge-usage`
+shot or live geometry run was possible here. In its place, all with fakes
+only: the real `JudgeUsageRows` output was server-rendered from the
 unchanged components (esbuild SSR) and embedded in a static 320px page per
-captured theme for inspection; the jsdom four-theme axe/status tests pass;
-and the structural regression test asserts the direct `dt`/`dd` children
-the grid CSS selects on. No live or paid call was made; fakes only.
+captured theme for inspection; a new jsdom test renders the full
+`UsageDialogContent` with an experimental consent-needed `judgeUsage` in
+all four captured themes inside a 320px wrapper ("shows the judge usage
+dialog in four themes at 320px": warning, status, direct `dt`/`dd`, and a
+per-theme axe run with `color-contrast` disabled all pass); and the
+structural regression test asserts the direct `dt`/`dd` children the grid
+CSS selects on. No live or paid call was made.
