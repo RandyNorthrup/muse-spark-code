@@ -290,6 +290,7 @@ properties, and retain all existing caps. No new artifact or dependency.
 | `dist/tab.js`                         | ≤ 75 KiB (M94: first request/menu; status/provider registration stays eager)                                                                                                                                                                                                                                                                                                                           |
 | `dist/extension.js`                   | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                                                                                                                                                                                                            |
 | `dist/modelApi.js`                    | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b; M91 brought it to 486.1 KiB, and moving the hook and MCP-form runtime and the imported records' reader out took it to 463.7 KiB, 466.8 KiB on 0.13.0, 2026-10-05: the cap held)                                                                                              |
+| `dist/schedules.js`                   | ≤ 50 KiB (FIXM115U6: first-use replay authorization, local scheduling, cached rule/skill/agent loaders and verification-note builder; existing Model API cap retained)                                                                                                                                                                                                                                 |
 | `dist/review.js`                      | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                                                                                                                                                                                                        |
 | `dist/searchWorker.js`                | ≤ 50 KiB                                                                                                                                                                                                                                                                                                                                                                                               |
 | `dist/pageWorker.js`                  | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                                                                                                                                                                                                             |
@@ -12802,6 +12803,37 @@ test that fails without the rule:
 Rows marked **covered** keep their existing decision as the owner: D87.14,
 D90.25, D96, D88 and D97.
 
+### D95 — Unattended authority amendment (REDM115U, 2026-10-06)
+
+The lead's second review fixes these boundaries for every editor/runtime:
+
+- A child task started inside a fire carries the same `UnattendedRun`, paid
+  reservation client and audit, with its own permissions intersected, or is
+  refused at task admission. Client selection reads the task's run context.
+- Native admission checks and claims the live idle state and turn owner in
+  one synchronous step after attachment/canonical validation, before mode
+  changes or dispatch. Conflicting fires refuse; delivery may retry/queue.
+- All model workspace I/O uses one guarded port during a fire: canonicalise,
+  `run.decide`, then access. Memory, skills, context, tools and checkpoint
+  adapters share that boundary, including cached content before use.
+- Each native session has one synchronous authority owner. Actions and
+  asynchronous waiters carry its generation and claimed turn identity; stale
+  actions cannot change mode, claim admission, steer or cancel. Start and
+  terminal evidence are keyed by turn, including acknowledgments.
+- A per-fire SHA-256 ledger admits the exact bytes already delivered to this
+  provider/conversation before the fire, bytes decided in this fire, and
+  trusted derivations whose every input is allowed. Sources retain canonical
+  paths and read-time file identity; cached skills retain their actual source,
+  version and raw-byte hash. Checks never infer source authority from replay
+  object identity, a current alias, or a reconstructed skill pathname.
+- Opaque output has no source decision provenance. It can replay only as the
+  output of a tool call explicitly decided in this fire. Media fitting,
+  verification, compaction and refreshed instruction scaffolding register
+  derivations; a changed date uses the same unchanged source bytes. Prior
+  interactive authority does not authorize a new read during the fire.
+- Steering during finalization refuses before acknowledgment, so delivery
+  can send a new turn and never silently lose an accepted fire.
+
 ## 3. Open questions (need the owner)
 
 - **Q-M115 — What M115 needs from the owner (2026-10-06).** Nothing here
@@ -13762,6 +13794,154 @@ Run owning suites (at most three files/workers), typechecks and static/build
 gates directly on this rig; the explicit brief reserves aggregate quality
 for the lead and prohibits merges, pushes and rebases. No paid/live calls,
 dependencies, new commands or settings.
+
+### FIXM115U7 — Final RVM115U6 repair (2026-10-06)
+
+Repair all three confirmed P2s inside lane U. Recording factories accept only
+an allowlist of module-level named builders with exactly one reader parameter;
+recorded content carries a frozen private-field brand that object spread cannot
+retain, and builder modules forbid native
+filesystem, Git and skill-store imports, including dynamic imports. Enumerate
+all registered builders in a source/type regression. Pure helper functions
+still require code review to ensure their projections depend only on reader
+inputs; record that precise residual in §9 and the certification.
+Retain stopped observed turn sequences so late acknowledgements cannot revive
+them while unseen pending starts still block fires. Automatic verification
+checks claimed session authority before scheduled steer adoption in the same
+synchronous guard. Each finding gets a failing regression and byte-exact
+restored red drill. Run bounded default-timeout suites and required static/build
+checks on Kubuntu; aggregate quality remains the lead's gate. No dependency,
+wire shape, paid/live call, merge, push or rebase.
+
+Implemented and certified on Kubuntu: 1,435 tests in 34 complete files pass
+with repository-default timeouts; 14 named assertion drills restore source
+byte-exact. Required typecheck, scoped lint/format, dead-code, duplication,
+localization, host-API, cycle and production-build gates pass with unchanged
+budgets. Records: `docs/certification/m115-u.md`,
+`fixm115-u7-drills.json` and `fixm115-u7-verification.json` beside it.
+
+### FIXM115U6 — Structural inventories and per-turn idle evidence (2026-10-06)
+
+Repair all three RVM115U5 P1s. Pending native commands survive idle snapshots;
+monotonic turn evidence limits idle settlement to earlier observed starts.
+Replace caller-certified derivations with closed recording-reader scopes.
+Context builders consume recorded files, cached material, Git facts and skill
+sources through that reader; direct filesystem/Git imports are forbidden in
+builder modules. Unrecordable language-server dependencies refuse automatic
+verification content during fires, before diagnostics are read. Record cached
+Git facts as opaque repository material, never trusted scaffolding.
+Move fire-only authorization and schedule parsers into the lazy schedules
+chunk, along with the verification-note builder and its dependency refusal,
+freeing at least 10 KiB of Model API. Ordinary verification and cached rule/skill/agent catalogue loading may load
+this chunk on their first use; ordinary source capture remains in the session.
+The new schedules bundle is capped at 50 KiB (the first-use builders share
+this chunk); existing Model API and other bundle budgets remain unchanged. Add the three regressions,
+extend interleavings, prove every guard red with byte-exact restoration.
+No dependency, paid/live call, merge, push or rebase. The lead owns aggregate
+quality; this rig runs bounded default-timeout suites and the required static
+and build checks. Shared core behavior applies to every editor/runtime.
+
+Implemented all three P1s and structural recording, with 14 byte-exact
+restored drills. Bounded final verification passes 1,382 unique tests in 34
+complete files and the required static/build gates. Model API is 460.6/475
+KiB, freeing 11.3 KiB; schedules is 39.3/50 KiB. Records are in
+`docs/certification/m115-u.md`. No P1/P2/P3 review residual is accepted.
+Automatic diagnostics/check dependencies and unproved context remain opaque;
+no hidden settings gain complete delivery evidence. Full quality and unrun
+network/editor/OS integration remain with W/lead.
+
+### FIXM115U5 — Close RVM115U4's derived-input and owner lifecycle findings (2026-10-06)
+
+Repair its P1 and all five P2 findings inside lane U's existing architecture.
+Every derived entry explicitly certifies a complete input inventory; cached
+repo maps retain source hashes and identities alongside their text. Audit
+memory digests, file indexes, skill catalogues and other cached model material.
+Generation-tag mode effects so stale acknowledgements clear only their own
+pending record. Release failed native admissions on terminal/idle evidence
+or before any start dispatch; retain ambiguous dispatch quarantine. Settle
+owner-refused queued fires honestly and advance the queue. Validate steer
+media before claiming and release withdrawn or failed unadopted claims.
+Canonicalise each fire's workspace root once for both live and cached-source
+confinement without resolving a cached source alias again.
+
+Add backend regressions, extend the owner interleaving model, and red-drill
+each guard with byte-exact restoration in `docs/certification/m115-u.md`.
+No new dependency, wider guard, external wire shape, live/paid call, merge,
+push or rebase. Bounded default-timeout suites and static/build gates run on
+Kubuntu; W/lead owns aggregate quality. Shared core ports serve all editors.
+Time box: 90 minutes. Record every residual explicitly in §9.
+
+Implemented all six findings and the related cache-inventory audit checks.
+The existing 720-order owner model adds 18 lifecycle orders; the 10,000-node
+ledger property varies completeness independently. Eighteen restored red
+drills and the final bounded/static/build receipts are in
+`docs/certification/m115-u.md`. No review residual is accepted.
+
+### REDM115U — Replace scheduled authority and provenance (2026-10-06, implemented)
+
+Replace the native session's scattered mode/admission/start fields with one
+synchronous owner and tagged effects; generation/turn tokens bind waiters,
+mode changes, admission, steering and cancellation. Replace WeakMap replay
+proof, the scheduled output fence and replay path rechecks with a per-fire
+content-addressed ledger. Cache original source identities at read time for
+both user and vendored skills; derived bytes retain all input hashes.
+
+Preserve synchronous claim, guarded workspace I/O, honest finalizing-steer
+refusal, bounded paid authority/child admission and SoL-Pi request bytes.
+An ordinary first request whose dispatch is still pending refuses scheduled
+steering before acceptance (delivery may queue a separate fire). If a claimed
+fire invalidates an ordinary HTTP retry, preserve its accepted steer and
+adopt the fire before building the next attempt; never dispatch unproved
+pending-fire context or strand its admitting owner.
+Add all eight round-three probes, a model-based permutation suite, random
+transformation chains and three byte-exact restored red drills. Round-one
+and round-two named regressions remain mandatory. Shared core ports cover
+all editors/runtime; existing integration handoffs remain explicit. No new
+dependency/wire shape, live/paid call, merge, push or rebase. W/lead owns
+aggregate quality; bounded suites use default timeouts and three workers.
+Record static gates, coverage and unchanged bundle caps in
+`docs/certification/m115-u.md`. Time box: 180 minutes.
+
+Implemented by the shared SessionOwner and ProvenanceLedger, original-source
+context/file ports and all three review rounds' backend regressions. Kubuntu
+certifies 1,258 unique passing tests in 31 files (two existing Windows-only
+exclusions), 720 completion orders, 10,000 transformation nodes, seven
+byte-exact restored guard drills, unchanged focused coverage thresholds and
+Model API 468.6/475 KiB plus ACP 839.7/850 KiB. The generated host API record
+adds AsyncLocalStorage; no product command/setting or help reference changed.
+See `docs/certification/redm115-u-{drills,verification}.json`. W/lead's
+aggregate quality and existing editor/runtime shipping handoffs remain.
+
+### FIXM115U2 — Close the second review's authority routes (2026-10-06)
+
+Repair all four P1 and the P2 in RVM115U2 with structural task admission,
+atomic native ownership claims, a shared guarded I/O port and replay decision
+provenance under D95's amendment. Regressions reproduce the completed-explorer,
+held-realPath A/B and idle-boundary, memory read/write, project-skill, retained
+history and finalization cases. Each guard gets a failing mutation with
+byte-exact restoration recorded in `docs/certification/m115-u.md`. No new
+scope/dependency/wire shape, live or paid calls, merges, pushes or rebases.
+Bounded suites use repository-default timeouts; W/lead owns aggregate quality.
+
+### FIXM115U — One unattended authority per scheduled fire (2026-10-06)
+
+Repair all eight RVM115U findings within lane U. The fire's `UnattendedRun`
+is the only paid authority: bind a session-owned client to its reservation
+port for every paid request and never fall back to interactive admission.
+Zero/missing paid authority refuses at consent/schema and reservation; paused
+migration records retain zero as no authority. Admission claims pending steers,
+so each additional fire queues as a separate turn. Check canonical image
+sources/destinations and attachments through run safety before I/O/egress.
+Recheck native ownership after asynchronous cancellation/admission waits,
+race question persistence with Stop, compose Accept edits after unconditional
+safety checks, and separate concrete-path confinement from glob syntax.
+
+Each exact review scenario gets a regression and byte-exact restored red
+drill in `docs/certification/m115-u.md`. No new dependency, guard widening,
+external wire shape, live/paid call, branch merge, push or rebase. The rig
+brief reserves aggregate quality for W/lead; run bounded complete owning
+suites and the shared rules' static/build checks directly on Kubuntu. Core
+ports apply to all editors/runtime; existing named integration handoffs stay.
 
 ### FIXM115L0 — Freeze corrected schedule contracts (2026-10-06)
 
@@ -29540,6 +29720,29 @@ outstanding receipt: 628 pages (157 scenarios × four themes), exit 0, zero
 violations, zero undecided rules, zero exemptions and zero missing results.
 No timeout, exemption, worker policy or accessibility rule changed. The lead
 still owns integrated aggregate quality and actual host/release certification.
+**FIXM115U7 gate allocation (2026-10-06).** The final rig lane retains
+FIXM115U6's aggregate-quality prohibition. Complete owning files use the
+repository's default timeouts and at most three files/workers per invocation.
+All static/build gates and restored guard drills run directly on Kubuntu;
+W/lead owns aggregate quality, full coverage and unrun editor/OS integration.
+No gate or timeout is weakened; no command or setting is added.
+
+**FIXM115U6 gate allocation (2026-10-06).** The same rig prohibition on
+aggregate quality applies. The lane runs complete owning files with default
+timeouts, source-boundary lint tests, restored red drills and the required
+static/build gates. W/lead retains full quality/coverage, packaged network
+badge validation, editor integration and other-OS execution. `check:reference`
+remains unavailable as recorded below; no command or setting is added.
+
+**FIXM115U5 lane gate allocation (2026-10-06).** The rig brief forbids
+aggregate quality in lane U; W/lead owns `npm run quality`. This lane runs
+complete bounded owning suites with default timeouts and the required
+static/build checks. No threshold, ignore, timeout or rule changes.
+The common brief's `check:reference` cannot run on this branch: there is no
+script, generator or feature catalogue. The attempted command reports a
+missing script; no pass is claimed and no gate is introduced or weakened.
+The repair adds no feature, command or setting; W/lead owns any later
+reference tooling adoption.
 
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
@@ -30792,6 +30995,9 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/acp/questionDeferralBundle.ts` (FIXM112A)                                                                      | `isAcpQuestionBundle` trusts the checked factory signature | The entry, loader and ACP package come from the same build; the export is checked as a function and loader tests reject missing/malformed modules. The factory installs the caller's language table before constructing a session's question controller. |
 | `src/runtime/questions/questionRegistryBundle.ts`, `src/host/conversation/conversationBundle.ts` (M112 integration) | Checked same-build function signatures                     | Loader guards validate each required export as a function; entries and callers ship from the same build. Registry and host store factories install or inherit the caller's language before use; loader and real-disk tests exercise their signatures.    |
+| File                                                                                                                | Construct                                                  | Reason                                                                                                                                                                                                                                                   | Added      |
+| -------------------------------------                                                                               | ------------------------------------------------------     | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                          | ---------- |
+| `src/core/context/recordingReader.ts`                                                                               | `as RecordedResults[K]` in the fixed operation adapter     | The `kind: K` request selects a closed result map, but TypeScript cannot correlate generic K with the adapter switch union. The cast is inside the reader, never in a builder; each operation is exercised by its owning suite.                          | 2026-10-06 |
 
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -30967,6 +31173,87 @@ before a repaired one loads (2026-09-30).
   and compactions. The memory benchmark excludes native lease metadata and
   filesystem allocation/locked retirement debt. These scope limits and the
   corrected default-deadline evidence are in `docs/certification/m115-s.md`.
+- **FIXM115U7-PURE-HELPERS (named residual).** Recording factories accept
+  only two fixed module-level named functions with one reader parameter;
+  their output must carry the reader's frozen private-field `ReaderContent` brand;
+  ordinary objects and spread copies lose it. Closed scopes cannot mint content
+  or rerun adapters. Memory and tool operations use nominal store/session types. Builder
+  modules cannot import filesystem, Git or skill-store adapters, including
+  dynamic imports and require. Explicit async adapter operations own raw
+  ports; arbitrary callbacks cannot close an inventory. Tool execution is an explicit
+  adapter operation on the nominal session type. TypeScript
+  cannot prove that a pure projection helper uses only its supplied recorded
+  inputs: a helper could close over outside data or perform hidden I/O, then
+  return it through `reader.project`. Review must therefore check each helper
+  and its callees for purity and complete source inventories. This is safe
+  for the current audited helpers (cached prompt assembly, media fitting,
+  Git-fact rendering and inventory projections contain no unrecorded I/O),
+  with the replay fence retained. Follow-up: any new helper must receive the
+  same source/purity review and gate-fire tests; enforce richer effect/taint
+  typing if the project later adopts it. No static purity guarantee is claimed.
+  P2-2/P2-3 are fixed, with no lifecycle residual.
+
+- **FIXM115U6 review repair.** All three RVM115U5 P1s are fixed; that
+  report contains no P2/P3. No review residual is accepted. A derivation
+  receives only the input hashes of a closed recording scope; callers cannot
+  supply a completeness assertion. Cached Git facts include all raw metadata
+  and configuration-query reads, and undelivered Git material refuses because
+  `.git` is protected. Directory receipts cover their actual canonical member
+  paths; empty collections contain no repository text. Automatic scheduled
+  verification returns an explicit refusal before editor diagnostics/checks:
+  the editor port cannot inventory transitive language-server dependencies.
+  Follow-up is a dependency-complete guarded editor port, not a guessed edited-
+  file recipe. Interactive verification retains its behavior. Source identity
+  failures preserve ordinary read results but leave scopes uncertified.
+  Pending native commands survive idle until their own acknowledgement/failure;
+  monotonic evidence settles only earlier observed turns. Shared core/runtime
+  ports retain all editor handoffs. Default-timeout, byte-exact restored drills
+  and bounded final gates are in `docs/certification/m115-u.md`; W/lead owns
+  aggregate quality and unrun integrations. No dependency, paid/live request,
+  external wire shape, merge, push or rebase is added.
+
+- **FIXM115U5 review repair.** RVM115U4's P1 and all five P2 findings
+  are fixed; no review residual is accepted. Derived recipes explicitly
+  certify every input hash, including cached maps and compaction instructions.
+  Missing sources stay opaque; omitted reviewer material and truncated
+  rule/index bytes cannot acquire full delivery evidence. Mode effects clear
+  only their own tagged record. Undispatched/idle native admissions and local
+  withdrawn, stopped or failed steers release; ambiguous native dispatch still
+  quarantines until terminal/idle proof. Refused queued fires settle with their
+  admission reason and advance. Each run pins its canonical root and never
+  resolves a captured source alias again. The shared core ports retain all
+  editor/runtime handoffs. Eighteen default-timeout, byte-exact restored drills
+  are recorded in `docs/certification/fixm115-u5-drills.json`; bounded final
+  verification is recorded in `docs/certification/m115-u.md`. W/lead owns
+  aggregate quality; no guard, budget, dependency or external wire changes.
+
+- **FIXM115U2 review repair.** All four RVM115U2 P1s and its P2 are repaired;
+  none is accepted as residual. Child tasks inside a fire are refused at the
+  shared task admission, including completed-child follow-ups, queued-message
+  ingress and future direct send/steer routes. Scoped memory/context/file/checkpoint adapters
+  share canonical fire decisions; cached skills authorize their actual source
+  before use. Replay delivery hashes and fire-owned decision provenance stay
+  in memory, with exact-content checks before each request. Already delivered
+  pre-fire history may replay; known unsent file output at a steer boundary
+  is reauthorized, and unproved new notes/child results are refused or retained
+  for an interactive turn. A restored legacy replay lacking delivery evidence
+  refuses unattended egress until a person has sent it in this process; this
+  conservative refusal does not infer authority from an older snapshot.
+  Native admission claims after validation, and finalizing turns refuse steers
+  before acknowledgment. Core ports cover every editor/runtime; existing
+  integration bindings and W/lead's aggregate quality gate remain unchanged.
+  Regression and final-source mutation receipts: `docs/certification/m115-u.md`
+  and `docs/certification/fixm115-u2-drills.json`.
+
+- **FIXM115U review repair.** All eight RVM115U findings are repaired; no
+  finding is accepted as residual. Twenty-five named red drills restore the
+  final source byte-exact; receipts are in
+  `docs/certification/fixm115-u-drills.json`. Lane U certifies core/backend behavior
+  with fake-only regressions, not absent scheduler/UI/OS integrations.
+  Existing S/D/V/W/X, M112/M103/M109/M107/M95 and HELPREF bindings remain
+  named in `docs/certification/m115-u.md`; W/lead owns full quality and
+  integrated coverage. Zero-cap migration records carry no paid authority.
+
 - **FIXM115L0 contract scope.** All six RVM115L0 findings are repaired;
   none is deferred. These are unshipped internal schedule contracts, not
   certification of the production scheduler, approvals, settlements or OS

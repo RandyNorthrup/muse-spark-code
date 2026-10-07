@@ -8,6 +8,7 @@ export const BUNDLES = {
   acp: { output: 'dist/acp.js', metafile: 'dist/meta-acp/acp.json' },
 }
 const MODEL_API_DIR = 'src/core/backends/modelapi'
+export const SCHEDULES_ONLY = ['schedulesEntry.ts', 'schedules.ts']
 export const DEFERRED_ONLY = ['reviewerEntry.ts', 'hookModelEntry.ts']
 
 export const FOREIGN_HOOKS_ONLY = [
@@ -41,6 +42,11 @@ export const DEFERRED = [
       'src/shared/reference/reference.generated.ts',
       'src/shared/reference/text.ts',
     ],
+  },
+  {
+    output: 'dist/schedules.js',
+    metafile: 'dist/meta/schedules.json',
+    files: SCHEDULES_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
   },
   {
     output: 'dist/sessionBoard.js',
@@ -343,6 +349,7 @@ const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
   [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],
+  [path.resolve('src/core/backends/modelapi/schedulesEntry.ts'), 'dist/schedules.js'],
   [path.resolve('src/core/backends/modelapi/reviewerEntry.ts'), 'dist/reviewer.js'],
   [path.resolve('src/core/backends/modelapi/foreignHooksEntry.ts'), 'dist/foreignHooks.js'],
   [path.resolve('src/core/backends/modelapi/hookRuntimeEntry.ts'), 'dist/hookRuntime.js'],
@@ -356,7 +363,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry)(?:\.[jt]s)?$/,
+          /\/(?:schedulesEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (args.kind !== 'dynamic-import') return

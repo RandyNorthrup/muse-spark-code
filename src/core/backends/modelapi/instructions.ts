@@ -21,6 +21,7 @@ import {
   VERIFY_TOOLS,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
+import type { RecordingScope } from '../../context/recordingReader'
 import type { ContextSections } from '../../context/workspaceContext'
 import type { MemoryScopeSnapshot } from '../../memory/memoryStore'
 import { checkListText } from '../../verify/checkCommands'
@@ -34,6 +35,7 @@ export interface GitFacts {
 }
 
 export interface EnvironmentFacts {
+  readonly recording?: RecordingScope
   /** Undefined outside a git repository, or when git could not answer. */
   readonly git: GitFacts | undefined
 }

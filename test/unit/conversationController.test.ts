@@ -9757,6 +9757,27 @@ describe('ConversationController: explanations (M46)', () => {
 const scheduleTestRoot = mkdtempSync(path.join(tmpdir(), 'muse-controller-schedules-'))
 afterAll(() => removeFolder(scheduleTestRoot))
 
+describe('ConversationController: unattended schedules (M115)', () => {
+  it('routes a v2 occurrence to the shared scheduler without the legacy per-run modal', async () => {
+    const fixture = setup()
+    const runScheduledOccurrence = vi
+      .fn<NonNullable<ConversationDeps['runScheduledOccurrence']>>()
+      .mockResolvedValue(undefined)
+    const confirmScheduledRun = vi
+      .fn<NonNullable<ConversationDeps['confirmScheduledRun']>>()
+      .mockResolvedValue(true)
+    const controller = new ConversationController({
+      ...fixture.deps,
+      runScheduledOccurrence,
+      confirmScheduledRun,
+    })
+    await controller.handle({ type: 'scheduleRun', id: 'schedule-v2', occurrenceMs: NOW })
+    expect(runScheduledOccurrence).toHaveBeenCalledExactlyOnceWith('schedule-v2', NOW)
+    expect(confirmScheduledRun).not.toHaveBeenCalled()
+    controller.dispose()
+  })
+})
+
 describe('ConversationController: scheduled prompts (M52)', () => {
   it('creates without spending; an off gate and a declined per-run price keep a due job pending', async () => {
     const clock = { now: NOW }

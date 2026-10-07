@@ -5,6 +5,7 @@
 // leave a patch document shaped like Muse Code's so the transcript rows,
 // Open diff and Revert (M5) work unchanged.
 
+import type { ContentSource } from '../../schedules/provenance'
 import { Buffer } from 'node:buffer'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -157,7 +158,11 @@ export interface ToolIo {
    * decoding it lossily and writing it back would corrupt it (PLAN.md D27).
    */
   /** A canonical proof comes only from trusted workspace confinement, not tool arguments. */
-  readFile(absolutePath: string, expectedCanonicalPath?: string): Promise<string | undefined>
+  readFile(
+    absolutePath: string,
+    expectedCanonicalPath?: string,
+    observeSource?: (source: Extract<ContentSource, { kind: 'file' }>) => void,
+  ): Promise<string | undefined>
   /**
    * The file's bytes (M44: an image to edit); undefined when it does not
    * exist. Rejects, before reading, a file larger than `maxBytes`.
@@ -166,6 +171,7 @@ export interface ToolIo {
     absolutePath: string,
     maxBytes: number,
     expectedCanonicalPath?: string,
+    observeSource?: (source: Extract<ContentSource, { kind: 'file' }>) => void,
   ): Promise<Uint8Array | undefined>
   /** Replaces the file whole (a temporary file renamed into place), folders created. */
   writeFile(

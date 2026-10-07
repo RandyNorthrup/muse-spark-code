@@ -6,6 +6,32 @@ All notable changes to this project are documented here. The format follows
 happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
+- Limit context recording to fixed reader-only builders, reject unbranded and
+  copied content at the type boundary, and forbid direct or dynamic native
+  filesystem, Git and skill-store imports in builder modules. Sealed scopes
+  cannot produce new content or rerun their adapters.
+
+- Discard late native acknowledgements for turns already observed idle, and
+  refuse automatic verification as soon as a scheduled steer claims the
+  session, before its input is adopted.
+
+- Record cached scheduled-context inputs in closed reader scopes, including
+  Git facts and directory indexes. Undelivered Git subjects refuse replay;
+  automatic verification refuses before reading unconfined editor dependencies.
+  Load schedule authorization and context builders on first use to free more
+  than 10 KiB in the Model API bundle.
+
+- Preserve pending native starts across idle snapshots so scheduled work
+  cannot claim an ordinary turn acknowledged after that observation.
+
+- Keep complete source inventories for cached scheduled context, refuse
+  incomplete derivations, and use one canonical workspace boundary for live
+  and cached reads. Reviewer omissions and truncated context no longer gain
+  delivery evidence.
+
+- Release stale scheduled mode effects and stopped or withdrawn admissions,
+  settle refused queued fires, and validate steer media before claiming the
+  session so later work can proceed.
 
 ### Documentation
 
@@ -13,6 +39,56 @@ happened, not what was planned; superseded entries are kept.
   what went wrong while a fleet of agents built this project. For each one it
   gives the rule that prevents it and the milestone that will enforce that
   rule in the app's own orchestrator (D100).
+
+### Fixed
+
+- Correct M115's internal schedule contracts before implementation: stale
+  whole-record updates cannot restore revoked grants, crash-receipt migration
+  accepts fractional filesystem times, repeated fake approval requests remain
+  observable, delivery returns a complete final fire settlement, the versioned
+  editor channel carries audits/history/background controls, and event identity
+  validation rejects malformed Unicode.
+  These contracts do not enable scheduled-prompts v2 in the shipped extension.
+
+- Repair M115's internal schedule takeover fencing, target fairness, isolated
+  recovery, interrupted migration copies and atomic removal. The owning
+  regression cases use default deadlines, with a named deadline only for
+  the deliberate 10,000-fire storage workload.
+
+- Redesign M115's internal schedule storage with bounded generation journals,
+  retained identity fences, recoverable leases and a durable delivery outbox.
+  Reconciliation preserves unsent work and uncertain paid settlements, orders
+  target queues across batches, rejects superseded time candidates and
+  preserves legitimate edits during retryable migration. A bounded outcome
+  summary preserves failure pausing after audit expiry and late settlement.
+  Bounded completion work survives failed marker publication, and retirement
+  retries partially deleted generations after locked children release.
+  Lease reads retry transient Windows access errors within the existing bound.
+  Scheduled-prompts v2
+  still requires its editor and delivery bindings before shipping.
+
+- Replace M115's unshipped scheduled-fire authority with one generation-bound
+  session owner and a SHA-256 content ledger. Stale mode waiters cannot change
+  a later fire, and unrelated completions cannot erase a live ordinary turn.
+  Cached skills retain their original read source; opaque output requires its
+  own decided tool call. Verification notes, fitted media, compaction and date
+  refreshes retain the proof of every input instead of losing it on replay.
+
+- Close M115's native admission race after attachment validation: competing
+  fires cannot replace a running grant or change an ordinary turn's mode.
+  A scheduled steer during checkpoint finalization refuses before acceptance,
+  so delivery can retry it as a separate turn. Child follow-ups and queued
+  messages refuse before escaping fire authority, memory and skill access uses the guarded
+  workspace port, and request replay checks the provenance of content added
+  during the fire while permitting already delivered pre-fire history.
+
+- Repair M115's unshipped unattended authority: every paid response and image
+  uses its fire's reservation, zero consent cannot enable unlimited spending,
+  and overlapping scheduled steers get separate turns and audits. Canonical
+  workspace reads, image sources/destinations and attachments pass fire safety.
+  Late native cancellation retains its owner, Stop settles during question
+  persistence, Accept edits permits safe writes, and confined literal filenames
+  such as Next.js `[slug]` routes match simple path grants.
 
 ## [0.14.3] - 2026-10-06
 
@@ -185,33 +261,6 @@ happened, not what was planned; superseded entries are kept.
   the complete reference within its existing bundle limit.
 
 - Shorter tokens in the lossless inline English dictionary keep chat startup smaller than 0.14.0 while adding Help & Reference; the complete fallback and existing size limits remain.
-
-### Fixed
-
-- Repair M115's internal schedule takeover fencing, target fairness, isolated
-  recovery, interrupted migration copies and atomic removal. The owning
-  regression cases use default deadlines, with a named deadline only for
-  the deliberate 10,000-fire storage workload.
-
-- Redesign M115's internal schedule storage with bounded generation journals,
-  retained identity fences, recoverable leases and a durable delivery outbox.
-  Reconciliation preserves unsent work and uncertain paid settlements, orders
-  target queues across batches, rejects superseded time candidates and
-  preserves legitimate edits during retryable migration. A bounded outcome
-  summary preserves failure pausing after audit expiry and late settlement.
-  Bounded completion work survives failed marker publication, and retirement
-  retries partially deleted generations after locked children release.
-  Lease reads retry transient Windows access errors within the existing bound.
-  Scheduled-prompts v2
-  still requires its editor and delivery bindings before shipping.
-
-- Correct M115's internal schedule contracts before implementation: stale
-  whole-record updates cannot restore revoked grants, crash-receipt migration
-  accepts fractional filesystem times, repeated fake approval requests remain
-  observable, delivery returns a complete final fire settlement, the versioned
-  editor channel carries audits/history/background controls, and event identity
-  validation rejects malformed Unicode.
-  These contracts do not enable scheduled-prompts v2 in the shipped extension.
 
 ## [0.14.1] - 2026-10-05
 

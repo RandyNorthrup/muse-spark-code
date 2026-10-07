@@ -1,3 +1,4 @@
+import { RecordingScope } from '../../src/core/context/recordingReader'
 import { describe, expect, it } from 'vitest'
 import { describeEnvironment, type EnvironmentDeps } from '../../src/host/backend/environment'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -39,7 +40,7 @@ function gitFacts(
 }
 
 describe('describeEnvironment', () => {
-  it('reports the branch, the change count and the recent commits from the workspace root', async () => {
+  it('RVM115U5 reader: reports Git facts and records every metadata/config result', async () => {
     const fake = git({
       'rev-parse --abbrev-ref HEAD': 'main\n',
       'status --porcelain': ' M a.ts\n?? b.ts\n\n',
@@ -48,7 +49,19 @@ describe('describeEnvironment', () => {
     const { facts, log } = gitFacts(fake)
     await expect(facts).resolves.toEqual({
       git: { branch: 'main', changedFiles: 2, recentCommits: ['abc one', 'def two'] },
+      recording: expect.any(RecordingScope),
     })
+    const environment = await facts
+    const inventory = environment.recording?.inventory()
+    expect(inventory?.map((input) => input.bytes)).toEqual([
+      '',
+      'main\n',
+      ' M a.ts\n?? b.ts\n\n',
+      'abc one\ndef two\n',
+    ])
+    expect(
+      inventory?.every((input) => input.source.kind === 'git' && input.source.root === '/ws'),
+    ).toBe(true)
     // Names-only discovery precedes the three metadata queries (M72/M39).
     expect(fake.calls).toHaveLength(4)
     expect(fake.calls.every((call) => call.startsWith('/ws: '))).toBe(true)
@@ -85,6 +98,7 @@ describe('describeEnvironment', () => {
     })
     await expect(gitFacts(fake).facts).resolves.toEqual({
       git: { branch: 'main', changedFiles: 0, recentCommits: [] },
+      recording: expect.any(RecordingScope),
     })
   })
 })

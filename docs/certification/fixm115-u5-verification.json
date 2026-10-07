@@ -1,0 +1,158 @@
+{
+  "lane": "FIXM115U5",
+  "machine": "kubuntu",
+  "date": "2026-10-06",
+  "testsPassed": 1042,
+  "completeTestFiles": 18,
+  "skippedTests": 0,
+  "testTimeout": "repository default; no override",
+  "maxWorkers": 3,
+  "maxFilesPerRun": 3,
+  "checks": [
+    {
+      "check": "typecheck",
+      "command": "npm run typecheck",
+      "exitCode": 0
+    },
+    {
+      "check": "eslint",
+      "command": "npx eslint --max-warnings=0 src/core/backends/modelapi/ModelApiHost.ts src/core/backends/musecode/MuseCodeHost.ts src/core/context/workspaceContext.ts src/core/schedules/provenance.ts src/core/schedules/sessionOwner.ts src/core/schedules/unattended.ts test/unit/scheduleProvenance.test.ts test/unit/scheduleSessionOwner.test.ts test/unit/unattended.test.ts test/unit/unattendedBackends.test.ts test/unit/workspaceContext.test.ts",
+      "exitCode": 0
+    },
+    {
+      "check": "prettier",
+      "command": "npx prettier --check src/core/backends/modelapi/ModelApiHost.ts src/core/backends/musecode/MuseCodeHost.ts src/core/context/workspaceContext.ts src/core/schedules/provenance.ts src/core/schedules/sessionOwner.ts src/core/schedules/unattended.ts test/unit/scheduleProvenance.test.ts test/unit/scheduleSessionOwner.test.ts test/unit/unattended.test.ts test/unit/unattendedBackends.test.ts test/unit/workspaceContext.test.ts",
+      "exitCode": 0
+    },
+    {
+      "check": "tests-1",
+      "command": "npx vitest run test/unit/scheduleSessionOwner.test.ts test/unit/scheduleProvenance.test.ts test/unit/unattendedBackends.test.ts --maxWorkers=3",
+      "exitCode": 0
+    },
+    {
+      "check": "tests-2",
+      "command": "npx vitest run test/unit/unattended.test.ts test/unit/workspaceContext.test.ts test/unit/modelApiGoldenRequests.test.ts --maxWorkers=3",
+      "exitCode": 0
+    },
+    {
+      "check": "tests-3",
+      "command": "npx vitest run test/unit/modelApiHost.test.ts test/unit/MuseCodeHost.test.ts test/unit/modelApiCodeIntel.test.ts --maxWorkers=3",
+      "exitCode": 0
+    },
+    {
+      "check": "tests-4",
+      "command": "npx vitest run test/unit/memoryStore.test.ts test/unit/memoryIo.test.ts test/unit/skills.test.ts --maxWorkers=3",
+      "exitCode": 0
+    },
+    {
+      "check": "tests-5",
+      "command": "npx vitest run test/unit/rules.test.ts test/unit/contextFiles.test.ts test/unit/modelApiPacking.test.ts --maxWorkers=3",
+      "exitCode": 0
+    },
+    {
+      "check": "tests-6",
+      "command": "npx vitest run test/unit/modelApiClient.test.ts test/unit/schedulePaid.test.ts test/unit/scheduleGrant.test.ts --maxWorkers=3",
+      "exitCode": 0
+    },
+    {
+      "check": "deadcode",
+      "command": "npm run deadcode",
+      "exitCode": 0
+    },
+    {
+      "check": "jscpd",
+      "command": "npx jscpd",
+      "exitCode": 0
+    },
+    {
+      "check": "cycles",
+      "command": "npm run cycles",
+      "exitCode": 0
+    },
+    {
+      "check": "l10n",
+      "command": "npm run check:l10n",
+      "exitCode": 0
+    },
+    {
+      "check": "host-api",
+      "command": "npm run check:host-api",
+      "exitCode": 0
+    },
+    {
+      "check": "reference",
+      "command": "npm run check:reference",
+      "exitCode": 1,
+      "status": "unavailable: this branch has no check:reference script, reference generator or feature catalog; no new feature/command/setting"
+    },
+    {
+      "check": "build",
+      "command": "npm run build",
+      "exitCode": 0
+    }
+  ],
+  "sourceSnapshots": [
+    {
+      "path": "src/core/backends/modelapi/ModelApiHost.ts",
+      "sha256": "2b25279afae46bc192a4b2fc9e6463c3e3c66f63dbd587a9da7aff779dd544c5"
+    },
+    {
+      "path": "src/core/backends/musecode/MuseCodeHost.ts",
+      "sha256": "67b8f5c8fe1dfef3d256e97105926b65ed21501f224b10f65fbdfef2f92b201b"
+    },
+    {
+      "path": "src/core/context/workspaceContext.ts",
+      "sha256": "3d749a19a20527910239698e22ffdaa2cf4f8cc1197bccf6dee8008a73573e30"
+    },
+    {
+      "path": "src/core/schedules/provenance.ts",
+      "sha256": "4db6552b532ba0b4f8a2bea4053b01e624d43485467714f465222fb101d5c2d8"
+    },
+    {
+      "path": "src/core/schedules/sessionOwner.ts",
+      "sha256": "b9107f592ab0ee0610c0c6c0f7fd1c5af9540e6f0f3227fd33c52c1f5f9c6a6e"
+    },
+    {
+      "path": "src/core/schedules/unattended.ts",
+      "sha256": "946857f81e8ebce690dd7d4146b77ba5ee1f3218b546633ce5e01a270ce14bbc"
+    },
+    {
+      "path": "test/unit/scheduleProvenance.test.ts",
+      "sha256": "74927e2a355df43880fdc4a38524b394951a0932ef6e370a2de86f3eaea14eba"
+    },
+    {
+      "path": "test/unit/scheduleSessionOwner.test.ts",
+      "sha256": "85bd2f4c5a78d33b1c866f8f84355c34e331abf495b30647f9a75166d165339e"
+    },
+    {
+      "path": "test/unit/unattended.test.ts",
+      "sha256": "c1a3ff41be2357597d660750ccf7329024353f75f6b99827d797ffdb02225d65"
+    },
+    {
+      "path": "test/unit/unattendedBackends.test.ts",
+      "sha256": "ffbf84eb1bd580b0cac2e5c9df919637e7519945f38e9462853a89918aa6d3a2"
+    },
+    {
+      "path": "test/unit/workspaceContext.test.ts",
+      "sha256": "25f34b8a964766d9b229654538ecfce9c73b771ad9c7414a0e2973ff98ce29c7"
+    }
+  ],
+  "buildKiB": {
+    "extension": {
+      "actual": 461.7,
+      "budget": 600
+    },
+    "modelApi": {
+      "actual": 471.9,
+      "budget": 475
+    },
+    "checkpointStore": {
+      "actual": 77.0,
+      "budget": 225
+    },
+    "acp": {
+      "actual": 840.4,
+      "budget": 850
+    }
+  }
+}

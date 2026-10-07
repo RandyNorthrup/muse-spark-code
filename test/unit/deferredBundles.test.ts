@@ -74,6 +74,7 @@ beforeAll(async () => {
         modelApi: 'src/host/backend/modelApiEntry.ts',
         sessionBoard: 'src/host/sessionBoardEntry.ts',
         reviewer: 'src/core/backends/modelapi/reviewerEntry.ts',
+        schedules: 'src/core/backends/modelapi/schedulesEntry.ts',
         foreignHooks: 'src/core/backends/modelapi/foreignHooksEntry.ts',
         hookRuntime: 'src/core/backends/modelapi/hookRuntimeEntry.ts',
         pluginHooks: 'src/core/backends/modelapi/pluginHooksEntry.ts',
@@ -151,7 +152,6 @@ beforeAll(async () => {
     }
   }
   parsers.push(parserSchema.parse(loadSupportBundle('validation')))
-  expect(checkDeferredBundles(bundleInputs)).toEqual([])
 })
 
 afterAll(() => {
@@ -249,6 +249,10 @@ describe('deferred cohort bundles', () => {
       )
     }
   })
+  it('every production bundle passes the deferred-boundary gate', () => {
+    expect(checkDeferredBundles(bundleInputs)).toEqual([])
+  })
+
   it('decodes the complete production English fallback without changing any value', () => {
     expect(bundleText('uiText')).toContain('brotliDecompressSync')
     expect(loadSupportBundle('uiText')).toHaveProperty('EN', EN)
@@ -276,6 +280,20 @@ describe('deferred cohort bundles', () => {
       )
       expect(bundleText(name)).toContain('./validation.js')
     }
+  })
+
+  it('RVM115U5 diet: Model API frees ten KiB and records context loaders in the lazy schedules chunk', () => {
+    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(483_179 - 10 * 1024)
+    const schedules = new Set(inputs('schedules'))
+    for (const file of [
+      'src/core/backends/modelapi/schedulesEntry.ts',
+      'src/core/backends/modelapi/schedules.ts',
+      'src/core/context/catalogFiles.ts',
+    ]) {
+      expect(schedules.has(file)).toBe(true)
+      expect(inputs('modelApi')).not.toContain(file)
+    }
+    expect(bundleText('modelApi')).toContain('./schedules.js')
   })
 
   it('loads the activation entry without requiring either action bundle', () => {

@@ -8,7 +8,6 @@ import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { nextScheduleFire } from '../../core/backends/modelapi/schedules'
 import { SCHEDULE_CLAIM_RETENTION_MS } from '../../shared/constants'
 import {
   scheduledPromptSchema,
@@ -114,10 +113,14 @@ export function createFileScheduleStore(deps: FileScheduleStoreDeps): ScheduleSt
   ): Promise<ScheduledPrompt | undefined> => {
     const receipts = await receiptsFor(job, names)
     const last = receipts.toSorted((a, b) => b.admittedAtMs - a.admittedAtMs)[0]
+    const schedules =
+      last === undefined
+        ? undefined
+        : await import('../../core/backends/modelapi/schedulesEntry.js')
     const nextFireAtMs =
       last === undefined
         ? job.nextFireAtMs
-        : nextScheduleFire(
+        : schedules?.nextScheduleFire(
             job.cadence,
             Math.max(last.occurrenceMs, last.admittedAtMs),
             job.expiresAtMs,
@@ -303,13 +306,20 @@ export function createFileScheduleMigrationSource(directory: string): ScheduleMi
     }
     const fresh = receipts.filter((receipt) => receipt.occurrence >= job.nextFireAtMs)
     const last = fresh.toSorted((a, b) => b.admitted - a.admitted)[0]
+    // Lazy like `currentJob` above: the Model API schedules entry stays out
+    // of the activation bundle; it loads only when a fresh receipt exists.
+    const schedules =
+      last === undefined
+        ? undefined
+        : await import('../../core/backends/modelapi/schedulesEntry.js')
     const recovered =
       last === undefined
         ? job
         : {
             ...job,
             nextFireAtMs:
-              nextScheduleFire(job.cadence, last.admitted, job.expiresAtMs) ?? job.expiresAtMs,
+              schedules?.nextScheduleFire(job.cadence, last.admitted, job.expiresAtMs) ??
+              job.expiresAtMs,
             fireCount: Math.max(job.fireCount + fresh.length, receipts.length),
             lastFireAtMs: Math.max(
               job.lastFireAtMs ?? 0,
