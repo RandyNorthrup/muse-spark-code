@@ -28,7 +28,7 @@ import {
   toolImageKey,
   type TranscriptEntry,
 } from '../state/uiState'
-import { backgroundRun, readableText } from '../toolDetails'
+import { backgroundRun, readableText, statusDotClass } from '../toolDetails'
 import {
   changeSummary,
   describeTool,
@@ -88,7 +88,24 @@ const WorkflowBody = deferred(async () => {
 import { verifySummaryText } from '../../shared/verifyText'
 import { ThenRunBlock, VerifyBody } from './VerifyParts'
 import type { PlaybookWhyNote } from '../../shared/playbook'
-import { DeferredPlaybookNotes } from '../playbook/DeferredPlaybook'
+
+// The playbook's notes stay out of the startup closure: the row loads them
+// the first time a step carries notes. The shared deferred boundary outside
+// the import announces loading and retries a failed wrapper chunk without
+// taking the chat down (a boundary inside the loaded module could never
+// catch the load itself).
+const DeferredPlaybookNotes = deferred(
+  async () => {
+    const { DeferredPlaybookNotes } = await import('../playbook/DeferredPlaybook')
+    return { default: DeferredPlaybookNotes }
+  },
+  false,
+  () => (
+    <span role="status" data-deferred-loading="playbook">
+      {UI_TEXT.loadingOutput}
+    </span>
+  ),
+)
 
 const ElicitationCard = deferred(
   async () => {
@@ -169,15 +186,6 @@ function editRows(
 }
 
 /** A row's status dot: running, done, cut off or failed (the user's `!` rows too, M46). */
-export function statusDotClass(status: string): string {
-  if (status === 'inProgress') {
-    return 'tool-dot tool-dot-running'
-  }
-  if (status === TOOL_STATUS_INTERRUPTED) {
-    return 'tool-dot tool-dot-muted'
-  }
-  return status === 'completed' ? 'tool-dot tool-dot-ok' : 'tool-dot tool-dot-failed'
-}
 
 function EditBody({
   entry,

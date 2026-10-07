@@ -60,7 +60,16 @@ function workspaceIdentity(workspaceFolder: string): string {
       if (!text.startsWith('gitdir: ') || text.length > REVIEW_FINDING_PATH_MAX_CHARS)
         throw new Error(UI_TEXT.playbookUnavailable)
       const gitDir = realpathSync(path.resolve(ancestor, text.slice('gitdir: '.length)))
-      const common = readFileSync(path.join(gitDir, 'commondir'), 'utf8').trim()
+      let common: string
+      try {
+        common = readFileSync(path.join(gitDir, 'commondir'), 'utf8').trim()
+      } catch (error) {
+        if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
+        // A submodule or `--separate-git-dir` repository names its git
+        // directory directly: with no `commondir` it is its own common
+        // directory, while linked worktrees keep sharing theirs.
+        return realpathSync(gitDir)
+      }
       if (!common || common.length > REVIEW_FINDING_PATH_MAX_CHARS)
         throw new Error(UI_TEXT.playbookUnavailable)
       return realpathSync(path.resolve(gitDir, common))

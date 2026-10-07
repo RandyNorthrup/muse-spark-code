@@ -1,9 +1,14 @@
 import { UI_TEXT } from '../../shared/constants'
 import { formatDateTime, formatUsd } from '../../shared/l10n/text'
-import { ScheduleBody } from '../components/ToolBodies'
+import { deferred } from '../components/DeferredSurface'
 import type { ScheduleTargetChoice } from './ports'
 import type { ToolEntry } from '../state/uiState'
 import { parseScheduleSettlement, scheduleTargetText } from './presentation'
+
+const ScheduleBody = deferred(async () => {
+  const module = await import('../components/ToolBodies')
+  return { default: module.ScheduleBody }
+})
 
 export function ScheduleRunBody({
   entry,

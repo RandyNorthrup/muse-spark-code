@@ -331,7 +331,8 @@ describe('App shell', () => {
     expect(screen.getByText('Restored title')).toBeInTheDocument()
     expect(screen.getByText('Restored answer')).toBeInTheDocument()
     expect(await screen.findByText('Restored title goal')).toBeInTheDocument()
-    expect(screen.getByText('Restored title todo')).toBeInTheDocument()
+    // The task list loads on first use, like the goal above it.
+    expect(await screen.findByText('Restored title todo')).toBeInTheDocument()
   })
 
   it('renders the empty state once signed in and focuses the composer', () => {
@@ -648,7 +649,7 @@ describe('App conversation', () => {
       args: '{"command":"npm run dev"}',
     }
     deliver({ type: 'agentEvent', event: { type: 'itemStarted', item: call } })
-    fireEvent.click(screen.getByRole('button', { name: /^Move to background/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /^Move to background/ }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'moveToBackground', itemId: 'c1' })
     expect(screen.getByRole('button', { name: /^Move to background/ })).toBeDisabled()
     deliver({
@@ -885,13 +886,14 @@ describe('App conversation', () => {
       await Promise.resolve()
     })
     expect(postMessage).toHaveBeenCalledWith({ type: 'searchMentions', requestId: 1, query: '' })
-    expect(screen.getByText('No matching files')).toBeInTheDocument()
+    // The mention menu body loads on first open.
+    expect(await screen.findByText('No matching files')).toBeInTheDocument()
     deliver({
       type: 'mentionResults',
       requestId: 1,
       items: [{ path: 'src/app.ts', isFolder: false }],
     })
-    expect(screen.getByRole('option', { name: 'src/app.ts' })).toBeInTheDocument()
+    expect(await screen.findByRole('option', { name: 'src/app.ts' })).toBeInTheDocument()
   })
 
   it('routes mention searches and attachment removal', () => {
@@ -1159,7 +1161,7 @@ describe('App transcript (M4)', () => {
     })
   })
 
-  it('shows the session name, the context indicator and the todo panel', () => {
+  it('shows the session name, the context indicator and the todo panel', async () => {
     renderReady()
     deliver({ type: 'agentEvent', event: { type: 'sessionNamed', name: 'Muse setup' } })
     expect(screen.getByRole('heading', { name: 'Muse setup' })).toBeInTheDocument()
@@ -1185,7 +1187,7 @@ describe('App transcript (M4)', () => {
       type: 'agentEvent',
       event: { type: 'todoChanged', items: [{ text: 'Write tests', status: 'pending' }] },
     })
-    expect(screen.getByRole('region', { name: 'Tasks' })).toHaveTextContent('Write tests')
+    expect(await screen.findByRole('region', { name: 'Tasks' })).toHaveTextContent('Write tests')
   })
 })
 
@@ -1253,6 +1255,7 @@ describe('App palette', () => {
     // A character more: the slash commands, the skill among them.
     fireEvent.change(box, { target: { value: '/fi' } })
     expect(screen.queryByRole('dialog')).toBeNull()
+    // The slash menu body loads on first open.
     const list = await screen.findByRole('listbox', { name: 'Slash commands' })
     expect(within(list).getAllByRole('option')[0]).toHaveTextContent('/fix-bug')
     fireEvent.keyDown(box, { key: 'Enter' })
@@ -1876,7 +1879,7 @@ describe('App session history (M6)', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
-  it('shows the agents pill once a subagent runs and opens the Agent map from it (M14)', () => {
+  it('shows the agents pill once a subagent runs and opens the Agent map from it (M14)', async () => {
     const postMessage = renderReady()
     deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
     deliver({
@@ -1902,7 +1905,7 @@ describe('App session history (M6)', () => {
     const pill = screen.getByTitle('Show the agent map')
     expect(pill).toHaveTextContent('1 agent')
     fireEvent.click(pill)
-    const map = screen.getByRole('dialog', { name: 'Agent map' })
+    const map = await screen.findByRole('dialog', { name: 'Agent map' })
     expect(map).toHaveTextContent('1 agent · click an agent for details')
     fireEvent.click(screen.getByRole('button', { name: /Map the workspace/ }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'readChildSession', sessionId: 'child-1' })
@@ -1922,7 +1925,7 @@ describe('App session history (M6)', () => {
 
   it.each(['museCode', 'modelApi'] as const)(
     'shows only verified %s agent result controls through the real App',
-    (backend) => {
+    async (backend) => {
       const postMessage = renderReady()
       deliver({ type: 'authState', status: 'signedIn', backend })
       deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
@@ -1948,7 +1951,7 @@ describe('App session history (M6)', () => {
         },
       })
       fireEvent.click(screen.getByTitle('Show the agent map'))
-      fireEvent.click(screen.getByRole('button', { name: /Check controls/ }))
+      fireEvent.click(await screen.findByRole('button', { name: /Check controls/ }))
       if (backend === 'modelApi') {
         fireEvent.click(screen.getByRole('button', { name: 'Mark result read' }))
         expect(postMessage).toHaveBeenCalledWith({
@@ -3637,7 +3640,7 @@ describe('App: the M87 wiring (PLAN.md D66)', () => {
     vi.restoreAllMocks()
   })
 
-  it('adds up the edits in a row above the goal and task panes, Review opening M70’s pane', () => {
+  it('adds up the edits in a row above the goal and task panes, Review opening M70’s pane', async () => {
     const postMessage = renderReady()
     const goal = showGoal()
     deliver({
@@ -3649,10 +3652,11 @@ describe('App: the M87 wiring (PLAN.md D66)', () => {
     editItem('e2', 'src/b.ts', 10, 2)
     // The same file again: two files, every line counted.
     editItem('e3', 'src/a.ts', 1, 0)
-    const tally = screen.getByRole('group', { name: UI_TEXT.diffTallyLabel })
+    // The tally chunk loads on first use, so the first render waits for it.
+    const tally = await screen.findByRole('group', { name: UI_TEXT.diffTallyLabel })
     expect(tally).toHaveTextContent('2 files changed')
     expect(tally).toHaveTextContent('+14 −3')
-    const tasks = screen.getByRole('region', { name: 'Tasks' })
+    const tasks = await screen.findByRole('region', { name: 'Tasks' })
     for (const below of [goal, tasks, textarea()]) {
       expect(tally.compareDocumentPosition(below) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
     }

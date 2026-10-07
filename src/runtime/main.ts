@@ -21,6 +21,7 @@ import { loadUiTable, readUiTableFile } from '../host/l10n'
 import {
   ACP_AGENT_NAME,
   RUNTIME_QUESTIONS_BUNDLE_FILE,
+  PLAYBOOK_BUNDLE_FILE,
   ACP_AUTH_METHODS,
   EXEC_EXIT,
   EXEC_SCAN_TIMEOUT_MS,
@@ -66,6 +67,7 @@ import { parseSharingArgs, type SharingCommand } from './sharing/args'
 import { runtimeSharingLoader } from './sharing/sharingBundle'
 import { acpSharingCommands } from '../acp/sharing'
 import type { RuntimeSharingPorts } from './sharing/sharingEntry'
+import type { PlaybookCommand, PlaybookSurfacePort } from './playbook/command'
 import { formatAcpUsage } from './cliOptions'
 import { referenceLoader } from '../host/referenceLoader'
 import { REFERENCE_BUNDLE_FILE } from '../shared/constants'
@@ -75,8 +77,7 @@ import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
 import { agentDataFolder } from './dataFolder'
 import { fontsBundle } from './fonts/bundle'
-import { runPlaybookCli } from './playbook/command'
-import { createPlaybookSurface } from './playbook/surface'
+import { playbookLoader } from './playbook/playbookBundle'
 import { runReportCommand } from './reportCommand'
 import { readSecretLine } from './hiddenInput'
 import { credentialStoreName, keyringSecretStore, StoreUnavailableError } from './keyStore'
@@ -604,6 +605,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
       path.join(distDir, RUNTIME_QUESTIONS_BUNDLE_FILE),
       log,
     )
+    const loadPlaybook = playbookLoader(path.join(distDir, PLAYBOOK_BUNDLE_FILE), log)
     const registries: { flush(): Promise<void>; dispose(): void }[] = []
     const runtime = await runtimeFor(options, log, {
       remove: (id) => loadQuestions().removeRuntimeQuestions(directory, id, UI_TEXT, uiLocale()),
@@ -649,16 +651,20 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
         },
       },
       playbookFor: (cwd) =>
-        createPlaybookSurface({
-          agentDataFolder: agentDataFolder({
-            platform: process.platform,
-            env: process.env,
-            homeDir: homedir(),
-          }),
-          workspaceFolder: cwd,
-          teamId: 'panel',
-          laneId: 'surface',
-        }),
+        loadPlaybook().createPlaybookSurface(
+          {
+            agentDataFolder: agentDataFolder({
+              platform: process.platform,
+              env: process.env,
+              homeDir: homedir(),
+            }),
+            workspaceFolder: cwd,
+            teamId: 'panel',
+            laneId: 'surface',
+          },
+          UI_TEXT,
+          uiLocale(),
+        ),
       reports: { format: 'md', execute: (args, context) => reports().acp.execute(args, context) },
       legalScan: async (cwd, signal, isRegistryOn, allowsRegistryLookup) => {
         const bundle = agentLegalBundle()
@@ -712,6 +718,14 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
             .execute(text, context),
       },
       paid: runtime.paid,
+      playbookBundle: () => {
+        const bundle = loadPlaybook()
+        return {
+          parsePlaybookCommand: (argv: readonly string[]) => bundle.parsePlaybookCommand(argv),
+          runPlaybookCommand: (command: PlaybookCommand, port: PlaybookSurfacePort | undefined) =>
+            bundle.runPlaybookCommand(command, port, UI_TEXT, uiLocale()),
+        }
+      },
       questions: (input) => {
         const registry = loadQuestions().createRuntimeQuestionRegistry(
           input,
@@ -1259,26 +1273,36 @@ async function main(): Promise<number> {
     }
     case 'playbook': {
       // No backend, no model startup: the journal-backed settings/record
-      // surface for the current workspace (M116).
+      // surface for the current workspace (M116), loaded on first use.
       const homeDir = homedir()
-      return await runPlaybookCli(command.argv, {
-        port: createPlaybookSurface({
-          agentDataFolder: agentDataFolder({
-            platform: process.platform,
-            env: process.env,
-            homeDir,
-          }),
-          workspaceFolder: process.cwd(),
-          teamId: 'panel',
-          laneId: 'surface',
-        }),
-        writeStdout: (text) => {
-          writeLine(process.stdout, text)
+      const playbook = playbookLoader(path.join(distDir, PLAYBOOK_BUNDLE_FILE), log)()
+      return await playbook.runPlaybookCli(
+        command.argv,
+        {
+          port: playbook.createPlaybookSurface(
+            {
+              agentDataFolder: agentDataFolder({
+                platform: process.platform,
+                env: process.env,
+                homeDir,
+              }),
+              workspaceFolder: process.cwd(),
+              teamId: 'panel',
+              laneId: 'surface',
+            },
+            UI_TEXT,
+            uiLocale(),
+          ),
+          writeStdout: (text) => {
+            writeLine(process.stdout, text)
+          },
+          printError: (line) => {
+            writeLine(process.stderr, line)
+          },
         },
-        printError: (line) => {
-          writeLine(process.stderr, line)
-        },
-      })
+        UI_TEXT,
+        uiLocale(),
+      )
     }
     case 'help': {
       if (command.all === true) {

@@ -55,7 +55,7 @@ import {
 import { paidFeatureName, paidFeaturePrice, usablePaidFeatures } from '../shared/paid'
 import type * as PaletteRegistryModule from '../shared/paletteRegistry'
 import type { PaletteAction } from '../shared/palette'
-import { scheduleChannel } from './schedules/channel'
+import type { scheduleChannel } from './schedules/channel'
 import type { ScheduleRequest } from '../shared/scheduleV2'
 import { schedulePromptAction } from './schedules/prompt'
 import { type SlashCommand, slashCommandsOf } from '../shared/slashCommands'
@@ -75,11 +75,37 @@ import type { ApprovalDecisionInput } from './components/ApprovalCard'
 import { AttentionDock } from './components/AttentionDock'
 import { QuestionSurface } from './components/QuestionSurface'
 import { Composer, type ImageData, type SlashPaletteSlot } from './components/Composer'
-import { DiffTally } from './components/DiffTally'
-const EffortSlider = deferred(async () => {
-  const module = await import('./components/EffortSlider')
-  return { default: module.EffortSlider }
-})
+// The conversation's edit totals load on first use: an empty conversation
+// neither paints nor loads the tally chunk, and a populated one gets an
+// announced loading status with a local retry instead of the panel boundary.
+const DiffTally = deferred(
+  async () => {
+    const { DiffTally } = await import('./components/DiffTally')
+    return { default: DiffTally }
+  },
+  false,
+  (props) =>
+    props.counts === undefined ? null : (
+      <span role="status" data-deferred-loading>
+        {UI_TEXT.loadingOutput}
+      </span>
+    ),
+)
+// The Modes menu's effort control loads with the menu's first open. No
+// close control is wired: the menu owns dismissal, the boundary only
+// announces loading and retries a failed chunk.
+const EffortSlider = deferred(
+  async () => {
+    const { EffortSlider } = await import('./components/EffortSlider')
+    return { default: EffortSlider }
+  },
+  false,
+  () => (
+    <span role="status" data-deferred-loading>
+      {UI_TEXT.loadingOutput}
+    </span>
+  ),
+)
 import { EmptyState } from './components/EmptyState'
 import { Header } from './components/Header'
 import { DeferredReportDialog } from './components/DeferredReportDialog'
@@ -87,7 +113,22 @@ import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
 import type { PaletteKeys, PaletteView } from './components/Palette'
 import type { MenuEntry } from './components/PopoverMenu'
-import { TodoPanel } from './components/TodoPanel'
+// The task list loads on first use: an empty list neither paints nor loads
+// its chunk, and a populated one gets an announced loading status with a
+// local retry instead of the panel boundary.
+const TodoPanel = deferred(
+  async () => {
+    const { TodoPanel } = await import('./components/TodoPanel')
+    return { default: TodoPanel }
+  },
+  false,
+  (props) =>
+    props.items.length === 0 ? null : (
+      <span role="status" data-deferred-loading>
+        {UI_TEXT.loadingOutput}
+      </span>
+    ),
+)
 import type { TeamTreeActions } from './components/TeamTree'
 import { teamRunningTaskCount, teamTaskCount } from './state/teamEntries'
 import { type QueuedCardRef, Transcript } from './components/Transcript'
@@ -577,17 +618,34 @@ export function App({
   // Scheduled prompts v2 (M115): the panel's versioned channel over the
   // host bridge. It owns its window listener beside the store's; the store
   // ignores its answers, and it ignores everything else.
-  const scheduleChannelRef = useRef<ReturnType<typeof scheduleChannel> | undefined>(undefined)
-  useEffect(() => {
-    const channel = scheduleChannel(window, (message) => {
-      postMessage({ type: 'schedulesRequest', message })
-    })
-    scheduleChannelRef.current = channel
-    return () => {
-      channel.dispose()
-      if (scheduleChannelRef.current === channel) scheduleChannelRef.current = undefined
+  const scheduleChannelRef = useRef<Promise<ReturnType<typeof scheduleChannel>> | undefined>(
+    undefined,
+  )
+  const getScheduleChannel = useCallback(() => {
+    const load = async () => {
+      const module = await import('./schedules/channel')
+      return module.scheduleChannel(window, (message) => {
+        postMessage({ type: 'schedulesRequest', message })
+      })
     }
+    scheduleChannelRef.current ??= load()
+    return scheduleChannelRef.current
   }, [postMessage])
+  useEffect(
+    () => () => {
+      const loaded = scheduleChannelRef.current
+      scheduleChannelRef.current = undefined
+      void loaded?.then(
+        (channel) => {
+          channel.dispose()
+        },
+        () => {
+          /* A failed import created no channel to dispose. */
+        },
+      )
+    },
+    [postMessage],
+  )
   // `/schedule add <prompt>` (M115): the prompt waits for the host's props,
   // and the opening editor mounts over it. `surface` is the props seen at
   // submit; the stash clears once newer props arrive (the override applied)
@@ -605,24 +663,31 @@ export function App({
   }, [pendingSchedulePrompt, state.schedulesSurface])
   // The deferred surface's port (M115): stable callbacks over the channel
   // ref, so the surface mounts once per workspace and view.
-  const schedulePortRequest = useCallback((request: ScheduleRequest): Promise<unknown> => {
-    const channel = scheduleChannelRef.current
-    return channel === undefined
-      ? Promise.reject(new Error(UI_TEXT.scheduleV2.editor.loadFailed))
-      : channel.request(request)
-  }, [])
+  const schedulePortRequest = useCallback(
+    async (request: ScheduleRequest): Promise<unknown> => {
+      const channel = await getScheduleChannel()
+      return await channel.request(request)
+    },
+    [getScheduleChannel],
+  )
   const schedulePortSubscribe = useCallback(
     (listener: (message: unknown) => void): (() => void) => {
-      const channel = scheduleChannelRef.current
-      if (channel === undefined) {
-        // Defensive: the channel mounts before any host props arrive.
-        return () => {
-          /* unreachable while mounted */
-        }
+      let isActive = true
+      let stop: (() => void) | undefined
+      void getScheduleChannel()
+        .then((channel) => {
+          if (isActive) stop = channel.subscribeChanges(listener)
+        })
+        .catch(() => {
+          if (isActive)
+            dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.surfaceLoadFailed })
+        })
+      return () => {
+        isActive = false
+        stop?.()
       }
-      return channel.subscribeChanges(listener)
     },
-    [],
+    [getScheduleChannel, dispatch],
   )
   const onCloseSchedulesSurface = useCallback(() => {
     setPendingSchedulePrompt(undefined)
@@ -997,13 +1062,8 @@ export function App({
         return
       }
       if (action.kind === 'request') {
-        const channel = scheduleChannelRef.current
-        if (channel === undefined) {
-          postMessage({ type: 'openSchedules', view: 'list' })
-          return
-        }
-        void channel
-          .request(action.request)
+        void getScheduleChannel()
+          .then((channel) => channel.request(action.request))
           .then((response) => {
             if (response.kind === 'refused')
               dispatch({ type: 'noticeRaised', level: 'warning', text: response.reason })
@@ -1075,6 +1135,7 @@ export function App({
     setIsPinnedToEnd(true)
   }, [
     store,
+    getScheduleChannel,
     dispatch,
     newLocalId,
     now,
@@ -2968,8 +3029,9 @@ export function App({
             </button>
           ) : null}
         </main>
-        {/* Review opens M70's pane on the same edits (D66 item 10). */}
-        <DiffTally counts={tally} onReview={openReviewPane} />
+        {/* Review opens M70's pane on the same edits (D66 item 10). Mounted
+        only with edits to show, so the chunk loads on first use. */}
+        {tally === undefined ? null : <DiffTally counts={tally} onReview={openReviewPane} />}
         {state.git.form === undefined &&
         state.git.state.worktree === undefined &&
         state.git.state.pullRequest === undefined &&
@@ -3041,7 +3103,10 @@ export function App({
             onClose={onCloseSchedulesSurface}
           />
         )}
-        <TodoPanel items={state.todos} isInert={isModalOpen} onOpenInTab={onOpenTasksTab} />
+        {/* Mounted only with tasks to show, so the chunk loads on first use. */}
+        {state.todos.length === 0 ? null : (
+          <TodoPanel items={state.todos} isInert={isModalOpen} onOpenInTab={onOpenTasksTab} />
+        )}
         {isBodyGated ? null : (
           <AttentionDock
             waiting={waiting}

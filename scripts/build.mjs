@@ -215,6 +215,8 @@ const ACP_QUESTIONS_ENTRY = 'src/acp/questionDeferralEntry.ts'
 const ACP_QUESTIONS_OUTFILE = 'dist/acpQuestions.js'
 const RUNTIME_QUESTIONS_ENTRY = 'src/runtime/questions/questionRegistryEntry.ts'
 const RUNTIME_QUESTIONS_OUTFILE = 'dist/runtimeQuestions.js'
+const PLAYBOOK_ENTRY = 'src/runtime/playbook/playbookEntry.ts'
+const PLAYBOOK_OUTFILE = 'dist/acpPlaybook.js'
 const INTEGRATION_TEST_DIR = 'test/integration'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
 // M95 (PLAN.md D74): exact catalogue values, with no provider runtime logic.
@@ -710,6 +712,11 @@ const scheduleBackgroundOptions = {
   outfile: SCHEDULE_BACKGROUND_OUTFILE,
   target: AGENT_NODE_TARGET,
 }
+const playbookOptions = {
+  ...acpQuestionsOptions,
+  entryPoints: [PLAYBOOK_ENTRY],
+  outfile: PLAYBOOK_OUTFILE,
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -1091,6 +1098,7 @@ if (isWatch) {
   const acpQuestions = esbuild.build(acpQuestionsOptions)
   const runtimeQuestions = esbuild.build(runtimeQuestionsOptions)
   const fontInstall = esbuild.build(fontInstallOptions)
+  const playbook = esbuild.build(playbookOptions)
   const builds = [
     ...Object.values(shipped),
     acp,
@@ -1098,6 +1106,7 @@ if (isWatch) {
     acpQuestions,
     runtimeQuestions,
     fontInstall,
+    playbook,
   ]
   if (!isProduction) {
     builds.push(esbuild.build(integrationTestOptions))
@@ -1121,6 +1130,7 @@ if (isWatch) {
     writeFileSync(path.join(ACP_METAFILE_DIR, 'headless.json'), JSON.stringify(headlessMetafile))
     const { metafile: questionsMetafile } = await acpQuestions
     const { metafile: runtimeQuestionsMetafile } = await runtimeQuestions
+    const { metafile: playbookMetafile } = await playbook
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'runtimeQuestions.json'),
       JSON.stringify(runtimeQuestionsMetafile, null, 2),
@@ -1129,9 +1139,11 @@ if (isWatch) {
       path.join(ACP_METAFILE_DIR, 'acpQuestions.json'),
       JSON.stringify(questionsMetafile),
     )
+    writeFileSync(path.join(ACP_METAFILE_DIR, 'acpPlaybook.json'), JSON.stringify(playbookMetafile))
   }
   console.log('bundle sizes:')
   reportSize(ACP_QUESTIONS_OUTFILE)
+  reportSize(PLAYBOOK_OUTFILE)
   reportSize(HOST_OUTFILE)
   reportSize(CONVERSATION_OUTFILE)
   reportSize(TAB_OUTFILE)

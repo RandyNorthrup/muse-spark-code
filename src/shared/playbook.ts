@@ -285,6 +285,11 @@ export const playbookRecordSchema = z.discriminatedUnion('kind', [
       actor: z.enum(['lead', 'owner']),
       reason,
       at: timestamp,
+      // The residual instance this acceptance covers: its safety rationale,
+      // follow-up and module. Records written before the binding carry no
+      // evidence and cover only same-name residuals answered (published)
+      // before them, never a later answer under a reused name.
+      evidence: z.optional(z.strictObject({ whySafe: reason, followUp: reason, moduleId: id })),
     }),
   }),
 ])

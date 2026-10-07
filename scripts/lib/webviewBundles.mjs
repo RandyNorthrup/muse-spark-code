@@ -114,8 +114,9 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     budgetKiB: 25,
   },
   ...[
-    'EffortSlider',
     'ToolBodies',
+    // INT0170B: 13.5 KiB measured +15%, rounded to the existing 25 KiB scale.
+    'ToolRow',
     'ReviewFindings',
     'HistoryPromptRow',
     'SignIn',
@@ -197,6 +198,7 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
       'src/webview/playbook/PlaybookPanel.tsx',
       'src/webview/playbook/PlaybookRows.tsx',
       'src/webview/playbook/PlaybookMap.tsx',
+      'src/webview/playbook/DeferredPlaybook.tsx',
     ],
     budgetKiB: 25,
   },
@@ -204,8 +206,22 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
   // measured, plus 15%, rounded up to 25 KiB (PLAN.md D6).
   {
     name: 'schedule surface',
-    entries: ['src/webview/schedules/ScheduleSurfaceView.tsx'],
+    entries: ['src/webview/schedules/ScheduleSurfaceView.tsx', 'src/webview/schedules/channel.ts'],
     budgetKiB: 50,
+  },
+  // FIXM116I: the startup diet's on-demand overlays (measured 5.5 KiB
+  // unregistered; +15% rounded up to 10 KiB). The chat's first paint keeps
+  // none of them: composer menus, edit totals, task list, effort control.
+  {
+    name: 'deferred overlays',
+    entries: [
+      'src/webview/components/SlashMenu.tsx',
+      'src/webview/components/MentionMenu.tsx',
+      'src/webview/components/DiffTally.tsx',
+      'src/webview/components/TodoPanel.tsx',
+      'src/webview/components/EffortSlider.tsx',
+    ],
+    budgetKiB: 10,
   },
 ]
 

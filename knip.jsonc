@@ -106,6 +106,8 @@
     // M112 A: same-build ACP question factory, loaded by path on first use.
     "src/acp/questionDeferralEntry.ts",
     "src/runtime/questions/questionRegistryEntry.ts",
+    // FIXM116I: /playbook's journal bundle, loaded by path on first use.
+    "src/runtime/playbook/playbookEntry.ts",
     "src/core/questions/deferralEntry.ts",
     "src/runtime/fonts/fontsEntry.ts",
     "src/runtime/schedules/backgroundEntry.ts",

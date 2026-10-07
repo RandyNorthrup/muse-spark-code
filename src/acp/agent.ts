@@ -15,7 +15,7 @@ import type { UsageAdapter } from '../runtime/usage/usageAdapter'
 import { compactReference } from '../shared/cliCommands'
 import type { AcpSchedulePort } from './schedules'
 import path from 'node:path'
-import { acpPlaybook } from './playbook'
+import { type AcpPlaybookBundle, acpPlaybook } from './playbook'
 import type { PlaybookSurfacePort } from '../runtime/playbook/command'
 import {
   agent as acpAgent,
@@ -167,6 +167,8 @@ export interface AcpAgentDeps {
   /** I binds P's durable, authorized workspace/team adapter. */
   readonly playbookFor?: (cwd: string, sessionId: string) => PlaybookSurfacePort
   readonly schedules?: AcpSchedulePort
+  /** I binds P's local /playbook parsing and rendering (the journal bundle). */
+  readonly playbookBundle?: () => AcpPlaybookBundle
   readonly backend: AcpBackend
   readonly version: string
   readonly options: AcpAgentOptions
@@ -1187,8 +1189,16 @@ class AcpSession {
     let queued: readonly TurnPart[]
     let local: Awaited<ReturnType<typeof acpPlaybook>>
     try {
-      local = await acpPlaybook(blocks, () => this.deps.playbookFor?.(this.cwd, this.sessionId))
-      await this.announceCommands()
+      local = await acpPlaybook(
+        blocks,
+        () => this.deps.playbookFor?.(this.cwd, this.sessionId),
+        () => {
+          const bundle = this.deps.playbookBundle?.()
+          if (bundle === undefined) throw new Error(UI_TEXT.playbookUnavailable)
+          return bundle
+        },
+      )
+      if (local === undefined) await this.announceCommands()
       if (/^\/schedule(?:\s|$)/.test(parsed.displayText)) {
         const result =
           this.deps.schedules === undefined || !this.isScheduleHostAvailable
@@ -1260,6 +1270,10 @@ class AcpSession {
       return 'cancelled'
     }
     if (local !== undefined) {
+      // The local command consumed no model turn, so the leased answers are
+      // restored: the next prompt re-leases them instead of failing on the
+      // outstanding lease (and a restart keeps them durable).
+      await this.questionRegistry?.acknowledgeQueued('notTaken')
       this.send({
         sessionUpdate: 'agent_message_chunk',
         content: { type: 'text', text: local.text },

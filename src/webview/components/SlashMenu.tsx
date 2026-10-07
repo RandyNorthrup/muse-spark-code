@@ -6,19 +6,13 @@
 import { UI_TEXT } from '../../shared/constants'
 import type { SlashCommand } from '../../shared/slashCommands'
 import { MenuOption } from './MenuOption'
+import { SLASH_LISTBOX_ID, slashOptionId } from './menuIds'
 
 export interface SlashMenuProps {
   readonly items: readonly SlashCommand[]
   readonly activeIndex: number
   readonly onSelect: (command: SlashCommand) => void
   readonly onHover: (index: number) => void
-}
-
-export const SLASH_LISTBOX_ID = 'slash-listbox'
-export const SLASH_OPTION_ID_PREFIX = 'slash-option-'
-
-export function slashOptionId(index: number): string {
-  return `${SLASH_OPTION_ID_PREFIX}${String(index)}`
 }
 
 export function SlashMenu({ items, activeIndex, onSelect, onHover }: SlashMenuProps) {

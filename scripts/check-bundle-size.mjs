@@ -27,6 +27,9 @@ const BUDGETS = [
   { path: 'dist/reportingPanel.js', budgetKiB: 50 },
   // M112 A: question forms, commands and late-answer admission, loaded on first use.
   { path: 'dist/acpQuestions.js', budgetKiB: 25 },
+  // FIXM116I: /playbook's journal-backed surface (70.9 KiB when split out;
+  // +15% rounded up to 100 KiB), loaded by the agent and the CLI on first use.
+  { path: 'dist/acpPlaybook.js', budgetKiB: 100 },
   { path: 'dist/runtimeQuestions.js', budgetKiB: 25 },
   { path: 'dist/questionNotes.js', budgetKiB: 25 },
   { path: 'dist/extension.js', budgetKiB: 600 },

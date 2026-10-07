@@ -1,5 +1,4 @@
 import type { PromptLibraryProps } from '../prompts/PromptLibrary'
-import { deferred } from './DeferredSurface'
 import { webviewKey } from '../../shared/keybindings'
 // The prompt box: textarea with Claude-Code key semantics (Enter sends,
 // Shift+Enter newline, optional Ctrl/Cmd+Enter-to-send, Shift+Tab cycles the
@@ -83,13 +82,26 @@ import {
   SlashIcon,
   StopIcon,
 } from './icons'
-import { MENTION_OPTION_ID_PREFIX, MentionMenu, mentionOptionId } from './MentionMenu'
+import { deferred } from './DeferredSurface'
+import { MENTION_OPTION_ID_PREFIX, mentionOptionId } from './menuIds'
 import { modeIcon } from './modeIcons'
 import type { PaletteKeys } from './Palette'
 import type { MenuEntry } from './PopoverMenu'
 import { PALETTE_LISTBOX_ID } from '../../shared/constants'
 import { retrySurface } from '../surfaceRetry'
-import { SLASH_LISTBOX_ID, SLASH_OPTION_ID_PREFIX, SlashMenu, slashOptionId } from './SlashMenu'
+import { SLASH_LISTBOX_ID, SLASH_OPTION_ID_PREFIX, slashOptionId } from './menuIds'
+
+// The completion menus load on first open: keyboard handling stays in the
+// composer (the textarea keeps focus), so the boundary never takes it.
+const SlashMenu = deferred(async () => {
+  const { SlashMenu } = await import('./SlashMenu')
+  return { default: SlashMenu }
+}, false)
+
+const MentionMenu = deferred(async () => {
+  const { MentionMenu } = await import('./MentionMenu')
+  return { default: MentionMenu }
+}, false)
 
 export interface ImageData {
   readonly name: string
@@ -1062,6 +1074,7 @@ export function Composer(props: ComposerProps) {
       ) : null}
       {slashMenu === 'commands' && slashLoadState === 'ready' ? (
         <SlashMenu
+          keepFocus
           items={slashItems}
           activeIndex={activeSlash}
           onSelect={(command) => {
@@ -1072,6 +1085,7 @@ export function Composer(props: ComposerProps) {
       ) : null}
       {isMentionOpen ? (
         <MentionMenu
+          keepFocus
           items={mentionItems}
           activeIndex={mentionIndex}
           onSelect={selectMention}

@@ -19450,6 +19450,8 @@ as required by the rig brief; do not run full quality or merge in this lane.
 
 ### INT0170B — Complete 0.17.0 integration certification (2026-10-07)
 
+First-paint repair: load complete tool rows on their first rendered tool, using DeferredSurface for accessible loading, failure and retry. Give that new closure its own measured D6 budget; retain the 733.8 KiB startup and 32.1 KiB original-deferred ratchets. Schedule fallback bodies themselves retain dynamic imports.
+
 Integration decisions: preserve M95/M96/M102 provider resolution, usage recording, compaction cache metadata and the M101 stable ordinary prefix while adding M115 fire authority. Scheduled requests use the local fire date; their compaction summaries record the exact instructions and input delivered. Schedule settlements load through the existing deferred tool-body closure and its unchanged 25 KiB cap. The shared wire entry also carries scheduleProtocol so validation is shared rather than duplicated in conversation.js.
 
 **Status 2026-10-07: building.** The rig brief authorizes five ordered no-ff merges:
@@ -43989,6 +43991,8 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**INT0170B startup ratchet stop (2026-10-07).** The shared stop rule applies after two unsuccessful repairs of the merged first-paint ratchet: lazy tool rows recover about 13 KiB; first-use schedule channel recovers another KiB. The owning regression still sees 751,494 bytes against 751,411.2 (733.8 KiB), and the legacy deferred inventory is 32.9 KiB against its 32.1 KiB review ratchet because diff.ts is newly deferred and shared with ReviewPane. The 900/50 KiB hard build caps pass. Neither ratchet is relaxed; this path remains blocked for owner review while other requested repairs continue.
 
 **INT0170 final residuals (2026-10-07).** Exact committed-tree verification
 is complete and red. Source commit `a30efbad` and its command receipts are in

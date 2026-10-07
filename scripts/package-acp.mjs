@@ -37,6 +37,7 @@ const BUNDLES = [
   'headless.js',
   'sharingRuntime.js',
   'acpQuestions.js',
+  'acpPlaybook.js',
   'runtimeQuestions.js',
   'questionNotes.js',
   'fontsInstall.js',

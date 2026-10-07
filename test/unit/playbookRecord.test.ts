@@ -100,6 +100,35 @@ describe('M116 durable record', () => {
     ).toBe('refuse')
   })
 
+  it('opens the journal inside a submodule whose git directory has no commondir', () => {
+    // Submodules and `--separate-git-dir` repositories point at their git
+    // directory with a `.git` file, but only linked worktrees carry a
+    // mandatory `commondir`. Real git writes the pointer with forward
+    // slashes on every platform; the journal resolves it as given.
+    const { directory } = diskJournal()
+    const data = path.join(directory, 'data')
+    const repo = path.join(directory, 'repo')
+    const gitDir = path.join(repo, '.git', 'modules', 'sub')
+    mkdirSync(gitDir, { recursive: true })
+    const sub = path.join(repo, 'sub')
+    mkdirSync(sub, { recursive: true })
+    writeFileSync(path.join(sub, '.git'), 'gitdir: ../.git/modules/sub\n')
+    const submodule = new FilePlaybookJournal(data, sub)
+    expect(submodule.read()).toEqual([])
+    // The superproject's own `.git` directory (already created above with
+    // the modules) names a different workspace, so its journal differs.
+    expect(new FilePlaybookJournal(data, repo).file).not.toBe(submodule.file)
+    // A present-but-empty `commondir` is still refused: only a missing one
+    // means the git directory is its own common directory.
+    const otherDir = path.join(repo, '.git', 'modules', 'other')
+    mkdirSync(otherDir, { recursive: true })
+    const otherSub = path.join(repo, 'other')
+    mkdirSync(otherSub, { recursive: true })
+    writeFileSync(path.join(otherSub, '.git'), 'gitdir: ../.git/modules/other\n')
+    writeFileSync(path.join(otherDir, 'commondir'), '\n')
+    expect(() => new FilePlaybookJournal(data, otherSub)).toThrow()
+  })
+
   it('preserves the exact evidence inherited at a split when the parent answers later', () => {
     const fixture = policyFixture()
     completeReview(fixture.policy, MODULE, reviewBlock(), REVIEW_AGENTS)

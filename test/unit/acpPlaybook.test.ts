@@ -1,13 +1,21 @@
 import { describe, expect, it, vi } from 'vitest'
 import { acpPlaybook } from '../../src/acp/playbook'
 import { UI_TEXT } from '../../src/shared/l10n/text'
+import { parsePlaybookCommand, runPlaybookCommand } from '../../src/runtime/playbook/command'
 import { surfacePort } from './playbookSurfaceFixtures'
+
+// The journal bundle's slice, straight from its sources: parsing and
+// rendering without the file-backed surface.
+const bundle = { parsePlaybookCommand, runPlaybookCommand }
+const loadBundle = () => bundle
 
 describe('ACP /playbook local command', () => {
   it('renders status, record and settings through the same port as the CLI', async () => {
     for (const view of ['', 'status', 'record', 'settings']) {
-      const result = await acpPlaybook([{ type: 'text', text: `/playbook ${view}` }], () =>
-        surfacePort(),
+      const result = await acpPlaybook(
+        [{ type: 'text', text: `/playbook ${view}` }],
+        () => surfacePort(),
+        loadBundle,
       )
       expect(result?.ok).toBe(true)
       expect(result?.text).not.toBe('')
@@ -18,6 +26,7 @@ describe('ACP /playbook local command', () => {
     const result = await acpPlaybook(
       [{ type: 'text', text: '/playbook settings offload off worker maintenance' }],
       () => port,
+      loadBundle,
     )
     expect(result?.ok).toBe(true)
     expect(port.snapshot().settings.rules.offload).toMatchObject({
@@ -32,7 +41,7 @@ describe('ACP /playbook local command', () => {
       '/playbook settings offload off',
       '/playbook settings patchRoundsMax 3',
     ]) {
-      expect(await acpPlaybook([{ type: 'text', text }], () => port)).toEqual({
+      expect(await acpPlaybook([{ type: 'text', text }], () => port, loadBundle)).toEqual({
         ok: false,
         text: UI_TEXT.playbookCommandUsage,
       })
@@ -44,7 +53,7 @@ describe('ACP /playbook local command', () => {
       throw new Error('private detail')
     })
     for (const text of ['hello', '/playbooks', 'please /playbook'])
-      expect(await acpPlaybook([{ type: 'text', text }], factory)).toBeUndefined()
+      expect(await acpPlaybook([{ type: 'text', text }], factory, loadBundle)).toBeUndefined()
     expect(factory).not.toHaveBeenCalled()
     expect(
       await acpPlaybook(
@@ -53,16 +62,31 @@ describe('ACP /playbook local command', () => {
           { type: 'text', text: 'attached context' },
         ],
         factory,
+        loadBundle,
       ),
     ).toEqual({ ok: false, text: UI_TEXT.playbookCommandUsage })
     expect(factory).not.toHaveBeenCalled()
-    expect(await acpPlaybook([{ type: 'text', text: '/playbook' }], factory)).toEqual({
+    expect(await acpPlaybook([{ type: 'text', text: '/playbook' }], factory, loadBundle)).toEqual({
       ok: false,
       text: UI_TEXT.playbookUnavailable,
     })
-    expect(await acpPlaybook([{ type: 'text', text: '/playbook' }], () => undefined)).toEqual({
+    expect(
+      await acpPlaybook([{ type: 'text', text: '/playbook' }], () => undefined, loadBundle),
+    ).toEqual({
       ok: false,
       text: UI_TEXT.playbookUnavailable,
     })
+  })
+  it('answers unavailable when the journal bundle cannot load', async () => {
+    const port = surfacePort()
+    expect(
+      await acpPlaybook(
+        [{ type: 'text', text: '/playbook status' }],
+        () => port,
+        () => {
+          throw new Error(UI_TEXT.playbookUnavailable)
+        },
+      ),
+    ).toEqual({ ok: false, text: UI_TEXT.playbookUnavailable })
   })
 })

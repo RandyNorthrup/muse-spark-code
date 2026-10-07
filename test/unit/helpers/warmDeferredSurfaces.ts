@@ -31,6 +31,8 @@ export async function warmDeferredSurfaces(): Promise<void> {
     import('../../../src/webview/components/HistoryPromptRow'),
     import('../../../src/webview/components/ReviewFindings'),
     import('../../../src/webview/components/ToolBodies'),
+    import('../../../src/webview/components/ToolRow'),
+    import('../../../src/webview/playbook/DeferredPlaybook'),
     import('../../../src/webview/components/LegalReport'),
     import('../../../src/webview/components/PlanUi'),
     import('../../../src/webview/components/ReviewCommentForm'),
