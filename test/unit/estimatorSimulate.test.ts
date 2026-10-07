@@ -8,6 +8,7 @@ import {
   estimateDurationMap,
   type EstimateDurationModel,
 } from '../../src/core/estimator/simulate'
+import { prepareEstimateSchedule } from '../../src/core/estimator/schedule'
 import { findEstimateBottleneck } from '../../src/core/estimator/bottleneck'
 import { estimateLaneSchema } from '../../src/shared/estimate'
 import {
@@ -114,6 +115,45 @@ describe('M117 seeded duration simulation', () => {
     })
     expect(varied.schedule[0]!.machineId).toBe('mac')
     expect(varied.p50Hours).toBe(0.5)
+  })
+
+  it('evidences sampled durations by their model and round-trips them through scheduling', () => {
+    const fixed = simulateEstimate(simulationInputs([scheduleLane('A')]), fixedDurationPort)
+    expect(fixed.durationSamples).toHaveLength(1)
+    expect(fixed.durationSamples[0]).toMatchObject({
+      laneId: 'A',
+      evidence: { unit: 'hour', source: 'plan', basis: 'assumption', samples: 0 },
+    })
+    expect(fixed.durationSamples[0]!.evidence.hours).toBe(fixed.durationSamples[0]!.hours)
+    const fitted = simulateEstimate(simulationInputs([scheduleLane('A')]), {
+      model: (lane, classId) => ({
+        kind: 'lognormal',
+        calibration: {
+          kind: lane.kind,
+          machineClassId: classId,
+          samples: 20,
+          basis: 'fitted',
+          mu: 0,
+          sigma: 0.5,
+          reviewRoundRate: 0,
+          redesignRisk: 0,
+        },
+        reviewHours: amount(0),
+        redesignHours: amount(0),
+      }),
+    })
+    expect(fitted.durationSamples[0]!.evidence).toMatchObject({
+      unit: 'hour',
+      source: 'sample',
+      basis: 'calibration',
+      samples: 20,
+    })
+    expect(fitted.durationSamples[0]!.evidence.hours).toBe(fitted.durationSamples[0]!.hours)
+    const map = estimateDurationMap(fitted.durationSamples)
+    expect(map.get('A')!.get('linux-x64-builder')).toBe(fitted.durationSamples[0]!.evidence)
+    expect(prepareEstimateSchedule([scheduleLane('A')], scheduleFleet()).run(map).finishHours).toBe(
+      fitted.p50Hours,
+    )
   })
 
   it('counts review rounds once per lane and redesigns once per module at the third strike', () => {

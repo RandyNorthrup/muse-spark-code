@@ -259,6 +259,39 @@ describe('M117 estimator bundle assembly', () => {
     expect(disclosure('reviewRoundRate')).toMatchObject({ basis: 'assumption', samples: 0 })
     expect(disclosure('redesignRisk')).toMatchObject({ basis: 'assumption', samples: 0 })
   })
+  it('qualifies forecast dates with each setup trial sampled-duration evidence', async () => {
+    const source = ports()
+    source.history = () =>
+      Promise.resolve(
+        (['core', 'contracts'] as const).flatMap((kind) =>
+          Array.from({ length: 20 }, (_, index) => ({
+            ...fakeHistoryRecord(`M117:${kind}-${String(index)}`),
+            kind,
+            review: { status: 'unknown' },
+          })),
+        ),
+      )
+    const result = await createEstimatorRun(source, EN, BASE_LOCALE).estimate(
+      { ...request(), fleet: 'minimum', deadline: '2026-10-09T12:00:00.000Z' },
+      new AbortController().signal,
+    )
+    expect(result.setups.length).toBeGreaterThan(1)
+    const paths = [
+      '/p50',
+      '/p90',
+      ...result.setups.flatMap((_, index) => [
+        `/setups/${String(index)}/p50`,
+        `/setups/${String(index)}/p90`,
+      ]),
+    ]
+    expect(paths.length).toBeGreaterThan(2)
+    for (const path of paths)
+      expect(result.disclosures.find((row) => row.path === path)).toMatchObject({
+        basis: 'calibration',
+        samples: 20,
+      })
+    estimateSectionSchema.parse(result)
+  })
   it('names stale-base lanes as risks without pricing them', async () => {
     const source = ports()
     const aged = chainSnapshot()

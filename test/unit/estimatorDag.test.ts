@@ -15,6 +15,8 @@ import dags from '../fixtures/estimator/dags.json'
 import repository from '../fixtures/estimator/repository-history.json'
 import { ESTIMATOR_AS_OF } from './helpers/estimator/fakes'
 import { goalChain, goalLane, goalSnapshot } from './helpers/estimatorGoalFixtures'
+import { planHours, sampledHours } from './helpers/estimatorScheduleFixtures'
+import { type EstimateDurationEvidence } from '../../src/core/estimator/dag'
 
 async function deterministicRun(): Promise<string> {
   const snapshot = goalSnapshot()
@@ -43,7 +45,7 @@ describe('M117 dependency DAG', () => {
             (Date.parse(entry.end) - Date.parse(ESTIMATOR_AS_OF)) / 3_600_000,
           )
         }
-        expect(node.latestFinishHours - node.latestStartHours).toBe(node.durationHours)
+        expect(node.latestFinishHours - node.latestStartHours).toBe(node.duration.hours)
         expect(node.slackHours).toBe(node.latestStartHours - node.earliestStartHours)
         expect(node.slackHours).toBeGreaterThanOrEqual(0)
         const lane = lanes.find((lane) => lane.id === node.laneId)!
@@ -149,14 +151,14 @@ describe('M117 dependency DAG', () => {
     ])
     expect(dag.criticalPath).toEqual(['B', 'C'])
     expect(dag.criticalPathHours).toBe(1.5)
-    expect(dag.nodes[0]).toMatchObject({ durationHours: 0, critical: false })
+    expect(dag.nodes[0]).toMatchObject({ duration: { hours: 0 }, critical: false })
   })
 
   it('honors an exact sampled remaining-duration map for scheduling simulations without mutation', () => {
     const lanes = [goalLane('A'), goalLane('B', { dependencies: ['A'] })]
     const durations = new Map([
-      ['A', 4],
-      ['B', 2],
+      ['A', planHours(4)],
+      ['B', planHours(2)],
     ])
     const before = JSON.stringify(lanes)
     const dag = buildEstimateDag(lanes, durations)
@@ -164,9 +166,62 @@ describe('M117 dependency DAG', () => {
     expect(dag.nodes[1]!.earliestStartHours).toBe(4)
     expect(JSON.stringify(lanes)).toBe(before)
     expect([...durations]).toEqual([
-      ['A', 4],
-      ['B', 2],
+      ['A', planHours(4)],
+      ['B', planHours(2)],
     ])
+  })
+
+  it('carries per-node duration evidence so assumptions never equal calibration', () => {
+    const lanes = [goalLane('A'), goalLane('B', { dependencies: ['A'] })]
+    const assumed = buildEstimateDag(
+      lanes,
+      new Map([
+        ['A', planHours(8)],
+        ['B', planHours(8)],
+      ]),
+    )
+    const calibrated = buildEstimateDag(
+      lanes,
+      new Map([
+        ['A', sampledHours(8, 20)],
+        ['B', sampledHours(8, 20)],
+      ]),
+    )
+    expect(assumed.criticalPathHours).toBe(16)
+    expect(calibrated.criticalPathHours).toBe(16)
+    expect(assumed.nodes[0]!.duration).toEqual({
+      hours: 8,
+      unit: 'hour',
+      source: 'plan',
+      basis: 'assumption',
+      samples: 0,
+    })
+    expect(calibrated.nodes[0]!.duration).toEqual({
+      hours: 8,
+      unit: 'hour',
+      source: 'sample',
+      basis: 'calibration',
+      samples: 20,
+    })
+    expect(assumed.nodes[0]!.duration).not.toEqual(calibrated.nodes[0]!.duration)
+    expect(Object.isFrozen(calibrated.nodes[0]!.duration)).toBe(true)
+    const planned = buildEstimateDag(lanes)
+    expect(planned.nodes[0]!.duration).toEqual({
+      hours: 1,
+      unit: 'hour',
+      source: 'plan',
+      basis: 'assumption',
+      samples: 0,
+    })
+    expect(() =>
+      buildEstimateDag(
+        lanes,
+        new Map([
+          ['A', planHours(1)],
+          ['B', { ...planHours(2), samples: 3 }],
+        ]),
+      ),
+    ).toThrow('invalid-duration-evidence')
   })
 
   it('handles fractional durations without false slack on critical nodes', () => {
@@ -194,7 +249,7 @@ describe('M117 dependency DAG', () => {
     const dag = buildEstimateDag([goalLane('done', { state: 'merged' })])
     expect(dag.criticalPath).toEqual([])
     expect(dag.criticalPathHours).toBe(0)
-    expect(dag.nodes[0]).toMatchObject({ durationHours: 0, slackHours: 0, critical: false })
+    expect(dag.nodes[0]).toMatchObject({ duration: { hours: 0 }, slackHours: 0, critical: false })
   })
 
   it('rejects duplicate identities, missing prerequisites, self edges and cycles', () => {
@@ -218,30 +273,30 @@ describe('M117 dependency DAG', () => {
   })
 
   it.each([
-    new Map<string, number>(),
+    new Map<string, EstimateDurationEvidence>(),
     new Map([
-      ['A', 1],
-      ['extra', 1],
+      ['A', planHours(1)],
+      ['extra', planHours(1)],
     ]),
-    new Map([['other', 1]]),
+    new Map([['other', planHours(1)]]),
   ])('requires exact sampled-duration coverage %#', (durations) => {
     expect(() => buildEstimateDag([goalLane('A')], durations)).toThrow('duration-coverage')
   })
 
   it.each([NaN, Infinity, -1])('rejects invalid sampled duration %s', (duration) => {
-    expect(() => buildEstimateDag([goalLane('A')], new Map([['A', duration]]))).toThrow(
+    expect(() => buildEstimateDag([goalLane('A')], new Map([['A', planHours(duration)]]))).toThrow(
       'invalid-duration',
     )
   })
 
   it('never revives completed work or samples running work below its calibrated floor', () => {
     expect(() =>
-      buildEstimateDag([goalLane('A', { state: 'merged' })], new Map([['A', 1]])),
+      buildEstimateDag([goalLane('A', { state: 'merged' })], new Map([['A', planHours(1)]])),
     ).toThrow('merged-duration')
     expect(() =>
       buildEstimateDag(
         [goalLane('A', { state: 'running', minimumRemainingHours: 0.5 })],
-        new Map([['A', 0.1]]),
+        new Map([['A', planHours(0.1)]]),
       ),
     ).toThrow('minimum-duration')
   })

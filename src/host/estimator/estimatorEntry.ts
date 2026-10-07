@@ -44,6 +44,7 @@ import {
   estimateDurationMap,
   simulateEstimate,
   type EstimateDurationPort,
+  type EstimateDurationSample,
 } from '../../core/estimator/simulate'
 import { findEstimateBottleneck } from '../../core/estimator/bottleneck'
 import { recommendEstimate } from '../../core/estimator/recommend'
@@ -252,23 +253,37 @@ export function createEstimatorRun(
         fleet:
           recommendation.evaluations[selection.evaluation]?.fleet ?? refuse('missing-selection'),
       }))
+      // Each setup's dates are qualified by its own representative trial's
+      // sampled-duration evidence: calibration with the fit's samples, or a
+      // plan assumption. The fits only fit the models; the samples ran.
+      const setupSamples = new Map(
+        recommendation.selections.flatMap((selection) => {
+          const evaluation = recommendation.evaluations[selection.evaluation]
+          return evaluation?.forecast.status === 'feasible'
+            ? [[selection.kind, evaluation.forecast.simulation.durationSamples] as const]
+            : []
+        }),
+      )
       const dateEvidence = (
         fleet: typeof inputs.fleet,
         p50: string,
         p90: string,
+        samples: readonly EstimateDurationSample[],
       ): Omit<Disclosure, 'path'> => {
+        const evidence = new Map(
+          samples.map((sample) => [`${sample.laneId}:${sample.machineClassId}`, sample.evidence]),
+        )
         const models = inputs.lanes
           .filter((lane) => lane.state !== 'merged')
           .flatMap((lane) =>
             fleet.machines
               .filter((machine) => canEstimateMachineRun(lane, machine))
-              .map((machine) => fits.get(`${lane.kind}:${machine.classId}:`)),
+              .map((machine) => evidence.get(`${lane.id}:${machine.classId}`)),
           )
-        return models.length > 0 &&
-          models.every((fit) => fit?.evidence.durationParameters.basis === 'calibration')
+        return models.length > 0 && models.every((entry) => entry?.basis === 'calibration')
           ? {
               basis: 'calibration',
-              samples: Math.min(...models.map((fit) => fit?.calibration.samples ?? 0)),
+              samples: Math.min(...models.map((entry) => entry?.samples ?? 0)),
               uncertainty: { kind: 'time', earliest: p50, latest: p90 },
             }
           : { ...assumed }
@@ -311,7 +326,12 @@ export function createEstimatorRun(
             ? (setupFleets.find((row) => row.kind === setup.kind)?.fleet ?? selected.fleet)
             : selected.fleet
           disclosures.push({
-            ...dateEvidence(fleet, setup?.p50 ?? simulation.p50, setup?.p90 ?? simulation.p90),
+            ...dateEvidence(
+              fleet,
+              setup?.p50 ?? simulation.p50,
+              setup?.p90 ?? simulation.p90,
+              (setup && setupSamples.get(setup.kind)) ?? simulation.durationSamples,
+            ),
             path,
           })
           continue

@@ -2,8 +2,28 @@ import { type EstimateLane, type FleetSnapshot } from '../../../src/shared/estim
 import { fakeFleet } from './estimator/fakes'
 import { goalLane } from './estimatorGoalFixtures'
 import { type EstimateInputs } from '../../../src/shared/estimate'
+import {
+  planDurationEvidence,
+  type EstimateDurationEvidence,
+} from '../../../src/core/estimator/dag'
 import { type EstimateDurationPort } from '../../../src/core/estimator/simulate'
 import { ESTIMATOR_AS_OF } from './estimator/fakes'
+
+/** A plan duration with no measurement behind it. */
+export const planHours = (hours: number): EstimateDurationEvidence => planDurationEvidence(hours)
+
+/** A sampled duration: calibration with the fit's sample count, or a plan
+ * assumption when the model is an uncalibrated prior. */
+export function sampledHours(hours: number, samples = 0): EstimateDurationEvidence {
+  const evidence: EstimateDurationEvidence = {
+    hours,
+    unit: 'hour',
+    source: 'sample',
+    basis: samples === 0 ? 'assumption' : 'calibration',
+    samples,
+  }
+  return Object.freeze(evidence)
+}
 
 export const amount = (
   value: number,

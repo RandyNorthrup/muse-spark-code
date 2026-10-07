@@ -14,7 +14,7 @@ import {
   SECONDS_PER_MINUTE,
 } from '../../shared/constants'
 import { UI_TEXT, fill } from '../../shared/l10n/text'
-import { buildEstimateDag } from './dag'
+import { buildEstimateDag, isEstimateDurationEvidence, type EstimateDurationEvidence } from './dag'
 import { compareEstimateIds } from './goal'
 
 const HOUR_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE * MINUTES_PER_HOUR
@@ -46,7 +46,9 @@ export interface EstimateSchedule {
 }
 
 export interface EstimateScheduler {
-  run(durations?: ReadonlyMap<string, ReadonlyMap<string, number>>): EstimateSchedule
+  run(
+    durations?: ReadonlyMap<string, ReadonlyMap<string, EstimateDurationEvidence>>,
+  ): EstimateSchedule
 }
 
 /** Resource infeasibility is distinct from corrupt inputs and engine faults. */
@@ -211,7 +213,7 @@ export function prepareEstimateSchedule(
   )
   const machines = fleet.machines.toSorted((a, b) => compareEstimateIds(a.id, b.id))
   const classIds = new Set(machines.map((machine) => machine.classId))
-  const base = new Map(dag.nodes.map((node) => [node.laneId, node.durationHours]))
+  const base = new Map(dag.nodes.map((node) => [node.laneId, node.duration.hours]))
   const roles = new Map(fleet.roles.map((role) => [role.id, role]))
   const unknownLimits = new Set<string>()
   const renewalCache = new WeakMap<Window, number[]>()
@@ -551,14 +553,18 @@ export function prepareEstimateSchedule(
           const classes = durations.get(lane.id) ?? refuse('duration-coverage')
           for (const [classId, duration] of classes) {
             if (!classIds.has(classId)) refuse('duration-class')
-            if (!Number.isFinite(duration) || duration < 0) refuse('invalid-duration')
-            if (duration !== 0 && lane.state === 'merged') refuse('merged-duration')
-            if (lane.state === 'running' && duration < lane.minimumRemainingHours)
+            if (!isEstimateDurationEvidence(duration)) refuse('invalid-duration-evidence')
+            const hours = duration.hours
+            if (!Number.isFinite(hours) || hours < 0) refuse('invalid-duration')
+            if (hours !== 0 && lane.state === 'merged') refuse('merged-duration')
+            if (lane.state === 'running' && hours < lane.minimumRemainingHours)
               refuse('minimum-duration')
           }
         }
       const hours = (lane: EstimateLane, machine: Machine): number => {
-        const value = durations ? durations.get(lane.id)?.get(machine.classId) : base.get(lane.id)
+        const value = durations
+          ? durations.get(lane.id)?.get(machine.classId)?.hours
+          : base.get(lane.id)
         if (value === undefined) refuse('invalid-duration')
         return value
       }
