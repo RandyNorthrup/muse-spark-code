@@ -9,11 +9,17 @@ import { webviewDeferredBudgetGroups, webviewStartupOutputs } from './lib/webvie
 const BYTES_PER_KIB = 1024
 // M99: bound the generated notes independently of their ZIP compression.
 const WHATS_NEW_CONTENT_BUDGET_KIB = 40
+// FIXM112U: independently measured question closure +15%, rounded to 25 KiB.
+const QUESTION_UI_BUDGET_KIB = 25
 
 /**
  * @type {ReadonlyArray<{ path: string; budgetKiB: number }>}
  */
 const BUDGETS = [
+  // M112 A: question forms, commands and late-answer admission, loaded on first use.
+  { path: 'dist/acpQuestions.js', budgetKiB: 25 },
+  { path: 'dist/runtimeQuestions.js', budgetKiB: 25 },
+  { path: 'dist/questionNotes.js', budgetKiB: 25 },
   { path: 'dist/extension.js', budgetKiB: 600 },
   // ACTDIET: first chat surface; 216.0 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/conversation.js', budgetKiB: 250 },
@@ -139,12 +145,36 @@ const BUDGETS = [
   // What's New's page script (M99): it only passes clicks back to the host.
   // 0.7 KiB when made, plus 15%, rounded up to 25 KiB.
   { path: 'dist/webview/whatsNew.js', budgetKiB: 25 },
+  // HELPREF: an independent lazy page, sharing the caller's React and text.
+  { path: 'dist/webview/referencePage.js', budgetKiB: 50 },
+  { path: 'dist/reference.js', budgetKiB: 100 },
   // The ACP agent (M63, PLAN.md D62), a process of its own installed once,
   // never loaded by VS Code: the engine without the webview or the Model API
   // backend (dist/modelApi.js, M57), plus the ACP SDK and the classic zod it
   // imports (445.2 of 713.2 KiB when set, 257.6 of them zod's locales). The
   // measured size plus about 15 %, rounded up to 50 KiB (D6 amendment).
   { path: 'dist/acp.js', budgetKiB: 850 },
+]
+
+// DIET1: independently emitted optional surfaces, measured on main, each plus
+// 15%, rounded up to 25 KiB. Closure caps also charge their shared imports.
+const WEBVIEW_SURFACE_BUDGETS = [
+  // Sign-in: 3.9 KiB + 15%, rounded to 25 KiB.
+  { entry: 'SignIn', budgetKiB: 25 },
+  // Goal panel: 3.2 KiB by the same rule.
+  { entry: 'GoalPanel', budgetKiB: 25 },
+  // Schedule panel: 1.6 KiB by the same rule.
+  { entry: 'SchedulePanel', budgetKiB: 25 },
+  // Palette: 5.4 KiB (7.5 KiB closure) by the same rule.
+  { entry: 'Palette', budgetKiB: 25 },
+  // Popover menu: 2.0 KiB by the same rule.
+  { entry: 'PopoverMenu', budgetKiB: 25 },
+  // Radial menu body: 4.9 KiB by the same rule.
+  { entry: 'GooeyMenuContent', budgetKiB: 25 },
+  // Account & usage body: 12.7 KiB by the same rule.
+  { entry: 'UsageDialogContent', budgetKiB: 25 },
+  // Agent map body: 8.0 KiB by the same rule.
+  { entry: 'AgentMapContent', budgetKiB: 25 },
 ]
 
 let hasFailure = false
@@ -170,7 +200,20 @@ for (const { path, budgetKiB } of BUDGETS) {
 // Each new lazy closure has its own cap; old surfaces and unclassified
 // deferred helpers stay under TRAIN13B's unchanged aggregate 50 KiB cap.
 const webview = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
-for (const { name, budgetKiB, outputs } of webviewDeferredBudgetGroups(webview)) {
+for (const { entry, budgetKiB } of WEBVIEW_SURFACE_BUDGETS) {
+  for (const [file, output] of Object.entries(webview.outputs)) {
+    if (output.entryPoint?.replaceAll('\\', '/') !== `src/webview/components/${entry}.tsx`) continue
+    const sizeKiB = statSync(file).size / BYTES_PER_KIB
+    if (sizeKiB > budgetKiB) hasFailure = true
+    console.log(
+      `${sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'} ${file} (${entry}): ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
+    )
+  }
+}
+for (const { name, budgetKiB, outputs } of webviewDeferredBudgetGroups(
+  webview,
+  QUESTION_UI_BUDGET_KIB,
+)) {
   const sizeKiB = outputs.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
   if (sizeKiB > budgetKiB) hasFailure = true
   console.log(

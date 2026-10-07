@@ -1,3 +1,4 @@
+import { webviewKey } from '../../shared/keybindings'
 // The History dialog (M6): the workspace's stored sessions grouped Today /
 // Yesterday / Previous 7 days / Older, a search box over titles and
 // branches, Archive / Unarchive per row and a "Show archived" switch.
@@ -17,13 +18,12 @@ import {
   type SessionRow,
 } from '../../shared/sessions'
 import { scrollRowIntoView } from '../listNavigation'
-import { useRowMenu, type GooeyItem } from './GooeyMenu'
-import { CloseIcon, HistoryIcon } from './icons'
+import { deferred } from './DeferredSurface'
+import { HistoryIcon } from './icons'
 import { ListBody } from './ListBody'
 import {
   PaletteList,
   PaletteSearchInput,
-  PaletteSessionRow,
   usePaletteDismiss,
   usePaletteNavigation,
 } from './paletteDialog'
@@ -31,6 +31,7 @@ import {
 export interface HistoryDialogProps {
   /** undefined while the host has not answered `listSessions`. */
   readonly sessions: readonly SessionRow[] | undefined
+  readonly openQuestionCounts?: Readonly<Record<string, number>>
   readonly archivedIds: readonly string[]
   readonly currentSessionId: string | undefined
   readonly archiveAfterDays: number
@@ -43,7 +44,6 @@ export interface HistoryDialogProps {
 
 const ROW_ID_PREFIX = 'history-row-'
 // Archives or restores the highlighted row from the search box (M37).
-const ARCHIVE_KEY = 'Delete'
 
 /** What the list renders: group titles and numbered rows, in order. */
 export type HistoryEntry =
@@ -67,94 +67,22 @@ export function layoutHistory(groups: readonly SessionGroup[]): readonly History
   return entries
 }
 
-function metaOf(row: SessionRow, nowMs: number): string {
-  const parts = [
+function metaOf(row: SessionRow, nowMs: number, openCount = 0): string {
+  return [
     relativeTime(row.lastActivityAt ?? row.updatedAt, nowMs),
     plural(UI_TEXT.historyTurns, row.turnCount),
+    row.branch,
+    row.isFork ? UI_TEXT.historyForkMark : undefined,
+    openCount > 0 ? plural(UI_TEXT.openQuestionsCount, openCount) : undefined,
   ]
-  if (row.branch !== undefined) {
-    parts.push(row.branch)
-  }
-  if (row.isFork) {
-    parts.push(UI_TEXT.historyForkMark)
-  }
-  return parts.join(' · ')
+    .filter((part) => part !== undefined)
+    .join(' · ')
 }
 
-function RowView({
-  row,
-  isActive,
-  isCurrent,
-  isRowArchived,
-  meta,
-  onHover,
-  onResume,
-  onSetArchived,
-  onSavePrompt,
-}: {
-  readonly onSavePrompt: ((sessionId: string) => void) | undefined
-  readonly row: SessionRow
-  readonly isActive: boolean
-  readonly isCurrent: boolean
-  readonly isRowArchived: boolean
-  readonly meta: string
-  readonly onHover: () => void
-  readonly onResume: () => void
-  readonly onSetArchived: (isArchived: boolean) => void
-}) {
-  const items: GooeyItem[] =
-    onSavePrompt === undefined
-      ? []
-      : [
-          {
-            id: 'save',
-            label: UI_TEXT.promptSave,
-            icon: <HistoryIcon />,
-            onSelect: () => {
-              menu.close()
-              onSavePrompt(row.sessionId)
-            },
-          },
-        ]
-  const menu = useRowMenu(items, row.title)
-  const archiveLabel = isRowArchived ? UI_TEXT.historyUnarchive : UI_TEXT.historyArchive
-  return (
-    <PaletteSessionRow
-      rowProps={menu.rowProps}
-      rowId={`${ROW_ID_PREFIX}${row.sessionId}`}
-      title={row.title}
-      isActive={isActive}
-      isCurrent={isCurrent}
-      meta={meta}
-      // The row is the control: Delete (un)archives it from the search box.
-      keyShortcuts={ARCHIVE_KEY}
-      keyDescription={archiveLabel}
-      action={
-        <>
-          {menu.menu}
-          {/* For the mouse only: a button inside an option is still reachable by
-              assistive technology (WCAG 4.1.2, M37); the keyboard uses Delete. */}
-          <span
-            className="icon-button history-archive"
-            title={`${archiveLabel} (${ARCHIVE_KEY})`}
-            aria-hidden="true"
-            onMouseDown={(event) => {
-              event.preventDefault()
-            }}
-            onClick={(event) => {
-              event.stopPropagation()
-              onSetArchived(!isRowArchived)
-            }}
-          >
-            <CloseIcon />
-          </span>
-        </>
-      }
-      onHover={onHover}
-      onResume={onResume}
-    />
-  )
-}
+const RowView = deferred(async () => {
+  const module = await import('./HistoryPromptRow')
+  return { default: module.HistoryPromptRow }
+})
 
 export function HistoryDialog(props: HistoryDialogProps) {
   const { sessions, archivedIds, currentSessionId, archiveAfterDays, now } = props
@@ -180,10 +108,7 @@ export function HistoryDialog(props: HistoryDialogProps) {
   )
   // Titles and rows in display order; rows also numbered for the keyboard.
   const entries = useMemo(() => layoutHistory(groups), [groups])
-  const rows = useMemo(
-    () => entries.flatMap((entry) => (entry.kind === 'row' ? [entry.row] : [])),
-    [entries],
-  )
+  const rows = groups.flatMap((group) => group.rows)
   const {
     activeIndex,
     setActiveIndex,
@@ -207,7 +132,7 @@ export function HistoryDialog(props: HistoryDialogProps) {
   }, [activeRow])
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === ARCHIVE_KEY) {
+    if (webviewKey('history.archive', event) === 'archive') {
       // Only on the highlighted row; with text selected, Delete edits it.
       if (activeRow !== undefined && event.currentTarget.value === '') {
         event.preventDefault()
@@ -244,7 +169,7 @@ export function HistoryDialog(props: HistoryDialogProps) {
               isActive={entry.index === activeIndex}
               isCurrent={entry.row.sessionId === currentSessionId}
               isRowArchived={archivedIds.includes(entry.row.sessionId)}
-              meta={metaOf(entry.row, nowMs)}
+              meta={metaOf(entry.row, nowMs, props.openQuestionCounts?.[entry.row.sessionId])}
               onHover={() => {
                 setActiveIndex(entry.index)
               }}

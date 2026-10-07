@@ -55,6 +55,12 @@ import { paidStateSchema } from './paid'
 import { patchHunkSchema } from './patchDocument'
 import { reviewRequestSchema } from './reviewCommand'
 import { scheduleCadenceSchema } from './schedule'
+import {
+  answerOpenQuestionSchema,
+  dismissOpenQuestionSchema,
+  jumpToOpenQuestionSchema,
+  openQuestionsMessageSchema,
+} from './questions'
 import { bestOfNRunSchema } from './bestOfN'
 import { boardRowSchema } from './sessionBoard'
 import { sessionRowSchema } from './sessions'
@@ -370,6 +376,9 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     action: z.string(),
     payload: z.unknown(),
   }),
+  z.object({ type: z.literal('readReference') }),
+  z.object({ type: z.literal('openReferenceSetting'), key: z.string() }),
+  z.object({ type: z.literal('runReferenceCommand'), command: z.string() }),
   // Sent once when the React app has mounted and is listening for messages.
   z.object({ type: z.literal('ready'), attachmentEpoch: z.optional(z.number()) }),
   // The composer gained or lost keyboard focus; drives the
@@ -508,6 +517,10 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   }),
   // Question card: Cancel declines the prompt; the model sees a cancelled result (M16).
   z.object({ type: z.literal('cancelQuestion'), userInputId: z.string() }),
+  // M112: explicit session identity rejects answers from stale surfaces.
+  answerOpenQuestionSchema,
+  dismissOpenQuestionSchema,
+  jumpToOpenQuestionSchema,
   // Elicitation form (M91 lane M): accept with the form's values (validated
   // against the schema before they reach the server), or decline or cancel.
   z.object({
@@ -779,6 +792,18 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     error: z.optional(z.string()),
   }),
   z.strictObject({ type: z.literal('openSharing'), surface: z.enum(['prompts', 'chat']) }),
+  // Posted on attach and each registry change; terminal updates settle both views.
+  openQuestionsMessageSchema,
+  // Palette/key navigation uses the same contract as the chip's Next/Previous.
+  jumpToOpenQuestionSchema,
+  z.object({ type: z.literal('openHelp') }),
+  z.object({
+    type: z.literal('referenceValues'),
+    error: z.optional(z.boolean()),
+    model: z.string(),
+    values: z.record(z.string(), z.string()),
+    nls: z.record(z.string(), z.string()),
+  }),
   // Reply to `ready`: everything the shell needs to render its first frame.
   z.object({
     type: z.literal('init'),
@@ -861,6 +886,7 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('sessionList'),
     sessions: z.array(sessionRowSchema),
     archivedIds: z.array(z.string()),
+    openQuestionCounts: z.optional(z.record(z.string(), z.number().check(z.int(), z.minimum(0)))),
   }),
   // A resumed or forked session's history: the transcript is rebuilt from it.
   z.object({

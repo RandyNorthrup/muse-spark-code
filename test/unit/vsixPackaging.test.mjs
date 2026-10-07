@@ -12,6 +12,9 @@ import { listFiles } from '@vscode/vsce/out/package.js'
 // The staged-bytes check starts three Node children, each loading vsce and
 // jsdom; hosted runners take about five seconds for the three.
 const CHILD_PROCESS_TIMEOUT_MS = 60_000
+// Staging copies the l10n tree and runs vsce's own file collection. On a loaded
+// macOS runner shard that exceeded vitest's 10 s hook default (PR #128, twice).
+const STAGE_TIMEOUT_MS = 60_000
 
 const ROOT = process.cwd()
 const fixture = { root: '', stage: '', files: [] }
@@ -27,6 +30,7 @@ const excluded = [
   'dist/webview/chunks/dialog.js.map',
   'media/readme/banner.png',
   'docs/marketplace-readme.md',
+  'docs/reference.md',
   'l10n/untranslated.json',
 ]
 
@@ -77,7 +81,7 @@ beforeAll(async () => {
     }),
   )
   fixture.files = await stageVsix(fixture.root, fixture.stage)
-})
+}, STAGE_TIMEOUT_MS)
 afterAll(() => rmSync(fixture.root, { recursive: true, force: true }))
 
 describe('VSIX packaging', () => {

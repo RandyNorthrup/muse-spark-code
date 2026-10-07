@@ -238,6 +238,36 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**DIET1 (2026-10-06, main `e56b795a`).** The production baseline is
+813,180 B (794.1 KiB) for chat startup and 51,157 B (49.96 KiB) for the original
+deferred aggregate. After DIET1, startup is 751,392 B (733.8 KiB), down
+61,788 B (60.3 KiB), and the original deferred aggregate is 32,875 B
+(32.1 KiB). Optional sign-in, goal/schedule panels, palette/popover and
+radial menus now load on use. Account & usage and Agent map retain their public
+entrypoints and load independently budgeted content chunks. Each new surface
+has a 25 KiB physical and import-closure cap: measured size plus 15%, rounded
+up to 25 KiB. Legacy/shared/unclassified deferred bytes keep their original
+50 KiB cap, and startup keeps 900 KiB. The complete browser English fallback
+stays inline, encoded losslessly as DEFLATE/base85 and decoded by the native
+DecompressionStream before dependent ESM modules run; Node and integration
+fallbacks and all table checks remain unchanged. FIXDIET1 replaces dynamic-root
+query retries with the existing host document rebuild after a synchronous state
+flush: the browser refetches failed static dependencies too. React.lazy caches
+successes and shared static dependencies retain canonical URLs.
+All editor shells use the shared CSP/asset-origin path. Receipts and final
+before/after sizes: `docs/certification/diet1.md`. FIXDIET1 holds startup
+at 750,942 B (733.3 KiB) and the original deferred group at 32,835 B
+(32.1 KiB), within the review baseline targets.
+
+**REL0143M (2026-10-06).** Questions retain their eager arrival and draft
+context while controls and MCP form fields use the shared local retry boundary.
+MCP forms share the unchanged 25 KiB question closure cap. Workflow details
+load on first use: 2.6 KiB measured, plus 15% rounded to an independent 25 KiB
+closure cap. History lays out rows with a single index across groups; all
+existing caps and DIET1's 733.8/32.1 KiB regression baselines remain unchanged.
+Both lazy details share their implementations with their existing dock/map
+consumers. See `docs/certification/rel0143.md` for final rig measurements.
+
 **TRAIN14A integration size recovery (2026-10-05).** The initial M94 archive
 has insufficient universal-helper headroom, and the prepared M71 join exceeds
 activation and shared English by 7.1 KiB each; browser budgets still fit.
@@ -267,8 +297,9 @@ properties, and retain all existing caps. No new artifact or dependency.
 | Webview original deferred surfaces    | ≤ 50 KiB aggregate for the original seven surfaces and unclassified/shared deferred helpers (TRAIN13B; unchanged in STARTDIET)                                                                                                                                                                                                                                                                         |
 | Webview highlighting import closure   | ≤ 125 KiB (STARTDIET: HighlightedCode.tsx, engine and eighteen grammars; 93.1 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                         |
 | Webview action-dialog import closures | ≤ 25 KiB aggregate (STARTDIET: ShareView, SessionBoardDialog, HandoffDialog, SecretPromptDialog; first split 11.2 KiB by the same rule)                                                                                                                                                                                                                                                                |
+| Webview question UI import closure    | ≤ 25 KiB (FIXM112U: first question; 10.8 KiB +15%, rounded up to 25 KiB; separate from the unchanged unclassified deferred group)                                                                                                                                                                                                                                                                      |
 | Webview Tasks import closure          | ≤ 25 KiB (STARTDIET: TasksApp.tsx and its boundary; first split 1.4 KiB by the same rule)                                                                                                                                                                                                                                                                                                              |
-| `.vsix`                               | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job)                                                                                                                                                                                      |
+| `.vsix`                               | ≤ 2400 KiB compressed (REL0142 round 3, 2026-10-06: 2,325,575-byte universal package after removing duplicate reference Markdown, +5%, rounded up to 25 KiB; owner-authorized 0.14.2 Help reference rule; `check-vsix-size.mjs` in the package job)                                                                                                                                                    |
 | `dist/acp.js`                         | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                                                                      |
 | `dist/planMarkdown.js`                | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                                                                                                                        |
 | `dist/checkpointStore.js`             | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                   |
@@ -7095,6 +7126,77 @@ one governor for everything the harness starts.
     registers when the governor first loads. Each spawning bundle gains only
     its admission call, and no cap rises (D6).
 
+14. **Free disk space is governed too, on by default** (added 2026-10-06).
+    - **Why.** On 2026-10-06 the Mac mini's data volume filled while seven
+      agent lanes ran their tests. Every one of them died with "No space
+      left on device" in the middle of its work. Most of the space was the
+      lanes' own leftovers: browser code-sign clones from killed test
+      browsers, test temp folders, finished worktrees and old dependency
+      copies.
+    - **The owner, 2026-10-06:** "we ran into this storage issue that cause
+      failure right you add guardrails for this in our harness as part of
+      the thresholds?"
+    - **Volumes watched.** The sampler reads free space with `fs.statfs`,
+      a Node built-in that needs no child process.
+      - It watches every volume the harness writes to: the workspace and
+        its worktree root, the system temp folder, the harness's data and
+        log folders, and on a node its state folder.
+      - It samples every `RESOURCE_DISK_SAMPLE_MS` (30 seconds), and every
+        5 seconds once the volume is below twice the floor.
+      - A failed read is "unknown", as in item 4.
+    - **The thresholds,** machine-scoped like item 3:
+      - `museSpark.resourceDiskMinFreeGiB` is the floor. By default it is
+        10 GiB, or 10% of the volume when that is smaller, but never below
+        2 GiB.
+      - Throttle starts at the floor.
+      - Pause starts at half the floor.
+      - Critical is 1 GiB or 1% of the volume, whichever is larger.
+      - The trend also counts: when the last five minutes' rate of filling
+        would reach the floor within `RESOURCE_DISK_ETA_MS` (10 minutes),
+        the level steps up early.
+      - Hysteresis and dwell work as in item 5, with 2 GiB above the floor
+        to exit.
+    - **What each level does:**
+      - **Throttle:** no new disk-heavy work starts. That means test runs,
+        builds, installs, new worktrees, downloads and `npm ci`. They wait,
+        or relocate to a device that has space (item 7, M100's pools).
+        Work already running continues.
+      - **Pause:** background lanes pause at their next safe point, and the
+        user is told once, naming the volume and its free space.
+      - **Critical:** agent tools that write to that volume refuse with a
+        named reason, so a full disk becomes an honest error instead of a
+        crash halfway through a file.
+      - **Never throttled:** Stop, cancel, the checkpoint that saves a
+        pause, and the user's own edits (item 8's list).
+    - **Leftovers: the harness cleans up after itself.**
+      - Every governed child runs with `TMPDIR`, `TEMP` and `TMP` pointed
+        at a temp root the harness owns for that tree. Browsers launched
+        for tests get their own profile and cache folders in that root.
+      - When the tree exits, its root is removed. A failed run's root is
+        kept for `RESOURCE_TEMP_KEEP_MS` (24 hours) for debugging and is
+        then removed.
+      - Some leftovers an operating system puts outside the temp root,
+        such as macOS's per-launch code-sign clones. Lane 0 measures them on
+        each platform. They are removed only when their creating process
+        belonged to one of our trees and has exited.
+      - Worktrees and dependency copies the harness created are removed
+        once their work has merged or been archived, never while dirty.
+      - At throttle the cleaner runs at once and reports what it freed.
+    - **Never touch what is not ours** (item 9). Cleaning reaches only
+      paths recorded in the harness's own registry of what it created. The
+      person's files, other applications' data and anything not in that
+      registry are never removed. The pause notice names the biggest
+      folders on the volume, read-only, so the person can decide.
+    - **Every editor shows it** (item 10): the resource chip and the status
+      item show free space per watched volume, and the pause notice
+      appears in every host.
+    - **Devices and the fleet.**
+      - Each linked device and node reports its free space with its
+        headroom (M100, M110).
+      - The lane scheduler never places disk-heavy work on a device below
+        its floor.
+      - The capacity estimator (M117) counts disk per lane.
+
 ---
 
 ### D88 — Several accounts per provider, with use thresholds (M108, 2026-10-05)
@@ -10737,9 +10839,12 @@ security` threshold where its job allows.
       itself on.
     - **The character is the owner's electric penguin.** It is not Meta's
       Muse avatar, whose art is not licensed to us. The Meta gadget SDK is
-      for personal use only, and D71's "never a gadget" stands. Until the
-      owner names it (Q-M111 item 7) the interface calls it "the
-      companion", never "Muse" (rule 11).
+      for personal use only, and D71's "never a gadget" stands.
+    - **Each person names it.** Turning the companion on asks for its name
+      (the owner, 2026-10-06; Q-M111 item 7). Until a name is given, the
+      interface says "the companion". The name is checked like any display
+      name (length, no control characters) and can never be "Muse"
+      (rule 11).
     - **The art is sprite strips, not a rig.** This amends research §2's
       recommendation of a part rig. The owner rejected the lead's hand-drawn
       rig ("that does not look anythink alike to what i gave you"). The art
@@ -10814,8 +10919,9 @@ security` threshold where its job allows.
         D48's ask-once for paid extras.
       - **Continue in chat** hands the exchange to the chat panel.
       - The local judge (D90.27) only triages; it never answers.
-    - **Voice.** Text only until the owner rules (Q-M111 item 9). After his
-      ruling, push-to-talk comes first, under his M9 voice rules.
+    - **No audio** (the owner, 2026-10-06: "companion will have no audio").
+      There is no voice input, no speech and no sound effects: the
+      companion is text and animation only.
     - **Accessibility.**
       - A text-only mode: the same ask box without the character.
       - The keyboard summon.
@@ -12003,6 +12109,253 @@ scheduled command released after its turn ends. Deliberately break each fix,
 observe the named tests fail, restore byte-exact and record the evidence in
 `docs/certification/envfence.md`. No new dependency or broader exception.
 
+### D92 — Questions that never block (M112, 2026-10-05)
+
+The owner, 2026-10-05:
+
+- "verify the questions get pinned same as the allow reject stuff so they
+  dont get lost and if the question times out it should just proceed with
+  other stuff and ask again later but it should not block lets say the
+  question stays up for like 1 minute then collapses but if the user scrolls
+  back in the chat they can answer anytime"
+- "in the chat unanswered questions should be easily identifiable so a user
+  scrolling through the chat can pick them out easily, re-expand them and
+  answer the question"
+
+**What exists** (read on main at `2d4d72bd3`):
+
+- **Approvals are pinned; questions are not.** The approvals Muse waits on
+  sit in a dock above the composer (`ApprovalDock.tsx:40–84`, D26), which
+  takes focus unless the user is typing (`DOCK_TYPING_GRACE_MS`,
+  `ApprovalDock.tsx:25–62`). A question card renders only inside its tool
+  row (`ToolRow.tsx:646–653`), and so does an MCP server's form
+  (`ToolRow.tsx:654–662`), so both scroll away.
+- **A question blocks its turn with no deadline.**
+  - Model API: `askUser` awaits `waitFor(signal, …)` until the user answers
+    or Stop aborts the signal (`ModelApiHost.ts:4828–4865`).
+  - Muse Code: `userInput/requested` becomes `questionRequested`
+    (`mapNotification.ts:362–367`), admitted once by the prompt ledger
+    (`promptLedger.ts:191–197`). The answers are `userInput/answer`,
+    `userInput/cancel` and `userInput/clarify` (`MuseCodeHost.ts:1088–1117`);
+    a clarification holds at most `CLARIFICATION_MAX_CHARS` (500) characters
+    (`constants.ts:3172–3176`).
+  - Only an MCP form has a deadline: `MCP_ELICITATION_TIMEOUT_MS`, 300
+    seconds (`constants.ts:717`), after which it is cancelled
+    (`ModelApiHost.ts:4982`, `mcp/connection.ts:274`).
+- **A settled question can no longer be answered.** The outcomes are
+  answered, cancelled and clarified (`ModelApiHost.ts:4851–4855`), and the
+  settled row drops the card (`uiState.ts:2075–2093`).
+- **What tells the user.** A question raises one notice while the window is
+  unfocused (`turnNotifications.ts:64–71`, under
+  `museSpark.notifyOnBackgroundTurn`). The view's badge is the unread dot
+  only (`ChatViewProvider.ts:27–33`).
+- **A message can reach a running turn.** The controller's `submit` steers
+  into the running turn, and sends a new turn only when the steer was
+  refused with nothing taken (`conversationController.ts:5724–5765`).
+- **Runs nobody watches answer at once.** Headless `exec` counts
+  `question_declined` (`runExec.ts:249–251`); best-of-N candidates and
+  worktree conversations cancel (`worktreeConversationHost.ts:211–215`); the
+  M75 evaluation clarifies with a fixed text (`eval/driver.ts:202–205`).
+  **Scheduled prompts are not among them:** a schedule runs as a turn of the
+  open conversation after the user confirms it
+  (`conversationController.ts:7015–7046`), so its questions are interactive
+  and block today.
+- **ACP.** A client with forms gets the question as `elicitation/create`,
+  and the agent waits for its answer; a client without forms gets the text
+  and an immediate decline (`acp/agent.ts:560–600`). The pinned SDK (1.5.0)
+  withdraws a request it sent, by `$/cancel_request`, when given a
+  `cancellationSignal` (`@agentclientprotocol/sdk/dist/jsonrpc.d.ts:84–92`,
+  `acp.d.ts:172`).
+
+1. **One attention dock.**
+   - `ApprovalDock` becomes `AttentionDock`, still above the composer.
+   - **Approvals come first and are unchanged.** They block, never defer and
+     never collapse. D26's order, D48's paid popup and the focus rule are as
+     today.
+   - **Below them, the question group:** newest waiting questions first
+     (2026-10-06 review ruling), then MCP forms, then the open questions
+     (decision 3) as one compact
+     chip, "N open questions", with **Answer**, **Previous** and **Next**.
+   - **One card is full at a time.** While an approval waits, the question
+     group is one line. The dock stays within
+     `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION` (half the view) with its own
+     scroll, so the composer and the newest reply stay in sight.
+   - **The dock and the row are two views of one question.** The transcript
+     row keeps its card (decision 7); answering either settles both.
+   - **MCP forms join the dock** (a lead addition: they are questions too,
+     and get lost the same way). They keep their 300-second deadline and
+     their cancel. MCP has no late answer, so an expired form says so and
+     cannot be sent.
+
+2. **A question defers instead of blocking.**
+   - **The setting.** `museSpark.questions.deferAfterSeconds`, machine-scoped
+     (D15), so a repository can make questions neither block nor vanish:
+     - 60 by default (`QUESTION_DEFER_DEFAULT_SECONDS`);
+     - 0 means never;
+     - otherwise 10 to 3,600 (`QUESTION_DEFER_MIN_SECONDS`,
+       `QUESTION_DEFER_MAX_SECONDS`), and a value from 1 to 9 is read as 10.
+   - **The clock** starts when the question arrives, in the process that
+     holds the session: the extension host in VS Code; the runtime for the
+     companion page, the native plugins, the TUI, Muse Desktop and ACP
+     clients. It is injected, so the tests drive it.
+   - **At the deadline the backend settles the tool call with a deferral,**
+     and the agent goes on:
+     - **Model API:** `askUser`'s wait resolves with a fourth reply,
+       `deferred`. The tool's output is `QUESTION_MODEL_TEXT.deferred`.
+     - **Muse Code:** `userInput/clarify` with
+       `QUESTION_MODEL_TEXT.deferredClarification`, the shape captured for
+       M46 (2026-09-25). The host keeps the ids it deferred, so the
+       `userInput/settled` that follows (`clarified`) is shown as
+       `deferred`. An explanation the user typed stays `clarified`.
+     - **The text** is fixed English, filled with the question's id, and at
+       most 500 characters for Muse Code's limit: "<harness_note>The user
+       has not answered question {id} yet. Continue with work that does not
+       depend on the answer. Do not guess the answer and do not ask again.
+       The answer will arrive later as a user message that begins "Answer to
+       your earlier question {id}".</harness_note>"
+   - **The cache stays warm.** The system prompt, the tool declarations and
+     `instructions.ts:107`'s line on `ask_user` do not change. Every request
+     before a deferral is byte-identical (the SoL-Pi invariants); the
+     deferral's own request differs only in that tool output.
+   - **Nothing collapses under the user's hands.**
+     - The deferral happens on time, even while the user types in the card.
+     - The card stays full while it holds focus or a draft, and collapses
+       when focus leaves. The draft is kept.
+     - A draft sent after the deferral goes as a late answer (decision 4).
+   - **The dock card says it once.** A quiet line, "Muse keeps working in
+     {seconds} s if you don't answer", is announced on arrival only, never
+     as a ticking live region.
+   - **Stop** settles a waiting question as today (cancelled). A turn that
+     ends any other way (interrupted, failed, the window reloaded) leaves its
+     waiting question open, never lost.
+
+3. **Open questions are kept until settled.**
+   - **States.** `waiting` → `open` (deferred) → `answeredLater`,
+     `answeredOnReask`, `dismissed` or `expired`. A waiting question still
+     settles `answered`, `cancelled` or `clarified` as today.
+   - **One portable registry** (`src/core/questions/**`, no `vscode`) holds
+     them per session, written through a port: the extension's global
+     storage in VS Code, the runtime's data folder elsewhere.
+     - Owner-only files, zod-validated, deleted with their session.
+     - Never exported or logged (ids only), and sent nowhere but to the model
+       inside the answer.
+   - **Bounded.** At most `OPEN_QUESTIONS_MAX` (20) are open per session.
+     Past it the oldest becomes `expired`, and its row says so.
+   - **They survive** a reload, a resume and another editor. The host posts
+     the open set when a surface attaches. A row found by its item id shows
+     its card; one whose row is not in the loaded history shows in the dock
+     alone.
+   - **Dismiss** (in the card's ⋯ menu) settles an open question without an
+     answer. The agent is told lazily: steered into the running turn if
+     there is one, otherwise put in front of the next message the user
+     sends; never as a turn of its own.
+
+4. **A late answer reaches the agent exactly once.**
+   - It is given from the transcript row or the dock chip, at any time.
+   - **While a turn runs** in that session, it is steered into the turn
+     (`submit`'s steer). A steer refused with nothing taken goes as a new
+     turn, as `submit` already does.
+   - **While the session is idle,** it starts a turn.
+     - The transcript shows the user's own row: "Answer to your earlier
+       question: {header}".
+     - The model reads `QUESTION_DELIVERY_MODEL_TEXT.lateAnswer`: the question's id,
+       its text (at most `LATE_ANSWER_QUESTION_MAX_CHARS`), and the answers
+       in the shape `questionResultText` already sends
+       (`ModelApiHost.ts:1294–1306`).
+   - **Both backends alike.** It is the user's own message: it runs in the
+     session's current mode, bills as any user turn, and approves nothing.
+   - **Once.** The registry marks the question before sending, and puts it
+     back only when nothing was taken. A second click or a second surface
+     never sends it twice.
+
+5. **Asked again, answered once.** A question's key is the text of its
+   questions and their option labels: NFC-normalised, trimmed, runs of white
+   space folded, letters lower-cased (`toLowerCase`, no locale), the options
+   as a sorted set.
+   - A new request whose key matches an open question reuses that card,
+     back in the dock as waiting. The answer goes to the new request in its
+     own turn, and the open one becomes `answeredOnReask`, with no late
+     message.
+   - Two waiting requests with one key (two calls in flight) share one card,
+     and one answer settles both.
+
+6. **"Ask again later", bounded.** When a turn of the session ends with open
+   questions:
+   - the dock expands the oldest open question once, unless an approval
+     waits;
+   - `attentionNotice` raises `notifyOpenQuestions`, keyed by session and
+     turn, under the existing setting and only while the window is
+     unfocused (`BackgroundNotifier`'s rule).
+
+   Each question is expanded again at most `QUESTION_REMINDERS_MAX` (2)
+   times in all, and at most one question per turn end. The model is never
+   asked to ask again.
+
+7. **Easy to pick out in the transcript.**
+   - **Waiting and open rows** carry a left accent, the `question` codicon
+     and the label **Open question** before the header. An open row is
+     folded to one line (the header, **Answer** and an expand chevron) and
+     opens in place.
+   - **Settled rows** each have their own label and icon: Answered, Answered
+     later, Answered when asked again, Explained, Declined, Dismissed,
+     Expired. None is told by colour alone; high-contrast themes use
+     `contrastBorder`.
+   - **Moving between them.** **Next open question** and **Previous open
+     question** (`museSpark.nextOpenQuestion`,
+     `museSpark.previousOpenQuestion`) in the palette, on the dock chip and
+     as keys. Proposed: `Ctrl+Alt+J` and `Ctrl+Alt+Shift+J` (`Cmd+Alt+J` and
+     `Cmd+Alt+Shift+J` on macOS), with a `when` on the chat's focus (D15's
+     hygiene). Lane 0 checks them against each editor's default keymap
+     first.
+   - **Counts outside the panel.**
+     - The view's badge shows the open count (tooltip "N open questions"),
+       taking precedence over the unread dot.
+     - An editor tab's title gains "· N open"; the companion page's
+       `document.title` likewise.
+     - The History dialog marks conversations with open questions.
+   - **Screen readers.** The live region speaks the arrival (as today), the
+     deferral ("Moved to open questions; you can answer any time"), a
+     reminder, and a late answer sent. The chip is a button whose name
+     carries the count.
+
+8. **Runs nobody watches keep what they do.** Headless `exec`, best-of-N
+   candidates, worktree conversations and the M75 evaluation still decline
+   or clarify at once; M96's workers, when they merge, decline as unattended
+   work does. Scheduled prompts are interactive (above) and get decision 2.
+   `docs/ci.md` and the README say so.
+   - **Amended 2026-10-06 by D95:** scheduled prompts become unattended
+     (M115). Their questions defer at once, without the minute, and stay open
+     and answerable like any other.
+
+9. **Every editor** (D84):
+
+   | Surface                                                                                                           | The question                                                                                                | Deferral clock                                                                            | Late answer                                                                                                                        | Counts and keys                                                             | When                                           |
+   | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------- |
+   | VS Code, VSCodium, Cursor, Windsurf, Kiro, Positron, Theia; Remote SSH, WSL, Dev Containers, Codespaces           | `AttentionDock` in the sidebar and every editor tab; the row's card                                         | the extension host                                                                        | steered, or a new turn (`submit`)                                                                                                  | the view badge, the tab title, the History marker; the commands and keys    | M112                                           |
+   | JetBrains IDEs, Visual Studio, Eclipse (M104b–d)                                                                  | the same panel through the bridges                                                                          | the runtime                                                                               | as VS Code                                                                                                                         | MHP's status item carries the count; each bridge maps it to its tool window | contract and fakes in M112; wired by M104b–d   |
+   | The companion page                                                                                                | the same panel                                                                                              | the runtime                                                                               | as VS Code                                                                                                                         | `document.title`; the page's keys                                           | M112 once M104 lane C has merged, else with it |
+   | ACP clients with forms (Zed, Xcode 27, JetBrains AI Assistant, Neovim, Emacs, Sublime and the rest of D62's list) | `elicitation/create`, as today                                                                              | the agent: at the deadline it defers the call and withdraws the form (`$/cancel_request`) | `/answer <n> <text>`; a form returned after the deadline is a late answer: steered into a running prompt, else put before the next | `/questions` lists the open ones; one notice per deferral                   | M112                                           |
+   | ACP clients without forms                                                                                         | the text, then deferred at once (today: declined), so the agent goes on and the user answers with `/answer` | —                                                                                         | `/answer <n> <text>`                                                                                                               | `/questions`                                                                | M112                                           |
+   | Headless `exec`                                                                                                   | declined at once (unchanged)                                                                                | —                                                                                         | —                                                                                                                                  | `question_declined`                                                         | unchanged                                      |
+   | The TUI (M110a0 lane T)                                                                                           | its question view, pinned above the input line                                                              | the runtime                                                                               | as the runtime                                                                                                                     | the status line's count; a key for the next open question                   | with lane T, on lane 0's MHP messages          |
+   | Muse Desktop (M111b)                                                                                              | the panel inside the workbench                                                                              | the node                                                                                  | as the runtime                                                                                                                     | the bar's agents item shows the count                                       | with M111b                                     |
+   | The Muse Code backend, in any editor                                                                              | as its editor                                                                                               | its host                                                                                  | `turn/steer`, or a new turn                                                                                                        | as its editor                                                               | M112                                           |
+
+10. **Text, help and docs.**
+    - Every string is in `en.ts` and the 14 tables.
+    - The deferral text is `QUESTION_MODEL_TEXT`, read only by the lazy
+      `dist/questionNotes.js`. Late-answer and dismissal text is
+      `QUESTION_DELIVERY_MODEL_TEXT`, read by `dist/conversation.js` and
+      `dist/runtimeQuestions.js`. The split check guards both blocks.
+      This ownership was measured at M112 integration; neither backend
+      startup carries the note or registry delivery templates.
+    - The setting, the two commands, the dock and `/answer` join the `/help`
+      reference (`src/shared/featureCatalog.ts`, `check:reference`).
+
+11. **No dependency, nothing new at startup.** The dock replaces a component
+    already in the webview's startup bundle; the registry is small and pure;
+    nothing loads at activation that did not before; no cap rises (D6).
+
 ---
 
 ### D96 — The orchestrator playbook (M116, 2026-10-06)
@@ -12522,6 +12875,34 @@ prompts into a chat in any workspace".
   The owner, 2026-10-06: "i accept your recommendations and yes i think to all of the questions." The credentials and purchases in items 3 and 6 stay his
   to make; until then their defaults hold.
 
+  **Owner update (2026-10-06, later):** "simulator will be the golden rule
+  my devices are too old, i dont know what os signing key are but i have a
+  rented server, why would we need a domain? but i do have one".
+  - **Item 3:** he has a rented server and a domain. Their access (an SSH
+    login on the server, DNS records on the domain) comes from him when
+    M110d–f's internet certification starts. The credentials stay his.
+  - **Why a domain:**
+    - Passkeys only work on a domain name, never on a bare IP address
+      (WebAuthn's relying-party id).
+    - Free TLS certificates (ACME) are issued for names.
+    - The update server and the pack index get a stable address that
+      survives moving to another server.
+    - Emailed reports (M113) need a domain's mail records to be delivered.
+  - **Item 5:** simulators and QEMU are the authoritative matrix ("the
+    golden rule"). Real machines are optional extra evidence; none is
+    waiting on him.
+  - **Item 6, what the signing keys are:**
+    - The **update-bundle key** signs every OS update, so a node installs
+      only updates we made.
+    - The **Secure Boot keys** let a PC check that the boot chain is ours
+      before it starts.
+    - Neither is bought. Lane OS4 makes them in a short scripted ceremony
+      that he runs on his own PC. The private halves go onto a USB stick
+      that he keeps offline; only the release job's signing certificate
+      lives in the `marketplace`-style environment.
+    - Until the ceremony, item 6's defaults hold: manual-install images with
+      cosign signatures, no over-the-air updates, and Secure Boot off.
+
 - **Q-M111 — What Muse Desktop needs from the owner (2026-10-05).** Every lane
   builds and certifies on fakes, QEMU and the rigs meanwhile; nothing here
   blocks lane 0.
@@ -12569,6 +12950,13 @@ prompts into a chat in any workspace".
       tied to the agents' work. **Default:** on once the companion is on,
       as D91.30 lists, with each one switchable.
 
+  **Owner answers (2026-10-06):** "companion approved", then "companion
+  will have no audio and will ask the user for a name when they set it up".
+  - **Item 7:** each person names their own companion when they turn it
+    on. "The companion" is only the placeholder before they choose.
+  - **Item 9:** no audio at all: no voice input, no speech and no sounds.
+  - **Items 8 and 10:** the defaults stand.
+
 - **Q-M109 — A Mac for the Secure Enclave slot (2026-10-05).** D89.2's
   Secure Enclave slot needs a Mac where `SecureEnclave.isAvailable`: Apple
   silicon, or an Intel Mac with Touch ID. The Mac mini rig is Intel without
@@ -12582,6 +12970,11 @@ prompts into a chat in any workspace".
   saying why, until a capable Mac is available.
 
   **Owner answer (2026-10-06):** the default, accepted. The owner, 2026-10-06: "i accept your recommendations and yes i think to all of the questions."
+
+  **Owner update (2026-10-06, later):** "i have a touch id mac i will setup
+  after 5pm today". The Secure Enclave capture runs on that Mac once he
+  sets it up (after 5 pm PT, 2026-10-06). The SE slot then turns on where
+  the capture passes; the default above holds until then.
 
 - **Q-M108 — What M108 needs from the owner (2026-10-05).**
   1. **Second credentials for the live captures.** Several of M108's wire
@@ -12602,6 +12995,13 @@ prompts into a chat in any workspace".
 
      **Owner answer (2026-10-06):** the default, accepted; the second
      credentials stay his to provide.
+
+     **Owner update (2026-10-06, later):** "the two more meta keys are
+     approved". The lead mints the second Meta key on the same team and the
+     key on another team when M108's live captures are next. They are made
+     in his signed-in Meta developer page and copied straight into
+     DPAPI-encrypted files. Nobody sees the values, and they are never
+     printed, stored in the repository or put into the Muse Code CLI.
 
   2. **Two accounts on one PC** (D88's placement amendment). With placement
      mandatory, a user with a single PC who wants two accounts of one
@@ -13002,6 +13402,22 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### REL0144 — Release 0.14.4 preparation (2026-10-06)
+
+Merge only `sync/main-0144` into the reviewed M118 integration, preserving
+M112 questions, Help and STARTDIET deferred surfaces. Give M118 optional
+surfaces the diet's accessible loading/retry pattern and independent measured
+caps (size plus 15%, rounded up to 25 KiB). To retain the diet regression
+baseline, defer existing tool bodies and review findings, and the history row
+with its M118 Save menu; preserve their rendering and actions. Load the effort slider on first model-menu use too. Pack the generated
+Node reference at build time with native Brotli, retaining the decoded model and zod checks; keep startup at 900 KiB, original
+deferred UI at 50 KiB and VSIX at 2400 KiB. Join both help inventories and
+regenerate all derived references. Prepare the manifests and release notes
+for 0.14.4; certify every configured Vitest file at repository defaults, all
+accessibility scenarios in four themes, static gates, production builds and
+packages, and live public badges. No model calls: Use prepares text and never
+submits. Hosted run IDs remain the lead's release-record fields.
+
 ### FIXM118INT — RVM118INT corrections (2026-10-06)
 
 Repair all five reviewed P2s within the existing M118 ownership and budgets:
@@ -13124,6 +13540,137 @@ Record regression failures, byte-exact red drills and bounded checks in
 - [x] P2-2 explicit headless destination and file output admission.
 - [x] P2-3 abortable sharing UI and immediate ACP prompt/session cleanup.
 - [x] P2-4 shared leading-whitespace local-command interception.
+
+### REL0143F — Repair release PR #129 CI failures (2026-10-06)
+
+Continue `release/0.14.3` at `4122e1155` without another merge or push.
+Reproduce the report frame inventory, crash recovery, question dismissal and
+Cline quoting failures. Match the shipped inventory exactly, exercise M25's
+state flush and crash-loop prevention through the diet's retry helper, preserve
+M112's session-scoped exactly-once commands across lazy surfaces, and remove
+expensive shell startup from the quoting unit test without raising timeouts.
+Run every Vitest file in batches of at most three on Kubuntu with the repository
+default timeout; fix additional merge failures. Run production build, VSIX
+package, reference, localization, five-project typecheck, lint and the shared
+static checks. All existing gates and caps remain unchanged. The brief's full
+batched suite requirement supersedes common.md's focused-file restriction;
+aggregate quality and hosted cross-platform certification remain lead-owned.
+No live/paid call, network request, dependency, hook change or publication.
+Record failures, byte-exact red drills, counts and gate receipts in
+`docs/certification/rel0143-ci.md`. Local commits use the existing hooks.
+
+Completed: repair commit `e9e0e055e`. All 532 Vitest files ran in 178 default-
+timeout batches: 11,430 passes, zero failures, 72 existing skips. Four deliberate
+failures were restored byte-exact. Five-project typecheck, full lint/format,
+reference, localization, host API, plain Knip, zero-clone duplication, production
+build and package pass. The real VSIX's 39 fixed JavaScript members exactly
+match both the manifest and report frame allowlist, including questionNotes.js.
+No additional merge failure, cap change or timeout override was needed.
+
+### FIXM112Q — Durable-question review corrections (2026-10-06, Q complete)
+
+Scope: all six findings in `RVM112Q.report.md`, within Q's existing files.
+Late answers use the ordinary user-message send path, including permission-mode
+barriers and session-not-loaded recovery. Re-asks own a fresh deferral deadline;
+publication makes one atomic store replacement and failed publication restores
+the durable snapshot as well as memory. Coalesced replies attempt every live
+request independently and retain the card until every attempt settles. Session
+deletion sweeps every snapshot temporary file bearing that session's prefix.
+No dependency, wire shape, guard relaxation, paid call or new command is needed.
+Shared registry/storage behavior applies to runtime/editor integrations; the
+controller correction applies wherever the existing conversation bridge runs.
+
+Each finding requires a failing-before regression and a deliberate red drill
+with byte-exact restoration in `docs/certification/m112-q.md`. Run targeted
+Kubuntu suites and the lane's static/build checks; the lead owns full quality
+and cross-platform integration. No merge or push is authorized in this lane.
+Implementation commit `070a79e7a` closes all six findings, with eight byte-exact
+red controls and 1,417 passing tests across fifteen complete owning files.
+Host/integration types, scoped lint/format, plain knip, duplication, localization
+and production build pass. The inherited U reducer and A inventory handoffs
+remain as below.
+
+### REL0142 — Prepare the 0.14.2 Help reference release (2026-10-06)
+
+Scope: merge `sync/main` at `1c5f016ae` into the Help reference branch with
+both features and gates intact; keep released 0.14.1 entries in their section.
+Then bump the three-part version to 0.14.2, promote only new Help entries,
+and update both landing pages with one current What's New section. Preserve
+main's future plans and all Help audit records. The scoped Kubuntu checks are
+the release/version, packaging, badge, Help/reference and fake stdio suites;
+localization, reference, five-project typecheck, changed-file lint/format,
+production build and unchanged bundle budgets. No tag, push or publication.
+The brief prohibits aggregate quality; the lead retains integrated quality.
+The release packaging suite exposed a differently ordered Hungarian Help
+translation suffix. Normalize its key order to the other tables without
+changing any key or translated value, preserving the existing archive gate.
+The headless stdio package fixture must also include Help's lazy reference
+bundle, which the production packager now requires; retain every guard.
+The integrated reference bundle exceeded its unchanged 100 KiB budget by
+631 bytes. Assign the shortest existing pool references to the most frequent
+values, preserving all expanded JSON, schemas and translations; prove the
+lossless round trip and retain the existing size cap.
+
+- [x] Resolve and certify the main integration, then commit with hooks on.
+- [x] Prepare the release metadata and user-facing notes; repeat release checks.
+
+Round 2 merges `feat/help-reference-fix` at `a010a1994` with `git merge
+--no-ff`, preserving release metadata, Hungarian ordering, the stdio fixture
+and frequency-sorted reference pooling. Regenerate all reference outputs from
+the combined generator and promote the final audit fix into 0.14.2 while
+Unreleased stays empty. Repeat the certified release checks and retain the
+100 KiB reference cap; hooks on, local merge commit only, no push/tag/publish.
+
+Evidence: `docs/certification/rel0142.md`.
+
+Round 3 repairs the hosted failures on PR head `919401ec3` after the
+authorized fast-forward from `release/0.14.2-pr`. Export the activation paid
+callback from a small module and test it by import, replacing source slicing
+and evaluation. Expect both localized usage and Help reference lines in the
+fake ACP stdio checks. Compare real VSIX members against a locally rebuilt
+0.14.1, remove redundant reference material, and retain bundle caps. If the
+universal VSIX still exceeds 2200 KiB after removing waste, the owner's
+explicit release rule sets its cap to measured bytes plus 5%, rounded up to
+25 KiB. Certify package, owning stdio/reference/release suites, typecheck,
+lint, formatting and localization directly on Kubuntu; local hook-on commits
+only, no push, tag, publication, paid/live calls or aggregate quality.
+
+Round 4 repairs the second hosted CI failure on `900a06738`: build the
+generator test's unchanged model once per file, reuse unchanged keyboard
+analysis for mutation checks, and normalize all reference evidence paths to
+forward slashes before lookup or matching. Keep mutation checks sensitive to
+changed source and registry inputs; prove Windows-style paths and deliberate
+registry bypass failures. Audit the other reference/help suites for repeated
+setup. Run every requested release/reference/fake stdio suite with repository
+default timeouts, recording the slowest tests before and after; repeat real
+packaging and scoped static/build gates. No timeout, threshold, hook or bundle
+cap changes. Aggregate quality and hosted cross-platform runs remain with the
+lead under the explicit rig/shared rule; local hook-on commits only.
+
+Round 5 repairs the last two hosted failures on `48a2e8575`. Update only
+the dev-only `shell-quote` lock entry within `npm-run-all2`'s existing
+`^1.8.4` range to a fixed version for GHSA-pqg4-j6r4-53mv; add no direct
+dependency, override or audit exception. Verify clean installation in an
+isolated directory because this rig's existing dependencies are hard-linked
+to a shared install. Preserve the deliberate complete-reference contract for
+`exec --help`, `report --help` and `scan-secrets --help`: commit `94a1e7d3b`
+and `docs/certification/help-reference.md` record parity with `help --all`.
+Update the stale report parser expectation, then run the requested Help,
+reference and fake stdio suites with default timeouts, audit, typecheck,
+lint, formatting, reference freshness and production build. No new command
+or feature, gate change, paid/live call, merge, push, tag or publication.
+
+Round 6 repairs the universal release-artifact check on PR #127: compose
+compact ACP help from both installed table entries, including its reference
+hint, with one formatter shared by the CLI, fake stdio tests and bundle check.
+Check English and every installed translation. Audit scripts and workflows
+for other stale usage comparisons, and reproduce the secret-free universal
+artifact job locally: production build, universal VSIX and contents/size
+checks, ACP pack/install and contents checks, shared-text loading, fake
+headless process guards, SBOMs and source/hash receipt. Keep repository test
+timeouts, hooks and all budgets unchanged; no merge, push, tag, publication,
+live/paid calls or aggregate quality. Record baseline failure and deliberate
+guard failures in `docs/certification/rel0142.md`.
 
 ### Delivery order (2026-10-06)
 
@@ -25310,23 +25857,26 @@ Each joins when its dependency merges, and none blocks the others.
   1. Lane 0.
   2. S, T, G and U in parallel against the fakes.
   3. A after T's registry interface; C1 and H after G.
-  4. C2, R and J as their dependencies merge.
+  4. C2, R and J as their dependencies merge; DK (D87.14, added
+     2026-10-06) after the S + T + G trunk, before U and H finish, so the
+     surfaces show free space.
   5. W last.
 
-| Lane                                               | Items                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Files it owns                                                                                          | Its regions in shared files                                                                                                                                                                                                                                                                                                                                                        | Starts                                   |
-| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| 0 Contracts, strings, fakes, platform facts (lead) | The sample, level, event, ticket and status types; the settings schema; the device headroom field; the `resource` journal record; the exec `resource` event. The fakes: a scripted sampler, a fake process tree, a fake clock, a fake linked device. The platform facts, with no model call: what `os.freemem()` and `process.availableMemory()` mean on the Mac mini; cgroup v2 delegation on Kubuntu; the job CPU rate cap on the Win11 VM; whether `taskpolicy -B` undoes `-b` | new `src/shared/resources.ts`, `test/unit/helpers/resources/**`, `docs/certification/m107-platform.md` | `constants.ts` (`RESOURCE_*`); `en.ts`, the 14 tables, `package.nls*.json` (settings and commands); `src/shared/hostApi/**` (the status item, with M104 lane 0); `src/shared/devices.ts` (the offer's `resource` field, with M100 lane 0); `src/shared/usageJournal.ts` (the `resource` record, with M102 lane 0); `docs/schemas/exec-event-*.schema.json` (with M80's versioning) | day 0                                    |
-| S Sampler                                          | D87.4: the machine sampler (CPU deltas, Linux pressure files, memory, container limits, macOS per lane 0's fact); the GPU and disk probes, lazy and only when set; the self-cost bound                                                                                                                                                                                                                                                                                            | new `src/core/resources/sampler/**`                                                                    | —                                                                                                                                                                                                                                                                                                                                                                                  | after 0                                  |
-| T Trees                                            | D87.2 and D87.9: the launch registry (ticket, root process, start time, job, cgroup or group, kind, class, session); the membership proof; per-platform accounting                                                                                                                                                                                                                                                                                                                | new `src/core/resources/trees/**`                                                                      | `native/windows/MuseSparkJob.cs` (a query mode); `src/host/processTree.ts` (the shared table parse, moved to `src/core/resources/trees/processTable.ts` if the host API gate needs it portable)                                                                                                                                                                                    | after 0                                  |
-| G Governor                                         | D87.5, D87.6 (capacity, queue, foreground wait), D87.8: the levels, hysteresis, escalation, critical, dwell, override and events                                                                                                                                                                                                                                                                                                                                                  | new `src/core/resources/governor.ts`, `queue.ts`, `events.ts`                                          | —                                                                                                                                                                                                                                                                                                                                                                                  | after 0                                  |
-| A Actuators                                        | D87.6's priority: the Windows job priority class and CPU rate cap; Linux cgroup knobs or nice and ionice; macOS `taskpolicy`; the reversibility table; restore on recovery                                                                                                                                                                                                                                                                                                        | new `src/core/resources/actuators/**`                                                                  | `MuseSparkJob.cs` (the priority and rate mode, after T's region); M96 lane K's `processLifetime.ts` (the scope's delegated knobs)                                                                                                                                                                                                                                                  | after T's registry interface             |
-| C1 Spawn sites: the Model API and the window       | Admission and registration at every spawn on main: tool shells, background tasks, checks and the verify loop, MCP servers, best-of-N, subagents, schedules, the browser check, command hooks, `muse serve`'s tree                                                                                                                                                                                                                                                                 | —                                                                                                      | `toolIo.ts` (spawn); `mcpServers.ts`, `mcpJobLaunch.ts`, `mcp/pool.ts` (start); `bestOfNRunner.ts`; `subagentTools.ts`; `schedules.ts`; `verifyTools.ts`; `src/host/browser/browserProcess.ts`; the hook spawn region; `museCodeBackendManager.ts` (tree registration)                                                                                                             | after G                                  |
-| C2 The team and runners                            | `loadGuard.ts` retired, its callers on the governor; M96c's pick and slots read the capacity; check slots; the runners' routing takes the local level                                                                                                                                                                                                                                                                                                                             | —                                                                                                      | `src/host/team/loadGuard.ts` (removed); `processLifetime.ts` (the registry hook); `src/core/team/scheduler/pick.ts` and `slots.ts` (capacity); `src/host/team/checkSlots.ts`; `src/core/runners/routing.ts`                                                                                                                                                                        | after G, with M96 and M96c merged        |
-| R Relocation                                       | D87.7: pool routing by headroom; the receiver's admission by its own level; **Move to** after retirement; **Keep here**; the events                                                                                                                                                                                                                                                                                                                                               | new `src/core/resources/relocate.ts`                                                                   | `src/core/team/remotePool.ts` (routing); `src/host/devices/devicePool.ts`; `src/host/devices/deviceReceiver.ts` (admission); `src/core/runners/routing.ts` (after C2)                                                                                                                                                                                                              | after G and C2, with M100 S and E merged |
-| U Surfaces                                         | D87.10's VS Code and shared parts: the chip and popover, the status bar item, the panel's mount, the Traffic view's row, MHP's status item through a fake bridge, the companion page; harness scenes and axe                                                                                                                                                                                                                                                                      | new `src/webview/resources/**` (a lazy chunk), `src/host/resources/resourceStatus.ts`                  | `App.tsx` (the mount beside `HeartbeatTrace`); `src/webview/components/traffic/TrafficView.tsx` (the row, with M96c V's owner); `extension.ts` (the command region, loaders only); `styles.css` (its region); `test/harness` scenes                                                                                                                                                | after 0; finished after G                |
-| H Runtime, ACP and headless                        | D87.10's other rows: the runtime's governor host, `/resources`, the notices and `_meta`, the CLI's `resources`, exec's events and flags, the runtime settings                                                                                                                                                                                                                                                                                                                     | new `src/runtime/resources/**`, `src/acp/resources.ts`                                                 | `src/acp/agent.ts` (commands); `src/runtime/cliArgs.ts` and `main.ts` (`resources`); `runExec.ts` and `execProtocol.ts` (events); the runtime settings store (with M104 lane B)                                                                                                                                                                                                    | after G                                  |
-| J Journal and the usage page                       | D87.11: the resource records, their aggregation, the page's Resources section, the text summary                                                                                                                                                                                                                                                                                                                                                                                   | new `src/core/usage/resourceRecords.ts`, `src/webview/usage/ResourcesSection.tsx`                      | `src/core/usage/aggregate.ts` (resource buckets); `usageText.ts`; `UsageApp.tsx` (the mount)                                                                                                                                                                                                                                                                                       | after 0, with M102 merged                |
-| W Wiring, docs and gates (last)                    | `dist/resourceGovernor.js`, budgets, `package.json`, docs, registry rows, certification, the full gate                                                                                                                                                                                                                                                                                                                                                                            | `docs/certification/m107*.md`                                                                          | `scripts/build.mjs`; the bundle-size and split gates; the host API record (no `vscode` under `src/core/resources`); knip and dpdm; `scripts/package-acp.mjs`; `package.json`; README; PRIVACY; SECURITY; CHANGELOG; `docs/acp.md`; `docs/ci.md`; `docs/ide-compatibility/**`; AGENTS.md's layout; PLAN                                                                             | last                                     |
+| Lane                                               | Items                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Files it owns                                                                                                | Its regions in shared files                                                                                                                                                                                                                                                                                                                                                        | Starts                                   |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| 0 Contracts, strings, fakes, platform facts (lead) | The sample, level, event, ticket and status types; the settings schema; the device headroom field; the `resource` journal record; the exec `resource` event. The fakes: a scripted sampler, a fake process tree, a fake clock, a fake linked device. The platform facts, with no model call: what `os.freemem()` and `process.availableMemory()` mean on the Mac mini; cgroup v2 delegation on Kubuntu; the job CPU rate cap on the Win11 VM; whether `taskpolicy -B` undoes `-b`                                                                                                                                                                               | new `src/shared/resources.ts`, `test/unit/helpers/resources/**`, `docs/certification/m107-platform.md`       | `constants.ts` (`RESOURCE_*`); `en.ts`, the 14 tables, `package.nls*.json` (settings and commands); `src/shared/hostApi/**` (the status item, with M104 lane 0); `src/shared/devices.ts` (the offer's `resource` field, with M100 lane 0); `src/shared/usageJournal.ts` (the `resource` record, with M102 lane 0); `docs/schemas/exec-event-*.schema.json` (with M80's versioning) | day 0                                    |
+| S Sampler                                          | D87.4: the machine sampler (CPU deltas, Linux pressure files, memory, container limits, macOS per lane 0's fact); the GPU and disk probes, lazy and only when set; the self-cost bound                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | new `src/core/resources/sampler/**`                                                                          | —                                                                                                                                                                                                                                                                                                                                                                                  | after 0                                  |
+| T Trees                                            | D87.2 and D87.9: the launch registry (ticket, root process, start time, job, cgroup or group, kind, class, session); the membership proof; per-platform accounting                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | new `src/core/resources/trees/**`                                                                            | `native/windows/MuseSparkJob.cs` (a query mode); `src/host/processTree.ts` (the shared table parse, moved to `src/core/resources/trees/processTable.ts` if the host API gate needs it portable)                                                                                                                                                                                    | after 0                                  |
+| G Governor                                         | D87.5, D87.6 (capacity, queue, foreground wait), D87.8: the levels, hysteresis, escalation, critical, dwell, override and events                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | new `src/core/resources/governor.ts`, `queue.ts`, `events.ts`                                                | —                                                                                                                                                                                                                                                                                                                                                                                  | after 0                                  |
+| A Actuators                                        | D87.6's priority: the Windows job priority class and CPU rate cap; Linux cgroup knobs or nice and ionice; macOS `taskpolicy`; the reversibility table; restore on recovery                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | new `src/core/resources/actuators/**`                                                                        | `MuseSparkJob.cs` (the priority and rate mode, after T's region); M96 lane K's `processLifetime.ts` (the scope's delegated knobs)                                                                                                                                                                                                                                                  | after T's registry interface             |
+| C1 Spawn sites: the Model API and the window       | Admission and registration at every spawn on main: tool shells, background tasks, checks and the verify loop, MCP servers, best-of-N, subagents, schedules, the browser check, command hooks, `muse serve`'s tree                                                                                                                                                                                                                                                                                                                                                                                                                                               | —                                                                                                            | `toolIo.ts` (spawn); `mcpServers.ts`, `mcpJobLaunch.ts`, `mcp/pool.ts` (start); `bestOfNRunner.ts`; `subagentTools.ts`; `schedules.ts`; `verifyTools.ts`; `src/host/browser/browserProcess.ts`; the hook spawn region; `museCodeBackendManager.ts` (tree registration)                                                                                                             | after G                                  |
+| C2 The team and runners                            | `loadGuard.ts` retired, its callers on the governor; M96c's pick and slots read the capacity; check slots; the runners' routing takes the local level                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | —                                                                                                            | `src/host/team/loadGuard.ts` (removed); `processLifetime.ts` (the registry hook); `src/core/team/scheduler/pick.ts` and `slots.ts` (capacity); `src/host/team/checkSlots.ts`; `src/core/runners/routing.ts`                                                                                                                                                                        | after G, with M96 and M96c merged        |
+| R Relocation                                       | D87.7: pool routing by headroom; the receiver's admission by its own level; **Move to** after retirement; **Keep here**; the events                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | new `src/core/resources/relocate.ts`                                                                         | `src/core/team/remotePool.ts` (routing); `src/host/devices/devicePool.ts`; `src/host/devices/deviceReceiver.ts` (admission); `src/core/runners/routing.ts` (after C2)                                                                                                                                                                                                              | after G and C2, with M100 S and E merged |
+| U Surfaces                                         | D87.10's VS Code and shared parts: the chip and popover, the status bar item, the panel's mount, the Traffic view's row, MHP's status item through a fake bridge, the companion page; harness scenes and axe                                                                                                                                                                                                                                                                                                                                                                                                                                                    | new `src/webview/resources/**` (a lazy chunk), `src/host/resources/resourceStatus.ts`                        | `App.tsx` (the mount beside `HeartbeatTrace`); `src/webview/components/traffic/TrafficView.tsx` (the row, with M96c V's owner); `extension.ts` (the command region, loaders only); `styles.css` (its region); `test/harness` scenes                                                                                                                                                | after 0; finished after G                |
+| H Runtime, ACP and headless                        | D87.10's other rows: the runtime's governor host, `/resources`, the notices and `_meta`, the CLI's `resources`, exec's events and flags, the runtime settings                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | new `src/runtime/resources/**`, `src/acp/resources.ts`                                                       | `src/acp/agent.ts` (commands); `src/runtime/cliArgs.ts` and `main.ts` (`resources`); `runExec.ts` and `execProtocol.ts` (events); the runtime settings store (with M104 lane B)                                                                                                                                                                                                    | after G                                  |
+| J Journal and the usage page                       | D87.11: the resource records, their aggregation, the page's Resources section, the text summary                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | new `src/core/usage/resourceRecords.ts`, `src/webview/usage/ResourcesSection.tsx`                            | `src/core/usage/aggregate.ts` (resource buckets); `usageText.ts`; `UsageApp.tsx` (the mount)                                                                                                                                                                                                                                                                                       | after 0, with M102 merged                |
+| DK Free space and leftovers                        | D87.14: free space per watched volume through `fs.statfs` (workspace and worktree root, temp, data and logs, a node's state), the floor and its levels, the fill-rate early step; throttle of disk-heavy work (tests, builds, installs, worktrees, downloads), pause at a safe point, critical write refusal by agent tools; the per-tree temp root (`TMPDIR`/`TEMP`/`TMP`, test browsers' profiles inside it) and its removal at tree exit with the failed-run retention; the registry of what the harness created and the cleaner limited to it; lane 0's per-OS leftover facts (macOS code-sign clones and the rest); the device headroom's free-space field | new `src/core/resources/disk.ts`, `src/host/resources/tempRoots.ts`, `src/core/resources/createdRegistry.ts` | the sampler's volume reading (with S's owner); the levels' disk inputs (with G's owner); the spawn sites' environment (with C1's owner); M100's headroom field (with M100's owner); `constants.ts` (`RESOURCE_DISK_*`, `RESOURCE_TEMP_KEEP_MS`); `en.ts` and the 14 tables                                                                                                         | after the S + T + G trunk (M107INT)      |
+| W Wiring, docs and gates (last)                    | `dist/resourceGovernor.js`, budgets, `package.json`, docs, registry rows, certification, the full gate                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | `docs/certification/m107*.md`                                                                                | `scripts/build.mjs`; the bundle-size and split gates; the host API record (no `vscode` under `src/core/resources`); knip and dpdm; `scripts/package-acp.mjs`; `package.json`; README; PRIVACY; SECURITY; CHANGELOG; `docs/acp.md`; `docs/ci.md`; `docs/ide-compatibility/**`; AGENTS.md's layout; PLAN                                                                             | last                                     |
 
 - **Acceptance** (fakes unless named; no model calls):
   1. **Settings.**
@@ -25410,7 +25960,20 @@ Each joins when its dependency merges, and none blocks the others.
       event-loop delay (`monitorEventLoopDelay`) p95 is measured with and
       without the governor, and a second window's activation time is
       recorded. The figures go in the certification record.
-  16. **Budgets.** As below, with activation unchanged.
+  16. **Free space** (D87.14, a fake volume and the rigs).
+      - The levels follow the fake free-space series, including the
+        fill-rate early step.
+      - At throttle a test run waits and a running one finishes. At pause
+        background lanes stop at a safe point. At critical an agent's write
+        is refused with the volume named.
+      - Stop and cancel still work at critical.
+      - A governed tree's temp root disappears at exit, and a failed run's
+        root after the retention.
+      - The cleaner removes only registered paths: a red drill points it
+        at an unregistered folder, and it refuses.
+      - On the Mac mini, the rig that filled, a browser test killed
+        mid-run leaves nothing behind after the cleaner.
+  17. **Budgets.** As below, with activation unchanged.
 - **Tests.** Every test can fail: each runs against a fake that can be made
   to lie (the scripted sampler, the fake process tree, the fake clock, the
   fake linked device), and each has a red drill recorded in
@@ -28592,6 +29155,259 @@ anywhere joined it).
       byte-exact restoration. Focused certification is appended to
       `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
 
+### M112 — Questions that never block (D92)
+
+**Status 2026-10-06: fake-only integration complete; live checks and full
+quality remain with the lead.** Small: about 48 lane-hours in lane 0 and
+three lanes, for a 0.14.x patch (0.14.3, or folded into 0.14.2 when both are
+ready together). Lanes Q, U and A start together once lane 0's contracts
+freeze, and none waits on an unmerged milestone. The native-host, TUI and
+desktop rows certify on lane 0's fakes and are wired by M104b–d, M110a0's
+lane T and M111b. One short live check per backend (step 3).
+
+- **Goal.** A question from the agent is pinned above the composer like an
+  approval, so it is never lost. If the user has not answered after a minute,
+  the agent carries on with work that does not depend on the answer, and the
+  question folds into a chip. It stays easy to find and answer at any time,
+  from the dock or the transcript, and the answer reaches the agent exactly
+  once. Approvals stay exactly as they are.
+- **Depends on.** Main only:
+  - D26's dock (`ApprovalDock.tsx`) and M25's card locking;
+  - M16's question card and M46's `userInput/clarify`;
+  - M82's background notices and M6's view badge;
+  - the controller's steer path (`conversationController.ts:5724–5765`);
+  - M63's ACP agent, and M91 lane M's MCP forms;
+  - the `/help` reference (0.14.2) for its rows. If M112 lands first, its
+    rows land with lane HELPREF.
+- **Scope.** D92 entire; strings in all 14 tables; README (a "Questions"
+  section), CHANGELOG, AGENTS.md's layout (`src/core/questions/**`),
+  CONTRIBUTING (a new kind of prompt joins the attention dock), `docs/acp.md`
+  (`/answer`, `/questions`, `--questions-defer-after`), `docs/ci.md` (headless
+  runs still decline), `docs/ide-compatibility/**` rows, the `/help` rows,
+  harness screenshots, certification.
+- **Settings.** `museSpark.questions.deferAfterSeconds` (60; 0, or 10 to
+  3,600), machine-scoped. The runtime reads the same key from its settings
+  store once M104 lane B has one, and `--questions-defer-after <seconds>`
+  until then.
+- **Commands.** **Next open question** and **Previous open question**, with
+  keys; ACP's `/answer <n> <text>` and `/questions`.
+- **Lanes and file ownership.** One integration branch,
+  `feature/m112-questions`, under M87's region rules. Muse implements U and
+  A, Codex reviews each in one pass by class, and the lead integrates. Q
+  (timers, settle races, exactly-once delivery) goes to Claude or Codex.
+  **Order:**
+  1. Lane 0.
+  2. Q, U and A in parallel against lane 0's fakes.
+  3. The lead's integration, the live checks and the full gate.
+
+| Lane                                      | Items                                                                                                                                                                                                                                                                                                                                                                                             | Files it owns                                                                                                                                    | Its regions in shared files                                                                                                                                                                                                                                                                                                                                                                                                                                 | Starts  | Rig      | Hours |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | -------- | ----: |
+| 0 Contracts, strings, fakes (lead)        | The contracts below; every string; the keymap check (the proposed keys against VS Code's default keymaps on the three operating systems, and JetBrains', Visual Studio's and Eclipse's defaults for M104's bridges); the fakes: a clock and timers, a scripted session that records `steer`, `sendTurn` and `deferQuestions`, a fake store, a fake ACP client with and without `$/cancel_request` | new `src/shared/questions.ts`, `test/unit/helpers/questions/**`, `docs/certification/m112-contracts.md`                                          | `constants.ts` (`QUESTION_*`, `OPEN_QUESTIONS_MAX`, `LATE_ANSWER_QUESTION_MAX_CHARS`, `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION`, and `QUESTION_MODEL_TEXT` with its declared readers); `src/shared/agentEvents.ts` (`deferred`); `src/shared/protocol.ts` (the question messages); `src/core/agent/agentBackend.ts` (`deferQuestions`); `en.ts`, the 14 tables, `package.nls*.json`; `src/shared/hostApi/**` (the question messages, with M104 lane 0's owner) | day 0   | Kubuntu  |     6 |
+| Q Registry, backends, delivery            | D92.2–6: the registry's states, clock and store port; the key; reminders; the late-answer and dismissal texts; delivery through `submit`; the Model API's `deferred` reply; Muse Code's deferral through `userInput/clarify` and its id set; the store adapters for VS Code and the runtime; the controller's question region; the reminder notice                                                | new `src/core/questions/{registry,key,lateAnswer,reminders}.ts`, `src/host/questions/questionStore.ts`, `src/runtime/questions/questionStore.ts` | `ModelApiHost.ts` (`askUser`, `QuestionReply`, `questionResultText`); `MuseCodeHost.ts` (the question commands); `mapNotification.ts` and `promptLedger.ts` (the settled mapping); `conversationController.ts` (the question region: the registry, the open set on attach, the late answer through `submit`); `turnNotifications.ts` (`notifyOpenQuestions`); the session-delete hooks in `fileSessionStore.ts`                                             | after 0 | Kubuntu  |    14 |
+| U The dock, the transcript and VS Code    | D92.1, 2 and 7: `AttentionDock` in place of `ApprovalDock`; the open-questions chip; the card's states (folded, labels, Dismiss, the countdown line, never folding under focus or a draft); MCP forms in the dock; the reducer's question cases and the row schema; the jump commands and keys; the view badge, the tab title and the History marker; harness scenes and axe                      | new `src/webview/components/AttentionDock.tsx` (replacing `ApprovalDock.tsx`), `src/webview/components/OpenQuestionsChip.tsx`                    | `QuestionCard.tsx`; `ElicitationCard.tsx` (the dock slot); `ToolRow.tsx` (the question region); `uiState.ts` and `transcriptEntries.ts` (the question cases and state); `App.tsx` (the mount); `styles.css` (its region); `ChatViewProvider.ts` and `chatPanel.ts` (the count); `HistoryDialog.tsx` (the marker); `extension.ts` (commands, loaders only); `package.json` (commands and keys); `test/harness` scenes                                        | after 0 | Mac mini |    16 |
+| A ACP, the runtime, docs and help         | D92.9's ACP rows: the agent's clock, the form withdrawn by `cancellationSignal`, a late form answer, deferral at once for clients without forms, `/answer` and `/questions`, the notices; the runtime's `--questions-defer-after`; the `/help` rows; README, `docs/acp.md`, `docs/ci.md`, CONTRIBUTING, AGENTS.md's layout, the editor matrix rows, CHANGELOG                                     | new `src/acp/questionDeferral.ts`                                                                                                                | `src/acp/agent.ts` (`ask`, the commands); `src/acp/questions.ts`; `src/runtime/cliArgs.ts`; `src/shared/featureCatalog.ts` (with HELPREF's owner); README; `docs/acp.md`; `docs/ci.md`; CONTRIBUTING; AGENTS.md; `docs/ide-compatibility/**`; CHANGELOG                                                                                                                                                                                                     | after 0 | Win11 VM |     8 |
+| Integration, live checks, the gate (lead) | The merges in the order Q, U, A; the live checks (step 3); the full gate; README shots; certification                                                                                                                                                                                                                                                                                             | `docs/certification/m112.md`                                                                                                                     | PLAN (D92 and M112 only)                                                                                                                                                                                                                                                                                                                                                                                                                                    | last    | Kubuntu  |     4 |
+
+- **Lane 0's contracts,** frozen before Q, U and A start, so each can work
+  alone against them:
+  - **`src/shared/questions.ts`:** the `OpenQuestion` schema (the
+    `userInputId`, session, item and turn ids, the questions, the key, the
+    state, `askedAt`, `deferredAt`, the reminders given, the backend) and
+    `QUESTION_STATES`; the signatures of `questionKey(questions)` and of the
+    registry's port (`load`, `save` and `remove` per session; `now`;
+    `setTimer`; `deliver`).
+  - **`agentEvents.ts`:** `questionSettled.outcome` gains
+    `QUESTION_OUTCOME_DEFERRED`.
+  - **`agentBackend.ts`:** `AgentSession.deferQuestions(userInputId)`,
+    resolving once the tool call is settled. Both hosts implement it.
+  - **`protocol.ts`:** host to webview, the `openQuestions` snapshot per
+    session; webview to host, `answerOpenQuestion` (answers or an
+    explanation), `dismissOpenQuestion` and `jumpToOpenQuestion` (next or
+    previous). Each zod-parsed (rule 7).
+  - **MHP** (with M104 lane 0's owner): `questions/open` (a notification),
+    `questions/answer`, `questions/dismiss`, and the count on the status
+    item, for the bridges and the TUI.
+  - **Constants:** `QUESTION_DEFER_DEFAULT_SECONDS` (60),
+    `QUESTION_DEFER_MIN_SECONDS` (10), `QUESTION_DEFER_MAX_SECONDS` (3,600),
+    `QUESTION_REMINDERS_MAX` (2), `OPEN_QUESTIONS_MAX` (20),
+    `LATE_ANSWER_QUESTION_MAX_CHARS` (2,000),
+    `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION` (0.5).
+  - **`QUESTION_MODEL_TEXT`:** `deferred`, `deferredClarification` (at most
+    500 characters once filled). `QUESTION_DELIVERY_MODEL_TEXT` holds
+    `lateAnswer`, `dismissed` and the exact existing answer-format prefixes.
+  - **Strings:** every UI string of D92 in `en.ts` and the 14 tables; the
+    setting and the two commands in `package.nls*.json`.
+- **Steps.**
+  1. Lane 0. No capture is needed (AGENTS rule 13): the deferral rides
+     `userInput/clarify`'s shape captured on 2026-09-25 (M46) and the
+     `ask_user` tool output the Model API already sends.
+  2. Q, U and A against the fakes, each with its drills.
+  3. **The live checks** (owner-authorized live spend, the contributor model,
+     an empty `C:\muse-live-ws`, counted from the trace logs afterwards,
+     CLAUDE.md's rule), with the deadline at 10 seconds:
+     - **Model API:** one turn that asks, defers and carries on, then a late
+       answer as a new turn. Expected: 3 inference requests.
+     - **Muse Code:** the same in two turns, counted from the CLI's trace
+       log.
+     - The record states what the model did after the deferral: carried on,
+       did not guess, did not ask again. If it guessed or asked again, lane 0
+       revises the text and the check runs once more.
+  4. The lead's integration, the full gate and the README shots.
+- **Acceptance** (fakes unless named; no model call outside step 3):
+  1. **Pinned.**
+     - A question's card appears in the dock and in its row. Answering in
+       either settles both.
+     - Approvals stay first, block and never defer (a red drill lets the
+       clock defer an approval, and the test fails).
+     - An MCP form sits in the dock with its 300-second deadline unchanged.
+  2. **Deferral.**
+     - At 60 seconds on the fake clock, the Model API's tool output is
+       `QUESTION_MODEL_TEXT.deferred` with the id filled in.
+     - Muse Code receives `userInput/clarify` with at most 500 characters,
+       and the settled row reads Deferred. A user's own explanation stays
+       Explained (a red drill maps every clarification to deferred, and the
+       test fails).
+     - 0 never defers; 5 is read as 10; a workspace value changes nothing (a
+       red drill reads it, and the test fails).
+  3. **The cache.** Every request before a deferral is byte-identical to
+     today's goldens; the deferral's request differs only in that tool
+     output.
+  4. **Under the user's hands.** A card holding focus or a draft does not
+     fold; the draft survives the fold and is sent as a late answer.
+  5. **Late answers.**
+     - During a turn: one steer. A refused steer: one new turn. Idle: one new
+       turn showing "Answer to your earlier question".
+     - Exactly once: a double click, and the same answer from two surfaces,
+       send one message (a red drill drops the mark, and the test fails).
+  6. **Asked again.** A re-asked question shows one card; one answer settles
+     both requests; the open one becomes Answered when asked again, with no
+     late message.
+  7. **Reminders.** A turn ending with open questions expands the oldest once
+     and raises one notice (window unfocused, setting on). No question is
+     expanded more than twice, and no model request follows (a spy counts
+     none; a red drill removes the bound, and the test fails).
+  8. **Kept.**
+     - Open questions survive a reload, a resume and a second surface.
+     - The 21st open question expires the oldest, which says so.
+     - Deleting the session deletes them.
+     - No question text reaches a log (a planted canary).
+  9. **Easy to pick out.**
+     - The accent, icon and label on waiting and open rows; each settled
+       state's own label.
+     - Next and Previous cycle in transcript order; the keys work only with
+       the chat focused.
+     - The badge's count and tooltip, the tab title, the History marker.
+     - The live region's texts for arrival, deferral, reminder and late
+       answer.
+     - axe passes in VS Code's four themes and at 320 px for: waiting,
+       open, the chip, an approval with a question, and each settled state.
+  10. **Runs nobody watches.** `exec` still emits `question_declined` and
+      starts no clock; best-of-N and worktree conversations cancel; the M75
+      evaluation clarifies; a scheduled prompt's question defers.
+  11. **ACP.**
+      - With forms: at the deadline the call defers and the fake client
+        records `$/cancel_request`.
+      - A client that answers anyway after the deadline delivers a late
+        answer: steered into a running prompt, else put before the next one.
+      - Without forms: the question as text, deferred at once, answered by
+        `/answer`. `/questions` lists the open ones.
+  12. **Editors.** The companion page; the native hosts' count through fake
+      JCEF, WebView2 and SWT bridges; the TUI's and the desktop's rows on
+      lane 0's MHP fakes, or named as waiting for their lanes.
+  13. **Budgets.** As below; activation unchanged.
+- **Tests.** Every test can fail: each runs against a fake that can be made
+  to lie (the clock, the session, the store, the ACP client), and each has a
+  red drill recorded in `docs/certification/m112-<lane>.md`:
+  - `questionRegistry.test.ts` (states, the clock, the bound, persistence);
+  - `questionKey.test.ts`;
+  - `lateAnswer.test.ts` (steer, refused steer, idle, once, dismissal);
+  - `modelApiQuestionDeferral.test.ts` and the request goldens;
+  - `museCodeQuestionDeferral.test.ts` (the clarification's length, the id
+    set);
+  - `attentionDock.test.tsx` and `questionCard.test.tsx` (order, folding,
+    focus and drafts, jumps);
+  - `openQuestionNotices.test.ts` (reminders and their bound);
+  - `acpQuestionDeferral.test.ts`;
+  - the e2e `questions.e2e.test.ts`: the fake Muse Code CLI and the fake
+    Model API through a deferral, a late steer and a late new turn.
+
+  **Red drills:**
+  - remove the clock (the turn blocks);
+  - defer an approval;
+  - show a user's explanation as deferred;
+  - send a late answer twice;
+  - fold a card under focus;
+  - remove the reminder bound;
+  - start a clock in `exec`;
+  - fill the clarification past 500 characters;
+  - drop the Open question label;
+  - read the workspace setting.
+
+- **Gates.** The full `npm run quality`, `check:l10n`, the host API record,
+  D6's budgets and the split guard (`QUESTION_MODEL_TEXT`'s readers),
+  `test:a11y`, the request goldens, `check:reference`.
+- **Security.**
+  - An answer is the user's own message: it approves nothing, changes no
+    mode and grants no rule. Approvals and D48's paid popup never enter the
+    question path.
+  - The registry holds question text and the user's drafts: owner-only,
+    deleted with the session, never in a log, an export or a report beyond
+    counts.
+  - A noisy agent is bounded: one card per key, 20 open per session, two
+    reminders per question.
+  - Agent-written text is rendered as text, as today.
+  - PLAN §9 records the residual: an agent that ignores the deferral note and
+    guesses an answer is not stopped by this milestone; the live check
+    records how the contributor model behaves.
+- **Docs.** README ("Questions": the dock, the minute, open questions,
+  answering later, the keys, the setting, what headless runs do); CHANGELOG;
+  `docs/acp.md`; `docs/ci.md`; CONTRIBUTING; AGENTS.md; the `/help` rows; this
+  plan; certification.
+- **Performance and bundles.**
+
+  | Artifact               |                    M112 adds (target) | Cap                                                            |
+  | ---------------------- | ------------------------------------: | -------------------------------------------------------------- |
+  | `dist/extension.js`    | ≤ 2 KiB (the registry and the region) | 600 KiB, unchanged                                             |
+  | `dist/modelApi.js`     |                             ≤ 0.5 KiB | 475 KiB, unchanged                                             |
+  | `dist/acp.js`          |                               ≤ 2 KiB | 850 KiB, unchanged                                             |
+  | Webview startup bundle |   ≤ 3 KiB (the dock replaces its own) | 900 KiB, unchanged                                             |
+  | `dist/uiText.js`       |                             ≤ 1.5 KiB | 125 KiB, unchanged (strings in a regional block if it is near) |
+
+- **Size.** S: about 48 lane-hours.
+- **Certification checklist** (§6.0, plus):
+  - [ ] Lane 0's contracts and the keymap check recorded
+  - [ ] Lanes Q, U and A with their drills
+  - [ ] The live checks counted from the trace logs, with what the model did
+        after the deferral
+  - [ ] Harness scenes in four themes and at 320 px; README shots refreshed
+  - [ ] Editor rows recorded; strings in all 14 tables; the `/help` rows;
+        budgets measured; the full gate green
+
+---
+
+### FIXM112U — RVM112U surface repairs (2026-10-06)
+
+Authority: the rig brief and lead decisions, refining D92/M112 from
+`plan/m105-m107`. No producer, wire contract or paid-call change.
+
+- [x] P2-1: the same-session snapshot owns the open set. An absent active
+      transcript card becomes locally unavailable, retaining any known terminal
+      state. Counts, chip, navigation and delivery use the same derived set.
+- [x] P2-2: one same-session history merge preserves approval outcomes and
+      question cards/outcomes, including retired terminal records.
+- [x] P2-3: approvals first, then newest waiting question; protect a question
+      focus or typing in its draft; retain inactive drafts. Reminders rank only
+      among deferred questions.
+- [x] P3: separate lazy question renderer/dock region/chip from the small
+      startup draft context and approval shell. Keep a minimal loading card;
+      preserve drafts. Measure startup against the 3 KiB target and allocate the
+      question closure measured size +15%, rounded up to 25 KiB, independently
+      of the unchanged unclassified deferred cap.
+- [x] Complete-file regressions, red drills with byte-exact restoration,
+      scoped rig gates and hooks-on local commits; record in
+      `docs/certification/m112-u.md`. Lead retains aggregate quality and existing
+      Q/A/editor integration handoffs. No merge, push, dependency or gate widening.
+
 ## 7. Gates
 
 **FIXM118INT repair certification (2026-10-06).** All five RVM118INT P2s
@@ -28653,6 +29469,141 @@ thresholds, ignores or rule levels change. Contract-only exports have test
 and schema-generator consumers until P/C/X merge; the lead must then check
 production consumers and remove any unused contract instead of adding ignores.
 
+**REL0143F release CI repair (2026-10-06, Kubuntu).** The complete configured
+Vitest matrix passes at repository default timeouts (532 files, 11,430 passing
+tests, 72 existing platform/live skips). Required static checks, production build
+and VSIX package all exit 0. Four intentional failures have byte-exact restoration
+receipts; the shipped fixed JavaScript inventory is exact. The rig/shared rules
+prohibit aggregate `npm run quality` and public network: that aggregate, hosted
+Windows/macOS, remote badges, native macOS helper and live/editor release receipts
+remain with the lead. Packaging uses the existing named offline badge option,
+which CI refuses. No gate, hook, skip, timeout or budget was weakened. Evidence:
+`docs/certification/rel0143-ci.md`.
+
+**M112 integration closure (2026-10-06, Windows 11 rig).** The listed U
+and A merges close the frozen Q/runtime, History and build-reader handoffs.
+The extension supplies its real private store and machine clock through the
+first-conversation factory; ACP supplies the real registry and bounded durable
+queue through runtimeQuestions.js; exec explicitly declines. ACP owns its
+only deadline timer. Queue prefixes are removed durably before dispatch,
+restored only before admission, and retired after uncertain admission; a
+crash before dispatch can lose a prefix, avoiding an unsafe replay. Initial
+corrupt-store failures are observed immediately, and failed flushing cannot
+prevent backend/journal shutdown. The exact existing answer text stays intact.
+
+The question cards, dock body and action/outcome rendering use a measured
+25 KiB lazy browser closure. ACP question/elicitation handling, runtime
+registry/queue and the first-deferral notes use separate measured 25 KiB
+ceilings; every existing aggregate/hard cap is unchanged. QUESTION_MODEL_TEXT
+is read only by questionNotes.js; QUESTION_DELIVERY_MODEL_TEXT only by
+conversation.js and runtimeQuestions.js. Both are guarded. The baseline and
+all production artifact measurements, owning suites and failure drills are
+in docs/certification/m112.md.
+
+The rig brief prohibits full quality locally; hosted CI owns that gate.
+Round 2's unchanged zero-duplication gate exposed two repeated setup blocks
+in U's new dock priority regressions; share only those test fixtures and
+retain every assertion. The MCP accessibility fixture uses its existing
+bounded field waiter so the new lazy dock is measured after it renders.
+check:reference, featureCatalog.ts and its generator are absent on this base,
+so HELPREF must add the named dock, setting, navigation, ACP commands and flag
+when its sources arrive. Native MHP adapters/envelopes are absent; acceptance
+12 certifies only shared schemas/fakes, with M104b–d/M110a0/M111b handoffs
+named in the record. Live model behavior, installed editor keys, README
+shots remain release-lead checks. U's review continuation is merged in round 2;
+its startup target waiver is recorded in §9. No paid/live
+call, dependency install, cap increase or gate suppression was made.
+
+**FIXM112A (2026-10-06, RVM112A).** Repair all six ACP findings in lane A:
+Stop dispatches cancellation without waiting on question storage; late forms
+wait for the registry's open transition; a failed deferral explicitly cancels
+the waiting backend question; refused steers recheck session ownership before
+queuing; idle answers acknowledge durable queuing until delivery; question
+handling loads on first question/command. The last repair includes its own
+build, split, package and graph-entry registration, keeping every existing
+cap and guard. Each finding gets a failing regression and byte-restored red
+drill in `docs/certification/m112-a.md`. The rig/shared rules delegate full
+quality and Q/U integration to the lead; this lane runs its focused suites
+and required static/build checks without merging, pushing or paid calls.
+
+### REL0143M — Integrate the webview diet into 0.14.3 (2026-10-06)
+
+- Merge `sync/main-0143` (`61d8647c2`) into the prepared release with both
+  M112 question behavior and DIET1 optional-surface loading retained.
+- Keep the immediate question arrival card and shared drafts eager; give lazy
+  question controls the shared failure/retry boundary and their existing 25 KiB cap.
+- Preserve DIET1's stricter 733.8/32.1 KiB regression baselines as well: defer
+  MCP form controls and workflow details, and compact History's layout loop.
+  Forms share the existing question cap;
+  workflow details get a measured independent 25 KiB closure cap.
+- Deduplicate the merged ACP question-command golden in existing test fixtures,
+  retaining every command, description and input field under the zero-clone gate.
+- Keep the What's New codec fixture between its unchanged 40 KiB encoded
+  and 75 KiB decoded limits, even when a whole historical release jumps
+  past the upper limit. The real two-release artifact remains separately checked.
+- Regenerate reference artifacts, put the diet release notes in 0.14.3 and add
+  the README startup bullet. Verify the unchanged 900/50/2400 KiB startup,
+  deferred and VSIX caps with focused default-timeout tests and rig gates.
+- Local hooks-on merge commit only; no push, extra merge or model call.
+
+### DIET1 — Webview startup and deferred headroom (2026-10-06)
+
+- [x] Measure main `e56b795a` with the production metafile: startup 813,180 B
+      (794.1 KiB); original deferred aggregate 51,157 B (49.96 KiB).
+- [x] Reduce startup by at least 60 KiB and original deferred aggregate to
+      at most 35 KiB without raising either existing cap or adding dependencies.
+      Keep transcript, composer and approvals eager; defer optional surfaces
+      and preserve the complete inline English fallback with lossless encoding.
+- [x] Accessible loading, local load failure and retry; shared-host CSP/asset
+      proof; owning tests and intentional static-import red drill.
+- [x] Fix RVMDIET1 P2-1, P2-2 and P3 with owning regressions and byte-exact
+      red drills; final 628-page accessibility matrix exits 0 on macmini.
+- [~] Scoped rig gates, production/package, accessibility and browser smoke;
+  certification `docs/certification/diet1.md`, contribution rule and changelog.
+  Lane rules prohibit aggregate quality, network, merges and pushes; the
+  lead retains integrated quality and hosted checks.
+
+**FIXDIET1 review follow-up (2026-10-06).** RVMDIET1 P2-1 is fixed by
+rebuilding the panel document on Retry; the existing persister flushes state
+before the host rebuilds and the browser refetches the complete module graph,
+including failed static dependencies. The dynamic-root URL rewrite is removed.
+Interactive lazy surfaces use the shared deferred loader. Each open owns
+an intent that is cancelled on dismissal; loading and failed nonmodal menus
+retain outside-pointer/focus, Escape and trigger-focus behavior (P2-2/P3).
+Regression tests and byte-exact red drills certify each fix. Keep startup at most
+733.8 KiB, the original deferred group at most 32.1 KiB and each moved
+surface within 25 KiB. No dependency, gate relaxation, model call or merge.
+
+## 7. Gates
+
+**REL0143M bounded integration certification (2026-10-06, Kubuntu).** The
+specific rig brief authorizes only the main diet merge and local hooks-on
+commit. Shared rig rules prohibit aggregate `npm run quality`; the lead owns
+integrated quality, hosted CI and live/editor release receipts. Preserve all
+existing caps and DIET1's regression baseline assertions. Add the measured
+workflow closure in D6; MCP forms share the existing question closure. Five
+intentional guard failures are restored byte-exact before default-timeout
+verification. No dependency, wire shape, paid call, extra merge, push, rebase,
+timeout override or hook change. Local package badge validation uses the
+existing named network skip, which CI rejects. Receipts and conflicts:
+`docs/certification/rel0143.md`.
+
+**DIET1 bounded rig certification (2026-10-06).** The user-provided lane brief
+and shared rules prohibit aggregate quality and public network, merges and
+pushes. The local commit uses scoped typecheck, lint/format, Knip, duplication,
+localization, reference, host API, webview suites, production/split/size,
+accessibility matrix, real-browser fake-host smoke and VSIX packaging. Local
+packaging uses the existing named badge-network skip; CI rejects it. The lead
+must run integrated `npm run quality` and hosted checks before integration.
+See `docs/certification/diet1.md` for measurements and byte-exact red drills.
+The initial second accessibility scan reported zero violations/undecided rules
+across 628 pages but exited 1 when light/usage-install missed the unchanged
+10-second readiness deadline. FIXDIET1's final complete matrix supersedes that
+outstanding receipt: 628 pages (157 scenarios × four themes), exit 0, zero
+violations, zero undecided rules, zero exemptions and zero missing results.
+No timeout, exemption, worker policy or accessibility rule changed. The lead
+still owns integrated aggregate quality and actual host/release certification.
+
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
 test files, deliberate failures, typecheck, scoped lint/format, deadcode,
@@ -28669,6 +29620,156 @@ ACP tarball is 1,295,446 bytes. Both carry exact static v0.14.0 badges, and a
 future-version fixture proves no manual badge bump is needed. The Kubuntu
 package lacks the compiled macOS helper; hosted universal packaging remains
 unchanged. Receipts: `docs/certification/badgefix.md`.
+
+### FIXHELPREF4 — Final focused help audit repairs (2026-10-06)
+
+Scope: fix RVHELPREF4's P1 and both P2 findings. Best-of-N's finite session
+budget requires an owned parent scope shared by candidates; derive that help
+prerequisite from the production manager's admission in a truth regression.
+Correct English and all fourteen translations, then regenerate every output.
+Reject the closed state-predicate vocabulary in every plain description by
+walking the complete built reference, including keyboard rows and nested facts.
+Move existing state claims into typed conditions rather than rewording them.
+Prove the review's exact sentences fail at buildReference/referenceMarkdown,
+accept neutral prose, and retain the original 100-KiB reference cap.
+
+The complete walk exposed existing conditional enum meanings and paid-default
+facts as well as ordinary descriptions. Preserve them with typed localized
+references and the same selector on every surface. The first production build
+correctly rejected the resulting reference at 103,230 bytes / 102,400. Extend
+the existing lossless string packing with shared technical prefixes, certify
+whole-model equality and a rejecting restoration drill, and retain every cap.
+
+- [x] Budget truth regression, all translations and generated outputs.
+- [x] Vocabulary/output-walk regressions and byte-exact red drills.
+- [x] Scoped Kubuntu validation and hook-on commits; no merge or push.
+
+Evidence: `docs/certification/help-reference.md`. The rig brief reserves full
+quality and release integration for the lead. No new dependency, paid/live
+call, guard weakening or cap change is authorized; time box: ninety minutes.
+
+### FIXHELPREF3 — Third truth audit repairs (2026-10-06)
+
+Scope: resolve all six RVHELPREF3 findings at their source. Describe both Auto
+reviewers and ordinary model questions separately from MCP elicitation; prove
+the prose against runtime paths. Use one JSON formatter for displayed/searchable
+facts, schemas and CLI contracts. Escape argument slots throughout Markdown.
+Represent forward and backward modal focus in the shared handler table. Replace
+the historical-sentence blacklist with a structural conditional-description
+rule and typed conditions rendered on every reference surface. Audit every
+human-written catalogue description against its code path and record corrections.
+
+- [x] Six regressions and twelve deliberate red drills, with SHA-256 restoration.
+- [x] Whole-catalogue truth pass, translated tables and generated reference.
+- [x] Scoped Kubuntu checks and hook-on local commits; no merge or push.
+
+Evidence: `docs/certification/help-reference.md`. The rig brief prohibits
+aggregate quality; integrated quality remains the lead's gate. No new dependency,
+live/paid request, relaxed guard or budget change is authorized.
+
+### REDHELPREF — Runtime-owned reference facts (2026-10-05)
+
+Scope authorized by FIXHELPREF.rig.md: replace heuristic reference facts with
+typed runtime registries for CLI options, webview keys, slash grammar and paid
+identity. Settings retain the complete contributed schema; command conditions
+retain the contributed menus. Human descriptions live in the catalogue and all
+14 translations, never in generated fact strings or failure-message lookups.
+Conditional state is expressed as conditions, with a rejecting catalogue lint.
+The independent gate inventories all keyboard handlers and parser routes,
+regenerates every committed output in both directions, and tests actual actions,
+defaults, paid registry identity and route option acceptance. Preserve all
+existing audits' regressions, add the second audit's 16 regressions and repair
+deferred build fixtures. Search includes every displayed field and retains
+visible relationship targets. No native/phone implementation is added; ACP and
+CLI consume the same lazy reference through their existing bridges.
+
+- [x] Runtime-owned typed sources and translated catalogue descriptions.
+- [x] Complete action coverage, independent truth tests and 19 red drills.
+- [x] Search/navigation, fixtures and scoped static/build validation.
+
+The rig brief forbids aggregate quality, merge, rebase and push. Hook-on local
+commits follow scoped green checks. Receipts: docs/certification/help-reference.md.
+
+### FIXHELPREF — Reference truth audit repairs (2026-10-05)
+
+Scope: resolve RVHELPREF findings 1–23 in the existing help lane. Derive paid
+membership from the paid registry, complete setting schemas from the manifest,
+CLI options from the parser, slash syntax from its parsers, and command
+conditions from menus. Record explicit host/backend combinations and effective
+availability; distinguish extension workflows from ACP's local help/skills.
+Inventory existing palette, bridge and keyboard actions independently of the
+catalogue, then check their reference coverage. Correct release placement,
+installed-language output, first-help skill refresh, unavailable values and
+loading failures with retry. Each repair has a failing regression/drill and
+byte-exact restoration in `docs/certification/help-reference.md`.
+
+- [x] Repair all 23 findings, with exact implemented surfaces and complete contracts.
+- [x] Certify 571 scoped tests and 59 deliberate failures with byte-exact restoration.
+- [x] Pass existing static/build gates, production help parity/localization and
+      wide/narrow English/French accessibility; preserve every budget.
+
+The rig brief overrides common.md's old merge step: no merge, push or rebase.
+Scoped checks run on Kubuntu; aggregate quality remains the lead's gate. No
+dependency, live/paid call, credential access or gate/cap weakening.
+
+### HELPREF — Generated Help & Reference (2026-10-05, release 0.14.1)
+
+Owner requests `/help` opening an always-current, searchable reference of every
+feature, slash command, palette command, setting and keyboard shortcut. Build
+on the shared palette, manifest translations, host bridge and modal UI.
+
+Startup comparison against `2d4d72bd` measured 914,658 bytes before help and
+917,333 bytes with help's entry points and English controls. Keep the existing
+inline fallback and lossless dictionary; use reserved two-byte UTF-8 dictionary
+characters (U+0100–U+05FF) instead of three-byte private-use characters. The
+canonical English table has no collision and uses 953 of 1,280 slots. The
+existing collision guard and exact full-table round-trip remain mandatory;
+verify smaller startup and unchanged limits before certifying this lane.
+
+- [x] Generate the lazy reference model and `docs/reference.md` from the
+      manifest, palette, typed feature catalogue and ACP/CLI command table.
+      Validate coverage, descriptions, links and freshness in `check:reference`;
+      add that check to local quality and CI without changing any cap.
+- [x] Add shared React reference page, translated controls, current/default
+      values, settings links and an explicit safe command allowlist. Host bridge
+      messages are schema-validated. VS Code filters settings by `@id:`; native
+      bridges use their settings page anchors with the same requested key.
+- [x] Wire panel `/help`, Open Help & Reference palette command, ACP's compact
+      `/help`, CLI `help --all` and headless help. The generated GitHub reference
+      is the companion link for ACP editors; the React page is portable through
+      the shared bridge. No backend or model invocation is required for help.
+- [x] Prove generator/page tests and red drills; check accessibility in all
+      four themes, capture wide/narrow light/dark, measure unchanged startup caps,
+      update README, CONTRIBUTING, AGENTS and CHANGELOG, commit with hooks.
+
+HELPREF lane runs on macmini. The explicit rig rules prohibit full `quality`,
+push, merge and rebase; the lead retains integrated quality/release approval.
+Scoped tests and all available static/build checks run directly here. No paid
+or live model calls, dependency changes, credential access or cap changes.
+Certification: `docs/certification/help-reference.md`.
+
+## 7. Gates
+
+**FIXHELPREF4 bounded certification (2026-10-06).** The explicit rig brief
+prohibits aggregate quality and reserves release integration for the lead.
+Run all owning reference/budget tests, exact-restoration red drills and the
+existing scoped static/build checks directly on Kubuntu before the local
+hook-on commit. The original predicates, schemas and bundle caps remain gates;
+no threshold, ignore, rule level, timeout or dependency is relaxed.
+
+**FIXHELPREF bounded truth certification (2026-10-05).** Kubuntu runs the
+owning reference/ACP regressions, source and guard failure drills with exact
+SHA-256 restoration, five-project typecheck and the existing static/build
+gates. The lane brief forbids aggregate quality, merge, push and rebase;
+full integrated quality and the second truth audit remain with the lead.
+No threshold or size cap changes. Evidence: `docs/certification/help-reference.md`.
+
+**HELPREF bounded rig certification.** The explicit rig/shared rules prohibit
+aggregate `npm run quality`, merge, rebase and push in this lane. Hook-on local
+commits use scoped owning tests, deliberate red drills and available static/build
+checks. The lead retains the integrated quality/coverage/release gate. No gate
+or budget is weakened; the exact evidence is recorded in
+`docs/certification/help-reference.md`.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
@@ -29251,6 +30352,15 @@ aggregate certification record.
 
 ## 7. Gates
 
+**FIXM112Q bounded-lane certification (2026-10-06).** The rig/shared brief
+forbids aggregate quality and full-suite runs; full integrated quality remains
+with the lead. Run the complete owning test files, red drills, scoped lint and
+format, compiler projects, plain knip, duplication, localization, host API and
+production build directly on Kubuntu. The frozen Q base's U-owned
+`uiState.ts:2452` reducer and A-owned generated host-API inventory are already
+named integration handoffs in `docs/certification/m112-q.md`; do not weaken
+either gate or claim them green. No review finding is deferred.
+
 **CIFIX14T verified local result (2026-10-05).** The five owning suites
 pass 113 tests (six existing Windows-only skips); the exact restored monitor
 file passes 30/30 loaded runs, 210 tests. Removing the wait fails 3/3 loaded
@@ -29745,6 +30855,11 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 | -------------------------------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/runtime/sharing/sharingEntry.ts` localProgram | `nosemgrep` child-process rule | Fixed platform clipboard/browser binaries and fixed switches; only scrubbed preview text on stdin or a canonically confined local file argument, no shell, credential variables removed and an abort signal terminates the helper. |
 
+| Location                                                                                                            | Escape hatch                                               | Reason                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/acp/questionDeferralBundle.ts` (FIXM112A)                                                                      | `isAcpQuestionBundle` trusts the checked factory signature | The entry, loader and ACP package come from the same build; the export is checked as a function and loader tests reject missing/malformed modules. The factory installs the caller's language table before constructing a session's question controller. |
+| `src/runtime/questions/questionRegistryBundle.ts`, `src/host/conversation/conversationBundle.ts` (M112 integration) | Checked same-build function signatures                     | Loader guards validate each required export as a function; entries and callers ship from the same build. Registry and host store factories install or inherit the caller's language before use; loader and real-disk tests exercise their signatures.    |
+
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
@@ -29915,12 +31030,103 @@ before a repaired one loads (2026-09-30).
   certification. CLI policy reads strict JSON `.vscode/settings.json`; unreadable
   or JSONC policy refuses sharing. Unknown secret shapes still depend on review.
 
+- **M112 integration (2026-10-06, Windows rig).** Bind the real question store and registry to the extension and ACP launcher, with an owner-only bounded durable late-answer queue and session removal. ACP owns its deadline timer; the registry accepts its frozen arrival timing without another timer. History carries per-session counts from authenticated listed sessions. Move question UI and runtime implementation to guarded lazy closures; preserve every existing cap. Reconcile model-text readers with actual lazy ownership, prove changed guards with red controls, and record all acceptance evidence in docs/certification/m112.md. Round 2 integrates U's authoritative open set, retained history and newest-waiting dock priority while preserving session-generation delivery guards and settled outcomes. HELPREF and M104 sources are absent on this base: their named handoffs stay explicit; no substitute protocol or full catalog is invented. Live checks and hosted full quality remain with the lead; the startup growth waiver follows below.
+
+- **FIXM112Q (2026-10-06).** All six RVM112Q findings are corrected; none is
+  accepted as a residual. Permission admission and session recovery are the
+  ordinary send's; re-asks get independent deadline dispatch, publication is
+  one atomic replacement with durable rollback, coalesced replies all receive
+  independent attempts before card retirement, and deletion sweeps crashed
+  temporary snapshots. Tests and byte-exact red controls are recorded in
+  `docs/certification/m112-q.md`. The already-recorded U reducer, A host-API
+  inventory and runtime/editor binding handoffs remain integration work on
+  this frozen Q base; full quality and cross-platform/live receipts stay with
+  the lead, with no new guard exception or dependency here.
+- **FIXM112A-Q-RUNTIME (inherited integration handoff, 2026-10-06).** All six
+  RVM112A findings are fixed with regressions and byte-restored drills in
+  `docs/certification/m112-a.md`; none is deferred. Lane A meets the ACP
+  additive target (1.81 KiB) by loading `acpQuestions.js` on first use, with
+  a separate 25 KiB ceiling and the existing ACP 850 KiB cap unchanged.
+  The frozen A lane lacked Q's backend `deferQuestions`, durable registry/queue
+  and runtime/exec bindings; M112 integration closes those holds with actual
+  implementations. Integrated typechecks, request goldens, question/ACP e2e
+  and all model-text readers pass; measured ACP growth is 1.980 KiB against
+  the unchanged 2 KiB target. Full quality, installed-editor and counted live
+  receipts remain with the lead. HELPREF/M104 bindings remain the named
+  handoffs in the certification record; this repair adds no command or setting.
+
+- **FIXM112U-P3-STARTUP — WAIVED by the lead 2026-10-06.** M112's measured
+  webview startup growth is 4.74 KiB against the plan's 3 KiB target. The
+  approval shell and shared draft context must remain at startup; the question
+  UI is lazy, measured at 10.83/25 KiB in U's reviewed build. This is an
+  explicit acceptance waiver, with no additional implementation requested.
+  The startup hard cap remains 900 KiB, the question closure cap remains
+  25 KiB, and the unclassified deferred cap remains 50 KiB. Round-2 integrated
+  production measurements are recorded in `docs/certification/m112.md`.
+
+- **FIXM112U-INTEGRATION (inherited Q/A/editor holds).** Backend
+  `deferQuestions` implementations, question-model-text readers, generated
+  host API contributions and unseen-session History counts are connected in
+  the integration. Round 2 merges all RVM112U lifecycle and lazy-render fixes.
+  The shared React fixes apply to every host consuming this webview; no native
+  adapter is claimed as newly shipped. HELPREF's absent catalogue/reference,
+  aggregate quality and the installed editor/backend matrix remain lead
+  handoffs, with no live or paid call in this rig lane.
+
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting
   and its full security contract are in README, D89.5, the manifest and all
   translations, so the repair introduces no undocumented command or option.
   Follow-up: add the setting to HELPREF's catalogue when that lane joins the
   release. RVENVFENCE's two P1 findings are fixed; no review finding is deferred.
+
+- **FIXDIET1 audit outcome (2026-10-06).** RVMDIET1 P2-1, P2-2 and P3 are
+  fixed; no review finding is deferred. Retry flushes the existing webview
+  snapshot before the host rebuilds the document, so entry and static
+  dependency failures recover together without duplicating React/language
+  state. A cancelled cold-menu intent cannot mount its late import; loading
+  and failed rows retain dismissal and focus return. The same shared React
+  path serves either backend and shells embedding this webview; ACP editors
+  keep their native UI. Existing persistence size/session validation,
+  credential boundaries, CSP, dependencies and bundle caps are unchanged.
+  The lead retains integrated quality and real host/release certification.
+  Tests, exact-restoration drills and rig receipts: docs/certification/diet1.md.
+
+- **ENVFENCE-HELPREF (resolved in REL0142 integration, 2026-10-06).** Main's
+  credential pass-through setting joins the Help permissions feature with its
+  existing translated manifest description and an explicit typed condition for
+  interactive Model API shell commands. The reference gate rejected the merged
+  source before this relationship and condition were added. Regenerated help
+  retains the complete security contract; RVENVFENCE's two P1 findings remain
+  fixed. Receipts: `docs/certification/rel0142.md`.
+- **FIXHELPREF4 audit outcome.** RVHELPREF4's P1 and both P2 findings are fixed,
+  with no deferred finding. The closed predicate vocabulary is checked over
+  the complete emitted reference rather than a list of row kinds. Existing
+  state claims, enum meanings and paid-default facts retain typed conditions;
+  Best-of-N's prerequisite is tested against production admission with a fake
+  API. This supersedes FIXHELPREF3's incomplete C06 guard claim. Arbitrary prose
+  truth still needs an owning source audit. The original bundle cap and the
+  lead's integrated quality/release boundary remain unchanged. Evidence and
+  exact-restoration drills: `docs/certification/help-reference.md`.
+
+- **FIXHELPREF3 audit outcome.** C01–C06 and the two additional C07 prose
+  corrections have no deferred finding. The structural guard certifies typed
+  conditional descriptions and rejects generic state wording in plain catalogue
+  descriptions; it does not establish arbitrary prose truth by itself. Source
+  witnesses, regressions and twelve byte-exact red drills are recorded in
+  `docs/certification/help-reference.md`. No cap or gate was weakened. The
+  pre-existing native/companion boundary below and the lead’s integrated
+  quality gate remain outside this scoped rig certification.
+
+- **HELPREF-native-companion-integration (pre-existing boundary).** Native
+  shared-webview hosts and the phone companion are planned in the IDE
+  compatibility work and have no implementation in this base. ACP offers
+  local help/installed skills and the generated Markdown; the shared page
+  states exact implemented host/backend pairs and does not claim these
+  integrations exist. Safe for now: no fabricated adapter or availability
+  claim ships. Follow-up: integrate and certify actual native/phone adapters
+  under the IDE compatibility milestones. RVHELPREF 1–23 retain no false-claim
+  residual; this boundary is recorded explicitly for finding 16.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the
@@ -30882,3 +32088,26 @@ against `SHA256SUMS`, installs as 0.11.0 in throwaway profiles on the
 Windows host (VS Code 1.140.0), the Windows 11 VM (1.139.1), the Mac mini
 (1.139.1) and Kubuntu (1.130.0); the GitHub tarball installs on Kubuntu and
 `muse-spark-code-acp --version` prints 0.11.0.
+
+**0.14.3 prepared (2026-10-06, draft; PR, tag and run ids to be filled by the lead).**
+M112, questions that never block (D92), on top of the 0.14.2 Help reference.
+`release/0.14.3` merges main `e56b795a1` into the reviewed M112 integration
+`e730cd8bd`. `check:reference` now covers the open-question commands,
+`museSpark.questions.deferAfterSeconds`, `--questions-defer-after` and the
+ACP-local `/questions` and `/answer`. The Node reference stays within its
+unchanged 100 KiB budget (99.5 KiB) through lossless CLI route-prefix
+packing. Live through the ACP agent, contributor model, empty workspace:
+Model API 2 of 2 expected requests (budget 3), answered form only; Muse Code
+2 of 2 turns (budget 2), deferral and a late answer, 10 CLI model attempts
+(`docs/certification/m112.md#live-checks-2026-10-06`). REL0143M merges main's
+diet (`61d8647c2`, PR #128) into the prepared release (`648511c6c`), retaining
+question arrival and draft state while deferring optional controls. On Kubuntu,
+`npm run build` and `npm run package` now exit 0: startup 750,695 bytes
+(733.1 KiB), original deferred aggregate 32,857 bytes (32.1 KiB), VSIX
+2,289,406 bytes under the unchanged 2400 KiB cap. Question UI and workflow
+closures also pass their 25 KiB caps, and DIET1's stricter startup/deferred
+regression baselines remain unchanged. Open before release: Model API
+deferral live, installed editors and screenshots, the lead's integrated full
+quality and hosted CI, remote badges and universal-package/platform checks.
+Evidence: `docs/certification/rel0143.md`. Release run, tag commit and channel
+results: pending.

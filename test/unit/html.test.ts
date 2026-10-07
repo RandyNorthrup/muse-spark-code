@@ -101,3 +101,29 @@ describe('buildWebviewHtml', () => {
     expect(embeddedTable(built)).toEqual({ locale: 'en', table: { ...EN, sendTitle: hostile } })
   })
 })
+
+describe('shared host CSP for ESM chunks', () => {
+  it.each([
+    ['VS Code', 'https://file+.vscode-resource.vscode-cdn.net'],
+    ['VSCodium', 'https://file+.vscode-resource.vscode-cdn.net'],
+    ['code-server', 'https://editor.example.test'],
+    ['Theia', 'https://webview.example.test'],
+    ['shared companion UI', 'https://companion.example.test'],
+  ])('%s permits a relative lazy chunk from its asset origin', (_host, origin) => {
+    const script = `${origin}/extension/dist/webview/main.js`
+    const chunk = new URL('chunks/optional.js?load=0.5', script)
+    const html = buildWebviewHtml({
+      scriptUri: script,
+      styleUri: `${origin}/extension/dist/webview/main.css`,
+      cspSource: origin,
+      nonce: 'N',
+      l10n: { locale: 'en', table: EN },
+    })
+    const scripts = /script-src ([^;"\n]+)/.exec(html)?.[1]?.split(' ')
+    expect(scripts).toContain(chunk.origin)
+    expect(scripts).toContain("'nonce-N'")
+    expect(scripts).not.toContain('https:')
+    expect(html).not.toContain('unsafe-inline')
+    expect(html).not.toContain('unsafe-eval')
+  })
+})

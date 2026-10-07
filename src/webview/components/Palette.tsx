@@ -1,3 +1,4 @@
+import { webviewKey } from '../../shared/keybindings'
 // The "/" command palette: a filter box over grouped rows, some carrying a
 // value, a toggle or the effort slider, plus the model list as a second view.
 // Fully keyboard-operable: the filter input keeps focus, Up/Down move,
@@ -17,7 +18,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { UI_TEXT } from '../../shared/constants'
+import { UI_TEXT, PALETTE_LISTBOX_ID } from '../../shared/constants'
 import { effortAt, effortIndex } from '../../shared/effort'
 import {
   contextWindowLabel,
@@ -79,7 +80,6 @@ export type PaletteEntry =
   | { readonly kind: 'row'; readonly key: string; readonly index: number }
 
 const ROW_ID_PREFIX = 'palette-row-'
-export const PALETTE_LISTBOX_ID = 'palette-listbox'
 
 function rowFor(item: PaletteItem, onAction: (action: PaletteAction) => void): PaletteRow {
   const { action, widget } = item
@@ -282,29 +282,31 @@ export function Palette(props: PaletteProps) {
 
   const didHandleKey = (event: KeyboardEvent<HTMLElement>): boolean => {
     const active = rows[activeIndex]
-    switch (event.key) {
-      case 'ArrowDown': {
+    switch (webviewKey('palette', event)) {
+      case 'next': {
         move(1)
         break
       }
-      case 'ArrowUp': {
+      case 'previous': {
         move(-1)
         break
       }
-      case 'ArrowRight':
-      case 'ArrowLeft': {
+      case 'increase':
+      case 'decrease': {
         if (active?.step === undefined || active.widget?.kind !== 'slider') {
           return false
         }
         const { levels, current } = active.widget
-        active.step(effortIndex(levels, current) + (event.key === 'ArrowRight' ? 1 : -1))
+        active.step(
+          effortIndex(levels, current) + (webviewKey('palette', event) === 'increase' ? 1 : -1),
+        )
         break
       }
-      case 'Enter': {
+      case 'accept': {
         active?.activate()
         break
       }
-      case 'Escape': {
+      case 'close': {
         if (view === 'models') {
           onBack()
         } else {
@@ -401,7 +403,8 @@ export function Palette(props: PaletteProps) {
       onBlur={isAttached ? undefined : onDialogBlur}
       onKeyDown={(event) => {
         // The filter handles its own keys; the list shares its Escape behavior.
-        if (event.key === 'Escape' && event.target !== filterBox.current) didHandleKey(event)
+        if (webviewKey('palette', event) === 'close' && event.target !== filterBox.current)
+          didHandleKey(event)
       }}
     >
       {isAttached ? null : (

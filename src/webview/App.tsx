@@ -1,7 +1,8 @@
 import { JudgeStatusLine } from './components/JudgeStatusLine'
 import {
   type ReactNode,
-  lazy,
+  createElement,
+  Fragment,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -11,6 +12,7 @@ import {
   useSyncExternalStore,
 } from 'react'
 import type { QuestionAnswer } from '../shared/agentEvents'
+import type { OpenQuestionAnswer } from '../shared/questions'
 import {
   type CheckpointAvailability,
   type DictationAction,
@@ -25,6 +27,7 @@ import {
   SETTING_DEFAULTS,
   type SubagentAction,
   UI_TEXT,
+  SLASH_COMMAND_NAMES,
 } from '../shared/constants'
 import {
   parseReviewPrompt,
@@ -37,7 +40,7 @@ import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/e
 import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
 import { parseHandoffPrompt } from '../shared/handoff'
 import { parseLoopPrompt } from '../core/backends/modelapi/schedules'
-import { fill, templateParts } from '../shared/l10n/text'
+import { fill, formatNumber, plural, templateParts } from '../shared/l10n/text'
 import {
   availablePermissionModes,
   nextPermissionMode,
@@ -59,20 +62,21 @@ import type {
 import { parseHostToWebviewMessage } from '../shared/protocol'
 import type { GitFormEdit } from './state/gitState'
 import type { ApprovalDecisionInput } from './components/ApprovalCard'
-import { ApprovalDock } from './components/ApprovalDock'
+import { AttentionDock } from './components/AttentionDock'
+import { QuestionSurface } from './components/QuestionSurface'
 import { Composer, type ImageData, type SlashPaletteSlot } from './components/Composer'
 import { DiffTally } from './components/DiffTally'
-import { EffortSlider } from './components/EffortSlider'
+const EffortSlider = deferred(async () => {
+  const module = await import('./components/EffortSlider')
+  return { default: module.EffortSlider }
+})
 import { EmptyState } from './components/EmptyState'
-import { GoalPanel } from './components/GoalPanel'
-import { SchedulePanel } from './components/SchedulePanel'
 import { Header } from './components/Header'
 import { DeferredReportDialog } from './components/DeferredReportDialog'
 import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
-import { Palette, type PaletteKeys, type PaletteView } from './components/Palette'
-import { type MenuEntry, PopoverMenu } from './components/PopoverMenu'
-import { SignIn } from './components/SignIn'
+import type { PaletteKeys, PaletteView } from './components/Palette'
+import type { MenuEntry } from './components/PopoverMenu'
 import { TodoPanel } from './components/TodoPanel'
 import { type QueuedCardRef, Transcript } from './components/Transcript'
 import { diffTally } from './diffTally'
@@ -95,61 +99,100 @@ import {
   userShellCommandOf,
   visibleEditorContext,
   waitingApprovals,
+  questionsInOrder,
   workflowsOf,
 } from './state/uiState'
 import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
-import { DeferredSurface } from './components/DeferredSurface'
+import { Modal } from './components/Modal'
+import { deferred } from './components/DeferredSurface'
 
-const HistoryDialog = lazy(async () => {
+const SignIn = deferred(async () => {
+  const module = await import('./components/SignIn')
+  return { default: module.SignIn }
+})
+const GoalPanel = deferred(async () => {
+  const module = await import('./components/GoalPanel')
+  return { default: module.GoalPanel }
+})
+const SchedulePanel = deferred(async () => {
+  const module = await import('./components/SchedulePanel')
+  return { default: module.SchedulePanel }
+})
+const Palette = deferred(async () => {
+  const module = await import('./components/Palette')
+  return { default: module.Palette }
+})
+const PopoverMenu = deferred(async () => {
+  const module = await import('./components/PopoverMenu')
+  return { default: module.PopoverMenu }
+})
+
+const HistoryDialog = deferred(async () => {
   const module = await import('./components/HistoryDialog')
   return { default: module.HistoryDialog }
 })
-const AgentMap = lazy(async () => {
+const AgentMap = deferred(async () => {
   const module = await import('./components/AgentMap')
   return { default: module.AgentMap }
-})
-const UsageDialog = lazy(async () => {
+}, true)
+const UsageDialog = deferred(async () => {
   const module = await import('./components/UsageDialog')
   return { default: module.UsageDialog }
-})
-const BestOfNDialog = lazy(async () => {
+}, true)
+const BestOfNDialog = deferred(async () => {
   const module = await import('./components/BestOfNDialog')
   return { default: module.BestOfNDialog }
-})
-const ReviewPane = lazy(async () => {
+}, true)
+const ReviewPane = deferred(async () => {
   const module = await import('./components/ReviewPane')
   return { default: module.ReviewPane }
-})
+}, true)
+const ReferencePage = deferred(async () => {
+  const stylesheet = document.createElement('link')
+  stylesheet.rel = 'stylesheet'
+  stylesheet.href = new URL('referencePage.css', import.meta.url).href
+  document.head.append(stylesheet)
+  const module = await import('./components/ReferencePage')
+  return {
+    default: module.createReferencePage({
+      react: { createElement, Fragment, useEffect, useMemo, useState },
+      text: UI_TEXT,
+      fill,
+      formatNumber,
+      Modal,
+    }),
+  }
+}, true)
 
-const HandoffDialog = lazy(async () => {
+const HandoffDialog = deferred(async () => {
   const { HandoffDialog } = await import('./components/HandoffDialog')
   return { default: HandoffDialog }
-})
+}, true)
 
-const SecretPromptDialog = lazy(async () => {
+const SecretPromptDialog = deferred(async () => {
   const { SecretPromptDialog } = await import('./components/SecretPromptDialog')
   return { default: SecretPromptDialog }
-})
+}, true)
 
-const SessionBoardDialog = lazy(async () => {
+const SessionBoardDialog = deferred(async () => {
   const { SessionBoardDialog } = await import('./components/SessionBoardDialog')
   return { default: SessionBoardDialog }
 })
 
-const PromptLibraryBridge = lazy(async () => {
+const PromptLibraryBridge = deferred(async () => {
   const { PromptLibraryBridge } = await import('./prompts/PromptLibraryBridge')
   return { default: PromptLibraryBridge }
-})
-const ChatShareBridge = lazy(async () => {
+}, true)
+const ChatShareBridge = deferred(async () => {
   const { ChatShareBridge } = await import('./sharing/ChatShareBridge')
   return { default: ChatShareBridge }
-})
+}, true)
 
-const ShareView = lazy(async () => {
+const ShareView = deferred(async () => {
   const { ShareView } = await import('./components/ShareView')
   return { default: ShareView }
-})
+}, true)
 
 export interface AppProps {
   readonly postMessage: (message: WebviewToHostMessage) => void
@@ -214,7 +257,7 @@ function restoreNoteOf(state: UiState): string | undefined {
 
 // These panels share this runtime's React and installed language; importing
 // them waits for state to show (Git) or the user's Account & usage action.
-const GitPanel = lazy(async () => {
+const GitPanel = deferred(async () => {
   const { GitPanel } = await import('./components/GitPanel')
   return { default: GitPanel }
 })
@@ -233,6 +276,7 @@ type Overlay =
   | 'prompts'
   | 'chatShare'
   | 'sharingHelp'
+  | 'help'
 
 // The palette rows that leave it open (a value changes in place); run from
 // the prompt's "/" palette they keep the `/` too, so it stays (M38).
@@ -702,6 +746,11 @@ export function App({
   )
   const onSubmit = useCallback(() => {
     const current = store.getState()
+    if (current.draft.trim() === `/${SLASH_COMMAND_NAMES.help}`) {
+      dispatch({ type: 'draftChanged', draft: '' })
+      setOverlay('help')
+      return
+    }
     if (!canSend(current)) {
       return
     }
@@ -1066,28 +1115,60 @@ export function App({
     },
     [dispatch, postMessage],
   )
-  // Both lock the card until the host settles the question (M25).
+  // Both views lock before dispatch; only an explicit nothing-taken failure unlocks.
+  const onQuestionAction = useCallback(
+    (userInputId: string, reply: OpenQuestionAnswer | 'dismiss' | undefined) => {
+      const sessionId = store.getState().sessionId
+      const attachmentEpoch = store.getState().attachmentEpoch
+      void import('./components/QuestionUi')
+        .then((actions) => {
+          const current = store.getState()
+          if (current.sessionId === sessionId && current.attachmentEpoch === attachmentEpoch)
+            actions.questionAction(store, postMessage, userInputId, reply)
+        })
+        .catch((error: unknown) => {
+          postMessage(webviewErrorReport('promise', error))
+        })
+    },
+    [postMessage, store],
+  )
   const onAnswer = useCallback(
     (userInputId: string, answers: readonly QuestionAnswer[]) => {
-      dispatch({ type: 'questionSubmitted', userInputId })
-      postMessage({ type: 'answerQuestion', userInputId, answers: [...answers] })
+      onQuestionAction(userInputId, { answers: [...answers] })
     },
-    [dispatch, postMessage],
+    [onQuestionAction],
   )
   const onCancelQuestion = useCallback(
     (userInputId: string) => {
-      dispatch({ type: 'questionSubmitted', userInputId })
-      postMessage({ type: 'cancelQuestion', userInputId })
+      onQuestionAction(userInputId, undefined)
     },
-    [dispatch, postMessage],
+    [onQuestionAction],
   )
   const onClarifyQuestion = useCallback(
     (userInputId: string, text: string) => {
-      dispatch({ type: 'questionSubmitted', userInputId })
-      postMessage({ type: 'clarifyQuestion', userInputId, text })
+      onQuestionAction(userInputId, { explanation: text })
     },
-    [dispatch, postMessage],
+    [onQuestionAction],
   )
+  const onDismissQuestion = useCallback(
+    (userInputId: string) => {
+      onQuestionAction(userInputId, 'dismiss')
+    },
+    [onQuestionAction],
+  )
+  const onJumpQuestion = useCallback(
+    (direction: 'next' | 'previous') => {
+      dispatch({ type: 'questionJump', direction })
+    },
+    [dispatch],
+  )
+
+  useEffect(() => {
+    const count = questionsInOrder(state).filter((question) => question.state === 'open').length
+    const title = state.title ?? UI_TEXT.untitledConversation
+    document.title =
+      count === 0 ? title : `${title} · ${plural(UI_TEXT.openQuestionsTabCount, count)}`
+  }, [state])
   // All three lock the form until the host settles it (M91 lane M).
   const onAcceptElicitation = useCallback(
     (elicitationId: string, values: Record<string, unknown>) => {
@@ -1643,6 +1724,10 @@ export function App({
           openOverlay('usage')
           break
         }
+        case 'openHelp': {
+          openOverlay('help')
+          break
+        }
         case 'openAgents': {
           setSelectedAgentId(undefined)
           openOverlay('agents')
@@ -1845,6 +1930,13 @@ export function App({
     seenUsageRequests.current = usageRequests
     openOverlay('usage')
   }, [usageRequests, openOverlay])
+  const helpRequests = state.helpRequests
+  const seenHelpRequests = useRef(helpRequests)
+  useEffect(() => {
+    if (helpRequests === seenHelpRequests.current) return
+    seenHelpRequests.current = helpRequests
+    openOverlay('help')
+  }, [helpRequests, openOverlay])
   // The prompt's "/" menus (M38). A row chosen there takes the `/` with it,
   // unless it leaves the palette open; a skill becomes `/selector ` for its
   // arguments.
@@ -1888,6 +1980,7 @@ export function App({
         onBack={onPaletteBack}
         onClose={slot.onClose}
         isAttached
+        keepFocus
         keys={slashPaletteKeys}
         onActiveRowChange={slot.onActiveRowChange}
       />
@@ -2170,6 +2263,7 @@ export function App({
       break
     }
     case 'history':
+    case 'help':
     case 'usage':
     case 'agents':
     case 'review':
@@ -2224,6 +2318,7 @@ export function App({
           sharingAction('saveHistory', { sessionId })
         }}
         sessions={state.sessions}
+        openQuestionCounts={state.openQuestionCounts}
         archivedIds={state.archivedIds}
         currentSessionId={state.sessionId}
         archiveAfterDays={state.settings.archiveInactiveSessions}
@@ -2293,6 +2388,7 @@ export function App({
     overlay === 'sharingHelp' ||
     overlay === 'prompts' ||
     overlay === 'chatShare' ||
+    overlay === 'help' ||
     overlay === 'usage' ||
     overlay === 'agents' ||
     overlay === 'bestOfN' ||
@@ -2312,6 +2408,7 @@ export function App({
         onChange={onHandoffChanged}
         onConfirm={onHandoffConfirm}
         onCancel={onHandoffCancel}
+        onClose={onHandoffCancel}
       />
     )
   // The report-a-problem preview (M93 lane W): the sealed draft the host
@@ -2337,6 +2434,7 @@ export function App({
         redactedText={state.secretPrompt.redactedText}
         onSendAnyway={onSecretPromptSendAnyway}
         onEdit={onSecretPromptDismiss}
+        onClose={onSecretPromptDismiss}
       />
     )
   // Behind a modal nothing takes focus or clicks (M25): the modal traps Tab,
@@ -2348,209 +2446,235 @@ export function App({
     state.report !== undefined
 
   return (
-    <div className="app">
-      <div className="sr-only" aria-live="polite" aria-atomic="true">
-        {state.announcement === undefined ? null : (
-          <span key={state.announcement.sequence}>{state.announcement.text}</span>
-        )}
-      </div>
-      <div className="header-area" inert={isModalOpen}>
-        <Header
-          title={title}
-          isFocusView={state.settings.focusView}
-          isSideChat={state.isSideChat}
-          onNewConversation={onNewConversation}
-          onShare={
-            state.sessionId === undefined
-              ? undefined
-              : () => {
-                  setOverlay('chatShare')
-                }
-          }
-          onOpenHistory={onOpenHistory}
-          onOpenBoard={onOpenBoard}
-          onRename={state.sessionId === undefined || !state.canEditSessions ? undefined : onRename}
-          agentCount={agentCount}
-          runningAgentCount={runningAgentCount}
-          runningTaskCount={backgroundTasks.filter((task) => isRunningTask(task)).length}
-          onOpenAgents={onOpenAgents}
-          onOpenSideChat={canOpenSideChat ? onOpenSideChat : undefined}
-        />
-        <DeferredSurface onClose={closeOverlay} isModal={false}>
+    <QuestionSurface
+      sessionId={state.sessionId}
+      navigation={state.questionNavigation}
+      onDismiss={onDismissQuestion}
+    >
+      <div className="app">
+        <div className="sr-only" aria-live="polite" aria-atomic="true">
+          {state.announcement === undefined ? null : (
+            <span key={state.announcement.sequence}>{state.announcement.text}</span>
+          )}
+        </div>
+        <div className="header-area" inert={isModalOpen}>
+          <Header
+            title={title}
+            isFocusView={state.settings.focusView}
+            isSideChat={state.isSideChat}
+            onNewConversation={onNewConversation}
+            onOpenHistory={onOpenHistory}
+            onOpenBoard={onOpenBoard}
+            onRename={
+              state.sessionId === undefined || !state.canEditSessions ? undefined : onRename
+            }
+            agentCount={agentCount}
+            runningAgentCount={runningAgentCount}
+            runningTaskCount={backgroundTasks.filter((task) => isRunningTask(task)).length}
+            onOpenAgents={onOpenAgents}
+            onOpenSideChat={canOpenSideChat ? onOpenSideChat : undefined}
+          />
           {history}
           {board}
-        </DeferredSurface>
-      </div>
-      <DeferredSurface onClose={closeOverlay}>
-        {usageDialog}
-        {agentMap}
-        {reviewPane}
-        {bestOfN}
-      </DeferredSurface>
-      <DeferredSurface onClose={onHandoffCancel}>{handoffDialog}</DeferredSurface>
-      <DeferredSurface onClose={onSecretPromptDismiss}>{secretPromptDialog}</DeferredSurface>
-      {reportDialog}
-      <DeferredSurface onClose={closeOverlay}>
-        {overlay === 'prompts' || overlay === 'sharingHelp' ? (
-          <PromptLibraryBridge
-            showHelp={overlay === 'sharingHelp'}
-            post={postMessage}
-            onClose={closeOverlay}
-          />
-        ) : null}
-        {overlay === 'chatShare' ? (
-          <ChatShareBridge key={state.sessionId} post={postMessage} onClose={closeOverlay} />
-        ) : null}
-      </DeferredSurface>
-      {state.share === undefined ? null : (
-        <DeferredSurface onClose={onCloseShare}>
-          <ShareView
-            title={state.share.title}
-            exportedAt={state.share.exportedAt}
-            sourceBackend={state.share.sourceBackend}
-            modelId={state.share.modelId}
-            redacted={state.share.redacted}
-            items={state.share.items}
-            onClose={onCloseShare}
-            onOpenLink={onOpenExternal}
-            onCopy={onCopy}
-            onSectionError={onShareSectionError}
-          />
-        </DeferredSurface>
-      )}
-      <main
-        ref={bodyRef}
-        className={hasTranscript ? 'body body-transcript' : 'body'}
-        inert={isModalOpen}
-        onScroll={onBodyScroll}
-        onContextMenu={onTranscriptContextMenu}
-      >
-        {body}
-        {hasNewBelow ? (
-          <button
-            type="button"
-            className="jump-latest"
-            title={UI_TEXT.jumpToLatestTitle}
-            onClick={scrollToEnd}
-          >
-            <ExpandChevron isOpen />
-            {UI_TEXT.jumpToLatest}
-          </button>
-        ) : null}
-      </main>
-      {/* Review opens M70's pane on the same edits (D66 item 10). */}
-      <DiffTally counts={tally} onReview={openReviewPane} />
-      {state.git.form === undefined &&
-      state.git.state.worktree === undefined &&
-      state.git.state.pullRequest === undefined &&
-      state.git.state.hold === undefined ? null : (
-        <DeferredSurface onClose={onGitClose} isModal={false}>
-          <GitPanel
-            git={state.git}
+        </div>
+        <>
+          {overlay === 'help' ? (
+            <ReferencePage
+              postMessage={postMessage}
+              values={state.referenceValues}
+              settings={state.settings}
+              onClose={closeOverlay}
+            />
+          ) : null}
+          {overlay === 'prompts' || overlay === 'sharingHelp' ? (
+            <PromptLibraryBridge
+              showHelp={overlay === 'sharingHelp'}
+              post={postMessage}
+              onClose={closeOverlay}
+            />
+          ) : null}
+          {overlay === 'chatShare' ? (
+            <ChatShareBridge key={state.sessionId} post={postMessage} onClose={closeOverlay} />
+          ) : null}
+          {usageDialog}
+          {agentMap}
+          {reviewPane}
+          {bestOfN}
+        </>
+        {handoffDialog}
+        {secretPromptDialog}
+        {reportDialog}
+        {state.share === undefined ? null : (
+          <>
+            <ShareView
+              title={state.share.title}
+              exportedAt={state.share.exportedAt}
+              sourceBackend={state.share.sourceBackend}
+              modelId={state.share.modelId}
+              redacted={state.share.redacted}
+              items={state.share.items}
+              onClose={onCloseShare}
+              onOpenLink={onOpenExternal}
+              onCopy={onCopy}
+              onSectionError={onShareSectionError}
+            />
+          </>
+        )}
+        <main
+          ref={bodyRef}
+          className={hasTranscript ? 'body body-transcript' : 'body'}
+          inert={isModalOpen}
+          onScroll={onBodyScroll}
+          onContextMenu={onTranscriptContextMenu}
+        >
+          {body}
+          {hasNewBelow ? (
+            <button
+              type="button"
+              className="jump-latest"
+              title={UI_TEXT.jumpToLatestTitle}
+              onClick={scrollToEnd}
+            >
+              <ExpandChevron isOpen />
+              {UI_TEXT.jumpToLatest}
+            </button>
+          ) : null}
+        </main>
+        {/* Review opens M70's pane on the same edits (D66 item 10). */}
+        <DiffTally counts={tally} onReview={openReviewPane} />
+        {state.git.form === undefined &&
+        state.git.state.worktree === undefined &&
+        state.git.state.pullRequest === undefined &&
+        state.git.state.hold === undefined ? null : (
+          <>
+            <GitPanel
+              git={state.git}
+              isInert={isModalOpen}
+              canGenerate={state.auth.status === 'signedIn' && state.activeTurnId === undefined}
+              onAction={onGitAction}
+              onEdit={onGitEdit}
+              onClose={onGitClose}
+              onCommit={onGitCommit}
+              onCreatePullRequest={onGitCreatePullRequest}
+              onGenerate={onGitGenerate}
+              onOpenLink={onOpenExternal}
+            />
+          </>
+        )}
+        {state.goal === undefined ? null : (
+          <GoalPanel
+            key={state.sessionId}
+            goal={state.goal}
             isInert={isModalOpen}
-            canGenerate={state.auth.status === 'signedIn' && state.activeTurnId === undefined}
-            onAction={onGitAction}
-            onEdit={onGitEdit}
-            onClose={onGitClose}
-            onCommit={onGitCommit}
-            onCreatePullRequest={onGitCreatePullRequest}
-            onGenerate={onGitGenerate}
-            onOpenLink={onOpenExternal}
+            onCommand={onGoalCommand}
+            editor={{
+              draft: state.goalEdit?.draft,
+              isPending: state.goalEdit?.pending !== undefined,
+              onStart: onGoalEditStarted,
+              onChange: onGoalEditChanged,
+              onCancel: onGoalEditCanceled,
+              onSave: onGoalEditSaved,
+            }}
           />
-        </DeferredSurface>
-      )}
-      <GoalPanel
-        key={state.sessionId}
-        goal={state.goal}
-        isInert={isModalOpen}
-        onCommand={onGoalCommand}
-        editor={{
-          draft: state.goalEdit?.draft,
-          isPending: state.goalEdit?.pending !== undefined,
-          onStart: onGoalEditStarted,
-          onChange: onGoalEditChanged,
-          onCancel: onGoalEditCanceled,
-          onSave: onGoalEditSaved,
-        }}
-      />
-      <SchedulePanel
-        jobs={state.schedules}
-        nowMs={now()}
-        isPaidOn={state.paid.features.includes('scheduledPrompts')}
-        isInert={isModalOpen}
-        onRun={onScheduleRun}
-        onCancel={onScheduleCancel}
-        onEnable={onScheduleEnable}
-      />
-      <TodoPanel items={state.todos} isInert={isModalOpen} onOpenInTab={onOpenTasksTab} />
-      {isBodyGated ? null : (
-        <ApprovalDock waiting={waiting} onDecide={onDecide} isInert={isModalOpen} />
-      )}
-      <div className="composer-area" inert={isModalOpen}>
-        {floating}
-        <JudgeStatusLine status={state.judge} />
-        <Composer
-          onSavePrompt={savePrompt}
-          onSharePrompt={sharePrompt}
-          onUseSavedPrompt={() => {
-            sharingAction('use')
-          }}
-          draft={state.draft}
-          placeholder={state.composerPlaceholder}
-          settings={state.settings}
-          canSend={canSend(state)}
-          isRunning={isRunning}
-          modelLabel={modelLabelFor(state)}
-          permissionMode={state.permissionMode}
-          context={state.context}
-          paidBadge={paidBadgeFor(state)}
-          onOpenUsage={onOpenUsage}
-          focusRequests={state.focusRequests}
-          pendingInsert={state.pendingInsert}
-          attachments={state.attachments}
-          attachmentEpoch={state.attachmentEpoch}
-          attachmentSettlements={state.attachmentSettlements}
-          newAttachmentRequestId={() =>
-            `attachment:${newLocalId()}:${String(++nextAttachmentRequestId.current)}`
-          }
-          mentionResults={state.mentionResults}
-          editorContextLabel={
-            editorContext === undefined ? undefined : editorContextLabel(editorContext)
-          }
-          dictation={state.dictation}
-          now={now}
-          referenceLabel={
-            state.reference === undefined ? undefined : referenceLabel(state.reference)
-          }
-          onDismissReference={onDismissReference}
-          onDictation={onDictation}
-          onDismissEditorContext={onDismissEditorContext}
-          onDraftChange={onDraftChange}
-          onInsertApplied={onInsertApplied}
-          onSubmit={onSubmit}
-          onStop={onStop}
-          onFocusChange={onFocusChange}
-          onOpenPalette={onOpenPalette}
-          onOpenModelPicker={onOpenModelPicker}
-          onCyclePermissionMode={state.isSideChat ? undefined : onCyclePermissionMode}
-          onOpenModeMenu={state.isSideChat ? undefined : onOpenModeMenu}
-          onOpenAttachMenu={onOpenAttachMenu}
-          onRemoveAttachment={onRemoveAttachment}
-          onSearchMentions={onSearchMentions}
-          onAttachImage={onAttachImage}
-          onRefuseFile={onRefuseFile}
-          onDroppedUris={onDroppedUris}
-          onCompact={onCompact}
-          banner={state.banner}
-          onDismissBanner={onDismissBanner}
-          slashCommands={slashCommands}
-          isMenuOpen={overlay !== undefined}
-          renderSlashPalette={renderSlashPalette}
-          slashPaletteKeys={slashPaletteKeys}
-          onSlashCommand={onSlashCommand}
-          onSlashMenuOpen={onSlashMenuOpen}
-        />
+        )}
+        {state.schedules.length === 0 ? null : (
+          <SchedulePanel
+            jobs={state.schedules}
+            nowMs={now()}
+            isPaidOn={state.paid.features.includes('scheduledPrompts')}
+            isInert={isModalOpen}
+            onRun={onScheduleRun}
+            onCancel={onScheduleCancel}
+            onEnable={onScheduleEnable}
+          />
+        )}
+        <TodoPanel items={state.todos} isInert={isModalOpen} onOpenInTab={onOpenTasksTab} />
+        {isBodyGated ? null : (
+          <AttentionDock
+            waiting={waiting}
+            onDecide={onDecide}
+            isInert={isModalOpen}
+            questionGroup={{
+              questions: questionsInOrder(state),
+              elicitations: state.transcript.flatMap((entry) =>
+                entry.kind === 'tool' && entry.elicitation !== undefined ? [entry.elicitation] : [],
+              ),
+              onAnswer,
+              onCancel: onCancelQuestion,
+              onClarify: onClarifyQuestion,
+              onAcceptElicitation,
+              onDeclineElicitation,
+              onCancelElicitation,
+              onJump: onJumpQuestion,
+            }}
+          />
+        )}
+        <div className="composer-area" inert={isModalOpen}>
+          {floating}
+          <JudgeStatusLine status={state.judge} />
+          <Composer
+            onSavePrompt={savePrompt}
+            onSharePrompt={sharePrompt}
+            onUseSavedPrompt={() => {
+              sharingAction('use')
+            }}
+            draft={state.draft}
+            placeholder={state.composerPlaceholder}
+            settings={state.settings}
+            canSend={canSend(state)}
+            isRunning={isRunning}
+            modelLabel={modelLabelFor(state)}
+            permissionMode={state.permissionMode}
+            context={state.context}
+            paidBadge={paidBadgeFor(state)}
+            onOpenUsage={onOpenUsage}
+            focusRequests={state.focusRequests}
+            pendingInsert={state.pendingInsert}
+            attachments={state.attachments}
+            attachmentEpoch={state.attachmentEpoch}
+            attachmentSettlements={state.attachmentSettlements}
+            newAttachmentRequestId={() =>
+              `attachment:${newLocalId()}:${String(++nextAttachmentRequestId.current)}`
+            }
+            mentionResults={state.mentionResults}
+            editorContextLabel={
+              editorContext === undefined ? undefined : editorContextLabel(editorContext)
+            }
+            dictation={state.dictation}
+            now={now}
+            referenceLabel={
+              state.reference === undefined ? undefined : referenceLabel(state.reference)
+            }
+            onDismissReference={onDismissReference}
+            onDictation={onDictation}
+            onDismissEditorContext={onDismissEditorContext}
+            onDraftChange={onDraftChange}
+            onInsertApplied={onInsertApplied}
+            onSubmit={onSubmit}
+            onStop={onStop}
+            onFocusChange={onFocusChange}
+            onOpenPalette={onOpenPalette}
+            onOpenModelPicker={onOpenModelPicker}
+            onCyclePermissionMode={state.isSideChat ? undefined : onCyclePermissionMode}
+            onOpenModeMenu={state.isSideChat ? undefined : onOpenModeMenu}
+            onOpenAttachMenu={onOpenAttachMenu}
+            onRemoveAttachment={onRemoveAttachment}
+            onSearchMentions={onSearchMentions}
+            onAttachImage={onAttachImage}
+            onRefuseFile={onRefuseFile}
+            onDroppedUris={onDroppedUris}
+            onCompact={onCompact}
+            banner={state.banner}
+            onDismissBanner={onDismissBanner}
+            slashCommands={slashCommands}
+            isMenuOpen={overlay !== undefined}
+            renderSlashPalette={renderSlashPalette}
+            slashPaletteKeys={slashPaletteKeys}
+            onSlashCommand={onSlashCommand}
+            onSlashMenuOpen={onSlashMenuOpen}
+          />
+        </div>
       </div>
-    </div>
+    </QuestionSurface>
   )
 }

@@ -218,6 +218,7 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 | `--trust-workspace`                    | Load the folder's rules, skills and memory, as Muse Code's own flag does. Without it the folder is treated as untrusted |
 | `--muse-binary <path>`                 | The Muse Code CLI to run; by default the agent looks where the VS Code extension looks                                  |
 | `--shell-sandbox auto\|muse\|off`      | Muse Code's shell sandbox, as the extension's `museSpark.shellSandbox` setting                                          |
+| `--questions-defer-after <seconds>`    | M112: 60 by default; 0 waits indefinitely; 1–9 become 10; maximum 3600. Clients without forms defer immediately.        |
 | `--allow-dangerously-skip-permissions` | Offer the Bypass permissions mode                                                                                       |
 | `--allow-contributor-models`           | List contributor-tier models, whose content Meta may train on; they are hidden otherwise                                |
 | `--web-search`                         | Offer paid web search (Model API backend only); each prompt asks in the editor first, naming the price                  |
@@ -237,16 +238,19 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   resumed runs on the model and effort the editor is shown; one last run
   on a model the agent does not list moves to the default. A session the
   agent cannot set up this way is let go, and the editor's request fails.
-- **Commands**: the session's skills, run as `/name arguments`.
+- **Commands**: the session's skills, run as `/name arguments`, plus M112's
+  `/questions` and `/answer <n> <text>` (reserved ahead of skills).
 - **Permission prompts**: the backend's own choices (allow once, allow for
   the session, reject). A prompt the editor cancels, or answers with a
   choice it was not offered, is rejected; nothing runs by default.
 - **Questions** the agent asks: a form where the editor has forms,
-  otherwise the question as text, answered in your next message. A form
+  otherwise immediate deferral as text, answered with `/answer` (M112).
+  Forms have the configurable deadline in [Questions](#questions). An early form
   that comes back with an answer that is not one of the options offered
   (text is taken only where the question has no options), or with more
   or fewer than the question allows (at least one where it sets no
-  bound, as in the panel), is declined.
+  bound, as in the panel), is declined; an invalid late answer keeps the
+  open question available.
 - **Sessions**: listed, loaded with their history, resumed and closed.
   Closing a session (or loading it again) ends its running prompt as
   cancelled and stops that turn, and an answer you give it afterwards
@@ -257,6 +261,59 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   notebook tools): passed to Muse Code for the session, over stdio or
   HTTP, and optional, so one that fails to start does not stop the
   session. SSE servers are not taken; the Model API backend runs none.
+
+## Questions
+
+The launcher connects the shared question registry and private durable queue.
+See [the integration certification](certification/m112.md): a scripted stdio
+client exercised forms on both backends and the deadline withdrawal, open
+question and late answer on Muse Code live (2026-10-06). Installed-client
+capability checks remain with the release lead.
+
+A client with forms receives `elicitation/create`. The agent owns its clock:
+after 60 seconds it defers the backend question, sends cooperative withdrawal
+through the SDK's `cancellationSignal` (`$/cancel_request`), and announces
+the question number once. A client may still return the form after withdrawal;
+a valid answer is then a late answer. An invalid, declined or cancelled late
+form leaves the open question intact. An early declined/invalid form still
+declines the waiting question. Stop cancels a waiting question; interrupted
+or failed turns retain it as open. Closing or replacing a held session
+withdraws its forms and ignores their late replies. Stop sends backend
+cancellation without waiting for question storage. If deferral fails, the
+waiting question is explicitly cancelled so its tool cannot hang behind a
+withdrawn form. Question handling loads on the first question or local
+question command.
+
+Without forms, the question appears as text and defers immediately. Use
+`/questions` to see open questions and their numbers, then `/answer 1 use blue`
+to answer one. An answer is free text about the entire question card;
+multi-question cards show every question under the same number. These local
+commands work during a running prompt and make no model request themselves.
+A late answer steers a running prompt. While idle, or when a steer is proven
+not taken, it is stored before the next ordinary prompt. Uncertain delivery
+is marked and never retried. Answering approves no tool, changes no permission
+mode and grants no session rule. A stored answer is announced as queued;
+the sent notice follows its admission with the next prompt. The next prompt
+bills as usual.
+
+Add `--questions-defer-after` and its seconds value to the editor's configured
+agent arguments. The default is 60; 0 disables the interactive deadline;
+1–9 are read as 10; values above 3600, negatives, fractions and nonnumeric
+values are refused. This does not change immediate deferral without forms,
+immediate scheduled/unattended deferral, or `exec`'s immediate decline.
+Open questions are bounded to 20 per session by the shared registry and are
+kept in owner-only storage, removed with their session and excluded from
+logs, exports and report text. A report may include counts only.
+
+Before sending the next prompt, the agent leases its queued answer prefix by
+removing that prefix from disk. Cancellation before dispatch restores it.
+After a taken or uncertain submission it is retired, so a restart cannot send
+an uncertain answer again. A crash between leasing and dispatch can lose the
+prefix; the policy favors avoiding a duplicate when admission is unknown.
+
+MCP elicitation forms retain their separate five-minute deadline and cannot
+be answered late. Ordinary approvals and paid-use permission prompts retain
+their existing behavior and never enter the question clock.
 
 ## Paid features
 
@@ -521,3 +578,7 @@ base. These wait for M104's validated host bridge, alongside native menus and
 the companion page. The TUI waits for M110a0 lane T. See the
 [M118 record](certification/m118.md) for exact actions and editor rows. Gist
 publishing, hosted links, team destinations and email remain phase 2/3.
+
+## Help and reference
+
+Send `/help` in an ACP session for its local command list and the [generated reference](reference.md). Run `muse-spark-code-acp help --all` in a terminal for the complete reference. Help starts no backend and makes no model request.

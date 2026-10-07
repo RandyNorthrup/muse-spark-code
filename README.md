@@ -31,7 +31,7 @@ key to the CLI.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-**Contents:** [What's new](#whats-new-in-0141) ·
+**Contents:** [What's new](#whats-new-in-0143) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) ·
 [Permission modes](#permission-modes) ·
@@ -46,7 +46,39 @@ key to the CLI.
 [Troubleshooting](#troubleshooting) ·
 [Reporting a problem](#reporting-a-problem) · [Development](#development)
 
-## What's new in 0.14.1
+## What's new in 0.14.3
+
+- **Questions never block.** A question Muse asks you is pinned in the
+  attention dock above the composer and kept in the transcript. After a minute
+  (`museSpark.questions.deferAfterSeconds`), Muse carries on with work that
+  does not need the answer.
+- **Answer later.** An unanswered question becomes an **Open question** you can
+  answer any time from its card or the open-question chip; **Dismiss** closes it
+  without an answer. A late answer reaches Muse once, as your own message, and
+  approves nothing.
+- **Find open questions.** The view badge, tab title and History show how many
+  are open; **Next open question** and **Previous open question**
+  (Ctrl+Alt+J and Ctrl+Alt+Shift+J) cycle through them.
+- **ACP editors.** Editors with forms get each question as a form, withdrawn at
+  the deadline (`--questions-defer-after`); other editors get the text.
+  `/questions` lists open questions and `/answer <n> <text>` answers one.
+
+- **Faster startup.** Optional panels and menus load when first opened, keeping
+  the chat panel quick to start.
+
+### Earlier in 0.14.2
+
+- **Help & Reference.** Type `/help` or run **Muse Spark: Open Help & Reference**
+  for every command, setting, slash command, keyboard shortcut, CLI/ACP option
+  and paid feature.
+- **Search and copy.** Find features by name or shortcut, copy details, and open
+  related settings.
+- **Accurate details.** Help is generated from the extension's own tables.
+  Defaults, availability and paid costs are now described for each backend.
+- **Editors and terminal.** Use `/help` in the chat panel and ACP editors, or
+  `muse-spark-code-acp help --all` in the terminal.
+
+### Earlier in 0.14.1
 
 - **Safer shell commands.** Commands the agent runs no longer see your
   credential variables (API keys, tokens, passwords). Name any you want passed
@@ -475,6 +507,50 @@ which editors have been tried: so far VSCodium, code-server, Eclipse
 Theia, Cursor, Devin Desktop (formerly Windsurf), Kiro and Positron with
 the extension, and Zed, Emacs (agent-shell), Neovim (CodeCompanion) and
 JupyterLab (Jupyter AI) with the agent.
+
+## Questions
+
+The integrated question paths, fake-only checks and the 2026-10-06 live checks
+through the ACP agent on both backends are recorded in
+[M112's certification](docs/certification/m112.md); installed-editor checks
+remain with the release lead.
+The integrated panel pins agent questions in the attention dock above the
+composer, after approvals, and keeps the same card in the transcript. After
+one minute Muse continues work that does not depend on the answer. The card
+becomes an **Open question**, still answerable from its row or the open-question
+chip. A card with focus or a draft stays expanded. **Dismiss** closes an open
+question without guessing an answer. Approvals still wait for your decision;
+MCP forms keep their five-minute expiry and cannot be answered after expiry.
+
+**Next open question** and **Previous open question** cycle through the open
+cards. In a focused VS Code chat their keys are Ctrl+Alt+J and
+Ctrl+Alt+Shift+J (Cmd+Option+J and Cmd+Option+Shift+J on macOS). The view badge,
+tab title and History marker show the count. Native editors use their own
+bindings: these keys conflict with defaults in JetBrains and Visual Studio.
+
+`museSpark.questions.deferAfterSeconds` is machine-scoped: 60 by default,
+0 to wait indefinitely, otherwise 10–3600 seconds (1–9 are read as 10).
+A workspace setting cannot change it. Open questions survive a reload and
+resume, with at most 20 open per session and two reminders per question.
+A late answer is your own message in the current mode and approves nothing.
+In the panel it steers a running turn or starts a new one, billed normally.
+
+In ACP, a client with forms gets a form that the agent withdraws at the
+deadline. A client without forms gets the text and immediate deferral,
+including with a deadline of 0. `/questions` lists open questions;
+`/answer <n> <text>` answers one by its displayed number. A late form answer
+or `/answer` steers a running prompt, or is kept before your next message
+when idle. It is announced as queued until the next prompt sends it. Stop
+cancels the backend without waiting for question storage. The agent announces
+these commands alongside skills. Configure
+its deadline with `--questions-defer-after <seconds>`; the default and limits
+match the setting. [The ACP guide](docs/acp.md#questions) explains the details.
+
+Headless `exec` still declines questions immediately, reports
+`question_declined`, and starts no question clock. Best-of-N, worktree
+conversations and the evaluation keep their immediate cancellation or
+clarification. Scheduled/unattended prompts defer at once and keep the
+question open, even when interactive deferral is disabled.
 
 ## Permission modes
 
@@ -3203,6 +3279,47 @@ What stays in English:
 | Model API: file tools            | Text and images up to 10 MiB, PDFs up to 32 MB; the search tool skips files over 1 MiB                                                                                                                                                                          |
 | Opened tool outputs              | 16 MiB each; the latest 20, and 33,554,432 characters together                                                                                                                                                                                                  |
 
+## Help and reference
+
+Type `/help` in the panel, or run **Muse Spark: Open Help & Reference**, for a
+searchable reference of features, slash commands, commands, settings, keyboard
+actions and ACP/CLI flags. It shows exact host/backend pairs, paid admission
+rules, current/default values, nested setting schemas, command prerequisites
+and CLI limits. Environment-variable values stay hidden. Load failures show a
+retry action. Auto help names both backend reviewers and their admission rules;
+ordinary model questions and MCP server form replies have separate privacy
+entries. Search matches the displayed JSON text, Markdown retains argument
+placeholders, and modal focus lists both Tab and Shift+Tab. The page follows
+the editor’s theme and display language.
+
+ACP editors can send `/help` for the current installed-skill list and the
+[generated reference](docs/reference.md). ACP locally handles `/help`,
+`/questions`, `/answer` and installed skills; the linked panel slash commands and settings are extension
+workflows. In a terminal, `muse-spark-code-acp help --all` prints the full
+reference in the installed language without a model call. `exec --help`,
+`report --help` and `scan-secrets --help` also print it; `--help` prints concise
+ACP usage. Terminal help states that VS Code current values are unavailable.
+
+Maintainers run `npm run reference:generate` after changes. The reference reads
+the complete contributed setting schema and palette conditions. The CLI parser,
+webview keyboard handlers, slash registry, paid tally and paid-use popup share
+typed tables with the generator. Enum defaults retain their value and meaning.
+`npm run check:reference` checks source coverage, reviewed host capabilities and
+admission wiring, option contracts, catalogue descriptions and generated-file
+freshness. Conditional descriptions use typed `conditions` with technical
+selectors; generic state wording in plain descriptions fails the gate. The
+generator renders these conditions on the page, in Markdown and in terminal
+help, including enum meanings and paid-default facts. The guard walks the
+complete emitted model and rejects the closed state-predicate vocabulary on
+every description surface, including shortcuts. A Best-of-N truth regression
+exercises the production manager: a finite session cap requires an owned
+parent budget scope shared by candidates. Independent tests exercise parser
+acceptance and keyboard actions.
+Search includes displayed descriptions and keeps related command links reachable.
+Installed skills are dynamic and are refreshed
+when ACP answers help. Native shared-webview and phone companion integrations
+remain planned; this reference does not claim those hosts implement the page.
+
 ## Commands and keybindings
 
 | Command                                             | Default keybinding                                                                               | What it does                                                                                                                                                                                               |
@@ -3959,6 +4076,16 @@ against their production zod boundaries. `npm run schema:exec` regenerates
 them. `npm run check:reference` checks the sharing command reference;
 `node scripts/gen-reference.mjs` regenerates it from the same catalog `/help`
 reads.
+
+`node scripts/build.mjs --production --webview-only` builds just the browser
+fixture with the production options and stale-chunk cleanup; it omits the Node
+bundles so browser tests stay within their default setup deadline.
+
+After a production build, `node test/e2e/webviewDiet.mjs` checks optional UI
+surfaces in Chrome against a fake host: no startup requests, first-use loading
+under the shared CSP, and recovery from actual failed entry/static-dependency
+fetches. Retry reloads the panel with its saved conversation and draft. Cold
+menus remain dismissible and cannot take focus after dismissal.
 
 After every complete four-channel release, the workflow runs
 `scripts/refresh-badges.mjs` to refresh these README badges and purge GitHub's

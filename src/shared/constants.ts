@@ -91,6 +91,16 @@ export const COMMAND_IDS = {
   removeBundledSkills: 'museSpark.removeBundledSkills',
   // M99 (PLAN.md D79): the release notes of this version and the ones before it.
   showWhatsNew: 'museSpark.showWhatsNew',
+  openHelp: 'museSpark.openHelp',
+  savePrompt: 'museSpark.savePrompt',
+  useSavedPrompt: 'museSpark.useSavedPrompt',
+  promptLibrary: 'museSpark.promptLibrary',
+  copyToMyPrompts: 'museSpark.copyToMyPrompts',
+  sharePrompt: 'museSpark.sharePrompt',
+  shareChat: 'museSpark.shareChat',
+  // M112 (PLAN.md D92): cycle the focused chat's open question cards.
+  nextOpenQuestion: 'museSpark.nextOpenQuestion',
+  previousOpenQuestion: 'museSpark.previousOpenQuestion',
   tabTurnOn: 'museSpark.tabTurnOn',
   tabTurnOff: 'museSpark.tabTurnOff',
   tabSnooze: 'museSpark.tabSnooze',
@@ -348,6 +358,10 @@ export const SETTING_DEFAULTS = {
   museBinaryPath: '',
   environmentVariables: [] as readonly EnvironmentVariable[],
   'shell.passEnvironmentVariables': [] as readonly string[],
+  // M112 (PLAN.md D92): seconds before an unanswered question defers; the
+  // host reads only the user's own value (questionStore.ts).
+  'questions.deferAfterSeconds': 60,
+  syncPromptsAndBookmarks: false,
   shellSandbox: 'auto' as ShellSandboxMode,
   backend: 'auto' as BackendMode,
   // Claude Code's `enableNewConversationShortcut`: Ctrl+N starts a new
@@ -539,6 +553,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'museCodeAutoReviewer',
   // A page that opens on its own after an update is the user's choice, never a repository's (M99).
   'showWhatsNewOnUpdate',
+  // How long Muse waits for an answer is the user's choice (M112, D92).
+  'questions.deferAfterSeconds',
   // Tab chooses what runs, what is billed and how much is approved (M94,
   // PLAN.md D73): every Tab setting is machine-scoped, so a workspace's
   // settings cannot change what Tab spends.
@@ -796,6 +812,8 @@ export const PAID_PRICES_USD = {
   voicePerHour: 0.18,
 } as const
 export const PAID_PRICES_VERIFIED_ON = '2026-09-24'
+// Lossless reference token indices use a compact, browser-safe alphabet.
+export const REFERENCE_POOL_RADIX = 36
 export const SEARCHES_PER_PRICE_UNIT = 1000
 export const SECONDS_PER_HOUR = 3600
 
@@ -3194,6 +3212,40 @@ export const CLARIFICATION_FORMAT = 'text'
 export const CLARIFICATION_MAX_CHARS = 500
 export const QUESTION_OUTCOME_CLARIFIED = 'clarified'
 
+// Questions that never block (M112, PLAN.md D92). These limits apply in
+// the process holding the session, on every interactive editor surface.
+export const QUESTION_OUTCOME_DEFERRED = 'deferred'
+export const QUESTION_DEFER_DEFAULT_SECONDS = 60
+export const ACP_QUESTIONS_BUNDLE_FILE = 'acpQuestions.js'
+export const RUNTIME_QUESTIONS_BUNDLE_FILE = 'runtimeQuestions.js'
+export const QUESTION_DEFER_MIN_SECONDS = 10
+export const QUESTION_DEFER_MAX_SECONDS = 3600
+export const QUESTION_DEFER_SETTING = 'questions.deferAfterSeconds'
+export const QUESTION_REMINDERS_MAX = 2
+export const OPEN_QUESTIONS_MAX = 20
+// Internal question handles are bounded without truncating identity. At
+// this limit both id slots in deferredClarification still fit MSP's 500.
+export const QUESTION_ID_MAX_CHARS = 100
+export const LATE_ANSWER_QUESTION_MAX_CHARS = 2000
+export const ATTENTION_DOCK_MAX_VIEWPORT_FRACTION = 0.5
+
+// Backend deferral text: questionNotes.js, loaded on the first deferral.
+const QUESTION_DEFERRAL_NOTE =
+  '<harness_note>The user has not answered question {id} yet. Continue with work that does not depend on the answer. Do not guess the answer and do not ask again. The answer will arrive later as a user message that begins "Answer to your earlier question {id}".</harness_note>'
+export const QUESTION_MODEL_TEXT = {
+  deferred: QUESTION_DEFERRAL_NOTE,
+  deferredClarification: QUESTION_DEFERRAL_NOTE,
+} as const
+
+// Late delivery stays in conversation.js and runtimeQuestions.js.
+export const QUESTION_DELIVERY_MODEL_TEXT = {
+  lateAnswer: 'Answer to your earlier question {id}\nQuestion:\n{question}\n{answer}',
+  dismissed:
+    '<harness_note>The user dismissed question {id} without answering. Continue with work that does not depend on the answer. Do not guess the answer and do not ask again.</harness_note>',
+  answersPrefix: 'The user answered:',
+  clarificationLead: 'The user chose none of the options and explained instead:',
+} as const
+
 // --- Subagents, background tasks and usage insights (M14, PLAN.md D17) ---
 
 // Muse Code hides its subagent tools unless this setting in its own
@@ -4001,6 +4053,7 @@ export type SkillImportSource = (typeof SKILL_IMPORT_SOURCES)[number]
 // `/name` (M38): Claude Code's names for the same commands. They are
 // commands, not prose, so they read the same in every language.
 export const SLASH_COMMAND_NAMES = {
+  help: 'help',
   model: 'model',
   resume: 'resume',
   permissions: 'permissions',
@@ -4017,6 +4070,9 @@ export const SLASH_COMMAND_NAMES = {
   securityReview: 'security-review',
   changes: 'changes',
 } as const
+export const REFERENCE_DOCS_URL =
+  'https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/reference.md'
+export const REFERENCE_BUNDLE_FILE = 'reference.js'
 /** Muse Code's bundled skills that continue another agent's session (M30). */
 export const RESUME_SKILL_SELECTORS: Readonly<Record<SkillImportSource, string>> = {
   claude: 'resume-claude',
@@ -4388,6 +4444,8 @@ export const REPORT_ERROR_CODES: ReadonlySet<string> = new Set([
 // owning test. Register new bundles before retaining their stack frames.
 export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/extension.js',
+  'dist/questionNotes.js',
+  'dist/prompts.js',
   'dist/uiText.js',
   'dist/modelApi.js',
   'dist/sessionBoard.js',
@@ -4404,6 +4462,8 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/searchWorker.js',
   'dist/pageWorker.js',
   'dist/webview/main.js',
+  'dist/webview/referencePage.js',
+  'dist/reference.js',
   'dist/report.js',
   'dist/recorder.js',
   'dist/browserCheck.js',
@@ -5266,10 +5326,8 @@ export const EVAL_COST_DECIMALS = 4
 
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'
-// Inclusive integer range used to check whether a locale's `one` needs a count.
-export const L10N_COMPACT_FRAGMENT_WORDS = 6
-export const L10N_COMPACT_TOKEN_FIRST = 0xe0_00
-export const L10N_COMPACT_TOKEN_LAST = 0xf8_ff
+// Build-only inline browser fallback compression.
+export const L10N_BROWSER_COMPRESSION_LEVEL = 9
 export const L10N_TABLE_ARCHIVE_FILE = 'ui.tables.json.br'
 export const L10N_COMPRESSION_QUALITY = 11
 export const L10N_TABLE_MAX_BYTES = 1024 * 1024
@@ -5339,3 +5397,6 @@ export const CONVERSATION_MODEL_TEXT = {
   exportRedactedPath: '[redacted path]',
   exportRedactedAccount: '[redacted account]',
 } as const
+
+// Shared by the eager composer and the optional command palette.
+export const PALETTE_LISTBOX_ID = 'palette-listbox'

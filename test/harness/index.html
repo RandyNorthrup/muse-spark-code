@@ -419,8 +419,17 @@
         },
       }
       window.acquireVsCodeApi = () => ({
-        getState: () => (scenarioName === 'restored' ? restoredState : undefined),
-        setState: () => undefined,
+        getState: () => {
+          const saved = sessionStorage.getItem('harness-webview-state')
+          return saved === null
+            ? scenarioName === 'restored'
+              ? restoredState
+              : undefined
+            : JSON.parse(saved)
+        },
+        setState: (state) => {
+          sessionStorage.setItem('harness-webview-state', JSON.stringify(state))
+        },
         postMessage: (message) => {
           outbox.push(message)
           document.title = `harness: ${message.type}`
@@ -469,6 +478,41 @@
               later(0, () => send({ type: 'sharingResult', id: message.id, value }))
               break
             }
+            case 'hostAction': {
+              if (message.action === 'reload') location.reload()
+              break
+            }
+            case 'readReference': {
+              Promise.all([
+                fetch('../../src/shared/reference/reference.generated.json').then((response) =>
+                  response.json(),
+                ),
+                fetch(
+                  harnessL10n.lang === undefined || harnessL10n.lang === 'pseudo'
+                    ? '../../package.nls.json'
+                    : `../../package.nls.${harnessL10n.lang}.json`,
+                ).then((response) => response.json()),
+              ])
+                .then(([model, nls]) =>
+                  send({
+                    type: 'referenceValues',
+                    model: JSON.stringify(model),
+                    nls,
+                    values: Object.fromEntries(
+                      model.settings.map((setting) => [
+                        setting.id,
+                        setting.id === 'museSpark.environmentVariables'
+                          ? 'Hidden'
+                          : JSON.stringify(setting.default),
+                      ]),
+                    ),
+                  }),
+                )
+                .catch((error) => {
+                  throw error
+                })
+              break
+            }
             case 'tasksReady': {
               send({
                 type: 'tasksState',
@@ -502,10 +546,15 @@
               })
               // M25: first, the session and turn the host holds for this surface.
               const isRestored = scenarioName === 'restored'
+              const persisted = sessionStorage.getItem('harness-webview-state')
+              const savedSession = persisted === null ? undefined : JSON.parse(persisted).sessionId
               send(
                 isRestored
                   ? { type: 'surfaceState', sessionId: 'restored-1', activeTurnId: 't7' }
-                  : { type: 'surfaceState' },
+                  : {
+                      type: 'surfaceState',
+                      ...(savedSession === undefined ? {} : { sessionId: savedSession }),
+                    },
               )
               send({ type: 'authState', status: 'signedIn' })
               send({ type: 'composerState', ...composer })
@@ -1112,6 +1161,49 @@
         report(`warn: ${args.map(String).join(' ')}`)
         originalWarn(...args)
       }
+      function questionScene(state, isRowless = false) {
+        const sessionId = 'm112-harness'
+        send({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId })
+        const questions = [
+          {
+            id: 'colour',
+            header: 'Colour',
+            question: 'Which colour do you prefer?',
+            selection: { mode: 'single' },
+            options: [{ label: 'Blue' }, { label: 'Green' }],
+          },
+        ]
+        const askedAt = Date.now()
+        const record = {
+          sessionId,
+          userInputId: 'm112-question',
+          itemId: 'm112-question-row',
+          turnId: 'm112-turn',
+          questions,
+          key: 'which colour?|blue|green',
+          state,
+          askedAt,
+          deadlineAt: askedAt + 60_000,
+          reminders: 0,
+          backend: 'modelApi',
+          ...(['open', 'answeredLater', 'answeredOnReask', 'dismissed', 'expired'].includes(
+            state,
+          ) && { deferredAt: askedAt }),
+        }
+        if (!isRowless)
+          event({
+            type: 'questionRequested',
+            userInputId: record.userInputId,
+            itemId: record.itemId,
+            questions,
+          })
+        if (!isRowless && state !== 'waiting')
+          event({
+            type: 'itemCompleted',
+            item: { itemId: record.itemId, kind: 'toolCall', status: 'completed' },
+          })
+        send({ type: 'openQuestions', snapshot: { sessionId, questions: [record] } })
+      }
       // `?scenario=<name>` drives the UI without a human, for headless shots.
       const scenario = new URLSearchParams(location.search).get('scenario')
       const textarea = () => document.querySelector('textarea')
@@ -1601,6 +1693,12 @@
           steps['usage-install']()
         },
         // The Commands button: the palette with its own filter box.
+        help: () => {
+          send({ type: 'openHelp' })
+        },
+        'help-narrow': () => {
+          send({ type: 'openHelp' })
+        },
         palette: () => {
           click('Commands')
         },
@@ -1681,7 +1779,7 @@
         chips: () => {
           click('Attach')
           later(100, () => {
-            document.querySelector('[role="menuitem"]:nth-child(1)').click()
+            whenFound('[role="menuitem"]:nth-child(1)', (control) => control.click())
           })
           later(200, () => setDraft('what is this?'))
         },
@@ -1696,7 +1794,7 @@
         'chat-menu': () => {
           steps.rewind()
           later(450, () =>
-            document.querySelector('[aria-haspopup="menu"][role="menuitem"]').click(),
+            whenFound('[aria-haspopup="menu"][role="menuitem"]', (control) => control.click()),
           )
         },
         'chat-menu-narrow': () => {
@@ -1715,7 +1813,7 @@
           later(300, () => {
             document.querySelector('.steps-toggle').click()
             later(100, () =>
-              document.querySelector('[data-entry-id="ed1"] .row-actions-button').click(),
+              whenFound('[data-entry-id="ed1"] .row-actions-button', (control) => control.click()),
             )
           })
         },
@@ -1990,6 +2088,21 @@
           })
           send({ type: 'approvalMovedOn', approvalId: 'a1' })
         },
+        // M112: internal snapshot fixtures, not invented service/MSP fields.
+        'questions-waiting': () => questionScene('waiting'),
+        'questions-open': () => questionScene('open'),
+        'questions-chip': () => questionScene('open', true),
+        'questions-approval': () => {
+          steps.approval()
+          questionScene('waiting')
+        },
+        'questions-answered': () => questionScene('answered'),
+        'questions-answered-later': () => questionScene('answeredLater'),
+        'questions-reasked': () => questionScene('answeredOnReask'),
+        'questions-explained': () => questionScene('clarified'),
+        'questions-declined': () => questionScene('cancelled'),
+        'questions-dismissed': () => questionScene('dismissed'),
+        'questions-expired': () => questionScene('expired'),
         question: () => {
           transcriptFixture()
           event({
@@ -2070,12 +2183,8 @@
               { name: 'updates', title: 'Receive updates', type: 'boolean', required: true },
             ],
           })
-          later(300, () => {
-            setValue(
-              document.querySelector('.elicitation-input'),
-              HTMLInputElement.prototype,
-              'invalid-address',
-            )
+          whenFound('.elicitation-input', (input) => {
+            setValue(input, HTMLInputElement.prototype, 'invalid-address')
           })
         },
         'elicitation-narrow': () => {
@@ -2265,7 +2374,7 @@
         'add-context': () => {
           click('Attach')
           later(100, () => {
-            document.querySelector('[role="menuitem"]:nth-child(2)').click()
+            whenFound('[role="menuitem"]:nth-child(2)', (control) => control.click())
           })
         },
         history: () => {
@@ -2314,7 +2423,9 @@
             sessionId: 's1',
           })
           transcriptFixture({ isDone: true })
-          later(300, () => document.querySelector('[data-role="user"] .row-actions-button').click())
+          later(300, () =>
+            whenFound('[data-role="user"] .row-actions-button', (control) => control.click()),
+          )
         },
         // --- M72: a turn with a checkpoint: Restore files, Both, and a
         // restore's notice with its Redo ---
@@ -2344,7 +2455,9 @@
             level: 'warning',
             text: 'Not restorable, changed by a command with no earlier copy: server.log',
           })
-          later(300, () => document.querySelector('[data-role="user"] .row-actions-button').click())
+          later(300, () =>
+            whenFound('[data-role="user"] .row-actions-button', (control) => control.click()),
+          )
         },
         // --- M72: Restricted Mode, and Muse Code on Windows: the menu says
         // why rows are missing ---
@@ -2364,7 +2477,9 @@
             sessionId: 's1',
             turnIds: [],
           })
-          later(300, () => document.querySelector('[data-role="user"] .row-actions-button').click())
+          later(300, () =>
+            whenFound('[data-role="user"] .row-actions-button', (control) => control.click()),
+          )
         },
         'checkpoint-read-only': () => {
           send({
@@ -2389,7 +2504,9 @@
             text: 'Saved restore remains readable.',
             redoRestoreId: 'old-redo',
           })
-          later(300, () => document.querySelector('[data-role="user"] .row-actions-button').click())
+          later(300, () =>
+            whenFound('[data-role="user"] .row-actions-button', (control) => control.click()),
+          )
         },
         'checkpoint-read-only-narrow': () => {
           document.documentElement.style.width = '100%'
@@ -3043,13 +3160,15 @@
         // --- M16: the question card filled in, on its second tab ---
         'question-filled': () => {
           steps.question()
-          later(300, () => {
-            document.querySelectorAll('input[type="radio"]')[1].click()
-            document.querySelectorAll('[role="tab"]')[1].click()
-            later(100, () => {
-              document.querySelectorAll('input[type="checkbox"]')[0].click()
-              const other = document.querySelector('.question input[type="text"]')
-              setValue(other, HTMLInputElement.prototype, 'Pineapple')
+          // The question controls load in their own chunk: wait for them, never a fixed delay.
+          whenFound('.question input[type="radio"]', () => {
+            document.querySelectorAll('.question input[type="radio"]')[1].click()
+            document.querySelectorAll('.question [role="tab"]')[1].click()
+            whenFound('.question input[type="checkbox"]', (checkbox) => {
+              checkbox.click()
+              whenFound('.question input[type="text"]', (other) =>
+                setValue(other, HTMLInputElement.prototype, 'Pineapple'),
+              )
             })
           })
         },
@@ -3057,18 +3176,18 @@
         'reply-menu': () => {
           transcriptFixture({ isDone: true })
           later(300, () =>
-            document.querySelector('[data-role="assistant"] .row-actions-button').click(),
+            whenFound('[data-role="assistant"] .row-actions-button', (control) => control.click()),
           )
         },
         'reply-chip': () => {
           transcriptFixture({ isDone: true })
           later(300, () => {
-            document.querySelector('[data-role="assistant"] .row-actions-button').click()
-            later(100, () => {
-              document
-                .querySelector('[data-role="assistant"] .gooey-menu-pill:nth-child(2)')
-                .click()
-              setDraft('Why two files and not three?')
+            whenFound('[data-role="assistant"] .row-actions-button', (control) => {
+              control.click()
+              whenFound('[data-role="assistant"] .gooey-menu-pill:nth-child(2)', (reply) => {
+                reply.click()
+                setDraft('Why two files and not three?')
+              })
             })
           })
         },
@@ -3113,8 +3232,10 @@
         'quote-chip': () => {
           steps['quote-menu']()
           later(600, () => {
-            document.querySelector('.quote-menu .gooey-menu-pill').click()
-            setDraft('Are you sure about the count?')
+            whenFound('.quote-menu .gooey-menu-pill:nth-child(2)', (quote) => {
+              quote.click()
+              setDraft('Are you sure about the count?')
+            })
           })
         },
         // --- M14/M18: the CLI gates subagent_spawn behind an approval (live, 2026-09-23) ---
@@ -3824,13 +3945,13 @@
             answers: [],
             clarification: 'Neither yet: show me the failing cases first.',
           })
-          later(300, () => {
-            // Explain instead: the first secondary action, whatever the language.
-            document.querySelector('.question-actions .button-secondary')?.click()
-            later(100, () => {
-              const box = document.querySelector('.question-explain-input')
-              setValue(box, HTMLTextAreaElement.prototype, 'Green, and no toppings at all.')
-            })
+          // Explain instead: the first secondary action, whatever the language. The
+          // question controls load in their own chunk, so wait for them to render.
+          whenFound('.question-actions .button-secondary', (explain) => {
+            explain.click()
+            whenFound('.question-explain-input', (box) =>
+              setValue(box, HTMLTextAreaElement.prototype, 'Green, and no toppings at all.'),
+            )
           })
         },
         // --- M47: workflow runs: the captured one finished, a second running read-only ---
@@ -4502,9 +4623,29 @@
           })
           steps.board()
           whenFound('#board-listbox', () => {
-            document.querySelector('.palette-header .button-secondary').click()
+            whenFound('.palette-header .button-secondary', (control) => control.click())
           })
         },
+      }
+      for (const name of [
+        'questions-waiting',
+        'questions-open',
+        'questions-chip',
+        'questions-approval',
+        'questions-answered',
+        'questions-answered-later',
+        'questions-reasked',
+        'questions-explained',
+        'questions-declined',
+        'questions-dismissed',
+        'questions-expired',
+      ]) {
+        steps[`${name}-narrow`] = () => {
+          if (innerWidth !== 320) throw new Error('M112 questions require a 320 px viewport')
+          document.documentElement.style.width = '100%'
+          document.body.style.width = '100%'
+          steps[name]()
+        }
       }
       // A scenario starts once the panel has drawn its surface: the composer,
       // a sign-in or install gate, or the crash screen; never sooner than the
@@ -4708,6 +4849,12 @@
         'prompt-library-narrow': () => document.querySelector('.prompt-library li') !== null,
         'chat-sharing': () => document.querySelector('.chat-share-preview') !== null,
         'chat-sharing-narrow': () => document.querySelector('.chat-share-preview') !== null,
+        'reply-chip': () => document.querySelector('.reference-chip') !== null,
+        'quote-chip': () => document.querySelector('.reference-chip') !== null,
+        'add-context': () => document.querySelector('.mention-menu [role="option"]') !== null,
+        'paid-usage': () => document.querySelector('.usage-facts') !== null,
+        help: () => document.querySelector('#reference-search') !== null,
+        'help-narrow': () => document.querySelector('#reference-search') !== null,
         // The "/" list for "/co", rendered with its options (M87's tips too).
         'slash-commands': () => document.querySelector('.slash-menu [role="option"]') !== null,
         'slash-tips': () => document.querySelector('.slash-menu [role="option"]') !== null,

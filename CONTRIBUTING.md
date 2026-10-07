@@ -19,6 +19,11 @@ extension loaded; `npm run watch` rebuilds on save. The Muse Code CLI and a
 Meta Model API key are optional: the unit tests run against fakes, and the
 sign-in gate explains what is missing.
 
+New UI surfaces ship in their own lazy chunks, loaded on first use, with
+accessible loading, an honest failure and retry, and a measured budget of their
+own (D6). Keep startup and the original deferred aggregate for first paint and
+retain their existing caps; chat, composer and approvals remain eager.
+
 ## Before you open a pull request
 
 Use this order for a candidate branch:
@@ -182,6 +187,30 @@ PRs keep the full tier. Settings and evidence:
 Prettier and ESLint decide formatting and style; the hooks apply them on
 commit. Comments explain why, not what. Timeouts, limits and other magic
 values are named constants in `src/shared/constants.ts`.
+
+## Questions and the attention dock (M112)
+
+Agent questions are a separate kind of attention prompt: approvals stay first
+and block, while a question defers into the open set after its host-owned
+deadline. MCP elicitation retains its own expiry and has no late-answer path.
+Never send a question answer through an approval handler or let it grant a
+rule, change mode or settle a paid-use permission prompt.
+
+Use the portable contracts in `src/shared/questions.ts` and the shared core
+registry (`src/core/questions/**`, lane Q). ACP's
+`src/acp/questionDeferral.ts` owns the form clock and cooperative withdrawal;
+its injected registry port has no production substitute. A native UI never
+owns the clock. Open questions and queued idle answers belong in owner-only,
+validated per-session storage, deleted with that session. Log ids or fixed
+diagnostics only; report counts, never question text, drafts or answers.
+
+Certify deadline/answer races, Stop and close, replayed deadlines, no-form
+immediate deferral, late steering and durable queue acknowledgement with the
+injected clock and fake client. Break each guard, observe its named test fail,
+restore byte-exact and record the drill. Headless execution declines at once
+with no clock; scheduled/unattended prompts defer at once, even when the
+interactive setting is 0. See [M112's contracts](docs/certification/m112-contracts.md)
+and [lane A's record](docs/certification/m112-a.md) for integration ownership.
 
 ## Text the user reads
 
@@ -404,3 +433,8 @@ Run `npm run check:reference`, the owning tests, localization, host API,
 bundle split/size and the sharing accessibility scenes. Certification must
 distinguish fake bridges from mounted editor receipts and name pending M104
 or TUI bindings.
+
+Every new command, setting or feature updates `src/shared/featureCatalog.ts`
+in the same PR (and the shared CLI table for runtime commands). Run
+`npm run reference:generate`, then `npm run check:reference`; the gate rejects
+missing descriptions, invalid relationships and stale generated references.

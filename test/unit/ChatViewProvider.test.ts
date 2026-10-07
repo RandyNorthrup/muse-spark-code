@@ -1,3 +1,4 @@
+import { questionFixture } from './helpers/questions/fixtures'
 import { describe, expect, it } from 'vitest'
 import { ChatViewProvider, SIDEBAR_SURFACE_ID } from '../../src/host/views/ChatViewProvider'
 import { SurfaceRegistry } from '../../src/host/views/surfaceRegistry'
@@ -79,5 +80,41 @@ describe('ChatViewProvider: reload (M11)', () => {
     expect(view.webview.html).not.toBe(before)
     expect(view.webview.html).toContain('<script type="module" nonce=')
     expect(view.webview.html.length).toBe(before.length)
+  })
+})
+
+describe('M112 question badge', () => {
+  it('shows the open count while visible, ahead of unread, and restores unread after settlement', () => {
+    const { registry, view } = resolve()
+    const surface = registry.active
+    surface?.post({ type: 'sessionInfo', sessionId: 'session-1', modelId: 'test' })
+    view.visible = false
+    surface?.markUnread()
+    surface?.post({
+      type: 'openQuestions',
+      snapshot: { sessionId: 'session-1', questions: [questionFixture()] },
+    })
+    expect(view.badge).toEqual({ tooltip: '1 open question', value: 1 })
+    view.visible = true
+    view.visibility.fire()
+    expect(view.badge).toEqual({ tooltip: '1 open question', value: 1 })
+    surface?.post({ type: 'openQuestions', snapshot: { sessionId: 'other', questions: [] } })
+    expect(view.badge?.tooltip).toBe('1 open question')
+    surface?.post({ type: 'openQuestions', snapshot: { sessionId: 'session-1', questions: [] } })
+    expect(view.badge).toBeUndefined()
+    view.visible = false
+    surface?.markUnread()
+    surface?.post({
+      type: 'openQuestions',
+      snapshot: {
+        sessionId: 'session-1',
+        questions: [questionFixture(), questionFixture({ userInputId: 'q-2' })],
+      },
+    })
+    expect(view.badge).toEqual({ tooltip: '2 open questions', value: 2 })
+    surface?.post({ type: 'openQuestions', snapshot: { sessionId: 'session-1', questions: [] } })
+    expect(view.badge?.tooltip).toBe('Muse needs your attention')
+    surface?.post({ type: 'conversationCleared' })
+    expect(view.badge).toBeUndefined()
   })
 })

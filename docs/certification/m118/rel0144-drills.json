@@ -1,0 +1,61 @@
+[
+  {
+    "name": "optional renderers made eager",
+    "command": ["npx", "vitest", "run", "test/unit/webviewBundle.test.mjs", "--maxWorkers=3"],
+    "exit": 1,
+    "files": [
+      "src/webview/App.tsx",
+      "src/webview/components/ToolRow.tsx",
+      "src/webview/components/MarkdownView.tsx",
+      "src/webview/components/HistoryDialog.tsx"
+    ],
+    "restoration": {
+      "src/webview/App.tsx": {
+        "before": "1f272d4c41a145d031549d433d8fd7b335eda8b94bd70b849ef12f751f5bb83f",
+        "after": "1f272d4c41a145d031549d433d8fd7b335eda8b94bd70b849ef12f751f5bb83f"
+      },
+      "src/webview/components/ToolRow.tsx": {
+        "before": "5b5b2a414d9c04cece2afbd53ed2ea7f38b15f193a62a6281c5b2fbb2ea53c31",
+        "after": "5b5b2a414d9c04cece2afbd53ed2ea7f38b15f193a62a6281c5b2fbb2ea53c31"
+      },
+      "src/webview/components/MarkdownView.tsx": {
+        "before": "7d2b46510804b66df5159ad099850a2bbfaa23d262a28d8c02300887846e5396",
+        "after": "7d2b46510804b66df5159ad099850a2bbfaa23d262a28d8c02300887846e5396"
+      },
+      "src/webview/components/HistoryDialog.tsx": {
+        "before": "baea00c0746eb911b3194e41d979dbd8d63c7c55d6c0dcfcb1d2c97694445443",
+        "after": "baea00c0746eb911b3194e41d979dbd8d63c7c55d6c0dcfcb1d2c97694445443"
+      }
+    }
+  },
+  {
+    "name": "Node reference codec drops CLI rows",
+    "command": ["npx", "vitest", "run", "test/unit/uiTextRegions.test.mjs", "--maxWorkers=3"],
+    "exit": 1,
+    "file": "scripts/lib/uiTextRegions.mjs",
+    "before": "032868bb3fe28f3a62ce0d0860b07ebba4e1c470f0a6b2288f7325863592114d",
+    "after": "032868bb3fe28f3a62ce0d0860b07ebba4e1c470f0a6b2288f7325863592114d"
+  },
+  {
+    "name": "M118 cold dialogs lose modal fallback",
+    "command": ["npx", "vitest", "run", "test/unit/AppLazy.test.tsx", "--maxWorkers=3"],
+    "exit": 1,
+    "file": "src/webview/App.tsx",
+    "before": "dca5385a249530f3e123a9ef310647768b53ca9e10059d7d2cf3381955f16207",
+    "after": "dca5385a249530f3e123a9ef310647768b53ca9e10059d7d2cf3381955f16207"
+  },
+  {
+    "name": "prompt library exceeds unchanged 25 KiB cap",
+    "exit": 1,
+    "file": "dist/webview/chunks/WRPVCDSG.js",
+    "before": "dcd30097976483499ae9ab5faf10a2c25b0b849ab632c30aee63526638c6844e",
+    "after": "dcd30097976483499ae9ab5faf10a2c25b0b849ab632c30aee63526638c6844e"
+  },
+  {
+    "name": "chat sharing exceeds unchanged 25 KiB cap",
+    "exit": 1,
+    "file": "dist/webview/chunks/UC7SCJQM.js",
+    "before": "0fa6798e1424487012820d4ecbfd4680c2aeb92963e111f354b703cff56b9013",
+    "after": "0fa6798e1424487012820d4ecbfd4680c2aeb92963e111f354b703cff56b9013"
+  }
+]

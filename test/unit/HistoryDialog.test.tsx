@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { UI_TEXT } from '../../src/shared/constants'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import type { SessionRow } from '../../src/shared/sessions'
 import {
   HistoryDialog,
@@ -65,6 +65,12 @@ function archiveMark(title: string, tooltip: string): HTMLElement {
   return within(screen.getByRole('option', { name: new RegExp(title) })).getByTitle(tooltip)
 }
 
+beforeAll(async () => {
+  renderDialog()
+  await screen.findAllByRole('option')
+  cleanup()
+})
+
 describe('layoutHistory', () => {
   it('numbers rows across groups', () => {
     const entries = layoutHistory([
@@ -90,6 +96,16 @@ describe('HistoryDialog', () => {
     expect(optionTitles()).toEqual(['Fix the parsercurrent', 'Write docs'])
     expect(screen.getByText('1 hr. ago · 3 turns · main')).toBeInTheDocument()
     expect(screen.getByText('yesterday · 1 turn · fork')).toBeInTheDocument()
+  })
+
+  it('marks known sessions with localized singular/plural open counts and clears zero counts', () => {
+    renderDialog({ openQuestionCounts: { now: 1, yesterday: 2, stale: 0 } })
+    expect(screen.getByRole('option', { name: /Fix the parser/ })).toHaveTextContent(
+      '1 open question',
+    )
+    expect(screen.getByRole('option', { name: /Write docs/ })).toHaveTextContent('2 open questions')
+    fireEvent.click(screen.getByLabelText('Show archived'))
+    expect(screen.getByRole('option', { name: /Old idea/ })).not.toHaveTextContent('open question')
   })
 
   it('shows archived and stale rows behind the switch, with Unarchive on the archived one', () => {
@@ -211,11 +227,11 @@ describe('HistoryDialog', () => {
   })
 })
 
-it('offers Save prompt on history right-click without resuming or losing archive', () => {
+it('offers Save prompt on history right-click without resuming or losing archive', async () => {
   const save = vi.fn()
   const { props } = renderDialog({ onSavePrompt: save })
   fireEvent.contextMenu(screen.getByText('Fix the parser'))
-  fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.promptSave }))
+  fireEvent.click(await screen.findByRole('menuitem', { name: UI_TEXT.promptSave }))
   expect(save).toHaveBeenCalledExactlyOnceWith('now')
   expect(props.onResume).not.toHaveBeenCalled()
   fireEvent.click(archiveMark('Fix the parser', 'Archive (Delete)'))

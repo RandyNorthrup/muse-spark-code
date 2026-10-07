@@ -1,121 +1,878 @@
+import { PAID_USE_REGISTRY } from './paid'
+// HELPREF: reviewed feature relationships. The generator validates every id
+// against the manifest and reuses its translated text and the palette's tips.
+import { COMMAND_IDS, type SETTING_DEFAULTS } from './constants'
+import type { UiText } from './l10n/en'
+
+type PlainReferenceText =
+  | { readonly fallbackKey: string; readonly fallback: string }
+  | { readonly cli: keyof UiText['referenceCliOptions'] }
+  | { readonly ui: { [K in keyof UiText]: UiText[K] extends string ? K : never }[keyof UiText] }
+  | { readonly tip: keyof UiText['paletteTips'] }
+  | { readonly setting: string }
+  | { readonly command: string }
+
+export type ReferenceText =
+  | PlainReferenceText
+  | {
+      readonly conditions: readonly {
+        /** Technical selector; the description explains each of its states. */
+        readonly when: string
+        readonly text: PlainReferenceText
+      }[]
+    }
+
+// Conditional descriptions must opt into a typed field, never a content heuristic.
+const UI_CONDITIONS: Readonly<
+  Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
+> = {
+  referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
+  referenceSandbox: 'platform=win32&shellSandbox',
+  referenceBrowser: 'workspaceTrust',
+  referenceBestOfNRequirements: 'bestOfNAdmission',
+  referenceSecretPrompt: 'secretDetected',
+  referenceTabMenu: 'copilotYield',
+  referenceConversationActions: 'turnState',
+  referencePermissionLimits: 'backend&permissionMode&autoReviewer',
+  museCodeReviewerNotice: 'permissionMode=auto&museCodeAutoReviewer=true',
+  gitCommitItemDetail: 'userRequestedMessage',
+  referenceDictation: 'platform&localWindow',
+  referenceVoice: 'backend&localWindow&voiceAdmission',
+  referenceBundled: 'backend',
+  mcpRestartDetail: 'turnState',
+}
+const NLS_CONDITIONS: Readonly<Partial<Record<string, string>>> = {
+  'config.backend.enumDescriptions.auto': 'backendAvailability',
+  'config.browserCheckRuntime.enumDescriptions.download': 'browserRuntimeAcquisition',
+  'config.tabMultiline.enumDescriptions.auto': 'multilineMode',
+  'config.tabTrigger.enumDescriptions.onInvoke': 'tabTrigger',
+  'config.judge.engine.enumDescriptions.auto': 'judgeEngine',
+}
+const SETTING_CONDITIONS: Readonly<Partial<Record<keyof typeof SETTING_DEFAULTS, string>>> = {
+  preferredLocation: 'activeConversation',
+  archiveInactiveSessions: 'sessionIdle',
+  cleanupPeriodDays: 'sessionList',
+  sandboxNetwork: 'shellSandbox',
+  browserCheckExtraHosts: 'browserNetworkAdmission',
+  notifyOnBackgroundTurn: 'turnState&windowFocus',
+  modelApiSessionBudgetUsd: 'sessionBudget',
+  modelApiObservationPacking: 'conversationStart',
+  showWhatsNewOnUpdate: 'releaseHighlights',
+  modelApiPermissionProfile: 'permissionProfile',
+  tabLanguages: 'language',
+  tabMultiline: 'multilineMode',
+  tabTrigger: 'tabTrigger',
+  'shell.passEnvironmentVariables': 'backend=modelApi&shellOrigin=interactive',
+  modelApiVoice: 'voiceAdmission',
+  bundledSkills: 'backend&skillInstallation',
+}
+
+/** The generator uses these explicit selectors on every description surface. */
+export function referenceDescription(text: ReferenceText): ReferenceText {
+  if ('conditions' in text) return text
+  const settingConditions: Readonly<Partial<Record<string, string>>> = SETTING_CONDITIONS
+  let when: string | undefined
+  if ('ui' in text) when = UI_CONDITIONS[text.ui]
+  else if ('fallbackKey' in text) when = NLS_CONDITIONS[text.fallbackKey]
+  else if ('setting' in text) when = settingConditions[text.setting]
+  else if ('cli' in text && text.cli === 'fail-on-denial') when = 'permission=denied'
+  return when === undefined ? text : { conditions: [{ when, text }] }
+}
+
+interface Feature {
+  readonly id: string
+  readonly name: ReferenceText
+  readonly summary: ReferenceText
+  readonly description: ReferenceText
+  readonly commands: readonly string[]
+  readonly settings: readonly string[]
+  readonly docs: string
+  readonly editors: readonly ('vscode' | 'acp')[]
+  readonly backends: readonly ('museCode' | 'modelApi')[]
+  readonly paid: boolean
+  readonly surfaces: readonly string[]
+  readonly details: readonly ReferenceText[]
+  readonly facts: Readonly<Record<string, unknown>>
+}
+
+type CommandKey = keyof typeof COMMAND_IDS
+interface CommandReference {
+  readonly description: ReferenceText
+  /** No spending, destructive change, or dependence on a chat/editor selection. */
+  readonly canRun: boolean
+}
+
+export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> = {
+  openInSidebar: { description: { ui: 'referenceSidebar' }, canRun: true },
+  openInNewTab: { description: { ui: 'referenceNewTab' }, canRun: true },
+  focusInput: { description: { ui: 'referenceFocus' }, canRun: false },
+  openTasks: { description: { ui: 'referenceTasks' }, canRun: false },
+  insertMentionReference: { description: { tip: 'mentionFile' }, canRun: false },
+  toggleFocusView: { description: { tip: 'focusView' }, canRun: false },
+  toggleThinking: { description: { ui: 'referenceThinking' }, canRun: false },
+  setUpSandbox: { description: { ui: 'referenceSandbox' }, canRun: false },
+  showLogs: { description: { tip: 'log' }, canRun: true },
+  diagnostics: { description: { ui: 'referenceDiagnostics' }, canRun: true },
+  reportProblem: { description: { ui: 'referenceReport' }, canRun: true },
+  newConversation: { description: { tip: 'clear' }, canRun: false },
+  signOut: { description: { tip: 'signOut' }, canRun: false },
+  openInTerminal: { description: { ui: 'referenceTerminal' }, canRun: false },
+  createRulesFile: { description: { ui: 'referenceRules' }, canRun: false },
+  openWalkthrough: { description: { ui: 'referenceWalkthrough' }, canRun: true },
+  manageSkills: { description: { tip: 'manageSkills' }, canRun: false },
+  importSkills: { description: { tip: 'importSkills' }, canRun: false },
+  importFromAgents: { description: { ui: 'agentImportDetailEvery' }, canRun: false },
+  exportConversation: { description: { tip: 'export' }, canRun: false },
+  importSession: { description: { tip: 'importSession' }, canRun: false },
+  openShareFile: { description: { tip: 'openShare' }, canRun: false },
+  mcpServers: { description: { ui: 'referenceMcp' }, canRun: false },
+  hooks: { description: { tip: 'hooks' }, canRun: false },
+  runSetupHooks: { description: { ui: 'referenceSetup' }, canRun: false },
+  runHook: { description: { tip: 'hookRun' }, canRun: false },
+  retryPluginHooks: { description: { ui: 'referenceRetry' }, canRun: false },
+  memory: { description: { tip: 'memory' }, canRun: false },
+  newWorktree: { description: { tip: 'newWorktree' }, canRun: false },
+  removeWorktree: { description: { tip: 'removeWorktree' }, canRun: false },
+  moveToBackground: { description: { ui: 'moveToBackgroundTitle' }, canRun: false },
+  stopBackgroundTasks: { description: { ui: 'stopAllTasksTitle' }, canRun: false },
+  restartMuseCode: { description: { ui: 'mcpRestartDetail' }, canRun: false },
+  installBundledSkills: { description: { ui: 'referenceInstallSkills' }, canRun: false },
+  removeBundledSkills: { description: { ui: 'referenceRemoveSkills' }, canRun: false },
+  downloadBrowserCheckRuntime: { description: { ui: 'referenceBrowserDownload' }, canRun: false },
+  showWhatsNew: { description: { tip: 'whatsNew' }, canRun: true },
+  tabTurnOn: { description: { ui: 'referenceTabOn' }, canRun: false },
+  tabTurnOff: { description: { ui: 'referenceTabOff' }, canRun: false },
+  tabSnooze: { description: { ui: 'referenceTabSnooze' }, canRun: false },
+  tabMenu: { description: { ui: 'referenceTabMenu' }, canRun: false },
+  tabLanguages: { description: { ui: 'referenceTabLanguages' }, canRun: false },
+  openPullRequestInConversation: { description: { ui: 'gitCheckoutItemDetail' }, canRun: false },
+  savePrompt: { description: { ui: 'promptSecretsNote' }, canRun: false },
+  useSavedPrompt: { description: { ui: 'promptRun' }, canRun: false },
+  promptLibrary: { description: { ui: 'promptLibrary' }, canRun: true },
+  copyToMyPrompts: { description: { ui: 'promptScopeUser' }, canRun: false },
+  sharePrompt: { description: { ui: 'shareReviewPrivacy' }, canRun: false },
+  shareChat: { description: { ui: 'shareReviewPrivacy' }, canRun: false },
+  openHelp: { description: { ui: 'referenceIntro' }, canRun: true },
+  nextOpenQuestion: { description: { ui: 'questionNextOpen' }, canRun: false },
+  previousOpenQuestion: { description: { ui: 'questionPreviousOpen' }, canRun: false },
+}
+
+function feature(
+  id: string,
+  name: ReferenceText,
+  summary: ReferenceText,
+  commands: readonly CommandKey[],
+  settings: readonly string[],
+  docs: string,
+  backends: Feature['backends'] = ['museCode', 'modelApi'],
+  isPaid = false,
+  editors: Feature['editors'] = ['vscode'],
+): Feature {
+  return {
+    id,
+    name,
+    summary,
+    description: summary,
+    commands: commands.map((key) => COMMAND_IDS[key]),
+    settings: settings.map((key) => `museSpark.${key}`),
+    docs: `https://github.com/RandyNorthrup/muse-spark-code#${docs}`,
+    backends,
+    paid: isPaid,
+    surfaces: editors.flatMap((editor) => backends.map((backend) => `${editor}:${backend}`)),
+    details: [],
+    facts: {},
+    editors,
+  }
+}
+
+export function featureCatalog(): readonly Feature[] {
+  return [
+    feature(
+      'prompt-library',
+      { ui: 'promptLibrary' },
+      { ui: 'promptSecretsNote' },
+      ['savePrompt', 'useSavedPrompt', 'promptLibrary', 'copyToMyPrompts'],
+      ['syncPromptsAndBookmarks'],
+      'sharing',
+      undefined,
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'chat-sharing',
+      { ui: 'shareChat' },
+      { ui: 'shareReviewPrivacy' },
+      ['shareChat', 'sharePrompt'],
+      [],
+      'sharing',
+      undefined,
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'best-of-n',
+      { ui: 'bestOfNTitle' },
+      { ui: 'referenceBestOfN' },
+      [],
+      ['modelApiBestOfN'],
+      'session-board-and-best-of-n',
+      ['modelApi'],
+      true,
+    ),
+    feature(
+      'auto-subscription',
+      { ui: 'permissionModeItem' },
+      { ui: 'museCodeReviewerNotice' },
+      [],
+      ['museCodeAutoReviewer'],
+      'permission-modes',
+      ['museCode'],
+    ),
+    feature(
+      'native-agents',
+      { ui: 'agentsCommand' },
+      { ui: 'referenceNativeAgents' },
+      [],
+      [],
+      'the-panel',
+      ['museCode'],
+    ),
+    feature(
+      'native-search-cron',
+      { ui: 'paidWebSearchName' },
+      { ui: 'referenceNativeSearch' },
+      [],
+      [],
+      'paid-features',
+      ['museCode'],
+    ),
+    feature(
+      'attachments',
+      { ui: 'attachmentsLabel' },
+      { ui: 'referenceAttachments' },
+      [],
+      [],
+      'the-panel',
+    ),
+    feature('effort', { ui: 'effortItem' }, { tip: 'effort' }, [], [], 'the-panel'),
+    feature(
+      'custom-agents',
+      { ui: 'agentsCommand' },
+      { ui: 'referenceCustomAgents' },
+      [],
+      [],
+      'the-panel',
+      ['modelApi'],
+    ),
+    feature(
+      'conversation-actions',
+      { ui: 'transcriptLabel' },
+      { ui: 'referenceConversationActions' },
+      [],
+      [],
+      'the-panel',
+    ),
+    feature('code-output', { ui: 'copyCode' }, { ui: 'referenceCodeOutput' }, [], [], 'the-panel'),
+    feature(
+      'questions',
+      { ui: 'questionSubmit' },
+      { ui: 'referenceQuestions' },
+      ['nextOpenQuestion', 'previousOpenQuestion'],
+      ['questions.deferAfterSeconds'],
+      'questions',
+      undefined,
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'mcp-elicitation',
+      { ui: 'referenceElicitationTitle' },
+      { ui: 'referenceElicitation' },
+      [],
+      [],
+      'the-panel',
+      ['modelApi'],
+    ),
+    feature(
+      'acp',
+      { ui: 'helpReferenceTitle' },
+      { ui: 'referenceAcp' },
+      [],
+      [],
+      'help-and-reference',
+      undefined,
+      false,
+      ['acp'],
+    ),
+    feature(
+      'web-fetch',
+      { ui: 'referenceWebFetchTitle' },
+      { ui: 'referenceWebFetchDetail' },
+      [],
+      [],
+      'web-fetch',
+    ),
+    feature(
+      'code-intelligence',
+      { ui: 'referenceCodeIntelTitle' },
+      { ui: 'referenceCodeIntelDetail' },
+      [],
+      [],
+      'code-intelligence',
+      undefined,
+      false,
+      ['vscode'],
+    ),
+    feature('shell', { ui: 'composerShellMode' }, { ui: 'referenceShellDetail' }, [], [], 'tasks'),
+    feature(
+      'session-board',
+      { ui: 'boardTitle' },
+      { ui: 'referenceBoardDetail' },
+      [],
+      [],
+      'session-board-and-best-of-n',
+      undefined,
+      false,
+      ['vscode'],
+    ),
+    feature(
+      'edit-review',
+      { ui: 'reviewChangesItem' },
+      { ui: 'reviewChangesDetail' },
+      [],
+      [],
+      'review',
+      undefined,
+      false,
+      ['vscode'],
+    ),
+    feature(
+      'free-dictation',
+      { ui: 'dictationLabel' },
+      { ui: 'referenceDictation' },
+      [],
+      [],
+      'voice-dictation',
+      undefined,
+      false,
+      ['vscode'],
+    ),
+    feature(
+      'chat',
+      { ui: 'transcriptLabel' },
+      { ui: 'referenceNewTab' },
+      [
+        'openInSidebar',
+        'openInNewTab',
+        'focusInput',
+        'newConversation',
+        'insertMentionReference',
+        'toggleFocusView',
+        'toggleThinking',
+      ],
+      [
+        'preferredLocation',
+        'autosave',
+        'attachOpenFile',
+        'useCtrlEnterToSend',
+        'hideOnboarding',
+        'focusView',
+        'enableNewConversationShortcut',
+      ],
+      'the-panel',
+      undefined,
+      false,
+      ['vscode'],
+    ),
+    feature(
+      'account',
+      { ui: 'groupAccount' },
+      { tip: 'accountUsage' },
+      ['signOut', 'restartMuseCode', 'openInTerminal'],
+      [
+        'backend',
+        'museBinaryPath',
+        'environmentVariables',
+        'modelApiReplyUsage',
+        'modelApiSessionBudgetUsd',
+        'confidentialWorkspace',
+      ],
+      'get-started',
+    ),
+    feature(
+      'permissions',
+      { ui: 'permissionModeItem' },
+      { tip: 'permissionMode' },
+      ['setUpSandbox'],
+      [
+        'initialPermissionMode',
+        'allowDangerouslySkipPermissions',
+        'shellSandbox',
+        'sandboxNetwork',
+        'shell.passEnvironmentVariables',
+      ],
+      'permission-modes',
+    ),
+    feature(
+      'history',
+      { ui: 'resumeItem' },
+      { tip: 'resume' },
+      [],
+      ['archiveInactiveSessions', 'cleanupPeriodDays'],
+      'the-panel',
+    ),
+    feature(
+      'context',
+      { ui: 'mentionFile' },
+      { tip: 'mentionFile' },
+      ['createRulesFile'],
+      ['respectGitIgnore'],
+      'rules-skills-and-memory',
+    ),
+    feature(
+      'skills',
+      { ui: 'groupSkills' },
+      { ui: 'referenceSkills' },
+      ['manageSkills', 'importSkills', 'installBundledSkills', 'removeBundledSkills'],
+      ['bundledSkills'],
+      'bundled-skills',
+    ),
+    feature(
+      'imports',
+      { command: COMMAND_IDS.importFromAgents },
+      { ui: 'agentImportDetailEvery' },
+      ['importFromAgents'],
+      [],
+      'rules-skills-and-memory',
+    ),
+    feature('memory', { ui: 'memoryItem' }, { tip: 'memory' }, ['memory'], [], 'memory'),
+    feature(
+      'mcp',
+      { ui: 'mcpItem' },
+      { ui: 'referenceMcp' },
+      ['mcpServers'],
+      [],
+      'rules-skills-and-memory',
+    ),
+    feature(
+      'hooks',
+      { ui: 'hooksItem' },
+      { ui: 'hooksItemDetail' },
+      ['hooks', 'runSetupHooks', 'runHook', 'retryPluginHooks'],
+      ['modelApiHooks', 'hookHttpAllowedHosts', 'modelApiShellKeepsDirectory'],
+      'hooks',
+    ),
+    feature(
+      'git',
+      { ui: 'groupGit' },
+      { tip: 'newWorktree' },
+      ['newWorktree', 'removeWorktree', 'openPullRequestInConversation'],
+      [],
+      'git-and-pull-requests',
+    ),
+    feature(
+      'tasks',
+      { ui: 'backgroundTasksLabel' },
+      { ui: 'moveToBackgroundTitle' },
+      ['openTasks', 'moveToBackground', 'stopBackgroundTasks'],
+      ['notifyOnBackgroundTurn'],
+      'tasks',
+    ),
+    feature(
+      'exports',
+      { ui: 'exportJsonItem' },
+      { tip: 'exportJson' },
+      ['exportConversation', 'importSession', 'openShareFile'],
+      [],
+      'the-panel',
+    ),
+    feature('review', { ui: 'groupReview' }, { tip: 'review' }, [], [], 'review'),
+    feature('plans', { ui: 'plansItem' }, { tip: 'plans' }, [], [], 'plans-as-files'),
+    feature('goals', { ui: 'goalItem' }, { tip: 'goal' }, [], [], 'session-goals'),
+    feature(
+      'handoff',
+      { ui: 'handoffItem' },
+      { tip: 'handoff' },
+      [],
+      [],
+      'handoff-to-a-new-conversation',
+    ),
+    feature(
+      'verify',
+      { command: COMMAND_IDS.diagnostics },
+      { setting: 'diagnosticsAfterEdits' },
+      [],
+      ['diagnosticsAfterEdits', 'checkCommands', 'formatOnEdit'],
+      'checking-edits',
+      ['modelApi'],
+    ),
+    feature(
+      'repo-map',
+      { setting: 'modelApiRepoMap' },
+      { setting: 'modelApiRepoMap' },
+      [],
+      ['modelApiRepoMap', 'modelApiObservationPacking'],
+      'code-intelligence',
+      ['modelApi'],
+    ),
+    feature(
+      'checkpoints',
+      { setting: 'turnCheckpoints' },
+      { setting: 'turnCheckpoints' },
+      [],
+      ['turnCheckpoints'],
+      'the-panel',
+      ['modelApi'],
+    ),
+    feature(
+      'rules',
+      { ui: 'permissionModeItem' },
+      { setting: 'modelApiCommandRules' },
+      [],
+      [
+        'modelApiCommandRules',
+        'modelApiPermissionProfiles',
+        'modelApiPermissionProfile',
+        'modelApiRepositoryRules',
+      ],
+      'auto-rules-and-permission-profiles-model-api',
+      ['modelApi'],
+    ),
+    feature(
+      'browser',
+      { command: COMMAND_IDS.downloadBrowserCheckRuntime },
+      { setting: 'browserCheckRuntime' },
+      ['downloadBrowserCheckRuntime'],
+      ['browserCheckExtraHosts', 'browserCheckRuntime'],
+      'browser-check',
+      undefined,
+      false,
+      ['vscode'],
+    ),
+    feature(
+      'voice',
+      { ui: 'paidVoiceName' },
+      { ui: 'referenceVoice' },
+      [],
+      ['dictationEngine', 'modelApiVoice'],
+      'voice-dictation',
+      ['museCode'],
+      true,
+      ['vscode'],
+    ),
+    feature(
+      'search',
+      { ui: 'paidWebSearchName' },
+      { tip: 'paid:webSearch' },
+      [],
+      ['modelApiWebSearch'],
+      'paid-features',
+      ['modelApi'],
+      true,
+    ),
+    feature(
+      'images',
+      { ui: 'paidImageGenerationName' },
+      { tip: 'paid:imageGeneration' },
+      [],
+      ['modelApiImageGeneration'],
+      'paid-features',
+      undefined,
+      true,
+    ),
+    feature(
+      'schedules',
+      { ui: 'loopItem' },
+      { tip: 'loop' },
+      [],
+      ['modelApiScheduledPrompts'],
+      'scheduled-prompts-model-api',
+      ['modelApi'],
+      true,
+      ['vscode'],
+    ),
+    feature(
+      'subagents',
+      { ui: 'agentsCommand' },
+      { tip: 'paid:subagents' },
+      [],
+      ['modelApiSubagents'],
+      'session-board-and-best-of-n',
+      ['modelApi'],
+      true,
+      ['vscode'],
+    ),
+    feature(
+      'auto',
+      { ui: 'permissionModeItem' },
+      { tip: 'paid:autoReviewer' },
+      [],
+      ['modelApiAutoReviewer'],
+      'auto-rules-and-permission-profiles-model-api',
+      ['modelApi'],
+      true,
+      ['vscode'],
+    ),
+    feature(
+      'hook-models',
+      { ui: 'hooksItem' },
+      { tip: 'paid:hookModels' },
+      [],
+      ['modelApiHookModels'],
+      'hooks',
+      ['modelApi'],
+      true,
+      ['vscode'],
+    ),
+    feature(
+      'cache',
+      { setting: 'modelApiPromptCacheRetention' },
+      { setting: 'modelApiPromptCacheRetention' },
+      [],
+      ['modelApiPromptCacheRetention'],
+      'paid-features',
+      ['modelApi'],
+      false,
+      ['vscode'],
+    ),
+    feature(
+      'budget',
+      { setting: 'paidDailyBudgetUsd' },
+      { setting: 'paidDailyBudgetUsd' },
+      [],
+      ['paidDailyBudgetUsd'],
+      'paid-features',
+      ['modelApi'],
+      false,
+    ),
+    feature(
+      'tab',
+      { command: COMMAND_IDS.tabMenu },
+      { ui: 'referenceTab' },
+      ['tabTurnOn', 'tabTurnOff', 'tabSnooze', 'tabMenu', 'tabLanguages'],
+      [
+        'modelApiTab',
+        'tabModel',
+        'tabDailyBudgetUsd',
+        'tabLanguages',
+        'tabMultiline',
+        'tabTrigger',
+        'tabWithCopilot',
+      ],
+      'tab-completions',
+      undefined,
+      true,
+      ['vscode'],
+    ),
+    feature(
+      'judge',
+      { ui: 'paidJudgeName' },
+      { tip: 'paid:judge' },
+      [],
+      ['judge.engine'],
+      'muse-judge',
+      ['modelApi'],
+      true,
+      ['vscode'],
+    ),
+    feature(
+      'judge-subscription',
+      { ui: 'paidJudgeName' },
+      { ui: 'judgeSubscriptionNotice' },
+      [],
+      ['judge.engine'],
+      'muse-judge',
+      ['museCode'],
+      false,
+      ['vscode'],
+    ),
+    feature(
+      'support',
+      { ui: 'groupSupport' },
+      { tip: 'issue' },
+      ['showLogs', 'diagnostics', 'reportProblem', 'openWalkthrough', 'showWhatsNew', 'openHelp'],
+      ['showWhatsNewOnUpdate'],
+      'help-and-reference',
+    ),
+  ].map((entry) => {
+    const surfaces = REFERENCE_SURFACES[entry.id] ?? entry.surfaces
+    return {
+      ...entry,
+      surfaces,
+      editors: [
+        ...new Set(
+          surfaces.map((surface): 'acp' | 'vscode' =>
+            surface.startsWith('acp:') ? 'acp' : 'vscode',
+          ),
+        ),
+      ],
+      backends: [
+        ...new Set(
+          surfaces.map((surface): 'museCode' | 'modelApi' =>
+            surface.endsWith(':modelApi') ? 'modelApi' : 'museCode',
+          ),
+        ),
+      ],
+      paid: Object.values(PAID_USE_REGISTRY).some((paid) => paid.featureId === entry.id),
+      details: (REFERENCE_DETAILS[entry.id] ?? []).map((ui) => ({ ui })),
+      facts: {},
+    }
+  })
+}
+
+export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
+  'web-fetch': ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
+  search: ['vscode:modelApi', 'acp:modelApi'],
+  images: ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
+  acp: ['acp:museCode', 'acp:modelApi'],
+}
+
+const REFERENCE_DETAILS: Readonly<
+  Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
+> = {
+  permissions: ['referencePermissionLimits'],
+  'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],
+  account: ['signInBrowserDetail', 'signInApiKeyDetail', 'installDetail', 'referenceSecretPrompt'],
+  'code-intelligence': ['referenceCodeIntelExtra'],
+  chat: ['referenceThinking', 'referenceConversationActions', 'crashDetail'],
+  context: ['referenceContext'],
+  skills: ['referenceBundled'],
+  exports: ['referenceExports'],
+  imports: ['agentImportDetailEvery', 'referenceResumeAgents'],
+  plans: ['referencePlanModes'],
+  browser: ['referenceBrowser'],
+  images: ['referencePaidContexts'],
+  search: ['referencePaidContexts'],
+  budget: ['referenceBudget'],
+  voice: ['referencePaidContexts'],
+  auto: ['referencePaidContexts'],
+  subagents: ['referencePaidContexts'],
+  'best-of-n': ['referenceBestOfNRequirements', 'referencePaidContexts'],
+  support: ['referenceAcp'],
+  cache: ['referenceCache'],
+  'custom-agents': ['referencePaidContexts'],
+  'conversation-actions': ['referenceWindowsSessions'],
+  questions: ['referenceQuestionsDeferral'],
+}
+
 import { PROMPT_COMMAND_IDS, UI_TEXT } from './constants'
 
 /** Runtime localized inventory for M118; the reference generator uses the English fallback. */
-export function sharingFeatures() {
+export function sharingFeatures(table: UiText = UI_TEXT) {
   return [
     {
       id: 'sharing-help',
       surface: 'editor/acp',
       syntax: '/help',
-      label: UI_TEXT.promptLibrary,
-      detail: UI_TEXT.shareReviewPrivacy,
+      label: table.promptLibrary,
+      detail: table.shareReviewPrivacy,
     },
     {
       id: PROMPT_COMMAND_IDS.save,
       surface: 'editor',
       syntax: 'museSpark.savePrompt',
-      label: UI_TEXT.promptSave,
-      detail: UI_TEXT.promptSecretsNote,
+      label: table.promptSave,
+      detail: table.promptSecretsNote,
     },
     {
       id: PROMPT_COMMAND_IDS.use,
       surface: 'editor',
       syntax: 'museSpark.useSavedPrompt',
-      label: UI_TEXT.promptUseSaved,
-      detail: `${UI_TEXT.promptVariables}; ${UI_TEXT.promptInsert}`,
+      label: table.promptUseSaved,
+      detail: `${table.promptVariables}; ${table.promptInsert}`,
     },
     {
       id: PROMPT_COMMAND_IDS.library,
       surface: 'editor',
       syntax: 'museSpark.promptLibrary',
-      label: UI_TEXT.promptLibrary,
-      detail: `${UI_TEXT.promptScopeUser}; ${UI_TEXT.promptScopeWorkspace}`,
+      label: table.promptLibrary,
+      detail: `${table.promptScopeUser}; ${table.promptScopeWorkspace}`,
     },
     {
       id: PROMPT_COMMAND_IDS.copyToUser,
       surface: 'editor',
       syntax: 'museSpark.copyToMyPrompts',
-      label: UI_TEXT.promptCopyToUser,
-      detail: UI_TEXT.promptScopeUser,
+      label: table.promptCopyToUser,
+      detail: table.promptScopeUser,
     },
     {
       id: PROMPT_COMMAND_IDS.sharePrompt,
       surface: 'editor',
       syntax: 'museSpark.sharePrompt',
-      label: UI_TEXT.sharePrompt,
-      detail: UI_TEXT.shareReviewPrivacy,
+      label: table.sharePrompt,
+      detail: table.shareReviewPrivacy,
     },
     {
       id: PROMPT_COMMAND_IDS.shareChat,
       surface: 'editor',
       syntax: 'museSpark.shareChat',
-      label: UI_TEXT.shareChat,
-      detail: `${UI_TEXT.shareConversation}; ${UI_TEXT.shareFull}`,
+      label: table.shareChat,
+      detail: `${table.shareConversation}; ${table.shareFull}`,
     },
     {
       // Activation observes machine consent before any sharing command is used.
       id: 'museSpark.syncPromptsAndBookmarks',
       surface: 'setting',
       syntax: 'museSpark.syncPromptsAndBookmarks',
-      label: UI_TEXT.promptLibrary,
-      detail: UI_TEXT.promptScopeUser,
+      label: table.promptLibrary,
+      detail: table.promptScopeUser,
     },
     {
       id: 'share',
       surface: 'acp',
       syntax: '/share chat [--mode full|conversation] [--format md|html|json]',
-      label: UI_TEXT.shareChat,
-      detail: UI_TEXT.shareReviewPrivacy,
+      label: table.shareChat,
+      detail: table.shareReviewPrivacy,
     },
     {
       id: 'prompt',
       surface: 'acp',
       syntax:
         '/prompt save --title TITLE [--scope user|workspace] -- TEXT; /prompt list; /prompt use ID; /prompt share ID',
-      label: UI_TEXT.promptLibrary,
-      detail: UI_TEXT.promptRun,
+      label: table.promptLibrary,
+      detail: table.promptRun,
     },
     {
       id: 'share-cli',
       surface: 'cli',
       syntax: 'share chat SESSION_ID [--mode full|conversation] [--format md|html|json]',
-      label: UI_TEXT.shareChat,
-      detail: UI_TEXT.shareConfirm,
+      label: table.shareChat,
+      detail: table.shareConfirm,
     },
     {
       id: 'prompts-save-cli',
       surface: 'cli',
       syntax: 'prompts save --title TITLE [--scope user|workspace] [--cwd FOLDER] < prompt.txt',
-      label: UI_TEXT.promptLibrary,
-      detail: UI_TEXT.promptRun,
+      label: table.promptLibrary,
+      detail: table.promptRun,
     },
     {
       id: 'prompts-list-cli',
       surface: 'cli',
       syntax: 'prompts list [--search TEXT] [--tag TAG] [--cwd FOLDER]',
-      label: UI_TEXT.promptLibrary,
-      detail: UI_TEXT.promptScopeUser,
+      label: table.promptLibrary,
+      detail: table.promptScopeUser,
     },
     {
       id: 'prompts-use-cli',
       surface: 'cli',
       syntax: 'prompts use ID [--scope user|workspace] [--chat active|new] [--cwd FOLDER]',
-      label: UI_TEXT.promptUseSaved,
-      detail: `${UI_TEXT.promptVariables}; ${UI_TEXT.promptInsert}`,
+      label: table.promptUseSaved,
+      detail: `${table.promptVariables}; ${table.promptInsert}`,
     },
     {
       id: 'prompts-share-cli',
       surface: 'cli',
       syntax:
         'prompts share ID [--scope user|workspace] [--format md|html|json] [--destination copy|file|browser] [--out FILE]',
-      label: UI_TEXT.sharePrompt,
-      detail: UI_TEXT.shareConfirm,
+      label: table.sharePrompt,
+      detail: table.shareConfirm,
     },
   ]
 }
 
-export function sharingHelp(): string {
-  return sharingFeatures()
+export function sharingHelp(table: UiText = UI_TEXT): string {
+  return sharingFeatures(table)
     .map((feature) => `${feature.syntax}\n${feature.label}: ${feature.detail}`)
     .join('\n\n')
 }

@@ -6,18 +6,18 @@ differs from the source. Do not edit it by hand.
 
 ## Manifest
 
-| Field                              | Value                                                                                                                        |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `engines.vscode`                   | `^1.99.0`                                                                                                                    |
-| `engines.node`                     | `>=22`                                                                                                                       |
-| `main`                             | `./dist/extension.js`                                                                                                        |
-| `browser`                          | none                                                                                                                         |
-| `extensionKind`                    | `workspace`                                                                                                                  |
-| `capabilities.virtualWorkspaces`   | `false`                                                                                                                      |
-| `capabilities.untrustedWorkspaces` | `limited`                                                                                                                    |
-| `enabledApiProposals`              | none                                                                                                                         |
-| `activationEvents`                 | `onWebviewPanel:museSpark.chatPanel`, `onStartupFinished`                                                                    |
-| `contributes`                      | `commands` (49), `configuration` (2), `keybindings` (8), `menus` (4), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
+| Field                              | Value                                                                                                                         |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `engines.vscode`                   | `^1.99.0`                                                                                                                     |
+| `engines.node`                     | `>=22`                                                                                                                        |
+| `main`                             | `./dist/extension.js`                                                                                                         |
+| `browser`                          | none                                                                                                                          |
+| `extensionKind`                    | `workspace`                                                                                                                   |
+| `capabilities.virtualWorkspaces`   | `false`                                                                                                                       |
+| `capabilities.untrustedWorkspaces` | `limited`                                                                                                                     |
+| `enabledApiProposals`              | none                                                                                                                          |
+| `activationEvents`                 | `onWebviewPanel:museSpark.chatPanel`, `onStartupFinished`                                                                     |
+| `contributes`                      | `commands` (52), `configuration` (2), `keybindings` (10), `menus` (4), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
 
 ## Build targets
 
@@ -29,7 +29,7 @@ differs from the source. Do not edit it by hand.
 
 ## Files that import `vscode`
 
-The VS Code adapter: 33 files. Everything else reaches VS Code only through them.
+The VS Code adapter: 34 files. Everything else reaches VS Code only through them.
 
 | File                                       | VS Code APIs used |
 | ------------------------------------------ | ----------------- |
@@ -52,6 +52,7 @@ The VS Code adapter: 33 files. Everything else reaches VS Code only through them
 | `src/host/popups.ts`                       | 2                 |
 | `src/host/prompts/chatSharing.ts`          | 7                 |
 | `src/host/prompts/promptEntry.ts`          | 56                |
+| `src/host/questions/questionStore.ts`      | 3                 |
 | `src/host/quickPick.ts`                    | 5                 |
 | `src/host/support/reportEditorIo.ts`       | 9                 |
 | `src/host/tab/tabBundle.ts`                | 23                |
@@ -357,8 +358,8 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `WebviewViewProvider.resolveWebviewView`                                             | `src/extension.ts`, `src/host/views/ChatViewProvider.ts`                                                                                                                                                                                                                                                                                                                                                     |
 | `WindowState.focused`                                                                | `src/extension.ts`, `src/host/paid/paidHost.ts`                                                                                                                                                                                                                                                                                                                                                              |
 | `WorkspaceConfiguration.get`                                                         | `src/extension.ts`, `src/host/editor/verifyEditor.ts`, `src/host/paid/paidHost.ts`                                                                                                                                                                                                                                                                                                                           |
-| `WorkspaceConfiguration.inspect`                                                     | `src/extension.ts`, `src/host/prompts/promptEntry.ts`                                                                                                                                                                                                                                                                                                                                                        |
-| `WorkspaceConfiguration.inspect(globalValue)`                                        | `src/extension.ts`, `src/host/prompts/promptEntry.ts`                                                                                                                                                                                                                                                                                                                                                        |
+| `WorkspaceConfiguration.inspect`                                                     | `src/extension.ts`, `src/host/prompts/promptEntry.ts`, `src/host/questions/questionStore.ts`                                                                                                                                                                                                                                                                                                                 |
+| `WorkspaceConfiguration.inspect(globalValue)`                                        | `src/extension.ts`, `src/host/prompts/promptEntry.ts`, `src/host/questions/questionStore.ts`                                                                                                                                                                                                                                                                                                                 |
 | `WorkspaceConfiguration.update`                                                      | `src/extension.ts`, `src/host/paid/paidHost.ts`                                                                                                                                                                                                                                                                                                                                                              |
 | `WorkspaceEdit`                                                                      | `src/host/agentImportHost.ts`                                                                                                                                                                                                                                                                                                                                                                                |
 | `WorkspaceEdit.entries`                                                              | `src/host/codeIntel/languageServices.ts`                                                                                                                                                                                                                                                                                                                                                                     |
@@ -413,7 +414,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `workspace.createFileSystemWatcher`                                                  | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                           |
 | `workspace.findFiles`                                                                | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                           |
 | `workspace.fs`                                                                       | `src/extension.ts`, `src/host/cliFeatures.ts`, `src/host/editor/verifyEditor.ts`, `src/host/memoryFeatures.ts`, `src/host/support/reportEditorIo.ts`                                                                                                                                                                                                                                                         |
-| `workspace.getConfiguration`                                                         | `src/extension.ts`, `src/host/editor/verifyEditor.ts`, `src/host/paid/paidHost.ts`, `src/host/prompts/promptEntry.ts`                                                                                                                                                                                                                                                                                        |
+| `workspace.getConfiguration`                                                         | `src/extension.ts`, `src/host/editor/verifyEditor.ts`, `src/host/paid/paidHost.ts`, `src/host/prompts/promptEntry.ts`, `src/host/questions/questionStore.ts`                                                                                                                                                                                                                                                 |
 | `workspace.getWorkspaceFolder`                                                       | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                           |
 | `workspace.isTrusted`                                                                | `src/extension.ts`, `src/host/git/gitWindow.ts`                                                                                                                                                                                                                                                                                                                                                              |
 | `workspace.notebookDocuments`                                                        | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                           |
@@ -433,20 +434,20 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 | Module                   | Files |
 | ------------------------ | ----- |
-| `node:buffer`            | 39    |
+| `node:buffer`            | 40    |
 | `node:child_process`     | 14    |
-| `node:crypto`            | 52    |
+| `node:crypto`            | 53    |
 | `node:dgram`             | 1     |
 | `node:dns`               | 1     |
 | `node:dns/promises`      | 3     |
 | `node:fs`                | 34    |
-| `node:fs/promises`       | 48    |
+| `node:fs/promises`       | 49    |
 | `node:http`              | 4     |
 | `node:https`             | 1     |
 | `node:module`            | 1     |
 | `node:net`               | 7     |
 | `node:os`                | 11    |
-| `node:path`              | 89    |
+| `node:path`              | 92    |
 | `node:process`           | 1     |
 | `node:readline/promises` | 1     |
 | `node:stream`            | 12    |
@@ -458,7 +459,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:util`              | 6     |
 | `node:vm`                | 1     |
 | `node:worker_threads`    | 4     |
-| `node:zlib`              | 4     |
+| `node:zlib`              | 5     |
 
 ## The webview's host
 
@@ -466,6 +467,6 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | ------------------ | ----------------------------------------------------------------------------------- |
 | `acquireVsCodeApi` | `src/webview/hostBridge.ts`, `src/webview/main.tsx`, `src/webview/whatsNew/main.ts` |
 
-Theme variables the styles read (65), from `src/webview/components/HeartbeatTrace.tsx`, `src/webview/prompts/PromptLibrary.css`, `src/webview/sharing/sharing.css`, `src/webview/styles.css`, `src/webview/whatsNew/whatsNew.css`:
+Theme variables the styles read (65), from `src/webview/components/HeartbeatTrace.tsx`, `src/webview/components/reference.css`, `src/webview/prompts/PromptLibrary.css`, `src/webview/sharing/sharing.css`, `src/webview/styles.css`, `src/webview/whatsNew/whatsNew.css`:
 
 `--vscode-badge-background`, `--vscode-badge-foreground`, `--vscode-button-background`, `--vscode-button-border`, `--vscode-button-foreground`, `--vscode-button-hoverBackground`, `--vscode-button-secondaryBackground`, `--vscode-button-secondaryForeground`, `--vscode-button-secondaryHoverBackground`, `--vscode-charts-red`, `--vscode-checkbox-border`, `--vscode-contrastBorder`, `--vscode-debugTokenExpression-number`, `--vscode-debugTokenExpression-string`, `--vscode-descriptionForeground`, `--vscode-diffEditor-insertedLineBackground`, `--vscode-diffEditor-removedLineBackground`, `--vscode-disabledForeground`, `--vscode-dropdown-background`, `--vscode-dropdown-foreground`, `--vscode-editor-background`, `--vscode-editor-findMatchHighlightBackground`, `--vscode-editor-font-family`, `--vscode-editor-font-size`, `--vscode-editor-foreground`, `--vscode-editorCursor-foreground`, `--vscode-editorWarning-foreground`, `--vscode-editorWidget-background`, `--vscode-editorWidget-border`, `--vscode-editorWidget-foreground`, `--vscode-errorForeground`, `--vscode-focusBorder`, `--vscode-font-family`, `--vscode-font-size`, `--vscode-foreground`, `--vscode-gitDecoration-addedResourceForeground`, `--vscode-gitDecoration-deletedResourceForeground`, `--vscode-input-background`, `--vscode-input-border`, `--vscode-input-foreground`, `--vscode-input-placeholderForeground`, `--vscode-inputValidation-errorBackground`, `--vscode-inputValidation-errorBorder`, `--vscode-inputValidation-errorForeground`, `--vscode-inputValidation-warningBackground`, `--vscode-inputValidation-warningForeground`, `--vscode-list-activeSelectionBackground`, `--vscode-list-activeSelectionForeground`, `--vscode-list-hoverBackground`, `--vscode-list-warningForeground`, `--vscode-panel-border`, `--vscode-progressBar-background`, `--vscode-sideBar-background`, `--vscode-symbolIcon-functionForeground`, `--vscode-symbolIcon-keywordForeground`, `--vscode-testing-iconFailed`, `--vscode-testing-iconPassed`, `--vscode-textBlockQuote-border`, `--vscode-textCodeBlock-background`, `--vscode-textLink-activeForeground`, `--vscode-textLink-foreground`, `--vscode-textPreformat-foreground`, `--vscode-toolbar-hoverBackground`, `--vscode-widget-border`, `--vscode-widget-shadow`

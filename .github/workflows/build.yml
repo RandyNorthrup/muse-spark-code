@@ -90,7 +90,7 @@ jobs:
           Import-Module PSScriptAnalyzer -RequiredVersion $version -ErrorAction Stop
           Write-Host "PSScriptAnalyzer $version installed from the checked package"
       # Same static/build/audit gates as quality:gates; tests run separately.
-      - run: npx run-s format:check lint typecheck check:badges check:l10n check:host-api deadcode cycles duplication build security:audit
+      - run: npx run-s format:check lint typecheck check:badges check:l10n check:reference check:host-api deadcode cycles duplication build security:audit
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: matrix.os == 'ubuntu-latest' && !inputs.fast
         with:

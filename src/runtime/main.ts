@@ -4,7 +4,6 @@
 // the log reads goes to stderr, except the sign-in commands' own output.
 // Exercised through the built `dist/acp.js` by the stdio e2e test.
 
-import { sharingHelp } from '../shared/featureCatalog'
 import { spawn } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
@@ -15,10 +14,12 @@ import process from 'node:process'
 import { Writable } from 'node:stream'
 import { ndJsonStream } from '@agentclientprotocol/sdk'
 import { createAcpAgent, type SignInMethod } from '../acp/agent'
+import { runtimeQuestionsLoader } from './questions/questionRegistryBundle'
 import { processGitRunner } from '../host/git'
 import { loadUiTable, readUiTableFile } from '../host/l10n'
 import {
   ACP_AGENT_NAME,
+  RUNTIME_QUESTIONS_BUNDLE_FILE,
   ACP_AUTH_METHODS,
   EXEC_EXIT,
   EXEC_SCAN_TIMEOUT_MS,
@@ -38,6 +39,10 @@ import { runtimeSharingLoader } from './sharing/sharingBundle'
 import { acpSharingCommands } from '../acp/sharing'
 import type { RuntimeSharingPorts } from './sharing/sharingEntry'
 import { parseCommandLine, type RuntimeCommand, type ServeOptions } from './cliArgs'
+import { formatAcpUsage } from './cliOptions'
+import { referenceLoader } from '../host/referenceLoader'
+import { REFERENCE_BUNDLE_FILE } from '../shared/constants'
+import { UI_TEXT as referenceTable } from '../shared/l10n/text'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
 import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
@@ -221,7 +226,11 @@ function signInMethod(options: ServeOptions): SignInMethod {
   }
 }
 
-function runtimeFor(options: ServeOptions, log: Logger) {
+function runtimeFor(
+  options: ServeOptions,
+  log: Logger,
+  questions?: { remove(sessionId: string): Promise<void> },
+) {
   return createRuntimeBackend({
     options,
     version: packageVersion(),
@@ -235,6 +244,7 @@ function runtimeFor(options: ServeOptions, log: Logger) {
     fetch: globalThis.fetch.bind(globalThis),
     sleep,
     log,
+    ...(questions !== undefined && { questions }),
   })
 }
 
@@ -311,7 +321,18 @@ async function setupHooks(
 }
 
 async function serve(options: ServeOptions, log: Logger): Promise<number> {
-  const runtime = runtimeFor(options, log)
+  const directory = path.join(
+    agentDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
+    'questions',
+  )
+  const loadQuestions = runtimeQuestionsLoader(
+    path.join(distDir, RUNTIME_QUESTIONS_BUNDLE_FILE),
+    log,
+  )
+  const registries: { flush(): Promise<void>; dispose(): void }[] = []
+  const runtime = runtimeFor(options, log, {
+    remove: (id) => loadQuestions().removeRuntimeQuestions(directory, id, UI_TEXT, uiLocale()),
+  })
   // A proxy the Model API backend's requests will not use is said at once (Q66).
   const proxyWarning = envProxyWarning({
     backend: options.backend,
@@ -337,6 +358,9 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
       canBypass: options.canBypass,
       allowsContributorModels: options.allowsContributorModels,
       initialMode: SETTING_DEFAULTS.initialPermissionMode,
+      ...(options.questionsDeferAfterSeconds !== undefined && {
+        questionsDeferAfterSeconds: options.questionsDeferAfterSeconds,
+      }),
     },
     signIn: signInMethod(options),
     defaultCwd: process.cwd(),
@@ -348,6 +372,20 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
           .execute(text, context),
     },
     paid: runtime.paid,
+    questions: (input) => {
+      const registry = loadQuestions().createRuntimeQuestionRegistry(
+        input,
+        directory,
+        options.backend,
+        () => {
+          log.warn('Question operation failed')
+        },
+        UI_TEXT,
+        uiLocale(),
+      )
+      registries.push(registry)
+      return registry
+    },
     log,
     reportError: (fact) => {
       // Facts only (a fixed kind and code): it never touches ACP stdout, and
@@ -360,6 +398,13 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   )
   log.info(`${ACP_AGENT_NAME} ${packageVersion()} serving ACP on stdio (${options.backend})`)
   await connection.closed
+  // A failed private store was already reported; still close every backend and journal.
+  await Promise.allSettled(
+    registries.map((registry) => {
+      registry.dispose()
+      return registry.flush()
+    }),
+  )
   await runtime.close()
   await journal.shutdown()
   return 0
@@ -653,8 +698,17 @@ async function main(): Promise<number> {
       return 0
     }
     case 'help': {
-      writeLine(process.stdout, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
-      writeLine(process.stdout, sharingHelp())
+      if (command.all === true) {
+        const reference = referenceLoader({
+          bundlePath: path.join(distDir, REFERENCE_BUNDLE_FILE),
+          log,
+        })().createReference(referenceTable, uiLocale())
+        const file = uiLocale() === 'en' ? 'package.nls.json' : `package.nls.${uiLocale()}.json`
+        const nls: unknown = JSON.parse(await readUiTableFile(packageRoot, [file]))
+        writeLine(process.stdout, reference.all(nls))
+      } else {
+        writeLine(process.stdout, formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
+      }
       return 0
     }
     case 'invalid': {

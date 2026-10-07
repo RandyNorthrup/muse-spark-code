@@ -22,10 +22,10 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { createRuntimeBackend } from '../../src/runtime/backends'
+import { formatAcpUsage } from '../../src/runtime/cliOptions'
 import { webReadable } from '../../src/runtime/webStreams'
-import { SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
+import { ACP_AGENT_NAME, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
-import { sharingHelp } from '../../src/shared/featureCatalog'
 import { DEVICE_LOGIN_FILE, LOGOUT_SHELL } from '../unit/helpers/credentialShapes'
 import { memorySecrets } from '../unit/helpers/fakes'
 import { fakeModelApi } from '../unit/helpers/fakeModelApi'
@@ -101,6 +101,22 @@ beforeAll(async () => {
     logLevel: 'silent',
   })
   await buildModelApiBundle(path.dirname(AGENT))
+  for (const [entry, file] of [
+    ['src/acp/questionDeferralEntry.ts', 'acpQuestions.js'],
+    ['src/runtime/questions/questionRegistryEntry.ts', 'runtimeQuestions.js'],
+  ]) {
+    if (entry === undefined || file === undefined)
+      throw new Error('Missing question bundle fixture')
+    await build({
+      entryPoints: [path.join(ROOT, entry)],
+      outfile: path.join(path.dirname(AGENT), file),
+      bundle: true,
+      platform: 'node',
+      format: 'cjs',
+      target: 'node22',
+      logLevel: 'silent',
+    })
+  }
   writeFileSync(path.join(PACKAGE, 'package.json'), JSON.stringify({ version: LAID_OUT_VERSION }))
   cpSync(path.join(ROOT, 'l10n'), path.join(PACKAGE, 'l10n'), { recursive: true })
 })
@@ -123,6 +139,10 @@ function agentEnvironment(configHome: string): NodeJS.ProcessEnv {
     MUSE_FAKE_FINGERPRINT: EXPECTED_SCHEMA_FINGERPRINT,
     NODE_PATH,
     XDG_CONFIG_HOME: configHome,
+    XDG_DATA_HOME: dataHome,
+    LOCALAPPDATA: dataHome,
+    USERPROFILE: dataHome,
+    HOME: dataHome,
     LANG: 'C',
     LC_ALL: '',
   }
@@ -202,6 +222,28 @@ function text(updates: readonly acp.SessionUpdate[]): string {
 }
 
 describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
+  it('loads the real question bundles, defers without forms, and drains an idle answer once', async () => {
+    const h = startAgent(signedIn, ['--questions-defer-after', '0'])
+    await h.run(async (client) => {
+      const sessionId = await newSession(client)
+      const prompt = (body: string) =>
+        client.request('session/prompt', {
+          sessionId,
+          prompt: [{ type: 'text', text: body }],
+        })
+      expect(await prompt('question-idle')).toEqual({ stopReason: 'end_turn' })
+      expect(await prompt('/questions')).toEqual({ stopReason: 'end_turn' })
+      expect(text(h.updates)).toContain('Colour')
+      expect(await prompt('/answer 1 Use teal')).toEqual({ stopReason: 'end_turn' })
+      expect(text(h.updates)).toContain(UI_TEXT.acpQuestionAnswerQueued)
+      const first = h.updates.length
+      expect(await prompt('Continue')).toEqual({ stopReason: 'end_turn' })
+      expect(text(h.updates.slice(first))).toContain('Use teal')
+      const second = h.updates.length
+      expect(await prompt('Continue again')).toEqual({ stopReason: 'end_turn' })
+      expect(text(h.updates.slice(second))).not.toContain('Use teal')
+    })
+  })
   it('prints its version and help, and refuses an argument it does not know', () => {
     const env = { ...process.env, NODE_PATH, LANG: 'C', LC_ALL: 'C' }
     const version = spawnSync(process.execPath, [AGENT, '--version'], { encoding: 'utf8', env })
@@ -217,31 +259,51 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     const help = spawnSync(process.execPath, [AGENT, '--help'], { encoding: 'utf8', env })
     expect(help.status).toBe(0)
     expect(help.stderr).toBe('')
-    expect(help.stdout.trim()).toBe(
-      `${fill(UI_TEXT.acpUsage, { command: 'muse-spark-code-acp' })}\n${sharingHelp()}`,
-    )
+    const usage = fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME })
+    expect(help.stdout.trim()).toBe(formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
+    expect(help.stdout).toContain(`${ACP_AGENT_NAME} help --all\n`)
     expect(help.stdout).toContain('muse-spark-code-acp auth set|status|clear')
     expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
     const wrong = spawnSync(process.execPath, [AGENT, '--colour'], { encoding: 'utf8', env })
     expect(wrong.status).toBe(1)
     expect(wrong.stderr).toContain('--colour')
-    expect(wrong.stderr).toContain(fill(UI_TEXT.acpUsage, { command: 'muse-spark-code-acp' }))
+    expect(wrong.stderr).toContain(`${usage}\n`)
   })
 
-  it('prints the complete translated usage from one table entry', () => {
-    const table = z
-      .object({ acpUsage: z.string() })
-      .parse(JSON.parse(readFileSync(path.join(PACKAGE, 'l10n', 'ui.de.json'), 'utf8')))
+  it('prints the complete translated usage and reference hint from the installed table', () => {
+    const table = {
+      ...UI_TEXT,
+      ...z
+        .object({
+          acpUsage: z.string(),
+          helpReferenceTitle: z.string(),
+          promptLibrary: z.string(),
+          shareReviewPrivacy: z.string(),
+          promptSave: z.string(),
+          promptSecretsNote: z.string(),
+          promptUseSaved: z.string(),
+          promptVariables: z.string(),
+          promptInsert: z.string(),
+          promptScopeUser: z.string(),
+          promptScopeWorkspace: z.string(),
+          promptCopyToUser: z.string(),
+          sharePrompt: z.string(),
+          shareChat: z.string(),
+          shareConversation: z.string(),
+          shareFull: z.string(),
+          promptRun: z.string(),
+          shareConfirm: z.string(),
+        })
+        .parse(JSON.parse(readFileSync(path.join(PACKAGE, 'l10n', 'ui.de.json'), 'utf8'))),
+    }
     const help = spawnSync(process.execPath, [AGENT, '--help'], {
       encoding: 'utf8',
       env: { ...process.env, NODE_PATH, LC_ALL: 'de_DE.UTF-8' },
     })
     expect(help.status).toBe(0)
     expect(help.stderr).toBe('')
-    expect(
-      help.stdout.trim().startsWith(table.acpUsage.replaceAll('{command}', 'muse-spark-code-acp')),
-    ).toBe(true)
-    expect(help.stdout).toContain('/prompt save')
+    expect(help.stdout.trim()).toBe(formatAcpUsage(table, ACP_AGENT_NAME))
+    expect(help.stdout).toContain(table.helpReferenceTitle)
     expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
   })
 

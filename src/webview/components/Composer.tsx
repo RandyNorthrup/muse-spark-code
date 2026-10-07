@@ -1,6 +1,6 @@
 import type { PromptLibraryProps } from '../prompts/PromptLibrary'
-import { lazy } from 'react'
-import { DeferredSurface } from './DeferredSurface'
+import { deferred } from './DeferredSurface'
+import { webviewKey } from '../../shared/keybindings'
 // The prompt box: textarea with Claude-Code key semantics (Enter sends,
 // Shift+Enter newline, optional Ctrl/Cmd+Enter-to-send, Shift+Tab cycles the
 // permission mode, "@" opens the mention menu), attachment chips, paste/drop of images and editor files,
@@ -36,7 +36,6 @@ import {
   BASE64_DATA_URL_OVERHEAD_CHARS,
   BASE64_INPUT_BLOCK_BYTES,
   BASE64_OUTPUT_BLOCK_CHARS,
-  DICTATION_KEY,
   type DictationAction,
   GOAL_SLASH_COMMAND,
   HANDOFF_SLASH_COMMAND,
@@ -85,7 +84,8 @@ import {
 } from './icons'
 import { MENTION_OPTION_ID_PREFIX, MentionMenu, mentionOptionId } from './MentionMenu'
 import { modeIcon } from './modeIcons'
-import { PALETTE_LISTBOX_ID, type PaletteKeys } from './Palette'
+import type { PaletteKeys } from './Palette'
+import { PALETTE_LISTBOX_ID } from '../../shared/constants'
 import { SLASH_LISTBOX_ID, SLASH_OPTION_ID_PREFIX, SlashMenu, slashOptionId } from './SlashMenu'
 
 export interface ImageData {
@@ -102,7 +102,7 @@ export interface SlashPaletteSlot {
   readonly onActiveRowChange: (elementId: string | undefined) => void
 }
 
-const PromptLibrary = lazy(async () => {
+const PromptLibrary = deferred(async () => {
   const module = await import('../prompts/PromptLibrary')
   return { default: module.PromptLibrary }
 })
@@ -230,11 +230,10 @@ export function isSendKey(
   event: KeyboardEvent<HTMLTextAreaElement>,
   isCtrlEnterMode: boolean,
 ): boolean {
-  if (event.key !== 'Enter' || event.shiftKey || event.altKey) {
-    return false
-  }
-  const hasModifier = event.ctrlKey || event.metaKey
-  return isCtrlEnterMode ? hasModifier : !hasModifier
+  return (
+    webviewKey('composer.send', event, 'down', { useCtrlEnterToSend: isCtrlEnterMode }) !==
+    undefined
+  )
 }
 
 /**
@@ -277,19 +276,13 @@ interface PendingMediaReservation {
 
 /** Ctrl+D (Cmd+D on a Mac): the microphone from the keyboard. */
 function isDictationKey(event: KeyboardEvent<HTMLElement>): boolean {
-  return (
-    (event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === DICTATION_KEY
-  )
+  return webviewKey('composer.dictation', event) === 'dictate'
 }
 
 /** The keys whose release ends a Ctrl+D hold: the letter or the modifier. */
 function isDictationRelease(event: KeyboardEvent<HTMLElement>): boolean {
-  return (
-    event.key.toLowerCase() === DICTATION_KEY || event.key === 'Control' || event.key === 'Meta'
-  )
+  return webviewKey('composer.dictation', event, 'up') === 'release'
 }
-
-const ACTIVATION_KEYS: ReadonlySet<string> = new Set([' ', 'Enter'])
 
 function dictationTitle(dictation: DictationUiState): string {
   switch (dictation.status) {
@@ -618,21 +611,21 @@ export function Composer(props: ComposerProps) {
     if (!isMentionOpen) {
       return false
     }
-    switch (event.key) {
-      case 'ArrowDown': {
+    switch (webviewKey('composer.mention', event)) {
+      case 'next': {
         if (mentionItems.length > 0) {
           setMentionIndex((mentionIndex + 1) % mentionItems.length)
         }
         return true
       }
-      case 'ArrowUp': {
+      case 'previous': {
         if (mentionItems.length > 0) {
           setMentionIndex((mentionIndex - 1 + mentionItems.length) % mentionItems.length)
         }
         return true
       }
-      case 'Enter':
-      case 'Tab': {
+      case 'accept':
+      case 'complete': {
         const item = mentionItems[mentionIndex]
         if (item === undefined) {
           return false
@@ -640,7 +633,7 @@ export function Composer(props: ComposerProps) {
         selectMention(item)
         return true
       }
-      case 'Escape': {
+      case 'close': {
         setDismissedMention(mention.start)
         return true
       }
@@ -707,7 +700,9 @@ export function Composer(props: ComposerProps) {
 
   const didHandleSlashKey = (event: KeyboardEvent<HTMLTextAreaElement>): boolean => {
     // Shift+Enter is still a new line, and Shift+Tab still cycles the mode.
-    const isShifted = event.shiftKey && (event.key === 'Enter' || event.key === 'Tab')
+    const isShifted =
+      webviewKey('composer.newline', event) === 'newline' ||
+      webviewKey('composer.permission', event) === 'cycle'
     if (slashMenu === undefined || isShifted) {
       return false
     }
@@ -715,22 +710,22 @@ export function Composer(props: ComposerProps) {
       return slashPaletteKeys.current?.didHandleKey(event) === true
     }
     const active = slashItems[activeSlash]
-    switch (event.key) {
-      case 'ArrowDown':
-      case 'ArrowUp': {
-        const delta = event.key === 'ArrowDown' ? 1 : -1
+    switch (webviewKey('composer.slash', event)) {
+      case 'next':
+      case 'previous': {
+        const delta = webviewKey('composer.slash', event) === 'next' ? 1 : -1
         setSlashIndex(wrapIndex(activeSlash, delta, slashItems.length))
         break
       }
-      case 'Enter':
-      case 'Tab': {
+      case 'accept':
+      case 'complete': {
         if (active === undefined) {
           return false
         }
-        chooseSlash(active, event.key === 'Tab')
+        chooseSlash(active, webviewKey('composer.slash', event) === 'complete')
         break
       }
-      case 'Escape': {
+      case 'close': {
         dismissSlash()
         break
       }
@@ -760,7 +755,10 @@ export function Composer(props: ComposerProps) {
       }
       return
     }
-    if (onCyclePermissionMode !== undefined && event.key === 'Tab' && event.shiftKey) {
+    if (
+      onCyclePermissionMode !== undefined &&
+      webviewKey('composer.permission', event) === 'cycle'
+    ) {
       event.preventDefault()
       onCyclePermissionMode()
       return
@@ -782,7 +780,7 @@ export function Composer(props: ComposerProps) {
   }
 
   const handleMicKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-    if (!ACTIVATION_KEYS.has(event.key)) {
+    if (webviewKey('composer.mic', event) !== 'dictate') {
       return
     }
     // Space/Enter would also click; the press/release pair replaces it.
@@ -793,7 +791,7 @@ export function Composer(props: ComposerProps) {
   }
 
   const handleMicKeyUp = (event: KeyboardEvent<HTMLButtonElement>) => {
-    if (ACTIVATION_KEYS.has(event.key)) {
+    if (webviewKey('composer.mic', event) === 'dictate') {
       releaseDictation()
     }
   }
@@ -804,14 +802,23 @@ export function Composer(props: ComposerProps) {
   } {
     if (isMentionOpen) {
       const active = mentionItems.length > 0 ? mentionOptionId(mentionIndex) : undefined
-      return { controls: 'mention-listbox', activeDescendant: active }
+      return {
+        controls: active === undefined ? undefined : 'mention-listbox',
+        activeDescendant: active,
+      }
     }
     if (slashMenu === 'palette') {
-      return { controls: PALETTE_LISTBOX_ID, activeDescendant: paletteRowId }
+      return {
+        controls: paletteRowId === undefined ? undefined : PALETTE_LISTBOX_ID,
+        activeDescendant: paletteRowId,
+      }
     }
     if (slashMenu === 'commands') {
       const active = slashItems.length > 0 ? slashOptionId(activeSlash) : undefined
-      return { controls: SLASH_LISTBOX_ID, activeDescendant: active }
+      return {
+        controls: active === undefined ? undefined : SLASH_LISTBOX_ID,
+        activeDescendant: active,
+      }
     }
     return { controls: undefined, activeDescendant: undefined }
   }
@@ -1026,18 +1033,12 @@ export function Composer(props: ComposerProps) {
         }}
       />
       {isPromptLibraryOpen && props.promptLibrary !== undefined ? (
-        <DeferredSurface
+        <PromptLibrary
+          {...props.promptLibrary}
           onClose={() => {
             setPromptLibraryOpen(false)
           }}
-        >
-          <PromptLibrary
-            {...props.promptLibrary}
-            onClose={() => {
-              setPromptLibraryOpen(false)
-            }}
-          />
-        </DeferredSurface>
+        />
       ) : null}
       {props.onSavePrompt === undefined ? null : (
         <button

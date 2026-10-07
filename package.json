@@ -2,7 +2,7 @@
   "name": "muse-spark-code",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.14.1",
+  "version": "0.14.3",
   "publisher": "RandyNorthrup",
   "license": "MIT",
   "private": true,
@@ -327,6 +327,21 @@
         "command": "museSpark.shareChat",
         "title": "%command.shareChat.title%",
         "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.openHelp",
+        "title": "%command.openHelp.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.nextOpenQuestion",
+        "title": "%command.nextOpenQuestion.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.previousOpenQuestion",
+        "title": "%command.previousOpenQuestion.title%",
+        "category": "%command.category%"
       }
     ],
     "keybindings": [
@@ -377,6 +392,18 @@
         "command": "editor.action.inlineSuggest.trigger",
         "key": "alt+\\",
         "when": "editorTextFocus && museSpark.tabOn"
+      },
+      {
+        "command": "museSpark.nextOpenQuestion",
+        "key": "ctrl+alt+j",
+        "mac": "cmd+alt+j",
+        "when": "activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'"
+      },
+      {
+        "command": "museSpark.previousOpenQuestion",
+        "key": "ctrl+alt+shift+j",
+        "mac": "cmd+alt+shift+j",
+        "when": "activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'"
       }
     ],
     "menus": {
@@ -1189,6 +1216,14 @@
           "scope": "machine",
           "default": false,
           "description": "%config.syncPromptsAndBookmarks.description%"
+        },
+        "museSpark.questions.deferAfterSeconds": {
+          "type": "integer",
+          "default": 60,
+          "minimum": 0,
+          "maximum": 3600,
+          "description": "%config.questions.deferAfterSeconds.description%",
+          "scope": "machine"
         }
       }
     },
@@ -1271,7 +1306,7 @@
     "typecheck:e2e": "tsc -p test/e2e/tsconfig.json --noEmit",
     "typecheck:integration": "tsc -p test/integration/tsconfig.json --noEmit",
     "deadcode": "knip",
-    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/shared/wireEntry.ts src/extension.ts src/host/conversation/conversationEntry.ts src/host/judge/judgeEntry.ts src/host/tab/tabEntry.ts src/host/prompts/promptEntry.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/core/backends/modelapi/foreignHooksEntry.ts src/core/backends/modelapi/pluginHooksEntry.ts src/core/backends/modelapi/hookRuntimeEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts src/runtime/sharing/sharingEntry.ts src/host/browser/browserCheckEntry.ts src/host/browser/browserRuntimeEntry.ts src/host/whatsNew/whatsNewEntry.ts src/webview/whatsNew/main.ts src/host/git/conversationGitEntry.ts",
+    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/shared/wireEntry.ts src/extension.ts src/host/conversation/conversationEntry.ts src/host/judge/judgeEntry.ts src/host/tab/tabEntry.ts src/host/prompts/promptEntry.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/core/backends/modelapi/foreignHooksEntry.ts src/core/backends/modelapi/pluginHooksEntry.ts src/core/backends/modelapi/hookRuntimeEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts src/runtime/sharing/sharingEntry.ts src/host/browser/browserCheckEntry.ts src/host/browser/browserRuntimeEntry.ts src/host/whatsNew/whatsNewEntry.ts src/webview/whatsNew/main.ts src/host/git/conversationGitEntry.ts src/acp/questionDeferralEntry.ts src/runtime/questions/questionRegistryEntry.ts",
     "duplication": "jscpd",
     "test": "run-s test:unit test:integration",
     "test:unit": "vitest run --coverage",
@@ -1292,6 +1327,7 @@
     "prepare": "husky",
     "security:sast": "node scripts/sast.mjs",
     "schema:exec": "node scripts/exec-schema.mjs",
+    "reference:generate": "node scripts/gen-reference.mjs",
     "check:reference": "node scripts/gen-reference.mjs --check"
   },
   "lint-staged": {

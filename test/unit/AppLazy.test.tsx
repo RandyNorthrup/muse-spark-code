@@ -17,6 +17,10 @@ const held = vi.hoisted(() => ({
   handoffLoads: 0,
   secretLoads: 0,
   boardLoads: 0,
+  prompts: Promise.withResolvers<undefined>(),
+  promptsLoads: 0,
+  chat: Promise.withResolvers<undefined>(),
+  chatLoads: 0,
 }))
 
 vi.mock('../../src/webview/components/GitPanel', async (original) => {
@@ -45,6 +49,17 @@ vi.mock('../../src/webview/components/SecretPromptDialog', async (original) => {
 })
 vi.mock('../../src/webview/components/SessionBoardDialog', async (original) => {
   held.boardLoads += 1
+  return await original()
+})
+
+vi.mock('../../src/webview/prompts/PromptLibraryBridge', async (original) => {
+  held.promptsLoads += 1
+  await held.prompts.promise
+  return await original()
+})
+vi.mock('../../src/webview/sharing/ChatShareBridge', async (original) => {
+  held.chatLoads += 1
+  await held.chat.promise
   return await original()
 })
 
@@ -97,7 +112,7 @@ describe('App while its deferred panels load', () => {
     })
 
     fireEvent.click(screen.getByLabelText('Commands'))
-    const filter = screen.getByRole('combobox')
+    const filter = await screen.findByRole('combobox')
     fireEvent.change(filter, { target: { value: '/usage' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
     const loading = screen.getByRole('dialog', { name: EN.loadingOutput })
@@ -153,4 +168,33 @@ describe('App while its deferred panels load', () => {
     expect(loaded).not.toHaveTextContent('Old text')
     expect(held.shareLoads).toBe(1)
   })
+  it.each(['prompts', 'chat'] as const)(
+    'keeps a cold M118 %s surface modal and cancels its late import on Escape',
+    async (surface) => {
+      const postMessage = vi.fn()
+      render(<App postMessage={postMessage} />)
+      deliver({ type: 'init', settings: testSettings, emptyStateHint: '', composerPlaceholder: '' })
+      deliver({ type: 'authState', status: 'signedIn' })
+      const loads = () => (surface === 'prompts' ? held.promptsLoads : held.chatLoads)
+      expect(loads()).toBe(0)
+      deliver({ type: 'openSharing', surface })
+      await waitFor(() => {
+        expect(loads()).toBe(1)
+      })
+      const loading = screen.getByRole('dialog', { name: EN.loadingOutput })
+      expect(screen.getByRole('main')).toHaveAttribute('inert')
+      fireEvent.keyDown(within(loading).getByLabelText('Close'), { key: 'Escape' })
+      expect(screen.queryByRole('dialog')).toBeNull()
+      expect(screen.getByRole('main')).not.toHaveAttribute('inert')
+      expect(document.activeElement).toBe(screen.getByLabelText('Message Muse'))
+      await act(async () => {
+        held[surface].resolve(undefined)
+        await held[surface].promise
+      })
+      expect(screen.queryByRole('dialog')).toBeNull()
+      expect(postMessage.mock.calls.flat()).not.toContainEqual(
+        expect.objectContaining({ type: 'sharingAction' }),
+      )
+    },
+  )
 })

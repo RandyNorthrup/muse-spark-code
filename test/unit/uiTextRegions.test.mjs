@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer'
 // Exercise the real generated Node fallback and localization state.
 import { readFileSync, mkdtempSync } from 'node:fs'
 import path from 'node:path'
@@ -7,12 +8,12 @@ import vm from 'node:vm'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
-import { compactEnglishSource } from '../../src/shared/l10n/compactEnglish'
 import {
   UI_TEXT_REGIONS,
   regionalUiText,
   uiTextProperties,
   compactBrowserEnglish,
+  compressedReference,
 } from '../../scripts/lib/uiTextRegions.mjs'
 
 import { removeFolder } from './helpers/temporaryFolders'
@@ -31,7 +32,7 @@ beforeAll(async () => {
       write: false,
       minify: true,
       platform: 'browser',
-      format: 'cjs',
+      format: 'esm',
       plugins: [compactBrowserEnglish],
     }),
     ...regions.map((region) =>
@@ -165,13 +166,37 @@ describe('regional Node English fallback', () => {
   })
 })
 
-it('round-trips every browser English key, value and plural form inline', () => {
-  const module = { exports: {} }
-  vm.runInNewContext(built.browserSource, { module, exports: module.exports })
-  expect(module.exports.EN).toEqual(EN)
-  expect(JSON.stringify(module.exports.EN)).toBe(JSON.stringify(EN))
+it('round-trips every browser English key, value and plural form inline', async () => {
+  const bundle = await import(
+    `data:text/javascript;base64,${Buffer.from(built.browserSource).toString('base64')}`
+  )
+  expect(bundle.EN).toEqual(EN)
+  expect(JSON.stringify(bundle.EN)).toBe(JSON.stringify(EN))
+  expect(built.browserSource).toContain('DecompressionStream')
+  expect(built.browserSource).not.toContain('import(')
 })
 
-it('refuses an English value that collides with reserved dictionary tokens', () => {
-  expect(() => compactEnglishSource({ label: '\u{E000}' })).toThrow('reserved dictionary token')
+it('round-trips every production Node reference field through the native codec', async () => {
+  const result = await build({
+    entryPoints: ['src/shared/reference/reference.generated.ts'],
+    bundle: true,
+    write: false,
+    platform: 'node',
+    format: 'cjs',
+    minify: true,
+    plugins: [compressedReference(true)],
+  })
+  const module = { exports: {} }
+  const actual = vm.runInNewContext(
+    `${result.outputFiles[0].text}\nmodule.exports.referenceModel()`,
+    {
+      module,
+      exports: module.exports,
+      require: createRequire(import.meta.url),
+    },
+  )
+  expect(actual).toEqual(
+    JSON.parse(readFileSync('src/shared/reference/reference.generated.json', 'utf8')),
+  )
+  expect(result.outputFiles[0].text).toContain('brotliDecompressSync')
 })

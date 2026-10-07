@@ -18,6 +18,7 @@ import {
   JUDGE_ENGINES,
   type JudgeEngine,
   PROMPT_CACHE_RETENTIONS,
+  QUESTION_DEFER_MAX_SECONDS,
   type PromptCacheRetention,
   SANDBOX_NETWORK_MODES,
   type SandboxNetworkMode,
@@ -47,6 +48,9 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly museBinaryPath: string
   readonly environmentVariables: readonly EnvironmentVariable[]
   readonly 'shell.passEnvironmentVariables': readonly string[]
+  /** M112 (D92): seconds before an unanswered question defers; 0 never. */
+  readonly syncPromptsAndBookmarks: boolean
+  readonly 'questions.deferAfterSeconds': number
   /** Shell sandbox posture for `muse serve` (PLAN.md D12). */
   readonly shellSandbox: ShellSandboxMode
   /** Which backend hosts conversations (PLAN.md D1, M7). */
@@ -146,6 +150,8 @@ const settingSchemas = {
   museBinaryPath: z.string(),
   environmentVariables: z.array(environmentVariableSchema),
   'shell.passEnvironmentVariables': z.array(z.string().check(z.regex(/^[A-Za-z_][A-Za-z0-9_]*$/))),
+  syncPromptsAndBookmarks: z.boolean(),
+  'questions.deferAfterSeconds': z.int().check(z.gte(0), z.lte(QUESTION_DEFER_MAX_SECONDS)),
   shellSandbox: z.enum(SHELL_SANDBOX_MODES),
   backend: z.enum(BACKEND_MODES),
   enableNewConversationShortcut: z.boolean(),
@@ -256,6 +262,8 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     museBinaryPath: readSetting(config, 'museBinaryPath', log),
     environmentVariables: readSetting(config, 'environmentVariables', log),
     'shell.passEnvironmentVariables': readSetting(config, 'shell.passEnvironmentVariables', log),
+    syncPromptsAndBookmarks: readSetting(config, 'syncPromptsAndBookmarks', log),
+    'questions.deferAfterSeconds': readSetting(config, 'questions.deferAfterSeconds', log),
     shellSandbox: readSetting(config, 'shellSandbox', log),
     backend: readSetting(config, 'backend', log),
     enableNewConversationShortcut: readSetting(config, 'enableNewConversationShortcut', log),

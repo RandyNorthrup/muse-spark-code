@@ -56,6 +56,7 @@ import {
   UI_TEXT_REGIONS,
   regionalUiText,
   compressedEnglish,
+  compressedReference,
   compactBrowserEnglish,
 } from './lib/uiTextRegions.mjs'
 import { loadL10n } from './lib/l10nSource.mjs'
@@ -156,7 +157,10 @@ const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
 const WHATS_NEW_PAGE_NAME = 'whatsNew'
 const ACP_ENTRY = 'src/runtime/main.ts'
 const ACP_OUTFILE = 'dist/acp.js'
-const ACP_METAFILE_DIR = 'dist/meta-acp'
+const ACP_QUESTIONS_ENTRY = 'src/acp/questionDeferralEntry.ts'
+const ACP_QUESTIONS_OUTFILE = 'dist/acpQuestions.js'
+const RUNTIME_QUESTIONS_ENTRY = 'src/runtime/questions/questionRegistryEntry.ts'
+const RUNTIME_QUESTIONS_OUTFILE = 'dist/runtimeQuestions.js'
 const INTEGRATION_TEST_DIR = 'test/integration'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
 // The extension host of the oldest VS Code the manifest accepts: 1.99 runs
@@ -221,6 +225,13 @@ const modelApiOptions = {
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
+}
+
+const referenceOptions = {
+  ...modelApiOptions,
+  entryPoints: ['src/shared/reference/referenceEntry.ts'],
+  outfile: 'dist/reference.js',
+  plugins: [...modelApiOptions.plugins, compressedReference(isProduction)],
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -464,6 +475,19 @@ const acpOptions = {
   banner: { js: '#!/usr/bin/env node' },
 }
 
+/** @type {import('esbuild').BuildOptions} */
+const acpQuestionsOptions = {
+  ...acpOptions,
+  entryPoints: [ACP_QUESTIONS_ENTRY],
+  outfile: ACP_QUESTIONS_OUTFILE,
+  banner: {},
+}
+const runtimeQuestionsOptions = {
+  ...acpQuestionsOptions,
+  entryPoints: [RUNTIME_QUESTIONS_ENTRY],
+  outfile: RUNTIME_QUESTIONS_OUTFILE,
+}
+
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
 const { L10N_COMPRESSION_QUALITY } = await loadL10n(process.cwd())
@@ -518,7 +542,19 @@ const pageWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const webviewOptions = {
   ...common,
-  plugins: isProduction ? [compactBrowserEnglish] : [],
+  plugins: [
+    ...(isProduction ? [compactBrowserEnglish] : []),
+    {
+      name: 'reference-page',
+      setup(build) {
+        build.onResolve({ filter: /\/components\/ReferencePage$/ }, (args) =>
+          args.kind === 'dynamic-import'
+            ? { path: './referencePage.js', external: true }
+            : undefined,
+        )
+      },
+    },
+  ],
   charset: 'utf8',
   entryPoints: [WEBVIEW_ENTRY],
   outdir: WEBVIEW_OUTDIR,
@@ -529,6 +565,18 @@ const webviewOptions = {
   chunkNames: 'chunks/[hash]',
   target: BROWSER_TARGET,
   jsx: 'automatic',
+}
+
+const referencePageOptions = {
+  ...common,
+  entryPoints: ['src/webview/components/ReferencePage.tsx'],
+  outfile: 'dist/webview/referencePage.js',
+  platform: 'browser',
+  format: 'esm',
+  target: BROWSER_TARGET,
+  jsx: 'transform',
+  jsxFactory: 'React.createElement',
+  tsconfigRaw: { compilerOptions: { jsx: 'react', jsxFactory: 'React.createElement' } },
 }
 
 // What's New's page script and stylesheet (M99): dist/webview/whatsNew.js
@@ -571,6 +619,16 @@ console.log(
   `What's New: ${String(whatsNewContent.releases)} releases from CHANGELOG.md into ${WHATS_NEW_CONTENT_OUTFILE}`,
 )
 
+// The browser fixture exercises the real webview build without recompiling
+// every unrelated Node bundle inside Vitest's default setup deadline.
+if (process.argv.includes('--webview-only')) {
+  if (!isProduction || isWatch) throw new Error('--webview-only requires --production')
+  const { metafile } = await esbuild.build(webviewOptions)
+  mkdirSync(METAFILE_DIR, { recursive: true })
+  writeFileSync(path.join(METAFILE_DIR, 'webview.json'), JSON.stringify(metafile))
+  process.exit(0)
+}
+
 if (isWatch) {
   const contexts = await Promise.all([
     esbuild.context(hostOptions),
@@ -581,6 +639,7 @@ if (isWatch) {
     esbuild.context(modelApiOptions),
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
+    esbuild.context(referenceOptions),
     esbuild.context(reviewerOptions),
     esbuild.context(foreignHooksOptions),
     esbuild.context(hookRuntimeOptions),
@@ -603,17 +662,30 @@ if (isWatch) {
     ...uiTextRegionOptions.map((options) => esbuild.context(options)),
     esbuild.context(validationOptions),
     esbuild.context(wireOptions),
+    esbuild.context(acpQuestionsOptions),
+    esbuild.context({
+      ...modelApiOptions,
+      entryPoints: ['src/core/questions/deferralEntry.ts'],
+      outfile: 'dist/questionNotes.js',
+    }),
+    esbuild.context(runtimeQuestionsOptions),
     esbuild.context(browserCheckOptions),
     esbuild.context(browserRuntimeOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
     esbuild.context(webviewOptions),
+    esbuild.context(referencePageOptions),
     esbuild.context(whatsNewPageOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
 } else {
   const shipped = {
+    questionNotes: esbuild.build({
+      ...modelApiOptions,
+      entryPoints: ['src/core/questions/deferralEntry.ts'],
+      outfile: 'dist/questionNotes.js',
+    }),
     extension: esbuild.build(hostOptions),
     conversation: esbuild.build(conversationOptions),
     tab: esbuild.build(tabOptions),
@@ -622,6 +694,7 @@ if (isWatch) {
     modelApi: esbuild.build(modelApiOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
+    reference: esbuild.build(referenceOptions),
     reviewer: esbuild.build(reviewerOptions),
     foreignHooks: esbuild.build(foreignHooksOptions),
     hookRuntime: esbuild.build(hookRuntimeOptions),
@@ -654,10 +727,13 @@ if (isWatch) {
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
     webview: esbuild.build(webviewOptions),
+    referencePage: esbuild.build(referencePageOptions),
     whatsNewPage: esbuild.build(whatsNewPageOptions),
   }
   const acp = esbuild.build(acpOptions)
-  const builds = [...Object.values(shipped), acp]
+  const acpQuestions = esbuild.build(acpQuestionsOptions)
+  const runtimeQuestions = esbuild.build(runtimeQuestionsOptions)
+  const builds = [...Object.values(shipped), acp, acpQuestions, runtimeQuestions]
   if (!isProduction) {
     builds.push(esbuild.build(integrationTestOptions))
   }
@@ -668,11 +744,23 @@ if (isWatch) {
       const { metafile } = await build
       writeFileSync(path.join(METAFILE_DIR, `${name}.json`), JSON.stringify(metafile))
     }
+    const ACP_METAFILE_DIR = 'dist/meta-acp'
     mkdirSync(ACP_METAFILE_DIR, { recursive: true })
     const { metafile } = await acp
     writeFileSync(path.join(ACP_METAFILE_DIR, 'acp.json'), JSON.stringify(metafile))
+    const { metafile: questionsMetafile } = await acpQuestions
+    const { metafile: runtimeQuestionsMetafile } = await runtimeQuestions
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'runtimeQuestions.json'),
+      JSON.stringify(runtimeQuestionsMetafile, null, 2),
+    )
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'acpQuestions.json'),
+      JSON.stringify(questionsMetafile),
+    )
   }
   console.log('bundle sizes:')
+  reportSize(ACP_QUESTIONS_OUTFILE)
   reportSize(HOST_OUTFILE)
   reportSize(CONVERSATION_OUTFILE)
   reportSize(TAB_OUTFILE)
@@ -681,6 +769,7 @@ if (isWatch) {
   reportSize(MODEL_API_OUTFILE)
   reportSize(REVIEW_OUTFILE)
   reportSize(SESSION_BOARD_OUTFILE)
+  reportSize('dist/reference.js')
   reportSize(REVIEWER_OUTFILE)
   reportSize(FOREIGN_HOOKS_OUTFILE)
   reportSize(HOOK_RUNTIME_OUTFILE)

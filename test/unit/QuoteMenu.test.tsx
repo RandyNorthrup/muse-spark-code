@@ -8,12 +8,12 @@ describe('QuoteMenu', () => {
     ['Copy', undefined],
     ['Ask about this', 'question'],
     ['Comment on this', 'comment'],
-  ])('relays %s unchanged', (label, intent) => {
+  ])('relays %s unchanged', async (label, intent) => {
     const onChoose = vi.fn()
     const onCopy = vi.fn()
     const onClose = vi.fn()
     render(<QuoteMenu onChoose={onChoose} onCopy={onCopy} onClose={onClose} />)
-    expect(screen.getByRole('menu')).toHaveAccessibleName('Highlighted text')
+    expect(await screen.findByRole('menu')).toHaveAccessibleName('Highlighted text')
     // Pills with labels (2026-10-04): every action's name is on its pill.
     expect(screen.getAllByRole('menuitem').map((pill) => pill.textContent)).toEqual([
       'Copy',

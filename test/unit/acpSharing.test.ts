@@ -16,6 +16,7 @@ function acpHarness(sharing?: AcpSharingPort) {
   const updates: acp.SessionUpdate[] = []
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   const deps: AcpAgentDeps = {
+    questions: 'decline',
     backend: {
       kind: 'museCode',
       readiness: () => Promise.resolve({ state: 'ready' }),
