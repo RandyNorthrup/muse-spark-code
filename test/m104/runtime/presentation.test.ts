@@ -9,7 +9,7 @@ import {
   type PresentationMessage,
   type PresentationState,
 } from '../../../src/shared/presentationProtocol'
-import { MHP_PRESENTATION } from '../../../src/shared/constants'
+import { MHP_PRESENTATION, MHP_PANEL } from '../../../src/shared/constants'
 import { fakeSurface } from '../../unit/helpers/fakes'
 import { fakeServices, holdSurfaceOpen } from '../ui/services'
 
@@ -33,10 +33,208 @@ function fixture() {
   const act = vi.fn<RuntimePresentationPage['act']>(() => Promise.resolve('Exact saved text'))
   const page = { readState: () => Promise.resolve(state.value), act }
   const binding = { surface: 'surface-1', surfaceKind: 'plans', sessionId: 'one' } as const
-  return { ...services, current, views, state, page, binding, act, record }
+  return {
+    ...services,
+    current,
+    views,
+    state,
+    page,
+    binding,
+    act,
+    record,
+    open: async (kind: PresentationState['kind'] = 'plans') => {
+      await views.show(page)
+      const view = views.view({ ...binding, surfaceKind: kind })
+      if (view === undefined) throw new Error('View was not adopted')
+      return view
+    },
+  }
 }
 
 describe('assembled auxiliary admission', () => {
+  it.each(['reload', 'sequential'])('retires completed IDs for %s actions', async (scenario) => {
+    const f = fixture()
+    const view = await f.open()
+    await view.handle({ type: 'presentationReady' })
+    const request = {
+      type: 'planAction',
+      requestId: 'presentation-1',
+      action: 'read',
+      fileName: 'plan.md',
+    } as const
+    await view.handle(request)
+    if (scenario === 'reload') {
+      await view.handle({ type: 'presentationReady' })
+      await view.handle(request)
+      expect(f.act).toHaveBeenCalledTimes(2)
+    } else {
+      for (let index = 0; index < MHP_PANEL.maximumQueuedMessages; index += 1)
+        await view.handle({ ...request, requestId: `sequential-${String(index)}` })
+      expect(f.act).toHaveBeenCalledTimes(MHP_PANEL.maximumQueuedMessages + 1)
+    }
+    await f.views.dispose()
+  })
+  it('publishes accepted manager mutations and admits another unchanged entry', async () => {
+    const f = fixture()
+    const state = {
+      kind: 'manager',
+      manager: 'mcp',
+      title: 'MCP',
+      entries: ['one', 'two'].map((id) => ({
+        id,
+        title: id,
+        detail: 'on',
+        actions: [{ id: 'toggle', title: 'Disable' }],
+      })),
+      actions: [],
+    } as const
+    f.state.value = presentationStateSchema.parse(state)
+    f.act.mockImplementation((request) => {
+      if (request.type !== 'managerAction' || f.state.value.kind !== 'manager')
+        throw new Error('Wrong manager')
+      f.state.value = {
+        ...f.state.value,
+        entries: f.state.value.entries.map((row) =>
+          row.id === request.entryId ? { ...row, detail: 'off' } : row,
+        ),
+      }
+      return Promise.resolve(undefined)
+    })
+    const view = await f.open('manager')
+    const output: PresentationMessage[] = []
+    view.subscribe((message) => {
+      output.push(presentationMessageSchema.parse(message))
+    })
+    await view.handle({ type: 'presentationReady' })
+    await view.handle({
+      type: 'managerAction',
+      requestId: 'one',
+      entryId: 'one',
+      actionId: 'toggle',
+    })
+    expect(output).toContainEqual({ type: 'presentationState', state: f.state.value })
+    await view.handle({
+      type: 'managerAction',
+      requestId: 'two',
+      entryId: 'two',
+      actionId: 'toggle',
+    })
+    expect(f.act).toHaveBeenCalledTimes(2)
+    expect(output.at(-1)).toMatchObject({ type: 'presentationResult', result: { ok: true } })
+    await f.views.dispose()
+  })
+  it('allows unrelated plan additions but refuses a changed target record', async () => {
+    const f = fixture()
+    const view = await f.open()
+    await view.handle({ type: 'presentationReady' })
+    if (f.state.value.kind !== 'plans') throw new Error('Wrong plans')
+    f.state.value = {
+      kind: 'plans',
+      plans: [
+        ...f.state.value.plans,
+        { fileName: 'new.md', relativePath: '.agents/plans/new.md', title: 'New' },
+      ],
+    }
+    await view.handle({
+      type: 'planAction',
+      requestId: 'unchanged',
+      action: 'open',
+      fileName: 'plan.md',
+    })
+    expect(f.act).toHaveBeenCalledOnce()
+    f.state.value.plans[0] = {
+      fileName: 'plan.md',
+      relativePath: '.agents/plans/other.md',
+      title: 'Replaced',
+    }
+    await view.handle({
+      type: 'planAction',
+      requestId: 'changed',
+      action: 'open',
+      fileName: 'plan.md',
+    })
+    expect(f.act).toHaveBeenCalledOnce()
+    await f.views.dispose()
+  })
+  it.each(['roles', 'diff'] as const)(
+    '%s actions ignore unrelated changes and reject target drift',
+    async (kind) => {
+      const f = fixture()
+      f.state.value =
+        kind === 'roles'
+          ? {
+              kind,
+              roles: [
+                {
+                  id: 'role',
+                  name: 'Role',
+                  providerId: 'provider',
+                  modelId: 'model',
+                  status: 'working',
+                  capabilities: [],
+                },
+              ],
+              traffic: [],
+            }
+          : {
+              kind,
+              reviewId: 'review',
+              title: 'Diff',
+              hunks: [
+                {
+                  id: 'hunk',
+                  uri: 'file:///workspace/source.ts',
+                  expectedVersion: 1,
+                  range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
+                  before: 'old',
+                  after: 'new',
+                },
+              ],
+            }
+      const view = await f.open(kind)
+      await view.handle({ type: 'presentationReady' })
+      f.state.value =
+        f.state.value.kind === 'roles'
+          ? {
+              ...f.state.value,
+              traffic: [
+                {
+                  id: 'traffic',
+                  sourceId: 'peer',
+                  targetId: 'role',
+                  at: 1,
+                  summary: 'New traffic',
+                },
+              ],
+            }
+          : { ...f.state.value, title: 'New title' }
+      const request =
+        kind === 'roles'
+          ? ({ type: 'openRole', requestId: 'unchanged', roleId: 'role' } as const)
+          : ({
+              type: 'diffDecision',
+              requestId: 'unchanged',
+              reviewId: 'review',
+              hunkId: 'hunk',
+              decision: 'accept',
+            } as const)
+      await view.handle(request)
+      expect(f.act).toHaveBeenCalledOnce()
+      f.state.value =
+        f.state.value.kind === 'roles'
+          ? {
+              ...f.state.value,
+              roles: f.state.value.roles.map((row) => ({ ...row, modelId: 'replacement' })),
+            }
+          : {
+              ...f.state.value,
+              hunks: f.state.value.hunks.map((row) => ({ ...row, expectedVersion: 2 })),
+            }
+      await view.handle({ ...request, requestId: 'changed' })
+      expect(f.act).toHaveBeenCalledOnce()
+      await f.views.dispose()
+    },
+  )
   it('acknowledges accepted exact reads and refuses removed or unindexed records', async () => {
     const f = fixture()
     const output: unknown[] = []

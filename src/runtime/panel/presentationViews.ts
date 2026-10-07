@@ -31,31 +31,35 @@ interface Page {
   state: PresentationState | undefined
 }
 
-function isIndexed(request: Action, state: PresentationState): boolean {
+function indexedRecord(request: Action, state: PresentationState): unknown {
   switch (request.type) {
     case 'planAction': {
-      return state.kind === 'plans' && state.plans.some((row) => row.fileName === request.fileName)
+      return state.kind === 'plans'
+        ? state.plans.find((row) => row.fileName === request.fileName)
+        : undefined
     }
     case 'managerAction': {
-      if (state.kind !== 'manager') return false
-      const actions =
-        request.entryId === undefined
-          ? state.actions
-          : state.entries.find((row) => row.id === request.entryId)?.actions
-      return actions?.some((row) => row.id === request.actionId) === true
+      if (state.kind !== 'manager') return
+      const entry = state.entries.find((row) => row.id === request.entryId)
+      const action = (request.entryId === undefined ? state.actions : entry?.actions)?.find(
+        (row) => row.id === request.actionId,
+      )
+      return action === undefined ? undefined : { manager: state.manager, entry, action }
     }
     case 'openRole': {
-      return state.kind === 'roles' && state.roles.some((row) => row.id === request.roleId)
+      return state.kind === 'roles'
+        ? state.roles.find((row) => row.id === request.roleId)
+        : undefined
     }
     case 'diffDecision': {
-      return (
-        state.kind === 'diff' &&
-        state.reviewId === request.reviewId &&
-        state.hunks.some((row) => String(row.id) === request.hunkId)
-      )
+      return state.kind === 'diff' && state.reviewId === request.reviewId
+        ? state.hunks.find((row) => String(row.id) === request.hunkId)
+        : undefined
     }
     case 'walkthroughAction': {
-      return state.kind === 'walkthrough' && state.steps.some((row) => row.id === request.stepId)
+      return state.kind === 'walkthrough'
+        ? state.steps.find((row) => row.id === request.stepId)
+        : undefined
     }
   }
 }
@@ -124,14 +128,15 @@ export class RuntimePresentationViews {
     page.requests.add(request.requestId)
     const state = page.state
     try {
-      if (state === undefined || !isIndexed(request, state))
-        throw new Error('MHP_PRESENTATION_INVALID_INDEX')
+      const record = state === undefined ? undefined : indexedRecord(request, state)
+      if (record === undefined) throw new Error('MHP_PRESENTATION_INVALID_INDEX')
       const fresh = presentationStateSchema.parse(await page.source.readState())
       if (fresh.kind === 'roles')
         for (const traffic of fresh.traffic) traffic.summary = redactSecrets(traffic.summary)
       this.current(page)
       // Resolve against the current authoritative record, including hunk versions/text.
-      if (!isIndexed(request, fresh) || JSON.stringify(fresh) !== JSON.stringify(state))
+      const currentRecord = indexedRecord(request, fresh)
+      if (currentRecord === undefined || JSON.stringify(currentRecord) !== JSON.stringify(record))
         throw new Error('MHP_PRESENTATION_STATE_CHANGED')
       const text = await page.source.act(
         request,
@@ -139,6 +144,7 @@ export class RuntimePresentationViews {
         AbortSignal.any([page.ending.signal, this.ending.signal]),
       )
       this.current(page)
+      await this.state(page)
       this.post(page, {
         type: 'presentationResult',
         requestId: request.requestId,
@@ -158,6 +164,8 @@ export class RuntimePresentationViews {
           requestId: request.requestId,
           result: { ok: false, code: 'MHP_PRESENTATION_ACTION_FAILED' },
         })
+    } finally {
+      page.requests.delete(request.requestId)
     }
   }
   private async track<T>(work: () => Promise<T>): Promise<T> {

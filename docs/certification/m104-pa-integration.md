@@ -248,3 +248,104 @@ retains the original admission bounds; no deterministic deadline guarantee is
 claimed. Restored verification follows in the final receipt paragraph.
 
 Final restored receipt: 176 tests across 15 files pass in six sequential batches, including all four A runtime namespace files, every deliberately mutated regression and the 29 carrier E2E tests. No raised timeout or filtered test was used.
+
+## FIXM104PA3 — RVM104PA3 repairs (2026-10-06)
+
+Base: `fa60c3763`, macmini, this same worktree. All six review findings are
+fixed in lane A's files. No review finding is deferred. No merge, dependency,
+credential read, live/paid call, guard weakening or support promotion is part
+of this repair. The lane brief reserves aggregate quality/full-suite checks
+for the lead; final checks run sequentially and use repository deadlines.
+
+| Finding                             | Repair and regression                                                                                                                                                                                                                                                                                                                                                              |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R3-1 P1, missing VSIX protocol      | `.vscodeignore` includes `dist/hostProtocol.js`; `vsixPackaging.test.mjs` checks actual VSCE collection/staging. `deferredBundles.test.ts` now builds all production runtime entries with the actual shared-protocol plugin and adjacent protocol bundle, and loads extension exports through it. The declaration file exposes the existing plugin without a cast.                 |
+| R3-2 P2, cancelled disposal         | `runPanel.ts` binds `surfaces/close` to carrier lifetime while ordinary requests retain conversation lifetime and explicit caller cancellation. `runtimePanelState.test.ts` uses real `PortableTasks` on both backends: profile replacement cancels ordinary calls, sends native auxiliary close and creates the replacement profile without waiting for a lifecycle notification. |
+| R3-3 P2, retained request IDs       | `presentationViews.ts` removes each settled ID in `finally`. Separate reload and 129-sequential-action tests pass in `test/m104/runtime/presentation.test.ts`; concurrent duplicate admission remains refused.                                                                                                                                                                     |
+| R3-4 P2, whole-page stale check     | Actions compare their indexed plan/manager entry or action/role/diff hunk/walkthrough step, including manager identity and hunk version/text. Accepted actions read, validate and publish replacement state before their result. Tests cover two manager mutations, an unrelated added plan, new role traffic and changed diff heading, while refusing changed target records.     |
+| R3-5 P2, startup-only selected text | `runtimeFeatures.ts` refreshes admission whenever the actual mention index rebuilds. Selection stays confined to the original canonical workspace root and rechecks the live physical target synchronously. `runtimePanelPorts.test.ts` proves a newly indexed file shares its excerpt and an outside link, excluded file or untrusted workspace does not.                         |
+| R3-6 P2, obsolete README marker     | `mhpPanelContract.test.ts` uses the README's current section marker and requires the statement that 1.3 replaces both 1.1 and 1.2; schema and version-lock assertions remain.                                                                                                                                                                                                      |
+
+The existing staged badge-contract test exceeded five seconds when its three
+independent child-process scenarios shared one test. They now run as three
+separate cases with every assertion and the unchanged default deadline.
+
+### Required package and inventory handoff
+
+The shared protocol is also an **existing VS Code dependency**, required at
+module load by `dist/extension.js`. It now ships in the built VSIX and its
+actual package-member regression is owned by A. F's exact distribution
+inventory must retain this dependency as well as the ACP/native dependencies
+listed above. Add `extension/dist/hostProtocol.js` to the required VSIX members
+in `.github/workflows/build.yml`, and `package/dist/hostProtocol.js` to its
+ACP members, alongside the new runtime artifacts and complete portable graph.
+This CI inventory handoff does not defer the repaired VSIX allowlist or its
+owning test. A does not edit the F-owned packaging scripts or workflow.
+
+Initial end-to-end `npm run build` and package pass. Packaging uses
+`BADGE_CHECK_SKIP_NETWORK='FIXM104PA3 offline rig brief' npm run package`,
+the existing named local option required by this lane's no-network rule.
+No hook or CI setting is changed. The actual VSIX lists
+`extension/dist/hostProtocol.js` (24,770 bytes). Final restored receipts follow
+after the scoped checks.
+
+### Deliberate red controls
+
+Every row ran its complete owning test file with `--maxWorkers=3`, no name
+filter, skip or `--testTimeout`. Each mutation produced exit 1 in the named
+regression and was restored byte-exact in `finally`, verified with SHA-256.
+Local logs and structured receipts live under ignored `temp/fix-m104-pa3/`.
+
+| Mutation                                         | Named failing regression                                                                                                                 | Restored source SHA-256                                            |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Remove VSIX `hostProtocol.js` allowlist          | ships the helper, shared runtime and deferred chunks                                                                                     | `c67caccb6f1310bcc94c5f20466e7ce8f58dd80c820818664f57c656b3385bbc` |
+| Bind cleanup back to conversation cancellation   | profile replacement closes acquired Tasks after ordinary requests are cancelled (both backends)                                          | `5ca6cb43a46f654916caef6daddc13d90335f92cae28fd3ebcc904af9a2a6754` |
+| Stop retiring request IDs                        | retires completed IDs for reload actions; retires completed IDs for sequential actions                                                   | `8348c891a7c795100def9aac06fc2a9893945b2d5eac3d86c071d371dde1b182` |
+| Restore whole-page equality                      | allows unrelated plan additions but refuses a changed target record; roles/diff actions ignore unrelated changes and reject target drift | `8348c891a7c795100def9aac06fc2a9893945b2d5eac3d86c071d371dde1b182` |
+| Omit post-action state publication               | publishes accepted manager mutations and admits another unchanged entry                                                                  | `8348c891a7c795100def9aac06fc2a9893945b2d5eac3d86c071d371dde1b182` |
+| Keep only initial mention admission              | admits newly indexed selected text live and refuses a replaced link or excluded path                                                     | `6e5d49e62c121b2b0c0a06ea80bf7a2e620a3fd33945933811d3a9b03ea9be2a` |
+| Change README marker back to the obsolete phrase | documents replacement of 1.1 and current 1.3 schemas behind legacy filenames                                                             | `ae154bf7b87bbbf0d799f9b918c0f716b57c4149f8e47b60b9f4b5d687809d8b` |
+
+Eight controls fired. Original failure receipts also reproduce the missing
+package member, both lifecycle failures, exhausted/reused action IDs, stale
+manager state and the obsolete README contract test before their repairs.
+
+The eighth control binds **ordinary requests** to carrier lifetime instead of
+conversation lifetime. Both profile-replacement tests fail because their
+cleanup explicitly requires an `AbortError` for the ordinary call. Restoring
+the separate signals restores source SHA-256
+`5ca6cb43a46f654916caef6daddc13d90335f92cae28fd3ebcc904af9a2a6754`.
+
+### Final scoped gate receipts
+
+| Check                                         | Result                                                                                                                                                                                                                                                                                                                                                |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Restored Vitest, six owning files             | 101 unique tests pass: 72 in packaging/deferred/MHP; 29 in lifecycle/presentation/ports. After final fixture consolidation and confinement simplification, presentation and ports pass again individually; lifecycle is verified again with the stronger `AbortError` assertion. Every run uses at most three files/workers and repository deadlines. |
+| `npm run typecheck`                           | All configured projects pass; final host and unit source checks also pass.                                                                                                                                                                                                                                                                            |
+| Changed-file ESLint, zero warnings / Prettier | Pass. The two test-setup clones found by jscpd were removed through the existing fixture; final `npx jscpd` reports zero clones.                                                                                                                                                                                                                      |
+| `npm run deadcode` / `npm run cycles`         | Pass; plain knip and dpdm, no new ignores.                                                                                                                                                                                                                                                                                                            |
+| `npm run check:l10n` / `npm run check:mhp`    | Pass; fourteen tables, zero localization problems; frozen MHP schemas and locks unchanged.                                                                                                                                                                                                                                                            |
+| `npm run check:host-api`                      | Same inherited F-owned inventory drift: crypto 53→55, fs 36→38, fs/promises 52→54, os 9→10, path 90→95, url 7→13. No additional API or theme-variable change; generated inventory remains with F.                                                                                                                                                     |
+| `npm run build`                               | Pass: sizes, splits, readers, host globals and third-party notices.                                                                                                                                                                                                                                                                                   |
+| Named-offline `npm run package`               | Pass end to end; VSIX 2,197,008 / 2,252,800 bytes. The local named badge option avoids network only; packaging validation and all caps stay intact.                                                                                                                                                                                                   |
+
+Final Node measurements (KiB / unchanged cap): extension **450.4 / 600**,
+Model API **447.5 / 475**, ACP **830.1 / 850**, runtimePanel **96.2 / 100**,
+runtimePanelPorts **57.0 / 75**, runtimeContext **22.1 / 50**, runtimeEngines
+**133.4 / 150**, runtimeBackendServices **138.3 / 200**, runtimePresentation
+**44.6 / 50**, hostProtocol **24.2 / 50**, checkpointStore **77.3 / 225**.
+The existing deferred browser group remains **49.7 / 50**; all five portable
+page closures remain below their independent **5 KiB** caps.
+
+No RVM104PA3 P1/P2/P3 residual remains. The inherited F inventory, exact ACP
+package closure, aggregate quality and installed-editor/provider qualifications
+remain the explicit handoffs above. No support claim changes.
+
+The produced `muse-spark-code-0.14.1.vsix` has SHA-256
+`fc8b43359b7873a593d2e33a1d5379478c7c46c12006204b5aff1c1e7e19189a`.
+Inspection of the ZIP verifies that protocol, validation, wire and English
+fallback members exactly match the final emitted bundles. Its extracted
+extension entry loads successfully with only VS Code's supplied module stubbed,
+exports `activate`/`deactivate`, requires the adjacent `hostProtocol.js` and
+retains deferred conversation loading. This is a real package module-load
+receipt; installed-editor qualification remains with F.

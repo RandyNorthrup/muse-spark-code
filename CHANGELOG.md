@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Ship the shared host protocol in the VSIX so the extension loads, and verify
+  activation with the production split. Portable cleanup closes auxiliary views
+  after conversation cancellation. Presentation actions retire completed IDs,
+  compare their selected records and publish fresh state; selected text follows
+  the live confined workspace index. The README contract test follows its 1.3 marker.
+
 - Integrate portable engine and presentation factories in separately checked lazy
   bundles, including real checkpoint recording, version-attested verification,
   saved plans, transfer, Tasks, What's New and scrubbed report export.

@@ -728,10 +728,9 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
           {
             host: {
               async request(method, params, signal) {
-                signal =
-                  signal === undefined
-                    ? controller.signal
-                    : AbortSignal.any([signal, controller.signal])
+                // Cleanup outlives conversation cancellation, but never the carrier.
+                const ownerSignal = method === 'surfaces/close' ? ending.signal : controller.signal
+                signal = signal === undefined ? ownerSignal : AbortSignal.any([signal, ownerSignal])
                 signal.throwIfAborted()
                 const capability = MHP_METHODS[method].capability
                 if (capability === 'settings' || capability === 'storage') {

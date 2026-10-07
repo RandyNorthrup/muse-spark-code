@@ -3964,6 +3964,9 @@ leases. OAuth tokens and pasted keys stay with native credential services.
 Native carriers must adopt and qualify the new contract before shipment. The
 [continuation integration record](docs/certification/m104-pa-integration.md)
 lists the current scoped receipts, bounded stops and exact owner handoffs.
+The VSIX includes the shared `dist/hostProtocol.js` required at extension load;
+its package-member test and production deferred-bundle activation test cover
+that dependency. ACP and native packaging inventories still require F's adoption.
 
 The replacement MHP 1.3.0 contract is frozen in the generated
 [service schema](src/shared/hostApi/mhp-v1.schema.json) and
