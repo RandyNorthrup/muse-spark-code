@@ -3,12 +3,20 @@ import { EXEC_CHILD_ENV_DROP, HOOK_FORBIDDEN_ENV_NAMES } from '../../../shared/c
 /** Case independent: Windows can retain multiple spellings in a ProcessEnv object. */
 export function isCredentialVariable(name: string): boolean {
   const upper = name.toUpperCase()
-  return upper.endsWith('_API_KEY') || HOOK_FORBIDDEN_ENV_NAMES.has(upper)
+  return (
+    /(?:_API_KEY|_TOKEN|_PASSWORD|_SECRET|_CREDENTIALS)$/u.test(upper) ||
+    HOOK_FORBIDDEN_ENV_NAMES.has(upper) ||
+    /^(?:TOKEN|PASSWORD|AUTHORIZATION|GOOGLE_APPLICATION_CREDENTIALS|AWS_SHARED_CREDENTIALS_FILE|NETRC)$/u.test(
+      upper,
+    )
+  )
 }
 
 export interface VaultFenceOptions {
   /** Supplied only by the trusted launcher, never read from an agent frame. */
   readonly sshSocket?: string | undefined
+  /** S pins the verified SSH client where Git for Windows cannot reach a pipe. */
+  readonly sshCommand?: string | undefined
   readonly refusingHelper?: string | undefined
   /** Muse Code keeps its own credentials (D1); its tools still lose ambient SSH/git. */
   readonly museCode?: boolean
@@ -27,8 +35,22 @@ export function vaultFenceEnvironment(
       upper === 'SSH_AUTH_SOCK' ||
       upper === 'SSH_AGENT_PID' ||
       upper.startsWith('GIT_CONFIG_') ||
-      ['GIT_ASKPASS', 'SSH_ASKPASS', 'SUDO_ASKPASS', 'GIT_TERMINAL_PROMPT'].includes(upper) ||
-      (!options.museCode && (isCredentialVariable(name) || routes.includes(upper)))
+      [
+        'GIT_ASKPASS',
+        'SSH_ASKPASS',
+        'SSH_ASKPASS_REQUIRE',
+        'SUDO_ASKPASS',
+        'GIT_TERMINAL_PROMPT',
+        'GIT_SSH',
+        'GIT_SSH_COMMAND',
+        'GIT_SSH_VARIANT',
+      ].includes(upper) ||
+      (!options.museCode &&
+        (/^(?:BASH_ENV|ENV|BASH_FUNC_.*|NODE_OPTIONS|NODE_PATH|LD_PRELOAD|LD_LIBRARY_PATH|DYLD_.*|ELECTRON_.*)$/u.test(
+          upper,
+        ) ||
+          isCredentialVariable(name) ||
+          routes.includes(upper)))
     )
       continue
     env[name] = value
@@ -44,5 +66,6 @@ export function vaultFenceEnvironment(
   for (const name of ['GIT_ASKPASS', 'SSH_ASKPASS', 'SUDO_ASKPASS'])
     env[name] = options.refusingHelper ?? ''
   if (options.sshSocket !== undefined) env['SSH_AUTH_SOCK'] = options.sshSocket
+  if (options.sshCommand !== undefined) env['GIT_SSH_COMMAND'] = options.sshCommand
   return env
 }

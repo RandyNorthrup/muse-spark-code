@@ -203,7 +203,6 @@ describe('hookEnvironment (M51)', () => {
       HOME: '/home/u',
       PATH: '/usr/bin:/opt/bin',
       LANG: 'en_US.UTF-8',
-      CI_TOKEN: 'secret',
     })
   })
 

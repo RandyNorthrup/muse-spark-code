@@ -4,8 +4,9 @@
 // workspace root; a directory outside the workspace resets to the root with a
 // note. The host wraps the user's command with a trailer reporting the final
 // directory to the session's side file and reads it back (never the output,
-// which can be truncated). The declared tool description and schema never
-// change (SoL-Pi rule 1); `then_run` and `run_checks` still run at the root.
+// which can be truncated). The directory wrapper preserves the declared tool
+// description and schema (SoL-Pi rule 1); M109 adds optional secret routes to
+// that schema. `then_run` and `run_checks` still run at the root.
 
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
@@ -25,6 +26,7 @@ import {
   toolDefinitions,
 } from '../../src/core/backends/modelapi/tools'
 import type { ShellResult } from '../../src/core/shellResult'
+import { VAULT_EXEC_PARAMETERS } from '../../src/core/vault/exec/toolSchema'
 import { SETTING_DEFAULTS, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import type { AgentEvent } from '../../src/shared/agentEvents'
@@ -432,6 +434,7 @@ describe('the shell tool declaration', () => {
               type: 'integer',
               description: 'Milliseconds before the command is stopped',
             },
+            secrets: VAULT_EXEC_PARAMETERS.secrets,
           },
           required: ['command', 'description'],
           additionalProperties: false,

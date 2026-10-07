@@ -83,6 +83,9 @@ import { SUBAGENT_TOOL_DEFINITIONS } from './subagentTools'
 import { runChecksDefinition, THEN_RUN_PROPERTY } from './verifyTools'
 
 import type { ShellResult } from '../../shellResult'
+import { vaultShellSecretsSchema, type VaultShellSecrets } from '../../vault/exec/schema'
+import { VAULT_EXEC_PARAMETERS } from '../../vault/exec/toolSchema'
+import type { McpTool } from '../../mcp'
 export type { ShellResult } from '../../shellResult'
 
 /**
@@ -151,6 +154,17 @@ export type SearchWorkerMessage =
 
 /** What the host lends the tools: files, a matcher it can stop, and a shell. */
 export interface ToolIo {
+  /** Bound by the trusted session launcher; unavailable until the broker route is installed. */
+  readonly vaultTools?: readonly McpTool[]
+  readonly runVaultShell?: (
+    command: string,
+    cwd: string,
+    timeoutMs: number,
+    secrets: VaultShellSecrets,
+    signal?: AbortSignal,
+    limit?: ShellTimeLimit,
+    assertCanRun?: () => void,
+  ) => Promise<ShellResult>
   /**
    * The file's text, a UTF-8 BOM kept; undefined when it does not exist.
    * Rejects for a file that is not UTF-8 text (binary, UTF-16, Latin-1…):
@@ -533,6 +547,7 @@ const shellArgs = z.object({
   command: z.string(),
   description: z.optional(z.string()),
   timeout_ms: z.optional(z.number()),
+  secrets: z.optional(vaultShellSecretsSchema),
 })
 export const askUserArgs = z.object({ questions: z.array(questionSchema) })
 export const readSkillArgs = z.object({ id: z.string() })
@@ -543,6 +558,7 @@ const PATH_PROPERTY = { type: 'string', description: 'Workspace-relative path' }
 const SHELL_STOPPED_BY_USER = 'stopped by the user'
 
 export interface ToolDefinitionOptions {
+  readonly vaultTools?: readonly McpTool[]
   /** False in Restricted Mode: no shell tool is offered (PLAN.md D13). */
   readonly hasShell: boolean
   /**
@@ -602,6 +618,15 @@ export function toolDefinitions(
     strict: false,
   })
   return [
+    ...(options.vaultTools ?? [])
+      .filter((tool) => options.hasShell || tool.name !== 'vault_run')
+      .map((tool): FunctionToolDefinition => ({
+        type: 'function',
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.inputSchema,
+        strict: false,
+      })),
     define(
       MODEL_API_TOOLS.readFile,
       'Read a file from the workspace. A text file comes back numbered by line (use offset and limit for long files); a PDF or an image (PNG, JPEG, GIF, WebP) comes back whole, for you to see.',
@@ -658,6 +683,7 @@ export function toolDefinitions(
             `Run one ${shell.shellName} command line in the workspace root and return its output.`,
             {
               command: { type: 'string' },
+              secrets: VAULT_EXEC_PARAMETERS.secrets,
               description: { type: 'string', description: 'One line saying what the command does' },
               timeout_ms: {
                 type: 'integer',
@@ -1513,15 +1539,37 @@ async function shell(args: z.infer<typeof shellArgs>, context: ToolContext): Pro
     Math.max(args.timeout_ms ?? SHELL_DEFAULT_TIMEOUT_MS, 1),
     SHELL_MAX_TIMEOUT_MS,
   )
-  const result = await context.io.runShell(
-    args.command,
-    context.shellCwd ?? context.workspaceRoot,
-    timeoutMs,
-    context.signal,
-    context.limit,
-    context.assertCanRun,
-  )
-  return shellOutcome(result, timeoutMs)
+  if (args.command.includes('secret://'))
+    return failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.noAccess)
+  if (args.secrets && !context.io.runVaultShell)
+    return failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.brokerBlocked)
+  try {
+    const result =
+      args.secrets && context.io.runVaultShell
+        ? await context.io.runVaultShell(
+            args.command,
+            context.shellCwd ?? context.workspaceRoot,
+            timeoutMs,
+            args.secrets,
+            context.signal,
+            context.limit,
+            context.assertCanRun,
+          )
+        : await context.io.runShell(
+            args.command,
+            context.shellCwd ?? context.workspaceRoot,
+            timeoutMs,
+            context.signal,
+            context.limit,
+            context.assertCanRun,
+          )
+    return args.secrets && result.exitCode === null
+      ? failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.noAccess)
+      : shellOutcome(result, timeoutMs)
+  } catch (error: unknown) {
+    if (args.secrets) return failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.noAccess)
+    throw error
+  }
 }
 
 /**
@@ -1664,6 +1712,17 @@ export async function executeTool(
       return parsed.success ? await shell(parsed.data, context) : argumentFailure(parsed.error)
     }
     default: {
+      const tool = context.io.vaultTools?.find((tool) => tool.name === name)
+      if (tool) {
+        const args = z.record(z.string(), z.unknown()).safeParse(raw)
+        if (!args.success) return argumentFailure(args.error)
+        try {
+          const output = await tool.call(args.data, context.signal ?? new AbortController().signal)
+          return { output: clip(output), visibleOutput: clip(output) }
+        } catch {
+          return failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.noAccess)
+        }
+      }
       return failure(`unknown tool ${name}`)
     }
   }

@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto'
 import { shellEnvironment } from '../../../src/host/backend/toolIo'
 import { withoutCredentials, withoutKeyringRoutes } from '../../../src/runtime/credentialVariables'
 import { vaultFenceEnvironment } from '../../../src/core/vault/exec/fence'
+import { shellArguments } from '../../../src/host/backend/toolIo'
 import { fakeMuseCodeManager } from '../helpers/museCodeManager'
 
 describe('M109 X credential fence', () => {
@@ -12,11 +13,17 @@ describe('M109 X credential fence', () => {
     META_API_KEY: canary,
     arbitrary_api_key: canary,
     AWS_SECRET_ACCESS_KEY: canary,
+    NPM_TOKEN: canary,
+    AZURE_CLIENT_SECRET: canary,
+    SERVICE_PASSWORD: canary,
+    BASH_ENV: '/ambient/startup',
+    NODE_OPTIONS: canary,
     Gh_Token: canary,
     DBUS_SESSION_BUS_ADDRESS: canary,
     XDG_RUNTIME_DIR: '/ambient',
     SSH_AUTH_SOCK: '/ambient/agent',
     SSH_AGENT_PID: '7',
+    GIT_SSH_COMMAND: '/ambient/ssh',
     GIT_CONFIG_COUNT: '99',
     GIT_CONFIG_KEY_8: 'credential.helper',
     GIT_CONFIG_VALUE_8: 'store',
@@ -35,6 +42,14 @@ describe('M109 X credential fence', () => {
     expect(env['GIT_TERMINAL_PROMPT']).toBe('0')
     expect(env['GIT_CONFIG_PARAMETERS']).toBeUndefined()
     expect(env['GIT_CONFIG_KEY_8']).toBeUndefined()
+    expect(env['BASH_ENV']).toBeUndefined()
+    expect(env['GIT_SSH_COMMAND']).toBeUndefined()
+    expect(shellArguments('linux', 'echo safe', undefined, true)).toEqual([
+      '--noprofile',
+      '--norc',
+      '-c',
+      'echo safe',
+    ])
   })
   it('fences runtime tools including git config overrides and askpass', () => {
     const env = withoutKeyringRoutes(withoutCredentials(source))
@@ -46,11 +61,12 @@ describe('M109 X credential fence', () => {
   it('accepts only the launcher socket and helper, with Windows case duplicates removed', () => {
     const env = vaultFenceEnvironment(
       { ...source, ssh_auth_sock: '/foreign' },
-      { sshSocket: 'broker.sock', refusingHelper: '/trusted/refuse' },
+      { sshSocket: 'broker.sock', sshCommand: '/trusted/ssh', refusingHelper: '/trusted/refuse' },
     )
     expect(env['SSH_AUTH_SOCK']).toBe('broker.sock')
     expect(env['ssh_auth_sock']).toBeUndefined()
     expect(env['GIT_ASKPASS']).toBe('/trusted/refuse')
+    expect(env['GIT_SSH_COMMAND']).toBe('/trusted/ssh')
     expect(source.SSH_AUTH_SOCK).toBe('/ambient/agent')
   })
   it('preserves Muse Code credentials while replacing its ambient SSH and git', () => {
