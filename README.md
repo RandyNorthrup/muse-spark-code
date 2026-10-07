@@ -4471,7 +4471,9 @@ machine-scoped switches; each conversation snapshots the choice. Strict
 schemas require the selected model's known support. Turning strict schemas
 off preserves the previous declarations. Safe reads run at most four at a
 time; writes and other tools retain their order. An output-limit continuation
-is bounded to one request, and repeated unchanged tool results stop the turn.
+is bounded to one request for text-only replies. A cut-short reply containing
+tool calls runs none of them and fails the turn; replay retains their error
+results. Repeated unchanged tool results stop the turn.
 
 `museSpark.webSearchMaxPerRequest` bounds hosted searches to 1–20 (default 5)
 where the selected model supports that bound. The first paid use presents the

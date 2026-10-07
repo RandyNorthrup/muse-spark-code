@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Restore model-picker group headings, fail cut-short tool replies even with
+  continuation enabled, and include the new lazy bundles in support frames.
+  Refresh complete-suite package, capability, observer, lazy-card and exact-price
+  fixtures while preserving the existing retry policy plus D86’s 504 addition.
+
 - Isolate compaction from headless answer schemas, honor search consent for its
   window, and bind Git drafts and Judge to captured structured output formats.
   Refresh hosted-search regression evidence and clarify local schema references.

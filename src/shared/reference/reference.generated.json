@@ -278,6 +278,21 @@
       "editors": ["vscode"]
     },
     {
+      "id": "cut-short-tools",
+      "name": { "ui": "incompleteToolCallsNotRun" },
+      "summary": { "ui": "incompleteToolCallsNotRun" },
+      "description": { "ui": "incompleteToolCallsNotRun" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "structured-side-calls",
       "name": { "ui": "structuredOutputRepair" },
       "summary": { "ui": "structuredOutputFallback" },

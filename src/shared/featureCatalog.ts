@@ -283,6 +283,17 @@ export function featureCatalog(): readonly Feature[] {
       ['modelApi'],
     ),
     feature(
+      'cut-short-tools',
+      { ui: 'incompleteToolCallsNotRun' },
+      { ui: 'incompleteToolCallsNotRun' },
+      [],
+      [],
+      'agent-loop-guarantees',
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
       'structured-side-calls',
       { ui: 'structuredOutputRepair' },
       { ui: 'structuredOutputFallback' },

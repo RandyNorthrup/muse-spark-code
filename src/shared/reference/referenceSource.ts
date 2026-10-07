@@ -60,9 +60,13 @@ export { parseHandoffPrompt } from '../handoff'
 // The tooling gate also checks tool/action coverage and host admission witnesses.
 const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['providers', ['vscode:museCode', 'vscode:modelApi']],
-  ...['strict-tools', 'parallel-reads', 'auto-compaction', 'structured-side-calls'].map(
-    (id): [string, readonly string[]] => [id, ['vscode:modelApi', 'acp:modelApi']],
-  ),
+  ...[
+    'strict-tools',
+    'parallel-reads',
+    'auto-compaction',
+    'cut-short-tools',
+    'structured-side-calls',
+  ].map((id): [string, readonly string[]] => [id, ['vscode:modelApi', 'acp:modelApi']]),
   ...['argument-preview', 'service-status'].map((id): [string, readonly string[]] => [
     id,
     ['vscode:modelApi'],

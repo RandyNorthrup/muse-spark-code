@@ -27523,6 +27523,15 @@ every Model API user in every editor.
 
 ### M106 — Agent-loop wire guarantees (D86)
 
+**M106W continuation 3 (2026-10-06, macmini).** Resolve the 15 full-suite
+blockers recorded by W: reconcile only D86-authorized behavior changes, repair
+stale fake package/capability/lazy UI fixtures, and fix shipped frame coverage.
+Retain cut-short no-execution/failure semantics and pre-existing Meta retries;
+D86.6 adds 504. Run every complete unit/e2e file in serial batches of at most
+three with repository timeouts, unchanged off-feature goldens, and build/size
+gates. No live calls, merge, push, raised cap, retry loop or weakened assertion.
+Evidence is in `docs/certification/m106-w3.md`.
+
 **FIXM106W review repairs (2026-10-06, macmini).** Close all six RVM106W
 findings: strip the exec answer format before compaction's own structured or
 text request; bind search's window Once to its provider/model/tariff and live

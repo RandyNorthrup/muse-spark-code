@@ -180,6 +180,14 @@ Surfaces: vscode:modelApi. Paid: no extra feature charge; model usage still appl
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
 
+### The model reply was cut short. No tool calls were run; please retry.
+
+The model reply was cut short. No tool calls were run; please retry.
+
+Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
+
 ### The structured answer was invalid. Retrying once…
 
 The structured answer could not be validated. Using the text fallback.

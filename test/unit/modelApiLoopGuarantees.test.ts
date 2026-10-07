@@ -387,14 +387,11 @@ describe('M106 loop guarantees', () => {
     await on.host.close()
   })
 
-  it('continues once, preserves partial text and pairs cut-short calls with errors without executing', async () => {
+  it('continues text-only output once and preserves partial text (D86.5)', async () => {
     const rig = await setup()
     rig.api.script(
       {
         text: 'Partial.',
-        calls: [
-          { name: 'write_file', arguments: '{"path":"new.txt","content":"unsafe"}', callId: 'cut' },
-        ],
         incomplete: { reason: 'max_output_tokens' },
       },
       { text: 'Still partial.', incomplete: { reason: 'max_output_tokens' } },
@@ -405,19 +402,48 @@ describe('M106 loop guarantees', () => {
     expect(rig.io.files.has('/ws/new.txt')).toBe(false)
     const next = JSON.stringify(rig.api.responseBodies()[1]?.['input'])
     expect(next).toContain('Partial.')
+    expect(next).toContain(MODEL_API_MODEL_TEXT.continuationPrompt)
+    expect(notices(rig)).toContain(UI_TEXT.modelApiContinuing)
+    expect(notices(rig)).toContain(UI_TEXT.modelApiContinuationLimit)
+    await rig.host.close()
+  })
+
+  it('fails cut-short calls with continuation on and preserves partial text and error replay (D86.5)', async () => {
+    const rig = await setup({ outputContinuation: () => true })
+    rig.api.script({
+      text: 'Partial.',
+      calls: [
+        { name: 'write_file', arguments: '{"path":"new.txt","content":"unsafe"}', callId: 'cut' },
+      ],
+      incomplete: { reason: 'max_output_tokens' },
+    })
+    await send(rig)
+    expect(rig.api.responseBodies()).toHaveLength(1)
+    expect(rig.io.files.has('/ws/new.txt')).toBe(false)
+    expect(rig.events).toContainEqual({
+      type: 'turnCompleted',
+      turnId: expect.any(String),
+      terminal: 'failed',
+      reason: UI_TEXT.incompleteToolCallsNotRun,
+      errorKind: 'modelApi',
+      durationMs: expect.any(Number),
+    })
+    expect(rig.events).toContainEqual({
+      type: 'itemCompleted',
+      item: expect.objectContaining({ kind: 'toolCall', tool: 'write_file', status: 'failed' }),
+    })
+    expect(notices(rig)).not.toContain(UI_TEXT.modelApiContinuing)
+    rig.api.script({ text: 'Retry acknowledged.' })
+    await send(rig)
+    const next = JSON.stringify(rig.api.responseBodies()[1]?.['input'])
+    expect(next).toContain('Partial.')
     expect(next).toContain(
       JSON.stringify({
         call_id: 'cut',
         output: `Error: ${MODEL_API_MODEL_TEXT.incompleteCallNotRun}`,
       }).slice(1, -1),
     )
-    expect(next).toContain(MODEL_API_MODEL_TEXT.continuationPrompt)
-    expect(notices(rig)).toContain(UI_TEXT.modelApiContinuing)
-    expect(notices(rig)).toContain(UI_TEXT.modelApiContinuationLimit)
-    expect(rig.events).toContainEqual({
-      type: 'itemCompleted',
-      item: expect.objectContaining({ kind: 'toolCall', tool: 'write_file', status: 'failed' }),
-    })
+    expect(next).not.toContain(MODEL_API_MODEL_TEXT.continuationPrompt)
     await rig.host.close()
   })
 

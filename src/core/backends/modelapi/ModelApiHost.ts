@@ -5031,13 +5031,9 @@ export class ModelApiSession implements AgentSession {
       this.skipCalls(turnId, calls, post.blockedReason)
       throw new HookStoppedError(post.blockedReason)
     }
-    // Continuation off preserves M101's failed turn after adoptOutput has
-    // paired every refused call with an error; no incomplete call runs.
-    if (
-      !this.outputContinuation &&
-      final.status === 'incomplete' &&
-      final.output.some((item) => isFunctionCallItem(item))
-    ) {
+    // A cut-short tool reply fails after adoptOutput pairs every refused
+    // call with an error (D86.5); continuation is for text-only replies.
+    if (final.status === 'incomplete' && final.output.some((item) => isFunctionCallItem(item))) {
       throw new ModelApiError(
         UI_TEXT.incompleteToolCallsNotRun,
         0,
