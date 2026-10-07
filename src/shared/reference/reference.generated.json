@@ -3356,20 +3356,6 @@
     },
     {
       "route": "serve",
-      "name": "serve: --provider <value>",
-      "description": "--provider <id>                   The provider the account belongs to (auth set, serve).",
-      "text": { "cli": "provider" },
-      "contract": { "type": "string", "repeatable": false }
-    },
-    {
-      "route": "serve",
-      "name": "serve: --account <value>",
-      "description": "--account <id>                    The account to use (auth set, serve, exec).",
-      "text": { "cli": "account" },
-      "contract": { "type": "string", "repeatable": false }
-    },
-    {
-      "route": "serve",
       "name": "serve: --trust-workspace",
       "description": "--trust-workspace                Load the folder’s rules, skills and memory",
       "text": { "cli": "trust-workspace" },
@@ -3469,20 +3455,6 @@
         "default": "museCode",
         "purpose": "acceptedUnused"
       }
-    },
-    {
-      "route": "login",
-      "name": "login: --provider <value>",
-      "description": "--provider <id>                   The provider the account belongs to (auth set, serve).",
-      "text": { "cli": "provider" },
-      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
-    },
-    {
-      "route": "login",
-      "name": "login: --account <value>",
-      "description": "--account <id>                    The account to use (auth set, serve, exec).",
-      "text": { "cli": "account" },
-      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
     {
       "route": "login",
@@ -3617,20 +3589,6 @@
         "default": "museCode",
         "purpose": "acceptedUnused"
       }
-    },
-    {
-      "route": "setup",
-      "name": "setup: --provider <value>",
-      "description": "--provider <id>                   The provider the account belongs to (auth set, serve).",
-      "text": { "cli": "provider" },
-      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
-    },
-    {
-      "route": "setup",
-      "name": "setup: --account <value>",
-      "description": "--account <id>                    The account to use (auth set, serve, exec).",
-      "text": { "cli": "account" },
-      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
     {
       "route": "setup",
@@ -3915,20 +3873,6 @@
     },
     {
       "route": "authStatus",
-      "name": "authStatus: --provider <value>",
-      "description": "--provider <id>                   The provider the account belongs to (auth set, serve).",
-      "text": { "cli": "provider" },
-      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
-    },
-    {
-      "route": "authStatus",
-      "name": "authStatus: --account <value>",
-      "description": "--account <id>                    The account to use (auth set, serve, exec).",
-      "text": { "cli": "account" },
-      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
-    },
-    {
-      "route": "authStatus",
       "name": "authStatus: --trust-workspace",
       "description": "--trust-workspace                Load the folder’s rules, skills and memory",
       "text": { "cli": "trust-workspace" },
@@ -4065,20 +4009,6 @@
         "default": "museCode",
         "purpose": "acceptedUnused"
       }
-    },
-    {
-      "route": "authClear",
-      "name": "authClear: --provider <value>",
-      "description": "--provider <id>                   The provider the account belongs to (auth set, serve).",
-      "text": { "cli": "provider" },
-      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
-    },
-    {
-      "route": "authClear",
-      "name": "authClear: --account <value>",
-      "description": "--account <id>                    The account to use (auth set, serve, exec).",
-      "text": { "cli": "account" },
-      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
     {
       "route": "authClear",
