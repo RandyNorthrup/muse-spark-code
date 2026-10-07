@@ -308,6 +308,10 @@ export class McpOAuthClient {
             (issuers.length === 1 && issuers[0] !== binding.issuer)
           )
             oauthDenied()
+          // The callback is consumed; close the listener before any item can commit.
+          const redirectUri = listener.redirectUri
+          listener.close()
+          listener = undefined
           const reply = tokenReply.parse(
             await oauthJson(this.ports.network, metadata.token_endpoint, {
               method: 'POST',
@@ -317,7 +321,7 @@ export class McpOAuthClient {
                 grant_type: 'authorization_code',
                 code: codes[0] ?? '',
                 client_id: binding.clientId,
-                redirect_uri: listener.redirectUri,
+                redirect_uri: redirectUri,
                 code_verifier: verifier,
                 resource: binding.resource,
               }).toString(),
@@ -364,6 +368,7 @@ export class McpOAuthClient {
       binding.handle,
       init.signal ?? new AbortController().signal,
       async (joined, check) => {
+        if (this.unusable.has(binding.handle)) oauthDenied()
         return await this.approved(binding, use, joined, check, 'use', async (authorize) => {
           check()
           authorize()
@@ -401,23 +406,34 @@ export class McpOAuthClient {
               )
               check()
               authorize()
-              this.unusable.add(binding.handle)
+              const dispatch = { hasStarted: false }
               try {
                 const previous = new TextDecoder('utf-8', { fatal: true }).decode(
                   material.refreshToken,
                 )
                 const reply = tokenReply.parse(
-                  await oauthJson(this.ports.network, metadata.token_endpoint, {
-                    method: 'POST',
-                    signal: joined,
-                    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({
-                      grant_type: 'refresh_token',
-                      refresh_token: previous,
-                      client_id: binding.clientId,
-                      resource: binding.resource,
-                    }).toString(),
-                  }),
+                  await oauthJson(
+                    this.ports.network,
+                    metadata.token_endpoint,
+                    {
+                      method: 'POST',
+                      signal: joined,
+                      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+                      body: new URLSearchParams({
+                        grant_type: 'refresh_token',
+                        refresh_token: previous,
+                        client_id: binding.clientId,
+                        resource: binding.resource,
+                      }).toString(),
+                    },
+                    false,
+                    () => {
+                      check()
+                      authorize()
+                      dispatch.hasStarted = true
+                      this.unusable.add(binding.handle)
+                    },
+                  ),
                 )
                 if (reply.refresh_token === undefined || isSame(reply.refresh_token, previous))
                   oauthDenied()
@@ -437,7 +453,8 @@ export class McpOAuthClient {
                 authorize()
                 this.unusable.delete(binding.handle)
               } catch {
-                await this.ports.vault.invalidate(binding.handle, parsed.metadata.id)
+                if (dispatch.hasStarted)
+                  await this.ports.vault.invalidate(binding.handle, parsed.metadata.id)
                 oauthDenied()
               }
             }

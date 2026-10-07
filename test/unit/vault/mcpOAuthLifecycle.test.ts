@@ -3,6 +3,65 @@ import { UI_TEXT } from '../../../src/shared/constants'
 import { isWiped, oauthFixture } from './mcpOAuthFixture'
 
 describe('M109 O rotation and generation', () => {
+  it('W-O1 cancellation before token dispatch leaves the refresh usable for a later call', async () => {
+    const f = oauthFixture()
+    await f.client.signIn(f.binding, f.signal)
+    f.advance()
+    const controller = new AbortController()
+    f.allowEndpoint.mockImplementation((url) => {
+      if (url === f.metadata.token_endpoint) controller.abort()
+      return Promise.resolve(true)
+    })
+    await expect(
+      f.client.fetch(f.binding, f.binding.resource, { ...f.init, signal: controller.signal }),
+    ).rejects.toThrow(UI_TEXT.vault.noAccess)
+    expect(f.vault.invalidate).not.toHaveBeenCalled()
+    f.allowEndpoint.mockResolvedValue(true)
+    await expect(f.client.fetch(f.binding, f.binding.resource, f.init)).resolves.toBeInstanceOf(
+      Response,
+    )
+  })
+  it('W-O2 a queued refresh checks quarantine after the failed leader settles', async () => {
+    const f = oauthFixture()
+    await f.client.signIn(f.binding, f.signal)
+    f.advance()
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    // Simulate a quarantine writer that cannot remove the stale stored token.
+    vi.mocked(f.vault.invalidate).mockImplementation(() => Promise.resolve())
+    const actual = f.fetcher.getMockImplementation()!
+    f.fetcher.mockImplementation(async (url, init) => {
+      if (url === f.metadata.token_endpoint) {
+        entered.resolve(undefined)
+        await release.promise
+        throw new Error('uncertain refresh dispatch')
+      }
+      return await actual(url, init)
+    })
+    const first = f.client.fetch(f.binding, f.binding.resource, f.init)
+    const second = f.client.fetch(f.binding, f.binding.resource, f.init)
+    const rejected = [
+      expect(first).rejects.toThrow(UI_TEXT.vault.noAccess),
+      expect(second).rejects.toThrow(UI_TEXT.vault.noAccess),
+    ]
+    await entered.promise
+    release.resolve(undefined)
+    await Promise.all(rejected)
+    expect(f.fetcher.mock.calls.filter(([url]) => url === f.metadata.token_endpoint)).toHaveLength(
+      2,
+    ) // sign-in + one refresh
+  })
+  it('W-O3 loopback close failure precedes the sign-in commit, allowing retry', async () => {
+    const f = oauthFixture()
+    f.close.mockImplementationOnce(() => {
+      throw new Error('loopback close failed')
+    })
+    await expect(f.client.signIn(f.binding, f.signal)).rejects.toThrow(UI_TEXT.vault.noAccess)
+    expect(f.vault.create).not.toHaveBeenCalled()
+    await expect(f.client.signIn(f.binding, f.signal)).resolves.toBeUndefined()
+    expect(f.saved.every(isWiped)).toBe(true)
+  })
+
   it('scoped revocation aborts its handle while leaving another queued sign-in live', async () => {
     const f = oauthFixture()
     await f.client.signIn(f.binding, f.signal)

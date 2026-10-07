@@ -26,6 +26,7 @@ export interface McpVaultPoolPort {
     server: string,
     url: string,
     headers: Readonly<Record<string, string>>,
+    isCancelled?: () => boolean,
   ): typeof fetch | undefined
 }
 
@@ -44,11 +45,13 @@ export interface McpVaultRoutePorts {
   remote(input: {
     server: string
     url: string
+    /** Rechecked at physical credential release by the trusted transport. */
+    isCancelled: () => boolean
     init: RequestInit
     uses: readonly { handle: string; use: Extract<VaultUse, { kind: 'header' }>; bearer: boolean }[]
   }): Promise<Response>
   /** O's broker-owned OAuth transport, selected by authenticated server registry. */
-  oauth?(server: string, url: string): typeof fetch | undefined
+  oauth?(server: string, url: string, isCancelled: () => boolean): typeof fetch | undefined
 }
 
 export function mcpVaultRoutes(ports: McpVaultRoutePorts): McpVaultPoolPort {
@@ -74,11 +77,11 @@ export function mcpVaultRoutes(ports: McpVaultRoutePorts): McpVaultPoolPort {
       }
       return child
     },
-    fetchFor(server, url, input) {
+    fetchFor(server, url, input, isCancelled = () => false) {
       const headers = { ...input }
       const refs = mcpSecretReferences({ transport: MCP_TRANSPORTS.streamableHttp, url, headers })
-      if (refs.size === 0) return ports.oauth?.(server, url)
-      if (ports.oauth?.(server, url) !== undefined) mcpSecretDenied()
+      if (refs.size === 0) return ports.oauth?.(server, url, isCancelled)
+      if (ports.oauth?.(server, url, isCancelled) !== undefined) mcpSecretDenied()
       const destination = new URL(url)
       if (
         destination.protocol !== 'https:' ||
@@ -97,7 +100,12 @@ export function mcpVaultRoutes(ports: McpVaultRoutePorts): McpVaultPoolPort {
         return { handle, use, bearer: headers[name]?.startsWith('Bearer ') === true }
       })
       return async (target, init) => {
-        if (typeof target !== 'string' || target !== url || init?.redirect !== 'error')
+        if (
+          typeof target !== 'string' ||
+          target !== url ||
+          init?.redirect !== 'error' ||
+          isCancelled()
+        )
           mcpSecretDenied()
         const safe = new Headers(init.headers)
         // The transport still carries handles; only the trusted route supplies credentials.
@@ -106,7 +114,13 @@ export function mcpVaultRoutes(ports: McpVaultRoutePorts): McpVaultPoolPort {
           safe.delete(name)
         }
         try {
-          return await ports.remote({ server, url, init: { ...init, headers: safe }, uses })
+          return await ports.remote({
+            server,
+            url,
+            isCancelled,
+            init: { ...init, headers: safe },
+            uses,
+          })
         } catch {
           mcpSecretDenied()
         }

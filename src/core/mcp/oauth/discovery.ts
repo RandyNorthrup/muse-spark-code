@@ -49,6 +49,8 @@ export async function oauthJson(
   url: string,
   init: RequestInit,
   canBeMissing = false,
+  /** Marks liability only after admission/cancellation checks, immediately before fetch. */
+  beforeDispatch?: () => void,
 ): Promise<unknown> {
   let response: Response | undefined
   let bytes: Buffer | undefined
@@ -56,6 +58,7 @@ export async function oauthJson(
   try {
     if (!endpoint.safeParse(url).success || !(await network.allowEndpoint(url))) oauthDenied()
     init.signal?.throwIfAborted()
+    beforeDispatch?.()
     response = await network.fetch(url, { ...init, redirect: 'error' })
     if (canBeMissing && response.status === HTTP_STATUS.notFound) return undefined
     if (

@@ -35,6 +35,35 @@ function fixture(entry: Record<string, unknown>, vault?: McpPoolDeps['vault']) {
 }
 
 describe('M109 O pool and spawner enforcement', () => {
+  it('W-O4 credentialed HTTP awaits admission and rechecks current workspace trust', async () => {
+    let isTrusted = true
+    const guarded = vi.fn<typeof fetch>(() => Promise.resolve(Response.json({ ok: true })))
+    const fetchFor = vi.fn(() => guarded)
+    const admission = vi.fn(() => {
+      isTrusted = false
+      return Promise.resolve()
+    })
+    const deps = modelApiMcpPoolDeps({
+      vault: { startStdio: () => Promise.reject(new Error('unused')), fetchFor },
+      beforeWorkspaceProcessStart: admission,
+      workspaceRoot: '/workspace',
+      settingsPath: () => '/fixture/settings.json',
+      isWorkspaceTrusted: () => isTrusted,
+      clientVersion: 'test',
+      platform: 'darwin',
+      env: () => ({}),
+      fetch: guarded,
+      log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    })
+    const transport = deps.vault?.fetchFor('one', 'https://mcp.example.test/mcp', {})
+    if (!transport) throw new Error('expected guarded transport')
+    await expect(transport('https://mcp.example.test/mcp', { redirect: 'error' })).rejects.toThrow(
+      UI_TEXT.questionCancelled,
+    )
+    expect(admission).toHaveBeenCalledOnce()
+    expect(guarded).not.toHaveBeenCalled()
+  })
+
   it('retains host checkpoint admission and current workspace trust for vault stdio', async () => {
     let isTrusted = true
     const startStdio = vi.fn(() => Promise.reject(new Error('fixture no process')))

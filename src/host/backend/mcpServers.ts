@@ -63,7 +63,15 @@ export function modelApiMcpPoolDeps(deps: ModelApiMcpDeps): McpPoolDeps {
             () => isCancelled() || !deps.isWorkspaceTrusted(),
           )
         },
-        fetchFor: (server, url, headers) => vault.fetchFor(server, url, headers),
+        fetchFor(server, url, headers) {
+          const transport = vault.fetchFor(server, url, headers, () => !deps.isWorkspaceTrusted())
+          return transport === undefined
+            ? undefined
+            : async (target, init) => {
+                await beforeStart(() => init?.signal?.aborted === true)
+                return await transport(target, init)
+              }
+        },
       },
     }),
     readSettings: () => readMcpServerEntries(readTextIfPresent(deps.settingsPath())),
