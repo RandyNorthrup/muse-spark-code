@@ -14,6 +14,20 @@ happened, not what was planned; superseded entries are kept.
   gives the rule that prevents it and the milestone that will enforce that
   rule in the app's own orchestrator (D100).
 
+### Added
+
+- Ship the orchestrator-playbook first-party skill (all nine rules, the
+  third-strike design-decision template, two redesigns from this repository).
+  The Model API discovers it through the existing bundled-skills path while a
+  project or personal skill with that id takes precedence; Muse Code receives
+  it through Install Bundled Skills, which now copies first-party skills
+  byte-exact beside the vendored workflows, offers Update on first-party-only
+  changes by content digest, and refuses missing sources, invalid ids,
+  non-file skills and linked roots. The reviewer charter (eight classes,
+  coverage, dispositions, exact prior-id redesign resolutions) is a lazily
+  read model-text block of its own behind the existing skills bundle, so no
+  other request changes. Orchestrated reviewer bindings belong to M116 I/W.
+
 ### Fixed
 
 - Use native Git hook dispatch and its exit verdict throughout playbook
