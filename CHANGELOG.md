@@ -92,6 +92,27 @@ happened, not what was planned; superseded entries are kept.
 - Provider-specific retry-table binding remains pending for non-Meta transports;
   the shared retry classifier does not certify endpoint quota refusal.
 
+### Documentation
+
+- New orchestration docs: `docs/orchestration/ssh-limits.md` (SSH connection
+  limits, how they apply, per-platform handling) backing gotchas G50–G52, and
+  `docs/orchestration/playbook-placement.md` (placement, load balancing and
+  moving work, model-agnostic) for the M116 playbook skill to adopt.
+- Orchestration gotcha rows numbered after the rows 0.15.0 shipped: key
+  installs G49, handshake throttling G50, the Windows desktop heap G51,
+  password and probe penalties G52. New rows G34 (smoke call per engine per
+  machine), G35 (launch liveness probe), G36 (done means a clean tree, listed
+  steps and a moved head) and G37 (fail-closed safety checks, per-run caches
+  in the run's workspace).
+- Eleven orchestration gotcha rows G38–G48 (orphan process trees, the
+  completion ledger with a 15-minute alarm, cadence pulls of critical-path
+  heads, one owning lane per file, pipelined releases, clean-tree
+  certification, early draft PRs, hotfixes running full prep checks,
+  reviewer inputs inside the workspace, one repair per failure class,
+  sweep hits checked before a bulk edit), with D100 amendments for M96c,
+  M107, M116 and M117. The playbook placement chapter gains lessons 11–20
+  covering the same failures, still model-agnostic.
+
 ## [0.15.0] - 2026-10-06
 
 ### Highlights
