@@ -12830,7 +12830,13 @@ test that fails without the rule:
    `criticalPathPullsCommittedHeads`); G41 one owning lane per file before
    launch, checked at merge (test `fileOwnershipCheckedAtMerge`); G46
    reviewer inputs inside the workspace or inlined, and no verdict means
-   re-dispatch (tests `reviewerInputInsideWorkspace`, `noVerdictRedispatches`).
+   re-dispatch (tests `reviewerInputInsideWorkspace`, `noVerdictRedispatches`);
+   G47 a repair leg takes a failure class with its complete evidence (the
+   whole log, every caller and every workflow running the failing check),
+   never a single instance (test `repairLegCoversFailureClass`); G48 a
+   bulk-edit leg checks each sweep hit against the effective state before
+   editing and reports its false positives (test
+   `sweepHitsVerifiedBeforeBulkEdit`).
 10. **M107 (governor, 2026-10-07):** G38 stopping a run kills its whole
     process tree, with a device-watcher sweep for orphans whose start time
     matches no live run (test `orphanSweepKillsStaleTree`); M100 and M110
@@ -12841,7 +12847,8 @@ test that fails without the rule:
     clean tree with CI's environment on the slowest platform (test
     `workerGreenIsNotCiEquivalent`); G44 a draft PR opened when integration
     starts (test `draftPrAtIntegrationStart`); G45 hotfixes run the full
-    prep checks (test `hotfixRunsFullPrepChecks`); G46 with M96c.
+    prep checks (test `hotfixRunsFullPrepChecks`); G46 and G47 with M96c,
+    the reviewer charter asking where else a failing check runs.
 12. **M117 (estimator, 2026-10-07):** G39 a bottleneck card for
     done-unprocessed lanes with their ages (test
     `bottleneckCardShowsUnprocessedAges`).

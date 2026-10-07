@@ -192,6 +192,14 @@ Each lesson here cost real time on 2026-10-06. The playbook skill carries them a
     - _What happened:_ four planned releases ran strictly one after another, so a slow first release blocked the other three entirely.
     - _Rule:_ as soon as release N has a candidate branch, release N+1's integration starts on top of that candidate, and N+2's milestones pre-integrate in parallel. Each later merge then picks up only N's last fixes.
     - _Control:_ M116 release charter; M96c stacked integration branches with draft PRs; G42.
+19. **Fix a failure class in one pass, never one instance per gate run.**
+    - _What happened:_ a release's hosted CI failed overnight, round after round, each time on the next slow test past the same 5 s deadline. Each repair fixed only the files named in that run and paid a full 40-minute gate run to find the next one. A badge check's API quota failure was fixed in one workflow, then failed in a second workflow that ran the same check.
+    - _Rule:_ when a gate fails, the orchestrator names the failure's class (deadline, quota, platform path, memory), then sweeps the whole evidence (the complete log, every caller of the failing check, every workflow that runs it) for every instance before the next run. One repair covers the class.
+    - _Control:_ M96c repair legs take a class plus the full evidence, not a single failure; M116 reviewer charter asks "where else does this run?"; G47.
+20. **Sweep results are candidates; check each before a bulk edit.**
+    - _What happened:_ a scanner flagged 29 slow tests as lacking deadlines. 21 already had one that the scanner could not see (a suite option held in a variable). A bulk edit applied before checking would have tightened two suites from 60 s to 20 s, which then failed.
+    - _Rule:_ any automated sweep that feeds a bulk change has its hits checked against the effective state (here, the effective deadline after suite options) before editing. The checked count and the false positives go in the receipt.
+    - _Control:_ M96c bulk-edit legs carry a verification step and report false positives; G48.
 
 ## What each component implements
 
