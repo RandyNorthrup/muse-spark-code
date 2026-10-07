@@ -27532,6 +27532,15 @@ three with repository timeouts, unchanged off-feature goldens, and build/size
 gates. No live calls, merge, push, raised cap, retry loop or weakened assertion.
 Evidence is in `docs/certification/m106-w3.md`.
 
+**Continuation 3 verified.** Code commit `900669626`: all 590 complete
+unit/e2e files ran in 198 serial batches with repository timeouts; 13,050
+tests passed, 82 existing opt-in/platform cases skipped, zero failures.
+Individual static gates and production build/size gates pass; all 14 request
+goldens are unchanged. Three source regression drills and six missing-package
+artifact rejection cases fire. The 15 inherited blockers are resolved; the
+lead's aggregate, coverage, accessibility and release qualifications remain
+separate from this lane's evidence.
+
 **FIXM106W review repairs (2026-10-06, macmini).** Close all six RVM106W
 findings: strip the exec answer format before compaction's own structured or
 text request; bind search's window Once to its provider/model/tariff and live
