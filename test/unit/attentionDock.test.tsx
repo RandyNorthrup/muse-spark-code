@@ -197,20 +197,24 @@ describe('M112 attention dock and the two views', () => {
     expect(within(dock()).getByRole('group', { name: 'Colour' })).toBeVisible()
   })
 
-  it('shares choices, explanation and active tab between row and dock without coupling radio groups', async () => {
+  it('renders exactly one interactive card and a labelled compact transcript marker', async () => {
     const questions = group([waitingQuestion()])
     await mountScene(questions)
     const row = within(screen.getByRole('main'))
-    fireEvent.click(row.getByRole('radio', { name: 'Blue' }))
-    expect(within(dock()).getByRole('radio', { name: 'Blue' })).toBeChecked()
+    expect(row.getByText('Open question')).toBeVisible()
+    expect(row.getByRole('button', { name: 'Answer Open question Colour' })).toBeEnabled()
+    expect(row.queryByRole('radio')).toBeNull()
+    expect(screen.getAllByRole('button', { name: 'Submit' })).toHaveLength(1)
+    expect(screen.getByRole('main').querySelector('input, textarea, [role="tab"]')).toBeNull()
+    fireEvent.click(row.getByRole('button', { name: 'Answer Open question Colour' }))
+    expect(within(dock()).getByRole('radio', { name: 'Blue' })).toHaveFocus()
+    fireEvent.click(within(dock()).getByRole('radio', { name: 'Blue' }))
     fireEvent.click(within(dock()).getByRole('button', { name: 'Explain instead' }))
     fireEvent.change(within(dock()).getByLabelText('Your explanation'), {
       target: { value: 'Need more context' },
     })
-    expect(row.getByLabelText('Your explanation')).toHaveValue('Need more context')
-    expect(row.getByRole('radio', { name: 'Blue' }).getAttribute('name')).not.toBe(
-      within(dock()).getByRole('radio', { name: 'Blue' }).getAttribute('name'),
-    )
+    expect(screen.getAllByLabelText('Your explanation')).toHaveLength(1)
+    expect(within(dock()).getByLabelText('Your explanation')).toHaveValue('Need more context')
   })
 
   it('defers on the host snapshot while keeping a focused or drafted card full, preserving its late answer', async () => {

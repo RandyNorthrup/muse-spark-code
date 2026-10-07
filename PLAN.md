@@ -15527,8 +15527,8 @@ The owner, 2026-10-05:
      group is one line. The dock stays within
      `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION` (half the view) with its own
      scroll, so the composer and the newest reply stay in sight.
-   - **The dock and the row are two views of one question.** The transcript
-     row keeps its card (decision 7); answering either settles both.
+   - **One interactive view per question, pinned in the dock.** The
+     transcript keeps a compact marker whose Answer opens the dock (decision 7).
    - **MCP forms join the dock** (a lead addition: they are questions too,
      and get lost the same way). They keep their 300-second deadline and
      their cancel. MCP has no late answer, so an expired form says so and
@@ -15640,9 +15640,14 @@ The owner, 2026-10-05:
 
 7. **Easy to pick out in the transcript.**
    - **Waiting and open rows** carry a left accent, the `question` codicon
-     and the label **Open question** before the header. An open row is
-     folded to one line (the header, **Answer** and an expand chevron) and
-     opens in place.
+     and the label **Open question** before the header. Both stay compact:
+     **Answer** opens or expands the docked card, scrolls it into view and
+     focuses its first control, including after deferral. The full card
+     never renders in the transcript. MCP forms follow the same rule.
+   - **Amended 2026-10-07 (QPIN), owner ruling:** "If we fixed the questions
+     so they are pinned to the bottom why is there still a screenshot of it
+     floating in the middle of the chat?" This corrects the earlier decision
+     to keep a second full interactive card in the transcript.
    - **Settled rows** each have their own label and icon: Answered, Answered
      later, Answered when asked again, Explained, Declined, Dismissed,
      Expired. None is told by colour alone; high-contrast themes use
@@ -17343,8 +17348,8 @@ The owner, 2026-10-05:
      group is one line. The dock stays within
      `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION` (half the view) with its own
      scroll, so the composer and the newest reply stay in sight.
-   - **The dock and the row are two views of one question.** The transcript
-     row keeps its card (decision 7); answering either settles both.
+   - **One interactive view per question, pinned in the dock.** The
+     transcript keeps a compact marker whose Answer opens the dock (decision 7).
    - **MCP forms join the dock** (a lead addition: they are questions too,
      and get lost the same way). They keep their 300-second deadline and
      their cancel. MCP has no late answer, so an expired form says so and
@@ -17456,9 +17461,14 @@ The owner, 2026-10-05:
 
 7. **Easy to pick out in the transcript.**
    - **Waiting and open rows** carry a left accent, the `question` codicon
-     and the label **Open question** before the header. An open row is
-     folded to one line (the header, **Answer** and an expand chevron) and
-     opens in place.
+     and the label **Open question** before the header. Both stay compact:
+     **Answer** opens or expands the docked card, scrolls it into view and
+     focuses its first control, including after deferral. The full card
+     never renders in the transcript. MCP forms follow the same rule.
+   - **Amended 2026-10-07 (QPIN), owner ruling:** "If we fixed the questions
+     so they are pinned to the bottom why is there still a screenshot of it
+     floating in the middle of the chat?" This corrects the earlier decision
+     to keep a second full interactive card in the transcript.
    - **Settled rows** each have their own label and icon: Answered, Answered
      later, Answered when asked again, Explained, Declined, Dismissed,
      Expired. None is told by colour alone; high-contrast themes use
@@ -18833,6 +18843,51 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### INT0160UX — Integrate 0.16.0 UI features on 0.15.0 (2026-10-07, linuxlt)
+
+- [x] Merge QPIN `dcac54ea5` with `git merge --no-ff`, retaining current
+      release repairs and the pinned question surface.
+- [ ] Merge agent outcomes `c79cd749a` with `git merge --no-ff`, retaining
+      current team, question and agent-map behavior and all localized keys.
+- [ ] Audit the older agent-outcomes changes against current runtime paths;
+      add regression tests and prove any repair with a byte-restored red drill.
+- [ ] Verify committed code in a fresh clone after `npm ci`, with `CI=true`:
+      five typechecks, lint, formatting, plain knip, duplication, reference,
+      localization, unchanged production budgets and four default-timeout
+      coverage shards with merged thresholds.
+- [ ] Run the accessibility harness; regenerate README screenshots and replace
+      only images changed by these features. Record commands, counts, drills
+      and blockers in `docs/certification/int0160ux.md`.
+
+Version remains 0.15.0. Entries belong under Unreleased. The rig brief permits
+these two merges and full fresh-clone verification; no other merge, push,
+rebase, paid/live model call, timeout or gate relaxation is authorized.
+
+### QPIN — One question card, pinned above the composer (2026-10-07)
+
+The owner: "If we fixed the questions so they are pinned to the bottom why
+is there still a screenshot of it floating in the middle of the chat?"
+Amend D92.1 and D92.7: waiting and deferred questions keep only a compact
+transcript marker (icon, Open question, title and Answer). Answer selects,
+expands, scrolls and focuses the dock's first control. MCP forms follow the
+same rule. Preserve late delivery, drafts, approval priority and settled
+summaries. Update Help & Reference in all 14 languages and README images.
+Sized screenshot captures must wait for the same scenario, fonts and paints
+as wide captures: the existing early locator wait raced lazy question UI.
+
+- [x] Implement the marker and explicit dock navigation; owning tests and
+      a deliberate duplicate-card regression drill with byte-exact restore.
+- [x] Restore question.png beside approval; regenerate question-related
+      README shots and question accessibility scenes in all four themes.
+- [x] Commit with hooks; verify a fresh clone with npm ci and CI=true:
+      complete owning suites three times at default timeouts, five
+      typechecks, lint, format, plain knip, duplication, build, reference
+      and localization, keeping all thresholds unchanged.
+
+Record receipts in docs/certification/question-pinned.md. Shared common.md
+and review-common.md were absent from both C:/lanes/_ctx and the rig note's
+~/lanes/_ctx; the rig brief and repository rules govern this repair.
 
 ### CI0150M — Round 3 macOS CI repairs (2026-10-07, macmini)
 
@@ -41050,6 +41105,17 @@ timeout, retry, skip or other gate changes. Initial compiler probes exposed
 ambient-type resolution and cross-file matcher/declaration scope; preserve
 both through repository-local temporary configs and the shared support roots.
 Final evidence is recorded in `docs/certification/macslow.md`.
+
+### QPIN lane verification (2026-10-07)
+
+The rig brief scopes this repair to fresh-clone owning suites three times at
+default deadlines, five typechecks, lint, formatting, plain knip, duplication,
+unchanged build caps, reference and localization, plus question screenshots
+and four-theme accessibility. All passed; receipts are in
+`docs/certification/question-pinned.md`. Full `npm run quality`, unrelated
+repository coverage and native/installed-editor/live certification remain
+with release integration. This is a scoped run, not a gate relaxation: no
+rule, ignore, threshold, budget or deadline changed.
 
 **CI0150M round 3 aggregate status (2026-10-07).** The attempted unmodified
 `npm run quality` passes static gates, then fails whole-repository tests in

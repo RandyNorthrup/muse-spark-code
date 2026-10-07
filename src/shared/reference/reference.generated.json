@@ -465,15 +465,15 @@
     {
       "id": "questions",
       "name": { "ui": "questionSubmit" },
-      "summary": { "ui": "referenceQuestions" },
-      "description": { "ui": "referenceQuestions" },
+      "summary": { "ui": "referenceQuestionsDeferral" },
+      "description": { "ui": "referenceQuestionsDeferral" },
       "commands": ["museSpark.nextOpenQuestion", "museSpark.previousOpenQuestion"],
       "settings": ["museSpark.questions.deferAfterSeconds"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#questions",
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
-      "details": [{ "ui": "referenceQuestionsDeferral" }],
+      "details": [{ "ui": "referenceQuestions" }],
       "facts": { "actions": ["submit", "explain", "cancel"] },
       "editors": ["vscode", "acp"]
     },

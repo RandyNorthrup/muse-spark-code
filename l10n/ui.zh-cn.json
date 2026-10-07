@@ -3805,7 +3805,7 @@
   "openQuestionsTabCount": {
     "other": "{count} 个待回答"
   },
-  "referenceQuestionsDeferral": "在面板中，每个问题都会固定在消息框上方，记录中也保留其卡片。超过 museSpark.questions.deferAfterSeconds（默认 60 秒；0 表示无限期等待）后，Muse 会继续不依赖该答案的工作；卡片变为待回答的问题，你可以稍后回答或关闭且不回答。稍后的回答是你自己的消息，不会批准任何操作。下一个待回答的问题和上一个待回答的问题可在待回答的卡片之间切换。计划的提示会立即推迟问题，无界面的 exec 会拒绝问题。在 ACP 中，--questions-defer-after 设置表单期限，/questions 列出待回答的问题，/answer <n> <text> 回答其中一个。",
+  "referenceQuestionsDeferral": "面板中，每个问题只有一张交互卡片，固定在消息输入框上方。聊天记录保留简洁的待回答问题标记；点击回答会打开或展开固定卡片，并将焦点移至第一个控件，延后后也一样。MCP 表单遵循相同规则。 超过 museSpark.questions.deferAfterSeconds（默认 60 秒；0 表示无限期等待）后，Muse 会继续不依赖该答案的工作；卡片变为待回答的问题，你可以稍后回答或关闭且不回答。稍后的回答是你自己的消息，不会批准任何操作。下一个待回答的问题和上一个待回答的问题可在待回答的卡片之间切换。计划的提示会立即推迟问题，无界面的 exec 会拒绝问题。在 ACP 中，--questions-defer-after 设置表单期限，/questions 列出待回答的问题，/answer <n> <text> 回答其中一个。 选择答案并提交、用自己的话解释，或取消。提交的答案和解释会在对话中传给 Muse。",
   "promptSave": "保存提示词",
   "promptUseSaved": "使用已保存的提示词…",
   "promptLibrary": "提示词库",

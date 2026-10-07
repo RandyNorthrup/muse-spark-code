@@ -31,6 +31,7 @@ const name: Question = {
 
 function renderCard(questions: readonly Question[]) {
   const props: QuestionCardProps = {
+    isDockCard: true,
     question: { userInputId: 'q1', questions },
     onAnswer: vi.fn(),
     onCancel: vi.fn(),
@@ -136,6 +137,7 @@ describe('QuestionCard: Explain instead (M46)', () => {
     expect(submit()).toBeInTheDocument()
     render(
       <QuestionCard
+        isDockCard
         question={{ userInputId: 'q2', questions: [colour], isSubmitted: true }}
         onAnswer={vi.fn()}
         onCancel={vi.fn()}

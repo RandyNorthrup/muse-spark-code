@@ -11,7 +11,7 @@
 import { useEffect, useId, useState } from 'react'
 import type { Question, QuestionAnswer } from '../../shared/agentEvents'
 import { CLARIFICATION_MAX_CHARS, MILLISECONDS_PER_SECOND, UI_TEXT } from '../../shared/constants'
-import type { ToolEntry, PendingQuestion } from '../state/uiState'
+import type { ToolEntry, PendingQuestion, PendingElicitation } from '../state/uiState'
 import type { QuestionState } from '../../shared/questions'
 import { fill, formatNumber } from '../../shared/l10n/text'
 import { ExpandChevron, CloseIcon } from './icons'
@@ -218,6 +218,54 @@ function QuestionIcon({ state }: { readonly state: QuestionState }) {
   )
 }
 
+/** The transcript's only open view; controls live in the attention dock. */
+function QuestionMarker({
+  id,
+  kind,
+  title,
+  isLocked,
+}: {
+  readonly id: string
+  readonly kind: 'question' | 'elicitation'
+  readonly title: string
+  readonly isLocked: boolean
+}) {
+  const surface = useAttentionSurface()
+  const labelId = useId()
+  const titleId = useId()
+  const answerId = useId()
+  return (
+    <div
+      className="question question-open question-folded"
+      data-question-id={kind === 'question' ? id : undefined}
+      data-question-slot="row"
+      role="group"
+      aria-label={title}
+    >
+      <div className="question-summary">
+        <span id={labelId} className="question-state-label">
+          <QuestionIcon state="open" />
+          {UI_TEXT.questionOpen}
+        </span>
+        <span id={titleId} className="question-summary-header" dir="auto" title={title}>
+          {title}
+        </span>
+        <button
+          type="button"
+          className="button-secondary"
+          aria-labelledby={`${answerId} ${labelId} ${titleId}`}
+          disabled={isLocked || surface === undefined}
+          onClick={() => {
+            surface?.selectDockCard({ kind, id })
+          }}
+        >
+          <span id={answerId}>{UI_TEXT.questionAnswer}</span>
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function Countdown({ deadlineAt }: { readonly deadlineAt: number }) {
   const [now, setNow] = useState(Date.now)
   useEffect(() => {
@@ -332,6 +380,15 @@ export function QuestionCard({
     })
   }
   const isReady = question.questions.every((entry) => isComplete(entry, draftFor(entry.id)))
+  if (!isDockCard && !isSettled)
+    return (
+      <QuestionMarker
+        id={question.userInputId}
+        kind="question"
+        title={question.questions[0]?.header ?? UI_TEXT.questionOpen}
+        isLocked={isLocked}
+      />
+    )
   const active = question.questions[activeIndex] ?? question.questions[0]
   const renderQuestion = (entry: Question) => {
     const current = draftFor(entry.id)
@@ -401,7 +458,6 @@ export function QuestionCard({
       tabIndex={-1}
       onFocus={() => {
         setIsFocused(true)
-        if (isDockCard) surface?.selectDockCard({ kind: 'question', id: question.userInputId })
       }}
       onBlur={(event) => {
         if (event.currentTarget.contains(event.relatedTarget)) {
@@ -410,7 +466,8 @@ export function QuestionCard({
 
         setIsFocused(false)
         if (state === 'open') setFoldedRequest(requestKey)
-        if (isDockCard && state === 'open') surface?.selectDockCard(undefined)
+        if (isDockCard && surface?.dockCard?.id === question.userInputId)
+          surface.selectDockCard(undefined)
       }}
       {...menu.rowProps}
       role="group"
@@ -456,86 +513,88 @@ export function QuestionCard({
           </>
         ) : null}
       </div>
-      <div hidden={!isFull} inert={menu.isOpen}>
-        {state === 'waiting' && question.deadlineAt !== undefined ? (
-          <Countdown deadlineAt={question.deadlineAt} />
-        ) : null}
-        {question.questions.length > 1 ? (
-          <div className="question-tabs" role="tablist">
-            {question.questions.map((entry, index) => (
+      {isDockCard ? (
+        <div hidden={!isFull} inert={menu.isOpen}>
+          {state === 'waiting' && question.deadlineAt !== undefined ? (
+            <Countdown deadlineAt={question.deadlineAt} />
+          ) : null}
+          {question.questions.length > 1 ? (
+            <div className="question-tabs" role="tablist">
+              {question.questions.map((entry, index) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  role="tab"
+                  className="question-tab"
+                  aria-selected={index === activeIndex}
+                  onClick={() => {
+                    changeDraft({ activeIndex: index })
+                  }}
+                >
+                  {entry.header}
+                  {isComplete(entry, draftFor(entry.id)) ? ' ✓' : ''}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {active === undefined ? null : renderQuestion(active)}
+          {isExplaining ? (
+            <ExplainForm
+              isLocked={isLocked}
+              isAutoFocus={isFocused}
+              text={cardDraft.explanation}
+              onChange={(explanation) => {
+                changeDraft({ explanation })
+              }}
+              onSend={(text) => {
+                onClarify(question.userInputId, text)
+              }}
+              onBack={() => {
+                changeDraft({ isExplaining: false })
+              }}
+            />
+          ) : (
+            <div className="question-actions">
               <button
-                key={entry.id}
                 type="button"
-                role="tab"
-                className="question-tab"
-                aria-selected={index === activeIndex}
+                className="button-primary"
+                disabled={!isReady || isLocked}
                 onClick={() => {
-                  changeDraft({ activeIndex: index })
+                  onAnswer(
+                    question.userInputId,
+                    question.questions.map((entry) => answerFor(entry, draftFor(entry.id))),
+                  )
                 }}
               >
-                {entry.header}
-                {isComplete(entry, draftFor(entry.id)) ? ' ✓' : ''}
+                {UI_TEXT.questionSubmit}
               </button>
-            ))}
-          </div>
-        ) : null}
-        {active === undefined ? null : renderQuestion(active)}
-        {isExplaining ? (
-          <ExplainForm
-            isLocked={isLocked}
-            isAutoFocus={isFocused}
-            text={cardDraft.explanation}
-            onChange={(explanation) => {
-              changeDraft({ explanation })
-            }}
-            onSend={(text) => {
-              onClarify(question.userInputId, text)
-            }}
-            onBack={() => {
-              changeDraft({ isExplaining: false })
-            }}
-          />
-        ) : (
-          <div className="question-actions">
-            <button
-              type="button"
-              className="button-primary"
-              disabled={!isReady || isLocked}
-              onClick={() => {
-                onAnswer(
-                  question.userInputId,
-                  question.questions.map((entry) => answerFor(entry, draftFor(entry.id))),
-                )
-              }}
-            >
-              {UI_TEXT.questionSubmit}
-            </button>
-            <button
-              type="button"
-              className="button-secondary"
-              title={UI_TEXT.questionExplainTitle}
-              disabled={isLocked}
-              onClick={() => {
-                changeDraft({ isExplaining: true })
-              }}
-            >
-              {UI_TEXT.questionExplain}
-            </button>
-            {state === 'open' ? null : (
               <button
                 type="button"
                 className="button-secondary"
+                title={UI_TEXT.questionExplainTitle}
                 disabled={isLocked}
                 onClick={() => {
-                  onCancel(question.userInputId)
+                  changeDraft({ isExplaining: true })
                 }}
               >
-                {UI_TEXT.questionCancel}
+                {UI_TEXT.questionExplain}
               </button>
-            )}
-          </div>
-        )}
-      </div>
+              {state === 'open' ? null : (
+                <button
+                  type="button"
+                  className="button-secondary"
+                  disabled={isLocked}
+                  onClick={() => {
+                    onCancel(question.userInputId)
+                  }}
+                >
+                  {UI_TEXT.questionCancel}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      ) : null}
       {menu.menu}
     </div>
   )
@@ -577,6 +636,21 @@ export function QuestionOutcome({
   )
 }
 
-export function QuestionView(props: QuestionCardProps | Parameters<typeof QuestionOutcome>[0]) {
-  return 'outcome' in props ? <QuestionOutcome {...props} /> : <QuestionCard {...props} />
+export function QuestionView(
+  props:
+    | QuestionCardProps
+    | Parameters<typeof QuestionOutcome>[0]
+    | { readonly elicitation: PendingElicitation },
+) {
+  if ('outcome' in props) return <QuestionOutcome {...props} />
+  if ('elicitation' in props)
+    return (
+      <QuestionMarker
+        id={props.elicitation.elicitationId}
+        kind="elicitation"
+        title={props.elicitation.server}
+        isLocked={props.elicitation.isSubmitted === true}
+      />
+    )
+  return <QuestionCard {...props} />
 }
