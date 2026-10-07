@@ -3712,6 +3712,45 @@ export const EN = {
   judgeStatusSlow: 'Off by default: too few results ready at the reviewer fence',
   judgeStatusSubscription: 'Subscription',
   judgeStatusPaid: 'Paid',
+  // The Models panel's Judge section (M98 phase 2, lane FP). Amounts are filled
+  // with the display language's money format; an unknown amount is not shown as zero.
+  judgePanel: {
+    source: 'Source',
+    model: 'Model',
+    technique: 'Technique',
+    calibration: 'Calibration',
+    partial: 'Distribution',
+    partialYes: 'Partial',
+    price: 'Price',
+    priceInput: '{input} per million input tokens',
+    priceCached: '{cached} per million cached input tokens',
+    priceOutput: '{output} per million output tokens',
+    reserved: 'Reserved',
+    settled: 'Settled',
+    uncertain: 'Uncertain, still a possible charge',
+    dailyBudget: 'Shared daily budget',
+    spentToday: 'Spent today',
+    notKnown: 'Not known',
+    unpriced: 'No price is known, so a paid call is not sent.',
+    askOnce: 'Review the price',
+    freeLocal: 'Free on this computer',
+    techniques: {
+      logprob: 'Log probabilities',
+      top1: 'Approximate, from the top token',
+      stated: 'Stated confidence',
+      systemone: 'System One answer',
+      sampling: 'Several samples',
+      contrastive: 'Question and its opposite',
+      cascade: 'Own model, then the separate judge',
+      embedding: 'Embedding shortcut',
+    },
+    labels: {
+      logprob: 'Calibrated from log probabilities',
+      stated: 'Calibrated from stated confidence',
+      uncalibrated: 'Uncalibrated',
+      top1: 'Approximate, from the top token',
+    },
+  },
   // Problems in the permission settings, each said once in the conversation.
   // {setting}: the setting's name; {index}: the rule's place in it, from 1;
   // {pattern}: the rule's words; {detail}: the error, or the failing example.

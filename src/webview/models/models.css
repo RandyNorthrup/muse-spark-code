@@ -37,6 +37,7 @@
 
 .models-nav {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 12px;
   border-bottom: 1px solid var(--vscode-panel-border);

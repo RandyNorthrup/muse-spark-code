@@ -1,4 +1,5 @@
 import type { JudgeStatus } from '../../shared/judge'
+import type { JudgePanelSnapshot } from '../../shared/judgePanel'
 // Webview UI state: a pure reducer over host messages and local edits. No DOM
 // access here; the components apply focus and caret changes. Timestamps come
 // in with the action (`at`) so reasoning durations stay deterministic in tests.
@@ -258,6 +259,8 @@ export interface CheckpointView {
 
 export interface UiState {
   readonly judge: JudgeStatus | undefined
+  /** Account & usage's Judge rows (M98 lane FP). The host sends `judgeUsage`. */
+  readonly judgeUsage: JudgePanelSnapshot | undefined
   /** Newest resolutions whose tool rows have not arrived yet; never saved. */
   readonly pendingApprovalResolutions: readonly Extract<AgentEvent, { type: 'approvalResolved' }>[]
   readonly phase: 'connecting' | 'ready'
@@ -659,6 +662,7 @@ export const initialUiState: UiState = {
   referenceValues: undefined,
   pendingInsert: undefined,
   judge: undefined,
+  judgeUsage: undefined,
   auth: { status: 'checking', detail: undefined, backend: undefined, methods: undefined },
   model: undefined,
   models: [],
@@ -2847,6 +2851,9 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'judgeState': {
       return { ...state, judge: message.state }
+    }
+    case 'judgeUsage': {
+      return { ...state, judgeUsage: message.usage }
     }
     case 'paidState': {
       return { ...state, paid: message.state }

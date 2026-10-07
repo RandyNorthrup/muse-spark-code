@@ -53,6 +53,7 @@ import {
   pullRequestFormSchema,
 } from './git'
 import { judgeStatusSchema } from './judge'
+import { judgePanelSnapshotSchema } from './judgePanel'
 import { paidStateSchema } from './paid'
 import { patchHunkSchema } from './patchDocument'
 import { reviewRequestSchema } from './reviewCommand'
@@ -1034,6 +1035,10 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // Sent on surfaceReady and on every change.
   z.object({ type: z.literal('paidState'), state: paidStateSchema }),
   z.object({ type: z.literal('judgeState'), state: judgeStatusSchema }),
+  // The Judge section's usage, for Account & usage (M98 lane FP). The same
+  // snapshot the Models panel validates. A subscription-only snapshot never
+  // asks for a charge; the host sends it, the dialog only renders it.
+  z.strictObject({ type: z.literal('judgeUsage'), usage: judgePanelSnapshotSchema }),
   // A message the host sent itself (M79: a plan's brief): the pending card,
   // as the composer's own Send would have made it. `turnAccepted` or
   // `sendFailed` follows with the same `localId`.
