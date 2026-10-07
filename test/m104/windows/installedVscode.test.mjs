@@ -30,6 +30,10 @@ it(
       'export function m104Double(value:number){return value*2}\nexport const result=m104Double(21)\n',
     )
     await writeFile(
+      path.join(workspace, 'tsconfig.json'),
+      JSON.stringify({ compilerOptions: { target: 'ES2022', strict: true }, include: ['*.ts'] }),
+    )
+    await writeFile(
       path.join(profile, 'User', 'settings.json'),
       JSON.stringify({
         'update.mode': 'none',
@@ -94,7 +98,7 @@ it(
       platform: 'win32',
       modelAttempts: 0,
     })
-    expect(result.receipts).toHaveLength(11)
+    expect(result.receipts).toHaveLength(13)
   },
   INSTALLED_EDITOR_TIMEOUT_MS,
 )

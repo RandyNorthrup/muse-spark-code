@@ -20,6 +20,7 @@ import type {
   LanguageServiceHost,
   RenameEdits,
 } from '../../../core/codeIntel/languageService'
+import type { MhpParams, MhpResult } from '../../../shared/hostApi/methods'
 
 const FILE_SCHEME = 'file'
 const FENCE = '```'
@@ -33,6 +34,24 @@ function isSamePath(first: string | undefined, second: string | undefined): bool
   const left = first.replaceAll('\\', '/')
   const right = second.replaceAll('\\', '/')
   return process.platform === 'win32' ? left.toLowerCase() === right.toLowerCase() : left === right
+}
+
+function isSameResource(first: string, second: string): boolean {
+  return (
+    first === second ||
+    isSamePath(pathOf(vscode.Uri.parse(first)), pathOf(vscode.Uri.parse(second)))
+  )
+}
+
+function mhpLocation(
+  value: vscode.Location | vscode.LocationLink,
+): MhpResult<'codeIntel/definition'>[number] {
+  return {
+    uri: ('targetUri' in value ? value.targetUri : value.uri).toString(),
+    range: fromRange(
+      'targetUri' in value ? (value.targetSelectionRange ?? value.targetRange) : value.range,
+    ),
+  }
 }
 
 function toPosition(at: CodePosition): vscode.Position {
@@ -283,5 +302,301 @@ export function vscodeLanguageServices(): LanguageServiceHost {
       vscode.env.appRoot,
       ...vscode.extensions.all.map((extension) => extension.extensionPath),
     ],
+  }
+}
+
+/** Frozen native methods retain virtual URIs; plans never write or invent file-operation support. */
+export function vscodeCodeIntelHandlers(
+  checkCurrent: (signal?: AbortSignal) => void,
+  refuse: (
+    code:
+      'versionConflict' | 'dirtyBuffer' | 'invalidParams' | 'unsupportedCapability' | 'cancelled',
+    message: string,
+  ) => never,
+  lifetime: AbortSignal,
+) {
+  type At = MhpParams<'codeIntel/definition'>
+  type Symbol = MhpResult<'codeIntel/documentSymbols'>[number]
+  async function query<T>(
+    command: string,
+    signal: AbortSignal | undefined,
+    ...args: unknown[]
+  ): Promise<T | undefined> {
+    checkCurrent(signal)
+    const ending = signal === undefined ? lifetime : AbortSignal.any([signal, lifetime])
+    let abort: (() => void) | undefined
+    // Node 20 at the supported VS Code floor has no Promise.withResolvers.
+    const cancelled = new Promise<never>((_resolve, reject) => {
+      abort = () => {
+        try {
+          checkCurrent(signal)
+          refuse('cancelled', 'MHP_CANCELLED')
+        } catch (error) {
+          reject(error instanceof Error ? error : new Error('MHP_CANCELLED'))
+        }
+      }
+      ending.addEventListener('abort', abort, { once: true })
+      if (ending.aborted) abort()
+    })
+    try {
+      return await Promise.race([run<T>(command, ...args), cancelled])
+    } finally {
+      if (abort !== undefined) ending.removeEventListener('abort', abort)
+    }
+  }
+  const callItem = (value: vscode.CallHierarchyItem): Symbol => ({
+    name: value.name,
+    kind: value.kind,
+    location: { uri: value.uri.toString(), range: fromRange(value.range) },
+    selection: fromRange(value.selectionRange),
+  })
+  const information = (value: vscode.SymbolInformation): Symbol => ({
+    name: value.name,
+    kind: value.kind,
+    location: mhpLocation(value.location),
+    selection: fromRange(value.location.range),
+    container: value.containerName,
+  })
+  async function opened(uri: string, signal?: AbortSignal) {
+    checkCurrent(signal)
+    const document = await vscode.workspace.openTextDocument(vscode.Uri.parse(uri))
+    checkCurrent(signal)
+    const version = document.version
+    const check = () => {
+      checkCurrent(signal)
+      if (document.version !== version) refuse('versionConflict', 'MHP_VERSION_CONFLICT')
+    }
+    return { document, check }
+  }
+  async function at(params: At, signal?: AbortSignal) {
+    const snapshot = await opened(params.uri, signal)
+    const position = toPosition(params.position)
+    if (!snapshot.document.validatePosition(position).isEqual(position))
+      refuse('invalidParams', 'MHP_INVALID_POSITION')
+    return { ...snapshot, position }
+  }
+  return {
+    'codeIntel/definition': async (params: At, signal?: AbortSignal) => {
+      const snapshot = await at(params, signal)
+      const answer = await query<(vscode.Location | vscode.LocationLink)[]>(
+        VSCODE_COMMANDS.executeDefinitionProvider,
+        signal,
+        snapshot.document.uri,
+        snapshot.position,
+      )
+      snapshot.check()
+      return (answer ?? []).map((value) => mhpLocation(value))
+    },
+    'codeIntel/references': async (
+      params: MhpParams<'codeIntel/references'>,
+      signal?: AbortSignal,
+    ) => {
+      const snapshot = await at(params, signal)
+      const answer = await query<vscode.Location[]>(
+        VSCODE_COMMANDS.executeReferenceProvider,
+        signal,
+        snapshot.document.uri,
+        snapshot.position,
+      )
+      snapshot.check()
+      if (params.includeDeclaration) return (answer ?? []).map((value) => mhpLocation(value))
+      const declarations = await query<(vscode.Location | vscode.LocationLink)[]>(
+        VSCODE_COMMANDS.executeDefinitionProvider,
+        signal,
+        snapshot.document.uri,
+        snapshot.position,
+      )
+      snapshot.check()
+      const excluded = (declarations ?? []).map((value) => mhpLocation(value))
+      return (answer ?? [])
+        .map((value) => mhpLocation(value))
+        .filter((item) =>
+          excluded.every(
+            (declaration) =>
+              !isSameResource(declaration.uri, item.uri) ||
+              JSON.stringify(declaration.range) !== JSON.stringify(item.range),
+          ),
+        )
+    },
+    'codeIntel/hover': async (params: At, signal?: AbortSignal) => {
+      const snapshot = await at(params, signal)
+      const answer = await query<vscode.Hover[]>(
+        VSCODE_COMMANDS.executeHoverProvider,
+        signal,
+        snapshot.document.uri,
+        snapshot.position,
+      )
+      snapshot.check()
+      return (answer ?? []).flatMap((value) => value.contents.map((part) => hoverText(part)))
+    },
+    'codeIntel/documentSymbols': async (
+      params: MhpParams<'codeIntel/documentSymbols'>,
+      signal?: AbortSignal,
+    ) => {
+      const snapshot = await opened(params.uri, signal)
+      const answer = await query<(vscode.DocumentSymbol | vscode.SymbolInformation)[]>(
+        VSCODE_COMMANDS.executeDocumentSymbolProvider,
+        signal,
+        snapshot.document.uri,
+      )
+      snapshot.check()
+      const flatten = (value: vscode.DocumentSymbol, container?: string): Symbol[] => [
+        {
+          name: value.name,
+          kind: value.kind,
+          location: { uri: snapshot.document.uri.toString(), range: fromRange(value.range) },
+          selection: fromRange(value.selectionRange),
+          ...(container !== undefined && { container }),
+        },
+        ...value.children.flatMap((child) => flatten(child, value.name)),
+      ]
+      return (answer ?? []).flatMap((value) =>
+        'selectionRange' in value ? flatten(value) : [information(value)],
+      )
+    },
+    'codeIntel/workspaceSymbols': async (
+      params: MhpParams<'codeIntel/workspaceSymbols'>,
+      signal?: AbortSignal,
+    ) => {
+      checkCurrent(signal)
+      const answer = await query<vscode.SymbolInformation[]>(
+        VSCODE_COMMANDS.executeWorkspaceSymbolProvider,
+        signal,
+        params.query,
+      )
+      checkCurrent(signal)
+      return (answer ?? []).map((value) => information(value))
+    },
+    'codeIntel/prepareRename': async (params: At, signal?: AbortSignal) => {
+      const snapshot = await at(params, signal)
+      const answer = await query<vscode.Range | { range: vscode.Range; placeholder: string }>(
+        VSCODE_COMMANDS.prepareRename,
+        signal,
+        snapshot.document.uri,
+        snapshot.position,
+      )
+      snapshot.check()
+      if (answer === undefined) return null
+      const range = 'range' in answer ? answer.range : answer
+      return {
+        range: fromRange(range),
+        placeholder:
+          'placeholder' in answer ? answer.placeholder : snapshot.document.getText(range),
+      }
+    },
+    'codeIntel/rename': async (params: MhpParams<'codeIntel/rename'>, signal?: AbortSignal) => {
+      const snapshot = await at(params, signal)
+      const versions = new Map(
+        vscode.workspace.textDocuments.map((document) => [
+          document.uri.toString(),
+          document.version,
+        ]),
+      )
+      const edit = await query<vscode.WorkspaceEdit>(
+        VSCODE_COMMANDS.executeDocumentRenameProvider,
+        signal,
+        snapshot.document.uri,
+        snapshot.position,
+        params.newName,
+      )
+      snapshot.check()
+      if (edit === undefined) refuse('unsupportedCapability', 'MHP_RENAME_UNAVAILABLE')
+      const fileOperations = fileOperationsOf(edit)
+      if (fileOperations !== 'none') return { files: [], fileOperations }
+      const files: MhpResult<'codeIntel/rename'>['files'] = []
+      for (const [uri, edits] of edit.entries()) {
+        const target = await opened(uri.toString(), signal)
+        snapshot.check()
+        const expectedVersion = versions.get(uri.toString())
+        if (expectedVersion === undefined || target.document.version !== expectedVersion)
+          refuse('versionConflict', 'MHP_VERSION_CONFLICT')
+        if (target.document.isDirty) refuse('dirtyBuffer', 'MHP_DIRTY_BUFFER')
+        if (edits.length > 0)
+          files.push({
+            uri: uri.toString(),
+            expectedVersion,
+            edits: edits.map((value) => ({
+              range: fromRange(value.range),
+              newText: value.newText,
+            })),
+          })
+      }
+      snapshot.check()
+      for (const file of files) {
+        const document = vscode.workspace.textDocuments.find(
+          (value) => value.uri.toString() === file.uri,
+        )
+        if (document?.version !== file.expectedVersion)
+          refuse('versionConflict', 'MHP_VERSION_CONFLICT')
+        if (document.isDirty) refuse('dirtyBuffer', 'MHP_DIRTY_BUFFER')
+      }
+      return { files, fileOperations }
+    },
+    'codeIntel/callHierarchy': async (
+      params: MhpParams<'codeIntel/callHierarchy'>,
+      signal?: AbortSignal,
+    ) => {
+      const snapshot = await at(params, signal)
+      const items =
+        (await query<vscode.CallHierarchyItem[]>(
+          VSCODE_COMMANDS.prepareCallHierarchy,
+          signal,
+          snapshot.document.uri,
+          snapshot.position,
+        )) ?? []
+      snapshot.check()
+      const item =
+        items.find(
+          (value) =>
+            isSameResource(value.uri.toString(), snapshot.document.uri.toString()) &&
+            isWithin(fromRange(value.selectionRange), params.position),
+        ) ?? items[0]
+      if (item === undefined) return null
+      let calls: NonNullable<MhpResult<'codeIntel/callHierarchy'>>['calls']
+      if (params.direction === 'incoming') {
+        const answer = await query<vscode.CallHierarchyIncomingCall[]>(
+          VSCODE_COMMANDS.provideIncomingCalls,
+          signal,
+          item,
+        )
+        calls = (answer ?? []).map((value) => ({
+          symbol: callItem(value.from),
+          ranges: value.fromRanges.map((range) => fromRange(range)),
+        }))
+      } else {
+        const answer = await query<vscode.CallHierarchyOutgoingCall[]>(
+          VSCODE_COMMANDS.provideOutgoingCalls,
+          signal,
+          item,
+        )
+        calls = (answer ?? []).map((value) => ({
+          symbol: callItem(value.to),
+          ranges: value.fromRanges.map((range) => fromRange(range)),
+        }))
+      }
+      snapshot.check()
+      return { item: callItem(item), calls, otherItems: items.length - 1 }
+    },
+    'codeIntel/format': async (params: MhpParams<'codeIntel/format'>, signal?: AbortSignal) => {
+      const snapshot = await opened(params.uri, signal)
+      const check = () => {
+        snapshot.check()
+        if (snapshot.document.version !== params.expectedVersion)
+          refuse('versionConflict', 'MHP_VERSION_CONFLICT')
+        if (snapshot.document.isDirty) refuse('dirtyBuffer', 'MHP_DIRTY_BUFFER')
+      }
+      check()
+      const answer = await query<vscode.TextEdit[]>(
+        VSCODE_COMMANDS.formatDocument,
+        signal,
+        snapshot.document.uri,
+        { tabSize: params.tabSize, insertSpaces: params.insertSpaces },
+      )
+      check()
+      return (answer ?? []).map((value) => ({
+        range: fromRange(value.range),
+        newText: value.newText,
+      }))
+    },
   }
 }

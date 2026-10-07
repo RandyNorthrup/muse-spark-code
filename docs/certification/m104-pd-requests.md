@@ -67,9 +67,34 @@ quality. Regenerate the host API record after all Windows continuation
 checkpoints. The exact Node/runtime distribution still blocks installed
 Visual Studio assembly. Help catalog/reference machinery remains absent.
 
-Final plain `npm.cmd run deadcode` exits 1 with six real Windows execution
+Checkpoint 8 advances the VS Code native adapter's complete nine-method
+`codeIntel` group and formatting plans. The installed Windows run now exercises
+B's runtime factory through those validated native methods with 13 receipts
+and zero model attempts. Previously unobserved rename target versions refuse;
+support for such targets needs a separately reviewed observation policy,
+not versions sampled after the rename provider finishes.
+
+A: include `test/m104/windows/codeIntelHostServices.test.ts` with the other
+Windows execution entries in ordinary discovery and Knip. The lane-local
+configuration preserves every shared setup, assertion and default deadline.
+
+A/B: the runtime code-intelligence factory's `libraryRoots` default remains
+empty. The native VS Code driver can supply its real extension/library roots
+in-process (used by the installed receipt), but MHP 1.3 has no corresponding
+native roots method. Preserve explicit library-path refusal until an owning
+reviewed contract supplies it; no new field is invented here.
+
+F: update aggregate F9/F30 evidence, help/reference and CHANGELOG with this
+binding and its installed-vs-component limits. Native Visual Studio's complete
+`ui`, `commands` and `diagnostics` groups are now undeclared because 1.3's
+file/settings UI, `commands/run` and version-attested settled diagnostics are
+unimplemented. Existing WPF/menu/Error List components remain present.
+Requalify those groups only with their actual new methods and native receipts.
+
+Final plain `npm.cmd run deadcode` exits 1 with seven real Windows execution
 entries missing from A's graph: `bootstrapFixture.mjs`, `callHierarchyPaths.test.ts`,
-`installedVscode.test.mjs`, `terminalHostServices.test.ts`, `vitest.config.mjs`
+`codeIntelHostServices.test.ts`, `installedVscode.test.mjs`,
+`terminalHostServices.test.ts`, `vitest.config.mjs`
 and `vscodeEntry.ts`, all under `test/m104/windows/`. Register their actual
 entry relationships, including the C# process fixture and the separate required
 installed-Windows job; do not ignore these files. The two existing configuration
@@ -78,16 +103,16 @@ hints (`vendor/**`, `axe-core`) are not changed by this lane.
 F: regenerate and review `docs/ide-compatibility/host-api.md` with
 `npm.cmd run check:host-api -- --write`. The final check exits 1 because this
 F-owned source record still describes 349 APIs; the terminal adapter yields
-353, adding native terminal disposal/argv/environment/close-event usage and
-the new `node:crypto` reader. Then rerun the check without `--write`. No host API
+353, adding native terminal disposal/argv/environment/close-event usage,
+code-intelligence API use sites and the new `node:crypto` reader. Then rerun
+the check without `--write`. No host API
 gate or generated record is bypassed in this lane.
 
-A/B: bind the frozen code-intelligence methods to the existing native language
-driver through the integrated runtime, preserving virtual-resource identity and
-file-operation refusal. The installed VS Code receipt now exercises real
-TypeScript definition/reference/hover/symbol/rename answers through
-`vscodeLanguageServices()`; that direct native-driver receipt does not qualify
-the currently unbound in-process MHP `codeIntel` group. A's installed-Windows
+The earlier A/B native code-intelligence binding request is resolved at
+checkpoint 8: all nine methods now use the native driver and the actual-editor
+receipt crosses B's runtime factory and the validated MHP boundary. The
+library-root and unobserved rename-target policies above remain open.
+A's installed-Windows
 job must load the test-only notebook contribution at
 `test/m104/windows/notebookFixture` beside the product extension, as the suite
 does now. No product manifest or provider capability was changed for this test.

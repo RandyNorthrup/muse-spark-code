@@ -108,7 +108,7 @@ describe('VS Code HostServices in-process boundary', () => {
     }
     await expect(
       r.services.request('initialize', { ...params, capabilities: [...params.capabilities] }),
-    ).resolves.toEqual({ protocolVersion: MHP.version, capabilities: ['lifecycle'] })
+    ).resolves.toEqual({ protocolVersion: MHP.version, capabilities: ['lifecycle', 'codeIntel'] })
     await expect(
       r.services.request('initialize', {
         ...params,

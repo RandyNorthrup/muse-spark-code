@@ -64,6 +64,13 @@ include input, selection, clipboard, external links, status and progress;
 runtime command registration owns removable native key bindings and a menu.
 These are component receipts, not installed-editor or paid-ledger qualification.
 
+MHP 1.3 also adds fresh version-attested diagnostics, command execution,
+file-open/save and settings UI. Their complete native groups remain undeclared
+alongside auxiliary surfaces until these new methods are implemented. Existing
+Error List, menu and WPF prompt components remain present; the runtime must use
+its reviewed fallbacks or return an explicit unavailable result. They do not
+qualify the complete 1.3 capability groups.
+
 Native editing and undo, ghost text, Error List integration, rendering,
 accessibility and reload qualification require a VS experimental instance.
 The declared VS 17/18 and x64/arm64 range is build metadata, not a qualification

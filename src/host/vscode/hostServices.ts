@@ -24,6 +24,7 @@ import { settingSchema } from '../settings'
 import { countSecretMatches } from '../../shared/redact'
 import { isCredentialVariable } from '../../core/credentialEnvironment'
 import { jsonValueSchema, type errorSchema } from '../../shared/hostApi/data'
+import { vscodeCodeIntelHandlers } from './codeIntel/languageServices'
 
 export class VscodeHostError extends Error {
   public constructor(public readonly error: z.infer<typeof errorSchema>) {
@@ -162,26 +163,41 @@ export function createVscodeHostServices(
   options: VscodeHostOptions = {},
 ): HostServices {
   let isClosed = false
+  const ending = new AbortController()
   const terminals = new Map<MhpResult<'terminal/create'>['terminalId'], vscode.Terminal>()
   let terminalEvents: vscode.Disposable | undefined
   const closeTerminals = (): void => {
     isClosed = true
+    ending.abort()
     terminalEvents?.dispose()
     terminalEvents = undefined
     for (const terminal of terminals.values()) terminal.dispose()
     terminals.clear()
   }
+  context.subscriptions?.push({ dispose: closeTerminals })
   const ownedTerminal = (id: MhpParams<'terminal/show'>['terminalId']): vscode.Terminal => {
     const terminal = terminals.get(id)
     if (terminal === undefined) fail(MHP_ERROR_CODES.invalidParams, 'MHP_TERMINAL_UNAVAILABLE')
     return terminal
   }
   const handlers: HostServiceHandlers = {
+    ...vscodeCodeIntelHandlers(
+      (signal) => {
+        checkCancelled(signal)
+        checkWorkspaceTrusted()
+        if (isClosed) fail(MHP_ERROR_CODES.cancelled, 'MHP_HOST_CLOSED')
+      },
+      (code, message) => fail(MHP_ERROR_CODES[code], message),
+      ending.signal,
+    ),
     initialize: (params) => {
       if (!isMhpVersionSupported(params.protocolRange))
         fail(MHP_ERROR_CODES.incompatibleVersion, 'MHP_INCOMPATIBLE_VERSION')
       // Sparse declaration: feature drivers keep their existing explicit ports.
-      return Promise.resolve({ protocolVersion: MHP.version, capabilities: ['lifecycle'] })
+      return Promise.resolve({
+        protocolVersion: MHP.version,
+        capabilities: ['lifecycle', 'codeIntel'],
+      })
     },
     shutdown: () => {
       isClosed = true
@@ -335,12 +351,9 @@ export function createVscodeHostServices(
         fail(MHP_ERROR_CODES.permissionDenied, 'MHP_CREDENTIAL_REFUSED')
       const cwd = vscode.Uri.parse(params.cwd)
       if (cwd.scheme !== 'file') fail(MHP_ERROR_CODES.invalidParams, 'MHP_TERMINAL_CWD')
-      if (terminalEvents === undefined) {
-        terminalEvents = vscode.window.onDidCloseTerminal((closed) => {
-          for (const [id, terminal] of terminals) if (terminal === closed) terminals.delete(id)
-        })
-        context.subscriptions?.push({ dispose: closeTerminals })
-      }
+      terminalEvents ??= vscode.window.onDidCloseTerminal((closed) => {
+        for (const [id, terminal] of terminals) if (terminal === closed) terminals.delete(id)
+      })
       const removed: Record<string, null> = {}
       for (const name of Object.keys(process.env))
         if (isCredentialVariable(name)) removed[name] = null

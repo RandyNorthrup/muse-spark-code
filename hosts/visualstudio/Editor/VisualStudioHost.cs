@@ -39,7 +39,9 @@ namespace MuseSpark.VisualStudio.Editor
     private readonly uint cookie;
     private readonly HashSet<IWpfTextView> views = new HashSet<IWpfTextView>();
     public MhpPeer? Peer { private get; set; }
-    public IReadOnlyCollection<string> Capabilities => errors == null ? new[] { "lifecycle", "documents", "editor", "commands", "tab", "ui", "window" } : new[] { "lifecycle", "documents", "editor", "diagnostics", "commands", "tab", "ui", "window" };
+    // 1.3 adds settled diagnostics, command execution and file/settings UI.
+    // Keep existing component drivers; partial groups use the reviewed runtime fallback.
+    public IReadOnlyCollection<string> Capabilities => new[] { "lifecycle", "documents", "editor", "tab", "window" };
 
     public VisualStudioHost(AsyncPackage package, IComponentModel components, IVsRunningDocumentTable rdt, IVsTextManager textManager, TabCompletion completion, IVsTaskList? errors, NativeSurfaces surfaces, NativeUi ui)
     {

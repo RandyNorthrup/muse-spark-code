@@ -5,6 +5,7 @@ import { createVscodeHostServices } from '../../../src/host/vscode/hostServices'
 import { vscodeLanguageServices } from '../../../src/host/vscode/codeIntel/languageServices'
 import { createVerifyEditor } from '../../../src/host/vscode/editor/verifyEditor'
 import { createLogger } from '../../../src/host/logger'
+import { createRuntimeCodeIntel } from '../../../src/runtime/features/codeIntel'
 import { COMMAND_IDS, EXTENSION_QUALIFIED_ID, MHP } from '../../../src/shared/constants'
 
 // A real Windows terminal writes and exits through the editor's pty host.
@@ -185,6 +186,83 @@ export async function run(): Promise<void> {
     'installed TypeScript service returns definition/references/hover/symbols/call hierarchy and a text-only rename plan',
   )
 
+  let canUseTools = false
+  const nativeLanguagePath = await realpath(languageUri.fsPath)
+  const runtimeIntel = createRuntimeCodeIntel({
+    host,
+    workspaceRoot: root.fsPath,
+    platform: process.platform,
+    realPath: realpath,
+    assertCurrent: () => undefined,
+    canUseTools: () => canUseTools,
+    libraryRoots: () => language.libraryRoots(),
+  })
+  try {
+    await assert.rejects(
+      runtimeIntel.service.definitions(nativeLanguagePath, call),
+      /MHP_MODEL_TOOLS_UNAVAILABLE/u,
+    )
+    canUseTools = true
+    const nativeDefinitions = await runtimeIntel.service.definitions(nativeLanguagePath, call)
+    assert.ok(nativeDefinitions.some((item) => item.range.start.line === 0))
+    const nativeReferences = await runtimeIntel.service.references(nativeLanguagePath, call)
+    assert.ok(nativeReferences.some((item) => item.range.start.line === 1))
+    const nativeHover = await runtimeIntel.service.hover(nativeLanguagePath, call)
+    assert.ok(nativeHover.some((part) => part.includes('m104Double')))
+    const nativeSymbols = await runtimeIntel.service.documentSymbols(nativeLanguagePath)
+    assert.ok(nativeSymbols.some((item) => item.name === 'm104Double'))
+    const workspaceSymbols = await runtimeIntel.service.workspaceSymbols('m104Double')
+    assert.ok(workspaceSymbols.some((item) => item.name === 'm104Double()'))
+    const nativeHierarchy = await runtimeIntel.service.callHierarchy(
+      nativeLanguagePath,
+      call,
+      'incoming',
+    )
+    assert.equal(nativeHierarchy?.item.name, 'm104Double')
+    const nativeRename = await runtimeIntel.service.rename(nativeLanguagePath, call, 'm104Twice')
+    assert.equal(nativeRename.fileOperations, 'none')
+    assert.equal(nativeRename.files[0]?.edits.length, 2)
+    assert.ok(nativeRename.files[0].edits.every((edit) => edit.newText === 'm104Twice'))
+    assert.ok(languageDocument.getText().includes('m104Double'))
+    const prepared = await host.request('codeIntel/prepareRename', {
+      uri: languageUri.toString(),
+      position: call,
+    })
+    assert.equal(prepared?.placeholder, 'm104Double')
+    const withoutDeclaration = await host.request('codeIntel/references', {
+      uri: languageUri.toString(),
+      position: call,
+      includeDeclaration: false,
+    })
+    assert.ok(withoutDeclaration.some((item) => item.range.start.line === 1))
+    assert.ok(withoutDeclaration.every((item) => item.range.start.line !== 0))
+    receipts.push(
+      'integrated runtime code intelligence uses all native query/rename methods through validated MHP and refuses a model without tools',
+    )
+  } finally {
+    await runtimeIntel.dispose()
+  }
+  const formatPlan = await host.request('codeIntel/format', {
+    uri: languageUri.toString(),
+    expectedVersion: languageDocument.version,
+    tabSize: 2,
+    insertSpaces: true,
+  })
+  assert.ok(formatPlan.some((edit) => edit.newText.includes(' * ') || edit.newText === ' '))
+  assert.equal(languageDocument.isDirty, false)
+  await assert.rejects(
+    host.request('codeIntel/format', {
+      uri: languageUri.toString(),
+      expectedVersion: languageDocument.version - 1,
+      tabSize: 2,
+      insertSpaces: true,
+    }),
+    /MHP_VERSION_CONFLICT/u,
+  )
+  receipts.push(
+    'validated native formatting is an unwritten plan and refuses stale expected versions',
+  )
+
   const output = vscode.window.createOutputChannel('M104 Windows Verify Fixture', { log: true })
   const verify = createVerifyEditor({
     platform: process.platform,
@@ -286,7 +364,7 @@ export async function run(): Promise<void> {
   assert.equal(result.protocolVersion, MHP.version)
   await host.request('shutdown', {})
   await assert.rejects(host.request('window/state', {}), /MHP_HOST_CLOSED/u)
-  receipts.push('MHP 1.2 in-process schema boundary and shutdown refusal')
+  receipts.push('MHP 1.3 in-process schema boundary and shutdown refusal')
 
   const receiptPath = process.env['M104_PD_RESULT']
   assert.ok(receiptPath)
