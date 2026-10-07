@@ -27,23 +27,43 @@ function at(value: string | undefined): string {
   return atSchema.parse(value)
 }
 
+function platformPath(base: string) {
+  return /^(?:[A-Za-z]:[\\/]|\\\\|\/\/)/u.test(base) ? path.win32 : path.posix
+}
+
 export function gitSource(io: ReportGitIo, scrub: SourceScrub, roots: readonly string[] = []) {
-  function displayWorktreePath(root: string): string {
+  function displayWorktreePath(root: string, canonicalTop: string | undefined): string {
     const workspace = roots[0]
     if (workspace === undefined) return scrub(root.replaceAll('\\', '/'))
-    const p = /^(?:[A-Za-z]:[\\/]|\\\\|\/\/)/u.test(workspace) ? path.win32 : path.posix
-    const relative = p.relative(workspace, root)
-    if (relative !== '..' && !relative.startsWith(`..${p.sep}`) && !p.isAbsolute(relative))
-      return scrub((relative === '' ? '.' : relative).replaceAll('\\', '/'))
+    const bases = [workspace]
+    if (canonicalTop !== undefined && canonicalTop !== workspace) bases.push(canonicalTop)
+    const shaped = platformPath
+    for (const base of bases) {
+      const p = shaped(base)
+      const inside = p.relative(base, root)
+      if (inside !== '..' && !inside.startsWith(`..${p.sep}`) && !p.isAbsolute(inside))
+        return scrub((inside === '' ? '.' : inside).replaceAll('\\', '/'))
+    }
+    // Nearby paths (the parent itself, a sibling) stay relative; anything
+    // past the grandparent, or absolute after resolving, stays absolute.
+    const near = (base: string): string | undefined => {
+      const p = shaped(base)
+      const relative = p.relative(base, root)
+      if (relative.startsWith(`..${p.sep}..${p.sep}`) || p.isAbsolute(relative)) return undefined
+      return (relative === '' ? '.' : relative).replaceAll('\\', '/')
+    }
     const home = roots[1]
     if (home !== undefined) {
+      const p = shaped(workspace)
       const fromHome = p.relative(home, root)
       if (fromHome !== '..' && !fromHome.startsWith(`..${p.sep}`) && !p.isAbsolute(fromHome))
         return scrub(`~/${fromHome.replaceAll('\\', '/')}`)
     }
-    if (relative.startsWith(`..${p.sep}..${p.sep}`) || p.isAbsolute(relative))
-      return scrub(root.replaceAll('\\', '/'))
-    return scrub((relative === '' ? '.' : relative).replaceAll('\\', '/'))
+    for (const base of bases) {
+      const relative = near(base)
+      if (relative !== undefined) return scrub(relative)
+    }
+    return scrub(root.replaceAll('\\', '/'))
   }
   return localSource('git', async ({ signal }) => {
     const run = async (args: readonly string[]) => {
@@ -58,6 +78,15 @@ export function gitSource(io: ReportGitIo, scrub: SourceScrub, roots: readonly s
     // Refuse an enclosing repository: a project without .git stays unavailable.
     const inside = await run(['rev-parse', '--show-prefix'])
     if (inside.code !== 0 || inside.stdout.trim() !== '') throw new LocalSourceError('missing')
+    // Git reports canonical worktree paths while the workspace may arrive
+    // through an alias (a symlinked temporary root, a mounted volume), so
+    // its own toplevel joins the configured roots for display. A failure
+    // here keeps the configured roots; it never fails the source.
+    const top = await run(['rev-parse', '--show-toplevel'])
+    const canonicalTop =
+      top.code === 0 && top.stdout.trim() !== ''
+        ? top.stdout.trim().replaceAll('\\', '/')
+        : undefined
     const headText = await required(['rev-parse', '--verify', 'HEAD'])
     const head = sha(headText.trim())
     const refs = await required([
@@ -173,7 +202,7 @@ export function gitSource(io: ReportGitIo, scrub: SourceScrub, roots: readonly s
         fields.find((field) => field.startsWith('branch '))?.slice('branch refs/heads/'.length) ??
         ''
       worktrees.push({
-        path: displayWorktreePath(root),
+        path: displayWorktreePath(root, canonicalTop),
         branch: scrub(branch),
         commit: scrub(sha(commit)),
       })

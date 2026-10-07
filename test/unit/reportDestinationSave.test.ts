@@ -34,7 +34,9 @@ const folders: string[] = []
 async function fixture() {
   const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'm113-q-save-')))
   folders.push(root)
-  return root
+  // Grants hold canonical roots captured on consent, so the fixture resolves
+  // the temporary alias the same way production canonicalizes the destination.
+  return await canonicalPath(root)
 }
 const destination = (root: string, template = '{kind}-{date}.{ext}', retention = 30) => ({
   type: 'save' as const,

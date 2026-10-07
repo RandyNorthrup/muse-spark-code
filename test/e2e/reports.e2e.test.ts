@@ -72,8 +72,10 @@ async function cli(args: readonly string[]) {
 }
 
 describe('reports CLI subprocess', () => {
-  it.each(['md', 'html', 'json', 'text'])(
-    're-renders saved %s byte for byte and saves exact output',
+  // One child build is shared in beforeAll; each case below stays at two
+  // sequential invocations so slower rigs keep the default deadline.
+  it.each(['md', 'html', 'json', 'text'] as const)(
+    're-renders saved format %s byte for byte and saves exact output',
     async (format) => {
       const expected = await readFile(
         path.join(sourceRoot, 'test/fixtures/reports', `project.${format}.golden`),
@@ -91,19 +93,25 @@ describe('reports CLI subprocess', () => {
     },
   )
 
-  it('returns each exit code, honors a fixed as-of, and prints no model output', async () => {
+  it('generates with a fixed as-of and holds a strict condition without model output', async () => {
     expect(await cli(['project', '--as-of', '2026-10-06T12:00:00+00:00'])).toMatchObject({
       code: 0,
     })
-    expect(
-      await cli(['project', '--out', path.join(state.root, 'missing', 'file.md')]),
-    ).toMatchObject({ code: 1 })
-    expect(await cli(['project', '--format', 'yaml'])).toMatchObject({ code: 2 })
-    expect(await cli(['milestone', 'M999'])).toMatchObject({ code: 3 })
     const held = await cli(['project', '--strict'])
     expect(held.code).toBe(4)
     expect(held.stdout).toEqual(expect.stringContaining('Needs you'))
     expect(held.stderr).toBe('')
+  })
+
+  it('returns usage and failure codes without model output', async () => {
+    expect(
+      await cli(['project', '--out', path.join(state.root, 'missing', 'file.md')]),
+    ).toMatchObject({ code: 1 })
+    expect(await cli(['project', '--format', 'yaml'])).toMatchObject({ code: 2 })
+  })
+
+  it('returns not-found for an unknown milestone scope', async () => {
+    expect(await cli(['milestone', 'M999'])).toMatchObject({ code: 3 })
   })
 
   it('rejects damaged JSON and linked saved imports without echoing file contents', async () => {

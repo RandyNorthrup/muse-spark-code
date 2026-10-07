@@ -1,7 +1,7 @@
 import { reportsMethods, type ReportsHostPort } from '../../shared/hostApi/reports'
 import { verifyReport } from '../../core/reporting/render/canonical'
 import { createReportRenderers } from '../../core/reporting/render'
-import { reportScrubber } from '../../core/reporting/render/redaction'
+import { reportScrubber, scrubFields } from '../../core/reporting/render/redaction'
 import type { ReportsCommandDeps } from './reportsCommand'
 
 /** MHP/companion/TUI/desktop call this same scoped facade after their transport negotiation. */
@@ -14,8 +14,11 @@ export function createReportsHost(
 ): ReportsHostPort {
   const failed = () => ({ status: 'failed' as const, reason: deps.text.reportUi.generationFailed })
   const redacted = (value: object) => {
-    const text = JSON.stringify(value)
-    return reportScrubber(deps.redaction)(text) === text
+    // Scrub decoded values, not serialized JSON: escaping introduces
+    // backslashes that read as secret shapes around already-safe marks.
+    const clean = structuredClone(value)
+    scrubFields(clean, reportScrubber(deps.redaction))
+    return JSON.stringify(clean) === JSON.stringify(value)
   }
   const authorized = async (key: string) => {
     deps.signal?.throwIfAborted()

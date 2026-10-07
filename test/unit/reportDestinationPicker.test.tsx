@@ -1,4 +1,6 @@
 /** @vitest-environment jsdom */
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import axe from 'axe-core'
@@ -93,6 +95,26 @@ describe('shared lazy report destination picker', () => {
     // supplies no layout and axe cannot evaluate contrast without canvas.
     const results = await axe.run(container, { rules: { 'color-contrast': { enabled: false } } })
     expect(results.violations).toEqual([])
+  })
+  it('wraps long destination identities in labels and legends', async () => {
+    // jsdom supplies no layout, so this pins the stylesheet rule that the
+    // 320 px browser check measures: labels and legends wrap anywhere.
+    const css = await readFile(
+      path.resolve(
+        import.meta.dirname,
+        '../../src/webview/reporting/destinations/destinations.css',
+      ),
+      'utf8',
+    )
+    for (const selector of ['label', 'legend']) {
+      const isWrapping = css
+        .split('}')
+        .some(
+          (rule) =>
+            rule.includes(selector) && /overflow-wrap\s*:\s*(anywhere|break-word)/.test(rule),
+        )
+      expect(isWrapping, selector).toBe(true)
+    }
   })
   it('names each configured target visibly and accessibly before selection', () => {
     const input = props()

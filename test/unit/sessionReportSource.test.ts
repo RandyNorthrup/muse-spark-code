@@ -141,6 +141,40 @@ describe('session, registry and shared report adapters', () => {
     ).read(context())
     expect(observed3.data).toBeNull()
   })
+  it('orders tied check runs deterministically regardless of input order', async () => {
+    const runs = [
+      {
+        check: 'quality',
+        outcome: 'passed',
+        durationMs: 10,
+        commit: 'a'.repeat(40),
+        at: REPORT_FIXTURE_AS_OF,
+      },
+      {
+        check: 'quality',
+        outcome: 'failed',
+        durationMs: 20,
+        commit: 'b'.repeat(40),
+        at: REPORT_FIXTURE_AS_OF,
+      },
+    ] as const
+    const read = async (checkRuns: readonly (typeof runs)[number][]) => {
+      const original = await sessionReader().read(context())
+      if (original === null) throw new Error('Missing test fixture')
+      const result = await sessionSource(
+        {
+          read: () => Promise.resolve({ ...original, checkRuns: [...checkRuns] }),
+        },
+        [],
+        scrub,
+      ).read(context())
+      return result.data?.checkRuns
+    }
+    const forward = await read(runs)
+    const reversed = await read(runs.toReversed())
+    expect(forward?.map((row) => row.outcome)).toEqual(['failed', 'passed'])
+    expect(reversed).toEqual(forward)
+  })
   it('preserves question states, stable ordering, timestamps and scrubs text', async () => {
     const questions: ReportQuestion[] = [
       { id: 'b', text: 'private-canary', milestoneIds: ['M13', 'M12'], state: 'answered' },

@@ -135,6 +135,13 @@ interface RuntimeSourcesInput extends Omit<
   readonly agentFiles?: AgentUsageFiles
   readonly agentRoots?: Partial<Record<AgentUsageAgent, string>>
 }
+/** A project's accepted child-session folder, using the usage-path normalization. */
+function isSubagentsFolder(directory: string, name: string): boolean {
+  return (
+    /^projects\/[^/]+$/u.test(directory.replaceAll('\\', '/').toLowerCase()) &&
+    name.replaceAll('\\', '/').toLowerCase() === 'subagents'
+  )
+}
 async function discoverAgentFiles(
   input: Pick<RuntimeSourcesInput, 'homeDir' | 'platform' | 'enabledAgents' | 'agentRoots'>,
   signal: AbortSignal,
@@ -157,7 +164,7 @@ async function discoverAgentFiles(
         else if (
           entry.directory &&
           (agent === 'claudeCode'
-            ? directory === 'projects'
+            ? directory === 'projects' || isSubagentsFolder(directory, entry.name)
             : /^sessions(?:\/\d{4}(?:\/\d{2})?)?$/u.test(directory))
         )
           await walk(file)

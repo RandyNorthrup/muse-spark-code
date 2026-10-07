@@ -4704,6 +4704,8 @@ export const REPORT_MAX_SOURCES = 100
 export const REPORT_MAX_TEXT_CHARS = 64 * 1024
 export const REPORT_MAX_ID_CHARS = 256
 export const REPORT_HASH_PATTERN = /^[a-f0-9]{64}$/
+// Diff row keys split their digest here so neither half reads as a key digest.
+export const REPORT_DIFF_KEY_DIGEST_HALF = 32
 export const REPORT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/-]*$/
 export const REPORT_STORAGE_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
 export const REPORT_KINDS = [

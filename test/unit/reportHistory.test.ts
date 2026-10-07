@@ -797,7 +797,7 @@ describe('report history', () => {
     })
   })
 
-  it('orders equal stamps by saved id and different offsets by their actual instant', async () => {
+  it('orders equal stamps by save sequence and different offsets by their actual instant', async () => {
     const t = await fixture()
     const first = at(1)
     const second = at(2)
@@ -812,13 +812,33 @@ describe('report history', () => {
       throw new Error('Expected saved reports')
     const result = await t.history.history({ workspaceKey: 'workspace', kind: 'project' })
     if (result.status !== 'listed') throw new Error('Expected history')
-    const firstSaved = b.entry.id < c.entry.id ? b : c
-    const secondSaved = firstSaved === b ? c : b
-    expect(result.entries.map((entry) => entry.id)).toEqual([
-      firstSaved.entry.id,
-      secondSaved.entry.id,
-      a.entry.id,
-    ])
+    expect(result.entries.map((entry) => entry.id)).toEqual([c.entry.id, b.entry.id, a.entry.id])
+  })
+  it('lists the newest-saved report first when equal stamps arrive in either order', async () => {
+    const stamp = '2026-10-06T12:00:00+00:00'
+    const alpha = reportDocument()
+    alpha.header.asOf = stamp
+    const beta = structuredClone(alpha)
+    beta.sections[0]!.rows[0]!.cells['state'] = { type: 'label', value: 'merged' }
+    beta.header.asOf = stamp
+    const forward = await fixture()
+    await forward.history.save('workspace', alpha)
+    await forward.history.save('workspace', beta)
+    const listed = await forward.history.history({ workspaceKey: 'workspace', kind: 'project' })
+    if (listed.status !== 'listed') throw new Error('Expected history')
+    const reversed = await fixture()
+    await reversed.history.save('workspace', beta)
+    await reversed.history.save('workspace', alpha)
+    const relisted = await reversed.history.history({
+      workspaceKey: 'workspace',
+      kind: 'project',
+    })
+    if (relisted.status !== 'listed') throw new Error('Expected history')
+    expect(listed.entries.map((entry) => entry.header.contentHash)).not.toEqual(
+      relisted.entries.map((entry) => entry.header.contentHash),
+    )
+    expect(listed.entries[0]?.header.contentHash).toBe(relisted.entries[1]?.header.contentHash)
+    expect(listed.entries[1]?.header.contentHash).toBe(relisted.entries[0]?.header.contentHash)
   })
   it('drops the oldest on the 51st report, retains each kind separately and lists newest first', async () => {
     const t = await fixture()

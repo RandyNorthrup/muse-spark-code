@@ -11,7 +11,7 @@ import {
 } from '../../shared/constants'
 import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
-import type { ReportDocument, ReportKind } from '../../shared/reportSchema'
+import { reportDiffSchema, type ReportDocument, type ReportKind } from '../../shared/reportSchema'
 import type {
   ReportSourceKind,
   CheckRunRecord,
@@ -385,32 +385,20 @@ export function createReportingServices(context: ReportingContext): ReportsServi
       return [...new Set(conditions)]
     },
     compare: compareReports,
-    renderDiff: (diff, format, locale, theme) => {
-      const notice = reportDiffNotice(diff, context.l10n.table.reportUi.noChange)
+    renderDiff: (diff, to, format, locale, theme) => {
+      const parsed = reportDiffSchema.parse(diff)
+      const checked = verifyReport(to, redaction)
+      if (parsed.to.contentHash !== checked.header.contentHash)
+        throw new Error(UI_TEXT.reportUi.generationFailed)
+      const notice = reportDiffNotice(parsed, context.l10n.table.reportUi.noChange)
       if (notice !== undefined && (format === 'text' || format === 'md')) return notice
-      const document = finalizeReport(
-        {
-          format: REPORT_FORMAT_VERSION,
-          header: diff.to,
-          sources: [],
-          needsYou: {
-            id: 'needsYou',
-            label: 'needsYou',
-            sortKey: 'key',
-            columns: [],
-            rows: [],
-            omittedRows: 0,
-          },
-          sections: [reportDiffSection(diff)],
-          footer: {
-            rendererVersion: REPORT_FORMAT_VERSION,
-            icuVersion: process.versions['icu'] ?? 'unknown',
-            locale,
-          },
-        },
+      // The comparison keeps the verified report's own header, needs-you rows
+      // and sources; only its sections become the computed diff section.
+      const comparison = finalizeReport(
+        { ...checked, sections: [reportDiffSection(parsed)] },
         redaction,
       )
-      return render[format](document, locale, theme)
+      return render[format](comparison, locale, theme)
     },
   }
 }

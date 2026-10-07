@@ -28,6 +28,14 @@
   overflow-wrap: anywhere;
 }
 
+/* Destination identities (roots, addresses, repository references) name long
+   unbreakable paths inside checkbox labels and selected legends too. */
+.ms-report-destinations label,
+.ms-report-destinations legend {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .ms-report-destinations button {
   cursor: pointer;
   padding: var(--ms-gap);

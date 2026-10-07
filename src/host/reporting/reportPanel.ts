@@ -20,12 +20,10 @@ import { relativeTime } from '../../shared/sessions'
 import { scrubFields } from '../../core/reporting/render/redaction'
 
 type HistoryEntry = NonNullable<ReportingHostMessage['history']>[number]
-// Newest instant first; saved id breaks ties by code unit, never locale or insertion order.
+// Newest instant first; the stable sort keeps the port's newest-saved-first
+// sequence for equal stamps instead of reordering ties by id.
 function newestFirst(a: HistoryEntry, b: HistoryEntry): number {
-  return (
-    Date.parse(b.header.asOf) - Date.parse(a.header.asOf) ||
-    Number(a.id > b.id) - Number(a.id < b.id)
-  )
+  return Date.parse(b.header.asOf) - Date.parse(a.header.asOf)
 }
 
 /** K/S/H provide the real operations; R supplies verified, scrubbed output. */

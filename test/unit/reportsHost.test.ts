@@ -5,8 +5,10 @@ import { REPORT_AS_OF, reportsHarness } from './helpers/reporting/runtime'
 import { REPORT_FORMATS, UI_TEXT } from '../../src/shared/constants'
 import { RENDERERS, REPORT_THEME } from './reportRenderFixtures'
 import { finalizeReport } from '../../src/core/reporting/render/canonical'
+import { compareReports } from '../../src/core/reporting/diff'
 import type { ReportsServices } from '../../src/runtime/reporting/reportsCommand'
 import { reportsBridge } from './helpers/reporting/bridge'
+import { reportDocument } from './helpers/reporting/snapshot'
 
 const workspaceKey = 'workspace-1'
 const options = {
@@ -269,6 +271,35 @@ describe('MHP 1.2 reports through native and companion bridges', () => {
     expect(await h.port.history({ workspaceKey, kind: 'project' })).toMatchObject({
       status: 'failed',
     })
+  })
+
+  it('compares reports whose decoded cells already hold redaction marks', async () => {
+    const fixture = reportsHarness()
+    const marked = reportDocument()
+    marked.sections[0]!.rows[0]!.cells['state'] = {
+      type: 'text',
+      value: 'password: "[redacted]"',
+    }
+    const saved = new Map([
+      ['saved-1', finalizeReport(reportDocument())],
+      ['saved-2', finalizeReport(marked)],
+    ])
+    const h = bridge({
+      ...fixture.deps.services,
+      history: {
+        ...fixture.history,
+        list: () =>
+          Promise.resolve([...saved].map(([id, document]) => ({ id, header: document.header }))),
+        get: vi.fn((_kind: string, id: string) => Promise.resolve(saved.get(id)!)),
+      },
+      compare: compareReports,
+    })
+    expect(await h.port.get({ workspaceKey, kind: 'project', id: 'saved-2' })).toMatchObject({
+      status: 'retrieved',
+    })
+    expect(
+      await h.port.compare({ workspaceKey, kind: 'project', fromId: 'saved-1', toId: 'saved-2' }),
+    ).toMatchObject({ status: 'compared' })
   })
 
   it('rejects unredacted comparison text before returning bridge replies', async () => {

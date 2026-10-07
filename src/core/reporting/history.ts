@@ -43,6 +43,8 @@ export interface ReportHistoryCodec {
 interface ReportFiles {
   list(): Promise<string[]>
   read(name: string): Promise<string | undefined>
+  /** Modification time in milliseconds; undefined when the file vanished. */
+  stat(name: string): Promise<number | undefined>
   write(name: string, text: string): Promise<void>
   remove(name: string): Promise<void>
 }
@@ -50,11 +52,14 @@ interface ReportFiles {
 interface SavedReport {
   id: string
   document: ReportDocument
+  savedAt: number
 }
 
 function compareSavedReports(a: SavedReport, b: SavedReport): number {
   const date = Date.parse(b.document.header.asOf) - Date.parse(a.document.header.asOf)
   if (date !== 0) return date
+  // Equal stamps keep the actual save order; the id breaks only exact ties.
+  if (a.savedAt !== b.savedAt) return b.savedAt - a.savedAt
   if (a.id < b.id) return -1
   return a.id > b.id ? 1 : 0
 }
@@ -222,6 +227,17 @@ export class ReportStorage {
         if (isMissing) return []
         await confined()
         return await readdir(directory)
+      },
+      async stat(name) {
+        if (isMissing) return
+        await confined()
+        try {
+          const info = await lstat(fileFor(name))
+          return info.mtimeMs
+        } catch (error: unknown) {
+          if (hasCode(error, 'ENOENT')) return
+          throw error
+        }
       },
       async read(name) {
         if (isMissing) return
@@ -476,13 +492,15 @@ export class ReportHistory implements Pick<ReportsHostPort, 'history' | 'get' | 
     const names = await files.list()
     for (const name of names) {
       if (!/^[a-f0-9]+\.json$/.test(name)) continue
+      const savedAt = await files.stat(name)
+      if (savedAt === undefined) continue
       const text = await files.read(name)
       if (text === undefined) continue
       const document = reportDocumentSchema.parse(this.deps.codec.decode(text))
       const id = createHash('sha256').update(text).digest('hex')
       if (name !== `${id}.json` || document.header.kind !== kind)
         throw new Error(UI_TEXT.reportUi.generationFailed)
-      entries.push({ id, document })
+      entries.push({ id, document, savedAt })
     }
     return entries.toSorted(compareSavedReports)
   }
@@ -512,9 +530,12 @@ export class ReportHistory implements Pick<ReportsHostPort, 'history' | 'get' | 
       async (files) => {
         // Refuse a corrupt bucket before a failed save can grow it.
         const previous = await this.entries(files, scope.kind)
+        // The new file's stamp is the newest by construction; rank it so the
+        // retention decision below matches the order the next listing reads.
+        const savedAt = Math.max(Date.now(), ...previous.map((entry) => entry.savedAt))
         const entries = [
           ...previous.filter((entry) => entry.id !== id),
-          { id, document: verified },
+          { id, document: verified, savedAt },
         ].toSorted(compareSavedReports)
         const retained = entries.slice(0, REPORT_HISTORY_MAX_PER_KIND)
         if (retained.every((entry) => entry.id !== id)) throw new Error(UI_TEXT.reportUi.saveFailed)
