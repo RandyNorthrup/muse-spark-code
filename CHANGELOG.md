@@ -14,7 +14,8 @@ happened, not what was planned; superseded entries are kept.
   messages/follow-ups and goal wakes. Select the actual workspace owner; reject
   mismatched leases. Read stored sessions before refusing hardware resume, so
   the CLI cannot restart queued hardware work. Hardware Modes help directs
-  Muse Code users to Model API.
+  Muse Code users to Model API; its message ships in the browser's English
+  fallback as well as the installed language table.
 
 - **Design 5 hardware review: Stop and marker failures.** Model API Stop
   transport failures now fail their row and tell the user delivery is

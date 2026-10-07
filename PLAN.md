@@ -4931,6 +4931,9 @@ repository timeout. All five typechecks and unchanged static/build gates
 follow. Fakes/simulators only; shared core covers every editor/runtime.
 The P3 Modes-menu finding uses the existing translated migration text in
 latched Muse Code sessions; ordinary and Model API descriptions stay accurate.
+That key must live outside the host-only English block removed by the browser
+build. An actual browser-fallback bundle regression and production screenshot
+prove the message ships; all translated tables and bundle caps stay unchanged.
 
 **Fourth design (REDM103G3, lead ruling after RVM103G3).** Every agent shell
 command in a hardware session asks the host UI once for the exact command;

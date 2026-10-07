@@ -2568,6 +2568,9 @@ export const EN = {
     other:
       'The checks still failed after {count} rounds of fixes in a row, so they will not run again automatically until your next message.',
   }),
+  // Shared with the hardware Muse Code Modes menu; retain in browser fallback.
+  hardwareBindingUnavailable:
+    'This device adapter cannot verify the approved target at process start. Nothing was sent. Use the Model API backend for hardware commands.',
   // M103-G: the always-on physical-action guard.
   approvalHardwareNote:
     'Physical device action. Opening a serial port may reset the board. Review the exact command and target; approval applies once and expires after two minutes.',
@@ -2578,8 +2581,6 @@ export const EN = {
   hardwareActuateWarning: 'This looks like it writes to a port or sends a machine command.',
   hardwareIrreversibleWarning: 'This looks like an irreversible fuse, eFuse or lock-bit write.',
   hardwareTargetNote: 'Target binding: {targets}',
-  hardwareBindingUnavailable:
-    'This device adapter cannot verify the approved target at process start. Nothing was sent. Use the Model API backend for hardware commands.',
   hardwareRefused:
     'This device operation is refused. Review and run the command yourself in your own terminal.',
   hardwareUnattended:
