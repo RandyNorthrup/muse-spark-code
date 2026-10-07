@@ -3594,9 +3594,16 @@ export class ModelApiSession implements AgentSession {
     reservedUserMessageId?: string,
   ): void {
     const itemId = reservedUserMessageId ?? this.deps.newId()
+    // The turn's externally supplied context (an adapter's issue provenance)
+    // travels in this message: stamp the replay entry so the taint survives
+    // the request that introduced it, even when that request fails before any
+    // derived reply retains it (RVM109T 4). The combiner dedupes, so this
+    // never double-counts the request taint's own read of the same source.
+    const external = this.deps.vaultContextProvenance?.(this.sessionId)
     this.replay.push({
       turnId,
       userMessageId: itemId,
+      ...(external !== undefined && { provenance: external }),
       item: { type: 'message', role: 'user', content: this.contentParts(parts) },
     })
     const text = displayText ?? typedText(parts)
@@ -11984,17 +11991,21 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
-  /** Fills a fresh session from its stored form; the session is idle afterwards. */
+  /**
+   * Fills a fresh session from its stored form; the session is idle
+   * afterwards. Every entry without provenance is tagged, not just replays
+   * without any: one clean tagged entry must not launder an untagged entry
+   * that actually carries external content (RVM109T 4).
+   */
   public adopt(stored: StoredSession): void {
-    const hasProvenance = stored.replay.some((entry) => entry.provenance !== undefined)
     this.replay.push(
       ...stored.replay.map((entry) =>
-        hasProvenance
-          ? entry
-          : {
+        entry.provenance === undefined
+          ? {
               ...entry,
               provenance: vaultProvenance('agent', stored.sessionId),
-            },
+            }
+          : entry,
       ),
     )
     this.transcript.push(...withoutRunning(stored.transcript))

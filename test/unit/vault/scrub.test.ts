@@ -89,6 +89,64 @@ describe('vault scrub', () => {
       scrub.dispose()
     }
   })
+  it('catches lowercase percent triplets and both JSON escape cases, whole or split (RVM109T 1)', () => {
+    const text = 'v:test-token-9:\u{E9}',
+      bytes = Buffer.from(text),
+      scrub = new VaultScrubber([bytes])
+    try {
+      const upper = encodeURIComponent(text)
+      const lower = upper.replaceAll(/%[\dA-F]{2}/g, (part) => part.toLowerCase())
+      for (const form of [upper, lower]) {
+        expect(scrub.scrub(`before ${form} after`)).toBe(`before ${REDACTED_MARK} after`)
+        for (let at = 1; at < form.length; at += 1) {
+          expect(scrub.scrub(`before ${form.slice(0, at)}\n${form.slice(at)} after`)).toBe(
+            `before ${REDACTED_MARK} after`,
+          )
+        }
+      }
+      const colonLower = text.replaceAll(':', String.raw`\u003a`)
+      const jsonForms = [
+        colonLower,
+        colonLower.replaceAll(String.raw`\u003a`, String.raw`\u003A`),
+        text.replaceAll('\u{E9}', String.raw`\u00e9`),
+        text.replaceAll('\u{E9}', String.raw`\u00E9`),
+      ]
+      for (const form of jsonForms) {
+        expect(scrub.scrub(`before ${form} after`)).toBe(`before ${REDACTED_MARK} after`)
+      }
+      // A line break inside the escape still matches.
+      const splitEscape = text.replaceAll('\u{E9}', '\\u00\ne9')
+      expect(scrub.scrub(`before ${splitEscape} after`)).toBe(`before ${REDACTED_MARK} after`)
+    } finally {
+      bytes.fill(0)
+      scrub.dispose()
+    }
+  })
+  it('catches a one-byte value framed by zero bytes in base64 (RVM109T 1)', () => {
+    const bytes = Buffer.from(':'),
+      scrub = new VaultScrubber([bytes])
+    try {
+      expect(scrub.scrub('xxADoAxx')).toBe(`xxA${REDACTED_MARK}Axx`)
+    } finally {
+      bytes.fill(0)
+      scrub.dispose()
+    }
+  })
+  it('matches values inside an OSC payload while keeping its framing (RVM109T 2)', () => {
+    const value = generated(),
+      bytes = Buffer.from(value),
+      scrub = new VaultScrubber([bytes])
+    try {
+      for (const end of ['\u{7}', '\u{1B}\\']) {
+        expect(scrub.scrub(`before \u{1B}]0;title-${value}${end} after`)).toBe(
+          `before \u{1B}]0;title-${REDACTED_MARK}${end} after`,
+        )
+      }
+    } finally {
+      bytes.fill(0)
+      scrub.dispose()
+    }
+  })
   it('documents unknown encodings and one character per command as residuals', () => {
     const value = generated(),
       scrub = new VaultScrubber([Buffer.from(value)])

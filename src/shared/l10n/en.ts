@@ -84,6 +84,9 @@ export const EN = {
   referenceVault:
     'Work with the per-user credential vault from a terminal: status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them.',
   referenceVaultHelp: 'Show the per-user credential vault command usage.',
+  referenceVaultPanel:
+    'Open the per-user credential vault. Values never print; the broker holds them.',
+  referenceVaultLock: 'Lock the per-user credential vault now, ending every use in every window.',
   referenceAuthClear: 'Remove the stored Model API key.',
   referenceAuthStatus: 'Check whether a Model API key is stored.',
   referenceTabLanguages: 'Choose a language to switch Tab suggestions on or off for it.',
@@ -1836,6 +1839,10 @@ export const EN = {
   // A session whose Muse Code event log failed (a CLI fault) takes no new message.
   sessionLogDamaged:
     'This conversation’s Muse Code log is damaged (a fault in Muse Code), so it cannot take new messages. Start a new conversation; this one stays in History.',
+  // The vault scrubber is locked (or its build refused): the turn reason and
+  // the export notice name the outage instead of failing silently (RVM109T 7).
+  vaultScrubUnavailable: 'Vault scrub service is unavailable',
+  vaultSessionLogUnavailable: 'Vault-safe session log export is unavailable',
   turnUnqueued: 'Not sent: the queued message was withdrawn',
   turnRetracted:
     'Another Muse Code client withdrew a message from this conversation; reopen it from History to see it as stored.',

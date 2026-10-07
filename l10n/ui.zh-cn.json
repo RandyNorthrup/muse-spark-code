@@ -967,6 +967,8 @@
   "museCodeUnresponsiveTurn": "Muse Code 在回合运行时停止响应。重启它会停止该回合；对话会在你发送下一条消息时继续。",
   "museCodeRestarted": "Muse Code 已重启。你的下一条消息会继续此对话。",
   "sessionLogDamaged": "此对话的 Muse Code 日志已损坏（Muse Code 的故障），因此无法接收新消息。请开始新对话；此对话会保留在历史记录中。",
+  "vaultScrubUnavailable": "保管库清理服务不可用。",
+  "vaultSessionLogUnavailable": "保管库安全的会话日志导出不可用。",
   "turnUnqueued": "未发送：排队的消息已撤回",
   "turnRetracted": "另一个 Muse Code 客户端从此对话中撤回了一条消息；请从历史记录中重新打开对话，以查看已存储的版本。",
   "modelRouteUnserved": "已登录的账户无法为此对话的模型提供服务；请从模型菜单中选择其他模型。",
@@ -2511,6 +2513,8 @@
   "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。",
   "referenceVault": "从终端使用按用户 credential 保管库：状态、解锁、锁定、列表、添加、授权、审计、导入和监视。值永远不会打印；由代理持有。",
   "referenceVaultHelp": "显示按用户 credential 保管库命令的用法。",
+  "referenceVaultPanel": "打开按用户划分的凭据保管库。值永远不会显示；由代理持有。",
+  "referenceVaultLock": "立即锁定按用户划分的凭据保管库，结束每个窗口中的每次使用。",
   "vault": {
     "title": "凭据库",
     "locked": "已锁定",

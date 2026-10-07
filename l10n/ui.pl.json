@@ -1066,6 +1066,8 @@
   "museCodeUnresponsiveTurn": "Muse Code przestał odpowiadać podczas trwającej tury. Ponowne uruchomienie zatrzyma tę turę; rozmowa będzie kontynuowana od Twojej następnej wiadomości.",
   "museCodeRestarted": "Muse Code został uruchomiony ponownie. Twoja następna wiadomość będzie kontynuacją tej rozmowy.",
   "sessionLogDamaged": "Dziennik Muse Code tej rozmowy jest uszkodzony (usterka Muse Code), więc nie może ona przyjmować nowych wiadomości. Rozpocznij nową rozmowę; ta pozostanie w Historii.",
+  "vaultScrubUnavailable": "Usługa czyszczenia sejfu jest niedostępna.",
+  "vaultSessionLogUnavailable": "Eksport dziennika sesji bezpiecznego dla sejfu jest niedostępny.",
   "turnUnqueued": "Nie wysłano: wiadomość z kolejki została wycofana",
   "turnRetracted": "Inny klient Muse Code wycofał wiadomość z tej rozmowy; otwórz ją ponownie z Historii, aby zobaczyć ją w zapisanej postaci.",
   "modelRouteUnserved": "Zalogowane konto nie może obsłużyć modelu tej rozmowy; wybierz inny model z menu modeli.",
@@ -2799,6 +2801,8 @@
   "referenceScanSecrets": "Skanuje plik poprawki UTF-8 w poszukiwaniu sekretów i kończy się błędem po wykryciu. --key-stdin sprawdza także dokładny klucz Model API w pamięci; żaden klucz nie jest zapisywany.",
   "referenceVault": "Pracuj z magazynem poświadczeń użytkownika z terminala: stan, odblokowanie, blokowanie, lista, dodawanie, granty, audyt, import i obserwacja. Wartości nigdy nie są wypisywane; przechowuje je broker.",
   "referenceVaultHelp": "Pokazuje użycie polecenia magazynu poświadczeń użytkownika.",
+  "referenceVaultPanel": "Otwórz magazyn poświadczeń użytkownika. Wartości nigdy nie są wyświetlane; przechowuje je broker.",
+  "referenceVaultLock": "Zablokuj teraz magazyn poświadczeń użytkownika; kończy każde użycie w każdym oknie.",
   "vault": {
     "title": "Sejf",
     "locked": "Zablokowany",

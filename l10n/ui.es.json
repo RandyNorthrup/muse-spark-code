@@ -1033,6 +1033,8 @@
   "museCodeUnresponsiveTurn": "Muse Code dejó de responder mientras se ejecuta un turno. Reiniciarlo detiene ese turno; la conversación continúa con su próximo mensaje.",
   "museCodeRestarted": "Muse Code se reinició. Su próximo mensaje continúa esta conversación.",
   "sessionLogDamaged": "El registro de Muse Code de esta conversación está dañado (un fallo de Muse Code), por lo que no puede recibir mensajes nuevos. Inicie una nueva conversación; esta permanece en el Historial.",
+  "vaultScrubUnavailable": "El servicio de depuración del almacén no está disponible.",
+  "vaultSessionLogUnavailable": "La exportación del registro de sesión segura del almacén no está disponible.",
   "turnUnqueued": "No enviado: se retiró el mensaje en cola",
   "turnRetracted": "Otro cliente de Muse Code retiró un mensaje de esta conversación; vuelva a abrirla desde el historial para verla tal como está guardada.",
   "modelRouteUnserved": "La cuenta con la que inició sesión no puede usar el modelo de esta conversación; elija otro modelo en el menú de modelos.",
@@ -2703,6 +2705,8 @@
   "referenceScanSecrets": "Busca secretos en un archivo de parche UTF-8 y falla si los detecta. --key-stdin también busca la clave exacta de Model API mantenida en memoria; no se almacena ninguna clave.",
   "referenceVault": "Trabaja con el almacén de credenciales por usuario desde un terminal: estado, desbloqueo, bloqueo, lista, adición, concesiones, auditoría, importación y observación. Los valores nunca se imprimen; los guarda el intermediario.",
   "referenceVaultHelp": "Muestra el uso del comando del almacén de credenciales por usuario.",
+  "referenceVaultPanel": "Abrir la bóveda de credenciales por usuario. Los valores nunca se muestran; el intermediario los conserva.",
+  "referenceVaultLock": "Bloquear la bóveda de credenciales por usuario ahora; termina cada uso en cada ventana.",
   "vault": {
     "title": "Bóveda",
     "locked": "Bloqueada",

@@ -1000,6 +1000,8 @@
   "museCodeUnresponsiveTurn": "Bir tur çalışırken Muse Code yanıt vermeyi bıraktı. Yeniden başlatmak o turu durdurur; konuşma sonraki mesajınızla sürer.",
   "museCodeRestarted": "Muse Code yeniden başlatıldı. Sonraki mesajınız bu konuşmayı sürdürür.",
   "sessionLogDamaged": "Bu konuşmanın Muse Code günlüğü bozuk (Muse Code’daki bir hata), bu yüzden yeni mesaj alamaz. Yeni bir konuşma başlatın; bu konuşma Geçmiş’te kalır.",
+  "vaultScrubUnavailable": "Kasa temizleme hizmeti kullanılamıyor.",
+  "vaultSessionLogUnavailable": "Kasaya güvenli oturum günlüğü dışa aktarımı kullanılamıyor.",
   "turnUnqueued": "Gönderilmedi: kuyruktaki mesaj geri çekildi",
   "turnRetracted": "Başka bir Muse Code istemcisi bu konuşmadan bir mesajı geri çekti; depolandığı haliyle görmek için Geçmiş'ten yeniden açın.",
   "modelRouteUnserved": "Oturum açılan hesap bu konuşmanın modeline hizmet veremiyor; model menüsünden başka bir model seçin.",
@@ -2607,6 +2609,8 @@
   "referenceScanSecrets": "UTF-8 yama dosyasında gizli bilgileri arar ve bulursa başarısız olur. --key-stdin bellekteki Model API anahtarının tam değerini de arar; anahtar saklanmaz.",
   "referenceVault": "Kullanıcı başına kimlik bilgisi kasasıyla bir terminalden çalışın: durum, kilit açma, kilitleme, liste, ekleme, izinler, denetim, içe aktarma ve izleme. Değerler asla yazdırılmaz; aracı tutar.",
   "referenceVaultHelp": "Kullanıcı başına kimlik bilgisi kasası komutunun kullanımını gösterir.",
+  "referenceVaultPanel": "Kullanıcı başına kimlik bilgisi kasasını açın. Değerler hiçbir zaman gösterilmez; aracı tutar.",
+  "referenceVaultLock": "Kullanıcı başına kimlik bilgisi kasasını şimdi kilitleyin; her penceredeki her kullanımı sonlandırır.",
   "vault": {
     "title": "Kasa",
     "locked": "Kilitli",

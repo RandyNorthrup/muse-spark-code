@@ -339,6 +339,7 @@ export class ModelApiClient {
     for (let attempt = budget?.retriesUsed ?? 0; ; attempt += 1) {
       // Rebuild on every retry: rotation may change the vault while we wait.
       // Outside the transport retry catch: a scrub failure must never send.
+      const scrubGeneration = this.deps.vaultScrub?.generation
       const wireBody =
         this.deps.vaultScrub === undefined || init.body === undefined
           ? undefined
@@ -368,6 +369,16 @@ export class ModelApiClient {
         (credentials.keyDigest !== confirmed.keyDigest || !confirmed.isStillAllowed())
       ) {
         throw new Error(UI_TEXT.scheduleConfirmationExpired)
+      }
+      if (
+        wireBody !== undefined &&
+        scrubGeneration !== undefined &&
+        this.deps.vaultScrub?.generation !== scrubGeneration
+      ) {
+        // The vault rotated while credentials resolved: the scrubbed body is
+        // older than the values, so rebuild it instead of sending. A Lock in
+        // the same window fails the rebuild, which never sends either.
+        continue
       }
       // Local consent refusal is outside the transport retry catch: it never
       // becomes another billable attempt.

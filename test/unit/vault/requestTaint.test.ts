@@ -109,6 +109,29 @@ describe('request provenance', () => {
       await host.close()
     }
   })
+  it('retains externally supplied provenance on the user message across a failed request (RVM109T 4)', async () => {
+    const t = setup()
+    const issue = vaultProvenance('issue', 'outside author')
+    let context: VaultTaint = issue
+    const host = new ModelApiHost({ ...t.deps, vaultContextProvenance: () => context })
+    try {
+      const { session, turnDone } = await startWatchedSession(host, '/ws', 'onRequest')
+      t.api.script({ networkError: 'socket hang up' })
+      await session.sendTurn([{ type: 'text', text: 'EXTERNAL_ISSUE_BODY please summarize' }])
+      await turnDone()
+      expect(t.snapshots.at(-1)?.tainted).toBe(true)
+      // The adapter supplies no new external context for the next turn, but
+      // the issue text remains in the replay: the request still carries it.
+      context = { tainted: false, reasons: [] }
+      t.api.script({ text: 'second answer' })
+      await session.sendTurn([{ type: 'text', text: 'continue' }])
+      await turnDone()
+      expect(JSON.stringify(t.api.responseBodies().at(-1))).toContain('EXTERNAL_ISSUE_BODY')
+      expect(t.snapshots.at(-1)?.tainted).toBe(true)
+    } finally {
+      await host.close()
+    }
+  })
   it('taints calls in the same reply as hosted search and retains that provenance', async () => {
     const t = setup()
     const host = new ModelApiHost({
@@ -184,6 +207,38 @@ describe('request provenance', () => {
       await restored.session.sendTurn([{ type: 'text', text: 'continue' }])
       await restored.turnDone()
       expect(t.snapshots.at(-1)).toEqual(vaultProvenance('agent', stored.sessionId))
+    } finally {
+      await host.close()
+    }
+  })
+  it('tags untagged entries on adopt even beside clean tagged ones (RVM109T 4)', async () => {
+    const t = setup(),
+      host = new ModelApiHost(t.deps)
+    try {
+      const first = await startWatchedSession(host, '/ws', 'onRequest')
+      t.api.script({ text: 'hello there' })
+      await first.session.sendTurn([{ type: 'text', text: 'hello' }])
+      await first.turnDone()
+      const stored = first.session.snapshot()
+      const mixed = {
+        ...stored,
+        replay: stored.replay.map((entry, index) =>
+          index === 0
+            ? { ...entry, provenance: { tainted: false, reasons: [] } }
+            : (({ provenance: _dropped, ...rest }) => rest)(entry),
+        ),
+      }
+      const restored = await startWatchedSession(host, '/ws', 'onRequest')
+      restored.session.adopt(mixed)
+      // Nothing passes through untagged: one clean tagged entry must not
+      // launder the rest.
+      expect(
+        restored.session.snapshot().replay.every((entry) => entry.provenance !== undefined),
+      ).toBe(true)
+      t.api.script({ text: 'continued' })
+      await restored.session.sendTurn([{ type: 'text', text: 'continue' }])
+      await restored.turnDone()
+      expect(t.snapshots.at(-1)?.tainted).toBe(true)
     } finally {
       await host.close()
     }

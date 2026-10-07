@@ -6,6 +6,7 @@ import { buildSessionExport } from '../../../src/core/export/sessionTransfer'
 import {
   buildVaultProblemReportDraft,
   isSealedDraftCurrent,
+  type ProblemReportInput,
 } from '../../../src/core/support/problemReport'
 import {
   exportConversation,
@@ -13,7 +14,7 @@ import {
 } from '../../../src/host/conversation/exportConversation'
 import { VaultScrubService } from '../../../src/core/vault/scrub'
 import { REDACTED_MARK } from '../../../src/shared/constants'
-import { fakeModelApiClientSettings } from '../helpers/fakeModelApi'
+import { FAKE_MODEL_API_KEY, fakeModelApiClientSettings } from '../helpers/fakeModelApi'
 import { FakeLogOutputChannel } from '../helpers/fakes'
 import { REPORT_FACTS } from '../helpers/reportFacts'
 
@@ -38,6 +39,15 @@ async function vault() {
   const service = new VaultScrubService()
   await service.unlock(() => Promise.resolve([Buffer.from(secret)]))
   return { secret, service }
+}
+
+/** The sealed-report tail both cases share: no recorder, epoch zero, empty scrub context. */
+function sealedTail(): Pick<ProblemReportInput, 'recordingUnavailable' | 'nowMs' | 'scrub'> {
+  return {
+    recordingUnavailable: false,
+    nowMs: 0,
+    scrub: { workspaceRoots: [], homeDir: '', extraLiterals: [] },
+  }
 }
 
 describe('vault scrub boundaries', () => {
@@ -110,6 +120,80 @@ describe('vault scrub boundaries', () => {
     await expect(result).rejects.toThrow()
     expect(fetch).not.toHaveBeenCalled()
     expect(started).not.toHaveBeenCalled()
+  })
+  it('rebuilds the body when the vault rotates while credentials resolve (RVM109T-3)', async () => {
+    const service = new VaultScrubService()
+    await service.unlock(() => Promise.resolve([]))
+    const secret = `opaque:${randomBytes(24).toString('base64url')}`
+    const scrubbed = Promise.withResolvers<undefined>()
+    const innerScrub = service.scrub.bind(service)
+    vi.spyOn(service, 'scrub').mockImplementation(async (text: string) => {
+      const out = await innerScrub(text)
+      scrubbed.resolve(undefined)
+      return out
+    })
+    const keyGate = Promise.withResolvers<string>()
+    const sent: string[] = []
+    const created = `data: ${JSON.stringify({ type: 'response.created', response: { id: 'r1' } })}\n\n`
+    const client = new ModelApiClient({
+      ...fakeModelApiClientSettings(new FakeLogOutputChannel()),
+      apiKey: () => keyGate.promise,
+      vaultScrub: service,
+      fetch: (_url, init) => {
+        if (typeof init?.body !== 'string') throw new Error('expected JSON request body')
+        sent.push(init.body)
+        return Promise.resolve(new Response(new TextEncoder().encode(created), { status: 200 }))
+      },
+    })
+    try {
+      const stop = new AbortController()
+      const result = Array.fromAsync(
+        client.streamResponse(body(secret), stop.signal, undefined, undefined, () => undefined),
+      )
+      await scrubbed.promise
+      // The value lands in the vault only after the first scrub ran.
+      await service.unlock(() => Promise.resolve([Buffer.from(secret)]))
+      keyGate.resolve(FAKE_MODEL_API_KEY)
+      await result
+      expect(sent).toHaveLength(1)
+      expect(sent[0]).not.toContain(secret)
+      expect(sent[0]).toContain(REDACTED_MARK)
+    } finally {
+      service.lock()
+    }
+  })
+  it('refuses the send when Lock lands while credentials resolve (RVM109T-3)', async () => {
+    const service = new VaultScrubService()
+    await service.unlock(() => Promise.resolve([]))
+    const secret = `opaque:${randomBytes(24).toString('base64url')}`
+    const scrubbed = Promise.withResolvers<undefined>()
+    const innerScrub = service.scrub.bind(service)
+    vi.spyOn(service, 'scrub').mockImplementation(async (text: string) => {
+      const out = await innerScrub(text)
+      scrubbed.resolve(undefined)
+      return out
+    })
+    const keyGate = Promise.withResolvers<string>()
+    const fetch = vi.fn<typeof globalThis.fetch>()
+    const client = new ModelApiClient({
+      ...fakeModelApiClientSettings(new FakeLogOutputChannel()),
+      apiKey: () => keyGate.promise,
+      vaultScrub: service,
+      fetch,
+    })
+    try {
+      const stop = new AbortController()
+      const result = Array.fromAsync(
+        client.streamResponse(body(secret), stop.signal, undefined, undefined, () => undefined),
+      )
+      await scrubbed.promise
+      service.lock()
+      keyGate.resolve(FAKE_MODEL_API_KEY)
+      await expect(result).rejects.toThrow()
+      expect(fetch).not.toHaveBeenCalled()
+    } finally {
+      service.lock()
+    }
   })
   it('removes vault values from portable JSON even when full export is selected', async () => {
     const t = await vault()
@@ -237,9 +321,7 @@ describe('vault scrub boundaries', () => {
       includeEvents: false,
       facts: REPORT_FACTS,
       events: [],
-      recordingUnavailable: false,
-      nowMs: 0,
-      scrub: { workspaceRoots: [], homeDir: '', extraLiterals: [] },
+      ...sealedTail(),
     }
     try {
       const draft = await buildVaultProblemReportDraft(input, t.service)
@@ -263,9 +345,7 @@ describe('vault scrub boundaries', () => {
         { kind: 'toolCallFailed', code: 'timeout', frames: [], ageMs: 1000 },
         { notAnEvent: true },
       ],
-      recordingUnavailable: false,
-      nowMs: 0,
-      scrub: { workspaceRoots: [], homeDir: '', extraLiterals: [] },
+      ...sealedTail(),
     }
     try {
       const draft = await buildVaultProblemReportDraft(input, t.service)

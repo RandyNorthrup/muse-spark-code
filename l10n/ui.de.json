@@ -1000,6 +1000,8 @@
   "museCodeUnresponsiveTurn": "Muse Code antwortet nicht mehr, während ein Durchgang läuft. Ein Neustart beendet diesen Durchgang; die Unterhaltung wird mit Ihrer nächsten Nachricht fortgesetzt.",
   "museCodeRestarted": "Muse Code wurde neu gestartet. Ihre nächste Nachricht setzt diese Unterhaltung fort.",
   "sessionLogDamaged": "Das Muse Code-Protokoll dieser Unterhaltung ist beschädigt (ein Fehler in Muse Code), daher kann sie keine neuen Nachrichten annehmen. Beginnen Sie eine neue Unterhaltung; diese bleibt im Verlauf.",
+  "vaultScrubUnavailable": "Der Tresor-Bereinigungsdienst ist nicht verfügbar.",
+  "vaultSessionLogUnavailable": "Der Tresor-sichere Sitzungsprotokollexport ist nicht verfügbar.",
   "turnUnqueued": "Nicht gesendet: Die eingereihte Nachricht wurde zurückgezogen",
   "turnRetracted": "Ein anderer Muse Code-Client hat eine Nachricht aus dieser Unterhaltung zurückgezogen; öffnen Sie sie erneut über den Verlauf, um sie wie gespeichert zu sehen.",
   "modelRouteUnserved": "Das angemeldete Konto kann das Modell dieser Unterhaltung nicht bereitstellen; wählen Sie im Modellmenü ein anderes Modell.",
@@ -2607,6 +2609,8 @@
   "referenceScanSecrets": "Prüft eine UTF-8-Patchdatei auf Geheimnisse und schlägt bei einem Fund fehl. --key-stdin prüft auch auf den exakten Model-API-Schlüssel im Speicher; kein Schlüssel wird gespeichert.",
   "referenceVault": "Arbeite im Terminal mit dem benutzereigenen Anmeldeinformations-Tresor: Status, Entsperren, Sperren, Auflisten, Hinzufügen, Freigaben, Prüfung, Import und Beobachtung. Werte werden nie ausgegeben; der Broker hält sie.",
   "referenceVaultHelp": "Verwendung des Befehls für den benutzereigenen Anmeldeinformations-Tresor anzeigen.",
+  "referenceVaultPanel": "Den benutzereigenen Anmeldeinformations-Tresor öffnen. Werte werden nie ausgegeben; der Broker hält sie.",
+  "referenceVaultLock": "Den benutzereigenen Anmeldeinformations-Tresor jetzt sperren; beendet jede Verwendung in jedem Fenster.",
   "vault": {
     "title": "Tresor",
     "locked": "Gesperrt",

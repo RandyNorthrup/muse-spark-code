@@ -967,6 +967,8 @@
   "museCodeUnresponsiveTurn": "턴이 실행되는 동안 Muse Code가 응답을 멈췄습니다. 다시 시작하면 그 턴이 중지되며, 대화는 다음 메시지로 계속됩니다.",
   "museCodeRestarted": "Muse Code가 다시 시작되었습니다. 다음 메시지로 이 대화가 계속됩니다.",
   "sessionLogDamaged": "이 대화의 Muse Code 로그가 손상되어(Muse Code의 결함) 새 메시지를 받을 수 없습니다. 새 대화를 시작하세요. 이 대화는 기록에 남습니다.",
+  "vaultScrubUnavailable": "Vault 스크럽 서비스를 사용할 수 없습니다.",
+  "vaultSessionLogUnavailable": "Vault-안전 세션 로그 내보내기를 사용할 수 없습니다.",
   "turnUnqueued": "전송되지 않음: 대기 중인 메시지가 철회되었습니다",
   "turnRetracted": "다른 Muse Code 클라이언트가 이 대화에서 메시지를 철회했습니다. 저장된 상태를 보려면 기록에서 다시 여세요.",
   "modelRouteUnserved": "로그인한 계정으로는 이 대화의 모델을 사용할 수 없습니다. 모델 메뉴에서 다른 모델을 선택하세요.",
@@ -2511,6 +2513,8 @@
   "referenceScanSecrets": "UTF-8 패치 파일에서 비밀 정보를 검색하고 발견하면 실패로 종료합니다. --key-stdin은 메모리에 있는 정확한 Model API 키도 검색하며 키를 저장하지 않습니다.",
   "referenceVault": "터미널에서 사용자별 자격 증명 Vault로 작업합니다: 상태, 잠금 해제, 잠금, 목록, 추가, 부여, 감사, 가져오기 및 감시. 값은 절대 인쇄되지 않으며 브로커가 보관합니다.",
   "referenceVaultHelp": "사용자별 자격 증명 Vault 명령 사용법을 표시합니다.",
+  "referenceVaultPanel": "사용자별 자격 증명 보관함을 엽니다. 값은 표시되지 않습니다. 브로커가 보관합니다.",
+  "referenceVaultLock": "사용자별 자격 증명 보관함을 지금 잠가 모든 창의 모든 사용을 종료합니다.",
   "vault": {
     "title": "보관함",
     "locked": "잠김",

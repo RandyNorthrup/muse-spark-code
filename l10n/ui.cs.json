@@ -1066,6 +1066,8 @@
   "museCodeUnresponsiveTurn": "Muse Code přestal odpovídat během probíhajícího tahu. Restart tento tah zastaví; konverzace bude pokračovat vaší další zprávou.",
   "museCodeRestarted": "Muse Code byl restartován. Vaše další zpráva bude pokračovat v této konverzaci.",
   "sessionLogDamaged": "Protokol Muse Code této konverzace je poškozený (chyba v Muse Code), takže nemůže přijímat nové zprávy. Začněte novou konverzaci; tato zůstane v Historii.",
+  "vaultScrubUnavailable": "Služba čištění trezoru není dostupná.",
+  "vaultSessionLogUnavailable": "Export protokolu relace bezpečného pro trezor není dostupný.",
   "turnUnqueued": "Neodesláno: zpráva ve frontě byla stažena",
   "turnRetracted": "Jiný klient Muse Code z této konverzace stáhl zprávu; otevřete ji znovu z Historie, abyste ji viděli tak, jak je uložena.",
   "modelRouteUnserved": "Přihlášený účet nemůže obsluhovat model této konverzace; vyberte jiný model z nabídky modelů.",
@@ -2799,6 +2801,8 @@
   "referenceScanSecrets": "Prohledejte soubor opravy v UTF-8 na tajné údaje; při nálezu skončí příkaz chybou. --key-stdin také hledá přesný klíč Model API držený v paměti; klíč se neukládá.",
   "referenceVault": "Pracujte s trezorem pověření pro jednotlivé uživatele z terminálu: stav, odemknutí, uzamknutí, seznam, přidání, granty, audit, import a sledování. Hodnoty se nikdy netisknou; drží je zprostředkovatel.",
   "referenceVaultHelp": "Zobrazí nápovědu k příkazu trezoru pověření pro jednotlivé uživatele.",
+  "referenceVaultPanel": "Otevřít uživatelský trezor přihlašovacích údajů. Hodnoty se nikdy nevypisují; drží je zprostředkovatel.",
+  "referenceVaultLock": "Zamknout uživatelský trezor přihlašovacích údajů nyní; ukončí každé použití v každém okně.",
   "vault": {
     "title": "Trezor",
     "locked": "Uzamčeno",

@@ -1000,6 +1000,8 @@
   "museCodeUnresponsiveTurn": "A Muse Code egy futó kör közben nem válaszol. Az újraindítás leállítja ezt a kört; a beszélgetés a következő üzenetével folytatódik.",
   "museCodeRestarted": "A Muse Code újraindult. A következő üzenete folytatja ezt a beszélgetést.",
   "sessionLogDamaged": "Ennek a beszélgetésnek a Muse Code-naplója sérült (a Muse Code hibája), ezért nem fogadhat új üzeneteket. Kezdjen új beszélgetést; ez megmarad az Előzmények között.",
+  "vaultScrubUnavailable": "A tárolótisztító szolgáltatás nem érhető el.",
+  "vaultSessionLogUnavailable": "A tároló-biztos munkamenetnapló-exportálás nem érhető el.",
   "turnUnqueued": "Nincs elküldve: a sorba állított üzenetet visszavonták",
   "turnRetracted": "Egy másik Muse Code-kliens visszavont egy üzenetet ebből a beszélgetésből; nyissa meg újra az Előzményekből, hogy a tárolt állapotában lássa.",
   "modelRouteUnserved": "A bejelentkezett fiók nem tudja kiszolgálni a beszélgetés modelljét; válasszon másik modellt a modellmenüből.",
@@ -2607,6 +2609,8 @@
   "referenceScanSecrets": "Titkokat keres egy UTF-8 javításfájlban, és találat esetén hibával kilép. A --key-stdin a memóriában lévő pontos Model API-kulcsot is keresi; nem tárol kulcsot.",
   "referenceVault": "Dolgozzon a terminálból a felhasználónkénti hitelesítőadat-tárolóval: állapot, feloldás, zárolás, lista, hozzáadás, engedélyek, naplózás, importálás és figyelés. Az értékek soha nem jelennek meg; a közvetítő őrzi őket.",
   "referenceVaultHelp": "Megjeleníti a felhasználónkénti hitelesítőadat-tároló parancsának használatát.",
+  "referenceVaultPanel": "A felhasználónkénti hitelesítőadat-tároló megnyitása. Az értékek soha nem jelennek meg; a közvetítő őrzi őket.",
+  "referenceVaultLock": "A felhasználónkénti hitelesítőadat-tároló zárolása most; minden ablakban minden használatot befejez.",
   "vault": {
     "title": "Tároló",
     "locked": "Zárolva",

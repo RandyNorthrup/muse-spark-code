@@ -967,6 +967,8 @@
   "museCodeUnresponsiveTurn": "Muse Code 在回合執行時停止回應。重新啟動會停止該回合；對話會在你傳送下一則訊息時繼續。",
   "museCodeRestarted": "Muse Code 已重新啟動。你的下一則訊息會繼續此對話。",
   "sessionLogDamaged": "此對話的 Muse Code 記錄檔已損毀（Muse Code 的故障），因此無法接收新訊息。請開始新對話；此對話會保留在歷程記錄中。",
+  "vaultScrubUnavailable": "保管庫清理服務無法使用。",
+  "vaultSessionLogUnavailable": "保管庫安全的作業階段記錄匯出無法使用。",
   "turnUnqueued": "未傳送：排入佇列的訊息已撤回",
   "turnRetracted": "另一個 Muse Code 用戶端從此對話撤回了一則訊息；請從歷程記錄重新開啟對話，以檢視已儲存的版本。",
   "modelRouteUnserved": "已登入的帳戶無法為此對話的模型提供服務；請從模型功能表選擇其他模型。",
@@ -2511,6 +2513,8 @@
   "referenceScanSecrets": "掃描 UTF-8 修補檔案中的秘密資訊，偵測到時以失敗結束。--key-stdin 也會檢查記憶體中的 Model API 金鑰原值；不儲存金鑰。",
   "referenceVault": "從終端機使用按使用者 credential 保管庫：狀態、解鎖、鎖定、清單、新增、授權、稽核、匯入和監視。值永遠不會列印；由代理持有。",
   "referenceVaultHelp": "顯示按使用者 credential 保管庫命令的用法。",
+  "referenceVaultPanel": "開啟按使用者劃分的認證保管庫。值永遠不會顯示；由代理持有。",
+  "referenceVaultLock": "立即鎖定按使用者劃分的認證保管庫，結束每個視窗中的每次使用。",
   "vault": {
     "title": "憑證庫",
     "locked": "已鎖定",

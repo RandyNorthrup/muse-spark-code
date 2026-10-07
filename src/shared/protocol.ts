@@ -1136,7 +1136,9 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     // which of its choices (the dialog's `revision`, 0 for the opening
     // draft) this draft answers: a late draft for a closed or older dialog,
     // or for an older choice, is told apart instead of reopening or
-    // overwriting it.
+    // overwriting it. A rebuild that refused re-posts the previous draft
+    // with the failed choice's revision, so the dialog settles on what it
+    // still shows instead of waiting for a draft that never comes.
     session: z.int().check(z.gte(1)),
     revision: z.int().check(z.gte(0)),
     description: z.string().check(z.maxLength(REPORT_DESCRIPTION_MAX_CHARS)),

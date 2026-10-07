@@ -1033,6 +1033,8 @@
   "museCodeUnresponsiveTurn": "O Muse Code parou de responder enquanto um turno está em execução. Reiniciá-lo interrompe esse turno; a conversa continua com sua próxima mensagem.",
   "museCodeRestarted": "O Muse Code foi reiniciado. Sua próxima mensagem continua esta conversa.",
   "sessionLogDamaged": "O log do Muse Code desta conversa está danificado (uma falha do Muse Code), então ela não pode receber novas mensagens. Comece uma nova conversa; esta continua no Histórico.",
+  "vaultScrubUnavailable": "O serviço de depuração do cofre está indisponível.",
+  "vaultSessionLogUnavailable": "A exportação do registro de sessão segura do cofre está indisponível.",
   "turnUnqueued": "Não enviada: a mensagem da fila foi retirada",
   "turnRetracted": "Outro cliente do Muse Code retirou uma mensagem desta conversa; reabra-a no Histórico para vê-la como está armazenada.",
   "modelRouteUnserved": "A conta conectada não pode atender ao modelo desta conversa; escolha outro modelo no menu de modelos.",
@@ -2703,6 +2705,8 @@
   "referenceScanSecrets": "Verifica um arquivo de patch UTF-8 em busca de segredos e falha ao detectá-los. --key-stdin também procura a chave exata da Model API mantida em memória; nenhuma chave é armazenada.",
   "referenceVault": "Trabalhe com o cofre de credenciais por usuário em um terminal: estado, desbloqueio, bloqueio, lista, adição, concessões, auditoria, importação e observação. Os valores nunca são impressos; o intermediário os mantém.",
   "referenceVaultHelp": "Mostra o uso do comando do cofre de credenciais por usuário.",
+  "referenceVaultPanel": "Abrir o cofre de credenciais por usuário. Os valores nunca são exibidos; o intermediário os mantém.",
+  "referenceVaultLock": "Bloquear agora o cofre de credenciais por usuário; encerra cada uso em cada janela.",
   "vault": {
     "title": "Cofre",
     "locked": "Bloqueado",

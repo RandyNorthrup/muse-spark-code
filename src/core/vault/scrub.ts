@@ -1,10 +1,51 @@
 import { Buffer } from 'node:buffer'
-import { REDACTED_MARK, VAULT_BASE64_GROUP_CHARS, VAULT_LIMITS } from '../../shared/constants'
+import {
+  REDACTED_MARK,
+  UI_TEXT,
+  VAULT_BASE64_GROUP_CHARS,
+  VAULT_LIMITS,
+} from '../../shared/constants'
 import type { SecretScrubPort } from '../../shared/redact'
 
 const HEX_RADIX = 16
 const BMP_MAX = 0xff_ff
 const ASCII_LIMIT = 128
+const UNICODE_DIGITS = 4
+const UNICODE_BASE = 0x1_00_00
+const UNICODE_HALF = 0x4_00
+const UNICODE_HIGH_START = 0xd8_00
+const UNICODE_LOW_START = 0xdc_00
+
+/** One JSON `\uXXXX` escape, with a surrogate pair past the basic plane. */
+function jsonEscape(char: string): string {
+  const code = char.codePointAt(0) ?? 0
+  if (code <= BMP_MAX)
+    return String.raw`\u${code.toString(HEX_RADIX).padStart(UNICODE_DIGITS, '0')}`
+  const high = Math.floor((code - UNICODE_BASE) / UNICODE_HALF) + UNICODE_HIGH_START
+  const low = ((code - UNICODE_BASE) % UNICODE_HALF) + UNICODE_LOW_START
+  return String.raw`\u${high.toString(HEX_RADIX).padStart(UNICODE_DIGITS, '0')}\u${low.toString(HEX_RADIX).padStart(UNICODE_DIGITS, '0')}`
+}
+
+/**
+ * A `\uXXXX` escape with upper-case hex; producers disagree on the hex case,
+ * but the `u` itself stays lower case.
+ */
+function upperJsonEscapes(form: string): string {
+  return form.replaceAll(
+    /\\u[0-9a-f]{4}/g,
+    (part) => part.slice(0, 2) + part.slice(2).toUpperCase(),
+  )
+}
+
+/** ASCII JSON producers escape only structural punctuation; others escape nothing. */
+function jsonVariants(text: string): string[] {
+  const colonLower = text.replaceAll(':', String.raw`\u003a`)
+  const nonAsciiLower = Array.from(text, (char) =>
+    (char.codePointAt(0) ?? 0) >= ASCII_LIMIT ? jsonEscape(char) : char,
+  ).join('')
+  // Hex escapes come in both cases; a split escape keeps each half's case.
+  return [colonLower, upperJsonEscapes(colonLower), nonAsciiLower, upperJsonEscapes(nonAsciiLower)]
+}
 
 interface Node {
   readonly edges: Map<number, number>
@@ -28,25 +69,41 @@ function forms(value: Uint8Array): Buffer[] {
       raw.toString('hex').toUpperCase(),
       raw.toString('base64'),
       raw.toString('base64url'),
-      Array.from(raw, (byte) => `%${byte.toString(HEX_RADIX).padStart(2, '0')}`).join(''),
+      // Percent triples come in both cases (WHATWG encoders use lower
+      // case); a triplet split by a line break keeps each half's case, so
+      // both full spellings are stored.
       Array.from(raw, (byte) => `%${byte.toString(HEX_RADIX).padStart(2, '0').toUpperCase()}`).join(
         '',
       ),
       encodeURIComponent(text),
       encodeURIComponent(text).replaceAll(/%[\dA-F]{2}/g, (part) => part.toLowerCase()),
+      ...jsonVariants(text),
     ]
     for (const offset of [0, 1, 2]) {
       const aligned = Buffer.alloc(offset + raw.length)
       try {
         aligned.set(raw, offset)
-        const start = Math.ceil(
+        // The core span holds only value-determined characters, so it matches
+        // whatever neighbours the stream carries. The edge span reaches the
+        // characters the value shares with zero neighbours, so a value framed
+        // by zero bytes still matches (its bits alone determine no character).
+        const coreStart = Math.ceil(
           (offset * VAULT_BASE64_GROUP_CHARS) / (VAULT_BASE64_GROUP_CHARS - 1),
         )
-        const end = Math.floor(
+        const coreEnd = Math.floor(
+          (aligned.length * VAULT_BASE64_GROUP_CHARS) / (VAULT_BASE64_GROUP_CHARS - 1),
+        )
+        const edgeStart = Math.floor(
+          (offset * VAULT_BASE64_GROUP_CHARS) / (VAULT_BASE64_GROUP_CHARS - 1),
+        )
+        const edgeEnd = Math.ceil(
           (aligned.length * VAULT_BASE64_GROUP_CHARS) / (VAULT_BASE64_GROUP_CHARS - 1),
         )
         for (const encoding of ['base64', 'base64url'] as const) {
-          encoded.push(aligned.toString(encoding).slice(start, end))
+          const stream = aligned.toString(encoding)
+          encoded.push(stream.slice(coreStart, coreEnd))
+          const edge = stream.slice(edgeStart, edgeEnd)
+          if (edge !== stream.slice(coreStart, coreEnd)) encoded.push(edge)
         }
       } finally {
         aligned.fill(0)
@@ -76,8 +133,12 @@ const ANSI = new RegExp(
   String.raw`${ESCAPE}(?:\[[0-?]*[ -/]*[@-~]|\][^${BELL}${ESCAPE}]*(?:${BELL}|${ESCAPE}\\))`,
 )
 const ANSI_START = new RegExp(`^(?:${ANSI.source})`)
-const DECORATION = new RegExp(`${ANSI.source}|[\r\n]`, 'g')
-
+// An OSC sequence's framing (its opener and terminator) is skipped, but its
+// payload is matched: a title that carries a value must not exempt it.
+const SKIP = new RegExp(
+  `${ESCAPE}\\[[0-?]*[ -/]*[@-~]|[\\r\\n]|${ESCAPE}\\][0-9;]*;|${BELL}|${ESCAPE}\\\\`,
+  'g',
+)
 /** Broker/feeder only: the trie holds code-point edges, no retained plaintext strings. */
 export class VaultScrubber {
   private readonly nodes: Node[] = [{ edges: new Map(), fail: 0, length: 0, depth: 0 }]
@@ -130,7 +191,7 @@ export class VaultScrubber {
   }
 
   private insert(pattern: Buffer): void {
-    const text = pattern.toString('utf8').replaceAll(DECORATION, '')
+    const text = pattern.toString('utf8').replaceAll(SKIP, '')
     // Removing decoration must never turn a value into an empty success.
     if (text === '') throw new Error('Vault value has no matchable text')
     let state = 0
@@ -156,8 +217,9 @@ export class VaultScrubber {
   /** Internal streaming boundary: retain normalized suffixes and whole matched spans. */
   public scan(text: string, retain = 0): { text: string; cut: number } {
     if (this.isDisposed) throw new Error('Vault scrubber is disposed')
-    DECORATION.lastIndex = 0
-    let decoration = DECORATION.exec(text)
+    const source = text
+    SKIP.lastIndex = 0
+    let skip = SKIP.exec(source)
     const positions = new Float64Array(this.maxLength + 1)
     let seen = 0
     let state = 0
@@ -165,14 +227,14 @@ export class VaultScrubber {
     const nodes = this.nodes
     let node = nodes[0]
     const spans: { start: number; end: number }[] = []
-    for (let at = 0; at < text.length; at += 1) {
-      if (decoration !== null && decoration.index === at) {
-        at += decoration[0].length - 1
-        decoration = DECORATION.exec(text)
+    for (let at = 0; at < source.length; at += 1) {
+      if (skip !== null && skip.index === at) {
+        at += skip[0].length - 1
+        skip = SKIP.exec(source)
         continue
       }
       positions[ring] = at
-      const byte = text.codePointAt(at) ?? 0
+      const byte = source.codePointAt(at) ?? 0
       if (node?.dense !== undefined && byte < ASCII_LIMIT) state = node.dense[byte] ?? 0
       else {
         let next = node?.edges.get(byte)
@@ -271,13 +333,17 @@ export class VaultScrubber {
 
 /** One serialized owner; Lock invalidates late builds before they can install. */
 export class VaultScrubService implements SecretScrubPort {
-  private generation = 0
+  private epoch = 0
   private active: VaultScrubber | undefined
   private tail: Promise<void> = Promise.resolve()
 
+  public get generation(): number {
+    return this.epoch
+  }
+
   /** Loader transfers ownership of its bytes, wiped even after failure/cancellation. */
   public unlock(load: () => Promise<readonly Uint8Array[]>): Promise<void> {
-    const generation = ++this.generation
+    const generation = ++this.epoch
     this.active?.dispose()
     this.active = undefined
     const previous = this.tail
@@ -287,7 +353,7 @@ export class VaultScrubService implements SecretScrubPort {
       let built: VaultScrubber | undefined
       try {
         values = await load()
-        if (generation !== this.generation) throw new Error('Obsolete vault scrub build')
+        if (generation !== this.epoch) throw new Error('Obsolete vault scrub build')
         built = new VaultScrubber(values)
         this.active = built
         built = undefined
@@ -308,12 +374,12 @@ export class VaultScrubService implements SecretScrubPort {
 
   public scrub(text: string): Promise<string> {
     return this.active === undefined
-      ? Promise.reject(new Error('Vault scrub service is unavailable'))
+      ? Promise.reject(new Error(UI_TEXT.vaultScrubUnavailable))
       : Promise.resolve(this.active.scrub(text))
   }
 
   public lock(): void {
-    this.generation += 1
+    this.epoch += 1
     this.active?.dispose()
     this.active = undefined
   }

@@ -343,7 +343,20 @@ export function createReportProblemHandler(deps: ReportProblemHandlerDeps): {
     }
     // The snapshot open built from, so this cannot refuse where open did not.
     const draft = await rebuild(current.data, choice)
-    if (draft === undefined || session !== current || revision !== revisionCount) {
+    if (session !== current || revision !== revisionCount) {
+      return
+    }
+    if (draft === undefined) {
+      // The rebuild refused after open allowed it (Lock, a scrub failure):
+      // the notice already fired. Re-post the last good draft stamped with
+      // this revision, so the dialog stops showing an updating preview with
+      // disabled exports; what stays on screen is still that previous draft,
+      // and the next edit retries the build (RVM109T 5).
+      const settled: ReportSession = {
+        ...current,
+        choice: { ...current.choice, revision: message.revision },
+      }
+      deps.post(reportDraftMessage(settled))
       return
     }
     const next: ReportSession = { ...current, choice, draft }

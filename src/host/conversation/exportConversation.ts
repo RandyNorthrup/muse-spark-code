@@ -177,7 +177,7 @@ export async function exportConversation(
   // Muse Code writes its raw log itself: refuse this route while vault
   // scrubbing is required, until its writer can return scrubbed bytes.
   if (format === 'sessionLog' && exports.vaultScrub !== undefined)
-    throw new Error('Vault-safe session log export is unavailable')
+    throw new Error(UI_TEXT.vaultSessionLogUnavailable)
   if (format === 'sessionLog' && host.info.kind !== 'museCode') {
     return 'logUnavailable'
   }

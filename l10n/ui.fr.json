@@ -1033,6 +1033,8 @@
   "museCodeUnresponsiveTurn": "Muse Code ne répond plus alors qu’un tour est en cours. Le redémarrer arrête ce tour ; la conversation reprend avec votre prochain message.",
   "museCodeRestarted": "Muse Code a été redémarré. Votre prochain message poursuit cette conversation.",
   "sessionLogDamaged": "Le journal Muse Code de cette conversation est endommagé (une défaillance de Muse Code) : elle ne peut donc plus recevoir de nouveaux messages. Commencez une nouvelle conversation ; celle-ci reste dans l’Historique.",
+  "vaultScrubUnavailable": "Le service de nettoyage du coffre est indisponible.",
+  "vaultSessionLogUnavailable": "L'exportation du journal de session sécurisé pour le coffre est indisponible.",
   "turnUnqueued": "Non envoyé : le message en file d’attente a été retiré",
   "turnRetracted": "Un autre client Muse Code a retiré un message de cette conversation ; rouvrez-la depuis l’Historique pour la voir telle qu’elle est enregistrée.",
   "modelRouteUnserved": "Le compte connecté ne peut pas servir le modèle de cette conversation ; choisissez un autre modèle dans le menu des modèles.",
@@ -2703,6 +2705,8 @@
   "referenceScanSecrets": "Analyse un fichier de patch UTF-8 pour détecter des secrets et échoue en cas de détection. --key-stdin recherche aussi la clé Model API exacte conservée en mémoire ; aucune clé n’est stockée.",
   "referenceVault": "Utilisez le coffre d’identifiants par utilisateur depuis un terminal : état, déverrouillage, verrouillage, liste, ajout, autorisations, audit, import et surveillance. Les valeurs ne s’impriment jamais ; le courtier les détient.",
   "referenceVaultHelp": "Affiche l’utilisation de la commande du coffre d’identifiants par utilisateur.",
+  "referenceVaultPanel": "Ouvrir le coffre d’identifiants par utilisateur. Les valeurs ne s’affichent jamais ; le courtier les conserve.",
+  "referenceVaultLock": "Verrouiller le coffre d’identifiants par utilisateur maintenant ; met fin à chaque utilisation dans chaque fenêtre.",
   "vault": {
     "title": "Coffre-fort",
     "locked": "Verrouillé",

@@ -967,6 +967,8 @@
   "museCodeUnresponsiveTurn": "ターンの実行中に Muse Code が応答しなくなりました。再起動するとそのターンは停止します。会話は次のメッセージで続行されます。",
   "museCodeRestarted": "Muse Code を再起動しました。次のメッセージでこの会話を続行します。",
   "sessionLogDamaged": "この会話の Muse Code ログが破損しているため (Muse Code の不具合)、新しいメッセージを受け付けられません。新しい会話を始めてください。この会話は履歴に残ります。",
+  "vaultScrubUnavailable": "Vault スクラブサービスは利用できません。",
+  "vaultSessionLogUnavailable": "Vault セーフなセッションログのエクスポートは利用できません。",
   "turnUnqueued": "未送信: キュー内のメッセージは取り消されました",
   "turnRetracted": "別の Muse Code クライアントがこの会話からメッセージを取り消しました。保存されている状態を表示するには、履歴から開き直してください。",
   "modelRouteUnserved": "サインインしているアカウントでは、この会話のモデルを利用できません。モデル メニューから別のモデルを選択してください。",
@@ -2511,6 +2513,8 @@
   "referenceScanSecrets": "UTF-8 のパッチファイルから秘密情報を検出し、見つかった場合は失敗終了します。--key-stdin はメモリ内の Model API キーそのものも検索します。キーは保存されません。",
   "referenceVault": "ターミナルからユーザーごとの資格情報 Vault を操作します: 状態、ロック解除、ロック、一覧、追加、付与、監査、インポート、監視。値は決して表示されません。ブローカーが保持します。",
   "referenceVaultHelp": "ユーザーごとの資格情報 Vault コマンドの使用方法を表示します。",
+  "referenceVaultPanel": "ユーザーごとの認証情報保管庫を開きます。値は表示されません。ブローカーが保持します。",
+  "referenceVaultLock": "ユーザーごとの認証情報保管庫を今すぐロックし、すべてのウィンドウのすべての使用を終了します。",
   "vault": {
     "title": "保管庫",
     "locked": "ロック中",
