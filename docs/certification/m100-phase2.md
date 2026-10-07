@@ -130,3 +130,30 @@ The real production build passes every unchanged size/split/global/notices
 gate: Devices **80.7/100 KiB**, activation **462.8/600 KiB**, Model API
 **456.0/475 KiB**, chat startup **735.8/900 KiB**, original deferred JS
 **31.9/50 KiB**. `.husky/_/pre-commit` exists before the merge commit.
+
+### First fresh-clone static run and release-head lint repair
+
+Committed merge `1b24c700f`, fresh clone
+`/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m100p2base-ci-45gdvk6h/repo`,
+`CI=true`, `npm ci` (exit 0). All five typechecks, full Prettier,
+plain knip, duplication (zero clones), cycles (866 files, zero cycles),
+reference, localization, host API and production build passed.
+Full JavaScript lint found the release-head conditional spread at
+`scripts/check-badges.mjs:37` (`unicorn/consistent-conditional-object-spread`).
+Use a logical conditional spread while preserving the job-token header's
+GitHub-only binding. The complete fake-only `checkBadges.test.mjs` passes
+**40 tests** at repository deadlines, including token/no-token and image-host
+boundary checks. No HTTP request is added by this repair or its tests.
+Final verification starts from another fresh clone of the repair commit.
+
+### Deliberate independent-panel drill
+
+Temporarily add a side-effect import of `./modelsPanel` to the Devices
+boundary. The full `deferredBundles.test.ts` file fails its new independent
+boundary assertion and its unchanged size gate: **2 failed, 78 passed**.
+Restore source byte-exact, then run the complete deferred/phase-2 contract
+files together: **115 passed** at repository deadlines. The cap/global
+artifact drills inside the deferred file also verify byte-exact restoration.
+
+Source `src/shared/devicesPanel.ts` before/after SHA-256: `4a672cc45df36ee29d203d758e0dabe39d337c815951f0ff2e33b6a33b2abbbb`
+(equal); red exit 1, restored exit 0.

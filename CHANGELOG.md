@@ -15,6 +15,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Keep the badge checker's conditional CI-token header within the existing
+  lint rule while preserving its GitHub-only request binding.
+
 - Accept Windows short temp-path spellings for team hints while refusing linked
   folders; avoid broad PowerShell module discovery in team native helpers and
   await unconfirmed helper closure before cleaning up its files.

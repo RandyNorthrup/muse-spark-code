@@ -34,7 +34,7 @@ async function publicMainFiles(fetcher, githubToken) {
   const reply = await fetcher(PUBLIC_MAIN_TREE, {
     cache: 'no-store',
     signal: globalThis.AbortSignal.timeout(REQUEST_MS),
-    ...(githubToken ? { headers: { authorization: `Bearer ${githubToken}` } } : {}),
+    ...(githubToken && { headers: { authorization: `Bearer ${githubToken}` } }),
   })
   if (!reply.ok) throw new Error(`Public main tree HTTP ${reply.status}`)
   const tree = MAIN_TREE.parse(await reply.json())
