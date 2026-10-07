@@ -47,6 +47,9 @@ export function vaultFenceEnvironment(
         'GIT_SSH',
         'GIT_SSH_COMMAND',
         'GIT_SSH_VARIANT',
+        'GIT_PROXY_COMMAND',
+        'GIT_EXEC_PATH',
+        'GIT_EXTERNAL_DIFF',
       ].includes(upper) ||
       (!options.museCode &&
         (/^(?:BASH_ENV|ENV|BASH_FUNC_.*|NODE_OPTIONS|NODE_PATH|LD_PRELOAD|LD_LIBRARY_PATH|DYLD_.*|ELECTRON_.*)$/u.test(

@@ -25,6 +25,7 @@ import {
   withTerminalOverrides,
 } from '../../src/host/backend/toolIo'
 import { newShellJob, shellJobAssembly } from '../../src/host/backend/shellJob'
+import { vaultFenceEnvironment } from '../../src/core/vault/exec/fence'
 import { canonicalPath } from '../../src/host/canonicalPath'
 import { ShellTimeLimit } from '../../src/core/backends/modelapi/tools'
 import { confineWorkspacePath } from '../../src/core/workspacePath'
@@ -235,11 +236,13 @@ describe('hookEnvironment (M51)', () => {
         'linux',
         ['CI_TOKEN', 'META_API_KEY'],
       ),
-    ).toEqual({
-      HOME: '/home/u',
-      PATH: '/usr/bin:/opt/bin',
-      LANG: 'en_US.UTF-8',
-    })
+    ).toEqual(
+      vaultFenceEnvironment({
+        HOME: '/home/u',
+        PATH: '/usr/bin:/opt/bin',
+        LANG: 'en_US.UTF-8',
+      }),
+    )
   })
 
   it('sanitizes mixed-case Windows PATH and COMSPEC grants too', () => {

@@ -2,6 +2,7 @@ import * as childProcess from 'node:child_process'
 import { once } from 'node:events'
 import * as workers from 'node:worker_threads'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { vaultFenceEnvironment } from '../../src/core/vault/exec/fence'
 import { isCredentialVariable, withoutCredentials } from '../../src/core/credentialEnvironment'
 import { buildChildEnvironment } from '../../src/core/backends/musecode/launch'
 import { GLOB_LIMITS } from '../../src/core/backends/modelapi/globLimits'
@@ -31,6 +32,9 @@ afterEach(() => {
 })
 
 const CREDENTIAL_NAMES = [
+  'PGPASSWORD',
+  'MYSQL_PWD',
+  'REDISCLI_AUTH',
   'OPENAI_API_KEY',
   'ANTHROPIC_API_KEY',
   'GEMINI_API_KEY',
@@ -112,7 +116,7 @@ describe('D89.5 shared credential fence', () => {
       const env = { [spelling]: 'envfence-harmless' }
       expect(withoutCredentials(env)).toEqual(env)
       expect(shellEnvironment(env, 'linux', undefined, [], false)).toEqual(env)
-      expect(hookEnvironment(env, 'linux', [spelling])).toEqual(env)
+      expect(hookEnvironment(env, 'linux', [spelling])).toEqual(vaultFenceEnvironment(env))
       expect(takeCredentials(env)).toEqual([])
       expect(env[spelling]).toBe('envfence-harmless')
     }
@@ -156,7 +160,7 @@ describe('D89.5 shared credential fence', () => {
     expect(
       withoutCredentials({ Path: '/bin', openai_api_key: 'fake' }, ['OPENAI_API_KEY'], 'win32'),
     ).toEqual({ Path: '/bin', openai_api_key: 'fake' })
-    expect(hookEnvironment(ENV, 'linux', CREDENTIAL_NAMES)).toEqual(SAFE)
+    expect(hookEnvironment(ENV, 'linux', CREDENTIAL_NAMES)).toEqual(vaultFenceEnvironment(SAFE))
     expect(mcpServerEnvironment(ENV, {}, 'linux')).toEqual(SAFE)
     expect(mcpServerEnvironment(ENV, { GH_TOKEN: 'explicit-fake' }, 'linux')).toEqual({
       ...SAFE,

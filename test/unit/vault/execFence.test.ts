@@ -1,12 +1,89 @@
 import { describe, expect, it } from 'vitest'
 import { randomBytes } from 'node:crypto'
-import { shellEnvironment } from '../../../src/host/backend/toolIo'
+import { vaultShellSecretsSchema } from '../../../src/core/vault/exec/schema'
+import { hookEnvironment, createToolIo, shellEnvironment } from '../../../src/host/backend/toolIo'
 import { withoutCredentials, withoutKeyringRoutes } from '../../../src/runtime/credentialVariables'
 import { vaultFenceEnvironment } from '../../../src/core/vault/exec/fence'
 import { shellArguments } from '../../../src/host/backend/toolIo'
 import { fakeMuseCodeManager } from '../helpers/museCodeManager'
 
 describe('M109 X credential fence', () => {
+  it.each([false, true])(
+    'W-X1 fence-off is honored only for interactive=%s shells',
+    async (interactive) => {
+      const io = createToolIo({
+        platform: process.platform,
+        systemRoot: process.env['SystemRoot'],
+        env: () => ({
+          PATH: process.env['PATH'],
+          SystemRoot: process.env['SystemRoot'],
+          SSH_AUTH_SOCK: '/ambient/fake-worker-route',
+        }),
+        agentFence: () => false,
+        listFiles: () => Promise.resolve([]),
+        searchWorkerPath: 'unused',
+        log: () => undefined,
+        unsavedFiles: () => [],
+      })
+      const result = await io.runShell(
+        process.platform === 'win32' ? 'Get-ChildItem Env:' : 'env',
+        process.cwd(),
+        1000,
+        undefined,
+        undefined,
+        undefined,
+        interactive,
+      )
+      expect(result.exitCode).toBe(0)
+      expect(result.stdout.includes('/ambient/fake-worker-route')).toBe(interactive)
+    },
+  )
+  it.each(['GIT_PROXY_COMMAND', 'GIT_EXEC_PATH', 'GIT_EXTERNAL_DIFF'])(
+    'W-X2 drops inherited %s including Muse Code and case variants',
+    (name) => {
+      for (const isMuseCode of [false, true])
+        for (const spelling of [name, name.toLowerCase()])
+          expect(
+            vaultFenceEnvironment({ [spelling]: 'fake-route' }, { museCode: isMuseCode })[spelling],
+          ).toBeUndefined()
+    },
+  )
+  it.each([
+    'LD_PRELOAD',
+    'LD_LIBRARY_PATH',
+    'DYLD_INSERT_LIBRARIES',
+    'NODE_OPTIONS',
+    'NODE_PATH',
+    'BASH_ENV',
+    'ENV',
+    'BASH_FUNC_probe',
+  ])('W-X3 refuses loader/startup injection through an approved %s env name', (name) => {
+    expect(
+      vaultShellSecretsSchema.safeParse({ env: { [name]: 'secret://test-secret' } }).success,
+    ).toBe(false)
+  })
+  it.each(['PGPASSWORD', 'MYSQL_PWD', 'REDISCLI_AUTH'])(
+    'W-X4 strips common %s credentials from shells and hooks',
+    (name) => {
+      const env = { [name]: 'fake-password', [name.toLowerCase()]: 'fake-password' }
+      expect(withoutCredentials(env)).toEqual({})
+      expect(shellEnvironment(env, 'linux', undefined)[name]).toBeUndefined()
+      expect(hookEnvironment(env, 'linux', Object.keys(env))[name]).toBeUndefined()
+    },
+  )
+  it('W-X5 hooks reset file-based git helpers and refuse askpass routes', () => {
+    const env = hookEnvironment(
+      { PATH: '/bin', GIT_CONFIG_PARAMETERS: 'credential.helper=store', SSH_AUTH_SOCK: '/ambient' },
+      'linux',
+    )
+    expect(env['GIT_CONFIG_COUNT']).toBe('2')
+    expect(env['GIT_CONFIG_VALUE_0']).toBe('')
+    expect(env['GIT_TERMINAL_PROMPT']).toBe('0')
+    expect(env['GIT_ASKPASS']).toBe('')
+    expect(env['SSH_ASKPASS']).toBe('')
+    expect(env['SUDO_ASKPASS']).toBe('')
+  })
+
   const canary = randomBytes(32).toString('hex')
   const source = {
     PATH: '/safe/bin',

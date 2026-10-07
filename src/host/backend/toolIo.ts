@@ -310,7 +310,7 @@ export function hookEnvironment(
       setEnvironmentVariable(clean, platform, name, value)
     }
   }
-  return clean
+  return vaultFenceEnvironment(clean, { platform })
 }
 
 /**
@@ -705,7 +705,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         // No workspace process has started; cancellation is proven at this boundary.
         return refusedShellEntry()
       }
-      const isFenced = deps.agentFence?.() ?? true
+      const isFenced = !isInteractive || (deps.agentFence?.() ?? true)
       return await runCommand({
         file: interpreter,
         args: shellArguments(deps.platform, command, job, isFenced),

@@ -673,6 +673,9 @@ export const CREDENTIAL_ENV_EXACT_NAMES: ReadonlySet<string> = new Set([
   'SYSTEM_ACCESSTOKEN',
   'DOCKER_AUTH_CONFIG',
   'AZURE_STORAGE_SAS',
+  'PGPASSWORD',
+  'MYSQL_PWD',
+  'REDISCLI_AUTH',
 ])
 // M91 lane W (PLAN.md D70): the formats lane P's adapters translate, Cline's
 // v1 scripts among them (lane X's contract). A spark-hooks.json group names one

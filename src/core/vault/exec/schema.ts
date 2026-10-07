@@ -21,7 +21,10 @@ export const vaultShellSecretsSchema = z
     z.refine((v) => Object.keys(v.env ?? {}).length <= VAULT_LIMITS.names),
     z.refine((v) =>
       Object.keys(v.env ?? {}).every(
-        (name) => !/^(?:SSH_AUTH_SOCK|SSH_AGENT_PID|GIT_.*|SSH_ASKPASS|SUDO_ASKPASS)$/iu.test(name),
+        (name) =>
+          !/^(?:SSH_AUTH_SOCK|SSH_AGENT_PID|GIT_.*|SSH_ASKPASS|SUDO_ASKPASS|LD_PRELOAD|LD_LIBRARY_PATH|DYLD_.*|NODE_OPTIONS|NODE_PATH|BASH_ENV|ENV|BASH_FUNC_.*|ELECTRON_.*)$/iu.test(
+            name,
+          ),
       ),
     ),
     z.refine((v) => v.stdin === undefined || v.totp === undefined),
