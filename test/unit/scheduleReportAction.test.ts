@@ -222,6 +222,10 @@ describe('scheduled report action', () => {
     for (const receipt of [
       {},
       { other: { status: 'delivered', attempts: 1 } },
+      {
+        browser: { status: 'delivered', attempts: 1 },
+        extra: { status: 'delivered', attempts: 0 },
+      },
       { browser: { status: 'delivered' } },
       { browser: { status: 'delivered', attempts: 1, credential: 'private' } },
     ]) {
@@ -383,6 +387,13 @@ describe('schedule_report admission', () => {
     expect(
       await tool.execute({ ...outside, grant: { ...creator, destinationIds: ['outside'] } }),
     ).toMatchObject({ kind: 'refused' })
+    expect(admit).not.toHaveBeenCalled()
+    // G narrowed the grant after the draft was written: the draft and the
+    // creator still name the destination, but the bounded grant does not.
+    bounded.mockReturnValue({ rules: [], destinationIds: [], paidCapUsd: 0 })
+    expect(await tool.execute(draft)).toMatchObject({
+      reason: UI_TEXT.scheduleV2.reportAction.grantRequired,
+    })
     expect(admit).not.toHaveBeenCalled()
   })
   it('cannot bypass G refusal or accept prompt, paid, host-authority and malformed responses', async () => {
