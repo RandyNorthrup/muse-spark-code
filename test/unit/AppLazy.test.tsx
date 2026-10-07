@@ -2,6 +2,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
+import { UI_TEXT } from '../../src/shared/constants'
 import { setUiText } from '../../src/shared/l10n/text'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
 import { App } from '../../src/webview/App'
@@ -17,6 +18,8 @@ const held = vi.hoisted(() => ({
   handoffLoads: 0,
   secretLoads: 0,
   boardLoads: 0,
+  diffLoads: 0,
+  todoLoads: 0,
 }))
 
 vi.mock('../../src/webview/components/GitPanel', async (original) => {
@@ -45,6 +48,14 @@ vi.mock('../../src/webview/components/SecretPromptDialog', async (original) => {
 })
 vi.mock('../../src/webview/components/SessionBoardDialog', async (original) => {
   held.boardLoads += 1
+  return await original()
+})
+vi.mock('../../src/webview/components/DiffTally', async (original) => {
+  held.diffLoads += 1
+  return await original()
+})
+vi.mock('../../src/webview/components/TodoPanel', async (original) => {
+  held.todoLoads += 1
   return await original()
 })
 
@@ -152,5 +163,55 @@ describe('App while its deferred panels load', () => {
     expect(loaded).toHaveTextContent('Installed read-only label')
     expect(loaded).not.toHaveTextContent('Old text')
     expect(held.shareLoads).toBe(1)
+  })
+
+  it('loads the edit totals and task list only once there is something to show', async () => {
+    // RVF116I P2: mounting the deferred surfaces unconditionally requests
+    // their chunks for an empty conversation. The mounts below stay gated
+    // until the first edit and the first task.
+    held.diffLoads = 0
+    held.todoLoads = 0
+    render(<App postMessage={vi.fn()} />)
+    deliver({ type: 'init', settings: testSettings, emptyStateHint: '', composerPlaceholder: '' })
+    deliver({ type: 'authState', status: 'signedIn' })
+    deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
+    // Let any immediate chunk request run: an empty conversation asks for neither.
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(held.diffLoads).toBe(0)
+    expect(held.todoLoads).toBe(0)
+    expect(screen.queryByRole('group', { name: UI_TEXT.diffTallyLabel })).toBeNull()
+    expect(screen.queryByRole('region', { name: UI_TEXT.todoTitle })).toBeNull()
+    // The first edit loads the tally chunk on first use and totals render.
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'itemCompleted',
+        item: {
+          itemId: 'e1',
+          kind: 'toolCall',
+          status: 'completed',
+          tool: 'edit_file',
+          args: JSON.stringify({ path: 'src/a.ts' }),
+          patchSummary: { files: 1, added: 3, removed: 1 },
+          patchRef: { id: 'patch-e1', byteLen: 10 },
+        },
+      },
+    })
+    await waitFor(() => {
+      expect(held.diffLoads).toBe(1)
+    })
+    expect(held.todoLoads).toBe(0)
+    expect(await screen.findByRole('group', { name: UI_TEXT.diffTallyLabel })).toBeInTheDocument()
+    // The first task loads the task chunk on first use and the list renders.
+    deliver({
+      type: 'agentEvent',
+      event: { type: 'todoChanged', items: [{ text: 'Write tests', status: 'pending' }] },
+    })
+    await waitFor(() => {
+      expect(held.todoLoads).toBe(1)
+    })
+    expect(await screen.findByRole('region', { name: UI_TEXT.todoTitle })).toBeInTheDocument()
   })
 })

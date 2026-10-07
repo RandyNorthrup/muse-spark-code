@@ -65,7 +65,7 @@ import { AttentionDock } from './components/AttentionDock'
 import { QuestionSurface } from './components/QuestionSurface'
 import { Composer, type ImageData, type SlashPaletteSlot } from './components/Composer'
 // The conversation's edit totals load on first use: an empty conversation
-// paints nothing while the tally chunk loads, and a populated one gets an
+// neither paints nor loads the tally chunk, and a populated one gets an
 // announced loading status with a local retry instead of the panel boundary.
 const DiffTally = deferred(
   async () => {
@@ -102,8 +102,8 @@ import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
 import type { PaletteKeys, PaletteView } from './components/Palette'
 import type { MenuEntry } from './components/PopoverMenu'
-// The task list loads on first use: an empty list paints nothing while its
-// chunk loads, and a populated one gets an announced loading status with a
+// The task list loads on first use: an empty list neither paints nor loads
+// its chunk, and a populated one gets an announced loading status with a
 // local retry instead of the panel boundary.
 const TodoPanel = deferred(
   async () => {
@@ -2506,8 +2506,9 @@ export function App({
             </button>
           ) : null}
         </main>
-        {/* Review opens M70's pane on the same edits (D66 item 10). */}
-        <DiffTally counts={tally} onReview={openReviewPane} />
+        {/* Review opens M70's pane on the same edits (D66 item 10). Mounted
+        only with edits to show, so the chunk loads on first use. */}
+        {tally === undefined ? null : <DiffTally counts={tally} onReview={openReviewPane} />}
         {state.git.form === undefined &&
         state.git.state.worktree === undefined &&
         state.git.state.pullRequest === undefined &&
@@ -2554,7 +2555,10 @@ export function App({
             onEnable={onScheduleEnable}
           />
         )}
-        <TodoPanel items={state.todos} isInert={isModalOpen} onOpenInTab={onOpenTasksTab} />
+        {/* Mounted only with tasks to show, so the chunk loads on first use. */}
+        {state.todos.length === 0 ? null : (
+          <TodoPanel items={state.todos} isInert={isModalOpen} onOpenInTab={onOpenTasksTab} />
+        )}
         {isBodyGated ? null : (
           <AttentionDock
             waiting={waiting}

@@ -1085,7 +1085,7 @@ describe('App transcript (M4)', () => {
     })
   })
 
-  it('shows the session name, the context indicator and the todo panel', () => {
+  it('shows the session name, the context indicator and the todo panel', async () => {
     renderReady()
     deliver({ type: 'agentEvent', event: { type: 'sessionNamed', name: 'Muse setup' } })
     expect(screen.getByRole('heading', { name: 'Muse setup' })).toBeInTheDocument()
@@ -1111,7 +1111,7 @@ describe('App transcript (M4)', () => {
       type: 'agentEvent',
       event: { type: 'todoChanged', items: [{ text: 'Write tests', status: 'pending' }] },
     })
-    expect(screen.getByRole('region', { name: 'Tasks' })).toHaveTextContent('Write tests')
+    expect(await screen.findByRole('region', { name: 'Tasks' })).toHaveTextContent('Write tests')
   })
 })
 
@@ -3447,7 +3447,7 @@ describe('App: the M87 wiring (PLAN.md D66)', () => {
     vi.restoreAllMocks()
   })
 
-  it('adds up the edits in a row above the goal and task panes, Review opening M70’s pane', () => {
+  it('adds up the edits in a row above the goal and task panes, Review opening M70’s pane', async () => {
     const postMessage = renderReady()
     const goal = showGoal()
     deliver({
@@ -3459,10 +3459,11 @@ describe('App: the M87 wiring (PLAN.md D66)', () => {
     editItem('e2', 'src/b.ts', 10, 2)
     // The same file again: two files, every line counted.
     editItem('e3', 'src/a.ts', 1, 0)
-    const tally = screen.getByRole('group', { name: UI_TEXT.diffTallyLabel })
+    // The tally chunk loads on first use, so the first render waits for it.
+    const tally = await screen.findByRole('group', { name: UI_TEXT.diffTallyLabel })
     expect(tally).toHaveTextContent('2 files changed')
     expect(tally).toHaveTextContent('+14 −3')
-    const tasks = screen.getByRole('region', { name: 'Tasks' })
+    const tasks = await screen.findByRole('region', { name: 'Tasks' })
     for (const below of [goal, tasks, textarea()]) {
       expect(tally.compareDocumentPosition(below) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
     }
