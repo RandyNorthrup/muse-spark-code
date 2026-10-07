@@ -17907,7 +17907,8 @@ test that fails without the rule:
    OS-service pressure and transport failure as signals; G13 spawn-rate and
    process-count caps per job tree; G16 reparse points unlinked, never
    recursed into; G30 independent tool installations outside the checked
-   workspace, since an ignored path can still incur discovery cost.
+   workspace, since an ignored path can still incur discovery cost; G32 native
+   UI checks join complete scenario readiness before interacting with controls.
 5. **M110 (Muse Node):** G1, G2, G10, G11, G14 to G16 for the tool host and
    sandboxes.
 6. **M115 (scheduled prompts):** G8 one serialized owner plus a lease, never
@@ -18800,11 +18801,13 @@ Both ordered merges are committed with normal hooks: `50a4947a` and
 `4eac2793`. Infrastructure owning tests and restored regression drills pass.
 The dependency union and clean ordinary npm ci check are complete. Generated
 reference/host records and locale unions are clean. All 822 configured files
-have final whole-file results: 16,433 passed, zero failed, 75 existing skips.
-Every listed static gate and production build passed before the final JS-only
-keyboard compiler repair; recheck its affected gates and production matrix. All
-17 screenshot captures and universal measurement remain pending. Seven
-successful deliberate regressions restore exact bytes.
+have final whole-file results: 16,435 passed, zero failed, 75 existing skips.
+Every listed final static gate and production build now passes on `d61493d3`,
+including the keyboard compiler repair. Full production accessibility now passes
+976 pages; the repaired legal driver passes 96 keyboard/zoom checks and 24
+English/pseudo WCAG pages. Repeat final script gates, all 17 screenshot captures
+and universal measurement remain pending. Eight successful deliberate regressions
+restore exact bytes.
 
 The merged ACP Registry and stdio suites duplicate their real packaged-agent
 build and cleanup. Consolidate only that test fixture setup to satisfy the
@@ -18837,6 +18840,16 @@ the browser keyboard compiler discovers dispatch calls but misses direct
 WEBVIEW_KEYBINDINGS context reads in HistoryPromptRow. Extend that existing AST
 discovery to literal direct reads and reject dynamic reads; compile the real lazy
 row in its owning regression. No eager history import or budget increase.
+
+The legal keyboard/zoom driver begins input when a dialog first appears, before
+the harness's scripted selections and preview actions settle. Its first two
+official runs fail focus containment and dialog visibility; an observational
+probe passes, so that probe is not final acceptance. Wait on the existing themed
+scenario readiness before exercising native keyboard input. Guard both held and
+rejected readiness, prove the guard fails without the wait, and rerun the entire
+96-case native plus 24-page English/pseudo legal checks at unchanged deadlines.
+G32 records this readiness requirement for M107; its runtime enforcement remains
+future work, while the legal driver and owning guard are repaired here.
 
 The rig brief authorizes the full suite and listed full-repository gates despite
 common.md's scoped-file rule. Aggregate `npm run quality` remains reserved for

@@ -61,6 +61,12 @@ try {
             await tab.goto(
               `http://${LOOPBACK}:${port}/${HARNESS_PATH}?scenario=${scenario}&theme=${theme}${langQuery(language)}`,
             )
+            // Scripted selections and preview replies must finish before native input.
+            await tab.evaluate(`themed
+              .then(() => whenReady(params.get('scenario') ?? 'none'))
+              .then(() => {
+                if (harnessErrors.length > 0) throw new Error(harnessErrors.join('; '))
+              })`)
             const dialog = tab.getByRole('dialog')
             await dialog.waitFor({ timeout: PAGE_TIMEOUT_MS })
             const layout = await dialog.evaluate((element) => ({

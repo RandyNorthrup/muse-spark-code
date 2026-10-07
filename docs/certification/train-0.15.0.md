@@ -15,7 +15,7 @@ it remains executable. Native compilation/runtime on macOS is external proof.
 Local badge checks use the supported named network-only skip because shared
 rules prohibit public network requests; all static and exact-stage checks run.
 
-**Current disposition (TRAIN15E final continuation): all 793 files verified; 15,966 passed, zero final failures and 100 existing skips after the complete SSH rerun. Both actual 0.15.0 packages pass: universal VSIX 2,703,474 / 2,841,600 bytes; ACP 1,708,084 bytes. Formatting, reference, localization, host API, knip, duplication, cycles and unit typecheck pass. Full repository ESLint was interrupted without a result at the 90-minute brief limit; release remains held for that gate and the lead-owned hosted checks.**
+**Historical disposition (TRAIN15E final continuation): all 793 files verified; 15,966 passed, zero final failures and 100 existing skips after the complete SSH rerun. Both actual 0.15.0 packages pass: universal VSIX 2,703,474 / 2,841,600 bytes; ACP 1,708,084 bytes. Formatting, reference, localization, host API, knip, duplication, cycles and unit typecheck pass. Full repository ESLint was interrupted without a result at the 90-minute brief limit; release remains held for that gate and the lead-owned hosted checks.**
 
 **Historical disposition (TRAIN15F): current main is merged additively, the
 D78 assertion follows immutable request goldens, and exec's locale/inventory
@@ -1663,7 +1663,7 @@ lifecycle await produces both intended failures, then the restored whole file
 passes. The final map guard lives in the existing JavaScript capture suite so
 no TypeScript declaration dependency is added. Receipts/logs remain under
 `temp/rel0150m/`; final machine-readable certification will retain the totals,
-whole-file reruns and all six successful drill records.
+whole-file reruns and all seven successful drill records.
 
 The first full static pass clears repository ESLint with zero warnings, all five
 compiler projects, formatting, plain knip, cycles, reference, localization and
@@ -1697,13 +1697,47 @@ The restored complete keyboard file passes 4/4 at default invocation. This is
 successful drill seven. Final deduplicated totals now have **16,433 passed,
 zero failed, 75 existing skips**, 16,508 cases in the same 822 files.
 
-All twelve listed final static/build components passed before this last JS-only
-compiler repair: full ESLint zero warnings, five compiler projects, formatting,
-plain knip, zero clones, cycles, reference, localization, host API and production
-size/split/global/notices checks. Final changed-script and compiled-browser
-acceptance follows; all TypeScript source remains byte-identical to that pass.
+All twelve listed final static/build components pass on repaired source
+`d61493d3698d58336a5507cb4da82cd1e3ae4a05`: full repository ESLint with zero
+warnings (271.125 seconds), CSS, the existing Linux PowerShell skip, all five
+compiler projects (85.684 seconds), formatting, plain knip, zero clones, cycles,
+reference, localization, host API and production size/split/global/notices
+checks. The full final pass includes the keyboard compiler repair; no raised
+deadline, gate relaxation or hook modification is used.
 G30/G31 and D100 now record the independent-install scan cost and ambiguous
 control selector, assigning future governor/playbook enforcement to M107/M116.
+
+### Legal input readiness repair
+
+The first legal driver run fails focus containment; an observational probe
+passes, but the unchanged official repeat then cannot find a visible dialog
+within its existing deadline. Those two failures and the diagnostic pass are
+retained, not claimed as final acceptance. The driver began native input as soon
+as a dialog appeared, before the harness's scripted selection/preview actions
+finished. It now joins the existing themed scenario readiness and refuses
+harness errors before locating the dialog; no delay or deadline is added.
+
+Both new owning readiness regressions fail before repair: pending preview
+readiness must hold input, and rejected readiness must refuse input. The complete
+capture/readiness/warm-up batch passes **27**. Removing the driver's readiness
+wait deliberately fails both new assertions, then the exact restored driver
+SHA-256 is `9c91ab8f5b63590458c0227fdd442009947d7698be8b034c8a973d3bab975b74`.
+The final restored complete batch passes 27/27. This is successful drill eight;
+the guard uses the actual driver block and a held/rejected readiness port.
+No product surface, command, setting, capture or user string changes. G32 and
+D100 assign future governor enforcement to M107, distinct from this fixed driver.
+
+The final official repaired command exits zero: **96 native Chromium keyboard/
+zoom cases on Linux**, four themes, English/pseudo, 690/320-pixel widths and
+100/200-percent metrics; **24 English/pseudo WCAG pages**, zero violations,
+undecided rules, exemptions or missing results. Deduplicated configured-suite
+totals are now **16,435 passed / zero failed / 75 existing skips**, 16,510 cases
+in the same 822 files. The production matrix also exits zero on all **976 pages**:
+244 scenarios in four themes, zero violations, undecided rules, exemptions or
+missing results. Axe cannot measure 2,922 covered/out-of-view contrast elements
+or 84 glyph-only elements; these existing visibility categories are printed,
+not represented as measured contrast. Native OS screen-reader sessions and
+other-platform host receipts remain external requirements.
 
 ### Remaining acceptance work
 

@@ -17,6 +17,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Legal keyboard and zoom checks wait for scripted scenario actions before
+  native input, preserving focus assertions without racing preview setup.
 - History rows load correctly in production builds and keep their Archive
   shortcut when optional keyboard contexts are deferred.
 - ACP Registry and stdio release tests share their real-agent fixture build

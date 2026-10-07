@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs'
+import { runInNewContext } from 'node:vm'
 import { JSDOM } from 'jsdom'
 import path from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { screenshotUrl } from '../../scripts/lib/harnessCapture.mjs'
+import { PAGE_TIMEOUT_MS } from '../../scripts/lib/harnessServer.mjs'
 
 const { page, browser, launch } = vi.hoisted(() => {
   const page = {
@@ -77,5 +79,52 @@ describe('harness map controls', () => {
     } finally {
       dom.window.close()
     }
+  })
+})
+
+const runCase = (ready, waitFor) => {
+  const source = readFileSync(new URL('../../scripts/legal-a11y.mjs', import.meta.url), 'utf8')
+  const code = source.slice(source.indexOf('await tab.goto('), source.indexOf('const layout ='))
+  const tab = {
+    goto: vi.fn().mockResolvedValue(),
+    evaluate: vi.fn().mockReturnValue(ready),
+    getByRole: vi.fn().mockReturnValue({ waitFor }),
+  }
+  const promise = runInNewContext(`(async () => { ${code} })()`, {
+    tab,
+    LOOPBACK: '127.0.0.1',
+    port: 1,
+    HARNESS_PATH: 'test/harness/index.html',
+    scenario: 'legal-preview',
+    theme: 'light',
+    language: undefined,
+    langQuery: () => '',
+    PAGE_TIMEOUT_MS,
+  })
+  return { tab, promise }
+}
+
+describe('legal keyboard scenario readiness', () => {
+  it('holds native dialog input until scripted preview actions settle', async () => {
+    const { promise: ready, resolve } = Promise.withResolvers()
+    const waitFor = vi.fn().mockResolvedValue()
+    const run = runCase(ready, waitFor)
+    await vi.waitFor(() => expect(run.tab.evaluate).toHaveBeenCalledOnce())
+    expect(run.tab.getByRole).not.toHaveBeenCalled()
+    expect(waitFor).not.toHaveBeenCalled()
+    resolve()
+    await run.promise
+    expect(waitFor).toHaveBeenCalledOnce()
+  })
+
+  it('refuses native input when scenario readiness fails', async () => {
+    const { promise: ready, reject } = Promise.withResolvers()
+    const waitFor = vi.fn().mockResolvedValue()
+    const run = runCase(ready, waitFor)
+    const failed = expect(run.promise).rejects.toThrow('preview never settled')
+    reject(new Error('preview never settled'))
+    await failed
+    expect(run.tab.getByRole).not.toHaveBeenCalled()
+    expect(waitFor).not.toHaveBeenCalled()
   })
 })
