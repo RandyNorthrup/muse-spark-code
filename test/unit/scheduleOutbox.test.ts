@@ -207,6 +207,30 @@ describe('schedule outbox reconciliation', () => {
     expect(host.deliveries).toHaveLength(1)
     expect(await store.pending(job.workspaceKey)).toEqual([])
   })
+  // D100 G8: coordination is one serialized owner plus the lease record, never
+  // process-name matching. The record carries only the owner's PID (no name);
+  // a live owner keeps its run, and only a dead owner releases it.
+  it('keeps one serialized owner per run and reclaims only a dead owner (G8)', async () => {
+    const { store, job, intent } = await fixture()
+    expect(await store.admit(intent)).toBe(true)
+    expect(await store.admit(intent)).toBe(false)
+    expect(await store.abandoned(job.workspaceKey)).toEqual([])
+    const kill = process.kill.bind(process)
+    const death = vi.spyOn(process, 'kill').mockImplementation(((pid: number, signal?: 0) => {
+      if (pid === process.pid) {
+        const error = new Error(`mocked dead owner ${String(pid)}`) as NodeJS.ErrnoException
+        error.code = 'ESRCH'
+        throw error
+      }
+      return kill(pid, signal)
+    }) as typeof process.kill)
+    try {
+      expect(await store.abandoned(job.workspaceKey)).toEqual([intent])
+    } finally {
+      death.mockRestore()
+    }
+    expect(await store.abandoned(job.workspaceKey)).toEqual([])
+  })
   it('reconciles an intent added after startup on the next timer tick without restarting the host', async () => {
     const { store, scheduler, host, job, intent, deps } = await fixture()
     vi.spyOn(deps.time, 'plan').mockReturnValue({ missed: false })
