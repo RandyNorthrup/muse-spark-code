@@ -174,6 +174,9 @@ const URI_LIST_TYPE = 'text/uri-list'
 const IMAGE_TYPE_PREFIX = 'image/'
 const PASTED_IMAGE_NAME = 'pasted-image'
 
+// The toolbar icon buttons share one class string (M114 startup compaction).
+const ICON_BUTTON = 'icon-button chat-control'
+
 /** How the box was measured: its content height and the height of one row. */
 export interface RowMetrics {
   readonly scrollHeight: number
@@ -950,7 +953,7 @@ export function Composer(props: ComposerProps) {
           <span>{banner}</span>
           <button
             type="button"
-            className="icon-button chat-control"
+            className={ICON_BUTTON}
             title={UI_TEXT.bannerDismiss}
             aria-label={UI_TEXT.bannerDismiss}
             onClick={onDismissBanner}
@@ -1017,7 +1020,7 @@ export function Composer(props: ComposerProps) {
         <div className="composer-toolbar-group">
           <button
             type="button"
-            className="icon-button chat-control"
+            className={ICON_BUTTON}
             title={UI_TEXT.attachTitle}
             aria-label={UI_TEXT.attachTitle}
             onMouseDown={keepMenuFocus}
@@ -1027,7 +1030,7 @@ export function Composer(props: ComposerProps) {
           </button>
           <button
             type="button"
-            className="icon-button chat-control"
+            className={ICON_BUTTON}
             title={UI_TEXT.commandsTitle}
             aria-label={UI_TEXT.commandsTitle}
             onMouseDown={keepMenuFocus}

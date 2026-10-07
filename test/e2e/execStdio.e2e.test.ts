@@ -135,6 +135,8 @@ function packagingFixture() {
     'acpQuestions',
     'runtimeQuestions',
     'questionNotes',
+    // M114 F: the runtime-only font installer.
+    'fontsInstall',
     'modelApi',
     'reviewer',
     // M91: the adapters, the hook and MCP-form runtime, the window's hook runner.

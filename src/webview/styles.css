@@ -1787,11 +1787,6 @@ body {
   outline-offset: 2px;
 }
 
-.todo-open:hover:enabled,
-.todo-window:hover:enabled {
-  background: var(--ms-secondary-hover);
-}
-
 .todo-current {
   overflow: hidden;
   text-overflow: ellipsis;

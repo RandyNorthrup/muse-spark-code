@@ -448,7 +448,9 @@ describe('packaging (M26)', () => {
     const ci = read('.github', 'workflows', 'build.yml')
     expect(ci).toContain('run: node scripts/release-reuse.mjs record')
     expect(ci).toContain('name: source-tree-${{ steps.source.outputs.tree }}')
-    expect(count(ci, /retention-days: 30/g)).toBe(4)
+    // Four package artifacts plus M114 S's visual-shards and visual jobs,
+    // every one on the same 30-day retention.
+    expect(count(ci, /retention-days: 30/g)).toBe(6)
   })
   it('keeps manual recovery on the shared verified staging path and never rebuilds it (RELFAST2)', () => {
     const release = read('.github', 'workflows', 'release.yml')
@@ -554,6 +556,8 @@ describe('tiered CI (CIFLOW)', () => {
     for (const id of ['coverage', 'accessibility', 'integration', 'native-build', 'packages']) {
       expect(job(id)).toContain('if: ${{ !inputs.fast }}')
     }
+    // M114 S's visual gate runs on every tier, like the static checks.
+    expect(job('visual')).toContain('if: always()')
     expect(job('accessibility')).toContain('runs-on: ubuntu-latest')
     expect(job('accessibility')).toContain('run: npm run test:a11y\n')
     expect(job('integration')).toContain('os: [ubuntu-latest, windows-latest]')
@@ -593,10 +597,10 @@ describe('tiered CI (CIFLOW)', () => {
       expect(job(id)).toContain(`- ${name}\n`)
     }
     expect(job(id)).toMatch(
-      /needs:\s+\[checks, unit, coverage, accessibility, integration, native-build, packages, secrets, sast\]/,
+      /needs:\s+\[\s+checks,\s+visual,\s+unit,\s+coverage,\s+accessibility,\s+integration,\s+native-build,\s+packages,\s+secrets,\s+sast,\s+\]/,
     )
     expect(job(id)).toContain('if: always()')
-    for (const key of ['CHECKS', 'UNIT', 'SECRETS', 'SAST']) {
+    for (const key of ['CHECKS', 'VISUAL', 'UNIT', 'SECRETS', 'SAST']) {
       expect(job(id)).toContain(`          test "$${key}" = success\n`)
     }
     expect(job(id)).toContain('          if [ "$FAST" != true ]; then\n')
@@ -646,8 +650,13 @@ describe('tiered CI (CIFLOW)', () => {
         (match) => [match[2] ?? '', match[1] ?? ''] as const,
       )
       const env = new Map(pairs)
-      const ids = /needs:\s+\[([^\]]+)\]/.exec(required)?.[1]?.split(', ') ?? []
-      const always = ['checks', 'unit', 'secrets', 'sast']
+      const ids =
+        /needs:\s+\[([\s\S]+?)\]/
+          .exec(required)?.[1]
+          ?.split(',')
+          .map((id) => id.trim())
+          .filter((id) => id !== '') ?? []
+      const always = ['checks', 'visual', 'unit', 'secrets', 'sast']
       const fullOnly = ['coverage', 'accessibility', 'integration', 'native-build', 'packages']
       expect(ids.toSorted(byText)).toEqual([...always, ...fullOnly].toSorted(byText))
       expect(pairs.map(([expression]) => expression).toSorted(byText)).toEqual(

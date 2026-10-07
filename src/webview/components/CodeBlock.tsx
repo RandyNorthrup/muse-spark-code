@@ -15,6 +15,9 @@ const HighlightedCode = lazy(async () => {
   return { default: HighlightedCode }
 })
 
+// The action buttons share one class string (M114 startup compaction).
+const CODE_BLOCK_BUTTON = 'code-block-button chat-control'
+
 export interface CodeBlockProps {
   readonly code: string
   readonly language: string | undefined
@@ -47,7 +50,7 @@ export function CodeBlock({
         <span className="code-block-actions">
           <button
             type="button"
-            className="code-block-button chat-control"
+            className={CODE_BLOCK_BUTTON}
             onClick={() => {
               onCopy(code)
               markCopied()
@@ -58,7 +61,7 @@ export function CodeBlock({
           {onInsert === undefined ? null : (
             <button
               type="button"
-              className="code-block-button chat-control"
+              className={CODE_BLOCK_BUTTON}
               onClick={() => {
                 onInsert(code)
               }}
@@ -69,7 +72,7 @@ export function CodeBlock({
           {onApply === undefined ? null : (
             <button
               type="button"
-              className="code-block-button chat-control"
+              className={CODE_BLOCK_BUTTON}
               onClick={() => {
                 onApply(code)
               }}
