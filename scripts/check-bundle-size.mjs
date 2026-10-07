@@ -150,6 +150,11 @@ const BUDGETS = [
   // imports (445.2 of 713.2 KiB when set, 257.6 of them zod's locales). The
   // measured size plus about 15 %, rounded up to 50 KiB (D6 amendment).
   { path: 'dist/acp.js', budgetKiB: 850 },
+  // The runtime account services (M108/W, PLAN.md D6): the store, the policy,
+  // the developer owner and the headless ports, with the backend closure they
+  // serve through. Loads only on the first accounts, developer or keyed
+  // headless command. Measured 246.5 KiB; plus 15%, rounded up to 25 KiB.
+  { path: 'dist/runtimeAccounts.js', budgetKiB: 300 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus

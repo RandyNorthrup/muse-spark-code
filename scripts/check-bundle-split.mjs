@@ -763,11 +763,18 @@ const TEXT_BLOCKS = [
     readers: webviewConstants.map(({ output }) => output),
   },
   // Web fetch's own words (M69): the window's fetch, the Model API
-  // backend's URL checks and the ACP agent's fetch.
+  // backend's URL checks, the ACP agent's fetch, and the runtime accounts
+  // bundle (M108/W: keyed headless runs and Model API sessions fetch pages
+  // through the account's backend).
   {
     block: 'WEB_FETCH_MODEL_TEXT',
     sentinels: ['webFetchUntrusted', 'webFetchMovedOpen'],
-    readers: ['dist/webFetch.js', BUNDLES.modelApi.output, BUNDLES.acp.output],
+    readers: [
+      'dist/webFetch.js',
+      BUNDLES.modelApi.output,
+      BUNDLES.acp.output,
+      'dist/runtimeAccounts.js',
+    ],
   },
   // A headless run's attached files (M80): the ACP agent's runtime only.
   {

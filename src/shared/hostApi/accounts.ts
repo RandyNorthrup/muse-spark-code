@@ -10,7 +10,51 @@ import {
   accountEventSchema,
 } from '../accounts'
 import { ACCOUNT_MAX_PER_PROVIDER } from '../constants'
-import { accountsPolicyQuestionSchema } from '../modelsPanel'
+
+// The policy question lives on the wire module, not the panel projection:
+// the ACP companion validates confirmations against it, and the panel
+// module (with the slice the ACP agent never reads) stays out of dist/acp.js
+// (PLAN.md D6). The panel re-exports these for its own readers.
+export const safePolicyUrl = z.url().check(
+  z.refine((value) => {
+    try {
+      const url = new URL(value)
+      return url.protocol === 'https:' && url.username === '' && url.password === ''
+    } catch {
+      return false
+    }
+  }),
+)
+export const accountsPolicyViewSchema = z.strictObject({
+  provider: accountIdSchema,
+  product: accountIdSchema,
+  // The panel's record stamp is separate from the provider's decision fields.
+  recordVersion: z.string().check(z.minLength(1)),
+  checkedAt: z.iso.date(),
+  isStale: z.boolean(),
+  pooling: z.enum(['on', 'confirm', 'notOffered']),
+  multipleAccounts: z.enum(['yes', 'conditions', 'onePerPerson', 'unclear']),
+  isCredentialHeld: z.boolean(),
+  recovery: z.enum(['none', 'chatgptPlan', 'museCodeSubscription']),
+  sources: z
+    .array(
+      z.strictObject({
+        quote: z.string().check(z.minLength(1)),
+        url: safePolicyUrl,
+        pageDate: z.nullable(z.string()),
+      }),
+    )
+    .check(z.minLength(1)),
+})
+export type AccountsPolicyView = z.infer<typeof accountsPolicyViewSchema>
+
+/** Correlation survives delayed bridge/provider lookups and replacement dialogs. */
+export const accountsPolicyQuestionSchema = z.strictObject({
+  questionId: z.uuid(),
+  providerGeneration: z.int().check(z.positive()),
+  policy: accountsPolicyViewSchema,
+})
+export type AccountsPolicyQuestion = z.infer<typeof accountsPolicyQuestionSchema>
 
 const identity = { provider: accountIdSchema, account: accountIdSchema }
 export const accountsRequestSchema = z.discriminatedUnion('type', [

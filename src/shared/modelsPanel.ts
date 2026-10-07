@@ -1,5 +1,7 @@
 // M108 U's account slice. M95/M104 supply the authenticated panel envelope.
 // This local projection carries metadata and policy evidence, never credentials.
+// The wire schemas (the policy view and question the confirmations quote)
+// live on the accounts bridge and are re-exported here for panel readers.
 import * as z from 'zod/mini'
 import {
   accountIdSchema,
@@ -7,47 +9,14 @@ import {
   accountConfirmationChoiceSchema,
   accountEventSchema,
 } from './accounts'
+import { safePolicyUrl, accountsPolicyViewSchema } from './hostApi/accounts'
 
-const safeUrl = z.url().check(
-  z.refine((value) => {
-    try {
-      const url = new URL(value)
-      return url.protocol === 'https:' && url.username === '' && url.password === ''
-    } catch {
-      return false
-    }
-  }),
-)
-export const accountsPolicyViewSchema = z.strictObject({
-  provider: accountIdSchema,
-  product: accountIdSchema,
-  // The panel's record stamp is separate from the provider's decision fields.
-  recordVersion: z.string().check(z.minLength(1)),
-  checkedAt: z.iso.date(),
-  isStale: z.boolean(),
-  pooling: z.enum(['on', 'confirm', 'notOffered']),
-  multipleAccounts: z.enum(['yes', 'conditions', 'onePerPerson', 'unclear']),
-  isCredentialHeld: z.boolean(),
-  recovery: z.enum(['none', 'chatgptPlan', 'museCodeSubscription']),
-  sources: z
-    .array(
-      z.strictObject({
-        quote: z.string().check(z.minLength(1)),
-        url: safeUrl,
-        pageDate: z.nullable(z.string()),
-      }),
-    )
-    .check(z.minLength(1)),
-})
-export type AccountsPolicyView = z.infer<typeof accountsPolicyViewSchema>
-
-/** Correlation survives delayed bridge/provider lookups and replacement dialogs. */
-export const accountsPolicyQuestionSchema = z.strictObject({
-  questionId: z.uuid(),
-  providerGeneration: z.int().check(z.positive()),
-  policy: accountsPolicyViewSchema,
-})
-export type AccountsPolicyQuestion = z.infer<typeof accountsPolicyQuestionSchema>
+export {
+  accountsPolicyViewSchema,
+  accountsPolicyQuestionSchema,
+  type AccountsPolicyView,
+  type AccountsPolicyQuestion,
+} from './hostApi/accounts'
 
 /** P's stop error supplies recovery; an event trigger alone cannot predict it. */
 export const accountsNoticeSchema = z
@@ -64,7 +33,7 @@ export const modelsAccountsSliceSchema = z
     isParallelOn: z.boolean(),
     policy: z.nullable(accountsPolicyViewSchema),
     confirmation: z.nullable(accountConfirmationChoiceSchema),
-    usageUrl: z.nullable(safeUrl),
+    usageUrl: z.nullable(safePolicyUrl),
     // Only captured, capability-supported windows are editable.
     planWindows: z.array(accountIdSchema),
     hasRateHeadroom: z.boolean(),
