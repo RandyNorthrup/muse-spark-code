@@ -29,6 +29,11 @@ happened, not what was planned; superseded entries are kept.
   vendor limit group and uses the advertised capacity. Later thresholds move
   the live sticky route; deleted accounts no longer wedge it. Refusals
   distinguish recovery, cancellation, own caps, busy owners and missing devices.
+- Remote vendor-limit routing skips the blocked account's whole limit group
+  instead of only that account, decided sender-side from the local pool rows
+  with no account or group data in device frames. A busy owner reports "A
+  prompt is already running for this conversation." instead of the session
+  message, translated in all fourteen tables.
 - Developer options reject unknown profile removal without changing authority.
   Revocation stops profiles before saving and failed state publication cannot
   restore an audited revoked grant. Enable/disable record their actual surface;

@@ -473,7 +473,7 @@ describe('M108 account pool request boundaries', () => {
     expect(t.claims[0]!.estimate.costUsd).toBe(parseUsd('0.1'))
   })
 
-  it('names the busy conversation, not the session, on a duplicate active owner', async () => {
+  it('rejects duplicate active owners, empty pools, invalid headroom and forbidden products', async () => {
     const t = poolRig()
     const finish = Promise.withResolvers<undefined>()
     const first = t.pool.run(poolRequest(), async (admission) => {
@@ -486,19 +486,6 @@ describe('M108 account pool request boundaries', () => {
     expect(UI_TEXT.accounts.ownerBusy).toBe('A prompt is already running for this conversation.')
     expect(new AccountPoolBusyError().message).toBe(UI_TEXT.accounts.ownerBusy)
     expect(new AccountPoolBusyError().message).not.toBe(UI_TEXT.acpPromptBusy)
-    finish.resolve(undefined)
-    expect(await first).toBe('done')
-  })
-
-  it('rejects duplicate active owners, empty pools, invalid headroom and forbidden products', async () => {
-    const t = poolRig()
-    const finish = Promise.withResolvers<undefined>()
-    const first = t.pool.run(poolRequest(), async (admission) => {
-      admission.beforeSend()
-      await finish.promise
-      return { value: 'done', actualUsd: parseUsd(0) }
-    })
-    await expect(t.run()).rejects.toThrow()
     finish.resolve(undefined)
     expect(await first).toBe('done')
     expect(t.claims[0]!.actual).toBe(parseUsd(0))
