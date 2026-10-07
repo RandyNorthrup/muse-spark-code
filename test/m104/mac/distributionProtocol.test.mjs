@@ -18,7 +18,7 @@ const manifest = {
 describe('parity distribution uses the adopted contract', () => {
   it('accepts exactly the reviewed native snapshot version and refuses every old promise', () => {
     expect(distributionSchema.safeParse(manifest).success).toBe(true)
-    for (const mhp of ['1.x', 'mhp/1.0.0', 'mhp/1.1.0', 'mhp/1.3.0'])
+    for (const mhp of ['1.x', 'mhp/1.0.0', 'mhp/1.1.0', 'mhp/1.2.0', 'mhp/1.4.0'])
       expect(distributionSchema.safeParse({ ...manifest, mhp }).success).toBe(false)
   })
   it('requires the observed harness protocol to match the runtime snapshot', () => {

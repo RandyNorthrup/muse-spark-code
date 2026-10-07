@@ -19189,6 +19189,19 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**M104PF continuation 2 (2026-10-06, authorized before code).** Merge
+`m104/pa` at `fa60c3763` with `--no-ff`, preserving both lanes' documentation.
+Adopt its frozen MHP 1.3 in F's Xcode fixtures, generated bundle and distribution
+contracts. Regenerate the host-API inventory and carrier guide. Repair exact ACP
+packaging for the integrated lazy Node and portable presentation closures, with
+missing-member controls. Add the owner's STAR sentence and GitHub link to the
+Xcode listing and F-owned distribution/global documentation; request each D/E
+listing change by owned file. Qualify available native/assembled services in
+dependency order and checkpoint each finished group. A owns the known protocol
+build-split P1 and Knip registration; record them as requests rather than changing
+A's files. Keep default test deadlines, existing caps, hook-on explicit-path
+commits, and installed/live/support boundaries. No push or further merge.
+
 **M104PF parity lane F (2026-10-06, macmini).** Own Xcode/macOS, exact
 native distribution and aggregate qualification documentation. Adopt A's
 editor-initiated MHP 1.2 bootstrap through an owning stdio relay before

@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Xcode and native distribution adopt the integrated MHP 1.3 snapshot.
+  ACP archives include the actual portable engine/presentation factories,
+  protocol, checkpoint/session/plan dependencies and optional Judge/browser
+  bundles. Missing members refuse before native packaging dispatch.
+
 - Native distribution manifests, harness reports and release receipts require
   the reviewed MHP 1.2 version. Packaging checks product/dependency pins, hashes
   every injected runtime and deferred browser file, and refuses changed or

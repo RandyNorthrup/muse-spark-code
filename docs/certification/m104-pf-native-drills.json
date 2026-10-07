@@ -7,13 +7,6 @@
     "sha256": "268a60e3751b95b472e8a80b7deddb78cc78e186f90cb9d72cc87abc65e819a3"
   },
   {
-    "label": "negotiated result",
-    "file": "hosts/xcode/Shared/MhpSession.swift",
-    "test": "testLegacyVersionAndRuntimeInitiationAreRefused",
-    "exit": 65,
-    "sha256": "b4ba1a5c242e1727538aa596f3bb76fd178cc009aefec4a0d41af8ce3a8d92e1"
-  },
-  {
     "label": "native admission bound",
     "file": "hosts/xcode/Shared/MhpSession.swift",
     "test": "testDuplicateIdsInvalidCallsAndQueueOverflowCancelNativeWork",
@@ -68,5 +61,12 @@
     "test": "testAuthenticatedPanelRendersAndStopRemainsAvailable",
     "exit": 65,
     "sha256": "e49b482619d562a601fb907b6a23c52fd74473602fb30352c03d8ebd4ef72c7c"
+  },
+  {
+    "label": "negotiated result",
+    "file": "hosts/xcode/Shared/MhpSession.swift",
+    "test": "testLegacyVersionAndRuntimeInitiationAreRefused",
+    "exit": 65,
+    "sha256": "b4ba1a5c242e1727538aa596f3bb76fd178cc009aefec4a0d41af8ce3a8d92e1"
   }
 ]

@@ -44,3 +44,45 @@ Two release/qualification requests also remain with the lead:
 | A/B   | Supply `commands/execute` handling in the owning runtime composition before native status items with commands can act.                                                                                                   | Validated opaque command IDs reach the owning action exactly once; cancelled/stale generations cannot execute.                                             |
 | A     | Add Xcode's existing five Editor commands, the native Trust control and revised carrier behavior to the shared help catalog/reference when that absent source lands. No new localization keys are requested.             | Reference gate agrees with the executed native commands and qualification limits.                                                                          |
 | D/E   | Supply the eight non-Xcode hosts' production `distribution.json` with exact `mhp: "mhp/1.2.0"`, real build/conformance commands and artifacts. Xcode remains F-owned, blocked on the native/runtime prerequisites above. | Archive/runtime input hashes plus actual installed-editor/backend/provider observations.                                                                   |
+
+## Continuation 2 requests (2026-10-06)
+
+- **A — Knip:** register `test/m104/mac/nativeDrills.mjs` as an executable
+  entry in `knip.jsonc`. This continuation consumed `fa60c3763` but the entry
+  is still missing; no ignore or rule reduction is requested.
+- **A — FIXM104PA3:** the rig brief identifies a shared-protocol split P1 being
+  repaired by A. F will record its build result without editing A's build/schema
+  files. Supply the reviewed fix for the lead's integration.
+- The requested integrated A/B/C merge is now authorized and adopted at
+  `0b643f521`; the older merge-wait request above is satisfied.
+
+The owner requires the exact listing sentence below, linked to
+https://github.com/RandyNorthrup/muse-spark-code, with a packaging removal drill:
+
+> Enjoying Muse Spark Code? A star on GitHub helps other people find it.
+
+| Owner | File                                                                              | Requested listing change                                                                                                                         |
+| ----- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| D     | `hosts/visualstudio/source.extension.vsixmanifest`                                | Include the sentence and link in the VSIX description or its linked Marketplace overview; name the actual packaged overview file in the receipt. |
+| E     | `hosts/jetbrains/src/main/resources/META-INF/plugin.xml`                          | Add the sentence/link in the plugin description.                                                                                                 |
+| E     | `hosts/eclipse/feature/feature.xml` and `hosts/eclipse/README.md`                 | Add the sentence/link in the listing/about description; identify the packaged p2 listing if separate.                                            |
+| E     | `hosts/zed/README.md` (listing source; no extension manifest exists at this base) | Add the sentence/link to the extension listing description.                                                                                      |
+| E     | `hosts/neovim/README.md`                                                          | Add the linked sentence to the package README.                                                                                                   |
+| E     | `hosts/emacs/README.md`                                                           | Add the linked sentence to the package README/listing.                                                                                           |
+| E     | `hosts/sublime/README.md`                                                         | Add the linked sentence to the package README/listing.                                                                                           |
+| E     | `hosts/qtcreator/README.md`                                                       | Add the linked sentence to the package README/listing.                                                                                           |
+
+F owns Xcode's listing/README and the shared distribution instructions and tests.
+No runtime prompts or chat panel lines are requested. Listing requests must be
+implemented and drilled by the file owner before whole-train coverage is claimed.
+
+- **A — ACP third-party notices:** F's exact packaging now includes
+  `sessionBoard.js`, `checkpointStore.js`, `planMarkdown.js`, `judge.js`,
+  `browserCheck.js` and `browserRuntime.js`, plus the integrated portable
+  presentation closure. Include their metafiles (and all portable outputs)
+  in the A-owned `scripts/third-party-notices.mjs` ACP notice inventory;
+  verify every shipped dependency licence before release.
+- **A — help reference:** `src/shared/featureCatalog.ts` and
+  `scripts/gen-reference.mjs` remain absent. The parity ownership contract
+  makes shared source A-owned; supply the owning catalog/command and F will
+  update generated global documentation. No fabricated reference gate is claimed.

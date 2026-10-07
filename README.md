@@ -425,7 +425,7 @@ flags; the Model API key stays in the OS credential store. The native host
 must offer lifecycle plus surfaces (stdio) or UI (companion), and answer
 correlated service requests. These commands stream the shared conversation
 through the authenticated portable browser renderer and UI bridge. Native
-MHP 1.2 adoption, auxiliary surfaces, feature adapters and assembled editor
+MHP 1.3 adoption, auxiliary surfaces, feature adapters and assembled editor
 qualification remain incomplete. See
 [the integration evidence and remaining gaps](docs/certification/m104-int.md)
 and [macOS qualification](docs/certification/m104-pf.md).

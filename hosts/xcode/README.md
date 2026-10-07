@@ -3,7 +3,7 @@
 A macOS 14+ SwiftUI companion app with a WKWebView and an embedded Xcode
 Source Editor Extension. This is a native-host prototype awaiting M104's
 complete runtime feature/editor-service/Tab qualification. Its owning relay
-now adopts the reviewed MHP 1.2 contract. It is not a supported Xcode release.
+now adopts the reviewed MHP 1.3 contract. It is not a supported Xcode release.
 There are no model calls in its tests.
 
 Build and package on a Mac with the accepted Xcode license:
@@ -36,12 +36,12 @@ and `--workspace <path>`; equivalent startup variables are
 arguments or variables for this app.
 
 The app spawns `panel --companion` in the selected workspace with private
-stdin/stdout pipes. The editor initiates MHP 1.2 with the app's product version,
+stdin/stdout pipes. The editor initiates MHP 1.3 with the app's product version,
 installed language, current light/dark/increased-contrast appearance, workspace folder and explicit
 trust state. Only a validated, correlated `ui/openExternal` request supplies the
 one-use loopback launch link. Older versions and raw-URL launchers fail visibly.
 The app validates native traffic against the reviewed schema snapshot generated
-from `src/shared/hostApi/mhp-v1.schema.json`; that legacy filename carries 1.2.
+from `src/shared/hostApi/mhp-v1.schema.json`; that legacy filename carries 1.3.
 
 The authenticated portable browser renderer and UI bridge are implemented.
 WKWebView uses an ephemeral data store, confines navigation to the current

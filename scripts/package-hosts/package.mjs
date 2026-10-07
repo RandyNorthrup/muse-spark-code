@@ -66,12 +66,29 @@ export function packageHost(root, host, run = execFileSync) {
   const keyring = product.devDependencies['@napi-rs/keyring']
   if (keyring === undefined || agent.dependencies['@napi-rs/keyring'] !== keyring)
     throw new Error('MHP_HOST_RUNTIME_DEPENDENCY')
-  for (const name of ['runtimePanel.js', 'runtimePanelPorts.js', 'conversation.js', 'uiText.js'])
+  for (const name of [
+    'runtimePanel.js',
+    'runtimePanelPorts.js',
+    'conversation.js',
+    'uiText.js',
+    'runtimeContext.js',
+    'runtimeEngines.js',
+    'runtimeBackendServices.js',
+    'runtimePresentation.js',
+    'hostProtocol.js',
+    'sessionBoard.js',
+    'checkpointStore.js',
+    'planMarkdown.js',
+    'judge.js',
+    'browserCheck.js',
+    'browserRuntime.js',
+    'whatsNew.json',
+  ])
     if (!statSync(inside(source, `dist/${name}`)).isFile())
       throw new Error('MHP_HOST_RUNTIME_INCOMPLETE')
   const runtimeSha256 = inventory(source)
   const portableRoot = 'dist/webview/portable/'
-  for (const name of ['modules.json', 'loader.js', 'main.css', 'whatsNew.css'])
+  for (const name of ['modules.json', 'loader.js', 'main.css', 'whatsNew.css', 'presentation.css'])
     if (runtimeSha256[`${portableRoot}${name}`] === undefined)
       throw new Error('MHP_HOST_PORTABLE_INCOMPLETE')
   const portable = z
@@ -88,7 +105,11 @@ export function packageHost(root, host, run = execFileSync) {
   const modules = portable.modules.map(
     (module) => `${portableRoot}${module.path.slice('/assets/portable/'.length)}`,
   )
-  if (new Set(modules).size !== modules.length || !modules.includes(`${portableRoot}main.js`))
+  if (
+    new Set(modules).size !== modules.length ||
+    !modules.includes(`${portableRoot}main.js`) ||
+    !modules.includes(`${portableRoot}presentation.js`)
+  )
     throw new Error('MHP_HOST_PORTABLE_INVENTORY')
   for (const [index, module] of portable.modules.entries()) {
     const name = modules[index]

@@ -38,7 +38,7 @@ final class NativeHostTests: XCTestCase {
     return url
   }
   private var handshake: String {
-    "IFS= read -r initialize\nprintf '%s\\n' '{\"jsonrpc\":\"2.0\",\"id\":\"xcode-initialize\",\"result\":{\"protocolVersion\":\"mhp/1.2.0\",\"capabilities\":[\"lifecycle\",\"settings\",\"storage\"]}}'\nprintf '%s\\n' '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ui/openExternal\",\"params\":{\"uri\":\"http://127.0.0.1:1234/#k=\(String(repeating: "a", count: 64))\"}}'\n"
+    "IFS= read -r initialize\nprintf '%s\\n' '{\"jsonrpc\":\"2.0\",\"id\":\"xcode-initialize\",\"result\":{\"protocolVersion\":\"mhp/1.3.0\",\"capabilities\":[\"lifecycle\",\"settings\",\"storage\"]}}'\nprintf '%s\\n' '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ui/openExternal\",\"params\":{\"uri\":\"http://127.0.0.1:1234/#k=\(String(repeating: "a", count: 64))\"}}'\n"
   }
   func testApprovedEditReplacesOnlySelection() throws {
     let request = request()

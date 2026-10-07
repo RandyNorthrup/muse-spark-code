@@ -88,14 +88,6 @@
     "sha256": "4015c60bf123caf846c0bd484d24de1a41fe629cfc6f9361221dbab1444990d8"
   },
   {
-    "guard": "required runtime bundles",
-    "file": "scripts/package-hosts/package.mjs",
-    "failures": [
-      "native distribution guards refuses an incomplete runtime before invoking any native command"
-    ],
-    "sha256": "4015c60bf123caf846c0bd484d24de1a41fe629cfc6f9361221dbab1444990d8"
-  },
-  {
     "guard": "required portable assets",
     "file": "scripts/package-hosts/package.mjs",
     "failures": [
@@ -613,5 +605,13 @@
       "native workflow release fences keeps every native channel behind the existing release environment"
     ],
     "sha256": "83f15415f739219852b7f9cf8c2392dc5c1d770c95c7a345f15d3f4b53538026"
+  },
+  {
+    "guard": "required runtime bundles",
+    "file": "scripts/package-hosts/package.mjs",
+    "failures": [
+      "native distribution guards refuses an incomplete runtime before invoking any native command"
+    ],
+    "sha256": "78f9d519e0853b8644838d5f0a9948aa2492ae760890b9e986d57cf3ec6d2f14"
   }
 ]

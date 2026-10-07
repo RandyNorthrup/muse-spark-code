@@ -72,7 +72,7 @@ final class MhpHostTests: XCTestCase {
     data.append(10)
     return data
   }
-  private func initialized(_ version: String = "mhp/1.2.0") -> [String: Any] {
+  private func initialized(_ version: String = "mhp/1.3.0") -> [String: Any] {
     [
       "jsonrpc": "2.0", "id": "xcode-initialize",
       "result": [
@@ -109,7 +109,7 @@ final class MhpHostTests: XCTestCase {
   }
   func testLegacyVersionAndRuntimeInitiationAreRefused() throws {
     for frame in [
-      initialized("mhp/1.1.0"), ["jsonrpc": "2.0", "id": 1, "method": "initialize", "params": [:]],
+      initialized("mhp/1.1.0"), initialized("mhp/1.2.0"), ["jsonrpc": "2.0", "id": 1, "method": "initialize", "params": [:]],
     ] {
       var failures = 0
       let session = MhpSession(

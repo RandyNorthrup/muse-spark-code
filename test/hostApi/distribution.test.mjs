@@ -26,7 +26,7 @@ import { hostMatrix } from '../../scripts/package-hosts/ci.mjs'
 
 const fixture = { root: '' }
 const manifest = {
-  mhp: 'mhp/1.2.0',
+  mhp: 'mhp/1.3.0',
   build: [{ command: 'native-build', args: ['--test'] }],
   conformance: { command: 'native-harness', args: [] },
   artifacts: ['artifact.zip'],
@@ -46,6 +46,19 @@ function runtimeStage() {
     'THIRD_PARTY_NOTICES.txt',
     'dist/runtimePanel.js',
     'dist/runtimePanelPorts.js',
+    'dist/runtimeContext.js',
+    'dist/runtimeEngines.js',
+    'dist/runtimeBackendServices.js',
+    'dist/runtimePresentation.js',
+    'dist/hostProtocol.js',
+    'dist/sessionBoard.js',
+    'dist/checkpointStore.js',
+    'dist/planMarkdown.js',
+    'dist/judge.js',
+    'dist/browserCheck.js',
+    'dist/browserRuntime.js',
+    'dist/whatsNew.json',
+
     'dist/conversation.js',
     'dist/uiText.js',
   ])
@@ -60,19 +73,24 @@ function runtimeStage() {
   )
   const portable = path.join(runtime, 'dist', 'webview', 'portable')
   mkdirSync(portable, { recursive: true })
-  for (const name of ['loader.js', 'main.js', 'main.css', 'whatsNew.css'])
+  for (const name of [
+    'loader.js',
+    'main.js',
+    'main.css',
+    'whatsNew.css',
+    'presentation.js',
+    'presentation.css',
+  ])
     writeFileSync(path.join(portable, name), 'fixture portable')
   writeFileSync(
     path.join(portable, 'modules.json'),
     JSON.stringify({
-      modules: [
-        {
-          path: '/assets/portable/main.js',
-          bytes: Buffer.byteLength('fixture portable'),
-          sha256: createHash('sha256').update('fixture portable').digest('hex'),
-          imports: [],
-        },
-      ],
+      modules: ['main.js', 'presentation.js'].map((name) => ({
+        path: `/assets/portable/${name}`,
+        bytes: Buffer.byteLength('fixture portable'),
+        sha256: createHash('sha256').update('fixture portable').digest('hex'),
+        imports: [],
+      })),
     }),
   )
   return runtime
@@ -172,7 +190,7 @@ describe('native distribution guards', () => {
       outcome: 'packaged',
       version: '1.2.3',
       tree: 'a'.repeat(40),
-      mhp: 'mhp/1.2.0',
+      mhp: 'mhp/1.3.0',
     })
     expect(Object.values(receipt.sha256)[0]).toMatch(/^[a-f0-9]{64}$/u)
     expect(
@@ -181,7 +199,7 @@ describe('native distribution guards', () => {
         'utf8',
       ),
     ).toBe('fixture runtime')
-    expect(run.mock.calls[0][2].env.MUSE_MHP_VERSION).toBe('mhp/1.2.0')
+    expect(run.mock.calls[0][2].env.MUSE_MHP_VERSION).toBe('mhp/1.3.0')
     const stale = path.join(fixture.root, 'dist', 'hosts', 'jetbrains', 'muse-spark-code-old.zip')
     writeFileSync(stale, 'obsolete build')
     packageHost(fixture.root, 'jetbrains', run)
@@ -202,12 +220,27 @@ describe('native distribution guards', () => {
     for (const name of [
       'dist/runtimePanel.js',
       'dist/runtimePanelPorts.js',
+      'dist/runtimeContext.js',
+      'dist/runtimeEngines.js',
+      'dist/runtimeBackendServices.js',
+      'dist/runtimePresentation.js',
+      'dist/hostProtocol.js',
+      'dist/sessionBoard.js',
+      'dist/checkpointStore.js',
+      'dist/planMarkdown.js',
+      'dist/judge.js',
+      'dist/browserCheck.js',
+      'dist/browserRuntime.js',
+      'dist/whatsNew.json',
+
       'dist/conversation.js',
       'dist/uiText.js',
       'dist/webview/portable/modules.json',
       'dist/webview/portable/loader.js',
       'dist/webview/portable/main.css',
       'dist/webview/portable/whatsNew.css',
+      'dist/webview/portable/presentation.js',
+      'dist/webview/portable/presentation.css',
     ]) {
       const runtime = runtimeStage()
       rmSync(path.join(runtime, name))
@@ -286,6 +319,16 @@ describe('native distribution guards', () => {
     const run = vi.fn()
     const damages = [
       (portable) => rmSync(path.join(portable, 'main.js')),
+      (portable, manifest) => {
+        manifest.modules = manifest.modules.filter(
+          (module) => !module.path.endsWith('/presentation.js'),
+        )
+        rmSync(path.join(portable, 'presentation.js'))
+      },
+      (portable, manifest) => {
+        manifest.modules = manifest.modules.filter((module) => !module.path.endsWith('/main.js'))
+        rmSync(path.join(portable, 'main.js'))
+      },
       (portable) => writeFileSync(path.join(portable, 'main.js'), 'changed portable'),
       (_portable, manifest) => {
         manifest.modules.push(manifest.modules[0])
@@ -336,7 +379,7 @@ describe('native distribution guards', () => {
   })
 })
 
-describe('MHP 1.2 every-host conformance runner', () => {
+describe('MHP 1.3 every-host conformance runner', () => {
   it('executes every shared scenario against both fake backends', () => {
     expect(validateReport('jetbrains', fakeReport()).results).toHaveLength(
       contract.scenarios.length * 2,

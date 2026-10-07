@@ -5,7 +5,12 @@ import { promisify } from 'node:util'
 import { beforeAll, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { withoutCredentials } from '../../src/runtime/credentialVariables'
-import { HOOK_FORBIDDEN_ENV_NAMES, XCODE_HOST, XCODE_MODEL_TEXT } from '../../src/shared/constants'
+import {
+  HOOK_FORBIDDEN_ENV_NAMES,
+  MHP,
+  XCODE_HOST,
+  XCODE_MODEL_TEXT,
+} from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { startXcodeFakeRuntime } from '../hosts/xcode/fake-runtime'
 
@@ -14,6 +19,14 @@ describe('Xcode host shared boundary', () => {
     await promisify(execFile)(process.execPath, ['hosts/xcode/Scripts/generate.mjs'], {
       env: withoutCredentials(process.env),
     })
+  })
+  it('bundles the exact reviewed MHP 1.3 snapshot and refuses the earlier range', async () => {
+    const snapshot = await readFile('src/shared/hostApi/mhp-v1.schema.json', 'utf8')
+    expect(await readFile('hosts/xcode/Generated/mhp.json', 'utf8')).toBe(snapshot)
+    const swift = await readFile('hosts/xcode/Generated/NativeMhp.swift', 'utf8')
+    expect(MHP.version).toBe('mhp/1.3.0')
+    expect(swift).toContain('static let version = "mhp/1.3.0"')
+    expect(swift).toContain('static let maximumVersionExclusive = "mhp/1.4.0"')
   })
   it('ships current tunables and the credential exclusions to Swift', async () => {
     const swift = await readFile('hosts/xcode/Generated/NativeLimits.swift', 'utf8')
