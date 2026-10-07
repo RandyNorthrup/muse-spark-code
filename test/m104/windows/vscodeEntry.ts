@@ -171,6 +171,10 @@ export async function run(): Promise<void> {
   const symbols = await language.documentSymbols(languageUri.fsPath)
   assert.ok(symbols.some((symbol) => symbol.name === 'm104Double'))
   assert.ok(symbols.some((symbol) => symbol.name === 'result'))
+  const hierarchy = await language.callHierarchy(languageUri.fsPath, call, 'incoming')
+  assert.ok(hierarchy)
+  assert.equal(hierarchy.item.name, 'm104Double')
+  assert.ok(hierarchy.calls.some((site) => site.ranges.some((range) => range.start.line === 1)))
   const rename = await language.rename(languageUri.fsPath, call, 'm104Twice')
   assert.equal(rename.fileOperations, 'none')
   assert.equal(rename.files.length, 1)
@@ -178,7 +182,7 @@ export async function run(): Promise<void> {
   assert.ok(rename.files[0].edits.every((edit) => edit.newText === 'm104Twice'))
   assert.ok(languageDocument.getText().includes('m104Double'))
   receipts.push(
-    'installed TypeScript service returns definition/references/hover/symbols and a text-only rename plan',
+    'installed TypeScript service returns definition/references/hover/symbols/call hierarchy and a text-only rename plan',
   )
 
   const output = vscode.window.createOutputChannel('M104 Windows Verify Fixture', { log: true })

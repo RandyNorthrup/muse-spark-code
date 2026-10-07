@@ -28,6 +28,13 @@ function pathOf(uri: vscode.Uri): string | undefined {
   return uri.scheme === FILE_SCHEME ? uri.fsPath : undefined
 }
 
+function isSamePath(first: string | undefined, second: string | undefined): boolean {
+  if (first === undefined || second === undefined) return false
+  const left = first.replaceAll('\\', '/')
+  const right = second.replaceAll('\\', '/')
+  return process.platform === 'win32' ? left.toLowerCase() === right.toLowerCase() : left === right
+}
+
 function toPosition(at: CodePosition): vscode.Position {
   return new vscode.Position(at.line, at.character)
 }
@@ -135,7 +142,8 @@ async function callHierarchy(
   const item =
     items.find(
       (candidate) =>
-        pathOf(candidate.uri) === pathOf(uri) && isWithin(fromRange(candidate.selectionRange), at),
+        isSamePath(pathOf(candidate.uri), pathOf(uri)) &&
+        isWithin(fromRange(candidate.selectionRange), at),
     ) ?? items[0]
   if (item === undefined) {
     return undefined
