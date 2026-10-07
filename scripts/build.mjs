@@ -134,6 +134,12 @@ const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
 const EXTENSION_HOOKS_ENTRY = 'src/host/extensionHooksEntry.ts'
 const EXTENSION_HOOKS_OUTFILE = 'dist/extensionHooks.js'
+// M109 lane W: the vault's window (the panel host and the native editor),
+// loaded on the first vault command. `vscode` stays external, provided by
+// the host, as for the import. The broker client joins it once the
+// broker-backed service lands (docs/certification/m109.md).
+const VAULT_ENTRY = 'src/host/vault/vaultPanelEntry.ts'
+const VAULT_OUTFILE = 'dist/vault.js'
 const WHATS_NEW_ENTRY = 'src/host/whatsNew/whatsNewEntry.ts'
 const WHATS_NEW_OUTFILE = 'dist/whatsNew.js'
 const JUDGE_ENTRY = 'src/host/judge/judgeEntry.ts'
@@ -363,6 +369,18 @@ const agentImportOptions = {
   plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [AGENT_IMPORT_ENTRY],
   outfile: AGENT_IMPORT_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const vaultOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [VAULT_ENTRY],
+  outfile: VAULT_OUTFILE,
   platform: 'node',
   external: ['vscode'],
   format: 'cjs',
@@ -623,6 +641,7 @@ if (isWatch) {
     esbuild.context(webFetchOptions),
     esbuild.context(museCodeReviewerOptions),
     esbuild.context(extensionHooksOptions),
+    esbuild.context(vaultOptions),
     esbuild.context(reportOptions),
     esbuild.context(recorderOptions),
     esbuild.context(whatsNewOptions),
@@ -676,6 +695,7 @@ if (isWatch) {
     webFetch: esbuild.build(webFetchOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
     extensionHooks: esbuild.build(extensionHooksOptions),
+    vault: esbuild.build(vaultOptions),
     report: esbuild.build(reportOptions),
     recorder: esbuild.build(recorderOptions),
     whatsNew: esbuild.build(whatsNewOptions),
@@ -747,6 +767,7 @@ if (isWatch) {
   reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
   reportSize(EXTENSION_HOOKS_OUTFILE)
+  reportSize(VAULT_OUTFILE)
   reportSize(REPORT_OUTFILE)
   reportSize(RECORDER_OUTFILE)
   reportSize(WHATS_NEW_OUTFILE)
