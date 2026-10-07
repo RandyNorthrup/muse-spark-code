@@ -1707,6 +1707,8 @@ async function activateWindow(
     // The user's terminal environment settings apply to the shell tool as
     // they do to VS Code's terminal (PLAN.md D25).
     env: shellEnvironmentOf,
+    agentFence: () =>
+      vscode.workspace.getConfiguration('museSpark').get<boolean>('vault.agentFence') ?? true,
     searchWorkerPath: vscode.Uri.joinPath(context.extensionUri, 'dist', SEARCH_WORKER_FILE).fsPath,
     log: (message) => {
       log.warn(message)

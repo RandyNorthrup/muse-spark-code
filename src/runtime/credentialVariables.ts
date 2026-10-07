@@ -10,7 +10,7 @@
 // processes (`muse serve`, its account hosts, `muse login`), the way the
 // extension adds `museSpark.environmentVariables` to them.
 
-import { isCredentialVariable } from '../host/backend/toolIo'
+import { isCredentialVariable, vaultFenceEnvironment } from '../core/vault/exec/fence'
 import { EXEC_CHILD_ENV_DROP, type EnvironmentVariable } from '../shared/constants'
 
 /** The credential variables in `env`, by name and value. */
@@ -43,5 +43,5 @@ export function withoutKeyringRoutes(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv 
   for (const name of Object.keys(copy)) {
     if (names.includes(name.toUpperCase())) Reflect.deleteProperty(copy, name)
   }
-  return copy
+  return vaultFenceEnvironment(copy)
 }

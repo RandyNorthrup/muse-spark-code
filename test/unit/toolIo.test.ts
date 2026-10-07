@@ -158,6 +158,7 @@ describe('shellEnvironment', () => {
       },
       'linux',
       undefined,
+      false,
     )
     expect(env).toEqual({
       PATH: '/usr/bin',
@@ -173,6 +174,7 @@ describe('shellEnvironment', () => {
       { PSMODULEPATH: String.raw`C:\pwsh7\Modules`, ProgramFiles: String.raw`C:\Program Files` },
       'win32',
       String.raw`C:\Windows`,
+      false,
     )
     expect(env).toEqual({
       ProgramFiles: String.raw`C:\Program Files`,

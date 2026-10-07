@@ -46,7 +46,6 @@ import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
   BYTES_PER_MIB,
   FILE_REFUSAL_MODEL_TEXT,
-  HOOK_FORBIDDEN_ENV_NAMES,
   HOOK_OUTPUT_MAX_BYTES,
   HOOK_STDIN_MAX_BYTES,
   MAX_DOCUMENT_BYTES,
@@ -65,6 +64,13 @@ import { canonicalPath } from '../canonicalPath'
 import { foldersMade, writeFileAtomically, writeFileIfUnchanged } from '../fsAtomic'
 import { killTree, type ProcessTreeDeps, type ShellJob, treeSpawnOptions } from '../processTree'
 import { joinStatement, newShellJob } from './shellJob'
+import {
+  vaultFenceEnvironment,
+  isCredentialVariable,
+  type VaultFenceOptions,
+} from '../../core/vault/exec/fence'
+
+export { isCredentialVariable } from '../../core/vault/exec/fence'
 
 export interface ToolIoDeps {
   readonly platform: NodeJS.Platform
@@ -85,6 +91,10 @@ export interface ToolIoDeps {
   readonly assertWorkspaceCurrent?: (() => void) | undefined
   /** Windows: the job helper's assembly, undefined where jobs are unavailable (M27). */
   readonly shellJobAssembly?: (() => Promise<string | undefined>) | undefined
+  /** Off is allowed only for the interactive main conversation. Runtime workers omit it. */
+  readonly agentFence?: (() => boolean) | undefined
+  /** Per-requester facts supplied by the trusted launcher. */
+  readonly vaultFence?: (() => VaultFenceOptions) | undefined
 }
 
 /**
@@ -238,6 +248,8 @@ export function shellEnvironment(
   env: NodeJS.ProcessEnv,
   platform: NodeJS.Platform,
   systemRoot: string | undefined,
+  isFenced = true,
+  vault: VaultFenceOptions = {},
 ): NodeJS.ProcessEnv {
   const clean: NodeJS.ProcessEnv = {}
   for (const [key, value] of Object.entries(env)) {
@@ -253,17 +265,7 @@ export function shellEnvironment(
       windowsPowerShellModulePath(systemRoot, environmentValue(env, platform, PROGRAM_FILES)),
     )
   }
-  return clean
-}
-
-/**
- * A provider credential's variable: any `*_API_KEY`, and the named ones.
- * Hooks never get one (Muse Code's narrow environment), nor does any process
- * the ACP agent starts but Muse Code's own (runtime/credentialVariables.ts).
- */
-export function isCredentialVariable(name: string): boolean {
-  const upper = name.toUpperCase()
-  return upper.endsWith('_API_KEY') || HOOK_FORBIDDEN_ENV_NAMES.has(upper)
+  return isFenced ? vaultFenceEnvironment(clean, vault) : clean
 }
 
 export function hookEnvironment(
@@ -698,7 +700,13 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         file: interpreter,
         args: shellArguments(deps.platform, command, job),
         cwd,
-        env: shellEnvironment(deps.env(), deps.platform, deps.systemRoot),
+        env: shellEnvironment(
+          deps.env(),
+          deps.platform,
+          deps.systemRoot,
+          deps.agentFence?.() ?? true,
+          deps.vaultFence?.(),
+        ),
         timeoutMs,
         signal,
         limit,
