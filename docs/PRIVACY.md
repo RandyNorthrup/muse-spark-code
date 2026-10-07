@@ -89,6 +89,27 @@ The plan notice identifies AI-generated content and includes GitHub's report
 link. Token estimates and dispatched-request tallies stay locally in the
 extension's state; ACP ChatGPT tallies currently live for the process lifetime.
 
+## Account metadata and developer audit
+
+M108's local `providers.json` holds opaque account ids, user-chosen labels,
+order, limit groups and thresholds; it holds no credential. Credentials stay
+in each account's origin-bound SecretStorage/OS-store slot. Usage projections
+hold opaque account ids with usage and outstanding reservations/uncertainty;
+labels are resolved locally for display. The account usage-page/journal mount
+and automatic pooling still await their installed integration.
+
+Machine-local Developer options state holds unlock/expiry, recorded profile
+ids and their provider/account ids. Its append-only `developer/developer-audit.jsonl`
+holds the time, fixed action/option/editor words and opaque profile ids;
+it contains no label, origin, path, prompt or credential and sends nothing.
+Expiry retains recorded profile state; Reset deletes only resources owned by
+its ledger after confirmation. The runtime refuses unbound profile cleanup,
+so it does not claim deletion or forget ownership without its resource owner.
+Paired-device offers expose only provider headroom buckets, with no account
+ids, labels, credentials or machine confirmations; that installed routing
+still waits for M100/M107. [M108's record](certification/m108.md) lists the
+remaining bindings and checks.
+
 ## What the extension sends, and to whom
 
 - **Your prompts, attachments and mentioned files.** Everything you type into

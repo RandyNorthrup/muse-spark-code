@@ -483,6 +483,22 @@ hosts and ACP/headless editors; browser fallback and editor features are unchang
 | at 750,942 B (733.3 KiB) and the original deferred group at 32,835 B                |
 | (32.1 KiB), within the review baseline targets.                                     |
 
+**M108W browser English and help split (2026-10-07).** Canonical `en.ts`
+remains complete. Production chat carries core English inline and defers
+account/developer/help/ACP-headless fallback to its first optional surface.
+A generated compact validation table retains every deferred key, plural form
+and template slot before the installed table is accepted. The fallback chunk
+has a new **25 KiB** closure cap (14,350 B measured, plus 15%, rounded to
+25 KiB). Help awaits it inside the existing accessible loading/error/retry
+boundary; account/usage/developer mount owners use the same
+`loadDeferredEnglish` handshake before their first render. Independent
+pages and integration builds retain their full inline fallback. Node help's
+generated model is losslessly Brotli packed; its zod model validation and
+reference rows remain unchanged. Startup measures 750,625 B and original
+deferred JS 32,867 B, within the unchanged 733.8/32.1 KiB review baselines;
+Node help measures 45,734 B against 100 KiB. No existing cap rises.
+Certification and deliberate failure/restoration receipts: `docs/certification/m108.md`.
+
 **REL0143M (2026-10-06).** Questions retain their eager arrival and draft
 context while controls and MCP form fields use the shared local retry boundary.
 MCP forms share the unchanged 25 KiB question closure cap. Workflow details
@@ -11909,6 +11925,22 @@ It builds on:
     credentials. Routing follows M100's consent. The receiver applies its own
     record and its own confirmations, which never travel between machines.
 
+    **Placement amendment (a), M108 D (2026-10-06):** each account is pinned
+    to exactly one device or node in local metadata. `onePerDevicePerProvider`
+    defaults on for placement; a second account of that provider on the same
+    device is refused with two ways forward: choose another device or turn
+    off the rule. Re-pinning replaces the previous placement. Swaps and
+    background routing follow the pinned device's provider headroom, with
+    **Send to {device}** as the manual choice. No account identifier or
+    confirmation is sent to select a receiver credential; the receiver
+    chooses from its own locally pinned accounts. The original pooling
+    trigger remains a reason to consult the receiver's own policy, never
+    permission to bypass it. Missing/unknown offers give no admission.
+    M100/M107 implementations are absent on lane D's `76c1231e8` base:
+    implement these regions through required injected placement, authenticated
+    offer, consent, relocation and receiver-admission ports. W binds their
+    real owners and lazy bundles; D's certification names every handoff.
+
 11. **The usage page.** Records gain `account`, an opaque id. The page groups
     by account (labels resolved locally), shows each account's thresholds as
     meters, and lists swaps, spreads and stops as events.
@@ -17979,6 +18011,30 @@ test that fails without the rule:
 Rows marked **covered** keep their existing decision as the owner: D87.14,
 D90.25, D96, D88 and D97.
 
+**Placement amendment — lane X (2026-10-06 brief / owner ruling).**
+One account per provider per device is the default. Developer options exist
+for testing, are clearly labelled and off by default. The visible option is
+“Allow several accounts of one provider on this PC”; enabling it requires
+its own confirmation. Seven clicks on the version, the palette command and
+`developer` in a terminal unlock the same machine-local Developer options
+page. A local profile has an isolated credential slot, state folder and
+runtime process, and registers with the account pool as a local device.
+Developer mode is badged on every surface. Expiry and Reset revoke authority
+immediately; an audit file holds fixed action words and opaque profile ids,
+never credentials, labels, origins or paths. None of this changes vendor
+policy, paid consent, budgets, replay, capability checks or Muse Code's
+capture requirement.
+
+The placement amendment itself is absent from this base; the lane brief is
+the supplied authority. Conservative lane defaults: a 24-hour unlock, seven
+version clicks within ten seconds per surface, at most eight local profiles.
+Expiry/disable stops and unregisters profiles but retains their local state
+and credential slots; Reset confirms before deleting only recorded profiles.
+Reset never deletes ordinary accounts. Restored grants bind this machine,
+reject future unlocks and invalid dates, and do not extend their expiry.
+These constants are named, not settings. All editors use the same core
+owner and validated bridge, with terminal/ACP adapters and shared React UI.
+
 ## 3. Open questions (need the owner)
 
 - **Q-M115 — What M115 needs from the owner (2026-10-06).** Nothing here
@@ -18855,17 +18911,24 @@ and README What's new unchanged. Startup remains at most 751,411 bytes;
 recover any excess through the newest features' existing lazy boundaries.
 
 - [x] Merge M105 media; resolve by meaning, regenerate and check.
-- [ ] Merge M108 accounts; resolve by meaning, regenerate and check.
+- [x] Merge M108 accounts; resolve by meaning, regenerate and check.
 - [ ] Merge M109 vault and its fix round; regenerate and check.
 - [ ] Merge M117 estimator; regenerate and check.
-      M105's first combined build exposed wire (51.1/50 KiB), headless
-      (576.9/100 KiB) and optional English (25.1/25 KiB) overflows. Recover through
-      existing shared Model API boundary schemas, the already-lazy runtime engine's
-      RequestError export, and Help English behind its existing measured reference closure before lazy UI
-      factories resolve. The deferred-bundle fixture uses the same production model-text
-      compression. Header-only history refuses uploaded sessions without their ownership
-      ledger, preserving durable cleanup. Both repairs have regression tests. Media text has first-paint readers, so moving it alone does
-      not recover optional English. No schema, behavior or existing cap changes.
+      M108's colliding local nano-USD, credential binding and account-usage text
+      contracts retain separate modules beside the release contracts. Both implementations
+      and their regression suites remain; provider envelopes, media and lazy runtime stay.
+      Account argument parsing separates from credential-bearing command runners; runners
+      load through runtimeAccounts. Its three new provider-account sources have exact
+      first-use ownership, and shared account schemas avoid eager provider-envelope code.
+
+M105's first combined build exposed wire (51.1/50 KiB), headless
+(576.9/100 KiB) and optional English (25.1/25 KiB) overflows. Recover through
+existing shared Model API boundary schemas, the already-lazy runtime engine's
+RequestError export, and Help English behind its existing measured reference closure before lazy UI
+factories resolve. The deferred-bundle fixture uses the same production model-text
+compression. Header-only history refuses uploaded sessions without their ownership
+ledger, preserving durable cleanup. Both repairs have regression tests. Media text has first-paint readers, so moving it alone does
+not recover optional English. No schema, behavior or existing cap changes.
 
 - [ ] Repair integration failures with failing-before/passing-after tests and
       byte-exact restored guard drills; no increased caps or timeouts.
@@ -37746,6 +37809,166 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
 
+**M108W final continuation (2026-10-07):** retain the existing startup,
+deferred and help caps. Split browser account/developer/help English into a
+first-use chunk generated from canonical `en.ts`; startup validates the same
+keys, plural forms and template slots using generated validation templates.
+Lazy surfaces await the fallback before rendering, preserve installed tables,
+and retain their existing loading/error/retry path. Pack Node help's generated
+data losslessly without changing its schema or rows. Prove complete fallback
+and translation equality, malformed-slot refusal, lazy placement and both
+unchanged size regressions with default-timeout tests and byte-exact drills.
+Record stale `media/readme/usage.png` and `media/readme/languages.png`, unavailable browser
+gates and their exact commands as release-lead handoffs. No captures or paid
+calls belong to this continuation. The runtime's still-unbound profile
+lifecycle must refuse stop/removal as explicitly as start; a failed profile
+launch retains its ownership ledger until the real resource owner can clean
+it up. Profile ids must satisfy the shared account-id schema and remain
+distinct even when two launches share a clock tick. Runtime account surfaces
+must report the backend's fixed account, independent of display order or
+removal; headless ports bind their requested account and publish the same
+identity. Legacy credential fallback applies only to Meta's default account,
+and malformed configured provider metadata must refuse before that fallback.
+Regress that refusal through the runtime owner, with a red drill. Review all
+fifteen README scenario previews; refresh changed palette, slash-command,
+question and remembered-consent assets. If the installed Chrome CLI cannot
+settle the harness, record its exact failed command and use a reviewed
+Playwright preview without claiming the CLI passed. The remembered-consent
+capture scrolls to its existing Ask again control. Usage and German usage
+assets remain release-lead owned as directed above.
+
+**FIXM108P2 (2026-10-06):** close RVM108P2's remaining P2 stop-recovery
+finding. Evaluate every model-eligible fallback candidate's complete blocking
+triggers and cold-cache projection before skipping a shared vendor limit;
+retain that skip and its notice for admission. Report the earliest known
+per-account usable time, including same-group candidates, and retain the
+configured fallback order when accounts recover together. Regress the
+monthly-capped current account versus an earlier same-group recovery and
+the tie case, with default-timeout complete-file tests and byte-exact red
+drills in `docs/certification/m108-p-pool-and-policy.md`. No new scope,
+dependency, wire shape, user-visible text, timeout or guard changes.
+
+**FIXM108M2 (2026-10-06):** repair both RVM108M2 P2 findings structurally.
+One synchronous reducer owns command-lease state, generation-tagged queued
+requests, dispatch admission and resume reconciliation. The account connection
+wraps the SDK transport so the dispatch fence runs inside its actual write,
+after any preceding backpressure; revocation removes queued authority before
+another write. Reuse the pinned SDK's process transport and teardown in the existing MSP
+host module for the
+account-only handshake; the ordinary single-account spawn remains unchanged.
+Resume preserves ordinary recovery fallbacks but reconciles with the same
+owner before returning and discards an invalidated handle. Enumerate all
+revoke/queue/dispatch/resume interleavings, and reproduce transport backpressure
+and both interrupted recovery requests with captured fixtures. No wire-field,
+dependency, guard, timeout, paid-policy or installed-feature changes. Record
+red regressions and byte-exact guard drills in M's certification; Q-M108 and
+W's adapters and full integration gates remain required.
+
+**FIXM108M (2026-10-06):** repair both RVM108M P2 findings inside M's
+owned account-home, shared MSP command and test regions. Carry the immutable
+lease generation through every local request, check it before dispatch and
+retry and after awaiting a reply, and refuse pending requests when the lease
+is invalidated or its host starts closing. Keep generation/cancellation
+metadata local; no uncaptured MSP field is added. Prove an account-switch
+race, a retained session during manager disposal, and revocation during
+retry. Compare both credential paths with platform-aware separator and case
+normalization, including Windows-shaped paths on this rig. Each finding gets
+a named regression red and a byte-exact guard drill. No dependency, gate,
+timeout, credential, paid policy or installed-feature changes; Q-M108 and W's
+capture/bindings remain required. Receipts:
+`docs/certification/m108-m-muse-code-accounts.md`.
+
+**FIXM108U2 (2026-10-06):** repair RVM108U2's single P2 replacement-account
+rollback race. A cancelled addition must retain its own ownership token;
+rollback compares that token and deletes only its original account under the
+same serialized store mutation. Prove both removal/re-addition while the
+credential prompt is pending and cancellation followed by replacement before
+the delayed rollback. Replacement metadata may be byte-identical; neither
+its row nor its credential may be removed. Keep normal cancellation/storage
+failure cleanup and duplicate-add preservation. Record the regression's
+pre-fix failure, a byte-exact red drill, scoped checks and any integration
+residual in `docs/certification/m108-u-panel-and-vs-code.md` and §9. No
+dependencies, guard relaxations, timeout changes or paid/live calls. The
+lead approved Q-FIXM108U2 in the continuation brief: K is accepted and
+finished, and U may apply the prepared minimal ownership-token change to
+`src/core/providers/accounts.ts`. The ownership comparison belongs inside
+K's mutation queue; a panel-side check cannot make deletion atomic. Keep
+K's complete suites green alongside U's direct default-timeout verification.
+
+**FIXM108U (2026-10-06):** repair all four RVM108U P2 findings within
+U's panel, host ports and display contracts. Keep one pending operation per
+Accounts view, tag its result/error/cleanup with its provider generation and
+request identity, and discard completions after navigation away and back.
+Issue a unique question id plus generation with each policy dialog and carry
+both through the shared answer payload, including the host's asynchronous
+provider lookup. Roll back an owned account addition in finally if its
+credential flow cancels or fails. Display stop recovery only from P's
+`AccountPoolStoppedError.resetAt`, carried alongside the opaque event in U's
+validated notice projection; the first trigger is not a recovery estimate.
+Add interleaved regression tests and byte-exact red drills for each finding.
+No dependencies, guard relaxations or gate/budget changes. W retains the
+installed M95/M104 bindings and joined-tree certification.
+
+**FIXM108H (2026-10-06):** fix all three RVM108H findings within H's
+ACP session owner and router. A committed swap advances the selection
+revision and invalidates any pending backend-adoption fence. The profile
+service's subscription publishes validated account-state snapshots on store
+changes; local commands and selection read live membership and thresholds
+through that same owner. Serialize refreshes with selection and keep newer
+notifications authoritative over held reads/results, including disposal.
+Report valid selections refused by unavailable services with the fixed
+unavailable reason, while retaining invalid-account errors for invalid input
+and suppressing raw service text. ACP service failures use the SDK internal-error
+code; only locally invalid input uses invalid-params. Add backend-adoption, live-store and real
+ACP-router regressions and byte-exact red/restoration drills for every
+finding. No dependency, timeout, threshold, credential, budget or gate changes;
+H-P-SESSION still requires the shared profile owner before installed support.
+
+**FIXM108P (2026-10-06):** fix all five RVM108P P2 findings inside P's
+owned core/paid ports. Serialize confirmation read/question/write ownership
+before starting I/O, discard stale reads/results by generation, and refresh
+sticky policy authority against its original pooling reason. Merge paid
+Always grants by reading inside the account owner's write operation. Commit
+swap/spread events and account adoption in one synchronous transaction after
+credential lookup and the final admission fence; the event port must abort
+both on refusal. Compute recovery per account from all blocking triggers,
+then choose the earliest known eligible account. Add deterministic overlapping
+read, popup, write, revocation, credential and final-fence regressions and one
+byte-exact mutation/restoration drill per finding. No dependency, guard,
+threshold, timeout, UI or budget changes; W binds the single profile owner and
+atomic event transaction before installed surfaces are enabled.
+
+**FIXM108T (2026-10-06):** repair both RVM108T P2 findings, with no
+review residuals. Sum settled/reserved/uncertain USD and projected requests
+as integer nano-USD through `src/shared/usd.ts`; compare counts as integers.
+Headroom compares remaining × 100 against threshold × live limit by integer
+cross multiplication, including fractional configured percentages. Refuse
+fractional or unsafe request/token buckets. Audit money/quota arithmetic in
+thresholds.ts, sessionBudget.ts and paidDailyBudget.ts; use the same exact
+helper for token-price reservations, settlements and daily-budget arithmetic.
+Preserve existing numeric contract boundaries on this base, converting only
+before/after exact calculation; never use binary sums or quotients to admit.
+M106H's helper is absent from this checkout and the named local source path;
+record the shared parse/add/subtract/rational-multiply/compare/ceiling-format
+API in T's certification for integration to retain one implementation.
+Add the review's decimal-cap and 25/7/28% regressions, seeded independent
+integer admission properties, and deliberate failure/restoration receipts.
+No new dependency, UI, credential, paid policy or gate changes.
+
+**FIXM108K (2026-10-05):** repair all four RVM108K findings in lane K.
+Extend shared literal scrubbing to JSON, URL, base64/base64url and hexadecimal
+forms through one matcher; invalidate pending account dispatches by removal
+generation and serialize mutations across store instances in this process.
+Recheck the current product's credential eligibility at dispatch as well as
+its account membership, auth mode and origin, so metadata edits cannot bypass
+the existing not-offered/Muse Code capture guards while a lookup is pending.
+Local maintenance reads retain the stored origin for revocation and cleanup;
+an explicit origin rebind asks the injected user-confirmation port before
+writing the same account's credential at the new origin. Certify regressions
+red before each fix and break each guard after fixing it, restoring byte-exact.
+No dependency, endpoint guard, paid default or budget changes. See
+`docs/certification/m108-k.md` for scoped rig receipts and integration limits.
+
 **Status 2026-10-05: planned.** The terms research is
 `docs/research/account-terms-2026-10-05.md`.
 
@@ -37811,6 +38034,22 @@ Each joins when its dependency merges, and none blocks the others.
 | H Runtime, ACP, headless, companion            | D88.9's other rows: the CLI's `providers accounts` and `auth set --account`; ACP's `/accounts`, the session option and notices; exec's `--account` and `--account-pool`; the companion through the panel                                                                                                                                                                                                                                                                                                                 | new `src/runtime/providers/accountsCommand.ts`, `src/acp/accounts.ts`                                                                                                                | `src/runtime/cliArgs.ts`; `main.ts`; `src/acp/agent.ts`; `runExec.ts`; `docs/schemas/*`                                                                                                                                                                                                                                                                                                         | after K and P                                |
 | J The usage page                               | D88.11: the account dimension, per-account meters, swap and stop events, the text summary                                                                                                                                                                                                                                                                                                                                                                                                                                | new `src/core/usage/accountUsage.ts`, `src/webview/usage/AccountsSection.tsx`                                                                                                        | `aggregate.ts` (group by account); `usageText.ts`; `UsageApp.tsx` (the mount)                                                                                                                                                                                                                                                                                                                   | after 0, with M102 merged                    |
 | W Wiring, docs and gates (last)                | Bundles, budgets, `package.json`, docs, registry rows, certification, the full gate                                                                                                                                                                                                                                                                                                                                                                                                                                      | `docs/certification/m108*.md`                                                                                                                                                        | `scripts/build.mjs`; the bundle-size and split gates; the host API record; README; PRIVACY; SECURITY; CHANGELOG; `docs/acp.md`; `docs/ci.md`; `docs/ide-compatibility/**`; PLAN                                                                                                                                                                                                                 | last                                         |
+
+- **Lane X — Developer options and local profiles** (2026-10-06 brief).
+  Owns new `src/shared/developerOptions.ts`, `src/core/developer/**`,
+  `src/runtime/developer/**`, `src/webview/developer/**`, its tests and
+  `docs/certification/m108-x-developer-options-and-local-profiles.md`.
+  Shared regions: `constants.ts`, `en.ts` and every translated UI table,
+  this plan and the minimal Unreleased note. The visible setting, palette
+  command, version click binding, `/help` rows and badges are supplied as
+  host-neutral ports and metadata. W/H/U/D own the actual entry points.
+  X never edits their handlers, package manifest or build/gate scripts.
+  Acceptance: off by default; unlock paths converge; confirmation cannot
+  be bypassed; expiry/Reset fences pending I/O; each profile gets distinct
+  resources and local-device admission; no key crosses UI/audit/process
+  boundaries; cleanup touches recorded profiles only; all 14 languages;
+  lazy UI measured against its own 25 KiB cap, with React and installed
+  localization supplied by the existing webview. Each guard is drilled red.
 
 - **Steps.**
   1. Lane 0, including the record's byte-checked quotes.
@@ -43029,6 +43268,71 @@ the lane brief's allowed files, so lane W/lead must run
 unchanged gate on the integrated tree. No gate is disabled or weakened, and
 this lane does not claim all gates or full quality green. See §9 and the
 S/C certification records.
+**FIXM108M/M2 bounded-lane certification (2026-10-06).** The overriding rig
+brief and shared rules prohibit aggregate quality/full unit runs, merges and
+network calls. Use complete owning test files, repository default timeouts,
+at most three files/workers per run, scoped static/build checks and normal
+hook-on local commits. The lead owns integrated quality/coverage and live
+editor/capture gates. W owns the pre-existing host-API record count drift and
+CHANGELOG integration; no gate is weakened. **M2-W-HOST-API:** the current
+record check is red for crypto 46→47 and path 84→85 (existing), plus the
+account adapter's child_process 13→14 importer. There is no host boundary
+violation. W must regenerate/review its owned host-API record and rerun the
+gate in integration; this lane does not change that out-of-scope record.
+
+**FIXM108U bounded-lane certification (2026-10-06).** The explicit rig brief
+and shared rules prohibit aggregate quality/full unit runs, merges and
+network calls. Run complete owning files with repository timeouts and at
+most three workers/files, scoped static/build checks and hook-on commits.
+The lead retains integrated quality, coverage and installed editor/live
+certification. No gate is weakened; receipts are in
+`docs/certification/m108-u-panel-and-vs-code.md`.
+The FIXM108U2 continuation's final scoped tests pass 690/690 (U 256, K 434),
+including 32 browser axe scenes; direct static, localization and production
+build gates pass. `check:host-api` still requires
+W's generated record update: `node:crypto` imports 46 → 48 and Accounts CSS
+in the theme-source list. The API/theme totals are unchanged. Keep that
+named integration handoff rather than editing W's owned file in this lane.
+
+**FIXM108H bounded-lane certification (2026-10-06).** The explicit rig
+brief and shared lane rules prohibit the full quality run and merges here;
+W/the lead runs the full gate before integration. H runs the named complete
+owned test files with repository-default timeouts, typecheck, changed-file
+lint/format, deadcode, duplication, l10n, host-API and build checks directly
+on Kubuntu. Per-finding regressions and deliberate mutations are recorded in
+`docs/certification/m108-h-runtime,-acp,-headless,-companion.md`.
+
+**M108-X bounded-lane certification.** The rig brief prohibits aggregate
+quality/full-unit runs, merges and network calls. Complete owning test files
+run directly on Kubuntu with repository timeouts and at most three files and
+workers. Scoped static/build checks and normal hooks certify local commits;
+W retains full integrated quality, coverage, installed editor and packaging
+checks. No threshold or gate is weakened.
+
+**FIXM108P / FIXM108P2 bounded-lane certification (2026-10-06).** The rig brief and
+shared rules prohibit aggregate quality/full unit runs, merges and network
+calls. Run complete owning test files with repository timeouts and at most
+three workers/files, scoped static/build checks and hook-on local commits.
+The lead retains integrated quality, coverage and installed editor/live gates;
+no gate is weakened. Receipts: `docs/certification/m108-p-pool-and-policy.md`.
+Existing `P-W-HOST-API-RECORD` deferral: the generated Node crypto import
+count is 46 rather than 47, from P's earlier confirmation digest; W owns
+regenerating that record and rerunning the host API gate during integration.
+FIXM108P2 adds no host API and leaves this generated file with its owner.
+
+**FIXM108T bounded-lane certification (2026-10-06).** The rig brief and
+shared rules prohibit full quality/full unit runs, merges and network calls.
+Run complete owning test files with the default timeout, at most three files
+and workers per run, plus scoped static/build gates and hook-on commits.
+The lead retains integrated quality, coverage and editor/live certification.
+No gate is weakened; receipts are in `docs/certification/m108-t-thresholds.md`.
+
+**FIXM108K bounded-lane certification.** The explicit rig brief and shared
+rules prohibit aggregate quality/full test runs, merges and network calls.
+Hook-on local commits use complete owning test files, mutation/restoration
+drills and scoped static/build checks. The lead retains integrated quality,
+coverage and editor/live certification; no gate is weakened.
+
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
 scoped tests. Typecheck, changed-file lint/format, localization (source and staged),
@@ -46062,6 +46366,15 @@ remains a named release-integration repair for the lead. No threshold, ignore,
 rule, timeout or test is changed. Full quality cannot be claimed green until
 that repair passes the unchanged gate. Evidence and all other requested rig
 receipts: `docs/certification/promptmenu-hosts.md`.
+**M108W final rig certification (2026-10-07).** The W brief authorizes the
+complete configured test suite in sequential batches of at most three files
+and workers, using repository-default timeouts, all listed individual static/
+build/package gates, full axe harness and README previews. Shared rules still
+prohibit the aggregate `npm run quality` and public network; aggregate coverage,
+network audit/SAST, hosted/native/editor/live receipts remain lead-owned.
+Run local hook-on commits only after their scoped proofs, then certify the
+final joined tree without loosening any gate. Every named integration handoff
+and unavailable check is explicitly disposed in `docs/certification/m108.md`.
 
 **FIXM112Q bounded-lane certification (2026-10-06).** The rig/shared brief
 forbids aggregate quality and full-suite runs; full integrated quality remains
@@ -47282,6 +47595,10 @@ Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemg
 | `src/runtime/main.ts`, `exitHeadless`                        | `eslint-disable-next-line unicorn/no-process-exit`   | A standalone headless command owns its process. It must end within the deadline/grace/force bounds even if a pipe or late backend setup never closes, including usage errors. Writes remain async and bounded before exit.                                                                                                                                                                                                                                                                                                                                             | 2026-10-02 |
 | `src/runtime/exec/execClient.ts`, constructor session router | Reflection of SDK 1.4.0's private `builder.handlers` | The SDK's constructor-installed session router validates a closed union before custom notification parsers, dropping future variants. This headless instance uses `request()` and no active-session helpers; remove only its single constructor handler after validating the exact descriptor `client-session-update-router`. The SDK's original builder and public handler/request/connection APIs remain in use. Structural checking fails closed if this pinned seam changes; real JSON-RPC and real-engine tests cover it. No dependency or SDK source is patched. | 2026-10-02 |
 
+| M108 lane X location                                  | Escape hatch                                                     | Reason                                                                                                                                                                                                                                                                    | Date       |
+| ----------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/core/developer/developerOptions.ts`, `serialize` | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | The extension host runs Node 20 (VS Code 1.99), which lacks `Promise.withResolvers`; the deferred gate uses `new Promise` with a synchronously assigned resolver instead. Every other lane (M62 pattern) does the same. Remove if the minimum host gains `withResolvers`. | 2026-10-06 |
+
 **M91 provisional budget (lead decision, 2026-10-05).** `dist/uiText.js`,
 the English fallback on the startup path, is at 126.8 KiB with M91's strings
 on 0.13.0. Its budget goes from 125 to 150 KiB (D6's rule) only until the
@@ -47448,6 +47765,24 @@ before a repaired one loads (2026-09-30).
   M104/M110a0, with exact local DTOs and existing envelope names in the integrated
   certification. CLI policy reads strict JSON `.vscode/settings.json`; unreadable
   or JSONC policy refuses sharing. Unknown secret shapes still depend on review.
+  **M108W final integration disposition (2026-10-07).** All ten reviewed lanes
+  are merged and their P1/P2 repairs preserved. Runtime metadata/stdin-key and
+  fixed-account bounded headless selection, settings, docs/help/reference and
+  size fixes are wired. Full automatic pooling, account usage/journal, models/
+  developer/native/companion mounts, isolated resource cleanup and paired-device
+  routing are blocked on absent M95/M102/M104/M109/M100/M107 owners and captured
+  M106/Q-M108 inputs. `docs/certification/m108.md` lists every named handoff,
+  including J's mandatory `includeOutstanding: true` production-source contract;
+  no real M102 adapter or installed panel is claimed. Unbound runtime profile
+  start/stop/remove refuse and preserve the ownership ledger. Release lane owns
+  `media/readme/usage.png` and `media/readme/languages.png` after the actual mount.
+  The installed Chrome CLI hangs on harness capture; its exact README preview
+  command remains lead-owned, while reviewed Playwright previews refresh four
+  changed assets. Final badge/package invocation uses the existing named local
+  network deferral because shared rules prohibit public requests; the earlier
+  default-fetch mistake is recorded in the certification. No hook changes or
+  remote badge certification are claimed.
+  No cap, test timeout, coverage gate or paid/capture policy is waived.
 
 - **M112 integration (2026-10-06, Windows rig).** Bind the real question store and registry to the extension and ACP launcher, with an owner-only bounded durable late-answer queue and session removal. ACP owns its deadline timer; the registry accepts its frozen arrival timing without another timer. History carries per-session counts from authenticated listed sessions. Move question UI and runtime implementation to guarded lazy closures; preserve every existing cap. Reconcile model-text readers with actual lazy ownership, prove changed guards with red controls, and record all acceptance evidence in docs/certification/m112.md. Round 2 integrates U's authoritative open set, retained history and newest-waiting dock priority while preserving session-generation delivery guards and settled outcomes. HELPREF and M104 sources are absent on this base: their named handoffs stay explicit; no substitute protocol or full catalog is invented. Live checks and hosted full quality remain with the lead; the startup growth waiver follows below.
 
@@ -48007,6 +48342,118 @@ before a repaired one loads (2026-09-30).
   claim ships. Follow-up: integrate and certify actual native/phone adapters
   under the IDE compatibility milestones. RVHELPREF 1–23 retain no false-claim
   residual; this boundary is recorded explicitly for finding 16.
+- **M2-W-HOST-API (W).** The host-API record gate reports existing
+  crypto/path count drift and this repair's one additional child_process
+  importer (13→14). Safe for this bounded lane: the check reports no
+  forbidden host import, the record is W-owned, and installed multi-account
+  support remains disabled. Follow-up: W regenerates/reviews the record and
+  reruns the gate before integrated quality or enabling those surfaces.
+  This is a gate/integration handoff, not an accepted RVM108M2 finding.
+
+- **FIXM108M2-SDK-TRANSPORT-PIN (W).** The account-only launch adapter
+  reuses the exact pinned SDK 1.3.0's exported internal process transport to
+  wrap actual queued submission; its public spawner has no submission hook.
+  Safe for now: the dependency pin is unchanged, bounded teardown remains
+  SDK-owned, and real fake-CLI manager tests qualify handshake and lifecycle.
+  Follow-up: requalify this constructor/close contract before an SDK upgrade,
+  and adopt a public transport-injection seam when available. No RVM108M2
+  finding remains unresolved; the existing already-dispatched-work and
+  capture/editor-binding residuals still apply.
+
+- **FIXM108M-DISPATCHED-WORK (M-U-H-LIFETIME / W).** Revoking a Muse Code
+  lease refuses local pending commands and prevents subsequent dispatches
+  and retries. FIXM108M2 fences the actual SDK transport write and drops
+  queued unwritten authority; resume reconciles from the same reducer. A request already written to the old CLI may have started
+  work; local cancellation cannot prove otherwise. Safe for now: installed
+  multi-account support stays off without Q-M108's capture and the named
+  adapters. Follow-up: W/U/H synchronously invalidate the old lease and await
+  its manager's process disposal before adopting another account, preserving
+  old-account usage/liability for already-dispatched work. No RVM108M finding
+  is accepted as an unresolved review residual.
+- **FIXM108U2-PROCESS-OWNERSHIP (K / U / M109 / W).** The lead approved
+  the minimal cross-lane store edit after accepting K. Addition ownership
+  and rollback comparison share the existing process-local mutation queue,
+  including across independent store instances. Replacement accounts with
+  identical metadata receive distinct tokens. Cross-process ownership still
+  needs the existing K-M109/W parent-owned broker; installed multi-account
+  surfaces remain disabled on this base until the existing bindings are
+  certified. The continuation closes the scope blocker without making a
+  cross-process or installed-editor claim.
+
+- **FIXM108U-INSTALLED-BINDINGS (M108-U-M104-PROMPT / M108-U-P-BOUNDARY /
+  W).** No RVM108U finding remains in U's supplied panel/host ports. The
+  installed M95/M104 bridge is absent on this base. W must preserve the
+  host-issued question UUID and provider generation through every editor's
+  request/answer envelopes, bind one serialized Accounts/modal owner, and
+  project each stop with `accountNoticeFor(event, stoppedError)` from that
+  exact failed pool admission. A raw persisted stop event carries only its
+  trigger, so without the error the projection explicitly shows unknown
+  recovery. Safe for now: these modules are absent from shipped graphs and
+  installed multi-account surfaces remain disabled. Follow-up: certify
+  provider-return/delayed-answer interleavings and pool recovery through the
+  installed VS Code/native/companion transports before enabling them; H owns
+  equivalent ACP/terminal/headless bindings. Full quality and generated host
+  API/README/CHANGELOG/help updates remain W's joined-tree work.
+- **FIXM108H-INTEGRATION (H-P-SESSION / H-W-PROFILE / W / M109).**
+  No RVM108H finding remains in the injected ACP account owner/router.
+  Installed composition still requires one profile-owned account service:
+  its `AccountsSessionPort.read` reads live store membership and thresholds,
+  its subscription publishes validated `accounts/state` snapshots whenever
+  metadata changes, and its synchronous selection transaction checks
+  `canCommit` immediately before adoption/publication. A metadata notification
+  or committed swap advances the pending adoption fence; an older read/result
+  cannot replace that authority. Safe for now: additional-account installed
+  surfaces remain unavailable without the named bindings; only fake
+  compositions are certified here. Follow-up: P/W/M109 certify the same
+  store notifications and backend/display agreement across installed clients.
+  W also publishes the H-W-DOCS-HELP README/reference/changelog handoff and
+  regenerates the pre-existing H-W-HOSTAPI inventory difference at integration;
+  no W-owned output is edited in H's bounded repair.
+
+- **FIXM108P-PROFILE-OWNER (P-W-POLICY-STORE / M109 / W).** Compose one
+  profile-owned pool and confirmation authority, and one account/tariff paid
+  authority per workspace/window, through the shared broker. P's synchronous
+  sticky/event transitions and generation-tagged asynchronous effects are
+  certified on injected in-process ports; they are not a cross-process lock.
+  Safe for now: these account modules remain absent from shipped graphs and
+  installed multi-account surfaces remain disabled on this base. Follow-up:
+  W/M109 certify multi-window revocation and concurrent grants on that same
+  profile owner before enabling those surfaces. No RVM108P or RVM108P2 finding remains
+  within the supplied in-process ports.
+
+- **FIXM108P-EVENT-TRANSACTION (P-M95-PER-REQUEST / U / H / J / W).**
+  `AccountPoolDeps.commit(event, adopt)` is a required synchronous owner
+  transaction after credential lookup: it executes the final fenced adoption
+  and publishes the validated swap/spread together, or commits neither. Its
+  adapter must prepare fallible I/O first and never await/reenter between
+  adoption and publication; an async append by itself does not satisfy this
+  port. Stop-event persistence keeps its async `record` port. Safe for now:
+  only the fake composition supplies this new port; no installed pooling is
+  enabled. Follow-up: W binds the journal/transcript/UI transaction and tests
+  persistence refusal and a revoked final fence through every editor/runtime
+  surface. No false swap row is published by the supplied pool/fake ports.
+
+- **FIXM108K-PROCESS-COMPOSITION (K-M95-FILE / K-M109-VAULT / W).** The
+  account store shares its mutation queue and removal generations across
+  instances of the shared module in one process. W must compose one parent-owned
+  account service for all lazy bundles and editor entry points; independent
+  processes/windows need M109's shared-vault lifecycle serialization. The
+  interim OS/SecretStorage adapter alone supplies no cross-process lock.
+  Safe for now: these account-store modules are absent from shipped bundles
+  and their integrated surfaces are not enabled on this base. Follow-up:
+  M109/W must certify the held-write/remove/re-add race through two installed
+  clients, sharing the broker's fence, before enabling multi-window accounts.
+  No RVM108K finding remains in the supplied in-process account ports.
+
+- **FIXM108K-ORIGIN-SURFACES (K / U / H / W).** The shared core offers
+  `rebindOrigin` with an explicit user-confirmation callback and a second
+  endpoint check; malformed/local cleanup and stored-origin revocation are
+  certified on the real adapters with fake storage. U/H must wire the same
+  exact-origin confirmation for every editor/terminal entry point. Until then
+  a changed origin refuses dispatch, and local removal remains available.
+  No automatic binding transfer or invented vendor revocation is permitted.
+  Follow-up: compose the callback and captured M95b revoker in the integrated
+  panel/native/ACP/runtime flows, with cancellation and endpoint-change tests.
 
 - **M105-E2-runtime-and-tool-bindings (W/M95/M2/F/C/A/recorders).** E2's
   adapters, metadata receipts, blob dispatch and checked streams are covered

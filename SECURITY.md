@@ -47,6 +47,21 @@ Releases and npm.
   introduced. See [Judge](docs/judge.md) and its
   [certification record](docs/certification/m98.md).
 
+- **Accounts and local profiles (M108).** Account credentials use separate
+  origin-bound slots in SecretStorage or the runtime's OS credential store;
+  metadata contains no credential. Removal fences pending reads and queued
+  writes in the shared process. Stored-origin cleanup remains possible after
+  an endpoint change; dispatch at a new origin requires an explicit rebind.
+  Every read registers the credential with the shared redactor. Labels and
+  credentials stay off usage/device frames; confirmations stay machine-local.
+  Independent windows/processes still need M109's broker fences before
+  installed pooling is enabled. Developer profiles require isolated state,
+  credential slots and processes; their unbound runtime resource operations
+  refuse, retaining the ownership ledger instead of claiming cleanup.
+  Vendor policy, replay identity, first-charge consent and shared budgets
+  apply unchanged. The [M108 record](docs/certification/m108.md) names the
+  capture and installed-owner prerequisites.
+
 - **Credentials.** A pasted Model API key lives only in VS Code's
   SecretStorage, is sent only to `api.meta.ai`, and is never passed to a
   child process, written to settings or logs, or shown in the panel. The
@@ -548,6 +563,11 @@ Releases and npm.
   decision); it is not quarantined when VS Code installs the extension, so
   Gatekeeper normally does not assess it; a copy that carries the quarantine
   attribute is assessed and refused.
+
+Fixed runtime account ports keep their backend identity through display-order
+changes and account removal. A missing non-default binding cannot use the
+legacy Meta key; only an absent Meta default record uses that fallback.
+Malformed configured provider records refuse before any fallback key read.
 
 More detail: `docs/PRIVACY.md` and PLAN.md §9.
 

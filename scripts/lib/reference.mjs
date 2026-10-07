@@ -808,6 +808,17 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
         text = { ui: 'referenceExecContract' }
       text = source.referenceDescription(text)
 
+      // M108/W: --provider/--account select a credential slot, so the parser
+      // refuses them outside `auth set` (cliArgs' hasTarget check) and exec's
+      // own --account. A row claiming another route accepts them would be
+      // false (and bloat dist/reference.js past its cap).
+      if (
+        route !== 'authSet' &&
+        route !== 'exec' &&
+        (option.name === 'provider' || option.name === 'account')
+      )
+        continue
+
       cli.push({
         route,
         name: `${route}: --${option.name}${option.short ? ` / -${option.short}` : ''}${option.type === 'string' ? ' <value>' : ''}`,

@@ -339,7 +339,9 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   on a model the agent does not list moves to the default. A session the
   agent cannot set up this way is let go, and the editor's request fails.
 - **Commands**: the session's skills, run as `/name arguments`, plus M112's
-  `/questions` and `/answer <n> <text>` (reserved ahead of skills).
+  `/questions` and `/answer <n> <text>` (reserved ahead of skills), and
+  M108's `/accounts <list|current|use <id>|thresholds [id]>`, answered
+  locally with no model turn.
 - **Permission prompts**: the backend's own choices (allow once, allow for
   the session, reject). A prompt the editor cancels, or answers with a
   choice it was not offered, is rejected; nothing runs by default.
@@ -426,6 +428,22 @@ prefix; the policy favors avoiding a duplicate when admission is unknown.
 MCP elicitation forms retain their separate five-minute deadline and cannot
 be answered late. Ordinary approvals and paid-use permission prompts retain
 their existing behavior and never enter the question clock.
+
+## Several accounts per provider (M108)
+
+`/accounts list`, `/accounts current` and `/accounts thresholds [id]`
+read local metadata without a model turn. The command parser and event adapter
+also support `/accounts use <id>` and the `account` session option through an
+injected profile-owned pool. The installed runtime currently refuses changing
+the backend credential; that pool awaits M95/M109. It never reports a swap
+while retaining another account's key.
+
+The terminal's `providers accounts` commands manage metadata, ordering,
+thresholds and stored API keys. Keys are read only from standard input,
+never an argument or file. The panel's account section and automatic swap/stop
+notices await the installed M95/M102/M104/M109 bindings in every editor.
+See [the milestone certification](certification/m108.md) for those blockers
+and the injected-port tests.
 
 ## Paid features
 

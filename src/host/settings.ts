@@ -156,6 +156,12 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly mediaUploadExpiryDays: number
   readonly screenRecordingMaxSeconds: number
   readonly mediaAudioAction: (typeof MEDIA_AUDIO_ACTION_OPTIONS)[number]
+  /** M108 (PLAN.md D88.5): swap at the next request boundary; on by default. */
+  readonly accountSwap: boolean
+  /** M108 (PLAN.md D88.5): spread background work across accounts; on by default. */
+  readonly accountParallel: boolean
+  /** D88 amendment b2: several accounts of one provider on this PC; off by default. */
+  readonly 'accounts.severalOnThisDevice': boolean
 }
 
 /**
@@ -250,6 +256,9 @@ const settingSchemas = {
     .int()
     .check(z.gte(SCREEN_RECORDING_MIN_SECONDS), z.lte(SCREEN_RECORDING_MAX_SECONDS)),
   mediaAudioAction: z.enum(MEDIA_AUDIO_ACTION_OPTIONS),
+  accountSwap: z.boolean(),
+  accountParallel: z.boolean(),
+  'accounts.severalOnThisDevice': z.boolean(),
 } as const
 
 type SettingKey = keyof typeof settingSchemas
@@ -365,6 +374,9 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     mediaUploadExpiryDays: readSetting(config, 'mediaUploadExpiryDays', log),
     screenRecordingMaxSeconds: readSetting(config, 'screenRecordingMaxSeconds', log),
     mediaAudioAction: readSetting(config, 'mediaAudioAction', log),
+    accountSwap: readSetting(config, 'accountSwap', log),
+    accountParallel: readSetting(config, 'accountParallel', log),
+    'accounts.severalOnThisDevice': readSetting(config, 'accounts.severalOnThisDevice', log),
   }
 }
 

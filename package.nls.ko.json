@@ -202,5 +202,8 @@
   "config.mediaMaxUploadMiB.description": "확장이 여는 가장 큰 미디어 파일(MiB). 기본값 200, 최대 1,024. 더 큰 파일은 읽기 전에 거부됩니다. 이 컴퓨터의 설정만 사용됩니다.",
   "config.mediaUploadExpiryDays.description": "정리를 제안하기 전에 제공업체 업로드가 목록에 남아 있는 일수. 기본값 7, 1–30. 만료는 제공업체가 결정하며, 다른 세션이 참조 중인 업로드는 삭제되지 않습니다. 이 컴퓨터의 설정만 사용됩니다.",
   "config.screenRecordingMaxSeconds.description": "확장이 캡처하는 가장 긴 화면 녹화(초). 기본값 120, 10–600. 녹화는 제한에서 중지되고 캡처한 내용을 유지합니다. 이 컴퓨터의 설정만 사용됩니다.",
-  "config.mediaAudioAction.description": "`transcribe`는 첨부된 오디오를 보내기 전에 텍스트로 변환하고, `sendAudio`는 모델이 받는 경우 오디오를 보냅니다. 기본값은 전사입니다. 전사에는 유료 음성 요금이 청구되며, 항상 사전 동의 후에만 진행됩니다. 이 컴퓨터의 설정만 사용됩니다."
+  "config.mediaAudioAction.description": "`transcribe`는 첨부된 오디오를 보내기 전에 텍스트로 변환하고, `sendAudio`는 모델이 받는 경우 오디오를 보냅니다. 기본값은 전사입니다. 전사에는 유료 음성 요금이 청구되며, 항상 사전 동의 후에만 진행됩니다. 이 컴퓨터의 설정만 사용됩니다.",
+  "config.accountSwap.description": "임계값에 도달하면 다음 요청 경계에서 여유가 있는 다음 계정으로 전환합니다. 각 계정은 자체 한도를 유지합니다. 기본적으로 켜짐. 이 컴퓨터의 설정만 사용됩니다.",
+  "config.accountParallel.description": "백그라운드 작업을 여유 용량에 따라 계정에 분산합니다. 각 워커는 할당된 계정에 유지됩니다. 기본적으로 켜짐. 이 컴퓨터의 설정만 사용됩니다.",
+  "config.accounts.severalOnThisDevice.description": "테스트를 위해 한 제공자의 여러 계정을 이 PC에서 허용하며, 각 계정은 자체 격리된 로컬 프로필에서 실행됩니다. 켜면 먼저 제공자 이용약관 확인을 요청합니다. 기본적으로 꺼짐. 이 컴퓨터의 설정만 사용됩니다."
 }

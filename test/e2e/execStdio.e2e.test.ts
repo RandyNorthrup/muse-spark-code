@@ -248,6 +248,7 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     // M112: the lazy ACP forms, the private registry and the deferral note.
     'acpQuestions',
     'runtimeQuestions',
+    'runtimeAccounts',
     'questionNotes',
     'modelApi',
     'modelApiHooks',

@@ -219,11 +219,13 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
       return undefined
     }
     const ownership = storedSessionOwnershipShape.parse(raw)
-    if (
-      (ownership.fileRefs?.length ?? 0) > 0 ||
-      ((ownership.children?.length ?? 0) > 0 && fileRefsOf(parseStoredSession(raw)).length > 0)
-    )
+    if ((ownership.fileRefs?.length ?? 0) > 0)
       throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+    if ((ownership.children?.length ?? 0) > 0) {
+      const parsed = parseStoredSession(raw)
+      if (!parsed.ok || fileRefsOf(parsed.session).length > 0)
+        throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+    }
     return {
       sessionId: header.sessionId,
       ...(header.accountId !== undefined && { accountId: header.accountId }),

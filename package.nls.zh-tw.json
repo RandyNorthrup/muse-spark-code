@@ -202,5 +202,8 @@
   "config.mediaMaxUploadMiB.description": "擴充功能開啟的最大媒體檔案，單位 MiB。預設為 200；最大 1,024。更大的檔案將在讀取前被拒絕。僅使用本機的設定。",
   "config.mediaUploadExpiryDays.description": "提供者上傳在清單中保留、直到提供清理的天數。預設為 7；1–30。過期由提供者決定；仍被其他工作階段引用的上傳永遠不會被刪除。僅使用本機的設定。",
   "config.screenRecordingMaxSeconds.description": "擴充功能擷取的最長螢幕錄製，以秒為單位。預設為 120；10–600。錄製在達到上限時停止並保留已擷取的內容。僅使用本機的設定。",
-  "config.mediaAudioAction.description": "`transcribe` 在傳送前將附加的音訊轉成文字；`sendAudio` 在模型接受時傳送音訊。預設為轉錄。轉錄按付費語音費率計費，且必先徵得同意。僅使用本機的設定。"
+  "config.mediaAudioAction.description": "`transcribe` 在傳送前將附加的音訊轉成文字；`sendAudio` 在模型接受時傳送音訊。預設為轉錄。轉錄按付費語音費率計費，且必先徵得同意。僅使用本機的設定。",
+  "config.accountSwap.description": "達到閾值時在下一個請求邊界切換到有餘量的下一個帳號。每個帳號保留各自的限額。預設開啟；僅使用本機的設定。",
+  "config.accountParallel.description": "按餘量將背景工作分散到各帳號；每個工作器固定在其帳號上。預設開啟；僅使用本機的設定。",
+  "config.accounts.severalOnThisDevice.description": "允許同一提供者的多個帳號在本機上用於測試，每個帳號執行在各自獨立的本機設定檔中。開啟時先請求確認該提供者的條款。預設關閉；僅使用本機的設定。"
 }

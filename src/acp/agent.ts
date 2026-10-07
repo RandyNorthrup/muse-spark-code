@@ -86,6 +86,7 @@ import type {
   AcpQuestionRegistry,
   AcpQuestionRegistryFactory,
 } from './questionDeferral'
+import { AcpAccounts, accountErrorText, type AccountsSessionPort } from './accounts'
 import {
   acpQuestionClock,
   questionDeferralLoader,
@@ -160,6 +161,8 @@ export interface AcpAgentDeps {
   readonly onClientName?: (name: string) => void
   /** Shared journal/service, required lazily on the local /usage command. */
   readonly usage?: Pick<UsageAdapter, 'access' | 'openPage'>
+  /** H-W-SESSION: one profile-owned account service, bound to this backend. */
+  readonly accounts?: AccountsSessionPort
   readonly backend: AcpBackend
   readonly version: string
   readonly options: AcpAgentOptions
@@ -246,6 +249,13 @@ function isContributorModel(modelId: string): boolean {
   return modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
 }
 
+function accountRequestError(error: unknown): RequestError {
+  const text = accountErrorText(error)
+  return text === UI_TEXT.accounts.invalidAccount
+    ? RequestError.invalidParams(undefined, text)
+    : RequestError.internalError(undefined, text)
+}
+
 /** The model a new session starts on: the backend's default, else the first listed. */
 function startingModel(models: readonly ModelSummary[]): string {
   const model = models.find((candidate) => candidate.isDefault) ?? models[0]
@@ -268,6 +278,7 @@ class AcpSession {
   private readonly questionBundle: () => AcpQuestionBundle
   private media: Promise<AcpMediaPort> | undefined
   private readonly attachments: AcpAttachment[] = []
+  private readonly accounts: AcpAccounts | undefined
   private readonly translator: UpdateTranslator
   private unsubscribe: (() => void) | undefined
   private readonly approvals = new Map<string, ApprovalRequest>()
@@ -318,6 +329,28 @@ class AcpSession {
             deliver: (message) => this.getQuestions().deliver(message),
           })
     this.translator = new UpdateTranslator(cwd, false)
+    // The session subscribes in loadQuestions (M112): subscribing here too
+    // would deliver every backend event twice.
+    this.accounts =
+      deps.accounts === undefined
+        ? undefined
+        : new AcpAccounts(
+            this.sessionId,
+            deps.accounts,
+            () => {
+              this.send({
+                sessionUpdate: 'config_option_update',
+                configOptions: this.configOptions(),
+              })
+            },
+            (text, event) => {
+              this.send({
+                sessionUpdate: 'agent_message_chunk',
+                _meta: { accountNotice: event },
+                content: { type: 'text', text },
+              })
+            },
+          )
   }
 
   private getQuestions(): AcpQuestionDeferral {
@@ -426,6 +459,9 @@ class AcpSession {
           ?.commands()
           .filter((command) => command.name !== SLASH_COMMAND_NAMES.help) ?? []),
         { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
+        ...(this.accounts === undefined
+          ? []
+          : [{ name: 'accounts', description: UI_TEXT.accounts.slashDescription, input: null }]),
         { name: ACP_COMPACT_COMMAND, description: UI_TEXT.compactDetail, input: null },
         ...(this.deps.legalScan === undefined
           ? []
@@ -455,7 +491,7 @@ class AcpSession {
               skill.selector !== SLASH_COMMAND_NAMES.help &&
               skill.selector !== ACP_COMPACT_COMMAND &&
               skill.selector !== 'legal' &&
-              !['answer', 'questions', 'share', 'prompt', 'attach', 'record'].includes(
+              !['answer', 'questions', 'share', 'prompt', 'attach', 'record', 'accounts'].includes(
                 skill.selector,
               ) &&
               (this.deps.usage === undefined || skill.selector !== 'usage'),
@@ -1008,6 +1044,10 @@ class AcpSession {
     return answer
   }
 
+  public async startAccounts(): Promise<void> {
+    await this.accounts?.start()
+  }
+
   public modes(): SessionModeState {
     return {
       currentModeId: this.mode,
@@ -1021,6 +1061,7 @@ class AcpSession {
 
   public configOptions(): SessionConfigOption[] {
     return [
+      ...(this.accounts?.option() ?? []),
       {
         id: ACP_CONFIG_IDS.model,
         name: UI_TEXT.groupModel,
@@ -1091,6 +1132,21 @@ class AcpSession {
   public async setConfigOption(configId: string, value: unknown): Promise<void> {
     if (typeof value !== 'string') {
       throw RequestError.invalidParams(undefined, configId)
+    }
+    if (configId === ACP_CONFIG_IDS.account) {
+      if (this.accounts === undefined)
+        throw RequestError.internalError(undefined, UI_TEXT.accounts.unavailable)
+      if (this.pending !== undefined || this.preparing !== undefined)
+        throw RequestError.invalidRequest(undefined, UI_TEXT.acpPromptBusy)
+      try {
+        await this.accounts.use(
+          value,
+          () => !this.isDisposed && this.pending === undefined && this.preparing === undefined,
+        )
+      } catch (error) {
+        throw accountRequestError(error)
+      }
+      return
     }
     if (configId === ACP_CONFIG_IDS.model) {
       if (this.models.every((model) => model.modelId !== value)) {
@@ -1230,6 +1286,27 @@ class AcpSession {
         return preparing.isCancelled ? 'cancelled' : 'end_turn'
       }
       await this.announceCommands()
+      const first = parsed.parts[0]
+      if (first?.type === 'text' && /^\/accounts(?:\s|$)/.test(first.text)) {
+        if (this.accounts === undefined)
+          throw RequestError.internalError(undefined, UI_TEXT.accounts.unavailable)
+        if (parsed.parts.length !== 1)
+          throw RequestError.invalidParams(undefined, UI_TEXT.accounts.invalidAccount)
+        let text: string | undefined
+        try {
+          text = await this.accounts.command(
+            first.text,
+            () => !this.isDisposed && !preparing.isCancelled && !('error' in preparing),
+          )
+        } catch (error) {
+          throw accountRequestError(error)
+        }
+        if (preparing.isCancelled || this.isDisposed) return 'cancelled'
+        if (text !== undefined)
+          this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+        await this.outbox
+        return 'end_turn'
+      }
       // Reserved local commands never become a skill or a model turn, even when
       // their runtime bridge has not been bound yet or their syntax is invalid.
       const local = parseSkillInvocation(parsed.displayText, new Set(['share', 'prompt']))
@@ -1437,6 +1514,7 @@ class AcpSession {
     this.legalStop?.abort()
     this.questions?.dispose()
     if (this.questions === undefined) this.questionRegistry?.dispose()
+    this.accounts?.dispose()
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
       this.preparing.abandonElicitation?.()
@@ -1571,6 +1649,7 @@ class AgentState {
       this.adopting.set(sessionId, acp)
       await acp.loadQuestions()
       await prepare(acp)
+      await acp.startAccounts()
       this.ensureClaim(claim, host)
       if (acp.isReleased) {
         // A newer load of this session, or a close, let it go meanwhile.

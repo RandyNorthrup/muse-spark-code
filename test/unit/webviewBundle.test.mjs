@@ -448,3 +448,18 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(result.stderr.replaceAll('\\', '/')).toContain('dist/webview/shared.js')
   })
 })
+
+it('assigns a non-entry optional input with Windows path separators to its lazy budget', () => {
+  const meta = {
+    outputs: {
+      'dist\\webview\\main.js': { imports: [], inputs: {} },
+      'dist\\webview\\chunks\\optional.js': {
+        imports: [],
+        inputs: { 'src\\webview\\components\\SignIn.tsx': { bytesInOutput: 1 } },
+      },
+    },
+  }
+  expect(
+    webviewDeferredBudgetGroups(meta, 25).find((group) => group.name === 'SignIn').outputs,
+  ).toEqual(['dist/webview/chunks/optional.js'])
+})

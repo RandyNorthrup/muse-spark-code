@@ -52,8 +52,10 @@ them, the milestone plan, and the certification checklist.
    - **Node bundles share English fallback** (`dist/uiText.js` and its generated
      runtime/hooks/surfaces/media regions, PLAN.md D6).
      Each bundle keeps its own installed-language state; lazy factories install
-     the caller's table before use. Browser and integration-test bundles keep
-     their inline fallback.
+     the caller's table before use. Production chat splits optional account/developer/help/runtime English
+     behind `loadDeferredEnglish`; its generated validation templates preserve
+     the complete shape and slots. Independent browser pages and integration
+     bundles keep their inline fallback.
    - **Adding or changing a key** means every table in `l10n/` gets it too,
      or `npm run check:l10n` fails.
    - **New UI surfaces ship lazily**, on first use, with accessible loading,
@@ -228,6 +230,9 @@ src/core/**           backend-agnostic logic; must not import `vscode`
                       context (rules, skills, custom agents), Muse Code's
                       questions' portable registry (questions/: states, clock,
                       owner-only store port and exactly-once late delivery; M112),
+                      provider accounts and thresholds, backend pools, developer profile
+                      ownership and account usage projections (M108; installed bindings
+                      wait for M95/M102/M104/M109),
                       memory, export, worktrees, git and GitHub (push plans,
                       REST client, draft prompts), usage,
                       dictation, Muse Voice, the paid gate, network failures,
@@ -251,8 +256,10 @@ src/acp/**            the ACP agent (D62): the ACP side of a session and the
 src/runtime/exec/**   headless arguments/protocol/egress, stdin key/scanner,
                       bounded lifecycle, ACP client/tap and per-attempt ledger
 src/runtime/**        the agent's process: arguments, backends outside VS Code,
-                      the OS credential store (D61), `auth`, `login` and
-                      `report` (M93)
+                      the OS credential store (D61), `auth`, `login`,
+                      `report` (M93), `providers accounts` and the runtime
+                      account services (dist/runtimeAccounts.js, loaded on the
+                      first accounts, developer or keyed headless command; M108)
 src/shared/**         constants + zod protocol shared by host and webview
 src/shared/l10n/**    the English table (en.ts), fill/plural/Intl helpers, the
                       table checks and the list of translated languages
@@ -270,7 +277,9 @@ src/webview/**        React 19 app (browser project, own tsconfig);
                       useRowMenu, each row's ⋯ opener) over gooeyLayout.ts's
                       pure geometry for its fanned column of labelled
                       pills; diffTally.ts and
-                      components/DiffTally.tsx add up the conversation's edits
+                      components/DiffTally.tsx add up the conversation's edits;
+                      models/sections/accounts, usage/AccountsSection and developer/
+                      are optional M108 surfaces, mounted only through their lazy owners
 native/windows/**     dictate.ps1, the Windows dictation helper; capture.ps1,
                       Muse Voice's recorder; the job helpers' C#
                       (MuseSparkJob.cs, MuseSparkMcpLauncher.cs and the

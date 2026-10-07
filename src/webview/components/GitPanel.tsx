@@ -7,7 +7,7 @@
 // the model only when the user presses "Write with Muse", as their own
 // message in the conversation.
 
-import type { SubmitEvent } from 'react'
+import type { ReactNode, SubmitEvent } from 'react'
 import {
   PULL_REQUEST_BODY_MAX_CHARS,
   PULL_REQUEST_TITLE_MAX_CHARS,
@@ -46,19 +46,20 @@ type PanelActions = Pick<
 
 /** The pull request's state in words: GitHub's own word when it is one the capture did not show. */
 function stateLabel(view: PullRequestView): string | undefined {
-  if (view.state === undefined) {
+  const { state } = view
+  if (state === undefined) {
     return undefined
   }
   if (view.isMerged === true) {
     return UI_TEXT.gitStateMerged
   }
-  if (view.state === 'closed') {
+  if (state === 'closed') {
     return UI_TEXT.gitStateClosed
   }
-  if (view.state === 'open') {
+  if (state === 'open') {
     return view.isDraft === true ? UI_TEXT.gitStateDraft : UI_TEXT.gitStateOpen
   }
-  return view.state
+  return state
 }
 
 function checksLabel(view: PullRequestView): string | undefined {
@@ -67,11 +68,15 @@ function checksLabel(view: PullRequestView): string | undefined {
     return undefined
   }
   const parts = [
-    ...(checks.failed > 0 ? [plural(UI_TEXT.gitChecksFailed, checks.failed)] : []),
-    ...(checks.running > 0 ? [plural(UI_TEXT.gitChecksRunning, checks.running)] : []),
-    ...(checks.passed > 0 ? [plural(UI_TEXT.gitChecksPassed, checks.passed)] : []),
-    ...(checks.skipped > 0 ? [plural(UI_TEXT.gitChecksSkipped, checks.skipped)] : []),
-    ...(checks.cancelled > 0 ? [plural(UI_TEXT.gitChecksCancelled, checks.cancelled)] : []),
+    ...(
+      [
+        [checks.failed, UI_TEXT.gitChecksFailed],
+        [checks.running, UI_TEXT.gitChecksRunning],
+        [checks.passed, UI_TEXT.gitChecksPassed],
+        [checks.skipped, UI_TEXT.gitChecksSkipped],
+        [checks.cancelled, UI_TEXT.gitChecksCancelled],
+      ] as const
+    ).flatMap(([count, label]) => (count > 0 ? [plural(label, count)] : [])),
     ...checks.other,
     ...(checks.notRead > 0 ? [plural(UI_TEXT.gitChecksNotRead, checks.notRead)] : []),
   ]
@@ -197,57 +202,55 @@ function PullRequestStrip({
           <span>{fill(UI_TEXT.gitCheckedAt, { time: formatDateTime(view.checkedAt) })}</span>
         )}
         <span className="git-actions git-actions-end">
-          {view.needsSignIn === true ? (
-            <button
-              type="button"
-              className="tool-more"
-              onClick={() => {
-                onAction('signInGitHub')
-              }}
-            >
-              {UI_TEXT.gitSignInGitHub}
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="tool-more"
-              onClick={() => {
-                onAction('refreshPullRequest')
-              }}
-            >
-              {UI_TEXT.gitRefresh}
-            </button>
-          )}
+          <button
+            type="button"
+            className="tool-more"
+            onClick={() => {
+              onAction(view.needsSignIn === true ? 'signInGitHub' : 'refreshPullRequest')
+            }}
+          >
+            {view.needsSignIn === true ? UI_TEXT.gitSignInGitHub : UI_TEXT.gitRefresh}
+          </button>
         </span>
       </div>
     </section>
   )
 }
 
-function GenerateButton({
+function FormActions({
   kind,
   form,
   canGenerate,
   onGenerate,
+  onClose,
+  children,
 }: {
   readonly kind: GitDraftKind
   readonly form: GitFormState
   readonly canGenerate: boolean
   readonly onGenerate: (kind: GitDraftKind) => void
+  readonly onClose: () => void
+  readonly children: ReactNode
 }) {
   const isWriting = form.generation !== undefined
   return (
-    <button
-      type="button"
-      className="tool-more"
-      title={UI_TEXT.gitGenerateTitle}
-      disabled={!canGenerate || isWriting || form.isBusy}
-      onClick={() => {
-        onGenerate(kind)
-      }}
-    >
-      {isWriting ? UI_TEXT.gitGenerating : UI_TEXT.gitGenerate}
-    </button>
+    <div className="git-actions">
+      <button
+        type="button"
+        className="tool-more"
+        title={UI_TEXT.gitGenerateTitle}
+        disabled={!canGenerate || isWriting || form.isBusy}
+        onClick={() => {
+          onGenerate(kind)
+        }}
+      >
+        {isWriting ? UI_TEXT.gitGenerating : UI_TEXT.gitGenerate}
+      </button>
+      {children}
+      <button type="button" className="tool-more" onClick={onClose}>
+        {UI_TEXT.gitCancel}
+      </button>
+    </div>
   )
 }
 
@@ -325,13 +328,13 @@ function CommitForm({
         <span>{UI_TEXT.gitIncludeUnstaged}</span>
       </label>
       <p className="git-text git-muted">{UI_TEXT.gitCommandConsequences}</p>
-      <div className="git-actions">
-        <GenerateButton
-          kind="commitMessage"
-          form={form}
-          canGenerate={canGenerate}
-          onGenerate={onGenerate}
-        />
+      <FormActions
+        kind="commitMessage"
+        form={form}
+        canGenerate={canGenerate}
+        onGenerate={onGenerate}
+        onClose={onClose}
+      >
         <button
           type="submit"
           className="tool-more"
@@ -339,10 +342,7 @@ function CommitForm({
         >
           {form.isBusy ? UI_TEXT.gitCommitting : UI_TEXT.gitCommitAction}
         </button>
-        <button type="button" className="tool-more" onClick={onClose}>
-          {UI_TEXT.gitCancel}
-        </button>
-      </div>
+      </FormActions>
     </form>
   )
 }
@@ -449,20 +449,17 @@ function PullRequestForm({
         <span>{UI_TEXT.gitPrDraft}</span>
       </label>
       <p className="git-text git-muted">{UI_TEXT.gitPrMasked}</p>
-      <div className="git-actions">
-        <GenerateButton
-          kind="pullRequest"
-          form={form}
-          canGenerate={canGenerate}
-          onGenerate={onGenerate}
-        />
+      <FormActions
+        kind="pullRequest"
+        form={form}
+        canGenerate={canGenerate}
+        onGenerate={onGenerate}
+        onClose={onClose}
+      >
         <button type="submit" className="tool-more" disabled={!canCreate}>
           {form.isDraft ? UI_TEXT.gitPrCreateDraft : UI_TEXT.gitPrCreate}
         </button>
-        <button type="button" className="tool-more" onClick={onClose}>
-          {UI_TEXT.gitCancel}
-        </button>
-      </div>
+      </FormActions>
     </form>
   )
 }

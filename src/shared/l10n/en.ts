@@ -113,7 +113,6 @@ export const EN = {
     'usage-history': '--usage-history: Track cost, tokens and limits across editors.',
     'no-auto-compaction':
       '--no-auto-compaction: Automatic compaction is awaiting evaluation and is inactive.',
-    provider: '--provider: Provider',
     preset: '--preset: Provider',
     as: '--as: Provider',
     address: '--address: Address',
@@ -157,6 +156,11 @@ export const EN = {
     record: 'Refused for headless runs: nobody is there to preview a recording.',
     'permission-mode': 'Choose how Muse asks before it acts.',
     model: 'Choose the model for this run.',
+    provider:
+      '--provider <id>                   The provider the account belongs to (auth set, serve).',
+    account: '--account <id>                    The account to use (auth set, serve, exec).',
+    'account-pool':
+      '--account-pool                  Request account pooling. Requires a bound resource owner; excludes key-stdin in CI.',
     effort: 'Choose how much effort Muse puts into each reply.',
     output: 'Choose the result format: text, json or jsonl.',
     'max-budget-usd': 'Set the hard spending limit in USD for this run.',
@@ -175,6 +179,11 @@ export const EN = {
     'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',
   referenceAuthClear: 'Remove the stored Model API key.',
   referenceAuthStatus: 'Check whether a Model API key is stored.',
+  referenceAccountsTitle: 'Several accounts per provider',
+  referenceAccounts:
+    'Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input.',
+  referenceDeveloper:
+    'Show or unlock machine-local developer options. Profile operations require a connected resource owner.',
   referenceTabLanguages: 'Choose a language to switch Tab suggestions on or off for it.',
   referenceTabMenu:
     'Turn Tab off; Snooze for 15 minutes; Snooze for an hour; Snooze until restart; Tab languages…; Multi-line mode…; Account & usage. When Copilot causes Tab to yield, the menu also offers disabling Copilot for the current language or running both.',
@@ -5035,6 +5044,136 @@ export const EN = {
     invalidResult: 'the scanner returned an invalid result',
   },
   legalScanAgain: 'Scan again',
+  // M108: shared by the Models panel, usage page, ACP and runtime.
+  accounts: {
+    none: 'No account selected',
+    id: 'Account id',
+    use: 'Use account',
+    earlier: 'Move earlier',
+    later: 'Move later',
+    keyPrompt: '{provider} · {account} API key (not shown as you type): ',
+    execHelp:
+      'Headless accounts: {command} exec --account <id> [--account-pool]. CI with --key-stdin uses only the default account and never swaps.',
+    unavailable:
+      'Accounts are unavailable until this runtime is connected to the shared account service.',
+    cliUsage:
+      'Accounts: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [ordered ids]. Credentials: {command} auth set --provider <id> --account <id> (standard input only).',
+    slashDescription: 'List accounts, view thresholds, or choose an account.',
+    title: 'Accounts',
+    defaultLabel: 'Default account',
+    add: 'Add account',
+    remove: 'Remove account',
+    label: 'Label',
+    order: 'Pool order',
+    limitGroup: 'Shares limits with',
+    thresholds: 'Thresholds',
+    spend: 'Spend in USD',
+    inputTokens: 'Input tokens',
+    outputTokens: 'Output tokens',
+    requests: 'Requests',
+    month: 'Month',
+    planWindow: 'Plan-window usage',
+    rateHeadroom: 'Rate-limit headroom',
+    swap: 'Swap accounts',
+    parallel: 'Use accounts in parallel',
+    swapDescription:
+      'Swap at the next request boundary when a threshold is reached. Each account keeps its own limits.',
+    parallelDescription:
+      'Spread background work by headroom and keep each worker on its assigned account.',
+    current: 'Current account',
+    swapNotice: 'Now on {provider} · {account}: {previous} reached {threshold}.',
+    coldCache: 'Estimated context re-read cost: {cost}.',
+    stopped: '{provider} has no account with room. Resets {reset}.',
+    resetUnknown: '{provider} has no account with room. Reset time is unknown.',
+    sharedGroup: '{account} shares the same vendor limit group; another key adds no capacity.',
+    policy: 'Vendor account policy',
+    policyOn: 'Pooling available',
+    policyConfirm: 'Confirmation required',
+    notOffered: 'This product cannot be added.',
+    checked: 'Checked {date}',
+    stale: 'This policy was checked more than {duration} ago. Re-check it before release.',
+    confirmWarning:
+      '{provider}’s terms restrict or prohibit using several accounts to get past vendor limits. The vendor may act against your accounts.',
+    legitimate: 'I confirm that these accounts are legitimately mine to use this way.',
+    confirm: 'Confirm',
+    ownCapsOnly: 'Only at my own caps',
+    cancel: 'Cancel',
+    revoke: 'Revoke confirmation',
+    localConfirmation: 'Confirmations stay on this machine.',
+    museCodeUnavailable:
+      'Muse Code accounts are unavailable until sign-in and serving from a separate config home have been captured.',
+    chatgptRecovery:
+      'Pause ChatGPT plan requests, open Usage, and choose credits or your own API key.',
+    museCodeRecovery:
+      'Upgrade your Muse Code plan, wait for its reset, or use your own pay-as-you-go key. Paid use asks for consent.',
+    paidConsent:
+      '{provider} · {account}\n{price}\nShared daily budget: {budget}. Charges go to this account; its first paid use needs your consent.',
+    credentialHelp:
+      'Use the password box or standard input. Keys never belong in `providers.json`.',
+    summary: '{provider} · {account}: {requests}; {cost} spent.',
+    headroomAmple: 'Ample headroom',
+    headroomSome: 'Some headroom',
+    headroomNone: 'No headroom',
+    placementConflict:
+      '{provider} already has an account on {device}. Choose another device or turn off onePerDevicePerProvider.',
+    sendToDevice: 'Send to {device}',
+    routeUnavailable: 'The selected device has no available account or routing permission.',
+    multipleAllowed: 'Several accounts allowed',
+    multipleConditions: 'Several accounts with conditions',
+    multipleOnePerson: 'One account per person',
+    multipleUnclear: 'Several accounts unclear',
+    sourceDate: 'Source date: {date}',
+    userCap: 'User cap',
+    vendorLimit: 'Vendor limit',
+    swapEvent: 'Account swap',
+    spreadEvent: 'Work spread',
+    stopEvent: 'Work stopped',
+    sourceUndated: 'No source date shown',
+    invalidAccount: 'Check the account id, label, order, limit group and thresholds.',
+    removeConfirm:
+      'Remove {account}? Its stored credential will be deleted and its sign-in revoked.',
+    requestCount: forms({
+      one: '{count} request',
+      other: '{count} requests',
+    }),
+    usageLiability: 'Reserved {reserved}; uncertain {uncertain}.',
+    usageReached: 'Threshold reached',
+    usageReset: 'Resets {reset}.',
+    usageResetUnknown: 'Reset time is unknown.',
+    usageSpread: '{provider} · {account}: worker {worker} assigned.',
+    usageStop: '{provider} · {account}: stopped at {threshold}.',
+    usageThreshold: '{metric} limit for {period}: {threshold}',
+    usageEvents: 'Account events',
+    usageRateTokens: 'Tokens',
+    usageUnavailable: 'No current usage snapshot.',
+  },
+  // M108 X: machine-local testing options; read after table installation.
+  developer: {
+    title: 'Developer options',
+    badge: 'Developer mode',
+    allowMultiple: 'Allow several accounts of one provider on this PC',
+    unlockWarning:
+      'Local testing options, off by default. Account limits, vendor terms and paid confirmations still apply.',
+    multipleWarning:
+      'Allow isolated local profiles for testing several accounts of one provider on this PC? This choice stays on this machine.',
+    resetWarning:
+      'Reset Developer options? Local profiles will stop and their credential slots and state folders will be deleted.',
+    locked: 'Developer options are locked.',
+    unavailable: 'Developer options are unavailable.',
+    invalidRequest: 'Check the Developer options request.',
+    expires: 'Developer mode expires {time}.',
+    reset: 'Reset Developer options',
+    profiles: 'Local profiles',
+    profileInfo:
+      'Each profile has its own credential slot, state folder and runtime process. Expiry stops profiles; Reset deletes them.',
+    provider: 'Provider id',
+    account: 'Account id',
+    addProfile: 'Add local profile',
+    helpUnlock: 'Click the version seven times or use the Developer options command to unlock.',
+    helpTerminal: 'Run `developer` to unlock; `developer status` shows this machine’s options.',
+    commandUsage:
+      'Usage: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]',
+  },
 }
 
 /** The shape every table has: English's keys, with any language's plural forms. */

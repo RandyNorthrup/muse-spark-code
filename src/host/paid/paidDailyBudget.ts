@@ -5,15 +5,33 @@ import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import type { JudgeDailyLedger } from '../../core/judge/admission'
 import type { ModelApiClientDeps } from '../../core/backends/modelapi/client'
-import { estimateCostUsd } from '../../core/usage/insights'
+import type { AccountBudgetAdmission } from '../../core/backends/modelapi/sessionBudget'
 import { unlessAborted } from '../../core/timeouts'
-import { PAID_DAILY_BUDGET, PAID_PRICES_USD, UI_TEXT } from '../../shared/constants'
-import { fill, formatUsd } from '../../shared/l10n/text'
+import {
+  MODEL_API_PRICES_PER_MILLION,
+  PAID_DAILY_BUDGET,
+  PAID_PRICES_USD,
+  TOKENS_PER_MILLION,
+  UI_TEXT,
+} from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import { modelApiPaidTier } from '../../shared/paid'
+import {
+  compareUsd,
+  formatUsd,
+  multiplyUsd,
+  parseUsd,
+  subtractUsd,
+  sumUsd,
+  usdNumber,
+} from '../../shared/accountUsd'
 import { createSessionBudgetJournal } from '../backend/sessionBudgetJournal'
 import { storeErrorCode } from '../backend/storeErrors'
 import { writeFileAtomically } from '../fsAtomic'
 import type { UsageBudgetRead } from '../../core/usage/usageService'
+
+const ZERO = 0n
+const DOUBLE = 2n
 
 const limitSchema = z.object({
   limitUsd: z
@@ -22,12 +40,24 @@ const limitSchema = z.object({
   stopped: z.boolean(),
 })
 
+const parseLimit = (value: string | undefined) => {
+  let limitUsd = NaN
+  try {
+    if (value !== undefined) limitUsd = usdNumber(parseUsd(value, 'floor'))
+  } catch {
+    // Invalid decimal input remains a failed schema result for both UI and publication.
+  }
+  return limitSchema.safeParse({ limitUsd, stopped: false })
+}
+
 export function createPaidDailyBudget(deps: {
   readonly directory: string
   readonly now: () => number
   readonly capUsd: () => number
   readonly sleep: (ms: number) => Promise<void>
   readonly isModelApi: () => boolean
+  /** P's account-bound guard; shared daily claims still use one fixed scope. */
+  readonly accountAdmission?: AccountBudgetAdmission
 }) {
   const day = () => {
     const today = new Date(deps.now())
@@ -87,8 +117,8 @@ export function createPaidDailyBudget(deps: {
           {
             modal: true,
             detail: fill(UI_TEXT.paidDailyReachedDetail, {
-              budget: formatUsd(readLimit(scope), 2),
-              needed: formatUsd(neededUsd, 2),
+              budget: formatUsd(parseUsd(readLimit(scope), 'floor'), 2),
+              needed: formatUsd(parseUsd(neededUsd), 2),
             }),
           },
           { title: raiseTitle },
@@ -99,17 +129,19 @@ export function createPaidDailyBudget(deps: {
     )
     assertActive()
     if (answer?.title !== raiseTitle) stop()
+    const needed = parseUsd(neededUsd)
+    const doubled = multiplyUsd(parseUsd(readLimit(scope), 'floor'), DOUBLE)
+    const proposed = compareUsd(doubled, needed) > 0 ? doubled : needed
+    const maximum = parseUsd(PAID_DAILY_BUDGET.maximumUsd)
     const entered = await unlessAborted(
       Promise.resolve(
         vscode.window.showInputBox({
           title: raiseTitle,
           prompt: UI_TEXT.paidDailyRaisePrompt,
-          value: String(
-            Math.min(PAID_DAILY_BUDGET.maximumUsd, Math.max(readLimit(scope) * 2, neededUsd)),
-          ),
+          value: String(usdNumber(compareUsd(proposed, maximum) < 0 ? proposed : maximum)),
           validateInput: (value) => {
-            const parsed = limitSchema.safeParse({ limitUsd: Number(value), stopped: false })
-            if (!parsed.success || parsed.data.limitUsd < neededUsd)
+            const parsed = parseLimit(value)
+            if (!parsed.success || compareUsd(parseUsd(parsed.data.limitUsd, 'floor'), needed) < 0)
               return UI_TEXT.paidDailyRaisePrompt
             return
           },
@@ -118,8 +150,12 @@ export function createPaidDailyBudget(deps: {
       signal,
     )
     assertActive()
-    const parsed = limitSchema.safeParse({ limitUsd: Number(entered), stopped: false })
-    if (entered === undefined || !parsed.success || parsed.data.limitUsd < neededUsd) {
+    const parsed = parseLimit(entered)
+    if (
+      entered === undefined ||
+      !parsed.success ||
+      compareUsd(parseUsd(parsed.data.limitUsd, 'floor'), parseUsd(neededUsd)) < 0
+    ) {
       stop()
     }
     await writeFileAtomically(limitPath(scope), JSON.stringify(parsed.data), {
@@ -154,16 +190,30 @@ export function createPaidDailyBudget(deps: {
       readLimit(scope)
       let costUsd: number = PAID_PRICES_USD.imageGeneration
       if ('input' in body) {
-        if (modelApiPaidTier(body.model) === undefined)
-          throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+        const tier = modelApiPaidTier(body.model)
+        if (tier === undefined) throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
         if (estimatedInputTokens === undefined) throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
-        costUsd = estimateCostUsd(
-          {
-            inputTokens: estimatedInputTokens,
-            outputTokens: body.max_output_tokens,
-            cachedTokens: 0,
-          },
-          body.model,
+        if (
+          !Number.isSafeInteger(estimatedInputTokens) ||
+          estimatedInputTokens < 0 ||
+          !Number.isSafeInteger(body.max_output_tokens) ||
+          body.max_output_tokens < 0
+        )
+          throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+        const tariff = MODEL_API_PRICES_PER_MILLION[tier]
+        costUsd = usdNumber(
+          sumUsd([
+            multiplyUsd(
+              parseUsd(tariff.input),
+              BigInt(estimatedInputTokens),
+              BigInt(TOKENS_PER_MILLION),
+            ),
+            multiplyUsd(
+              parseUsd(tariff.output),
+              BigInt(body.max_output_tokens),
+              BigInt(TOKENS_PER_MILLION),
+            ),
+          ]),
         )
       }
       claim = await journal.reserve(scope, PAID_DAILY_BUDGET.accountId, costUsd)
@@ -174,16 +224,14 @@ export function createPaidDailyBudget(deps: {
     }
     try {
       signal.throwIfAborted()
-      const total = await journal.read(scope, PAID_DAILY_BUDGET.accountId)
-      signal.throwIfAborted()
-      if (total.spentUsd > readLimit(scope))
-        await unlessAborted(raise(scope, total.spentUsd, signal), signal)
-      signal.throwIfAborted()
-      return {
+      const checkAccount = deps.accountAdmission?.(claim)
+      checkAccount?.()
+      const admittedClaim = {
         ...claim,
         check: () => {
           signal.throwIfAborted()
           if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
+          checkAccount?.()
           try {
             return claim.check(readLimit(scope))
           } catch (error: unknown) {
@@ -191,6 +239,12 @@ export function createPaidDailyBudget(deps: {
           }
         },
       }
+      const total = await journal.read(scope, PAID_DAILY_BUDGET.accountId)
+      signal.throwIfAborted()
+      if (compareUsd(parseUsd(total.spentUsd), parseUsd(readLimit(scope), 'floor')) > 0)
+        await unlessAborted(raise(scope, total.spentUsd, signal), signal)
+      signal.throwIfAborted()
+      return admittedClaim
     } catch (error: unknown) {
       await claim.settle(0)
       throw error
@@ -237,17 +291,21 @@ export function createPaidDailyBudget(deps: {
   const judgeLedger: JudgeDailyLedger = {
     remainingUsd: async () => {
       const current = await latestDay()
-      return Math.max(0, current.capUsd - current.spentUsd)
+      const remaining = subtractUsd(parseUsd(current.capUsd, 'floor'), parseUsd(current.spentUsd))
+      return usdNumber(compareUsd(remaining, ZERO) > 0 ? remaining : ZERO)
     },
     reserve: async (costUsd) => {
       const scope = day()
       readLimit(scope)
       const claim = await journal.reserve(scope, PAID_DAILY_BUDGET.accountId, costUsd)
+      let checkAccount: (() => void) | undefined
       const check = () => {
         if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
+        checkAccount?.()
         claim.check(readLimit(scope))
       }
       try {
+        checkAccount = deps.accountAdmission?.(claim)
         check()
       } catch (error: unknown) {
         await claim.settle(0)

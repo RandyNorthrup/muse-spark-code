@@ -202,5 +202,8 @@
   "config.mediaMaxUploadMiB.description": "扩展打开的最大媒体文件，单位 MiB。默认为 200；最大 1,024。更大的文件将在读取前被拒绝。仅使用本机的设置。",
   "config.mediaUploadExpiryDays.description": "提供商上传在列表中保留、直到提供清理的天数。默认为 7；1–30。过期由提供商决定；仍被其他会话引用的上传永远不会被删除。仅使用本机的设置。",
   "config.screenRecordingMaxSeconds.description": "扩展捕获的最长屏幕录制，以秒为单位。默认为 120；10–600。录制在达到上限时停止并保留已捕获的内容。仅使用本机的设置。",
-  "config.mediaAudioAction.description": "`transcribe` 在发送前将附加的音频转成文本；`sendAudio` 在模型接受时发送音频。默认为转录。转录按付费语音费率计费，且必先征得同意。仅使用本机的设置。"
+  "config.mediaAudioAction.description": "`transcribe` 在发送前将附加的音频转成文本；`sendAudio` 在模型接受时发送音频。默认为转录。转录按付费语音费率计费，且必先征得同意。仅使用本机的设置。",
+  "config.accountSwap.description": "达到阈值时在下一个请求边界切换到有余量的下一个账号。每个账号保留各自的限额。默认开启；仅使用本机的设置。",
+  "config.accountParallel.description": "按余量将后台工作分散到各账号；每个工作器固定在其账号上。默认开启；仅使用本机的设置。",
+  "config.accounts.severalOnThisDevice.description": "允许同一提供商的多个账号在本机上用于测试，每个账号运行在各自独立的本地配置文件中。开启时先请求确认该提供商的条款。默认关闭；仅使用本机的设置。"
 }

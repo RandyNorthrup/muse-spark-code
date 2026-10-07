@@ -868,7 +868,13 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
             !(
               input === 'src/core/providers/configured.ts' && output === BUNDLES.configured.output
             ) &&
-            !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageService.js'))
+            !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageService.js') &&
+            !(
+              output === 'dist/runtimeAccounts.js' &&
+              ['accounts.ts', 'accountPolicy.ts', 'accountCredentialRecord.ts'].some(
+                (file) => input === `src/core/providers/${file}`,
+              )
+            ))
         ) {
           problems.push(`${output} carries ${input}, which loads only in dist/providers.js`)
         }
@@ -1033,11 +1039,18 @@ const TEXT_BLOCKS = [
     readers: webviewReview.map(({ output }) => output),
   },
   // Web fetch's own words (M69): the window's fetch, the Model API
-  // backend's URL checks and the ACP agent's fetch.
+  // backend's URL checks, the ACP agent's fetch, and the runtime accounts
+  // bundle (M108/W: keyed headless runs and Model API sessions fetch pages
+  // through the account's backend).
   {
     block: 'WEB_FETCH_MODEL_TEXT',
     sentinels: ['webFetchUntrusted', 'webFetchMovedOpen'],
-    readers: ['dist/webFetch.js', BUNDLES.modelApi.output, 'dist/runtimeEngine.js'],
+    readers: [
+      'dist/webFetch.js',
+      BUNDLES.modelApi.output,
+      'dist/runtimeEngine.js',
+      'dist/runtimeAccounts.js',
+    ],
   },
   // A headless run's attached files (M80): the ACP agent's runtime only.
   {

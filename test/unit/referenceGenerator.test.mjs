@@ -59,6 +59,20 @@ describe('the code-derived reference gate', () => {
     expect(model.cli.map((c) => c.route)).toContain('authClear')
     expect(model.commands.find((c) => c.id === 'museSpark.signOut').canRun).toBe(false)
   })
+  it('omits credential-slot flags on routes the parser refuses (M108/W)', () => {
+    const rows = build().cli
+    for (const route of ['serve', 'login', 'setup', 'authStatus', 'authClear'])
+      expect(
+        rows.filter((row) => row.route === route && /--(provider|account)( |$)/.test(row.name)),
+      ).toEqual([])
+    for (const name of [
+      'authSet: --provider <value>',
+      'authSet: --account <value>',
+      'exec: --account <value>',
+      'exec: --account-pool',
+    ])
+      expect(rows.some((row) => row.name === name)).toBe(true)
+  })
   it('rejects a newly contributed command without a catalogue entry', () => {
     const pkg = globalThis.structuredClone(manifest)
     pkg.contributes.commands.push({ command: 'museSpark.undocumented', title: 'Undocumented' })
@@ -1103,14 +1117,21 @@ describe('RVHELPREF2 runtime truth regressions', () => {
       'questions-defer-after': '60',
       out: '/tmp/report',
       description: 'description',
+      account: 'work',
     }
     const rows = build().cli
     for (const [route, definition] of Object.entries(source.CLI_OPTION_REGISTRY)) {
       for (const [name, option] of Object.entries(definition.options)) {
+        // M108/W: credential-slot flags are refused outside `auth set` (and
+        // exec's own --account), so those routes carry no row; the parser
+        // check below proves the refusal with a real value instead.
+        const isRefusedSlot =
+          (name === 'provider' || name === 'account') && route !== 'authSet' && route !== 'exec'
         const row = rows.find(
           (entry) => entry.route === route && entry.name.startsWith(`${route}: --${name}`),
         )
-        expect(row, `${route}: --${name}`).toBeDefined()
+        if (isRefusedSlot) expect(row, `${route}: --${name}`).toBeUndefined()
+        else expect(row, `${route}: --${name}`).toBeDefined()
         const flag = [`--${name}`, ...(option.type === 'string' ? [samples[name]] : [])]
         let command = [route]
         if (route === 'serve') command = []
@@ -1138,7 +1159,7 @@ describe('RVHELPREF2 runtime truth regressions', () => {
         if (route === 'scan-secrets') args.push('/tmp/patch')
         const parsed = source.parseCommandLine(args)
         let expected = route
-        if (row.contract.refused === true) expected = 'invalid'
+        if (isRefusedSlot || row.contract.refused === true) expected = 'invalid'
         else if (name === 'help') expected = 'help'
         else if (name === 'version') expected = 'version'
         expect(parsed.command, `${route}: --${name}: ${parsed.reason ?? ''}`).toBe(expected)

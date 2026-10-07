@@ -8,6 +8,16 @@ import type { BrowserRuntimeMode } from './browserCheckConstants'
 
 export const PRODUCT_NAME = 'Muse Spark'
 
+// M108: local account configuration and policy. Credentials are never fields.
+export const ACCOUNT_DEFAULT_ID = 'default'
+export const ACCOUNT_ID_PATTERN = /^[a-z][a-z0-9-]{0,31}$/
+export const ACCOUNT_LABEL_MAX_LENGTH = 128
+export const ACCOUNT_MAX_PER_PROVIDER = 64
+export const ACCOUNT_POLICY_RECHECK_DAYS = 90
+export const ACCOUNT_DAY_MS = 86_400_000
+export const ACCOUNT_DEFAULTS = { isSwapOn: true, isParallelOn: true } as const
+export const ACCOUNT_POLICY_VERSION = '2026-10-05.1'
+
 // Must match package.json `publisher` and `name`; test/unit/manifest.test.ts
 // fails if they drift.
 export const EXTENSION_PUBLISHER = 'RandyNorthrup'
@@ -417,6 +427,15 @@ export const SETTING_DEFAULTS = {
   // host reads only the user's own value (questionStore.ts).
   'questions.deferAfterSeconds': 60,
   syncPromptsAndBookmarks: false,
+  // M108 (PLAN.md D88.5): swap at the next request boundary and spread
+  // background work across accounts, both on by default; machine-scoped so a
+  // repository cannot pool the user's accounts.
+  accountSwap: true,
+  accountParallel: true,
+  // D88 amendment b2: several accounts of one provider on this PC for
+  // testing, off by default; turning it on asks the provider's vendor-terms
+  // confirmation, and each extra account runs in an isolated local profile.
+  'accounts.severalOnThisDevice': false,
   shellSandbox: 'auto' as ShellSandboxMode,
   backend: 'auto' as BackendMode,
   // Claude Code's `enableNewConversationShortcut`: Ctrl+N starts a new
@@ -618,6 +637,11 @@ export const MACHINE_SCOPED_SETTINGS = [
   'showWhatsNewOnUpdate',
   // How long Muse waits for an answer is the user's choice (M112, D92).
   'questions.deferAfterSeconds',
+  // M108 (PLAN.md D88.5 and amendment b2): pooling the user's accounts and
+  // testing several on this PC are the user's choice, never a repository's.
+  'accountSwap',
+  'accountParallel',
+  'accounts.severalOnThisDevice',
   // Tab chooses what runs, what is billed and how much is approved (M94,
   // PLAN.md D73): every Tab setting is machine-scoped, so a workspace's
   // settings cannot change what Tab spends.
@@ -3670,7 +3694,7 @@ export const ACP_AUTH_METHODS = {
   museCodeLogin: { id: 'muse-code-login', args: ['login'] },
   modelApiKey: { id: 'model-api-key', args: ['auth', 'set'] },
 } as const
-export const ACP_CONFIG_IDS = { model: 'model', effort: 'effort' } as const
+export const ACP_CONFIG_IDS = { model: 'model', effort: 'effort', account: 'account' } as const
 // The paid Model API features the agent can use (M63c, PLAN.md D30): each
 // only with its flag, and each use asked in the editor (M58, D48). Muse
 // Voice needs the panel's microphone, so the agent has none.
@@ -3706,6 +3730,10 @@ export const ACP_WORKSPACE_HASH_CHARS = 16
 // "Allow always in this workspace" for paid uses (M58), every folder's in one
 // file beside the folders' own, keyed by the same hash.
 export const ACP_PAID_GRANTS_FILE = 'paid-uses.json'
+// M108 (PLAN.md D88.1): the runtime's own providers file beside the session
+// folders. It holds account metadata only, never a credential; M95 owns the
+// VS Code-side envelope, whose accounts field this mirrors.
+export const ACCOUNT_PROVIDERS_FILE = 'providers.json'
 // The file walk that stands in for VS Code's file search when git cannot
 // list a folder: what it never descends into.
 export const FILE_WALK_SKIPPED: ReadonlySet<string> = new Set(['.git', 'node_modules'])
@@ -3771,6 +3799,7 @@ export const QUESTION_OUTCOME_DEFERRED = 'deferred'
 export const QUESTION_DEFER_DEFAULT_SECONDS = 60
 export const ACP_QUESTIONS_BUNDLE_FILE = 'acpQuestions.js'
 export const RUNTIME_QUESTIONS_BUNDLE_FILE = 'runtimeQuestions.js'
+export const RUNTIME_ACCOUNTS_BUNDLE_FILE = 'runtimeAccounts.js'
 export const QUESTION_DEFER_MIN_SECONDS = 10
 export const QUESTION_DEFER_MAX_SECONDS = 3600
 export const QUESTION_DEFER_SETTING = 'questions.deferAfterSeconds'
@@ -4750,6 +4779,9 @@ export const MODEL_API_IMPORT_MAX_REPLAY_BYTES =
 export const SESSION_EXPORT_FIELD_PATH_MAX = 120
 // What the log redactor (and a session export) writes where a credential was.
 export const REDACTED_MARK = '[redacted]'
+/** Hexadecimal byte and JSON-unicode encodings in the shared scrubber. */
+export const REDACT_HEX_RADIX = 16
+export const REDACT_JSON_UNICODE_DIGITS = 4
 // An unnamed conversation's export takes its title from the first prompt, cut here.
 export const EXPORT_TITLE_MAX_CHARS = 60
 // How often the browser sign-in asks the sign-in host (`account/read`) and
@@ -6943,3 +6975,23 @@ export const MCP_POOL_MODEL_TEXT = {
 } as const
 // Shared by the eager composer and the optional command palette.
 export const PALETTE_LISTBOX_ID = 'palette-listbox'
+// M108 X: machine-local testing options. These never change vendor/paid gates.
+// D88 amendment b: developer options expire after seven days.
+export const DEVELOPER_OPTIONS_EXPIRY_DAYS = 7
+export const DEVELOPER_UNLOCK_MS = DEVELOPER_OPTIONS_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+export const DEVELOPER_VERSION_CLICKS = 7
+export const DEVELOPER_CLICK_WINDOW_MS = 10_000
+export const DEVELOPER_MAX_PROFILES = 8
+// A leading letter plus 120 random bits fits the shared 32-character id.
+export const DEVELOPER_PROFILE_ID_BYTES = 15
+export const DEVELOPER_AUDIT_MAX_BYTES = 256 * 1024
+export const DEVELOPER_STATE_MAX_BYTES = 16 * 1024
+export const DEVELOPER_UI_BUDGET_BYTES = 25 * 1024
+export const DEVELOPER_DIRECTORY_MODE = 0o700
+export const DEVELOPER_FILE_MODE = 0o600
+export const DEVELOPER_COMMAND_ID = 'museSpark.developerOptions'
+// D88 amendment b2: the visible Settings › Accounts option (machine-scoped,
+// off by default); its accounts run in isolated local profiles like the
+// developer first option, without the developer badge or expiry.
+export const DEVELOPER_SETTING_ID = 'museSpark.accounts.severalOnThisDevice'
+export const DEVELOPER_FILES = { state: 'developer.json', audit: 'developer-audit.jsonl' } as const

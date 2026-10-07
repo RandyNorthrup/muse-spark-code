@@ -208,10 +208,12 @@ export function webviewDeferredBudgetGroups(meta, questionBudgetKiB) {
   }
   const entries = (sources) =>
     Object.entries(meta.outputs)
-      .filter(([, output]) =>
-        sources.includes(
-          output.entryPoint === undefined ? undefined : normalPath(output.entryPoint),
-        ),
+      .filter(
+        ([, output]) =>
+          Object.keys(output.inputs ?? {}).some((source) => sources.includes(normalPath(source))) ||
+          sources.includes(
+            output.entryPoint === undefined ? undefined : normalPath(output.entryPoint),
+          ),
       )
       .map(([file]) => normalPath(file))
   const legacy = new Set(

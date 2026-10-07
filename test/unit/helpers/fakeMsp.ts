@@ -2,8 +2,12 @@
 // the SDK's Connection speaks to, plus a scriptable request table and a way
 // to push notifications and server requests at the client.
 
-import { Connection, type DuplexTransport } from '@muse-code/sdk'
-import type { MspHost } from '../../../src/core/backends/musecode/MuseCodeHost'
+import { type DuplexTransport } from '@muse-code/sdk'
+import {
+  MuseCodeCommandOwner,
+  type MspHost,
+} from '../../../src/core/backends/musecode/MuseCodeHost'
+import type { MuseCodeAccountHome } from '../../../src/core/backends/musecode/accountHomes'
 
 /** Any JSON-RPC frame the client can write: a request, or a response to ours. */
 interface JsonRpcFrame {
@@ -206,13 +210,18 @@ export interface FakeHostHandle {
   readonly closeCalls: () => number
 }
 
-export function fakeMspHost(initializeResult: unknown = fakeInitializeResult): FakeHostHandle {
+export function fakeMspHost(
+  initializeResult: unknown = fakeInitializeResult,
+  accountHome?: MuseCodeAccountHome,
+): FakeHostHandle {
   const server = new FakeMspServer()
-  const connection = new Connection(server)
+  const commandOwner = new MuseCodeCommandOwner(accountHome)
+  const connection = commandOwner.connect(server)
   const exited = Promise.withResolvers<{ code: number | null; signal: string | null }>()
   let closeCount = 0
   const host: MspHost = {
     connection,
+    commandOwner,
     initializeResult,
     exited: exited.promise,
     close: () => {

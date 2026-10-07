@@ -6,6 +6,7 @@ import { parseArgs } from 'node:util'
 import * as z from 'zod/mini'
 import { CLI_OPTION_REGISTRY } from './cliOptions'
 import {
+  ACCOUNT_DEFAULT_ID,
   ACP_AGENT_NAME,
   ACP_BACKENDS,
   ACP_DEFAULT_BACKEND,
@@ -21,6 +22,7 @@ import {
 import { modelRef } from '../host/backend/providerPolicyEntry'
 const { isProviderId } = modelRef
 import type { OpenRouterPrivacy } from '../core/providers/presets'
+import { accountIdSchema } from '../shared/accounts'
 import { fill } from '../shared/l10n/text'
 import { parseExec } from './exec/execArgs'
 import { parseLegalArgs, type LegalOptions } from './legal/legalArgs'
@@ -39,6 +41,11 @@ export type UsageCommand =
 import type { ChatGptProviderAction } from './chatGptProviderCommands'
 import { questionDeferSeconds } from '../shared/questionDeadline'
 import { parseAttachArgs, type ExecAttachmentOptions } from './exec/attachArgs'
+import {
+  parseAccountsCommand,
+  type AccountsCommand,
+  type AccountTarget,
+} from './providers/accountArgs'
 
 export interface ServeOptions {
   readonly usageHistory?: boolean
@@ -102,13 +109,20 @@ export type RuntimeCommand =
   | { readonly command: 'serve'; readonly options: ServeOptions }
   | { readonly command: 'login'; readonly options: ServeOptions }
   | {
-      readonly command: 'authSet' | 'authStatus' | 'authClear'
+      readonly command: 'authStatus' | 'authClear'
       readonly provider?: string | undefined
     }
   | { readonly command: 'providersList' }
   | { readonly command: 'providersAdd'; readonly options: ProvidersAddOptions }
   | { readonly command: 'providersTest'; readonly provider: string }
   | { readonly command: 'providersRemove'; readonly provider: string }
+  | {
+      readonly command: 'authSet'
+      readonly provider?: string | undefined
+      readonly target?: AccountTarget
+    }
+  | { readonly command: 'accounts'; readonly options: AccountsCommand }
+  | { readonly command: 'developer'; readonly args: readonly string[] }
   | { readonly command: 'help'; readonly all?: boolean }
   | { readonly command: 'version' }
   | { readonly command: 'invalid'; readonly reason: string; readonly exitCode?: number }
@@ -232,6 +246,15 @@ export function parseCommandLine<T>(
       ? { command: 'help', all: argv[1] === '--all' }
       : invalid(argv.join(' '))
   }
+  if (argv[0] === 'providers' && argv[1] === 'accounts') {
+    const options = parseAccountsCommand(argv.slice(2))
+    return options === undefined
+      ? { command: 'invalid', reason: fill(UI_TEXT.accounts.cliUsage, { command: ACP_AGENT_NAME }) }
+      : { command: 'accounts', options }
+  }
+  // The developer words stay raw here: the strict parser would reject them,
+  // and the terminal owner validates them (X-D4, lane X's strict table).
+  if (argv[0] === 'developer') return { command: 'developer', args: argv }
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
   if (argv[0] === 'report') return parseReport(argv.slice(1))
   if (argv[0] === 'legal') return parseLegalCommand(argv)
@@ -239,6 +262,8 @@ export function parseCommandLine<T>(
   try {
     parsed = parseCommandLineStrictly(argv)
   } catch (error: unknown) {
+    if (argv.includes('auth'))
+      return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
     return { command: 'invalid', reason: error instanceof Error ? error.message : String(error) }
   }
   const { values, positionals } = parsed
@@ -250,11 +275,15 @@ export function parseCommandLine<T>(
   }
   const backend = values.backend ?? ACP_DEFAULT_BACKEND
   if (!isOneOf(ACP_BACKENDS, backend)) {
-    return invalid(`--backend ${backend}`)
+    return positionals[0] === 'auth'
+      ? { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
+      : invalid(`--backend ${backend}`)
   }
   const shellSandbox = values['shell-sandbox'] ?? SETTING_DEFAULTS.shellSandbox
   if (!isOneOf(SHELL_SANDBOX_MODES, shellSandbox)) {
-    return invalid(`--shell-sandbox ${shellSandbox}`)
+    return positionals[0] === 'auth'
+      ? { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
+      : invalid(`--shell-sandbox ${shellSandbox}`)
   }
   const paidFeatures = paidFeaturesOf(values)
   if (values['usage-history'] !== undefined && !['on', 'off'].includes(values['usage-history']))
@@ -290,6 +319,8 @@ export function parseCommandLine<T>(
     questionsDeferAfterSeconds,
   }
   const [first, second, ...rest] = positionals
+  if (values.account !== undefined && (first !== 'auth' || second !== 'set' || rest.length > 0))
+    return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
   if (first === 'setup' && second === undefined) {
     return options.trustWorkspace
       ? { command: 'setup', options, maintenance: values.maintenance === true }
@@ -321,9 +352,18 @@ export function parseCommandLine<T>(
     return invalid(positionals.join(' '))
   }
   const provider = values.provider
+  const hasTarget = provider !== undefined || values.account !== undefined
+  if (auth === 'authSet' && hasTarget) {
+    const targetProvider = accountIdSchema.safeParse(provider ?? 'meta')
+    const targetAccount = accountIdSchema.safeParse(values.account ?? ACCOUNT_DEFAULT_ID)
+    return targetProvider.success && targetAccount.success
+      ? { command: auth, target: { provider: targetProvider.data, account: targetAccount.data } }
+      : { command: 'invalid', reason: UI_TEXT.accounts.invalidAccount }
+  }
   if (provider !== undefined && !isProviderId(provider)) {
     return { command: 'invalid', reason: fill(UI_TEXT.providerUnknown, { provider }) }
   }
+
   return provider === undefined ? { command: auth } : { command: auth, provider }
 }
 

@@ -21,6 +21,7 @@ import { loadUiTable, readUiTableFile } from '../host/l10n'
 import {
   ACP_AGENT_NAME,
   RUNTIME_QUESTIONS_BUNDLE_FILE,
+  RUNTIME_ACCOUNTS_BUNDLE_FILE,
   ACP_AUTH_METHODS,
   EXEC_EXIT,
   EXEC_SCAN_TIMEOUT_MS,
@@ -72,7 +73,12 @@ import { reportEventsOf } from '../core/support/journalEvents'
 import { agentDataFolder } from './dataFolder'
 import { runReportCommand } from './reportCommand'
 import { readSecretLine } from './hiddenInput'
-import { credentialStoreName, keyringSecretStore, StoreUnavailableError } from './keyStore'
+import {
+  credentialStoreName,
+  keyringSecretStore,
+  StoreUnavailableError,
+  type KeyringEntry,
+} from './keyStore'
 import type { ChatGptProviderAction } from './chatGptProviderCommands'
 import type { ProvidersDeps } from './providersCommands'
 import { takeCredentials } from './credentialVariables'
@@ -104,6 +110,13 @@ import { museSettingsPath } from '../host/backend/museSettings'
 import { walkFiles } from './fileWalk'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
+import { execAccountSelection } from './exec/execAccounts'
+import { ACCOUNT_DEFAULT_ID } from '../shared/constants'
+import { runtimeAccountsLoader, type RuntimeAccountsBundle } from './providers/accountsBundle'
+import type {
+  RuntimeAccountServices,
+  RuntimeAccountServicesInput,
+} from './providers/runtimeServices'
 
 const EXIT_FAILED = 1
 // Keep only presence for reports, before credential variables leave the process.
@@ -162,6 +175,45 @@ function packageVersion(): string {
 }
 
 /** The OS credential store's entry; Linux is held to the Secret Service (D61). */
+type KeyringEntryConstructor = new (
+  service: string,
+  account: string,
+  options: { linux: { store: 'secret-service' } },
+) => KeyringEntry
+const keyringEntryClass: { value?: Promise<KeyringEntryConstructor> } = {}
+async function loadEntryClass(): Promise<KeyringEntryConstructor> {
+  keyringEntryClass.value ??= (async () => {
+    const keyring = await import('@napi-rs/keyring')
+    return keyring.AsyncEntry
+  })()
+  return await keyringEntryClass.value
+}
+/** The OS credential store's entry; Linux is held to the Secret Service (D61). */
+function openKeyringEntry(service: string, account: string): KeyringEntry {
+  const loaded: { value?: Promise<KeyringEntry> } = {}
+  const entry = async (): Promise<KeyringEntry> => {
+    loaded.value ??= (async () => {
+      const AsyncEntry = await loadEntryClass()
+      return new AsyncEntry(service, account, { linux: { store: 'secret-service' } })
+    })()
+    return await loaded.value
+  }
+  return {
+    getPassword: async (): Promise<string | undefined> => {
+      const open = await entry()
+      const secret = await open.getPassword()
+      return secret ?? undefined
+    },
+    setPassword: async (value: string): Promise<void> => {
+      const open = await entry()
+      await open.setPassword(value)
+    },
+    deletePassword: async (): Promise<boolean> => {
+      const open = await entry()
+      return await open.deletePassword()
+    },
+  }
+}
 const nativeStore: { value?: Promise<SecretStore> } = {}
 async function loadSecrets(): Promise<SecretStore> {
   nativeStore.value ??= (async () => {
@@ -486,7 +538,11 @@ async function openUsageBrowser(input: string): Promise<void> {
   }
 }
 
-async function serve(options: ServeOptions, log: Logger): Promise<number> {
+async function serve(
+  options: ServeOptions,
+  log: Logger,
+  loadAccounts: () => RuntimeAccountServices,
+): Promise<number> {
   let clientName = 'ACP'
   const recording = createUsageRecording({
     client: () => clientName,
@@ -549,6 +605,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
       log,
     })
     const agent = engine.createAcpAgent({
+      ...(options.backend === 'modelApi' && { accounts: loadAccounts().sessions('meta') }),
       legalScan: async (cwd, signal, isRegistryOn, allowsRegistryLookup) => {
         const bundle = agentLegalBundle()
         const handle = await bundle.runLegalScan({ workspaceRoot: cwd, input: {}, signal })
@@ -696,6 +753,31 @@ async function main(): Promise<number> {
       }, 'warn'),
     })
   const command = parseCommandLine(process.argv.slice(2), parseSharingArgs)
+  const servicesInput: RuntimeAccountServicesInput = {
+    dataDir: agentDataFolder({
+      platform: process.platform,
+      env: process.env,
+      homeDir: homedir(),
+    }),
+    openEntry: openKeyringEntry,
+  }
+  let cachedBundle: RuntimeAccountsBundle | undefined
+  const loadAccountsBundle = (log: Logger): RuntimeAccountsBundle => {
+    cachedBundle ??= runtimeAccountsLoader({
+      bundlePath: path.join(distDir, RUNTIME_ACCOUNTS_BUNDLE_FILE),
+      log,
+    })()
+    return cachedBundle
+  }
+  let cachedAccounts: RuntimeAccountServices | undefined
+  const loadAccounts = (log: Logger): RuntimeAccountServices => {
+    cachedAccounts ??= loadAccountsBundle(log).createRuntimeAccountServicesForLocale(
+      UI_TEXT,
+      uiLocale(),
+      servicesInput,
+    )
+    return cachedAccounts
+  }
   if (command.command === 'invalid' && command.exitCode === EXEC_EXIT.usage) {
     const stderr = createFdWriter(process.stderr.fd, () => {
       /* A usage error already owns exit 2; a closed pipe cannot turn it into success. */
@@ -817,6 +899,10 @@ async function main(): Promise<number> {
       const headless = await import('./exec/runExec')
       headless.setUiText(UI_TEXT, uiLocale())
       headlessCode = await headless.runExec(lifecycle, {
+        ...((command.options.accountPool === true ||
+          execAccountSelection(command.options).account !== ACCOUNT_DEFAULT_ID) && {
+          accounts: loadAccounts(log).exec,
+        }),
         options: command.options,
         version: packageVersion(),
         distDir,
@@ -914,7 +1000,7 @@ async function main(): Promise<number> {
       return await providers.run(command.action)
     }
     case 'serve': {
-      return await serve(command.options, log)
+      return await serve(command.options, log, () => loadAccounts(log))
     }
     case 'login': {
       const { museCode } = await runtimeFor(command.options, log)
@@ -930,11 +1016,46 @@ async function main(): Promise<number> {
       })
     }
     case 'authSet': {
-      if (command.provider !== undefined) {
+      const { target } = command
+      if (target === undefined) return await authSet(authDeps())
+      if (target.provider !== 'meta' && target.account === ACCOUNT_DEFAULT_ID) {
         const providersFile = await userProvidersFile()
-        return await authSetProvider(authDeps(), command.provider, providersFile.readUserFile)
+        return await authSetProvider(authDeps(), target.provider, providersFile.readUserFile)
       }
-      return await authSet(authDeps())
+      return target.provider === 'meta' && target.account === ACCOUNT_DEFAULT_ID
+        ? await authSet(authDeps())
+        : await loadAccountsBundle(log).runAccountAuthSet(target, {
+            ...loadAccounts(log).commands,
+            ...authDeps(),
+          })
+    }
+    case 'accounts': {
+      return await loadAccountsBundle(log).runAccountsCommand(command.options, {
+        ...loadAccounts(log).commands,
+        print: (line) => {
+          writeLine(process.stdout, line)
+        },
+        printError: (line) => {
+          writeLine(process.stderr, line)
+        },
+      })
+    }
+    case 'developer': {
+      const result = await loadAccountsBundle(log).runTerminalDeveloperCommand(
+        UI_TEXT,
+        uiLocale(),
+        servicesInput,
+        {
+          readLine: (prompt) => readSecretLine(prompt, process.stdin, process.stderr),
+          print: (line) => {
+            writeLine(process.stdout, line)
+          },
+        },
+        command.args,
+        'terminal',
+      )
+      writeLine(result.exitCode === 0 ? process.stdout : process.stderr, result.text)
+      return result.exitCode
     }
     case 'authStatus': {
       return command.provider === undefined
@@ -1046,11 +1167,19 @@ async function main(): Promise<number> {
         writeLine(process.stdout, reference.all(nls))
       } else {
         writeLine(process.stdout, formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
+        writeLine(process.stdout, fill(UI_TEXT.accounts.cliUsage, { command: ACP_AGENT_NAME }))
+        writeLine(process.stdout, fill(UI_TEXT.accounts.execHelp, { command: ACP_AGENT_NAME }))
       }
       return 0
     }
     case 'invalid': {
-      writeLine(process.stderr, command.reason)
+      // Normal commands render after language installation; headless usage
+      // errors keep their earlier bounded exit path (M80).
+      const localized = parseCommandLine(process.argv.slice(2))
+      writeLine(
+        process.stderr,
+        localized.command === 'invalid' ? localized.reason : UI_TEXT.accounts.unavailable,
+      )
       writeLine(process.stderr, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
       writeLine(process.stderr, UI_TEXT.acpChatGpt.usage)
       return command.exitCode ?? EXIT_FAILED

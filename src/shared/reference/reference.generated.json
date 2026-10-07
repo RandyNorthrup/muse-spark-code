@@ -528,7 +528,7 @@
           "session/cancel"
         ],
         "clientRequests": ["session/request_permission", "elicitation/create"],
-        "configOptions": { "model": "model", "effort": "effort" },
+        "configOptions": { "model": "model", "effort": "effort", "account": "account" },
         "permissionModes": ["manual", "acceptEdits", "plan", "auto", "bypassPermissions"],
         "bypassFlag": "--allow-dangerously-skip-permissions",
         "projectContext": {
@@ -722,6 +722,25 @@
       ],
       "facts": {},
       "editors": ["vscode"]
+    },
+    {
+      "id": "accounts",
+      "name": { "ui": "referenceAccountsTitle" },
+      "summary": { "ui": "referenceAccounts" },
+      "description": { "ui": "referenceAccounts" },
+      "commands": [],
+      "settings": [
+        "museSpark.accountSwap",
+        "museSpark.accountParallel",
+        "museSpark.accounts.severalOnThisDevice"
+      ],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#several-accounts-per-provider",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
     },
     {
       "id": "permissions",
@@ -3467,6 +3486,39 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "string", "enum": ["transcribe", "sendAudio"], "default": "transcribe" }
+    },
+    {
+      "id": "museSpark.accountSwap",
+      "name": "museSpark.accountSwap",
+      "description": "Swap to the next account with room at the next request boundary after a threshold trip. Each account keeps its own limits. On by default; only this machine’s setting is used.",
+      "descriptionKey": "config.accountSwap.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.accountParallel",
+      "name": "museSpark.accountParallel",
+      "description": "Spread background work across accounts by headroom; each worker sticks to its account. On by default; only this machine’s setting is used.",
+      "descriptionKey": "config.accountParallel.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.accounts.severalOnThisDevice",
+      "name": "museSpark.accounts.severalOnThisDevice",
+      "description": "Allow several accounts of one provider on this PC for testing, each in its own isolated local profile. Turning it on asks the provider’s vendor-terms confirmation first. Off by default; only this machine’s setting is used.",
+      "descriptionKey": "config.accounts.severalOnThisDevice.description",
+      "type": "boolean",
+      "default": false,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": false }
     }
   ],
   "slash": [
@@ -3860,6 +3912,18 @@
       "text": { "ui": "referenceScanSecrets" }
     },
     {
+      "route": "accounts",
+      "name": "providers accounts",
+      "description": "Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input.",
+      "text": { "ui": "referenceAccounts" }
+    },
+    {
+      "route": "developer",
+      "name": "developer",
+      "description": "Show or unlock machine-local developer options. Profile operations require a connected resource owner.",
+      "text": { "ui": "referenceDeveloper" }
+    },
+    {
       "route": "report",
       "name": "report",
       "description": "Usage:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Prints the scrubbed problem report to stdout, or writes it to <file> with --out.\n  Starts no backend, signs in nowhere, and opens no browser.\nOptions:\n  --out <file>         Write the report to a file instead of stdout\n  --description <text>  What was happening, in your own words\n  --no-facts           Leave the support facts out\n  --no-events          Leave the recent events out",
@@ -4209,13 +4273,6 @@
     },
     {
       "route": "serve",
-      "name": "serve: --provider <value>",
-      "description": "--provider: Provider",
-      "text": { "cli": "provider" },
-      "contract": { "type": "string", "repeatable": false, "refused": true }
-    },
-    {
-      "route": "serve",
       "name": "serve: --backend <value>",
       "description": "--backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key",
       "text": { "cli": "backend" },
@@ -4411,13 +4468,6 @@
         "effective": "evaluationPending",
         "default": false
       }
-    },
-    {
-      "route": "login",
-      "name": "login: --provider <value>",
-      "description": "--provider: Provider",
-      "text": { "cli": "provider" },
-      "contract": { "type": "string", "repeatable": false, "refused": true }
     },
     {
       "route": "login",
@@ -4657,13 +4707,6 @@
     },
     {
       "route": "setup",
-      "name": "setup: --provider <value>",
-      "description": "--provider: Provider",
-      "text": { "cli": "provider" },
-      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
-    },
-    {
-      "route": "setup",
       "name": "setup: --backend <value>",
       "description": "--backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key",
       "text": { "cli": "backend" },
@@ -4890,7 +4933,7 @@
     {
       "route": "authSet",
       "name": "authSet: --provider <value>",
-      "description": "--provider: Provider",
+      "description": "--provider <id>                   The provider the account belongs to (auth set, serve).",
       "text": { "cli": "provider" },
       "contract": { "type": "string", "repeatable": false }
     },
@@ -4906,6 +4949,13 @@
         "default": "museCode",
         "purpose": "acceptedUnused"
       }
+    },
+    {
+      "route": "authSet",
+      "name": "authSet: --account <value>",
+      "description": "--account <id>                    The account to use (auth set, serve, exec).",
+      "text": { "cli": "account" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
     {
       "route": "authSet",
@@ -5129,13 +5179,6 @@
         "effective": "evaluationPending",
         "default": false
       }
-    },
-    {
-      "route": "authStatus",
-      "name": "authStatus: --provider <value>",
-      "description": "--provider: Provider",
-      "text": { "cli": "provider" },
-      "contract": { "type": "string", "repeatable": false }
     },
     {
       "route": "authStatus",
@@ -5375,13 +5418,6 @@
     },
     {
       "route": "authClear",
-      "name": "authClear: --provider <value>",
-      "description": "--provider: Provider",
-      "text": { "cli": "provider" },
-      "contract": { "type": "string", "repeatable": false }
-    },
-    {
-      "route": "authClear",
       "name": "authClear: --backend <value>",
       "description": "--backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key",
       "text": { "cli": "backend" },
@@ -5522,7 +5558,7 @@
     {
       "route": "exec",
       "name": "exec: --provider <value>",
-      "description": "--provider: Provider",
+      "description": "--provider <id>                   The provider the account belongs to (auth set, serve).",
       "text": { "cli": "provider" },
       "contract": { "type": "string", "repeatable": false, "purpose": "provider" }
     },
@@ -5622,6 +5658,25 @@
       "description": "Choose the model for this run.",
       "text": { "cli": "model" },
       "contract": { "type": "string", "repeatable": false, "purpose": "model" }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --account <value>",
+      "description": "--account <id>                    The account to use (auth set, serve, exec).",
+      "text": { "cli": "account" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "account" }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --account-pool",
+      "description": "--account-pool                  Request account pooling. Requires a bound resource owner; excludes key-stdin in CI.",
+      "text": { "cli": "account-pool" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "account-pool"
+      }
     },
     {
       "route": "exec",

@@ -28,12 +28,22 @@ import {
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { modelApiPaidTier } from '../../../shared/paid'
-import { formatUsd, estimateCostUsd } from '../../usage/insights'
+import { formatUsd } from '../../usage/insights'
 import type { ModelPricePolicy } from './modelPolicy'
 import { modelPricedUsage } from './modelPolicy'
+import {
+  formatUsd as formatAccountUsd,
+  multiplyUsd,
+  parseUsd,
+  subtractUsd,
+  sumUsd,
+  usdNumber,
+} from '../../../shared/accountUsd'
 import type { CreateResponseBody, Usage } from './schemas'
 
 const PART_DIGEST = 'sha256'
+const ONE_TOKEN = 1n
+const ZERO_TOKENS = 0n
 
 /** The last reported request: what the next request's estimate starts from. */
 export interface BudgetBase {
@@ -79,6 +89,28 @@ export interface SessionBudgetClaim {
   check(capUsd: number): SessionBudgetTotal
   /** Only this claim's owner settles it. Entries remain visible, including a zero refund. */
   settle(actualCostUsd: number, hasUnknownCost?: boolean): Promise<SessionBudgetTotal>
+}
+
+/** P binds the selected account and M102's owned-claim exclusion once.
+ * The returned guard rereads thresholds/limits synchronously at every send.
+ * The caller refunds this claim when initial admission throws. */
+export type AccountBudgetAdmission = (claim: SessionBudgetClaim) => () => void
+
+/** Account admission supplements the existing conversation/daily cap. */
+export function withAccountBudgetAdmission(
+  claim: SessionBudgetClaim,
+  admission: AccountBudgetAdmission | undefined,
+): SessionBudgetClaim {
+  if (admission === undefined) return claim
+  const checkAccount = admission(claim)
+  checkAccount()
+  return {
+    ...claim,
+    check(capUsd) {
+      checkAccount()
+      return claim.check(capUsd)
+    },
+  }
 }
 
 /** The session store's scoped spend journal; all callers share the same account-owned history. */
@@ -145,9 +177,12 @@ export function estimateInput(
   parts: readonly (string | BudgetMediaPart)[],
   base: BudgetBase | undefined,
 ): InputEstimate {
+  const baseTokens = base?.inputTokens ?? 0
+  if (!Number.isSafeInteger(baseTokens) || baseTokens < 0)
+    throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
   const own = new Map<string, number>()
   const unmatched = new Map(base?.parts)
-  let addedBytes = 0
+  let addedBytes = ZERO_TOKENS
   let mediaTokens = 0
   for (const part of parts) {
     const media = typeof part === 'string' ? undefined : part
@@ -168,14 +203,18 @@ export function estimateInput(
     if (left > 0) {
       unmatched.set(digest, left - 1)
     } else if (media === undefined) {
-      addedBytes += Buffer.byteLength(serialized)
+      addedBytes += BigInt(Buffer.byteLength(serialized))
     }
   }
+  const bytesPerToken = BigInt(SESSION_BUDGET_MIN_BYTES_PER_TOKEN)
+  const inputTokens =
+    BigInt(baseTokens) +
+    (addedBytes + bytesPerToken - ONE_TOKEN) / bytesPerToken +
+    BigInt(mediaTokens)
+  if (inputTokens > BigInt(Number.MAX_SAFE_INTEGER))
+    throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
   return {
-    inputTokens:
-      (base?.inputTokens ?? 0) +
-      Math.ceil(addedBytes / SESSION_BUDGET_MIN_BYTES_PER_TOKEN) +
-      mediaTokens,
+    inputTokens: Number(inputTokens),
     parts: own,
   }
 }
@@ -204,29 +243,44 @@ export function reserveRequest(request: {
       fill(UI_TEXT.sessionBudgetUnpriced, { model: request.modelId }),
     )
   }
+  if (!Number.isSafeInteger(request.estimatedInputTokens) || request.estimatedInputTokens < 0)
+    throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
   const prices = MODEL_API_PRICES_PER_MILLION[tier]
-  const inputCostUsd = (request.estimatedInputTokens * prices.input) / TOKENS_PER_MILLION
-  const leftUsd = request.capUsd - request.spentUsd
-  const affordableOutputTokens = Math.floor(
-    ((leftUsd - inputCostUsd) * TOKENS_PER_MILLION) / prices.output,
+  const inputCost = multiplyUsd(
+    parseUsd(prices.input),
+    BigInt(request.estimatedInputTokens),
+    BigInt(TOKENS_PER_MILLION),
   )
-  if (affordableOutputTokens < 1) {
+  const cap = parseUsd(request.capUsd, 'floor')
+  const spent = parseUsd(request.spentUsd)
+  const left = subtractUsd(subtractUsd(cap, spent), inputCost)
+  const outputTokenCost = multiplyUsd(
+    parseUsd(prices.output),
+    ONE_TOKEN,
+    BigInt(TOKENS_PER_MILLION),
+  )
+  const affordableOutputTokens = left / outputTokenCost
+  if (affordableOutputTokens < ONE_TOKEN) {
     throw new SessionBudgetExceededError(
       fill(UI_TEXT.sessionBudgetStopped, {
-        estimate: formatUsd(inputCostUsd),
-        cap: formatUsd(request.capUsd),
-        spent: formatUsd(request.spentUsd),
+        estimate: formatAccountUsd(inputCost),
+        cap: formatAccountUsd(cap),
+        spent: formatAccountUsd(spent),
       }),
     )
   }
   const maxOutputTokens = Math.min(
-    affordableOutputTokens,
+    Number(
+      affordableOutputTokens < BigInt(MODEL_API_MAX_OUTPUT_TOKENS)
+        ? affordableOutputTokens
+        : BigInt(MODEL_API_MAX_OUTPUT_TOKENS),
+    ),
     request.maxOutputTokens ?? MODEL_API_MAX_OUTPUT_TOKENS,
   )
   return {
     estimatedInputTokens: request.estimatedInputTokens,
     maxOutputTokens,
-    costUsd: inputCostUsd + (maxOutputTokens * prices.output) / TOKENS_PER_MILLION,
+    costUsd: usdNumber(sumUsd([inputCost, multiplyUsd(outputTokenCost, BigInt(maxOutputTokens))])),
   }
 }
 
@@ -246,17 +300,27 @@ export function helperRequestSettlement(
   if (usage !== null && usage !== undefined && isCountedUsage(usage)) {
     const settled = price?.settle(modelPricedUsage(usage), { cost: usage.provider_cost_usd })
     hasKnownCost = price === undefined || settled !== undefined
-    costUsd =
-      price === undefined
-        ? estimateCostUsd(
-            {
-              inputTokens: usage.input_tokens,
-              outputTokens: usage.output_tokens,
-              cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
-            },
-            modelId,
-          )
-        : (settled ?? reservedUsd)
+    if (price === undefined) {
+      const tier = modelApiPaidTier(modelId)
+      if (tier === undefined) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+      const prices = MODEL_API_PRICES_PER_MILLION[tier]
+      const cached = Math.min(usage.input_tokens_details?.cached_tokens ?? 0, usage.input_tokens)
+      costUsd = usdNumber(
+        sumUsd([
+          multiplyUsd(
+            parseUsd(prices.input),
+            BigInt(usage.input_tokens - cached),
+            BigInt(TOKENS_PER_MILLION),
+          ),
+          multiplyUsd(parseUsd(prices.cachedInput), BigInt(cached), BigInt(TOKENS_PER_MILLION)),
+          multiplyUsd(
+            parseUsd(prices.output),
+            BigInt(usage.output_tokens),
+            BigInt(TOKENS_PER_MILLION),
+          ),
+        ]),
+      )
+    } else costUsd = settled ?? reservedUsd
   }
   return { costUsd, isUnknown: wasSent && !wasRefused && (!hasUsage || !hasKnownCost) }
 }

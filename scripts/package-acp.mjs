@@ -37,6 +37,7 @@ const BUNDLES = [
   'sharingRuntime.js',
   'acpQuestions.js',
   'runtimeQuestions.js',
+  'runtimeAccounts.js',
   'questionNotes.js',
   'modelApi.js',
   'modelApiHooks.js',

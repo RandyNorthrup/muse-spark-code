@@ -337,6 +337,11 @@ export const compactBrowserUiText = {
         "export { EN_SHAPE as EN } from '" + path.resolve(TABLE).replaceAll('\\', '/') + "'",
       loader: 'js',
     }))
+    build.onLoad({ filter: /[/\\]l10n[/\\]deferredEnglish\.ts$/ }, () => ({
+      contents:
+        "export async function loadDeferredEnglish() { await Promise.all([import('browser-surface-english'), import('browser-reference-english')]) }",
+      loader: 'js',
+    }))
     build.onLoad({ filter: /[/\\]installTable\.ts$/ }, (args) => ({
       contents: readFileSync(args.path, 'utf8').replace(
         "import { EN, type UiText } from '../shared/l10n/en'",

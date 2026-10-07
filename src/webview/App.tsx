@@ -1,3 +1,4 @@
+import { loadDeferredEnglish } from '../shared/l10n/deferredEnglish'
 import { JudgeStatusLine } from './components/JudgeStatusLine'
 import {
   type ReactNode,
@@ -171,6 +172,7 @@ const ReviewPane = deferred(async () => {
   return { default: module.ReviewPane }
 }, true)
 const ReferencePage = deferred(async () => {
+  await loadDeferredEnglish()
   const stylesheet = document.createElement('link')
   stylesheet.rel = 'stylesheet'
   stylesheet.href = new URL('referencePage.css', import.meta.url).href
@@ -218,6 +220,12 @@ const ShareView = deferred(async () => {
 
 export interface AppProps {
   readonly planNoticePort?: PlanNoticePort
+  /** M108/M95's lazy shared surface injects nodes; no accounts code loads here. */
+  readonly accounts?: {
+    readonly label?: string
+    readonly pill: ReactNode
+    readonly transcript: ReactNode
+  }
   readonly postMessage: (message: WebviewToHostMessage) => void
   /**
    * The UI store. main.tsx owns one that outlives a crashed tree and keeps
@@ -445,6 +453,7 @@ function promptStartFor(action: PaletteAction): string | undefined {
 
 export function App({
   postMessage,
+  accounts,
   store: externalStore,
   newLocalId = defaultLocalId,
   now = defaultNow,
@@ -2746,6 +2755,7 @@ export function App({
           onContextMenu={onTranscriptContextMenu}
         >
           {body}
+          {accounts?.transcript}
           {hasNewBelow ? (
             <button
               type="button"
@@ -2849,6 +2859,7 @@ export function App({
               <PlanUi surface="note" onOpenExternal={onOpenExternal} />
             </Suspense>
           ) : null}
+          {accounts?.pill}
           <Composer
             onSavePrompt={savePrompt}
             onSharePrompt={sharePrompt}
@@ -2860,7 +2871,11 @@ export function App({
             settings={state.settings}
             canSend={canSend(state)}
             isRunning={isRunning}
-            modelLabel={modelLabelFor(state)}
+            modelLabel={
+              accounts?.label === undefined
+                ? modelLabelFor(state)
+                : `${modelLabelFor(state)} · ${accounts.label}`
+            }
             planMark={
               hasPlan ? (
                 <Suspense fallback={null}>

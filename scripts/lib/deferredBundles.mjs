@@ -264,6 +264,25 @@ export const ON_FIRST_USE = [
     files: ['src/acp/questionDeferralEntry.ts', 'src/acp/questionDeferral.ts'],
   },
   {
+    output: 'dist/runtimeAccounts.js',
+    metafile: 'dist/meta-acp/runtimeAccounts.json',
+    use: 'the first accounts, developer or keyed headless ACP command',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/runtime/providers/accountsEntry.ts',
+      'src/runtime/providers/runtimeServices.ts',
+      'src/runtime/providers/providersFileStore.ts',
+      'src/runtime/developer/developerCommand.ts',
+      'src/runtime/developer/localFiles.ts',
+      'src/core/developer/developerOptions.ts',
+      'src/core/developer/surfaces.ts',
+      'src/core/providers/accounts.ts',
+      'src/core/providers/accountPolicy.ts',
+      'src/core/providers/accountCredentialRecord.ts',
+      'src/host/providers/accountSecrets.ts',
+    ],
+  },
+  {
     output: 'dist/conversation.js',
     metafile: 'dist/meta/conversation.json',
     use: 'the first chat surface',
@@ -506,7 +525,15 @@ export function checkDeferredBundles(inputsOf) {
             (file) => source === `src/core/providers/${file}`,
           )
         ) &&
-        !(source === 'src/core/providers/priceCard.ts' && bundle.output === 'dist/usageService.js')
+        !(
+          source === 'src/core/providers/priceCard.ts' && bundle.output === 'dist/usageService.js'
+        ) &&
+        !(
+          bundle.output === 'dist/runtimeAccounts.js' &&
+          ['accounts.ts', 'accountPolicy.ts', 'accountCredentialRecord.ts'].some(
+            (file) => source === `src/core/providers/${file}`,
+          )
+        )
       )
         problems.push(`${bundle.output} carries ${source}, which loads only in dist/providers.js`)
     }

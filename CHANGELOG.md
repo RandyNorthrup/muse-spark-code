@@ -7,8 +7,44 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Pre-integration preserves release provider, media and account contracts;
+  credential-bearing account commands load on first use. Files requests keep
+  endpoint checks and scrubbed failures, and uploaded history refuses cleanup
+  without its ownership ledger. Existing bundle caps remain unchanged.
+
 ### Added
 
+- Several-account contracts, account storage, threshold admission, policy
+  confirmations and shared panel/usage/developer components, with fake
+  certification across editor ports. Terminal `providers accounts` manages
+  metadata and `auth set` accepts each credential only on standard input;
+  headless `--account` pins a run. ACP account membership refreshes live.
+  Machine-scoped `accountSwap`/`accountParallel` default on, and
+  `accounts.severalOnThisDevice` defaults off. Installed panel/usage mounts,
+  automatic pooling, credential-changing session selection and profile/device
+  owners remain unavailable until their named integrations land; second Muse
+  Code accounts additionally await Q-M108 captures. The paid gate and shared
+  budgets do not reset on an account change. See
+  [the policy record](docs/certification/m108-policy.md) and
+  [integration certification](docs/certification/m108.md).
+
+### Fixed
+
+- Account, developer and help English load with their optional surfaces,
+  keeping chat startup and the original deferred group within their
+  existing size baselines. Translated tables still validate every key,
+  plural form and template slot before installation. Generated help data
+  is packed losslessly under its unchanged bundle cap.
+- Unbound runtime developer-profile cleanup reports unavailable and retains
+  its ownership ledger after a failed launch.
+
+- Fixed-account runtime surfaces retain their backend identity through account
+  reordering or removal. Headless runs bind their account port to the requested
+  credential; missing additional accounts and malformed provider metadata
+  cannot fall back to the legacy Meta key.
+- ACP packaging guard fixtures include the lazy account runtime bundle.
 - M105 integration verification: keep exact media currency arithmetic and
   ceiling display outside chat startup; preserve existing tariff text. Load
   tool rows on first use with accessible loading, failure and retry. Share
@@ -286,6 +322,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Documentation
 
+- Refreshed README action-palette, slash-command, open-question and remembered
+  paid-consent screenshots from the current harness. Multi-account usage
+  screenshots await their installed usage-page integration.
 - A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists
   what went wrong while a fleet of agents built this project. For each one it
   gives the rule that prevents it and the milestone that will enforce that
@@ -307,6 +346,15 @@ happened, not what was planned; superseded entries are kept.
 - Help & Reference covers questions: the Next and Previous open question
   commands, `museSpark.questions.deferAfterSeconds`, `--questions-defer-after`
   and the ACP-local `/questions` and `/answer`, which ACP `/help` now lists.
+
+### Added
+
+- Developer options for local multi-account testing, off by default: unlock
+  with seven version clicks, the Developer options command or `developer` in
+  a terminal, then allow isolated local profiles of one provider on this PC
+  after a separate confirmation. Grants expire after seven days; Reset stops
+  profiles and deletes only recorded profile state. No vendor, paid, budget
+  or replay behaviour changes.
 
 ### Changed
 
@@ -524,6 +572,35 @@ happened, not what was planned; superseded entries are kept.
   while its engine loads. Action-only dialogs and the separate Tasks surface
   also load on demand; the command palette reuses its shared list shell. The
   900 KiB startup budget and existing deferred budget stay unchanged.
+- Cancelled account additions compare ownership inside the store's mutation
+  queue, preserving replacement accounts and credentials with the same ID.
+
+- Account threshold evaluation and paid token reservations use exact nano-USD
+  arithmetic, preserving exactly affordable decimal costs. Request/token
+  headroom checks trip at the exact configured percentage boundary.
+
+- Registered credentials are scrubbed from JSON, URL/form, base64/base64url
+  and hexadecimal diagnostic output. Account-store removal fences pending
+  lookups and writes across instances in one process; endpoint changes allow
+  confirmed rebinding or local cleanup at the credential's stored origin.
+- ACP help and argument errors now use one complete localized usage table,
+  including the Setup hooks command, so the installed package passes the
+  release job's strict English fallback check.
+- Windows shell directory tracking now uses the native long workspace path
+  when starting or resetting a command, so 8.3 aliases keep the correct cwd
+  and workspace-relative directory tail.
+- Production bundle regression tests now build their own compressed English and
+  shared wire fixtures, so macOS CI's test job works without a prior build.
+- Windows CI hook fixtures now use the platform their captured paths describe;
+  Cline discovery exercises both POSIX and Windows path handling on every OS.
+  Deferred-bundle checks load their in-memory builds without requiring stale
+  or pre-existing files in `dist`.
+- Cline hook quoting is checked through native PowerShell on Windows and the
+  POSIX shell on Unix, without requiring a Windows Bash installation.
+- Fake-only headless tests recognize MinGit's verified GNU Bash `sh.exe`, and
+  missing-browser-chunk checks accept Windows filesystem error paths.
+- Fake-child plugin dispatch fixtures use drive-qualified plugin paths on
+  Windows while retaining native-platform parsing and containment checks.
 
 ## [0.14.0] - 2026-10-05
 

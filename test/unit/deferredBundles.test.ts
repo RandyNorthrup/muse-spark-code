@@ -84,6 +84,7 @@ beforeAll(async () => {
   const builds = await Promise.all([
     ...Object.entries({
       media: 'src/host/media/mediaEntry.ts',
+      runtimeAccounts: 'src/runtime/providers/accountsEntry.ts',
       questionNotes: 'src/core/questions/deferralEntry.ts',
       reference: 'src/shared/reference/referenceEntry.ts',
       runtimeEngine: 'src/runtime/runtimeEngineEntry.ts',
@@ -148,6 +149,7 @@ beforeAll(async () => {
         acp: 'src/runtime/main.ts',
         acpQuestions: 'src/acp/questionDeferralEntry.ts',
         runtimeQuestions: 'src/runtime/questions/questionRegistryEntry.ts',
+        runtimeAccounts: 'src/runtime/providers/accountsEntry.ts',
       },
       plugins: [
         sharedUiText,
@@ -217,7 +219,7 @@ beforeAll(async () => {
         outputs: { [`dist/${name}.js`]: details },
       })
       fixtures.set(
-        `dist/${['acp', 'headless', 'acpQuestions', 'runtimeQuestions'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
+        `dist/${['acp', 'headless', 'acpQuestions', 'runtimeQuestions', 'runtimeAccounts'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
         {
           bytes: Buffer.from(JSON.stringify(meta)),
           meta,
@@ -379,7 +381,7 @@ function outputInputs(meta: z.infer<typeof metafileSchema>, output: string) {
 function inputs(name: string): string[] {
   return Object.keys(
     fixture(
-      `dist/${['acp', 'acpQuestions', 'runtimeQuestions'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
+      `dist/${['acp', 'acpQuestions', 'runtimeQuestions', 'runtimeAccounts'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
     ).meta.inputs,
   ).map((file) => file.split(path.sep).join('/'))
 }

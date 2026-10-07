@@ -94,6 +94,18 @@ export function cliCommands() {
       text: { ui: 'referenceScanSecrets' },
     },
     {
+      route: 'accounts',
+      name: 'providers accounts',
+      description: UI_TEXT.referenceAccounts,
+      text: { ui: 'referenceAccounts' },
+    },
+    {
+      route: 'developer',
+      name: 'developer',
+      description: UI_TEXT.referenceDeveloper,
+      text: { ui: 'referenceDeveloper' },
+    },
+    {
       route: 'report',
       name: 'report',
       description: UI_TEXT.reportUsage,

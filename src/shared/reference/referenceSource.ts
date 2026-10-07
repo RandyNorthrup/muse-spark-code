@@ -125,6 +125,8 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ]),
   // M112: ACP asks through forms or text and answers with /questions and /answer.
   ['questions', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // M108/W: several accounts per provider on Settings, the CLI and ACP alike.
+  ['accounts', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ...['web-fetch', 'images'].map((id): [string, readonly string[]] => [
     id,
     ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
