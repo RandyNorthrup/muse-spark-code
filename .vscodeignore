@@ -100,3 +100,13 @@
 
 !dist/modelApiHooks.js
 !dist/modelApiMcp.js
+
+!dist/vault.js
+!dist/vaultBoundaries.js
+!dist/estimator.js
+!dist/estimateContracts.js
+!dist/native/darwin/muse-vault
+!native/windows/MuseSparkVault.cs
+!native/windows/MuseSparkVaultCng.cs
+!native/windows/MuseSparkVaultHello.cs
+!native/windows/MuseSparkVaultLock.cs

@@ -15830,16 +15830,6 @@ model.
   `npm run schema:exec -- --check` (M80).
 - **PLAN.md drifts, and a reader must say so.** At `4c7b064b5`, `## 7.
 
-INT0180 deferral (2026-10-07): the incoming vault startup getter fixture in
-`test/unit/uiTextRegions.test.mjs` remains failing. Release browser collection
-includes the vault command name as an eager text key; the standalone source
-branch expected a deferred getter. Normalizing fixture startup-root exclusion
-and changing its synthetic import to a relative path each left the assertion
-failing. Stop that path under the assigned shared two-fix rule; preserve the
-test, caps and deadlines. The estimator budget repair later corrected the real reader classification: an
-object-valued group name in a command is not an English reader. The original
-assertion now passes; final CI will verify the combined graph.
-
 Gates`appears twice (lines 24216 and 24793) with M98's entry inside the
   first; 110`### M…`headings carry 95 status lines, in free prose ("built
   and certified", "merged as PR #36 at`4694803`", "planned, documentation
@@ -19005,7 +18995,7 @@ recover any excess through the newest features' existing lazy boundaries.
 
 - [x] Merge M105 media; resolve by meaning, regenerate and check.
 - [x] Merge M108 accounts; resolve by meaning, regenerate and check.
-- [x] Merge M109 vault and its fix round; regenerated; one fixture deferred below.
+- [x] Merge M109 vault and its fix round; regenerated; English fixture resolved.
 - [x] Merge M117 estimator; candidate build passes; startup regression remains failed.
       M108's colliding local nano-USD, credential binding and account-usage text
       contracts retain separate modules beside the release contracts. Both implementations
@@ -19014,6 +19004,10 @@ recover any excess through the newest features' existing lazy boundaries.
       load through runtimeAccounts. Its three new provider-account sources have exact
       first-use ownership, and shared account schemas avoid eager provider-envelope code.
 
+Packaging includes the new Node dependencies and first-use surfaces; native vault
+assets follow the existing universal artifact transfer and executable-mode rules.
+Estimator namespace imports preserve the shared mini-parser export contract;
+real package import checks exercise these first-use dependencies.
 The estimator session adapter lives with its deferred panel, which validates and
 displays the first received section before subscribing to refreshes.
 M117 startup validation loads its complete captured application contracts before

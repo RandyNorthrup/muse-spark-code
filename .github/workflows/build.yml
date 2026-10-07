@@ -334,6 +334,11 @@ jobs:
         with:
           name: muse-dictate-darwin
           path: native/darwin
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: muse-vault-darwin
+          path: dist/native/darwin
+      - run: chmod +x dist/native/darwin/muse-vault
       - run: chmod +x native/darwin/muse-dictate
       - run: tar -xzf native/darwin/muse-dictate-screen.tgz -C native/darwin
       - run: npm ci
@@ -356,6 +361,10 @@ jobs:
             extension/native/windows/MuseSparkScreenRecord.cs \
             extension/native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate \
             extension/native/darwin/muse-dictate-screen.app/Contents/_CodeSignature/CodeResources \
+            extension/dist/vault.js extension/dist/vaultBoundaries.js extension/dist/estimator.js extension/dist/estimateContracts.js \
+            extension/dist/native/darwin/muse-vault \
+            extension/native/windows/MuseSparkVault.cs extension/native/windows/MuseSparkVaultCng.cs \
+            extension/native/windows/MuseSparkVaultHello.cs extension/native/windows/MuseSparkVaultLock.cs \
             extension/dist/extension.js extension/dist/conversation.js extension/dist/prompts.js extension/dist/modelApi.js extension/dist/searchWorker.js \
             extension/dist/pageWorker.js extension/dist/planMarkdown.js extension/dist/checkpointStore.js \
             extension/dist/review.js extension/dist/agentImport.js extension/dist/conversationGit.js extension/dist/bundledSkills.js \
@@ -389,6 +398,10 @@ jobs:
         run: |
           listing="$(tar -tzf dist/muse-spark-code-acp-*.tgz)"
           for entry in package/package.json package/dist/uiTextRuntime.js package/dist/uiTextHooks.js package/dist/uiTextSurfaces.js package/dist/uiTextMedia.js \
+            package/dist/vault.js package/dist/vaultBoundaries.js package/dist/estimator.js package/dist/estimateContracts.js \
+            package/native/windows/MuseSparkVault.cs package/native/windows/MuseSparkVaultCng.cs \
+            package/native/windows/MuseSparkVaultHello.cs package/native/windows/MuseSparkVaultLock.cs \
+            package/dist/native/darwin/muse-vault \
             package/dist/acp.js package/dist/sharingRuntime.js package/dist/modelApi.js package/dist/media.js package/dist/uiText.js package/dist/validation.js package/dist/wire.js package/dist/reviewer.js \
             package/dist/providers.js package/dist/subscriptions.js package/dist/configuredProviders.js package/dist/providerCatalog.js \
             package/dist/foreignHooks.js package/dist/hookRuntime.js package/dist/extensionHooks.js \

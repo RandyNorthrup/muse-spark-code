@@ -51,6 +51,7 @@ function fixture() {
       JSON.stringify(path.resolve('test/packaging/moduleExports.test.mjs')),
     )
   writeFileSync(path.join(dir, 'scripts/package-acp.mjs'), script)
+  cpSync('media/readme', path.join(dir, 'media/readme'), { recursive: true })
   cpSync('src/shared', path.join(dir, 'src/shared'), { recursive: true })
   mkdirSync(path.join(dir, 'src/runtime'), { recursive: true })
   cpSync('src/runtime/cliOptions.ts', path.join(dir, 'src/runtime/cliOptions.ts'))
@@ -79,6 +80,7 @@ function fixture() {
     'sharingRuntime',
     'acpQuestions',
     'runtimeQuestions',
+    'runtimeAccounts',
     'questionNotes',
     'modelApi',
     'modelApiHooks',
@@ -87,6 +89,11 @@ function fixture() {
     'runtimeEngine',
     'providerPolicy',
     'modelApiBoundaries',
+    'vault',
+    'vaultBoundaries',
+    'estimator',
+    'estimateContracts',
+    'media',
     'legalScan',
     'imageResizeWorker',
     'team',
@@ -104,6 +111,7 @@ function fixture() {
     'uiTextRuntime',
     'uiTextHooks',
     'uiTextSurfaces',
+    'uiTextMedia',
     'wire',
     'uiText',
     'validation',
@@ -118,7 +126,15 @@ function fixture() {
   cpSync('dist/webview', path.join(dir, 'dist/webview'), { recursive: true })
   mkdirSync(path.join(dir, 'dist/meta'), { recursive: true })
   cpSync('dist/meta/usageWebview.json', path.join(dir, 'dist/meta/usageWebview.json'))
-  for (const name of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs'])
+  for (const name of [
+    'MuseSparkJob.cs',
+    'MuseSparkMcpJob.cs',
+    'MuseSparkScreenRecord.cs',
+    'MuseSparkVault.cs',
+    'MuseSparkVaultCng.cs',
+    'MuseSparkVaultHello.cs',
+    'MuseSparkVaultLock.cs',
+  ])
     writeFileSync(path.join(dir, 'native/windows', name), '// test-owned native fixture\n')
   cpSync('docs/schemas', path.join(dir, 'docs/schemas'), { recursive: true })
   cpSync('l10n', path.join(dir, 'l10n'), { recursive: true })
@@ -155,7 +171,17 @@ describe('ChatGPT ACP package', () => {
     const members = z
       .object({ bundles: z.record(z.string(), z.string()) })
       .parse(JSON.parse(brotliDecompressSync(extracted.stdout).toString('utf8')))
-    for (const name of ['providers', 'subscriptions', 'configuredProviders'])
+    for (const name of [
+      'providers',
+      'subscriptions',
+      'configuredProviders',
+      'runtimeAccounts',
+      'media',
+      'vault',
+      'vaultBoundaries',
+      'estimator',
+      'estimateContracts',
+    ])
       expect(members.bundles[`${name}.js`]).toBe(
         readFileSync(path.join(dir, 'dist', `${name}.js`), 'utf8'),
       )

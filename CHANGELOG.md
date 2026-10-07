@@ -12,7 +12,9 @@ happened, not what was planned; superseded entries are kept.
 - Pre-integration preserves release provider, media and account contracts;
   credential-bearing account commands load on first use. Files requests keep
   endpoint checks and scrubbed failures, and uploaded history refuses cleanup
-  without its ownership ledger. Existing bundle caps remain unchanged.
+  without its ownership ledger. Vault and estimator assets survive both package
+  formats, with the macOS vault helper carried from its native CI artifact.
+  Existing bundle caps remain unchanged.
 
 ### Added
 
