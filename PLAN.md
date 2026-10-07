@@ -25224,29 +25224,34 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M105 — Multimodal input: video, audio, documents, screen recordings and the Files API (D85)
 
-**W final integration plan (linuxlt, 2026-10-07).** All twelve lane merges
-are present in brief order. Preserve reviewed fixes and commit the existing
-certification draft with its receipts marked provisional. Next remove exact
-USD arithmetic and its validation chain from browser startup without changing
-money semantics or caps; triage full-suite groups 36/116/124/125/140/152;
-audit every review and named handoff; regenerate reference, schemas and host
-records; run all requested gates and every non-live test file in batches of
-at most three with default timeouts. Record browser/native/capture blockers
-with exact commands and owners. Finish with hook-on commits and a clean tree.
-No live or paid model calls, branch merges beyond the already completed brief
-order, pushes, timeout increases or gate weakening.
+**W final integration status (linuxlt, 2026-10-07).** All twelve lane merges
+are present in brief order and all completed-report P1/P2 corrections remain
+integrated. Executable fixes are committed as `a441b557` and `c2ee30b8`, with
+hooks on. All requested local static/build/package/browser gates pass; the
+complete default-timeout Vitest sweep passes **576 files, 192 batches,
+12,265 tests, zero failures, 112 existing skips, zero todo**. Accessibility
+passes **716 pages with zero violations**. All 15 deliberate red controls
+restore source/bundles byte-exact. Local VSIX is **2,376,257/2,457,600 bytes**.
+
+W's local integration and documentation scope is complete. Every named
+production handoff is individually closed, partial or blocked in
+`docs/certification/m105.md`. Remaining owners must supply M95/M102/M104
+services, raw capture/workspace/attempt/billing receipts (U6c storage still
+unknown), account/codec/paid/native/companion factories, independent E3 review
+and hosted/installed/native/universal-package certification. V remains
+unmerged and unsupported; Windows VM direct capture stays unavailable.
+Shared rules prohibit aggregate quality and external network here; those
+exact lead-owned commands remain in §7 and the certification. No live/paid
+calls, extra merges, pushes, timeout increases, cap raises or weakened gates.
 
 Final base-cap audit found inherited ACP 850→1000 KiB and reference 100→125 KiB
-increases. Restore both original caps. Keep the trusted media inspector's existing
-dynamic import external to the existing media bundle, ship that bundle in ACP,
-and guard its first-use ownership. Improve the reference generator's existing
-token sharing by emitting dependency-ordered shared values rather than encoded
-tokens plus a runtime expansion tree; preserve the exact expanded model and its
-zod boundary. Prove both original caps and the new split guard fire before the
-final sweep. If a structural fix cannot fit, report the unchanged cap as blocked.
-First-use locale audit also requires actual attachment and portable-inspector
-factories to install the caller's table/locale. Exercise German refusal text
-from the real emitted bundle, then prove removing installation fails the test.
+increases; both originals are restored. The trusted inspector's dynamic import
+remains external to the media bundle shipped in ACP, with first-use ownership
+guarded. Dependency-ordered shared values and field layouts replace the reference
+expansion tree while preserving the exact expanded model and zod boundary.
+Both original caps and split guards were seen to fail before byte-exact restore.
+Actual attachment and portable-inspector factories install the caller's checked
+table/locale. Real emitted German refusals pass; removing installation fails.
 
 W startup correction: boundary USD normalization is a schema leaf; arithmetic
 and ceiling currency display load only with media pricing. Preserve the legacy
