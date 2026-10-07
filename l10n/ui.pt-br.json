@@ -2770,6 +2770,12 @@
     "recordingStop": "Parar gravação",
     "uploadDeleteFailed": "Não foi possível excluir {name}: {reason}",
     "conversionFailed": "Falha na conversão: {reason}",
-    "replayMetadata": "Mídia: {name} ({duration}, {size})"
+    "replayMetadata": "Mídia: {name} ({duration}, {size})",
+    "filesOurs": "Enviado por este aplicativo",
+    "filesOtherApp": "De outro aplicativo",
+    "filesEmpty": "Nenhum arquivo enviado.",
+    "fileNoExpiry": "Sem prazo de expiração",
+    "fileSessions": "Sessões: {sessions}",
+    "filesInUse": "Remova este arquivo de suas sessões antes de excluí-lo."
   }
 }

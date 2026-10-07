@@ -2576,6 +2576,12 @@
     "recordingStop": "停止錄製",
     "uploadDeleteFailed": "無法刪除 {name}：{reason}",
     "conversionFailed": "轉換失敗：{reason}",
-    "replayMetadata": "媒體：{name}（{duration}、{size}）"
+    "replayMetadata": "媒體：{name}（{duration}、{size}）",
+    "filesOurs": "由此應用程式上傳",
+    "filesOtherApp": "來自其他應用程式",
+    "filesEmpty": "沒有已上傳的檔案。",
+    "fileNoExpiry": "未設定有效期限",
+    "fileSessions": "工作階段：{sessions}",
+    "filesInUse": "刪除前，請先從引用此檔案的工作階段中移除它。"
   }
 }

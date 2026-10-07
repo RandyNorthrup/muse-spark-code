@@ -172,6 +172,7 @@ import type {
   SkillOption,
 } from '../../shared/protocol'
 import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
+import { uploadedFilesReportSchema, type UploadedFilesReport } from '../../core/media/uploadLedger'
 import type { AuthPort } from '../auth/authService'
 import type { CheckpointPort } from '../checkpoints/checkpointHost'
 import type { DescribedFile, EditReviewActions, ReviewNotice } from '../editor/editReview'
@@ -436,6 +437,8 @@ export interface ConversationDeps {
   readonly sessions: SessionMemory
   /** The usage modal's Account section (M14). */
   readonly accountFacts: (backend: BackendKind) => Promise<AccountFacts>
+  /** Lazy media account bridge, also bound by the runtime/companion integration. */
+  readonly uploadedFiles?: ConversationUploadedFilesPort
   /** The usage modal's insights from the CLI's trace logs (M14); undefined without logs. */
   readonly usageInsights: () => Promise<UsageInsightsReport | undefined>
   /** Whether this surface resumes its last session when it reopens (the sidebar). */
@@ -589,6 +592,18 @@ export interface ConversationDeps {
 export interface UsageInsightsReport {
   readonly day: UsageInsights
   readonly week: UsageInsights
+}
+
+/** Lane W supplies the validated webview/MHP messages and the account-scoped ledger. */
+export interface ConversationUploadedFilesPort {
+  read(): Promise<unknown>
+  post(report: UploadedFilesReport): void
+  deleteFile(
+    fileId: string,
+    isForeignDeletionConfirmed: (name: string) => Promise<boolean>,
+  ): Promise<void>
+  deleteAllOurs(): Promise<void>
+  confirmForeign(question: string): Promise<boolean>
 }
 
 const IDLE_STATUS = 'idle'
@@ -8054,7 +8069,13 @@ export class ConversationController {
       await this.postUsage(host, subscription)
     } catch (error: unknown) {
       this.notice('error', `${UI_TEXT.usageUnavailable}: ${describe(error)}`, undefined, error)
+    } finally {
+      await this.readUploadedFiles()
     }
+  }
+
+  private canPostUploadedFiles(): boolean {
+    return !this.isDisposed
   }
 
   private async postUsage(
@@ -9222,6 +9243,46 @@ export class ConversationController {
     this.readWaitingBrief()
     void this.warmModels()
     this.postStartupNotice()
+  }
+
+  /** Kept independent of backend sign-in so a removed key still shows retained expiry. */
+  public async readUploadedFiles(): Promise<void> {
+    const port = this.deps.uploadedFiles
+    if (port === undefined || !this.canPostUploadedFiles()) return
+    try {
+      const report = uploadedFilesReportSchema.parse(await port.read())
+      if (this.canPostUploadedFiles()) port.post(report)
+    } catch (error: unknown) {
+      if (this.canPostUploadedFiles())
+        this.say('error', `${UI_TEXT.usageUnavailable}: ${describe(error)}`)
+    }
+  }
+
+  /** Called only by the integration's explicit account UI/command action. */
+  public async deleteUploadedFiles(fileId?: string): Promise<void> {
+    if (!this.canPostUploadedFiles()) return
+    const port = this.deps.uploadedFiles
+    if (port === undefined) {
+      this.say('error', UI_TEXT.usageUnavailable)
+      return
+    }
+    try {
+      if (fileId === undefined) await port.deleteAllOurs()
+      else
+        await port.deleteFile(fileId, (name) =>
+          port.confirmForeign(fill(UI_TEXT.media.otherAppFileConfirmation, { name })),
+        )
+      await this.readUploadedFiles()
+    } catch (error: unknown) {
+      if (this.canPostUploadedFiles())
+        this.say(
+          'error',
+          fill(UI_TEXT.media.uploadDeleteFailed, {
+            name: fileId ?? UI_TEXT.media.uploadedFiles,
+            reason: describe(error),
+          }),
+        )
+    }
   }
 
   /**

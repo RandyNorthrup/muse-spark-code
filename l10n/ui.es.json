@@ -2770,6 +2770,12 @@
     "recordingStop": "Detener grabación",
     "uploadDeleteFailed": "No se pudo eliminar {name}: {reason}",
     "conversionFailed": "Error de conversión: {reason}",
-    "replayMetadata": "Contenido multimedia: {name} ({duration}, {size})"
+    "replayMetadata": "Contenido multimedia: {name} ({duration}, {size})",
+    "filesOurs": "Subido por esta aplicación",
+    "filesOtherApp": "De otra aplicación",
+    "filesEmpty": "No hay archivos subidos.",
+    "fileNoExpiry": "Sin fecha de caducidad",
+    "fileSessions": "Sesiones: {sessions}",
+    "filesInUse": "Quita este archivo de sus sesiones antes de eliminarlo."
   }
 }

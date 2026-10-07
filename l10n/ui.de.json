@@ -2673,6 +2673,12 @@
     "recordingStop": "Aufnahme stoppen",
     "uploadDeleteFailed": "{name} konnte nicht gelöscht werden: {reason}",
     "conversionFailed": "Umwandlung fehlgeschlagen: {reason}",
-    "replayMetadata": "Medien: {name} ({duration}, {size})"
+    "replayMetadata": "Medien: {name} ({duration}, {size})",
+    "filesOurs": "Von dieser App hochgeladen",
+    "filesOtherApp": "Aus einer anderen App",
+    "filesEmpty": "Keine hochgeladenen Dateien.",
+    "fileNoExpiry": "Kein Ablaufdatum festgelegt",
+    "fileSessions": "Sitzungen: {sessions}",
+    "filesInUse": "Entfernen Sie diese Datei vor dem Löschen aus ihren Sitzungen."
   }
 }

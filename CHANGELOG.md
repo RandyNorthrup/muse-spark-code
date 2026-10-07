@@ -7,6 +7,16 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- M105 Files API transport: stream approved media with progress, Stop,
+  SHA-256 and mandatory expiry; validate provider receipts and reject
+  redirects and ambiguous upload retries. Storage admission and lazy
+  media bindings remain with the integrating lanes.
+- M105 upload ownership: persist metadata and reference counts, share uploads
+  across sessions, clean up after deletion/retention purge, and verify the source
+  before replacing a missing upload. Account & usage gains the file-list section
+  and cleanup callbacks, with expiry and read-only retained metadata; integration
+  binds these ports across editors.
+
 ### Documentation
 
 - A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists

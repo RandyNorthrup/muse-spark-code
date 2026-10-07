@@ -19,7 +19,16 @@ import {
   UI_TEXT,
   USAGE_COUNTDOWN_REFRESH_MS,
 } from '../../shared/constants'
-import { fill, formatNumber, formatPercent, plural, templateParts } from '../../shared/l10n/text'
+import {
+  fill,
+  formatBytes,
+  formatDateTime,
+  formatList,
+  formatNumber,
+  formatPercent,
+  plural,
+  templateParts,
+} from '../../shared/l10n/text'
 import {
   paidCostUsd,
   paidFeatureName,
@@ -51,6 +60,10 @@ import { Modal } from './Modal'
 export interface UsageDialogProps {
   /** undefined while the host has not answered `readUsage`. */
   readonly report: UsageReport | undefined
+  /** Validated by the host bridge; retained after removal of the account key. */
+  readonly uploadedFiles?: UploadedFilesView
+  readonly onDeleteUploadedFile?: (fileId: string) => void
+  readonly onDeleteAllUploadedFiles?: () => void
   readonly usage: UsageSummary | undefined
   readonly context: ContextSummary | undefined
   readonly modelId: string | undefined
@@ -64,6 +77,22 @@ export interface UsageDialogProps {
   readonly now: () => number
   readonly onOpenExternal: (url: string) => void
   readonly onClose: () => void
+}
+
+/** The bridge supplies validated metadata; browser types have no Node imports. */
+interface UploadedFilesView {
+  readonly provider: string
+  readonly isReadOnly: boolean
+  readonly poolBytes: number
+  readonly usedBytes: number
+  readonly files: readonly {
+    readonly fileId: string
+    readonly name: string
+    readonly bytes: number
+    readonly expiresAt?: number | undefined
+    readonly ours: boolean
+    readonly sessions: readonly string[]
+  }[]
 }
 
 type InsightWindow = 'day' | 'week'
@@ -605,6 +634,9 @@ function InsightsSection({
 
 export function UsageDialogContent({
   report,
+  uploadedFiles,
+  onDeleteUploadedFile,
+  onDeleteAllUploadedFiles,
   usage,
   context,
   modelId,
@@ -695,6 +727,77 @@ export function UsageDialogContent({
   return (
     <Modal title={UI_TEXT.usageLabel} titleId="usage-title" onClose={onClose}>
       {body}
+      {uploadedFiles === undefined ? null : (
+        <section aria-label={UI_TEXT.media.uploadedFiles}>
+          <h3 className="usage-heading">{UI_TEXT.media.uploadedFiles}</h3>
+          <p>
+            {fill(UI_TEXT.media.poolUsage, {
+              used: formatBytes(uploadedFiles.usedBytes),
+              pool: formatBytes(uploadedFiles.poolBytes),
+            })}
+          </p>
+          {uploadedFiles.isReadOnly || !paid.isKeyStored ? (
+            <p role="status">{UI_TEXT.media.filesReadOnly}</p>
+          ) : null}
+          {uploadedFiles.files.length === 0 ? (
+            <p>{UI_TEXT.media.filesEmpty}</p>
+          ) : (
+            <ul className="usage-insights">
+              {uploadedFiles.files.map((file) => (
+                <li key={file.fileId}>
+                  <strong>{file.name}</strong>
+                  <p>{formatBytes(file.bytes)}</p>
+                  <p>{file.ours ? UI_TEXT.media.filesOurs : UI_TEXT.media.filesOtherApp}</p>
+                  <p>
+                    {file.expiresAt === undefined
+                      ? UI_TEXT.media.fileNoExpiry
+                      : fill(UI_TEXT.media.fileExpiry, {
+                          expiry: formatDateTime(file.expiresAt * MILLISECONDS_PER_SECOND),
+                        })}
+                  </p>
+                  {file.sessions.length > 0 ? (
+                    <p>
+                      {fill(UI_TEXT.media.fileSessions, { sessions: formatList(file.sessions) })}
+                    </p>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="usage-link"
+                    aria-label={`${UI_TEXT.memoryDeleteAction}: ${file.name}`}
+                    title={file.sessions.length > 0 ? UI_TEXT.media.filesInUse : undefined}
+                    disabled={
+                      uploadedFiles.isReadOnly ||
+                      !paid.isKeyStored ||
+                      file.sessions.length > 0 ||
+                      onDeleteUploadedFile === undefined
+                    }
+                    onClick={() => {
+                      onDeleteUploadedFile?.(file.fileId)
+                    }}
+                  >
+                    {UI_TEXT.memoryDeleteAction}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button
+            type="button"
+            className="usage-link"
+            disabled={
+              uploadedFiles.isReadOnly ||
+              !paid.isKeyStored ||
+              onDeleteAllUploadedFiles === undefined ||
+              uploadedFiles.files.every((file) => !file.ours || file.sessions.length > 0)
+            }
+            onClick={() => {
+              onDeleteAllUploadedFiles?.()
+            }}
+          >
+            {UI_TEXT.media.deleteAllOurs}
+          </button>
+        </section>
+      )}
       {auth.status === 'signedIn' ? (
         <div className="usage-setup">
           {auth.hasCli === false ? (
