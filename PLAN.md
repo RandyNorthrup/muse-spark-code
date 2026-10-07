@@ -13453,6 +13453,41 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### PR132M — Verify the 0.14.4 merge into infrastructure (2026-10-06)
+
+Starting at merge `3e58f1568` on `chore/infra-0150-m`, verify the complete
+App suite at repository-default deadlines, then every configured Vitest file
+in sequential batches of at most three files with `--maxWorkers=3`. Include
+the deferred warm-up guard, harness-wait guard and built-exec suite. Compare
+any failure with clean main `aa4e3fa83`; fix merge regressions structurally,
+and record main failures separately. No timeout, retry, skip or gate changes.
+
+- [x] Complete App suite: 161 tests pass, including all palette routes.
+- [x] Complete configured unit/process-e2e suite in bounded batches.
+      All 560 files ran: 11,841 passed, 74 existing skips and one failure also
+      reproduced on clean main `aa4e3fa83`. The checkpoint fixture disposes
+      only after successful filter discovery, but a filter-free repository
+      makes Git exit 1 before disposal. The lane permits this trivial test-only
+      correction: dispose in `finally`, preserving Git's discovery result.
+      Corrected owning file passes all 16 tests. The original fixture,
+      omitted merged warm-up import and unexplained sharing timer each fail
+      deliberately; all three restore SHA-256-exact source.
+- [x] Five compiler projects, lint, changed-file format, plain Knip,
+      duplication, localization, host API, reference and production build.
+- [x] Record results and any failure drills in `docs/certification/pr132w.md`;
+      commit locally with hooks and explicit paths.
+
+Final complete checkpoint/warm-up/harness verification passes 37/37.
+Combined final per-file results cover all 560 files: 11,842 passes and 74
+existing skips, zero unresolved failures. All named static/build gates pass;
+no second full sweep or coverage run is claimed. Receipt:
+`docs/certification/pr132w.md#pr132m--main-merge-verification-2026-10-06`.
+
+The lane brief explicitly authorizes the full configured suite in bounded
+batches; shared rules still prohibit aggregate `npm run quality`, external
+requests, additional merges and pushes. Coverage, accessibility and hosted
+cross-platform quality remain with the lead. No live or paid model calls.
+
 ### PR132W — Diagnose the Windows built-exec failure (2026-10-06)
 
 On the Windows 11 rig, reproduce the complete `execStdio.e2e.test.ts` file
@@ -29657,6 +29692,14 @@ Authority: the rig brief and lead decisions, refining D92/M112 from
       Q/A/editor integration handoffs. No merge, push, dependency or gate widening.
 
 ## 7. Gates
+
+**PR132M bounded merge verification (2026-10-06, linuxlt).** Run every
+configured Vitest file at repository-defined deadlines in sequential batches
+of at most three, then the named compiler/static/build checks. The explicit
+lane brief overrides the shared full-suite prohibition for these batches;
+aggregate quality and external network gates remain lead-owned. Record
+failures also present on main with comparison evidence; never widen gates.
+Receipt: `docs/certification/pr132w.md`.
 
 **PR132W scoped Windows certification (2026-10-06).** The rig/shared brief
 prohibits aggregate quality/full-unit runs and external requests. Run the

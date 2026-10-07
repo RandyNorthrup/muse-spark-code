@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Checkpoint disposal tests retire the captured owner after filter-free Git
+  discovery exits 1, so the cancellation assertion exercises disposal reliably.
 - Windows shell credential regressions await the matching background completion
   before cleanup and probe raw environment values within the default test deadline.
 - Prompt host shutdown awaits mirror merges and other admitted operations
