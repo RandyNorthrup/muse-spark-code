@@ -1,6 +1,7 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { lookup } from 'node:dns/promises'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createModelsPanelSeam } from '../../src/core/providers/panelSeam'
 import { checkEndpointUrl } from '../../src/core/providers/endpointPolicy'
@@ -10,6 +11,8 @@ import { ProviderCredentialStore } from '../../src/host/providers/credentialReco
 import { probeLocalServers } from '../../src/host/providers/localProbe'
 import { testProvidersHost } from './helpers/m95kFixtures'
 import { memorySecrets, unexpectedWarning } from './helpers/fakes'
+
+vi.mock('node:dns/promises', () => ({ lookup: vi.fn() }))
 
 const folders: string[] = []
 afterEach(async () => {
@@ -49,6 +52,16 @@ const LOCAL = {
 }
 
 describe('production Models panel seam', () => {
+  it('uses the existing DNS resolver when no transport resolver is supplied', async () => {
+    const { configFile } = await panel()
+    const seam = createModelsPanelSeam({
+      configFile,
+      subscriptionModels: () => Promise.resolve([]),
+    })
+    vi.mocked(lookup).mockResolvedValue([{ address: '8.8.8.8', family: 4 }])
+    expect(await seam.policy.check(CLOUD.address)).toEqual({ kind: 'ok' })
+    expect(lookup).toHaveBeenCalledWith('api.openai.com', { all: true })
+  })
   it('resolves public and loopback hosts while adding and editing providers (PR136 VA)', async () => {
     const { seam, credentials, resolve } = await panel()
     for (const provider of [CLOUD, LOCAL]) {

@@ -163,18 +163,16 @@ export function createModelsPanelSeam(options: {
         if (initial.kind === 'refused' && initial.reason !== 'unresolved-address')
           return { kind: 'refused', detail: initial.reason }
         const host = new URL(address).hostname.replaceAll(/^\[|\]$/g, '')
-        let answers: readonly string[]
+        let answers: readonly string[] = [host]
         try {
-          answers =
-            isIP(host) === 0
-              ? await (
-                  options.resolve ??
-                  (async (name) => {
-                    const rows = await lookup(name, { all: true })
-                    return rows.map((row) => row.address)
-                  })
-                )(host)
-              : [host]
+          if (isIP(host) === 0) {
+            if (options.resolve === undefined) {
+              const records = await lookup(host, { all: true })
+              answers = records.map(({ address }) => address)
+            } else {
+              answers = await options.resolve(host)
+            }
+          }
         } catch {
           return { kind: 'refused', detail: 'unresolved-address' }
         }
