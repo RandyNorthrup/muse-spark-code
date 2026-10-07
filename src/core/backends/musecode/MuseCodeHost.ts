@@ -457,6 +457,10 @@ function mspInput(parts: readonly TurnPart[]): readonly TurnPart[] {
   const input: TurnPart[] = []
   let attachmentBytes = 0
   for (const part of parts) {
+    // U16 is not captured on this base. Never disguise media as an MSP image/file.
+    if ('mediaType' in part && /^(?:video|audio)\//u.test(part.mediaType)) {
+      throw new Error(UI_TEXT.media.museCodeRefusal)
+    }
     if (part.type === 'file') {
       throw new Error(UI_TEXT.pdfNeedsModelApi)
     }

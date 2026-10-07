@@ -6,6 +6,8 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { companionUpload, type CompanionUploadOptions } from '../../src/runtime/companion/upload'
 import { companionMediaUploadSchema } from '../../src/shared/media'
+import { TINY_PNG_BASE64 } from './helpers/fakeModelApi'
+import { pdfFixture } from './helpers/pdfFixture'
 import { videoFixture, wavFixture, ebmlFixture } from './helpers/media/fixtures'
 
 const fixture = videoFixture()
@@ -76,21 +78,25 @@ async function sendStatus(...args: Parameters<typeof send>): Promise<number> {
   return response.status
 }
 
+function config(overrides: Partial<CompanionUploadOptions> = {}): CompanionUploadOptions {
+  return {
+    origin: state.origin,
+    bearer: 'test-window-token',
+    customHeader: { name: 'x-muse-guard', value: '1' },
+    metadataHeader: 'x-muse-media',
+    maxBytes: fixture.length * 2,
+    temporaryRoot: state.root,
+    signal: state.stop.signal,
+    isCurrent: () => state.isCurrent,
+    admit,
+    consume,
+    ...overrides,
+  }
+}
+
 async function serve(overrides: Partial<CompanionUploadOptions> = {}): Promise<void> {
   const server = createServer((req, response) => {
-    void companionUpload({
-      origin: state.origin,
-      bearer: 'test-window-token',
-      customHeader: { name: 'x-muse-guard', value: '1' },
-      metadataHeader: 'x-muse-media',
-      maxBytes: fixture.length * 2,
-      temporaryRoot: state.root,
-      signal: state.stop.signal,
-      isCurrent: () => state.isCurrent,
-      admit,
-      consume,
-      ...overrides,
-    })(req, response)
+    void companionUpload(config(overrides))(req, response)
   })
   await new Promise<void>((resolve) => {
     server.listen(0, '127.0.0.1', resolve)
@@ -176,6 +182,35 @@ describe('guarded companion upload', () => {
     expect(consume).not.toHaveBeenCalled()
   })
 
+  it.each([
+    ['image', Buffer.from(TINY_PNG_BASE64, 'base64')],
+    ['document', pdfFixture(1)],
+    ['audio', wavFixture()],
+    ['video', videoFixture({ brand: 'qt  ' })],
+  ])('dispatches sniffed %s without trusting its filename', async (kind, body) => {
+    if (typeof body === 'string') throw new Error('Invalid fixture')
+    await state.close()
+    await serve({ maxBytes: Math.max(fixture.length, body.length) * 2 })
+    consume.mockImplementationOnce(async (source) => {
+      expect(await readFile(source.path)).toEqual(Buffer.from(body))
+      return 'opaque-token'
+    })
+    const response = await send(headers(), body)
+    expect(response.status).toBe(200)
+    expect(companionMediaUploadSchema.parse(response.body).info.kind).toBe(kind)
+    await vi.waitFor(async () => {
+      expect(await readdir(state.root)).toEqual([])
+    })
+  })
+
+  it('validates sniffed image dimensions before admission or consumption', async () => {
+    const body = Buffer.from(TINY_PNG_BASE64, 'base64')
+    body.writeUInt32BE(0, 16)
+    expect(await sendStatus(headers(), body)).toBe(400)
+    expect(admit).not.toHaveBeenCalled()
+    expect(consume).not.toHaveBeenCalled()
+  })
+
   it('refuses invalid/byte-bearing metadata and never uses browser paths', async () => {
     const supplied = {
       ...headers(),
@@ -193,8 +228,12 @@ describe('guarded companion upload', () => {
   })
 
   it('refuses an oversized declared length before creating a file', async () => {
+    await state.close()
+    await serve({ temporaryRoot: path.join(state.root, 'absent') })
     const supplied = { ...headers(), 'content-length': String(fixture.length * 4) }
-    expect(await sendStatus(supplied)).toBe(400)
+    const response = await send(supplied)
+    expect(response.status).toBe(400)
+    expect(JSON.stringify(response.body)).toContain('exceeds')
     expect(consume).not.toHaveBeenCalled()
     expect(await readdir(state.root)).toEqual([])
   })
@@ -252,6 +291,31 @@ describe('guarded companion upload', () => {
     })
   })
 
+  it('returns a named admission refusal without consuming bytes', async () => {
+    admit.mockResolvedValueOnce({ ok: false, reason: 'Storage billing has not been verified.' })
+    const response = await send()
+    expect(response).toEqual({
+      status: 400,
+      body: { reason: 'Storage billing has not been verified.' },
+    })
+    expect(consume).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { origin: 'https://foreign.example' },
+    { origin: 'http://192.0.2.1' },
+    { maxBytes: 0 },
+    { maxBytes: Number.MAX_SAFE_INTEGER },
+    { bearer: '' },
+    { temporaryRoot: 'relative' },
+    { metadataHeader: 'authorization' },
+    { customHeader: { name: 'cookie', value: '1' } },
+  ])('refuses unsafe route configuration', (override) => {
+    expect(() => companionUpload(config(override))).toThrow(
+      'Invalid companion upload configuration',
+    )
+  })
+
   it('checks the window again after admission', async () => {
     admit.mockImplementation(() => {
       state.isCurrent = false
@@ -260,6 +324,27 @@ describe('guarded companion upload', () => {
     expect(await sendStatus()).toBe(400)
     expect(consume).not.toHaveBeenCalled()
   })
+
+  it.each(['session change', 'cancellation'])(
+    'refuses admission after a streamed %s',
+    async (change) => {
+      const isCurrent = vi
+        .fn(() => {
+          if (change === 'session change') return false
+          state.stop.abort()
+          return true
+        })
+        .mockReturnValueOnce(true)
+      await state.close()
+      await serve({ isCurrent })
+      expect(await sendStatus()).toBe(400)
+      expect(admit).not.toHaveBeenCalled()
+      expect(consume).not.toHaveBeenCalled()
+      await vi.waitFor(async () => {
+        expect(await readdir(state.root)).toEqual([])
+      })
+    },
+  )
 
   it('cancellation during policy work prevents consumption and cleans up', async () => {
     admit.mockImplementation(() => {
@@ -282,6 +367,23 @@ describe('guarded companion upload', () => {
       expect(await readdir(state.root)).toEqual([])
     })
   })
+
+  it.each(['session change', 'cancellation'])(
+    'refuses a consumed token after %s',
+    async (change) => {
+      consume.mockImplementationOnce(() => {
+        if (change === 'session change') state.isCurrent = false
+        else state.stop.abort()
+        return Promise.resolve('late-token')
+      })
+      const response = await send()
+      expect(response.status).toBe(400)
+      expect(JSON.stringify(response.body)).not.toContain('late-token')
+      await vi.waitFor(async () => {
+        expect(await readdir(state.root)).toEqual([])
+      })
+    },
+  )
 
   it('cleans up a disconnected partial stream without dispatch', async () => {
     const req = request(`${state.origin}/media`, { method: 'POST', headers: headers() })

@@ -15,12 +15,11 @@ import {
   MEDIA_ID_MAX_CHARS,
   MEDIA_MAX_UPLOAD_MIB,
   MEDIA_NAME_MAX_CHARS,
-  MEDIA_SNIFF_MAX_BYTES,
   BYTES_PER_MIB,
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, formatBytes } from '../../shared/l10n/text'
-import { companionMediaUploadSchema, type MediaInfo } from '../../shared/media'
+import { companionMediaUploadSchema, mediaInfoSchema, type MediaInfo } from '../../shared/media'
 import { readImageInfo } from '../../core/imageDimensions'
 import { isPdf } from '../../core/pdf'
 import { sniffMedia, type MediaSource } from '../../core/media/limits'
@@ -107,9 +106,16 @@ function isAuthorized(request: IncomingMessage, options: CompanionUploadOptions)
 }
 
 async function inspect(source: MediaSource): Promise<MediaInfo> {
-  const media = await sniffMedia(source)
+  let head = new Uint8Array()
+  const media = await sniffMedia({
+    sizeBytes: source.sizeBytes,
+    read: async (offset, count) => {
+      const bytes = await source.read(offset, count)
+      if (offset === 0) head = Uint8Array.from(bytes)
+      return bytes
+    },
+  })
   if (media.ok) return media.info
-  const head = await source.read(0, Math.min(source.sizeBytes, MEDIA_SNIFF_MAX_BYTES))
   const image = readImageInfo(head)
   if (image !== undefined) return { kind: 'image', ...image, sizeBytes: source.sizeBytes }
   if (isPdf(head))
@@ -211,16 +217,19 @@ export function companionUpload(
         throw new Error(fill(UI_TEXT.media.attachmentUnknownType, { type: 'media' }))
       const file = await open(filePath, 'r')
       try {
-        const info = await inspect({
-          sizeBytes: bytes,
-          read: async (offset, count) => {
-            const buffer = Buffer.alloc(count)
-            const read = await file.read(buffer, 0, count, offset)
-            return buffer.subarray(0, read.bytesRead)
-          },
-        })
+        const info = mediaInfoSchema.parse(
+          await inspect({
+            sizeBytes: bytes,
+            read: async (offset, count) => {
+              const buffer = Buffer.alloc(count)
+              const read = await file.read(buffer, 0, count, offset)
+              return buffer.subarray(0, read.bytesRead)
+            },
+          }),
+        )
         if (metadata.isScreenRecording && (info.kind !== 'video' || info.mediaType !== 'video/mp4'))
           throw new Error(fill(UI_TEXT.media.attachmentUnknownType, { type: 'media' }))
+        if (!options.isCurrent() || signal.aborted) throw new Error(UI_TEXT.media.uploadStop)
         const admission = await options.admit(info, metadata.isScreenRecording, signal)
         if (!admission.ok) {
           reason = admission.reason

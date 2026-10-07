@@ -19105,20 +19105,22 @@ joined with M57, M58 and PR #49's sign-in
 lane-0 media contracts and M1/M2, but no M104 companion server, MHP schemas,
 feature catalog, R3 browser recorder or U16/MSP video capture. Build against
 required injected ports; do not create replacement servers or wire guesses.
-Only E3-owned modules and shared-file regions change. W owns shipped docs,
+Controls remount on the host attachment epoch, cancelling stale uploads and
+recordings on session changes. Only E3-owned modules and shared-file regions
+change. W owns shipped docs,
 reference entries, build entries and budgets; the certification names each
 binding and doc handoff.
 
 - [x] Guarded streamed companion upload: exact loopback Host/Origin, bearer,
       custom header, Fetch Metadata, no cookies, byte cap, private temporary
       file, sniffed metadata, cancellation and cleanup; fake HTTP regressions.
-- [ ] Lazy accessible picker/drop/paste, upload Stop and recording preview UI;
+- [x] Lazy accessible picker/drop/paste, upload Stop and recording preview UI;
       browser recording uses R3's injected port, with explicit audio choices.
-- [ ] Native `attachments/*` adapter behind a validated injected MHP port;
+- [x] Native `attachments/*` adapter behind a validated injected MHP port;
       JCEF, WebView2 and SWT fake bridges, with no bytes in bridge frames.
-- [ ] Muse Code refuses video/audio pending U16; prepare safe lazy video
+- [x] Muse Code refuses video/audio pending U16; prepare safe lazy video
       presentation from approved resources without inventing MSP content.
-- [ ] Byte-exact red drills, scoped default-timeout verification, local
+- [x] Byte-exact red drills, scoped default-timeout verification, local
       hook-on commits and certification; no paid/live calls or branch merges.
 
 **M2 review corrections (RVM105M2, 2026-10-06).** Fix all three P2 findings
@@ -20100,6 +20102,14 @@ and full unit runs, and reserves integration for the lead. Run focused tests
 with repository-default timeouts and all named lane checks directly on linuxlt.
 Keep inherited W-owned bundle/split/host-record failures enforced; add no cap,
 ignore or weakened rule. New lazy browser/runtime entries await W binding.
+Scoped E3 and existing regressions pass (113 + 143 tests); 63 guards have
+named red failures and byte-exact restoration. Production compilation passes,
+but the deferred-browser gate remains 51.1/50 KiB, `files.ts` and
+`codecs/responses.ts` still lack split classifications, and the generated host
+importer/style inventory is stale. E3's standalone split media graph measures
+194.5 KiB including shared dependencies; W must bind its own companion-page
+budget and include R3, without raising a cap. Full quality and installed-editor,
+Windows private-ACL and real browser-capture receipts remain lead handoffs.
 Receipts and doc/reference handoffs:
 `docs/certification/m105-e3-companion,-native-plugins,-muse-code-(a,-d).md`.
 
@@ -21305,6 +21315,23 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M105-E3-bindings (M104 C/0/b–d, F/M2/A/C, R3, W and lead).** The base
+  lacks the companion server, outer MHP envelope/native bridges, real browser
+  recorder and U16/MSP video capture. Required injected ports keep unavailable
+  bindings explicit; E3 opens no listener, uploads to no provider by default
+  and refuses uncaptured Muse Code media. Bind the guarded route only after
+  the launch exchange, with captured session epochs and abort-on-replacement;
+  mount controls with the host attachment epoch. Admission must enforce the
+  selected model, formats/limits, Contributor/storage consent and paid rules;
+  consumption must finish reading before temporary deletion and release
+  cancelled/stale provider references. Native bridges own confinement and
+  interactive-user provenance; recordings always preview before Attach.
+  Windows needs private user ACL verification. W binds lazy entries, budgets,
+  resource resolution, docs/reference and repairs the enforced inherited
+  gates. Actual capture and installed-IDE receipts remain required; no product
+  availability is claimed by these fakes. Each handoff is named in
+  `docs/certification/m105-e3-companion,-native-plugins,-muse-code-(a,-d).md`.
 
 - **M105-M2-review-and-bindings (RVM105M2, W/V/E1/E2/C/A).** All three P2
   findings are fixed with regressions and byte-exact red drills in
