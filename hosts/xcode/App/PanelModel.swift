@@ -20,6 +20,11 @@ final class PanelModel: ObservableObject {
   private var invocation = UUID()
   weak var webView: WKWebView?
 
+  static func themeKind(dark: Bool, contrast: Bool) -> String {
+    if contrast { return dark ? "highContrastDark" : "highContrastLight" }
+    return dark ? "dark" : "light"
+  }
+
   func chooseWorkspace() {
     let picker = NSOpenPanel()
     picker.canChooseDirectories = true
@@ -63,8 +68,10 @@ final class PanelModel: ObservableObject {
       try launcher.start(
         executable: runtime, workspace: workspace,
         theme: [
-          "kind": NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            ? "dark" : "light", "tokens": [String: String](),
+          "kind": Self.themeKind(
+            dark: NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua,
+            contrast: NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast),
+          "tokens": [String: String](),
         ],
         trusted: trusted,
         service: { [weak self] method, params, token, reply in

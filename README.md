@@ -430,6 +430,10 @@ qualification remain incomplete. See
 [the integration evidence and remaining gaps](docs/certification/m104-int.md)
 and [macOS qualification](docs/certification/m104-pf.md).
 
+The [complete parity inventory](docs/certification/m104-pf-inventory.md) names
+all 56 feature rows, editor families, backend/provider profiles and the
+remaining installed-artifact receipts. Component tests do not promote support.
+
 Portable session changes retire previous surface IDs and open fresh bindings.
 Settings and storage are owned by the runtime; initialization selects the
 editor's language. CLI trust never overrides an editor's restricted workspace.

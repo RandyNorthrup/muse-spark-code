@@ -42,17 +42,31 @@
     "sha256": "26417b92265087b3e22dac677e96e642016621ca7c16df5093a02ec9eafc3f46"
   },
   {
-    "label": "pending trust metadata",
-    "file": "hosts/xcode/App/PanelModel.swift",
-    "test": "testTrustCannotDivergeWhileInitializationIsPending",
-    "exit": 65,
-    "sha256": "e0f3d4f00361d317a6a46d71ed61cbec9b16644f264b7a1da579ad1a65569df6"
-  },
-  {
     "label": "opaque picker answer",
     "file": "hosts/xcode/App/NativeUi.swift",
     "test": "testSinglePickerReturnsTheSelectedOpaqueNumericId",
     "exit": 65,
     "sha256": "8108733278284504928aca8da042dcd2ae2095e47c8b93684b9fdfb2d23259ed"
+  },
+  {
+    "label": "four native appearance kinds",
+    "file": "hosts/xcode/App/PanelModel.swift",
+    "test": "testNativeAppearanceIncludesBothHighContrastKinds",
+    "exit": 65,
+    "sha256": "624b0c7706455b7cbf60301761c0f312cb4e4c26506ff9b001918abe7214703c"
+  },
+  {
+    "label": "pending trust metadata",
+    "file": "hosts/xcode/App/PanelModel.swift",
+    "test": "testTrustCannotDivergeWhileInitializationIsPending",
+    "exit": 65,
+    "sha256": "624b0c7706455b7cbf60301761c0f312cb4e4c26506ff9b001918abe7214703c"
+  },
+  {
+    "label": "owning fake CLI entry",
+    "file": "test/hosts/xcode/fake-runtime.ts",
+    "test": "testAuthenticatedPanelRendersAndStopRemainsAvailable",
+    "exit": 65,
+    "sha256": "e49b482619d562a601fb907b6a23c52fd74473602fb30352c03d8ebd4ef72c7c"
   }
 ]

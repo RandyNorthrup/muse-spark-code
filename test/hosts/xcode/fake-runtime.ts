@@ -2,6 +2,8 @@ import { startCompanionServer } from '../../../src/runtime/companion/server'
 import * as z from 'zod/mini'
 import { parseHostToWebviewMessage, parseWebviewToHostMessage } from '../../../src/shared/protocol'
 import { createInterface } from 'node:readline'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { parseMhpCall, parseMhpResult } from '../../../src/shared/hostApi/protocol'
 import { MHP } from '../../../src/shared/constants'
 
@@ -36,7 +38,7 @@ export async function startXcodeFakeRuntime() {
 }
 
 // The app owns a real MHP parent. Only this test fixture supplies the backend-free page.
-export async function runXcodeFakeHostRuntime() {
+async function runXcodeFakeHostRuntime() {
   const lines = createInterface({ input: process.stdin })
   let server: Awaited<ReturnType<typeof startXcodeFakeRuntime>> | undefined
   const close = () => {
@@ -79,4 +81,8 @@ export async function runXcodeFakeHostRuntime() {
     await server?.close()
     lines.close()
   }
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  await runXcodeFakeHostRuntime()
 }

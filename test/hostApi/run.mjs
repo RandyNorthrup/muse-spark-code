@@ -4,13 +4,18 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as z from 'zod/mini'
-import { buildEnvironment, HOSTS, hostManifest } from '../../scripts/package-hosts/manifest.mjs'
+import {
+  buildEnvironment,
+  HOSTS,
+  hostManifest,
+  MHP_VERSION,
+} from '../../scripts/package-hosts/manifest.mjs'
 
 export const contract = JSON.parse(
   readFileSync(new URL('scenarios/contract.json', import.meta.url), 'utf8'),
 )
 const reportSchema = z.strictObject({
-  protocol: z.literal('mhp/1.1.0'),
+  protocol: z.literal(MHP_VERSION),
   host: z.string(),
   results: z.array(
     z.strictObject({

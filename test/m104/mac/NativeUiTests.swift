@@ -5,6 +5,25 @@ import XCTest
 @testable import MuseSpark
 
 final class NativeUiTests: XCTestCase {
+  @MainActor func testNativeAppearanceIncludesBothHighContrastKinds() throws {
+    let schema = try MhpSchema()
+    for (dark, contrast, expected) in [
+      (false, false, "light"), (true, false, "dark"),
+      (false, true, "highContrastLight"), (true, true, "highContrastDark"),
+    ] {
+      let kind = PanelModel.themeKind(dark: dark, contrast: contrast)
+      XCTAssertEqual(kind, expected)
+      let session = MhpSession(
+        schema: schema, write: { _ in }, launch: { _ in },
+        failed: {
+          XCTFail("appearance rejected")
+        }, service: { _, _, _, _ in })
+      try session.start(
+        workspace: URL(fileURLWithPath: "/workspace"), locale: "en",
+        theme: ["kind": kind, "tokens": [String: String]()], trusted: false)
+      session.close()
+    }
+  }
   @MainActor func testTrustCannotDivergeWhileInitializationIsPending() throws {
     let model = PanelModel()
     let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()

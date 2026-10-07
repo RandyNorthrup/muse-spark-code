@@ -22,7 +22,7 @@ function prepare(host = 'jetbrains') {
   writeFileSync(
     path.join(folder, 'distribution.json'),
     JSON.stringify({
-      mhp: '1.x',
+      mhp: 'mhp/1.2.0',
       build: [{ command: 'build', args: [] }],
       conformance: { command: 'harness', args: [] },
       artifacts: ['artifact.zip'],
@@ -34,10 +34,11 @@ function prepare(host = 'jetbrains') {
   const receipt = {
     host,
     outcome: 'packaged',
-    mhp: '1.x',
+    mhp: 'mhp/1.2.0',
     version: '1.2.3',
     tree,
     sha256: { 'artifact.zip': digest('archive') },
+    runtimeSha256: { 'dist/acp.js': digest('runtime') },
   }
   writeFileSync(path.join(fixture.assets, 'artifact.zip'), 'archive')
   writeFileSync(path.join(fixture.assets, 'receipt.json'), JSON.stringify(receipt))
@@ -70,6 +71,48 @@ beforeEach(() => {
 afterEach(() => rmSync(fixture.root, { recursive: true, force: true }))
 
 describe('native release integrity', () => {
+  it('accepts scoped runtime dependencies and refuses unsafe paths or invalid hashes', () => {
+    prepare()
+    receiptChange((receipt) => {
+      receipt.runtimeSha256 = { 'node_modules/@napi-rs/keyring/keyring.node': digest('native') }
+    })
+    expect(verifyArtifacts(fixture.root, fixture.assets, 'jetbrains', run).runtimeSha256).toEqual({
+      'node_modules/@napi-rs/keyring/keyring.node': digest('native'),
+    })
+    run.mockClear()
+    for (const [name, hash] of [
+      ['../escape', digest('native')],
+      ['folder/./file', digest('native')],
+      ['/absolute', digest('native')],
+      [String.raw`C:\\escape`, digest('native')],
+      ['folder//file', digest('native')],
+      ['dist/acp.js', 'bad-hash'],
+    ]) {
+      receiptChange((receipt) => {
+        receipt.runtimeSha256 = { [name]: hash }
+      })
+      expect(() => verifyArtifacts(fixture.root, fixture.assets, 'jetbrains', run)).toThrow()
+      expect(run).not.toHaveBeenCalled()
+    }
+  })
+  it('refuses old MHP receipts and absent or empty runtime inventories before a channel command', () => {
+    for (const change of [
+      (receipt) => {
+        receipt.mhp = 'mhp/1.1.0'
+      },
+      (receipt) => {
+        delete receipt.runtimeSha256
+      },
+      (receipt) => {
+        receipt.runtimeSha256 = {}
+      },
+    ]) {
+      prepare()
+      receiptChange(change)
+      expect(() => signArtifacts(fixture.root, fixture.assets, 'jetbrains', {}, run)).toThrow()
+      expect(run).not.toHaveBeenCalled()
+    }
+  })
   it('verifies exact source tree, version, host, inventory and bytes', () => {
     prepare()
     expect(verifyArtifacts(fixture.root, fixture.assets, 'jetbrains', run).tree).toBe(tree)

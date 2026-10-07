@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+import { Buffer } from 'node:buffer'
 import {
   existsSync,
   mkdtempSync,
@@ -24,7 +26,7 @@ import { hostMatrix } from '../../scripts/package-hosts/ci.mjs'
 
 const fixture = { root: '' }
 const manifest = {
-  mhp: '1.x',
+  mhp: 'mhp/1.2.0',
   build: [{ command: 'native-build', args: ['--test'] }],
   conformance: { command: 'native-harness', args: [] },
   artifacts: ['artifact.zip'],
@@ -34,6 +36,46 @@ function host() {
   mkdirSync(directory, { recursive: true })
   writeFileSync(path.join(directory, 'distribution.json'), JSON.stringify(manifest))
   return directory
+}
+function runtimeStage() {
+  const runtime = path.join(fixture.root, 'dist', 'acp-package')
+  mkdirSync(path.join(runtime, 'dist'), { recursive: true })
+  for (const name of [
+    'dist/acp.js',
+    'LICENSE',
+    'THIRD_PARTY_NOTICES.txt',
+    'dist/runtimePanel.js',
+    'dist/runtimePanelPorts.js',
+    'dist/conversation.js',
+    'dist/uiText.js',
+  ])
+    writeFileSync(path.join(runtime, name), 'fixture runtime')
+  writeFileSync(
+    path.join(runtime, 'package.json'),
+    JSON.stringify({ version: '1.2.3', dependencies: { '@napi-rs/keyring': '1.0.0' } }),
+  )
+  writeFileSync(
+    path.join(fixture.root, 'package.json'),
+    JSON.stringify({ version: '1.2.3', devDependencies: { '@napi-rs/keyring': '1.0.0' } }),
+  )
+  const portable = path.join(runtime, 'dist', 'webview', 'portable')
+  mkdirSync(portable, { recursive: true })
+  for (const name of ['loader.js', 'main.js', 'main.css', 'whatsNew.css'])
+    writeFileSync(path.join(portable, name), 'fixture portable')
+  writeFileSync(
+    path.join(portable, 'modules.json'),
+    JSON.stringify({
+      modules: [
+        {
+          path: '/assets/portable/main.js',
+          bytes: Buffer.byteLength('fixture portable'),
+          sha256: createHash('sha256').update('fixture portable').digest('hex'),
+          imports: [],
+        },
+      ],
+    }),
+  )
+  return runtime
 }
 beforeEach(() => {
   fixture.root = mkdtempSync(path.join(os.tmpdir(), 'm104-i-'))
@@ -119,11 +161,7 @@ describe('native distribution guards', () => {
   })
   it('stages runtime bytes and records exact artifact hashes and source tree', () => {
     const directory = host()
-    const runtime = path.join(fixture.root, 'dist', 'acp-package')
-    mkdirSync(path.join(runtime, 'dist'), { recursive: true })
-    for (const name of ['dist/acp.js', 'package.json', 'LICENSE', 'THIRD_PARTY_NOTICES.txt'])
-      writeFileSync(path.join(runtime, name), 'fixture runtime')
-    writeFileSync(path.join(fixture.root, 'package.json'), JSON.stringify({ version: '1.2.3' }))
+    runtimeStage()
     const run = vi.fn((command) => {
       if (command === 'git') return `${'a'.repeat(40)}\n`
       writeFileSync(path.join(directory, 'artifact.zip'), 'archive')
@@ -134,7 +172,7 @@ describe('native distribution guards', () => {
       outcome: 'packaged',
       version: '1.2.3',
       tree: 'a'.repeat(40),
-      mhp: '1.x',
+      mhp: 'mhp/1.2.0',
     })
     expect(Object.values(receipt.sha256)[0]).toMatch(/^[a-f0-9]{64}$/u)
     expect(
@@ -143,7 +181,7 @@ describe('native distribution guards', () => {
         'utf8',
       ),
     ).toBe('fixture runtime')
-    expect(run.mock.calls[0][2].env.MUSE_MHP_VERSION).toBe('mhp/1.1.0')
+    expect(run.mock.calls[0][2].env.MUSE_MHP_VERSION).toBe('mhp/1.2.0')
     const stale = path.join(fixture.root, 'dist', 'hosts', 'jetbrains', 'muse-spark-code-old.zip')
     writeFileSync(stale, 'obsolete build')
     packageHost(fixture.root, 'jetbrains', run)
@@ -161,14 +199,123 @@ describe('native distribution guards', () => {
     host()
     const run = vi.fn()
     expect(() => packageHost(fixture.root, 'jetbrains', run)).toThrow()
+    for (const name of [
+      'dist/runtimePanel.js',
+      'dist/runtimePanelPorts.js',
+      'dist/conversation.js',
+      'dist/uiText.js',
+      'dist/webview/portable/modules.json',
+      'dist/webview/portable/loader.js',
+      'dist/webview/portable/main.css',
+      'dist/webview/portable/whatsNew.css',
+    ]) {
+      const runtime = runtimeStage()
+      rmSync(path.join(runtime, name))
+      expect(() => packageHost(fixture.root, 'jetbrains', run)).toThrow()
+      expect(run).not.toHaveBeenCalled()
+      rmSync(runtime, { recursive: true, force: true })
+    }
+    expect(run).not.toHaveBeenCalled()
+  })
+  it('refuses mismatched runtime versions and dependency pins before dispatch', () => {
+    host()
+    const runtime = runtimeStage()
+    const run = vi.fn()
+    for (const [version, keyring, reason] of [
+      ['1.2.4', '1.0.0', 'MHP_HOST_RUNTIME_VERSION'],
+      ['1.2.3', '^1.0.0', 'MHP_HOST_RUNTIME_DEPENDENCY'],
+    ]) {
+      writeFileSync(
+        path.join(runtime, 'package.json'),
+        JSON.stringify({ version, dependencies: { '@napi-rs/keyring': keyring } }),
+      )
+      expect(() => packageHost(fixture.root, 'jetbrains', run)).toThrow(reason)
+    }
+    expect(run).not.toHaveBeenCalled()
+  })
+  it('refuses nested runtime symlinks before they are copied or a native child runs', () => {
+    host()
+    const runtime = runtimeStage()
+    const outside = path.join(fixture.root, 'not-runtime')
+    mkdirSync(outside)
+    writeFileSync(path.join(outside, 'marker.txt'), 'private marker')
+    symlinkSync(
+      outside,
+      path.join(runtime, 'dist', 'escape'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    )
+    const run = vi.fn()
+    expect(() => packageHost(fixture.root, 'jetbrains', run)).toThrow('MHP_HOST_RUNTIME_SYMLINK')
+    expect(run).not.toHaveBeenCalled()
+  })
+  it('records every runtime and deferred byte and refuses native mutation of the injected tree', () => {
+    const directory = host()
+    const runtime = runtimeStage()
+    const content = 'deferred source'
+    const portable = path.join(runtime, 'dist', 'webview', 'portable')
+    const moduleFile = path.join(portable, 'modules.json')
+    const modules = JSON.parse(readFileSync(moduleFile, 'utf8'))
+    modules.modules.push({
+      path: '/assets/portable/chunks/deferred.js',
+      bytes: Buffer.byteLength(content),
+      sha256: createHash('sha256').update(content).digest('hex'),
+      imports: [],
+    })
+    mkdirSync(path.join(portable, 'chunks'))
+    writeFileSync(path.join(portable, 'chunks', 'deferred.js'), content)
+    writeFileSync(moduleFile, JSON.stringify(modules))
+    const run = vi.fn((command) => {
+      if (command === 'git') return `${'a'.repeat(40)}\n`
+      writeFileSync(path.join(directory, 'artifact.zip'), 'archive')
+      return ''
+    })
+    const receipt = packageHost(fixture.root, 'jetbrains', run)
+    expect(receipt.runtimeSha256['dist/webview/portable/chunks/deferred.js']).toBe(
+      createHash('sha256').update(content).digest('hex'),
+    )
+    expect(receipt.runtimeSha256['dist/runtimePanelPorts.js']).toMatch(/^[a-f0-9]{64}$/u)
+    expect(() =>
+      packageHost(fixture.root, 'jetbrains', (_command, _args, options) => {
+        writeFileSync(path.join(options.env.MUSE_HOST_RUNTIME, 'dist', 'acp.js'), 'rebuilt')
+        return ''
+      }),
+    ).toThrow('MHP_HOST_RUNTIME_CHANGED')
+  })
+  it('refuses missing, changed, duplicate and unlisted portable modules before dispatch', () => {
+    host()
+    const run = vi.fn()
+    const damages = [
+      (portable) => rmSync(path.join(portable, 'main.js')),
+      (portable) => writeFileSync(path.join(portable, 'main.js'), 'changed portable'),
+      (_portable, manifest) => {
+        manifest.modules.push(manifest.modules[0])
+      },
+      (portable) => writeFileSync(path.join(portable, 'forgotten.js'), 'source'),
+      (portable, manifest) => {
+        manifest.modules = []
+        rmSync(path.join(portable, 'main.js'))
+      },
+      (_portable, manifest) => {
+        manifest.modules[0].bytes += 1
+      },
+    ]
+    for (const damage of damages) {
+      const runtime = runtimeStage()
+      const portable = path.join(runtime, 'dist', 'webview', 'portable')
+      const file = path.join(portable, 'modules.json')
+      const manifest = JSON.parse(readFileSync(file, 'utf8'))
+      damage(portable, manifest)
+      writeFileSync(file, JSON.stringify(manifest))
+      expect(() => packageHost(fixture.root, 'jetbrains', run)).toThrow(/MHP_HOST_PORTABLE_/u)
+      rmSync(runtime, { recursive: true, force: true })
+    }
     expect(run).not.toHaveBeenCalled()
   })
   it('refuses a runtime entry that is a directory before invoking a native command', () => {
     host()
-    const runtime = path.join(fixture.root, 'dist', 'acp-package')
-    mkdirSync(path.join(runtime, 'dist', 'acp.js'), { recursive: true })
-    for (const name of ['package.json', 'LICENSE', 'THIRD_PARTY_NOTICES.txt'])
-      writeFileSync(path.join(runtime, name), 'fixture runtime')
+    const runtime = runtimeStage()
+    rmSync(path.join(runtime, 'dist', 'acp.js'))
+    mkdirSync(path.join(runtime, 'dist', 'acp.js'))
     const run = vi.fn()
     expect(() => packageHost(fixture.root, 'jetbrains', run)).toThrow('MHP_HOST_RUNTIME_INCOMPLETE')
     expect(run).not.toHaveBeenCalled()
@@ -182,18 +329,14 @@ describe('native distribution guards', () => {
     mkdirSync(path.join(directory, 'nested'))
     writeFileSync(path.join(directory, 'artifact.zip'), 'archive')
     writeFileSync(path.join(directory, 'nested', 'artifact.zip'), 'other archive')
-    const runtime = path.join(fixture.root, 'dist', 'acp-package')
-    mkdirSync(path.join(runtime, 'dist'), { recursive: true })
-    for (const name of ['dist/acp.js', 'package.json', 'LICENSE', 'THIRD_PARTY_NOTICES.txt'])
-      writeFileSync(path.join(runtime, name), 'fixture runtime')
-    writeFileSync(path.join(fixture.root, 'package.json'), JSON.stringify({ version: '1.2.3' }))
+    runtimeStage()
     expect(() => packageHost(fixture.root, 'jetbrains', () => '')).toThrow(
       'MHP_HOST_DUPLICATE_ARTIFACT',
     )
   })
 })
 
-describe('MHP 1.1 every-host conformance runner', () => {
+describe('MHP 1.2 every-host conformance runner', () => {
   it('executes every shared scenario against both fake backends', () => {
     expect(validateReport('jetbrains', fakeReport()).results).toHaveLength(
       contract.scenarios.length * 2,

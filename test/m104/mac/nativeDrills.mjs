@@ -6,6 +6,20 @@ import { buildEnvironment } from '../../../scripts/package-hosts/manifest.mjs'
 
 const mutations = [
   [
+    'owning fake CLI entry',
+    'test/hosts/xcode/fake-runtime.ts',
+    'path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)',
+    'path.resolve(process.argv[1]) !== fileURLToPath(import.meta.url)',
+    'testAuthenticatedPanelRendersAndStopRemainsAvailable',
+  ],
+  [
+    'four native appearance kinds',
+    'hosts/xcode/App/PanelModel.swift',
+    'if contrast { return dark ? "highContrastDark" : "highContrastLight" }',
+    'if contrast { return dark ? "dark" : "light" }',
+    'testNativeAppearanceIncludesBothHighContrastKinds',
+  ],
+  [
     'pending trust metadata',
     'hosts/xcode/App/PanelModel.swift',
     'guard connected || !launcher.isRunning else {',
@@ -71,6 +85,13 @@ assert.ok(selected.length > 0, 'MHP_DRILL_UNKNOWN')
 const previous = existsSync(record) ? JSON.parse(readFileSync(record, 'utf8')) : []
 const receipt = previous.filter((item) => selected.every(([label]) => label !== item.label))
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex')
+function prepare() {
+  const result = spawnSync(process.execPath, ['hosts/xcode/Scripts/prepare-tests.mjs'], {
+    encoding: 'utf8',
+    env: buildEnvironment(process.env),
+  })
+  assert.equal(result.status, 0, 'NATIVE_FIXTURE_BUILD')
+}
 mkdirSync('temp/m104pf', { recursive: true })
 for (const [label, file, before, after, test] of selected) {
   const original = readFileSync(file)
@@ -80,6 +101,7 @@ for (const [label, file, before, after, test] of selected) {
       file,
       original.toString().replace(before, () => after),
     )
+    prepare()
     const output = spawnSync(
       'xcodebuild',
       [
@@ -106,6 +128,7 @@ for (const [label, file, before, after, test] of selected) {
   } finally {
     writeFileSync(file, original)
     assert.equal(digest(readFileSync(file)), digest(original), `MHP_DRILL_RESTORE:${label}`)
+    prepare()
   }
   console.log(`${label}: failed as intended; restored byte-exact`)
 }

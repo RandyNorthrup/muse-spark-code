@@ -2,6 +2,15 @@ import { lstatSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
 
+// Native manifests, children and receipts consume A's reviewed snapshot version.
+export const MHP_VERSION = z
+  .object({ protocol: z.string().check(z.regex(/^mhp\/\d+\.\d+\.\d+$/u)) })
+  .parse(
+    JSON.parse(
+      readFileSync(new URL('../../src/shared/hostApi/mhp-v1.schema.json', import.meta.url), 'utf8'),
+    ),
+  ).protocol
+
 export const HOSTS = {
   jetbrains: { os: 'ubuntu-latest', channel: 'JetBrains Marketplace' },
   visualstudio: { os: 'windows-latest', channel: 'Visual Studio Marketplace' },
@@ -25,7 +34,7 @@ const relative = text.check(
 )
 const command = z.strictObject({ command: text, args: z.array(z.string()) })
 export const distributionSchema = z.strictObject({
-  mhp: z.literal('1.x'),
+  mhp: z.literal(MHP_VERSION),
   build: z.array(command).check(z.minLength(1)),
   conformance: command,
   artifacts: z.array(relative).check(z.minLength(1)),

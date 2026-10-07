@@ -184,8 +184,8 @@ jobs:
 
   release:
     name: GitHub Release
-    needs: [verify, reuse, build]
-    if: ${{ !cancelled() && needs.verify.result == 'success' && needs.reuse.result == 'success' && (needs.reuse.outputs.reused == 'true' || needs.build.result == 'success') }}
+    needs: [verify, reuse, build, native-sign]
+    if: ${{ !cancelled() && needs.verify.result == 'success' && needs.reuse.result == 'success' && needs.native-sign.result == 'success' && (needs.reuse.outputs.reused == 'true' || needs.build.result == 'success') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -220,7 +220,18 @@ jobs:
           github-token: ${{ github.token }}
           name: muse-spark-code-sboms
           path: release
+      # Keep each host's receipt beside its own archives for exact verification.
+      # Recovery's native-sign job has already verified the prior signed bytes.
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          run-id: ${{ github.run_id }}
+          github-token: ${{ github.token }}
+          pattern: m104-native-release-*
+          merge-multiple: false
+          path: native-release
       - run: npm ci --ignore-scripts --no-audit
+      - name: verify and stage every present native host's archives and receipt
+        run: node scripts/package-hosts/release.mjs stage native-release release
       # M80 hook: inert until its schemas exist. They ship as assets beside
       # the packages, listed in SHA256SUMS and attested like them.
       - name: stage the M80 schemas when present
@@ -238,7 +249,8 @@ jobs:
         working-directory: release
         run: |
           mapfile -t schemas < .schemas
-          sha256sum ./*.vsix ./*.tgz ./*.cdx.json "${schemas[@]/#/./}" > SHA256SUMS
+          mapfile -t native < .native
+          sha256sum ./*.vsix ./*.tgz ./*.cdx.json "${schemas[@]/#/./}" "${native[@]/#/./}" > SHA256SUMS
       - name: attest every asset SHA256SUMS lists
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
@@ -253,7 +265,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mapfile -t schemas < release/.schemas
-          node scripts/github-release.mjs "$GITHUB_REF_NAME" release/notes.md release/*.vsix release/*.tgz release/*.cdx.json "${schemas[@]/#/release/}" release/SHA256SUMS
+          mapfile -t native < release/.native
+          node scripts/github-release.mjs "$GITHUB_REF_NAME" release/notes.md release/*.vsix release/*.tgz release/*.cdx.json "${schemas[@]/#/release/}" "${native[@]/#/release/}" release/SHA256SUMS
       - id: outcome
         run: echo 'outcome=published' >> "$GITHUB_OUTPUT"
 

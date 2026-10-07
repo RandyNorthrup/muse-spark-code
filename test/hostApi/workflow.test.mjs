@@ -14,6 +14,24 @@ function job(source, id) {
   return match[1]
 }
 describe('native workflow release fences', () => {
+  it('attaches verified native bytes before checksums, attestation and publication', () => {
+    const block = job(release(), 'release')
+    expect(block).toContain('needs: [verify, reuse, build, native-sign]')
+    expect(block).toContain("needs.native-sign.result == 'success'")
+    expect(block).toContain('pattern: m104-native-release-*')
+    expect(block).toContain('merge-multiple: false')
+    const stage = 'node scripts/package-hosts/release.mjs stage native-release release'
+    expect(block).toContain(stage)
+    expect(block.indexOf(stage)).toBeLessThan(block.indexOf('sha256sum'))
+    expect(block).toContain('mapfile -t native < .native')
+    expect(block).toContain('"${native[@]/#/./}" > SHA256SUMS')
+    expect(block).toContain('subject-checksums: release/SHA256SUMS')
+    expect(block).toContain('mapfile -t native < release/.native')
+    expect(block).toContain('"${native[@]/#/release/}" release/SHA256SUMS')
+    expect(block.indexOf('sha256sum')).toBeLessThan(
+      block.indexOf('node scripts/github-release.mjs'),
+    )
+  })
   it('runs shared conformance and packages each discovered host without credentials', () => {
     const source = native()
     expect(source).toContain('pull_request:')

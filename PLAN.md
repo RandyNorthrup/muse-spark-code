@@ -6997,6 +6997,16 @@ opposite-direction metadata or HTML-render RPC is introduced.
   the editor initiates initialize. The earlier HTML/bootstrap additions are
   dropped. D/E/F adopt the reviewed snapshots and qualify their native carriers.
 
+- **M104PF release/qualification inputs (2026-10-06):** the reviewed 1.2
+  native relay and component receipts are implemented at `545f2cc18`.
+  The planned A/B/C merge awaits the lead's explicit integrated-commit
+  instruction. Official Node pins require approved offline vendor checksum
+  material or separate network authorization; no unverified manifest is
+  created. Installed XcodeKit enablement, Xcode 26.6/27/arm64 and the other
+  editor/OS/backend/provider receipts need their rigs and owner actions/live
+  authorization. Named owner requests and required validation are in
+  `docs/certification/m104-pf-requests.md`; none of these is assumed approved.
+
 - **M104X integration dependencies:** this lane's base (`da79fd51`) lacks
   `panel --companion`, MHP runtime/UI composition and the shared Tab endpoint.
   Lane B/D must confirm the launch-line convention and whether `/post` admits
@@ -19179,6 +19189,8 @@ editor services and per-row scenarios. Use the reviewed schema snapshot,
 host locale/theme/folders/trust, bounded correlation and generation-fenced
 callbacks; preserve process-group Stop, dirty/stale UTF-16 edit refusal,
 ephemeral browser state and same-origin confinement. Implement available
+native appearance metadata for all four reviewed theme kinds from dark/light
+and increased-contrast flags, without changing system settings. Implement
 native UI/navigation services; omit incomplete capability groups explicitly.
 Fix the primary carrier guide and verify exact packaged inventories against
 the frozen protocol. New tests live in `test/m104/mac/**`; native regressions
@@ -19190,6 +19202,15 @@ promotion, other-lane edits or unrequested merge. Scoped sequential gates
 replace forbidden aggregate quality; integrated qualification stays with the
 lead. Checkpoints and concrete cross-lane requests are in
 `docs/certification/m104-pf.md` and `m104-pf-requests.md`.
+
+**M104PF release attachment checkpoint (2026-10-06, before code).**
+Use the existing verified native asset staging helper in F's owned release
+workflow: await native signing/recovery, download each signed artifact without
+merging its receipt directory, stage all present hosts, then include archives
+and receipts in the common checksums, attestation and GitHub asset inventory.
+Missing/incomplete hosts keep their explicit failure/absence policy. No
+publication, credential access, re-signing on recovery or support promotion
+is authorized/performed by this local implementation checkpoint.
 
 **FIXM104PA2 / RVM104PA2 (2026-10-06).** Consume the engine's contributed
 `ensureHost` in the real portable controller, including refusal and selected
@@ -20328,6 +20349,35 @@ aggregate certification record.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
 ## 7. Gates
+
+**M104PF bounded-lane qualification (2026-10-06).** The rig brief/shared
+rules prohibit aggregate quality, full tests, other-lane edits, unrequested
+merges, credentials and live/model calls. Hook-on native checkpoint
+`545f2cc18` passes the complete 56-test native scheme, four owning Vitest
+tests and eight red controls; exact ad-hoc universal release bytes are
+recorded in `docs/certification/m104-pf-native-artifact.json`. Every control
+restores SHA-256-exact bytes. Swift-format's optional strict lint reports
+only the pre-existing `UI_TEXT` naming diagnostic; AGENTS requires that
+runtime lookup name, so it is preserved. No formatter rule is weakened.
+Full quality/coverage/accessibility and cross-platform integrated gates
+remain the lead's final gate. No F1–F56 row or support status is promoted.
+Official bundled Node pins, production native manifests/harness observations,
+installed XcodeKit enablement, Xcode 26.6/27/arm64 execution, other declared
+OS versions and backend/provider receipts are explicit deferrals pending
+their named inputs/authorization, not accepted support. The complete row,
+editor-family and channel inventory is `docs/certification/m104-pf-inventory.md`;
+concrete dependencies are `m104-pf-requests.md`. A's integrated B/C commit is
+available but unadopted until the lead supplies the planned merge instruction.
+
+**M104PF discovery deferral (2026-10-06).** Plain Knip initially reported
+the actual fake CLI export hidden in a generated import string plus the
+standalone native drill. F made the fixture entry private/static and proved
+the entry guard through the complete authenticated-page test. The remaining
+`test/m104/mac/nativeDrills.mjs` executable requires A's exact `knip.jsonc`
+entry registration; this is a justified ownership/integration deferral, not
+an ignore, altered rule level or claimed aggregate green. Required test
+discovery, help reference, integrated A/B/C adoption and full row/native/
+backend/provider qualification stay with their named owners and receipts.
 
 **CIFIX14T verified local result (2026-10-05).** The five owning suites
 pass 113 tests (six existing Windows-only skips); the exact restored monitor

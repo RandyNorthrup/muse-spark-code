@@ -3,13 +3,44 @@
 No other lane's files are edited. Requests below are prerequisites, not
 implemented features or support receipts.
 
-| Owner | Concrete request                                                                                                                                                                                             | Validation                                                                                                                                                 |
-| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A     | Include `test/m104/mac/**/*.test.{ts,mjs}` in the central test discovery/typecheck inventory. F uses an owned local Vitest config until integration.                                                         | Normal quality discovers every F test without a filter or changed timeout.                                                                                 |
-| A     | Supply the integrated B/C commit and the lead's merge instruction. F currently consumes the frozen contracts at `74b99c4a`.                                                                                  | Record the exact integration commit and rerun assembled native scenarios after adoption.                                                                   |
-| B/E   | Deliver runtime Tab and language-service contributions for Xcode's command-only snapshots; XcodeKit exposes no file URL or background buffer observation.                                                    | Selected-model capability gates, priced once-only consent, shared hard daily ledger, cancellation and stale-buffer rejection before applying a completion. |
-| C/A   | Qualify auxiliary companion surfaces with the current factory contract and provide native opening/focus requirements.                                                                                        | Actual Tasks/What's New/diff/manager surfaces and actions, all themes/languages, immutable session ownership.                                              |
-| A     | Remove the raised `--testTimeout=120000` flags from the central `test:host-api` script. F's final runs and workflow use three-file batches at repository deadlines.                                          | All conformance tests pass under the same five-second limit as hosted CI.                                                                                  |
-| A/B   | Supply `commands/execute` handling in the owning runtime composition before native status items with commands can act.                                                                                       | Validated opaque command IDs reach the owning action exactly once; cancelled/stale generations cannot execute.                                             |
-| A     | Add Xcode's existing five Editor commands, the native Trust control and revised carrier behavior to the shared help catalog/reference when that absent source lands. No new localization keys are requested. | Reference gate agrees with the executed native commands and qualification limits.                                                                          |
-| D/E   | Supply each host's production `distribution.json` with exact `mhp: "mhp/1.2.0"`, real build/conformance commands and artifacts. F will not write other hosts' files or substitute fake harness observations. | Archive/runtime input hashes plus actual installed-editor/backend/provider observations.                                                                   |
+Native service blockers are explicit: XcodeKit supplies a command's content,
+selection and digest but no current file URL or background buffer observation.
+The documents/editor/diagnostics/formatting groups cannot honestly advertise
+their full guarantees from that snapshot. A/B/E must freeze the snapshot URI,
+version/freshness and command-transaction binding before F adds those adapters;
+test dirty/stale/mismatched buffers, one undo and changed/released transactions.
+Implementing a replacement native document/LSP stack here would exceed the
+shared 300-line stop rule and duplicate E's owned service. Voice needs the
+owning lazy recorder/dictation contract and priced bounded-duration admission;
+the compiled helper alone supplies neither. Complete editor services, auxiliary
+surfaces, voice and Tab therefore remain open rather than advertised/faked.
+
+Final plain Knip finds `test/m104/mac/nativeDrills.mjs` as an unregistered
+executable entry. **A:** add that exact path to `knip.jsonc`'s `entry` list;
+do not ignore it or lower issue levels. It is invoked directly for the real
+complete native mutation scheme, not imported by product code. Validate plain
+`npm run deadcode` plus normal test discovery and retain the default deadlines.
+
+Two release/qualification requests also remain with the lead:
+
+- Supply approved offline official Node pin material (version, platform/architecture
+  URLs and SHA-256 hashes) for the absent `src/runtime/nodeRuntime.json`. This
+  brief prohibits fetching it. Xcode currently selects an external runtime;
+  production bundling requires verified vendor bytes and archive extraction
+  plus a real installed launch. No checksum or runtime is manufactured here.
+- Authorize/collect installed XcodeKit enablement, Xcode 26.6/27, arm64 and other
+  declared macOS receipts, Windows/Linux native artifacts, and both backend/provider
+  profiles. Owner security-setting clicks and live calls are outside this brief.
+  Every applicable F1–F56 scenario must identify editor/version/architecture,
+  selected-provider capabilities and the exact tested artifact.
+
+| Owner | Concrete request                                                                                                                                                                                                         | Validation                                                                                                                                                 |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A     | Include `test/m104/mac/**/*.test.{ts,mjs}` in the central test discovery/typecheck inventory. F uses an owned local Vitest config until integration.                                                                     | Normal quality discovers every F test without a filter or changed timeout.                                                                                 |
+| A     | Supply the integrated B/C commit and the lead's merge instruction. F currently consumes the frozen contracts at `74b99c4a`.                                                                                              | Record the exact integration commit and rerun assembled native scenarios after adoption.                                                                   |
+| B/E   | Deliver runtime Tab and language-service contributions for Xcode's command-only snapshots; XcodeKit exposes no file URL or background buffer observation.                                                                | Selected-model capability gates, priced once-only consent, shared hard daily ledger, cancellation and stale-buffer rejection before applying a completion. |
+| C/A   | Qualify auxiliary companion surfaces with the current factory contract and provide native opening/focus requirements.                                                                                                    | Actual Tasks/What's New/diff/manager surfaces and actions, all themes/languages, immutable session ownership.                                              |
+| A     | Remove the raised `--testTimeout=120000` flags from the central `test:host-api` script. F's final runs and workflow use three-file batches at repository deadlines.                                                      | All conformance tests pass under the same five-second limit as hosted CI.                                                                                  |
+| A/B   | Supply `commands/execute` handling in the owning runtime composition before native status items with commands can act.                                                                                                   | Validated opaque command IDs reach the owning action exactly once; cancelled/stale generations cannot execute.                                             |
+| A     | Add Xcode's existing five Editor commands, the native Trust control and revised carrier behavior to the shared help catalog/reference when that absent source lands. No new localization keys are requested.             | Reference gate agrees with the executed native commands and qualification limits.                                                                          |
+| D/E   | Supply the eight non-Xcode hosts' production `distribution.json` with exact `mhp: "mhp/1.2.0"`, real build/conformance commands and artifacts. Xcode remains F-owned, blocked on the native/runtime prerequisites above. | Archive/runtime input hashes plus actual installed-editor/backend/provider observations.                                                                   |

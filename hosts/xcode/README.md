@@ -37,7 +37,7 @@ arguments or variables for this app.
 
 The app spawns `panel --companion` in the selected workspace with private
 stdin/stdout pipes. The editor initiates MHP 1.2 with the app's product version,
-installed language, current light/dark appearance, workspace folder and explicit
+installed language, current light/dark/increased-contrast appearance, workspace folder and explicit
 trust state. Only a validated, correlated `ui/openExternal` request supplies the
 one-use loopback launch link. Older versions and raw-URL launchers fail visibly.
 The app validates native traffic against the reviewed schema snapshot generated

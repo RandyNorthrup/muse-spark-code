@@ -6,10 +6,11 @@ import { HOSTS } from './manifest.mjs'
 
 /** A shared-runtime change selects all hosts; isolated native changes select their host. */
 export function hostMatrix(files) {
-  const all = files === undefined || files.some((file) => !file.startsWith('hosts/'))
+  const normalized = files?.map((file) => file.replaceAll('\\', '/'))
+  const all = normalized === undefined || normalized.some((file) => !file.startsWith('hosts/'))
   return {
     include: Object.entries(HOSTS)
-      .filter(([host]) => all || files.some((file) => file.startsWith(`hosts/${host}/`)))
+      .filter(([host]) => all || normalized.some((file) => file.startsWith(`hosts/${host}/`)))
       .map(([host, { os }]) => ({ host, os })),
   }
 }

@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Native distribution manifests, harness reports and release receipts require
+  the reviewed MHP 1.2 version. Packaging checks product/dependency pins, hashes
+  every injected runtime and deferred browser file, and refuses changed or
+  symlinked inputs. Installed archive/runtime qualification remains separate.
+- The release workflow verifies and stages native archives and receipts after
+  signing/recovery, then includes them in checksums, attestations and the GitHub
+  asset inventory before any native registry publication.
 - Xcode's companion app initiates the reviewed MHP 1.2 contract and validates
   correlated native traffic instead of reading a raw launch URL. It preserves
   bounded transport, cancellation, process-group Stop and private browser state.
