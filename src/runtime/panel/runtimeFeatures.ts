@@ -380,25 +380,20 @@ export async function runtimeConversationDeps(ports: RuntimeConversationPorts) {
       if (answer === ACP_PAID_OPTIONS.allowOnce) return 'once'
       return canRemember && answer === ACP_PAID_OPTIONS.allowAlways ? 'always' : 'deny'
     })
+  const selectionRoot = options.trustWorkspace ? await realpath(workspaceRoot) : undefined
+  let admittedSelectionPaths = new Set<string>()
   const mentions = new MentionIndex({
-    listFiles: () => walkFiles(workspaceRoot, MENTION_INDEX_LIMIT, log),
+    listFiles: async () => {
+      const files = await walkFiles(workspaceRoot, MENTION_INDEX_LIMIT, log)
+      admittedSelectionPaths = new Set(files.map((file) => file.replaceAll('\\', '/')))
+      return files
+    },
     now: Date.now,
     ttlMs: MENTION_INDEX_TTL_MS,
     limit: MENTION_INDEX_LIMIT,
     log,
   })
-  const admittedSelectionPaths = new Map<string, string>()
-  if (options.trustWorkspace) {
-    const indexed = await mentions.search('', MENTION_INDEX_LIMIT)
-    for (const item of indexed) {
-      if (item.isFolder) continue
-      const confined = await confineWorkspacePath(workspaceRoot, item.path, process.platform, {
-        realPath: realpath,
-      })
-      if (confined.ok && confined.canonical === item.path.replaceAll('\\', '/'))
-        admittedSelectionPaths.set(item.path.replaceAll('\\', '/'), confined.checkedAbsolute)
-    }
-  }
+  if (options.trustWorkspace) await mentions.search('', MENTION_INDEX_LIMIT)
   const archived = idsSchema.parse((await store.getStorage('archivedSessions', 'workspace')) ?? [])
   const damaged = idsSchema.parse((await store.getStorage('damagedSessions', 'workspace')) ?? [])
   let last: LastSession | undefined
@@ -530,11 +525,18 @@ export async function runtimeConversationDeps(ports: RuntimeConversationPorts) {
     shellSandbox: () => runtime.museCode.shellSandboxPosture(),
     editorContext: () =>
       runtimeEditorContext(ports.selection(), workspaceRoot, process.platform, (relative) => {
-        if (!options.trustWorkspace) return false
-        const canonical = admittedSelectionPaths.get(relative)
-        if (canonical === undefined) return false
+        if (
+          selectionRoot === undefined ||
+          !options.trustWorkspace ||
+          !admittedSelectionPaths.has(relative)
+        )
+          return false
         try {
-          return realpathSync(path.resolve(workspaceRoot, relative)) === canonical
+          return (
+            path
+              .relative(selectionRoot, realpathSync(path.resolve(workspaceRoot, relative)))
+              .replaceAll('\\', '/') === relative
+          )
         } catch {
           return false
         }

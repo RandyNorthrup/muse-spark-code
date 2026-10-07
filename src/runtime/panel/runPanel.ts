@@ -106,6 +106,26 @@ function unsupported(): never {
   })
 }
 
+/**
+ * Companion closes have one serialized owner. Retire every page of a
+ * replaced session here, while the registry still holds it, and hand each
+ * surface to its feature owner so release-time cleanup finds nothing
+ * orphaned to close past conversation cancellation.
+ */
+export function retireCompanionPages(
+  pages: Map<string, { binding: MhpPanelBinding; html?: string; nonce?: string }>,
+  retireContext: ((id: string) => void) | undefined,
+  closed: Set<(id: string) => void>,
+  sessionId: string,
+): void {
+  for (const [id, page] of pages)
+    if (page.binding.sessionId === sessionId) {
+      retireContext?.(id)
+      pages.delete(id)
+      for (const listener of closed) listener(page.binding.surface)
+    }
+}
+
 /** Native carriers use stdout; companion browser traffic is bound to an authenticated window. */
 export async function runPanel(deps: RunPanelDeps): Promise<number> {
   const { log, input, output } = deps
@@ -586,11 +606,17 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
       browsers.delete(id)
     }
     companion?.retireContext(sessionId)
-    for (const [id, page] of companionPages)
-      if (page.binding.sessionId === sessionId) {
-        companion?.retireContext(id)
-        companionPages.delete(id)
-      }
+    const owner = companion
+    retireCompanionPages(
+      companionPages,
+      owner === undefined
+        ? undefined
+        : (id) => {
+            owner.retireContext(id)
+          },
+      surfaceClosed,
+      sessionId,
+    )
     if (deps.transport === 'stdio')
       for (const binding of retired)
         await peer.request('surfaces/close', { surfaceId: binding.surface }, ending.signal)
@@ -728,10 +754,9 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
           {
             host: {
               async request(method, params, signal) {
-                signal =
-                  signal === undefined
-                    ? controller.signal
-                    : AbortSignal.any([signal, controller.signal])
+                // Cleanup outlives conversation cancellation, but never the carrier.
+                const ownerSignal = method === 'surfaces/close' ? ending.signal : controller.signal
+                signal = signal === undefined ? ownerSignal : AbortSignal.any([signal, ownerSignal])
                 signal.throwIfAborted()
                 const capability = MHP_METHODS[method].capability
                 if (capability === 'settings' || capability === 'storage') {

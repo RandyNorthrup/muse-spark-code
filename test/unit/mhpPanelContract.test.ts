@@ -45,10 +45,10 @@ describe('MHP 1.3 replacement panel contract', () => {
   it('documents replacement of 1.1 and current 1.3 schemas behind legacy filenames', async () => {
     const readme = await readFile('README.md', 'utf8')
     const guide = readme
-      .split('The replacement MHP 1.3.0 panel contract', 2)[1]
+      .split('The replacement MHP 1.3.0 contract', 2)[1]
       ?.split('Regenerate with', 1)[0]
       ?.replaceAll(/\s+/gu, ' ')
-    expect(guide).toContain('MHP 1.3 replaces 1.1')
+    expect(guide).toContain('MHP 1.3 replaces 1.1 and 1.2')
     expect(guide).toContain('both legacy-named snapshots carry the current 1.3 schemas')
     expect(guide).not.toContain('preserve frozen v1')
     const header = z.object({ protocol: z.string() })

@@ -1,5 +1,5 @@
 import { createRuntimeEngineFactory } from '../../src/runtime/panel/engineEntry'
-import { mkdtemp, mkdir, writeFile, symlink, realpath } from 'node:fs/promises'
+import { mkdtemp, mkdir, writeFile, symlink, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -20,13 +20,14 @@ import type {
   MhpRequestMethod,
   MhpResult,
 } from '../../src/shared/hostApi/methods'
-import { SECRET_KEYS } from '../../src/shared/constants'
+import { SECRET_KEYS, MENTION_INDEX_TTL_MS } from '../../src/shared/constants'
 import { memorySecrets, fakeSurface } from './helpers/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const cleanup: (() => Promise<void>)[] = []
 afterEach(async () => {
   for (const close of cleanup.splice(0)) await close()
+  vi.restoreAllMocks()
 })
 async function setup(isTrusted = true, factories?: RuntimeFeatureFactories) {
   const root = await realpath(await mkdtemp(path.join(tmpdir(), 'm104-ports-')))
@@ -118,6 +119,39 @@ async function setup(isTrusted = true, factories?: RuntimeFeatureFactories) {
 }
 
 describe('standalone conversation ports', () => {
+  it('admits newly indexed selected text live and refuses a replaced link or excluded path', async () => {
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(1)
+    const f = await setup()
+    const active = f.state.active
+    if (active === null) throw new Error('No fake selection')
+    const created = path.join(f.workspace, 'new.ts')
+    await writeFile(created, 'new source')
+    f.state.active = {
+      ...active,
+      uri: pathToFileURL(created).href,
+      range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
+      excerpt: 'new selection',
+    }
+    expect(f.deps.editorContext()?.selectedText).toBeUndefined()
+    clock.mockReturnValue(MENTION_INDEX_TTL_MS + 2)
+    expect(await f.deps.mentions.contains('new.ts')).toBe(true)
+    expect(f.deps.editorContext()?.selectedText).toBe('new selection')
+    await rm(created)
+    await symlink(f.outside, created)
+    expect(f.deps.editorContext()?.selectedText).toBeUndefined()
+    const excluded = path.join(f.workspace, 'node_modules', 'private.ts')
+    await mkdir(path.dirname(excluded))
+    await writeFile(excluded, 'private')
+    f.state.active = { ...f.state.active, uri: pathToFileURL(excluded).href }
+    clock.mockReturnValue(MENTION_INDEX_TTL_MS * 2 + 2)
+    expect(await f.deps.mentions.contains('node_modules/private.ts')).toBe(false)
+    expect(f.deps.editorContext()?.selectedText).toBeUndefined()
+    const untrusted = await setup(false)
+    if (untrusted.state.active === null) throw new Error('No untrusted selection')
+    untrusted.state.active = { ...untrusted.state.active, range: f.state.active.range }
+    await untrusted.deps.mentions.contains('source.ts')
+    expect(untrusted.deps.editorContext()?.selectedText).toBeUndefined()
+  })
   it('delegates paid policy, accounting, account/budget/attempt hosts and authentication to the engine contribution', async () => {
     const snapshot: AuthSnapshot = { status: 'signedIn', backend: 'modelApi', detail: undefined }
     const auth: AuthPort = {

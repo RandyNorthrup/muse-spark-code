@@ -19244,6 +19244,37 @@ Missing/incomplete hosts keep their explicit failure/absence policy. No
 publication, credential access, re-signing on recovery or support promotion
 is authorized/performed by this local implementation checkpoint.
 
+**M104PF continuation 3 (2026-10-07, authorized before code).** Merge
+`m104/pa` at `82aaaae9a` with `--no-ff`, preserving both lanes' documentation.
+Adopt A's FIXM104PA4 contracts (state-publication reconciliation, serialized
+companion-page retirement) in F's owned fixtures/snapshots. Continue F's rows
+in dependency order with checkpoints. Keep default test deadlines, existing
+caps, hook-on explicit-path commits, and installed/live/support boundaries.
+No push or further merge.
+
+**FIXM104PA4 / RVM104PA4 (2026-10-07).** Close the re-review's two P2
+findings in lane A's files, closing residual R3-2. State publication
+reconciles into the mounted presentation page (fresh boundary key only
+after a crash); companion retire hands each replaced page to its feature
+owner through one serialized `retireCompanionPages` step while the session
+is still held, so no guard is widened. Failing regressions with SHA-256
+restoration go in `docs/certification/m104-pa-integration.md`. Scoped
+sequential checks run directly on macmini at repository deadlines; no
+merge, dependency, guard widening, support promotion, build, packaging or
+live/paid call. No RVM104PA4 residual remains; the companion E2E is a
+named follow-up (this rig's sandbox denies loopback binds).
+
+**FIXM104PA3 / RVM104PA3 (2026-10-06).** Repair all six review findings in
+lane A: ship the shared host protocol in the VSIX and production deferred-bundle
+fixtures; preserve disposal requests after conversation cancellation; retire
+completed presentation request IDs and admit actions against the specific
+authoritative field they change, publishing fresh state; admit selected text
+against the live confined mention index; and update the README marker's owning
+contract test. Add failing regression controls with SHA-256 restoration to
+`docs/certification/m104-pa-integration.md`. Run build and package end to end,
+then scoped sequential checks at repository deadlines on macmini. No merge,
+new dependency, gate weakening, support promotion or live/paid call.
+
 **M104PA continuation 3 integration (2026-10-06).** The authorized rig brief
 merges B `737196296` and C `739cf1771` into A. Integrate their concrete request
 records through A-owned composition, validated auxiliary vocabularies, settings,
@@ -19667,6 +19698,16 @@ and are not transferred or accepted as complete by these launcher repairs.
 ---
 
 ## 7. Gates
+
+**FIXM104PA3 packaging correction (2026-10-06).** Lane A repairs the existing
+VSIX allowlist and its actual package-member/production activation tests for
+`dist/hostProtocol.js`. Build and package run end to end locally with the
+existing named offline badge option, as required by the no-network rig brief.
+F retains the exact CI VSIX/ACP inventories and native/distribution receipts;
+the handoff now explicitly names this existing VS Code startup dependency and
+the required `extension/dist/hostProtocol.js` workflow member. Scoped default-
+deadline regressions and eight byte-exact red controls are recorded in
+`docs/certification/m104-pa-integration.md`. Aggregate quality remains lead-owned.
 
 **M104PA continuation 3 scope and ownership (2026-10-06).** The rig brief
 forbids full quality/full-suite runs; certify scoped sequential runs at default

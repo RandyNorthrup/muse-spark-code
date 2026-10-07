@@ -22,6 +22,7 @@ import {
   sharedUiText,
   sharedValidation,
   sharedWire,
+  sharedHostProtocol,
 } from '../../scripts/lib/deferredBundles.mjs'
 import type * as validation from '../../src/shared/validationEntry'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -90,7 +91,7 @@ beforeAll(async () => {
         pageWorker: 'src/host/web/pageWorker.ts',
         searchWorker: 'src/host/backend/searchWorker.ts',
       },
-      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, sharedHostProtocol],
       external: ['vscode', '@napi-rs/keyring'],
     }),
     build({
@@ -101,9 +102,19 @@ beforeAll(async () => {
         acp: 'src/runtime/main.ts',
         runtimePanel: 'src/runtime/panel/panelEntry.ts',
         runtimePanelPorts: 'src/runtime/panel/runtimeFeaturesEntry.ts',
+        runtimeBackendServices: 'src/runtime/panel/backendEntry.ts',
+        runtimeEngines: 'src/runtime/panel/engineEntry.ts',
+        runtimeContext: 'src/runtime/panel/contextEntry.ts',
+        runtimePresentation: 'src/host/views/runtimePresentationEntry.ts',
       },
-      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, sharedHostProtocol],
       external: ['@napi-rs/keyring'],
+    }),
+    build({
+      ...common,
+      outdir: 'dist',
+      entryPoints: { hostProtocol: 'src/shared/hostApi/hostProtocolEntry.ts' },
+      plugins: [sharedUiText, sharedValidation, sharedWire],
     }),
     build({
       ...common,
@@ -279,6 +290,7 @@ describe('deferred cohort bundles', () => {
     ])
     expect(module.exports).toHaveProperty('activate', expect.any(Function))
     expect(loaded).toContain('./wire.js')
+    expect(loaded).toContain('./hostProtocol.js')
     expect(loaded).not.toContain('./sessionBoard.js')
     expect(loaded).not.toContain('./reviewer.js')
     expect(loaded).not.toContain('./conversation.js')

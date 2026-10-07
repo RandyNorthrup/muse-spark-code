@@ -35,6 +35,11 @@ happened, not what was planned; superseded entries are kept.
   remains experimental and requires the recorded qualification receipts.
 - The standalone carrier guide now describes the shipped authenticated browser
   renderer and UI bridge and names the remaining native integration gaps.
+- Ship the shared host protocol in the VSIX so the extension loads, and verify
+  activation with the production split. Portable cleanup closes auxiliary views
+  after conversation cancellation. Presentation actions retire completed IDs,
+  compare their selected records and publish fresh state; selected text follows
+  the live confined workspace index. The README contract test follows its 1.3 marker.
 
 - Integrate portable engine and presentation factories in separately checked lazy
   bundles, including real checkpoint recording, version-attested verification,
