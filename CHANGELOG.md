@@ -27,6 +27,16 @@ happened, not what was planned; superseded entries are kept.
   coverage, dispositions, exact prior-id redesign resolutions) is a lazily
   read model-text block of its own behind the existing skills bundle, so no
   other request changes. Orchestrated reviewer bindings belong to M116 I/W.
+- Answer `/playbook <status|record|settings ...>` locally in ACP sessions and
+  the standalone `playbook` command with no backend or model turn, over a
+  journal-backed settings/record surface. Settings changes need a reason and
+  record the owner; rule opt-outs and the fallback reviewer for
+  classifier-blocked reviews need a real user decision; residuals stay open
+  per milestone until a lead or owner accepts them and release refuses while
+  any are open; dispatch briefs render structurally with their hashes
+  recorded first. The playbook joins the help reference and the host
+  capability inventory on all four editor/backend surfaces. Panel
+  enforcement waits for M96's planner; see `docs/certification/m116.md`.
 
 ### Fixed
 

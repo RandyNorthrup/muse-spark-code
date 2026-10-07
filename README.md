@@ -114,29 +114,35 @@ Earlier releases are in the
 
 ## Orchestrator playbook policy (M116)
 
-The shared policy verifies commit outcomes before harness-managed push or
-completion. Its command guard is an advisory early warning. Each newly
-reachable commit needs a passing receipt for the repository's own hooks;
-failed or unavailable hooks add a strike and block completion and push.
-Verification discovers new branches, tags, notes, every worktree HEAD and
-private refs in every worktree. Hooks run only through native `git hook run`
-in the verification worktree with the source repository's absolute hooksPath;
-HUSKY, HUSKY_SKIP_HOOKS and all GIT_* overrides are removed from its environment.
-Git's exit code is the verdict, including repository-defined Husky startup
-and layout behavior. Git's missing-hook error fails closed for configured
-hook sets. Annotated tags verify their target commit; ref deletions need no
-hook receipt. Pre-repair receipts require fresh verification. Renewal and
-cancellation require the requesting lease token; hook-failure strikes stop
-patches even without review findings. POSIX timeout cleanup tracks descendants
-by parent chain and start-time identity, including separate sessions. Prepared
-Linux cgroup/scope runners take precedence; their M107 binding remains I/W work.
-Windows verification requires the trusted harness job runner and refuses while
-that integration is unavailable.
-Lane and generation leases fence stale reviews, and edited moves and merges
-inherit review history. Editor/planner integration remains M116 I/U/W work.
-See the [shared policy help reference](docs/reference.md) for its lifecycle.
-Regenerate it with `node scripts/gen-reference.mjs`; verify it with
-`npm run check:reference`.
+Nine rules govern orchestrated work: eight the team can configure (never to
+off for safety, never above their ceiling) plus the safety rule that always
+applies. A strike policy stops patches after repeated review failures; review
+coverage, finding classes and dispositions are explicit; generation leases
+fence stale reviews; and review history follows edited moves and merges.
+
+Outcomes verify before harness-managed push or completion: each newly
+reachable commit needs a passing receipt from the repository's own hooks,
+run only through native `git hook run` with the source repository's absolute
+hooksPath and a scrubbed environment. Verification discovers new branches,
+tags, notes, every worktree HEAD and private refs in every worktree; POSIX
+timeout cleanup tracks descendants by parent chain and start-time identity.
+Windows verification uses the trusted harness job runner; the M107 governor
+binding stays open.
+
+The panel, Agent map, ACP and CLI read the same journal: `/playbook
+<status|record|settings ...>` and `playbook <status|record|settings ...>`
+show status, journal evidence and settings without starting a backend or a
+model turn. Settings changes need a reason and record the owner; turning
+rules off and naming the fallback reviewer for classifier-blocked reviews
+need a real user decision. Residuals stay open per milestone until a
+lead or owner accepts them, and release refuses while any are open.
+Dispatch briefs render structurally and their hashes record before dispatch.
+See the [help reference](docs/reference.md) (`Orchestrator playbook` row
+and the `playbook` CLI command), regenerated with
+`npm run reference:generate` and verified with `npm run check:reference`.
+The reviewer charter ships as the `orchestrator-playbook` skill; turning on
+panel enforcement waits for M96's planner (see
+`docs/certification/m116.md`).
 
 ## Highlights
 

@@ -106,6 +106,22 @@ Scheduled/unattended prompts defer immediately and keep the question open,
 including with interactive deferral disabled; headless exec, best-of-N,
 worktrees and the evaluation retain their distinct immediate policies.
 
+## M116 playbook surfaces — integration status
+
+2026-10-07: the journal-backed settings/record surface is bound to the ACP
+agent (serve path) and the standalone CLI; panel enforcement (leases,
+outcome receipts, dispatch gating) waits for M96's planner, and the panel
+settings page and Agent-map slots wait for host mounting. Recorded in
+[M116's record](../certification/m116.md).
+
+| Surface                                                                                           | Settings and journal path                                    | Enforcement and UI slots                              | Binding / evidence                                             |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------- | -------------------------------------------------------------- |
+| VS Code family, Remote SSH, WSL, containers, Codespaces                                           | Same journal file; CLI `playbook` today                      | Panel page, Agent-map slots and dispatch gating: open | W surface/CLI bindings; controller fakes; install checklist: W |
+| ACP with forms, ACP without forms (Zed, Xcode, JetBrains, Neovim, Emacs, Sublime, others)         | `/playbook status\|record\|settings` on serve, no model turn | Same enforcement row as VS Code                       | W serve binding; fakes; installed-client checks: lead          |
+| Standalone CLI                                                                                    | `playbook <status\|record\|settings ...>`; starts no backend | None (read/settings surface only)                     | W routing and runner; unit checks                              |
+| Headless exec                                                                                     | Unbound: no `/playbook` until the hosted policy reviews it   | Declines with the run                                 | Explicitly unbound; fake checks                                |
+| Other editors (JetBrains native, Visual Studio, Eclipse, companion, TUI, Muse Desktop, Muse Code) | Same journal format on their integration                     | Their mounting and integration                        | Awaiting their integration; editor matrix stays equal          |
+
 ## Native and scientific
 
 | Editor                    | Route                               | Milestone | Status  |

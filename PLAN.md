@@ -28765,6 +28765,14 @@ control's focus (or the saved rule heading), and announce successful saves
 through a polite live region. Add regressions and byte-exact red drills in
 `docs/certification/m116-u.md`. Existing P/I/W integration handoffs remain.
 
+**Status 2026-10-07: lane W integrated.** All five lanes merged (`m116/w`;
+`docs/certification/m116.md`); every P1/P2 finding verified fixed; the D100
+M116 amendments (G3, G17, G20, G24) implemented with tests and red drills;
+ACP `/playbook` and CLI `playbook` bound to the journal-backed surface;
+help/reference catalogued; full gate recorded in `m116.md`. Open: panel
+enforcement install (needs M96's planner/board), M107 governor, M110/M115w
+callers, M113 report rows, headless exec surface, installed-editor checks.
+
 **Status 2026-10-06: planned.** Small: about 60 lane-hours in lane 0 and four
 lanes. No model call is needed; every test runs on a fake review loop and a
 fake board. M96's plan is on its own branch, so the playbook's lanes sit here
