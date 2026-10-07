@@ -4,11 +4,13 @@
 // and results are the shapes Muse Code 1.3.0 sent on 2026-09-25
 // (docs/certification/m46.md).
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import { Header } from '../../src/webview/components/Header'
-import { renderTranscript, tool, userShell } from './helpers/transcriptFixtures'
+import { renderTranscript, tool, userShell, warmRowMenus } from './helpers/transcriptFixtures'
 import { SHELL_CALL_STARTED, SHELL_CALL_STOPPED } from './helpers/m46Capture'
+
+beforeAll(warmRowMenus)
 
 /** The captured shell call, as a row. */
 function shellCall(overrides: Parameters<typeof tool>[0] = {}) {

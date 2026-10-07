@@ -136,6 +136,7 @@ function packagingFixture() {
     'runtimeQuestions',
     'questionNotes',
     'modelApi',
+    'media',
     'reviewer',
     // M91: the adapters, the hook and MCP-form runtime, the window's hook runner.
     'foreignHooks',
@@ -146,6 +147,7 @@ function packagingFixture() {
     'uiText',
     'uiTextRuntime',
     'uiTextHooks',
+    'uiTextMedia',
     'uiTextSurfaces',
     'wire',
     'validation',
@@ -154,7 +156,7 @@ function packagingFixture() {
   ]) {
     writeFileSync(path.join(dir, 'dist', `${bundle}.js`), '// test-owned inert bundle\n')
   }
-  for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs']) {
+  for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs', 'MuseSparkScreenRecord.cs']) {
     writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
   }
   writeFileSync(path.join(dir, 'l10n', 'ui.de.json'), '{}\n')

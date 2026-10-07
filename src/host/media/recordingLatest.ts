@@ -7,6 +7,8 @@ import path from 'node:path'
 import type { LinuxLatestRecordingPort } from '../../core/media/record/linux'
 import type { MediaSource } from '../../core/media/limits'
 import type { ScreenRecordingPreview } from '../../core/media/record/driver'
+import { UI_TEXT } from '../../shared/constants'
+import { uiLocale } from '../../shared/l10n/text'
 
 const OWNER_DIRECTORY_MODE = 0o700
 const OWNER_FILE_MODE = 0o600
@@ -81,7 +83,8 @@ export function createLinuxLatestPort(host: LinuxLatestHost): LinuxLatestRecordi
         if (targetStat.size === 0 || targetStat.size > maxBytes) {
           throw new Error('Latest recording copy exceeds the preview cap')
         }
-        const { sniffMedia } = await import('../../core/media/limits')
+        const { createMediaInspector } = await import('../../core/media/inspectEntry')
+        const { sniffMedia } = createMediaInspector(UI_TEXT, uiLocale())
         const mediaSource: MediaSource = {
           sizeBytes: targetStat.size,
           read: async (offset, length) => {

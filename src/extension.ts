@@ -2908,6 +2908,8 @@ async function activateWindow(
                   }),
                   mediaOpen,
                 ),
+                UI_TEXT,
+                uiLocale(),
               ),
             ),
           // M105 W (E1-recording-host-binding): the recording command's deps.

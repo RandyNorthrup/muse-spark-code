@@ -64,7 +64,7 @@ import {
   WINDOWS_POWERSHELL_RELATIVE_PATH,
   WINDOWS_POWERSHELL_UTF8_PREAMBLE,
 } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
+import { fill, uiLocale } from '../../shared/l10n/text'
 import { canonicalPath } from '../canonicalPath'
 import { foldersMade, writeFileAtomically, writeFileIfUnchanged } from '../fsAtomic'
 import { killTree, type ProcessTreeDeps, type ShellJob, treeSpawnOptions } from '../processTree'
@@ -522,7 +522,8 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       )
         throw new RangeError('Invalid media read limit')
       signal?.throwIfAborted()
-      const media = await import('../../core/media/limits')
+      const { createMediaInspector } = await import('../../core/media/inspectEntry')
+      const media = createMediaInspector(UI_TEXT, uiLocale())
       let file: FileHandle
       try {
         file = await open(absolutePath, 'r')
@@ -774,19 +775,22 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       }
       return {
         fill: async (bytes) => {
-          await checkedOpenedFile(absolutePath, handle, expectedCanonicalPath, deps.platform)
-          // Immediately before writing: the held file is still empty and the
-          // path still names it. A failure part way is left as it is, never
-          // cleaned up blindly: a release removes the file only while empty.
-          const held = await handleIdentity(handle)
-          if (Number(held.size) > 0 || !(await isReserved())) {
+          try {
+            await checkedOpenedFile(absolutePath, handle, expectedCanonicalPath, deps.platform)
+            // Immediately before writing: the held file is still empty and the
+            // path still names it. A failure part way is left as it is, never
+            // cleaned up blindly: a release removes the file only while empty.
+            const held = await handleIdentity(handle)
+            if (Number(held.size) > 0 || !(await isReserved())) {
+              return 'changed'
+            }
+            deps.assertWorkspaceCurrent?.()
+            await handle.writeFile(bytes)
+            return 'done'
+          } finally {
+            // The caller can stop after a failed fill; it must not own a leaked descriptor.
             await close()
-            return 'changed'
           }
-          deps.assertWorkspaceCurrent?.()
-          await handle.writeFile(bytes)
-          await close()
-          return 'done'
         },
         release,
       }

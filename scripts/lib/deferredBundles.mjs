@@ -80,6 +80,20 @@ export const DEFERRED = [
 // The Model API backend keeps its own copy of code intelligence.
 export const ON_FIRST_USE = [
   {
+    output: 'dist/media.js',
+    metafile: 'dist/meta/media.json',
+    use: 'the first media attachment or trusted media read',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/core/media/inspectEntry.ts',
+      'src/core/media/limits.ts',
+      'src/core/media/sniff/isoBmff.ts',
+      'src/core/media/sniff/ebml.ts',
+      'src/core/media/sniff/riff.ts',
+      'src/core/media/sniff/mp3.ts',
+    ],
+  },
+  {
     output: 'dist/questionNotes.js',
     metafile: 'dist/meta/questionNotes.json',
     use: 'the first backend question deferral',
@@ -339,6 +353,7 @@ export const sharedValidation = {
 // Keep dynamic imports dynamic: these entries run only on their first action.
 /** @type {import('esbuild').Plugin} */
 const DEFERRED_OUTFILES = new Map([
+  [path.resolve('src/core/media/inspectEntry.ts'), 'dist/media.js'],
   [path.resolve('src/core/questions/deferralEntry.ts'), 'dist/questionNotes.js'],
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
@@ -356,7 +371,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry)(?:\.[jt]s)?$/,
+          /\/(?:sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|inspectEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (args.kind !== 'dynamic-import') return

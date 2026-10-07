@@ -17,6 +17,7 @@ interface SurfaceProps {
   readonly onClose?: (() => void) | undefined
   readonly isModal?: boolean
   readonly keepFocus?: boolean | undefined
+  readonly asListItem?: boolean | undefined
 }
 
 export function DeferredSurface({
@@ -36,10 +37,11 @@ function UnavailableSurface({
   onClose,
   isModal = true,
   keepFocus = false,
+  asListItem = false,
   failed = false,
   opener,
 }: SurfaceProps & { readonly failed?: boolean; readonly opener?: Element | null }) {
-  const container = useRef<HTMLDivElement>(null)
+  const container = useRef<HTMLElement>(null)
   const closeButton = useRef<HTMLButtonElement>(null)
   const [trigger] = useState(() => opener ?? document.activeElement)
   const close = () => {
@@ -47,20 +49,20 @@ function UnavailableSurface({
     onClose?.()
   }
   useLayoutEffect(() => {
-    if (isModal) return
+    if (isModal || onClose === undefined) return
     if (!keepFocus) closeButton.current?.focus()
     const dismiss = (event: Event) => {
       if (!(event.target instanceof Node) || container.current?.contains(event.target)) return
       // Focus may stay in an attached composer's input while loading.
       if (event.type === 'focusin' && event.target === trigger) return
-      onClose?.()
+      onClose()
     }
     const escape = (event: KeyboardEvent) => {
       if (webviewKey('deferred.close', event) !== 'close') return
       event.preventDefault()
       event.stopPropagation()
       if (trigger instanceof HTMLElement && trigger.isConnected) trigger.focus()
-      onClose?.()
+      onClose()
     }
     document.addEventListener('pointerdown', dismiss)
     document.addEventListener('focusin', dismiss)
@@ -94,15 +96,21 @@ function UnavailableSurface({
       </Modal>
     )
   }
+  const Container = asListItem ? 'li' : 'div'
   return (
-    <div ref={container} className="palette history">
+    <Container
+      ref={(node: HTMLElement | null) => {
+        container.current = node
+      }}
+      className={asListItem ? 'activity' : 'palette history'}
+    >
       {row}
       {onClose === undefined ? null : (
         <button ref={closeButton} type="button" className="button-secondary" onClick={close}>
           {UI_TEXT.usageClose}
         </button>
       )}
-    </div>
+    </Container>
   )
 }
 
@@ -123,7 +131,12 @@ export function deferred<P extends object>(
             setIntent((current) => ({ ...current, active: false }))
             props.onClose?.()
           }
-    const surfaceProps = { onClose, isModal: props.isModal ?? isModal, keepFocus: props.keepFocus }
+    const surfaceProps = {
+      onClose,
+      isModal: props.isModal ?? isModal,
+      keepFocus: props.keepFocus,
+      asListItem: props.asListItem,
+    }
     return (
       <SurfaceBoundary {...surfaceProps} opener={intent.opener}>
         <DeferredSurface {...surfaceProps} fallback={fallback?.(props)}>

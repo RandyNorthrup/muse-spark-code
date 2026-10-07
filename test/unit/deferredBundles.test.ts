@@ -1,13 +1,13 @@
 // Build the real shipped Node entries once with the production plugins.
 // Each drill changes its own metafile copy, never shared dist/ files.
 import { createHash } from 'node:crypto'
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import { build } from 'esbuild'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import { EN } from '../../src/shared/l10n/en'
 import { L10N_COMPRESSION_QUALITY } from '../../src/shared/constants'
@@ -24,6 +24,10 @@ import {
   sharedWire,
 } from '../../scripts/lib/deferredBundles.mjs'
 import type * as validation from '../../src/shared/validationEntry'
+import type { createMediaInspector, createMediaAttachments } from '../../src/host/media/mediaEntry'
+import { createMediaAttachDeps } from '../../src/host/media/mediaProviders'
+import { loadUiTable } from '../../src/host/l10n'
+import { fill, setUiText } from '../../src/shared/l10n/text'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const metafileSchema = z.looseObject({
@@ -72,6 +76,7 @@ beforeAll(async () => {
         reference: 'src/shared/reference/referenceEntry.ts',
         conversation: 'src/host/conversation/conversationEntry.ts',
         modelApi: 'src/host/backend/modelApiEntry.ts',
+        media: 'src/host/media/mediaEntry.ts',
         sessionBoard: 'src/host/sessionBoardEntry.ts',
         reviewer: 'src/core/backends/modelapi/reviewerEntry.ts',
         foreignHooks: 'src/core/backends/modelapi/foreignHooksEntry.ts',
@@ -229,6 +234,75 @@ function inputs(name: string): string[] {
 }
 
 describe('deferred cohort bundles', () => {
+  it('loads media inspection only on first use and rejects an ACP inline copy', async () => {
+    const source = 'src/core/media/limits.ts'
+    expect(inputs('media')).toContain(source)
+    for (const parent of ['extension', 'modelApi', 'acp']) {
+      expect(inputs(parent)).not.toContain(source)
+    }
+    expect(bundleText('extension')).toContain('media.js')
+    expect(bundleText('acp')).toContain('./media.js')
+    const problems = checkDeferredBundles((bundle) =>
+      bundle.output === 'dist/acp.js'
+        ? new Map([...bundleInputs(bundle), [source, 1]])
+        : bundleInputs(bundle),
+    )
+    expect(problems).toContain(
+      'dist/acp.js carries src/core/media/limits.ts, which loads only on the first media attachment or trusted media read',
+    )
+    const media = z
+      .object({
+        createMediaInspector: z.custom<typeof createMediaInspector>(
+          (value) => typeof value === 'function',
+        ),
+        createMediaAttachments: z.custom<typeof createMediaAttachments>(
+          (value) => typeof value === 'function',
+        ),
+      })
+      .parse(loadSupportBundle('media'))
+    const german = await loadUiTable({
+      language: 'de',
+      readExtensionFile: (segments) =>
+        Promise.resolve(readFileSync(path.join(...segments), 'utf8')),
+      log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    })
+    try {
+      const inspector = media.createMediaInspector(german.table, german.locale)
+      expect(
+        await inspector.sniffMedia({
+          sizeBytes: 1,
+          read: () => Promise.resolve(new Uint8Array([0])),
+        }),
+      ).toEqual({
+        ok: false,
+        reason: fill(german.table.media.attachmentUnknownType, { type: 'media' }),
+      })
+      expect(
+        inspector.checkMediaLimits({
+          kind: 'audio',
+          mediaType: 'audio/wav',
+          sizeBytes: 1,
+          durationSeconds: 1,
+        }),
+      ).toEqual({ ok: true })
+      media.createMediaInspector(EN, 'en')
+      const attachments = media.createMediaAttachments(
+        createMediaAttachDeps(
+          () => ({ mediaMaxUploadMiB: 1, screenRecordingMaxSeconds: 1 }),
+          () => Promise.resolve(undefined),
+        ),
+        german.table,
+        german.locale,
+      )
+      expect(await attachments.prepare('unissued', 'modelApi', 'model')).toEqual({
+        ok: false,
+        reason: german.table.attachmentUnreadable,
+      })
+    } finally {
+      media.createMediaInspector(EN, 'en')
+      setUiText(EN, 'en')
+    }
+  })
   it('keeps M112 registry and deferral helpers lazy and rejects inline copies', () => {
     for (const [source, destination] of [
       ['src/runtime/questions/acpRegistry.ts', 'runtimeQuestions'],

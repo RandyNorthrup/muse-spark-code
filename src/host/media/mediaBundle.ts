@@ -4,10 +4,10 @@
 import type { Logger } from '../logger'
 import { lazyBundleLoader } from '../lazyBundle'
 import { UI_TEXT } from '../../shared/constants'
-import type { MediaAttachDeps, MediaAttachmentPort } from './mediaEntry'
+import type { createMediaAttachments } from './mediaEntry'
 
 interface MediaBundle {
-  readonly createMediaAttachments: (deps: MediaAttachDeps) => MediaAttachmentPort
+  readonly createMediaAttachments: typeof createMediaAttachments
 }
 
 // Same shipped source/build; only this export's function signature is trusted (PLAN §8).

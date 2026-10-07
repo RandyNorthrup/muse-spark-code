@@ -63,9 +63,9 @@ const BUDGETS = [
   // Measured size plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/checkpointStore.js', budgetKiB: 225 },
   // M105 lane W: the attachment path (attach port with the portable
-  // sniffers, limits and modality gate), loaded on first attach: 22.7 KiB
-  // when split out. Measured size plus 15%, rounded up to 25 KiB.
-  { path: 'dist/media.js', budgetKiB: 50 },
+  // sniffers, limits and modality gate), loaded on first attach: 21.0 KiB
+  // after the USD split. Measured size plus 15%, rounded up to 25 KiB.
+  { path: 'dist/media.js', budgetKiB: 25 },
   // M105 lane W: the screen-recording command with the R1-R3 platform
   // drivers, loaded on the first recording command: 30.2 KiB when split
   // out. Measured size plus 15%, rounded up to 25 KiB.
@@ -155,19 +155,15 @@ const BUDGETS = [
   { path: 'dist/webview/whatsNew.js', budgetKiB: 25 },
   // HELPREF: an independent lazy page, sharing the caller's React and text.
   { path: 'dist/webview/referencePage.js', budgetKiB: 50 },
-  // M105 lane W: the reference grew to 102.0 KiB with the media entry
-  // points (--attach/--record help, the media tables). Plus 15%, rounded up
-  // to 25 KiB (PLAN.md D6).
-  { path: 'dist/reference.js', budgetKiB: 125 },
+  // HELPREF: retain the original cap through shared generated values.
+  { path: 'dist/reference.js', budgetKiB: 100 },
   // The ACP agent (M63, PLAN.md D62), a process of its own installed once,
   // never loaded by VS Code: the engine without the webview or the Model API
   // backend (dist/modelApi.js, M57), plus the ACP SDK and the classic zod it
   // imports (445.2 of 713.2 KiB when set, 257.6 of them zod's locales). The
   // measured size plus about 15 %, rounded up to 50 KiB (D6 amendment).
-  // M105 lane W: the ACP media surface (/attach, /record, audio blocks,
-  // blob routing, headless entry points) grew the agent to 854.9 KiB when
-  // measured. Plus about 15%, rounded up to 50 KiB (D6 amendment).
-  { path: 'dist/acp.js', budgetKiB: 1000 },
+  // M105's trusted media inspector stays in its first-use media bundle.
+  { path: 'dist/acp.js', budgetKiB: 850 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus

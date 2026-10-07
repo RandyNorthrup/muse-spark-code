@@ -25236,6 +25236,18 @@ with exact commands and owners. Finish with hook-on commits and a clean tree.
 No live or paid model calls, branch merges beyond the already completed brief
 order, pushes, timeout increases or gate weakening.
 
+Final base-cap audit found inherited ACP 850→1000 KiB and reference 100→125 KiB
+increases. Restore both original caps. Keep the trusted media inspector's existing
+dynamic import external to the existing media bundle, ship that bundle in ACP,
+and guard its first-use ownership. Improve the reference generator's existing
+token sharing by emitting dependency-ordered shared values rather than encoded
+tokens plus a runtime expansion tree; preserve the exact expanded model and its
+zod boundary. Prove both original caps and the new split guard fire before the
+final sweep. If a structural fix cannot fit, report the unchanged cap as blocked.
+First-use locale audit also requires actual attachment and portable-inspector
+factories to install the caller's table/locale. Exercise German refusal text
+from the real emitted bundle, then prove removing installation fails the test.
+
 W startup correction: boundary USD normalization is a schema leaf; arithmetic
 and ceiling currency display load only with media pricing. Preserve the legacy
 tariff formatter. Tool-row rendering also loads on its first row, behind the
@@ -25247,11 +25259,32 @@ The inherited W-only runtimeQuestions increase is removed: 24.4 KiB now fits
 the original 25 KiB cap. Shared patch projection keeps the original deferred
 baseline intact. No cap is raised. Production-only binding blockers are
 listed by name in `docs/certification/m105.md`; fake receipts cannot close them.
+The final base-cap audit also removes inherited ACP/reference increases:
+trusted inspection loads from media on first use; dependency-ordered shared
+reference values retain the entire zod-validated model. ACP is 842.2/850 KiB,
+reference 89.3/100 KiB, and media 21.3/25 KiB. Existing round-trip and corrupted
+prefix tests remain unchanged; the real media bundle's exports are exercised.
+Shared field layouts keep generated output at zero clones. Actual attachment,
+trusted-read and latest-recording consumers install the caller language;
+German output is proved from emitted factories, with red installation drills.
 W packaging correction: explicitly include the media/screen recorder/English
 bundles, Windows recorder source and all signed macOS app resources in VSIX.
 Transfer the app through a tar archive to retain modes; macOS CI runs R1
 permission-free encoder, signature/localization and disclaimed probes. ACP
 keeps supplied native resources, but its portable media factory remains unbound.
+The full sweep also exposed package-frame vocabulary drift and synchronous
+row fixtures. Cold tool-row loading/failure must remain a transcript list
+item and preserve composer focus/keys; add a whole-file regression before
+binding the shared deferred list fallback. Register shipped Node bundles in the existing flight
+recorder whitelist and warm first use without changing assertions. Preserve
+upward rounding for usage estimates separately from tariff display. Close a
+failed reserved-file fill in finally; its confinement regression must prove
+the descriptor is closed even if the caller makes no release call. Correct
+headless package fixtures for media English and Windows recorder resources.
+Describe required native/video-upload/provider-account support for the three
+unbound commands in every translated reference description; regenerate
+artifacts. The reference gate rejects current-session state assertions, so
+current availability remains in README and certification.
 The local package budget is verified separately from the still-owed universal
 macOS-artifact package and exact-package signature receipt.
 
@@ -29845,6 +29878,20 @@ commits use scoped owning tests, deliberate red drills and available static/buil
 checks. The lead retains the integrated quality/coverage/release gate. No gate
 or budget is weakened; the exact evidence is recorded in
 `docs/certification/help-reference.md`.
+
+**M105 W final gate scope (linuxlt, 2026-10-07).** The rig brief overrides
+bounded lane test scope with all configured files in batches of at most three,
+repository timeouts and three workers. Shared rules still forbid the aggregate
+quality command and external network. Run requested static/build/test/browser
+gates separately and serially. Local VSIX/ACP packaging uses the badge gate's
+existing named network deferral, only in those commands (never in hooks):
+`BADGE_CHECK_SKIP_NETWORK='M105W lane forbids external network; badge fetch
+remains lead-owned' npm run package` (and `npm run package:acp`). Validate
+staged text/version/l10n/listing and size; do not claim HTTP badge verification.
+Fresh audit, Semgrep auto-registry, downloaded VS Code integration, native
+OS, universal macOS-artifact packaging and hosted coverage remain lead-owned.
+Browser gates are attempted unchanged, with exact failures recorded if this
+rig cannot launch Chrome. No cap, threshold, hook or test is weakened.
 
 **M105-M1 second follow-up gate scope (RVM105M12, 2026-10-06).** The
 same rig override applies to these two P2 corrections: direct focused suites

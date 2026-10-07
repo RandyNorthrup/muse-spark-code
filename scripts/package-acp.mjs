@@ -35,6 +35,7 @@ const BUNDLES = [
   'runtimeQuestions.js',
   'questionNotes.js',
   'modelApi.js',
+  'media.js',
   'reviewer.js',
   'foreignHooks.js',
   'hookRuntime.js',

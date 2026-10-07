@@ -132,11 +132,11 @@ export const EN = {
   referenceAttachments:
     'Attach files by selecting or dropping them, and paste images into the composer. PNG, JPEG, GIF and WebP images require a selected model with vision. PDF attachments require Model API. Trusted indexed workspace text files can be attached; protected or confidential files are refused. The limits below apply before sending.',
   referenceScreenRecording:
-    'Record the screen, preview the clip, then attach or discard it. Needs a local window; remote windows refuse. The clip attaches as video and follows the media limits.',
+    'Record the screen, preview the clip, then attach or discard it. Needs a local window; remote windows refuse. The clip attaches as video and follows the media limits. Requires native recorder support and verified video upload support.',
   referenceLatestRecording:
-    'Attach the most recent screen recording again without recording a new one.',
+    'Attach the most recent screen recording again without recording a new one. Requires a readable recording and verified video upload support.',
   referenceUploadedFiles:
-    'List the files uploaded for this conversation and delete them before they expire. Deleting a file another app also uses asks first.',
+    'List the files uploaded for this conversation and delete them before they expire. Deleting a file another app also uses asks first. Requires provider/account upload storage integration.',
   referenceConversationActions:
     'Rename, fork or rewind a conversation. Rewind can restore recorded edits as well as history; changed files are left alone, and shell changes are not covered. While a turn runs, new messages steer it. Model API messages can be withdrawn before the next request; Muse Code permits withdrawal only while queued, because steering is delivered immediately. Side chat copies completed turns, clears the goal and stays in Plan; Muse Code file tools may still edit in Plan. Select transcript text to reply, ask, comment or copy.',
   referenceQuestions:

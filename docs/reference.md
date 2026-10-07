@@ -1465,19 +1465,19 @@ Available when: `workspaceFolderCount > 0`.
 
 ### Muse Spark: Attach screen recording…
 
-`museSpark.attachScreenRecording` — Record the screen, preview the clip, then attach or discard it. Needs a local window; remote windows refuse. The clip attaches as video and follows the media limits.
+`museSpark.attachScreenRecording` — Record the screen, preview the clip, then attach or discard it. Needs a local window; remote windows refuse. The clip attaches as video and follows the media limits. Requires native recorder support and verified video upload support.
 
 Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible`.
 
 ### Muse Spark: Attach latest screen recording
 
-`museSpark.attachLatestScreenRecording` — Attach the most recent screen recording again without recording a new one.
+`museSpark.attachLatestScreenRecording` — Attach the most recent screen recording again without recording a new one. Requires a readable recording and verified video upload support.
 
 Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible`.
 
 ### Muse Spark: Delete uploaded files…
 
-`museSpark.deleteUploadedFiles` — List the files uploaded for this conversation and delete them before they expire. Deleting a file another app also uses asks first.
+`museSpark.deleteUploadedFiles` — List the files uploaded for this conversation and delete them before they expire. Deleting a file another app also uses asks first. Requires provider/account upload storage integration.
 
 Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible`.
 

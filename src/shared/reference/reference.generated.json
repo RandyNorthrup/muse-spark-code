@@ -1839,7 +1839,7 @@
       "nameKey": "command.attachScreenRecording.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "Record the screen, preview the clip, then attach or discard it. Needs a local window; remote windows refuse. The clip attaches as video and follows the media limits.",
+      "description": "Record the screen, preview the clip, then attach or discard it. Needs a local window; remote windows refuse. The clip attaches as video and follows the media limits. Requires native recorder support and verified video upload support.",
       "text": { "ui": "referenceScreenRecording" },
       "enablement": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible",
       "canRun": false
@@ -1850,7 +1850,7 @@
       "nameKey": "command.attachLatestScreenRecording.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "Attach the most recent screen recording again without recording a new one.",
+      "description": "Attach the most recent screen recording again without recording a new one. Requires a readable recording and verified video upload support.",
       "text": { "ui": "referenceLatestRecording" },
       "enablement": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible",
       "canRun": false
@@ -1861,7 +1861,7 @@
       "nameKey": "command.deleteUploadedFiles.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "List the files uploaded for this conversation and delete them before they expire. Deleting a file another app also uses asks first.",
+      "description": "List the files uploaded for this conversation and delete them before they expire. Deleting a file another app also uses asks first. Requires provider/account upload storage integration.",
       "text": { "ui": "referenceUploadedFiles" },
       "enablement": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible",
       "canRun": false

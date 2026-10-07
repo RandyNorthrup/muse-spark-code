@@ -1097,6 +1097,8 @@ function TranscriptList(props: TranscriptProps) {
       <ReasoningRow key={entry.id} entry={entry} />
     ) : (
       <ToolRow
+        asListItem
+        keepFocus
         key={entry.id}
         entry={entry}
         isRunning={isRunning}

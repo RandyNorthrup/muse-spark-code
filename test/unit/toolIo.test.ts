@@ -369,6 +369,8 @@ describe('createToolIo (real file system and shell)', () => {
       await expect(reservation.fill(Uint8Array.from([1, 2, 3]))).rejects.toThrow(
         FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval,
       )
+      // Refusal must close the reserved descriptor even if its caller stops here.
+      await expect(reservation.fill(Uint8Array.from([1]))).rejects.toThrow(/closed|EBADF/u)
       await expect(readFile(outsideFile, 'utf8')).resolves.toBe('sentinel-private')
     },
   )

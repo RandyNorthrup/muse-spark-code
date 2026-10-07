@@ -13,6 +13,13 @@ happened, not what was planned; superseded entries are kept.
   patch projections with the existing schema and retain every bundle cap.
   Correct the headless `--record` reference contract and document the remaining
   capture, provider, accounting, recorder and companion bindings explicitly.
+  Preserve signed recorder resources and media bundles in packages, add
+  permission-free macOS CI checks, retain upward usage-estimate rounding and
+  close a reserved file descriptor after a refused fill. Keep trusted media
+  inspection in the first-use bundle across ACP and VS Code, share generated
+  reference values directly, and restore inherited ACP/reference cap increases
+  to the original 850/100 KiB limits. Both attachment and portable inspection
+  factories install the caller's language before displaying a refusal.
 
 - M105 ACP and headless entry points: `/attach <path>` and `/record` between
   turns, audio blocks gated on the model record, `resource_link` reads under

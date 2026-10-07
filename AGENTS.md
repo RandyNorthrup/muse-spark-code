@@ -50,7 +50,7 @@ them, the milestone plan, and the certification checklist.
      declared readers, and a new block the split check does not guard
      (PLAN.md D6, 2026-10-03 and 2026-10-04).
    - **Node bundles share English fallback** (`dist/uiText.js` and its generated
-     runtime/hooks/surfaces regions, PLAN.md D6).
+     runtime/hooks/surfaces/media regions, PLAN.md D6).
      Each bundle keeps its own installed-language state; lazy factories install
      the caller's table before use. Browser and integration-test bundles keep
      their inline fallback.
@@ -219,7 +219,9 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       side: settled diagnostics, format on edit and turn
                       checkpoints' shadow repository)
 src/core/**           backend-agnostic logic; must not import `vscode`
-                      (MSP host, Model API client and tools, the MCP client,
+                      (media/inspectEntry.ts, the portable first-use inspector
+                      shared by VS Code and ACP through dist/media.js;
+                      MSP host, Model API client and tools, the MCP client,
                       the hook dispatcher and, in dist/foreignHooks.js loaded
                       on first use, the adapters for hooks imported from
                       other agents (M91),

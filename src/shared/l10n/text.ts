@@ -87,12 +87,17 @@ export function formatPercent(percent: number): string {
 }
 
 /** An amount of US dollars as the language writes money: $1.46 / 1,46 $ / US$1.46. */
-export function formatUsd(amount: number, fractionDigits = 2): string {
-  return numberFormat(`usd:${String(fractionDigits)}`, {
+export function formatUsd(
+  amount: number,
+  fractionDigits = 2,
+  roundingMode: 'halfExpand' | 'ceil' = 'halfExpand',
+): string {
+  return numberFormat(`usd:${String(fractionDigits)}:${roundingMode}`, {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: fractionDigits,
+    roundingMode,
   }).format(amount)
 }
 
