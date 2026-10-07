@@ -25377,7 +25377,11 @@ dependency entirely. Add real Chromium Unicode/cookie regressions and deferred-
 start lifecycle tests, prove them against the lane baseline, and repeat the
 whole owning suites three times in a fresh CI clone at default timeouts. Keep
 every security guard, cap and binding handoff unchanged. No paid/live calls,
-dependencies, merges or pushes.
+dependencies, merges or pushes. Complete: all four findings repaired; seven
+byte-exact red drills fire, 126 owning tests pass three times in a fresh CI
+clone, and every requested static/build/reference/localization gate passes.
+The certification records the unavailable named ref, exact lane baseline and
+W's earlier temporary-parent repair.
 
 **M2 review corrections (RVM105M2, 2026-10-06).** Fix all three P2 findings
 within the existing media gate/replay/host regions. Select the actual inline
