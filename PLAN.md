@@ -25224,6 +25224,18 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M105 — Multimodal input: video, audio, documents, screen recordings and the Files API (D85)
 
+**W final integration plan (linuxlt, 2026-10-07).** All twelve lane merges
+are present in brief order. Preserve reviewed fixes and commit the existing
+certification draft with its receipts marked provisional. Next remove exact
+USD arithmetic and its validation chain from browser startup without changing
+money semantics or caps; triage full-suite groups 36/116/124/125/140/152;
+audit every review and named handoff; regenerate reference, schemas and host
+records; run all requested gates and every non-live test file in batches of
+at most three with default timeouts. Record browser/native/capture blockers
+with exact commands and owners. Finish with hook-on commits and a clean tree.
+No live or paid model calls, branch merges beyond the already completed brief
+order, pushes, timeout increases or gate weakening.
+
 **M1 second review corrections (RVM105M12, 2026-10-06).** Resolve both P2
 findings inside the media core. Encoding close waits for a bounded in-flight
 resource check, then a final output/RSS sample; failures still count after
