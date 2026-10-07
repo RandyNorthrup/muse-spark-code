@@ -24,6 +24,7 @@ export function promptPrivacy(input: {
     const roots = [...input.workspaceRoots].toSorted((a, b) => b.length - a.length)
     for (const root of roots) {
       if (root === '') continue
+      // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp -- pathPattern escapes every root segment; only fixed separator/tail syntax is added (PLAN.md §8).
       const pattern = new RegExp(
         `${pathPattern(root)}(?:[\\\\/]+([^\\s"'\u{60}<>]*))?(?=$|[\\s"'\u{60}<>])`,
         'gi',
@@ -33,6 +34,7 @@ export function promptPrivacy(input: {
       )
     }
     if (input.home !== '')
+      // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp -- pathPattern escapes every home segment; the caller cannot supply regex syntax (PLAN.md §8).
       result = result.replaceAll(new RegExp(pathPattern(input.home), 'gi'), () => '[home]')
     // Known roots were handled with spaces/escaped separators before generic absolute paths.
     result = result.replaceAll(
@@ -41,6 +43,7 @@ export function promptPrivacy(input: {
     )
     if (input.user !== '')
       result = result.replaceAll(
+        // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp -- escapePattern quotes all username metacharacters; word boundaries and flags are fixed (PLAN.md §8).
         new RegExp(String.raw`\b${escapePattern(input.user)}\b`, 'gi'),
         () => '[user]',
       )

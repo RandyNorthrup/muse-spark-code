@@ -4272,7 +4272,9 @@ and loads under its existing nonce-only script policy.
 After a production build and an offline install of the ACP tarball,
 `node scripts/check-ui-text.mjs <installed-package-root>` checks runtime
 loading in the extension, Model API bundle and installed agent without
-starting an editor or making a model call. See the
+starting an editor or making a model call. It validates the complete installed
+table and compares compact ACP help exactly in English and every shipped
+translation. See the
 [build record](docs/certification/shared-ui-text.md).
 
 **Environment variables.** Credentials live in SecretStorage, never in

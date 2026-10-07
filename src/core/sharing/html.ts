@@ -2,14 +2,17 @@ import { UI_TEXT } from '../../shared/constants'
 import { formatDateTime, uiLocale } from '../../shared/l10n/text'
 import type { ChatShareDocument } from './chatShare'
 
-/** Text never becomes markup, links, assets or active content. */
+const HTML_ESCAPES: Readonly<Record<string, string>> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+}
+
+/** One encoding pass keeps text inert in elements and quoted attributes. */
 function escapeHtml(text: string): string {
-  return text
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;')
+  return text.replaceAll(/[&<>"']/g, (character) => HTML_ESCAPES[character] ?? character)
 }
 
 function heading(kind: string): string {

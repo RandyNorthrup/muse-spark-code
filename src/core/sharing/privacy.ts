@@ -89,6 +89,7 @@ export function createChatSharePrivacy(context: ChatSharePrivacyContext): ShareP
       for (const root of roots) {
         // Match whole roots, not a similarly named neighbour. Root folding
         // follows M84: separators and Windows case, with names containing spaces.
+        // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp -- rootPattern escapes every root segment; only fixed boundary/separator/tail syntax is added (PLAN.md §8).
         const pattern = new RegExp(
           String.raw`(?<![\w./])${rootPattern(root)}(?=[\\/]|$|[\s"'<>])(?:[\\/]+([^\r\n"'<>()[\],;]*))?`,
           'gi',
@@ -98,6 +99,7 @@ export function createChatSharePrivacy(context: ChatSharePrivacyContext): ShareP
         )
       }
       if (home !== '') {
+        // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp -- rootPattern escapes every home segment; only fixed boundary/separator/tail syntax is added (PLAN.md §8).
         const pattern = new RegExp(
           String.raw`${rootPattern(home)}(?=[\\/]|$|[\s"'<>])(?:[\\/]+([^\r\n"'<>()[\],;]*))?`,
           'gi',
@@ -121,6 +123,7 @@ export function createChatSharePrivacy(context: ChatSharePrivacyContext): ShareP
         isAbsolutePath(token, offset, text) ? '[path]' : token,
       )
       if (context.userName !== '') {
+        // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp -- escaped quotes all username metacharacters; Unicode boundaries and flags are fixed (PLAN.md §8).
         const pattern = new RegExp(
           String.raw`(?<![\p{L}\p{N}_])${escaped(context.userName)}(?![\p{L}\p{N}_])`,
           'giu',

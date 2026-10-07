@@ -146,4 +146,10 @@ describe('M118 deterministic local formats', () => {
     expect(html).toContain('<main>')
     expect(html).toContain('<h1>')
   })
+  it('encodes each HTML delimiter once, including existing entity-looking text', () => {
+    const doc = { ...build(), title: `&<>"' &lt; &#39;` }
+    expect(renderChatShare(doc, 'html')).toContain(
+      '<h1>&amp;&lt;&gt;&quot;&#39; &amp;lt; &amp;#39;</h1>',
+    )
+  })
 })

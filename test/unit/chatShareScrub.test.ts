@@ -16,6 +16,24 @@ const context = {
 const privacy = createChatSharePrivacy(context)
 
 describe('M118 always-on scrub', () => {
+  it('treats regex metacharacters in roots, home and user names as literal text', () => {
+    const name = 'Alice([a-z]+)+$^?{2}|[x].End'
+    const literal = createChatSharePrivacy({
+      workspaceRoots: [`C:/work/${name}`],
+      home: `C:/Users/${name}`,
+      userName: name,
+      redactRegisteredSecrets: (text) => text,
+    })
+    expect(
+      scrubShareText(`C:/work/${name}/src/main.ts C:/Users/${name}/data ${name}`, literal),
+    ).toBe('src/main.ts [home]/data [user]')
+    expect(scrubShareText(`C:/work/${name}/src/main.ts`.replaceAll('/', '\\'), literal)).toBe(
+      'src/main.ts',
+    )
+    expect(scrubShareText('AliceaaaaEnd unrelated words', literal)).toBe(
+      'AliceaaaaEnd unrelated words',
+    )
+  })
   it('redacts colon-prefixed private paths in both modes and every format', () => {
     for (const path of [
       'path:/srv/PrivateProject/config.json',

@@ -11,6 +11,11 @@ happened, not what was planned; superseded entries are kept.
 
 - Browser package tests build the chat, Help and What's New pages themselves,
   so a clean CI shard needs no artifacts from an earlier production build.
+- The installed ACP help check validates its complete localization table,
+  retaining prompt and sharing labels in its exact output comparison.
+- Chat-share HTML encodes markup delimiters in one pass. Privacy regexes have
+  literal-metacharacter controls and documented, specific audit exceptions
+  for their escaped workspace, home and username fragments.
 
 ### Documentation
 

@@ -3,6 +3,24 @@ import { promptPrivacy } from '../../src/core/prompts/promptPrivacy'
 import { scrubShareText } from '../../src/shared/share'
 
 describe('prompt privacy adapter', () => {
+  it('treats regex metacharacters in roots, home and user names as literal text', () => {
+    const name = 'Alice([a-z]+)+$^?{2}|[x].End'
+    const privacy = promptPrivacy({
+      workspaceRoots: [`C:/work/${name}`],
+      home: `C:/Users/${name}`,
+      user: name,
+      registeredSecrets: () => [],
+    })
+    expect(
+      scrubShareText(`C:/work/${name}/src/main.ts C:/Users/${name}/data ${name}`, privacy),
+    ).toBe('src/main.ts [home]/data [user]')
+    expect(scrubShareText(`C:/work/${name}/src/main.ts`.replaceAll('/', '\\'), privacy)).toBe(
+      'src/main.ts',
+    )
+    expect(scrubShareText('AliceaaaaEnd unrelated words', privacy)).toBe(
+      'AliceaaaaEnd unrelated words',
+    )
+  })
   it('scrubs known/registered values and the user name while preserving relative workspace paths', () => {
     const privacy = promptPrivacy({
       workspaceRoots: ['/work with spaces/project'],
