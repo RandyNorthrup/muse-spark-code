@@ -15,10 +15,12 @@ import path from 'node:path'
 import process from 'node:process'
 import { Writable } from 'node:stream'
 import type { SignInMethod } from '../acp/agent'
+import { runtimeQuestionsLoader } from './questions/questionRegistryBundle'
 import { processGitRunner } from '../host/git'
 import { loadUiTable, readUiTableFile } from '../host/l10n'
 import {
   ACP_AGENT_NAME,
+  RUNTIME_QUESTIONS_BUNDLE_FILE,
   ACP_AUTH_METHODS,
   EXEC_EXIT,
   EXEC_SCAN_TIMEOUT_MS,
@@ -318,7 +320,11 @@ function signInMethod(options: ServeOptions): SignInMethod {
   }
 }
 
-async function runtimeFor(options: ServeOptions, log: Logger) {
+async function runtimeFor(
+  options: ServeOptions,
+  log: Logger,
+  questions?: { remove(sessionId: string): Promise<void> },
+) {
   const engine = await import('./runtimeEngineEntry')
   engine.setUiText(UI_TEXT, uiLocale())
   return engine.createRuntimeBackend({
@@ -333,6 +339,7 @@ async function runtimeFor(options: ServeOptions, log: Logger) {
     fetch: globalThis.fetch.bind(globalThis),
     sleep,
     log,
+    ...(questions !== undefined && { questions }),
   })
 }
 
@@ -497,7 +504,18 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   engine.setUiText(UI_TEXT, uiLocale())
   const restoreRecording = engine.installUsageRecording(recording)
   try {
-    const runtime = await runtimeFor(options, log)
+    const directory = path.join(
+      agentDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
+      'questions',
+    )
+    const loadQuestions = runtimeQuestionsLoader(
+      path.join(distDir, RUNTIME_QUESTIONS_BUNDLE_FILE),
+      log,
+    )
+    const registries: { flush(): Promise<void>; dispose(): void }[] = []
+    const runtime = await runtimeFor(options, log, {
+      remove: (id) => loadQuestions().removeRuntimeQuestions(directory, id, UI_TEXT, uiLocale()),
+    })
     const usage = usageFor(log, recording, runtime, options.usageHistory ?? true)
     const journal = await reportJournal(log)
     await journal.startup()
@@ -554,11 +572,28 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
         canBypass: options.canBypass,
         allowsContributorModels: options.allowsContributorModels,
         initialMode: SETTING_DEFAULTS.initialPermissionMode,
+        ...(options.questionsDeferAfterSeconds !== undefined && {
+          questionsDeferAfterSeconds: options.questionsDeferAfterSeconds,
+        }),
       },
       signIn: signInMethod(options),
       providerSignIns: providerCommands.signIns,
       defaultCwd: process.cwd(),
       paid: runtime.paid,
+      questions: (input) => {
+        const registry = loadQuestions().createRuntimeQuestionRegistry(
+          input,
+          directory,
+          options.backend,
+          () => {
+            log.warn('Question operation failed')
+          },
+          UI_TEXT,
+          uiLocale(),
+        )
+        registries.push(registry)
+        return registry
+      },
       log,
       usage,
       reportError: (fact) => {
@@ -572,6 +607,12 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
     try {
       await connection.closed
     } finally {
+      await Promise.allSettled(
+        registries.map((registry) => {
+          registry.dispose()
+          return registry.flush()
+        }),
+      )
       await usage.dispose()
       await runtime.close()
       await journal.shutdown()

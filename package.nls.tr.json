@@ -185,5 +185,8 @@
   "setting.usageHistoryDays.description": "Günlük kullanım özetlerinin saklanacağı gün sayısı (30–1825). Çağrı ayrıntıları 30 gün saklanır.",
   "command.connectChatGpt": "ChatGPT ile devam et",
   "command.connectCopilot": "Copilot modellerimi kullan",
-  "command.openHelp.title": "Yardım ve başvuru"
+  "command.openHelp.title": "Yardım ve başvuru",
+  "command.nextOpenQuestion.title": "Sonraki açık soru",
+  "command.previousOpenQuestion.title": "Önceki açık soru",
+  "config.questions.deferAfterSeconds.description": "Muse’un çalışmaya devam edebilmesi için yanıtsız bir sorunun ertelenmesine kadar geçen saniye. Varsayılan 60; 0 hiçbir zaman demektir; 1–9, 10 olarak okunur; en fazla 3.600. Soru açık kalır ve daha sonra yanıtlanabilir. Yalnızca bu bilgisayarın ayarı kullanılır."
 }

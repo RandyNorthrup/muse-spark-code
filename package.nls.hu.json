@@ -185,5 +185,8 @@
   "setting.usageHistoryDays.description": "A napi használati összesítések megőrzési ideje napokban (30–1825). Az egyes hívások részletei 30 napig maradnak meg.",
   "command.connectChatGpt": "Folytatás ChatGPT-vel",
   "command.connectCopilot": "Saját Copilot-modellek használata",
-  "command.openHelp.title": "Súgó és referencia"
+  "command.openHelp.title": "Súgó és referencia",
+  "command.nextOpenQuestion.title": "Következő nyitott kérdés",
+  "command.previousOpenQuestion.title": "Előző nyitott kérdés",
+  "config.questions.deferAfterSeconds.description": "Ennyi másodperc után halasztjuk el a megválaszolatlan kérdést, hogy Muse folytathassa a munkát. Alapérték: 60; a 0 jelentése soha; az 1–9 értékeket 10-ként kezeljük; maximum 3600. A kérdés nyitva marad, és később is megválaszolható. Csak ennek a gépnek a beállítását használjuk."
 }

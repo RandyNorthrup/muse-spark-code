@@ -25,7 +25,26 @@ beforeAll(() => {
   writeFileSync('dist/webview/chunks/stale.js', 'throw new Error("stale browser chunk")')
   // Exercise the real production settings, including removal of stale chunks.
   execFileSync(process.execPath, ['scripts/build.mjs', '--production'], { stdio: 'pipe' })
-  built.outputs = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')).outputs
+  const outputs = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')).outputs
+  built.outputs = Object.fromEntries(
+    Object.entries(outputs).map(([file, output]) => [
+      file.replaceAll('\\', '/'),
+      {
+        ...output,
+        entryPoint: output.entryPoint?.replaceAll('\\', '/'),
+        inputs: Object.fromEntries(
+          Object.entries(output.inputs).map(([source, details]) => [
+            source.replaceAll('\\', '/'),
+            details,
+          ]),
+        ),
+        imports: output.imports.map((entry) => ({
+          ...entry,
+          path: entry.path.replaceAll('\\', '/'),
+        })),
+      },
+    ]),
+  )
   mkdirSync('temp', { recursive: true })
   built.fixture = mkdtempSync(path.resolve('temp/fix78w-size-'))
   mkdirSync(path.join(built.fixture, 'dist/meta'), { recursive: true })
@@ -114,7 +133,40 @@ function sizeFixture(sharedBytes) {
   return spawnSync(process.execPath, [SIZE_GATE], { cwd: built.fixture, encoding: 'utf8' })
 }
 
+function questionSizeFixture(bytes) {
+  sizeFixture(0)
+  const metaPath = path.join(built.fixture, 'dist/meta/webview.json')
+  const meta = JSON.parse(readFileSync(metaPath, 'utf8'))
+  const file = 'dist/webview/question.js'
+  meta.outputs[ENTRY].imports.push({ path: file, kind: 'dynamic-import', external: false })
+  meta.outputs[file] = { imports: [], entryPoint: 'src/webview/components/QuestionUi.tsx' }
+  writeFileSync(path.join(built.fixture, file), Buffer.alloc(bytes))
+  writeFileSync(metaPath, JSON.stringify(meta))
+  return spawnSync(process.execPath, [SIZE_GATE], { cwd: built.fixture, encoding: 'utf8' })
+}
+
 describe('the production webview chunks (FIX78W)', () => {
+  it('keeps the question renderer and dock in one independently budgeted lazy closure', () => {
+    for (const name of ['QuestionCard', 'QuestionUi', 'OpenQuestionsChip']) {
+      const source = `src/webview/components/${name}.tsx`
+      const owners = Object.entries(built.outputs).filter(([, output]) =>
+        Object.hasOwn(output.inputs, source),
+      )
+      expect(owners).toHaveLength(1)
+      expect(initialOutputs().has(owners[0][0])).toBe(false)
+      expect(built.outputs[owners[0][0]].entryPoint).toBe('src/webview/components/QuestionUi.tsx')
+    }
+  })
+
+  it('enforces the question closure cap independently of the full legacy deferred group', () => {
+    const withinBudget = questionSizeFixture(25 * 1024)
+    expect(withinBudget.status, withinBudget.stdout + withinBudget.stderr).toBe(0)
+    expect(withinBudget.stdout).toContain('question UI: 25.0 KiB (budget 25 KiB)')
+    const overflow = questionSizeFixture(25 * 1024 + 1)
+    expect(overflow.status).toBe(1)
+    expect(overflow.stdout).toContain('OVER dist/webview question UI:')
+  })
+
   it('keeps all initial JavaScript within the unchanged 900 KiB cap', () => {
     const bytes = [...initialOutputs()].reduce((sum, output) => sum + statSync(output).size, 0)
     expect(bytes).toBeLessThanOrEqual(900 * 1024)
@@ -158,6 +210,30 @@ describe('the production webview chunks (FIX78W)', () => {
       expect.objectContaining({ path: output, kind: 'dynamic-import' }),
     )
   })
+
+  it.each(['WorkflowRun', 'ElicitationCard'])(
+    'shares %s between lazy surfaces without pulling its implementation into startup',
+    (name) => {
+      const source = `src/webview/components/${name}.tsx`
+      const owners = Object.entries(built.outputs).filter(([, output]) =>
+        Object.hasOwn(output.inputs, source),
+      )
+      expect(owners).toHaveLength(1)
+      const [[owner]] = owners
+      expect(initialOutputs().has(owner)).toBe(false)
+      const roots = Object.entries(built.outputs).filter(
+        ([, output]) => output.entryPoint === source,
+      )
+      expect(roots).toHaveLength(1)
+      const [[root, output]] = roots
+      expect(output.imports).toContainEqual(
+        expect.objectContaining({ path: owner, kind: 'import-statement' }),
+      )
+      expect(Object.values(built.outputs).flatMap((chunk) => chunk.imports)).toContainEqual(
+        expect.objectContaining({ path: root, kind: 'dynamic-import' }),
+      )
+    },
+  )
 
   it.each(['ProviderUsageSection', 'PaidUsageSection'])(
     'loads %s from the usage dialog only through a nested dynamic import',
@@ -295,6 +371,7 @@ describe('the production webview chunks (FIX78W)', () => {
         ...Object.keys(JSON.parse(readFileSync('dist/meta/referencePage.json', 'utf8')).outputs),
       ]
         .filter((file, index, files) => files.indexOf(file) === index)
+        .map((file) => file.replaceAll('\\', '/'))
         .filter((file) => file.endsWith('.js'))
         .toSorted((a, b) => a.localeCompare(b, 'en')),
     )

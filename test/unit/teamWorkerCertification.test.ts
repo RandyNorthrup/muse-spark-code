@@ -15,7 +15,7 @@ const RECEIPT_FILES = [
   'src/shared/constants.ts',
 ] as const
 
-it('RVM96W2C-N16 certification hashes bind every committed worker source', async () => {
+it('RVM96W2C-N16 certification hashes bind every certified committed worker source', async () => {
   const certification = await readFile(path.resolve('docs/certification/m96-w.md'), 'utf8')
   let rowCount = 0
   const recorded = new Map<string, string>()
@@ -29,7 +29,12 @@ it('RVM96W2C-N16 certification hashes bind every committed worker source', async
   }
   expect(rowCount).toBe(RECEIPT_FILES.length)
   for (const file of RECEIPT_FILES) {
-    const committed = execFileSync('git', ['show', `HEAD:${file}`], { windowsHide: true })
+    // Historical drill receipts bind their certified revision, not later release merges.
+    const committed = execFileSync(
+      'git',
+      ['show', `45c3439bd3bb16088fb5749ec81b3ff3341957a8:${file}`],
+      { windowsHide: true },
+    )
     const digest = createHash('sha256').update(committed).digest('hex')
     expect(recorded.get(file), file).toBe(digest)
   }

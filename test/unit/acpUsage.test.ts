@@ -27,6 +27,7 @@ function harness(
       hostFor: () => Promise.resolve(host),
     },
     version: 'test',
+    questions: 'decline',
     defaultCwd: '/workspace',
     options: { canBypass: false, allowsContributorModels: false, initialMode: 'manual' },
     signIn: { id: 'test', name: 'test', description: 'test', args: [], command: 'test' },

@@ -185,5 +185,8 @@
   "setting.usageHistoryDays.description": "日別の使用量集計を保持する日数（30–1825）。呼び出しごとの詳細は 30 日間保持されます。",
   "command.connectChatGpt": "ChatGPT で続行",
   "command.connectCopilot": "自分のCopilotモデルを使う",
-  "command.openHelp.title": "ヘルプとリファレンス"
+  "command.openHelp.title": "ヘルプとリファレンス",
+  "command.nextOpenQuestion.title": "次の未回答の質問",
+  "command.previousOpenQuestion.title": "前の未回答の質問",
+  "config.questions.deferAfterSeconds.description": "Muse が作業を続けられるよう、未回答の質問を保留するまでの秒数。既定値は 60、0 は保留しない設定、1～9 は 10 として扱い、上限は 3,600 です。質問は未回答のまま保持され、後から回答できます。このコンピューターの設定のみを使用します。"
 }

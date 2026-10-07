@@ -185,5 +185,8 @@
   "setting.usageHistoryDays.description": "每日用量汇总的保留天数（30–1825）。每次调用的详细记录保留 30 天。",
   "command.connectChatGpt": "使用 ChatGPT 继续",
   "command.connectCopilot": "使用我的 Copilot 模型",
-  "command.openHelp.title": "帮助与参考"
+  "command.openHelp.title": "帮助与参考",
+  "command.nextOpenQuestion.title": "下一个待回答的问题",
+  "command.previousOpenQuestion.title": "上一个待回答的问题",
+  "config.questions.deferAfterSeconds.description": "在多少秒后暂缓未回答的问题，让 Muse 继续工作。默认值为 60；0 表示从不；1–9 按 10 处理；最大值为 3,600。问题会保持待回答状态，可稍后回答。仅使用此计算机的设置。"
 }

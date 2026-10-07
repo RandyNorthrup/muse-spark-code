@@ -185,5 +185,8 @@
   "setting.usageHistoryDays.description": "Días de conservación de los resúmenes diarios de uso (30–1825). Los detalles de cada llamada se conservan durante 30 días.",
   "command.connectChatGpt": "Continuar con ChatGPT",
   "command.connectCopilot": "Usar mis modelos de Copilot",
-  "command.openHelp.title": "Ayuda y referencia"
+  "command.openHelp.title": "Ayuda y referencia",
+  "command.nextOpenQuestion.title": "Siguiente pregunta pendiente",
+  "command.previousOpenQuestion.title": "Pregunta pendiente anterior",
+  "config.questions.deferAfterSeconds.description": "Segundos antes de aplazar una pregunta sin respuesta para que Muse pueda seguir trabajando. 60 de forma predeterminada; 0 significa nunca; 1–9 se interpretan como 10; máximo 3.600. La pregunta sigue pendiente y se puede responder más tarde. Solo se usa la configuración de este equipo."
 }

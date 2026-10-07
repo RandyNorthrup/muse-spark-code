@@ -11,7 +11,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { fill } from '../../src/shared/l10n/text'
 import { isMissingPath } from '../../src/host/canonicalPath'
 import { SshRunner, runnerSshArgs, type SshRunnerDeps } from '../../src/host/runners/sshRunner'
-import { runnerTestProcess as runProcess, runnerTestGit as git } from './helpers/runnerProcesses'
+import { runnerTestProcess, runnerTestGit as git } from './helpers/runnerProcesses'
+import { findBash } from './helpers/shellParsers'
 import { fixtureGitEnvironment } from './helpers/fixtureGit'
 import type { CheckProcess } from '../../src/host/team/checkSlots'
 import type { Runner } from '../../src/shared/team'
@@ -25,8 +26,17 @@ import {
   UI_TEXT,
 } from '../../src/shared/constants'
 
+// These cases run real Git and shell processes, remote cache transactions and process-group retirement through fake SSH.
+const REAL_FAKE_SSH_TRANSACTION_TIMEOUT_MS = 60_000
+
 const execute = promisify(execFile)
 const folders: string[] = []
+const runProcess: CheckProcess = (request) =>
+  runnerTestProcess(
+    request.file.endsWith('fake-ssh.mjs')
+      ? { ...request, file: process.execPath, args: [request.file, ...request.args] }
+      : request,
+  )
 const unprovedTransport: CheckProcess = (request) =>
   Promise.resolve({
     exitCode: 0,
@@ -86,6 +96,12 @@ async function fixture(): Promise<{
   // Fake SSH cannot connect anywhere; this rewrite would change its recorded destination.
   await git(worker, 'config', 'url.ssh://unwanted.invalid/.insteadOf', 'fake-rig:')
   const ssh = path.join(folder, 'fake-ssh.mjs')
+  const bash = findBash()
+  if (bash === undefined) throw new Error('Native Bash is required for this fake remote fixture')
+  const shellPath =
+    [path.dirname(bash), path.resolve(path.dirname(bash), '..', 'usr', 'bin')].join(
+      path.delimiter,
+    ) + path.delimiter
   await writeFile(
     ssh,
     String.raw`#!/usr/bin/env node
@@ -96,7 +112,11 @@ appendFileSync(${JSON.stringify(path.join(folder, 'ssh-args'))},JSON.stringify({
 if(args.includes('-G')) process.exit(0);
 const command=args.at(-1);
 if(command.includes("'status'") && command.includes("'drop-run'")) process.exit(255);
-const child=spawn('/bin/bash',['-c',command],{stdio:'inherit',env:{...process.env,VENDOR_API_KEY:'remote-fixture-only',GH_TOKEN:'remote-fixture-only',mIxEd_ApI_kEy:'remote-fixture-only',gH_tOkEn:'remote-fixture-only'}});
+const remoteEnv=Object.fromEntries(Object.entries(process.env).filter(([name])=>name.toLowerCase()!=='path'));
+remoteEnv.PATH=${JSON.stringify(shellPath)}+(process.env.PATH??process.env.Path??'');
+// Git Bash lacks Unix host metrics; this fake remote supplies only those probes.
+const metrics=${JSON.stringify(process.platform === 'win32' ? String.raw`getconf() { printf '4\n'; }; uptime() { printf 'load average: 0.00, 0.00, 0.00\n'; }; ` : '')};
+const child=spawn(${JSON.stringify(bash)},['-c',metrics+command],{stdio:'inherit',env:{...remoteEnv,VENDOR_API_KEY:'remote-fixture-only',GH_TOKEN:'remote-fixture-only',mIxEd_ApI_kEy:'remote-fixture-only',gH_tOkEn:'remote-fixture-only'}});
 child.on('exit',code=>process.exit(code??1));
 `,
   )
@@ -105,11 +125,11 @@ child.on('exit',code=>process.exit(code??1));
     id: 'fake',
     destination: 'fake-rig',
     os: 'darwin',
-    workFolder: path.join(folder, 'remote'),
+    workFolder: path.join(folder, 'remote').replaceAll('\\', '/'),
     maxJobs: 1,
     labels: [],
     commandClasses: ['tests'],
-    setupCommand: `mkdir -p node_modules; printf seed > node_modules/value; printf x >> '${folder}/setups'`,
+    setupCommand: `mkdir -p node_modules; printf seed > node_modules/value; printf x >> '${folder.replaceAll('\\', '/')}/setups'`,
     cacheKey: 'npm',
     environmentNames: ['BUILD_MODE'],
   }
@@ -228,182 +248,210 @@ describe('SSH runner over a fake transport and local repositories', () => {
     })
     afterAll(() => cleanupFolders([context.folder]))
 
-    it('pushes working edits and untracked files, streams exact output and reuses setup', async () => {
-      const { runner, job, folder } = context
-      const health = await run.sample(runner)
-      expect(health).toMatchObject({ freeSlots: 1, inputReady: true })
-      const first = await run.run(runner, {
-        ...job,
-        command:
-          job.command +
-          '\ntest -z "${VENDOR_API_KEY+x}" || exit 9; test -z "${GH_TOKEN+x}" || exit 9; test -z "${mIxEd_ApI_kEy+x}" || exit 9; test -z "${gH_tOkEn+x}" || exit 9; printf mutated > node_modules/value; printf bad > stale',
-      })
-      expect(first.kind).toBe('finished')
-      if (first.kind !== 'finished') throw new Error('run failed')
-      expect(first.result.exitCode).toBe(0)
-      expect(first.result.output).toContain('  working-edit untracked\nfast')
-      expect(
-        vi
-          .mocked(job.onOutput)
-          .mock.calls.map(([text]) => text)
-          .join(''),
-      ).toBe(first.result.output)
-      const second = await run.run(runner, {
-        ...job,
-        runId: 'second-run',
-        command: 'test ! -e stale; test "$(cat node_modules/value)" = seed',
-      })
-      expect(second.kind).toBe('finished')
-      expect(await readFile(path.join(folder, 'setups'), 'utf8')).toBe('x')
-    })
+    it(
+      'pushes working edits and untracked files, streams exact output and reuses setup',
+      async () => {
+        const { runner, job, folder } = context
+        const health = await run.sample(runner)
+        expect(health).toMatchObject({ freeSlots: 1, inputReady: true })
+        const first = await run.run(runner, {
+          ...job,
+          command:
+            job.command +
+            '\ntest -z "${VENDOR_API_KEY+x}" || exit 9; test -z "${GH_TOKEN+x}" || exit 9; test -z "${mIxEd_ApI_kEy+x}" || exit 9; test -z "${gH_tOkEn+x}" || exit 9; printf mutated > node_modules/value; printf bad > stale',
+        })
+        expect(first.kind).toBe('finished')
+        if (first.kind !== 'finished') throw new Error('run failed')
+        expect(first.result.exitCode).toBe(0)
+        expect(first.result.output).toContain('  working-edit untracked\nfast')
+        expect(
+          vi
+            .mocked(job.onOutput)
+            .mock.calls.map(([text]) => text)
+            .join(''),
+        ).toBe(first.result.output)
+        const second = await run.run(runner, {
+          ...job,
+          runId: 'second-run',
+          command: 'test ! -e stale; test "$(cat node_modules/value)" = seed',
+        })
+        expect(second.kind).toBe('finished')
+        expect(await readFile(path.join(folder, 'setups'), 'utf8')).toBe('x')
+      },
+      REAL_FAKE_SSH_TRANSACTION_TIMEOUT_MS,
+    )
 
-    it('changes the cache when the text lockfile changes', async () => {
-      const { runner, job, folder } = context
-      await writeFile(path.join(job.cwd, 'package-lock.json'), 'lock-1\n')
-      expect(await run.run(runner, { ...job, runId: 'third-run' })).toMatchObject({
-        kind: 'finished',
-      })
-      expect(await readFile(path.join(folder, 'setups'), 'utf8')).toBe('xx')
-    })
+    it(
+      'changes the cache when the text lockfile changes',
+      async () => {
+        const { runner, job, folder } = context
+        await writeFile(path.join(job.cwd, 'package-lock.json'), 'lock-1\n')
+        expect(await run.run(runner, { ...job, runId: 'third-run' })).toMatchObject({
+          kind: 'finished',
+        })
+        expect(await readFile(path.join(folder, 'setups'), 'utf8')).toBe('xx')
+      },
+      REAL_FAKE_SSH_TRANSACTION_TIMEOUT_MS,
+    )
 
-    it('distinguishes raw binary lockfiles and installs only by rename', async () => {
-      const { runner, job, folder } = context
-      await writeFile(path.join(job.cwd, 'package-lock.json'), Buffer.from([255]))
-      expect(await run.run(runner, { ...job, runId: 'binary-first' })).toMatchObject({
-        kind: 'finished',
-      })
-      await writeFile(path.join(job.cwd, 'package-lock.json'), Buffer.from([254]))
-      expect(await run.run(runner, { ...job, runId: 'binary-second' })).toMatchObject({
-        kind: 'finished',
-      })
-      expect(await readFile(path.join(folder, 'setups'), 'utf8')).toBe('xxxx')
+    it(
+      'distinguishes raw binary lockfiles and installs only by rename',
+      async () => {
+        const { runner, job, folder } = context
+        await writeFile(path.join(job.cwd, 'package-lock.json'), Buffer.from([255]))
+        expect(await run.run(runner, { ...job, runId: 'binary-first' })).toMatchObject({
+          kind: 'finished',
+        })
+        await writeFile(path.join(job.cwd, 'package-lock.json'), Buffer.from([254]))
+        expect(await run.run(runner, { ...job, runId: 'binary-second' })).toMatchObject({
+          kind: 'finished',
+        })
+        expect(await readFile(path.join(folder, 'setups'), 'utf8')).toBe('xxxx')
 
-      const callText = await readFile(path.join(folder, 'ssh-args'), 'utf8')
-      const calls = callText
-        .split('\n')
-        .filter(Boolean)
-        .map((line) =>
-          z
-            .strictObject({ args: z.array(z.string()), environmentNames: z.array(z.string()) })
-            .parse(JSON.parse(line)),
-        )
-      for (const call of calls) {
-        expect(call.args).toContain('StrictHostKeyChecking=yes')
-        expect(call.args.join(' ')).not.toContain('unwanted.invalid')
-        expect(call.environmentNames).not.toContain('VENDOR_API_KEY')
-        expect(call.environmentNames).not.toContain('GH_TOKEN')
-      }
-      expect(calls.some((call) => call.args.at(-1)?.includes(' && mv -f '))).toBe(true)
-      expect(
-        calls
-          .filter(
-            (call) =>
-              call.args.at(-1)?.includes('helper-') && call.args.at(-1)?.includes("printf '%s'"),
+        const callText = await readFile(path.join(folder, 'ssh-args'), 'utf8')
+        const calls = callText
+          .split('\n')
+          .filter(Boolean)
+          .map((line) =>
+            z
+              .strictObject({ args: z.array(z.string()), environmentNames: z.array(z.string()) })
+              .parse(JSON.parse(line)),
           )
-          .every((call) => (call.args.at(-1) ?? '').includes(".new' && mv -f")),
-      ).toBe(true)
-      expect(
-        await git(
-          path.join(runner.workFolder, 'repository.git'),
-          'show-ref',
-          'refs/muse-spark/runs/first-run',
-        ),
-      ).toMatch(/^[a-f0-9]+ refs/u)
-    })
-  })
-  it('keeps the remote slot after disconnect until an exit marker, rejects late run ids and respects maxJobs across windows', async () => {
-    const { deps, runner, job } = await fixture()
-    const firstWindow = new SshRunner(deps)
-    const started = await firstWindow.run(runner, {
-      ...job,
-      runId: 'drop-run',
-      command: 'while [ ! -f ../release ]; do sleep 0.1; done; printf late',
-      timeoutMs: 30_000,
-    })
-    expect(started).toEqual({ kind: 'uncertain' })
-    const secondWindow = new SshRunner(deps)
-    expect(await secondWindow.sample(runner)).toMatchObject({ freeSlots: 0 })
-    expect(await secondWindow.run(runner, { ...job, runId: 'other-run' })).toEqual({ kind: 'busy' })
-    await writeFile(path.join(runner.workFolder, 'runs', 'drop-run', 'release'), '')
-    const file = await helper(runner)
-    let marker = ''
-    for (let index = 0; index < 30; index += 1) {
-      const answer = await execute('/bin/bash', [file, 'status', runner.workFolder, 'drop-run'], {
-        encoding: 'utf8',
-      })
-      marker = answer.stdout
-      if (marker.includes('ended')) break
-      await delay(100)
-    }
-    expect(JSON.parse(marker)).toMatchObject({ state: 'ended', runId: 'drop-run' })
-    expect(await secondWindow.sample(runner)).toMatchObject({ freeSlots: 1 })
-    const stale = new SshRunner({
-      ...deps,
-      run: (request) =>
-        request.file === deps.ssh && request.args.at(-1)?.includes("'status'")
-          ? Promise.resolve({
-              exitCode: 0,
-              output: JSON.stringify({ runId: 'old-run', state: 'ended', exitCode: 0 }),
-              descendantsEnded: true,
-            })
-          : runProcess(request),
-    })
-    await expect(stale.end(runner, file, 'drop-run')).rejects.toThrow()
-  })
-  it('falls back on a cache creator without hiding a check exit code of 75', async () => {
-    const { deps, runner, job } = await fixture()
-    const run = new SshRunner(deps)
-    await run.sample(runner)
-    const hash = createHash('sha256')
-      .update(runner.cacheKey)
-      .update('\0')
-      .update(runner.setupCommand)
-      .digest('hex')
-    const lock = path.join(runner.workFolder, 'cache', `${hash}.creating`)
-    await mkdir(lock)
-    expect(await run.run(runner, { ...job, lockfiles: [] })).toEqual({ kind: 'busy' })
-    await rm(lock, { recursive: true })
-    expect(
-      await run.run(runner, { ...job, runId: 'exit-75', lockfiles: [], command: 'exit 75' }),
-    ).toMatchObject({ kind: 'finished', result: { exitCode: 75 } })
-  })
-  it('releases the owned cache creation lease after a setup timeout and permits retry', async () => {
-    const { deps, runner, job, folder } = await fixture()
-    const slow: Runner = {
-      ...runner,
-      setupCommand: `if [ ! -f '${folder}/setup-retry' ]; then touch '${folder}/setup-retry'; sleep 3; fi; mkdir -p node_modules; printf seed > node_modules/value`,
-    }
-    const owners: string[] = []
-    const run: CheckProcess = async (request) => {
-      const result = await runProcess(request)
-      if ((request.args.at(-1) ?? '').includes("'status'")) {
-        const names = await readdir(path.join(runner.workFolder, 'cache'))
-        for (const name of names) {
-          if (!name.endsWith('.creating')) continue
-          try {
-            owners.push(
-              await readFile(path.join(runner.workFolder, 'cache', name, 'owner'), 'utf8'),
+        for (const call of calls) {
+          expect(call.args).toContain('StrictHostKeyChecking=yes')
+          expect(call.args.join(' ')).not.toContain('unwanted.invalid')
+          expect(call.environmentNames).not.toContain('VENDOR_API_KEY')
+          expect(call.environmentNames).not.toContain('GH_TOKEN')
+        }
+        expect(calls.some((call) => call.args.at(-1)?.includes(' && mv -f '))).toBe(true)
+        expect(
+          calls
+            .filter(
+              (call) =>
+                call.args.at(-1)?.includes('helper-') && call.args.at(-1)?.includes("printf '%s'"),
             )
-          } catch (error: unknown) {
-            if (!isMissingPath(error)) throw error
+            .every((call) => (call.args.at(-1) ?? '').includes(".new' && mv -f")),
+        ).toBe(true)
+        expect(
+          await git(
+            path.join(runner.workFolder, 'repository.git'),
+            'show-ref',
+            'refs/muse-spark/runs/first-run',
+          ),
+        ).toMatch(/^[a-f0-9]+ refs/u)
+      },
+      REAL_FAKE_SSH_TRANSACTION_TIMEOUT_MS,
+    )
+  })
+  it(
+    'keeps the remote slot after disconnect until an exit marker, rejects late run ids and respects maxJobs across windows',
+    async () => {
+      const { deps, runner, job } = await fixture()
+      const firstWindow = new SshRunner(deps)
+      const started = await firstWindow.run(runner, {
+        ...job,
+        runId: 'drop-run',
+        command: 'while [ ! -f ../release ]; do sleep 0.1; done; printf late',
+        timeoutMs: 30_000,
+      })
+      expect(started).toEqual({ kind: 'uncertain' })
+      const secondWindow = new SshRunner(deps)
+      expect(await secondWindow.sample(runner)).toMatchObject({ freeSlots: 0 })
+      expect(await secondWindow.run(runner, { ...job, runId: 'other-run' })).toEqual({
+        kind: 'busy',
+      })
+      await writeFile(path.join(runner.workFolder, 'runs', 'drop-run', 'release'), '')
+      const file = await helper(runner)
+      let marker = ''
+      for (let index = 0; index < 30; index += 1) {
+        const answer = await execute('/bin/bash', [file, 'status', runner.workFolder, 'drop-run'], {
+          encoding: 'utf8',
+        })
+        marker = answer.stdout
+        if (marker.includes('ended')) break
+        await delay(100)
+      }
+      expect(JSON.parse(marker)).toMatchObject({ state: 'ended', runId: 'drop-run' })
+      expect(await secondWindow.sample(runner)).toMatchObject({ freeSlots: 1 })
+      const stale = new SshRunner({
+        ...deps,
+        run: (request) =>
+          request.file === deps.ssh && request.args.at(-1)?.includes("'status'")
+            ? Promise.resolve({
+                exitCode: 0,
+                output: JSON.stringify({ runId: 'old-run', state: 'ended', exitCode: 0 }),
+                descendantsEnded: true,
+              })
+            : runProcess(request),
+      })
+      await expect(stale.end(runner, file, 'drop-run')).rejects.toThrow()
+    },
+    REAL_FAKE_SSH_TRANSACTION_TIMEOUT_MS,
+  )
+  it(
+    'falls back on a cache creator without hiding a check exit code of 75',
+    async () => {
+      const { deps, runner, job } = await fixture()
+      const run = new SshRunner(deps)
+      await run.sample(runner)
+      const hash = createHash('sha256')
+        .update(runner.cacheKey)
+        .update('\0')
+        .update(runner.setupCommand)
+        .digest('hex')
+      const lock = path.join(runner.workFolder, 'cache', `${hash}.creating`)
+      await mkdir(lock)
+      expect(await run.run(runner, { ...job, lockfiles: [] })).toEqual({ kind: 'busy' })
+      await rm(lock, { recursive: true })
+      expect(
+        await run.run(runner, { ...job, runId: 'exit-75', lockfiles: [], command: 'exit 75' }),
+      ).toMatchObject({ kind: 'finished', result: { exitCode: 75 } })
+    },
+    REAL_FAKE_SSH_TRANSACTION_TIMEOUT_MS,
+  )
+  it(
+    'releases the owned cache creation lease after a setup timeout and permits retry',
+    async () => {
+      const { deps, runner, job, folder } = await fixture()
+      const slow: Runner = {
+        ...runner,
+        setupCommand: `if [ ! -f '${folder}/setup-retry' ]; then touch '${folder}/setup-retry'; sleep 3; fi; mkdir -p node_modules; printf seed > node_modules/value`,
+      }
+      const owners: string[] = []
+      const run: CheckProcess = async (request) => {
+        const result = await runProcess(request)
+        if ((request.args.at(-1) ?? '').includes("'status'")) {
+          const names = await readdir(path.join(runner.workFolder, 'cache'))
+          for (const name of names) {
+            if (!name.endsWith('.creating')) continue
+            try {
+              owners.push(
+                await readFile(path.join(runner.workFolder, 'cache', name, 'owner'), 'utf8'),
+              )
+            } catch (error: unknown) {
+              if (!isMissingPath(error)) throw error
+            }
           }
         }
+        return result
       }
-      return result
-    }
-    const host = new SshRunner({ ...deps, run })
-    expect(await host.run(slow, { ...job, timeoutMs: 1000 })).toMatchObject({
-      kind: 'finished',
-      result: { exitCode: 124 },
-    })
-    expect(owners.some((owner) => new RegExp(`^${job.runId} [0-9]+$`, 'u').test(owner))).toBe(true)
-    const remaining = await readdir(path.join(runner.workFolder, 'cache'))
-    expect(remaining.some((name) => name.endsWith('.creating'))).toBe(false)
-    expect(await host.run(slow, { ...job, runId: 'retry-setup' })).toMatchObject({
-      kind: 'finished',
-      result: { exitCode: 0 },
-    })
-  })
+      const host = new SshRunner({ ...deps, run })
+      expect(await host.run(slow, { ...job, timeoutMs: 1000 })).toMatchObject({
+        kind: 'finished',
+        result: { exitCode: 124 },
+      })
+      expect(owners.some((owner) => new RegExp(`^${job.runId} [0-9]+$`, 'u').test(owner))).toBe(
+        true,
+      )
+      const remaining = await readdir(path.join(runner.workFolder, 'cache'))
+      expect(remaining.some((name) => name.endsWith('.creating'))).toBe(false)
+      expect(await host.run(slow, { ...job, runId: 'retry-setup' })).toMatchObject({
+        kind: 'finished',
+        result: { exitCode: 0 },
+      })
+    },
+    REAL_FAKE_SSH_TRANSACTION_TIMEOUT_MS,
+  )
   it('retains a cache lease whose recorded owner differs from the retired job', async () => {
     const { deps, runner, job } = await fixture()
     const setupCommand =
@@ -448,46 +496,54 @@ describe('SSH runner over a fake transport and local repositories', () => {
     ).toMatchObject({ kind: 'finished', result: { output: '\u{FEFF}�', exitCode: 0 } })
     expect(output).toHaveBeenCalledExactlyOnceWith('\u{FEFF}�')
   })
-  it('checks raw output prefixes and decodes split UTF-8 exactly once', async () => {
-    const { deps, runner, job } = await fixture()
-    let hasPartial = false
-    const run: CheckProcess = async (request) => {
-      const result = await runProcess(request)
-      if ((request.args.at(-1) ?? '').includes("'output'")) {
-        const value: unknown = JSON.parse(result.output)
-        const bytes = Buffer.from(
-          z.strictObject({ bytes: z.string() }).parse(value).bytes,
-          'base64',
-        )
-        if (bytes.at(-1) === 195) hasPartial = true
+  it(
+    'checks raw output prefixes and decodes split UTF-8 exactly once',
+    async () => {
+      const { deps, runner, job } = await fixture()
+      let hasPartial = false
+      const run: CheckProcess = async (request) => {
+        const result = await runProcess(request)
+        if ((request.args.at(-1) ?? '').includes("'output'")) {
+          const value: unknown = JSON.parse(result.output)
+          const bytes = Buffer.from(
+            z.strictObject({ bytes: z.string() }).parse(value).bytes,
+            'base64',
+          )
+          if (bytes.at(-1) === 195) hasPartial = true
+        }
+        return result
       }
-      return result
-    }
-    const streamed = vi.fn<(text: string) => void>()
-    const answer = await new SshRunner({ ...deps, run }).run(runner, {
-      ...job,
-      command: String.raw`printf '\303'; sleep 1; printf '\251'; printf '\360'; sleep 1; printf '\237\230\200'`,
-      onOutput: streamed,
-    })
-    expect(hasPartial).toBe(true)
-    expect(answer).toMatchObject({ kind: 'finished', result: { exitCode: 0 } })
-    if (answer.kind !== 'finished') throw new Error('split output did not finish')
-    expect(answer.result.output).toMatch(/é😀$/u)
-    expect(streamed.mock.calls.map(([value]) => value).join('')).toBe(answer.result.output)
-    expect(answer.result.output).not.toContain('�')
-  })
-  it('ends the remote process group at timeout and writes the marker only afterwards', async () => {
-    const { deps, runner, job } = await fixture()
-    const answer = await new SshRunner(deps).run(runner, {
-      ...job,
-      command: 'sleep 2; printf escaped > canary',
-      timeoutMs: 1000,
-    })
-    expect(answer).toMatchObject({ kind: 'finished', result: { exitCode: 124 } })
-    await delay(1200)
-    const copy = path.join(runner.workFolder, 'runs', job.runId, 'copy')
-    await expect(readFile(path.join(copy, 'canary'))).rejects.toThrow()
-  })
+      const streamed = vi.fn<(text: string) => void>()
+      const answer = await new SshRunner({ ...deps, run }).run(runner, {
+        ...job,
+        command: String.raw`printf '\303'; sleep 1; printf '\251'; printf '\360'; sleep 1; printf '\237\230\200'`,
+        onOutput: streamed,
+      })
+      expect(hasPartial).toBe(true)
+      expect(answer).toMatchObject({ kind: 'finished', result: { exitCode: 0 } })
+      if (answer.kind !== 'finished') throw new Error('split output did not finish')
+      expect(answer.result.output).toMatch(/é😀$/u)
+      expect(streamed.mock.calls.map(([value]) => value).join('')).toBe(answer.result.output)
+      expect(answer.result.output).not.toContain('�')
+    },
+    REAL_FAKE_SSH_TRANSACTION_TIMEOUT_MS,
+  )
+  it(
+    'ends the remote process group at timeout and writes the marker only afterwards',
+    async () => {
+      const { deps, runner, job } = await fixture()
+      const answer = await new SshRunner(deps).run(runner, {
+        ...job,
+        command: 'sleep 2; printf escaped > canary',
+        timeoutMs: 1000,
+      })
+      expect(answer).toMatchObject({ kind: 'finished', result: { exitCode: 124 } })
+      await delay(1200)
+      const copy = path.join(runner.workFolder, 'runs', job.runId, 'copy')
+      await expect(readFile(path.join(copy, 'canary'))).rejects.toThrow()
+    },
+    REAL_FAKE_SSH_TRANSACTION_TIMEOUT_MS,
+  )
   it('refuses duplicate active run ids before another dispatch', async () => {
     const { deps, runner, job } = await fixture()
     const waiting = Promise.withResolvers<undefined>()

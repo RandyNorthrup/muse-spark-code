@@ -101,6 +101,9 @@ export const COMMAND_IDS = {
   showWhatsNew: 'museSpark.showWhatsNew',
   openUsagePage: 'museSpark.openUsagePage',
   openHelp: 'museSpark.openHelp',
+  // M112 (PLAN.md D92): cycle the focused chat's open question cards.
+  nextOpenQuestion: 'museSpark.nextOpenQuestion',
+  previousOpenQuestion: 'museSpark.previousOpenQuestion',
   tabTurnOn: 'museSpark.tabTurnOn',
   tabTurnOff: 'museSpark.tabTurnOff',
   tabSnooze: 'museSpark.tabSnooze',
@@ -399,6 +402,9 @@ export const SETTING_DEFAULTS = {
   museBinaryPath: '',
   environmentVariables: [] as readonly EnvironmentVariable[],
   'shell.passEnvironmentVariables': [] as readonly string[],
+  // M112 (PLAN.md D92): seconds before an unanswered question defers; the
+  // host reads only the user's own value (questionStore.ts).
+  'questions.deferAfterSeconds': 60,
   shellSandbox: 'auto' as ShellSandboxMode,
   backend: 'auto' as BackendMode,
   // Claude Code's `enableNewConversationShortcut`: Ctrl+N starts a new
@@ -589,6 +595,11 @@ export const MACHINE_SCOPED_SETTINGS = [
   'dictationEngine',
   'museCodeAutoReviewer',
   'showWhatsNewOnUpdate',
+  // How long Muse waits for an answer is the user's choice (M112, D92).
+  'questions.deferAfterSeconds',
+  // Tab chooses what runs, what is billed and how much is approved (M94,
+  // PLAN.md D73): every Tab setting is machine-scoped, so a workspace's
+  // settings cannot change what Tab spends.
   'modelApiTab',
   'tabModel',
   'tabDailyBudgetUsd',
@@ -3665,6 +3676,40 @@ export const CLARIFICATION_FORMAT = 'text'
 export const CLARIFICATION_MAX_CHARS = 500
 export const QUESTION_OUTCOME_CLARIFIED = 'clarified'
 
+// Questions that never block (M112, PLAN.md D92). These limits apply in
+// the process holding the session, on every interactive editor surface.
+export const QUESTION_OUTCOME_DEFERRED = 'deferred'
+export const QUESTION_DEFER_DEFAULT_SECONDS = 60
+export const ACP_QUESTIONS_BUNDLE_FILE = 'acpQuestions.js'
+export const RUNTIME_QUESTIONS_BUNDLE_FILE = 'runtimeQuestions.js'
+export const QUESTION_DEFER_MIN_SECONDS = 10
+export const QUESTION_DEFER_MAX_SECONDS = 3600
+export const QUESTION_DEFER_SETTING = 'questions.deferAfterSeconds'
+export const QUESTION_REMINDERS_MAX = 2
+export const OPEN_QUESTIONS_MAX = 20
+// Internal question handles are bounded without truncating identity. At
+// this limit both id slots in deferredClarification still fit MSP's 500.
+export const QUESTION_ID_MAX_CHARS = 100
+export const LATE_ANSWER_QUESTION_MAX_CHARS = 2000
+export const ATTENTION_DOCK_MAX_VIEWPORT_FRACTION = 0.5
+
+// Backend deferral text: questionNotes.js, loaded on the first deferral.
+const QUESTION_DEFERRAL_NOTE =
+  '<harness_note>The user has not answered question {id} yet. Continue with work that does not depend on the answer. Do not guess the answer and do not ask again. The answer will arrive later as a user message that begins "Answer to your earlier question {id}".</harness_note>'
+export const QUESTION_MODEL_TEXT = {
+  deferred: QUESTION_DEFERRAL_NOTE,
+  deferredClarification: QUESTION_DEFERRAL_NOTE,
+} as const
+
+// Late delivery stays in conversation.js and runtimeQuestions.js.
+export const QUESTION_DELIVERY_MODEL_TEXT = {
+  lateAnswer: 'Answer to your earlier question {id}\nQuestion:\n{question}\n{answer}',
+  dismissed:
+    '<harness_note>The user dismissed question {id} without answering. Continue with work that does not depend on the answer. Do not guess the answer and do not ask again.</harness_note>',
+  answersPrefix: 'The user answered:',
+  clarificationLead: 'The user chose none of the options and explained instead:',
+} as const
+
 // --- Subagents, background tasks and usage insights (M14, PLAN.md D17) ---
 
 // Muse Code hides its subagent tools unless this setting in its own
@@ -4104,6 +4149,8 @@ export const MCP_STDIO_ENV_ALLOWLIST: readonly string[] = [
 export const MCP_JOB_NONCE_BYTES = 24
 /** Reject an oversized READY line before it can hold the private pipe. */
 export const MCP_JOB_HANDSHAKE_MAX_CHARS = 128
+/** Team confirmations include the UTF-8/base64 executable path and kernel identity. */
+export const TEAM_PROCESS_STATUS_MAX_CHARS = 256 * 1024
 // The Windows MCP launcher's contract with its shipped C#
 // (native/windows/MuseSparkMcpLauncher.cs, PLAN.md D6): the argument its
 // self-test is run with, the line it answers, and the variable its
@@ -4862,6 +4909,7 @@ export const REPORT_ERROR_CODES: ReadonlySet<string> = new Set([
 // owning test. Register new bundles before retaining their stack frames.
 export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/extension.js',
+  'dist/questionNotes.js',
   'dist/uiText.js',
   'dist/modelApi.js',
   'dist/providers.js',
@@ -4912,6 +4960,12 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/uiTextHooks.js',
   'dist/uiTextSurfaces.js',
   'dist/wire.js',
+  'dist/modelApiBoundaries.js',
+  'dist/providerPolicy.js',
+  'dist/legalScan.js',
+  'dist/providerCatalog.js',
+  'dist/modelApiHooks.js',
+  'dist/modelApiMcp.js',
 ])
 // One window journals at most this many failures in REPORT_RECORD_WINDOW_MS
 // (M93): a render or reconnect loop cannot turn every frame into a disk

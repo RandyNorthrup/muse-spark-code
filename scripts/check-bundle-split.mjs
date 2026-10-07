@@ -915,6 +915,18 @@ const TEXT_BLOCKS = [
   // M96 workers are not wired into a shipped bundle yet: forbid their text everywhere.
   { block: 'WORKER_MODEL_TEXT', sentinels: ['boundedExcerpt'], readers: [] },
   {
+    block: 'QUESTION_MODEL_TEXT',
+    sentinels: ['deferredClarification'],
+    // The two backends share one first-deferral helper; ordinary startup
+    // carries neither the note nor the registry's late-delivery templates.
+    readers: ['dist/questionNotes.js'],
+  },
+  {
+    block: 'QUESTION_DELIVERY_MODEL_TEXT',
+    sentinels: ['lateAnswer'],
+    readers: ['dist/conversation.js', 'dist/runtimeQuestions.js'],
+  },
+  {
     block: 'CONVERSATION_MODEL_TEXT',
     sentinels: ['planBriefRequest', 'replyContextLead'],
     readers: ['dist/conversation.js', BUNDLES.modelApi.output],
@@ -1241,7 +1253,11 @@ const nodeMetafiles = readdirSync('dist/meta')
       ].includes(name),
   )
   .map((name) => `dist/meta/${name}`)
-nodeMetafiles.push('dist/meta-acp/acp.json')
+nodeMetafiles.push(
+  'dist/meta-acp/acp.json',
+  'dist/meta-acp/acpQuestions.json',
+  'dist/meta-acp/runtimeQuestions.json',
+)
 const validationReaders = new Set()
 for (const file of nodeMetafiles) {
   const meta = JSON.parse(readFileSync(file, 'utf8'))

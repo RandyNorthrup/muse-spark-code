@@ -62,7 +62,8 @@ import { StatusLine } from './StatusLine'
 import type { TeamCardActions } from './TeamCards'
 import { ToolRow, type ToolRowProps } from './ToolRow'
 import { UserShellRow } from './UserShellRow'
-import { WorkflowRunView } from './WorkflowRun'
+import { deferred } from './DeferredSurface'
+
 import { PaidBadge } from './PaidBadge'
 import { type GooeyItem, useRowMenu } from './GooeyMenu'
 import type { MenuPoint } from '../gooeyLayout'
@@ -70,6 +71,11 @@ import type { MenuPoint } from '../gooeyLayout'
 const TeamCard = lazy(async () => {
   const module = await import('./TeamUi')
   return { default: module.TeamCard }
+})
+
+const WorkflowRunView = deferred(async () => {
+  const module = await import('./WorkflowRun')
+  return { default: module.WorkflowRunView }
 })
 
 export interface TranscriptProps {

@@ -57,6 +57,12 @@ import { paidStateSchema } from './paid'
 import { patchHunkSchema } from './patchDocument'
 import { reviewRequestSchema } from './reviewCommand'
 import { scheduleCadenceSchema } from './schedule'
+import {
+  answerOpenQuestionSchema,
+  dismissOpenQuestionSchema,
+  jumpToOpenQuestionSchema,
+  openQuestionsMessageSchema,
+} from './questions'
 import { bestOfNRunSchema } from './bestOfN'
 import { legalScanReportMessageSchema, legalScanRequestMessageSchema } from './legal'
 import {
@@ -549,6 +555,10 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   }),
   // Question card: Cancel declines the prompt; the model sees a cancelled result (M16).
   z.object({ type: z.literal('cancelQuestion'), userInputId: z.string() }),
+  // M112: explicit session identity rejects answers from stale surfaces.
+  answerOpenQuestionSchema,
+  dismissOpenQuestionSchema,
+  jumpToOpenQuestionSchema,
   // Elicitation form (M91 lane M): accept with the form's values (validated
   // against the schema before they reach the server), or decline or cancel.
   z.object({
@@ -851,6 +861,10 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
 export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema> | TeamTreeAction
 
 const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
+  // Posted on attach and each registry change; terminal updates settle both views.
+  openQuestionsMessageSchema,
+  // Palette/key navigation uses the same contract as the chip's Next/Previous.
+  jumpToOpenQuestionSchema,
   z.object({ type: z.literal('openHelp') }),
   z.object({
     type: z.literal('referenceValues'),
@@ -953,6 +967,7 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('sessionList'),
     sessions: z.array(sessionRowSchema),
     archivedIds: z.array(stringSchema),
+    openQuestionCounts: z.optional(z.record(z.string(), z.number().check(z.int(), z.minimum(0)))),
   }),
   // A resumed or forked session's history: the transcript is rebuilt from it.
   z.object({

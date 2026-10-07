@@ -7,6 +7,9 @@ import { LandingJournal, landingFileAccess } from '../../src/host/team/landingJo
 import { teamRepository } from './helpers/teamRepository'
 import { teamLandingFixture } from './helpers/teamLanding'
 
+// These named cases execute real multi-stage Git landing, recovery or undo transactions.
+const REAL_LANDING_TIMEOUT_MS = 60_000
+
 describe('snapshot-bound landing and recovery', () => {
   let repo: Awaited<ReturnType<typeof teamRepository>>
   beforeEach(async () => {
@@ -16,17 +19,21 @@ describe('snapshot-bound landing and recovery', () => {
     await repo.dispose()
   })
 
-  it('lands and undoes an indexed executable on a permission-blind checkout', async () => {
-    await repo.permissionBlindExecutable()
-    const fixture = await teamLandingFixture(repo, { 'run.sh': '#!/bin/sh\nexit 1\n' })
-    expect(await fixture.access.read('run.sh')).toMatchObject({ mode: '100755' })
-    const result = await fixture.landing.land(repo.root, fixture.admission)
-    expect(result.status).toBe('landed')
-    if (result.status !== 'landed') throw new Error('expected landing')
-    expect(await fixture.landing.undo(result.intent, null)).toMatchObject({ status: 'landed' })
-    expect(await readFile(path.join(repo.root, 'run.sh'), 'utf8')).toBe('#!/bin/sh\nexit 0\n')
-    expect(await fixture.access.read('run.sh')).toMatchObject({ mode: '100755' })
-  })
+  it(
+    'lands and undoes an indexed executable on a permission-blind checkout',
+    async () => {
+      await repo.permissionBlindExecutable()
+      const fixture = await teamLandingFixture(repo, { 'run.sh': '#!/bin/sh\nexit 1\n' })
+      expect(await fixture.access.read('run.sh')).toMatchObject({ mode: '100755' })
+      const result = await fixture.landing.land(repo.root, fixture.admission)
+      expect(result.status).toBe('landed')
+      if (result.status !== 'landed') throw new Error('expected landing')
+      expect(await fixture.landing.undo(result.intent, null)).toMatchObject({ status: 'landed' })
+      expect(await readFile(path.join(repo.root, 'run.sh'), 'utf8')).toBe('#!/bin/sh\nexit 0\n')
+      expect(await fixture.access.read('run.sh')).toMatchObject({ mode: '100755' })
+    },
+    REAL_LANDING_TIMEOUT_MS,
+  )
 
   it('checks holders immediately before deleting a matching file', async () => {
     const fixture = await teamLandingFixture(repo)
@@ -109,6 +116,7 @@ describe('snapshot-bound landing and recovery', () => {
       ).toMatchObject({ status: 'busy' })
       expect(await readFile(path.join(repo.root, 'a.txt'), 'utf8')).toBe('landed-a\n')
     },
+    REAL_LANDING_TIMEOUT_MS,
   )
 
   it.each(['land', 'recover', 'undo'] as const)(
@@ -151,32 +159,37 @@ describe('snapshot-bound landing and recovery', () => {
         action === 'land' ? 'base-a\n' : 'landed-a\n',
       )
     },
+    REAL_LANDING_TIMEOUT_MS,
   )
 
-  it('lands the tested blobs uncommitted, journals first and keeps the user index untouched', async () => {
-    const fixture = await teamLandingFixture(repo)
-    const index = await readFile(path.join(fixture.gitDirectory, 'index'))
-    const landing = new TeamLanding({
-      ...fixture.deps,
-      replace: async (_root, file, canWrite) => {
-        expect(await fixture.journal.read('landing-one')).toMatchObject({ status: 'open' })
-        expect(await readFile(path.join(fixture.gitDirectory, 'index.lock'), 'utf8')).toContain(
-          'window-one',
-        )
-        return await fixture.access.replace(file.path, file.before, file.after, canWrite)
-      },
-    })
-    await repo.write('a.txt', 'corrupted staging after checks\n', fixture.copy)
-    const result = await landing.land(repo.root, fixture.admission)
-    expect(result.status).toBe('landed')
-    expect(await readFile(path.join(repo.root, 'a.txt'), 'utf8')).toBe('landed-a\n')
-    expect(await repo.staging.head(repo.root)).toBe(fixture.admission.snapshot.head)
-    expect(await readFile(path.join(fixture.gitDirectory, 'index'))).toEqual(index)
-    expect(await fixture.journal.read('landing-one')).toMatchObject({ status: 'landed' })
-    await expect(readFile(path.join(fixture.gitDirectory, 'index.lock'))).rejects.toMatchObject({
-      code: 'ENOENT',
-    })
-  })
+  it(
+    'lands the tested blobs uncommitted, journals first and keeps the user index untouched',
+    async () => {
+      const fixture = await teamLandingFixture(repo)
+      const index = await readFile(path.join(fixture.gitDirectory, 'index'))
+      const landing = new TeamLanding({
+        ...fixture.deps,
+        replace: async (_root, file, canWrite) => {
+          expect(await fixture.journal.read('landing-one')).toMatchObject({ status: 'open' })
+          expect(await readFile(path.join(fixture.gitDirectory, 'index.lock'), 'utf8')).toContain(
+            'window-one',
+          )
+          return await fixture.access.replace(file.path, file.before, file.after, canWrite)
+        },
+      })
+      await repo.write('a.txt', 'corrupted staging after checks\n', fixture.copy)
+      const result = await landing.land(repo.root, fixture.admission)
+      expect(result.status).toBe('landed')
+      expect(await readFile(path.join(repo.root, 'a.txt'), 'utf8')).toBe('landed-a\n')
+      expect(await repo.staging.head(repo.root)).toBe(fixture.admission.snapshot.head)
+      expect(await readFile(path.join(fixture.gitDirectory, 'index'))).toEqual(index)
+      expect(await fixture.journal.read('landing-one')).toMatchObject({ status: 'landed' })
+      await expect(readFile(path.join(fixture.gitDirectory, 'index.lock'))).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+    },
+    REAL_LANDING_TIMEOUT_MS,
+  )
 
   it('invalidates untouched dependency changes and changed check identities before writing', async () => {
     const fixture = await teamLandingFixture(repo)
@@ -194,32 +207,38 @@ describe('snapshot-bound landing and recovery', () => {
     expect(fixture.deps.invalidate).toHaveBeenCalledTimes(2)
   })
 
-  it('lands and undoes raw binary additions and deletions with executable modes', async () => {
-    const bytes = Buffer.from([0, 255, 128, 1])
-    const fixture = await teamLandingFixture(repo, { 'a.txt': 'changed\n', 'binary.bin': bytes })
-    await rm(path.join(fixture.copy, 'b.txt'))
-    if (process.platform !== 'win32') await chmod(path.join(fixture.copy, 'a.txt'), 0o755)
-    const final = await repo.staging.snapshot(fixture.copy)
-    await repo.git(['fetch', '--no-tags', '--no-write-fetch-head', fixture.copy, final.commit])
-    const owners = new Map(fixture.admission.owners)
-    owners.set('b.txt', ['task-one'])
-    const result = await fixture.landing.land(repo.root, { ...fixture.admission, final, owners })
-    expect(result.status).toBe('landed')
-    expect(await readFile(path.join(repo.root, 'binary.bin'))).toEqual(bytes)
-    await expect(readFile(path.join(repo.root, 'b.txt'))).rejects.toMatchObject({ code: 'ENOENT' })
-    if (process.platform !== 'win32') {
-      const landed = await repo.staging.snapshot(repo.root)
-      expect(landed.blobs.get('a.txt')?.mode).toBe('100755')
-    }
-    if (result.status !== 'landed') throw new Error('expected landing')
-    expect(await fixture.landing.undo(result.intent, null)).toMatchObject({ status: 'landed' })
-    expect(await readFile(path.join(repo.root, 'b.txt'), 'utf8')).toBe('base-b\n')
-    await expect(readFile(path.join(repo.root, 'binary.bin'))).rejects.toMatchObject({
-      code: 'ENOENT',
-    })
-    const restored = await repo.staging.snapshot(repo.root)
-    expect(restored.blobs.get('a.txt')?.mode).toBe('100644')
-  })
+  it(
+    'lands and undoes raw binary additions and deletions with executable modes',
+    async () => {
+      const bytes = Buffer.from([0, 255, 128, 1])
+      const fixture = await teamLandingFixture(repo, { 'a.txt': 'changed\n', 'binary.bin': bytes })
+      await rm(path.join(fixture.copy, 'b.txt'))
+      if (process.platform !== 'win32') await chmod(path.join(fixture.copy, 'a.txt'), 0o755)
+      const final = await repo.staging.snapshot(fixture.copy)
+      await repo.git(['fetch', '--no-tags', '--no-write-fetch-head', fixture.copy, final.commit])
+      const owners = new Map(fixture.admission.owners)
+      owners.set('b.txt', ['task-one'])
+      const result = await fixture.landing.land(repo.root, { ...fixture.admission, final, owners })
+      expect(result.status).toBe('landed')
+      expect(await readFile(path.join(repo.root, 'binary.bin'))).toEqual(bytes)
+      await expect(readFile(path.join(repo.root, 'b.txt'))).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+      if (process.platform !== 'win32') {
+        const landed = await repo.staging.snapshot(repo.root)
+        expect(landed.blobs.get('a.txt')?.mode).toBe('100755')
+      }
+      if (result.status !== 'landed') throw new Error('expected landing')
+      expect(await fixture.landing.undo(result.intent, null)).toMatchObject({ status: 'landed' })
+      expect(await readFile(path.join(repo.root, 'b.txt'), 'utf8')).toBe('base-b\n')
+      await expect(readFile(path.join(repo.root, 'binary.bin'))).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+      const restored = await repo.staging.snapshot(repo.root)
+      expect(restored.blobs.get('a.txt')?.mode).toBe('100644')
+    },
+    REAL_LANDING_TIMEOUT_MS,
+  )
 
   it('excludes overlapping in-process landings and makes real git add meet the lock', async () => {
     const fixture = await teamLandingFixture(repo)
@@ -244,27 +263,33 @@ describe('snapshot-bound landing and recovery', () => {
     expect(await first).toMatchObject({ status: 'landed' })
   })
 
-  it('defers a known holder to a landing branch and Apply rebuilds from a fresh snapshot', async () => {
-    const fixture = await teamLandingFixture(repo)
-    await repo.write('.git/rebase-merge/head-name', 'main')
-    const index = await readFile(path.join(fixture.gitDirectory, 'index'))
-    const result = await fixture.landing.land(repo.root, fixture.admission)
-    expect(result.status).toBe('branched')
-    expect(await repo.git(['show', 'refs/heads/agents/landing/landing-one:a.txt'])).toBe('landed-a')
-    expect(await readFile(path.join(repo.root, 'a.txt'), 'utf8')).toBe('base-a\n')
-    expect(await readFile(path.join(fixture.gitDirectory, 'index'))).toEqual(index)
-    await rm(path.join(fixture.gitDirectory, 'rebase-merge'), { recursive: true })
-    await repo.write('b.txt', 'new dependency\n')
-    const rebuild = vi.fn(async () => {
-      const rebuilt = await teamLandingFixture(repo, { 'a.txt': 'landed-a\n' }, 'apply-one')
-      return rebuilt.admission
-    })
-    expect(await fixture.landing.apply(repo.root, 'landing-one', rebuild)).toMatchObject({
-      status: 'landed',
-    })
-    expect(rebuild).toHaveBeenCalledWith('landing-one')
-    expect(await readFile(path.join(repo.root, 'b.txt'), 'utf8')).toBe('new dependency\n')
-  })
+  it(
+    'defers a known holder to a landing branch and Apply rebuilds from a fresh snapshot',
+    async () => {
+      const fixture = await teamLandingFixture(repo)
+      await repo.write('.git/rebase-merge/head-name', 'main')
+      const index = await readFile(path.join(fixture.gitDirectory, 'index'))
+      const result = await fixture.landing.land(repo.root, fixture.admission)
+      expect(result.status).toBe('branched')
+      expect(await repo.git(['show', 'refs/heads/agents/landing/landing-one:a.txt'])).toBe(
+        'landed-a',
+      )
+      expect(await readFile(path.join(repo.root, 'a.txt'), 'utf8')).toBe('base-a\n')
+      expect(await readFile(path.join(fixture.gitDirectory, 'index'))).toEqual(index)
+      await rm(path.join(fixture.gitDirectory, 'rebase-merge'), { recursive: true })
+      await repo.write('b.txt', 'new dependency\n')
+      const rebuild = vi.fn(async () => {
+        const rebuilt = await teamLandingFixture(repo, { 'a.txt': 'landed-a\n' }, 'apply-one')
+        return rebuilt.admission
+      })
+      expect(await fixture.landing.apply(repo.root, 'landing-one', rebuild)).toMatchObject({
+        status: 'landed',
+      })
+      expect(rebuild).toHaveBeenCalledWith('landing-one')
+      expect(await readFile(path.join(repo.root, 'b.txt'), 'utf8')).toBe('new dependency\n')
+    },
+    REAL_LANDING_TIMEOUT_MS,
+  )
 
   it('asks separately for Land without checks in every mode', async () => {
     const fixture = await teamLandingFixture(repo)
@@ -280,21 +305,25 @@ describe('snapshot-bound landing and recovery', () => {
     expect(consent).toHaveBeenCalledOnce()
   })
 
-  it('refuses a per-file byte change immediately before replacement and leaves the user edit', async () => {
-    const fixture = await teamLandingFixture(repo)
-    const landing = new TeamLanding({
-      ...fixture.deps,
-      replace: async (_root, file, canWrite) => {
-        await repo.write('a.txt', 'user edit\n')
-        return await fixture.access.replace(file.path, file.before, file.after, canWrite)
-      },
-    })
-    expect(await landing.land(repo.root, fixture.admission)).toMatchObject({
-      status: 'changed',
-      paths: ['a.txt'],
-    })
-    expect(await readFile(path.join(repo.root, 'a.txt'), 'utf8')).toBe('user edit\n')
-  })
+  it(
+    'refuses a per-file byte change immediately before replacement and leaves the user edit',
+    async () => {
+      const fixture = await teamLandingFixture(repo)
+      const landing = new TeamLanding({
+        ...fixture.deps,
+        replace: async (_root, file, canWrite) => {
+          await repo.write('a.txt', 'user edit\n')
+          return await fixture.access.replace(file.path, file.before, file.after, canWrite)
+        },
+      })
+      expect(await landing.land(repo.root, fixture.admission)).toMatchObject({
+        status: 'changed',
+        paths: ['a.txt'],
+      })
+      expect(await readFile(path.join(repo.root, 'a.txt'), 'utf8')).toBe('user edit\n')
+    },
+    REAL_LANDING_TIMEOUT_MS,
+  )
 
   it('rechecks bytes and target admission after the replacement file has been staged', async () => {
     const fixture = await teamLandingFixture(repo)
@@ -375,118 +404,133 @@ describe('snapshot-bound landing and recovery', () => {
         paths: expect.arrayContaining([changedPath]),
       })
     },
+    REAL_LANDING_TIMEOUT_MS,
   )
 
-  it('keeps a partial landing journal and lock, then Recover restores only matching bytes', async () => {
-    const fixture = await teamLandingFixture(repo, {
-      'a.txt': 'landed-a\n',
-      'b.txt': 'landed-b\n',
-      'c.txt': 'new-c\n',
-      'd.txt': 'new-d\n',
-    })
-    let count = 0
-    const landing = new TeamLanding({
-      ...fixture.deps,
-      replace: async (_root, file, canWrite) => {
-        if (count === 2) throw new Error('interrupted')
-        count += 1
-        return await fixture.access.replace(file.path, file.before, file.after, canWrite)
-      },
-    })
-    await expect(landing.land(repo.root, fixture.admission)).rejects.toThrow('interrupted')
-    const intent = await fixture.journal.read('landing-one')
-    expect(intent.status).toBe('open')
-    expect(await fixture.landing.recover(intent)).toMatchObject({ status: 'busy' })
-    expect(await fixture.journal.read('landing-one')).toMatchObject({ status: 'open' })
-    // Simulate the user's terminal removal, after stopping the old lander.
-    await unlink(path.join(fixture.gitDirectory, 'index.lock'))
-    const next = await teamLandingFixture(repo, { 'a.txt': 'new landing\n' }, 'next')
-    expect(await next.landing.land(repo.root, next.admission)).toMatchObject({ status: 'busy' })
-    expect(await readFile(path.join(repo.root, 'a.txt'), 'utf8')).toBe('landed-a\n')
-    await repo.write('b.txt', 'user changed b\n')
-    expect(await fixture.landing.recover(intent)).toMatchObject({
-      status: 'changed',
-      paths: ['b.txt'],
-    })
-    expect(await readFile(path.join(repo.root, 'a.txt'), 'utf8')).toBe('base-a\n')
-    expect(await readFile(path.join(repo.root, 'b.txt'), 'utf8')).toBe('user changed b\n')
-    await expect(readFile(path.join(repo.root, 'c.txt'))).rejects.toMatchObject({ code: 'ENOENT' })
-    expect(await fixture.journal.read('landing-one')).toMatchObject({ status: 'recovered' })
-  })
+  it(
+    'keeps a partial landing journal and lock, then Recover restores only matching bytes',
+    async () => {
+      const fixture = await teamLandingFixture(repo, {
+        'a.txt': 'landed-a\n',
+        'b.txt': 'landed-b\n',
+        'c.txt': 'new-c\n',
+        'd.txt': 'new-d\n',
+      })
+      let count = 0
+      const landing = new TeamLanding({
+        ...fixture.deps,
+        replace: async (_root, file, canWrite) => {
+          if (count === 2) throw new Error('interrupted')
+          count += 1
+          return await fixture.access.replace(file.path, file.before, file.after, canWrite)
+        },
+      })
+      await expect(landing.land(repo.root, fixture.admission)).rejects.toThrow('interrupted')
+      const intent = await fixture.journal.read('landing-one')
+      expect(intent.status).toBe('open')
+      expect(await fixture.landing.recover(intent)).toMatchObject({ status: 'busy' })
+      expect(await fixture.journal.read('landing-one')).toMatchObject({ status: 'open' })
+      // Simulate the user's terminal removal, after stopping the old lander.
+      await unlink(path.join(fixture.gitDirectory, 'index.lock'))
+      const next = await teamLandingFixture(repo, { 'a.txt': 'new landing\n' }, 'next')
+      expect(await next.landing.land(repo.root, next.admission)).toMatchObject({ status: 'busy' })
+      expect(await readFile(path.join(repo.root, 'a.txt'), 'utf8')).toBe('landed-a\n')
+      await repo.write('b.txt', 'user changed b\n')
+      expect(await fixture.landing.recover(intent)).toMatchObject({
+        status: 'changed',
+        paths: ['b.txt'],
+      })
+      expect(await readFile(path.join(repo.root, 'a.txt'), 'utf8')).toBe('base-a\n')
+      expect(await readFile(path.join(repo.root, 'b.txt'), 'utf8')).toBe('user changed b\n')
+      await expect(readFile(path.join(repo.root, 'c.txt'))).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+      expect(await fixture.journal.read('landing-one')).toMatchObject({ status: 'recovered' })
+    },
+    REAL_LANDING_TIMEOUT_MS,
+  )
 
-  it('requires owner authorization for recovery and Undo batch for shared files', async () => {
-    const fixture = await teamLandingFixture(repo)
-    const result = await fixture.landing.land(repo.root, {
-      ...fixture.admission,
-      owners: new Map([['a.txt', ['task-one', 'task-two']]]),
-    })
-    if (result.status !== 'landed') throw new Error('expected landing')
-    const recovery = new TeamLanding({
-      ...fixture.deps,
-      authorizeRecovery: () => Promise.resolve(false),
-    })
-    expect(await recovery.recover(result.intent)).toMatchObject({ status: 'denied' })
-    expect(await fixture.landing.undo(result.intent, 'task-one')).toMatchObject({
-      status: 'changed',
-      paths: ['a.txt'],
-    })
-    expect(await fixture.landing.undo(result.intent, null)).toMatchObject({
-      status: 'landed',
-      paths: [],
-    })
-    expect(await readFile(path.join(repo.root, 'a.txt'), 'utf8')).toBe('base-a\n')
-  })
+  it(
+    'requires owner authorization for recovery and Undo batch for shared files',
+    async () => {
+      const fixture = await teamLandingFixture(repo)
+      const result = await fixture.landing.land(repo.root, {
+        ...fixture.admission,
+        owners: new Map([['a.txt', ['task-one', 'task-two']]]),
+      })
+      if (result.status !== 'landed') throw new Error('expected landing')
+      const recovery = new TeamLanding({
+        ...fixture.deps,
+        authorizeRecovery: () => Promise.resolve(false),
+      })
+      expect(await recovery.recover(result.intent)).toMatchObject({ status: 'denied' })
+      expect(await fixture.landing.undo(result.intent, 'task-one')).toMatchObject({
+        status: 'changed',
+        paths: ['a.txt'],
+      })
+      expect(await fixture.landing.undo(result.intent, null)).toMatchObject({
+        status: 'landed',
+        paths: [],
+      })
+      expect(await readFile(path.join(repo.root, 'a.txt'), 'utf8')).toBe('base-a\n')
+    },
+    REAL_LANDING_TIMEOUT_MS,
+  )
 
-  it('rejects journal path escapes and revalidates targets after staging', async () => {
-    const fixture = await teamLandingFixture(repo)
-    const store = { read: vi.fn(), write: vi.fn() }
-    const journal = new LandingJournal(store)
-    await expect(journal.read('../outside')).rejects.toThrow()
-    expect(store.read).not.toHaveBeenCalled()
-    store.read.mockResolvedValue({ status: 'unknown' })
-    await expect(journal.read('valid')).rejects.toThrow()
-    const access = landingFileAccess(repo.root, repo.staging, {
-      validateTarget: fixture.validateTarget,
-    })
-    for (const name of [
-      '../outside',
-      './a.txt',
-      '.GIT/config',
-      'C:/outside',
-      '/absolute',
-      String.raw`a\b`,
-    ])
-      await expect(access.read(name)).rejects.toThrow()
-    await expect(
-      fixture.journal.prepare({
-        id: 'bad',
-        windowInstanceId: 'window-one',
-        root: repo.root,
-        head: 'head',
-        snapshotTree: 'tree',
-        checkIdentity: 'check',
-        status: 'open',
-        conflicts: [],
-        files: [{ path: '../outside', before: null, after: null, tasks: ['task'] }],
-      }),
-    ).rejects.toThrow()
-    expect(await fixture.landing.land(repo.root, fixture.admission)).toMatchObject({
-      status: 'landed',
-    })
-    const record = await fixture.journal.read('landing-one')
-    await expect(fixture.journal.prepare(record)).rejects.toThrow('open')
-    await expect(
-      fixture.journal.prepare({
-        ...record,
-        status: 'open',
-        files: [...record.files, ...record.files],
-      }),
-    ).rejects.toThrow()
-    await repo.outsideLink('redirect')
-    await expect(access.read('redirect/a.txt')).rejects.toThrow()
-    await access.read('a.txt')
-    expect(fixture.validateTarget).toHaveBeenCalled()
-  })
+  it(
+    'rejects journal path escapes and revalidates targets after staging',
+    async () => {
+      const fixture = await teamLandingFixture(repo)
+      const store = { read: vi.fn(), write: vi.fn() }
+      const journal = new LandingJournal(store)
+      await expect(journal.read('../outside')).rejects.toThrow()
+      expect(store.read).not.toHaveBeenCalled()
+      store.read.mockResolvedValue({ status: 'unknown' })
+      await expect(journal.read('valid')).rejects.toThrow()
+      const access = landingFileAccess(repo.root, repo.staging, {
+        validateTarget: fixture.validateTarget,
+      })
+      for (const name of [
+        '../outside',
+        './a.txt',
+        '.GIT/config',
+        'C:/outside',
+        '/absolute',
+        String.raw`a\b`,
+      ])
+        await expect(access.read(name)).rejects.toThrow()
+      await expect(
+        fixture.journal.prepare({
+          id: 'bad',
+          windowInstanceId: 'window-one',
+          root: repo.root,
+          head: 'head',
+          snapshotTree: 'tree',
+          checkIdentity: 'check',
+          status: 'open',
+          conflicts: [],
+          files: [{ path: '../outside', before: null, after: null, tasks: ['task'] }],
+        }),
+      ).rejects.toThrow()
+      expect(await fixture.landing.land(repo.root, fixture.admission)).toMatchObject({
+        status: 'landed',
+      })
+      const record = await fixture.journal.read('landing-one')
+      await expect(fixture.journal.prepare(record)).rejects.toThrow('open')
+      await expect(
+        fixture.journal.prepare({
+          ...record,
+          status: 'open',
+          files: [...record.files, ...record.files],
+        }),
+      ).rejects.toThrow()
+      await repo.outsideLink('redirect')
+      await expect(access.read('redirect/a.txt')).rejects.toThrow()
+      await access.read('a.txt')
+      expect(fixture.validateTarget).toHaveBeenCalled()
+    },
+    REAL_LANDING_TIMEOUT_MS,
+  )
 
   it('treats only another window fresh on this same working tree as a known holder', async () => {
     const fixture = await teamLandingFixture(repo)

@@ -144,6 +144,7 @@ const DEFAULTS: ServeOptions = {
   paidFeatures: [],
   isVerbose: false,
   autoCompaction: true,
+  questionsDeferAfterSeconds: 60,
 }
 
 function fakeKeyring() {
@@ -239,6 +240,7 @@ describe('parseCommandLine', () => {
         autoCompaction: true,
         paidFeatures: ['webSearch', 'imageGeneration'],
         isVerbose: true,
+        questionsDeferAfterSeconds: 60,
       },
     })
   })

@@ -14,6 +14,7 @@ import {
 } from 'react'
 import type { QuestionAnswer } from '../shared/agentEvents'
 import type { PlanNoticePort } from './components/PlanUi'
+import type { OpenQuestionAnswer } from '../shared/questions'
 import {
   type CheckpointAvailability,
   type DictationAction,
@@ -45,7 +46,7 @@ import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/e
 import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
 import { parseHandoffPrompt } from '../shared/handoff'
 import { parseLoopPrompt } from '../core/backends/modelapi/schedules'
-import { fill, formatNumber, templateParts } from '../shared/l10n/text'
+import { fill, formatNumber, plural, templateParts } from '../shared/l10n/text'
 import {
   availablePermissionModes,
   nextPermissionMode,
@@ -66,7 +67,8 @@ import type {
 } from '../shared/protocol'
 import type { GitFormEdit } from './state/gitState'
 import type { ApprovalDecisionInput } from './components/ApprovalCard'
-import { ApprovalDock } from './components/ApprovalDock'
+import { AttentionDock } from './components/AttentionDock'
+import { QuestionSurface } from './components/QuestionSurface'
 import { Composer, type ImageData, type SlashPaletteSlot } from './components/Composer'
 import { DiffTally } from './components/DiffTally'
 import { EffortSlider } from './components/EffortSlider'
@@ -102,6 +104,7 @@ import {
   userShellCommandOf,
   visibleEditorContext,
   waitingApprovals,
+  questionsInOrder,
   workflowsOf,
 } from './state/uiState'
 import { isChildRunning } from './workflowDetails'
@@ -1186,20 +1189,34 @@ export function App({
     },
     [dispatch, postMessage],
   )
-  // Both lock the card until the host settles the question (M25).
+  // Both views lock before dispatch; only an explicit nothing-taken failure unlocks.
+  const onQuestionAction = useCallback(
+    (userInputId: string, reply: OpenQuestionAnswer | 'dismiss' | undefined) => {
+      const sessionId = store.getState().sessionId
+      const attachmentEpoch = store.getState().attachmentEpoch
+      void import('./components/QuestionUi')
+        .then((actions) => {
+          const current = store.getState()
+          if (current.sessionId === sessionId && current.attachmentEpoch === attachmentEpoch)
+            actions.questionAction(store, postMessage, userInputId, reply)
+        })
+        .catch((error: unknown) => {
+          postMessage(webviewErrorReport('promise', error))
+        })
+    },
+    [postMessage, store],
+  )
   const onAnswer = useCallback(
     (userInputId: string, answers: readonly QuestionAnswer[]) => {
-      dispatch({ type: 'questionSubmitted', userInputId })
-      postMessage({ type: 'answerQuestion', userInputId, answers: [...answers] })
+      onQuestionAction(userInputId, { answers: [...answers] })
     },
-    [dispatch, postMessage],
+    [onQuestionAction],
   )
   const onCancelQuestion = useCallback(
     (userInputId: string) => {
-      dispatch({ type: 'questionSubmitted', userInputId })
-      postMessage({ type: 'cancelQuestion', userInputId })
+      onQuestionAction(userInputId, undefined)
     },
-    [dispatch, postMessage],
+    [onQuestionAction],
   )
   // The team's waiting and merge cards (M96 lane U2): the answers post to
   // the host, which lanes T/A/W answer. The cards lock locally until the
@@ -1248,11 +1265,29 @@ export function App({
   )
   const onClarifyQuestion = useCallback(
     (userInputId: string, text: string) => {
-      dispatch({ type: 'questionSubmitted', userInputId })
-      postMessage({ type: 'clarifyQuestion', userInputId, text })
+      onQuestionAction(userInputId, { explanation: text })
     },
-    [dispatch, postMessage],
+    [onQuestionAction],
   )
+  const onDismissQuestion = useCallback(
+    (userInputId: string) => {
+      onQuestionAction(userInputId, 'dismiss')
+    },
+    [onQuestionAction],
+  )
+  const onJumpQuestion = useCallback(
+    (direction: 'next' | 'previous') => {
+      dispatch({ type: 'questionJump', direction })
+    },
+    [dispatch],
+  )
+
+  useEffect(() => {
+    const count = questionsInOrder(state).filter((question) => question.state === 'open').length
+    const title = state.title ?? UI_TEXT.untitledConversation
+    document.title =
+      count === 0 ? title : `${title} · ${plural(UI_TEXT.openQuestionsTabCount, count)}`
+  }, [state])
   // All three lock the form until the host settles it (M91 lane M).
   const onAcceptElicitation = useCallback(
     (elicitationId: string, values: Record<string, unknown>) => {
@@ -2401,6 +2436,7 @@ export function App({
     overlay === 'history' ? (
       <HistoryDialog
         sessions={state.sessions}
+        openQuestionCounts={state.openQuestionCounts}
         archivedIds={state.archivedIds}
         currentSessionId={state.sessionId}
         archiveAfterDays={state.settings.archiveInactiveSessions}
@@ -2545,251 +2581,276 @@ export function App({
     isPlanDialogOpen
 
   return (
-    <div className="app">
-      <div className="sr-only" aria-live="polite" aria-atomic="true">
-        {state.announcement === undefined ? null : (
-          <span key={state.announcement.sequence}>{state.announcement.text}</span>
-        )}
-      </div>
-      <div className="header-area" inert={isModalOpen}>
-        <Header
-          title={title}
-          isFocusView={state.settings.focusView}
-          isSideChat={state.isSideChat}
-          onNewConversation={onNewConversation}
-          onOpenHistory={onOpenHistory}
-          onOpenBoard={onOpenBoard}
-          onRename={state.sessionId === undefined || !state.canEditSessions ? undefined : onRename}
-          agentCount={agentCount}
-          runningAgentCount={runningAgentCount}
-          runningTaskCount={backgroundTasks.filter((task) => isRunningTask(task)).length}
-          teamTaskCount={state.teamTree === undefined ? 0 : teamTaskCount(state.teamTree)}
-          runningTeamTaskCount={
-            state.teamTree === undefined ? 0 : teamRunningTaskCount(state.teamTree)
-          }
-          onOpenAgents={onOpenAgents}
-          onOpenSideChat={canOpenSideChat ? onOpenSideChat : undefined}
-        />
-        {history}
-        {board}
-      </div>
-      <>
-        {overlay === 'help' ? (
-          <ReferencePage
-            postMessage={postMessage}
-            values={state.referenceValues}
-            settings={state.settings}
-            onClose={closeOverlay}
-          />
-        ) : null}
-        {usageDialog}
-        {agentMap}
-        {reviewPane}
-        {bestOfN}
-      </>
-      {handoffDialog}
-      {secretPromptDialog}
-      {reportDialog}
-      {legalReport}
-      <Suspense fallback={null}>
-        {hasPlan ? (
-          <PlanUi
-            surface="dialog"
-            state={state}
-            providerId={selectedProvider}
-            isOtherModalOpen={
-              isOtherModalOpen ||
-              state.report !== undefined ||
-              state.secretPrompt !== undefined ||
-              state.handoff !== undefined
+    <QuestionSurface
+      sessionId={state.sessionId}
+      navigation={state.questionNavigation}
+      onDismiss={onDismissQuestion}
+    >
+      <div className="app">
+        <div className="sr-only" aria-live="polite" aria-atomic="true">
+          {state.announcement === undefined ? null : (
+            <span key={state.announcement.sequence}>{state.announcement.text}</span>
+          )}
+        </div>
+        <div className="header-area" inert={isModalOpen}>
+          <Header
+            title={title}
+            isFocusView={state.settings.focusView}
+            isSideChat={state.isSideChat}
+            onNewConversation={onNewConversation}
+            onOpenHistory={onOpenHistory}
+            onOpenBoard={onOpenBoard}
+            onRename={
+              state.sessionId === undefined || !state.canEditSessions ? undefined : onRename
             }
-            onModalChange={setPlanModalOpen}
-            onChooseModel={onOpenModelPicker}
-            store={store}
-            postMessage={postMessage}
-            port={planNoticePort}
+            agentCount={agentCount}
+            runningAgentCount={runningAgentCount}
+            runningTaskCount={backgroundTasks.filter((task) => isRunningTask(task)).length}
+            teamTaskCount={state.teamTree === undefined ? 0 : teamTaskCount(state.teamTree)}
+            runningTeamTaskCount={
+              state.teamTree === undefined ? 0 : teamRunningTaskCount(state.teamTree)
+            }
+            onOpenAgents={onOpenAgents}
+            onOpenSideChat={canOpenSideChat ? onOpenSideChat : undefined}
           />
-        ) : null}
-      </Suspense>
-      {state.share === undefined ? null : (
+          {history}
+          {board}
+        </div>
         <>
-          <ShareView
-            title={state.share.title}
-            exportedAt={state.share.exportedAt}
-            sourceBackend={state.share.sourceBackend}
-            modelId={state.share.modelId}
-            redacted={state.share.redacted}
-            items={state.share.items}
-            onClose={onCloseShare}
-            onOpenLink={onOpenExternal}
-            onCopy={onCopy}
-            onSectionError={onShareSectionError}
-          />
-        </>
-      )}
-      <main
-        ref={bodyRef}
-        className={hasTranscript ? 'body body-transcript' : 'body'}
-        inert={isModalOpen}
-        onScroll={onBodyScroll}
-        onContextMenu={onTranscriptContextMenu}
-      >
-        {body}
-        {hasNewBelow ? (
-          <button
-            type="button"
-            className="jump-latest"
-            title={UI_TEXT.jumpToLatestTitle}
-            onClick={scrollToEnd}
-          >
-            <ExpandChevron isOpen />
-            {UI_TEXT.jumpToLatest}
-          </button>
-        ) : null}
-      </main>
-      {/* Review opens M70's pane on the same edits (D66 item 10). */}
-      <DiffTally counts={tally} onReview={openReviewPane} />
-      {state.git.form === undefined &&
-      state.git.state.worktree === undefined &&
-      state.git.state.pullRequest === undefined &&
-      state.git.state.hold === undefined ? null : (
-        <>
-          <GitPanel
-            git={state.git}
-            isInert={isModalOpen}
-            canGenerate={state.auth.status === 'signedIn' && state.activeTurnId === undefined}
-            onAction={onGitAction}
-            onEdit={onGitEdit}
-            onClose={onGitClose}
-            onCommit={onGitCommit}
-            onCreatePullRequest={onGitCreatePullRequest}
-            onGenerate={onGitGenerate}
-            onOpenLink={onOpenExternal}
-          />
-        </>
-      )}
-      {state.goal === undefined ? null : (
-        <GoalPanel
-          key={state.sessionId}
-          goal={state.goal}
-          isInert={isModalOpen}
-          onCommand={onGoalCommand}
-          editor={{
-            draft: state.goalEdit?.draft,
-            isPending: state.goalEdit?.pending !== undefined,
-            onStart: onGoalEditStarted,
-            onChange: onGoalEditChanged,
-            onCancel: onGoalEditCanceled,
-            onSave: onGoalEditSaved,
-          }}
-        />
-      )}
-      {state.schedules.length === 0 ? null : (
-        <SchedulePanel
-          jobs={state.schedules}
-          nowMs={now()}
-          isPaidOn={state.paid.features.includes('scheduledPrompts')}
-          isInert={isModalOpen}
-          onRun={onScheduleRun}
-          onCancel={onScheduleCancel}
-          onEnable={onScheduleEnable}
-        />
-      )}
-      <TodoPanel items={state.todos} isInert={isModalOpen} onOpenInTab={onOpenTasksTab} />
-      {isBodyGated ? null : (
-        <ApprovalDock waiting={waiting} onDecide={onDecide} isInert={isModalOpen} />
-      )}
-      <div className="composer-area" inert={isModalOpen}>
-        {floating}
-        {isBodyGated || state.setupComplete === undefined ? null : (
-          <Suspense fallback={null}>
-            <SetupBanner
-              provider={state.setupComplete.provider}
-              model={state.setupComplete.model}
-              onManageProviders={() => {
-                postMessage({ type: 'hostAction', action: 'manageModels' })
-              }}
-              onDismiss={() => {
-                dispatch({ type: 'setupCompleteDismissed' })
-              }}
+          {overlay === 'help' ? (
+            <ReferencePage
+              postMessage={postMessage}
+              values={state.referenceValues}
+              settings={state.settings}
+              onClose={closeOverlay}
             />
-          </Suspense>
+          ) : null}
+          {usageDialog}
+          {agentMap}
+          {reviewPane}
+          {bestOfN}
+        </>
+        {handoffDialog}
+        {secretPromptDialog}
+        {reportDialog}
+        {legalReport}
+        <Suspense fallback={null}>
+          {hasPlan ? (
+            <PlanUi
+              surface="dialog"
+              state={state}
+              providerId={selectedProvider}
+              isOtherModalOpen={
+                isOtherModalOpen ||
+                state.report !== undefined ||
+                state.secretPrompt !== undefined ||
+                state.handoff !== undefined
+              }
+              onModalChange={setPlanModalOpen}
+              onChooseModel={onOpenModelPicker}
+              store={store}
+              postMessage={postMessage}
+              port={planNoticePort}
+            />
+          ) : null}
+        </Suspense>
+        {state.share === undefined ? null : (
+          <>
+            <ShareView
+              title={state.share.title}
+              exportedAt={state.share.exportedAt}
+              sourceBackend={state.share.sourceBackend}
+              modelId={state.share.modelId}
+              redacted={state.share.redacted}
+              items={state.share.items}
+              onClose={onCloseShare}
+              onOpenLink={onOpenExternal}
+              onCopy={onCopy}
+              onSectionError={onShareSectionError}
+            />
+          </>
         )}
-        <JudgeStatusLine status={state.judge} />
-        {hasPlan && selectedProvider === 'copilot' ? (
-          <Suspense fallback={null}>
-            <PlanUi surface="note" onOpenExternal={onOpenExternal} />
-          </Suspense>
-        ) : null}
-        <Composer
-          draft={state.draft}
-          placeholder={state.composerPlaceholder}
-          settings={state.settings}
-          canSend={canSend(state)}
-          isRunning={isRunning}
-          modelLabel={modelLabelFor(state)}
-          planMark={
-            hasPlan ? (
-              <Suspense fallback={null}>
-                <PlanUi
-                  surface="mark"
-                  model={selectedModel}
-                  providerId={selectedProvider}
-                  onOpenExternal={onOpenExternal}
-                />
-              </Suspense>
-            ) : undefined
-          }
-          permissionMode={state.permissionMode}
-          context={state.context}
-          paidBadge={paidBadgeFor(state)}
-          onOpenUsage={onOpenUsage}
-          focusRequests={state.focusRequests}
-          pendingInsert={state.pendingInsert}
-          attachments={state.attachments}
-          attachmentEpoch={state.attachmentEpoch}
-          attachmentSettlements={state.attachmentSettlements}
-          newAttachmentRequestId={() =>
-            `attachment:${newLocalId()}:${String(++nextAttachmentRequestId.current)}`
-          }
-          mentionResults={state.mentionResults}
-          editorContextLabel={
-            editorContext === undefined ? undefined : editorContextLabel(editorContext)
-          }
-          dictation={state.dictation}
-          now={now}
-          referenceLabel={
-            state.reference === undefined ? undefined : referenceLabel(state.reference)
-          }
-          onDismissReference={onDismissReference}
-          onDictation={onDictation}
-          onDismissEditorContext={onDismissEditorContext}
-          onDraftChange={onDraftChange}
-          onInsertApplied={onInsertApplied}
-          onSubmit={onSubmit}
-          onStop={onStop}
-          onFocusChange={onFocusChange}
-          onOpenPalette={onOpenPalette}
-          onOpenModelPicker={onOpenModelPicker}
-          onCyclePermissionMode={state.isSideChat ? undefined : onCyclePermissionMode}
-          onOpenModeMenu={state.isSideChat ? undefined : onOpenModeMenu}
-          onOpenAttachMenu={onOpenAttachMenu}
-          onRemoveAttachment={onRemoveAttachment}
-          onSearchMentions={onSearchMentions}
-          onAttachImage={onAttachImage}
-          onRefuseFile={onRefuseFile}
-          onDroppedUris={onDroppedUris}
-          onCompact={onCompact}
-          banner={state.banner}
-          onDismissBanner={onDismissBanner}
-          slashCommands={slashCommands}
-          isMenuOpen={overlay !== undefined}
-          renderSlashPalette={renderSlashPalette}
-          slashPaletteKeys={slashPaletteKeys}
-          onSlashCommand={onSlashCommand}
-          onSlashMenuOpen={onSlashMenuOpen}
-        />
+        <main
+          ref={bodyRef}
+          className={hasTranscript ? 'body body-transcript' : 'body'}
+          inert={isModalOpen}
+          onScroll={onBodyScroll}
+          onContextMenu={onTranscriptContextMenu}
+        >
+          {body}
+          {hasNewBelow ? (
+            <button
+              type="button"
+              className="jump-latest"
+              title={UI_TEXT.jumpToLatestTitle}
+              onClick={scrollToEnd}
+            >
+              <ExpandChevron isOpen />
+              {UI_TEXT.jumpToLatest}
+            </button>
+          ) : null}
+        </main>
+        {/* Review opens M70's pane on the same edits (D66 item 10). */}
+        <DiffTally counts={tally} onReview={openReviewPane} />
+        {state.git.form === undefined &&
+        state.git.state.worktree === undefined &&
+        state.git.state.pullRequest === undefined &&
+        state.git.state.hold === undefined ? null : (
+          <>
+            <GitPanel
+              git={state.git}
+              isInert={isModalOpen}
+              canGenerate={state.auth.status === 'signedIn' && state.activeTurnId === undefined}
+              onAction={onGitAction}
+              onEdit={onGitEdit}
+              onClose={onGitClose}
+              onCommit={onGitCommit}
+              onCreatePullRequest={onGitCreatePullRequest}
+              onGenerate={onGitGenerate}
+              onOpenLink={onOpenExternal}
+            />
+          </>
+        )}
+        {state.goal === undefined ? null : (
+          <GoalPanel
+            key={state.sessionId}
+            goal={state.goal}
+            isInert={isModalOpen}
+            onCommand={onGoalCommand}
+            editor={{
+              draft: state.goalEdit?.draft,
+              isPending: state.goalEdit?.pending !== undefined,
+              onStart: onGoalEditStarted,
+              onChange: onGoalEditChanged,
+              onCancel: onGoalEditCanceled,
+              onSave: onGoalEditSaved,
+            }}
+          />
+        )}
+        {state.schedules.length === 0 ? null : (
+          <SchedulePanel
+            jobs={state.schedules}
+            nowMs={now()}
+            isPaidOn={state.paid.features.includes('scheduledPrompts')}
+            isInert={isModalOpen}
+            onRun={onScheduleRun}
+            onCancel={onScheduleCancel}
+            onEnable={onScheduleEnable}
+          />
+        )}
+        <TodoPanel items={state.todos} isInert={isModalOpen} onOpenInTab={onOpenTasksTab} />
+        {isBodyGated ? null : (
+          <AttentionDock
+            waiting={waiting}
+            onDecide={onDecide}
+            isInert={isModalOpen}
+            questionGroup={{
+              questions: questionsInOrder(state),
+              elicitations: state.transcript.flatMap((entry) =>
+                entry.kind === 'tool' && entry.elicitation !== undefined ? [entry.elicitation] : [],
+              ),
+              onAnswer,
+              onCancel: onCancelQuestion,
+              onClarify: onClarifyQuestion,
+              onAcceptElicitation,
+              onDeclineElicitation,
+              onCancelElicitation,
+              onJump: onJumpQuestion,
+            }}
+          />
+        )}
+        <div className="composer-area" inert={isModalOpen}>
+          {floating}
+          {isBodyGated || state.setupComplete === undefined ? null : (
+            <Suspense fallback={null}>
+              <SetupBanner
+                provider={state.setupComplete.provider}
+                model={state.setupComplete.model}
+                onManageProviders={() => {
+                  postMessage({ type: 'hostAction', action: 'manageModels' })
+                }}
+                onDismiss={() => {
+                  dispatch({ type: 'setupCompleteDismissed' })
+                }}
+              />
+            </Suspense>
+          )}
+          <JudgeStatusLine status={state.judge} />
+          {hasPlan && selectedProvider === 'copilot' ? (
+            <Suspense fallback={null}>
+              <PlanUi surface="note" onOpenExternal={onOpenExternal} />
+            </Suspense>
+          ) : null}
+          <Composer
+            draft={state.draft}
+            placeholder={state.composerPlaceholder}
+            settings={state.settings}
+            canSend={canSend(state)}
+            isRunning={isRunning}
+            modelLabel={modelLabelFor(state)}
+            planMark={
+              hasPlan ? (
+                <Suspense fallback={null}>
+                  <PlanUi
+                    surface="mark"
+                    model={selectedModel}
+                    providerId={selectedProvider}
+                    onOpenExternal={onOpenExternal}
+                  />
+                </Suspense>
+              ) : undefined
+            }
+            permissionMode={state.permissionMode}
+            context={state.context}
+            paidBadge={paidBadgeFor(state)}
+            onOpenUsage={onOpenUsage}
+            focusRequests={state.focusRequests}
+            pendingInsert={state.pendingInsert}
+            attachments={state.attachments}
+            attachmentEpoch={state.attachmentEpoch}
+            attachmentSettlements={state.attachmentSettlements}
+            newAttachmentRequestId={() =>
+              `attachment:${newLocalId()}:${String(++nextAttachmentRequestId.current)}`
+            }
+            mentionResults={state.mentionResults}
+            editorContextLabel={
+              editorContext === undefined ? undefined : editorContextLabel(editorContext)
+            }
+            dictation={state.dictation}
+            now={now}
+            referenceLabel={
+              state.reference === undefined ? undefined : referenceLabel(state.reference)
+            }
+            onDismissReference={onDismissReference}
+            onDictation={onDictation}
+            onDismissEditorContext={onDismissEditorContext}
+            onDraftChange={onDraftChange}
+            onInsertApplied={onInsertApplied}
+            onSubmit={onSubmit}
+            onStop={onStop}
+            onFocusChange={onFocusChange}
+            onOpenPalette={onOpenPalette}
+            onOpenModelPicker={onOpenModelPicker}
+            onCyclePermissionMode={state.isSideChat ? undefined : onCyclePermissionMode}
+            onOpenModeMenu={state.isSideChat ? undefined : onOpenModeMenu}
+            onOpenAttachMenu={onOpenAttachMenu}
+            onRemoveAttachment={onRemoveAttachment}
+            onSearchMentions={onSearchMentions}
+            onAttachImage={onAttachImage}
+            onRefuseFile={onRefuseFile}
+            onDroppedUris={onDroppedUris}
+            onCompact={onCompact}
+            banner={state.banner}
+            onDismissBanner={onDismissBanner}
+            slashCommands={slashCommands}
+            isMenuOpen={overlay !== undefined}
+            renderSlashPalette={renderSlashPalette}
+            slashPaletteKeys={slashPaletteKeys}
+            onSlashCommand={onSlashCommand}
+            onSlashMenuOpen={onSlashMenuOpen}
+          />
+        </div>
       </div>
-    </div>
+    </QuestionSurface>
   )
 }

@@ -12,6 +12,7 @@ import { loadJobAssembly, runProgram, windowsPowerShell } from '../processTree'
 import { powerShellQuoted } from '../../core/shellQuote'
 import {
   MCP_JOB_HANDSHAKE_MAX_CHARS,
+  TEAM_PROCESS_STATUS_MAX_CHARS,
   MCP_JOB_NONCE_BYTES,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
 } from '../../shared/constants'
@@ -795,7 +796,7 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
         let text = ''
         socket.on('data', (bytes: Buffer) => {
           text += bytes.toString('utf8')
-          if (text.length > MCP_JOB_HANDSHAKE_MAX_CHARS) {
+          if (text.length > TEAM_PROCESS_STATUS_MAX_CHARS) {
             socket.destroy()
             return
           }

@@ -185,5 +185,8 @@
   "setting.usageHistoryDays.description": "Aufbewahrungsdauer täglicher Nutzungsübersichten in Tagen (30–1825). Details einzelner Aufrufe werden 30 Tage aufbewahrt.",
   "command.connectChatGpt": "Mit ChatGPT fortfahren",
   "command.connectCopilot": "Meine Copilot-Modelle verwenden",
-  "command.openHelp.title": "Hilfe und Referenz"
+  "command.openHelp.title": "Hilfe und Referenz",
+  "command.nextOpenQuestion.title": "Nächste offene Frage",
+  "command.previousOpenQuestion.title": "Vorherige offene Frage",
+  "config.questions.deferAfterSeconds.description": "Sekunden, nach denen eine unbeantwortete Frage zurückgestellt wird, damit Muse weiterarbeiten kann. Standard: 60; 0 bedeutet nie; 1–9 werden als 10 gelesen; höchstens 3.600. Die Frage bleibt offen und kann später beantwortet werden. Nur die Einstellung dieses Computers wird verwendet."
 }

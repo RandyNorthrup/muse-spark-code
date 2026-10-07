@@ -1153,7 +1153,7 @@ describe('uiReducer: agent events', () => {
       }),
     )
     expect(settled.transcript[0]).toMatchObject({
-      question: undefined,
+      question: { state: 'answered', isSubmitted: false },
       questionOutcome: {
         outcome: 'answered',
         answers: [{ questionId: 'colour', selectedLabel: 'Red' }],
@@ -3875,7 +3875,7 @@ describe('uiReducer: background tasks and their buttons (M46)', () => {
       }),
     ])
     expect(state.transcript[0]).toMatchObject({
-      question: undefined,
+      question: { state: 'clarified', isSubmitted: false },
       questionOutcome: { outcome: 'clarified', answers: [], clarification: 'I prefer green.' },
     })
   })

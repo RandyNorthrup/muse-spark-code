@@ -37,6 +37,7 @@ export type UsageCommand =
       readonly out?: string
     }
 import type { ChatGptProviderAction } from './chatGptProviderCommands'
+import { questionDeferSeconds } from '../shared/questionDeadline'
 
 export interface ServeOptions {
   readonly usageHistory?: boolean
@@ -54,6 +55,8 @@ export interface ServeOptions {
   /** The finest log detail on stderr. */
   readonly isVerbose: boolean
   readonly autoCompaction?: boolean | undefined
+  /** Interactive ACP questions; no forms still defer at once. */
+  readonly questionsDeferAfterSeconds?: number
 }
 
 /** What `report` prints: the scrubbed draft as text, or its exact bytes in a file. */
@@ -233,6 +236,14 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
   const paidFeatures = paidFeaturesOf(values)
   if (values['usage-history'] !== undefined && !['on', 'off'].includes(values['usage-history']))
     return invalid('--usage-history')
+  const rawSeconds = values['questions-defer-after']
+  const questionsDeferAfterSeconds =
+    rawSeconds === undefined ? questionDeferSeconds() : questionDeferSeconds(Number(rawSeconds))
+  if (
+    questionsDeferAfterSeconds === undefined ||
+    (rawSeconds !== undefined && !/^\d+$/.test(rawSeconds))
+  )
+    return invalid(`--questions-defer-after ${rawSeconds ?? ''}`)
   const [firstPaid] = paidFeatures
   if (firstPaid !== undefined && backend !== 'modelApi') {
     return {
@@ -253,6 +264,7 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
     paidFeatures,
     isVerbose: values.verbose === true,
     autoCompaction: values['no-auto-compaction'] !== true,
+    questionsDeferAfterSeconds,
   }
   const [first, second, ...rest] = positionals
   if (first === 'setup' && second === undefined) {

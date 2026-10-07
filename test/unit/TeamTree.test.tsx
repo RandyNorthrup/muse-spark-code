@@ -223,7 +223,7 @@ describe('AgentMap team region', () => {
   it('shows the team tree with its task count', async () => {
     setup()
     renderAgentMap({ team: tree, teamActions: actions() })
-    expect(screen.getByText(/Team · 4 team tasks/)).toBeDefined()
+    expect(await screen.findByText(/Team · 4 team tasks/)).toBeDefined()
     expect(await screen.findByRole('tree', { name: 'Team' })).toBeDefined()
   })
 

@@ -116,6 +116,22 @@ function LoadedBody() {
   return <p>Loaded</p>
 }
 
+it('preserves an intentionally empty fallback for settled question outcomes', async () => {
+  const held = Promise.withResolvers<{ default: typeof LoadedBody }>()
+  const Surface = deferred(
+    () => held.promise,
+    false,
+    () => null,
+  )
+  render(<Surface />)
+  expect(screen.queryByRole('status')).toBeNull()
+  await act(async () => {
+    held.resolve({ default: LoadedBody })
+    await held.promise
+  })
+  expect(screen.getByText('Loaded')).toBeVisible()
+})
+
 it('loads on use, shows an honest failure and retries by reloading the document', async () => {
   const name = 'Optional panel'
 

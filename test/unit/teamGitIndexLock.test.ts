@@ -12,6 +12,9 @@ import {
 import { teamRepository } from './helpers/teamRepository'
 import { teamLandingFixture } from './helpers/teamLanding'
 
+// These real child-process barriers include Git clones, a bundle and killed-process recovery.
+const REAL_LANDER_TIMEOUT_MS = 60_000
+
 const CHILD = String.raw`
 const fs = require('node:fs/promises');
 const { once } = require('node:events');
@@ -319,5 +322,6 @@ describe('git index ownership and killed landers', () => {
         await ended
       }
     },
+    REAL_LANDER_TIMEOUT_MS,
   )
 })

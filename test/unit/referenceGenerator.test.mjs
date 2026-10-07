@@ -303,7 +303,7 @@ describe('RVHELPREF truth regressions', () => {
     // answers and clarifications are returned as replayed function_call_output.
     const host = readFileSync(path.join(root, 'src/core/backends/modelapi/ModelApiHost.ts'), 'utf8')
     expect(host).toContain('JSON.stringify(reply.answers)')
-    expect(host).toContain('const text = questionResultText(reply)')
+    expect(host).toContain('text = questionResultText(reply)')
     expect(host).toContain('return { output: text, visibleOutput: text }')
     expect(host).toContain("type: 'function_call_output'")
     expect(host).toContain('output: outcome.outputParts ?? outcome.output')
@@ -1114,6 +1114,7 @@ describe('RVHELPREF2 runtime truth regressions', () => {
       'max-budget-usd': '1',
       'max-requests': '2',
       timeout: '10',
+      'questions-defer-after': '60',
       out: '/tmp/report',
       description: 'description',
     }

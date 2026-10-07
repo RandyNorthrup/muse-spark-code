@@ -1,10 +1,11 @@
-import { chmod, mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { createGitProcess } from '../../../src/host/git'
 import { StagingCopy } from '../../../src/host/team/stagingCopy'
 import { fixtureGitEnvironment } from './fixtureGit'
+import { removeFolder } from './temporaryFolders'
 
 /** Every fixture, clone and journal stays inside this lane's worktree. */
 export async function teamRepository() {
@@ -81,7 +82,7 @@ export async function teamRepository() {
       return canary
     },
     dispose: async () => {
-      await rm(folder, { recursive: true, force: true })
+      await removeFolder(folder)
     },
   }
 }

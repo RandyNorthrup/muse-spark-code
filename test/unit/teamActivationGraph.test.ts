@@ -17,7 +17,7 @@ it('ordinary activation, backend and ACP graphs have no team runtime modules', a
   })
   expect(
     Object.keys(result.metafile.inputs).filter((name) =>
-      /^src\/(core|host)\/(?:team|runners)\//.test(name),
+      /^src\/(core|host)\/(?:team|runners)\//.test(name.replaceAll('\\', '/')),
     ),
   ).toEqual([])
 })

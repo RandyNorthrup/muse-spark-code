@@ -6,6 +6,9 @@ import type { TeamSnapshot } from '../../src/host/team/stagingCopy'
 import { teamRepository } from './helpers/teamRepository'
 import { teamLandingFixture } from './helpers/teamLanding'
 
+// Each scenario clones and checks several real repositories before landing their exact tree.
+const REAL_MERGE_BATCH_TIMEOUT_MS = 60_000
+
 interface TrialTree {
   readonly snapshot: TeamSnapshot
   readonly directory: string
@@ -88,5 +91,6 @@ describe('cumulative batches on real repositories', () => {
         expected.map((id) => `candidate-${id}.txt`),
       )
     },
+    REAL_MERGE_BATCH_TIMEOUT_MS,
   )
 })

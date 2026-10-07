@@ -474,6 +474,7 @@ describe('runExec --provider seam', () => {
 function agentFor(host: FakeAgentHost) {
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   const agent = createAcpAgent({
+    questions: 'decline',
     backend: {
       kind: 'modelApi',
       readiness: () => Promise.resolve({ state: 'ready' as const }),

@@ -202,6 +202,8 @@ describe('M96 K real native lifetime', () => {
         resolve()
       })
     })
+    // CRT fd closure can leave Windows pipe writes buffered; close the real writer too.
+    if (process.platform === 'win32') child.stdin.destroy()
     await expect(
       startTeamMuseCodeHost({
         lifetime: {
@@ -228,7 +230,9 @@ describe('M96 K real native lifetime', () => {
         extensionVersion: 'test',
         log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
       }),
-    ).rejects.toMatchObject({ code: 'EPIPE' })
+    ).rejects.toMatchObject({
+      code: process.platform === 'win32' ? 'ERR_STREAM_DESTROYED' : 'EPIPE',
+    })
     expect(child.stdin.listenerCount('error')).toBeGreaterThan(0)
   })
   it('preserves the real command exit code through its native container', async () => {

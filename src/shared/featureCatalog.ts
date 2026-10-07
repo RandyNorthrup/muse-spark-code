@@ -174,6 +174,8 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   tabLanguages: { description: { ui: 'referenceTabLanguages' }, canRun: false },
   openPullRequestInConversation: { description: { ui: 'gitCheckoutItemDetail' }, canRun: false },
   openHelp: { description: { ui: 'referenceIntro' }, canRun: true },
+  nextOpenQuestion: { description: { ui: 'questionNextOpen' }, canRun: false },
+  previousOpenQuestion: { description: { ui: 'questionPreviousOpen' }, canRun: false },
 }
 
 function feature(
@@ -344,9 +346,12 @@ export function featureCatalog(): readonly Feature[] {
       'questions',
       { ui: 'questionSubmit' },
       { ui: 'referenceQuestions' },
-      [],
-      [],
-      'the-panel',
+      ['nextOpenQuestion', 'previousOpenQuestion'],
+      ['questions.deferAfterSeconds'],
+      'questions',
+      undefined,
+      false,
+      ['vscode', 'acp'],
     ),
     feature(
       'mcp-elicitation',
@@ -816,4 +821,5 @@ const REFERENCE_DETAILS: Readonly<
   cache: ['referenceCache'],
   'custom-agents': ['referencePaidContexts'],
   'conversation-actions': ['referenceWindowsSessions'],
+  questions: ['referenceQuestionsDeferral'],
 }

@@ -185,5 +185,8 @@
   "setting.usageHistoryDays.description": "Počet dní uchování denních souhrnů využití (30–1825). Podrobnosti jednotlivých volání se uchovávají 30 dní.",
   "command.connectChatGpt": "Pokračovat s ChatGPT",
   "command.connectCopilot": "Použít mé modely Copilot",
-  "command.openHelp.title": "Nápověda a reference"
+  "command.openHelp.title": "Nápověda a reference",
+  "command.nextOpenQuestion.title": "Další otevřená otázka",
+  "command.previousOpenQuestion.title": "Předchozí otevřená otázka",
+  "config.questions.deferAfterSeconds.description": "Počet sekund, po kterých se nezodpovězená otázka odloží, aby Muse mohl pokračovat v práci. Výchozí hodnota je 60; 0 znamená nikdy; 1–9 se čtou jako 10; maximum je 3 600. Otázka zůstává otevřená a můžete na ni odpovědět později. Použije se pouze nastavení tohoto počítače."
 }

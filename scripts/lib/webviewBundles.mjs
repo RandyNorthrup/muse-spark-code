@@ -112,6 +112,20 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     budgetKiB: 25,
   })),
   {
+    name: 'question UI',
+    entries: [
+      'src/webview/components/QuestionUi.tsx',
+      'src/webview/components/QuestionCard.tsx',
+      'src/webview/components/OpenQuestionsChip.tsx',
+      'src/webview/components/ElicitationCard.tsx',
+    ],
+  },
+  {
+    name: 'workflow details',
+    entries: ['src/webview/components/WorkflowRun.tsx'],
+    budgetKiB: 25,
+  },
+  {
     name: 'code highlighting',
     entries: ['src/webview/components/HighlightedCode.tsx'],
     budgetKiB: 125,
@@ -136,7 +150,7 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
   },
 ]
 
-export function webviewDeferredBudgetGroups(meta) {
+export function webviewDeferredBudgetGroups(meta, questionBudgetKiB) {
   meta = { ...meta, outputs: normalOutputs(meta) }
   const eager = new Set(webviewStartupOutputs(meta))
   const reachable = new Set()
@@ -171,7 +185,11 @@ export function webviewDeferredBudgetGroups(meta) {
   const groups = ADDITIONAL_WEBVIEW_BUDGETS.map((budget) => {
     const outputs = staticOutputs(meta, entries(budget.entries)).filter((file) => !eager.has(file))
     for (const file of outputs) if (!legacy.has(file)) assigned.add(file)
-    return { ...budget, outputs }
+    return {
+      ...budget,
+      budgetKiB: budget.name === 'question UI' ? questionBudgetKiB : budget.budgetKiB,
+      outputs,
+    }
   })
   const teamOutputs = Object.values(meta.outputs).some(
     (output) => output.entryPoint === 'src/webview/components/TeamUi.tsx',

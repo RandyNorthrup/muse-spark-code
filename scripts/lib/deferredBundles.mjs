@@ -226,6 +226,30 @@ export const ON_FIRST_USE = [
     ],
   },
   {
+    output: 'dist/questionNotes.js',
+    metafile: 'dist/meta/questionNotes.json',
+    use: 'the first backend question deferral',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: ['src/core/questions/deferralEntry.ts'],
+  },
+  {
+    output: 'dist/runtimeQuestions.js',
+    metafile: 'dist/meta-acp/runtimeQuestions.json',
+    use: 'the first interactive ACP session with durable questions',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/runtime/questions/questionRegistryEntry.ts',
+      'src/runtime/questions/acpRegistry.ts',
+    ],
+  },
+  {
+    output: 'dist/acpQuestions.js',
+    metafile: 'dist/meta-acp/acpQuestions.json',
+    use: 'the first ACP question, elicitation or question command',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: ['src/acp/questionDeferralEntry.ts', 'src/acp/questionDeferral.ts'],
+  },
+  {
     output: 'dist/conversation.js',
     metafile: 'dist/meta/conversation.json',
     use: 'the first chat surface',
@@ -405,9 +429,11 @@ export function checkDeferredBundles(inputsOf) {
   }
   for (const bundle of [...DEFERRED, ...ON_FIRST_USE]) {
     const inputs = inputsOf(bundle)
-    const parents = DEFERRED.includes(bundle)
-      ? [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]
-      : [BUNDLES.activation]
+    const parents =
+      bundle.parents ??
+      (DEFERRED.includes(bundle)
+        ? [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]
+        : [BUNDLES.activation])
     for (const file of bundle.files) {
       for (const parent of parents) {
         if (inputsOf(parent).has(file)) {
@@ -557,6 +583,7 @@ const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/host/backend/subscriptionsEntry.ts'), 'dist/subscriptions.js'],
   [path.resolve('src/host/backend/configuredProvidersEntry.ts'), 'dist/configuredProviders.js'],
   [path.resolve('src/runtime/chatGptProviderCommands.ts'), 'dist/subscriptions.js'],
+  [path.resolve('src/core/questions/deferralEntry.ts'), 'dist/questionNotes.js'],
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
   [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],
@@ -576,6 +603,7 @@ export const deferredCohort = {
     // The shared request/framing implementations stay in the existing backend
     // bundle; providers and ACP require its exported API only when used.
     build.onResolve({ filter: /\/(?:transport|sse|ndjson|modelApiEntry)(?:\.ts)?$/ }, (args) => {
+      if (args.kind === 'entry-point') return
       const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
       if (
         (['transport.ts', 'sse.ts', 'ndjson.ts'].every(
@@ -590,7 +618,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry)(?:\.[jt]s)?$/,
+          /\/(?:runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

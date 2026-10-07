@@ -115,6 +115,16 @@ async function readNativeWindowsHintFile(target: string, maximum: number): Promi
   )
 }
 
+async function ownNativeWindowsHintFile(target: string): Promise<void> {
+  const systemRoot = process.env['SystemRoot']
+  if (systemRoot === undefined) throw new Error('TEAM_HINT_ACL_UNAVAILABLE')
+  const powershell = windowsPowerShell(systemRoot, { SystemRoot: systemRoot })
+  // Elevated Windows processes otherwise create files owned by Administrators.
+  // Only the fresh exclusive temporary file receives this owner; readers never repair ACLs.
+  const script = `$ErrorActionPreference='Stop'; $file = New-Object IO.FileInfo(${powerShellQuoted(target)}); $acl = $file.GetAccessControl(); $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User; $acl.SetOwner($sid); $file.SetAccessControl($acl); if ($file.GetAccessControl().GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $sid.Value) { throw 'TEAM_HINT_FILE_UNSAFE' }`
+  await runProgram(powershell.file, [...WINDOWS_POWERSHELL_COMMAND_ARGS, script], powershell.env)
+}
+
 const OWNER_DIRECTORY_MODE = 0o700
 const OWNER_FILE_MODE = 0o600
 const DIRECTORY_PERMISSION_MASK = 0o777
@@ -306,6 +316,7 @@ export function createWindowHints(options: {
           } finally {
             await handle.close()
           }
+          if (options.platform === 'win32') await ownNativeWindowsHintFile(temporary)
           await renameReplacing(
             temporary,
             file,

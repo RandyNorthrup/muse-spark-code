@@ -392,15 +392,17 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 Choose and Submit an answer, explain in your own words, or Cancel. Muse receives submitted answers and explanations in the conversation.
 
+In the panel, the attention dock pins each question above the composer, and the transcript keeps its card. After museSpark.questions.deferAfterSeconds (60 seconds by default; 0 waits indefinitely), Muse continues work that does not depend on the answer; the card becomes an open question that you can answer later or dismiss. A late answer is your own message and approves nothing. Next open question and Previous open question move between open cards. Scheduled prompts defer at once, and headless exec declines questions. In ACP, --questions-defer-after sets the form deadline, /questions lists open questions and /answer &lt;n&gt; &lt;text&gt; answers one.
+
 ```json
 {
   "actions": ["submit", "explain", "cancel"]
 }
 ```
 
-Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
+Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-panel)
+Commands: `museSpark.nextOpenQuestion`, `museSpark.previousOpenQuestion`. Settings: `museSpark.questions.deferAfterSeconds`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#questions)
 
 ### MCP elicitation
 
@@ -419,7 +421,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### Help & Reference
 
-Installed skills add dynamic slash commands. This static reference does not list them. ACP handles only local /help, /compact, /legal, /usage and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
+Installed skills add dynamic slash commands. This static reference does not list them. ACP handles only local /help, /compact, /legal, /usage, /questions, /answer and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
 
 ```json
 {
@@ -1378,7 +1380,7 @@ Commands: —. Settings: `museSpark.judge.engine`. [Documentation](https://githu
 
 Report an issue.
 
-Installed skills add dynamic slash commands. This static reference does not list them. ACP handles only local /help, /compact, /legal, /usage and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
+Installed skills add dynamic slash commands. This static reference does not list them. ACP handles only local /help, /compact, /legal, /usage, /questions, /answer and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -1650,6 +1652,14 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 ### Muse Spark: Open Help & Reference
 
 `museSpark.openHelp` — Commands, settings and features, with descriptions and documentation.
+
+### Muse Spark: Next open question
+
+`museSpark.nextOpenQuestion` — Next open question
+
+### Muse Spark: Previous open question
+
+`museSpark.previousOpenQuestion` — Previous open question
 
 ## Settings
 
@@ -2824,6 +2834,21 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 }
 ```
 
+### museSpark.questions.deferAfterSeconds
+
+Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used.
+
+Type: `"integer"`. Default: `60`. Scope: `machine`.
+
+```json
+{
+  "type": "integer",
+  "default": 60,
+  "minimum": 0,
+  "maximum": 3600
+}
+```
+
 ## Keyboard shortcuts
 
 These are defaults; editor customizations take precedence.
@@ -2836,6 +2861,8 @@ These are defaults; editor customizations take precedence.
 - `museSpark.newConversation`: `ctrl+n` (macOS: `cmd+n`); when `config.museSpark.enableNewConversationShortcut && (activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView')`
 - `museSpark.moveToBackground`: `ctrl+b` (macOS: `ctrl+b`); when `museSpark.canMoveToBackground && (activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView')`
 - `editor.action.inlineSuggest.trigger`: `alt+\`; when `editorTextFocus && museSpark.tabOn`
+- `museSpark.nextOpenQuestion`: `ctrl+alt+j` (macOS: `cmd+alt+j`); when `activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'`
+- `museSpark.previousOpenQuestion`: `ctrl+alt+shift+j` (macOS: `cmd+alt+shift+j`); when `activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'`
 - `team.tree`: `ArrowDown / ArrowUp / Home / End / ArrowRight / ArrowLeft / F2 / Escape / Character`; when `team.tree`; Use arrow keys to move. F2 focuses actions; Left and Right choose an action; Escape returns to the item.
 - `models.table`: `ArrowDown / ArrowUp / Home / End / Enter / Escape`; when `models.table`; Navigate items, choose or complete a selection, or close the list.
 - `models.select`: `ArrowDown / ArrowUp / Enter / Escape`; when `models.select`; Navigate items, choose or complete a selection, or close the list.
@@ -2935,6 +2962,7 @@ These are defaults; editor customizations take precedence.
 - `serve: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
+- `serve: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false}`
 - `serve: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `login: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
@@ -2958,6 +2986,7 @@ These are defaults; editor customizations take precedence.
 - `login: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
+- `login: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `login: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `login: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `setup: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
@@ -2981,6 +3010,7 @@ These are defaults; editor customizations take precedence.
 - `setup: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
+- `setup: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `setup: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `setup: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `authSet: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
@@ -3004,6 +3034,7 @@ These are defaults; editor customizations take precedence.
 - `authSet: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authSet: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authSet: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `authSet: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `authStatus: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
@@ -3027,6 +3058,7 @@ These are defaults; editor customizations take precedence.
 - `authStatus: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authStatus: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authStatus: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `authStatus: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `authClear: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
@@ -3050,6 +3082,7 @@ These are defaults; editor customizations take precedence.
 - `authClear: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authClear: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authClear: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `authClear: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `exec: --provider <value>`: --provider: Provider `{"type":"string","repeatable":false,"purpose":"provider"}`

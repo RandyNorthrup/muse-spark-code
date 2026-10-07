@@ -7,7 +7,11 @@ import { promisify } from 'node:util'
 import * as z from 'zod/mini'
 import { describe, expect, it } from 'vitest'
 import { runnerEnvironment } from '../../src/core/runners/runnerConfig'
+import { WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../src/shared/constants'
 import { runnerTestGit as git } from './helpers/runnerProcesses'
+
+// This case compiles and launches the native job helper for setup and check transactions.
+const NATIVE_RUNNER_TRANSACTION_TIMEOUT_MS = 60_000
 
 const execute = promisify(execFile)
 const powerShell = process.platform === 'win32' ? 'powershell.exe' : 'pwsh'
@@ -65,9 +69,11 @@ foreach ($command in $commands) { if ($command.CommandElements.Count -ne 1) { th
         )
         const snapshot = await git(source, 'rev-parse', 'HEAD')
         const invoke = async (args: readonly string[]) =>
-          await execute(powerShell, ['-NoProfile', '-NonInteractive', '-File', helper, ...args], {
-            env,
-          })
+          await execute(
+            powerShell,
+            [...WINDOWS_POWERSHELL_COMMAND_ARGS.slice(0, -1), '-File', helper, ...args],
+            { env },
+          )
         await invoke(['init', root])
         await git(
           source,
@@ -110,5 +116,6 @@ foreach ($command in $commands) { if ($command.CommandElements.Count -ne 1) { th
         if (hasRetirement) await rm(folder, { recursive: true, force: true })
       }
     },
+    NATIVE_RUNNER_TRANSACTION_TIMEOUT_MS,
   )
 })

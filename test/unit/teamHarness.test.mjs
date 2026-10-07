@@ -12,15 +12,22 @@ import { testSettings } from './helpers/fakes'
 import { buildWebviewHtml } from '../../src/host/html'
 import { EN } from '../../src/shared/l10n/en'
 
-const rig = { browser: undefined, server: undefined, origin: '' }
+// Preparation builds production chunks and inventories the complete real VSIX.
+const REAL_HARNESS_PREPARE_TIMEOUT_MS = 60_000
+const rig = { browser: undefined, server: undefined, origin: '', packagedFiles: [] }
 beforeAll(async () => {
   execFileSync(process.execPath, ['scripts/build.mjs', '--production'], { stdio: 'pipe' })
   execFileSync(process.execPath, ['scripts/pseudo-l10n.mjs'], { stdio: 'pipe' })
+  rig.packagedFiles = execFileSync(
+    process.execPath,
+    ['node_modules/@vscode/vsce/vsce', 'ls', '--no-dependencies'],
+    { encoding: 'utf8' },
+  ).split('\n')
   const serving = await serveRepo(process.cwd())
   rig.server = serving.server
   rig.origin = `http://127.0.0.1:${String(serving.port)}`
   rig.browser = await chromium.launch({ executablePath: findChrome(), headless: true })
-})
+}, REAL_HARNESS_PREPARE_TIMEOUT_MS)
 afterAll(async () => {
   await rig.browser?.close()
   if (rig.server !== undefined) await new Promise((resolve) => rig.server.close(resolve))
@@ -118,11 +125,7 @@ describe('RVM96B browser regressions', () => {
   })
 
   it('23 packages every emitted webview JavaScript chunk', () => {
-    const files = execFileSync(
-      process.execPath,
-      ['node_modules/@vscode/vsce/vsce', 'ls', '--no-dependencies'],
-      { encoding: 'utf8' },
-    ).split('\n')
+    const files = rig.packagedFiles
     const meta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
     for (const output of Object.keys(meta.outputs)) {
       if (output.endsWith('.js')) expect(files).toContain(output)

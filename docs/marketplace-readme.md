@@ -22,10 +22,48 @@ Code” are Meta trademarks. You bring your own credentials.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-**Contents:** [What's new](#whats-new-in-0142) · [Get started](#get-started) ·
+**Contents:** [What's new](#whats-new-in-0150) · [Get started](#get-started) ·
 [Work in the panel](#work-in-the-panel)
 
-## What's new in 0.14.2
+## What's new in 0.15.0
+
+- **Bring your own models.** Add OpenAI, Anthropic and Gemini keys or local
+  models in **Models & Agents**. ChatGPT sign-in is a Subscription Sharing
+  preview for eligible Plus/Pro accounts; Copilot uses a compatible VS Code
+  host's models. Features follow each selected model's capabilities.
+- **Agent roles and teams.** Configure role pools, task limits and worker
+  review. Paid workers require consent and share the daily budget.
+- **/legal.** Scan licensing, copyright and source evidence without a model
+  call, export the report, and confirm supported header repairs. The report
+  states its coverage limits; it is not a legal certificate.
+- **Automatic compaction and Pi/SoL-Pi sync.** The shared engine preserves
+  packed output, literal recall and cache-stable prompts. Automatic compaction
+  is implemented and its setting defaults on, but production remains inactive
+  pending the paired evaluation.
+- **Usage & Cost.** Open the local page for provider and team totals, token
+  counts, budgets and exports. Reported, estimated and unknown costs stay distinct.
+
+### Earlier in 0.14
+
+- **Questions never block.** A question Muse asks you is pinned in the
+  attention dock above the composer and kept in the transcript. After a minute
+  (`museSpark.questions.deferAfterSeconds`), Muse carries on with work that
+  does not need the answer.
+- **Answer later.** An unanswered question becomes an **Open question** you can
+  answer any time from its card or the open-question chip; **Dismiss** closes it
+  without an answer. A late answer reaches Muse once, as your own message, and
+  approves nothing.
+- **Find open questions.** The view badge, tab title and History show how many
+  are open; **Next open question** and **Previous open question**
+  (Ctrl+Alt+J and Ctrl+Alt+Shift+J) cycle through them.
+- **ACP editors.** Editors with forms get each question as a form, withdrawn at
+  the deadline (`--questions-defer-after`); other editors get the text.
+  `/questions` lists open questions and `/answer <n> <text>` answers one.
+
+- **Faster startup.** Optional panels and menus load when first opened, keeping
+  the chat panel quick to start.
+
+**0.14.2**
 
 - **Help & Reference.** Type `/help` or run **Muse Spark: Open Help & Reference**
   for every command, setting, slash command, keyboard shortcut, CLI/ACP option
@@ -37,7 +75,7 @@ Code” are Meta trademarks. You bring your own credentials.
 - **Editors and terminal.** Use `/help` in the chat panel and ACP editors, or
   `muse-spark-code-acp help --all` in the terminal.
 
-### Earlier in 0.14.1
+**0.14.1**
 
 - **Safer shell commands.** Commands the agent runs no longer see your
   credential variables (API keys, tokens, passwords). Name any you want passed
@@ -50,7 +88,7 @@ Code” are Meta trademarks. You bring your own credentials.
 - **Fix:** stopped or timed-out commands on macOS and Linux now wait until
   their processes have exited.
 
-### Earlier in 0.14.0
+**0.14.0**
 
 - **Tab completions** (see [Tab completions](https://github.com/RandyNorthrup/muse-spark-code#tab-completions)). Alt+\ invokes
   ghost text. First-use consent names the model price and the separate

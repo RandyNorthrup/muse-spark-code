@@ -31,7 +31,7 @@ key to the CLI.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-**Contents:** [What's new](#whats-new-in-0142) ·
+**Contents:** [What's new](#whats-new-in-0150) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) · [Subscriptions](#subscriptions) ·
 [Permission modes](#permission-modes) ·
@@ -46,7 +46,45 @@ key to the CLI.
 [Troubleshooting](#troubleshooting) ·
 [Reporting a problem](#reporting-a-problem) · [Development](#development)
 
-## What's new in 0.14.2
+## What's new in 0.15.0
+
+- **Bring your own models.** Add OpenAI, Anthropic and Gemini keys or local
+  models in **Models & Agents**. ChatGPT sign-in is a Subscription Sharing
+  preview for eligible Plus/Pro accounts; Copilot uses a compatible VS Code
+  host's models. Features follow each selected model's capabilities.
+- **Agent roles and teams.** Configure role pools, task limits and worker
+  review. Paid workers require consent and share the daily budget.
+- **/legal.** Scan licensing, copyright and source evidence without a model
+  call, export the report, and confirm supported header repairs. The report
+  states its coverage limits; it is not a legal certificate.
+- **Automatic compaction and Pi/SoL-Pi sync.** The shared engine preserves
+  packed output, literal recall and cache-stable prompts. Automatic compaction
+  is implemented and its setting defaults on, but production remains inactive
+  pending the paired evaluation.
+- **Usage & Cost.** Open the local page for provider and team totals, token
+  counts, budgets and exports. Reported, estimated and unknown costs stay distinct.
+
+### Earlier in 0.14
+
+- **Questions never block.** A question Muse asks you is pinned in the
+  attention dock above the composer and kept in the transcript. After a minute
+  (`museSpark.questions.deferAfterSeconds`), Muse carries on with work that
+  does not need the answer.
+- **Answer later.** An unanswered question becomes an **Open question** you can
+  answer any time from its card or the open-question chip; **Dismiss** closes it
+  without an answer. A late answer reaches Muse once, as your own message, and
+  approves nothing.
+- **Find open questions.** The view badge, tab title and History show how many
+  are open; **Next open question** and **Previous open question**
+  (Ctrl+Alt+J and Ctrl+Alt+Shift+J) cycle through them.
+- **ACP editors.** Editors with forms get each question as a form, withdrawn at
+  the deadline (`--questions-defer-after`); other editors get the text.
+  `/questions` lists open questions and `/answer <n> <text>` answers one.
+
+- **Faster startup.** Optional panels and menus load when first opened, keeping
+  the chat panel quick to start.
+
+**0.14.2**
 
 - **Help & Reference.** Type `/help` or run **Muse Spark: Open Help & Reference**
   for every command, setting, slash command, keyboard shortcut, CLI/ACP option
@@ -58,7 +96,7 @@ key to the CLI.
 - **Editors and terminal.** Use `/help` in the chat panel and ACP editors, or
   `muse-spark-code-acp help --all` in the terminal.
 
-### Earlier in 0.14.1
+**0.14.1**
 
 - **Safer shell commands.** Commands the agent runs no longer see your
   credential variables (API keys, tokens, passwords). Name any you want passed
@@ -71,7 +109,7 @@ key to the CLI.
 - **Fix:** stopped or timed-out commands on macOS and Linux now wait until
   their processes have exited.
 
-### Earlier in 0.14.0
+**0.14.0**
 
 - **Tab completions** (see [Tab completions](#tab-completions)). Alt+\ invokes
   ghost text. First-use consent names the model price and the separate
@@ -564,6 +602,50 @@ then refuses before dispatch until its provider-aware accounting runner exists;
 installed-editor and live provider certification are still open. MiniMax
 and Alibaba plan presets await captures, and Hugging Face OAuth awaits
 application registration.
+
+## Questions
+
+The integrated question paths, fake-only checks and the 2026-10-06 live checks
+through the ACP agent on both backends are recorded in
+[M112's certification](docs/certification/m112.md); installed-editor checks
+remain with the release lead.
+The integrated panel pins agent questions in the attention dock above the
+composer, after approvals, and keeps the same card in the transcript. After
+one minute Muse continues work that does not depend on the answer. The card
+becomes an **Open question**, still answerable from its row or the open-question
+chip. A card with focus or a draft stays expanded. **Dismiss** closes an open
+question without guessing an answer. Approvals still wait for your decision;
+MCP forms keep their five-minute expiry and cannot be answered after expiry.
+
+**Next open question** and **Previous open question** cycle through the open
+cards. In a focused VS Code chat their keys are Ctrl+Alt+J and
+Ctrl+Alt+Shift+J (Cmd+Option+J and Cmd+Option+Shift+J on macOS). The view badge,
+tab title and History marker show the count. Native editors use their own
+bindings: these keys conflict with defaults in JetBrains and Visual Studio.
+
+`museSpark.questions.deferAfterSeconds` is machine-scoped: 60 by default,
+0 to wait indefinitely, otherwise 10–3600 seconds (1–9 are read as 10).
+A workspace setting cannot change it. Open questions survive a reload and
+resume, with at most 20 open per session and two reminders per question.
+A late answer is your own message in the current mode and approves nothing.
+In the panel it steers a running turn or starts a new one, billed normally.
+
+In ACP, a client with forms gets a form that the agent withdraws at the
+deadline. A client without forms gets the text and immediate deferral,
+including with a deadline of 0. `/questions` lists open questions;
+`/answer <n> <text>` answers one by its displayed number. A late form answer
+or `/answer` steers a running prompt, or is kept before your next message
+when idle. It is announced as queued until the next prompt sends it. Stop
+cancels the backend without waiting for question storage. The agent announces
+these commands alongside skills. Configure
+its deadline with `--questions-defer-after <seconds>`; the default and limits
+match the setting. [The ACP guide](docs/acp.md#questions) explains the details.
+
+Headless `exec` still declines questions immediately, reports
+`question_declined`, and starts no question clock. Best-of-N, worktree
+conversations and the evaluation keep their immediate cancellation or
+clarification. Scheduled/unattended prompts defer at once and keep the
+question open, even when interactive deferral is disabled.
 
 ## Permission modes
 
@@ -3599,7 +3681,7 @@ placeholders, and modal focus lists both Tab and Shift+Tab. The page follows
 the editor’s theme and display language.
 
 ACP editors can send `/help` for the current installed-skill list and the
-[generated reference](docs/reference.md). ACP locally handles `/help`, `/compact`, `/legal`, `/usage` and
+[generated reference](docs/reference.md). ACP locally handles `/help`, `/compact`, `/legal`, `/usage`, `/questions`, `/answer` and
 installed skills; the linked panel slash commands and settings are extension
 workflows. In a terminal, `muse-spark-code-acp help --all` prints the full
 reference in the installed language without a model call. `exec --help`,
@@ -4508,7 +4590,7 @@ DEFLATE compression after `vsce` creates the archive. Python 3 (`python3`,
 are skipped, including Windows' Microsoft Store aliases. The step preserves
 entry paths, metadata, every UI JSON value and all other uncompressed bytes.
 Only packaged translation JSON whitespace is compacted; source tables stay
-unchanged and malformed JSON refuses publication. The 2475 KiB universal VSIX budget covers the 0.15.0 feature set; individual bundle caps stay fixed.
+unchanged and malformed JSON refuses publication. The 2775 KiB universal VSIX budget covers the 0.15.0 feature set; individual bundle caps stay fixed.
 The legal scanner's pinned data is embedded in its lazy bundle, with separate
 notice/provenance files in both packages.
 

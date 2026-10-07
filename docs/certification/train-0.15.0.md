@@ -15,7 +15,9 @@ it remains executable. Native compilation/runtime on macOS is external proof.
 Local badge checks use the supported named network-only skip because shared
 rules prohibit public network requests; all static and exact-stage checks run.
 
-**Current disposition (TRAIN15F): current main is merged additively, the
+**Current disposition (TRAIN15E release continuation): release held. The additive main-0170 merge resolves 69 conflicts; metadata and release notes are 0.15.0. All 793 test files ran: 15,957 passed, nine failed and 100 existing skips. Accessibility clears all 952 pages with zero violations or missing results. All five TypeScript projects pass. Full lint stopped without a result at the 120-minute time limit; final remaining gates and actual universal VSIX/ACP packages are unverified. Ten deliberate regression drills restore exact bytes. Zero new model calls and no push.**
+
+**Historical disposition (TRAIN15F): current main is merged additively, the
 D78 assertion follows immutable request goldens, and exec's locale/inventory
 fixture is deterministic. Final owning checks and ACP packaging pass. Both
 actual VSIX variants still exceed the unchanged cap after the authorized diet;
@@ -1247,3 +1249,179 @@ Accessibility: a11y: 864 pages (216 scenarios × 4 themes), 0 rules violated on 
 Exact per-input owners/bytes, commands, deliberate failures, restored hashes
 and package inventories: [TRAIN15H receipt](train-0.15.0-train15h.json).
 No push, rebase, merge, manual stash, Git configuration write or paid/live call.
+
+## TRAIN15E release preparation continuation (2026-10-06, win11)
+
+Continue c15b7eeae; the brief authorizes only the additive --no-ff merge
+of sync/main-0170 (8c6351d73) and local 0.15.0 preparation. No push,
+rebase, tag or publication. The full suite and live badge check explicitly
+override common.md's scoped-test/network limits; no model calls are authorized.
+The 69 conflicts combine question handling with the providers, team, legal,
+usage, compaction and lazy build paths. All fourteen translated tables keep
+both inputs' commands and translated deadline help. Generated inventories
+are rebuilt from the resolved source.
+
+Existing service evidence is [M95 provider captures](m95-captures.md), with
+its counted attempts and scrubbed frames, plus the [M101 receipts](m101.md)
+and [M102 receipts](m102.md). These historical receipts retain their named
+pending live/evaluation/editor items; this release lane does not convert those
+limits into success claims. Automatic compaction stays inactive pending its
+paired evaluation; ChatGPT/Copilot sign-in retains its preview/host scopes.
+**New live or paid model attempts in this lane: 0.**
+
+The ACP manifest takes the root version at pack time, exactly as 0.14.3's
+release commit 648511c6 does. Final checks, image review and package sizes
+will be recorded below before the hook-on local commits.
+
+### Release composition and merge repairs
+
+The root manifest and both lockfile version fields are 0.15.0. The dated
+release has five Highlights, Unreleased contains only pending provider retry
+binding, and shipped work appears in the dated release notes. Both READMEs
+have one current What's New heading, the matching Contents
+anchor and Earlier in 0.14 history. The accumulated notes are preserved in
+[the integration-note archive](train-0.15.0-integration-notes.md); consolidation
+keeps the unchanged decoded What's New limit and the fixed VSIX allowance.
+PLAN section 10 is a draft release record, not publication authorization.
+
+The merge keeps main's question navigation, durable late answers and lazy
+question bundles alongside the train's providers, teams, legal reports,
+usage/accounting and compaction. The combined AttentionDock retains the
+worker's role, agent and task label. Local ACP `/compact` and `/usage` leave
+the queued late-answer claim for the next actual model turn. Headless keeps
+its explicit decline policy. Runtime question cleanup is combined with the
+existing usage-recorder flush and runtime closure. Generated reference,
+localization inventories, host API and notices follow the resolved source.
+
+The first owning run exposed command/bundle-fixture expectations from the
+pre-merge graph; the complete three-file final batch passes 132 tests at the
+repository default deadline. The full sweep then exposes a synchronous
+team-map assertion against its lazy Loading state, an ACP question-command
+list missing `/compact`, and a misplaced duplicate D81 heading before a
+team-role table. Wait for actual team content, retain `/compact` in both
+command/description assertions, and remove only the misplaced heading;
+the complete D81 decision and its candidate-default record remain.
+The cold-question draft test also exposed a release-only barrier: resolving
+the mocked gate did not await the real imported module. It now waits for that
+module inside `act`, retaining every arrival, draft, remount and submission
+assertion under the unchanged overall test deadline.
+The exact packaged-frame vocabulary also identifies six missing train bundles:
+Model API boundaries/hooks/MCP, provider policy/catalogue and legal scan.
+Register their exact shipped paths, preserving the unknown/private-path refusal.
+Restore the concise Gemini proxy-null/negative-usage fix to the release notes.
+The activation trust fixture names the four added legal read/registry/preparation
+checks; those paths do not run Git, and actual header publication retains its
+workspaceActionGuard and withCheckpointEdit admission.
+The old P2 test required all of its notes to remain Unreleased. Read the current
+transport: classification still uses the responses table, so per-format binding
+remains pending for non-Meta transports. Keep that pending work in Unreleased,
+release the implemented pricing/callback/compatibility/save changes, and update
+the test to require both scopes without claiming blanket quota refusal.
+Fourteen overflow assertions originally fail before dispatch because their
+qualified fake model ids have no M95 model resolver. Supply admitted fake BYO
+rows with explicit tool capability, retaining the independent context resolver,
+key-retrieval refresh, sent-window snapshots and every overflow/billing assertion.
+Production's unknown-model refusal remains in place.
+
+The full sweep also exposes Windows-only integration defects. Fake SSH runs
+through installed Node and Git Bash with a portable path and explicit executable
+search directories. Native runner invocations use the repository's existing
+process-scoped PowerShell prefix; no machine/user execution policy is changed.
+Native shell origin cases await their completion event instead of a one-second
+poll. ACP packaging fixtures include the three required question bundles.
+The release-cap test pins 2,841,600 bytes and rejects its next byte. Historical
+M96 worker hashes bind the combined certified `45c3439bd3bb16088fb5749ec81b3ff3341957a8`
+revision, so later additive constants do not rewrite that historical evidence.
+
+Real build regressions reveal that relative entry points can be externalized;
+the resolver now leaves entry points to esbuild and normalizes inspected paths.
+The older case-alias refusal assertion contradicts the current native path
+contract and three later case/drive/namespace admission cases. Restore the
+existing canonical native comparison, retain the junction/8.3 refusals and
+test that cleanup preserves an unrelated copy while accepting an equivalent
+case spelling. Elevated Windows creates Administrators-owned
+files even inside a user-owned private directory. Publication explicitly sets
+and verifies the current user's ownership on its fresh exclusive temporary
+file. Reads never repair unsafe ACLs: the owner/rules/bytes still come from the
+same native opened handle, including replacement and foreign-write refusal.
+Native team confirmations exceed the 128-character READY envelope because
+they carry the executable's base64 path and kernel identity. The status pipe
+gets its own bounded 256 KiB envelope; READY retains its 128-character bound.
+The captured local confirmation identifies the rig's long installed Node path;
+this is a local helper capture, not a model attempt.
+
+The brief permits a named per-test deadline for a genuinely long operation.
+Only actual native runner setup/check transactions, repeated native ACL calls,
+ten-branch/thirty-table Git integration and multi-stage landing/recovery/undo
+cases receive named limits with an inline reason. Package inventory and real
+ten-branch setup/cleanup use shared named preparation limits. Ordinary
+assertions retain the default 5-second deadline;
+every final invocation omits `--testTimeout`, and no test is newly skipped.
+
+### Bounded Windows holds
+
+Common.md requires stopping a test path after two different fixes fail.
+The final native runner file still has one assertion: its real job remains
+`running` after the bounded status polling and never publishes its exit marker.
+The first fix uses the existing trusted process-scoped PowerShell invocation;
+the second gives the actual setup/check transaction its named deadline. The
+uncertain fixture is retained under ignored `temp/`, as the test requires.
+
+The final fake SSH file has four assertions: two undefined health projections
+and two setup-count expectations. The first fix supplies explicit Node/Git Bash
+execution and portable paths; the second supplies fake-only Unix host metrics
+and named real transaction deadlines. No further rewrite of this path is
+authorized by the shared stop rule. R011 retains 20 passing / 5 failing cases
+across those two files and the now-passing ten-branch repository case.
+These are release holds, not green gate evidence. PLAN section 7 records the
+deferral and the final receipt retains all exact failed names/results.
+
+R014's complete real landing file records **24 passed / 4 failed**. The
+journal escape/revalidation case now clears; four other transactions exceed
+their unchanged default five-second deadline: deletion-holder admission,
+dependency/check-identity invalidation, overlapping landings/Git add, and
+Land-without-checks consent. Further deadline rewrites are stopped. Shared
+fixture/process-cost work remains for the lead; these four join the five
+runner/SSH failures, for **nine assertions in three held files**.
+
+### Browser verification and README image review
+
+`node scripts/a11y.mjs` completes the full 238-scenario, four-theme run:
+**952 pages, 0 violated rules/elements, 0 undecided rules/elements, 0 exempt,
+0 pages without a result.** Axe also reports its limits separately: 2182
+covered/offscreen elements and 76 glyph-only elements have no measurable text
+contrast; these are not converted into measured successes.
+
+`node scripts/readme-shots.mjs --out temp/readme-preview` captures all 15
+declared images. View every fresh capture and compare the old question image;
+replace all 15 changed PNGs. The question now appears in the transcript and
+attention dock with an open-question chip, row actions use the radial menus,
+and the account panels include the usage-page opener and current paid rows.
+Original/final image hashes and the 96 tested browser output hashes are retained
+in the receipt; the banner is outside the harness capture list.
+
+Ten deliberate regressions fail their intended assertions and restore
+SHA-256-exact bytes: consume late answers during local compaction, omit the
+attention dock's worker prop, remove the release date, and restore the old
+README heading. The final receipt retains their exact commands, failures
+and restored hashes. No assertion, deadline, skip or budget is weakened.
+
+### Final bounded release handoff — held
+
+The full 793-file sweep ran in 265 batches of at most three files, with `--maxWorkers=3` and no `--testTimeout`. Initial totals were 15,893 passed / 73 failed / 100 existing skips. Complete owning-file reruns produce final deduplicated totals of **15,957 passed / nine failed / 100 existing skips**, 16,066 cases. No new skips conceal failures. The nine exact assertions are retained in [the machine-readable receipt](train-0.15.0-release.json), together with all per-file totals, reruns, reviewed images, ten red/restoration drills and completed final gate receipts.
+
+Accessibility: **952 pages / 238 scenarios / four themes**, zero violations, undecided results or missing pages; 2,182 covered/offscreen and 76 glyph-only contrast elements retain the harness limitations. All 15 changed README screenshots were viewed and replaced. All 34 live HTTPS badge images clear. All five TypeScript projects pass on the final source. Reference, localization, host API and production build passed earlier in this continuation.
+
+The final full lint produced no result after more than seven minutes and was stopped at the rig time limit. The subsequent final dead-code, duplication, cycle, formatting and package checks were not reached. **No new final universal VSIX or ACP byte count, packed-version check, cap compliance or browser-hash identity is claimed.** Earlier receipts above remain historical evidence. The lead must complete these checks and clear the three held Windows files before release. Aggregate quality remains prohibited by the shared lane rules.
+
+Native runner and fake SSH paths stop after two unsuccessful fixes, as common.md requires. Four additional ordinary team-landing cases exceed the repository default deadline; further deadline rewrites stop here, with fixture/process-cost work left to the lead. No gate or consent was weakened. There were zero new live or paid model requests, and no push, tag or publication.
+
+The final local commit was attempted with hooks enabled. ESLint rejected
+`test/unit/teamHarness.test.mjs:23` under
+`unicorn/no-top-level-assignment-in-function`: its memoized package fixture
+assigns the top-level `packagedFiles` variable inside a function. Lint-staged
+restored the original staged state and cleaned its automatic backup. The hook
+finished after the rig time box; no bypass or subsequent source fix was made.
+HEAD remains `c15b7eeaeabc20f64cd39c910e39c507492db930`, with the resolved
+main-0170 merge and release changes explicitly staged. The lead must fix this
+lint error, rerun the pending gates and complete the hook-enabled merge commit.

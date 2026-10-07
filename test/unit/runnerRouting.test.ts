@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import path from 'node:path'
 import { readRunnerConfig, runnerEnvironment } from '../../src/core/runners/runnerConfig'
 import { RunnerHealthStore } from '../../src/core/runners/health'
 import { routeChecks, type CheckJob, type CheckRoutingDeps } from '../../src/core/runners/routing'
@@ -51,7 +52,7 @@ describe('user-level runner config', () => {
     const read = vi.fn(() => Promise.resolve(JSON.stringify([runner])))
     expect(await readRunnerConfig('/personal', read)).toEqual([runner])
     expect(read).toHaveBeenCalledWith(
-      '/personal/muse-spark-code/runners.json',
+      path.join('/personal', 'muse-spark-code', 'runners.json'),
       HOOK_CONFIG_MAX_BYTES,
     )
     expect(await readRunnerConfig('/personal', () => Promise.resolve(undefined))).toEqual([])

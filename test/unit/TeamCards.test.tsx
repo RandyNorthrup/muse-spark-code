@@ -22,7 +22,7 @@ import {
   type TeamWaitingEntry,
 } from '../../src/webview/components/TeamCards'
 import { ToolRow } from '../../src/webview/components/ToolRow'
-import { ApprovalDock } from '../../src/webview/components/ApprovalDock'
+import { AttentionDock } from '../../src/webview/components/AttentionDock'
 import type { WaitingApproval } from '../../src/webview/state/uiState'
 
 function setup() {
@@ -220,7 +220,7 @@ describe('worker label', () => {
       },
       teamWorker: worker,
     }
-    render(<ApprovalDock waiting={[waiting]} onDecide={vi.fn()} />)
+    render(<AttentionDock waiting={[waiting]} onDecide={vi.fn()} />)
     expect(await screen.findByText('engineering · Codex · t3')).toBeDefined()
   })
 

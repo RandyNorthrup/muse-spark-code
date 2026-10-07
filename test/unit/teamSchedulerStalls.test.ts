@@ -1,5 +1,5 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { devNull, tmpdir } from 'node:os'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
@@ -126,7 +126,12 @@ describe('stalls and divergence', () => {
     const root = await mkdtemp(path.join(tmpdir(), 'team-stall-'))
     const git = async (...args: string[]) =>
       await exec('git', ['-C', root, ...args], {
-        env: { PATH: process.env['PATH'], GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: devNull },
+        env: {
+          PATH: process.env['PATH'],
+          SystemRoot: process.env['SystemRoot'],
+          GIT_CONFIG_NOSYSTEM: '1',
+          GIT_CONFIG_GLOBAL: '/dev/null',
+        },
       })
     try {
       await git('init', '--quiet')

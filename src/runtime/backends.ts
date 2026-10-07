@@ -95,6 +95,7 @@ export interface ExecRuntimeOptions {
 
 export interface RuntimeBackendDeps {
   readonly usageRecording?: UsageRecording | undefined
+  readonly questions?: { remove(sessionId: string): Promise<void> }
   readonly exec?: ExecRuntimeOptions
   readonly options: ServeOptions
   readonly version: string
@@ -282,6 +283,7 @@ function modelApiManager(
       ? undefined
       : createFileSessionStore({
           directory: workspaceSessionsFolder(dataInput, storedWorkspaceRoot),
+          ...(deps.questions !== undefined && { questions: deps.questions }),
           log,
           retentionDays: () => SETTING_DEFAULTS.cleanupPeriodDays,
           now: () => Date.now(),

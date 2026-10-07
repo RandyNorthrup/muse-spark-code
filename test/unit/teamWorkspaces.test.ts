@@ -656,20 +656,21 @@ describe('removeTeamWorkspace', () => {
     await expectLinkedStorageRefused(await copiedTaskWorkspace('junction'), 'junction')
   })
 
-  it('refuses a noncanonical Windows case spelling without deleting the task', async () => {
+  it('removes through an equivalent Windows case spelling without touching an unrelated copy', async () => {
     if (process.platform !== 'win32') {
       return
     }
-    const { root, head, workspace } = await taskWorkspace('case')
+    const { root, workspace } = await taskWorkspace('case')
     const storage = path.join(root, '..', 'storage')
     const alias = storage.toUpperCase()
     expect(alias).not.toBe(storage)
     expect(await teamRealPath(alias)).toBe(storage)
-    await expect(
-      removeTeamWorkspace(runGit, root, alias, workspace.folder, workspace.agentsRef),
-    ).rejects.toMatchObject({ name: 'TeamWorkspaceError', code: 'workspaceFailed' })
-    expect(await revOf(workspace.folder, 'HEAD')).toBe(head)
-    expect(await teamRealPath(workspace.folder)).toBe(workspace.folder)
+    const unrelated = path.join(storage, 'unrelated')
+    await mkdir(unrelated)
+    await writeFile(path.join(unrelated, 'sentinel'), 'safe')
+    await removeTeamWorkspace(runGit, root, alias, workspace.folder, workspace.agentsRef)
+    await expect(lstat(workspace.folder)).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(await readFile(path.join(unrelated, 'sentinel'), 'utf8')).toBe('safe')
   })
 
   it('keeps an unmerged task until this runs', async () => {

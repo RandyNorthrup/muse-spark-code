@@ -89,6 +89,10 @@
     // The Models & Agents panel's own entry (M95 lane M), required by path.
     "src/webview/models/models.tsx",
     "src/runtime/main.ts",
+    // M112 A: same-build ACP question factory, loaded by path on first use.
+    "src/acp/questionDeferralEntry.ts",
+    "src/runtime/questions/questionRegistryEntry.ts",
+    "src/core/questions/deferralEntry.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
     // Standalone browser checks invoked by path; usageHost is bundled by them.
     "test/harness/usage-check.mjs",

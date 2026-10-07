@@ -92,7 +92,6 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
     'effort',
     'conversation-actions',
     'code-output',
-    'questions',
     'code-intelligence',
     'shell',
     'session-board',
@@ -120,6 +119,8 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
     'support',
   ].map((id): [string, readonly string[]] => [id, ['vscode:museCode', 'vscode:modelApi']]),
   ...['acp'].map((id): [string, readonly string[]] => [id, ['acp:museCode', 'acp:modelApi']]),
+  // M112: ACP asks through forms or text and answers with /questions and /answer.
+  ['questions', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ...['web-fetch', 'images'].map((id): [string, readonly string[]] => [
     id,
     ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
@@ -301,6 +302,9 @@ export {
   EXEC_UNTRUSTED_FILE_MAX_BYTES,
   EXEC_UNTRUSTED_TOTAL_MAX_BYTES,
   EXEC_PROMPT_MAX_BYTES,
+  QUESTION_DEFER_DEFAULT_SECONDS,
+  QUESTION_DEFER_MIN_SECONDS,
+  QUESTION_DEFER_MAX_SECONDS,
 } from '../constants'
 
 export { MODEL_API_TOOLS, MODEL_API_SUBAGENT_TOOLS, VERIFY_TOOLS } from '../constants'

@@ -185,5 +185,8 @@
   "setting.usageHistoryDays.description": "Liczba dni przechowywania dziennych podsumowań użycia (30–1825). Szczegóły poszczególnych wywołań są przechowywane przez 30 dni.",
   "command.connectChatGpt": "Kontynuuj z ChatGPT",
   "command.connectCopilot": "Użyj moich modeli Copilot",
-  "command.openHelp.title": "Pomoc i informacje"
+  "command.openHelp.title": "Pomoc i informacje",
+  "command.nextOpenQuestion.title": "Następne otwarte pytanie",
+  "command.previousOpenQuestion.title": "Poprzednie otwarte pytanie",
+  "config.questions.deferAfterSeconds.description": "Liczba sekund, po których pytanie bez odpowiedzi zostaje odroczone, aby Muse mógł kontynuować pracę. Domyślnie 60; 0 oznacza nigdy; 1–9 są odczytywane jako 10; maksimum 3600. Pytanie pozostaje otwarte i można odpowiedzieć później. Używane jest tylko ustawienie tego komputera."
 }

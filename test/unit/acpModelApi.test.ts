@@ -121,6 +121,7 @@ function setup(
     log,
   })
   const agent = createAcpAgent({
+    questions: 'decline',
     backend: runtime.backend,
     version: '0.0.0-test',
     options: { canBypass: false, allowsContributorModels: false, initialMode: 'manual' },

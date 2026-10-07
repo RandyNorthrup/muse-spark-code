@@ -28,6 +28,9 @@ import { powerShellQuoted } from '../../src/core/shellQuote'
 import { WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../src/shared/constants'
 import { createOrphanRecovery, type OrphanObservation } from '../../src/host/team/orphanRecovery'
 
+// These cases repeatedly launch native Windows ACL and opened-handle checks.
+const NATIVE_HINT_TRANSACTION_TIMEOUT_MS = 60_000
+
 const directories: string[] = []
 const permissionState = vi.hoisted(() => ({ ignoresChmod: false, foreignUid: false }))
 vi.mock('node:fs/promises', async (importOriginal) => {
@@ -156,78 +159,90 @@ describe('M96 K advisory hints', () => {
     }
     await hints.dispose()
   })
-  it('publishes only the strict projection, sums all windows and removes its own hint', async () => {
-    const f = await hintFixture()
-    const a = f.make()
-    const b = f.make()
-    await a.hints.publish(hintState)
-    await b.hints.publish({ ...hintState, workers: 5 })
-    const file = path.join(f.directory, `${a.id}.json`)
-    expect(JSON.parse(await readFile(file, 'utf8'))).toEqual({
-      ...hintState,
-      instanceId: a.id,
-      at: 100_000,
-    })
-    expect(await b.hints.advisory()).toEqual({
-      windows: 2,
-      workers: 9,
-      processWorkers: 4,
-      heavyCommands: 2,
-    })
-    await a.hints.dispose()
-    expect(await b.hints.advisory()).toEqual({
-      windows: 1,
-      workers: 5,
-      processWorkers: 2,
-      heavyCommands: 1,
-    })
-    await b.hints.dispose()
-  })
-
-  it('asks once across rewrites and other tasks; new path and drop ask again', async () => {
-    const f = await hintFixture()
-    const a = f.make()
-    const b = f.make()
-    await a.hints.publish(hintState)
-    for (let rewrite = 0; rewrite < 10; rewrite++) {
+  it(
+    'publishes only the strict projection, sums all windows and removes its own hint',
+    async () => {
+      const f = await hintFixture()
+      const a = f.make()
+      const b = f.make()
       await a.hints.publish(hintState)
-      expect(await b.hints.check(intent)).toBe('continue')
-    }
-    expect(f.question).toHaveBeenCalledTimes(1)
-    await b.hints.check({ ...intent, paths: ['unrelated.ts'] })
-    await b.hints.check(intent)
-    expect(f.question).toHaveBeenCalledTimes(1)
-    await b.hints.check({ ...intent, paths: ['src/b.ts'] })
-    expect(f.question).toHaveBeenCalledTimes(2)
-    await a.hints.publish({ ...hintState, trees: [] })
-    await b.hints.check(intent)
-    await a.hints.publish(hintState)
-    await b.hints.check(intent)
-    expect(f.question).toHaveBeenCalledTimes(3)
-    await a.hints.dispose()
-    await b.hints.dispose()
-  })
+      await b.hints.publish({ ...hintState, workers: 5 })
+      const file = path.join(f.directory, `${a.id}.json`)
+      expect(JSON.parse(await readFile(file, 'utf8'))).toEqual({
+        ...hintState,
+        instanceId: a.id,
+        at: 100_000,
+      })
+      expect(await b.hints.advisory()).toEqual({
+        windows: 2,
+        workers: 9,
+        processWorkers: 4,
+        heavyCommands: 2,
+      })
+      await a.hints.dispose()
+      expect(await b.hints.advisory()).toEqual({
+        windows: 1,
+        workers: 5,
+        processWorkers: 2,
+        heavyCommands: 1,
+      })
+      await b.hints.dispose()
+    },
+    NATIVE_HINT_TRANSACTION_TIMEOUT_MS,
+  )
 
-  it('Wait lasts only while fresh collision exists; stale, absent and malformed hints never lock', async () => {
-    const f = await hintFixture()
-    f.question.mockImplementation(() => Promise.resolve('wait'))
-    const a = f.make()
-    const b = f.make()
-    await a.hints.publish(hintState)
-    expect(await b.hints.check({ ...intent, paths: [], exclusiveServers: ['browser'] })).toBe(
-      'wait',
-    )
-    f.setNow(160_000)
-    expect(await b.hints.check({ ...intent, paths: [], exclusiveServers: ['browser'] })).toBe(
-      'continue',
-    )
-    await writeFile(path.join(f.directory, `${a.id}.json`), '{broken')
-    expect(await b.hints.check(intent)).toBe('continue')
-    expect(f.disabled).not.toHaveBeenCalled()
-    await a.hints.dispose()
-    expect(await b.hints.check(intent)).toBe('continue')
-    await b.hints.dispose()
-  })
+  it(
+    'asks once across rewrites and other tasks; new path and drop ask again',
+    async () => {
+      const f = await hintFixture()
+      const a = f.make()
+      const b = f.make()
+      await a.hints.publish(hintState)
+      for (let rewrite = 0; rewrite < 10; rewrite++) {
+        await a.hints.publish(hintState)
+        expect(await b.hints.check(intent)).toBe('continue')
+      }
+      expect(f.question).toHaveBeenCalledTimes(1)
+      await b.hints.check({ ...intent, paths: ['unrelated.ts'] })
+      await b.hints.check(intent)
+      expect(f.question).toHaveBeenCalledTimes(1)
+      await b.hints.check({ ...intent, paths: ['src/b.ts'] })
+      expect(f.question).toHaveBeenCalledTimes(2)
+      await a.hints.publish({ ...hintState, trees: [] })
+      await b.hints.check(intent)
+      await a.hints.publish(hintState)
+      await b.hints.check(intent)
+      expect(f.question).toHaveBeenCalledTimes(3)
+      await a.hints.dispose()
+      await b.hints.dispose()
+    },
+    NATIVE_HINT_TRANSACTION_TIMEOUT_MS,
+  )
+
+  it(
+    'Wait lasts only while fresh collision exists; stale, absent and malformed hints never lock',
+    async () => {
+      const f = await hintFixture()
+      f.question.mockImplementation(() => Promise.resolve('wait'))
+      const a = f.make()
+      const b = f.make()
+      await a.hints.publish(hintState)
+      expect(await b.hints.check({ ...intent, paths: [], exclusiveServers: ['browser'] })).toBe(
+        'wait',
+      )
+      f.setNow(160_000)
+      expect(await b.hints.check({ ...intent, paths: [], exclusiveServers: ['browser'] })).toBe(
+        'continue',
+      )
+      await writeFile(path.join(f.directory, `${a.id}.json`), '{broken')
+      expect(await b.hints.check(intent)).toBe('continue')
+      expect(f.disabled).not.toHaveBeenCalled()
+      await a.hints.dispose()
+      expect(await b.hints.check(intent)).toBe('continue')
+      await b.hints.dispose()
+    },
+    NATIVE_HINT_TRANSACTION_TIMEOUT_MS,
+  )
 
   it('Windows consumes the handle-verified hint rather than an older opened inode after replacement', async () => {
     const f = await hintFixture()
@@ -270,29 +285,33 @@ describe('M96 K advisory hints', () => {
   })
 
   if (process.platform === 'win32') {
-    it('native Windows holds the consumed hint against replacement through ACL verification', async () => {
-      const f = await publishedHintFixture()
-      const original = processTree.runProgram
-      const helper = vi
-        .spyOn(processTree, 'runProgram')
-        .mockImplementation(async (file, args, env) => {
-          const instrumented = args.map((argument) =>
-            argument.includes('MuseTeamHintReader')
-              ? argument.replace(
-                  'FileInfo info;',
-                  'try { File.Move(target, target + ".attack"); throw new Exception("replacement was allowed"); } catch (IOException) {} FileInfo info;',
-                )
-              : argument,
-          )
-          return await original(file, instrumented, env)
-        })
-      expect(await f.reader.hints.advisory()).toMatchObject({ workers: hintState.workers })
-      expect(f.disabled).not.toHaveBeenCalled()
-      expect(helper).toHaveBeenCalled()
-      expect(await readFile(f.file, 'utf8')).toContain(f.writer.id)
-      await f.writer.hints.dispose()
-      await f.reader.hints.dispose()
-    })
+    it(
+      'native Windows holds the consumed hint against replacement through ACL verification',
+      async () => {
+        const f = await publishedHintFixture()
+        const original = processTree.runProgram
+        const helper = vi
+          .spyOn(processTree, 'runProgram')
+          .mockImplementation(async (file, args, env) => {
+            const instrumented = args.map((argument) =>
+              argument.includes('MuseTeamHintReader')
+                ? argument.replace(
+                    'FileInfo info;',
+                    'try { File.Move(target, target + ".attack"); throw new Exception("replacement was allowed"); } catch (IOException) {} FileInfo info;',
+                  )
+                : argument,
+            )
+            return await original(file, instrumented, env)
+          })
+        expect(await f.reader.hints.advisory()).toMatchObject({ workers: hintState.workers })
+        expect(f.disabled).not.toHaveBeenCalled()
+        expect(helper).toHaveBeenCalled()
+        expect(await readFile(f.file, 'utf8')).toContain(f.writer.id)
+        await f.writer.hints.dispose()
+        await f.reader.hints.dispose()
+      },
+      NATIVE_HINT_TRANSACTION_TIMEOUT_MS,
+    )
 
     it('native Windows rejects an opened hint with another principal granted write access', async () => {
       const f = await publishedHintFixture()

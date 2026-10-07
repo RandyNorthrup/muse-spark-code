@@ -183,6 +183,8 @@ describe('bundled What’s New content budget', () => {
 
   it.each([
     ['deferred JS', 50, 'src/webview/deferredUnknown.ts'],
+    ['question UI', 25, 'src/webview/components/ElicitationCard.tsx'],
+    ['workflow details', 25, 'src/webview/components/WorkflowRun.tsx'],
     ['code highlighting', 125, 'src/webview/components/HighlightedCode.tsx'],
     ['action dialogs', 25, 'src/webview/components/ShareView.tsx'],
     ['tasks tab', 25, 'src/webview/TasksApp.tsx'],

@@ -74,6 +74,9 @@ function fixture() {
   for (const name of [
     'acp',
     'headless',
+    'acpQuestions',
+    'runtimeQuestions',
+    'questionNotes',
     'modelApi',
     'modelApiHooks',
     'modelApiMcp',

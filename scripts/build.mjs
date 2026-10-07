@@ -200,6 +200,10 @@ const WHATS_NEW_PAGE_NAME = 'whatsNew'
 const ACP_ENTRY = 'src/runtime/main.ts'
 const ACP_OUTFILE = 'dist/acp.js'
 const ACP_METAFILE_DIR = 'dist/meta-acp'
+const ACP_QUESTIONS_ENTRY = 'src/acp/questionDeferralEntry.ts'
+const ACP_QUESTIONS_OUTFILE = 'dist/acpQuestions.js'
+const RUNTIME_QUESTIONS_ENTRY = 'src/runtime/questions/questionRegistryEntry.ts'
+const RUNTIME_QUESTIONS_OUTFILE = 'dist/runtimeQuestions.js'
 const INTEGRATION_TEST_DIR = 'test/integration'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
 // M95 (PLAN.md D74): exact catalogue values, with no provider runtime logic.
@@ -623,6 +627,19 @@ const headlessOptions = {
   banner: undefined,
 }
 
+/** @type {import('esbuild').BuildOptions} */
+const acpQuestionsOptions = {
+  ...acpOptions,
+  entryPoints: [ACP_QUESTIONS_ENTRY],
+  outfile: ACP_QUESTIONS_OUTFILE,
+  banner: {},
+}
+const runtimeQuestionsOptions = {
+  ...acpQuestionsOptions,
+  entryPoints: [RUNTIME_QUESTIONS_ENTRY],
+  outfile: RUNTIME_QUESTIONS_OUTFILE,
+}
+
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
 const { L10N_COMPRESSION_QUALITY } = await loadL10n(process.cwd())
@@ -842,6 +859,13 @@ if (isWatch) {
     esbuild.context(validationOptions),
     esbuild.context(wireOptions),
     esbuild.context(modelApiBoundariesOptions),
+    esbuild.context(acpQuestionsOptions),
+    esbuild.context({
+      ...modelApiOptions,
+      entryPoints: ['src/core/questions/deferralEntry.ts'],
+      outfile: 'dist/questionNotes.js',
+    }),
+    esbuild.context(runtimeQuestionsOptions),
     esbuild.context(browserCheckOptions),
     esbuild.context(browserRuntimeOptions),
     esbuild.context(searchWorkerOptions),
@@ -853,6 +877,11 @@ if (isWatch) {
   console.log('watching for changes…')
 } else {
   const shipped = {
+    questionNotes: esbuild.build({
+      ...modelApiOptions,
+      entryPoints: ['src/core/questions/deferralEntry.ts'],
+      outfile: 'dist/questionNotes.js',
+    }),
     extension: esbuild.build(hostOptions),
     conversation: esbuild.build(conversationOptions),
     tab: esbuild.build(tabOptions),
@@ -933,7 +962,9 @@ if (isWatch) {
   }
   const acp = esbuild.build(acpOptions)
   const headless = esbuild.build(headlessOptions)
-  const builds = [...Object.values(shipped), acp, headless]
+  const acpQuestions = esbuild.build(acpQuestionsOptions)
+  const runtimeQuestions = esbuild.build(runtimeQuestionsOptions)
+  const builds = [...Object.values(shipped), acp, headless, acpQuestions, runtimeQuestions]
   if (!isProduction) {
     builds.push(esbuild.build(integrationTestOptions))
   }
@@ -963,8 +994,19 @@ if (isWatch) {
     const { metafile: headlessMetafile } = await headless
     writeFileSync(path.join(ACP_METAFILE_DIR, 'acp.json'), JSON.stringify(metafile))
     writeFileSync(path.join(ACP_METAFILE_DIR, 'headless.json'), JSON.stringify(headlessMetafile))
+    const { metafile: questionsMetafile } = await acpQuestions
+    const { metafile: runtimeQuestionsMetafile } = await runtimeQuestions
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'runtimeQuestions.json'),
+      JSON.stringify(runtimeQuestionsMetafile, null, 2),
+    )
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'acpQuestions.json'),
+      JSON.stringify(questionsMetafile),
+    )
   }
   console.log('bundle sizes:')
+  reportSize(ACP_QUESTIONS_OUTFILE)
   reportSize(HOST_OUTFILE)
   reportSize(CONVERSATION_OUTFILE)
   reportSize(TAB_OUTFILE)

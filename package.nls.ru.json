@@ -185,5 +185,8 @@
   "setting.usageHistoryDays.description": "Срок хранения ежедневных сводок использования в днях (30–1825). Подробности каждого вызова хранятся 30 дней.",
   "command.connectChatGpt": "Продолжить с ChatGPT",
   "command.connectCopilot": "Использовать мои модели Copilot",
-  "command.openHelp.title": "Справка и справочник"
+  "command.openHelp.title": "Справка и справочник",
+  "command.nextOpenQuestion.title": "Следующий открытый вопрос",
+  "command.previousOpenQuestion.title": "Предыдущий открытый вопрос",
+  "config.questions.deferAfterSeconds.description": "Число секунд до откладывания вопроса без ответа, чтобы Muse мог продолжить работу. По умолчанию 60; 0 означает никогда; 1–9 читаются как 10; максимум 3600. Вопрос остаётся открытым, и на него можно ответить позже. Используется только настройка этого компьютера."
 }

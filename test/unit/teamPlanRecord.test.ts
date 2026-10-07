@@ -16,10 +16,10 @@ describe('M96 approved plan and change record', () => {
     }
   })
 
-  it('documents both lane 0 and lane R under Unreleased', () => {
+  it('documents both shipped team lanes in 0.15.0', () => {
     const changelog = readFileSync('CHANGELOG.md', 'utf8')
-    const unreleased = changelog.split('## [Unreleased]', 2)[1]?.split('\n## [', 1)[0] ?? ''
-    expect(unreleased).toContain('M96 lane 0')
-    expect(unreleased).toContain('M96 lane R')
+    const released = changelog.split('## [0.15.0]', 2)[1]?.split('\n## [', 1)[0] ?? ''
+    expect(released.toLowerCase()).toContain('agent roles')
+    expect(released.toLowerCase()).toContain('teams')
   })
 })

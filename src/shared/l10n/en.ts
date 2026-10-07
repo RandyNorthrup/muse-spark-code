@@ -83,6 +83,8 @@ export const EN = {
     'image-generation':
       '--image-generation               Offer paid image generation (Model API backend; its price is asked first)',
     verbose: '--verbose                        Log every detail on stderr',
+    'questions-defer-after':
+      '--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600',
     help: 'help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.',
     version: 'Print the installed agent version.',
     cwd: 'Use this directory as the workspace.',
@@ -160,6 +162,8 @@ export const EN = {
     'Rename, fork or rewind a conversation. Rewind can restore recorded edits as well as history; changed files are left alone, and shell changes are not covered. While a turn runs, new messages steer it. Model API messages can be withdrawn before the next request; Muse Code permits withdrawal only while queued, because steering is delivered immediately. Side chat copies completed turns, clears the goal and stays in Plan; Muse Code file tools may still edit in Plan. Select transcript text to reply, ask, comment or copy.',
   referenceQuestions:
     'Choose and Submit an answer, explain in your own words, or Cancel. Muse receives submitted answers and explanations in the conversation.',
+  referenceQuestionsDeferral:
+    'In the panel, the attention dock pins each question above the composer, and the transcript keeps its card. After museSpark.questions.deferAfterSeconds (60 seconds by default; 0 waits indefinitely), Muse continues work that does not depend on the answer; the card becomes an open question that you can answer later or dismiss. A late answer is your own message and approves nothing. Next open question and Previous open question move between open cards. Scheduled prompts defer at once, and headless exec declines questions. In ACP, --questions-defer-after sets the form deadline, /questions lists open questions and /answer <n> <text> answers one.',
   referencePermissionLimits:
     'museCode:manual: Muse will ask before running commands; Muse Code edits workspace files without asking\nmuseCode:acceptEdits: On Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands\nmuseCode:plan: Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking\nmuseCode:bypassPermissions: Muse will edit files and run commands without asking\nmodelApi:manual: Muse will ask for approval before each edit and each command\nmodelApi:acceptEdits: Muse will edit files without asking and ask before running commands\nmodelApi:plan: Muse will explore the code and present a plan before editing\nmuseCode (museSpark.museCodeAutoReviewer=false): Muse Code runs the commands it judges simple without asking and asks before the rest\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse will edit files without asking, except protected files, and ask before commands\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse will edit files without asking, except protected files; a paid reviewer may allow some commands once, and you are asked about the rest\nThese Auto descriptions concern requests not settled by rules. The Model API reviewer additionally requires paid consent and budget admission. A declined or failed review leaves the decision to you. Ordinary ACP has neither reviewer.',
   referenceElicitationTitle: 'MCP elicitation',
@@ -197,7 +201,7 @@ export const EN = {
   referencePaidContexts:
     'Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.',
   referenceAcp:
-    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles only local /help, /compact, /legal, /usage and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
+    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles only local /help, /compact, /legal, /usage, /questions, /answer and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
   referenceWebFetchTitle: 'Web fetch',
   referenceWebFetchDetail:
     'Fetch public web pages as readable text, with permission and network checks.',
@@ -1580,6 +1584,42 @@ export const EN = {
   questionSendExplanation: 'Send explanation',
   questionBackToChoices: 'Back to the choices',
   questionClarified: 'Explained',
+  // M112: the attention dock, durable open questions and late answers.
+  questionOpen: 'Open question',
+  questionNoLongerOpen: 'No longer open',
+  questionDeferred: 'Deferred',
+  questionAnsweredLater: 'Answered later',
+  questionAnsweredOnReask: 'Answered when asked again',
+  questionDeclined: 'Declined',
+  questionDismissed: 'Dismissed',
+  questionExpired: 'Expired',
+  questionAnswer: 'Answer',
+  questionDismiss: 'Dismiss',
+  questionExpand: 'Expand question',
+  questionCollapse: 'Collapse question',
+  questionNextOpen: 'Next open question',
+  questionPreviousOpen: 'Previous open question',
+  questionCountdown: 'Muse keeps working in {seconds} s if you don’t answer',
+  questionLateAnswerDisplay: 'Answer to your earlier question: {header}',
+  announceQuestionDeferred: 'Moved to open questions; you can answer any time',
+  announceQuestionReminder: 'You still have an open question: {header}',
+  announceLateAnswerSent: 'Your answer to the earlier question was sent',
+  notifyOpenQuestions: 'Muse has open questions you can answer at any time.',
+  questionNoOpen: 'No open questions.',
+  questionAnswerFailed: 'Your answer could not be sent. Try again.',
+  questionAnswerUncertain: 'Your answer may have reached Muse. It will not be sent again.',
+  questionDismissFailed: 'The question could not be dismissed.',
+  acpOpenQuestionAsked:
+    'Muse has a question; this editor cannot show a form. You can answer later with /answer.',
+  acpQuestionDeferred: 'Question {number} is open. Answer with /answer {number} <text>.',
+  acpQuestionListEntry: 'Question {number}: {header} — {question}',
+  acpQuestionAnswerUsage: 'Usage: /answer <n> <text>',
+  acpQuestionNotFound: 'No open question has number {number}.',
+  acpQuestionAnswerQueued: 'Your answer will reach Muse with your next message.',
+  acpAnswerHelp: 'Answer an earlier open question: /answer <n> <text>',
+  acpQuestionsHelp: 'List the open questions in this conversation.',
+  openQuestionsCount: forms({ one: '{count} open question', other: '{count} open questions' }),
+  openQuestionsTabCount: forms({ one: '{count} open', other: '{count} open' }),
   clarifyNotAccepted: 'The explanation was not accepted',
   /** Replying to an output and quoting a highlighted passage (M17). */
   messageActions: 'Message actions',
@@ -2973,6 +3013,7 @@ export const EN = {
     '  --trust-workspace                Load the folder’s rules, skills and memory',
     '  --muse-binary <path>             The Muse Code CLI to run',
     '  --shell-sandbox auto|muse|off    Muse Code’s shell sandbox',
+    '  --questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600',
     '  --allow-dangerously-skip-permissions  Offer the Bypass permissions mode',
     '  --allow-contributor-models       List contributor-tier models (Meta may train on their content)',
     '  --web-search                     Offer paid web search (Model API backend; its price is asked first)',

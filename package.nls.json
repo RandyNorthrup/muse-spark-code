@@ -185,5 +185,8 @@
   "setting.usageHistoryDays.description": "Days to keep daily usage summaries (30–1825). Per-call detail is kept for 30 days.",
   "command.connectChatGpt": "Continue with ChatGPT",
   "command.connectCopilot": "Use my Copilot models",
-  "command.openHelp.title": "Open Help & Reference"
+  "command.openHelp.title": "Open Help & Reference",
+  "command.nextOpenQuestion.title": "Next open question",
+  "command.previousOpenQuestion.title": "Previous open question",
+  "config.questions.deferAfterSeconds.description": "Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used."
 }
