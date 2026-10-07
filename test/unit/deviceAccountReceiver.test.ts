@@ -110,6 +110,25 @@ describe('M108 D receiver-owned account admission', () => {
     await expect(rig.receive(vendor)).rejects.toMatchObject({ code: 'recovery' })
   })
 
+  it('preserves typed recovery when the local pool reaches its own vendor limit', async () => {
+    const rig = receiverRig('openai', 'chatgpt-plan')
+    rig.blocks.set('a', { blocked: { reason: 'rateLimited', resetAt: null } })
+    await expect(rig.receive()).rejects.toMatchObject({
+      name: 'DeviceAccountAdmissionError',
+      code: 'recovery',
+      decision: { kind: 'recovery', recovery: 'chatgptPlan' },
+    })
+    expect(rig.deps.reserve).not.toHaveBeenCalled()
+    expect(rig.claim.finish).toHaveBeenCalledWith('notSent')
+  })
+
+  it('admits the model-eligible credential that contributed the advertised bucket', async () => {
+    const rig = receiverRig('anthropic', 'api')
+    rig.deps.canUseModel = (account) => account.id === 'b'
+    expect(rig.receiver.offer()).toEqual({ anthropic: 'ample' })
+    expect(await rig.receive()).toBe('b')
+  })
+
   it('offers only per-provider buckets, computed from local pins without account data', () => {
     const rig = receiverRig()
     rig.headroom.set('a', 'some')

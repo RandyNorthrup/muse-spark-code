@@ -1,6 +1,10 @@
 // M108 D's receiver admission is shared by native bridges and runtime hosts.
 // No vscode import or transport implementation belongs in this fragment.
-import { type AccountPool, type AccountPoolRequest } from '../../core/accounts/pool'
+import {
+  AccountPoolStoppedError,
+  type AccountPool,
+  type AccountPoolRequest,
+} from '../../core/accounts/pool'
 import type { AccountPolicyDecision } from '../../core/accounts/policyGate'
 import {
   deviceAccountRequestSchema,
@@ -155,6 +159,7 @@ export class DeviceAccountReceiver {
           return (
             bucket !== 'none' &&
             this.deps.isPinnedHere(fragment.provider, account.id) &&
+            source.canUseModel(account, request) &&
             accountHeadroomSchema.parse(this.deps.headroom(fragment.provider, account.id)) ===
               bucket
           )
@@ -163,6 +168,10 @@ export class DeviceAccountReceiver {
       if (!hasSent()) throw new DeviceAccountAdmissionError()
       outcome = 'returned'
       return result
+    } catch (error) {
+      if (error instanceof AccountPoolStoppedError && error.decision !== undefined)
+        throw new DeviceAccountAdmissionError(error.decision)
+      throw error
     } finally {
       await claim.finish(outcome)
     }
