@@ -103,6 +103,12 @@ function fixture() {
     'subscriptions',
     'configuredProviders',
     'reviewer',
+    'judgeP2',
+    'judgeSources',
+    'judgeLint',
+    'judgeHook',
+    'judgeLocal',
+    'judgeUses',
     'foreignHooks',
     'hookRuntime',
     'recorder',
@@ -114,6 +120,7 @@ function fixture() {
     'wire',
     'uiText',
     'validation',
+    'validationSchema',
     'searchWorker',
     'pageWorker',
     'usageService',
@@ -130,8 +137,15 @@ function fixture() {
     path.join(production, 'dist/meta/usageWebview.json'),
     path.join(dir, 'dist/meta/usageWebview.json'),
   )
-  for (const name of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs'])
+  for (const name of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs', 'MuseSparkLocalJudgePeer.cs'])
     writeFileSync(path.join(dir, 'native/windows', name), '// test-owned native fixture\n')
+  for (const file of [
+    'native/linux/MuseSparkLocalJudgePeer.c',
+    'native/darwin/muse-local-judge-peer',
+  ]) {
+    mkdirSync(path.join(dir, path.dirname(file)), { recursive: true })
+    writeFileSync(path.join(dir, file), 'test-owned native fixture\n')
+  }
   cpSync('docs/schemas', path.join(dir, 'docs/schemas'), { recursive: true })
   cpSync('l10n', path.join(dir, 'l10n'), { recursive: true })
   writeFileSync(path.join(dir, 'LICENSE'), 'test-owned licence\n')
