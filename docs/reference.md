@@ -138,7 +138,7 @@ Attach files by selecting or dropping them, and paste images into the composer. 
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-panel)
+Commands: `museSpark.attachScreenRecording`, `museSpark.attachLatestScreenRecording`, `museSpark.deleteUploadedFiles`. Settings: `museSpark.mediaMaxUploadMiB`, `museSpark.mediaUploadExpiryDays`, `museSpark.screenRecordingMaxSeconds`, `museSpark.mediaAudioAction`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-panel)
 
 ### Effort
 
@@ -1463,6 +1463,24 @@ Available when: `workspaceFolderCount > 0`.
 
 `museSpark.previousOpenQuestion` — Previous open question
 
+### Muse Spark: Attach screen recording…
+
+`museSpark.attachScreenRecording` — Record the screen, preview the clip, then attach or discard it. Needs a local window; remote windows refuse. The clip attaches as video and follows the media limits.
+
+Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible`.
+
+### Muse Spark: Attach latest screen recording
+
+`museSpark.attachLatestScreenRecording` — Attach the most recent screen recording again without recording a new one.
+
+Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible`.
+
+### Muse Spark: Delete uploaded files…
+
+`museSpark.deleteUploadedFiles` — List the files uploaded for this conversation and delete them before they expire. Deleting a file another app also uses asks first.
+
+Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible`.
+
 ## Settings
 
 ### museSpark.preferredLocation
@@ -2540,6 +2558,68 @@ Type: `"integer"`. Default: `60`. Scope: `machine`.
 }
 ```
 
+### museSpark.mediaMaxUploadMiB
+
+Largest media file the extension opens for attach or recording, in MiB. 200 by default; maximum 1,024. Larger files are refused before any read. Only this machine’s setting is used.
+
+Type: `"integer"`. Default: `200`. Scope: `machine`.
+
+```json
+{
+  "type": "integer",
+  "default": 200,
+  "minimum": 1,
+  "maximum": 1024
+}
+```
+
+### museSpark.mediaUploadExpiryDays
+
+Days a provider upload stays listed before cleanup is offered. 7 by default; 1–30. Expiry is decided by the provider; an upload another session still references is never deleted. Only this machine’s setting is used.
+
+Type: `"integer"`. Default: `7`. Scope: `machine`.
+
+```json
+{
+  "type": "integer",
+  "default": 7,
+  "minimum": 1,
+  "maximum": 30
+}
+```
+
+### museSpark.screenRecordingMaxSeconds
+
+Longest screen recording the extension captures, in seconds. 120 by default; 10–600. The recorder stops at the limit and keeps what it captured. Only this machine’s setting is used.
+
+Type: `"integer"`. Default: `120`. Scope: `machine`.
+
+```json
+{
+  "type": "integer",
+  "default": 120,
+  "minimum": 10,
+  "maximum": 600
+}
+```
+
+### museSpark.mediaAudioAction
+
+`transcribe` turns attached audio into text before sending; `sendAudio` sends the audio where the model takes it. Transcribe by default. Transcription bills the paid voice rate, always with consent first. Only this machine’s setting is used.
+
+Type: `"string"`. Default: `"transcribe"`. Scope: `machine`.
+
+```json
+{
+  "type": "string",
+  "enum": ["transcribe", "sendAudio"],
+  "default": "transcribe"
+}
+```
+
+- `"transcribe"`:
+- `"sendAudio"`:
+
 ## Keyboard shortcuts
 
 These are defaults; editor customizations take precedence.
@@ -2680,6 +2760,8 @@ These are defaults; editor customizations take precedence.
 - `exec: --cwd <value>`: Use this directory as the workspace. `{"type":"string","repeatable":false,"purpose":"cwd"}`
 - `exec: --prompt-file <value>`: Read the prompt from this file. `{"type":"string","repeatable":false,"maximumBytes":262144,"purpose":"prompt"}`
 - `exec: --untrusted-file <value>`: Attach this file as untrusted data; repeat the option for more files. `{"type":"string","repeatable":true,"maxItems":8,"perFileMaxBytes":1048576,"totalMaxBytes":2097152,"purpose":"untrustedFiles"}`
+- `exec: --attach <value>`: Attach this media file; repeat the option for more files. `{"type":"string","repeatable":true,"purpose":"attach"}`
+- `exec: --record`: Refused for headless runs: nobody is there to preview a recording. `{"type":"boolean","repeatable":false,"default":false,"purpose":"record"}`
 - `exec: --permission-mode <value>`: Choose how Muse asks before it acts. `{"type":"string","repeatable":false,"enum":["plan","acceptEdits"],"default":"plan","purpose":"permission-mode"}`
 - `exec: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":false,"purpose":"model"}`
 - `exec: --effort <value>`: Choose how much effort Muse puts into each reply. `{"type":"string","repeatable":false,"enum":["minimal","low","medium","high","xhigh","max"],"purpose":"effort"}`
