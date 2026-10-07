@@ -19709,8 +19709,22 @@ new hashes. Exact failure receipts remain in `docs/certification/int0170.md`.
 - [x] M113 reports merged (`9a449170`), current workflows retained.
 - [x] M114 design merged (`bdf277a3`), captures inspected, caps unchanged.
 - [x] M116 merged (`3dbc8be4`): focused 119 tests, typechecks/build and 480 harness scans pass.
-- [ ] Final committed-tree fresh-clone macOS workflow jobs and full accessibility.
+- [x] Final committed-tree fresh-clone macOS commands and full standalone accessibility executed on `a30efbad`; aggregate remains red (see certification record).
 - [ ] Release lane: 0.17.0 version/README summary, hosted cross-platform CI and publication.
+
+**Next certification repair slice (2026-10-07).** The four complete shards
+produce 18,179 passes, 35 failed tests and 193 platform/opt-in/setup skips.
+Coverage thresholds pass but the merge correctly exits 1. Repair cold package
+fixtures, the History/forced-colour and idle-stream assertions, artifact setup
+and plan/lint performance without raising deadlines; remove four test-code
+clones; reconstruct and actually recapture M114's reviewed baseline; resolve
+six SAST findings. Full standalone accessibility now passes 988 chat and 32
+report pages, and legal checks pass, but the macOS duration exceeds the hosted
+15-minute accessibility budget. Full JS lint also reaches its original static
+job deadline. Product packages, installed English, build budgets, reference,
+l10n, host API, plan, knip, cycles, audit, native helper and secret history checks
+pass. This is built integration with recorded certification blockers, not a
+release claim. See `docs/certification/int0170.md` and `int0170-ci.json`.
 
 ### CI0150M — Round 3 macOS CI repairs (2026-10-07, macmini)
 
@@ -44311,6 +44325,20 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**INT0170 final residuals (2026-10-07).** Exact committed-tree verification
+is complete and red. Source commit `a30efbad` and its command receipts are in
+`docs/certification/int0170-ci.json`. Full JS lint reaches the original job
+limit; CSS lint finds 15 retained raw report/usage fallbacks; four test clones,
+the missing reviewed-baseline usage fixture/stale M114 evidence, six SAST
+findings and the documented full-shard/package cases remain. Certification is
+deferred to a dedicated repair slice: map the retained fallbacks to generated
+palette roles while measuring both native and standalone themes; actually
+recapture the reviewed visual baseline; resolve fixture/lifecycle/performance
+failures and scanner findings without suppressions. The package-fixture path
+stays stopped under the shared two-failed-approaches rule. Full standalone
+accessibility now passes, but its macOS duration does not certify the hosted
+15-minute job. No gate level, assertion, threshold, timeout or byte cap changes.
 
 **INT0170 integration certification (2026-10-07).** The lane brief requires
 exact macOS workflow jobs in fresh clones, with Node 22 and `CI=true`; these
