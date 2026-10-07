@@ -22,6 +22,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Private vault terminal input now restores echo and erases owned bytes even
+  when a stream cleanup callback throws; late input cannot refill a finished
+  reader.
+
 - Rebuilt vault authorization around synchronous state transitions and tagged
   effects. Connections retain their registration incarnation, private reads
   stay broker-owned through transport release, and obsolete audit or unlock

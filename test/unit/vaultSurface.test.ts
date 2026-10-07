@@ -19,6 +19,13 @@ function harness() {
   }
   return { port, bridge: new VaultSurface(port) }
 }
+function heldPanel(h: ReturnType<typeof harness>) {
+  const held = Promise.withResolvers<unknown>()
+  h.port.dispatch.mockImplementationOnce(() => held.promise)
+  const first = h.bridge.dispatch({ type: 'vaultReady' })
+  return { held, first }
+}
+
 describe('M109 H public panel bridges', () => {
   it.each(['companion', 'native'] as const)(
     'H40 %s uses same validated panel and bound answers',
@@ -79,9 +86,7 @@ describe('M109 H public panel bridges', () => {
   })
   it('H43 one owner serializes effects; close discards stale response and queued work', async () => {
     const h = harness()
-    const held = Promise.withResolvers<unknown>()
-    h.port.dispatch.mockImplementationOnce(() => held.promise)
-    const first = h.bridge.dispatch({ type: 'vaultReady' })
+    const { held, first } = heldPanel(h)
     const second = h.bridge.dispatch({ type: 'vaultReady' })
     const observed = Promise.allSettled([first, second])
     await Promise.resolve()
@@ -94,9 +99,7 @@ describe('M109 H public panel bridges', () => {
   })
   it('H43b lock preempts blocked panel work and aborts its effects', async () => {
     const h = harness()
-    const held = Promise.withResolvers<unknown>()
-    h.port.dispatch.mockImplementationOnce(() => held.promise)
-    const first = h.bridge.dispatch({ type: 'vaultReady' })
+    const { held, first } = heldPanel(h)
     const observed = Promise.allSettled([first])
     await Promise.resolve()
     const oldSignal = h.port.dispatch.mock.calls[0]?.[1]

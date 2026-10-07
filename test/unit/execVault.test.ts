@@ -164,6 +164,14 @@ describe('M109 H headless authorization', () => {
   })
 })
 
+const finishedPort = (context: ExecVaultContext) =>
+  Promise.resolve({
+    close: () => {
+      context.onDenied('late private-canary')
+      return Promise.resolve()
+    },
+  })
+
 const noSignal = () => undefined
 const actualRuntime = backends.createRuntimeBackend
 afterEach(() => vi.restoreAllMocks())
@@ -372,6 +380,14 @@ describe('M109 H local exec vault admission', () => {
         await runExec(h.life, { ...h.deps, vault: { open: () => Promise.resolve({ close }) } }),
       ).toBe(EXEC_EXIT.internal)
       expect(JSON.stringify(h.deps.stderr)).not.toContain('private-canary')
+    } finally {
+      h.life.dispose()
+    }
+  })
+  it('H60 denial from a finished port is ignored during final cleanup', async () => {
+    const h = execHarness(['--vault'])
+    try {
+      expect(await runExec(h.life, { ...h.deps, vault: { open: finishedPort } })).toBe(0)
     } finally {
       h.life.dispose()
     }

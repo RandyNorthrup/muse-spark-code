@@ -19699,17 +19699,6 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M105 — Multimodal input: video, audio, documents, screen recordings and the Files API (D85)
 
-**M109 H wave 1 (2026-10-06).** Implement terminal vault commands and bound
-watch answers, ACP permission mapping and local `/vault` commands, local
-headless `--vault` admission and unconditional denied exit, and value-free
-companion/native panel routing. Consume lane-0 schemas and injected B/U/M104
-ports; absent bindings fail explicitly. B's management/watch transport and
-W's installed `vault.js` runtime factory, U's panel and M104's authenticated
-bridges are named integration handoffs, not production fakes. CI's stdin-key
-lane stays vault-free. Each H guard gets a named fake regression and byte-exact
-red drill in `docs/certification/m109-h-runtime,-acp,-headless,-companion.md`.
-No UI styling, dependencies, model calls, merges, pushes or aggregate quality.
-
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §2. The work lands in four
 deliveries, in order:
@@ -20698,6 +20687,20 @@ private reads on socket close; limit revocation to the affected item; and audit
 terminal denials for pending approvals and unused tickets. Generated fakes
 only, no dependencies or live calls. Certification: `docs/certification/m109-b.md`.
 
+**M109 H wave 1 (2026-10-06, implemented against injected ports).** Implemented terminal vault commands and bound
+watch answers, ACP permission mapping and local `/vault` commands, local
+headless `--vault` admission and unconditional denied exit, and value-free
+companion/native panel routing. Consume lane-0 schemas and injected B/U/M104
+ports; absent bindings fail explicitly. B's management/watch transport and
+W's installed `vault.js` runtime factory, U's panel and M104's authenticated
+bridges are named integration handoffs, not production fakes. CI's stdin-key
+lane stays vault-free. Each H guard gets a named fake regression and byte-exact
+red drill in `docs/certification/m109-h-runtime,-acp,-headless,-companion.md`.
+No UI styling, dependencies, model calls, merges, pushes or aggregate quality.
+H records 106 focused tests and 75 named byte-exact red drills; the installed
+bindings, native process-stop proof and editor visual matrix remain open.
+The full M109 checklist stays open for W's joined-tree certification.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/credential-vault-2026-10-05.md`.
 
@@ -21012,6 +21015,13 @@ only, no dependencies or live calls. Certification: `docs/certification/m109-b.m
         14 tables; budgets measured; full gate green
 
 ## 7. Gates
+
+**M109 H gate handoffs (2026-10-06).** The rig brief assigns aggregate
+quality to the lead. `check:host-api` reports inherited B plus H Node import
+count drift; VS Code APIs (332), adapter files (31), Node built-ins (25) and
+theme variables (61) are unchanged. W owns the generated record and must
+regenerate/review it in the joined tree. No ignore, cap, rule or threshold
+changed; no release/full-quality claim is made by H.
 
 **M109 H verification deferral (2026-10-06).** H58 proves unconditional
 `denied` exit and vault-session close. An additional new assertion against
@@ -22177,11 +22187,10 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
-| Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
-| ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
-
-| `src/runtime/vault/vaultRuntime.ts` (M109 H) | `as Partial<RuntimeVaultModule>` | The installed `dist/vault.js` factory is W/H's typed build contract. Runtime checks refuse absent exports and malformed binding methods; fake module tests prove fail-closed loading. No caller-supplied path or private wire format. |
+| Location                                     | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
+| -------------------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/l10n/text.ts` (ACTDIET)          | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
+| `src/runtime/vault/vaultRuntime.ts` (M109 H) | `as Partial<RuntimeVaultModule>`    | The installed `dist/vault.js` factory is W/H's typed build contract. Runtime checks refuse absent exports and malformed binding methods; fake module tests prove fail-closed loading. No caller-supplied path or private wire format.              |
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 

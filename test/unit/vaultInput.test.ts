@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { PassThrough } from 'node:stream'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import {
   chooseVaultDecision,
   readVaultLine,
@@ -19,6 +19,12 @@ function inputHarness(isTTY = false) {
   })
   const controller = new AbortController()
   return { input, output, chunks, controller }
+}
+
+function allocatedBuffers(allocation: MockInstance<typeof Buffer.alloc>): Buffer[] {
+  return allocation.mock.results.flatMap((result) =>
+    result.type === 'return' && result.value instanceof Buffer ? [result.value] : [],
+  )
 }
 
 afterEach(() => vi.restoreAllMocks())
@@ -157,9 +163,7 @@ describe('M109 H private terminal input', () => {
     const observed = expect(reading).rejects.toThrow(UI_TEXT.vault.noAccess)
     h.input.end(JSON.stringify({ kind: 'oauth', accessToken: value, refreshToken: 'bad' }))
     await observed
-    const owners = allocation.mock.results.flatMap((result) =>
-      result.type === 'return' && result.value instanceof Buffer ? [result.value] : [],
-    )
+    const owners = allocatedBuffers(allocation)
     expect(owners.some((owner) => owner.length === 32)).toBe(true)
     expect(owners.every((owner) => owner.every((byte) => byte === 0))).toBe(true)
   })
@@ -194,5 +198,36 @@ describe('M109 H private terminal input', () => {
     const observed = expect(reading).rejects.toThrow(UI_TEXT.vault.noAccess)
     h.input.end(Buffer.alloc(VAULT_LIMITS.frameBytes + 1, 65))
     await observed
+  })
+  it('H23b throwing stream cleanup still restores echo, detaches input and wipes every owner', async () => {
+    const h = inputHarness(true)
+    const allocation = vi.spyOn(Buffer, 'alloc')
+    const reading = readVaultLine(h.input, h.output, 'test', h.controller.signal)
+    const observed = expect(reading).rejects.toThrow(UI_TEXT.vault.noAccess)
+    vi.spyOn(h.input, 'pause').mockImplementation(() => {
+      throw new Error('private-canary')
+    })
+    h.input.write(Buffer.from('private-input\r'))
+    await observed
+    expect(h.input.setRawMode.mock.calls).toEqual([[true], [false]])
+    expect(h.input.listenerCount('data')).toBe(0)
+    const owners = allocatedBuffers(allocation)
+    expect(owners.every((owner) => owner.every((byte) => byte === 0))).toBe(true)
+  })
+  it('H23c a retained finished listener cannot refill wiped input ownership', async () => {
+    const h = inputHarness(true)
+    const allocation = vi.spyOn(Buffer, 'alloc')
+    const off = h.input.off.bind(h.input)
+    vi.spyOn(h.input, 'off').mockImplementation((name, listener) => {
+      if (name === 'data') throw new Error('private-canary')
+      return off(name, listener)
+    })
+    const reading = readVaultLine(h.input, h.output, 'test', h.controller.signal)
+    const observed = expect(reading).rejects.toThrow(UI_TEXT.vault.noAccess)
+    h.input.write(Buffer.from('first\r'))
+    await observed
+    h.input.emit('data', Buffer.from('late-private-input'))
+    const owners = allocatedBuffers(allocation)
+    expect(owners.every((owner) => owner.every((byte) => byte === 0))).toBe(true)
   })
 })

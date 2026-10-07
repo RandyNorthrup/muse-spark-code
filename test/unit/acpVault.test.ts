@@ -102,6 +102,16 @@ async function start(client: acp.ClientContext) {
   await client.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION })
   return await client.request('session/new', { cwd, mcpServers: [] })
 }
+async function activeTurn(h: ReturnType<typeof harness>, client: acp.ClientContext) {
+  const { sessionId } = await start(client)
+  const turn = client.request('session/prompt', {
+    sessionId,
+    prompt: [{ type: 'text', text: 'task' }],
+  })
+  await until(() => h.host.sessions[0]?.sendTurn.mock.calls.length === 1)
+  return { sessionId, turn }
+}
+
 function requestFor(sessionId: string) {
   const request = approval()
   request.requester.conversationId = sessionId
@@ -192,12 +202,7 @@ describe('M109 H ACP vault', () => {
     async (mode) => {
       const h = harness(mode)
       await h.run(async (client) => {
-        const { sessionId } = await start(client)
-        const turn = client.request('session/prompt', {
-          sessionId,
-          prompt: [{ type: 'text', text: 'task' }],
-        })
-        await until(() => h.host.sessions[0]?.sendTurn.mock.calls.length === 1)
+        const { sessionId, turn } = await activeTurn(h, client)
         const request = requestFor(sessionId)
         const answer = await h.vault.ask(sessionId, request)
         expect(answer).toEqual({
@@ -229,12 +234,7 @@ describe('M109 H ACP vault', () => {
       const held = Promise.withResolvers<acp.RequestPermissionResponse>()
       h.answer.mockImplementation(() => held.promise)
       await h.run(async (client) => {
-        const { sessionId } = await start(client)
-        const turn = client.request('session/prompt', {
-          sessionId,
-          prompt: [{ type: 'text', text: 'task' }],
-        })
-        await until(() => h.host.sessions[0]?.sendTurn.mock.calls.length === 1)
+        const { sessionId, turn } = await activeTurn(h, client)
         const request = requestFor(sessionId)
         if (boundary === 'expired') {
           request.expiresAt = Date.now() - 1
@@ -270,12 +270,7 @@ describe('M109 H ACP vault', () => {
     const h = harness()
     h.answer.mockImplementation(() => new Promise(() => undefined))
     await h.run(async (client) => {
-      const { sessionId } = await start(client)
-      const turn = client.request('session/prompt', {
-        sessionId,
-        prompt: [{ type: 'text', text: 'task' }],
-      })
-      await until(() => h.host.sessions[0]?.sendTurn.mock.calls.length === 1)
+      const { sessionId, turn } = await activeTurn(h, client)
       const request = requestFor(sessionId)
       request.expiresAt = Date.now() + 1000
       expect(decisionOf(await h.vault.ask(sessionId, request))).toBe('deny')

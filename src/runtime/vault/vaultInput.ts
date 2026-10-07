@@ -25,16 +25,29 @@ export function readVaultLine(
     const finish = (isAccepted: boolean): void => {
       if (isFinished) return
       isFinished = true
-      input.pause()
-      input.off('data', data)
-      input.off('end', end)
-      input.off('error', error)
-      output.off('error', error)
-      signal.removeEventListener('abort', error)
+      let canReturn = isAccepted
+      // A throwing stream callback cannot skip later cleanup, echo restoration or byte erasure.
+      const cleanups = [
+        () => input.pause(),
+        () => input.off('data', data),
+        () => input.off('end', end),
+        () => input.off('error', error),
+        () => output.off('error', error),
+        () => {
+          signal.removeEventListener('abort', error)
+        },
+      ]
+      for (const cleanup of cleanups) {
+        try {
+          cleanup()
+        } catch {
+          canReturn = false
+        }
+      }
       try {
         if (isTty) input.setRawMode?.(wasRaw)
         if (isTty) output.write('\n')
-        if (isAccepted) {
+        if (canReturn) {
           const owned = Buffer.alloc(length)
           owned.set(bytes.subarray(0, length))
           resolve(owned)
@@ -57,6 +70,7 @@ export function readVaultLine(
         return
       }
       try {
+        if (isFinished) return
         for (const byte of chunk) {
           if (LINE_ENDINGS.has(byte)) {
             finish(true)
@@ -161,10 +175,12 @@ export async function chooseVaultDecision(
   signal: AbortSignal,
 ): Promise<string> {
   if (input.isTTY !== true) throw new Error(UI_TEXT.vault.noAccess)
-  const labels = choices.map(
-    (choice) =>
-      `${choice}: ${choice === 'allowOnce' ? UI_TEXT.allowOnce : choice === 'allowSession' ? UI_TEXT.vault.allowSession : UI_TEXT.paidDeny}`,
-  )
+  const labels = choices.map((choice) => {
+    let label = UI_TEXT.paidDeny
+    if (choice === 'allowOnce') label = UI_TEXT.allowOnce
+    else if (choice === 'allowSession') label = UI_TEXT.vault.allowSession
+    return `${choice}: ${label}`
+  })
   const bytes = await readVaultLine(input, output, `${title}\n${labels.join('\n')}\n`, signal)
   try {
     const answer = bytes.toString('utf8')
