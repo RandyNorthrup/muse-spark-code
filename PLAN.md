@@ -28759,11 +28759,14 @@ with translations in all fourteen tables. Report presentation uses only
 browser-safe shared policy types; runtime integration types stay outside
 the browser project. Certify both regressions against
 `f2f55ad85`, then run scoped CI checks in a fresh committed clone. Existing
-planner/editor integration handoffs remain open. Both review findings now
-have scoped passing regressions and observed historical failures; fresh-clone
-CI parity is the remaining lane certification step. Next integration slice:
-M96/panel installation, then lead-owned installed-editor/accessibility checks
-and the existing M107/M110/M115w/M113/headless bindings.
+planner/editor integration handoffs remain open. Both review findings are
+certified locally: historical regressions fail on the base; 15 owning suites
+pass three times (1,077 executions) in a fresh committed clone with CI=true;
+all five typechecks and the required static/build gates pass, caps unchanged
+(`docs/certification/m116.md`, round 3). Ready for lead review/integration.
+Next implementation slice: M96/panel installation, then lead-owned
+installed-editor/accessibility checks and the existing
+M107/M110/M115w/M113/headless bindings.
 
 **U second-review repair (RVM116U2, 2026-10-06).** Fix the one P2:
 a successful rule save reconciles every changed settings field with the
