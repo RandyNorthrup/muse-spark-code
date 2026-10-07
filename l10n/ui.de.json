@@ -2581,6 +2581,7 @@
     "fail-on-denial": "Den Lauf bei verweigerter Berechtigung stoppen.",
     "ephemeral": "Die Sitzung im Speicher halten, ohne sie zu speichern.",
     "key-stdin": "auth set: Liest Ihren Schlüssel in einem Terminal ein und bewahrt ihn im Anmeldeinformationsspeicher dieses Computers auf. Die Unterhaltungen werden über den Schlüssel abgerechnet. exec / scan-secrets --key-stdin: Lies den Schlüssel aus einer Pipe, nicht aus einem Terminal. stdin → memory; prompt stdin + key stdin = Prompt und Schlüssel können nicht beide stdin verwenden.",
+    "vault": "--vault                          Headless-exec erlauben, Tresoreinträge mit unbeaufsichtigten Freigaben zu verwenden",
     "out": "--out <file>         Den Bericht in eine Datei statt auf stdout schreiben",
     "description": "--description <text>  Was gerade geschah, in eigenen Worten",
     "no-facts": "--no-facts           Die Support-Fakten weglassen",

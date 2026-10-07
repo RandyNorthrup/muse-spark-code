@@ -2677,6 +2677,7 @@
     "fail-on-denial": "Parar a execução se uma permissão for negada.",
     "ephemeral": "Manter a sessão na memória sem salvá-la.",
     "key-stdin": "auth set: Lê sua chave em um terminal e a guarda no armazenamento de credenciais deste computador. As conversas são cobradas da chave. exec / scan-secrets --key-stdin: Leia a chave de um pipe, não de um terminal. stdin → memory; prompt stdin + key stdin = O prompt e a chave não podem usar stdin ao mesmo tempo.",
+    "vault": "--vault                          Permitir que o headless exec use itens do cofre com concessões autônomas",
     "out": "--out <file>         Gravar o relatório em um arquivo em vez de stdout",
     "description": "--description <text>  O que estava acontecendo, com suas palavras",
     "no-facts": "--no-facts           Omitir os dados de suporte",

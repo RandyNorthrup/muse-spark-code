@@ -2581,6 +2581,7 @@
     "fail-on-denial": "İzin reddedilirse çalıştırmayı durdurun.",
     "ephemeral": "Oturumu kaydetmeden bellekte tutun.",
     "key-stdin": "auth set: Anahtarınızı bir terminalde okur ve bu bilgisayarın kimlik bilgisi deposunda saklar. Konuşmalar anahtara faturalandırılır. exec / scan-secrets --key-stdin: Anahtarı terminalden değil borudan okuyun. stdin → memory; prompt stdin + key stdin = İstem ve anahtar aynı anda stdin kullanamaz.",
+    "vault": "--vault                          Headless exec'in gözetimsiz izinlerdeki kasa öğelerini kullanmasına izin ver",
     "out": "--out <file>         Raporu stdout yerine dosyaya yaz",
     "description": "--description <text>  Neler olduğunu kendi sözlerinle anlat",
     "no-facts": "--no-facts           Destek bilgilerini çıkar",

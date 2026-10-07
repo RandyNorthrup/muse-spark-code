@@ -529,3 +529,29 @@ keep secrets out of it.
 ## Help and reference
 
 Send `/help` in an ACP session for its local command list and the [generated reference](reference.md). Run `muse-spark-code-acp help --all` in a terminal for the complete reference. Help starts no backend and makes no model request.
+
+## Vault integration (M109 H)
+
+The H handlers consume injected broker/panel contracts. The installed
+`dist/vault.js` factory is an integration handoff; until bound, access reports
+a fixed broker-unavailable error. No credential or guessed wire frame is used.
+
+`/vault` defaults to status and accepts `status`, `list`, `lock` and `audit`.
+Commands are intercepted locally before skill/model dispatch. Invalid syntax
+and extra attachments are refused. Lock remains available during an active
+turn and invalidates outstanding permission answers. Hidden and first-party
+items are excluded from the ACP item list.
+
+A broker request maps to `session/request_permission`: `allow_once`,
+`allow_always` labelled **Allow for this session** where policy permits, and
+`reject_once`. No standing Always grant is offered. Answers retain the
+broker's exact id and digest; cancel, expiry, session close/reload, lock, an
+unknown option, or a failed editor request deny. Bypass and paid grants do
+not approve a vault use. The full requester and resolved use, process exposure,
+taint, presence and separate paid-consent warning appear in the permission.
+
+Terminal subcommands and their input contract are documented in the
+repository README's vault section. Companion and native bridges share the
+same public panel handler; M104 must bind authenticated connections and honor
+its cancellation signal before committing effects. Add/edit opens the host's
+terminal. No value is accepted or returned in panel messages.

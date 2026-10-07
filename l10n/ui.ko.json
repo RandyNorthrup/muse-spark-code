@@ -2485,6 +2485,7 @@
     "fail-on-denial": "권한이 거부되면 실행을 중지합니다.",
     "ephemeral": "저장하지 않고 세션을 메모리에 유지합니다.",
     "key-stdin": "auth set: 터미널에서 키를 읽어 이 컴퓨터의 자격 증명 저장소에 보관합니다. 대화 요금은 이 키로 청구됩니다. exec / scan-secrets --key-stdin: 터미널이 아닌 파이프에서 키를 읽으세요. stdin → memory; prompt stdin + key stdin = 프롬프트와 키가 동시에 stdin을 사용할 수 없습니다.",
+    "vault": "--vault                          무인 grant로 Vault 항목을 headless exec가 사용할 수 있도록 허용합니다",
     "out": "--out <file>         stdout 대신 파일에 보고서 쓰기",
     "description": "--description <text>  무슨 일이 있었는지 자신의 말로",
     "no-facts": "--no-facts           지원 정보 제외",

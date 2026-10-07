@@ -2773,6 +2773,7 @@
     "fail-on-denial": "Zatrzymaj uruchomienie po odmowie uprawnienia.",
     "ephemeral": "Trzymaj sesję w pamięci bez zapisywania.",
     "key-stdin": "auth set: Odczytuje Twój klucz w terminalu i przechowuje go w magazynie poświadczeń tego komputera. Rozmowy są rozliczane z klucza. exec / scan-secrets --key-stdin: Odczytaj klucz z potoku, nie z terminala. stdin → memory; prompt stdin + key stdin = Polecenie i klucz nie mogą jednocześnie używać stdin.",
+    "vault": "--vault                          Zezwól headless exec na używanie elementów sejfu z grantami bez nadzoru",
     "out": "--out <file>         Zapisać raport do pliku zamiast na stdout",
     "description": "--description <text>  Co się działo, własnymi słowami",
     "no-facts": "--no-facts           Pominąć dane wsparcia",

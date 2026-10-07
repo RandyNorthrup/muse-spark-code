@@ -4006,6 +4006,46 @@ See the [ACP guide](docs/acp.md), the [CI guide](docs/ci.md) and the
 [M80 record](docs/certification/m80.md) for tests, deliberate breaks, platform
 results and what is still open.
 
+## The vault (M109 H integration)
+
+The terminal/ACP/headless handlers are implemented against the shared vault
+contracts. This branch still needs the installed broker factory and panel
+bindings from M109 W/U/M104. It does not claim a working packaged vault:
+missing bindings report the broker installation failure and refuse access.
+No activation read or broker start is added.
+
+The terminal grammar is `muse-spark-code-acp vault` followed by `status`,
+`unlock [slot-id]`, `lock`, `list`, `add <metadata-json>`, `remove <item-id>`,
+`grant <grant-json>`, `revoke <grant-id>`, `audit`, `import <path>`,
+`public-key <item-id>` or `watch`. Every handler was run successfully against
+an injected fake-only local port in the H certification; installed-command
+success remains the integration check. `audit` accepts `--item`, `--requester`,
+`--kind` and `--outcome`. IDs, metadata and grant JSON use the shared schemas.
+Keep secrets out of names, labels and command arguments.
+
+`add` reads private material as one bounded JSON line from standard input,
+with byte fields encoded as base64. Terminal echo stays off while reading;
+base64 is only an input encoding, not encryption. Values never come from an
+argument, environment variable or file. An explicit `import <path>` delegates
+only the chosen credential file to the import owner. `grant` displays every
+scope field and requires explicit terminal confirmation. `watch` displays
+exact requester/use details, asks through the terminal, and answers only the
+same unexpired request id and digest. Pipes cannot approve grants or uses.
+
+ACP `/vault` supports `status` (the default), `list`, `lock` and `audit` locally,
+without sending the command to a model. Vault permissions offer Allow once,
+Allow for this session where permitted, and Deny; ACP's `allow_always` means
+that session choice only. Bypass does not grant a secret. Lock can interrupt
+an active turn or permission question.
+
+Local headless `exec --vault` requires existing unattended grants and never
+prompts. Missing grants, presence, taint, unavailable bindings or a failed
+vault use end the run with `denied` (exit 7), independently of
+`--fail-on-denial`. `--key-stdin` and CI cannot enable the vault. Ordinary
+headless behavior without the flag is unchanged. Companion and native panel
+routes carry only public state and bound answers; add/edit opens the host's
+local terminal and never sends a value through the bridge.
+
 ## Development
 
 After a production build, `node test/e2e/webviewDiet.mjs` checks optional UI

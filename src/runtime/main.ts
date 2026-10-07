@@ -65,6 +65,10 @@ import { walkFiles } from './fileWalk'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { uiLocale } from '../shared/l10n/text'
+import { AcpVault } from '../acp/vault'
+import { runtimeVaultLoader } from './vault/vaultRuntime'
+import { runVaultCommand, vaultUsage } from './vault/vaultCommand'
+import { chooseVaultDecision, readVaultMaterial } from './vault/vaultInput'
 
 const EXIT_FAILED = 1
 // The Model API key variable Muse Code reads; the report says only whether it was set.
@@ -75,6 +79,18 @@ const museCodeCredentials = takeCredentials(process.env)
 // The package root holds `package.json` and `l10n/`; this file runs from `dist/`.
 const distDir = __dirname
 const packageRoot = path.dirname(distDir)
+// Construction performs no I/O; W binds the installed lazy factory on the first need.
+async function openVaultCommands() {
+  const binding = await loadVault()
+  return await binding.commands()
+}
+const acpVault = new AcpVault(openVaultCommands)
+const loadVault = runtimeVaultLoader({
+  dataDir: agentDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
+  distDir,
+  processId: process.pid,
+  acp: acpVault,
+})
 
 /** Standalone headless commands own their process, including wedged late setup. */
 function exitHeadless(code: number, shouldForce = false): never {
@@ -375,6 +391,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
       registries.push(registry)
       return registry
     },
+    vault: acpVault,
     log,
     reportError: (fact) => {
       // Facts only (a fixed kind and code): it never touches ACP stdout, and
@@ -484,6 +501,12 @@ async function main(): Promise<number> {
         }
       }
       headlessCode = await runExec(lifecycle, {
+        vault: {
+          open: async (context) => {
+            const binding = await loadVault()
+            return await binding.exec.open(context)
+          },
+        },
         options: command.options,
         version: packageVersion(),
         distDir,
@@ -533,6 +556,33 @@ async function main(): Promise<number> {
     log,
   })
   switch (command.command) {
+    case 'vault': {
+      const controller = new AbortController()
+      const abort = () => {
+        controller.abort()
+      }
+      process.once('SIGINT', abort)
+      process.once('SIGTERM', abort)
+      try {
+        return await runVaultCommand(command.options, {
+          open: openVaultCommands,
+          readMaterial: (signal) => readVaultMaterial(process.stdin, process.stderr, signal),
+          choose: (title, choices, signal) =>
+            chooseVaultDecision(process.stdin, process.stderr, title, choices, signal),
+          print: (text) => {
+            writeLine(process.stdout, text)
+          },
+          printError: (text) => {
+            writeLine(process.stderr, text)
+          },
+          now: Date.now,
+          signal: controller.signal,
+        })
+      } finally {
+        process.off('SIGINT', abort)
+        process.off('SIGTERM', abort)
+      }
+    }
     case 'setup': {
       return await setupHooks(command.options, command.maintenance, log)
     }
@@ -634,6 +684,10 @@ async function main(): Promise<number> {
     }
     case 'version': {
       writeLine(process.stdout, packageVersion())
+      return 0
+    }
+    case 'vaultHelp': {
+      writeLine(process.stdout, vaultUsage())
       return 0
     }
     case 'help': {

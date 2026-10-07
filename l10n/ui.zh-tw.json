@@ -2485,6 +2485,7 @@
     "fail-on-denial": "權限遭拒時停止執行。",
     "ephemeral": "將工作階段保留在記憶體中，不儲存。",
     "key-stdin": "auth set: 在終端機中讀取你的金鑰，並保存在這台電腦的認證儲存區中。對話費用會計入該金鑰。 exec / scan-secrets --key-stdin: 請從管線讀取金鑰，而非終端機。 stdin → memory; prompt stdin + key stdin = 提示和金鑰不能同時使用 stdin。",
+    "vault": "--vault                          允許 headless exec 使用具有無人值守授權的保管庫項",
     "out": "--out <file>         將報告寫入檔案而不是 stdout",
     "description": "--description <text>  用自己的話描述當時發生了什麼",
     "no-facts": "--no-facts           不包含支援資訊",

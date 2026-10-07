@@ -1,0 +1,1081 @@
+{
+  "workspace": "M109H",
+  "rig": "macbook",
+  "modelAttempts": 0,
+  "paidCalls": 0,
+  "drills": [
+    {
+      "name": "public-status",
+      "source": "src/runtime/vault/vaultCommand.ts",
+      "test": "test/unit/vaultCommand.test.ts",
+      "command": "npx vitest run test/unit/vaultCommand.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultCommand.test.ts > M109 H terminal commands > H5 validates public status before output"
+      ],
+      "beforeSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5",
+      "mutatedSha256": "21b2ba6cb55f52df8518260aef4faacf518ef7a2c5b23fb9b96a6bd7b881b064",
+      "testSha256": "d4423f0f65710c6da76e5276d7fa92e2ac0ceb9bef5893d7f8f3523283e9d9df",
+      "restoredSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5"
+    },
+    {
+      "name": "public-list",
+      "source": "src/runtime/vault/vaultCommand.ts",
+      "test": "test/unit/vaultCommand.test.ts",
+      "command": "npx vitest run test/unit/vaultCommand.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultCommand.test.ts > M109 H terminal commands > H5 validates public list before output"
+      ],
+      "beforeSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5",
+      "mutatedSha256": "9483bd5d89d33121fbc1fac60d6ed8d7ac4c57d2207037c321e7a32f54be1377",
+      "testSha256": "d4423f0f65710c6da76e5276d7fa92e2ac0ceb9bef5893d7f8f3523283e9d9df",
+      "restoredSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5"
+    },
+    {
+      "name": "public-audit",
+      "source": "src/runtime/vault/vaultCommand.ts",
+      "test": "test/unit/vaultCommand.test.ts",
+      "command": "npx vitest run test/unit/vaultCommand.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultCommand.test.ts > M109 H terminal commands > H5 validates public audit before output"
+      ],
+      "beforeSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5",
+      "mutatedSha256": "2bc68c2661e0c3e1d534a6eb0b79eb8cdb865daefa684255c5870e43d6c9d6e6",
+      "testSha256": "d4423f0f65710c6da76e5276d7fa92e2ac0ceb9bef5893d7f8f3523283e9d9df",
+      "restoredSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5"
+    },
+    {
+      "name": "item-kind",
+      "source": "src/runtime/vault/vaultCommand.ts",
+      "test": "test/unit/vaultCommand.test.ts",
+      "command": "npx vitest run test/unit/vaultCommand.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultCommand.test.ts > M109 H terminal commands > H3 always wipes private material on invalid kind and failed storage"
+      ],
+      "beforeSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5",
+      "mutatedSha256": "99b0062363815050b989f29f4061275a8821407f426b177b7dbcc2aa935ae840",
+      "testSha256": "d4423f0f65710c6da76e5276d7fa92e2ac0ceb9bef5893d7f8f3523283e9d9df",
+      "restoredSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5"
+    },
+    {
+      "name": "private-wipe",
+      "source": "src/runtime/vault/vaultCommand.ts",
+      "test": "test/unit/vaultCommand.test.ts",
+      "command": "npx vitest run test/unit/vaultCommand.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultCommand.test.ts > M109 H terminal commands > H3 always wipes private material on invalid kind and failed storage"
+      ],
+      "beforeSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5",
+      "mutatedSha256": "8bd50baf47ba3c5f5098f503d5fbecd1052177d041321e403b30c2984d1afbf9",
+      "testSha256": "d4423f0f65710c6da76e5276d7fa92e2ac0ceb9bef5893d7f8f3523283e9d9df",
+      "restoredSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5"
+    },
+    {
+      "name": "standing-consent",
+      "source": "src/runtime/vault/vaultCommand.ts",
+      "test": "test/unit/vaultCommand.test.ts",
+      "command": "npx vitest run test/unit/vaultCommand.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultCommand.test.ts > M109 H terminal commands > H4 standing grant shows every scope and requires explicit terminal consent"
+      ],
+      "beforeSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5",
+      "mutatedSha256": "2f8dc88e63974fbfb74d724bcd7c50102b6d4fe104d879eaf6a45d0ea16fe3ed",
+      "testSha256": "d4423f0f65710c6da76e5276d7fa92e2ac0ceb9bef5893d7f8f3523283e9d9df",
+      "restoredSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5"
+    },
+    {
+      "name": "public-key-selection",
+      "source": "src/runtime/vault/vaultCommand.ts",
+      "test": "test/unit/vaultCommand.test.ts",
+      "command": "npx vitest run test/unit/vaultCommand.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultCommand.test.ts > M109 H terminal commands > H6 public-key exports only the chosen SSH public key"
+      ],
+      "beforeSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5",
+      "mutatedSha256": "c5ed004c0eb3dc9e2af3c4194c37d74d123274fca06d15aae1c7af7b5a893a52",
+      "testSha256": "d4423f0f65710c6da76e5276d7fa92e2ac0ceb9bef5893d7f8f3523283e9d9df",
+      "restoredSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5"
+    },
+    {
+      "name": "watch-replay",
+      "source": "src/runtime/vault/vaultCommand.ts",
+      "test": "test/unit/vaultCommand.test.ts",
+      "command": "npx vitest run test/unit/vaultCommand.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultCommand.test.ts > M109 H vault watch > H9 bound answers echo id/digest and repeated events never replay"
+      ],
+      "beforeSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5",
+      "mutatedSha256": "7c7d619653231d97ac3ca1addf95727958ad7c7d04928d9d6820cad1a7afee3a",
+      "testSha256": "d4423f0f65710c6da76e5276d7fa92e2ac0ceb9bef5893d7f8f3523283e9d9df",
+      "restoredSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5"
+    },
+    {
+      "name": "watch-memory-cap",
+      "source": "src/runtime/vault/vaultCommand.ts",
+      "test": "test/unit/vaultCommand.test.ts",
+      "command": "npx vitest run test/unit/vaultCommand.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultCommand.test.ts > M109 H vault watch > H14 consumed-request memory is bounded, including requests while locked"
+      ],
+      "beforeSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5",
+      "mutatedSha256": "ffe84be6ff89255c44d20bfaa8b51c4f3687fdc919cce8d35c1e293d740e7518",
+      "testSha256": "d4423f0f65710c6da76e5276d7fa92e2ac0ceb9bef5893d7f8f3523283e9d9df",
+      "restoredSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5"
+    },
+    {
+      "name": "watch-event-schema",
+      "source": "src/runtime/vault/vaultCommand.ts",
+      "test": "test/unit/vaultCommand.test.ts",
+      "command": "npx vitest run test/unit/vaultCommand.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultCommand.test.ts > M109 H vault watch > H12 taint and presence are explicit; unknown event values are rejected"
+      ],
+      "beforeSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5",
+      "mutatedSha256": "9feda06e7013772347fc5ad02918efa3cc4e2587e814d857d96487dc29ec7b55",
+      "testSha256": "d4423f0f65710c6da76e5276d7fa92e2ac0ceb9bef5893d7f8f3523283e9d9df",
+      "restoredSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5"
+    },
+    {
+      "name": "watch-initial-state",
+      "source": "src/runtime/vault/vaultCommand.ts",
+      "test": "test/unit/vaultCommand.test.ts",
+      "command": "npx vitest run test/unit/vaultCommand.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultCommand.test.ts > M109 H vault watch > H13 locked and already-expired requests are never offered"
+      ],
+      "beforeSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5",
+      "mutatedSha256": "bef88350bc911d467f1631a61dc8cbc0a79525eb02fb9556ae3cbef49830bade",
+      "testSha256": "d4423f0f65710c6da76e5276d7fa92e2ac0ceb9bef5893d7f8f3523283e9d9df",
+      "restoredSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5"
+    },
+    {
+      "name": "watch-initial-epoch",
+      "source": "src/runtime/vault/vaultCommand.ts",
+      "test": "test/unit/vaultCommand.test.ts",
+      "command": "npx vitest run test/unit/vaultCommand.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultCommand.test.ts > M109 H vault watch > H10 before-epoch prevents stale terminal consent"
+      ],
+      "beforeSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5",
+      "mutatedSha256": "9c445be217522059438b35227c768b8ca03e0cb80ca080a58bd7be470623349d",
+      "testSha256": "d4423f0f65710c6da76e5276d7fa92e2ac0ceb9bef5893d7f8f3523283e9d9df",
+      "restoredSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5"
+    },
+    {
+      "name": "watch-final-state",
+      "source": "src/runtime/vault/vaultCommand.ts",
+      "test": "test/unit/vaultCommand.test.ts",
+      "command": "npx vitest run test/unit/vaultCommand.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultCommand.test.ts > M109 H vault watch > H13 locked and already-expired requests are never offered"
+      ],
+      "beforeSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5",
+      "mutatedSha256": "0299a014fb9b5c617ae8bfd147e83e1b362b1af111d14b71da6ef0fae30d9b18",
+      "testSha256": "d4423f0f65710c6da76e5276d7fa92e2ac0ceb9bef5893d7f8f3523283e9d9df",
+      "restoredSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5"
+    },
+    {
+      "name": "watch-final-epoch",
+      "source": "src/runtime/vault/vaultCommand.ts",
+      "test": "test/unit/vaultCommand.test.ts",
+      "command": "npx vitest run test/unit/vaultCommand.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultCommand.test.ts > M109 H vault watch > H10 after-epoch prevents stale terminal consent"
+      ],
+      "beforeSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5",
+      "mutatedSha256": "bcc62e558e1d3a81616f12b864f0b5eb77d3c6eb6142b15913be4eabe565ac5f",
+      "testSha256": "d4423f0f65710c6da76e5276d7fa92e2ac0ceb9bef5893d7f8f3523283e9d9df",
+      "restoredSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5"
+    },
+    {
+      "name": "watch-request-id",
+      "source": "src/runtime/vault/vaultCommand.ts",
+      "test": "test/unit/vaultCommand.test.ts",
+      "command": "npx vitest run test/unit/vaultCommand.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultCommand.test.ts > M109 H vault watch > H9 bound answers echo id/digest and repeated events never replay"
+      ],
+      "beforeSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5",
+      "mutatedSha256": "7d1e09820aa304b808624468cddf90bdb2fa3814f5654567d7da99f7513854cd",
+      "testSha256": "d4423f0f65710c6da76e5276d7fa92e2ac0ceb9bef5893d7f8f3523283e9d9df",
+      "restoredSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5"
+    },
+    {
+      "name": "watch-digest",
+      "source": "src/runtime/vault/vaultCommand.ts",
+      "test": "test/unit/vaultCommand.test.ts",
+      "command": "npx vitest run test/unit/vaultCommand.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultCommand.test.ts > M109 H vault watch > H9 bound answers echo id/digest and repeated events never replay"
+      ],
+      "beforeSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5",
+      "mutatedSha256": "08e9282edfced0734db7ad205bffb8b91d349ba5632e743237999cc66bd5acf6",
+      "testSha256": "d4423f0f65710c6da76e5276d7fa92e2ac0ceb9bef5893d7f8f3523283e9d9df",
+      "restoredSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5"
+    },
+    {
+      "name": "watch-offered-choice",
+      "source": "src/runtime/vault/vaultCommand.ts",
+      "test": "test/unit/vaultCommand.test.ts",
+      "command": "npx vitest run test/unit/vaultCommand.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultCommand.test.ts > M109 H vault watch > H11 only permitted session choice is honored; EOF and forged choice deny"
+      ],
+      "beforeSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5",
+      "mutatedSha256": "582d6e04e9adb17ce1da7205215f2600b366f5976496d75402abf041a25c998f",
+      "testSha256": "d4423f0f65710c6da76e5276d7fa92e2ac0ceb9bef5893d7f8f3523283e9d9df",
+      "restoredSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5"
+    },
+    {
+      "name": "watch-unanswered-deny",
+      "source": "src/runtime/vault/vaultCommand.ts",
+      "test": "test/unit/vaultCommand.test.ts",
+      "command": "npx vitest run test/unit/vaultCommand.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultCommand.test.ts > M109 H vault watch > H11 only permitted session choice is honored; EOF and forged choice deny"
+      ],
+      "beforeSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5",
+      "mutatedSha256": "e78de00833ad012fc903ff3cc8ba1bb331955e4926aac8ff513a61179899a246",
+      "testSha256": "d4423f0f65710c6da76e5276d7fa92e2ac0ceb9bef5893d7f8f3523283e9d9df",
+      "restoredSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5"
+    },
+    {
+      "name": "material-schema",
+      "source": "src/runtime/vault/vaultInput.ts",
+      "test": "test/unit/vaultInput.test.ts",
+      "command": "npx vitest run test/unit/vaultInput.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultInput.test.ts > M109 H private terminal input > H29 private material rejects unknown kinds and extra fields after byte decode"
+      ],
+      "beforeSha256": "33aa81a6d05f0ce46244995b8f1af4ddc8985fbbcfd6393ca82b6b883b59ea07",
+      "mutatedSha256": "33ebd1e0ab0c347978b704f6dc171b34ceecdacb49ec2f149c44a46fa1a97bd3",
+      "testSha256": "ca83cdf1b9cca0006b7887d860c2d652e170b20474d455a899e65ad64bf5ccdf",
+      "restoredSha256": "33aa81a6d05f0ce46244995b8f1af4ddc8985fbbcfd6393ca82b6b883b59ea07"
+    },
+    {
+      "name": "material-partial-wipe",
+      "source": "src/runtime/vault/vaultInput.ts",
+      "test": "test/unit/vaultInput.test.ts",
+      "command": "npx vitest run test/unit/vaultInput.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultInput.test.ts > M109 H private terminal input > H28 malformed material wipes every allocated private byte owner, including partial decode"
+      ],
+      "beforeSha256": "33aa81a6d05f0ce46244995b8f1af4ddc8985fbbcfd6393ca82b6b883b59ea07",
+      "mutatedSha256": "b0895a6493dd2a578c844befe172bc246f0647ab4694707c8020f97f1f651907",
+      "testSha256": "ca83cdf1b9cca0006b7887d860c2d652e170b20474d455a899e65ad64bf5ccdf",
+      "restoredSha256": "33aa81a6d05f0ce46244995b8f1af4ddc8985fbbcfd6393ca82b6b883b59ea07"
+    },
+    {
+      "name": "material-line-wipe",
+      "source": "src/runtime/vault/vaultInput.ts",
+      "test": "test/unit/vaultInput.test.ts",
+      "command": "npx vitest run test/unit/vaultInput.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultInput.test.ts > M109 H private terminal input > H28 malformed material wipes every allocated private byte owner, including partial decode"
+      ],
+      "beforeSha256": "33aa81a6d05f0ce46244995b8f1af4ddc8985fbbcfd6393ca82b6b883b59ea07",
+      "mutatedSha256": "5738595763fb020b57bd65a666367e13820e37ee9a553c764a5f4c27c2b8224d",
+      "testSha256": "ca83cdf1b9cca0006b7887d860c2d652e170b20474d455a899e65ad64bf5ccdf",
+      "restoredSha256": "33aa81a6d05f0ce46244995b8f1af4ddc8985fbbcfd6393ca82b6b883b59ea07"
+    },
+    {
+      "name": "private-input-bound",
+      "source": "src/runtime/vault/vaultInput.ts",
+      "test": "test/unit/vaultInput.test.ts",
+      "command": "npx vitest run test/unit/vaultInput.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultInput.test.ts > M109 H private terminal input > H24b standalone line reader rejects the size boundary before material parsing"
+      ],
+      "beforeSha256": "33aa81a6d05f0ce46244995b8f1af4ddc8985fbbcfd6393ca82b6b883b59ea07",
+      "mutatedSha256": "3cbf0ad5d05310a6b2874d9eb154d806c94cf7c5748bcb9cfa4d10656a57a694",
+      "testSha256": "ca83cdf1b9cca0006b7887d860c2d652e170b20474d455a899e65ad64bf5ccdf",
+      "restoredSha256": "33aa81a6d05f0ce46244995b8f1af4ddc8985fbbcfd6393ca82b6b883b59ea07"
+    },
+    {
+      "name": "base64-validation",
+      "source": "src/runtime/vault/vaultInput.ts",
+      "test": "test/unit/vaultInput.test.ts",
+      "command": "npx vitest run test/unit/vaultInput.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultInput.test.ts > M109 H private terminal input > H24 rejects oversized input and malformed base64 without private errors"
+      ],
+      "beforeSha256": "33aa81a6d05f0ce46244995b8f1af4ddc8985fbbcfd6393ca82b6b883b59ea07",
+      "mutatedSha256": "105c446565e0c88e8baf26251c78f5ca5635449bcf1975201f2e906841e0795f",
+      "testSha256": "ca83cdf1b9cca0006b7887d860c2d652e170b20474d455a899e65ad64bf5ccdf",
+      "restoredSha256": "33aa81a6d05f0ce46244995b8f1af4ddc8985fbbcfd6393ca82b6b883b59ea07"
+    },
+    {
+      "name": "input-owner-wipe",
+      "source": "src/runtime/vault/vaultInput.ts",
+      "test": "test/unit/vaultInput.test.ts",
+      "command": "npx vitest run test/unit/vaultInput.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultInput.test.ts > M109 H private terminal input > H22 TTY echo restored after enter/backspace; value never echoed"
+      ],
+      "beforeSha256": "33aa81a6d05f0ce46244995b8f1af4ddc8985fbbcfd6393ca82b6b883b59ea07",
+      "mutatedSha256": "22e6f424cae66dfed1c198042a0799f03239713c3853b57a287cc9caae36354d",
+      "testSha256": "ca83cdf1b9cca0006b7887d860c2d652e170b20474d455a899e65ad64bf5ccdf",
+      "restoredSha256": "33aa81a6d05f0ce46244995b8f1af4ddc8985fbbcfd6393ca82b6b883b59ea07"
+    },
+    {
+      "name": "echo-restoration",
+      "source": "src/runtime/vault/vaultInput.ts",
+      "test": "test/unit/vaultInput.test.ts",
+      "command": "npx vitest run test/unit/vaultInput.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultInput.test.ts > M109 H private terminal input > H22 TTY echo restored after enter/backspace; value never echoed"
+      ],
+      "beforeSha256": "33aa81a6d05f0ce46244995b8f1af4ddc8985fbbcfd6393ca82b6b883b59ea07",
+      "mutatedSha256": "4e1fc3c0509c0eecaabf48f036edb2758fbc1cfc7e2e93182ce1d276c92b6c79",
+      "testSha256": "ca83cdf1b9cca0006b7887d860c2d652e170b20474d455a899e65ad64bf5ccdf",
+      "restoredSha256": "33aa81a6d05f0ce46244995b8f1af4ddc8985fbbcfd6393ca82b6b883b59ea07"
+    },
+    {
+      "name": "terminal-only-consent",
+      "source": "src/runtime/vault/vaultInput.ts",
+      "test": "test/unit/vaultInput.test.ts",
+      "command": "npx vitest run test/unit/vaultInput.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultInput.test.ts > M109 H private terminal input > H25 pipes cannot approve uses or standing grants"
+      ],
+      "beforeSha256": "33aa81a6d05f0ce46244995b8f1af4ddc8985fbbcfd6393ca82b6b883b59ea07",
+      "mutatedSha256": "c3da3f15a8d8c9097b5815e972c5c7414ded3865a304ae3e999b0da95f2ce8df",
+      "testSha256": "ca83cdf1b9cca0006b7887d860c2d652e170b20474d455a899e65ad64bf5ccdf",
+      "restoredSha256": "33aa81a6d05f0ce46244995b8f1af4ddc8985fbbcfd6393ca82b6b883b59ea07"
+    },
+    {
+      "name": "prototype-key",
+      "source": "src/runtime/vault/vaultInput.ts",
+      "test": "test/unit/vaultInput.test.ts",
+      "command": "npx vitest run test/unit/vaultInput.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultInput.test.ts > M109 H private terminal input > H29b prototype keys cannot disappear at the record boundary"
+      ],
+      "beforeSha256": "33aa81a6d05f0ce46244995b8f1af4ddc8985fbbcfd6393ca82b6b883b59ea07",
+      "mutatedSha256": "cf99cefc594da76c2ef10d43d1ffa3632f43d1d8b704e774e0c4d919da4c5781",
+      "testSha256": "ca83cdf1b9cca0006b7887d860c2d652e170b20474d455a899e65ad64bf5ccdf",
+      "restoredSha256": "33aa81a6d05f0ce46244995b8f1af4ddc8985fbbcfd6393ca82b6b883b59ea07"
+    },
+    {
+      "name": "session-mode",
+      "source": "src/runtime/vault/vaultApproval.ts",
+      "test": "test/unit/acpVault.test.ts",
+      "command": "npx vitest run test/unit/acpVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/acpVault.test.ts > M109 H ACP vault > H30 ACP allow_always means session only; no standing Always choice"
+      ],
+      "beforeSha256": "04a87d4167c9915ba861a6be4cd702a284711d1df1050ff80cf7a9f5a79139f5",
+      "mutatedSha256": "5116a821bacef1eff8dbebac1c90720b433ce096cacf5f38d53555c5725003ed",
+      "testSha256": "75f49b62a37c7be3be322ae078a7109065cdcf542bde9e0da808f1f7cdcfbabd",
+      "restoredSha256": "04a87d4167c9915ba861a6be4cd702a284711d1df1050ff80cf7a9f5a79139f5"
+    },
+    {
+      "name": "session-id",
+      "source": "src/runtime/vault/vaultApproval.ts",
+      "test": "test/unit/acpVault.test.ts",
+      "command": "npx vitest run test/unit/acpVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/acpVault.test.ts > M109 H ACP vault > H30 ACP allow_always means session only; no standing Always choice"
+      ],
+      "beforeSha256": "04a87d4167c9915ba861a6be4cd702a284711d1df1050ff80cf7a9f5a79139f5",
+      "mutatedSha256": "18103ec32dcfb7de4fdd13e6ced36d933b5276e43b8f49e13f73b290f0a22377",
+      "testSha256": "75f49b62a37c7be3be322ae078a7109065cdcf542bde9e0da808f1f7cdcfbabd",
+      "restoredSha256": "04a87d4167c9915ba861a6be4cd702a284711d1df1050ff80cf7a9f5a79139f5"
+    },
+    {
+      "name": "session-unattended",
+      "source": "src/runtime/vault/vaultApproval.ts",
+      "test": "test/unit/acpVault.test.ts",
+      "command": "npx vitest run test/unit/acpVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/acpVault.test.ts > M109 H ACP vault > H30 ACP allow_always means session only; no standing Always choice"
+      ],
+      "beforeSha256": "04a87d4167c9915ba861a6be4cd702a284711d1df1050ff80cf7a9f5a79139f5",
+      "mutatedSha256": "0177c5be1fd2e5cafd7ffe3480f5914581056bced8251be39b82952fffb33cd1",
+      "testSha256": "75f49b62a37c7be3be322ae078a7109065cdcf542bde9e0da808f1f7cdcfbabd",
+      "restoredSha256": "04a87d4167c9915ba861a6be4cd702a284711d1df1050ff80cf7a9f5a79139f5"
+    },
+    {
+      "name": "session-taint",
+      "source": "src/runtime/vault/vaultApproval.ts",
+      "test": "test/unit/acpVault.test.ts",
+      "command": "npx vitest run test/unit/acpVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/acpVault.test.ts > M109 H ACP vault > H30 ACP allow_always means session only; no standing Always choice"
+      ],
+      "beforeSha256": "04a87d4167c9915ba861a6be4cd702a284711d1df1050ff80cf7a9f5a79139f5",
+      "mutatedSha256": "041491c285dbcea83eba1de43530406eae94569511e10db73f97b6129a2610d7",
+      "testSha256": "75f49b62a37c7be3be322ae078a7109065cdcf542bde9e0da808f1f7cdcfbabd",
+      "restoredSha256": "04a87d4167c9915ba861a6be4cd702a284711d1df1050ff80cf7a9f5a79139f5"
+    },
+    {
+      "name": "session-disclosure",
+      "source": "src/runtime/vault/vaultApproval.ts",
+      "test": "test/unit/acpVault.test.ts",
+      "command": "npx vitest run test/unit/acpVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/acpVault.test.ts > M109 H ACP vault > H30 ACP allow_always means session only; no standing Always choice"
+      ],
+      "beforeSha256": "04a87d4167c9915ba861a6be4cd702a284711d1df1050ff80cf7a9f5a79139f5",
+      "mutatedSha256": "00e90d313b62ab5376cbf0e7371815bcb82ff6ec4d8a979f6f86d8fd14e465cc",
+      "testSha256": "75f49b62a37c7be3be322ae078a7109065cdcf542bde9e0da808f1f7cdcfbabd",
+      "restoredSha256": "04a87d4167c9915ba861a6be4cd702a284711d1df1050ff80cf7a9f5a79139f5"
+    },
+    {
+      "name": "process-exposure-label",
+      "source": "src/runtime/vault/vaultApproval.ts",
+      "test": "test/unit/vaultCommand.test.ts",
+      "command": "npx vitest run test/unit/vaultCommand.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultCommand.test.ts > M109 H vault watch > H9 bound answers echo id/digest and repeated events never replay"
+      ],
+      "beforeSha256": "04a87d4167c9915ba861a6be4cd702a284711d1df1050ff80cf7a9f5a79139f5",
+      "mutatedSha256": "ba3d36a844b0a4b4f9ac2e4516a42e3db832d1c745ccd6b76ebbc33dc2a36d0e",
+      "testSha256": "d4423f0f65710c6da76e5276d7fa92e2ac0ceb9bef5893d7f8f3523283e9d9df",
+      "restoredSha256": "04a87d4167c9915ba861a6be4cd702a284711d1df1050ff80cf7a9f5a79139f5"
+    },
+    {
+      "name": "presence-label",
+      "source": "src/runtime/vault/vaultApproval.ts",
+      "test": "test/unit/vaultCommand.test.ts",
+      "command": "npx vitest run test/unit/vaultCommand.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultCommand.test.ts > M109 H vault watch > H12 taint and presence are explicit; unknown event values are rejected"
+      ],
+      "beforeSha256": "04a87d4167c9915ba861a6be4cd702a284711d1df1050ff80cf7a9f5a79139f5",
+      "mutatedSha256": "6551859c6f7faf10c0ca06a3dcebfec6a24118b100b4175f2b70cf375462d11a",
+      "testSha256": "d4423f0f65710c6da76e5276d7fa92e2ac0ceb9bef5893d7f8f3523283e9d9df",
+      "restoredSha256": "04a87d4167c9915ba861a6be4cd702a284711d1df1050ff80cf7a9f5a79139f5"
+    },
+    {
+      "name": "headless-source",
+      "source": "src/runtime/vault/execVault.ts",
+      "test": "test/unit/execVault.test.ts",
+      "command": "npx vitest run test/unit/execVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/execVault.test.ts > M109 H headless authorization > H50 accepts only bound, unexpired grant tickets for headless registration"
+      ],
+      "beforeSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734",
+      "mutatedSha256": "c7ac1532ca7245daff47e49df08124910b2f727ed2a716378676313c54ee71e2",
+      "testSha256": "7670ad3da785d8213e347a0aec723e40c58e5778d7d053edb37cb56f9fc8e05d",
+      "restoredSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734"
+    },
+    {
+      "name": "headless-role",
+      "source": "src/runtime/vault/execVault.ts",
+      "test": "test/unit/execVault.test.ts",
+      "command": "npx vitest run test/unit/execVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/execVault.test.ts > M109 H headless authorization > H54 requester cannot claim interactive role, missing workspace or another conversation"
+      ],
+      "beforeSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734",
+      "mutatedSha256": "a2f3c5472ca893b15fc86218f2b05c684d1f08984d3bc5f58fed96df5b894d6b",
+      "testSha256": "7670ad3da785d8213e347a0aec723e40c58e5778d7d053edb37cb56f9fc8e05d",
+      "restoredSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734"
+    },
+    {
+      "name": "headless-workspace",
+      "source": "src/runtime/vault/execVault.ts",
+      "test": "test/unit/execVault.test.ts",
+      "command": "npx vitest run test/unit/execVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/execVault.test.ts > M109 H headless authorization > H54 requester cannot claim interactive role, missing workspace or another conversation"
+      ],
+      "beforeSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734",
+      "mutatedSha256": "7a609187b3037db19dc55f56d7102dbd8eca26e7a733064381aef9c00a38739e",
+      "testSha256": "7670ad3da785d8213e347a0aec723e40c58e5778d7d053edb37cb56f9fc8e05d",
+      "restoredSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734"
+    },
+    {
+      "name": "headless-conversation",
+      "source": "src/runtime/vault/execVault.ts",
+      "test": "test/unit/execVault.test.ts",
+      "command": "npx vitest run test/unit/execVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/execVault.test.ts > M109 H headless authorization > H54 requester cannot claim interactive role, missing workspace or another conversation"
+      ],
+      "beforeSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734",
+      "mutatedSha256": "b52ac8547ef6613f3d1ed9daf30773029d9a413bd75ade6a0c4823ae52eda3da",
+      "testSha256": "7670ad3da785d8213e347a0aec723e40c58e5778d7d053edb37cb56f9fc8e05d",
+      "restoredSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734"
+    },
+    {
+      "name": "headless-taint",
+      "source": "src/runtime/vault/execVault.ts",
+      "test": "test/unit/execVault.test.ts",
+      "command": "npx vitest run test/unit/execVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/execVault.test.ts > M109 H headless authorization > H52 tainted, aborted and malformed requests never reach broker"
+      ],
+      "beforeSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734",
+      "mutatedSha256": "1184bdfdbc77d0f8441444f899668670efa7f36fa9961b830a6741f84a5ffb8a",
+      "testSha256": "7670ad3da785d8213e347a0aec723e40c58e5778d7d053edb37cb56f9fc8e05d",
+      "restoredSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734"
+    },
+    {
+      "name": "headless-grant-only",
+      "source": "src/runtime/vault/execVault.ts",
+      "test": "test/unit/execVault.test.ts",
+      "command": "npx vitest run test/unit/execVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/execVault.test.ts > M109 H headless authorization > H51 mode fails closed without prompting"
+      ],
+      "beforeSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734",
+      "mutatedSha256": "1b0129ab2902514fdeebeccd87bd4c70d4196176871ce9f6f30b130ddb14d1f1",
+      "testSha256": "7670ad3da785d8213e347a0aec723e40c58e5778d7d053edb37cb56f9fc8e05d",
+      "restoredSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734"
+    },
+    {
+      "name": "headless-requester",
+      "source": "src/runtime/vault/execVault.ts",
+      "test": "test/unit/execVault.test.ts",
+      "command": "npx vitest run test/unit/execVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/execVault.test.ts > M109 H headless authorization > H51 peer fails closed without prompting"
+      ],
+      "beforeSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734",
+      "mutatedSha256": "d6dc77246cd010ecc54b279b9d758de3d2b312cdcedd087a8277a0f1a65d3f36",
+      "testSha256": "7670ad3da785d8213e347a0aec723e40c58e5778d7d053edb37cb56f9fc8e05d",
+      "restoredSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734"
+    },
+    {
+      "name": "headless-digest",
+      "source": "src/runtime/vault/execVault.ts",
+      "test": "test/unit/execVault.test.ts",
+      "command": "npx vitest run test/unit/execVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/execVault.test.ts > M109 H headless authorization > H51 digest fails closed without prompting"
+      ],
+      "beforeSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734",
+      "mutatedSha256": "9edf7ea1207c4b328f7d2917808b6fe0bb99847b2c84c2454bf9f0e292744930",
+      "testSha256": "7670ad3da785d8213e347a0aec723e40c58e5778d7d053edb37cb56f9fc8e05d",
+      "restoredSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734"
+    },
+    {
+      "name": "headless-expiry",
+      "source": "src/runtime/vault/execVault.ts",
+      "test": "test/unit/execVault.test.ts",
+      "command": "npx vitest run test/unit/execVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/execVault.test.ts > M109 H headless authorization > H51 expired fails closed without prompting"
+      ],
+      "beforeSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734",
+      "mutatedSha256": "97d8cff1b5aaf6af3647c11e3f9737f0d711998be18d444421df7fff9f1907f8",
+      "testSha256": "7670ad3da785d8213e347a0aec723e40c58e5778d7d053edb37cb56f9fc8e05d",
+      "restoredSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734"
+    },
+    {
+      "name": "headless-live-owner",
+      "source": "src/runtime/vault/execVault.ts",
+      "test": "test/unit/execVault.test.ts",
+      "command": "npx vitest run test/unit/execVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/execVault.test.ts > M109 H headless authorization > H53 close during authorization cannot release late ticket",
+        "FAIL  test/unit/execVault.test.ts > M109 H headless authorization > H53 abort during authorization cannot release late ticket"
+      ],
+      "beforeSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734",
+      "mutatedSha256": "9c2e7ed5ac7adcbd6fe6a6c078a04ca5604fd306769545efd496ee00ca5541e1",
+      "testSha256": "7670ad3da785d8213e347a0aec723e40c58e5778d7d053edb37cb56f9fc8e05d",
+      "restoredSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734"
+    },
+    {
+      "name": "headless-ticket-only",
+      "source": "src/runtime/vault/execVault.ts",
+      "test": "test/unit/execVault.test.ts",
+      "command": "npx vitest run test/unit/execVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/execVault.test.ts > M109 H headless authorization > H50 accepts only bound, unexpired grant tickets for headless registration"
+      ],
+      "beforeSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734",
+      "mutatedSha256": "ed4030b78d9f068c23a7e59458e0955da021fd944fe3bdbb56e5ec248ff74fe0",
+      "testSha256": "7670ad3da785d8213e347a0aec723e40c58e5778d7d053edb37cb56f9fc8e05d",
+      "restoredSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734"
+    },
+    {
+      "name": "exec-missing-port",
+      "source": "src/runtime/exec/runExec.ts",
+      "test": "test/unit/execVault.test.ts",
+      "command": "npx vitest run test/unit/execVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/execVault.test.ts > M109 H local exec vault admission > H56 missing denies before backend or vault access"
+      ],
+      "beforeSha256": "66235ed4d115f44094ed75ddb24976f3abcf95ed44ac830f5d8871e7a6f6d9a2",
+      "mutatedSha256": "a54cd2b45ef1f2c5e98174a578c36f2653f7486afecc59c391f3383cde05df1c",
+      "testSha256": "7670ad3da785d8213e347a0aec723e40c58e5778d7d053edb37cb56f9fc8e05d",
+      "restoredSha256": "66235ed4d115f44094ed75ddb24976f3abcf95ed44ac830f5d8871e7a6f6d9a2"
+    },
+    {
+      "name": "exec-hard-flag",
+      "source": "src/runtime/exec/runExec.ts",
+      "test": "test/unit/execVault.test.ts",
+      "command": "npx vitest run test/unit/execVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/execVault.test.ts > M109 H local exec vault admission > H57 flag off never opens vault and keeps ordinary completion"
+      ],
+      "beforeSha256": "66235ed4d115f44094ed75ddb24976f3abcf95ed44ac830f5d8871e7a6f6d9a2",
+      "mutatedSha256": "8f8be1b4f7d50192577f824ea7c1727a136880844139165c3bee926512916423",
+      "testSha256": "7670ad3da785d8213e347a0aec723e40c58e5778d7d053edb37cb56f9fc8e05d",
+      "restoredSha256": "66235ed4d115f44094ed75ddb24976f3abcf95ed44ac830f5d8871e7a6f6d9a2"
+    },
+    {
+      "name": "exec-denied-exit",
+      "source": "src/runtime/exec/runExec.ts",
+      "test": "test/unit/execVault.test.ts",
+      "command": "npx vitest run test/unit/execVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/execVault.test.ts > M109 H local exec vault admission > H58 vault denial always returns denied even with fail-on-denial off and closes session"
+      ],
+      "beforeSha256": "66235ed4d115f44094ed75ddb24976f3abcf95ed44ac830f5d8871e7a6f6d9a2",
+      "mutatedSha256": "782e78cd2a277a26357b0da386ff26133a143d9b24d59b78054d718e761863b0",
+      "testSha256": "7670ad3da785d8213e347a0aec723e40c58e5778d7d053edb37cb56f9fc8e05d",
+      "restoredSha256": "66235ed4d115f44094ed75ddb24976f3abcf95ed44ac830f5d8871e7a6f6d9a2"
+    },
+    {
+      "name": "exec-late-cleanup",
+      "source": "src/runtime/exec/runExec.ts",
+      "test": "test/unit/execVault.test.ts",
+      "command": "npx vitest run test/unit/execVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/execVault.test.ts > M109 H local exec vault admission > H59b setup arriving after cancellation closes its own session and never sends a prompt"
+      ],
+      "beforeSha256": "66235ed4d115f44094ed75ddb24976f3abcf95ed44ac830f5d8871e7a6f6d9a2",
+      "mutatedSha256": "1b217d24a2ff520c3eeb16ead37658275003e3fe9d08f06771a52a2555286440",
+      "testSha256": "7670ad3da785d8213e347a0aec723e40c58e5778d7d053edb37cb56f9fc8e05d",
+      "restoredSha256": "66235ed4d115f44094ed75ddb24976f3abcf95ed44ac830f5d8871e7a6f6d9a2"
+    },
+    {
+      "name": "acp-conversation",
+      "source": "src/acp/vault.ts",
+      "test": "test/unit/acpVault.test.ts",
+      "command": "npx vitest run test/unit/acpVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/acpVault.test.ts > M109 H ACP vault > H31 no editor, foreign conversation, changed ids/digests and forged responses deny"
+      ],
+      "beforeSha256": "b90e8c75ea6760fbe4674f2502fa46c9fc0a0107a045ebbceb292ed2e33c8a9e",
+      "mutatedSha256": "be271102ac4cc04be798e0f40de217abfcb4f1fe6226a8a7acc94e6b3601e037",
+      "testSha256": "75f49b62a37c7be3be322ae078a7109065cdcf542bde9e0da808f1f7cdcfbabd",
+      "restoredSha256": "b90e8c75ea6760fbe4674f2502fa46c9fc0a0107a045ebbceb292ed2e33c8a9e"
+    },
+    {
+      "name": "acp-answer-digest",
+      "source": "src/acp/vault.ts",
+      "test": "test/unit/acpVault.test.ts",
+      "command": "npx vitest run test/unit/acpVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/acpVault.test.ts > M109 H ACP vault > H31 no editor, foreign conversation, changed ids/digests and forged responses deny"
+      ],
+      "beforeSha256": "b90e8c75ea6760fbe4674f2502fa46c9fc0a0107a045ebbceb292ed2e33c8a9e",
+      "mutatedSha256": "a1b6b178addcfd59bb97ca485bb5418cc9307358c98d0fd2306336bb45b26a89",
+      "testSha256": "75f49b62a37c7be3be322ae078a7109065cdcf542bde9e0da808f1f7cdcfbabd",
+      "restoredSha256": "b90e8c75ea6760fbe4674f2502fa46c9fc0a0107a045ebbceb292ed2e33c8a9e"
+    },
+    {
+      "name": "acp-generation",
+      "source": "src/acp/agent.ts",
+      "test": "test/unit/acpVault.test.ts",
+      "command": "npx vitest run test/unit/acpVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/acpVault.test.ts > M109 H ACP vault > H35 late permission after lock cannot approve"
+      ],
+      "beforeSha256": "5148db32b5e49030cc34d0899443f5ff0552da3e60705693e75d62a0f6f5277f",
+      "mutatedSha256": "653472a80183c7a75bcf83ca5a4f1c942c278c4b510ae8e1b788d5264c0e984b",
+      "testSha256": "75f49b62a37c7be3be322ae078a7109065cdcf542bde9e0da808f1f7cdcfbabd",
+      "restoredSha256": "5148db32b5e49030cc34d0899443f5ff0552da3e60705693e75d62a0f6f5277f"
+    },
+    {
+      "name": "acp-expiry",
+      "source": "src/acp/agent.ts",
+      "test": "test/unit/acpVault.test.ts",
+      "command": "npx vitest run test/unit/acpVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/acpVault.test.ts > M109 H ACP vault > H35 late permission after expired cannot approve"
+      ],
+      "beforeSha256": "5148db32b5e49030cc34d0899443f5ff0552da3e60705693e75d62a0f6f5277f",
+      "mutatedSha256": "474cd43cf208204de20b0f59af1a37b72cfcbf41b7296d4e80a0d208fd821d37",
+      "testSha256": "75f49b62a37c7be3be322ae078a7109065cdcf542bde9e0da808f1f7cdcfbabd",
+      "restoredSha256": "5148db32b5e49030cc34d0899443f5ff0552da3e60705693e75d62a0f6f5277f"
+    },
+    {
+      "name": "acp-attachments",
+      "source": "src/acp/agent.ts",
+      "test": "test/unit/acpVault.test.ts",
+      "command": "npx vitest run test/unit/acpVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/acpVault.test.ts > M109 H ACP vault > H33 reserved vault syntax and embedded attachments cannot fall through to model"
+      ],
+      "beforeSha256": "5148db32b5e49030cc34d0899443f5ff0552da3e60705693e75d62a0f6f5277f",
+      "mutatedSha256": "def07732d2f0cd4294e93ca9183ef2ba88443d393a9d08b400eeae4638c8d44b",
+      "testSha256": "75f49b62a37c7be3be322ae078a7109065cdcf542bde9e0da808f1f7cdcfbabd",
+      "restoredSha256": "5148db32b5e49030cc34d0899443f5ff0552da3e60705693e75d62a0f6f5277f"
+    },
+    {
+      "name": "acp-reserved-slash",
+      "source": "src/acp/vault.ts",
+      "test": "test/unit/acpVault.test.ts",
+      "command": "npx vitest run test/unit/acpVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/acpVault.test.ts > M109 H ACP vault > H32 /vault status is local and never sent to model",
+        "FAIL  test/unit/acpVault.test.ts > M109 H ACP vault > H32 /vault list is local and never sent to model",
+        "FAIL  test/unit/acpVault.test.ts > M109 H ACP vault > H32 /vault lock is local and never sent to model",
+        "FAIL  test/unit/acpVault.test.ts > M109 H ACP vault > H32 /vault audit is local and never sent to model"
+      ],
+      "beforeSha256": "b90e8c75ea6760fbe4674f2502fa46c9fc0a0107a045ebbceb292ed2e33c8a9e",
+      "mutatedSha256": "34dd7ce6e24aee15ebf635f6e28e19d64f818bd1454b449a12dbd193341091fc",
+      "testSha256": "75f49b62a37c7be3be322ae078a7109065cdcf542bde9e0da808f1f7cdcfbabd",
+      "restoredSha256": "b90e8c75ea6760fbe4674f2502fa46c9fc0a0107a045ebbceb292ed2e33c8a9e"
+    },
+    {
+      "name": "surface-incoming-schema",
+      "source": "src/runtime/vault/vaultSurface.ts",
+      "test": "test/unit/vaultSurface.test.ts",
+      "command": "npx vitest run test/unit/vaultSurface.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultSurface.test.ts > M109 H public panel bridges > H41 values and first-party read frames never cross either bridge"
+      ],
+      "beforeSha256": "c2264e487b99098024b9d03dec493a488226b8b93775709fd114a5ac273913f1",
+      "mutatedSha256": "5866ce59b54e4e7f4a8da069d4a1274f2c37ba86b98d89333b3758183de742c1",
+      "testSha256": "171f686e7245660e37a08e758adc11190a6e084239264340c38efda7ae3efed0",
+      "restoredSha256": "c2264e487b99098024b9d03dec493a488226b8b93775709fd114a5ac273913f1"
+    },
+    {
+      "name": "surface-outgoing-schema",
+      "source": "src/runtime/vault/vaultSurface.ts",
+      "test": "test/unit/vaultSurface.test.ts",
+      "command": "npx vitest run test/unit/vaultSurface.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultSurface.test.ts > M109 H public panel bridges > H41 values and first-party read frames never cross either bridge"
+      ],
+      "beforeSha256": "c2264e487b99098024b9d03dec493a488226b8b93775709fd114a5ac273913f1",
+      "mutatedSha256": "9eb2718686727e72a7ef306cb2848579835ff7688ddf12c6ccf0e940c0c569c2",
+      "testSha256": "171f686e7245660e37a08e758adc11190a6e084239264340c38efda7ae3efed0",
+      "restoredSha256": "c2264e487b99098024b9d03dec493a488226b8b93775709fd114a5ac273913f1"
+    },
+    {
+      "name": "surface-owner-generation",
+      "source": "src/runtime/vault/vaultSurface.ts",
+      "test": "test/unit/vaultSurface.test.ts",
+      "command": "npx vitest run test/unit/vaultSurface.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultSurface.test.ts > M109 H public panel bridges > H43 one owner serializes effects; close discards stale response and queued work",
+        "FAIL  test/unit/vaultSurface.test.ts > M109 H public panel bridges > H43b lock preempts blocked panel work and aborts its effects",
+        "FAIL  test/unit/vaultSurface.test.ts > M109 H public panel bridges > H43c terminal result after close is discarded and entry receives cancellation"
+      ],
+      "beforeSha256": "c2264e487b99098024b9d03dec493a488226b8b93775709fd114a5ac273913f1",
+      "mutatedSha256": "52c9ca1a634047ddcb3e5e38b24e0ea876e4bc07c5846f2d95fe0a15977cc605",
+      "testSha256": "171f686e7245660e37a08e758adc11190a6e084239264340c38efda7ae3efed0",
+      "restoredSha256": "c2264e487b99098024b9d03dec493a488226b8b93775709fd114a5ac273913f1"
+    },
+    {
+      "name": "surface-lock-abort",
+      "source": "src/runtime/vault/vaultSurface.ts",
+      "test": "test/unit/vaultSurface.test.ts",
+      "command": "npx vitest run test/unit/vaultSurface.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultSurface.test.ts > M109 H public panel bridges > H43b lock preempts blocked panel work and aborts its effects"
+      ],
+      "beforeSha256": "c2264e487b99098024b9d03dec493a488226b8b93775709fd114a5ac273913f1",
+      "mutatedSha256": "977811f58d506665396932007e6f65a661a4ba5a3d99dc332a423a157c5b23d3",
+      "testSha256": "171f686e7245660e37a08e758adc11190a6e084239264340c38efda7ae3efed0",
+      "restoredSha256": "c2264e487b99098024b9d03dec493a488226b8b93775709fd114a5ac273913f1"
+    },
+    {
+      "name": "surface-lock-preemption",
+      "source": "src/runtime/vault/vaultSurface.ts",
+      "test": "test/unit/vaultSurface.test.ts",
+      "command": "npx vitest run test/unit/vaultSurface.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultSurface.test.ts > M109 H public panel bridges > H43b lock preempts blocked panel work and aborts its effects"
+      ],
+      "beforeSha256": "c2264e487b99098024b9d03dec493a488226b8b93775709fd114a5ac273913f1",
+      "mutatedSha256": "d96eed91bff350dbb6420b6acab3848d8ab00682e27b40202a82d4bc54709c3b",
+      "testSha256": "171f686e7245660e37a08e758adc11190a6e084239264340c38efda7ae3efed0",
+      "restoredSha256": "c2264e487b99098024b9d03dec493a488226b8b93775709fd114a5ac273913f1"
+    },
+    {
+      "name": "surface-error-egress",
+      "source": "src/runtime/vault/vaultSurface.ts",
+      "test": "test/unit/vaultSurface.test.ts",
+      "command": "npx vitest run test/unit/vaultSurface.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultSurface.test.ts > M109 H public panel bridges > H41b adapter errors cannot leak private diagnostic text onto public bridge"
+      ],
+      "beforeSha256": "c2264e487b99098024b9d03dec493a488226b8b93775709fd114a5ac273913f1",
+      "mutatedSha256": "750515118babd024c0eff7b606038d112bf601902f4d174ff6b34853b10a19eb",
+      "testSha256": "171f686e7245660e37a08e758adc11190a6e084239264340c38efda7ae3efed0",
+      "restoredSha256": "c2264e487b99098024b9d03dec493a488226b8b93775709fd114a5ac273913f1"
+    },
+    {
+      "name": "factory-sharing",
+      "source": "src/runtime/vault/vaultRuntime.ts",
+      "test": "test/unit/vaultSurface.test.ts",
+      "command": "npx vitest run test/unit/vaultSurface.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultSurface.test.ts > M109 H lazy runtime binding > H44 construction reads nothing; concurrent needs share one installed factory"
+      ],
+      "beforeSha256": "77692e6c982b9b6246b547a299240880c845233d43fae9fde5be17d214ab9b00",
+      "mutatedSha256": "65c492e9b63c5ab6f054abd31b4c09e238ae8444ec6b049adfdb1e183de90272",
+      "testSha256": "171f686e7245660e37a08e758adc11190a6e084239264340c38efda7ae3efed0",
+      "restoredSha256": "77692e6c982b9b6246b547a299240880c845233d43fae9fde5be17d214ab9b00"
+    },
+    {
+      "name": "factory-installed-path",
+      "source": "src/runtime/vault/vaultRuntime.ts",
+      "test": "test/unit/vaultSurface.test.ts",
+      "command": "npx vitest run test/unit/vaultSurface.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultSurface.test.ts > M109 H lazy runtime binding > H44 construction reads nothing; concurrent needs share one installed factory"
+      ],
+      "beforeSha256": "77692e6c982b9b6246b547a299240880c845233d43fae9fde5be17d214ab9b00",
+      "mutatedSha256": "1c9ff604f41305fd236e68f8ade24e4b814b04a1ca632fc24f2060b0d76dc69d",
+      "testSha256": "171f686e7245660e37a08e758adc11190a6e084239264340c38efda7ae3efed0",
+      "restoredSha256": "77692e6c982b9b6246b547a299240880c845233d43fae9fde5be17d214ab9b00"
+    },
+    {
+      "name": "factory-language",
+      "source": "src/runtime/vault/vaultRuntime.ts",
+      "test": "test/unit/vaultSurface.test.ts",
+      "command": "npx vitest run test/unit/vaultSurface.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultSurface.test.ts > M109 H lazy runtime binding > H44 construction reads nothing; concurrent needs share one installed factory"
+      ],
+      "beforeSha256": "77692e6c982b9b6246b547a299240880c845233d43fae9fde5be17d214ab9b00",
+      "mutatedSha256": "7f6820a2b8ef8f4e9cd1e31e9e42a854d4c062bb64d9912984a619890559d2d0",
+      "testSha256": "171f686e7245660e37a08e758adc11190a6e084239264340c38efda7ae3efed0",
+      "restoredSha256": "77692e6c982b9b6246b547a299240880c845233d43fae9fde5be17d214ab9b00"
+    },
+    {
+      "name": "headless-handle",
+      "source": "src/runtime/vault/execVault.ts",
+      "test": "test/unit/execVault.test.ts",
+      "command": "npx vitest run test/unit/execVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/execVault.test.ts > M109 H headless authorization > H52 tainted, aborted and malformed requests never reach broker"
+      ],
+      "beforeSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734",
+      "mutatedSha256": "3bb6d321070dfeaa804f54b4038d1cf7a5cb138f9c844a8ffe7252e160f68b93",
+      "testSha256": "7670ad3da785d8213e347a0aec723e40c58e5778d7d053edb37cb56f9fc8e05d",
+      "restoredSha256": "d60230be5871269b285f83c6adc7d994a5dd7be7d46f4974dbf2a2a38d399734"
+    },
+    {
+      "name": "exec-ci-exclusion",
+      "source": "src/runtime/exec/runExec.ts",
+      "test": "test/unit/execVault.test.ts",
+      "command": "npx vitest run test/unit/execVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/execVault.test.ts > M109 H local exec vault admission > H56 ci denies before backend or vault access"
+      ],
+      "beforeSha256": "66235ed4d115f44094ed75ddb24976f3abcf95ed44ac830f5d8871e7a6f6d9a2",
+      "mutatedSha256": "0578fa5b8b7b28d95a46430b880c9e36c48a6d56d6807c2e599467effe231775",
+      "testSha256": "7670ad3da785d8213e347a0aec723e40c58e5778d7d053edb37cb56f9fc8e05d",
+      "restoredSha256": "66235ed4d115f44094ed75ddb24976f3abcf95ed44ac830f5d8871e7a6f6d9a2"
+    },
+    {
+      "name": "input-output-loss",
+      "source": "src/runtime/vault/vaultInput.ts",
+      "test": "test/unit/vaultInput.test.ts",
+      "command": "npx vitest run test/unit/vaultInput.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultInput.test.ts > M109 H private terminal input > H23 output-error restores echo and detaches listeners",
+        "FAIL  test/unit/vaultInput.test.ts > M109 H private terminal input > H23 output-error restores echo and detaches listeners"
+      ],
+      "beforeSha256": "33aa81a6d05f0ce46244995b8f1af4ddc8985fbbcfd6393ca82b6b883b59ea07",
+      "mutatedSha256": "ff22662d9ea2bf4318aff4238fa50306a641da4303d1a50274b7811611643d6f",
+      "testSha256": "ca83cdf1b9cca0006b7887d860c2d652e170b20474d455a899e65ad64bf5ccdf",
+      "restoredSha256": "33aa81a6d05f0ce46244995b8f1af4ddc8985fbbcfd6393ca82b6b883b59ea07"
+    },
+    {
+      "name": "input-keyboard-interrupt",
+      "source": "src/runtime/vault/vaultInput.ts",
+      "test": "test/unit/vaultInput.test.ts",
+      "command": "npx vitest run test/unit/vaultInput.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultInput.test.ts > M109 H private terminal input > H23 interrupt restores echo and detaches listeners"
+      ],
+      "beforeSha256": "8994f43e1051588098f851023dfda70cba316100b8cca9dca8d8cccc0307592f",
+      "mutatedSha256": "6842c764a4e57f424ec67e53f2368285a60bcd22e924dd72b7c7cb25efa287d7",
+      "testSha256": "d781120b5b38d622376117e66e5a4bfb233ddb747efed208abaf4aec2ba9cebf",
+      "restoredSha256": "8994f43e1051588098f851023dfda70cba316100b8cca9dca8d8cccc0307592f"
+    },
+    {
+      "name": "acp-unknown-option",
+      "source": "src/acp/vault.ts",
+      "test": "test/unit/acpVault.test.ts",
+      "command": "npx vitest run test/unit/acpVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/acpVault.test.ts > M109 H ACP vault > H30 ACP allow_always means session only; no standing Always choice"
+      ],
+      "beforeSha256": "b90e8c75ea6760fbe4674f2502fa46c9fc0a0107a045ebbceb292ed2e33c8a9e",
+      "mutatedSha256": "69aaa90c8c1f1372e9a19605bce83e5cc3aa87812d5a75d04a7ab58ff104a63a",
+      "testSha256": "75f49b62a37c7be3be322ae078a7109065cdcf542bde9e0da808f1f7cdcfbabd",
+      "restoredSha256": "b90e8c75ea6760fbe4674f2502fa46c9fc0a0107a045ebbceb292ed2e33c8a9e"
+    },
+    {
+      "name": "input-cleanup-isolation",
+      "source": "src/runtime/vault/vaultInput.ts",
+      "test": "test/unit/vaultInput.test.ts",
+      "command": "npx vitest run test/unit/vaultInput.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultInput.test.ts > M109 H private terminal input > H23b throwing stream cleanup still restores echo, detaches input and wipes every owner",
+        "FAIL  test/unit/vaultInput.test.ts > M109 H private terminal input > H23b throwing stream cleanup still restores echo, detaches input and wipes every owner"
+      ],
+      "beforeSha256": "8994f43e1051588098f851023dfda70cba316100b8cca9dca8d8cccc0307592f",
+      "mutatedSha256": "bb4e069901c8cae8030f1aa66d6bf77c6950a41b58d1e49d7e69db813fb5194d",
+      "testSha256": "d781120b5b38d622376117e66e5a4bfb233ddb747efed208abaf4aec2ba9cebf",
+      "restoredSha256": "8994f43e1051588098f851023dfda70cba316100b8cca9dca8d8cccc0307592f"
+    },
+    {
+      "name": "input-finished-owner",
+      "source": "src/runtime/vault/vaultInput.ts",
+      "test": "test/unit/vaultInput.test.ts",
+      "command": "npx vitest run test/unit/vaultInput.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultInput.test.ts > M109 H private terminal input > H23c a retained finished listener cannot refill wiped input ownership"
+      ],
+      "beforeSha256": "8994f43e1051588098f851023dfda70cba316100b8cca9dca8d8cccc0307592f",
+      "mutatedSha256": "52a15c80a264a5d482c0f3fe14a1386e5a8f24d2eeb5635c984ddc940746f93f",
+      "testSha256": "d781120b5b38d622376117e66e5a4bfb233ddb747efed208abaf4aec2ba9cebf",
+      "restoredSha256": "8994f43e1051588098f851023dfda70cba316100b8cca9dca8d8cccc0307592f"
+    },
+    {
+      "name": "exec-finished-denial",
+      "source": "src/runtime/exec/runExec.ts",
+      "test": "test/unit/execVault.test.ts",
+      "command": "npx vitest run test/unit/execVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/execVault.test.ts > M109 H local exec vault admission > H60 denial from a finished port is ignored during final cleanup"
+      ],
+      "beforeSha256": "66235ed4d115f44094ed75ddb24976f3abcf95ed44ac830f5d8871e7a6f6d9a2",
+      "mutatedSha256": "32e8251d39f0a37a516bc43c0896b914deac8debcae5735be87b0c0b28a0f49c",
+      "testSha256": "0a7ce3f19eb3ebf1747d18e70c6bd2fff9e3869137f13a5c7660ebc9e6bdd208",
+      "restoredSha256": "66235ed4d115f44094ed75ddb24976f3abcf95ed44ac830f5d8871e7a6f6d9a2"
+    },
+    {
+      "name": "exec-cleanup-diagnostic-catch",
+      "source": "src/runtime/exec/runExec.ts",
+      "test": "test/unit/execVault.test.ts",
+      "command": "npx vitest run test/unit/execVault.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/execVault.test.ts > M109 H local exec vault admission > H59c cleanup failures expose only fixed words and cannot claim completion"
+      ],
+      "beforeSha256": "66235ed4d115f44094ed75ddb24976f3abcf95ed44ac830f5d8871e7a6f6d9a2",
+      "mutatedSha256": "07d9aad21672c119025b60c9efe195affcea0e67241fce7a05c7903fec336026",
+      "testSha256": "0a7ce3f19eb3ebf1747d18e70c6bd2fff9e3869137f13a5c7660ebc9e6bdd208",
+      "restoredSha256": "66235ed4d115f44094ed75ddb24976f3abcf95ed44ac830f5d8871e7a6f6d9a2"
+    },
+    {
+      "name": "watch-initial-expiry",
+      "source": "src/runtime/vault/vaultCommand.ts",
+      "test": "test/unit/vaultCommand.test.ts",
+      "command": "npx vitest run test/unit/vaultCommand.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultCommand.test.ts > M109 H vault watch > H13 locked and already-expired requests are never offered"
+      ],
+      "beforeSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5",
+      "mutatedSha256": "4e2a59baf142f3c06a47231b41b08fb2ab3878db51b8a992118adbf30055ec87",
+      "testSha256": "d4423f0f65710c6da76e5276d7fa92e2ac0ceb9bef5893d7f8f3523283e9d9df",
+      "restoredSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5"
+    },
+    {
+      "name": "watch-final-expiry",
+      "source": "src/runtime/vault/vaultCommand.ts",
+      "test": "test/unit/vaultCommand.test.ts",
+      "command": "npx vitest run test/unit/vaultCommand.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "namedFailures": [
+        "FAIL  test/unit/vaultCommand.test.ts > M109 H vault watch > H10 expired prevents stale terminal consent"
+      ],
+      "beforeSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5",
+      "mutatedSha256": "4b98715ee634e646b5084fe48a6cf8ffaf6d4a4ab06d6b673ae83e050759bc18",
+      "testSha256": "d4423f0f65710c6da76e5276d7fa92e2ac0ceb9bef5893d7f8f3523283e9d9df",
+      "restoredSha256": "3337cdbb83e413b63c3e464f9acf11459863f0776b7259fae009b28368c246c5"
+    }
+  ],
+  "exploratoryAttempts": [
+    {
+      "name": "exec-cleanup-diagnostic",
+      "source": "src/runtime/exec/runExec.ts",
+      "test": "test/unit/execVault.test.ts",
+      "command": "npx vitest run test/unit/execVault.test.ts --maxWorkers=3",
+      "exitCode": 0,
+      "namedFailures": [],
+      "beforeSha256": "66235ed4d115f44094ed75ddb24976f3abcf95ed44ac830f5d8871e7a6f6d9a2",
+      "mutatedSha256": "e040455f6431a288507767d015e8bc4390adbb7f580ba64e645609c6ed15c8e0",
+      "testSha256": "0a7ce3f19eb3ebf1747d18e70c6bd2fff9e3869137f13a5c7660ebc9e6bdd208",
+      "restoredSha256": "66235ed4d115f44094ed75ddb24976f3abcf95ed44ac830f5d8871e7a6f6d9a2",
+      "note": "Exploratory mutation matched late-setup refusal text instead of the cleanup catch; not counted as proof."
+    }
+  ]
+}

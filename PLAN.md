@@ -26398,6 +26398,20 @@ private reads on socket close; limit revocation to the affected item; and audit
 terminal denials for pending approvals and unused tickets. Generated fakes
 only, no dependencies or live calls. Certification: `docs/certification/m109-b.md`.
 
+**M109 H wave 1 (2026-10-06, implemented against injected ports).** Implemented terminal vault commands and bound
+watch answers, ACP permission mapping and local `/vault` commands, local
+headless `--vault` admission and unconditional denied exit, and value-free
+companion/native panel routing. Consume lane-0 schemas and injected B/U/M104
+ports; absent bindings fail explicitly. B's management/watch transport and
+W's installed `vault.js` runtime factory, U's panel and M104's authenticated
+bridges are named integration handoffs, not production fakes. CI's stdin-key
+lane stays vault-free. Each H guard gets a named fake regression and byte-exact
+red drill in `docs/certification/m109-h-runtime,-acp,-headless,-companion.md`.
+No UI styling, dependencies, model calls, merges, pushes or aggregate quality.
+H records 106 focused tests and 75 named byte-exact red drills; the installed
+bindings, native process-stop proof and editor visual matrix remain open.
+The full M109 checklist stays open for W's joined-tree certification.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/credential-vault-2026-10-05.md`.
 
@@ -29906,6 +29920,22 @@ tree; M does not edit that lane's file or weaken the check. The aggregate
 quality/browser/editor certification stays with W/the lead under the rig
 brief. Tests, mutation receipts, exact gate results and named bindings are in
 `docs/certification/m109-m-migration-and-import.md`.
+**M109 H gate handoffs (2026-10-06).** The rig brief assigns aggregate
+quality to the lead. `check:host-api` reports inherited B plus H Node import
+count drift; VS Code APIs (332), adapter files (31), Node built-ins (25) and
+theme variables (61) are unchanged. W owns the generated record and must
+regenerate/review it in the joined tree. No ignore, cap, rule or threshold
+changed; no release/full-quality claim is made by H.
+
+**M109 H verification deferral (2026-10-06).** H58 proves unconditional
+`denied` exit and vault-session close. An additional new assertion against
+`FakeAgentHost.cancel` failed after two fixture fixes (first prevent immediate
+completion, then hold the fake turn open). Under the lane stop rule, do not
+keep rewriting that spy path. It is removed from H58 with this explicit
+record; no production cancellation or existing gate is changed. Verify actual
+engine/command-tree stop through B/X's installed session/lifetime binding at
+integration, and run the existing exec lifecycle regressions. H does not claim
+that native process-stop proof from its injected session fake.
 
 **FIXM109B6 / RVM109B5 (2026-10-06, Mac mini).** Both findings are fixed;
 no review residual is accepted. Final restored-source verification passes all
@@ -31136,6 +31166,7 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 | `native/windows/MuseSparkVault.cs` (FIXM109PW3)                    | `unchecked((uint)ace.AccessMask)` and checked OS exit-code conversion | CommonAce stores native unsigned masks in signed integers; preserving all bits is required for GENERIC_WRITE/ALL. The checked exit conversion refuses values outside the managed entry's int range.                                                                           |
 | `test/unit/helpers/vault/windowsVaultGuardCapture.cs` (FIXM109PW3) | `unchecked((int)mask)`                                                | Test-only CommonAce fixtures preserve the native generic-rights bit patterns in their signed storage, with an inline reason.                                                                                                                                                  |
 | `test/unit/helpers/vault/windowsVaultGuardCapture.cs` (FIXM109PW)  | `(int)` on the reflected native entry result                          | The test-only protocol entry invokes the declared `int Main(string[])`; no wire value is coerced. Its valid baseline and invalid DPAPI text regressions execute that entry.                                                                                                   |
+| `src/runtime/vault/vaultRuntime.ts` (M109 H)                       | `as Partial<RuntimeVaultModule>`                                      | The installed `dist/vault.js` factory is W/H's typed build contract. Runtime checks refuse absent exports and malformed binding methods; fake module tests prove fail-closed loading. No caller-supplied path or private wire format.                                         |
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 

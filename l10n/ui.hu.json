@@ -2581,6 +2581,7 @@
     "fail-on-denial": "A futtatás leállítása elutasított engedélynél.",
     "ephemeral": "A munkamenet megőrzése memóriában mentés nélkül.",
     "key-stdin": "auth set: Terminálban beolvassa a kulcsot, és a számítógép hitelesítőadat-tárolójában őrzi. A beszélgetéseket a kulcs terhére számlázzák. exec / scan-secrets --key-stdin: A kulcsot csővezetékből olvasd, ne terminálból. stdin → memory; prompt stdin + key stdin = Az utasítás és a kulcs nem használhatja egyszerre a stdin bemenetet.",
+    "vault": "--vault                          A headless exec használhatja a tároló elemeit felügyelet nélküli engedélyekkel",
     "out": "--out <file>         A jelentés fájlba írása stdout helyett",
     "description": "--description <text>  Mi történt, saját szavakkal",
     "no-facts": "--no-facts           A támogató tények kihagyása",

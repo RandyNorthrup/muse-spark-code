@@ -1,3 +1,4 @@
+import { vaultApprovalText } from '../runtime/vault/vaultApproval'
 // The Muse Spark agent over the Agent Client Protocol (PLAN.md D62): one
 // client on stdio, any number of sessions, each an AgentSession of the
 // backend chosen at launch. The client's editor shows the chat, the tool
@@ -97,6 +98,8 @@ import {
   promptParts,
   UpdateTranslator,
 } from './translate'
+import { type AcpVault, vaultPermissionAnswer, vaultPermissionOptions, vaultSlash } from './vault'
+import { type VaultApprovalRequest, type VaultApprovalAnswer } from '../shared/vault'
 
 // Muse Code runs a session's MCP servers only with this grant (M63c).
 const [SESSION_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
@@ -137,6 +140,7 @@ export interface SignInMethod {
 }
 
 export interface AcpAgentDeps {
+  readonly vault?: AcpVault
   readonly backend: AcpBackend
   readonly version: string
   readonly options: AcpAgentOptions
@@ -252,6 +256,7 @@ class AcpSession {
   private effort: EffortLevel = DEFAULT_EFFORT
   /** Let go (closed, loaded again, or never set up): the editor's late answers decide nothing. */
   private isDisposed = false
+  private vaultGeneration = 0
   /** A turn being started (`sendTurn` not yet answered): a release waits for it, then stops it. */
   private starting: Promise<unknown> | undefined
   public readonly sessionId: string
@@ -390,9 +395,19 @@ class AcpSession {
       sessionUpdate: 'available_commands_update',
       availableCommands: [
         { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
+        ...(this.deps.vault === undefined
+          ? []
+          : [
+              {
+                name: 'vault',
+                description: UI_TEXT.vault.title,
+                input: { hint: 'status | list | lock | audit' },
+              },
+            ]),
         ...this.skills
           .filter(
-            (skill) => ![SLASH_COMMAND_NAMES.help, 'answer', 'questions'].includes(skill.selector),
+            (skill) =>
+              ![SLASH_COMMAND_NAMES.help, 'vault', 'answer', 'questions'].includes(skill.selector),
           )
           .map((skill) => ({
             name: skill.selector,
@@ -773,6 +788,70 @@ class AcpSession {
     return answer
   }
 
+  /** Broker-owned request; Bypass, tools and paid grants never enter this path. */
+  public async askVaultUse(request: VaultApprovalRequest): Promise<VaultApprovalAnswer> {
+    const pending = this.pending
+    const preparing = this.preparing
+    const generation = this.vaultGeneration
+    const deny: VaultApprovalAnswer = {
+      requestId: request.id,
+      digest: request.digest,
+      decision: 'deny',
+    }
+    const isCurrent = () =>
+      this.isCurrentPaidPrompt(pending, preparing) &&
+      generation === this.vaultGeneration &&
+      Date.now() < request.expiresAt
+    if (!isCurrent()) return deny
+    const toolCallId = `vault:${request.id}`
+    const content = [
+      {
+        type: 'content' as const,
+        content: { type: 'text' as const, text: vaultApprovalText(request) },
+      },
+    ]
+    this.send({
+      sessionUpdate: 'tool_call',
+      toolCallId,
+      title: UI_TEXT.vault.title,
+      kind: 'other',
+      status: 'pending',
+      content,
+    })
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let answer = deny
+    try {
+      await this.outbox
+      if (!isCurrent()) return deny
+      const response = await Promise.race([
+        this.client.request('session/request_permission', {
+          sessionId: this.sessionId,
+          toolCall: { toolCallId, title: UI_TEXT.vault.title, status: 'pending', content },
+          options: vaultPermissionOptions(request),
+        }),
+        new Promise<RequestPermissionResponse>((resolve) => {
+          timer = setTimeout(
+            () => {
+              resolve({ outcome: { outcome: 'cancelled' } })
+            },
+            Math.max(1, request.expiresAt - Date.now()),
+          )
+        }),
+      ])
+      if (isCurrent()) answer = vaultPermissionAnswer(request, permissionResponse(response))
+    } catch {
+      /* A lost editor or malformed permission response is Deny, with no remote text logged. */
+    } finally {
+      clearTimeout(timer)
+    }
+    this.send({
+      sessionUpdate: 'tool_call_update',
+      toolCallId,
+      status: answer.decision === 'deny' ? 'failed' : 'completed',
+    })
+    return answer
+  }
+
   public modes(): SessionModeState {
     return {
       currentModeId: this.mode,
@@ -917,8 +996,30 @@ class AcpSession {
       await this.outbox
       return 'end_turn'
     }
-    if (this.pending !== undefined || this.preparing !== undefined) {
+    const slash = first?.type === 'text' ? vaultSlash(first.text) : undefined
+    if (slash !== 'lock' && (this.pending !== undefined || this.preparing !== undefined)) {
       throw RequestError.invalidRequest(undefined, UI_TEXT.acpPromptBusy)
+    }
+    if (slash !== undefined) {
+      if (slash === 'invalid' || blocks.length !== 1)
+        throw RequestError.invalidParams(undefined, UI_TEXT.vault.noAccess)
+      if (this.deps.vault === undefined)
+        throw RequestError.internalError(undefined, UI_TEXT.vault.brokerBlocked)
+      const preparing: PreparingPrompt | undefined =
+        slash === 'lock' ? undefined : { isCancelled: false }
+      if (preparing === undefined) this.vaultGeneration += 1
+      else this.preparing = preparing
+      try {
+        const text = await this.deps.vault.command(slash)
+        if (this.isDisposed || preparing?.isCancelled === true) return 'cancelled'
+        this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+        await this.outbox
+        return 'end_turn'
+      } catch {
+        throw RequestError.internalError(undefined, UI_TEXT.vault.brokerBlocked)
+      } finally {
+        if (preparing !== undefined && this.preparing === preparing) this.preparing = undefined
+      }
     }
     const parsed = promptParts(blocks, this.cwd)
     if (!parsed.ok) {
@@ -1030,6 +1131,7 @@ class AcpSession {
   }
 
   public async cancel(): Promise<void> {
+    this.vaultGeneration += 1
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
       this.deps.log.info(`ACP session ${this.sessionId}: cancelled before its turn started`)
@@ -1087,6 +1189,7 @@ class AcpSession {
     this.isDisposed = true
     this.questions?.dispose()
     if (this.questions === undefined) this.questionRegistry?.dispose()
+    this.vaultGeneration += 1
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
     }
@@ -1477,11 +1580,22 @@ class AgentState {
     }
     return await acp.askPaidUse(request, canRemember)
   }
+
+  public async askVaultUse(
+    sessionId: string,
+    request: VaultApprovalRequest,
+  ): Promise<VaultApprovalAnswer> {
+    const session = this.sessions.get(sessionId)
+    return session === undefined
+      ? { requestId: request.id, digest: request.digest, decision: 'deny' }
+      : await session.askVaultUse(request)
+  }
 }
 
 /** The agent: register it on a stream with `connect`. */
 export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
   const state = new AgentState(deps)
+  deps.vault?.attach((sessionId, request) => state.askVaultUse(sessionId, request))
   deps.paid.attach((sessionId, request, canRemember) =>
     state.askPaidUse(sessionId, request, canRemember),
   )

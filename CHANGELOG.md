@@ -41,6 +41,11 @@ happened, not what was planned; superseded entries are kept.
   reading contents, verifies user-selected copies and binds Keep/Delete to
   source identity; plaintext git/netrc/npm/AWS/Docker drafts and mapped CSV
   logins are supported. Wiring into the vault remains an integration task.
+- M109 H's terminal vault handlers, bound watch answers, ACP `/vault` and
+  session-only permissions, local headless `--vault` denial policy, and shared
+  value-free panel routing. These consume injected broker/panel ports; the
+  installed runtime factory and native/companion bindings remain integration
+  handoffs. Missing bindings fail explicitly; CI remains vault-free.
 
 - M109's credential-vault contracts, canonical use digest, translated panel
   labels and warnings, test-only broker and route harnesses, and threat and
@@ -59,6 +64,9 @@ happened, not what was planned; superseded entries are kept.
   and rebuilds refused caches into fresh private storage without deleting
   suspect files. Native DLL search is restricted to System32, and DPAPI wrap
   validates title and use before acting.
+- Private vault terminal input now restores echo and erases owned bytes even
+  when a stream cleanup callback throws; late input cannot refill a finished
+  reader.
 
 - Rebuilt vault authorization around synchronous state transitions and tagged
   effects. Connections retain their registration incarnation, private reads

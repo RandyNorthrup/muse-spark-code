@@ -2485,6 +2485,7 @@
     "fail-on-denial": "権限が拒否されたら実行を停止します。",
     "ephemeral": "セッションを保存せずメモリに保持します。",
     "key-stdin": "auth set: ターミナルでキーを読み取り、このコンピューターの資格情報ストアに保管します。会話はこのキーに課金されます。 exec / scan-secrets --key-stdin: キーは端末ではなくパイプから読み込んでください。 stdin → memory; prompt stdin + key stdin = プロンプトとキーに同時に stdin は使えません。",
+    "vault": "--vault                          無人grantでVault項目をheadless execが使用できるようにします",
     "out": "--out <file>         stdoutの代わりにファイルにレポートを書き込む",
     "description": "--description <text>  何が起きていたかを自分の言葉で",
     "no-facts": "--no-facts           サポート情報を省く",

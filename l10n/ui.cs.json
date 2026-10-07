@@ -2773,6 +2773,7 @@
     "fail-on-denial": "Zastavit běh při zamítnutí oprávnění.",
     "ephemeral": "Uchovat relaci v paměti bez uložení.",
     "key-stdin": "auth set: Přečte váš klíč v terminálu a uloží ho do úložiště přihlašovacích údajů tohoto počítače. Konverzace se účtují na klíč. exec / scan-secrets --key-stdin: Načtěte klíč z roury, nikoli z terminálu. stdin → memory; prompt stdin + key stdin = Pokyn i klíč nemohou současně používat stdin.",
+    "vault": "--vault                          Povolit headless exec používat položky trezoru s bezobslužnými granty",
     "out": "--out <file>         Zapsat zprávu do souboru místo na stdout",
     "description": "--description <text>  Co se dělo, vlastními slovy",
     "no-facts": "--no-facts           Vynechat podpůrná fakta",

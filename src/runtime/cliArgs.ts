@@ -20,6 +20,7 @@ import {
 import { fill } from '../shared/l10n/text'
 import { parseExec, type ExecOptions } from './exec/execArgs'
 import { questionDeferSeconds } from '../shared/questionDeadline'
+import { parseVaultCommand, vaultUsage, type VaultCommandOptions } from './vault/vaultCommand'
 
 export interface ServeOptions {
   /** Which account pays; chosen here, never guessed (D62). */
@@ -51,6 +52,7 @@ export interface ReportOptions {
 }
 
 export type RuntimeCommand =
+  | { readonly command: 'vault'; readonly options: VaultCommandOptions }
   | { readonly command: 'setup'; readonly options: ServeOptions; readonly maintenance: boolean }
   | { readonly command: 'exec'; readonly options: ExecOptions }
   | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
@@ -58,6 +60,7 @@ export type RuntimeCommand =
   | { readonly command: 'serve'; readonly options: ServeOptions }
   | { readonly command: 'login'; readonly options: ServeOptions }
   | { readonly command: 'help'; readonly all?: boolean }
+  | { readonly command: 'vaultHelp' }
   | { readonly command: 'authSet' | 'authStatus' | 'authClear' | 'version' }
   | { readonly command: 'invalid'; readonly reason: string; readonly exitCode?: number }
 
@@ -97,6 +100,14 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
     return argv.length === 1 || (argv.length === 2 && argv[1] === '--all')
       ? { command: 'help', all: argv[1] === '--all' }
       : invalid(argv.join(' '))
+  }
+  if (argv[0] === 'vault') {
+    if (argv.length === 1 || (argv.length === 2 && (argv[1] === '--help' || argv[1] === 'help')))
+      return { command: 'vaultHelp' }
+    const options = parseVaultCommand(argv.slice(1))
+    return options === undefined
+      ? { command: 'invalid', reason: vaultUsage(), exitCode: 2 }
+      : { command: 'vault', options }
   }
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
   if (argv[0] === 'report') return parseReport(argv.slice(1))

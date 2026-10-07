@@ -2485,6 +2485,7 @@
     "fail-on-denial": "权限被拒绝时停止运行。",
     "ephemeral": "将会话保留在内存中，不保存。",
     "key-stdin": "auth set: 在终端中读取你的密钥，并将其保存在这台计算机的凭据存储中。对话费用计入该密钥。 exec / scan-secrets --key-stdin: 请从管道读取密钥，而非终端。 stdin → memory; prompt stdin + key stdin = 提示和密钥不能同时使用 stdin。",
+    "vault": "--vault                          允许 headless exec 使用具有无人值守授权的保管库项",
     "out": "--out <file>         将报告写入文件而不是 stdout",
     "description": "--description <text>  用自己的话描述当时发生了什么",
     "no-facts": "--no-facts           不包含支持信息",

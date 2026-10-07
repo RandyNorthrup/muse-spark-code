@@ -2677,6 +2677,7 @@
     "fail-on-denial": "Arrêter l’exécution si une autorisation est refusée.",
     "ephemeral": "Conserver la session en mémoire sans la sauvegarder.",
     "key-stdin": "auth set: Lit votre clé dans un terminal et la conserve dans le magasin d’identifiants de cet ordinateur. Les conversations sont facturées à la clé. exec / scan-secrets --key-stdin: Lisez la clé depuis un tube, pas un terminal. stdin → memory; prompt stdin + key stdin = L’invite et la clé ne peuvent pas utiliser stdin ensemble.",
+    "vault": "--vault                          Autoriser headless exec à utiliser les éléments du coffre avec des autorisations sans surveillance",
     "out": "--out <file>         Écrire le rapport dans un fichier plutôt que sur stdout",
     "description": "--description <text>  Ce qui se passait, avec vos mots",
     "no-facts": "--no-facts           Omettre les informations de support",

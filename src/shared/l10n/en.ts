@@ -72,6 +72,8 @@ export const EN = {
     ephemeral: 'Keep the session in memory without saving it.',
     'key-stdin':
       'auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.',
+    vault:
+      '--vault                          Allow headless exec to use vault items covered by unattended grants',
     out: '--out <file>         Write the report to a file instead of stdout',
     description: '--description <text>  What was happening, in your own words',
     'no-facts': '--no-facts           Leave the support facts out',
