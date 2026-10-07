@@ -87,9 +87,8 @@ function DevicesUnavailable() {
     <main className="body">
       <section className="gate" role="alert" aria-labelledby="devices-load-title">
         <h1 id="devices-load-title" className="gate-title">
-          {UI_TEXT.devices.title}
+          {UI_TEXT.surfaceLoadFailed}
         </h1>
-        <p className="gate-detail">{UI_TEXT.devices.bundleUnavailable}</p>
         <button
           type="button"
           className="button-primary"
@@ -97,7 +96,7 @@ function DevicesUnavailable() {
             window.location.reload()
           }}
         >
-          {UI_TEXT.crashReload}
+          {UI_TEXT.surfaceLoadRetry}
         </button>
       </section>
     </main>

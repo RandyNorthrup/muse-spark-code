@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { build } from 'esbuild'
@@ -31,6 +31,7 @@ export { EN, EN_SHAPE } from '${english}';
 export { UI_TEXT, setUiText, uiLocale } from '${text}';
 export { installEmbeddedTable } from '${installer}';
 export async function loadHelp() { await import('browser-surface-english') }
+export async function loadDevices() { await import('browser-devices-english') }
 `,
   )
   fixture.canonical = await loadL10n(process.cwd())
@@ -60,7 +61,7 @@ afterAll(async () => {
 describe('the production browser English and full-table contract', () => {
   it('loads surface English on demand, retaining every browser value and installed language', async () => {
     const { EN: canonical } = fixture.canonical
-    const { EN, UI_TEXT, setUiText, uiLocale, loadHelp } = fixture.browser
+    const { EN, UI_TEXT, setUiText, uiLocale, loadHelp, loadDevices } = fixture.browser
     expect(Object.keys(EN).toSorted(byText)).toEqual([...fixture.keys].toSorted(byText))
     expect(Object.hasOwn(EN, 'execBudgetRequired')).toBe(false)
     expect(EN.composerLabel).toBe(canonical.composerLabel)
@@ -68,8 +69,11 @@ describe('the production browser English and full-table contract', () => {
     const german = JSON.parse(readFileSync('l10n/ui.de.json', 'utf8'))
     setUiText(german, 'de')
     await loadHelp()
+    expect(() => EN.devices).toThrow('English surface is not loaded')
+    await loadDevices()
     for (const key of fixture.keys) expect(EN[key], key).toEqual(canonical[key])
     expect(UI_TEXT.referenceSearch).toBe(german.referenceSearch)
+    expect(UI_TEXT.devices).toEqual(german.devices)
     expect(uiLocale()).toBe('de')
     setUiText(EN, 'en')
     expect(UI_TEXT.referenceCliOptions).toEqual(canonical.referenceCliOptions)
@@ -119,4 +123,64 @@ describe('the production browser English and full-table contract', () => {
       'Unregistered dynamic browser text reader',
     )
   })
+
+  it('keeps technical surface selectors out of eager English while retaining literal key readers', () => {
+    const selector = path.join(fixture.folder, 'selector.ts')
+    const reader = path.join(fixture.folder, 'reader.ts')
+    writeFileSync(selector, "const devices = document.body.dataset['surface'] === 'devices'")
+    const selected = browserTextKeys([selector], fixture.canonical.EN, new Set([selector]))
+    expect(selected.eagerKeys.has('devices')).toBe(false)
+    // A literal key can be read indirectly; keep its value conservatively.
+    writeFileSync(reader, "const key = 'devices'; readText(key)")
+    const indirect = browserTextKeys([reader], fixture.canonical.EN, new Set([reader]))
+    expect(indirect.eagerKeys.has('devices')).toBe(true)
+  })
+
+  it.each(['browser-surface-english', 'browser-devices-english'])(
+    'keeps a %s chunk failure inside the lazy surface loader catch',
+    async (namespace) => {
+      const surface = path.join(fixture.folder, 'webview')
+      const agents = path.join(surface, 'models/sections/agents')
+      mkdirSync(agents, { recursive: true })
+      const body = path.join(agents, 'DevicesApp.tsx')
+      const loader = path.join(surface, 'failure-loader.tsx')
+      const text = path.resolve('src/shared/l10n/text.ts').replaceAll('\\', '/')
+      writeFileSync(
+        body,
+        `import { UI_TEXT } from '${text}'; export default () => UI_TEXT.devices.title`,
+      )
+      // The adapter exposes the same loader promise without mounting React.
+      writeFileSync(
+        loader,
+        `
+function lazy(factory) { return factory }
+export const load = lazy(async () => {
+  try { return await import('./models/sections/agents/DevicesApp') }
+  catch { return { default: () => 'load-failed' } }
+})`,
+      )
+      const output = path.join(fixture.folder, 'failure-' + namespace)
+      const { metafile } = await build({
+        entryPoints: { loader },
+        outdir: output,
+        bundle: true,
+        splitting: true,
+        minify: true,
+        platform: 'browser',
+        format: 'esm',
+        target: 'esnext',
+        metafile: true,
+        plugins: [compactBrowserUiText],
+        logLevel: 'silent',
+      })
+      const english = Object.entries(metafile.outputs).find(([, entry]) =>
+        Object.hasOwn(entry.inputs, namespace + ':' + namespace),
+      )
+      if (english === undefined) throw new Error('Missing test English chunk')
+      rmSync(english[0])
+      const module = await import(pathToFileURL(path.join(output, 'loader.js')).href)
+      const loaded = await module.load()
+      expect(loaded.default()).toBe('load-failed')
+    },
+  )
 })

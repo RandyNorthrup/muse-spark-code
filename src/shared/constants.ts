@@ -5104,6 +5104,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/browserCheck.js',
   'dist/browserRuntime.js',
   'dist/validation.js',
+  'dist/devices.js',
   'dist/whatsNew.js',
   'dist/webview/whatsNew.js',
   'dist/conversation.js',

@@ -83,6 +83,7 @@ function fixture() {
   for (const name of [
     'acp',
     'headless',
+    'devices',
     'sharingRuntime',
     'acpQuestions',
     'runtimeQuestions',

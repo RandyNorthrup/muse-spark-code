@@ -342,6 +342,17 @@ describe('joined P/T/E/U method port', () => {
   })
   it('bounds frame-flood snapshot work, keeps Stop independent and publishes the latest state', async () => {
     const { a, b, channel, frame, request } = await running()
+    const row = await a.journal.lookup(request.identity)
+    if (row?.kind !== 'receiver-record') throw new Error('Missing running test record')
+    let outcome = row.outcome
+    // Keep 64 control frames about admission/coalescing, not repeated fsync.
+    // The neighboring real-journal tests own durability and corrupt-storage Stop.
+    const advance = vi.spyOn(a.journal, 'advance').mockImplementation((identity, change) => {
+      expect(identity).toEqual(request.identity)
+      outcome = change(outcome)
+      return Promise.resolve(outcome)
+    })
+    const cancellation = vi.spyOn(a.journal, 'recordCancellation').mockResolvedValue(undefined)
     await a.service.observe()
     const snapshot = vi.mocked(a.deps.snapshot)
     snapshot.mockClear()
@@ -394,6 +405,13 @@ describe('joined P/T/E/U method port', () => {
       )
       expect(a.lease.cancel).toHaveBeenCalledTimes(floodSize)
       expect(a.lease.release).not.toHaveBeenCalled()
+      expect(advance).toHaveBeenCalledTimes(floodSize)
+      expect(cancellation).toHaveBeenCalledTimes(floodSize)
+      expect(outcome).toMatchObject({
+        state: 'uncertain',
+        occupied: row.outcome.occupied,
+        usage: row.outcome.usage,
+      })
       expect(snapshot).toHaveBeenCalledOnce()
       held.resolve({ enabled: false })
       await pendingStarted.promise

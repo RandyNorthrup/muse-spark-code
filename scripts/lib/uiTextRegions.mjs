@@ -223,7 +223,11 @@ export function browserTextKeys(entries, english, eagerSources = new Set()) {
         keys.add(node.name.text)
         if (eagerSources.has(file)) eagerKeys.add(node.name.text)
       }
-      if (ts.isStringLiteral(node) && Object.hasOwn(english, node.text)) {
+      if (
+        ts.isStringLiteral(node) &&
+        Object.hasOwn(english, node.text) &&
+        !isSurfaceComparison(node)
+      ) {
         keys.add(node.text)
         if (eagerSources.has(file)) eagerKeys.add(node.text)
       }
@@ -279,6 +283,29 @@ export function browserTextKeys(entries, english, eagerSources = new Set()) {
   return { keys, files: [...seen], eagerKeys }
 }
 
+// DOM surface tags are protocol selectors, even when a table has the same key.
+function isSurfaceComparison(node) {
+  const comparison = node.parent
+  if (
+    !ts.isBinaryExpression(comparison) ||
+    ![
+      ts.SyntaxKind.EqualsEqualsToken,
+      ts.SyntaxKind.EqualsEqualsEqualsToken,
+      ts.SyntaxKind.ExclamationEqualsToken,
+      ts.SyntaxKind.ExclamationEqualsEqualsToken,
+    ].includes(comparison.operatorToken.kind)
+  )
+    return false
+  const target = comparison.left === node ? comparison.right : comparison.left
+  return (
+    ts.isElementAccessExpression(target) &&
+    ts.isPropertyAccessExpression(target.expression) &&
+    target.expression.name.text === 'dataset' &&
+    ts.isStringLiteral(target.argumentExpression) &&
+    target.argumentExpression.text === 'surface'
+  )
+}
+
 /** Production browser readers retain their English; complete translation checks retain their contract. */
 export const compactBrowserUiText = {
   name: 'compact-browser-ui-text',
@@ -321,7 +348,11 @@ export const compactBrowserUiText = {
       path: 'browser-table-contract',
       namespace: 'browser-table-contract',
     }))
-    for (const namespace of ['browser-table-contract', 'browser-surface-english']) {
+    for (const namespace of [
+      'browser-table-contract',
+      'browser-surface-english',
+      'browser-devices-english',
+    ]) {
       build.onResolve({ filter: /.*/, namespace }, (args) => {
         if (args.path === path.resolve(TABLE).replaceAll('\\', '/'))
           return { path: path.resolve(TABLE), namespace: 'file' }
@@ -347,12 +378,31 @@ export const compactBrowserUiText = {
     }))
     build.onLoad({ filter: /.*/, namespace: 'browser-surface-english' }, () => ({
       contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
-${inlineBrowserTable(Object.fromEntries(data.deferredKeys.map((key) => [key, data.EN[key]])), data.level)}
+${inlineBrowserTable(Object.fromEntries(data.deferredKeys.filter((key) => key !== 'devices').map((key) => [key, data.EN[key]])), data.level)}
+installSurfaceEnglish(EN);`,
+      loader: 'js',
+    }))
+    build.onResolve({ filter: /^browser-devices-english$/ }, () => ({
+      path: 'browser-devices-english',
+      namespace: 'browser-devices-english',
+    }))
+    build.onLoad({ filter: /.*/, namespace: 'browser-devices-english' }, () => ({
+      contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
+${inlineBrowserTable({ devices: data.EN.devices }, data.level)}
 installSurfaceEnglish(EN);`,
       loader: 'js',
     }))
     build.onLoad({ filter: /[/\\]webview[/\\].*\.tsx$/ }, (args) => {
       const source = readFileSync(args.path, 'utf8')
+      if (
+        args.path.replaceAll('\\', '/').endsWith('/webview/models/sections/agents/DevicesApp.tsx')
+      )
+        return {
+          contents: "import 'browser-devices-english';\n" + source,
+          loader: 'tsx',
+          resolveDir: path.dirname(args.path),
+          watchFiles: [args.path],
+        }
       if (!source.includes('lazy')) return
       const tree = ts.createSourceFile(
         args.path,
@@ -371,11 +421,25 @@ installSurfaceEnglish(EN);`,
           if (node.arguments.length !== 1 || node.arguments[0] === undefined)
             throw new Error(`Unsupported lazy English loader: ${args.path}`)
           const argument = node.arguments[0]
-          edits.push({
-            start: argument.getStart(tree),
-            end: argument.end,
-            source: `async () => { await import('browser-surface-english'); return await (${argument.getText(tree)})() }`,
-          })
+          const guarded =
+            (ts.isArrowFunction(argument) || ts.isFunctionExpression(argument)) &&
+            argument.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.AsyncKeyword) &&
+            ts.isBlock(argument.body) &&
+            argument.body.statements.length === 1 &&
+            ts.isTryStatement(argument.body.statements[0])
+              ? argument.body.statements[0]
+              : undefined
+          if (guarded?.catchClause === undefined) {
+            edits.push({
+              start: argument.getStart(tree),
+              end: argument.end,
+              source: `async () => { await import('browser-surface-english'); return await (${argument.getText(tree)})() }`,
+            })
+          } else {
+            // Keep either chunk failure inside the surface's own retry fallback.
+            const start = guarded.tryBlock.getStart(tree) + 1
+            edits.push({ start, end: start, source: "await import('browser-surface-english');" })
+          }
         }
         ts.forEachChild(node, visit)
       }

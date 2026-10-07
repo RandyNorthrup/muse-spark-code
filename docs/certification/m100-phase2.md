@@ -157,3 +157,77 @@ artifact drills inside the deferred file also verify byte-exact restoration.
 
 Source `src/shared/devicesPanel.ts` before/after SHA-256: `4a672cc45df36ee29d203d758e0dabe39d337c815951f0ff2e33b6a33b2abbbb`
 (equal); red exit 1, restored exit 0.
+
+### First complete fresh-clone suite and joined repairs
+
+Repair commit `390c156a8`, fresh clone
+`/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m100p2base-ci-pc9ree0k/repo`,
+`CI=true`, Node 24.21.0, npm 11.19.0, `npm ci` exit 0. All requested static
+gates passed: five typechecks, full lint/Prettier, plain knip, zero duplication,
+866 files/zero cycles, reference, 14-language localization, host API and build.
+PowerShell lint is the repository's normal Darwin skip; no Windows result is
+claimed here.
+
+The full configured manifest is **846 unit/process-e2e files**, partitioned
+by the actual CI sequencer as **212 / 212 / 211 / 211**. Its union is complete
+and disjoint. Every manifest file is included in **284 batches**, each at most three files and
+`--maxWorkers=3 --coverage --shard=1/1`, with repository deadlines. Seven
+files failed; the remainder completed. Partial maps are not a global coverage
+pass. No live opt-in is set, and no test/filter/deadline/gate waiver is added.
+
+| Failure                                                                                                               | Structural repair and owning verification                                                                                                                                                                                                                                                                                  |
+| --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `usagePackaging.test.mjs` (1 failed), `runtimeChatGptPackage.test.ts` (2 failed), `execStdio.e2e.test.ts` (30 failed) | Add `devices` to their isolated ACP bundle inventories. The real packager now reaches positive archive and intended missing-member checks.                                                                                                                                                                                 |
+| `vsixPackaging.test.mjs` (setup failed, 75 cases never reached)                                                       | Add `dist/devices.js` to its isolated VSIX fixture. Keep the real strict staging/ZIP checks. The three package-unit suites pass 89 tests.                                                                                                                                                                                  |
+| `deviceIntegration.test.ts` (one 5000 ms flood-test timeout)                                                          | Retain real pairing, launch, pinned TLS, 64 data/control frames, capacity counts, independent Stop and latest-state checks; use a memory-backed repeated journal advance. Assert every advance/cancellation and unchanged occupancy/usage. Neighboring journal/corrupt-storage integration cases retain actual durability. |
+| `webviewBundle.test.mjs` (753429 bytes exceeds 733.8 KiB)                                                             | The Devices fallback uses existing generic panel failure/retry text. The collector distinguishes DOM surface selectors from indirect translation keys. Devices English loads with the Devices body under its own existing closure budget; all canonical language/key/slot checks remain.                                   |
+| `flightRecorder.test.ts` (59 frame paths versus 60 shipped files)                                                     | Add exactly `dist/devices.js` to the recorder's package-frame vocabulary, retaining arbitrary-path refusal and the test's exact equality to `.vscodeignore`.                                                                                                                                                               |
+
+The complete runtime repair group (Devices integration, exec stdio, flight
+recorder) passes **114 tests**. The startup/language group (browser English,
+Devices document, complete webview bundle file) passes **61 tests**. The
+production build passes every unchanged cap: activation **462.8/600 KiB**,
+Model API **456.0/475 KiB**, original deferred **31.9/50 KiB**, common surface
+English **24.1/25 KiB**, Devices UI **33.7/50 KiB**, Devices host **80.7/100 KiB**.
+The stronger startup **733.8 KiB** and legacy deferred **32.1 KiB** review
+assertions also remain unchanged and pass.
+
+Deferring English also exposed the generated loader's import outside the
+surface's own catch: the new missing-English-chunk case failed (1 failed,
+4 passed). Inject that import inside a sole async try/catch factory; test a
+missing common-English chunk and a missing chunk carrying private Devices
+English. Both return the surface fallback, preserving installed German.
+
+The recorder repair changes covered source, so the final qualification uses
+another fresh clone and complete four-shard coverage collection at the repair
+commit. Maps from the first source revision are not used in that final result.
+
+### Verification orchestration discoveries (G37, G38)
+
+Vitest 5.0.2's `list --filesOnly --shard=N/4` returned the whole manifest for
+each shard. The complete/disjoint preflight rejected it before execution;
+derive the actual membership from the configured execution sequencer instead.
+Vitest also refuses `--merge-reports` with its blob reporter. Those attempted
+intermediate collation commands failed; test collection continued. Final
+collation retains every test/error/module graph and uses the same pinned
+coverage-map merge in bounded groups, with an official direct/reduced-map
+equivalence check and final official threshold merge. G37/G38 and D100 record
+these rules; the final receipt will record the proof after final collation passes.
+
+### Joined guard-fire proofs
+
+Each mutation ran the complete owning test file(s), with repository deadlines
+and three workers, and restored its source byte-exact in `finally`.
+
+| Deliberate mutation                                          | Red result                                            |
+| ------------------------------------------------------------ | ----------------------------------------------------- |
+| Count a technical surface selector as a text reader          | Browser English: 2 failed, 4 passed.                  |
+| Put Devices English back in the common English module        | Browser English: 1 failed, 5 passed.                  |
+| Move the generated English import outside the existing catch | Browser English: 1 failed, 5 passed.                  |
+| Restore the old eager Devices failure shell                  | Devices document/webview bundle: 2 failed, 53 passed. |
+| Remove the receiver's cancellation journal-advance effect    | Devices integration: 2 failed, 9 passed.              |
+
+Restored startup/language files: **61 passed**. Restored Devices integration,
+phase-2 contracts and production chat mount: **47 passed**. All restored source
+SHA-256 pairs match; full values and red-log hashes are retained in the final
+base receipt. No temporary mutation is committed.

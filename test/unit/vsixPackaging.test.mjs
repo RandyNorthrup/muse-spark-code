@@ -101,6 +101,7 @@ beforeAll(async () => {
   for (const file of [
     'dist/extension.js',
     'dist/validation.js',
+    'dist/devices.js',
     'dist/webview/main.js',
     'dist/webview/main.css',
     'dist/webview/models.js',

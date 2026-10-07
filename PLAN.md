@@ -17980,7 +17980,9 @@ test that fails without the rule:
    process-count caps per job tree; G16 reparse points unlinked, never
    recursed into; G30 independent tool installations outside the checked
    workspace, since an ignored path can still incur discovery cost; G32 native
-   UI checks join complete scenario readiness before interacting with controls.
+   UI checks join complete scenario readiness before interacting with controls;
+   G38 result reduction has a bounded memory budget and preserves every test,
+   error and coverage counter, proved against the tool's direct merge.
 5. **M110 (Muse Node):** G1, G2, G10, G11, G14 to G16 for the tool host and
    sandboxes.
 6. **M115 (scheduled prompts):** G8 one serialized owner plus a lease, never
@@ -17992,7 +17994,11 @@ test that fails without the rule:
    the user in advance (never an automatic reroute; rule 9 stands); G24 a
    residual register per milestone that must be empty or accepted before
    release; G31 UI condition targets distinguish controls that share a style
-   class, with the harness's two-pill regression as the concrete example.
+   class, with the harness's two-pill regression as the concrete example;
+   G37 verification derives the actual configured execution partition and
+   checks complete, disjoint membership before accepting shard-labelled
+   results; G38 a report transport limitation never removes result data or
+   disables the final gate.
 8. **M117 (estimator):** G4 base age as a schedule risk.
 
 Rows marked **covered** keep their existing decision as the owner: D87.14,
@@ -35756,6 +35762,31 @@ validators into Devices and exceeds its unchanged cap. Record conflict
 decisions, structural repairs and counts in
 `docs/certification/m100-phase2.md`. No other merge, push or model call;
 aggregate quality/installed-host qualification remains lane W's obligation.
+
+The fresh-clone sweep also owns joined test-fixture repairs: include Devices
+in every isolated ACP/VSIX package inventory, and keep the real-TLS frame-flood
+test focused on transport/snapshot admission using an in-memory journal
+advance after its real pairing and launch. Separate integration/journal cases
+continue to prove durable writes, corrupt-storage Stop and retained liability.
+The flood still sends twice the data-frame cap and the same control traffic,
+with all capacity, Stop, coalescing and latest-state assertions intact.
+Keep the existing 733.8 KiB chat-startup review baseline as well as the build
+cap: the Devices chunk-failure shell uses the existing generic panel failure
+and retry text, so reading its fallback does not make the full Devices prose
+an eager browser reader. The browser text collector distinguishes a technical
+DOM `dataset['surface']` comparison from a literal translation-key reader;
+its regression retains indirect key reads and the full installed-language
+contract. The generated English import stays inside an async lazy factory's
+existing catch when its sole statement is that try/catch, so either failed
+chunk reaches its own fallback. Devices reports load failure and reloads on retry.
+Devices English has its own first-use module imported by the Devices body,
+inside that existing Devices closure and its unchanged 50 KiB budget. It is
+excluded from the common surface-English module, whose 25 KiB cap also stays
+unchanged. Canonical table validation still retains every language/key/slot.
+The recorder's exact package-frame vocabulary gains `dist/devices.js`, already
+in the VSIX allowlist; arbitrary paths remain refused. Because that changes a
+covered source file, final coverage is collected by another complete fresh-clone
+sweep after repairs, rather than combining maps from different source revisions.
 
 **Status 2026-10-07: documentation only on `plan/m100-phase2`.** Phase 1 is
 integrated (`m100/int`, accepted). No pairing, listener, discovery or remote

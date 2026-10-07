@@ -15,6 +15,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Include the Devices runtime in isolated ACP/VSIX package fixtures so positive
+  archive checks and missing-bundle refusals exercise the complete inventory.
+- Keep the real-TLS Devices flood test focused on bounded transport and
+  snapshot work, with memory-backed repeated journal advances and separate
+  durable-storage coverage at the existing deadline.
+- Keep Devices failure and retry text in the shared panel shell so its full
+  English prose loads lazily and chat retains its startup review budget.
+- Admit the shipped Devices runtime in the recorder's exact package-frame
+  vocabulary while continuing to reject arbitrary frame paths.
+
 - Keep the badge checker's conditional CI-token header within the existing
   lint rule while preserving its GitHub-only request binding.
 

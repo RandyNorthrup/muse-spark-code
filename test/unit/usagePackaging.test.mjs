@@ -40,6 +40,7 @@ function fixture() {
   for (const bundle of [
     'acp',
     'headless',
+    'devices',
     'sharingRuntime',
     'modelApi',
     'modelApiHooks',
