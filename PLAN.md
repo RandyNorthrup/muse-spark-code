@@ -209,6 +209,25 @@ the extension. It waits for `.npmrc`'s seven-day release-age rule until
 Deprecated and avoided: `@vscode/webview-ui-toolkit` (archived; npm marks it
 deprecated). Webview controls are hand-built on VS Code CSS theme variables.
 
+DEP138 dependency review (2026-10-07): PR #138 proposes ACP SDK 1.5.1,
+Vitest and V8 coverage 5.0.3 together, jscpd 5.4.0, knip 6.39.0 and
+typescript-eslint 8.71.0. Their exact registry peers accept the existing
+ESLint 10.11.0, TypeScript 6.0.3, Zod 4.6.5 and Node 22 toolchain. Upstream
+release notes show fixes and additive tooling features, plus a newly enabled
+strict enum-assignment rule that needs a memory comparison before acceptance.
+Purposes, security review, final accepted versions and measurements belong to
+`docs/certification/deps-0150.md`; existing audit exceptions stay unchanged.
+
+DEP138 selection: accept ACP SDK 1.5.1, Vitest/V8 coverage 5.0.3, jscpd
+5.4.0 and knip 6.39.0. Keep typescript-eslint and its exact package family at
+8.70.1. Updating that family alone exhausts the inherited 6144 MiB lint heap
+(6,596,428 KiB peak RSS), while replacing the project service with immutable
+programs for every existing project also exhausts it with all six updates
+(6,583,200 KiB). Do not disable the new strict rule or raise the heap to admit
+8.71.0. Revisit after upstream bounds its recursive enum-assignment type walk,
+or a measured configuration preserves every rule/file and passes clean CI.
+The shipped lint configuration and 6144 MiB flag remain release-base values.
+
 ### D4 — Security posture
 
 - API keys live only in `vscode.SecretStorage`; never in settings, logs, or
@@ -18833,6 +18852,29 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### DEP138 — Dev dependency updates without lint heap growth (2026-10-07, linuxlt)
+
+Replace Dependabot PR #138 from release base `a715a834` with exact reviewed
+development-tool pins. Preserve all rule levels, files, coverage thresholds,
+test deadlines and production bundle caps. Diagnose lint memory before choosing
+a structural configuration repair; hold only an offending package if no safe
+repair exists, and register a measured heap flag only as the last resort.
+
+- [x] Read all six upstream changelogs, check exact peers and baseline audit.
+- [x] Measure baseline lint and isolate update-induced memory growth with CI's
+      Node 22; compare immutable parser programs before selecting a remedy.
+- [x] Install the reviewed exact versions, repair the cause and prove any new
+      regression guards fail under a deliberate restored mutation.
+      Add fake-only ACP transport checks for the SDK's new byte cap: exact
+      UTF-8/CRLF admission, split-frame refusal and upstream cancellation.
+- [~] Verify a fresh clone with `npm ci`, `CI=true`, five typechecks, all lint,
+  formatting, plain knip, duplication, audit, unchanged production caps and
+  complete default-timeout unit coverage. Record locally runnable quality
+  gates and explicitly name remaining platform or hosted checks.
+- [ ] Record receipts in `docs/certification/deps-0150.md` and CHANGELOG;
+      commit locally with hooks and explicit paths. No push, rebase, merge,
+      credential disclosure or paid/live model call.
 
 ### CI0150M — Round 3 macOS CI repairs (2026-10-07, macmini)
 
@@ -41038,6 +41080,17 @@ is relaxed. No live or paid calls, push, rebase or merge.
       bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
 
 ## 7. Gates
+
+**DEP138 rig verification.** The lane's rig note limits each test invocation
+to three files. Certify every configured unit/process-e2e file in batches of
+at most three, with `CI=true`, V8 coverage and repository deadlines. Partial
+blob reports use the repository's existing shard handling; merge every report
+with the original global thresholds enabled. Run every other locally runnable
+quality gate separately in the same fresh `npm ci` clone. The monolithic
+`npm run quality` is deferred only because its test command exceeds the rig's
+explicit file cap; no gate, assertion, file, threshold or timeout is removed.
+The certification record must name every actual exit and any unavailable
+platform/hosted checks rather than claim an aggregate-command pass.
 
 **MACSLOW bounded certification (2026-10-07, macmini).** The lane's shared
 rules prohibit aggregate quality and delegate it to the lead. Run complete

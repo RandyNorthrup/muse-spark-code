@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Changed
+
+- Update the ACP SDK to 1.5.1 with incoming transport memory bounds, Vitest and
+  V8 coverage to 5.0.3, jscpd to 5.4.0 and knip to 6.39.0. Retain
+  typescript-eslint 8.70.1 after isolating 8.71.0's lint heap regression;
+  keep all existing rules, deadlines and bundle budgets.
+
 - Keep every long-reply accessibility delta while yielding through a task port,
   avoiding nested timer throttling within the existing readiness deadline.
 
