@@ -1,4 +1,16 @@
-# TRAIN15A — 0.15.0 release batch
+# 0.15.0 release train — certification
+
+**Current disposition (REL0150M, 2026-10-07, linuxlt): ordered merges complete;
+822 configured files, 16,435 passed, zero failures, 75 existing skips. Final
+full ESLint and all listed static/build gates pass. All 976 accessibility pages,
+96 legal keyboard/zoom checks, 24 legal WCAG pages and 17 reviewed README
+captures pass. Actual helperless VSIX is 2,651,561 bytes; ACP is 1,928,065 bytes.
+Universal measurement/cap calculation remains blocked by the missing certified
+Darwin helper; lead-owned hosted/native/public-network release gates remain.
+Self-contained receipt: [REL0150M](train-0.15.0-rel0150m.json). Tested source
+head: `7f896a950d93f75a1a68a1bf35cb90f4010fdcd9`. Local commits only.**
+
+Original TRAIN15A record follows; later continuations retain their own receipts.
 
 Worktree `/home/randy/lanes/TRAIN15A`, branch `release/train-0.15.0`,
 base `6a0207c1` (0.14.1 / PR #123). Integration runs directly on Kubuntu.
@@ -1766,11 +1778,88 @@ Complete readmeShots/capture/readiness owning files pass **40/40** at defaults.
 Final image and baseline hashes, viewports and comparison notes belong in the
 machine-readable receipt. No mock asset or edited bitmap replaces a real capture.
 
-### Remaining acceptance work
+### Final gates and actual artifacts
 
-Recheck final script/static/build gates, the complete accessibility matrix,
-legal keyboard/zoom checks, all 17 screenshot captures/comparisons and actual
-packages. The screenshot baseline includes incoming Help and open-question
-images. No final universal size or cap is claimed: this rig has helper source
-but no certified macOS binary or local archive. Its path was requested while
-independent work continues. Existing caps remain unchanged.
+All twelve final static/build components exit zero on `7f896a95`, including
+full repository ESLint with **zero warnings** (219.556 seconds), all five compiler
+projects (88.870 seconds), formatting, CSS, plain knip, **zero clones**, cycles,
+reference, localization, host API and production build. PowerShell retains its
+existing Linux platform skip; it is not native Windows analyzer proof. Full
+reference inventory: 61 features, 59 commands, 69 settings, 28 slash commands
+and 226 CLI rows. Fourteen UI and usage tables have zero localization problems;
+host API records one walkthrough, 366 APIs, 43 VS Code importers, 28 Node
+builtins and 70 theme variables.
+
+The last lint attempt first finds four errors in two private diagnostic/receipt
+scripts under ignored temp. No tracked source has a diagnostic. Move those
+owned scripts byte-exact to OS scratch, retaining hashes and the failing log,
+then rerun the **entire** repository lint command. Its final exit is zero;
+no ignore, rule, wrapper, hook, deadline or source assertion changes. This is
+the same G30 discovery boundary: ignored files may still enter a global tool's
+inventory. Install evidence remains in owned OS scratch too; shared node_modules
+is unchanged. Clean ordinary npm ci exits zero, with its recorded 11 audit
+findings and three existing install-script notices; no additional dependency
+beyond the authorized union is introduced.
+
+Every production size, split, host/browser-global and notices gate passes;
+88 bundled dependency notices remain. Selected actual sizes:
+
+| Artifact or closure              |   Bytes |        Existing cap |
+| -------------------------------- | ------: | ------------------: |
+| extension.js                     | 473,853 |             600 KiB |
+| modelApi.js                      | 466,905 |             475 KiB |
+| prompts.js                       | 170,656 |             200 KiB |
+| sharingRuntime.js                | 161,971 |             175 KiB |
+| main.js                          | 122,684 | included in startup |
+| main.css                         |  63,068 |   existing CSS gate |
+| Chat startup plus static imports | 747,858 |             900 KiB |
+| Original deferred aggregate      |  32,645 |              50 KiB |
+| Models startup closure           | 334,681 |             500 KiB |
+| Usage startup closure            | 351,544 |             500 KiB |
+| Prompt library closure           |  10,350 |              25 KiB |
+| Chat sharing closure             |  13,932 |              25 KiB |
+
+Both documented production package commands exit zero. The supported named
+badge network-only skip is required by common.md; all exact-stage localization,
+badge/version, schema and native Node import/require checks still run.
+Public-network badges/images remain for the lead, not implied by this result.
+
+| Actual package                         |     Bytes | SHA-256                                                            | Module export checks |
+| -------------------------------------- | --------: | ------------------------------------------------------------------ | -------------------: |
+| Helperless muse-spark-code-0.15.0.vsix | 2,651,561 | `08140cb9a646f152e0556e1997bdea0376dde6a87a08a087f741eb4aecaae22d` |                54/54 |
+| muse-spark-code-acp-0.15.0.tgz         | 1,928,065 | `47ca7a6f25a58865de899fe96b2cdaf59688207ec7ece65b5ba3a19b7c894299` |                38/38 |
+
+Actual archives contain 266 VSIX extension members and 92 ACP members, both
+version 0.15.0. Every browser/Windows-native source member matches the current
+build/source (123 VSIX and 27 ACP members); every expected VSIX browser output
+is present. The 46 VSIX and 28 ACP archived runtime members match all current
+build bytes. No maps, fonts, tests or node_modules are shipped.
+
+The bounded whole-package byte-identity probe is retired: VSCE canonically
+renames LICENSE/README/CHANGELOG and reserializes manifest/NLS metadata. An
+arbitrary .json probe also reaches the intentionally commented vendored
+TypeScript template. The final inspection compares **all sixteen manifest/NLS
+objects per archive by parsed value**, and **every other staged member by exact
+bytes** (250 VSIX / 76 ACP), including that vendor template. These are actual
+archive checks, not assumptions from successful staging. Receipts retain the
+bounded failed probes and the final representation-aware checks.
+
+### Universal hold and handoff
+
+- **Step 1 done:** both authorized ordered --no-ff merges, complete feature/
+  locale/manifest union, regenerated records, clean install and ordered history.
+- **Step 2 blocked only on universal input:** every requested local suite,
+  static/build gate, accessibility matrix, screenshot comparison and helperless
+  VSIX/ACP package succeeds. No certified macOS binary or local universal archive
+  is present in permitted inputs. Its path was requested; no reply arrived.
+- **Step 3 done:** this 0.14.5 merge record, PLAN release record, eight byte-exact
+  regression drills, durable machine receipt and normal-hook local commits.
+
+The lead must supply the certified 289,568-byte mode-0755 helper at SHA-256
+`f42e757a0d78a6bc6a6af22c3bcf34fc7d082eb9e8130d9336024a55c19f0f36`, or
+a new native certification. Then make the actual universal package and apply
+`ceil(measuredBytes * 1.05 / 25600) * 25600`, recording the result in D6 and the
+VSIX gate. **The existing 2,841,600-byte cap and every bundle cap remain unchanged.**
+No projection from helperless bytes certifies that calculation. Aggregate
+quality, hosted/platform/native screen-reader checks and public-network checks
+remain lead-owned; no push, tag, publication, live or paid model call occurred.

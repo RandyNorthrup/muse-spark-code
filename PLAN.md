@@ -9641,6 +9641,17 @@ have equivalent functionality even if we need to develop it ourselves".
   diet ratchet by default. Only certified first-paint additions can justify
   a measured baseline update after reaching the 745-KiB target.
 
+- **Q-REL0150M-UNIVERSAL (2026-10-07):** linuxlt has Darwin helper source but
+  no certified executable or local universal archive. The lead must supply the
+  previously certified 289,568-byte, mode-0755 helper at SHA-256
+  `f42e757a0d78a6bc6a6af22c3bcf34fc7d082eb9e8130d9336024a55c19f0f36`,
+  or a new certified native receipt. Its path was requested asynchronously;
+  no response has arrived. Actual helperless VSIX is 2,651,561 bytes and ACP is
+  1,928,065 bytes, but neither proves the new universal size. Preserve the
+  2,841,600-byte cap until an actual universal package supplies the brief's
+  measured-plus-5-percent, rounded-up-to-25-KiB calculation. No projection or
+  synthetic helper is accepted as that measurement.
+
 - **Q-TRAIN15E-D78 (2026-10-06):** the train's immutable Meta golden requests
   declare `recall_output` from the first packing-enabled request; M102's D78
   unused-default-flip test requires its absence until packed output exists.
@@ -18794,7 +18805,7 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
       25 KiB rule, and record each changed cap with its measured reason.
 - [x] Run every accessibility scenario in four themes; regenerate and view every
       README screenshot with the compact bookmark composer menu.
-- [ ] Record all checks, fixes and byte-exact regression drills in
+- [x] Record all checks, fixes and byte-exact regression drills in
       `docs/certification/train-0.15.0.md`; commit locally with hooks, never push.
 
 Both ordered merges are committed with normal hooks: `50a4947a` and
@@ -18802,13 +18813,16 @@ Both ordered merges are committed with normal hooks: `50a4947a` and
 The dependency union and clean ordinary npm ci check are complete. Generated
 reference/host records and locale unions are clean. All 822 configured files
 have final whole-file results: 16,435 passed, zero failed, 75 existing skips.
-Every listed final static gate and production build now passes on `d61493d3`,
-including the keyboard compiler repair. Full production accessibility now passes
+Every listed final static gate and production build now passes on `7f896a95`,
+including keyboard and legal readiness repairs. Full production accessibility passes
 976 pages; the repaired legal driver passes 96 keyboard/zoom checks and 24
 English/pseudo WCAG pages. All 17 screenshot pairs are regenerated and viewed;
-the paid frame includes all promised rows. Repeat final script gates and universal
-measurement remain pending. Eight successful deliberate regressions restore exact
-bytes.
+the paid frame includes all promised rows. Actual helperless VSIX and ACP packages
+pass at 2,651,561 and 1,928,065 bytes, with 54 and 38 native module-export checks.
+All measured bundle caps pass unchanged. Only the certified-helper input for
+actual universal measurement remains blocked (Q-REL0150M-UNIVERSAL). Eight
+successful deliberate regressions restore exact bytes. Final self-contained
+receipt: `docs/certification/train-0.15.0-rel0150m.json`.
 
 The merged ACP Registry and stdio suites duplicate their real packaged-agent
 build and cleanup. Consolidate only that test fixture setup to satisfy the
@@ -48218,6 +48232,40 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
   Platform/live release receipts remain separate requirements.
 
 ## 10. Definition of done and release records
+
+**0.15.0 merged release preparation (REL0150M, 2026-10-07, linuxlt).**
+Merge `rel-0145` with `--no-ff` (`50a4947a`), then the authorized PR #132
+infrastructure input (`4eac2793`). Preserve train providers, roles/teams, legal,
+usage, compaction and question workflows alongside M118 prompt/chat sharing,
+the compact bookmark composer menu and legacy ACP terminal sign-in support.
+Both landing pages retain current 0.15.0 then Earlier 0.14.5/0.14.4/0.14.3;
+changelog history remains ordered and intact. Reference, locale and host API
+inventories are regenerated; the exact dependency union passes clean npm ci.
+
+All 822 configured Vitest files have complete default-timeout whole-file results:
+16,435 passed, zero failed or setup-blocked, 75 existing skips (16,510 cases).
+Final full repository ESLint exits zero with zero warnings; all five compiler
+projects, formatting, plain knip, zero duplication, cycles and reference/l10n/
+host API checks pass. Production build passes every unchanged size, split,
+global and notices gate. Eight deliberate regressions fail and restore exact
+SHA-256 bytes. The repaired production browser passes all 976 four-theme pages;
+legal passes 96 Linux Chromium keyboard/zoom cases plus 24 English/pseudo WCAG
+pages. All 17 README captures are regenerated and visually compared; paid usage
+uses a taller declared frame to show its captioned rows, without a UI change.
+
+Actual 0.15.0 helperless VSIX is 2,651,561 bytes; ACP is 1,928,065 bytes. Actual
+stage native import/require checks pass 54/54 and 38/38. Archive metadata values,
+browser/native bytes and all 74 archived runtime members match their certified
+stage/build; no maps, fonts, tests or node_modules leak into either package.
+The new universal VSIX size and authorized cap calculation remain blocked by
+Q-REL0150M-UNIVERSAL, not estimated from the helperless package. Existing
+2,841,600-byte universal and all individual bundle caps stay unchanged.
+Local commits retain normal hooks; there is no push, rebase or new model call.
+Aggregate quality, public-network badge/image checks, hosted/native platform
+receipts and publication remain lead-owned. The receipt and detailed bounded
+failure/repair history are in `docs/certification/train-0.15.0.md` and
+`docs/certification/train-0.15.0-rel0150m.json`; this is preparation, not release
+certification or an M80 support claim.
 
 **0.15.0 draft release preparation (TRAIN15E continuation, 2026-10-06, win11).**
 Continue c15b7eeae and merge only sync/main-0170 (8c6351d73) with --no-ff,
