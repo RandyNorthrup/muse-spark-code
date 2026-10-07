@@ -46,7 +46,15 @@ key to the CLI.
 [Troubleshooting](#troubleshooting) ·
 [Reporting a problem](#reporting-a-problem) · [Development](#development)
 
-## What's new in 0.14.4
+## What's new in 0.14.5
+
+- **Prompt actions in one small menu.** Save, share and use saved prompts
+  from the bookmark button on the composer toolbar or the right-click menu;
+  the three full-width buttons that covered the chat box are gone.
+- **ACP Registry sign-in.** Clients that announce terminal sign-in the older
+  way now get the sign-in option too.
+
+### Earlier in 0.14.4
 
 - **Save your prompts.** Right-click one of your own messages and choose
   **Save**, or save from the composer or editor. Your personal prompt library

@@ -7,26 +7,15 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+## [0.14.5] - 2026-10-06
+
 ### Fixed
 
-- Windows shell credential regressions await the matching background completion
-  before cleanup and probe raw environment values within the default test deadline.
-- Prompt host shutdown awaits mirror merges and other admitted operations
-  before releasing storage, preventing Windows cleanup from racing a sync write.
-- Browser package tests build the chat, Help and What's New pages themselves,
-  so a clean CI shard needs no artifacts from an earlier production build.
-- The installed ACP help check validates its complete localization table,
-  retaining prompt and sharing labels in its exact output comparison.
-- Chat-share HTML encodes markup delimiters in one pass. Privacy regexes have
-  literal-metacharacter controls and documented, specific audit exceptions
-  for their escaped workspace, home and username fragments.
-
-### Documentation
-
-- A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists
-  what went wrong while a fleet of agents built this project. For each one it
-  gives the rule that prevents it and the milestone that will enforce that
-  rule in the app's own orchestrator (D100).
+- Composer prompt actions sit in one compact Prompt library menu on the
+  composer toolbar (Save prompt, Share prompt, Use saved prompt), also in the
+  right-click menu, instead of three full-width buttons covering the chat box.
+- The ACP agent offers terminal sign-in to clients that announce it with the
+  older `_meta` terminal-auth capability (ACP Registry).
 
 ## [0.14.4] - 2026-10-06
 
@@ -65,6 +54,17 @@ happened, not what was planned; superseded entries are kept.
   route while retaining all prompt and chat actions.
 - Problem reports recognize the shipped prompt bundle alongside the question
   deferral bundle. Translated ACP compact help includes the sharing routes.
+- Windows shell credential regressions await the matching background completion
+  before cleanup and probe raw environment values within the default test deadline.
+- Prompt host shutdown awaits mirror merges and other admitted operations
+  before releasing storage, preventing Windows cleanup from racing a sync write.
+- Browser package tests build the chat, Help and What's New pages themselves,
+  so a clean CI shard needs no artifacts from an earlier production build.
+- The installed ACP help check validates its complete localization table,
+  retaining prompt and sharing labels in its exact output comparison.
+- Chat-share HTML encodes markup delimiters in one pass. Privacy regexes have
+  literal-metacharacter controls and documented, specific audit exceptions
+  for their escaped workspace, home and username fragments.
 
 ### Performance
 
@@ -77,6 +77,13 @@ happened, not what was planned; superseded entries are kept.
   Its existing 100 KiB cap and the 2400 KiB VSIX cap are unchanged.
 - Bundle tests build only the production browser fixture they inspect, keeping
   verification within the repository's default timeouts.
+
+### Documentation
+
+- A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists
+  what went wrong while a fleet of agents built this project. For each one it
+  gives the rule that prevents it and the milestone that will enforce that
+  rule in the app's own orchestrator (D100).
 
 ## [0.14.3] - 2026-10-06
 

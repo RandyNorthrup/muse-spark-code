@@ -3726,7 +3726,8 @@ describe('M118 prompt action failure notices', () => {
     switch (entry) {
       case 'composer': {
         fireEvent.change(textarea(), { target: { value: text } })
-        fireEvent.click(screen.getByRole('button', { name: label }))
+        fireEvent.click(screen.getByRole('button', { name: UI_TEXT.promptLibrary }))
+        fireEvent.click(await screen.findByRole('menuitem', { name: label }))
         break
       }
       case 'message': {

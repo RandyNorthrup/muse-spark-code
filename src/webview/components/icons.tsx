@@ -244,6 +244,15 @@ export function FolderIcon(props: IconProps) {
   )
 }
 
+/** The composer's prompt menu (save, share, use a saved prompt). */
+export function BookmarkIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4.5 2.5h7v11L8 10.5l-3.5 3v-11Z" />
+    </Svg>
+  )
+}
+
 export function FileIcon(props: IconProps) {
   return (
     <Svg {...props}>
