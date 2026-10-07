@@ -157,6 +157,23 @@ mutation/removal fences, is process-local. The existing K-M109/W parent-owned
 broker still must compose cross-process ownership before installed account
 surfaces are enabled; no installed-editor or cross-process claim is added.
 
+### Applied repair commit and hooks
+
+Implementation commit **`e6ce6306b`** contains the approved store/handler
+patch, three deterministic regressions, PLAN, CHANGELOG and this record.
+Normal `.husky/_/pre-commit` hooks ran through the configured `.husky/_`
+path: scoped ESLint and Prettier pass; staged gitleaks scans **21.11 KB**
+with no leaks. Post-hook SHA-256 checks confirm both production sources still
+match every final drill restoration. A separate
+`gitleaks git --log-opts=beb733fe9..HEAD --redact --no-banner` scans the
+implementation commit and finds no leaks. Receipts:
+`temp/fixm108u2-applied-commit.log` and
+`temp/fixm108u2-applied-secrets.log`. The worktree is clean at this checkpoint.
+No RVM108U2 finding remains in the supplied ports. The only failed direct
+check is the existing W-owned host API record update named above. No push,
+merge, rebase, hook bypass, installation, external network request, live or
+paid call was used in the continuation.
+
 ## FIXM108U — RVM108U repairs (macmini, 2026-10-06)
 
 Repair base `fde11d93`; all four P2 findings are fixed within U's supplied
