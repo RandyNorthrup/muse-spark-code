@@ -30595,6 +30595,17 @@ chip operations. Every regression and rule gets a byte-exact red drill in
 `docs/certification/m103-s.md`. No new dependency, command or wire shape.
 The rig brief forbids aggregate quality and integration merges; the lead
 runs those required gates after integration.
+**FIXM103D2 native macOS correction (2026-10-05).** Fix only RVM103MDA
+finding 1: `/dev/fd/N` cannot be passed to Node's opendir on macOS APFS.
+Use macOS's existing `/usr/bin/perl` and its core modules in a bounded,
+credential-free child, inheriting the checked directory descriptor as stdin;
+Perl's handle-based chdir pins enumeration and entry classification to that
+object. Never reopen the mutable workspace pathname. Retain Linux's proc-fd
+listing and Windows's native helper. Prove native APFS detection, confinement,
+name/output/deadline limits and platform seams with regressions and byte-exact
+restored red drills. No package dependency, public surface or guard expansion.
+Findings 2 and 3 belong to lane A; native Windows and wiring receipts stay
+with W/E. The lane brief prohibits aggregate quality and branch merges here.
 
 **FIXM103D review corrections (2026-10-05).** Address all three P2 findings
 in RVM103D: bind detection reads and directory enumeration to opened handles
@@ -32856,19 +32867,24 @@ before a repaired one loads (2026-09-30).
   numbers.
 
 - **M103D-NATIVE-QUALIFICATION (integration pending, 2026-10-05):** RVM103D's
-  three P2 findings are fixed and red-drilled on Kubuntu. Native macOS
-  descriptor-directory access and Windows kernel APIs still need receipts
-  on their own rigs; Linux/macOS adapter schedules and the actual Windows
-  C# guard/read/listing code are covered with deterministic OS fakes here.
-  Missing descriptor support or a failed native helper aborts detection;
-  there is no fallback that reopens a checked mutable pathname. The helper
-  has a hard deadline, bounded validated output and only the system module
-  path in its environment; it inherits no host environment or credentials.
-  Safe pending qualification because failure grants no outside read or
-  hardware authority. Follow-up: lane W/E's native rig and editor checks
-  before claiming the platform detector supported. Full quality, host API
-  record regeneration and M103's pre-existing startup-growth item remain
-  with lane W, as recorded in `docs/certification/m103-d.md`.
+  three P2 findings were fixed and red-drilled on Kubuntu; RVM103MDA then
+  found the macOS descriptor-listing defect. FIXM103D2 fixes that defect
+  with a checked descriptor inherited by macOS's system Perl, whose core
+  handle-based chdir pins bounded listing and lstat classification. Native
+  macOS APFS enumeration, an actual ancestor-to-symlink swap, and the caps
+  now have receipts. **Native Windows kernel execution and editor wiring
+  remain unqualified**; Linux/macOS schedules and the actual Windows C#
+  guard/read/listing code retain their deterministic OS-fake coverage.
+  Missing system Perl or a failed helper aborts detection; no mutable-path
+  fallback exists. macOS uses an empty environment, a hard deadline and
+  bounded schema-validated output; Windows retains only the system module
+  path in its environment. Neither inherits host credentials. Safe pending
+  qualification because failure grants no outside read or hardware
+  authority. Follow-up: W/E's native Windows and editor checks before
+  claiming those platforms supported. Full quality, host API regeneration
+  and M103's pre-existing startup-growth item remain with W, as recorded in
+  `docs/certification/m103-d.md`. No P2 from FIXM103D2's owned finding remains;
+  RVM103MDA findings 2/3 are assigned to lane A, not deferred by this lane.
 
 - **M103P-QUALIFICATION (2026-10-05):** lane P's RVM103P3/RVM103P4 corrections
   are checked on Win11, including a separate process stopping the compiled
