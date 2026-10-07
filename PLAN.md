@@ -40887,6 +40887,30 @@ pages. No version bump or README What’s New changes; no paid/live calls.
       restoration, full accessibility, static gates and actual VSIX measurements
       in `docs/certification/train-0.15.0.md` and its TRAIN15H receipt.
 
+### MACSLOW — Hosted macOS memory and slow setup (2026-10-07)
+
+Authority: `/Users/randy/lanes/_ctx/MACSLOW.rig.md` and shared
+`_ctx/codex/common.md`, on `fix/0150-macslow` from `ccce6e6ac`.
+Own only unit compiler memory, companion browser lifecycle/readiness, usage
+localization fixtures and exec stdio cold build/package setup. Measure unit
+compiler peak RSS before and after; split the checking work structurally while
+retaining every configured file and strict option. Prepare immutable expensive
+fixtures once per file, keep isolated mutable cases, and pair browser event
+observation with its trigger so cleanup cannot strand a rejection.
+
+- [ ] Measure and repair each owned cause without timeout changes, retries or skips.
+- [ ] Prove compiler coverage and changed fixture/security checks fail on deliberate
+      regressions, restoring every mutation byte-exact.
+- [ ] Run three clean `CI=true` complete-file passes at default test deadlines
+      with at most three workers, plus measured compiler and scoped static/build gates.
+- [ ] Commit finished pieces with hooks and explicit paths; never merge or push.
+
+The brief expressly authorizes `git clean -xdf -e node_modules`, overriding
+common.md's clean prohibition. Aggregate quality remains lead-owned under
+common.md; this lane runs the listed gates directly on macmini. No live/paid
+calls, credentials, new dependencies, increased budgets or timeout changes.
+Receipts belong in `docs/certification/macslow.md`.
+
 ### CI0150L — Linux hosted CI round 3 (2026-10-07)
 
 Scope: the Linux rig brief and CI0150-os-common: private clean-shard ACP
@@ -41014,6 +41038,18 @@ is relaxed. No live or paid calls, push, rebase or merge.
       bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
 
 ## 7. Gates
+
+**MACSLOW bounded certification (2026-10-07, macmini).** The lane's shared
+rules prohibit aggregate quality and delegate it to the lead. Run complete
+owned files directly, at default timeouts, three times after the explicitly
+authorized clean; run each requested compiler/static/build gate separately.
+The unit gate retains all 1,864 configured roots and strict options across five
+sequential programs, sharing ambient declarations and matcher setup. Measured
+peak RSS falls from 2,767,564,800 to 1,688,055,808 bytes (39%); no heap override,
+timeout, retry, skip or other gate changes. Initial compiler probes exposed
+ambient-type resolution and cross-file matcher/declaration scope; preserve
+both through repository-local temporary configs and the shared support roots.
+Final evidence is recorded in `docs/certification/macslow.md`.
 
 **CI0150M round 3 aggregate status (2026-10-07).** The attempted unmodified
 `npm run quality` passes static gates, then fails whole-repository tests in

@@ -1,5 +1,5 @@
 import { createServer } from 'node:http'
-import { chromium, type Browser, type Page } from 'playwright-core'
+import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core'
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import { call, headers, startPanel, trackedPanels } from './helpers/companion'
@@ -8,6 +8,16 @@ const tracked = trackedPanels()
 // Warm the real browser during file loading, before the assertion hooks. Chrome
 // startup contends with hosted-runner transforms; it is shared by all nine cases.
 const browser: Browser = await chromium.launch({ channel: 'chrome', headless: true })
+// Launch alone does not start a renderer. Warm one before the first timed case;
+// every security case still gets its own fresh context and real navigation.
+const warmContext = await browser.newContext()
+try {
+  const warmPage = await warmContext.newPage()
+  await warmPage.goto('about:blank')
+  await warmPage.evaluate(() => document.readyState)
+} finally {
+  await warmContext.close()
+}
 const SESSION_CLOCK_MS = Date.UTC(2026, 9, 7)
 
 /** Runs in the browser; both fetch overloads must retain the private bearer. */
@@ -25,8 +35,8 @@ async function postFromPage(isRequest: boolean): Promise<number> {
 }
 
 async function openPage(page: Page, launch: string): Promise<void> {
-  await page.goto(launch)
-  await page.waitForFunction(() => Reflect.get(globalThis.window, 'panelLoaded') === true)
+  await page.goto(launch, { waitUntil: 'commit' })
+  await page.locator('html[data-launch="ready"]').waitFor({ state: 'attached' })
   expect(await page.evaluate(() => Reflect.get(globalThis.window, 'panelLoaded') === true)).toBe(
     true,
   )
@@ -60,8 +70,9 @@ describe('companion browser security', () => {
     await new Promise<void>((resolve) => foreign.listen(0, '127.0.0.1', resolve))
     const address = foreign.address()
     if (address === null || typeof address === 'string') throw new Error('foreign fixture bind')
+    let context: BrowserContext | undefined
     try {
-      const context = await browser.newContext()
+      context = await browser.newContext()
       const page = await context.newPage()
       const requests: string[] = []
       page.on('request', (request) => {
@@ -112,26 +123,27 @@ describe('companion browser security', () => {
           : 'refused'
       }, panel.url)
       expect(opened).toBe('open')
-      const nativeRequest = page.waitForRequest(
-        (request) => request.url() === `${panel.url}events` && request.method() === 'GET',
-      )
-      const nativeResult = await page.evaluate(
-        (url) =>
-          new Promise<string>((resolve) => {
-            const { EventSource } = globalThis
-            const events = new EventSource(`${url}events`)
-            events.addEventListener('open', () => {
-              events.close()
-              resolve('accepted')
-            })
-            events.addEventListener('error', () => {
-              events.close()
-              resolve('refused')
-            })
-          }),
-        panel.url,
-      )
-      const captured = await nativeRequest
+      const [captured, nativeResult] = await Promise.all([
+        page.waitForRequest(
+          (request) => request.url() === `${panel.url}events` && request.method() === 'GET',
+        ),
+        page.evaluate(
+          (url) =>
+            new Promise<string>((resolve) => {
+              const { EventSource } = globalThis
+              const events = new EventSource(`${url}events`)
+              events.addEventListener('open', () => {
+                events.close()
+                resolve('accepted')
+              })
+              events.addEventListener('error', () => {
+                events.close()
+                resolve('refused')
+              })
+            }),
+          panel.url,
+        ),
+      ])
       expect(await captured.headerValue('origin')).toBe(null)
       expect(await captured.headerValue('sec-fetch-site')).toBe('same-origin')
       expect(nativeResult).toBe('refused')
@@ -153,19 +165,20 @@ describe('companion browser security', () => {
           globalThis.sessionStorage.length,
         ]),
       ).toEqual([0, 0])
-      const formReply = attack.waitForResponse((response) => response.url() === `${panel.url}post`)
-      await attack.evaluate((url) => {
-        const frame = document.createElement('iframe')
-        frame.name = 'attack'
-        document.body.append(frame)
-        const form = document.createElement('form')
-        form.action = `${url}post`
-        form.method = 'POST'
-        form.target = 'attack'
-        document.body.append(form)
-        form.submit()
-      }, panel.url)
-      const refusedForm = await formReply
+      const [refusedForm] = await Promise.all([
+        attack.waitForResponse((response) => response.url() === `${panel.url}post`),
+        attack.evaluate((url) => {
+          const frame = document.createElement('iframe')
+          frame.name = 'attack'
+          document.body.append(frame)
+          const form = document.createElement('form')
+          form.action = `${url}post`
+          form.method = 'POST'
+          form.target = 'attack'
+          document.body.append(form)
+          form.submit()
+        }, panel.url),
+      ])
       expect(refusedForm.status()).toBe(403)
       const result = await attack.evaluate(async (url) => {
         let fetchResult: string
@@ -207,7 +220,7 @@ describe('companion browser security', () => {
       expect(panel.handler.post).not.toHaveBeenCalled()
       expect(panel.handler.subscribe).toHaveBeenCalledTimes(1)
     } finally {
-      for (const context of browser.contexts()) await context.close()
+      await context?.close()
       await panel.close()
       await new Promise<void>((resolve) => {
         foreign.close(() => {
@@ -262,9 +275,11 @@ describe('companion browser security', () => {
         await openPage(page, panel.launchUrl())
       }
       for (const [index, page] of context.pages().entries()) {
-        const request = page.waitForRequest((value) => value.url().endsWith('/post'))
-        expect(await page.evaluate(postFromPage, false)).toBe(202)
-        const captured = await request
+        const [captured, status] = await Promise.all([
+          page.waitForRequest((value) => value.url().endsWith('/post')),
+          page.evaluate(postFromPage, false),
+        ])
+        expect(status).toBe(202)
         const authorization = await captured.headerValue('authorization')
         expect(authorization?.startsWith('Bearer ')).toBe(true)
         const other = index === 0 ? second : first
@@ -325,7 +340,7 @@ describe('companion browser security', () => {
         if (failure === 'invalid') launch = `${panel.url}#k=invalid`
         else if (failure !== 'missing') launch = panel.launchUrl()
         if (failure === 'expired') vi.mocked(Date.now).mockReturnValue(SESSION_CLOCK_MS + 2)
-        await page.goto(launch)
+        await page.goto(launch, { waitUntil: 'commit' })
         const alert = page.getByRole('alert')
         await page.locator('html[data-launch]').waitFor()
         expect(await alert.isVisible()).toBe(true)

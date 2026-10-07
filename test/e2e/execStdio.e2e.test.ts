@@ -34,12 +34,6 @@ const TEMP = path.join(ROOT, 'temp')
 mkdirSync(TEMP, { recursive: true })
 const WORK = mkdtempSync(path.join(TEMP, 'm80d-stdio-'))
 const BUILD_ROOT = path.join(WORK, 'build')
-const production = { isBuilt: false }
-function prepareProduction(): void {
-  if (production.isBuilt) return
-  buildProductionPackage(ROOT, BUILD_ROOT)
-  production.isBuilt = true
-}
 const INSTALLED = process.env['MUSE_ACP_PACKAGE_DIR']
 const PACKAGE = INSTALLED ?? path.join(WORK, 'agent')
 const AGENT = path.join(PACKAGE, 'dist', 'acp.js')
@@ -336,6 +330,10 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
   return dir
 }
 
+// Build immutable inputs once during file setup. The cold archive hook's
+// unchanged 60-second budget belongs to packaging, rather than build + pack.
+buildProductionPackage(ROOT, BUILD_ROOT)
+
 describe('M80 D package guards', { timeout: TIMEOUT }, () => {
   let preparedPackage: { dir: string; run: ReturnType<typeof command> } | undefined
 
@@ -349,7 +347,6 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
   }
 
   beforeAll(() => {
-    prepareProduction()
     const dir = packagingFixture()
     preparedPackage = {
       dir,
@@ -752,7 +749,6 @@ function result(stdout: string): ExecResult {
 describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
   beforeAll(async () => {
     if (INSTALLED === undefined) {
-      prepareProduction()
       packageImagePreload(PACKAGE_PRELOAD, BUILD_ROOT, PACKAGE_IMAGES)
       const packed = command(
         path.join(BUILD_ROOT, 'scripts', 'package-acp.mjs'),
