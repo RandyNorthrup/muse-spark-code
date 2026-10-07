@@ -32557,6 +32557,26 @@ test files run here. No threshold, rule, ignore, dependency or test deadline is
 weakened. Simulator receipts and byte-exact removal drills are in
 `docs/certification/m103-u.md`.
 
+**M103W-REFERENCE-BUDGET (2026-10-06, linuxlt rig): lead decision required;
+the cap is unchanged and no scope, test or threshold is weakened.**
+`dist/reference.js` is 100.7 KiB against its 100 KiB budget (+765 bytes), the
+only failing size row: extension 445.9/600, runtimeMaker 125.0/125,
+hardwareGuard 24.5/25, hardwareShell 16.4/20, makerHost 24.6/25 KiB all pass.
+The growth arrived with the lease2 merge restoring reference coherence: the
+guard4 tree was reference-STALE (featureCatalog named `makers` twice while
+the generated model had no makers entry, so `check:reference` failed there),
+and the restored scope is the makers catalog entry, its 4 maker CLI rows,
+the 6 `--hardware` option rows, the 9 real first-party `maker_*` skill names
+and the tightened browserCheckExtraHosts description. The model compressor
+already interns repeats (verified: the `--hardware` description and the
+`description`/`summary` keys appear once); the ~700 packed bytes are genuine
+certified scope pinned by `check:reference` and `referenceGenerator.test.mjs`
+(55 tests). No honest cut exists. Either the lead revisits the 100 KiB budget
+by the repository's rule (M78b precedent: Model API 400 → 475 KiB, recorded
+in §7), or the lead directs a scope or compression change. This lane ships
+coherent reference content under the unchanged cap and leaves the size gate
+red until the lead rules.
+
 ## 8. Escape hatches register
 
 | REDM103G location                                                      | Escape hatch                                                                        | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Date       |

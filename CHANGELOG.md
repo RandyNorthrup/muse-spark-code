@@ -7,6 +7,16 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- M103 makers integration: the twelve makers lanes joined additively with
+  regenerated reference, localization and host-API records. New lazy bundles
+  carry their own budgets (`runtimeMaker`, `makerHost`, `makerPreviewHost`,
+  `hardwareGuard`, `hardwareShell`); startup is unchanged. The help reference
+  covers the makers feature, its four CLI routes and `--hardware`; maker
+  commands and settings stay with the wiring lane. Physical approvals need OS
+  user presence, Stop is never gated, and nothing physical runs unattended.
+  Simulator and emulator receipts are authoritative; see
+  `docs/certification/m103.md`.
+
 ### Documentation
 
 - A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists

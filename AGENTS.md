@@ -204,6 +204,10 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       dist/bundledSkills.js, loaded on first use),
                       Tab's lazy provider, ledger and menu (dist/tab.js),
                       with its status item in the activation shim,
+                      the maker host adapter (maker/, dist/makerHost.js,
+                      loaded on the first maker UI or device tool) and its
+                      preview host (dist/makerPreviewHost.js, loaded on the
+                      first maker preview),
                       commands, auth, settings, mentions,
                       editor tracking, usage trace logs, voice, the IDE tool
                       MCP server (diagnostics, code intelligence, images, web
@@ -233,7 +237,12 @@ src/core/**           backend-agnostic logic; must not import `vscode`
                       restore plan, the paired efficiency evaluation,
                       observation packing, Tab's context windows, requests,
                       filters, typing-through cache, scheduler and spend, the flight recorder policy
-                      and problem report builder and second scrub)
+                      and problem report builder and second scrub,
+                      makers (maker/: ports, lease, session guard, approval
+                      and shell guards in guard/, serial sessions; the guard
+                      split's dist/hardwareGuard.js, loaded on the first
+                      guarded hardware action, and dist/hardwareShell.js,
+                      loaded on the first shell classification))
 src/acp/**            the ACP agent (D62): the ACP side of a session and the
                       translation of the engine's events, questionDeferral.ts
                       (dist/acpQuestions.js, loaded on the first question,
@@ -245,7 +254,10 @@ src/runtime/exec/**   headless arguments/protocol/egress, stdin key/scanner,
                       bounded lifecycle, ACP client/tap and per-attempt ledger
 src/runtime/**        the agent's process: arguments, backends outside VS Code,
                       the OS credential store (D61), `auth`, `login` and
-                      `report` (M93)
+                      `report` (M93),
+                      the maker runtime (maker/, dist/runtimeMaker.js: serial,
+                      machines, Stop, companion servers; loaded for maker work
+                      only, never at activation)
 src/shared/**         constants + zod protocol shared by host and webview
 src/shared/l10n/**    the English table (en.ts), fill/plural/Intl helpers, the
                       table checks and the list of translated languages
