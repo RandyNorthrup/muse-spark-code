@@ -3000,5 +3000,16 @@
     "many": "Dalších {count} řádku",
     "other": "Dalších {count} řádků"
   },
-  "reportCliUsage": "Vytvořit deterministickou zprávu z pojmenovaných zdrojů bez volání modelu.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n"
+  "reportCliUsage": "Vytvořit deterministickou zprávu z pojmenovaných zdrojů bez volání modelu.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
+  "reportSourceReasons": {
+    "missing": "Zdrojový soubor nebo repozitář chybí.",
+    "invalid": "Zdroj má nepodporovaný formát nebo neplatná data.",
+    "limit": "Zdroj překračuje limit čtení sestavy.",
+    "cancelled": "Čtení zdroje bylo zrušeno nebo vypršel časový limit.",
+    "failed": "Zdroj se nepodařilo přečíst celý.",
+    "refused": "Cesta ke zdroji je soukromá nebo mimo povolenou složku.",
+    "disabled": "Tento zdroj využití agenta není zapnutý.",
+    "unbound": "Integrace tohoto zdroje zatím není dostupná.",
+    "history": "Historie vybrané relace není dostupná."
+  }
 }

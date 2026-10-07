@@ -2903,5 +2903,16 @@
     "other": "{count} lignes de plus",
     "many": "{count} lignes de plus"
   },
-  "reportCliUsage": "Générer un rapport déterministe à partir de sources nommées, sans appel à un modèle.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n"
+  "reportCliUsage": "Générer un rapport déterministe à partir de sources nommées, sans appel à un modèle.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
+  "reportSourceReasons": {
+    "missing": "Le fichier source ou le dépôt est absent.",
+    "invalid": "La source a un format non pris en charge ou des données invalides.",
+    "limit": "La source dépasse la limite de lecture du rapport.",
+    "cancelled": "La lecture de la source a été annulée ou a dépassé le délai.",
+    "failed": "La source n’a pas pu être lue entièrement.",
+    "refused": "Le chemin de la source est privé ou hors du dossier autorisé.",
+    "disabled": "Cette source d’utilisation de l’agent n’est pas activée.",
+    "unbound": "L’intégration de cette source n’est pas encore disponible.",
+    "history": "L’historique de la session sélectionnée n’est pas disponible."
+  }
 }

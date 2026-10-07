@@ -2709,5 +2709,16 @@
   "reportRowsMore": {
     "other": "외 {count}개 행"
   },
-  "reportCliUsage": "모델을 호출하지 않고 명시된 출처에서 결정론적 보고서를 생성합니다.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n"
+  "reportCliUsage": "모델을 호출하지 않고 명시된 출처에서 결정론적 보고서를 생성합니다.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
+  "reportSourceReasons": {
+    "missing": "원본 파일 또는 저장소가 없습니다.",
+    "invalid": "원본 형식이 지원되지 않거나 데이터가 잘못되었습니다.",
+    "limit": "원본이 보고서 읽기 제한을 초과합니다.",
+    "cancelled": "원본 읽기가 취소되었거나 시간이 초과되었습니다.",
+    "failed": "원본 전체를 읽을 수 없습니다.",
+    "refused": "원본 경로가 비공개이거나 허용된 폴더 밖에 있습니다.",
+    "disabled": "이 에이전트 사용량 원본은 활성화되지 않았습니다.",
+    "unbound": "이 원본 통합은 아직 사용할 수 없습니다.",
+    "history": "선택한 세션의 기록을 사용할 수 없습니다."
+  }
 }

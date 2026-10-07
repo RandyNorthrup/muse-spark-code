@@ -1335,6 +1335,17 @@ export const EN = {
     paidSms: 'Text messages cost {price} each. Shared daily budget: {budget}.',
     generatedAsOf: 'Generated as of {asOf}',
   },
+  reportSourceReasons: {
+    missing: 'The source file or repository is missing.',
+    invalid: 'The source has an unsupported format or invalid data.',
+    limit: 'The source exceeds the report read limit.',
+    cancelled: 'The source read was cancelled or timed out.',
+    failed: 'The source could not be read completely.',
+    refused: 'The source path is private or outside its allowed folder.',
+    disabled: 'This agent usage source is not enabled.',
+    unbound: 'This source integration is not available yet.',
+    history: 'History for the selected session is unavailable.',
+  },
   reportRowsMore: forms({ one: '{count} more', other: '{count} more' }),
   reportCliUsage:
     'Generate a deterministic report from named sources, without a model call.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n',
