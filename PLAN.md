@@ -13691,6 +13691,78 @@ train, and those waiting on outside events, keep their own status lines.
     M114's lane 0; M104a and M110a0 for M111b's wiring; M110os for M111os and
     M111i.
 
+### FIXM115S — RVM115S2 repairs (2026-10-06)
+
+Fix all six P2 findings in this lane: monotonic journal fencing acquired
+through the same revision CAS as commits; lease release/takeover without
+removing a replacement owner's authority; round-robin reconciliation across
+targets with bounded attempts; isolated recovery errors that preserve due
+planning; resumable pending-copy migration including late v1 receipts and
+partial reservations; removal and its timestamp in one journal transaction.
+Strengthen the five slow cases, use default final test deadlines, and record
+each failing regression/control and byte-exact restoration in m115-s.md.
+Owning tests and scoped gates run on win11; aggregate quality stays with the
+lead. No merge, push, dependency, paid call, or guard relaxation.
+
+### REDM115S — Bounded schedule storage and reconciled delivery (2026-10-06)
+
+Implement the lead's replacement for the reviewed S lane, against D95/M115
+on `plan/m105-m107`. No storage deferral: an immutable generation plus an
+operation/byte-bounded delta journal replaces full snapshots per revision.
+Readers and writers share a recoverable heartbeat lease; activation retries
+Windows locking errors and retirement is deferred and retried without holding
+up committed work. Sealed revision slots and segmented generation activation
+fences prevent an expired writer's in-flight rename from becoming current.
+Retirement also retries orphan UUID directories whose headers were deleted
+before a remaining child failed; the held writer lease excludes live staging.
+Token-scoped heartbeats cannot overwrite a replacement owner; unchanged
+heartbeats also expire by monotonic observation during wall-clock rollback.
+Lease-file reads retry bounded transient Windows access errors too; the final
+real two-host regression observed EPERM during a concurrent lease removal.
+Separate segmented identity fences remain while the
+schedule exists plus eight days; fire audit retains at most 100 per schedule
+and 30 days. Identifier tombstones contain hashes, never historical prompts.
+Failure pausing keeps a separate bounded summary: the last three outcome
+markers and the existing counter's baseline, with the streak saturating at
+the pause threshold. Audit expiry cannot lose consecutive failures or make
+a late settlement rewrite newer chronology. These markers carry no prompts
+or paid payload and disappear with the schedule. An explicit counter edit
+replaces that baseline and clears its older outcome markers.
+Applied-marker publication has a bounded finalization queue in the current
+index (the outbox's 1024-work ceiling). A completion stays there until its
+marker is published; every poll retries at most 32. This committed evidence
+prevents replay from changing chronology or recreating expired audit when
+marker publication fails after the index commit. Retirement waits for it.
+Published completion work is removed with the next record or maintenance
+mutation, avoiding another journal transaction for every successful fire.
+Only the current trigger/zone cursor remains for each live schedule; edits
+retire the old lane without reopening its occurrence fences. Reserved object
+map identifiers are refused before any write rather than dropped by parsing.
+
+Persist ordered pending intents before delivery. Admission is idempotent by
+run id at the target, which exposes an absent/admitted/settled/uncertain ledger
+lookup. Every poll reconciles bounded outbox work, including living owners'
+failed persistence. Definitely unsent work is delivered; ambiguous dispatched
+paid work is settled with uncertainty and retained liability, never replayed.
+An uncertain target response must carry unknown cost certainty. Interrupted
+transport with target-owned admitted work retains its intent until the target
+supplies terminal accounting; it does not invent a completed failed run.
+Cursor CAS refuses a superseded time candidate before dispatch. Durable
+source-fingerprint/target-revision migration receipts reconcile raced v1
+receipts and preserve legitimate v2 authority edits; source removal still
+requires verification. Completed migration receipts leave the live index for
+a separate archive. Creation-time/id ordering is shared across pending
+batches; parallel remains an explicit fresh-conversation opt-in.
+
+Record changed internal ports, native Windows fault/handle evidence, the
+10,000-fire storage measurements and guard drills in
+`docs/certification/m115-s.md`. The redesign necessarily replaces the store
+model rather than observing common.md's per-finding patch-size heuristic.
+Run owning suites (at most three files/workers), typechecks and static/build
+gates directly on this rig; the explicit brief reserves aggregate quality
+for the lead and prohibits merges, pushes and rebases. No paid/live calls,
+dependencies, new commands or settings.
+
 ### FIXM115L0 — Freeze corrected schedule contracts (2026-10-06)
 
 Repair all six RVM115L0 P2 findings before M115's wave lanes bind the
@@ -30886,6 +30958,15 @@ before a repaired one loads (2026-09-30).
   adapter is claimed as newly shipped. HELPREF's absent catalogue/reference,
   aggregate quality and the installed editor/backend matrix remain lead
   handoffs, with no live or paid call in this rig lane.
+- **FIXM115S review scope.** All six RVM115S2 P2 findings are fixed; none
+  is deferred. Core/runtime tests do not certify U/D's durable target ledger
+  or W's shipping editor bindings and full platform quality matrix. Blocked
+  recovery diagnostics are instance-local while intents remain durable;
+  U/D/W bind the status to existing surfaces. Native lease token records and
+  generation epochs retain small, prompt-free metadata linear in acquisitions
+  and compactions. The memory benchmark excludes native lease metadata and
+  filesystem allocation/locked retirement debt. These scope limits and the
+  corrected default-deadline evidence are in `docs/certification/m115-s.md`.
 - **FIXM115L0 contract scope.** All six RVM115L0 findings are repaired;
   none is deferred. These are unshipped internal schedule contracts, not
   certification of the production scheduler, approvals, settlements or OS

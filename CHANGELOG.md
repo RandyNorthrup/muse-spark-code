@@ -188,6 +188,23 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Repair M115's internal schedule takeover fencing, target fairness, isolated
+  recovery, interrupted migration copies and atomic removal. The owning
+  regression cases use default deadlines, with a named deadline only for
+  the deliberate 10,000-fire storage workload.
+
+- Redesign M115's internal schedule storage with bounded generation journals,
+  retained identity fences, recoverable leases and a durable delivery outbox.
+  Reconciliation preserves unsent work and uncertain paid settlements, orders
+  target queues across batches, rejects superseded time candidates and
+  preserves legitimate edits during retryable migration. A bounded outcome
+  summary preserves failure pausing after audit expiry and late settlement.
+  Bounded completion work survives failed marker publication, and retirement
+  retries partially deleted generations after locked children release.
+  Lease reads retry transient Windows access errors within the existing bound.
+  Scheduled-prompts v2
+  still requires its editor and delivery bindings before shipping.
+
 - Correct M115's internal schedule contracts before implementation: stale
   whole-record updates cannot restore revoked grants, crash-receipt migration
   accepts fractional filesystem times, repeated fake approval requests remain
