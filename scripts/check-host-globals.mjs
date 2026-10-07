@@ -19,6 +19,7 @@ const HOST_BUNDLES = [
   'dist/uiTextHooks.js',
   'dist/uiTextSurfaces.js',
   'dist/extension.js',
+  'dist/devices.js',
   'dist/conversation.js',
   'dist/tab.js',
   'dist/usageService.js',

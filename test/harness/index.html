@@ -412,6 +412,131 @@
           localStorage.setItem('museSpark.chatGptPlanNotice.v1', '1')
         }
       }
+      // M100 U: synthetic, strict lane-0 messages; no sockets or model calls.
+      const deviceId = '1'.repeat(32)
+      const devicePair = '2'.repeat(32)
+      const deviceHash = '4'.repeat(64)
+      const deviceInvitation = {
+        version: 1,
+        invitationId: '5'.repeat(32),
+        deviceId,
+        certificateDerBase64: 'AAAA',
+        fingerprint: deviceHash,
+        endpoint: { address: '10.2.3.4', port: 32123 },
+        issuedAt: 1000,
+        expiresAt: 2000,
+      }
+      const deviceConfirmation = {
+        version: 1,
+        pairId: devicePair,
+        localInvitationId: deviceInvitation.invitationId,
+        peerInvitationId: '6'.repeat(32),
+        localFingerprint: deviceHash,
+        peerFingerprint: '7'.repeat(64),
+        transcriptDigest: '8'.repeat(64),
+        confirmedAt: 1500,
+        signatureBase64: 'AAAA',
+      }
+      const devicePeerInvitation = {
+        ...deviceInvitation,
+        invitationId: '6'.repeat(32),
+        fingerprint: '0123456789abcdef'.repeat(4),
+      }
+      const deviceCaps = {
+        workers: 2,
+        processes: 4,
+        heavyChecks: 1,
+        tokens: 1000,
+        spendUsd: 1,
+        artifactBytes: 1024,
+      }
+      const deviceOffer = {
+        deviceId,
+        receiverIncarnationId: '9'.repeat(32),
+        poolId: 'a'.repeat(32),
+        repositoryId: 'b'.repeat(32),
+        grantId: 'c'.repeat(32),
+        grantRevision: 1,
+        platform: 'darwin',
+        toolchainDigest: 'd'.repeat(64),
+        lanes: true,
+        checks: true,
+        caps: deviceCaps,
+        checkIds: ['e'.repeat(32)],
+        entries: [
+          {
+            entryId: 'f'.repeat(32),
+            roleId: '3'.repeat(32),
+            model: { providerId: 'local', modelId: 'qualified-model' },
+            capabilities: {
+              vision: false,
+              tools: true,
+              structuredOutput: true,
+              hostedSearch: false,
+              reasoningEffort: false,
+            },
+            readiness: 'ready',
+            payer: 'local',
+            caps: deviceCaps,
+          },
+        ],
+      }
+      let deviceRevision = 0
+      const deviceFixture = (name) => {
+        const status = name.includes('uncertain')
+          ? 'uncertain'
+          : name.includes('blocked')
+            ? 'blocked-or-unreachable'
+            : name.includes('incompatible')
+              ? 'incompatible'
+              : name.includes('offline')
+                ? 'offline'
+                : name.includes('paused')
+                  ? 'paused'
+                  : 'connected'
+        return {
+          type: 'deviceState',
+          revision: ++deviceRevision,
+          state:
+            name === 'devices-off'
+              ? { enabled: false }
+              : {
+                  enabled: true,
+                  discoveryEnabled: false,
+                  devices: [
+                    {
+                      deviceId,
+                      pairId: devicePair,
+                      label: 'Mac receiver',
+                      fingerprint: deviceHash,
+                      endpoint: deviceInvitation.endpoint,
+                      status,
+                      lastObservedAt: 1000,
+                      waitingApprovals: name.includes('waiting') ? 1 : 0,
+                      unresolvedAttempts: status === 'connected' ? 0 : 1,
+                      retainedLiabilityUsd: status === 'connected' ? 0 : 1,
+                      offers: [deviceOffer],
+                    },
+                  ],
+                },
+        }
+      }
+      const deviceReply = (message) => {
+        const response = deviceFixture(scenarioName)
+        response.setup = {
+          viewId: message.viewId,
+          requestId: message.requestId,
+          listenerApplication: 'Editor host',
+          interfaceLabel: 'LAN en0',
+        }
+        if (scenarioName.includes('blocked')) response.setup.failure = 'blocked-or-unreachable'
+        if (message.action.kind === 'pair') response.setup.invitation = deviceInvitation
+        if (message.action.kind === 'importInvitation')
+          response.setup.invitation = devicePeerInvitation
+        if (message.action.kind === 'confirmFingerprint')
+          response.setup.confirmation = deviceConfirmation
+        send(response)
+      }
       // M25: the conversation a panel saved in VS Code's webview state before
       // the crash screen's Reload, as the webview's own snapshot writes it.
       const restoredState = {
@@ -553,6 +678,10 @@
               if (message.action === 'chatConfirm') value = 'shared'
               // kept-timing: the fake host replies asynchronously to the sharing request.
               later(0, () => send({ type: 'sharingResult', id: message.id, value }))
+              break
+            }
+            case 'deviceRequest': {
+              deviceReply(message)
               break
             }
             case 'hostAction': {
@@ -1294,6 +1423,11 @@
           'copilot-plan-narrow',
         ].includes(surfaceScenario)
       ) {
+        document.documentElement.style.width = '100%'
+        document.body.style.width = '100%'
+      }
+      if (new URLSearchParams(location.search).get('scenario')?.startsWith('devices-')) {
+        document.body.dataset.surface = 'devices'
         document.documentElement.style.width = '100%'
         document.body.style.width = '100%'
       }
@@ -6006,6 +6140,68 @@
           })
         },
       }
+      const deviceScenes = [
+        'devices-off',
+        'devices-pairing',
+        'devices-pairing-narrow',
+        'devices-connected',
+        'devices-waiting',
+        'devices-uncertain-narrow',
+        'devices-blocked-narrow',
+        'devices-unlink-narrow',
+        'devices-caps-narrow',
+        'devices-incompatible',
+        'devices-offline-narrow',
+        'devices-paused-narrow',
+      ]
+      for (const name of deviceScenes) {
+        steps[name] = () => {
+          const message = deviceFixture(name)
+          send(message)
+          const checkWidth = () => {
+            if (
+              name.endsWith('-narrow') &&
+              document.documentElement.scrollWidth > window.innerWidth
+            )
+              throw new Error('Devices overflow at 320px')
+            for (const row of document.querySelectorAll('.device-decisions')) {
+              const buttons = [...row.querySelectorAll(':scope > button')]
+              if (buttons.length !== 2) throw new Error('Decision row must have two buttons')
+              const [first, second] = buttons.map((button) => button.getBoundingClientRect())
+              if (Math.abs(first.width - second.width) > 1 || first.top !== second.top)
+                throw new Error('Decision buttons must share a row and equal widths')
+            }
+            document.querySelector('.devices-view').dataset.devicesReady = 'true'
+          }
+          if (name === 'devices-off') {
+            checkWidth()
+            return
+          }
+          whenFound('.device-card', () => {
+            if (name.startsWith('devices-pairing')) {
+              document.querySelector('.device-pairing button').click()
+              whenFound('.device-public-text textarea', () => {
+                const form = document.querySelector('.device-pairing form')
+                setValue(
+                  form.querySelector('textarea'),
+                  HTMLTextAreaElement.prototype,
+                  JSON.stringify(devicePeerInvitation),
+                )
+                form.querySelector('button[type="submit"]').click()
+                whenFound('.device-comparison', checkWidth)
+              })
+            } else if (name === 'devices-blocked-narrow') {
+              document.querySelector('.device-card form button[type="submit"]').click()
+              whenFound('.devices-view [role="alert"]', checkWidth)
+            } else if (name === 'devices-unlink-narrow') {
+              document.querySelector('.device-actions button:last-child').click()
+              whenFound('.device-unlink', checkWidth)
+            } else {
+              checkWidth()
+            }
+          })
+        }
+      }
       for (const name of [
         'questions-waiting',
         'questions-open',
@@ -6289,6 +6485,9 @@
               animation.playState === 'running' &&
               animation.effect?.getComputedTiming().endTime !== Infinity,
           )
+      for (const name of deviceScenes) {
+        SCENARIO_READY[name] = () => document.querySelector('[data-devices-ready]') !== null
+      }
       const whenReady = async (name) => {
         const deadline = performance.now() + READY_TIMEOUT_MS
         const byDeadline = (promise) =>

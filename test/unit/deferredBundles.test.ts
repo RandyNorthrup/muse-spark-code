@@ -89,6 +89,7 @@ beforeAll(async () => {
       imageResizeWorker: 'src/core/imageResizeWorker.ts',
       extension: 'src/extension.ts',
       conversation: 'src/host/conversation/conversationEntry.ts',
+      devices: 'src/host/devices/deviceEntry.ts',
       modelApi: 'src/host/backend/modelApiEntry.ts',
       providers: 'src/host/backend/providersEntry.ts',
       subscriptions: 'src/host/backend/subscriptionsEntry.ts',
@@ -307,6 +308,10 @@ function runLegalGate(name: string) {
       'dist/webview/usage-body.js': {
         imports: [],
         entryPoint: 'src/webview/usage/UsageApp.tsx',
+      },
+      'dist/webview/devices-body.js': {
+        imports: [],
+        entryPoint: 'src/webview/models/sections/agents/DevicesApp.tsx',
       },
     },
   }
@@ -582,6 +587,11 @@ describe('deferred cohort bundles', () => {
     expect(loaded).not.toContain('./conversation.js')
   })
 
+  it('keeps the Devices panel boundary independent of provider and team validators', () => {
+    expect(inputs('devices')).not.toContain('src/shared/modelsPanel.ts')
+    expect(inputs('devices')).toContain('src/shared/devicesPanel.ts')
+  })
+
   it('keeps the conversation implementation behind its first-surface factory', () => {
     for (const file of [
       'src/host/conversation/conversationEntry.ts',
@@ -648,7 +658,7 @@ describe('deferred cohort bundles', () => {
     }
     expect(createHash('sha256').update(readFileSync(file)).digest('hex')).toBe(hash)
     const green = runLegalGate('check-bundle-size')
-    expect(green.status, green.stderr).toBe(0)
+    expect(green.status, `${green.stdout}\n${green.stderr}`).toBe(0)
   })
 
   it('fires the legal scanner host-global guard and restores the artifact byte-exact', () => {
@@ -665,7 +675,7 @@ describe('deferred cohort bundles', () => {
     }
     expect(createHash('sha256').update(readFileSync(file)).digest('hex')).toBe(hash)
     const green = runLegalGate('check-host-globals')
-    expect(green.status, green.stderr).toBe(0)
+    expect(green.status, `${green.stdout}\n${green.stderr}`).toBe(0)
   })
 
   it('keeps board and best-of-N execution out of activation', () => {
@@ -852,6 +862,9 @@ describe('deferred cohort bundles', () => {
       'on the first ACP question, elicitation or question command',
     ],
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
+    ['extension', 'src/host/devices/deviceReceiver.ts', 'on an explicit Devices method'],
+    ['modelApi', 'src/core/devices/pairing.ts', 'on an explicit Devices method'],
+    ['acp', 'src/host/devices/deviceTransport.ts', 'on an explicit Devices method'],
     ['extension', 'src/host/conversation/conversationController.ts', 'on the first chat surface'],
     ['acp', 'src/host/support/recorderEntry.ts', 'from the recorder bundle'],
     ['acp', 'src/host/support/reportJournal.ts', 'from the recorder bundle'],

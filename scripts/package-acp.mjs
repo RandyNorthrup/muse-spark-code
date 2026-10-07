@@ -36,6 +36,8 @@ const BUNDLES = [
   'acp.js',
   'headless.js',
   'sharingRuntime.js',
+  // Lazy shared method factory; receiver qualification still refuses headless hosts.
+  'devices.js',
   'acpQuestions.js',
   'runtimeQuestions.js',
   'questionNotes.js',

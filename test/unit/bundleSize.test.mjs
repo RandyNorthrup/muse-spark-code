@@ -191,6 +191,7 @@ describe('bundled What’s New content budget', () => {
     ['provider usage', 25, 'src/webview/components/ProviderUsageSection.tsx'],
     ['paid usage', 25, 'src/webview/components/PaidUsageSection.tsx'],
     ['team UI', 25, 'src/webview/components/TeamUi.tsx'],
+    ['Devices', 50, 'src/webview/models/sections/agents/DevicesApp.tsx'],
     ['SignIn', 25, 'src/webview/components/SignIn.tsx'],
     ['GoalPanel', 25, 'src/webview/components/GoalPanel.tsx'],
     ['SchedulePanel', 25, 'src/webview/components/SchedulePanel.tsx'],

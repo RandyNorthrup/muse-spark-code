@@ -2944,6 +2944,7 @@ These are defaults; editor customizations take precedence.
 - `elicitation`: `Escape`; when `elicitation`; Cancel
 - `deferred.close`: `Escape`; when `deferred.close`; Close the dialog or move focus within it.
 - `bestOfN.close`: `Escape`; when `bestOfN.close`; Close the dialog or move focus within it.
+- `devices.unlink`: `Escape`; when `devices.unlink`; Close the dialog or move focus within it.
 
 ## ACP / CLI commands
 

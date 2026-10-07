@@ -3995,6 +3995,37 @@ stopped and the next message resumes the same session.
 
 ## Privacy and security
 
+### Paired Devices integration in development
+
+Devices is off by default and remains unshipped. The joined implementation has
+public text invitations, bilateral full fingerprint comparison, pinned mutual
+TLS and a durable receiver behind the same method port for editor integrations.
+Opening a view does not start a listener, discovery, model or remote task.
+There is no installed Devices command or setting on this base. See the
+[feature inventory](docs/devices-reference.md) and
+[integration certification](docs/certification/m100.md).
+
+The integration caller must provide local execution and approval authorities.
+A peer receives no credentials, provider settings, consent, remembered approval
+or merge authority. Offers and grants are receiver-local; pairing alone offers
+no work. Pause offers is not a physical Stop. Cancellation starts before journal
+access, and channel corruption starts Stop before reporting, while occupancy and
+spending liability remain held until durable retirement is proved.
+
+QR rendering, mDNS runtime binding, the M95/M96 execution owners, board and Git
+result adapters, native Windows storage protection and concrete printer/CNC/MCU
+action controls remain prerequisites. Generic software simulator receipts do not
+qualify physical hardware or unattended operation. Remote/headless receivers are
+refused. Any later listener setup must name its application, selected interface,
+port and local firewall exposure. A failed route is reported as blocked or
+unavailable; a timeout alone does not identify the firewall as the cause.
+
+The fake-only shared UI keyboard check is `node scripts/devices-keyboard.mjs`.
+Set `CHROME_PATH` to the installed Chrome's absolute path if the launcher name
+is not resolved on your platform.
+Generate the help inventory with `node scripts/gen-reference.mjs`; verify it with
+`npm run check:reference`.
+
 - Model-run shell commands and native helpers do not inherit credential
   variables (`*_TOKEN`, `*_SECRET`, `*_PASSWORD`, `*_PASSPHRASE`, `*_API_KEY`,
   `*_ACCESS_KEY`, `*_PRIVATE_KEY`, `*_SECRET_KEY`, `*_CREDENTIALS`, `*_AUTH`,

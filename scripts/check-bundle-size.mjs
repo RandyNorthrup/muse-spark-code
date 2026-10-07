@@ -25,6 +25,8 @@ const BUDGETS = [
   { path: 'dist/runtimeQuestions.js', budgetKiB: 25 },
   { path: 'dist/questionNotes.js', budgetKiB: 25 },
   { path: 'dist/extension.js', budgetKiB: 600 },
+  // M100: measured 74.8 KiB + 15%, rounded to the next 25 KiB (D6).
+  { path: 'dist/devices.js', budgetKiB: 100 },
   // ACTDIET: first chat surface; 216.0 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/conversation.js', budgetKiB: 250 },
   // M94: provider, engine and ledger on first Tab use (PLAN.md D6).

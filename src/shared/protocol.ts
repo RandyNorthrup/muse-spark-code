@@ -53,6 +53,9 @@ import {
   pullRequestFormSchema,
 } from './git'
 import { judgeStatusSchema } from './judge'
+// Devices is a separate lazy panel route. Type exports do not load its schemas
+// into ordinary chat or the Node wire bundle (M100 acceptance J).
+export type { DeviceHostMessage, DeviceWebviewRequest, DevicesPanelPort } from './devicesPanel'
 import { paidStateSchema } from './paid'
 import { patchHunkSchema } from './patchDocument'
 import { reviewRequestSchema } from './reviewCommand'

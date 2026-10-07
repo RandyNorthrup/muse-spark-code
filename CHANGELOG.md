@@ -92,6 +92,76 @@ happened, not what was planned; superseded entries are kept.
 - Provider-specific retry-table binding remains pending for non-Meta transports;
   the shared retry classifier does not certify endpoint quota refusal.
 
+### Added
+
+- Join the unshipped Devices pairing, pinned TLS channel and durable receiver
+  behind an editor-neutral lazy method port. Its callers must supply actual local
+  storage, execution, approval and snapshot authorities. No installed Devices
+  command, physical adapter or unattended receiver is registered by this change.
+- Add the generated Devices help inventory and its stale-reference gate.
+- Define the unshipped Devices phase-2 contracts every later lane codes
+  against: versioned channel, capability, grant and result envelopes with
+  byte/queue caps and strict zod parsing, pacing helpers (at most 3 pending
+  handshakes, backoff capped at 10 minutes, one failed authentication stops),
+  owner-bound grants with device-answered step-up, typed refusals and result
+  acknowledgements, plus injected channel/capability/grant/result ports with
+  fakes. Phase-2 model guidance rides the declared lazy reader; seven status
+  strings ship in all 14 tables. Register G29–G31 first and add the
+  phase-2 threat model with the D101 reconcile note.
+
+### Fixed
+
+- Enforce the unshipped Devices phase-2 contracts from the shared contract
+  alone: the capability schema refuses advertisements past the byte cap,
+  owner/grant/result-ack queue caps ship as callable guards, a grant ceiling
+  check refuses widened grants with typed `scope-denied`, the handshake
+  backoff jitters from an injected source within a stated bound, and result
+  acknowledgements bind to their epoch. The threat model names each threat
+  with its owning lane and planned test.
+- Keep the unshipped Devices panel validators in their own shared module so
+  provider/team schemas retain independent lazy bundles within existing caps.
+- Coalesce unshipped Devices background snapshots to one running and one pending
+  capture. Data frames retain the channel's capacity backpressure while Stop
+  stays independent; a flood cannot build an unlimited snapshot queue.
+- The Devices reset-Stop test awaits cancellation's complete journal writes
+  before removing its fixture, including when an assertion fails.
+- Carry Devices view/request correlation through pairing replies and return the
+  imported public invitation for the full fingerprint comparison. Serialize
+  complete snapshots with a host-owned revision that increases across off states
+  and replies; abort drops UI data without cancelling durable work. The keyboard
+  pairing regression now waits for the focus effect without a fixed sleep.
+- The fake-only Devices keyboard check uses the platform's Select All modifier,
+  so confirmation import and cap editing work on Linux and Windows too.
+- Register the measured Devices browser closure and separate lazy Node bundle,
+  preserving the existing startup and deferred caps. Bind authenticated channel
+  resets to receiver Stop before reporting or snapshot work.
+
+- The unshipped paired-device receiver cancels live attempts before consulting
+  its journal, including after a failed flush, corruption or file loss. Full
+  attempt identity stays bound to the live lease; unavailable cancellation
+  evidence is reported and occupancy remains held until durable retirement.
+- Authenticated device cancellation has a fixed reserved decoder capacity
+  that data cannot consume. Stop reaches its priority path even with 31 queued
+  data frames and data overflow before or after Stop in the same chunk; each
+  excess data frame gets its own capacity refusal. Corrupt framing resets the
+  channel and starts local Stop for every live or pending attempt on that pair
+  before reporting, retaining occupancy and spending liabilities. A pending approval or start
+  confirmation cannot delay Stop. Cancellation identities survive queued
+  dispatch, identical retry, compaction and journal reopen; late cancellation
+  confirmations cannot reblock a durably retired receiver.
+- M100 queues receiver grants with pairing actions and preserves a later Pause
+  across pending secret reads and writes; stale grants cannot resume the pair.
+- M100's device store keeps expected pairing/grant policy refusals distinct
+  from persistence failures, preserving unrelated pairs after stale requests.
+- M100's pairing/storage test fixtures create and clean their own OS temporary
+  directories, so a clean worktree does not need an ignored `temp/` directory.
+
+- Harden the unshipped paired-device transport: listener startup settles on
+  unlink, close or its startup deadline, and a stale listener disposer cannot
+  close a replacement listener or its connections. Setup and incomplete-frame
+  deadlines check monotonic and wall clocks at progress transitions, including
+  backwards wall jumps and delayed timer callbacks. Frame reassembly copies
+  once per completed frame and refuses more than 4,096 fragments.
 ## [0.15.0] - 2026-10-06
 
 ### Highlights

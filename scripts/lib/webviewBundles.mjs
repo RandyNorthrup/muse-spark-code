@@ -130,6 +130,11 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     budgetKiB: 25,
   },
   {
+    name: 'Devices',
+    entries: ['src/webview/models/sections/agents/DevicesApp.tsx'],
+    budgetKiB: 50,
+  },
+  {
     name: 'code highlighting',
     entries: ['src/webview/components/HighlightedCode.tsx'],
     budgetKiB: 125,

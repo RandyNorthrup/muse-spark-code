@@ -101,6 +101,8 @@ const isWatch = args.has('--watch')
 
 const HOST_ENTRY = 'src/extension.ts'
 const HOST_OUTFILE = 'dist/extension.js'
+const DEVICES_ENTRY = 'src/host/devices/deviceEntry.ts'
+const DEVICES_OUTFILE = 'dist/devices.js'
 const CONVERSATION_ENTRY = 'src/host/conversation/conversationEntry.ts'
 const CONVERSATION_OUTFILE = 'dist/conversation.js'
 // One immutable English fallback shared by Node bundles; each keeps its own
@@ -328,6 +330,14 @@ const subscriptionsOptions = {
   outfile: SUBSCRIPTIONS_OUTFILE,
 }
 
+/** @type {import('esbuild').BuildOptions} */
+const devicesOptions = {
+  ...modelApiOptions,
+  entryPoints: [DEVICES_ENTRY],
+  outfile: DEVICES_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const sessionBoardOptions = {
   ...modelApiOptions,
   entryPoints: [SESSION_BOARD_ENTRY],
@@ -839,6 +849,7 @@ if (isWatch) {
   const contexts = await Promise.all([
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
+    esbuild.context(devicesOptions),
     esbuild.context(tabOptions),
     esbuild.context(promptsOptions),
     esbuild.context(sharingRuntimeOptions),
@@ -931,6 +942,7 @@ if (isWatch) {
     }),
     extension: esbuild.build(hostOptions),
     conversation: esbuild.build(conversationOptions),
+    devices: esbuild.build(devicesOptions),
     tab: esbuild.build(tabOptions),
     prompts: esbuild.build(promptsOptions),
     sharingRuntime: esbuild.build(sharingRuntimeOptions),
@@ -1047,6 +1059,7 @@ if (isWatch) {
   reportSize(ACP_QUESTIONS_OUTFILE)
   reportSize(HOST_OUTFILE)
   reportSize(CONVERSATION_OUTFILE)
+  reportSize(DEVICES_OUTFILE)
   reportSize(TAB_OUTFILE)
   reportSize(PROMPTS_OUTFILE)
   reportSize(SHARING_RUNTIME_OUTFILE)

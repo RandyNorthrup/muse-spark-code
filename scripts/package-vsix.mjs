@@ -48,6 +48,7 @@ export async function stageVsix(root, stage) {
       if (!files.includes(file)) throw new Error(`Webview output excluded from VSIX: ${file}`)
     }
   }
+  if (!files.includes('dist/devices.js')) throw new Error('Lazy Devices runtime excluded from VSIX')
   if (!files.includes('dist/validation.js'))
     throw new Error('Shared validation runtime excluded from VSIX')
   rmSync(stage, { recursive: true, force: true })
