@@ -1,10 +1,6 @@
 # Playbook chapter: placement, load balancing and moving work
 
-> Note: the shipped orchestrator playbook skill (M116) will adopt this
-> chapter in M116's follow-up. Until then it lives here as the recorded
-> source of truth.
-
-Recorded 2026-10-06 from running up to 37 agent lanes on six machines with several agent engines. Owner directives:
+Source: the lead's experience on 2026-10-06, running up to 37 agent lanes on six machines with several agent engines. Owner directives:
 
 - "all of the knowing when to move stuff around and load balancing what leg of a project is on which device ... including load balancing based on an agents speed" goes into the playbook in a meaningful way;
 - "the playbook should be orchestration details and things and should be model agnostic".
@@ -159,6 +155,43 @@ Each lesson here cost real time on 2026-10-06. The playbook skill carries them a
     - _What happened:_ two integration lanes exited cleanly at their step budget. They had files edited after their last commit, and their own final messages said "incomplete". A watcher that read only the exit code reported them finished.
     - _Rule:_ a lane is done only when its worktree is clean, its final status lists every brief step as done, and its branch head moved. Otherwise it is **stopped, incomplete**. It is continued in place from its commits and uncommitted work, with the original brief plus a continuation header, never restarted.
     - _Control:_ M96c completion check (clean tree + status parse + head moved) before a lane can be marked done or handed to review (G36).
+
+11. **Urgency does not shorten the checklist.**
+    - _What happened:_ a hotfix skipped the release-prep checklist to ship faster. CI failed on two items the checklist covers: a stale contents anchor and a duplicated test helper. Then four automated review threads blocked the merge. The shortcut cost two extra CI rounds, about an hour.
+    - _Rule:_ a hotfix runs the same release-prep checks as any release. Only the scope is smaller. Automated review threads are read and fixed in the same pass, before the CI run that is meant to ship.
+    - _Control:_ M116 release charter; the release leg refuses to open the PR until the prep checks pass (G45).
+
+12. **Certify the way the gate runs.**
+    - _What happened:_ a release integration reported the full suite green on a worker that still had build outputs from earlier runs and fast hardware. Hosted CI ran clean checkouts on slower runners: 23 jobs failed. Tests read missing build outputs, depended on a commit that existed only on a worker, timed out at the default deadline, or hit a platform path rule.
+    - _Rule:_ a release leg verifies from a clean tree (untracked outputs removed, dependencies freshly installed), with CI's environment and default deadlines. At least one run happens on the slowest supported platform. A worker's green result is labelled "worker-certified", never "CI-equivalent", unless it ran this way.
+    - _Control:_ M96c verification step template (clean, CI env, default deadlines); M116 release charter; gotchas G28, G43.
+
+13. **Open the release candidate early.**
+    - _What happened:_ the release's hosted checks and automated reviewer saw the integrated train only when its PR opened, at the end. The reviewer found two P1s there, including the headline feature unusable (every provider add refused), after every lane had passed its own review.
+    - _Rule:_ the moment an integration branch exists, open it as a draft PR, so hosted CI and the automated reviewer run on every integration step. Lane reviews check lanes; only a whole-train review catches cross-lane breakage.
+    - _Control:_ M116 release charter (draft PR at integration start); M96c merge queue (G44).
+
+14. **Stopped runs leave orphans.**
+    - _What happened:_ lanes stopped mid-test left test fixtures running for up to a day. These were processes built to ignore SIGTERM, one of them in a busy loop at half a core. Nothing noticed until a machine's load alarm, which first looked like the active lane's fault.
+    - _Rule:_ stopping a run kills its whole process tree (process group or job object), not just the top process. The device watcher sweeps orphans whose start time matches no live run, then reports and kills them. Test fixtures that spawn detached processes register their own teardown.
+    - _Control:_ M107 governor orphan sweep; M100/M110 job objects or process groups per run; gotcha register row G38.
+
+15. **Finished work must never wait on the orchestrator.**
+    - _What happened:_ ten finished integration lanes sat unprocessed for 5–9 hours, one of them blocked by a single lint error, while the orchestrator focused on one release's CI. The completion watcher reported events once. Busy turns missed them, and nothing re-surfaced them. Three releases stalled behind them.
+    - _Rule:_ the orchestrator keeps a completion ledger: every lane is running, done-unprocessed (with its age) or processed. Any done-unprocessed lane older than 15 minutes is an alarm at the top of every status. Each status pass reconciles the ledger against every machine directly, never only against event notifications.
+    - _Control:_ M96c board "waiting on me" column with ages; M117 bottleneck card; G39.
+16. **Pull committed work from long critical-path lanes on a cadence.**
+    - _What happened:_ a release's last CI-repair lane ran 3.5 hours. Its fixes were committed early, but the release waited for its final report.
+    - _Rule:_ for a lane on the critical path, the orchestrator integrates its committed commits at least hourly and starts the gate on them. The lane keeps working and its later commits integrate the same way.
+    - _Control:_ M96c merge queue takes committed lane heads on a timer for critical-path lanes; G40.
+17. **Concurrent lanes own disjoint files, including tests.**
+    - _What happened:_ three parallel CI-repair lanes, split by platform, each rewrote the same two test files differently. Every merge needed a manual choice.
+    - _Rule:_ when work is split by symptom or platform, the orchestrator assigns each FILE to exactly one lane before launch. A lane that needs another lane's file sends a request instead of editing. Ownership is checked at merge.
+    - _Control:_ M96c file-ownership map with a merge-time check; G41.
+18. **Releases are pipelined, not serialized.**
+    - _What happened:_ four planned releases ran strictly one after another, so a slow first release blocked the other three entirely.
+    - _Rule:_ as soon as release N has a candidate branch, release N+1's integration starts on top of that candidate, and N+2's milestones pre-integrate in parallel. Each later merge then picks up only N's last fixes.
+    - _Control:_ M116 release charter; M96c stacked integration branches with draft PRs; G42.
 
 ## What each component implements
 

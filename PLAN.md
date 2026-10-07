@@ -12822,6 +12822,29 @@ test that fails without the rule:
 8. **M117 (estimator):** G4 base age as a schedule risk; G34 the measured
    per-engine profile (with a failed smoke probe removing that engine from
    the machine) feeding placement.
+9. **M96c (scheduler and merge queue, 2026-10-07):** G39 a completion ledger
+   (running, done-unprocessed with its age, processed) with an alarm on any
+   done-unprocessed lane older than 15 minutes (test
+   `doneUnprocessedAlarmsAtFifteenMinutes`); G40 committed heads of
+   critical-path lanes integrated on at least an hourly cadence (test
+   `criticalPathPullsCommittedHeads`); G41 one owning lane per file before
+   launch, checked at merge (test `fileOwnershipCheckedAtMerge`); G46
+   reviewer inputs inside the workspace or inlined, and no verdict means
+   re-dispatch (tests `reviewerInputInsideWorkspace`, `noVerdictRedispatches`).
+10. **M107 (governor, 2026-10-07):** G38 stopping a run kills its whole
+    process tree, with a device-watcher sweep for orphans whose start time
+    matches no live run (test `orphanSweepKillsStaleTree`); M100 and M110
+    bind the same rule through process groups or job objects per run.
+11. **M116 (playbook, 2026-10-07):** G42 pipelined, stacked release
+    integration with early draft PRs (test `releasesPipelineOnCandidate`);
+    G43 a worker green labelled worker-certified unless verified from a
+    clean tree with CI's environment on the slowest platform (test
+    `workerGreenIsNotCiEquivalent`); G44 a draft PR opened when integration
+    starts (test `draftPrAtIntegrationStart`); G45 hotfixes run the full
+    prep checks (test `hotfixRunsFullPrepChecks`); G46 with M96c.
+12. **M117 (estimator, 2026-10-07):** G39 a bottleneck card for
+    done-unprocessed lanes with their ages (test
+    `bottleneckCardShowsUnprocessedAges`).
 
 Rows marked **covered** keep their existing decision as the owner: D87.14,
 D90.25, D96, D88 and D97.
