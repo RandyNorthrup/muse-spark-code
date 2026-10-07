@@ -2564,6 +2564,7 @@
     "recordingAttach": "附加",
     "recordingDiscard": "丢弃",
     "recordingPermissionDenied": "屏幕录制权限被拒绝。请在系统设置中允许，然后重试。",
+    "recordingAccessDenied": "访问屏幕录制被拒绝。请检查权限后重试。",
     "recordingOpenPermissions": "打开屏幕录制设置",
     "recordingUnavailable": "屏幕录制不可用：{reason}",
     "recordingRemote": "此窗口在没有本地屏幕的远程主机上运行。请使用配套页面或选择录制文件。",

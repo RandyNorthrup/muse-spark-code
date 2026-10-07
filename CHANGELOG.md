@@ -50,6 +50,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Windows screen-recording preparation now observes host shutdown before
+  asynchronous work, and private-preview deletion retries temporary locks
+  with a bound while allowing later cleanup to retry an exhausted failure.
+- The Windows recorder helper now preserves concurrent cancellation, cancels
+  pending transcoder preparation, and watches its owner during capture and
+  latest-file import. File access denial has its own translated refusal.
+
 - The macOS screen-recorder implementation keeps size and duration bounds
   active through conversion, verifies the installed helper and its pinned
   signature before each launch, and finalizes on sleep. Its read-only probe

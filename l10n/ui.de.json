@@ -2661,6 +2661,7 @@
     "recordingAttach": "Anhängen",
     "recordingDiscard": "Verwerfen",
     "recordingPermissionDenied": "Die Bildschirmaufnahme wurde nicht erlaubt. Erlaube sie in den Systemeinstellungen und versuche es erneut.",
+    "recordingAccessDenied": "Der Zugriff auf die Bildschirmaufnahme wurde verweigert. Prüfen Sie die Berechtigungen und versuchen Sie es erneut.",
     "recordingOpenPermissions": "Einstellungen für Bildschirmaufnahme öffnen",
     "recordingUnavailable": "Bildschirmaufnahme nicht verfügbar: {reason}",
     "recordingRemote": "Dieses Fenster läuft auf einem entfernten Host ohne lokalen Bildschirm. Verwende die Begleitseite oder wähle eine Aufnahmedatei.",

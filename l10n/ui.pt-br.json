@@ -2758,6 +2758,7 @@
     "recordingAttach": "Anexar",
     "recordingDiscard": "Descartar",
     "recordingPermissionDenied": "A permissão para gravar a tela foi negada. Permita nas configurações do sistema e tente novamente.",
+    "recordingAccessDenied": "O acesso à gravação de tela foi negado. Verifique as permissões e tente novamente.",
     "recordingOpenPermissions": "Abrir configurações de gravação de tela",
     "recordingUnavailable": "Gravação de tela indisponível: {reason}",
     "recordingRemote": "Esta janela é executada em um host remoto sem tela local. Use a página complementar ou escolha um arquivo de gravação.",

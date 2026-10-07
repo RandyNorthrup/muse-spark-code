@@ -25311,6 +25311,16 @@ regression and byte-exact restored red drill in
 dependency, model call, guard widening, merge or push. Full quality belongs
 to the integrating lead under the lane rules; this rig runs owned checks.
 
+**R2 review corrections (RVM105R2, 2026-10-06).** Fix all six Windows
+findings in the owned helper/driver: atomic Stop/Cancel state, cancellation
+of every pending WinRT preparation operation, enforced native owner-PID
+lifetime for capture and latest import, shutdown admission before async
+driver preparation, bounded retryable private-preview deletion, and a
+translated file-access-denied refusal. Each gets a regression and a
+byte-exact red drill in `docs/certification/m105-r2-windows-recorder-(c).md`.
+No live/paid capture is authorized; this VM's direct capture stays explicitly
+unavailable, with the working-desktop/encoder receipt owed to the lead.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §2. The work lands in four
 deliveries, in order:
@@ -29779,6 +29789,16 @@ The pre-existing generated host API record drift from R1's four Node imports
 remains W-owned; refresh it at integration, without weakening the gate.
 See `docs/certification/m105-r1-macos-recorder-(c).md` for exact receipts.
 
+**M105 R2 review-fix gate delegation (2026-10-06).** The lane brief and
+shared common rules prohibit aggregate `npm run quality` on this shared rig.
+Run the complete owned test files at the repository timeout, changed-file
+lint/format, typecheck, localization, deadcode, duplication, host API and
+production build directly on Win11. The lead owes full quality/coverage and
+the hosted matrix before integration; no gate or cap is weakened.
+The unchanged W-owned host API record still fails its previously recorded
+`node:path` importer count (84 → 85); portable-boundary checks pass. W must
+regenerate/review that record with the integrated recorder factory.
+
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
 scoped tests. Typecheck, changed-file lint/format, localization (source and staged),
@@ -31198,6 +31218,36 @@ before a repaired one loads (2026-09-30).
   until the named live/editor/package receipts pass. Follow-up: W completes
   the live cases in `docs/certification/m105-r1-macos-recorder-(c).md` on
   authorized rigs without changing this rig's privacy settings.
+
+- **M105-R2-direct-runtime-receipt (RVM105R2 / 6).** The pending-operation
+  cancellation gap is fixed and exercised with fake pending WinRT operations.
+  A genuinely hung encoder, direct H.264/AAC recording, sound synchronization,
+  native Stop/close/suspend and permission recovery still lack working-desktop
+  receipts; this VM has no WGC. Safe for this unmerged lane because direct
+  recording is explicitly unavailable here and is not certified or advertised.
+  Follow-up: lead runs the generated encoder smoke and M105 acceptance 14 on
+  GPU hardware before enabling direct capture.
+- **M105-R2-forced-exit-preview.** Owner death cancels the helper and an
+  independent native watchdog forces exit if work does not settle within two
+  seconds. Cooperative latest-copy cancellation deletes its partial preview.
+  A forced exit or a persistent filesystem lock can leave a private preview;
+  bounded driver cleanup reports exhaustion and later calls can retry. Safe
+  for now: the protected owner-only DACL remains, nothing attaches/uploads
+  automatically, and the helper cannot keep running after owner death.
+  Follow-up W/E1/E2: bind confined removal and orphan-preview purge and prove
+  them with a crash/locked-file integration receipt before claiming support.
+- **M105-R2-latest-provenance.** Latest import uses the file's modification
+  time, as the existing contract does; a refreshed old file can win over a
+  newer recording. Folder membership and age do not prove capture provenance.
+  Safe for now: the copied file is sniffed, bounded and previewed, and only
+  explicit Attach sends it. Follow-up: lead settles the timestamp policy and
+  keeps the UI's provenance claim limited to a recent file in that folder.
+- **M105-R2-host-api-record.** The existing generated host record still has
+  84 `node:path` importers while the source has 85, as recorded before RVM105R2.
+  Safe only as an unmerged lane: the unchanged gate continues to reject the
+  stale record, and the portable driver has no `vscode` dependency. Follow-up
+  W: regenerate/review the owned record at integration; do not call full
+  quality green until then.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

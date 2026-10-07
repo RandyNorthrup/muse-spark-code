@@ -2661,6 +2661,7 @@
     "recordingAttach": "Csatolás",
     "recordingDiscard": "Elvetés",
     "recordingPermissionDenied": "A képernyőfelvételi engedélyt megtagadták. Engedélyezze a rendszerbeállításokban, és próbálja újra.",
+    "recordingAccessDenied": "A képernyőfelvételhez való hozzáférés megtagadva. Ellenőrizze az engedélyeket, és próbálja újra.",
     "recordingOpenPermissions": "Képernyőfelvételi beállítások megnyitása",
     "recordingUnavailable": "A képernyőfelvétel nem érhető el: {reason}",
     "recordingRemote": "Ez az ablak távoli gépen fut, helyi képernyő nélkül. Használja a kísérőoldalt, vagy válasszon egy felvételfájlt.",

@@ -2661,6 +2661,7 @@
     "recordingAttach": "Ekle",
     "recordingDiscard": "At",
     "recordingPermissionDenied": "Ekran kaydı izni reddedildi. Sistem ayarlarından izin verip yeniden deneyin.",
+    "recordingAccessDenied": "Ekran kaydına erişim reddedildi. İzinleri kontrol edip tekrar deneyin.",
     "recordingOpenPermissions": "Ekran kaydı ayarlarını aç",
     "recordingUnavailable": "Ekran kaydı kullanılamıyor: {reason}",
     "recordingRemote": "Bu pencere yerel ekranı olmayan uzak bir ana makinede çalışıyor. Yardımcı sayfayı kullanın veya bir kayıt dosyası seçin.",
