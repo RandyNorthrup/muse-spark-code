@@ -1906,3 +1906,30 @@ Drills run against complete owning files and restore exact source bytes:
 
 Full fresh-clone job results follow after the local repair commit; initial
 scoped results alone do not certify CI, merged coverage or aggregate quality.
+
+### Full-shard slot fixture repair
+
+The first complete fresh-clone shard 2 also times out two slot cases at 5,030
+and 5,195 ms. The fixture repeats Git init/add/commit for every case, and the
+uncertain-descendant test packs six independent scenarios into one deadline.
+Create the identical immutable Git baseline once in `beforeAll`, copy its
+independent index/refs/objects for each fixture, and enumerate all six scenarios
+as individual tests. Every real clone, snapshot, install, changed-lockfile,
+credential, isolation and retirement assertion is preserved. No timer, retry,
+skip or assertion is relaxed.
+
+The complete file passes **17/17** under coverage at repository defaults, then
+**17/17** after restoration. Scoped ESLint and all five TypeScript projects
+pass. Deliberately releasing an uncertain slot makes **all six** enumerated
+scenarios fail (11 other cases pass). Production source is restored byte-exact,
+SHA-256 `118dccd72117832bca41c8e0ebe81f579593a8fec5b38e27e069edc057dea75c`.
+An initial scoped coverage submission was refused before collection because
+the worktree quality run held its report directory; the actual scoped coverage
+run uses its own OS-scratch report directory.
+
+On repair commit `ce0d6f432`, the complete journal file passes 19/19 in shard 3
+and the browser file passes 9/9 in the green shard 4. All static-gate components
+exit zero from their fresh clone, including real network badge checks, all five
+typechecks, build/sizes/splits/notices and audit. Native universal compilation
+and disclaimed SIGTERM both pass. Remaining full-shard failures and the final
+post-slot-repair matrix are reported below rather than treated as green CI.

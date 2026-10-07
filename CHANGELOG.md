@@ -13,6 +13,8 @@ happened, not what was planned; superseded entries are kept.
   validation and finish within CI's existing deadline under coverage. Companion
   browser security fixtures advance credential time explicitly, keeping session
   expiry independent of runner load.
+- Share immutable Git setup for persistent-slot tests and run every uncertain
+  descendant or transport-failure scenario at its own unchanged test deadline.
 - Make provider, headless, deferred-bundle and VSIX tests independent of stale
   build outputs in clean CI shards. Reuse VSCE collection and reject oversized
   runtime members before parsing; existing budgets and test deadlines stay fixed.

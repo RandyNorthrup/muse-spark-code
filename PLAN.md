@@ -18799,6 +18799,10 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
       expiry remains an explicit clock advance, with real browser/socket timers.
 - [ ] Reproduce static gates and the native dictation build/disclaim job. Fix
       causes without changing gates, budgets, test deadlines or assertions.
+- [ ] Repair the full-shard `checkSlots` fixture cost: create its immutable Git
+      baseline once in `beforeAll`, copy it per isolated case, and certify each
+      descendant/transport-failure scenario as its own test at the default
+      deadline. Preserve real snapshot, install, credential and cache checks.
 - [ ] Commit locally with normal hooks and explicit paths, then verify all four
       coverage shards, merged coverage and every macOS pull-request workflow job
       from fresh clones with Node 22 and `CI=true`, including installed packages.
