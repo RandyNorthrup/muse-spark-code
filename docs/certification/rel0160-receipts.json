@@ -142,5 +142,3720 @@
     "remove": 0,
     "foreignTargetPreserved": true,
     "sha256": "969121ccdcd4f14b4b1bbb6171574707c539be32e1bfb8bf2c725b1e7d4513d1"
-  }
+  },
+  "suite": {
+    "configuredFiles": 582,
+    "batches": 194,
+    "filesPerBatchMax": 3,
+    "workersMax": 3,
+    "timeoutOverride": false,
+    "completeFileSetMatches": true,
+    "duplicateFiles": 0,
+    "initialFailures": {
+      "batch": 133,
+      "passed": 30,
+      "failed": 2,
+      "tests": [
+        "readmeVersion: exactly one current-version headline",
+        "readmeVersion: current-version contents link"
+      ]
+    },
+    "finalTotals": {
+      "numPassedTests": 12170,
+      "numFailedTests": 0,
+      "numPendingTests": 87,
+      "numTotalTests": 12257
+    },
+    "results": [
+      {
+        "batch": 0,
+        "files": [
+          "test/e2e/acpStdio.e2e.test.ts",
+          "test/e2e/cliAccount.e2e.test.ts",
+          "test/e2e/eval.live.e2e.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 8.22,
+        "numPassedTests": 25,
+        "numFailedTests": 0,
+        "numPendingTests": 1,
+        "numTotalTests": 26,
+        "reportedFiles": [
+          "test/e2e/acpStdio.e2e.test.ts",
+          "test/e2e/cliAccount.e2e.test.ts",
+          "test/e2e/eval.live.e2e.test.ts"
+        ]
+      },
+      {
+        "batch": 1,
+        "files": [
+          "test/e2e/execStdio.e2e.test.ts",
+          "test/e2e/execTestLauncher.e2e.test.ts",
+          "test/e2e/live.e2e.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 65.65,
+        "numPassedTests": 48,
+        "numFailedTests": 0,
+        "numPendingTests": 2,
+        "numTotalTests": 50,
+        "reportedFiles": [
+          "test/e2e/execStdio.e2e.test.ts",
+          "test/e2e/execTestLauncher.e2e.test.ts",
+          "test/e2e/live.e2e.test.ts"
+        ]
+      },
+      {
+        "batch": 2,
+        "files": [
+          "test/e2e/modelApi.live.e2e.test.ts",
+          "test/e2e/museCode.e2e.test.ts",
+          "test/e2e/questions.e2e.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 10.6,
+        "numPassedTests": 21,
+        "numFailedTests": 0,
+        "numPendingTests": 24,
+        "numTotalTests": 45,
+        "reportedFiles": [
+          "test/e2e/modelApi.live.e2e.test.ts",
+          "test/e2e/museCode.e2e.test.ts",
+          "test/e2e/questions.e2e.test.ts"
+        ]
+      },
+      {
+        "batch": 3,
+        "files": [
+          "test/e2e/reviewer.live.e2e.test.ts",
+          "test/e2e/tab.live.e2e.test.ts",
+          "test/unit/AgentMap.test.tsx"
+        ],
+        "exit": 0,
+        "seconds": 3.1,
+        "numPassedTests": 14,
+        "numFailedTests": 0,
+        "numPendingTests": 2,
+        "numTotalTests": 16,
+        "reportedFiles": [
+          "test/e2e/reviewer.live.e2e.test.ts",
+          "test/e2e/tab.live.e2e.test.ts",
+          "test/unit/AgentMap.test.tsx"
+        ]
+      },
+      {
+        "batch": 4,
+        "files": [
+          "test/unit/App.test.tsx",
+          "test/unit/AppLazy.test.tsx",
+          "test/unit/ApprovalDock.test.tsx"
+        ],
+        "exit": 0,
+        "seconds": 18.06,
+        "numPassedTests": 164,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 164,
+        "reportedFiles": [
+          "test/unit/App.test.tsx",
+          "test/unit/AppLazy.test.tsx",
+          "test/unit/ApprovalDock.test.tsx"
+        ]
+      },
+      {
+        "batch": 5,
+        "files": [
+          "test/unit/BestOfNDialog.test.tsx",
+          "test/unit/ChatViewProvider.test.ts",
+          "test/unit/CodeBlockLazy.test.tsx"
+        ],
+        "exit": 0,
+        "seconds": 2.65,
+        "numPassedTests": 17,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 17,
+        "reportedFiles": [
+          "test/unit/BestOfNDialog.test.tsx",
+          "test/unit/ChatViewProvider.test.ts",
+          "test/unit/CodeBlockLazy.test.tsx"
+        ]
+      },
+      {
+        "batch": 6,
+        "files": [
+          "test/unit/Composer.test.tsx",
+          "test/unit/ContextMeter.test.tsx",
+          "test/unit/DeferredSurface.test.tsx"
+        ],
+        "exit": 0,
+        "seconds": 10.82,
+        "numPassedTests": 105,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 105,
+        "reportedFiles": [
+          "test/unit/Composer.test.tsx",
+          "test/unit/ContextMeter.test.tsx",
+          "test/unit/DeferredSurface.test.tsx"
+        ]
+      },
+      {
+        "batch": 7,
+        "files": [
+          "test/unit/DiffTallyRow.test.tsx",
+          "test/unit/EffortSlider.test.tsx",
+          "test/unit/ErrorBoundary.test.tsx"
+        ],
+        "exit": 0,
+        "seconds": 2.64,
+        "numPassedTests": 10,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 10,
+        "reportedFiles": [
+          "test/unit/DiffTallyRow.test.tsx",
+          "test/unit/EffortSlider.test.tsx",
+          "test/unit/ErrorBoundary.test.tsx"
+        ]
+      },
+      {
+        "batch": 8,
+        "files": [
+          "test/unit/GoalPanel.test.tsx",
+          "test/unit/GooeyMenu.test.tsx",
+          "test/unit/HeartbeatTrace.test.tsx"
+        ],
+        "exit": 0,
+        "seconds": 2.96,
+        "numPassedTests": 35,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 35,
+        "reportedFiles": [
+          "test/unit/GoalPanel.test.tsx",
+          "test/unit/GooeyMenu.test.tsx",
+          "test/unit/HeartbeatTrace.test.tsx"
+        ]
+      },
+      {
+        "batch": 9,
+        "files": [
+          "test/unit/HistoryDialog.test.tsx",
+          "test/unit/MarkdownView.test.tsx",
+          "test/unit/MentionMenu.test.tsx"
+        ],
+        "exit": 0,
+        "seconds": 2.99,
+        "numPassedTests": 21,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 21,
+        "reportedFiles": [
+          "test/unit/HistoryDialog.test.tsx",
+          "test/unit/MarkdownView.test.tsx",
+          "test/unit/MentionMenu.test.tsx"
+        ]
+      },
+      {
+        "batch": 10,
+        "files": [
+          "test/unit/Modal.test.tsx",
+          "test/unit/MuseCodeHost.test.ts",
+          "test/unit/Palette.test.tsx"
+        ],
+        "exit": 0,
+        "seconds": 3.72,
+        "numPassedTests": 115,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 115,
+        "reportedFiles": [
+          "test/unit/Modal.test.tsx",
+          "test/unit/MuseCodeHost.test.ts",
+          "test/unit/Palette.test.tsx"
+        ]
+      },
+      {
+        "batch": 11,
+        "files": [
+          "test/unit/PopoverMenu.test.tsx",
+          "test/unit/QuestionCard.test.tsx",
+          "test/unit/QuoteMenu.test.tsx"
+        ],
+        "exit": 0,
+        "seconds": 3.02,
+        "numPassedTests": 16,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 16,
+        "reportedFiles": [
+          "test/unit/PopoverMenu.test.tsx",
+          "test/unit/QuestionCard.test.tsx",
+          "test/unit/QuoteMenu.test.tsx"
+        ]
+      },
+      {
+        "batch": 12,
+        "files": [
+          "test/unit/ReferencePage.test.tsx",
+          "test/unit/ResourceSurface.test.tsx",
+          "test/unit/ResourcesSection.test.tsx"
+        ],
+        "exit": 0,
+        "seconds": 11.02,
+        "numPassedTests": 50,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 50,
+        "reportedFiles": [
+          "test/unit/ReferencePage.test.tsx",
+          "test/unit/ResourceSurface.test.tsx",
+          "test/unit/ResourcesSection.test.tsx"
+        ]
+      },
+      {
+        "batch": 13,
+        "files": [
+          "test/unit/SchedulePanel.test.tsx",
+          "test/unit/SessionBoardDialog.test.tsx",
+          "test/unit/ShareView.test.tsx"
+        ],
+        "exit": 0,
+        "seconds": 3.41,
+        "numPassedTests": 12,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 12,
+        "reportedFiles": [
+          "test/unit/SchedulePanel.test.tsx",
+          "test/unit/SessionBoardDialog.test.tsx",
+          "test/unit/ShareView.test.tsx"
+        ]
+      },
+      {
+        "batch": 14,
+        "files": [
+          "test/unit/SignIn.test.tsx",
+          "test/unit/StatusLine.test.tsx",
+          "test/unit/TasksApp.test.tsx"
+        ],
+        "exit": 0,
+        "seconds": 2.61,
+        "numPassedTests": 18,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 18,
+        "reportedFiles": [
+          "test/unit/SignIn.test.tsx",
+          "test/unit/StatusLine.test.tsx",
+          "test/unit/TasksApp.test.tsx"
+        ]
+      },
+      {
+        "batch": 15,
+        "files": [
+          "test/unit/Transcript.test.tsx",
+          "test/unit/UsageDialog.test.tsx",
+          "test/unit/WorkflowRun.test.tsx"
+        ],
+        "exit": 0,
+        "seconds": 5.1,
+        "numPassedTests": 109,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 109,
+        "reportedFiles": [
+          "test/unit/Transcript.test.tsx",
+          "test/unit/UsageDialog.test.tsx",
+          "test/unit/WorkflowRun.test.tsx"
+        ]
+      },
+      {
+        "batch": 16,
+        "files": [
+          "test/unit/accountHost.test.ts",
+          "test/unit/acpAgent.test.ts",
+          "test/unit/acpElicitation.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 7.34,
+        "numPassedTests": 117,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 117,
+        "reportedFiles": [
+          "test/unit/accountHost.test.ts",
+          "test/unit/acpAgent.test.ts",
+          "test/unit/acpElicitation.test.ts"
+        ]
+      },
+      {
+        "batch": 17,
+        "files": [
+          "test/unit/acpModelApi.test.ts",
+          "test/unit/acpNpmReadme.test.ts",
+          "test/unit/acpPaid.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.48,
+        "numPassedTests": 38,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 38,
+        "reportedFiles": [
+          "test/unit/acpModelApi.test.ts",
+          "test/unit/acpNpmReadme.test.ts",
+          "test/unit/acpPaid.test.ts"
+        ]
+      },
+      {
+        "batch": 18,
+        "files": [
+          "test/unit/acpProxyWarning.test.ts",
+          "test/unit/acpQuestionBundle.test.mjs",
+          "test/unit/acpQuestionDeferral.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.36,
+        "numPassedTests": 103,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 103,
+        "reportedFiles": [
+          "test/unit/acpProxyWarning.test.ts",
+          "test/unit/acpQuestionBundle.test.mjs",
+          "test/unit/acpQuestionDeferral.test.ts"
+        ]
+      },
+      {
+        "batch": 19,
+        "files": [
+          "test/unit/acpReportObserver.test.ts",
+          "test/unit/acpResources.test.ts",
+          "test/unit/acpRuntime.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.73,
+        "numPassedTests": 49,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 49,
+        "reportedFiles": [
+          "test/unit/acpReportObserver.test.ts",
+          "test/unit/acpResources.test.ts",
+          "test/unit/acpRuntime.test.ts"
+        ]
+      },
+      {
+        "batch": 20,
+        "files": [
+          "test/unit/acpTranslate.test.ts",
+          "test/unit/actionApply.test.ts",
+          "test/unit/actionGate.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.6,
+        "numPassedTests": 58,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 58,
+        "reportedFiles": [
+          "test/unit/acpTranslate.test.ts",
+          "test/unit/actionApply.test.ts",
+          "test/unit/actionGate.test.ts"
+        ]
+      },
+      {
+        "batch": 21,
+        "files": [
+          "test/unit/actionGit.test.ts",
+          "test/unit/actionInputs.test.ts",
+          "test/unit/actionInstall.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.52,
+        "numPassedTests": 78,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 78,
+        "reportedFiles": [
+          "test/unit/actionGit.test.ts",
+          "test/unit/actionInputs.test.ts",
+          "test/unit/actionInstall.test.ts"
+        ]
+      },
+      {
+        "batch": 22,
+        "files": [
+          "test/unit/actionManifest.test.ts",
+          "test/unit/actionPost.test.ts",
+          "test/unit/actionRunExec.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 20.02,
+        "numPassedTests": 54,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 54,
+        "reportedFiles": [
+          "test/unit/actionManifest.test.ts",
+          "test/unit/actionPost.test.ts",
+          "test/unit/actionRunExec.test.ts"
+        ]
+      },
+      {
+        "batch": 23,
+        "files": [
+          "test/unit/actuators.test.ts",
+          "test/unit/actuatorsLinux.test.ts",
+          "test/unit/actuatorsMac.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.97,
+        "numPassedTests": 64,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 64,
+        "reportedFiles": [
+          "test/unit/actuators.test.ts",
+          "test/unit/actuatorsLinux.test.ts",
+          "test/unit/actuatorsMac.test.ts"
+        ]
+      },
+      {
+        "batch": 24,
+        "files": [
+          "test/unit/actuatorsWindows.test.ts",
+          "test/unit/agentErrors.test.ts",
+          "test/unit/agentImport.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.83,
+        "numPassedTests": 76,
+        "numFailedTests": 0,
+        "numPendingTests": 1,
+        "numTotalTests": 77,
+        "reportedFiles": [
+          "test/unit/actuatorsWindows.test.ts",
+          "test/unit/agentErrors.test.ts",
+          "test/unit/agentImport.test.ts"
+        ]
+      },
+      {
+        "batch": 25,
+        "files": [
+          "test/unit/agentImportBundle.test.ts",
+          "test/unit/agentImportCommands.test.ts",
+          "test/unit/agentImportWorkspaceEdits.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.34,
+        "numPassedTests": 109,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 109,
+        "reportedFiles": [
+          "test/unit/agentImportBundle.test.ts",
+          "test/unit/agentImportCommands.test.ts",
+          "test/unit/agentImportWorkspaceEdits.test.ts"
+        ]
+      },
+      {
+        "batch": 26,
+        "files": [
+          "test/unit/approvalRules.test.ts",
+          "test/unit/approvalSecrets.test.ts",
+          "test/unit/attachments.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 5.03,
+        "numPassedTests": 105,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 105,
+        "reportedFiles": [
+          "test/unit/approvalRules.test.ts",
+          "test/unit/approvalSecrets.test.ts",
+          "test/unit/attachments.test.ts"
+        ]
+      },
+      {
+        "batch": 27,
+        "files": [
+          "test/unit/attentionDock.test.tsx",
+          "test/unit/authService.test.ts",
+          "test/unit/autoReviewer.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.98,
+        "numPassedTests": 142,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 142,
+        "reportedFiles": [
+          "test/unit/attentionDock.test.tsx",
+          "test/unit/authService.test.ts",
+          "test/unit/autoReviewer.test.ts"
+        ]
+      },
+      {
+        "batch": 28,
+        "files": [
+          "test/unit/backendSelection.test.ts",
+          "test/unit/backgroundRows.test.tsx",
+          "test/unit/base64.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.4,
+        "numPassedTests": 20,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 20,
+        "reportedFiles": [
+          "test/unit/backendSelection.test.ts",
+          "test/unit/backgroundRows.test.tsx",
+          "test/unit/base64.test.ts"
+        ]
+      },
+      {
+        "batch": 29,
+        "files": [
+          "test/unit/bestOfN.test.ts",
+          "test/unit/bestOfNAttempts.test.ts",
+          "test/unit/bestOfNExtensionHooks.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.03,
+        "numPassedTests": 24,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 24,
+        "reportedFiles": [
+          "test/unit/bestOfN.test.ts",
+          "test/unit/bestOfNAttempts.test.ts",
+          "test/unit/bestOfNExtensionHooks.test.ts"
+        ]
+      },
+      {
+        "batch": 30,
+        "files": [
+          "test/unit/bestOfNManager.test.ts",
+          "test/unit/bestOfNRunner.test.ts",
+          "test/unit/bestOfNSnapshot.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 4.56,
+        "numPassedTests": 61,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 61,
+        "reportedFiles": [
+          "test/unit/bestOfNManager.test.ts",
+          "test/unit/bestOfNRunner.test.ts",
+          "test/unit/bestOfNSnapshot.test.ts"
+        ]
+      },
+      {
+        "batch": 31,
+        "files": [
+          "test/unit/browserCheckConfirm.test.ts",
+          "test/unit/browserCheckLive.test.ts",
+          "test/unit/browserCheckR51.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.76,
+        "numPassedTests": 3,
+        "numFailedTests": 0,
+        "numPendingTests": 8,
+        "numTotalTests": 11,
+        "reportedFiles": [
+          "test/unit/browserCheckConfirm.test.ts",
+          "test/unit/browserCheckLive.test.ts",
+          "test/unit/browserCheckR51.test.ts"
+        ]
+      },
+      {
+        "batch": 32,
+        "files": [
+          "test/unit/browserChecks.test.ts",
+          "test/unit/browserLaunch.test.ts",
+          "test/unit/browserPolicy.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.83,
+        "numPassedTests": 25,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 25,
+        "reportedFiles": [
+          "test/unit/browserChecks.test.ts",
+          "test/unit/browserLaunch.test.ts",
+          "test/unit/browserPolicy.test.ts"
+        ]
+      },
+      {
+        "batch": 33,
+        "files": [
+          "test/unit/browserRun.test.ts",
+          "test/unit/browserTool.test.ts",
+          "test/unit/bundleSize.test.mjs"
+        ],
+        "exit": 0,
+        "seconds": 11.95,
+        "numPassedTests": 80,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 80,
+        "reportedFiles": [
+          "test/unit/browserRun.test.ts",
+          "test/unit/browserTool.test.ts",
+          "test/unit/bundleSize.test.mjs"
+        ]
+      },
+      {
+        "batch": 34,
+        "files": [
+          "test/unit/bundledSkillsInstall.test.ts",
+          "test/unit/bundledSkillsVendor.test.ts",
+          "test/unit/canaries.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.88,
+        "numPassedTests": 159,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 159,
+        "reportedFiles": [
+          "test/unit/bundledSkillsInstall.test.ts",
+          "test/unit/bundledSkillsVendor.test.ts",
+          "test/unit/canaries.test.ts"
+        ]
+      },
+      {
+        "batch": 35,
+        "files": [
+          "test/unit/canonicalPath.test.ts",
+          "test/unit/cards.test.tsx",
+          "test/unit/changelogVersion.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.6,
+        "numPassedTests": 20,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 20,
+        "reportedFiles": [
+          "test/unit/canonicalPath.test.ts",
+          "test/unit/cards.test.tsx",
+          "test/unit/changelogVersion.test.ts"
+        ]
+      },
+      {
+        "batch": 36,
+        "files": [
+          "test/unit/chatColumn.test.mjs",
+          "test/unit/chatPanel.test.ts",
+          "test/unit/chatReference.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.77,
+        "numPassedTests": 21,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 21,
+        "reportedFiles": [
+          "test/unit/chatColumn.test.mjs",
+          "test/unit/chatPanel.test.ts",
+          "test/unit/chatReference.test.ts"
+        ]
+      },
+      {
+        "batch": 37,
+        "files": [
+          "test/unit/checkBadges.test.mjs",
+          "test/unit/checkCommands.test.ts",
+          "test/unit/checkProxy.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 11.24,
+        "numPassedTests": 56,
+        "numFailedTests": 0,
+        "numPendingTests": 2,
+        "numTotalTests": 58,
+        "reportedFiles": [
+          "test/unit/checkBadges.test.mjs",
+          "test/unit/checkCommands.test.ts",
+          "test/unit/checkProxy.test.ts"
+        ]
+      },
+      {
+        "batch": 38,
+        "files": [
+          "test/unit/checkpointCopies.test.ts",
+          "test/unit/checkpointEnvironment.test.ts",
+          "test/unit/checkpointExplicitEdits.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 5.7,
+        "numPassedTests": 44,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 44,
+        "reportedFiles": [
+          "test/unit/checkpointCopies.test.ts",
+          "test/unit/checkpointEnvironment.test.ts",
+          "test/unit/checkpointExplicitEdits.test.ts"
+        ]
+      },
+      {
+        "batch": 39,
+        "files": [
+          "test/unit/checkpointFiles.test.ts",
+          "test/unit/checkpointFixes.test.ts",
+          "test/unit/checkpointHost.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 24.04,
+        "numPassedTests": 94,
+        "numFailedTests": 0,
+        "numPendingTests": 2,
+        "numTotalTests": 96,
+        "reportedFiles": [
+          "test/unit/checkpointFiles.test.ts",
+          "test/unit/checkpointFixes.test.ts",
+          "test/unit/checkpointHost.test.ts"
+        ]
+      },
+      {
+        "batch": 40,
+        "files": [
+          "test/unit/checkpointLocation.test.ts",
+          "test/unit/checkpointLongPaths.test.ts",
+          "test/unit/checkpointMemory.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 6.39,
+        "numPassedTests": 32,
+        "numFailedTests": 0,
+        "numPendingTests": 8,
+        "numTotalTests": 40,
+        "reportedFiles": [
+          "test/unit/checkpointLocation.test.ts",
+          "test/unit/checkpointLongPaths.test.ts",
+          "test/unit/checkpointMemory.test.ts"
+        ]
+      },
+      {
+        "batch": 41,
+        "files": [
+          "test/unit/checkpointModelApiStop.test.ts",
+          "test/unit/checkpointNativeCommands.test.ts",
+          "test/unit/checkpointNativeStart.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 6.67,
+        "numPassedTests": 70,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 70,
+        "reportedFiles": [
+          "test/unit/checkpointModelApiStop.test.ts",
+          "test/unit/checkpointNativeCommands.test.ts",
+          "test/unit/checkpointNativeStart.test.ts"
+        ]
+      },
+      {
+        "batch": 42,
+        "files": [
+          "test/unit/checkpointPlan.test.ts",
+          "test/unit/checkpointPublication.test.ts",
+          "test/unit/checkpointRestore.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 7.46,
+        "numPassedTests": 21,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 21,
+        "reportedFiles": [
+          "test/unit/checkpointPlan.test.ts",
+          "test/unit/checkpointPublication.test.ts",
+          "test/unit/checkpointRestore.test.ts"
+        ]
+      },
+      {
+        "batch": 43,
+        "files": [
+          "test/unit/checkpointRetention.test.ts",
+          "test/unit/checkpointRulesEdit.test.ts",
+          "test/unit/checkpointShellProof.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 6.42,
+        "numPassedTests": 21,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 21,
+        "reportedFiles": [
+          "test/unit/checkpointRetention.test.ts",
+          "test/unit/checkpointRulesEdit.test.ts",
+          "test/unit/checkpointShellProof.test.ts"
+        ]
+      },
+      {
+        "batch": 44,
+        "files": [
+          "test/unit/checkpointStorageGuards.test.ts",
+          "test/unit/checkpointStore.test.ts",
+          "test/unit/checkpointStoreBundle.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 10.24,
+        "numPassedTests": 30,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 30,
+        "reportedFiles": [
+          "test/unit/checkpointStorageGuards.test.ts",
+          "test/unit/checkpointStore.test.ts",
+          "test/unit/checkpointStoreBundle.test.ts"
+        ]
+      },
+      {
+        "batch": 45,
+        "files": [
+          "test/unit/checkpointStoreGuards.test.ts",
+          "test/unit/checkpointStoreWindows.test.ts",
+          "test/unit/checkpointUnits.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 10.94,
+        "numPassedTests": 76,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 76,
+        "reportedFiles": [
+          "test/unit/checkpointStoreGuards.test.ts",
+          "test/unit/checkpointStoreWindows.test.ts",
+          "test/unit/checkpointUnits.test.ts"
+        ]
+      },
+      {
+        "batch": 46,
+        "files": [
+          "test/unit/checkpointWorktrees.test.ts",
+          "test/unit/cliAccount.test.ts",
+          "test/unit/cliFeatures.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.83,
+        "numPassedTests": 48,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 48,
+        "reportedFiles": [
+          "test/unit/checkpointWorktrees.test.ts",
+          "test/unit/cliAccount.test.ts",
+          "test/unit/cliFeatures.test.ts"
+        ]
+      },
+      {
+        "batch": 47,
+        "files": [
+          "test/unit/clineDiscover.test.ts",
+          "test/unit/codeFiles.test.ts",
+          "test/unit/codeIntelBundle.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.13,
+        "numPassedTests": 26,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 26,
+        "reportedFiles": [
+          "test/unit/clineDiscover.test.ts",
+          "test/unit/codeFiles.test.ts",
+          "test/unit/codeIntelBundle.test.ts"
+        ]
+      },
+      {
+        "batch": 48,
+        "files": [
+          "test/unit/codeIntelPolicy.test.ts",
+          "test/unit/codeIntelTools.test.ts",
+          "test/unit/codeText.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.27,
+        "numPassedTests": 30,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 30,
+        "reportedFiles": [
+          "test/unit/codeIntelPolicy.test.ts",
+          "test/unit/codeIntelTools.test.ts",
+          "test/unit/codeText.test.ts"
+        ]
+      },
+      {
+        "batch": 49,
+        "files": [
+          "test/unit/commandRules.test.ts",
+          "test/unit/contextFiles.test.ts",
+          "test/unit/contextIo.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.63,
+        "numPassedTests": 85,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 85,
+        "reportedFiles": [
+          "test/unit/commandRules.test.ts",
+          "test/unit/contextFiles.test.ts",
+          "test/unit/contextIo.test.ts"
+        ]
+      },
+      {
+        "batch": 50,
+        "files": [
+          "test/unit/conversationBundle.test.ts",
+          "test/unit/conversationCheckpoints.test.ts",
+          "test/unit/conversationController.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 23.47,
+        "numPassedTests": 623,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 623,
+        "reportedFiles": [
+          "test/unit/conversationBundle.test.ts",
+          "test/unit/conversationCheckpoints.test.ts",
+          "test/unit/conversationController.test.ts"
+        ]
+      },
+      {
+        "batch": 51,
+        "files": [
+          "test/unit/conversationGit.test.ts",
+          "test/unit/conversationGitBundle.test.ts",
+          "test/unit/createRulesFile.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.28,
+        "numPassedTests": 86,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 86,
+        "reportedFiles": [
+          "test/unit/conversationGit.test.ts",
+          "test/unit/conversationGitBundle.test.ts",
+          "test/unit/createRulesFile.test.ts"
+        ]
+      },
+      {
+        "batch": 52,
+        "files": [
+          "test/unit/credentialEnvironment.test.ts",
+          "test/unit/credentialFile.test.ts",
+          "test/unit/credentialStore.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.11,
+        "numPassedTests": 114,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 114,
+        "reportedFiles": [
+          "test/unit/credentialEnvironment.test.ts",
+          "test/unit/credentialFile.test.ts",
+          "test/unit/credentialStore.test.ts"
+        ]
+      },
+      {
+        "batch": 53,
+        "files": [
+          "test/unit/customAgents.test.ts",
+          "test/unit/deferredBundles.test.ts",
+          "test/unit/deferredQuestionFailure.test.tsx"
+        ],
+        "exit": 0,
+        "seconds": 3.36,
+        "numPassedTests": 78,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 78,
+        "reportedFiles": [
+          "test/unit/customAgents.test.ts",
+          "test/unit/deferredBundles.test.ts",
+          "test/unit/deferredQuestionFailure.test.tsx"
+        ]
+      },
+      {
+        "batch": 54,
+        "files": [
+          "test/unit/deferredQuestionUi.test.tsx",
+          "test/unit/deviceSignIn.test.ts",
+          "test/unit/diagnostics.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.89,
+        "numPassedTests": 66,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 66,
+        "reportedFiles": [
+          "test/unit/deferredQuestionUi.test.tsx",
+          "test/unit/deviceSignIn.test.ts",
+          "test/unit/diagnostics.test.ts"
+        ]
+      },
+      {
+        "batch": 55,
+        "files": [
+          "test/unit/diagnosticsReport.test.ts",
+          "test/unit/dictation.test.ts",
+          "test/unit/dictationGesture.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.47,
+        "numPassedTests": 28,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 28,
+        "reportedFiles": [
+          "test/unit/diagnosticsReport.test.ts",
+          "test/unit/dictation.test.ts",
+          "test/unit/dictationGesture.test.ts"
+        ]
+      },
+      {
+        "batch": 56,
+        "files": [
+          "test/unit/dictationHost.test.ts",
+          "test/unit/diff.test.ts",
+          "test/unit/diffTally.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.87,
+        "numPassedTests": 30,
+        "numFailedTests": 0,
+        "numPendingTests": 1,
+        "numTotalTests": 31,
+        "reportedFiles": [
+          "test/unit/dictationHost.test.ts",
+          "test/unit/diff.test.ts",
+          "test/unit/diffTally.test.ts"
+        ]
+      },
+      {
+        "batch": 57,
+        "files": [
+          "test/unit/editReview.test.ts",
+          "test/unit/editorContext.test.ts",
+          "test/unit/editorContextTracker.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.15,
+        "numPassedTests": 58,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 58,
+        "reportedFiles": [
+          "test/unit/editReview.test.ts",
+          "test/unit/editorContext.test.ts",
+          "test/unit/editorContextTracker.test.ts"
+        ]
+      },
+      {
+        "batch": 58,
+        "files": [
+          "test/unit/effort.test.ts",
+          "test/unit/elicitationCard.test.tsx",
+          "test/unit/environment.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.48,
+        "numPassedTests": 15,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 15,
+        "reportedFiles": [
+          "test/unit/effort.test.ts",
+          "test/unit/elicitationCard.test.tsx",
+          "test/unit/environment.test.ts"
+        ]
+      },
+      {
+        "batch": 59,
+        "files": [
+          "test/unit/eval/evalDriver.test.ts",
+          "test/unit/eval/evalLiveSupport.test.ts",
+          "test/unit/eval/evalPacking.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.12,
+        "numPassedTests": 45,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 45,
+        "reportedFiles": [
+          "test/unit/eval/evalDriver.test.ts",
+          "test/unit/eval/evalLiveSupport.test.ts",
+          "test/unit/eval/evalPacking.test.ts"
+        ]
+      },
+      {
+        "batch": 60,
+        "files": [
+          "test/unit/eval/evalReport.test.ts",
+          "test/unit/eval/evalRunner.test.ts",
+          "test/unit/eval/evalTasks.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 10.18,
+        "numPassedTests": 67,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 67,
+        "reportedFiles": [
+          "test/unit/eval/evalReport.test.ts",
+          "test/unit/eval/evalRunner.test.ts",
+          "test/unit/eval/evalTasks.test.ts"
+        ]
+      },
+      {
+        "batch": 61,
+        "files": [
+          "test/unit/eval/evalWire.test.ts",
+          "test/unit/eval/evalWorkspacePrivacy.test.ts",
+          "test/unit/execArgs.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.21,
+        "numPassedTests": 89,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 89,
+        "reportedFiles": [
+          "test/unit/execArgs.test.ts",
+          "test/unit/eval/evalWire.test.ts",
+          "test/unit/eval/evalWorkspacePrivacy.test.ts"
+        ]
+      },
+      {
+        "batch": 62,
+        "files": [
+          "test/unit/execFetch.test.ts",
+          "test/unit/execKeyInput.test.ts",
+          "test/unit/execLimits.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.96,
+        "numPassedTests": 54,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 54,
+        "reportedFiles": [
+          "test/unit/execFetch.test.ts",
+          "test/unit/execKeyInput.test.ts",
+          "test/unit/execLimits.test.ts"
+        ]
+      },
+      {
+        "batch": 63,
+        "files": [
+          "test/unit/execOutput.test.ts",
+          "test/unit/execResources.test.ts",
+          "test/unit/execRun.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 9.21,
+        "numPassedTests": 84,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 84,
+        "reportedFiles": [
+          "test/unit/execOutput.test.ts",
+          "test/unit/execResources.test.ts",
+          "test/unit/execRun.test.ts"
+        ]
+      },
+      {
+        "batch": 64,
+        "files": [
+          "test/unit/execSchema.test.ts",
+          "test/unit/executables.test.ts",
+          "test/unit/exportConversation.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.39,
+        "numPassedTests": 37,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 37,
+        "reportedFiles": [
+          "test/unit/execSchema.test.ts",
+          "test/unit/executables.test.ts",
+          "test/unit/exportConversation.test.ts"
+        ]
+      },
+      {
+        "batch": 65,
+        "files": [
+          "test/unit/extensionHookRunner.test.ts",
+          "test/unit/extensionHooks.test.ts",
+          "test/unit/fakeToolIo.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.83,
+        "numPassedTests": 75,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 75,
+        "reportedFiles": [
+          "test/unit/extensionHookRunner.test.ts",
+          "test/unit/extensionHooks.test.ts",
+          "test/unit/fakeToolIo.test.ts"
+        ]
+      },
+      {
+        "batch": 66,
+        "files": [
+          "test/unit/fdWriter.test.ts",
+          "test/unit/fileIdentity.test.ts",
+          "test/unit/fileScheduleStore.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.0,
+        "numPassedTests": 21,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 21,
+        "reportedFiles": [
+          "test/unit/fdWriter.test.ts",
+          "test/unit/fileIdentity.test.ts",
+          "test/unit/fileScheduleStore.test.ts"
+        ]
+      },
+      {
+        "batch": 67,
+        "files": [
+          "test/unit/fileSessionStore.test.ts",
+          "test/unit/flightRecorder.test.ts",
+          "test/unit/focusInput.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.15,
+        "numPassedTests": 70,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 70,
+        "reportedFiles": [
+          "test/unit/fileSessionStore.test.ts",
+          "test/unit/flightRecorder.test.ts",
+          "test/unit/focusInput.test.ts"
+        ]
+      },
+      {
+        "batch": 68,
+        "files": [
+          "test/unit/foreignHookDeadline.test.ts",
+          "test/unit/foreignHooks.test.ts",
+          "test/unit/fsAtomic.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.86,
+        "numPassedTests": 50,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 50,
+        "reportedFiles": [
+          "test/unit/foreignHookDeadline.test.ts",
+          "test/unit/foreignHooks.test.ts",
+          "test/unit/fsAtomic.test.ts"
+        ]
+      },
+      {
+        "batch": 69,
+        "files": [
+          "test/unit/fuzzy.test.ts",
+          "test/unit/git.test.ts",
+          "test/unit/gitActivationWiring.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.62,
+        "numPassedTests": 33,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 33,
+        "reportedFiles": [
+          "test/unit/fuzzy.test.ts",
+          "test/unit/git.test.ts",
+          "test/unit/gitActivationWiring.test.ts"
+        ]
+      },
+      {
+        "batch": 70,
+        "files": [
+          "test/unit/gitPhysicalOwner.test.ts",
+          "test/unit/gitState.test.ts",
+          "test/unit/gitText.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.25,
+        "numPassedTests": 22,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 22,
+        "reportedFiles": [
+          "test/unit/gitPhysicalOwner.test.ts",
+          "test/unit/gitState.test.ts",
+          "test/unit/gitText.test.ts"
+        ]
+      },
+      {
+        "batch": 71,
+        "files": [
+          "test/unit/gitWindowFileSystem.test.ts",
+          "test/unit/github.test.ts",
+          "test/unit/githubRemote.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.21,
+        "numPassedTests": 57,
+        "numFailedTests": 0,
+        "numPendingTests": 1,
+        "numTotalTests": 58,
+        "reportedFiles": [
+          "test/unit/gitWindowFileSystem.test.ts",
+          "test/unit/github.test.ts",
+          "test/unit/githubRemote.test.ts"
+        ]
+      },
+      {
+        "batch": 72,
+        "files": [
+          "test/unit/githubSession.test.ts",
+          "test/unit/glob.test.ts",
+          "test/unit/goalCommand.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.69,
+        "numPassedTests": 12,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 12,
+        "reportedFiles": [
+          "test/unit/githubSession.test.ts",
+          "test/unit/glob.test.ts",
+          "test/unit/goalCommand.test.ts"
+        ]
+      },
+      {
+        "batch": 73,
+        "files": [
+          "test/unit/goals.test.ts",
+          "test/unit/gooeyLayout.test.ts",
+          "test/unit/governor.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.87,
+        "numPassedTests": 84,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 84,
+        "reportedFiles": [
+          "test/unit/goals.test.ts",
+          "test/unit/gooeyLayout.test.ts",
+          "test/unit/governor.test.ts"
+        ]
+      },
+      {
+        "batch": 74,
+        "files": [
+          "test/unit/handoff.test.ts",
+          "test/unit/handoffDialog.test.tsx",
+          "test/unit/heartbeatBeam.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 7.58,
+        "numPassedTests": 26,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 26,
+        "reportedFiles": [
+          "test/unit/handoff.test.ts",
+          "test/unit/handoffDialog.test.tsx",
+          "test/unit/heartbeatBeam.test.ts"
+        ]
+      },
+      {
+        "batch": 75,
+        "files": [
+          "test/unit/heldCheckout.test.ts",
+          "test/unit/heldTree.test.ts",
+          "test/unit/helperLocation.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 6.25,
+        "numPassedTests": 86,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 86,
+        "reportedFiles": [
+          "test/unit/heldCheckout.test.ts",
+          "test/unit/heldTree.test.ts",
+          "test/unit/helperLocation.test.ts"
+        ]
+      },
+      {
+        "batch": 76,
+        "files": [
+          "test/unit/highlight.test.ts",
+          "test/unit/hookFormats.test.ts",
+          "test/unit/hookFormatsCline.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.09,
+        "numPassedTests": 83,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 83,
+        "reportedFiles": [
+          "test/unit/highlight.test.ts",
+          "test/unit/hookFormats.test.ts",
+          "test/unit/hookFormatsCline.test.ts"
+        ]
+      },
+      {
+        "batch": 77,
+        "files": [
+          "test/unit/hookFormatsContracts.test.ts",
+          "test/unit/hookFormatsEngine.test.ts",
+          "test/unit/hookFormatsFixtures.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.56,
+        "numPassedTests": 999,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 999,
+        "reportedFiles": [
+          "test/unit/hookFormatsContracts.test.ts",
+          "test/unit/hookFormatsEngine.test.ts",
+          "test/unit/hookFormatsFixtures.test.ts"
+        ]
+      },
+      {
+        "batch": 78,
+        "files": [
+          "test/unit/hookFormatsGemini.test.ts",
+          "test/unit/hookHttpHandlers.test.ts",
+          "test/unit/hookHttpRequest.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.97,
+        "numPassedTests": 73,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 73,
+        "reportedFiles": [
+          "test/unit/hookFormatsGemini.test.ts",
+          "test/unit/hookHttpHandlers.test.ts",
+          "test/unit/hookHttpRequest.test.ts"
+        ]
+      },
+      {
+        "batch": 79,
+        "files": [
+          "test/unit/hookMcpToolHandlers.test.ts",
+          "test/unit/hookModelHandlers.test.ts",
+          "test/unit/hostBridge.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.36,
+        "numPassedTests": 21,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 21,
+        "reportedFiles": [
+          "test/unit/hookMcpToolHandlers.test.ts",
+          "test/unit/hookModelHandlers.test.ts",
+          "test/unit/hostBridge.test.ts"
+        ]
+      },
+      {
+        "batch": 80,
+        "files": [
+          "test/unit/hostL10n.test.ts",
+          "test/unit/html.test.ts",
+          "test/unit/htmlCharset.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.61,
+        "numPassedTests": 53,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 53,
+        "reportedFiles": [
+          "test/unit/hostL10n.test.ts",
+          "test/unit/html.test.ts",
+          "test/unit/htmlCharset.test.ts"
+        ]
+      },
+      {
+        "batch": 81,
+        "files": [
+          "test/unit/htmlToMarkdown.test.ts",
+          "test/unit/ideBrowserCheck.test.ts",
+          "test/unit/ideCodeIntelTools.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.3,
+        "numPassedTests": 35,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 35,
+        "reportedFiles": [
+          "test/unit/htmlToMarkdown.test.ts",
+          "test/unit/ideBrowserCheck.test.ts",
+          "test/unit/ideCodeIntelTools.test.ts"
+        ]
+      },
+      {
+        "batch": 82,
+        "files": [
+          "test/unit/ideImageTools.test.ts",
+          "test/unit/ideMcpServer.test.ts",
+          "test/unit/ideWebFetch.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.93,
+        "numPassedTests": 26,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 26,
+        "reportedFiles": [
+          "test/unit/ideImageTools.test.ts",
+          "test/unit/ideMcpServer.test.ts",
+          "test/unit/ideWebFetch.test.ts"
+        ]
+      },
+      {
+        "batch": 83,
+        "files": [
+          "test/unit/imageDimensions.test.ts",
+          "test/unit/imageGenerationIo.test.ts",
+          "test/unit/importConvert.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.9,
+        "numPassedTests": 102,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 102,
+        "reportedFiles": [
+          "test/unit/imageDimensions.test.ts",
+          "test/unit/imageGenerationIo.test.ts",
+          "test/unit/importConvert.test.ts"
+        ]
+      },
+      {
+        "batch": 84,
+        "files": [
+          "test/unit/importExposure.test.ts",
+          "test/unit/importHookSources.test.ts",
+          "test/unit/importIo.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.43,
+        "numPassedTests": 121,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 121,
+        "reportedFiles": [
+          "test/unit/importExposure.test.ts",
+          "test/unit/importHookSources.test.ts",
+          "test/unit/importIo.test.ts"
+        ]
+      },
+      {
+        "batch": 85,
+        "files": [
+          "test/unit/insertMention.test.ts",
+          "test/unit/insights.test.ts",
+          "test/unit/installTable.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.49,
+        "numPassedTests": 16,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 16,
+        "reportedFiles": [
+          "test/unit/insertMention.test.ts",
+          "test/unit/insights.test.ts",
+          "test/unit/installTable.test.ts"
+        ]
+      },
+      {
+        "batch": 86,
+        "files": [
+          "test/unit/instructions.test.ts",
+          "test/unit/jobBuild.test.ts",
+          "test/unit/jobSource.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.65,
+        "numPassedTests": 17,
+        "numFailedTests": 0,
+        "numPendingTests": 1,
+        "numTotalTests": 18,
+        "reportedFiles": [
+          "test/unit/instructions.test.ts",
+          "test/unit/jobBuild.test.ts",
+          "test/unit/jobSource.test.ts"
+        ]
+      },
+      {
+        "batch": 87,
+        "files": [
+          "test/unit/judge.test.ts",
+          "test/unit/judgeActivation.test.ts",
+          "test/unit/judgeAdmission.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.86,
+        "numPassedTests": 65,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 65,
+        "reportedFiles": [
+          "test/unit/judge.test.ts",
+          "test/unit/judgeActivation.test.ts",
+          "test/unit/judgeAdmission.test.ts"
+        ]
+      },
+      {
+        "batch": 88,
+        "files": [
+          "test/unit/judgeAdmissionLedger.test.ts",
+          "test/unit/judgeConsent.test.ts",
+          "test/unit/judgeContract.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.78,
+        "numPassedTests": 39,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 39,
+        "reportedFiles": [
+          "test/unit/judgeAdmissionLedger.test.ts",
+          "test/unit/judgeConsent.test.ts",
+          "test/unit/judgeContract.test.ts"
+        ]
+      },
+      {
+        "batch": 89,
+        "files": [
+          "test/unit/judgeEntries.test.ts",
+          "test/unit/judgeFences.test.ts",
+          "test/unit/judgeMath.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 4.11,
+        "numPassedTests": 44,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 44,
+        "reportedFiles": [
+          "test/unit/judgeEntries.test.ts",
+          "test/unit/judgeFences.test.ts",
+          "test/unit/judgeMath.test.ts"
+        ]
+      },
+      {
+        "batch": 90,
+        "files": [
+          "test/unit/judgePrompt.test.ts",
+          "test/unit/judgeResolve.test.ts",
+          "test/unit/judgeSameAllowRules.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.27,
+        "numPassedTests": 32,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 32,
+        "reportedFiles": [
+          "test/unit/judgePrompt.test.ts",
+          "test/unit/judgeResolve.test.ts",
+          "test/unit/judgeSameAllowRules.test.ts"
+        ]
+      },
+      {
+        "batch": 91,
+        "files": [
+          "test/unit/judgeSameModelApi.test.ts",
+          "test/unit/judgeSameMuseCode.test.ts",
+          "test/unit/judgeSameSession.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.18,
+        "numPassedTests": 37,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 37,
+        "reportedFiles": [
+          "test/unit/judgeSameModelApi.test.ts",
+          "test/unit/judgeSameMuseCode.test.ts",
+          "test/unit/judgeSameSession.test.ts"
+        ]
+      },
+      {
+        "batch": 92,
+        "files": [
+          "test/unit/judgeSameSideRequest.test.ts",
+          "test/unit/judgeSharedBudget.test.ts",
+          "test/unit/judgeTechniques.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.6,
+        "numPassedTests": 36,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 36,
+        "reportedFiles": [
+          "test/unit/judgeSameSideRequest.test.ts",
+          "test/unit/judgeSharedBudget.test.ts",
+          "test/unit/judgeTechniques.test.ts"
+        ]
+      },
+      {
+        "batch": 93,
+        "files": [
+          "test/unit/judgeTransport.test.ts",
+          "test/unit/judgeUi.test.tsx",
+          "test/unit/judgeUsage.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.86,
+        "numPassedTests": 16,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 16,
+        "reportedFiles": [
+          "test/unit/judgeTransport.test.ts",
+          "test/unit/judgeUi.test.tsx",
+          "test/unit/judgeUsage.test.ts"
+        ]
+      },
+      {
+        "batch": 94,
+        "files": [
+          "test/unit/judgeUse.test.ts",
+          "test/unit/judgeWindow.test.ts",
+          "test/unit/l10n.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.08,
+        "numPassedTests": 59,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 59,
+        "reportedFiles": [
+          "test/unit/judgeUse.test.ts",
+          "test/unit/judgeWindow.test.ts",
+          "test/unit/l10n.test.ts"
+        ]
+      },
+      {
+        "batch": 95,
+        "files": [
+          "test/unit/languageServices.test.ts",
+          "test/unit/lateAnswer.test.ts",
+          "test/unit/launch.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.22,
+        "numPassedTests": 41,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 41,
+        "reportedFiles": [
+          "test/unit/languageServices.test.ts",
+          "test/unit/lateAnswer.test.ts",
+          "test/unit/launch.test.ts"
+        ]
+      },
+      {
+        "batch": 96,
+        "files": [
+          "test/unit/links.test.ts",
+          "test/unit/logText.test.ts",
+          "test/unit/logger.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.63,
+        "numPassedTests": 16,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 16,
+        "reportedFiles": [
+          "test/unit/links.test.ts",
+          "test/unit/logText.test.ts",
+          "test/unit/logger.test.ts"
+        ]
+      },
+      {
+        "batch": 97,
+        "files": [
+          "test/unit/manifest.test.ts",
+          "test/unit/mapNotification.test.ts",
+          "test/unit/mcp.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.73,
+        "numPassedTests": 81,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 81,
+        "reportedFiles": [
+          "test/unit/manifest.test.ts",
+          "test/unit/mapNotification.test.ts",
+          "test/unit/mcp.test.ts"
+        ]
+      },
+      {
+        "batch": 98,
+        "files": [
+          "test/unit/mcpCheckpointBoundary.test.ts",
+          "test/unit/mcpConnection.test.ts",
+          "test/unit/mcpElicitation.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 6.83,
+        "numPassedTests": 65,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 65,
+        "reportedFiles": [
+          "test/unit/mcpCheckpointBoundary.test.ts",
+          "test/unit/mcpConnection.test.ts",
+          "test/unit/mcpElicitation.test.ts"
+        ]
+      },
+      {
+        "batch": 99,
+        "files": [
+          "test/unit/mcpFunctions.test.ts",
+          "test/unit/mcpHttp.test.ts",
+          "test/unit/mcpJobExecutable.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.07,
+        "numPassedTests": 30,
+        "numFailedTests": 0,
+        "numPendingTests": 1,
+        "numTotalTests": 31,
+        "reportedFiles": [
+          "test/unit/mcpFunctions.test.ts",
+          "test/unit/mcpHttp.test.ts",
+          "test/unit/mcpJobExecutable.test.ts"
+        ]
+      },
+      {
+        "batch": 100,
+        "files": [
+          "test/unit/mcpPool.test.ts",
+          "test/unit/mcpProcess.test.ts",
+          "test/unit/mcpServers.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 5.79,
+        "numPassedTests": 41,
+        "numFailedTests": 0,
+        "numPendingTests": 6,
+        "numTotalTests": 47,
+        "reportedFiles": [
+          "test/unit/mcpPool.test.ts",
+          "test/unit/mcpProcess.test.ts",
+          "test/unit/mcpServers.test.ts"
+        ]
+      },
+      {
+        "batch": 101,
+        "files": [
+          "test/unit/mcpStdio.test.ts",
+          "test/unit/mediaBudget.test.ts",
+          "test/unit/memoryCommands.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.72,
+        "numPassedTests": 32,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 32,
+        "reportedFiles": [
+          "test/unit/mcpStdio.test.ts",
+          "test/unit/mediaBudget.test.ts",
+          "test/unit/memoryCommands.test.ts"
+        ]
+      },
+      {
+        "batch": 102,
+        "files": [
+          "test/unit/memoryFeatures.test.ts",
+          "test/unit/memoryIndex.test.ts",
+          "test/unit/memoryIo.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.69,
+        "numPassedTests": 25,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 25,
+        "reportedFiles": [
+          "test/unit/memoryFeatures.test.ts",
+          "test/unit/memoryIndex.test.ts",
+          "test/unit/memoryIo.test.ts"
+        ]
+      },
+      {
+        "batch": 103,
+        "files": [
+          "test/unit/memoryLocation.test.ts",
+          "test/unit/memoryStore.test.ts",
+          "test/unit/memoryTools.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.76,
+        "numPassedTests": 48,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 48,
+        "reportedFiles": [
+          "test/unit/memoryLocation.test.ts",
+          "test/unit/memoryStore.test.ts",
+          "test/unit/memoryTools.test.ts"
+        ]
+      },
+      {
+        "batch": 104,
+        "files": [
+          "test/unit/mention.test.ts",
+          "test/unit/mentionIndex.test.ts",
+          "test/unit/mentionQuickPick.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.48,
+        "numPassedTests": 13,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 13,
+        "reportedFiles": [
+          "test/unit/mention.test.ts",
+          "test/unit/mentionIndex.test.ts",
+          "test/unit/mentionQuickPick.test.ts"
+        ]
+      },
+      {
+        "batch": 105,
+        "files": [
+          "test/unit/mentions.test.ts",
+          "test/unit/mimeType.test.ts",
+          "test/unit/modelApiAttemptBudget.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 4.13,
+        "numPassedTests": 22,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 22,
+        "reportedFiles": [
+          "test/unit/mentions.test.ts",
+          "test/unit/mimeType.test.ts",
+          "test/unit/modelApiAttemptBudget.test.ts"
+        ]
+      },
+      {
+        "batch": 106,
+        "files": [
+          "test/unit/modelApiAttemptFiles.test.ts",
+          "test/unit/modelApiAttemptVerify.test.ts",
+          "test/unit/modelApiBackendManager.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 4.49,
+        "numPassedTests": 39,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 39,
+        "reportedFiles": [
+          "test/unit/modelApiAttemptFiles.test.ts",
+          "test/unit/modelApiAttemptVerify.test.ts",
+          "test/unit/modelApiBackendManager.test.ts"
+        ]
+      },
+      {
+        "batch": 107,
+        "files": [
+          "test/unit/modelApiBundle.test.ts",
+          "test/unit/modelApiClient.test.ts",
+          "test/unit/modelApiCodeIntel.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 5.82,
+        "numPassedTests": 65,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 65,
+        "reportedFiles": [
+          "test/unit/modelApiBundle.test.ts",
+          "test/unit/modelApiClient.test.ts",
+          "test/unit/modelApiCodeIntel.test.ts"
+        ]
+      },
+      {
+        "batch": 108,
+        "files": [
+          "test/unit/modelApiElicitation.test.ts",
+          "test/unit/modelApiExtensionHooks.test.ts",
+          "test/unit/modelApiForeignHooks.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.98,
+        "numPassedTests": 49,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 49,
+        "reportedFiles": [
+          "test/unit/modelApiElicitation.test.ts",
+          "test/unit/modelApiExtensionHooks.test.ts",
+          "test/unit/modelApiForeignHooks.test.ts"
+        ]
+      },
+      {
+        "batch": 109,
+        "files": [
+          "test/unit/modelApiGoldenRequests.test.ts",
+          "test/unit/modelApiHooks.test.ts",
+          "test/unit/modelApiHost.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 29.36,
+        "numPassedTests": 654,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 654,
+        "reportedFiles": [
+          "test/unit/modelApiGoldenRequests.test.ts",
+          "test/unit/modelApiHooks.test.ts",
+          "test/unit/modelApiHost.test.ts"
+        ]
+      },
+      {
+        "batch": 110,
+        "files": [
+          "test/unit/modelApiMcpServers.test.ts",
+          "test/unit/modelApiPacking.test.ts",
+          "test/unit/modelApiPolicyFence.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 8.42,
+        "numPassedTests": 108,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 108,
+        "reportedFiles": [
+          "test/unit/modelApiMcpServers.test.ts",
+          "test/unit/modelApiPacking.test.ts",
+          "test/unit/modelApiPolicyFence.test.ts"
+        ]
+      },
+      {
+        "batch": 111,
+        "files": [
+          "test/unit/modelApiQuestionDeferral.test.ts",
+          "test/unit/modelApiSchemas.test.ts",
+          "test/unit/modelApiShellDirectory.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.8,
+        "numPassedTests": 35,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 35,
+        "reportedFiles": [
+          "test/unit/modelApiQuestionDeferral.test.ts",
+          "test/unit/modelApiSchemas.test.ts",
+          "test/unit/modelApiShellDirectory.test.ts"
+        ]
+      },
+      {
+        "batch": 112,
+        "files": [
+          "test/unit/modelApiTools.test.ts",
+          "test/unit/modelCallHooks.test.ts",
+          "test/unit/museCodeBackendManager.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.41,
+        "numPassedTests": 62,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 62,
+        "reportedFiles": [
+          "test/unit/modelApiTools.test.ts",
+          "test/unit/modelCallHooks.test.ts",
+          "test/unit/museCodeBackendManager.test.ts"
+        ]
+      },
+      {
+        "batch": 113,
+        "files": [
+          "test/unit/museCodeHookModels.test.ts",
+          "test/unit/museCodeProtectedWrites.test.ts",
+          "test/unit/museCodeQuestionDeferral.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.86,
+        "numPassedTests": 30,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 30,
+        "reportedFiles": [
+          "test/unit/museCodeHookModels.test.ts",
+          "test/unit/museCodeProtectedWrites.test.ts",
+          "test/unit/museCodeQuestionDeferral.test.ts"
+        ]
+      },
+      {
+        "batch": 114,
+        "files": [
+          "test/unit/museCodeReviewer.test.ts",
+          "test/unit/museCodeReviewerBundle.test.ts",
+          "test/unit/museConfigCommands.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 12.33,
+        "numPassedTests": 65,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 65,
+        "reportedFiles": [
+          "test/unit/museCodeReviewer.test.ts",
+          "test/unit/museCodeReviewerBundle.test.ts",
+          "test/unit/museConfigCommands.test.ts"
+        ]
+      },
+      {
+        "batch": 115,
+        "files": [
+          "test/unit/museConfigView.test.ts",
+          "test/unit/museSettings.test.ts",
+          "test/unit/museVoice.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.36,
+        "numPassedTests": 33,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 33,
+        "reportedFiles": [
+          "test/unit/museConfigView.test.ts",
+          "test/unit/museSettings.test.ts",
+          "test/unit/museVoice.test.ts"
+        ]
+      },
+      {
+        "batch": 116,
+        "files": [
+          "test/unit/networkFailure.test.ts",
+          "test/unit/networkPosture.test.ts",
+          "test/unit/noticesInput.test.mjs"
+        ],
+        "exit": 0,
+        "seconds": 1.62,
+        "numPassedTests": 18,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 18,
+        "reportedFiles": [
+          "test/unit/networkFailure.test.ts",
+          "test/unit/networkPosture.test.ts",
+          "test/unit/noticesInput.test.mjs"
+        ]
+      },
+      {
+        "batch": 117,
+        "files": [
+          "test/unit/observationPack.test.ts",
+          "test/unit/openInTerminal.test.ts",
+          "test/unit/openQuestionNotices.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.02,
+        "numPassedTests": 38,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 38,
+        "reportedFiles": [
+          "test/unit/observationPack.test.ts",
+          "test/unit/openInTerminal.test.ts",
+          "test/unit/openQuestionNotices.test.ts"
+        ]
+      },
+      {
+        "batch": 118,
+        "files": [
+          "test/unit/outputDocuments.test.ts",
+          "test/unit/pageConverter.test.ts",
+          "test/unit/pageUrl.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.22,
+        "numPassedTests": 15,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 15,
+        "reportedFiles": [
+          "test/unit/outputDocuments.test.ts",
+          "test/unit/pageConverter.test.ts",
+          "test/unit/pageUrl.test.ts"
+        ]
+      },
+      {
+        "batch": 119,
+        "files": [
+          "test/unit/paidConsent.test.ts",
+          "test/unit/paidDailyBudget.test.ts",
+          "test/unit/paidFeatures.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 4.04,
+        "numPassedTests": 68,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 68,
+        "reportedFiles": [
+          "test/unit/paidConsent.test.ts",
+          "test/unit/paidDailyBudget.test.ts",
+          "test/unit/paidFeatures.test.ts"
+        ]
+      },
+      {
+        "batch": 120,
+        "files": [
+          "test/unit/paidHookModels.test.ts",
+          "test/unit/paidHost.test.ts",
+          "test/unit/paletteRegistry.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.83,
+        "numPassedTests": 78,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 78,
+        "reportedFiles": [
+          "test/unit/paidHookModels.test.ts",
+          "test/unit/paidHost.test.ts",
+          "test/unit/paletteRegistry.test.ts"
+        ]
+      },
+      {
+        "batch": 121,
+        "files": [
+          "test/unit/patchApply.test.ts",
+          "test/unit/pdf.test.ts",
+          "test/unit/permissionModes.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.51,
+        "numPassedTests": 55,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 55,
+        "reportedFiles": [
+          "test/unit/patchApply.test.ts",
+          "test/unit/pdf.test.ts",
+          "test/unit/permissionModes.test.ts"
+        ]
+      },
+      {
+        "batch": 122,
+        "files": [
+          "test/unit/permissionPolicy.test.ts",
+          "test/unit/permissions.test.ts",
+          "test/unit/pinnedRequest.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.7,
+        "numPassedTests": 95,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 95,
+        "reportedFiles": [
+          "test/unit/permissionPolicy.test.ts",
+          "test/unit/permissions.test.ts",
+          "test/unit/pinnedRequest.test.ts"
+        ]
+      },
+      {
+        "batch": 123,
+        "files": [
+          "test/unit/planActions.test.tsx",
+          "test/unit/planCommands.test.ts",
+          "test/unit/planDocument.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 4.94,
+        "numPassedTests": 29,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 29,
+        "reportedFiles": [
+          "test/unit/planActions.test.tsx",
+          "test/unit/planCommands.test.ts",
+          "test/unit/planDocument.test.ts"
+        ]
+      },
+      {
+        "batch": 124,
+        "files": [
+          "test/unit/planMarkdownBundle.test.ts",
+          "test/unit/planMarkupParity.test.tsx",
+          "test/unit/planStore.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.79,
+        "numPassedTests": 28,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 28,
+        "reportedFiles": [
+          "test/unit/planMarkdownBundle.test.ts",
+          "test/unit/planMarkupParity.test.tsx",
+          "test/unit/planStore.test.ts"
+        ]
+      },
+      {
+        "batch": 125,
+        "files": [
+          "test/unit/pluginContainment.test.ts",
+          "test/unit/pluginDispatch.test.ts",
+          "test/unit/pluginHost.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.85,
+        "numPassedTests": 83,
+        "numFailedTests": 0,
+        "numPendingTests": 4,
+        "numTotalTests": 87,
+        "reportedFiles": [
+          "test/unit/pluginContainment.test.ts",
+          "test/unit/pluginDispatch.test.ts",
+          "test/unit/pluginHost.test.ts"
+        ]
+      },
+      {
+        "batch": 126,
+        "files": [
+          "test/unit/pluginImport.test.ts",
+          "test/unit/privateFiles.test.ts",
+          "test/unit/problemReportBuilder.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.25,
+        "numPassedTests": 86,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 86,
+        "reportedFiles": [
+          "test/unit/pluginImport.test.ts",
+          "test/unit/privateFiles.test.ts",
+          "test/unit/problemReportBuilder.test.ts"
+        ]
+      },
+      {
+        "batch": 127,
+        "files": [
+          "test/unit/processTree.test.ts",
+          "test/unit/promptLedger.test.ts",
+          "test/unit/protocol.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.77,
+        "numPassedTests": 173,
+        "numFailedTests": 0,
+        "numPendingTests": 3,
+        "numTotalTests": 176,
+        "reportedFiles": [
+          "test/unit/processTree.test.ts",
+          "test/unit/promptLedger.test.ts",
+          "test/unit/protocol.test.ts"
+        ]
+      },
+      {
+        "batch": 128,
+        "files": [
+          "test/unit/publicAddress.test.ts",
+          "test/unit/pullRequestCheckout.test.ts",
+          "test/unit/pullRequestCheckoutGit.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 4.07,
+        "numPassedTests": 42,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 42,
+        "reportedFiles": [
+          "test/unit/publicAddress.test.ts",
+          "test/unit/pullRequestCheckout.test.ts",
+          "test/unit/pullRequestCheckoutGit.test.ts"
+        ]
+      },
+      {
+        "batch": 129,
+        "files": [
+          "test/unit/pullRequestLinks.test.ts",
+          "test/unit/pullRequestRef.test.ts",
+          "test/unit/pushPlan.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.66,
+        "numPassedTests": 43,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 43,
+        "reportedFiles": [
+          "test/unit/pullRequestLinks.test.ts",
+          "test/unit/pullRequestRef.test.ts",
+          "test/unit/pushPlan.test.ts"
+        ]
+      },
+      {
+        "batch": 130,
+        "files": [
+          "test/unit/questionApp.test.tsx",
+          "test/unit/questionContracts.test.ts",
+          "test/unit/questionFakes.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 6.13,
+        "numPassedTests": 38,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 38,
+        "reportedFiles": [
+          "test/unit/questionApp.test.tsx",
+          "test/unit/questionContracts.test.ts",
+          "test/unit/questionFakes.test.ts"
+        ]
+      },
+      {
+        "batch": 131,
+        "files": [
+          "test/unit/questionKey.test.ts",
+          "test/unit/questionManifest.test.ts",
+          "test/unit/questionRegistry.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.14,
+        "numPassedTests": 21,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 21,
+        "reportedFiles": [
+          "test/unit/questionKey.test.ts",
+          "test/unit/questionManifest.test.ts",
+          "test/unit/questionRegistry.test.ts"
+        ]
+      },
+      {
+        "batch": 132,
+        "files": [
+          "test/unit/questionStore.test.ts",
+          "test/unit/questionStrings.test.ts",
+          "test/unit/questionUiState.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.95,
+        "numPassedTests": 46,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 46,
+        "reportedFiles": [
+          "test/unit/questionStore.test.ts",
+          "test/unit/questionStrings.test.ts",
+          "test/unit/questionUiState.test.ts"
+        ]
+      },
+      {
+        "batch": 133,
+        "files": [
+          "test/unit/queue.test.ts",
+          "test/unit/readmeShots.test.mjs",
+          "test/unit/readmeVersion.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.82,
+        "numPassedTests": 32,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 32,
+        "reportedFiles": [
+          "test/unit/queue.test.ts",
+          "test/unit/readmeShots.test.mjs",
+          "test/unit/readmeVersion.test.ts"
+        ],
+        "initialExit": 1,
+        "rerun": "retry-133.json"
+      },
+      {
+        "batch": 134,
+        "files": [
+          "test/unit/recorderHelper.test.ts",
+          "test/unit/redact.test.ts",
+          "test/unit/reducedMotion.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.12,
+        "numPassedTests": 133,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 133,
+        "reportedFiles": [
+          "test/unit/recorderHelper.test.ts",
+          "test/unit/redact.test.ts",
+          "test/unit/reducedMotion.test.ts"
+        ]
+      },
+      {
+        "batch": 135,
+        "files": [
+          "test/unit/referenceBundle.test.mjs",
+          "test/unit/referenceEntry.test.ts",
+          "test/unit/referenceGenerator.test.mjs"
+        ],
+        "exit": 0,
+        "seconds": 8.73,
+        "numPassedTests": 73,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 73,
+        "reportedFiles": [
+          "test/unit/referenceBundle.test.mjs",
+          "test/unit/referenceEntry.test.ts",
+          "test/unit/referenceGenerator.test.mjs"
+        ]
+      },
+      {
+        "batch": 136,
+        "files": [
+          "test/unit/referenceKeyboardTruth.test.tsx",
+          "test/unit/refreshBadges.test.mjs",
+          "test/unit/releaseIntegrity.test.mjs"
+        ],
+        "exit": 0,
+        "seconds": 3.15,
+        "numPassedTests": 54,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 54,
+        "reportedFiles": [
+          "test/unit/referenceKeyboardTruth.test.tsx",
+          "test/unit/refreshBadges.test.mjs",
+          "test/unit/releaseIntegrity.test.mjs"
+        ]
+      },
+      {
+        "batch": 137,
+        "files": [
+          "test/unit/releaseMajorTag.test.mjs",
+          "test/unit/releasePublish.test.mjs",
+          "test/unit/relocate.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.57,
+        "numPassedTests": 208,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 208,
+        "reportedFiles": [
+          "test/unit/releaseMajorTag.test.mjs",
+          "test/unit/releasePublish.test.mjs",
+          "test/unit/relocate.test.ts"
+        ]
+      },
+      {
+        "batch": 138,
+        "files": [
+          "test/unit/renamePlan.test.ts",
+          "test/unit/renderCost.test.tsx",
+          "test/unit/repoMap.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 4.72,
+        "numPassedTests": 18,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 18,
+        "reportedFiles": [
+          "test/unit/renamePlan.test.ts",
+          "test/unit/renderCost.test.tsx",
+          "test/unit/repoMap.test.ts"
+        ]
+      },
+      {
+        "batch": 139,
+        "files": [
+          "test/unit/reportCommand.test.ts",
+          "test/unit/reportInvariants.test.ts",
+          "test/unit/reportProblem.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.13,
+        "numPassedTests": 77,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 77,
+        "reportedFiles": [
+          "test/unit/reportCommand.test.ts",
+          "test/unit/reportInvariants.test.ts",
+          "test/unit/reportProblem.test.ts"
+        ]
+      },
+      {
+        "batch": 140,
+        "files": [
+          "test/unit/reportProblemDialog.test.tsx",
+          "test/unit/reportProblemExport.test.ts",
+          "test/unit/reportProblemHandler.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.7,
+        "numPassedTests": 60,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 60,
+        "reportedFiles": [
+          "test/unit/reportProblemDialog.test.tsx",
+          "test/unit/reportProblemExport.test.ts",
+          "test/unit/reportProblemHandler.test.ts"
+        ]
+      },
+      {
+        "batch": 141,
+        "files": [
+          "test/unit/reportProblemRows.test.tsx",
+          "test/unit/reportRecorder.test.ts",
+          "test/unit/resourceAcpPackaging.test.mjs"
+        ],
+        "exit": 0,
+        "seconds": 3.65,
+        "numPassedTests": 33,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 33,
+        "reportedFiles": [
+          "test/unit/reportProblemRows.test.tsx",
+          "test/unit/reportRecorder.test.ts",
+          "test/unit/resourceAcpPackaging.test.mjs"
+        ]
+      },
+      {
+        "batch": 142,
+        "files": [
+          "test/unit/resourceAdapters.test.ts",
+          "test/unit/resourceCreatedNative.test.ts",
+          "test/unit/resourceCreatedRegistry.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.47,
+        "numPassedTests": 69,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 69,
+        "reportedFiles": [
+          "test/unit/resourceAdapters.test.ts",
+          "test/unit/resourceCreatedNative.test.ts",
+          "test/unit/resourceCreatedRegistry.test.ts"
+        ]
+      },
+      {
+        "batch": 143,
+        "files": [
+          "test/unit/resourceDelivery.test.mjs",
+          "test/unit/resourceDisk.test.ts",
+          "test/unit/resourceDiskAdmission.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.35,
+        "numPassedTests": 29,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 29,
+        "reportedFiles": [
+          "test/unit/resourceDelivery.test.mjs",
+          "test/unit/resourceDisk.test.ts",
+          "test/unit/resourceDiskAdmission.test.ts"
+        ]
+      },
+      {
+        "batch": 144,
+        "files": [
+          "test/unit/resourceHarness.test.mjs",
+          "test/unit/resourceHistoryBundle.test.mjs",
+          "test/unit/resourceHistoryHarness.test.mjs"
+        ],
+        "exit": 0,
+        "seconds": 4.08,
+        "numPassedTests": 6,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 6,
+        "reportedFiles": [
+          "test/unit/resourceHarness.test.mjs",
+          "test/unit/resourceHistoryBundle.test.mjs",
+          "test/unit/resourceHistoryHarness.test.mjs"
+        ]
+      },
+      {
+        "batch": 145,
+        "files": [
+          "test/unit/resourceHostGlobals.test.mjs",
+          "test/unit/resourceLaunchHost.test.ts",
+          "test/unit/resourceMuseLifecycle.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.73,
+        "numPassedTests": 18,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 18,
+        "reportedFiles": [
+          "test/unit/resourceHostGlobals.test.mjs",
+          "test/unit/resourceLaunchHost.test.ts",
+          "test/unit/resourceMuseLifecycle.test.ts"
+        ]
+      },
+      {
+        "batch": 146,
+        "files": [
+          "test/unit/resourceRecords.test.ts",
+          "test/unit/resourceRunnerRouting.test.ts",
+          "test/unit/resourceStatus.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.97,
+        "numPassedTests": 36,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 36,
+        "reportedFiles": [
+          "test/unit/resourceRecords.test.ts",
+          "test/unit/resourceRunnerRouting.test.ts",
+          "test/unit/resourceStatus.test.ts"
+        ]
+      },
+      {
+        "batch": 147,
+        "files": [
+          "test/unit/resourceStatusPortable.test.ts",
+          "test/unit/resourceStops.test.ts",
+          "test/unit/resourceWindowsLaunch.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.32,
+        "numPassedTests": 7,
+        "numFailedTests": 0,
+        "numPendingTests": 10,
+        "numTotalTests": 17,
+        "reportedFiles": [
+          "test/unit/resourceStatusPortable.test.ts",
+          "test/unit/resourceStops.test.ts",
+          "test/unit/resourceWindowsLaunch.test.ts"
+        ]
+      },
+      {
+        "batch": 148,
+        "files": [
+          "test/unit/resourcesContracts.test.ts",
+          "test/unit/resourcesFakes.test.ts",
+          "test/unit/restoreChain.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.77,
+        "numPassedTests": 76,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 76,
+        "reportedFiles": [
+          "test/unit/resourcesContracts.test.ts",
+          "test/unit/resourcesFakes.test.ts",
+          "test/unit/restoreChain.test.ts"
+        ]
+      },
+      {
+        "batch": 149,
+        "files": [
+          "test/unit/review.test.ts",
+          "test/unit/reviewBundle.test.ts",
+          "test/unit/reviewMaterial.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 4.55,
+        "numPassedTests": 71,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 71,
+        "reportedFiles": [
+          "test/unit/review.test.ts",
+          "test/unit/reviewBundle.test.ts",
+          "test/unit/reviewMaterial.test.ts"
+        ]
+      },
+      {
+        "batch": 150,
+        "files": [
+          "test/unit/reviewUi.test.tsx",
+          "test/unit/rowMenus.test.tsx",
+          "test/unit/rules.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 6.44,
+        "numPassedTests": 48,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 48,
+        "reportedFiles": [
+          "test/unit/reviewUi.test.tsx",
+          "test/unit/rowMenus.test.tsx",
+          "test/unit/rules.test.ts"
+        ]
+      },
+      {
+        "batch": 151,
+        "files": [
+          "test/unit/rulesTemplate.test.ts",
+          "test/unit/runLedger.test.ts",
+          "test/unit/runtimeConsent.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.59,
+        "numPassedTests": 42,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 42,
+        "reportedFiles": [
+          "test/unit/rulesTemplate.test.ts",
+          "test/unit/runLedger.test.ts",
+          "test/unit/runtimeConsent.test.ts"
+        ]
+      },
+      {
+        "batch": 152,
+        "files": [
+          "test/unit/runtimeManifest.test.ts",
+          "test/unit/runtimeQuestionBundle.test.ts",
+          "test/unit/runtimeQuestionRegistry.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.93,
+        "numPassedTests": 28,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 28,
+        "reportedFiles": [
+          "test/unit/runtimeManifest.test.ts",
+          "test/unit/runtimeQuestionBundle.test.ts",
+          "test/unit/runtimeQuestionRegistry.test.ts"
+        ]
+      },
+      {
+        "batch": 153,
+        "files": [
+          "test/unit/runtimeResources.test.ts",
+          "test/unit/runtimeStore.test.ts",
+          "test/unit/sampler.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.98,
+        "numPassedTests": 54,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 54,
+        "reportedFiles": [
+          "test/unit/runtimeResources.test.ts",
+          "test/unit/runtimeStore.test.ts",
+          "test/unit/sampler.test.ts"
+        ]
+      },
+      {
+        "batch": 154,
+        "files": [
+          "test/unit/samplerProbes.test.ts",
+          "test/unit/samplerSystem.test.ts",
+          "test/unit/sandbox.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.97,
+        "numPassedTests": 32,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 32,
+        "reportedFiles": [
+          "test/unit/samplerProbes.test.ts",
+          "test/unit/samplerSystem.test.ts",
+          "test/unit/sandbox.test.ts"
+        ]
+      },
+      {
+        "batch": 155,
+        "files": [
+          "test/unit/sandboxSetup.test.ts",
+          "test/unit/scanSecrets.test.ts",
+          "test/unit/scheduledRunConfirmation.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.61,
+        "numPassedTests": 30,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 30,
+        "reportedFiles": [
+          "test/unit/sandboxSetup.test.ts",
+          "test/unit/scanSecrets.test.ts",
+          "test/unit/scheduledRunConfirmation.test.ts"
+        ]
+      },
+      {
+        "batch": 156,
+        "files": [
+          "test/unit/schedules.test.ts",
+          "test/unit/searchWorker.test.ts",
+          "test/unit/secretPromptDialog.test.tsx"
+        ],
+        "exit": 0,
+        "seconds": 4.12,
+        "numPassedTests": 18,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 18,
+        "reportedFiles": [
+          "test/unit/schedules.test.ts",
+          "test/unit/searchWorker.test.ts",
+          "test/unit/secretPromptDialog.test.tsx"
+        ]
+      },
+      {
+        "batch": 157,
+        "files": [
+          "test/unit/selectedHost.test.ts",
+          "test/unit/sessionBoard.test.ts",
+          "test/unit/sessionBoardHost.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.19,
+        "numPassedTests": 20,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 20,
+        "reportedFiles": [
+          "test/unit/selectedHost.test.ts",
+          "test/unit/sessionBoard.test.ts",
+          "test/unit/sessionBoardHost.test.ts"
+        ]
+      },
+      {
+        "batch": 158,
+        "files": [
+          "test/unit/sessionBudget.test.ts",
+          "test/unit/sessionBudgetJournal.test.ts",
+          "test/unit/sessionImport.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.29,
+        "numPassedTests": 63,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 63,
+        "reportedFiles": [
+          "test/unit/sessionBudget.test.ts",
+          "test/unit/sessionBudgetJournal.test.ts",
+          "test/unit/sessionImport.test.ts"
+        ]
+      },
+      {
+        "batch": 159,
+        "files": [
+          "test/unit/sessionRecords.test.ts",
+          "test/unit/sessionStore.test.ts",
+          "test/unit/sessionTap.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.6,
+        "numPassedTests": 36,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 36,
+        "reportedFiles": [
+          "test/unit/sessionRecords.test.ts",
+          "test/unit/sessionStore.test.ts",
+          "test/unit/sessionTap.test.ts"
+        ]
+      },
+      {
+        "batch": 160,
+        "files": [
+          "test/unit/sessionTransfer.test.ts",
+          "test/unit/sessions.test.ts",
+          "test/unit/settings.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.09,
+        "numPassedTests": 52,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 52,
+        "reportedFiles": [
+          "test/unit/sessionTransfer.test.ts",
+          "test/unit/sessions.test.ts",
+          "test/unit/settings.test.ts"
+        ]
+      },
+      {
+        "batch": 161,
+        "files": [
+          "test/unit/shellBoundedMonitor.test.ts",
+          "test/unit/shellEnvironmentOrigins.test.ts",
+          "test/unit/shellJob.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 12.52,
+        "numPassedTests": 22,
+        "numFailedTests": 0,
+        "numPendingTests": 1,
+        "numTotalTests": 23,
+        "reportedFiles": [
+          "test/unit/shellBoundedMonitor.test.ts",
+          "test/unit/shellEnvironmentOrigins.test.ts",
+          "test/unit/shellJob.test.ts"
+        ]
+      },
+      {
+        "batch": 162,
+        "files": [
+          "test/unit/shellQuote.test.ts",
+          "test/unit/shellSyntax.test.ts",
+          "test/unit/skills.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.84,
+        "numPassedTests": 179,
+        "numFailedTests": 0,
+        "numPendingTests": 2,
+        "numTotalTests": 181,
+        "reportedFiles": [
+          "test/unit/shellQuote.test.ts",
+          "test/unit/shellSyntax.test.ts",
+          "test/unit/skills.test.ts"
+        ]
+      },
+      {
+        "batch": 163,
+        "files": [
+          "test/unit/skillsCli.test.ts",
+          "test/unit/skillsCommands.test.ts",
+          "test/unit/snapshot.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.89,
+        "numPassedTests": 33,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 33,
+        "reportedFiles": [
+          "test/unit/skillsCli.test.ts",
+          "test/unit/skillsCommands.test.ts",
+          "test/unit/snapshot.test.ts"
+        ]
+      },
+      {
+        "batch": 164,
+        "files": [
+          "test/unit/sse.test.ts",
+          "test/unit/stepSummary.test.ts",
+          "test/unit/store.test.tsx"
+        ],
+        "exit": 0,
+        "seconds": 4.67,
+        "numPassedTests": 22,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 22,
+        "reportedFiles": [
+          "test/unit/sse.test.ts",
+          "test/unit/stepSummary.test.ts",
+          "test/unit/store.test.tsx"
+        ]
+      },
+      {
+        "batch": 165,
+        "files": [
+          "test/unit/streamSplit.test.ts",
+          "test/unit/supportReport.test.ts",
+          "test/unit/surfaceRegistry.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.64,
+        "numPassedTests": 22,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 22,
+        "reportedFiles": [
+          "test/unit/streamSplit.test.ts",
+          "test/unit/supportReport.test.ts",
+          "test/unit/surfaceRegistry.test.ts"
+        ]
+      },
+      {
+        "batch": 166,
+        "files": [
+          "test/unit/surfaceRetry.test.ts",
+          "test/unit/tabBundle.test.ts",
+          "test/unit/tabCache.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.17,
+        "numPassedTests": 41,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 41,
+        "reportedFiles": [
+          "test/unit/surfaceRetry.test.ts",
+          "test/unit/tabBundle.test.ts",
+          "test/unit/tabCache.test.ts"
+        ]
+      },
+      {
+        "batch": 167,
+        "files": [
+          "test/unit/tabConstants.test.ts",
+          "test/unit/tabContext.test.ts",
+          "test/unit/tabEngine.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.85,
+        "numPassedTests": 33,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 33,
+        "reportedFiles": [
+          "test/unit/tabConstants.test.ts",
+          "test/unit/tabContext.test.ts",
+          "test/unit/tabEngine.test.ts"
+        ]
+      },
+      {
+        "batch": 168,
+        "files": [
+          "test/unit/tabLedger.test.ts",
+          "test/unit/tabProvider.test.ts",
+          "test/unit/tabReply.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.03,
+        "numPassedTests": 110,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 110,
+        "reportedFiles": [
+          "test/unit/tabLedger.test.ts",
+          "test/unit/tabProvider.test.ts",
+          "test/unit/tabReply.test.ts"
+        ]
+      },
+      {
+        "batch": 169,
+        "files": [
+          "test/unit/tabRequest.test.ts",
+          "test/unit/tabScheduler.test.ts",
+          "test/unit/tabSpend.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.75,
+        "numPassedTests": 30,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 30,
+        "reportedFiles": [
+          "test/unit/tabRequest.test.ts",
+          "test/unit/tabScheduler.test.ts",
+          "test/unit/tabSpend.test.ts"
+        ]
+      },
+      {
+        "batch": 170,
+        "files": [
+          "test/unit/tabSpendGate.test.ts",
+          "test/unit/tabStatus.test.ts",
+          "test/unit/tasksPanel.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.86,
+        "numPassedTests": 27,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 27,
+        "reportedFiles": [
+          "test/unit/tabSpendGate.test.ts",
+          "test/unit/tabStatus.test.ts",
+          "test/unit/tasksPanel.test.ts"
+        ]
+      },
+      {
+        "batch": 171,
+        "files": [
+          "test/unit/teamProcessResources.test.ts",
+          "test/unit/teamResourceSlots.test.ts",
+          "test/unit/textDecoding.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.13,
+        "numPassedTests": 28,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 28,
+        "reportedFiles": [
+          "test/unit/teamProcessResources.test.ts",
+          "test/unit/teamResourceSlots.test.ts",
+          "test/unit/textDecoding.test.ts"
+        ]
+      },
+      {
+        "batch": 172,
+        "files": [
+          "test/unit/textDecodingNode20.test.ts",
+          "test/unit/timeouts.test.ts",
+          "test/unit/toggleFocusView.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.55,
+        "numPassedTests": 9,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 9,
+        "reportedFiles": [
+          "test/unit/textDecodingNode20.test.ts",
+          "test/unit/timeouts.test.ts",
+          "test/unit/toggleFocusView.test.ts"
+        ]
+      },
+      {
+        "batch": 173,
+        "files": [
+          "test/unit/toolImages.test.ts",
+          "test/unit/toolIo.test.ts",
+          "test/unit/toolIoBounded.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 9.36,
+        "numPassedTests": 58,
+        "numFailedTests": 0,
+        "numPendingTests": 2,
+        "numTotalTests": 60,
+        "reportedFiles": [
+          "test/unit/toolImages.test.ts",
+          "test/unit/toolIo.test.ts",
+          "test/unit/toolIoBounded.test.ts"
+        ]
+      },
+      {
+        "batch": 174,
+        "files": [
+          "test/unit/toolIoCommandAdmission.test.ts",
+          "test/unit/toolPresentation.test.ts",
+          "test/unit/toolRows.test.tsx"
+        ],
+        "exit": 0,
+        "seconds": 4.05,
+        "numPassedTests": 56,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 56,
+        "reportedFiles": [
+          "test/unit/toolIoCommandAdmission.test.ts",
+          "test/unit/toolPresentation.test.ts",
+          "test/unit/toolRows.test.tsx"
+        ]
+      },
+      {
+        "batch": 175,
+        "files": [
+          "test/unit/traceLogs.test.ts",
+          "test/unit/transcriptMarkdown.test.ts",
+          "test/unit/transferDialogs.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.83,
+        "numPassedTests": 24,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 24,
+        "reportedFiles": [
+          "test/unit/traceLogs.test.ts",
+          "test/unit/transcriptMarkdown.test.ts",
+          "test/unit/transferDialogs.test.ts"
+        ]
+      },
+      {
+        "batch": 176,
+        "files": [
+          "test/unit/trees.test.ts",
+          "test/unit/treesActions.test.ts",
+          "test/unit/treesLifecycle.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.67,
+        "numPassedTests": 38,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 38,
+        "reportedFiles": [
+          "test/unit/trees.test.ts",
+          "test/unit/treesActions.test.ts",
+          "test/unit/treesLifecycle.test.ts"
+        ]
+      },
+      {
+        "batch": 177,
+        "files": [
+          "test/unit/treesLifecycleNative.test.ts",
+          "test/unit/treesLinuxCgroup.test.ts",
+          "test/unit/treesLinuxLaunchNative.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.41,
+        "numPassedTests": 38,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 38,
+        "reportedFiles": [
+          "test/unit/treesLifecycleNative.test.ts",
+          "test/unit/treesLinuxCgroup.test.ts",
+          "test/unit/treesLinuxLaunchNative.test.ts"
+        ]
+      },
+      {
+        "batch": 178,
+        "files": [
+          "test/unit/treesLinuxPinned.test.ts",
+          "test/unit/treesMacNative.test.ts",
+          "test/unit/treesPosix.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.09,
+        "numPassedTests": 41,
+        "numFailedTests": 0,
+        "numPendingTests": 3,
+        "numTotalTests": 44,
+        "reportedFiles": [
+          "test/unit/treesLinuxPinned.test.ts",
+          "test/unit/treesMacNative.test.ts",
+          "test/unit/treesPosix.test.ts"
+        ]
+      },
+      {
+        "batch": 179,
+        "files": [
+          "test/unit/treesWindows.test.ts",
+          "test/unit/turnNotifications.test.ts",
+          "test/unit/uiState.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.51,
+        "numPassedTests": 199,
+        "numFailedTests": 0,
+        "numPendingTests": 1,
+        "numTotalTests": 200,
+        "reportedFiles": [
+          "test/unit/treesWindows.test.ts",
+          "test/unit/turnNotifications.test.ts",
+          "test/unit/uiState.test.ts"
+        ]
+      },
+      {
+        "batch": 180,
+        "files": [
+          "test/unit/uiTextRegions.test.mjs",
+          "test/unit/untrustedInput.test.ts",
+          "test/unit/usage.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.4,
+        "numPassedTests": 19,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 19,
+        "reportedFiles": [
+          "test/unit/uiTextRegions.test.mjs",
+          "test/unit/untrustedInput.test.ts",
+          "test/unit/usage.test.ts"
+        ]
+      },
+      {
+        "batch": 181,
+        "files": [
+          "test/unit/verifyEditor.test.ts",
+          "test/unit/verifyLedger.test.ts",
+          "test/unit/verifyLoop.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 4.65,
+        "numPassedTests": 118,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 118,
+        "reportedFiles": [
+          "test/unit/verifyEditor.test.ts",
+          "test/unit/verifyLedger.test.ts",
+          "test/unit/verifyLoop.test.ts"
+        ]
+      },
+      {
+        "batch": 182,
+        "files": [
+          "test/unit/verifyRows.test.tsx",
+          "test/unit/voiceBundle.test.ts",
+          "test/unit/vsixPackaging.test.mjs"
+        ],
+        "exit": 0,
+        "seconds": 13.09,
+        "numPassedTests": 43,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 43,
+        "reportedFiles": [
+          "test/unit/verifyRows.test.tsx",
+          "test/unit/voiceBundle.test.ts",
+          "test/unit/vsixPackaging.test.mjs"
+        ]
+      },
+      {
+        "batch": 183,
+        "files": [
+          "test/unit/walkthrough.test.ts",
+          "test/unit/webFetch.test.ts",
+          "test/unit/webFetchBundle.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.06,
+        "numPassedTests": 48,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 48,
+        "reportedFiles": [
+          "test/unit/walkthrough.test.ts",
+          "test/unit/webFetch.test.ts",
+          "test/unit/webFetchBundle.test.ts"
+        ]
+      },
+      {
+        "batch": 184,
+        "files": [
+          "test/unit/webFetchConfirm.test.ts",
+          "test/unit/webFetcher.test.ts",
+          "test/unit/webPage.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.73,
+        "numPassedTests": 9,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 9,
+        "reportedFiles": [
+          "test/unit/webFetchConfirm.test.ts",
+          "test/unit/webFetcher.test.ts",
+          "test/unit/webPage.test.ts"
+        ]
+      },
+      {
+        "batch": 185,
+        "files": [
+          "test/unit/webviewBundle.test.mjs",
+          "test/unit/webviewBundles.test.mjs",
+          "test/unit/webviewErrors.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 5.35,
+        "numPassedTests": 36,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 36,
+        "reportedFiles": [
+          "test/unit/webviewBundle.test.mjs",
+          "test/unit/webviewBundles.test.mjs",
+          "test/unit/webviewErrors.test.ts"
+        ]
+      },
+      {
+        "batch": 186,
+        "files": [
+          "test/unit/webviewSetup.test.ts",
+          "test/unit/whatsNew.test.ts",
+          "test/unit/whatsNewBundle.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.99,
+        "numPassedTests": 36,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 36,
+        "reportedFiles": [
+          "test/unit/webviewSetup.test.ts",
+          "test/unit/whatsNew.test.ts",
+          "test/unit/whatsNewBundle.test.ts"
+        ]
+      },
+      {
+        "batch": 187,
+        "files": [
+          "test/unit/whatsNewContent.test.ts",
+          "test/unit/whatsNewHtml.test.ts",
+          "test/unit/whatsNewPage.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 4.59,
+        "numPassedTests": 31,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 31,
+        "reportedFiles": [
+          "test/unit/whatsNewContent.test.ts",
+          "test/unit/whatsNewHtml.test.ts",
+          "test/unit/whatsNewPage.test.ts"
+        ]
+      },
+      {
+        "batch": 188,
+        "files": [
+          "test/unit/whatsNewPanel.test.ts",
+          "test/unit/whatsNewVersions.test.ts",
+          "test/unit/windowPresence.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.65,
+        "numPassedTests": 32,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 32,
+        "reportedFiles": [
+          "test/unit/whatsNewPanel.test.ts",
+          "test/unit/whatsNewVersions.test.ts",
+          "test/unit/windowPresence.test.ts"
+        ]
+      },
+      {
+        "batch": 189,
+        "files": [
+          "test/unit/workLifetime.test.ts",
+          "test/unit/workflowDetails.test.ts",
+          "test/unit/workspaceContext.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.62,
+        "numPassedTests": 32,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 32,
+        "reportedFiles": [
+          "test/unit/workLifetime.test.ts",
+          "test/unit/workflowDetails.test.ts",
+          "test/unit/workspaceContext.test.ts"
+        ]
+      },
+      {
+        "batch": 190,
+        "files": [
+          "test/unit/workspaceFiles.test.ts",
+          "test/unit/workspaceIdentity.test.ts",
+          "test/unit/workspaceRoot.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.51,
+        "numPassedTests": 22,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 22,
+        "reportedFiles": [
+          "test/unit/workspaceFiles.test.ts",
+          "test/unit/workspaceIdentity.test.ts",
+          "test/unit/workspaceRoot.test.ts"
+        ]
+      },
+      {
+        "batch": 191,
+        "files": [
+          "test/unit/worktreeCommands.test.ts",
+          "test/unit/worktreeConversationHost.test.ts",
+          "test/unit/worktreeConversations.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.22,
+        "numPassedTests": 37,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 37,
+        "reportedFiles": [
+          "test/unit/worktreeCommands.test.ts",
+          "test/unit/worktreeConversationHost.test.ts",
+          "test/unit/worktreeConversations.test.ts"
+        ]
+      },
+      {
+        "batch": 192,
+        "files": [
+          "test/unit/worktreeFeatures.test.ts",
+          "test/unit/worktrees.test.ts",
+          "test/unit/writeJournal.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.66,
+        "numPassedTests": 21,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTotalTests": 21,
+        "reportedFiles": [
+          "test/unit/worktreeFeatures.test.ts",
+          "test/unit/worktrees.test.ts",
+          "test/unit/writeJournal.test.ts"
+        ]
+      },
+      {
+        "batch": 193,
+        "files": [
+          "test/unit/writeRecorder.test.ts",
+          "test/unit/writeRecorderCaps.test.ts",
+          "test/unit/zipExtract.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 1.99,
+        "numPassedTests": 40,
+        "numFailedTests": 0,
+        "numPendingTests": 1,
+        "numTotalTests": 41,
+        "reportedFiles": [
+          "test/unit/writeRecorder.test.ts",
+          "test/unit/writeRecorderCaps.test.ts",
+          "test/unit/zipExtract.test.ts"
+        ]
+      }
+    ]
+  },
+  "productionDiffFromM107": []
 }

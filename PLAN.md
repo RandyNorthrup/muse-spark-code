@@ -13506,6 +13506,15 @@ and outstanding merges in `docs/certification/rel0160.md`. Commit finished
 pieces with hooks and explicit paths; no push, rebase, live/paid calls or tags.
 The lane is time-boxed to 120 minutes.
 
+**README draft correction.** The complete sweep observes both existing
+`readmeVersion` guards fail when a 0.16.0 headline is installed before the
+manifest can be bumped. Preserve the exact ready-to-apply section in
+`docs/certification/rel0160-readme-draft.md` and link it from README while
+keeping the released headline/contents aligned with 0.14.3. Apply that section
+and demote main's 0.15 section only with the authorized version promotion.
+Rerun the complete affected batch at default deadlines; do not relax either
+guard or bump early.
+
 ### REL0143F — Repair release PR #129 CI failures (2026-10-06)
 
 Continue `release/0.14.3` at `4122e1155` without another merge or push.
@@ -29714,6 +29723,13 @@ Authority: the rig brief and lead decisions, refining D92/M112 from
       Q/A/editor integration handoffs. No merge, push, dependency or gate widening.
 
 ## 7. Gates
+
+**REL0160 README guard (2026-10-06).** The pre-promotion draft belongs in
+`docs/certification/rel0160-readme-draft.md` while the manifest is held at
+0.14.3. Two existing default-timeout assertions prove the README/contents
+version invariant fires; restoring the public headline and link fixes the
+mismatch. The draft stays reviewable and will be applied with the main sync
+and 0.16.0 bump. No gate or timeout changes.
 
 **REL0160 gate ownership (2026-10-06).** The named shared lane rules prohibit
 aggregate `npm run quality`; the release rig brief explicitly authorizes the
