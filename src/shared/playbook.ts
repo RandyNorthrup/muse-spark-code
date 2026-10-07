@@ -39,7 +39,6 @@ export const playbookFallbackReviewerSchema = z.strictObject({
   reviewerId: id,
   ...override.shape,
 })
-export type PlaybookFallbackReviewer = z.infer<typeof playbookFallbackReviewerSchema>
 
 /** Strict keys deliberately reject a safety-rule switch and an increased ceiling. */
 export const playbookSettingsSchema = z.strictObject({

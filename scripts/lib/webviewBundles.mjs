@@ -76,6 +76,17 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     entries: ['src/webview/TasksApp.tsx'],
     budgetKiB: 25,
   },
+  // M116: the three lazy playbook chunks (measured 14.18 KiB unregistered;
+  // +15% rounded up to 25 KiB). The chat's first paint keeps none of it.
+  {
+    name: 'playbook UI',
+    entries: [
+      'src/webview/playbook/PlaybookPanel.tsx',
+      'src/webview/playbook/PlaybookRows.tsx',
+      'src/webview/playbook/PlaybookMap.tsx',
+    ],
+    budgetKiB: 25,
+  },
 ]
 
 export function webviewDeferredBudgetGroups(meta, questionBudgetKiB) {
