@@ -67,7 +67,7 @@ export function SchedulePanel({
                 {isDue ? (
                   <button
                     type="button"
-                    className="tool-more"
+                    className="tool-more chat-control"
                     aria-label={fill(
                       isPaidOn ? UI_TEXT.scheduleRunJob : UI_TEXT.scheduleEnableJob,
                       { id: job.id },
@@ -85,7 +85,7 @@ export function SchedulePanel({
                 ) : null}
                 <button
                   type="button"
-                  className="tool-more"
+                  className="tool-more chat-control"
                   aria-label={fill(UI_TEXT.scheduleCancelJob, { id: job.id })}
                   onClick={() => {
                     onCancel(job.id)

@@ -1492,7 +1492,7 @@
   "acpQuestionAsked": "Muse 有一个问题；此编辑器无法以表单形式显示，请在下一条消息中回答：",
   "acpUnknownArgument": "未知参数：{argument}",
   "acpPaidNeedsModelApi": "{argument} 需要 --backend modelApi：付费功能会计费到 Model API 密钥。",
-  "acpUsage": "用法：\n  {command} [选项]              通过 stdin 和 stdout 提供 Agent Client Protocol\n  {command} [选项] login        在此终端中登录 Muse Code\n  {command} auth set|status|clear  存储、检查或移除 Meta Model API 密钥\n  {command} exec [options] <prompt>  无界面运行一轮\n  {command} scan-secrets <file> [--key-stdin]  统计单个文件中疑似机密的数量（仅输出数量）\n  {command} report [options]  输出已清理的问题报告（不启动后端，不打开浏览器）\n选项：\n  --backend museCode|modelApi      由谁付费：Muse Code（默认）或 Model API 密钥\n  --trust-workspace                加载文件夹的规则、技能和记忆\n  --muse-binary <路径>             要运行的 Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code 的 shell 沙盒\n  --questions-defer-after <seconds>  默认在60秒后暂缓问题；0表示从不暂缓，1–9按10处理，最大3600\n  --allow-dangerously-skip-permissions  提供“绕过权限”模式\n  --allow-contributor-models       列出贡献者级模型（Meta 可能使用其内容进行训练）\n  --web-search                     提供付费网页搜索（Model API 后端；会先询问价格）\n  --image-generation               提供付费图片生成（Model API 后端；会先询问价格）\n  --verbose                        在 stderr 上记录所有细节\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  运行 Setup 钩子并退出",
+  "acpUsage": "用法：\n  {command} [选项]              通过 stdin 和 stdout 提供 Agent Client Protocol\n  {command} [选项] login        在此终端中登录 Muse Code\n  {command} auth set|status|clear  存储、检查或移除 Meta Model API 密钥\n  {command} exec [options] <prompt>  无界面运行一轮\n  {command} scan-secrets <file> [--key-stdin]  统计单个文件中疑似机密的数量（仅输出数量）\n  {command} report [options]  输出已清理的问题报告（不启动后端，不打开浏览器）\n  {command} fonts install [--from <directory>]  安装独立界面使用的可选字体\n选项：\n  --backend museCode|modelApi      由谁付费：Muse Code（默认）或 Model API 密钥\n  --trust-workspace                加载文件夹的规则、技能和记忆\n  --muse-binary <路径>             要运行的 Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code 的 shell 沙盒\n  --questions-defer-after <seconds>  默认在60秒后暂缓问题；0表示从不暂缓，1–9按10处理，最大3600\n  --allow-dangerously-skip-permissions  提供“绕过权限”模式\n  --allow-contributor-models       列出贡献者级模型（Meta 可能使用其内容进行训练）\n  --web-search                     提供付费网页搜索（Model API 后端；会先询问价格）\n  --image-generation               提供付费图片生成（Model API 后端；会先询问价格）\n  --verbose                        在 stderr 上记录所有细节\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  运行 Setup 钩子并退出",
   "reportUsage": "用法：\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  将已清理的问题报告输出到 stdout，或使用 --out 将其写入 <file>。\n  不启动后端，不登录任何位置，不打开浏览器。\n选项：\n  --out <file>         将报告写入文件而不是 stdout\n  --description <text>  用自己的话描述当时发生了什么\n  --no-facts           不包含支持信息\n  --no-events          不包含最近事件",
   "exportSessionLine": "会话：`{id}`",
   "exportBackendLine": "后端：{backend}",
@@ -2507,5 +2507,13 @@
   "referenceElicitationTitle": "MCP 表单",
   "referenceElicitation": "MCP 表单为提出请求的 MCP 服务器收集信息。提交的表单值传给该服务器，不进入模型对话或记录。服务器可能将这些值包含在后续工具输出中。切勿输入密码或密钥。",
   "referenceNativeAgentsConditions": "当 run.subagent_delegation_mode=\"auto\" 时，Muse Code可以委派给代理。设为 \"off\" 时，委派工具不可用。 run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。"
+  "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。",
+  "acpFontUi": "界面字体",
+  "acpFontCode": "代码字体",
+  "acpFontLigatures": "代码连字",
+  "acpFontSystem": "系统字体",
+  "acpFontInstalled": "字体包已安装：{directory}",
+  "acpFontIntegrity": "字体文件验证失败：{file}",
+  "acpFontInstallFailed": "无法安装字体包。",
+  "acpFontsUsage": "用法：{command} fonts install [--from <directory>]"
 }

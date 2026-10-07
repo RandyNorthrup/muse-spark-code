@@ -7,6 +7,7 @@ import { brotliCompressSync, constants as zlibConstants } from 'node:zlib'
 import { loadL10n } from './lib/l10nSource.mjs'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { listFiles, pack } from '@vscode/vsce/out/package.js'
+import { assertNoVsixFonts } from './notices-fonts.mjs'
 import { renderPackageReadme } from './check-badges.mjs'
 
 const RECENT_RELEASES = 2
@@ -28,6 +29,7 @@ export async function stageVsix(root, stage) {
     path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'),
   )
   const files = await listFiles({ cwd: root, dependencies: false })
+  assertNoVsixFonts(files)
   const webview = JSON.parse(readFileSync(path.join(root, 'dist/meta/webview.json'), 'utf8'))
   for (const file of Object.keys(webview.outputs)) {
     if (!file.endsWith('.js')) continue

@@ -34,6 +34,7 @@ const BUNDLES = [
   'acpQuestions.js',
   'runtimeQuestions.js',
   'questionNotes.js',
+  'fontsInstall.js',
   'modelApi.js',
   'reviewer.js',
   'foreignHooks.js',
@@ -114,6 +115,8 @@ cpSync('l10n', path.join(STAGE, 'l10n'), {
   recursive: true,
   filter: (source) => !source.endsWith('untranslated.json'),
 })
+mkdirSync(path.join(STAGE, 'design', 'fonts'), { recursive: true })
+copyFileSync('design/fonts/manifest.json', path.join(STAGE, 'design', 'fonts', 'manifest.json'))
 copyFileSync('LICENSE', path.join(STAGE, 'LICENSE'))
 writeFileSync(
   path.join(STAGE, 'README.md'),
@@ -155,7 +158,7 @@ const agentManifest = {
     'llm',
   ],
   bin: { [PACKAGE_NAME]: 'dist/acp.js' },
-  files: ['dist', 'native', 'l10n', 'schemas', 'README.md', 'LICENSE', NOTICES],
+  files: ['dist', 'design', 'native', 'l10n', 'schemas', 'README.md', 'LICENSE', NOTICES],
   engines: { node: manifest.engines.node },
   dependencies: { [NATIVE_DEPENDENCY]: keyringVersion },
 }

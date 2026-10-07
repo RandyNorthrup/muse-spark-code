@@ -28267,6 +28267,31 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
   static/build checks pass; the existing S-owned host-API record and changelog
   handoffs remain, with full quality still assigned to the lead by §7.
 
+- **Lane A capture storage decision (lead, 2026-10-06):** keep the 804
+  before PNGs outside git to bound repository size, at
+  `/home/randy/archive/m114-a-before-17d7`. Commit only their manifest,
+  accessibility receipts and index. Always test manifest completeness and
+  SHA-256/byte-size metadata; check actual bytes only when
+  `MUSE_M114_CAPTURES_DIR` names the archive. CI does not have that archive.
+  S must decide a size-bounded visual-regression strategy: regenerate
+  baselines from the base commit in CI or commit a small reviewed set,
+  rather than about 800 PNGs. Results belong in `docs/certification/m114-a.md`;
+  S retains CHANGELOG and the final integrated visual/quality gates.
+
+- **Lane F implementation contract (2026-10-06):** the pack lives only in
+  `design/fonts/pack/`; its manifest pins each WOFF2 and OFL text by SHA-256
+  and byte size. Runtime installation writes a verified version directory
+  below the application data folder, never OS/editor font settings. The
+  explicit `fonts install [--from <pack-directory>]` command supports local
+  image/package seeds as well as the pinned repository source; no automatic
+  download occurs. Portable appearance preferences and an injected token
+  writer support standalone surfaces; editor hosts retain their own fonts.
+  M104/C, M110/N and M111/D bind those ports when their surfaces merge.
+  Minimal runtime dispatch/package plumbing is needed outside `cliArgs.ts`;
+  no P1/P2/S surface, style or documentation region is changed. README,
+  CHANGELOG and help-reference additions are supplied in F's contract for S
+  and the integration lead (featureCatalog is absent on this base).
+
 - **Lane 0's contracts,** frozen before the other lanes start:
   - the token names and groups, with each role's VS Code variable and its
     Muse palette values;
@@ -29482,6 +29507,28 @@ outstanding receipt: 628 pages (157 scenarios × four themes), exit 0, zero
 violations, zero undecided rules, zero exemptions and zero missing results.
 No timeout, exemption, worker policy or accessibility rule changed. The lead
 still owns integrated aggregate quality and actual host/release certification.
+
+**M114 F scoped certification (2026-10-06).** The rig/shared brief prohibits
+aggregate quality and assigns it to the lead; F runs owning files, default
+Vitest timeouts, deliberate failures and static/build/package checks directly
+on Kubuntu. Existing startup/deferred/VSIX caps are unchanged. The runtime-only
+font installer has a measured-plus-15%, rounded-to-25-KiB budget of 25 KiB;
+the font pack's own 675 KiB budget uses the same rule. README/CHANGELOG remain
+S-owned; complete additions and the absent featureCatalog rows are supplied in
+`design/fonts/README.md`. M104/C, M110/N and M111/D bind F's explicit appearance
+and asset ports; no production fake stands in for them. The lead must publish
+asset commit `52af8cef9` before advertising pinned online installation and add
+`src/runtime/fonts/fontsEntry.ts` to the package.json cycle entry list (lane 0's
+script region). F runs that entry's cycle check directly. The S-owned host-API
+record needs F's Node use counts (crypto 46→47, fs/promises 47→48, path 84→85)
+alongside lane 0's existing theme-source inventory repair. ACP startup grows
+1,162 bytes from this base, within its 2 KiB target; the separately budgeted
+installer and manifest add package bytes beyond that target. All hard caps hold.
+The asset-range `git diff --check` flags two original OFL trailing spaces
+(Cascadia line 22, JetBrains line 21); exact upstream licence bytes are retained,
+and no whitespace rule or gate is weakened.
+All receipts and guard restore hashes are in
+`docs/certification/m114-f-fonts-and-licences.md`.
 
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
@@ -30750,6 +30797,11 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/acp/questionDeferralBundle.ts` (FIXM112A)                                                                      | `isAcpQuestionBundle` trusts the checked factory signature | The entry, loader and ACP package come from the same build; the export is checked as a function and loader tests reject missing/malformed modules. The factory installs the caller's language table before constructing a session's question controller. |
 | `src/runtime/questions/questionRegistryBundle.ts`, `src/host/conversation/conversationBundle.ts` (M112 integration) | Checked same-build function signatures                     | Loader guards validate each required export as a function; entries and callers ship from the same build. Registry and host store factories install or inherit the caller's language before use; loader and real-disk tests exercise their signatures.    |
+| M114 F: `src/runtime/fonts/bundle.ts` checks the lazy module's `installFonts`                                       |
+| export at runtime; its function signature is trusted across the entry and                                           |
+| caller produced by the same build and package, as with existing lazy loaders.                                       |
+| The inline reason documents this narrowing. No cast, `any` or lint suppression                                      |
+| is introduced.                                                                                                      |
 
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

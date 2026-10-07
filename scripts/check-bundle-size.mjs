@@ -150,6 +150,8 @@ const BUDGETS = [
   // imports (445.2 of 713.2 KiB when set, 257.6 of them zod's locales). The
   // measured size plus about 15 %, rounded up to 50 KiB (D6 amendment).
   { path: 'dist/acp.js', budgetKiB: 850 },
+  // M114 F: runtime-only installer, measured with the shared validation API.
+  { path: 'dist/fontsInstall.js', budgetKiB: 25 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus

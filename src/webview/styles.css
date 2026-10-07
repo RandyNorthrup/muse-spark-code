@@ -7,16 +7,17 @@
    (:disabled and :focus-visible before :hover:enabled). */
 
 @import url('tokens.css');
+@import url('../../design/tokens/generated/host-roles.css');
 
 html,
 body {
   height: 100%;
   margin: 0;
   padding: 0;
-  color: var(--vscode-foreground);
-  font-family: var(--vscode-font-family);
-  font-size: var(--vscode-font-size);
-  background: var(--vscode-sideBar-background);
+  color: var(--ms-text);
+  font-family: var(--ms-font-ui);
+  font-size: var(--ms-font-size);
+  background: var(--ms-surface);
 }
 
 .app {
@@ -82,6 +83,7 @@ body {
   gap: calc(var(--ms-gap) * 2);
   padding: var(--ms-gap);
   overflow: auto;
+  scroll-padding-block: var(--ms-space-8);
 }
 
 .body-transcript {
@@ -94,17 +96,17 @@ body {
   position: sticky;
   bottom: var(--ms-gap);
   align-self: center;
-  padding: 4px 12px;
-  border: 1px solid var(--vscode-button-border, transparent);
-  border-radius: 999px;
-  background: var(--vscode-button-background);
-  color: var(--vscode-button-foreground);
+  padding: var(--ms-space-4) var(--ms-space-12);
+  border: 1px solid var(--ms-control-border);
+  border-radius: var(--ms-radius-pill);
+  background: var(--ms-accent);
+  color: var(--ms-on-accent);
   box-shadow: var(--ms-elevation-raised);
   cursor: pointer;
 }
 
-.jump-latest:hover {
-  background: var(--vscode-button-hoverBackground);
+.jump-latest:hover:enabled {
+  background: var(--ms-pressed);
 }
 
 .empty-state {
@@ -253,20 +255,20 @@ body {
 
 .message {
   padding: var(--ms-gap) calc(var(--ms-gap) * 1.5);
-  border-radius: var(--ms-radius);
-  line-height: 1.45;
+  border-radius: var(--ms-radius-lg);
+  line-height: var(--ms-line-ui);
 }
 
 .message-user {
   position: relative;
   align-self: stretch;
-  color: var(--vscode-input-foreground);
-  background: var(--vscode-input-background);
-  border: 1px solid var(--vscode-panel-border);
+  color: var(--ms-input-text);
+  background: var(--ms-input-surface);
+  border: 1px solid var(--ms-border);
 }
 
 .message-pending {
-  opacity: 70%;
+  border-style: dashed;
 }
 
 .message-assistant {
@@ -275,7 +277,7 @@ body {
   gap: var(--ms-gap);
   align-items: flex-start;
   max-width: none;
-  padding-left: 4px;
+  padding-left: var(--ms-space-4);
 }
 
 .message-text {
@@ -284,26 +286,28 @@ body {
 }
 
 .message-error {
-  margin-top: 4px;
-  color: var(--vscode-errorForeground);
-  font-size: 0.85em;
+  margin-top: var(--ms-space-4);
+  padding-inline-start: var(--ms-space-4);
+  border-inline-start: var(--ms-focus-width) solid var(--vscode-errorForeground);
+  color: var(--ms-text);
+  font-size: var(--ms-font-small);
 }
 
 .message-error-card {
   align-self: stretch;
-  color: var(--vscode-errorForeground);
-  background: var(--vscode-inputValidation-errorBackground, transparent);
-  border: 1px solid var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
+  color: var(--ms-error-text);
+  background: var(--ms-error-surface);
+  border: 1px solid var(--ms-error-border);
 }
 
 /* A queued card (M87, PLAN.md D66): its badge and space for the shared opener. */
 .message-queued {
-  padding-right: 32px;
+  padding-right: var(--ms-space-32);
 }
 
 .message-queued-badge {
-  margin-top: 4px;
-  font-size: 0.85em;
+  margin-top: var(--ms-space-4);
+  font-size: var(--ms-font-small);
 }
 
 /* A message's time (M87): at the card's corner beside its buttons, shown on
@@ -311,21 +315,21 @@ body {
    own makes the time its keyboard stop (`tabindex`), in the corner itself. */
 .message-time {
   position: absolute;
-  padding: 0 4px;
-  border-radius: var(--ms-radius);
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.8em;
+  padding: 0 var(--ms-space-4);
+  border-radius: var(--ms-radius-md);
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
   font-variant-numeric: tabular-nums;
-  line-height: 18px;
+  line-height: var(--ms-space-20);
   white-space: nowrap;
-  background: var(--vscode-input-background);
+  background: var(--ms-input-surface);
   opacity: 0%;
 }
 
 .message-assistant > .message-time {
   right: 54px;
   bottom: 4px;
-  background: var(--vscode-editor-background);
+  background: var(--ms-editor-surface);
 }
 
 .message-user > .message-time {
@@ -334,8 +338,8 @@ body {
 }
 
 .message-time:focus-visible {
-  outline: 1px solid var(--vscode-focusBorder);
-  outline-offset: -1px;
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
 }
 
 .message-assistant > .message-time[tabindex],
@@ -354,28 +358,21 @@ body {
   display: inline-block;
   width: 0.55em;
   height: 1em;
-  margin-left: 2px;
+  margin-left: calc(var(--ms-space-4) / 2);
   vertical-align: text-bottom;
-  background: var(--vscode-editorCursor-foreground, currentcolor);
-  animation: blink 1s steps(2, start) infinite;
-}
-
-@keyframes blink {
-  to {
-    visibility: hidden;
-  }
+  background: var(--ms-cursor);
 }
 
 .activity {
   display: flex;
   gap: var(--ms-gap);
-  padding: 2px calc(var(--ms-gap) * 1.5);
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
+  padding: calc(var(--ms-space-4) / 2) calc(var(--ms-gap) * 1.5);
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
 }
 
 .activity-kind {
-  font-family: var(--vscode-editor-font-family);
+  font-family: var(--ms-font-code);
 }
 
 /* --- composer --- */
@@ -392,15 +389,16 @@ body {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--ms-space-4);
   margin: var(--ms-gap);
 
   /* The toolbar adapts to the composer's width (a narrow sidebar). */
   container-type: inline-size;
   padding: var(--ms-gap);
-  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
-  border-radius: var(--ms-radius);
-  background: var(--vscode-input-background);
+  border: 1px solid var(--ms-muted);
+  border-radius: var(--ms-radius-lg);
+  background: var(--ms-input-surface);
+  color: var(--ms-input-text);
 }
 
 /* Each line of a message or of the prompt box takes the direction of its
@@ -415,15 +413,18 @@ body {
   width: 100%;
   padding: 0;
   border: 0;
-  color: var(--vscode-input-foreground);
+  color: var(--ms-input-text);
   font: inherit;
-  line-height: 1.4;
+  line-height: var(--ms-line-ui);
   background: transparent;
   resize: none;
 }
 
+/* Captured themes can give placeholders less than AA contrast. Enabled
+   prompt hints use the host's input text role, with no opacity reduction. */
 .composer-input::placeholder {
-  color: var(--vscode-input-placeholderForeground);
+  color: var(--ms-input-text);
+  opacity: 100%;
 }
 
 .composer-toolbar {
@@ -436,7 +437,7 @@ body {
 .composer-toolbar-group {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: calc(var(--ms-space-4) / 2);
   min-width: 0;
 }
 
@@ -464,13 +465,13 @@ body {
   /* Keep the paid warning visible without covering Commands in a sidebar. */
   .composer .paid-badge {
     max-width: 44px;
-    padding-inline: 4px;
+    padding-inline: var(--ms-space-4);
   }
 
   .composer-toolbar {
     flex-wrap: wrap;
     align-items: flex-start;
-    row-gap: 4px;
+    row-gap: var(--ms-space-4);
   }
 
   /* Room for Attach, Commands and the shortest pill decides the wrap, not
@@ -478,7 +479,7 @@ body {
   .composer-toolbar-group:first-child {
     flex: 1 1 0;
     flex-wrap: wrap;
-    row-gap: 4px;
+    row-gap: var(--ms-space-4);
     min-width: calc(2 * var(--ms-control-size) + var(--ms-pill-min-width) + 4px);
   }
 
@@ -507,13 +508,13 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: var(--ms-space-4);
   min-width: var(--ms-control-size);
   height: var(--ms-control-size);
-  padding: 0 6px;
+  padding: 0 calc(var(--ms-space-12) / 2);
   border: 1px solid transparent;
-  border-radius: var(--ms-radius);
-  color: var(--vscode-foreground);
+  border-radius: var(--ms-radius-md);
+  color: var(--ms-text);
   font: inherit;
   background: transparent;
   cursor: pointer;
@@ -528,32 +529,34 @@ body {
   flex: 0 1 auto;
   min-width: var(--ms-pill-min-width);
   overflow: hidden;
-  padding: 0 8px;
+  padding: 0 var(--ms-space-8);
   border-block-width: calc((var(--ms-control-size) - var(--ms-chip-height)) / 2);
-  border-radius: 999px;
-  color: var(--vscode-badge-foreground);
-  font-size: 0.85em;
+  border-radius: var(--ms-radius-pill);
+  color: var(--ms-on-badge);
+  font-size: var(--ms-font-small);
   line-height: var(--ms-chip-height);
   text-align: start;
   text-overflow: ellipsis;
   white-space: nowrap;
-  background: var(--vscode-badge-background);
+  background: var(--ms-badge);
   background-clip: padding-box;
 }
 
 .mode-button {
-  font-size: 0.9em;
+  font-size: var(--ms-font-size);
 }
 
 .send-button {
-  color: var(--vscode-button-foreground);
-  background: var(--vscode-button-background);
+  color: var(--ms-on-accent);
+  background: var(--ms-accent);
 }
 
 /* --- states: (0,2,0) first --- */
 
 .composer:focus-within {
-  border-color: var(--vscode-focusBorder);
+  border-color: var(--ms-focus);
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
 }
 
 .composer-input:focus-visible {
@@ -563,17 +566,18 @@ body {
 .icon-button:disabled,
 .pill:disabled,
 .mode-button:disabled {
-  color: var(--vscode-disabledForeground);
+  color: var(--ms-disabled);
   cursor: default;
 }
 
 .pill:disabled {
-  color: var(--vscode-badge-foreground);
+  color: var(--ms-on-badge);
 }
 
 .send-button:disabled {
   cursor: default;
-  opacity: 50%;
+  color: var(--ms-disabled);
+  background: var(--ms-hover);
 }
 
 .icon-button:focus-visible,
@@ -590,9 +594,12 @@ body {
 
 /* The colour alone: the pill's fill keeps its painted height. */
 .icon-button:hover:enabled,
-.pill:hover:enabled,
 .mode-button:hover:enabled {
-  background-color: var(--vscode-toolbar-hoverBackground);
+  background-color: var(--ms-toolbar-hover);
+}
+
+.pill:hover:enabled {
+  text-decoration: underline;
 }
 
 /* The question card's Submit is greyed out until every question has an answer (M16). */
@@ -601,14 +608,17 @@ body {
   cursor: default;
 }
 
-.send-button:hover:enabled,
+.send-button:hover:enabled {
+  background: var(--ms-pressed);
+}
+
 .button-primary:hover:enabled {
   background: var(--vscode-button-hoverBackground);
 }
 
 .send-button-stop:hover:enabled,
 .send-button-stop:focus-visible:enabled {
-  background: var(--vscode-charts-red, var(--vscode-errorForeground));
+  background: var(--ms-chart-danger);
 }
 
 .vscode-high-contrast .send-button-stop:hover:enabled,
@@ -638,7 +648,7 @@ body {
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--ms-space-4);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -647,24 +657,26 @@ body {
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--ms-space-4);
   max-width: 100%;
-  padding: 2px 4px 2px 6px;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--ms-radius);
-  font-size: 0.85em;
-  background: var(--vscode-editorWidget-background);
+  padding: calc(var(--ms-space-4) / 2) var(--ms-space-4) calc(var(--ms-space-4) / 2)
+    calc(var(--ms-space-12) / 2);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-md);
+  font-size: var(--ms-font-small);
+  background: var(--ms-raised);
+  color: var(--ms-text);
 }
 
 .chip-name {
   overflow: hidden;
-  font-weight: 600;
+  font-weight: var(--ms-weight-bold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .chip-size {
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
 }
 
 .chip-remove {
@@ -672,7 +684,7 @@ body {
   align-items: center;
   padding: 0;
   border: 0;
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
   background: transparent;
   cursor: pointer;
 }
@@ -992,63 +1004,48 @@ body {
 
 .notice {
   align-self: stretch;
-  padding: 4px calc(var(--ms-gap) * 1.5);
-  border-radius: var(--ms-radius);
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.9em;
+  padding: var(--ms-space-4) calc(var(--ms-gap) * 1.5);
+  border-radius: var(--ms-radius-md);
+  color: var(--ms-muted);
+  font-size: var(--ms-font-size);
 }
 
-/* A restore's Redo (M72), at the end of its notice. */
 .notice-action {
+  min-height: var(--ms-space-24);
   margin-inline-start: var(--ms-gap);
-  padding: 0 6px;
-  border: 1px solid var(--vscode-button-border, var(--vscode-panel-border));
-  border-radius: var(--ms-radius);
-  color: var(--vscode-textLink-foreground);
+  padding: 0 var(--ms-space-8);
+  border: 1px solid var(--ms-control-border);
+  border-radius: var(--ms-radius-md);
+  color: var(--ms-info);
   font: inherit;
   background: transparent;
   cursor: pointer;
 }
 
-.notice-action:hover {
-  background: var(--vscode-toolbar-hoverBackground);
-}
-
-.notice-action:focus-visible {
-  outline: 1px solid var(--vscode-focusBorder);
-  outline-offset: 1px;
-}
-
-/* How many times a notice was said (D26): small and outlined in the
-   notice's own colour, so its contrast is the notice's. */
+/* Repeated notices retain a non-colour count cue. */
 .notice-repeat {
   display: inline-block;
-  padding: 0 5px;
+  padding: 0 var(--ms-space-4);
   border: 1px solid currentcolor;
-  border-radius: 999px;
-  font-size: 0.85em;
+  border-radius: var(--ms-radius-pill);
+  font-size: var(--ms-font-small);
   font-variant-numeric: tabular-nums;
-  line-height: 1.3;
+  line-height: var(--ms-line-ui);
 }
 
 .notice-warning {
-  color: var(--vscode-inputValidation-warningForeground, var(--vscode-foreground));
-  background: var(--vscode-inputValidation-warningBackground, transparent);
+  color: var(--ms-warning-text);
+  background: var(--ms-warning-surface);
 }
 
-/* The theme's text colour on the error tint, as VS Code's own validation
-   message does: errorForeground on that tint is below 4.5:1 in Light (2.6)
-   and Dark (3.8). The edge keeps it red. */
 .notice-error {
-  border-inline-start: 2px solid
-    var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
-  color: var(--vscode-inputValidation-errorForeground, var(--vscode-foreground));
-  background: var(--vscode-inputValidation-errorBackground, transparent);
+  border-inline-start: var(--ms-focus-width) solid var(--ms-error-border);
+  color: var(--ms-error-text);
+  background: var(--ms-error-surface);
 }
 
 /* --- states for the additions: (0,2,0) --- */
 
-.chip-remove:focus-visible,
 .palette-filter:focus-visible,
 .popover-list:focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
@@ -1059,7 +1056,6 @@ body {
   cursor: default;
 }
 
-.chip-remove:hover,
 .slider-step:hover:enabled {
   color: var(--vscode-foreground);
   opacity: 85%;
@@ -1071,14 +1067,14 @@ body {
 .tool-dot {
   display: inline-block;
   flex-shrink: 0;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--vscode-descriptionForeground);
+  width: var(--ms-space-8);
+  height: var(--ms-space-8);
+  border-radius: var(--ms-radius-circle);
+  background: var(--ms-muted);
 }
 
 .message-assistant > .tool-dot {
-  margin-top: 0.55em;
+  margin-top: calc(var(--ms-font-size) * 0.55);
 }
 
 .message-body {
@@ -1091,17 +1087,19 @@ body {
 .hook-edited {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: calc(var(--ms-space-12) / 2);
   align-items: center;
-  margin-bottom: 4px;
-  font-size: 0.85em;
-  color: var(--vscode-descriptionForeground);
+  margin-bottom: var(--ms-space-4);
+  font-size: var(--ms-font-small);
+  color: var(--ms-muted);
 }
 
 .chips-strip {
   flex-wrap: nowrap;
-  margin-bottom: 6px;
+  margin-bottom: calc(var(--ms-space-12) / 2);
   overflow-x: auto;
+  padding-block: var(--ms-space-4);
+  scroll-padding-inline: var(--ms-space-4);
 }
 
 .tool-dot-ok {
@@ -1113,21 +1111,14 @@ body {
 }
 
 .tool-dot-running {
-  background: var(--vscode-progressBar-background, var(--vscode-button-background));
-  animation: pulse 1.2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  50% {
-    opacity: 35%;
-  }
+  background: var(--ms-progress);
 }
 
 .tool,
 .reasoning,
 .steps,
 .status-line {
-  padding-left: 4px;
+  padding-left: var(--ms-space-4);
 }
 
 /* A tool row's header (M16): the toggle (dot + label), the path or summary,
@@ -1139,8 +1130,8 @@ body {
   align-items: center;
   width: 100%;
   min-width: 0;
-  padding: 2px 0;
-  color: var(--vscode-foreground);
+  padding: calc(var(--ms-space-4) / 2) 0;
+  color: var(--ms-text);
 }
 
 .tool-toggle,
@@ -1183,8 +1174,7 @@ body {
 .chevron {
   display: inline-flex;
   flex-shrink: 0;
-  color: var(--vscode-descriptionForeground);
-  transition: transform 120ms ease;
+  color: var(--ms-muted);
 }
 
 .chevron-open {
@@ -1199,33 +1189,36 @@ body {
 /* A long diff clipped behind "Click to expand" (M15). */
 .diff-clip {
   position: relative;
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-md);
+  overflow: clip;
 }
 
 .tool-expand {
   position: absolute;
-  right: 8px;
-  bottom: 8px;
-  padding: 4px 10px;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--ms-radius);
-  color: var(--vscode-foreground);
+  right: var(--ms-space-8);
+  bottom: var(--ms-space-8);
+  padding: var(--ms-space-4) calc(var(--ms-space-20) / 2);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-md);
+  color: var(--ms-text);
   font: inherit;
-  font-size: 0.85em;
-  background: var(--vscode-editor-background);
-  box-shadow: 0 1px 4px var(--vscode-widget-shadow);
+  font-size: var(--ms-font-small);
+  background: var(--ms-editor-surface);
+  box-shadow: var(--ms-elevation-raised);
   cursor: pointer;
 }
 
 .tool-label {
-  font-weight: 600;
+  font-weight: var(--ms-weight-bold);
 }
 
 .tool-summary,
 .tool-path {
   overflow: hidden;
-  color: var(--vscode-descriptionForeground);
-  font-family: var(--vscode-editor-font-family);
-  font-size: 0.9em;
+  color: var(--ms-muted);
+  font-family: var(--ms-font-code);
+  font-size: var(--ms-code-size);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1237,54 +1230,62 @@ body {
 }
 
 .tool-path:hover {
-  color: var(--vscode-textLink-foreground);
+  color: var(--ms-info);
   text-decoration: underline;
 }
 
 .tool-change,
 .tool-outcome {
-  padding-left: calc(8px + var(--ms-gap));
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
+  padding-left: calc(var(--ms-space-8) + var(--ms-gap));
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
 }
 
 /* The reason in the text colour, the error colour on the bar beside it:
    Light Modern's error colour is 3.15:1 on the sidebar, enough for a mark
    (WCAG 1.4.11) but not for text (1.4.3, M37). */
 .tool-failure {
-  margin: 2px 0 2px calc(8px + var(--ms-gap));
-  padding-left: 6px;
+  margin: calc(var(--ms-space-4) / 2) 0 calc(var(--ms-space-4) / 2)
+    calc(var(--ms-space-8) + var(--ms-gap));
+  padding-left: calc(var(--ms-space-12) / 2);
   border-left: 2px solid var(--vscode-errorForeground);
-  color: var(--vscode-foreground);
-  font-size: 0.85em;
+  color: var(--ms-text);
+  font-size: var(--ms-font-small);
   white-space: pre-wrap;
 }
 
 .tool-body,
-.reasoning-body,
+.reasoning-body {
+  margin: var(--ms-space-4) 0 var(--ms-space-4) calc(var(--ms-space-8) + var(--ms-gap));
+}
+
 .question {
   margin: 4px 0 4px calc(8px + var(--ms-gap));
 }
 
-.tool-pre {
+.tool-pre,
+.code-block-body {
   margin: 0;
-  padding: 6px 8px;
+  padding: calc(var(--ms-space-12) / 2) var(--ms-space-8);
   overflow-x: auto;
-  font-family: var(--vscode-editor-font-family);
-  font-size: 0.9em;
+  font-family: var(--ms-font-code);
+  font-size: var(--ms-code-size);
+}
+
+.tool-pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
 .tool-output,
 .shell {
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--ms-radius);
-  background: var(--vscode-editorWidget-background);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-md);
+  background: var(--ms-raised);
 }
 
 .tool-output + .tool-output {
-  margin-top: 4px;
+  margin-top: var(--ms-space-4);
 }
 
 .shell {
@@ -1295,19 +1296,19 @@ body {
 
 .shell-box {
   display: flex;
-  gap: 4px;
+  gap: var(--ms-space-4);
   align-items: flex-start;
 }
 
 .shell-box + .shell-box {
-  border-top: 1px solid var(--vscode-panel-border);
+  border-top: 1px solid var(--ms-border);
 }
 
 .shell-label {
   flex-shrink: 0;
-  padding: 6px 6px 0;
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.75em;
+  padding: calc(var(--ms-space-12) / 2) calc(var(--ms-space-12) / 2) 0;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
   letter-spacing: 0.05em;
 }
 
@@ -1317,11 +1318,12 @@ body {
 }
 
 .tool-more {
-  padding: 2px 8px;
+  min-height: var(--ms-space-24);
+  padding: calc(var(--ms-space-4) / 2) var(--ms-space-8);
   border: 0;
-  color: var(--vscode-textLink-foreground);
+  color: var(--ms-info);
   font: inherit;
-  font-size: 0.85em;
+  font-size: var(--ms-font-small);
   background: transparent;
   cursor: pointer;
 }
@@ -1332,26 +1334,25 @@ body {
 
 .tool-loading {
   margin: 0;
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
 }
 
 /* Diff table: two gutters and the line; whole rows tinted for +/-. */
 .diff {
   width: 100%;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--ms-radius);
+  border: 0;
   border-collapse: collapse;
-  font-family: var(--vscode-editor-font-family);
-  font-size: 0.9em;
+  font-family: var(--ms-font-code);
+  font-size: var(--ms-code-size);
 }
 
 .diff + .diff {
-  margin-top: 4px;
+  margin-top: var(--ms-space-4);
 }
 
 .diff td {
-  padding: 0 6px;
+  padding: 0 calc(var(--ms-space-12) / 2);
   vertical-align: top;
 }
 
@@ -1360,7 +1361,7 @@ body {
    (WCAG 1.4.3; M37 measured 3.0 to 4.48 in the Modern themes). */
 .diff-gutter {
   width: 2.5em;
-  color: var(--vscode-foreground);
+  color: var(--ms-text);
   text-align: right;
   user-select: none;
 }
@@ -1379,26 +1380,26 @@ body {
 }
 
 .diff-hunk {
-  color: var(--vscode-descriptionForeground);
-  background: var(--vscode-editorWidget-background);
+  color: var(--ms-muted);
+  background: var(--ms-raised);
 }
 
 .reasoning-body p {
-  margin: 4px 0;
-  color: var(--vscode-descriptionForeground);
+  margin: var(--ms-space-4) 0;
+  color: var(--ms-muted);
   white-space: pre-wrap;
 }
 
 .reasoning-label {
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
 }
 
 /* Consecutive steps fold into one summary row (M16, M87): its dot (the
    failure's when one failed), what the steps did, and the chevron. */
 .steps-toggle {
   width: 100%;
-  padding: 2px 0;
-  color: var(--vscode-descriptionForeground);
+  padding: calc(var(--ms-space-4) / 2) 0;
+  color: var(--ms-muted);
 }
 
 .steps-summary {
@@ -1414,14 +1415,15 @@ body {
 
 .status-line {
   display: grid;
-  grid-template-columns: auto auto 1fr;
+  grid-template-columns: minmax(0, max-content) auto 1fr;
   gap: var(--ms-gap);
   align-items: center;
   container-type: inline-size;
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
 }
 
 .status-verb {
+  min-width: 0;
   display: flex;
   gap: var(--ms-gap);
   align-items: center;
@@ -1445,38 +1447,15 @@ body {
 /* The beam draws in brand blue on the canvas itself; the canvas keeps the
    trace's box. The working line's grid puts it right after the verb box. */
 .heartbeat-trace {
-  width: 6em;
-  height: 1.5em;
+  color: var(--ms-progress);
+  width: calc(var(--ms-space-24) * 3);
+  height: var(--ms-space-20);
 }
 
-@container (width < 260px) {
-  .heartbeat-trace {
-    display: none;
-  }
-}
-
-/* The working line's mark (M87, D66). After Inclushe's "circle pattern
-   animation lighten" (CodePen OPWreWR, MIT), written fresh: no pointer
-   tracking. Six 3 px circles share a 16 px box on the pen's 4.01 s loop,
-   scaled from its 100 px circles at 150→100 px amplitude. The 100 %
-   keyframe spreads 9 px from the centre, 1 px into the gap beside the mark,
-   so the box keeps `overflow: visible` and clips no edge. `isolate` keeps
-   the circles' `lighten` blend between themselves, off the panel. */
-/* stylelint-disable custom-property-pattern -- the pen's --angle, --offset,
-   --amplitude and --scale names stay as the owner asked, so the keyframes
-   read against the original. */
-@property --amplitude {
-  syntax: '<length>';
-  inherits: false;
-  initial-value: 0;
-}
-
-@property --scale {
-  syntax: '<number>';
-  inherits: false;
-  initial-value: 1;
-}
-
+/* Six decorative circles keep the old loop's still pose. The heartbeat
+   supplies activity; this mark does not run a second decorative loop. */
+/* stylelint-disable custom-property-pattern -- the original pen's polar
+   geometry uses --angle and --offset, recorded in PLAN section 8. */
 .status-mark {
   --offset: 30deg;
 
@@ -1485,8 +1464,8 @@ body {
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: var(--ms-icon-size);
+  height: var(--ms-icon-size);
   overflow: visible;
   isolation: isolate;
 }
@@ -1494,10 +1473,10 @@ body {
 .status-mark-circle {
   position: absolute;
   inset: 0;
-  width: 3px;
-  height: 3px;
+  width: var(--ms-radius-xs);
+  height: var(--ms-radius-xs);
   margin: auto;
-  border-radius: 50%;
+  border-radius: var(--ms-radius-circle);
   background: radial-gradient(
     circle at 50% 0%,
     var(--ms-status-low),
@@ -1506,11 +1485,10 @@ body {
   );
   mix-blend-mode: lighten;
   transform: translate(
-      calc(cos(var(--angle)) * var(--amplitude)),
-      calc(sin(var(--angle)) * var(--amplitude) * -1)
+      calc(cos(var(--angle)) * var(--ms-radius-xs)),
+      calc(sin(var(--angle)) * var(--ms-radius-xs) * -1)
     )
-    scale(var(--scale)) rotate(calc(-1 * var(--angle) + 17deg));
-  animation: status-mark-expand 4.01s cubic-bezier(0.8, 0, 0.2, 1) infinite alternate;
+    scale(3) rotate(calc(-1 * var(--angle) + 17deg));
 }
 
 .status-mark-circle:nth-child(1) {
@@ -1537,23 +1515,6 @@ body {
   --angle: calc(5 * 60deg + var(--offset));
 }
 
-@keyframes status-mark-expand {
-  0% {
-    --amplitude: 4.5px;
-    --scale: 1;
-  }
-
-  50% {
-    --amplitude: 3px;
-    --scale: 3;
-  }
-
-  100% {
-    --amplitude: 4.5px;
-    --scale: 3;
-  }
-}
-
 @media (forced-colors: active) {
   .status-mark-circle {
     background: CanvasText;
@@ -1575,8 +1536,15 @@ body {
   background: var(--vscode-editorWidget-background);
 }
 
-.approval-title code,
 .markdown-inline {
+  padding: 0 var(--ms-space-4);
+  border-radius: var(--ms-radius-xs);
+  font-family: var(--ms-font-code);
+  font-size: var(--ms-code-size);
+  background: var(--ms-code-surface);
+}
+
+.approval-title code {
   padding: 0 3px;
   border-radius: 3px;
   font-family: var(--vscode-editor-font-family);
@@ -1597,18 +1565,19 @@ body {
 .approval-dock {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--ms-space-4);
   max-height: 45vh;
   margin-block: 0;
   margin-inline: var(--ms-column-inset);
-  padding-inline: var(--ms-gap);
+  padding: var(--ms-space-4) var(--ms-gap);
+  scroll-padding-block: var(--ms-space-4);
   overflow-y: auto;
 }
 
 .approval-dock-count {
   margin: 0;
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
 }
 
 /* A long command wraps at 320 px instead of widening the panel. */
@@ -1779,23 +1748,23 @@ body {
 .todo,
 .goal {
   margin: 0 var(--ms-column-gutter);
-  padding: 6px var(--ms-gap);
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--ms-radius);
-  font-size: 0.9em;
-  background: var(--vscode-editorWidget-background);
+  padding: calc(var(--ms-space-12) / 2) var(--ms-gap);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-md);
+  font-size: var(--ms-font-size);
+  background: var(--ms-raised);
 }
 
 .todo-title {
   display: flex;
   flex: 1;
   align-items: center;
-  gap: 6px;
+  gap: calc(var(--ms-space-12) / 2);
   min-width: 0;
   min-height: var(--ms-control-size);
   padding: 0;
   border: 0;
-  color: var(--vscode-foreground);
+  color: var(--ms-text);
   font: inherit;
   background: transparent;
   cursor: pointer;
@@ -1809,7 +1778,7 @@ body {
 
 .todo-progress {
   overflow: hidden;
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1821,17 +1790,15 @@ body {
 .todo-open,
 .todo-window {
   min-height: var(--ms-control-size);
-  padding: 4px 8px;
-  border: 1px solid var(--vscode-button-border, transparent);
-  border-radius: var(--ms-radius);
-  color: var(--vscode-button-secondaryForeground);
+  padding: var(--ms-space-4) var(--ms-space-8);
+  border: 1px solid var(--ms-control-border);
+  border-radius: var(--ms-radius-md);
+  color: var(--ms-secondary-text);
   font: inherit;
-  background: var(--vscode-button-secondaryBackground);
+  background: var(--ms-secondary-surface);
   cursor: pointer;
 }
 
-.todo-title:focus-visible,
-.todo-open:focus-visible,
 .todo-window:focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: 2px;
@@ -1839,7 +1806,7 @@ body {
 
 .todo-open:hover:enabled,
 .todo-window:hover:enabled {
-  background: var(--vscode-button-secondaryHoverBackground);
+  background: var(--ms-secondary-hover);
 }
 
 .todo-current {
@@ -1877,11 +1844,11 @@ body {
 
 .todo-item {
   display: flex;
-  gap: 6px;
+  gap: calc(var(--ms-space-12) / 2);
 }
 
 .todo-completed {
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
   text-decoration: line-through;
 }
 
@@ -1901,8 +1868,8 @@ body {
   align-items: center;
   gap: var(--ms-gap);
   padding: var(--ms-gap) calc(var(--ms-column-inset) + var(--ms-gap) * 1.5);
-  border-top: 1px solid var(--vscode-panel-border);
-  color: var(--vscode-foreground);
+  border-top: 1px solid var(--ms-border);
+  color: var(--ms-text);
 }
 
 .diff-tally-files {
@@ -1916,18 +1883,18 @@ body {
 }
 
 .diff-tally-added {
-  color: var(--vscode-gitDecoration-addedResourceForeground, var(--vscode-foreground));
+  color: var(--ms-git-added);
 }
 
 .diff-tally-removed {
-  color: var(--vscode-gitDecoration-deletedResourceForeground, var(--vscode-foreground));
+  color: var(--ms-git-deleted);
 }
 
 /* Dark Modern's deleted-resource colour measures 3.87:1 on the panel (the
    VS Code 1.140.0 capture), under text's 4.5:1: the foreground stands in, as
    D66 says; the minus sign still marks the number. */
 .vscode-dark .diff-tally-removed {
-  color: var(--vscode-foreground);
+  color: var(--ms-text);
 }
 
 .diff-tally-review {
@@ -1940,31 +1907,31 @@ body {
 .goal {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-bottom: 4px;
+  gap: var(--ms-space-4);
+  margin-bottom: var(--ms-space-4);
 }
 
 .goal-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: calc(var(--ms-space-12) / 2);
 }
 
 .goal-title,
 .goal-percent {
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
 }
 
 .goal-status {
-  font-weight: 600;
+  font-weight: var(--ms-weight-bold);
 }
 
 .goal-controls,
 .goal-edit {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--ms-space-4);
 }
 
 .goal-controls {
@@ -1980,18 +1947,21 @@ body {
 
 .goal-edit-input {
   flex: 1 1 200px;
+  border-color: var(--ms-muted);
+  color: var(--ms-input-text);
+  background: var(--ms-input-surface);
 }
 
 /* Session-scoped Model API schedules (M52): wrap on narrow sidebars; in the
    chat column. */
 .local-schedules {
-  margin: 0 var(--ms-column-gutter) 4px;
-  padding: 6px var(--ms-gap);
+  margin: 0 var(--ms-column-gutter) var(--ms-space-4);
+  padding: calc(var(--ms-space-12) / 2) var(--ms-gap);
   max-height: 35vh;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--ms-radius);
-  background: var(--vscode-editorWidget-background);
-  font-size: 0.9em;
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-md);
+  background: var(--ms-raised);
+  font-size: var(--ms-font-size);
   overflow-y: auto;
 }
 
@@ -2001,26 +1971,26 @@ body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 8px;
+  gap: var(--ms-space-4) var(--ms-space-8);
 }
 
 .local-schedules-head span,
 .local-schedule-facts {
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
 }
 
 .local-schedules-list {
   display: grid;
-  gap: 6px;
-  margin: 6px 0 0;
+  gap: calc(var(--ms-space-12) / 2);
+  margin: calc(var(--ms-space-12) / 2) 0 0;
   padding: 0;
   list-style: none;
 }
 
 .local-schedule {
   min-width: 0;
-  padding-top: 6px;
-  border-top: 1px solid var(--vscode-panel-border);
+  padding-top: calc(var(--ms-space-12) / 2);
+  border-top: 1px solid var(--ms-border);
 }
 
 .local-schedule-prompt,
@@ -2029,11 +1999,11 @@ body {
 }
 
 .local-schedule-prompt {
-  font-weight: 600;
+  font-weight: var(--ms-weight-bold);
 }
 
 .local-schedule-actions {
-  margin-top: 4px;
+  margin-top: var(--ms-space-4);
 }
 
 .local-schedule-actions .tool-more {
@@ -2056,13 +2026,7 @@ body {
 .git-hold,
 .git-pr,
 .git-form {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-  padding: 6px var(--ms-gap);
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--ms-radius);
-  background: var(--vscode-editorWidget-background);
+  border-left: 3px solid var(--vscode-editorWarning-foreground, var(--vscode-focusBorder));
 }
 
 /* Someone else's code: the card carries the warning colour on its edge. */
@@ -2160,7 +2124,11 @@ body {
 }
 
 /* Each control is a 24 px target (WCAG 2.5.8). */
-.git-actions .tool-more,
+.git-actions .tool-more {
+  min-width: 24px;
+  min-height: 24px;
+}
+
 .git-check input {
   min-width: 24px;
   min-height: 24px;
@@ -2189,18 +2157,18 @@ body {
   height: var(--ms-control-size);
   padding: 0;
   border: 1px solid transparent;
-  border-radius: var(--ms-radius);
-  color: var(--vscode-progressBar-background);
+  border-radius: var(--ms-radius-md);
+  color: var(--ms-progress);
   background: transparent;
   cursor: pointer;
 }
 
 .context-meter-ring {
-  width: 22px;
-  height: 22px;
+  width: calc(var(--ms-space-24) - var(--ms-focus-width));
+  height: calc(var(--ms-space-24) - var(--ms-focus-width));
   overflow: visible;
-  border-radius: 50%;
-  background: var(--vscode-editor-background, var(--vscode-sideBar-background));
+  border-radius: var(--ms-radius-circle);
+  background: var(--ms-editor-surface);
 }
 
 .context-meter-ring circle {
@@ -2209,38 +2177,33 @@ body {
   stroke-width: 2.5px;
 }
 
-.context-meter-track {
-  opacity: 25%;
+.context-meter-ring .context-meter-track {
+  stroke: var(--ms-border);
 }
 
 .context-meter-ring text {
-  fill: var(--vscode-foreground);
-  font-size: 10px;
-  font-weight: 600;
+  fill: var(--ms-text);
+  font-size: var(--ms-font-small);
+  font-weight: var(--ms-weight-bold);
   font-variant-numeric: tabular-nums;
   text-anchor: middle;
   dominant-baseline: central;
 }
 
 .context-meter-ring .context-meter-number-full {
-  font-size: 9px;
+  font-size: calc(var(--ms-font-small) - var(--ms-focus-width));
 }
 
 .context-meter-medium {
-  color: var(--vscode-list-warningForeground, var(--vscode-progressBar-background));
+  color: var(--ms-list-warning);
 }
 
 .context-meter-high {
   color: var(--vscode-errorForeground);
 }
 
-.context-meter:hover {
-  background: var(--vscode-toolbar-hoverBackground);
-}
-
-.context-meter:focus-visible {
-  outline: 1px solid var(--vscode-focusBorder);
-  outline-offset: -1px;
+.context-meter:hover:enabled {
+  background: var(--ms-toolbar-hover);
 }
 
 /* --- markdown --- */
@@ -2258,25 +2221,30 @@ body {
 .markdown ol,
 .markdown blockquote,
 .markdown table {
-  margin: 0.5em 0;
+  margin: var(--ms-space-8) 0;
 }
 
 .markdown h1,
 .markdown h2,
 .markdown h3,
 .markdown h4 {
-  margin: 0.8em 0 0.3em;
-  font-size: 1.05em;
+  margin: var(--ms-space-12) 0 var(--ms-space-4);
+  font-size: var(--ms-font-large);
+}
+
+:is(.markdown, .citations-list, .web-results) a {
+  text-decoration: underline;
+  text-underline-offset: calc(var(--ms-space-4) / 2);
 }
 
 .markdown a {
-  color: var(--vscode-textLink-foreground);
+  color: var(--ms-info);
 }
 
 .markdown blockquote {
   padding-left: var(--ms-gap);
-  border-left: 3px solid var(--vscode-panel-border);
-  color: var(--vscode-descriptionForeground);
+  border-left: var(--ms-radius-xs) solid var(--ms-quote-border);
+  color: var(--ms-muted);
 }
 
 .markdown table {
@@ -2285,103 +2253,92 @@ body {
 
 .markdown th,
 .markdown td {
-  padding: 2px 8px;
-  border: 1px solid var(--vscode-panel-border);
+  padding: calc(var(--ms-space-4) / 2) var(--ms-space-8);
+  border: 1px solid var(--ms-border);
 }
 
 .markdown-image {
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
   font-style: italic;
 }
 
 /* --- code blocks --- */
 
 .code-block {
-  margin: 0.5em 0;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--ms-radius);
-  background: var(--vscode-textCodeBlock-background, var(--vscode-editorWidget-background));
+  color: var(--ms-code-text);
+  margin: var(--ms-space-8) 0;
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-md);
+  background: var(--ms-code-surface);
 }
 
 .code-block-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 2px 8px;
-  border-bottom: 1px solid var(--vscode-panel-border);
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.8em;
+  padding: var(--ms-space-4) var(--ms-space-8);
+  border-bottom: 1px solid var(--ms-border);
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
 }
 
 .code-block-actions {
   display: flex;
-  gap: 4px;
+  gap: var(--ms-space-4);
 }
 
 /* 24 px targets (WCAG 2.5.8): with longer labels in other languages the
    buttons sit closer, and spacing alone no longer made up for their height
    (seen in the pseudo-locale, M40). */
 .code-block-button {
-  min-width: 24px;
-  min-height: 24px;
-  padding: 1px 6px;
+  min-width: var(--ms-space-24);
+  min-height: var(--ms-space-24);
+  padding: 1px calc(var(--ms-space-12) / 2);
   border: 0;
-  border-radius: 3px;
-  color: var(--vscode-descriptionForeground);
+  border-radius: var(--ms-radius-xs);
+  color: var(--ms-muted);
   font: inherit;
-  font-size: 1em;
+  font-size: var(--ms-font-size);
   background: transparent;
   cursor: pointer;
 }
 
 .code-block-body {
-  margin: 0;
-  padding: 6px 8px;
-  overflow-x: auto;
-  font-family: var(--vscode-editor-font-family);
-  font-size: 0.9em;
-  line-height: 1.4;
+  line-height: var(--ms-line-code);
 }
 
 /* highlight.js classes themed from VS Code colour tokens. */
 .hljs-keyword,
 .hljs-selector-tag,
 .hljs-type {
-  color: var(--vscode-symbolIcon-keywordForeground, var(--vscode-textLink-foreground));
+  color: var(--ms-syntax-keyword);
 }
 
 .hljs-string,
 .hljs-attr,
 .hljs-addition {
-  color: var(--vscode-debugTokenExpression-string, var(--vscode-foreground));
+  color: var(--ms-syntax-string);
 }
 
 .hljs-number,
 .hljs-literal {
-  color: var(--vscode-debugTokenExpression-number, var(--vscode-foreground));
+  color: var(--ms-syntax-number);
 }
 
 .hljs-comment,
 .hljs-meta,
 .hljs-deletion {
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
 }
 
 .hljs-title,
 .hljs-function,
 .hljs-variable {
-  color: var(--vscode-symbolIcon-functionForeground, var(--vscode-foreground));
+  color: var(--ms-syntax-function);
 }
 
 /* --- states for the additions: (0,2,0) --- */
 
-.tool-toggle:focus-visible,
-.tool-path:focus-visible,
-.tool-chevron:focus-visible,
-.steps-toggle:focus-visible,
-.tool-more:focus-visible,
-.code-block-button:focus-visible,
-.code-block-body:focus-visible,
 .question-option:focus-visible,
 .approval-feedback:focus-visible,
 .question-input:focus-visible {
@@ -2391,7 +2348,12 @@ body {
 
 .code-block-button:hover,
 .tool-more:hover {
-  color: var(--vscode-foreground);
+  color: var(--ms-text);
+}
+
+.tool-more:focus-visible {
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
 }
 
 /* A git form button that cannot act yet (M71). */
@@ -2406,18 +2368,18 @@ body {
 .editor-chip {
   display: inline-flex;
   flex: 0 1 auto;
-  gap: 4px;
+  gap: var(--ms-space-4);
   align-items: center;
   box-sizing: border-box;
   min-width: 0;
   max-width: 220px;
   height: var(--ms-chip-height);
-  padding: 0 4px 0 6px;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 999px;
-  color: var(--vscode-foreground);
-  font-size: 0.85em;
-  line-height: 1.4;
+  padding: 0 var(--ms-space-4) 0 calc(var(--ms-space-12) / 2);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-pill);
+  color: var(--ms-text);
+  font-size: var(--ms-font-small);
+  line-height: var(--ms-line-ui);
   white-space: nowrap;
 }
 
@@ -2519,9 +2481,9 @@ body {
 
 /* A reply's tokens and dollar estimate under it (M82, Model API only). */
 .response-usage {
-  margin-top: 4px;
-  font-size: 0.85em;
-  color: var(--vscode-descriptionForeground);
+  margin-top: var(--ms-space-4);
+  font-size: var(--ms-font-small);
+  color: var(--ms-muted);
 }
 
 /* Save plan and Implement under the latest Plan-mode reply (M79): they wrap
@@ -2529,9 +2491,9 @@ body {
 .plan-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin: 8px 0 4px;
-  padding-right: 52px;
+  gap: var(--ms-space-8);
+  margin: var(--ms-space-8) 0 var(--ms-space-4);
+  padding-right: calc(var(--ms-icon-size) * 3 + var(--ms-space-4));
 }
 
 /* The handoff dialog's editable brief (M74) and its Start/Cancel row. */
@@ -2675,7 +2637,7 @@ export row. Long lines wrap so the dialog holds a 320 px panel. */
    otherwise the chevron runs under the button (lane W's full a11y run). */
 .tool:has(> .row-actions) .tool-header {
   box-sizing: border-box;
-  padding-right: 32px;
+  padding-right: var(--ms-space-32);
 }
 
 .row-actions-button {
@@ -3018,22 +2980,21 @@ li:focus-within > .row-actions .row-actions-button,
    title (the reason) still shows on hover. */
 .mic-button.mic-starting,
 .mic-button.mic-listening {
-  color: var(--vscode-charts-red, var(--vscode-errorForeground));
-  animation: pulse 1.2s ease-in-out infinite;
+  color: var(--ms-chart-danger);
 }
 
 .mic-button.mic-listening {
-  background: var(--vscode-toolbar-hoverBackground);
+  background: var(--ms-toolbar-hover);
 }
 
 /* The paid engine (M35): the warning colour rings the microphone while
    Muse Voice is its engine, as it borders the paid badge. */
 .mic-button.mic-paid {
-  box-shadow: inset 0 0 0 1px var(--vscode-editorWarning-foreground, var(--vscode-panel-border));
+  border-color: var(--ms-warning);
 }
 
 .mic-button[aria-disabled='true'] {
-  color: var(--vscode-disabledForeground);
+  color: var(--ms-disabled);
   cursor: default;
 }
 
@@ -3275,7 +3236,7 @@ li:focus-within > .row-actions .row-actions-button,
 }
 
 .activity-subagent .activity-status {
-  color: var(--vscode-foreground);
+  color: var(--ms-text);
 }
 
 /* A workflow run (M47): a header line like a tool row's, its agents one per
@@ -3284,8 +3245,8 @@ li:focus-within > .row-actions .row-actions-button,
 .workflow {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 2px 0 2px 4px;
+  gap: var(--ms-space-4);
+  padding: calc(var(--ms-space-4) / 2) 0 calc(var(--ms-space-4) / 2) var(--ms-space-4);
 }
 
 .agent-node.workflow {
@@ -3300,13 +3261,13 @@ li:focus-within > .row-actions .row-actions-button,
 }
 
 .workflow-label {
-  font-weight: 600;
+  font-weight: var(--ms-weight-bold);
 }
 
 .workflow-name {
   min-width: 0;
   overflow: hidden;
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -3314,23 +3275,23 @@ li:focus-within > .row-actions .row-actions-button,
 .workflow-meta,
 .workflow-agents,
 .workflow-result {
-  margin-left: calc(8px + var(--ms-gap));
+  margin-left: calc(var(--ms-space-8) + var(--ms-gap));
 }
 
 .workflow-meta,
 .workflow-agent-meta,
 .workflow-result-label {
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
 }
 
 .workflow-agents {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: calc(var(--ms-space-4) / 2);
   margin-block: 0;
   padding: 0 0 0 var(--ms-gap);
-  border-left: 1px solid var(--vscode-panel-border);
+  border-left: 1px solid var(--ms-border);
   list-style: none;
 }
 
@@ -3348,7 +3309,7 @@ li:focus-within > .row-actions .row-actions-button,
 .workflow-result {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: calc(var(--ms-space-4) / 2);
 }
 
 .workflow-path {
@@ -3369,13 +3330,13 @@ li:focus-within > .row-actions .row-actions-button,
   gap: var(--ms-gap);
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 6px;
-  padding: 6px 10px;
-  border: 1px solid var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
-  border-radius: var(--ms-radius);
-  color: var(--vscode-foreground);
-  font-size: 0.9em;
-  background: var(--vscode-inputValidation-errorBackground, transparent);
+  margin-bottom: calc(var(--ms-space-12) / 2);
+  padding: calc(var(--ms-space-12) / 2) calc(var(--ms-space-20) / 2);
+  border: 1px solid var(--ms-error-border);
+  border-radius: var(--ms-radius-md);
+  color: var(--ms-text);
+  font-size: var(--ms-font-size);
+  background: var(--ms-error-surface);
 }
 
 /* --- Paid features (M33–M35, PLAN.md D30): loud, never alarming --- */
@@ -3383,15 +3344,15 @@ li:focus-within > .row-actions .row-actions-button,
 /* The composer's badge while a paid feature is on: the warning colour marks
    the border, the text keeps the panel's own contrast. */
 .paid-badge {
-  min-height: 24px;
-  max-width: 220px;
+  min-height: var(--ms-space-24);
+  max-width: calc(var(--ms-space-20) * 11);
   overflow: hidden;
-  padding: 1px 8px;
-  border: 1px solid var(--vscode-editorWarning-foreground, var(--vscode-panel-border));
-  border-radius: 999px;
-  color: var(--vscode-foreground);
+  padding: 1px var(--ms-space-8);
+  border: 1px solid var(--ms-warning);
+  border-radius: var(--ms-radius-pill);
+  color: var(--ms-text);
   font: inherit;
-  font-size: 0.85em;
+  font-size: var(--ms-font-small);
   white-space: nowrap;
   text-overflow: ellipsis;
   background: transparent;
@@ -3399,29 +3360,29 @@ li:focus-within > .row-actions .row-actions-button,
 }
 
 .paid-badge:hover {
-  background: var(--vscode-toolbar-hoverBackground);
+  background: var(--ms-toolbar-hover);
 }
 
 /* A paid call's row. */
 .badge-paid {
-  border: 1px solid var(--vscode-editorWarning-foreground, var(--vscode-panel-border));
-  color: var(--vscode-foreground);
+  border: 1px solid var(--ms-warning);
+  color: var(--ms-text);
   background: transparent;
 }
 
 /* The web pages a reply cites (M33). */
 .citations {
-  margin-top: 6px;
-  font-size: 0.9em;
+  margin-top: calc(var(--ms-space-12) / 2);
+  font-size: var(--ms-font-size);
 }
 
 .citations-heading {
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
 }
 
 .citations-list {
-  margin: 2px 0 0;
-  padding-left: 20px;
+  margin: calc(var(--ms-space-4) / 2) 0 0;
+  padding-left: var(--ms-space-20);
 }
 
 /* Muse Code's own tools (M43): a memory note, a goal, scheduled prompts,
@@ -3429,46 +3390,46 @@ li:focus-within > .row-actions .row-actions-button,
 .tool-detail {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--ms-space-4);
 }
 
 .tool-detail-meta {
   margin: 0;
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.9em;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-size);
 }
 
 /* M68: an edit's then_run under its diff. A run that did not pass is marked
    with the error colour on the bar, the text in the text colour, as a failed
    row is (WCAG 1.4.3, M37). */
 .then-run {
-  margin-top: 6px;
+  margin-top: calc(var(--ms-space-12) / 2);
 }
 
 .then-run-failed {
-  padding-left: 6px;
+  padding-left: calc(var(--ms-space-12) / 2);
   border-left: 2px solid var(--vscode-errorForeground);
-  color: var(--vscode-foreground);
-}
-
-.goal-objective,
-.schedule-prompt {
-  overflow-wrap: anywhere;
+  color: var(--ms-text);
 }
 
 .goal-objective {
-  font-weight: 600;
+  overflow-wrap: anywhere;
+  font-weight: var(--ms-weight-bold);
+}
+
+.schedule-prompt {
+  overflow-wrap: anywhere;
 }
 
 .tool-facts {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 2px 8px;
+  gap: calc(var(--ms-space-4) / 2) var(--ms-space-8);
   margin: 0;
 }
 
 .tool-facts dt {
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
 }
 
 .tool-facts dd {
@@ -3480,23 +3441,23 @@ li:focus-within > .row-actions .row-actions-button,
 .web-results {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--ms-space-4);
   margin: 0;
-  padding-left: 20px;
+  padding-left: var(--ms-space-20);
 }
 
 .web-snippet {
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.9em;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-size);
   overflow-wrap: anywhere;
 }
 
 .tool-image {
   display: block;
   max-width: 100%;
-  margin-top: 4px;
+  margin-top: var(--ms-space-4);
   padding: 0;
-  border: 1px solid var(--vscode-panel-border);
+  border: 1px solid var(--ms-border);
   background: transparent;
   cursor: pointer;
 }
@@ -3504,23 +3465,23 @@ li:focus-within > .row-actions .row-actions-button,
 .tool-image img {
   display: block;
   max-width: 100%;
-  max-height: 240px;
+  max-height: calc(var(--ms-space-24) * 10);
 }
 
 /* A list of links, not links in a sentence: each is a 24 px target (WCAG 2.5.8). */
 .web-results a,
 .citations-list a {
   display: inline-block;
-  min-width: 24px;
-  min-height: 24px;
-  color: var(--vscode-textLink-foreground);
-  line-height: 24px;
+  min-width: var(--ms-space-24);
+  min-height: var(--ms-space-24);
+  color: var(--ms-info);
+  line-height: var(--ms-space-24);
   overflow-wrap: anywhere;
 }
 
 .markdown a:focus-visible {
-  outline: 1px solid var(--vscode-focusBorder);
-  outline-offset: -1px;
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
 }
 
 /* --- background work, the user's `!` commands, explanations (M46) --- */
@@ -3529,7 +3490,7 @@ li:focus-within > .row-actions .row-actions-button,
    target (WCAG 2.5.8). */
 .tool-task-action {
   flex-shrink: 0;
-  min-height: 24px;
+  min-height: var(--ms-space-24);
   white-space: nowrap;
 }
 
@@ -3544,8 +3505,8 @@ li:focus-within > .row-actions .row-actions-button,
 
 .user-shell-command {
   overflow: hidden;
-  font-family: var(--vscode-editor-font-family);
-  font-size: 0.9em;
+  font-family: var(--ms-font-code);
+  font-size: var(--ms-font-size);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -3553,11 +3514,11 @@ li:focus-within > .row-actions .row-actions-button,
 /* A `!` prompt reads as a command, and the chip beside the model says so. */
 .composer-input-shell,
 .shell-chip {
-  font-family: var(--vscode-editor-font-family);
+  font-family: var(--ms-font-code);
 }
 
 .shell-chip {
-  padding-right: 6px;
+  padding-right: calc(var(--ms-space-12) / 2);
 }
 
 /* Explain instead: the box under the question. */
@@ -3589,16 +3550,24 @@ li:focus-within > .row-actions .row-actions-button,
 .review-findings {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin: 6px 0;
+  gap: var(--ms-space-4);
+  margin: calc(var(--ms-space-12) / 2) 0;
 }
 
 .review-findings-heading {
   margin: 0;
-  font-weight: 600;
+  font-weight: var(--ms-weight-bold);
 }
 
-.review-findings-list,
+.review-findings-list {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--ms-space-12) / 2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .review-hunks {
   display: flex;
   flex-direction: column;
@@ -3612,29 +3581,29 @@ li:focus-within > .row-actions .row-actions-button,
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
-  padding: 6px 8px;
-  border: 1px solid var(--vscode-panel-border);
+  gap: calc(var(--ms-space-4) / 2);
+  padding: calc(var(--ms-space-12) / 2) var(--ms-space-8);
+  border: 1px solid var(--ms-border);
   border-left-width: 3px;
-  border-radius: var(--ms-radius);
+  border-radius: var(--ms-radius-md);
 }
 
 .review-finding-head {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: calc(var(--ms-space-12) / 2);
   align-items: baseline;
   margin: 0;
 }
 
 .review-finding-title {
-  font-weight: 600;
+  font-weight: var(--ms-weight-bold);
   overflow-wrap: anywhere;
 }
 
 .review-finding-location {
   padding: 0;
-  font-family: var(--vscode-editor-font-family);
+  font-family: var(--ms-font-code);
   overflow-wrap: anywhere;
 }
 
@@ -3647,10 +3616,10 @@ li:focus-within > .row-actions .row-actions-button,
 /* The severity is a word in the text colour; its colour is the row's edge
    only, never the text's (contrast in every theme, WCAG 1.4.3). */
 .review-severity {
-  padding: 0 6px;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--ms-radius);
-  font-size: 0.85em;
+  padding: 0 calc(var(--ms-space-12) / 2);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-md);
+  font-size: var(--ms-font-small);
 }
 
 .review-finding:has(.review-severity-critical),
@@ -3659,12 +3628,12 @@ li:focus-within > .row-actions .row-actions-button,
 }
 
 .review-finding:has(.review-severity-medium) {
-  border-left-color: var(--vscode-editorWarning-foreground, var(--vscode-panel-border));
+  border-left-color: var(--ms-warning);
 }
 
 .review-finding:has(.review-severity-low),
 .review-finding:has(.review-severity-info) {
-  border-left-color: var(--vscode-focusBorder);
+  border-left-color: var(--ms-focus);
 }
 
 .review-file {
@@ -3835,6 +3804,172 @@ li:focus-within > .row-actions .row-actions-button,
   padding-top: var(--ms-gap);
 }
 
+/* --- conversation interaction states (M114 P1) --- */
+
+/* HC Light's translucent selection lacks a foreground. Only these controls
+   pair the host's opaque primary roles for pressed and selected states. */
+:is(.vscode-high-contrast, .vscode-high-contrast-light) .chat-control {
+  --ms-selection: var(--ms-accent);
+  --ms-on-selection: var(--ms-on-accent);
+}
+
+/* The exterior text ring remains readable when a theme's focus role fails
+   3:1. The host focus border stays inside the composer's ring. */
+.chat-control:disabled,
+.composer-toolbar [aria-disabled='true'] {
+  color: var(--ms-disabled);
+  cursor: default;
+}
+
+.chat-control[aria-disabled='true']:hover {
+  color: var(--ms-disabled);
+  background: transparent;
+}
+
+.chat-control:focus-visible {
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
+}
+
+.chat-control:not(.pill, .send-button, .jump-latest, .goal-edit-input, .code-block-body):hover:not(
+    :disabled,
+    [aria-disabled='true']
+  ) {
+  background-color: var(--ms-toolbar-hover);
+  color: var(--ms-text);
+}
+
+.chat-control:not(.pill, .send-button, .jump-latest, .goal-edit-input, .code-block-body):active:not(
+    :disabled,
+    [aria-disabled='true']
+  ) {
+  background-color: var(--ms-selection);
+  color: var(--ms-on-selection);
+}
+
+:is(.jump-latest, .send-button):active:enabled {
+  background: var(--ms-pressed);
+}
+
+.pill:active:enabled {
+  text-decoration: underline;
+  border-color: var(--ms-on-badge);
+}
+
+:is(.pill, .icon-button, .mode-button, .tool-more)[aria-pressed='true'],
+:is(.icon-button, .mode-button)[aria-expanded='true'] {
+  color: var(--ms-on-selection);
+  background-color: var(--ms-selection);
+  border-color: var(--ms-text);
+}
+
+:is(.markdown, .citations-list, .web-results) a:focus-visible {
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
+}
+
+:is(.markdown, .citations-list, .web-results) a:hover,
+.tool-path:hover:enabled {
+  color: var(--ms-link-hover);
+}
+
+:is(.markdown, .citations-list, .web-results) a:active {
+  color: var(--ms-text);
+  text-decoration-thickness: var(--ms-focus-width);
+}
+
+:is(.goal, .tool-detail) .usage-bar {
+  height: var(--ms-space-8);
+  border-radius: var(--ms-radius-pill);
+  background: var(--ms-input-surface);
+  accent-color: var(--ms-progress);
+}
+
+:is(.goal, .tool-detail) .usage-bar::-webkit-progress-bar {
+  border-radius: var(--ms-radius-pill);
+  background: var(--ms-input-surface);
+}
+
+:is(.goal, .tool-detail) .usage-bar::-webkit-progress-value {
+  border-radius: var(--ms-radius-pill);
+  background: var(--ms-progress);
+}
+
+:is(.goal, .tool-detail) .usage-bar::-moz-progress-bar {
+  border-radius: var(--ms-radius-pill);
+  background: var(--ms-progress);
+}
+
+:is(.tool-output, .shell, .code-block, .local-schedules) {
+  scroll-padding: var(--ms-space-4);
+}
+
+.code-block-body:focus-visible,
+.tool-open:focus-visible {
+  outline-offset: calc(-1 * var(--ms-focus-width));
+}
+
+:is(.tool-toggle, .tool-chevron, .steps-toggle):active:enabled
+  :is(.tool-summary, .steps-summary, .chevron) {
+  color: inherit;
+}
+
+.plan-actions :is(.button-primary, .button-secondary):focus-visible {
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
+}
+
+.plan-actions .button-primary:active:enabled {
+  background: var(--ms-pressed);
+}
+
+.plan-actions .button-secondary:active:enabled {
+  background: var(--ms-secondary-hover);
+}
+
+:is(.vscode-high-contrast, .vscode-high-contrast-light)
+  :is(
+    .jump-latest,
+    .tool-expand,
+    .composer,
+    .chip,
+    .code-block,
+    .todo,
+    .goal,
+    .local-schedules,
+    .diff-clip
+  ) {
+  border-color: var(--ms-contrast-border);
+  box-shadow: var(--ms-elevation-flat);
+}
+
+@media (forced-colors: active) {
+  :is(
+    .jump-latest,
+    .tool-expand,
+    .composer,
+    .chip,
+    .code-block,
+    .todo,
+    .goal,
+    .local-schedules,
+    .diff-clip
+  ) {
+    border-color: CanvasText;
+    box-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .chevron {
+    transition: transform var(--ms-motion-fast) var(--ms-ease-standard);
+  }
+
+  :is(.jump-latest, .chip-remove, .code-block-button, .todo-open, .todo-window) {
+    transition: background-color var(--ms-motion-fast) var(--ms-ease-standard);
+  }
+}
+
 /* Reduced motion (M25): every animation and transition in the panel stops,
    not only the microphone's pulse. */
 @media (prefers-reduced-motion: reduce) {
@@ -3848,25 +3983,18 @@ li:focus-within > .row-actions .row-actions-button,
     animation: none;
   }
 
-  /* The mark's still pose is the loop's middle, so it stays visible. */
-  /* stylelint-disable custom-property-pattern -- same pen names as above. */
-  .status-mark-circle {
-    --amplitude: 3px;
-    --scale: 3;
-  }
-  /* stylelint-enable custom-property-pattern */
-
   .toggle-knob,
-  .chevron {
+  .chevron,
+  :is(.jump-latest, .chip-remove, .code-block-button, .todo-open, .todo-window) {
     transition: none;
   }
 }
 
 /* M98: an advisory status line wraps at narrow panel widths. */
 .judge-status {
-  margin: 0 var(--ms-gap) 0.5em;
-  color: var(--vscode-foreground);
-  font-size: 0.9em;
+  margin: 0 var(--ms-gap) var(--ms-space-8);
+  color: var(--ms-text);
+  font-size: var(--ms-font-size);
   overflow-wrap: anywhere;
 }
 

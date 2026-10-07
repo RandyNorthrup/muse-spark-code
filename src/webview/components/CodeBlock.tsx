@@ -47,7 +47,7 @@ export function CodeBlock({
         <span className="code-block-actions">
           <button
             type="button"
-            className="code-block-button"
+            className="code-block-button chat-control"
             onClick={() => {
               onCopy(code)
               markCopied()
@@ -58,7 +58,7 @@ export function CodeBlock({
           {onInsert === undefined ? null : (
             <button
               type="button"
-              className="code-block-button"
+              className="code-block-button chat-control"
               onClick={() => {
                 onInsert(code)
               }}
@@ -69,7 +69,7 @@ export function CodeBlock({
           {onApply === undefined ? null : (
             <button
               type="button"
-              className="code-block-button"
+              className="code-block-button chat-control"
               onClick={() => {
                 onApply(code)
               }}
@@ -80,7 +80,7 @@ export function CodeBlock({
         </span>
       </div>
       {/* Keyboard users need to reach and scroll long lines, including in share files. */}
-      <pre className="code-block-body" tabIndex={0}>
+      <pre className="code-block-body chat-control" tabIndex={0}>
         {isOpen || resolved === undefined ? (
           <code className="hljs">{code}</code>
         ) : (

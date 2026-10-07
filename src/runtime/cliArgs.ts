@@ -55,6 +55,7 @@ export type RuntimeCommand =
   | { readonly command: 'exec'; readonly options: ExecOptions }
   | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
   | { readonly command: 'report'; readonly options: ReportOptions }
+  | { readonly command: 'fontsInstall'; readonly sourceDirectory: string | undefined }
   | { readonly command: 'serve'; readonly options: ServeOptions }
   | { readonly command: 'login'; readonly options: ServeOptions }
   | { readonly command: 'help'; readonly all?: boolean }
@@ -100,6 +101,7 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
   }
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
   if (argv[0] === 'report') return parseReport(argv.slice(1))
+  if (argv[0] === 'fonts') return parseFonts(argv.slice(1))
   let parsed: ReturnType<typeof parseCommandLineStrictly>
   try {
     parsed = parseCommandLineStrictly(argv)
@@ -237,4 +239,22 @@ function parseCommandLineStrictly(argv: readonly string[]) {
     strict: true,
     options: CLI_OPTION_REGISTRY.serve.options,
   })
+}
+
+/** Installation is an explicit command; none of the serve flags can trigger it. */
+function parseFonts(argv: readonly string[]): RuntimeCommand {
+  try {
+    const { values, positionals } = parseArgs({
+      args: [...argv],
+      allowPositionals: true,
+      strict: true,
+      options: { from: { type: 'string' }, help: { type: 'boolean', short: 'h' } },
+    })
+    if (values.help === true) return { command: 'help' }
+    if (positionals.length === 1 && positionals[0] === 'install' && values.from !== '')
+      return { command: 'fontsInstall', sourceDirectory: values.from }
+  } catch {
+    /* Invalid font arguments get the localized usage below. */
+  }
+  return { command: 'invalid', reason: fill(UI_TEXT.acpFontsUsage, { command: ACP_AGENT_NAME }) }
 }

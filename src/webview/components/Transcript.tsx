@@ -767,7 +767,7 @@ function StepsGroup({
     <li className="steps">
       <button
         type="button"
-        className="steps-toggle"
+        className="steps-toggle chat-control"
         aria-expanded={isOpen}
         aria-controls={listId}
         onClick={() => {
@@ -827,7 +827,7 @@ function ReportThisButton({
   return onReportProblem === undefined || reportRef === undefined ? null : (
     <button
       type="button"
-      className="notice-action"
+      className="notice-action chat-control"
       onClick={() => {
         onReportProblem(entry.id, reportRef)
       }}
@@ -1001,7 +1001,7 @@ const ActionNotice = memo(function ActionNotice({
         <button
           key={action}
           type="button"
-          className="notice-action"
+          className="notice-action chat-control"
           disabled={isSpent}
           onClick={() => {
             if (spent.current) {

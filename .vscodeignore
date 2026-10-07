@@ -64,3 +64,12 @@
 !docs/judge.md
 !vendor/high-quality-projects-skill/**
 !first-party-skills/**
+
+# M114 F: optional WOFF2 pack and runtime installer belong to standalone installs.
+design/fonts/**
+dist/fontsInstall.js
+**/*.woff
+**/*.woff2
+**/*.ttf
+**/*.otf
+**/*.eot
