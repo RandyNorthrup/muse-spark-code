@@ -18,6 +18,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Include esbuild's namespaced resource-validation dependencies in release
+  CycloneDX inventories using normalized POSIX and Windows package paths.
+- Inventory ACP's actual staged shared/lazy bundles and usage browser assets,
+  retaining their runtime dependencies and excluding extension-only outputs.
+- Separate check-slot uncertainty cases and journal benchmark preparation,
+  retaining default test deadlines and the 300-ms warm-read requirement.
 - Run the actual badge/image gate in the ChatGPT package fixture under CI,
   preserving the prohibition on offline badge overrides.
 - Reuse the headless tests' existing fake image transport for every package

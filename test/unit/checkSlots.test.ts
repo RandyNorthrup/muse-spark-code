@@ -197,29 +197,33 @@ describe('persistent check slots', () => {
     expect(result.output).toBe('seed\n')
     expect(await readFile(path.join(worker, 'node_modules', 'value'), 'utf8')).toBe('copy-edit')
   })
-  it('keeps slots occupied when descendants are uncertain or a transport fails', async () => {
-    for (const phase of ['command', 'snapshot', 'copyGit'])
-      for (const shouldReject of [false, true]) {
-        const { deps, job } = await fixture()
-        const slots = new CheckSlots({
-          ...deps,
-          run: async (request) => {
-            if (
-              (phase === 'command' && request.file === process.execPath) ||
-              (phase === 'snapshot' && request.args.includes('config')) ||
-              (phase === 'copyGit' && request.args.includes('clone'))
-            ) {
-              if (shouldReject) throw new Error('connection lost')
-              const result = await processRun(request)
-              return { ...result, descendantsEnded: false }
-            }
-            return await processRun(request)
-          },
-        })
-        await expect(slots.run(job)).rejects.toThrow()
-        expect(slots.states()).toEqual([{ id: 0, busy: true, uncertain: true }])
-        await expect(slots.run(job)).rejects.toThrow()
-      }
+  it.each([
+    ['command', false],
+    ['command', true],
+    ['snapshot', false],
+    ['snapshot', true],
+    ['copyGit', false],
+    ['copyGit', true],
+  ])('keeps slots occupied for %s with transport rejection %s', async (phase, shouldReject) => {
+    const { deps, job } = await fixture()
+    const slots = new CheckSlots({
+      ...deps,
+      run: async (request) => {
+        if (
+          (phase === 'command' && request.file === process.execPath) ||
+          (phase === 'snapshot' && request.args.includes('config')) ||
+          (phase === 'copyGit' && request.args.includes('clone'))
+        ) {
+          if (shouldReject) throw new Error('connection lost')
+          const result = await processRun(request)
+          return { ...result, descendantsEnded: false }
+        }
+        return await processRun(request)
+      },
+    })
+    await expect(slots.run(job)).rejects.toThrow()
+    expect(slots.states()).toEqual([{ id: 0, busy: true, uncertain: true }])
+    await expect(slots.run(job)).rejects.toThrow()
   })
   it('refuses the user checkout, host pressure, untrusted work, escaped installs and missing lockfiles', async () => {
     const { deps, job } = await fixture()

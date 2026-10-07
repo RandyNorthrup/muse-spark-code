@@ -52513,3 +52513,40 @@ from the owned publication inventory fires the membership assertion; restoration
 is byte-exact and all 22 pass again. Commit these retained repairs with normal
 hooks, then run each requested independent committed-clone job. Cold-checkout
 bundle coupling remains explicitly deferred under the lane's stop rule.
+
+**REL0160B independent-job findings (2026-10-07).** The independent macOS
+jobs expose two preparation-heavy test bodies and an SBOM namespace regression.
+Split the six check-slot uncertainty/transport combinations into six tests,
+retaining all assertions at the default five-second timeout. Prepare the
+60,000-record journal cold read in the existing default beforeAll hook; retain
+the same cold/warm counts, no-reread oracle and 300-ms warm-read ceiling.
+The CycloneDX reader mistakes esbuild's `resource-validation:` namespace for
+a filesystem path. Reuse the existing notices package-path normalizer for
+SBOM inputs and prove POSIX and Windows namespaced contributions remain in
+the shipped inventory. Preserve zero-byte exclusion, all package guards and
+unchanged coverage/budget thresholds. Record red/restored checks, rerun full
+quality before a normal-hook commit, then qualify the committed repairs.
+The independent cold-checkout fixture dependency remains deferred; no third
+repair attempt is authorized by the shared two-failed-fixes stop rule.
+
+The first repaired CycloneDX command exposes a second inventory defect: the
+old four-metafile ACP list omits its shared/lazy engines, protocol validation
+and usage browser dependencies. Select contributions from all production
+metafiles only when their normalized output path exists in the actual ACP
+staging tree. Wrapped runtime-archive members still retain their staged `.js`
+paths; the usage page's staged graph selects its actual chunks and excludes
+chat-only outputs. Refuse a missing package stage. Add a red/restored test for
+lazy and browser contributions, Windows output paths and exclusion of an
+extension-only output. Stop the aggregate before source edits, then restart
+quality after the complete inventory guards and actual SBOM command pass.
+
+**REL0160B complete inventory/preparation repairs verified (2026-10-07).**
+All 58 affected tests pass with default deadlines and three workers. Namespace,
+staged-output selection and missing-stage refusal each fire deliberately and
+restore byte-exact. Real CycloneDX inventories include 86 extension and 48 ACP
+dependency versions. `CI=true npm run quality` exits 0 in 2,095.02 s: 18,152
+tests / 885 files, coverage 92.23/87.47/93.32/92.94, all 988 accessibility
+pages, no leaks across 2,314 commits, and pinned SAST's 533 rules / 2,259 targets
+/ zero findings. Commit the validated bytes with normal hooks and repeat the
+independent committed-source macOS job matrix. Preserve the explicit stopped
+cold-checkout deferral and report qualification as blocked while it remains.

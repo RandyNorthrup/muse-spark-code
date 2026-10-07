@@ -2,10 +2,11 @@
 // --omit=dev alone is wrong here: zod, React and the Muse/ACP SDKs are bundled devDeps.
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { z } from 'zod'
+import { noticePackageDir } from './lib/noticesInput.mjs'
 
 const COMPONENT = z
   .object({ name: z.string(), version: z.string().optional(), 'bom-ref': z.string() })
@@ -17,29 +18,16 @@ const BOM = z
     dependencies: z.array(z.object({ ref: z.string(), dependsOn: z.array(z.string()) })),
   })
   .passthrough()
-const ACP_META = [
-  'dist/meta-acp/acp.json',
-  'dist/meta/modelApi.json',
-  'dist/meta/searchWorker.json',
-  'dist/meta/pageWorker.json',
-]
+const ACP_STAGE = 'dist/acp-package'
 
-function packageDir(input) {
-  const marker = 'node_modules/'
-  const at = input.lastIndexOf(marker)
-  if (at === -1) return
-  const [first, second] = input.slice(at + marker.length).split('/', 2)
-  const name = first.startsWith('@') ? `${first}/${second}` : first
-  return input.slice(0, at + marker.length) + name
-}
-
-export function bundledPackages(metafiles, read = readFileSync) {
+export function bundledPackages(metafiles, read = readFileSync, includesOutput = () => true) {
   const packages = new Set()
   for (const file of metafiles) {
     const meta = JSON.parse(read(file, 'utf8'))
-    for (const output of Object.values(meta.outputs)) {
+    for (const [file, output] of Object.entries(meta.outputs)) {
+      if (!includesOutput(file.replaceAll('\\', '/'))) continue
       for (const [input, contribution] of Object.entries(output.inputs)) {
-        const dir = packageDir(input)
+        const dir = noticePackageDir(input)
         if (dir === undefined || contribution.bytesInOutput <= 0) continue
         const manifest = JSON.parse(read(`${dir}/package.json`, 'utf8'))
         packages.add(`${manifest.name}@${manifest.version}`)
@@ -157,6 +145,8 @@ if (
   process.argv[1] !== undefined &&
   import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
 ) {
+  if (!existsSync(path.join(ACP_STAGE, 'package.json')))
+    throw new Error('ACP package stage is missing: run scripts/package-acp.mjs first')
   const raw = execFileSync(
     'npm',
     [
@@ -170,10 +160,19 @@ if (
     { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024, shell: process.platform === 'win32' },
   )
   const full = JSON.parse(raw)
-  const extension = bundledPackages(readdirSync('dist/meta').map((file) => `dist/meta/${file}`))
+  const extensionMeta = readdirSync('dist/meta').map((file) => `dist/meta/${file}`)
+  const extension = bundledPackages(extensionMeta)
   // Only bundled inputs are proven runtime code; unbundled native platform
   // dependencies keep the optional scope npm gave them.
-  const acpBundled = bundledPackages(ACP_META)
+  // Lazy archive members retain their staged JS entry; browser chunks are
+  // included only when the ACP packer copied them into the usage graph.
+  const acpMeta = [
+    ...extensionMeta,
+    ...readdirSync('dist/meta-acp').map((file) => `dist/meta-acp/${file}`),
+  ]
+  const acpBundled = bundledPackages(acpMeta, readFileSync, (file) =>
+    existsSync(path.join(ACP_STAGE, file)),
+  )
   const acp = new Set([
     ...acpBundled,
     ...nativePackages(JSON.parse(readFileSync('package-lock.json', 'utf8'))),

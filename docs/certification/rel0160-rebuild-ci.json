@@ -1,0 +1,891 @@
+{
+  "source": {
+    "commit": "afbf69a1e576eca54c822f2c458a4234568885cd",
+    "tree": "ab8b2217c675d4fcbe372de25842a101c446056c",
+    "node": "v22.23.3",
+    "CI": "true",
+    "workflow": ".github/workflows/build.yml",
+    "independentCheckouts": true,
+    "semgrepPin": "1.178.0",
+    "linuxArtifactInput": "same-source real cross-compiled ELF; Linux native execution unclaimed",
+    "coverageAfterFailedUnit": "diagnostic replay; hosted needs: unit would skip this job"
+  },
+  "jobs": [
+    {
+      "job": "checks",
+      "exit": 0,
+      "seconds": 455.05,
+      "checkout": "/tmp/rel0160b/qualification-final/checks"
+    },
+    {
+      "job": "unit-1",
+      "exit": 1,
+      "seconds": 172.5,
+      "checkout": "/tmp/rel0160b/qualification-final/unit-1"
+    },
+    {
+      "job": "unit-2",
+      "exit": 1,
+      "seconds": 250.89,
+      "checkout": "/tmp/rel0160b/qualification-final/unit-2"
+    },
+    {
+      "job": "unit-3",
+      "exit": 1,
+      "seconds": 215.74,
+      "checkout": "/tmp/rel0160b/qualification-final/unit-3"
+    },
+    {
+      "job": "unit-4",
+      "exit": 0,
+      "seconds": 256.96,
+      "checkout": "/tmp/rel0160b/qualification-final/unit-4"
+    },
+    {
+      "job": "coverage",
+      "exit": 1,
+      "seconds": 40.93,
+      "checkout": "/tmp/rel0160b/qualification-final/coverage"
+    },
+    {
+      "job": "native-build",
+      "exit": 0,
+      "seconds": 70.95,
+      "checkout": "/tmp/rel0160b/qualification-final/native-build"
+    },
+    {
+      "job": "packages",
+      "exit": 1,
+      "seconds": 271.57,
+      "checkout": "/tmp/rel0160b/qualification-final/packages"
+    },
+    {
+      "job": "extra-1",
+      "exit": 0
+    },
+    {
+      "job": "extra-2",
+      "exit": 0
+    },
+    {
+      "job": "extra-3",
+      "exit": 0
+    },
+    {
+      "job": "extra-4",
+      "exit": 0
+    },
+    {
+      "job": "extra-5",
+      "exit": 0
+    }
+  ],
+  "steps": [
+    {
+      "job": "checks",
+      "step": 1,
+      "title": "npm ci",
+      "command": "npm ci",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/checks",
+      "exit": 0,
+      "seconds": 10.01,
+      "log": "/tmp/rel0160b/qualification-final/receipts/checks-1.log"
+    },
+    {
+      "job": "checks",
+      "step": 2,
+      "title": "npx run-s format:check lint typecheck check:badges check:l10n check:reference check:host-api deadcode cycles duplication build security:audit",
+      "command": "npx run-s format:check lint typecheck check:badges check:l10n check:reference check:host-api deadcode cycles duplication build security:audit",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/checks",
+      "exit": 0,
+      "seconds": 444.75,
+      "log": "/tmp/rel0160b/qualification-final/receipts/checks-2.log"
+    },
+    {
+      "job": "checks",
+      "step": "clean",
+      "title": "tracked source remains exact",
+      "command": "test -z \"$(git status --porcelain --untracked-files=no)\"",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/checks",
+      "exit": 0,
+      "seconds": 0.3,
+      "log": "/tmp/rel0160b/qualification-final/receipts/checks-clean.log"
+    },
+    {
+      "job": "unit-1",
+      "step": 1,
+      "title": "npm ci",
+      "command": "npm ci",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/unit-1",
+      "exit": 0,
+      "seconds": 10.47,
+      "log": "/tmp/rel0160b/qualification-final/receipts/unit-1-1.log"
+    },
+    {
+      "job": "unit-1",
+      "step": 2,
+      "title": "unit and process e2e tests",
+      "command": "if [ \"$FAST\" = true ]; then\n  npx vitest run\nelse\n  npx vitest run --coverage --shard=\"$SHARD/4\" --reporter=default --reporter=blob --outputFile=\"blob-reports/shard-$SHARD.json\"\nfi\n",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/unit-1",
+      "exit": 1,
+      "seconds": 161.83,
+      "log": "/tmp/rel0160b/qualification-final/receipts/unit-1-2.log"
+    },
+    {
+      "job": "unit-1",
+      "step": "clean",
+      "title": "tracked source remains exact",
+      "command": "test -z \"$(git status --porcelain --untracked-files=no)\"",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/unit-1",
+      "exit": 0,
+      "seconds": 0.19,
+      "log": "/tmp/rel0160b/qualification-final/receipts/unit-1-clean.log"
+    },
+    {
+      "job": "unit-2",
+      "step": 1,
+      "title": "npm ci",
+      "command": "npm ci",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/unit-2",
+      "exit": 0,
+      "seconds": 9.87,
+      "log": "/tmp/rel0160b/qualification-final/receipts/unit-2-1.log"
+    },
+    {
+      "job": "unit-2",
+      "step": 2,
+      "title": "unit and process e2e tests",
+      "command": "if [ \"$FAST\" = true ]; then\n  npx vitest run\nelse\n  npx vitest run --coverage --shard=\"$SHARD/4\" --reporter=default --reporter=blob --outputFile=\"blob-reports/shard-$SHARD.json\"\nfi\n",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/unit-2",
+      "exit": 1,
+      "seconds": 240.42,
+      "log": "/tmp/rel0160b/qualification-final/receipts/unit-2-2.log"
+    },
+    {
+      "job": "unit-2",
+      "step": "clean",
+      "title": "tracked source remains exact",
+      "command": "test -z \"$(git status --porcelain --untracked-files=no)\"",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/unit-2",
+      "exit": 0,
+      "seconds": 0.6,
+      "log": "/tmp/rel0160b/qualification-final/receipts/unit-2-clean.log"
+    },
+    {
+      "job": "unit-3",
+      "step": 1,
+      "title": "npm ci",
+      "command": "npm ci",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/unit-3",
+      "exit": 0,
+      "seconds": 10.81,
+      "log": "/tmp/rel0160b/qualification-final/receipts/unit-3-1.log"
+    },
+    {
+      "job": "unit-3",
+      "step": 2,
+      "title": "unit and process e2e tests",
+      "command": "if [ \"$FAST\" = true ]; then\n  npx vitest run\nelse\n  npx vitest run --coverage --shard=\"$SHARD/4\" --reporter=default --reporter=blob --outputFile=\"blob-reports/shard-$SHARD.json\"\nfi\n",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/unit-3",
+      "exit": 1,
+      "seconds": 204.49,
+      "log": "/tmp/rel0160b/qualification-final/receipts/unit-3-2.log"
+    },
+    {
+      "job": "unit-3",
+      "step": "clean",
+      "title": "tracked source remains exact",
+      "command": "test -z \"$(git status --porcelain --untracked-files=no)\"",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/unit-3",
+      "exit": 0,
+      "seconds": 0.45,
+      "log": "/tmp/rel0160b/qualification-final/receipts/unit-3-clean.log"
+    },
+    {
+      "job": "unit-4",
+      "step": 1,
+      "title": "npm ci",
+      "command": "npm ci",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/unit-4",
+      "exit": 0,
+      "seconds": 9.91,
+      "log": "/tmp/rel0160b/qualification-final/receipts/unit-4-1.log"
+    },
+    {
+      "job": "unit-4",
+      "step": 2,
+      "title": "unit and process e2e tests",
+      "command": "if [ \"$FAST\" = true ]; then\n  npx vitest run\nelse\n  npx vitest run --coverage --shard=\"$SHARD/4\" --reporter=default --reporter=blob --outputFile=\"blob-reports/shard-$SHARD.json\"\nfi\n",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/unit-4",
+      "exit": 0,
+      "seconds": 246.59,
+      "log": "/tmp/rel0160b/qualification-final/receipts/unit-4-2.log"
+    },
+    {
+      "job": "unit-4",
+      "step": "clean",
+      "title": "tracked source remains exact",
+      "command": "test -z \"$(git status --porcelain --untracked-files=no)\"",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/unit-4",
+      "exit": 0,
+      "seconds": 0.46,
+      "log": "/tmp/rel0160b/qualification-final/receipts/unit-4-clean.log"
+    },
+    {
+      "job": "coverage",
+      "step": 1,
+      "title": "npm ci",
+      "command": "npm ci",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/coverage",
+      "exit": 0,
+      "seconds": 12.68,
+      "log": "/tmp/rel0160b/qualification-final/receipts/coverage-1.log"
+    },
+    {
+      "job": "coverage",
+      "step": 2,
+      "title": "every shard and the original coverage thresholds are required",
+      "command": "for shard in 1 2 3 4; do\n  test -s \"blob-reports/shard-$shard.json\"\ndone\nnpx vitest run --merge-reports=blob-reports --coverage\n",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/coverage",
+      "exit": 1,
+      "seconds": 28.01,
+      "log": "/tmp/rel0160b/qualification-final/receipts/coverage-2.log"
+    },
+    {
+      "job": "coverage",
+      "step": "clean",
+      "title": "tracked source remains exact",
+      "command": "test -z \"$(git status --porcelain --untracked-files=no)\"",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/coverage",
+      "exit": 0,
+      "seconds": 0.24,
+      "log": "/tmp/rel0160b/qualification-final/receipts/coverage-clean.log"
+    },
+    {
+      "job": "native-build",
+      "step": 1,
+      "title": "bash native/darwin/build.sh",
+      "command": "bash native/darwin/build.sh",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/native-build",
+      "exit": 0,
+      "seconds": 9.43,
+      "log": "/tmp/rel0160b/qualification-final/receipts/native-build-1.log"
+    },
+    {
+      "job": "native-build",
+      "step": 2,
+      "title": "bash native/darwin/check-disclaim.sh",
+      "command": "bash native/darwin/check-disclaim.sh",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/native-build",
+      "exit": 0,
+      "seconds": 61.19,
+      "log": "/tmp/rel0160b/qualification-final/receipts/native-build-2.log"
+    },
+    {
+      "job": "native-build",
+      "step": "clean",
+      "title": "tracked source remains exact",
+      "command": "test -z \"$(git status --porcelain --untracked-files=no)\"",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/native-build",
+      "exit": 0,
+      "seconds": 0.33,
+      "log": "/tmp/rel0160b/qualification-final/receipts/native-build-clean.log"
+    },
+    {
+      "job": "packages",
+      "step": 1,
+      "title": "chmod +x native/linux/x64/muse-created native/linux/arm64/muse-created",
+      "command": "chmod +x native/linux/x64/muse-created native/linux/arm64/muse-created",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/packages",
+      "exit": 0,
+      "seconds": 0.01,
+      "log": "/tmp/rel0160b/qualification-final/receipts/packages-1.log"
+    },
+    {
+      "job": "packages",
+      "step": 2,
+      "title": "chmod +x native/darwin/muse-dictate",
+      "command": "chmod +x native/darwin/muse-dictate",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/packages",
+      "exit": 0,
+      "seconds": 0.01,
+      "log": "/tmp/rel0160b/qualification-final/receipts/packages-2.log"
+    },
+    {
+      "job": "packages",
+      "step": 3,
+      "title": "npm ci",
+      "command": "npm ci",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/packages",
+      "exit": 0,
+      "seconds": 14.21,
+      "log": "/tmp/rel0160b/qualification-final/receipts/packages-3.log"
+    },
+    {
+      "job": "packages",
+      "step": 4,
+      "title": "npm run package",
+      "command": "npm run package",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/packages",
+      "exit": 0,
+      "seconds": 81.01,
+      "log": "/tmp/rel0160b/qualification-final/receipts/packages-4.log"
+    },
+    {
+      "job": "packages",
+      "step": 5,
+      "title": "the universal VSIX stays within its measured budget",
+      "command": "node scripts/check-vsix-size.mjs ./*.vsix",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/packages",
+      "exit": 0,
+      "seconds": 0.09,
+      "log": "/tmp/rel0160b/qualification-final/receipts/packages-5.log"
+    },
+    {
+      "job": "packages",
+      "step": 6,
+      "title": "the .vsix carries the notices, the helpers, the bundles and the manifest's text",
+      "command": "listing=\"$(unzip -Z1 ./*.vsix)\"\nfor entry in extension/LICENSE.txt extension/THIRD_PARTY_NOTICES.txt extension/package.nls.json \\\n  extension/native/linux/x64/muse-created extension/native/linux/arm64/muse-created \\\n  extension/native/windows/dictate.ps1 extension/native/windows/capture.ps1 \\\n  extension/native/windows/MuseSparkJob.cs extension/native/windows/MuseSparkMcpJob.cs \\\n  extension/native/windows/MuseSparkMcpLauncher.cs extension/native/darwin/muse-dictate \\\n  extension/dist/extension.js extension/dist/conversation.js extension/dist/prompts.js extension/dist/modelApi.js extension/dist/searchWorker.js \\\n  extension/dist/pageWorker.js extension/dist/planMarkdown.js extension/dist/checkpointStore.js \\\n  extension/dist/review.js extension/dist/agentImport.js extension/dist/conversationGit.js extension/dist/bundledSkills.js \\\n  extension/dist/uiTextRuntime.js extension/dist/uiTextHooks.js extension/dist/uiTextSurfaces.js \\\n  extension/dist/uiText.js extension/dist/validation.js extension/dist/wire.js extension/dist/browserCheck.js extension/dist/browserRuntime.js \\\n  extension/dist/legalScan.js extension/dist/legal-data/NOTICE.md extension/dist/legal-data/provenance.json \\\n  extension/dist/sessionBoard.js extension/dist/reviewer.js \\\n  extension/dist/foreignHooks.js extension/dist/hookRuntime.js extension/dist/extensionHooks.js extension/dist/pluginHooks.js \\\n  extension/dist/codeIntel.js extension/dist/voice.js extension/dist/museCodeReviewer.js \\\n  extension/dist/report.js extension/dist/recorder.js \\\n  extension/dist/webFetch.js extension/dist/judge.js extension/docs/judge.md extension/dist/whatsNew.js extension/dist/whatsNew.json \\\n  extension/dist/webview/main.js extension/dist/webview/main.css \\\n  extension/dist/webview/whatsNew.js extension/dist/webview/whatsNew.css; do\n  if ! grep -Fxq -- \"$entry\" <<< \"$listing\"; then\n    echo \"::error::$entry is missing from the .vsix\" >&2\n    exit 1\n  fi\ndone\necho \"the .vsix holds $(wc -l <<< \"$listing\") entries, the required ones included\"\n",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/packages",
+      "exit": 0,
+      "seconds": 0.3,
+      "log": "/tmp/rel0160b/qualification-final/receipts/packages-6.log"
+    },
+    {
+      "job": "packages",
+      "step": 7,
+      "title": "node scripts/package-acp.mjs",
+      "command": "node scripts/package-acp.mjs",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/packages",
+      "exit": 0,
+      "seconds": 47.05,
+      "log": "/tmp/rel0160b/qualification-final/receipts/packages-7.log"
+    },
+    {
+      "job": "packages",
+      "step": 8,
+      "title": "the agent's package carries its bundles, tables, notices and manifest",
+      "command": "listing=\"$(tar -tzf dist/muse-spark-code-acp-*.tgz)\"\nfor entry in package/package.json package/dist/uiTextRuntime.js package/dist/uiTextHooks.js package/dist/uiTextSurfaces.js \\\n  package/dist/acp.js package/dist/sharingRuntime.js package/dist/modelApi.js package/dist/uiText.js package/dist/validation.js package/dist/wire.js package/dist/reviewer.js \\\n  package/dist/providers.js package/dist/subscriptions.js package/dist/configuredProviders.js package/dist/providerCatalog.js \\\n  package/dist/foreignHooks.js package/dist/hookRuntime.js package/dist/extensionHooks.js \\\n  package/dist/recorder.js package/dist/resourceGovernor.js package/dist/resourceAdmission.js \\\n  package/dist/exec.js package/dist/mcpPool.js package/dist/modelApiCodeIntel.js package/dist/structuredSchema.js \\\n  package/dist/searchWorker.js package/dist/pageWorker.js \\\n  package/native/darwin/muse-dictate \\\n  package/native/linux/x64/muse-created package/native/linux/arm64/muse-created \\\n  package/native/windows/MuseSparkJob.cs package/native/windows/MuseSparkMcpJob.cs \\\n  package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md \\\n  package/schemas/exec-result-v1.schema.json package/schemas/exec-event-v1.schema.json \\\n  package/schemas/exec-result-v2.schema.json package/schemas/exec-event-v2.schema.json \\\n  package/dist/runtime.bundles.json.br package/dist/legalScan.js \\\n  package/dist/legal-data/NOTICE.md package/dist/legal-data/provenance.json \\\n  package/schemas/share-v1.schema.json; do\n  if ! grep -Fxq -- \"$entry\" <<< \"$listing\"; then\n    echo \"::error::$entry is missing from the agent's package\" >&2\n    exit 1\n  fi\ndone\nif ! grep -Fxq -- \"package/l10n/ui.tables.json.br\" <<< \"$listing\"; then\n  echo \"::error::runtime table archive is missing from the agent's package\" >&2\n  exit 1\nfi\necho \"the agent's package holds $(wc -l <<< \"$listing\") entries, the required ones included\"\n",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/packages",
+      "exit": 0,
+      "seconds": 0.25,
+      "log": "/tmp/rel0160b/qualification-final/receipts/packages-8.log"
+    },
+    {
+      "job": "packages",
+      "step": 9,
+      "title": "the bundles and the installed agent load the shared English table",
+      "command": "acp=\"$RUNNER_TEMP/acp-install\"\nmkdir -p \"$acp\"\nnpm install --prefix \"$acp\" --ignore-scripts --audit=false --fund=false ./dist/muse-spark-code-acp-*.tgz\nnode scripts/check-ui-text.mjs \"$acp/node_modules/muse-spark-code-acp\"\n",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/packages",
+      "exit": 0,
+      "seconds": 8.98,
+      "log": "/tmp/rel0160b/qualification-final/receipts/packages-9.log"
+    },
+    {
+      "job": "packages",
+      "step": 10,
+      "title": "built headless process and package guards (fake transport only)",
+      "command": "npx vitest run test/e2e/execStdio.e2e.test.ts\nnpx vitest run test/e2e/acpStdio.e2e.test.ts -t \"the ACP registry release gate\"\n",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/packages",
+      "exit": 0,
+      "seconds": 116.9,
+      "log": "/tmp/rel0160b/qualification-final/receipts/packages-10.log"
+    },
+    {
+      "job": "packages",
+      "step": 11,
+      "title": "CycloneDX inventories for shipped bundles and native runtime dependencies",
+      "command": "node scripts/release-sbom.mjs",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/packages",
+      "exit": 1,
+      "seconds": 2.04,
+      "log": "/tmp/rel0160b/qualification-final/receipts/packages-11.log"
+    },
+    {
+      "job": "packages",
+      "step": "clean",
+      "title": "tracked source remains exact",
+      "command": "test -z \"$(git status --porcelain --untracked-files=no)\"",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/packages",
+      "exit": 0,
+      "seconds": 0.71,
+      "log": "/tmp/rel0160b/qualification-final/receipts/packages-clean.log"
+    },
+    {
+      "job": "extra",
+      "step": 1,
+      "title": "npm run test:a11y",
+      "command": "npm run test:a11y",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/checks",
+      "exit": 0,
+      "seconds": 667.59,
+      "log": "/tmp/rel0160b/qualification-final/receipts/extra-1.log"
+    },
+    {
+      "job": "extra",
+      "step": 2,
+      "title": "npm run test:legal-a11y",
+      "command": "npm run test:legal-a11y",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/checks",
+      "exit": 0,
+      "seconds": 127.87,
+      "log": "/tmp/rel0160b/qualification-final/receipts/extra-2.log"
+    },
+    {
+      "job": "extra",
+      "step": 3,
+      "title": "npm run security:secrets",
+      "command": "npm run security:secrets",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/checks",
+      "exit": 0,
+      "seconds": 27.14,
+      "log": "/tmp/rel0160b/qualification-final/receipts/extra-3.log"
+    },
+    {
+      "job": "extra",
+      "step": 4,
+      "title": "npm run security:sast",
+      "command": "npm run security:sast",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/checks",
+      "exit": 0,
+      "seconds": 183.85,
+      "log": "/tmp/rel0160b/qualification-final/receipts/extra-4.log"
+    },
+    {
+      "job": "extra",
+      "step": 5,
+      "title": "npm run readme:shots -- --out /tmp/rel0160b/readme-fresh",
+      "command": "npm run readme:shots -- --out /tmp/rel0160b/readme-fresh",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/checks",
+      "exit": 0,
+      "seconds": 124.85,
+      "log": "/tmp/rel0160b/qualification-final/receipts/extra-5.log"
+    },
+    {
+      "job": "extra",
+      "step": "clean",
+      "title": "tracked source remains exact",
+      "command": "test -z \"$(git status --porcelain --untracked-files=no)\"",
+      "CI": "true",
+      "checkout": "/tmp/rel0160b/qualification-final/checks",
+      "exit": 0,
+      "seconds": 0.04,
+      "log": "/tmp/rel0160b/qualification-final/receipts/extra-clean.log"
+    }
+  ],
+  "releaseQualified": false,
+  "failureSummary": {
+    "unit-1": "runtimeChatGptPackage.test.ts setup assumes checkout dist/acp.js; two assertions prevented",
+    "unit-2": "execStdio.e2e.test.ts M80 package guards assume checkout dist/acp.js (32 assertions prevented); checkSlots.test.ts combines six preparations within one default 5-second body",
+    "unit-3": "journalStore.test.ts seeds/cold-reads 60,000 records inside the default test body; webviewBundle.test.mjs assumes checkout acp.js, exec.js and activation metafiles (four assertions fail)",
+    "packages": "release-sbom.mjs treats resource-validation: as a filesystem namespace; final release-reuse step not reached"
+  },
+  "coverage": {
+    "initialDistinctRoots": "orchestration error: four independent absolute checkout roots produced four denominators",
+    "pathNormalization": [
+      {
+        "shard": 1,
+        "sourceCommit": "afbf69a1e576eca54c822f2c458a4234568885cd",
+        "sourceRoot": "/private/tmp/rel0160b/qualification-final/unit-1",
+        "mergeRoot": "/private/tmp/rel0160b/qualification-final/coverage",
+        "pathReplacements": 2485,
+        "beforeSha256": "60b2be2c907bc66f8f48f32460759975ac41ad3cce3224dfb4dcd06452111568",
+        "afterSha256": "c39524cd440346e816ea2c2a552edd426d2136851c8e38364eb680ac3bd7b59a",
+        "changedData": "workspace path strings and dictionary keys only; test verdicts and coverage counts untouched"
+      },
+      {
+        "shard": 2,
+        "sourceCommit": "afbf69a1e576eca54c822f2c458a4234568885cd",
+        "sourceRoot": "/private/tmp/rel0160b/qualification-final/unit-2",
+        "mergeRoot": "/private/tmp/rel0160b/qualification-final/coverage",
+        "pathReplacements": 2485,
+        "beforeSha256": "f16b3beb3e495adf597b2332b05ff74eb8a18d3c245502257d4aaa67426e2f97",
+        "afterSha256": "f310c0d223bec7008d64b1fc632aea650f844ce774cb76faa89686d783458e99",
+        "changedData": "workspace path strings and dictionary keys only; test verdicts and coverage counts untouched"
+      },
+      {
+        "shard": 3,
+        "sourceCommit": "afbf69a1e576eca54c822f2c458a4234568885cd",
+        "sourceRoot": "/private/tmp/rel0160b/qualification-final/unit-3",
+        "mergeRoot": "/private/tmp/rel0160b/qualification-final/coverage",
+        "pathReplacements": 2536,
+        "beforeSha256": "d4211ce0259078a9abbdc15450126c3de81e0a1ebde04263efe6470154c81c46",
+        "afterSha256": "c7f60a71ffc02599c87fe5d31695b8b30599ad427b9a257675c450f54fc6b92b",
+        "changedData": "workspace path strings and dictionary keys only; test verdicts and coverage counts untouched"
+      },
+      {
+        "shard": 4,
+        "sourceCommit": "afbf69a1e576eca54c822f2c458a4234568885cd",
+        "sourceRoot": "/private/tmp/rel0160b/qualification-final/unit-4",
+        "mergeRoot": "/private/tmp/rel0160b/qualification-final/coverage",
+        "pathReplacements": 2459,
+        "beforeSha256": "202a395ad1bdc4ada609d6774899a89a908e56ac36394d957d3968f68a826c44",
+        "afterSha256": "9d4e9e26687e971d9ca2140280526f5b6bcab28523b12c929662f167b6796ea9",
+        "changedData": "workspace path strings and dictionary keys only; test verdicts and coverage counts untouched"
+      }
+    ],
+    "normalizedReplay": {
+      "exit": 1,
+      "statements": 92.23,
+      "branches": 87.47,
+      "functions": 93.32,
+      "lines": 92.94,
+      "thresholdsPassed": true,
+      "testsPassed": 18103,
+      "testsFailed": 6,
+      "testsSkipped": 140,
+      "existingSkipped": 106,
+      "preventedBySetup": 34
+    },
+    "dependency": "hosted needs: unit would skip coverage; local replay is diagnostic only"
+  },
+  "accessibility": {
+    "pages": 988,
+    "violations": 0,
+    "undecided": 0,
+    "missing": 0,
+    "exemptions": 4,
+    "offscreenUnmeasured": 2895,
+    "glyphUnmeasured": 84
+  },
+  "legalAccessibility": {
+    "checks": 96,
+    "EnglishPages": 12,
+    "pseudoPages": 12,
+    "violations": 0,
+    "undecided": 0,
+    "missing": 0
+  },
+  "security": {
+    "gitleaksExit": 0,
+    "semgrepVersion": "1.178.0",
+    "rules": 533,
+    "targets": 2258,
+    "findings": 0
+  },
+  "artifacts": [
+    {
+      "file": "muse-spark-code-0.16.0.vsix",
+      "bytes": 2911433,
+      "sha256": "f4f34664d0790ac5857333f5d10e96fb18898cbdd6c53051a4d2f64d27bc023b"
+    },
+    {
+      "file": "dist/muse-spark-code-acp-0.16.0.tgz",
+      "bytes": 2160303,
+      "sha256": "5a96d237edffbdb6f74ef10a6702879b9fc3fdb8b3553cfeb0870e7c977d69ac"
+    },
+    {
+      "file": "native/darwin/muse-dictate",
+      "bytes": 326288,
+      "sha256": "0bd8b36163a0e76657ddca40313fcb73b61eb7d6b71a425154d383b2ce58f8f1"
+    },
+    {
+      "file": "native/linux/x64/muse-created",
+      "bytes": 36400,
+      "sha256": "1a0b8a8dd3247e0063feaa6918a31a4f71404acdaf45f9532801c6522a778c90"
+    },
+    {
+      "file": "native/linux/arm64/muse-created",
+      "bytes": 23552,
+      "sha256": "bddc5f88dadbbdf6b183dc151b27fb20b97a62de8b47213077ab62a15d932155"
+    }
+  ],
+  "readmeComparison": [
+    {
+      "name": "agents.png",
+      "scenario": "agents",
+      "beforeSize": [690, 760],
+      "afterSize": [690, 760],
+      "changedPixels": 119,
+      "before": "f81cd0a4508613770de3ce4767f7637404aebf13168cd405832050c122765eef",
+      "after": "9c3b99fc0524c67d2866a5b325ac780279d29c10b543d59836723922e6973ce8"
+    },
+    {
+      "name": "approval.png",
+      "scenario": "approval",
+      "beforeSize": [690, 760],
+      "afterSize": [690, 760],
+      "changedPixels": 135,
+      "before": "81cd6378d4e181d61dfd1e8b5c2c91be47e69282c04ec6a09c58e7e7fc65a369",
+      "after": "51fd73f7bd22230dc9132f4a957cf688bd71d88b57d4df6c127d1ffc7bc16d57"
+    },
+    {
+      "name": "history.png",
+      "scenario": "history",
+      "beforeSize": [690, 760],
+      "afterSize": [690, 760],
+      "changedPixels": 0,
+      "before": "5ad135ba6b2e214d5ea300961619d747b3054635dc08f833028c8c8924b95c81",
+      "after": "5ad135ba6b2e214d5ea300961619d747b3054635dc08f833028c8c8924b95c81"
+    },
+    {
+      "name": "languages.png",
+      "scenario": "usage",
+      "beforeSize": [690, 760],
+      "afterSize": [690, 760],
+      "changedPixels": 0,
+      "before": "8e71d23272317f34eb2ca0980d0fd4097d5c39fd6cd0b2123760ada7202f14e0",
+      "after": "8e71d23272317f34eb2ca0980d0fd4097d5c39fd6cd0b2123760ada7202f14e0"
+    },
+    {
+      "name": "modes.png",
+      "scenario": "modes",
+      "beforeSize": [690, 760],
+      "afterSize": [690, 760],
+      "changedPixels": 0,
+      "before": "0a574c8134fea1611281ff16fd8235897895b31af0450c1a14bba086d24d0b3d",
+      "after": "0a574c8134fea1611281ff16fd8235897895b31af0450c1a14bba086d24d0b3d"
+    },
+    {
+      "name": "paid.png",
+      "scenario": "paid",
+      "beforeSize": [690, 760],
+      "afterSize": [690, 760],
+      "changedPixels": 0,
+      "before": "b6d06a823747e99fc84845bfb15d9559fb7f43d2480f54142fbaff59080027f3",
+      "after": "b6d06a823747e99fc84845bfb15d9559fb7f43d2480f54142fbaff59080027f3"
+    },
+    {
+      "name": "paid-always.png",
+      "scenario": "paid-always",
+      "beforeSize": [690, 1000],
+      "afterSize": [690, 1000],
+      "changedPixels": 0,
+      "before": "7bf0e5934547571b78975ef1c19cf95c82223afe0813312ba337042bfc078c85",
+      "after": "7bf0e5934547571b78975ef1c19cf95c82223afe0813312ba337042bfc078c85"
+    },
+    {
+      "name": "palette.png",
+      "scenario": "slash-palette",
+      "beforeSize": [690, 760],
+      "afterSize": [690, 760],
+      "changedPixels": 0,
+      "before": "86baa7c43b57c5d36f3c48018d7577d753755e5b1eab657ea9c28efa5976efd2",
+      "after": "86baa7c43b57c5d36f3c48018d7577d753755e5b1eab657ea9c28efa5976efd2"
+    },
+    {
+      "name": "question.png",
+      "scenario": "question",
+      "beforeSize": [690, 760],
+      "afterSize": [690, 760],
+      "changedPixels": 139,
+      "before": "9143d8d5fb1aba14368322af1ac721ed611d5880436f6f904a4d7d386ca0e087",
+      "after": "86232f42375d0fae8493888275564318228ff783416892856a244316343641b2"
+    },
+    {
+      "name": "quote.png",
+      "scenario": "quote-menu",
+      "beforeSize": [690, 760],
+      "afterSize": [690, 760],
+      "changedPixels": 213,
+      "before": "4f504de62530ca66cc1f9469f475f45928c00ecfc3ca97e8a5b587e262cecf28",
+      "after": "ad72bd79fa65b2a0a7b552b4fb729d28fc6f9c5dc030bd9e50376825bf23dec6"
+    },
+    {
+      "name": "rewind.png",
+      "scenario": "rewind",
+      "beforeSize": [690, 760],
+      "afterSize": [690, 760],
+      "changedPixels": 181,
+      "before": "2372b0963885c63aa9a4690d8bd2a2716f46da44cc62ae7185e7ec38b94d7293",
+      "after": "22322bb72f8953f9287d73ec41cf727ad03f6e237538e2cac2dd8cb45af6b7ef"
+    },
+    {
+      "name": "slash-commands.png",
+      "scenario": "slash-commands",
+      "beforeSize": [690, 760],
+      "afterSize": [690, 760],
+      "changedPixels": 0,
+      "before": "34d9b99de1b5f150566d8710cae4e2a5394a436615431e1a3d4bf278e8175dcf",
+      "after": "34d9b99de1b5f150566d8710cae4e2a5394a436615431e1a3d4bf278e8175dcf"
+    },
+    {
+      "name": "turn.png",
+      "scenario": "tools-open",
+      "beforeSize": [690, 760],
+      "afterSize": [690, 760],
+      "changedPixels": 122,
+      "before": "43af00ebd29f3a790fa3f5a508a9c649d6538a1910a48c3950b05f2ee07448d8",
+      "after": "f9d1312652617dd1fa0945363f6f857efaaefd8ba877b80284a811d62b975f3d"
+    },
+    {
+      "name": "usage.png",
+      "scenario": "usage",
+      "beforeSize": [690, 760],
+      "afterSize": [690, 760],
+      "changedPixels": 0,
+      "before": "99011785c257695a71782eae1a3f1cc832e4f6f2473f002dbcdcdc7fae573213",
+      "after": "99011785c257695a71782eae1a3f1cc832e4f6f2473f002dbcdcdc7fae573213"
+    },
+    {
+      "name": "voice.png",
+      "scenario": "dictation",
+      "beforeSize": [690, 760],
+      "afterSize": [690, 760],
+      "changedPixels": 0,
+      "before": "d1e34433dbea8d4ca250b0ad811c2509efe65e7c6738c7cb979ac7a7f1bc9693",
+      "after": "d1e34433dbea8d4ca250b0ad811c2509efe65e7c6738c7cb979ac7a7f1bc9693"
+    },
+    {
+      "name": "open-question.png",
+      "scenario": "readme-open-question",
+      "beforeSize": [690, 760],
+      "afterSize": [690, 760],
+      "changedPixels": 220,
+      "before": "d556bb291a9e6778198da5ac242b59b87ee51d3643c7da94f7f3ce818dc3f51d",
+      "after": "8fa3c9dfac3bff6916554fc0fd98c9d56f3f86ed2d4b54b838b15e4a3b132178"
+    },
+    {
+      "name": "help.png",
+      "scenario": "readme-help",
+      "beforeSize": [1000, 760],
+      "afterSize": [1000, 760],
+      "changedPixels": 0,
+      "before": "b3cab91f5118906536706179ff1a396df221f584f12a2f53c0736ed5bd2aa7b6",
+      "after": "b3cab91f5118906536706179ff1a396df221f584f12a2f53c0736ed5bd2aa7b6"
+    }
+  ],
+  "readmeInspection": "All 17 mapping dimensions valid; 10 pixel-identical, seven differ by 119\u2013220 pixels confined to working animations, timestamps and caret. Contact sheet and representative changed scenes inspected; retained committed captures.",
+  "coldCheckoutStopRule": {
+    "source": "/Users/randy/lanes/_ctx/codex/common.md",
+    "instruction": "If the same test fails twice after two different fixes, STOP that path",
+    "attempts": [
+      "owned production-build fixture lacked integration-test inventory",
+      "added inventory, then provider catalog output remained rooted at the original builder module"
+    ],
+    "resolution": "Attempted changes removed byte-exact; no third repair. Cold checkout fixtures remain a release blocker."
+  },
+  "subsequentIndependentRepairs": {
+    "completeFiles": 3,
+    "testsPassed": 58,
+    "defaultTimeouts": true,
+    "maxWorkers": 3,
+    "sbomRestoredTestsPassed": 20,
+    "sbomMutation": {
+      "mutation": "restore old SBOM package resolver, dropping namespace and Windows normalization",
+      "redExit": 1,
+      "beforeSha256": "2564fab4bec8bcf27f2f45fbbcdf138c9435244c3fcc787365e58691ad2a7494",
+      "afterSha256": "2564fab4bec8bcf27f2f45fbbcdf138c9435244c3fcc787365e58691ad2a7494",
+      "restoration": "byte-exact"
+    },
+    "journalFirstRepair": "Spy calls reset between beforeAll and test; second repair observes reads immediately around the warm call, preserving the no-reread oracle. All 56 tests pass.",
+    "realSbomBeforeStagedRepair": {
+      "extensionVersions": 86,
+      "acpVersions": 17,
+      "exit": 0,
+      "inventoryIncomplete": true
+    },
+    "realSbomAfterStagedRepair": {
+      "extensionVersions": 86,
+      "acpVersions": 48,
+      "exit": 0,
+      "verifiedRequiredDependencies": [
+        "@agentclientprotocol/sdk@1.5.0",
+        "@muse-code/sdk@1.4.2",
+        "zod@4.6.5",
+        "react@19.3.0",
+        "react-dom@19.3.0"
+      ]
+    },
+    "sbomStagedOutputMutation": {
+      "mutation": "omit staged-output filter, admitting extension-only contributions",
+      "redExit": 1,
+      "beforeSha256": "bfd5f7c90999b3800284a53bd583235170fe40509cb8d1a23d127f09fdafb82e",
+      "afterSha256": "bfd5f7c90999b3800284a53bd583235170fe40509cb8d1a23d127f09fdafb82e",
+      "restoration": "byte-exact"
+    },
+    "sbomMissingStageMutation": {
+      "mutation": "remove missing-stage refusal before npm dispatch",
+      "redExit": 1,
+      "beforeSha256": "bfd5f7c90999b3800284a53bd583235170fe40509cb8d1a23d127f09fdafb82e",
+      "afterSha256": "bfd5f7c90999b3800284a53bd583235170fe40509cb8d1a23d127f09fdafb82e",
+      "restoration": "byte-exact"
+    },
+    "qualityStoppedBeforeSourceEdit": {
+      "command": "npm run quality",
+      "CI": true,
+      "node": "22.23.3",
+      "semgrep": "1.178.0",
+      "exit": -15,
+      "seconds": 241.02
+    },
+    "finalQuality": {
+      "command": "npm run quality",
+      "CI": true,
+      "node": "22.23.3",
+      "semgrep": "1.178.0",
+      "exit": 0,
+      "seconds": 2095.02,
+      "filesPassed": 885,
+      "testsPassed": 18152,
+      "existingSkippedFiles": 11,
+      "existingSkippedTests": 106,
+      "coverage": {
+        "statements": 92.23,
+        "branches": 87.47,
+        "functions": 93.32,
+        "lines": 92.94
+      },
+      "accessibility": {
+        "pages": 988,
+        "violations": 0,
+        "undecided": 0,
+        "missingResults": 0,
+        "existingExemptions": 4,
+        "offscreenUnmeasured": 2917,
+        "glyphUnmeasured": 84
+      },
+      "gitleaksCommits": 2314,
+      "sast": {
+        "version": "1.178.0",
+        "rules": 533,
+        "targets": 2259,
+        "findings": 0
+      },
+      "sourceSha256": {
+        "scripts/release-sbom.mjs": "bfd5f7c90999b3800284a53bd583235170fe40509cb8d1a23d127f09fdafb82e",
+        "test/unit/releaseIntegrity.test.mjs": "98c56a48058ab2f3f4876c49655d8de74c2e06b0665e0b1f01567a34d5670a4e",
+        "test/unit/checkSlots.test.ts": "d27700a62342230407d3c6c06a2d5c2be4f2ed33c9737d55ed82302f67ac0c1b",
+        "test/unit/journalStore.test.ts": "ee9a7a10da25a69da8141fd2f46a1db4f49c9e376f055170d519bdf0c9a43445"
+      }
+    }
+  }
+}
