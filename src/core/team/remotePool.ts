@@ -181,7 +181,7 @@ function headroomRank(value: z.infer<typeof accountHeadroomSchema> | undefined):
 export class AccountRouteError extends Error {
   public constructor(public readonly code: 'busyOwner' | 'missingDevice' | 'routeUnavailable') {
     const messages = {
-      busyOwner: UI_TEXT.acpPromptBusy,
+      busyOwner: UI_TEXT.accounts.ownerBusy,
       missingDevice: UI_TEXT.accounts.missingDevice,
       routeUnavailable: UI_TEXT.accounts.routeUnavailable,
     }
@@ -216,6 +216,10 @@ export class RemoteAccountPool {
     if (sticky !== undefined && accounts.every((account) => account.id !== sticky))
       this.sticky.delete(owner)
     const current = liveAccount ?? this.sticky.get(owner) ?? request.account
+    // The sender knows each account's limit group from its own pool rows, so a
+    // vendor-limit trigger excludes the blocked account's whole group without
+    // any account or group data entering the device frame.
+    const currentGroup = accounts.find((account) => account.id === current)?.limitGroup
     const index = accounts.findIndex((account) => account.id === current)
     if (index === -1 && sticky === undefined && liveAccount === undefined)
       throw new Error(UI_TEXT.accounts.invalidAccount)
@@ -231,12 +235,17 @@ export class RemoteAccountPool {
           (request.destination !== undefined && request.destination !== placement.device)
         )
           return []
-        if (
-          request.destination === undefined &&
-          request.trigger !== undefined &&
-          account.id === current
-        )
-          return []
+        if (request.destination === undefined && request.trigger !== undefined) {
+          if (account.id === current) return []
+          // A vendor limit binds the live account's whole limit group, mirroring
+          // the local pool's shared-group skip. Per-account caps move one aside.
+          if (
+            currentGroup !== undefined &&
+            request.trigger.kind === 'vendorLimit' &&
+            account.limitGroup === currentGroup
+          )
+            return []
+        }
         const rank = headroomRank(
           offers.find((offer) => offer.device === placement.device)?.headroom[request.provider],
         )

@@ -155,6 +155,29 @@ describe('M108 D routing by the pinned device', () => {
     expect(rig.deps.admit).not.toHaveBeenCalled()
   })
 
+  it('skips the whole limit group on a vendor-limit trigger and stays out of it', async () => {
+    const rig = remoteDeviceRig()
+    rig.accounts.rows[0]!.limitGroup = 'shared'
+    rig.accounts.rows[1]!.limitGroup = 'shared'
+    expect(await rig.run({ trigger: vendorLimit })).toBe('device-2')
+    expect(await rig.run()).toBe('device-2')
+  })
+
+  it('skips only the live account on a non-vendor trigger inside a shared group', async () => {
+    const rig = remoteDeviceRig()
+    rig.accounts.rows[0]!.limitGroup = 'shared'
+    rig.accounts.rows[1]!.limitGroup = 'shared'
+    const userCap = {
+      kind: 'userCap',
+      metric: 'requests',
+      period: 'day',
+      value: 10,
+      threshold: 5,
+      resetAt: '2026-10-07T00:00:00.000Z',
+    } as const
+    expect(await rig.run({ trigger: userCap })).toBe('device-1')
+  })
+
   it('keeps the selected route valid on retries after adopting its sticky account', async () => {
     const rig = remoteDeviceRig()
     await rig.run({ trigger: vendorLimit })
@@ -179,6 +202,7 @@ describe('M108 D routing by the pinned device', () => {
     })
     await entered.promise
     await expect(rig.run()).rejects.toMatchObject({ code: 'busyOwner' })
+    await expect(rig.run()).rejects.toThrow('A prompt is already running for this conversation.')
     release.resolve(undefined)
     await first
     await expect(rig.run({ destination: 'missing' })).rejects.toMatchObject({

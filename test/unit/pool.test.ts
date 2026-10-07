@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  AccountPoolBusyError,
   AccountPoolStoppedError,
   accountColdCacheEstimate,
   accountReplay,
@@ -7,6 +8,7 @@ import {
   type AccountPoolDeps,
 } from '../../src/core/accounts/pool'
 import { AccountThresholdExceededError } from '../../src/core/accounts/thresholds'
+import { UI_TEXT } from '../../src/shared/constants'
 import { parseUsd } from '../../src/shared/usd'
 import { poolRig, poolRequest, POOL_NOW } from './helpers/accounts/pool'
 
@@ -469,6 +471,23 @@ describe('M108 account pool request boundaries', () => {
       vi.mocked(t.deps.canUseModel).mock.calls.every((call) => call[1].modelId === 'chosen-model'),
     ).toBe(true)
     expect(t.claims[0]!.estimate.costUsd).toBe(parseUsd('0.1'))
+  })
+
+  it('names the busy conversation, not the session, on a duplicate active owner', async () => {
+    const t = poolRig()
+    const finish = Promise.withResolvers<undefined>()
+    const first = t.pool.run(poolRequest(), async (admission) => {
+      admission.beforeSend()
+      await finish.promise
+      return { value: 'done', actualUsd: parseUsd(0) }
+    })
+    await expect(t.run()).rejects.toMatchObject({ code: 'busyOwner', name: 'AccountPoolBusyError' })
+    await expect(t.run()).rejects.toThrow('A prompt is already running for this conversation.')
+    expect(UI_TEXT.accounts.ownerBusy).toBe('A prompt is already running for this conversation.')
+    expect(new AccountPoolBusyError().message).toBe(UI_TEXT.accounts.ownerBusy)
+    expect(new AccountPoolBusyError().message).not.toBe(UI_TEXT.acpPromptBusy)
+    finish.resolve(undefined)
+    expect(await first).toBe('done')
   })
 
   it('rejects duplicate active owners, empty pools, invalid headroom and forbidden products', async () => {

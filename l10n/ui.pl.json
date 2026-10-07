@@ -2892,7 +2892,8 @@
     "placementConflict": "Na urządzeniu {device} jest już konto dostawcy {provider}. Wybierz inne urządzenie lub wyłącz onePerDevicePerProvider.",
     "sendToDevice": "Wyślij do {device}",
     "routeUnavailable": "Wybrane urządzenie nie ma dostępnego konta lub uprawnienia do przyjmowania pracy.",
-    "missingDevice": "Wybrane urządzenie jest niedostępne."
+    "missingDevice": "Wybrane urządzenie jest niedostępne.",
+    "ownerBusy": "Dla tej konwersacji jest już uruchomiony prompt."
   },
   "developer": {
     "title": "Opcje programisty",

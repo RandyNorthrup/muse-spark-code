@@ -2698,7 +2698,8 @@
     "placementConflict": "{device} cihazında zaten bir {provider} hesabı var. Başka bir cihaz seçin veya onePerDevicePerProvider kuralını kapatın.",
     "sendToDevice": "{device} cihazına gönder",
     "routeUnavailable": "Seçilen cihazda kullanılabilir bir hesap veya iş yönlendirme izni yok.",
-    "missingDevice": "Seçilen cihaz kullanılamıyor."
+    "missingDevice": "Seçilen cihaz kullanılamıyor.",
+    "ownerBusy": "Bu konuşma için zaten bir istem çalışıyor."
   },
   "developer": {
     "title": "Geliştirici seçenekleri",

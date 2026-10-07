@@ -91,7 +91,7 @@ export class AccountPoolStoppedError extends Error {
 export class AccountPoolBusyError extends Error {
   public readonly code = 'busyOwner'
   public constructor() {
-    super(UI_TEXT.acpPromptBusy)
+    super(UI_TEXT.accounts.ownerBusy)
     this.name = 'AccountPoolBusyError'
   }
 }

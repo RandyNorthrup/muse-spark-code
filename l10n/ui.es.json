@@ -2795,7 +2795,8 @@
     "placementConflict": "{provider} ya tiene una cuenta en {device}. Elige otro dispositivo o desactiva onePerDevicePerProvider.",
     "sendToDevice": "Enviar a {device}",
     "routeUnavailable": "El dispositivo seleccionado no tiene ninguna cuenta disponible o no permite dirigirle trabajo.",
-    "missingDevice": "El dispositivo seleccionado no está disponible."
+    "missingDevice": "El dispositivo seleccionado no está disponible.",
+    "ownerBusy": "Ya hay un prompt en curso para esta conversación."
   },
   "developer": {
     "title": "Opciones de desarrollador",
