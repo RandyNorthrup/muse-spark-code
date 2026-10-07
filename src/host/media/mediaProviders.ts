@@ -54,6 +54,21 @@ export function projectMediaCapabilities(modelId: string): MediaModelCapabilitie
   }
 }
 
+/**
+ * E1-picker-filter-binding (M105 W): the picker's media filters as the
+ * native dialog takes them. Mutable copies because the dialog owns its
+ * options; undefined stays undefined so the no-filter call keeps its shape.
+ */
+export function dialogFiltersOption(
+  filters: Readonly<Record<string, readonly string[]>> | undefined,
+): Readonly<Record<string, string[]>> | undefined {
+  return filters === undefined
+    ? undefined
+    : Object.fromEntries(
+        Object.entries(filters).map(([name, extensions]) => [name, [...extensions]]),
+      )
+}
+
 export interface MediaHostOpen {
   readonly open: MediaAttachDeps['open']
 }

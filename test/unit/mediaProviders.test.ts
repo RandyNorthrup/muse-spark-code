@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createMediaAttachments } from '../../src/host/media/mediaAttach'
 import {
   createMediaAttachDeps,
+  dialogFiltersOption,
   mediaLimitsFromSettings,
   projectMediaCapabilities,
 } from '../../src/host/media/mediaProviders'
@@ -13,6 +14,14 @@ describe('M105 W host media providers', () => {
     expect(
       mediaLimitsFromSettings({ mediaMaxUploadMiB: 25, screenRecordingMaxSeconds: 120 }),
     ).toEqual({ maxUploadBytes: 25 * 1024 * 1024, maxDurationSeconds: 120 })
+  })
+
+  it('forwards picker filters to the native dialog shape, copying extensions', () => {
+    expect(dialogFiltersOption(undefined)).toBeUndefined()
+    const filters = { Attach: ['mp4', 'mov'] as const }
+    const option = dialogFiltersOption(filters)
+    expect(option).toEqual({ Attach: ['mp4', 'mov'] })
+    expect(option?.['Attach']).not.toBe(filters.Attach)
   })
 
   it('projects established image/document support and unknown video/audio', () => {

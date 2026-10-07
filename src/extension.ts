@@ -195,6 +195,7 @@ import { loadUiTable, readUiTableFile } from './host/l10n'
 import { createInsightsReader } from './host/usage/traceLogs'
 import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
 import { voiceLoader } from './host/voice/voiceBundle'
+import { dialogFiltersOption } from './host/media/mediaProviders'
 import { RECORDING_COMMAND_IDS, screenRecordLoader } from './host/media/screenRecordBundle'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { createPaidFeatures } from './host/paid/paidHost'
@@ -2548,10 +2549,14 @@ async function activateWindow(
   }
 
   const files: FileAccess = {
-    showOpenDialog: async () => {
+    // E1-picker-filter-binding (M105 W): the picker's media filters reach
+    // the native dialog; without them every file looks attachable.
+    showOpenDialog: async (filters) => {
+      const dialogFilters = dialogFiltersOption(filters)
       const uris = await vscode.window.showOpenDialog({
         canSelectMany: true,
         openLabel: UI_TEXT.attachTitle,
+        ...(dialogFilters !== undefined && { filters: dialogFilters }),
       })
       return (uris ?? []).map((uri): PickedFile => ({
         name: path.basename(uri.fsPath),
