@@ -97,7 +97,7 @@ const metaSchema = z.looseObject({
 })
 // Real bundle-split gate rereads every production metafile (2.2s on this tree); a child case runs it five times.
 const REAL_SPLIT_CASE_MS = 60_000
-// `vsce ls` reads the real package inventory (9s on this tree) and these cases list it three times.
+// `vsce ls` walks the real package tree; each distinct allowlist needs one real listing.
 const REAL_VSIX_CASE_MS = 60_000
 
 const targets = [
@@ -134,12 +134,20 @@ function digest(file: string): string {
   return createHash('sha256').update(readFileSync(file)).digest('hex')
 }
 
+// Every artifact mutation is hash-restored before a listing; only the
+// allowlist changes its inventory. Reuse the real result for identical inputs.
+const vsixListings = new Map<string, string[]>()
 function vsixListing(): string[] {
-  return execFileSync(
+  const key = digest('.vscodeignore')
+  const cached = vsixListings.get(key)
+  if (cached !== undefined) return cached
+  const listing = execFileSync(
     process.execPath,
     ['node_modules/@vscode/vsce/vsce', 'ls', '--no-dependencies'],
     { encoding: 'utf8' },
   ).split(/\r?\n/)
+  vsixListings.set(key, listing)
+  return listing
 }
 
 function guard(file: string, mutate: () => void, script: string, message: string) {
