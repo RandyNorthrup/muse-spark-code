@@ -46,6 +46,10 @@ happened, not what was planned; superseded entries are kept.
   value-free panel routing. These consume injected broker/panel ports; the
   installed runtime factory and native/companion bindings remain integration
   handoffs. Missing bindings fail explicitly; CI remains vault-free.
+- M109's fleet and device core: validated role ceilings, task-bound delegation,
+  private worker ticket handoffs, automatic unattended marking, and restricted
+  remote signature/code approval and delivery. Runtime/UI adapters remain
+  named integration handoffs; no shipped command or credential storage changes.
 
 - M109's credential-vault contracts, canonical use digest, translated panel
   labels and warnings, test-only broker and route harnesses, and threat and
