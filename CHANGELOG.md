@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Documentation
 
+- The npm landing page carries the same quiet GitHub star link as the other
+  landing pages, with a regression check for its exact sentence and placement.
+
 - A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists
   what went wrong while a fleet of agents built this project. For each one it
   gives the rule that prevents it and the milestone that will enforce that

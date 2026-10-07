@@ -13455,7 +13455,9 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ### INFRA015 — Integrate screenshot refresh and test infrastructure (2026-10-06)
 
-Status: in progress on Linux rig `linuxlt`, branch `chore/infra-0150` from
+Status: three branches merged in order; STAR regression proven red before the
+npm README change. Accessibility, screenshot comparison and final gates pending.
+Linux rig `linuxlt`, branch `chore/infra-0150` from
 `8c6351d73`. Merge `fix/test-warm-deferred`, `fix/harness-waits`, then
 `docs/readme-shots-1006`, each with `git merge --no-ff`. Preserve both sides
 of plan, changelog and contributor notes; retain readiness-based harness waits
