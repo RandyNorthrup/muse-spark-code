@@ -312,7 +312,10 @@ describe('Mac vault slot', () => {
     expect(facts.secureEnclaveCertified).toBe(false)
     expect(facts.hardwareAvailable).toBe(false)
     expect(facts.presenceAvailable).toBe(false)
-    expect(facts.hardwareWarning).toContain('certified')
+    // Post-capture wording (M109 U): uncertified hardware shows the
+    // unavailable notice and never the silent-hardware claim.
+    expect(facts.hardwareWarning).toContain('unavailable')
+    expect(facts.hardwareWarning).not.toContain('silently')
     helper.isCertified = true
     const certified = await macVaultProtectionFacts(helper)
     expect(certified.hardwareWarning).toContain('silently')

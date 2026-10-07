@@ -20,6 +20,7 @@ import {
   type SshHardwarePort,
   type SshExternalAgentPort,
 } from './ports'
+import { type VaultCeiling } from '../broker/policy'
 import {
   parsePublicKey,
   signSshData,
@@ -50,6 +51,12 @@ export function brokerSshAccess(deps: {
   approvals: SshApprovalPort
   hardware: SshHardwarePort
   external?: SshExternalAgentPort
+  /**
+   * The requester's role ceiling. A ceiling of none hides reviewed external
+   * identities too: enumeration belongs to the visible set, and an external
+   * key is outside a none ceiling exactly as a vault key is.
+   */
+  ceiling?: VaultCeiling
 }): SshAccessPort {
   const requester = vaultRequesterSchema.parse(deps.requester)
   return {
@@ -63,7 +70,8 @@ export function brokerSshAccess(deps: {
         parsePublicKey(blob)
         identities.push({ item, blob, source: 'vault' })
       }
-      if (deps.external) identities.push(...(await deps.external.identities(signal)))
+      if (deps.external && deps.ceiling !== 'none')
+        identities.push(...(await deps.external.identities(signal)))
       check(signal)
       return identities
     },

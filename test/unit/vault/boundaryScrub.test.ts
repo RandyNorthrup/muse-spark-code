@@ -252,4 +252,29 @@ describe('vault scrub boundaries', () => {
       t.service.lock()
     }
   })
+  it('withholds deselected sections from the vault report before sealing', async () => {
+    const t = await vault()
+    const input = {
+      description: 'plain description',
+      includeFacts: false,
+      includeEvents: false,
+      facts: REPORT_FACTS,
+      events: [
+        { kind: 'toolCallFailed', code: 'timeout', frames: [], ageMs: 1000 },
+        { notAnEvent: true },
+      ],
+      recordingUnavailable: false,
+      nowMs: 0,
+      scrub: { workspaceRoots: [], homeDir: '', extraLiterals: [] },
+    }
+    try {
+      const draft = await buildVaultProblemReportDraft(input, t.service)
+      expect(draft.text).not.toContain('Support facts:')
+      expect(draft.text).not.toContain('Recent events:')
+      expect(draft.text).toContain('plain description')
+      expect(isSealedDraftCurrent(draft)).toBe(true)
+    } finally {
+      t.service.lock()
+    }
+  })
 })

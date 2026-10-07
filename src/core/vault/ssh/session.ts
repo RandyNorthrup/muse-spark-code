@@ -31,13 +31,28 @@ export class VaultSshSession {
   private queuedBytes = 0
   private generation = 0
   private isClosed = false
+  private hasTerminated = false
   private unsubscribe: (() => void) | null = null
   constructor(private readonly deps: SshSessionDeps) {
     const unsubscribe = deps.access.subscribeInvalidation(() => {
-      this.close()
+      this.revoke()
     })
     if (this.isClosed) unsubscribe()
     else this.unsubscribe = unsubscribe
+  }
+  /**
+   * Revocation ends the pinned client, not just this connection (D89.11).
+   * B also calls the per-signature lifetime's terminate for an in-flight
+   * admission; the once-guard keeps the two paths to a single kill.
+   */
+  private revoke(): void {
+    void this.terminateClient()
+    this.close()
+  }
+  private terminateClient(): Promise<boolean> {
+    if (this.hasTerminated) return Promise.resolve(false)
+    this.hasTerminated = true
+    return this.deps.terminate()
   }
   private isCurrent(generation: number): boolean {
     return !this.isClosed && generation === this.generation
@@ -81,7 +96,14 @@ export class VaultSshSession {
         return
       }
       case 'query': {
-        this.deps.send(sshFrame(SSH.success, sshString('session-bind@openssh.com')))
+        // RFC 9987 §5.8.1: the query answer is message 29 carrying the query
+        // name followed by the supported extension names, never message 6.
+        this.deps.send(
+          sshFrame(
+            SSH.extensionResponse,
+            Buffer.concat([sshString('query'), sshString('session-bind@openssh.com')]),
+          ),
+        )
         return
       }
       case 'identities': {
@@ -131,15 +153,31 @@ export class VaultSshSession {
         const identities = await this.identities(generation),
           identity = identities.find((candidate) => candidate.blob.equals(request.key))
         if (!identity) throw sshFailure()
-        const use = await this.resolveUse(request.data, identity, method, generation)
+        const resolved = await this.resolveUse(request.data, identity, method, generation)
+        const use = resolved.use
         this.check(generation)
         const ticket = await this.deps.access.authorize(identity, use, this.controller.signal)
         this.check(generation)
+        // known_hosts may have rotated while the approval was pending: the
+        // post-approval host must equal the approved one, same binding.
+        if (resolved.use.kind === 'ssh' && resolved.binding !== undefined) {
+          if (!this.bindings.includes(resolved.binding)) throw sshFailure()
+          const fresh = resolveKnownHost(
+            await this.deps.knownHosts.read(),
+            resolved.binding.hostKey,
+            this.deps.destination,
+          )
+          this.check(generation)
+          if (fresh !== resolved.use.host) throw sshFailure()
+        }
+        this.check(generation)
         const lifetime = {
           close: () => {
-            this.close()
+            // B releases the admission after every signature; the reusable
+            // agent connection survives. Revocation terminates the pinned
+            // client through terminate and invalidation, never through here.
           },
-          terminate: () => this.deps.terminate(),
+          terminate: () => this.terminateClient(),
         }
         await this.deps.access.sign(
           identity,
@@ -165,7 +203,7 @@ export class VaultSshSession {
     identity: SshIdentity,
     method: string,
     generation: number,
-  ): Promise<VaultUse> {
+  ): Promise<{ readonly use: VaultUse; readonly binding: Binding | undefined }> {
     const reader = new SshReader(data)
     if (data.subarray(0, Buffer.byteLength('SSHSIG')).toString() === 'SSHSIG') {
       if (this.bindings.length > 0) throw sshFailure()
@@ -179,12 +217,15 @@ export class VaultSshSession {
         digest.length !== (hash === 'sha256' ? VAULT_LIMITS.sha256Hex / 2 : VAULT_LIMITS.sha256Hex)
       )
         throw sshFailure()
-      return vaultUseSchema.parse({
-        kind: 'sshSign',
-        namespace: 'git',
-        keyFingerprint: identity.item.fingerprint,
-        dataDigest: createHash('sha256').update(data).digest('hex'),
-      })
+      return {
+        use: vaultUseSchema.parse({
+          kind: 'sshSign',
+          namespace: 'git',
+          keyFingerprint: identity.item.fingerprint,
+          dataDigest: createHash('sha256').update(data).digest('hex'),
+        }),
+        binding: undefined,
+      }
     }
     const session = reader.string()
     if (reader.byte() !== SSH.userauth) throw sshFailure()
@@ -210,14 +251,17 @@ export class VaultSshSession {
       ? resolveKnownHost(await this.deps.knownHosts.read(), binding.hostKey, this.deps.destination)
       : 'unproven'
     this.check(generation)
-    return vaultUseSchema.parse({
-      kind: 'ssh',
-      host,
-      remoteUser,
-      hostKeyFingerprint: binding ? sshFingerprint(binding.hostKey) : null,
-      sessionId: binding ? session.toString('base64') : null,
-      forwarding: this.bindings.some((candidate) => candidate.forwarding),
-    })
+    return {
+      use: vaultUseSchema.parse({
+        kind: 'ssh',
+        host,
+        remoteUser,
+        hostKeyFingerprint: binding ? sshFingerprint(binding.hostKey) : null,
+        sessionId: binding ? session.toString('base64') : null,
+        forwarding: this.bindings.some((candidate) => candidate.forwarding),
+      }),
+      binding,
+    }
   }
   receive(bytes: Uint8Array): void {
     if (this.isClosed) return

@@ -396,4 +396,63 @@ describe('SSH access through the real vault broker', () => {
     await expect(sign()).rejects.toThrow()
     expect(release).toHaveBeenCalledTimes(2)
   })
+
+  it('refuses to redeem a ticket after its approval was refused', async () => {
+    const f = await setup()
+    const requested = await f.broker.request(
+      requester(),
+      f.identity.item.handle,
+      f.use,
+      cleanTaint,
+      f.registration,
+    )
+    if (requested.kind !== 'approval') throw new Error('expected an approval request')
+    const answered = await f.broker.answer(f.peer, {
+      requestId: requested.request.id,
+      digest: requested.request.digest,
+      decision: 'allowOnce',
+    })
+    if (answered.kind !== 'ticket') throw new Error('expected an issued ticket')
+    // The requester-side checks refuse the ticket (substituted digest path):
+    // finishing it as failed must invalidate it, not leave it redeemable.
+    await f.broker.finish(answered.ticket.id, false)
+    const replayed = await f.broker.redeem(
+      requester().id,
+      answered.ticket,
+      f.use,
+      {
+        close: () => {
+          // The admission under test carries no session resource.
+        },
+        terminate: () => Promise.resolve(false),
+      },
+      f.registration,
+    )
+    expect(replayed.kind).toBe('denied')
+  })
+  it('hides reviewed external identities under a none ceiling', async () => {
+    const f = await setup()
+    const externalIdentity = { item: f.identity.item, blob: f.blob, source: 'external' as const }
+    const external = {
+      identities: vi.fn(() => Promise.resolve([externalIdentity])),
+      sign: () => Promise.reject(new Error('unexpected upstream sign')),
+    }
+    const base = {
+      broker: f.broker,
+      requester: requester(),
+      registration: f.registration,
+      taint: () => Promise.resolve(cleanTaint),
+      approvals: f.approvals,
+      hardware: f.hardware,
+      external,
+    }
+    const ask = brokerSshAccess(base)
+    const visible = await ask.identities(f.signal)
+    expect(visible.some((identity) => identity.source === 'external')).toBe(true)
+    const none = brokerSshAccess({ ...base, ceiling: 'none' })
+    const hidden = await none.identities(f.signal)
+    expect(hidden.some((identity) => identity.source === 'external')).toBe(false)
+    // The none ceiling never reaches the upstream agent at all.
+    expect(external.identities).toHaveBeenCalledOnce()
+  })
 })

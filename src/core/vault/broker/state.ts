@@ -971,6 +971,9 @@ export function step(
       case 'finish': {
         const admission = state.active.get(command.ticketId)
         if (!admission) {
+          // A refused or abandoned ticket never reached active: drop it from
+          // the unredeemed set too, so it cannot be redeemed afterwards.
+          state.tickets.delete(command.ticketId)
           settle(op)
           return
         }

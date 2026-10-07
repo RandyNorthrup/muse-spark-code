@@ -69,7 +69,23 @@ export async function connectUserSshAgent(
         resolve()
       })
     })
-    await verifyServer(socket)
+    // An abort during server verification must settle this wait: race the
+    // verifier so a silent server cannot hold the connection open.
+    let onAbort: (() => void) | undefined
+    try {
+      await Promise.race([
+        verifyServer(socket),
+        new Promise<never>((_resolve, reject) => {
+          onAbort = () => {
+            reject(sshFailure())
+          }
+          if (signal.aborted) onAbort()
+          else signal.addEventListener('abort', onAbort, { once: true })
+        }),
+      ])
+    } finally {
+      if (onAbort !== undefined) signal.removeEventListener('abort', onAbort)
+    }
     check()
     return {
       request: async (frame) => {
@@ -106,10 +122,16 @@ export function frontUserSshAgent(deps: {
         response = await connection.request(sshFrame(SSH.identities))
         const parsed = parseSshResponse(response)
         if (parsed.kind !== 'identities') throw sshFailure()
-        const keys = parsed.keys.map((entry) => {
-          parsePublicKey(entry.blob)
-          return Buffer.from(entry.blob)
-        })
+        // One undecodable upstream blob skips; it must not deny the reviewed rest.
+        const keys: Buffer[] = []
+        for (const entry of parsed.keys) {
+          try {
+            parsePublicKey(entry.blob)
+          } catch {
+            continue
+          }
+          keys.push(Buffer.from(entry.blob))
+        }
         const identities: SshIdentity[] = []
         for (const blob of keys) {
           const supplied = await deps.metadata(blob)

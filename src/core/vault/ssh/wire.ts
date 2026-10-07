@@ -11,6 +11,7 @@ export const SSH = {
   signAnswer: 14,
   extension: 27,
   extensionFailure: 28,
+  extensionResponse: 29,
   uint32Bytes: 4,
   openSshBlockBytes: 8,
   userauth: 50,

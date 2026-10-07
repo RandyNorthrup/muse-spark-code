@@ -10,6 +10,8 @@ import {
 import { sshFixture } from './sshFixture'
 import { type SshAccessPort } from '../../../src/core/vault/ssh/ports'
 import { VAULT_LIMITS } from '../../../src/shared/constants'
+import { ticket } from '../helpers/vault/fixtures'
+import { vaultUseDigest } from '../../../src/core/vault/useDigest'
 
 const data = (namespace: string, hash = 'sha256', length = 32) =>
   Buffer.concat([
@@ -393,6 +395,84 @@ describe('vault SSH agent destination proofs', () => {
         SSH.failure,
         SSH.failure,
       ])
+    } finally {
+      f.dispose()
+    }
+  })
+})
+describe('SSH session revocation and approval binding (RVM109S)', () => {
+  it('keeps a reusable connection across signatures when B finishes each admission', async () => {
+    const f = sshFixture()
+    try {
+      // B-faithful: a success-finish calls lifetime.close after every
+      // signature. The session must survive it for the next signature.
+      f.access.sign = vi.fn<SshAccessPort['sign']>(
+        (_identity, _ticket, _use, data, flags, lifetime, _signal, release) => {
+          const signature = signSshData(f.key.privateKey, f.blob, Buffer.from(data), flags)
+          try {
+            release(signature)
+          } finally {
+            signature.fill(0)
+          }
+          lifetime.close()
+          return Promise.resolve()
+        },
+      )
+      f.session.receive(Buffer.concat([f.bind(), f.signFrame(), f.signFrame()]))
+      await f.session.drained()
+      expect(f.replies.map((reply) => reply[4])).toEqual([
+        SSH.success,
+        SSH.signAnswer,
+        SSH.signAnswer,
+      ])
+      expect(f.close).not.toHaveBeenCalled()
+    } finally {
+      f.dispose()
+    }
+  })
+  it('terminates the pinned client on revocation, exactly once', async () => {
+    const f = sshFixture()
+    try {
+      f.session.receive(f.bind())
+      await f.session.drained()
+      f.invalidate()
+      expect(f.terminate).toHaveBeenCalledOnce()
+      expect(f.close).toHaveBeenCalledOnce()
+      f.invalidate()
+      expect(f.terminate).toHaveBeenCalledOnce()
+    } finally {
+      f.dispose()
+    }
+  })
+  it('denies a signature approved before a known_hosts rotation', async () => {
+    const f = sshFixture()
+    try {
+      const gate = Promise.withResolvers<undefined>()
+      f.access.authorize = vi.fn<SshAccessPort['authorize']>(async (_identity, use) => {
+        f.uses.push(use)
+        await gate.promise
+        return { ...ticket(), digest: vaultUseDigest(use) }
+      })
+      f.session.receive(Buffer.concat([f.bind(), f.signFrame()]))
+      while (f.uses.length === 0) await new Promise((resolve) => setImmediate(resolve))
+      // The approved host key no longer resolves while approval is pending.
+      f.setKnown('')
+      gate.resolve(undefined)
+      await f.session.drained()
+      expect(f.replies.map((reply) => reply[4])).toEqual([SSH.success, SSH.failure])
+    } finally {
+      f.dispose()
+    }
+  })
+  it('answers the extension query with message 29, never message 6', async () => {
+    const f = sshFixture()
+    try {
+      f.session.receive(sshFrame(SSH.extension, sshString('query')))
+      await f.session.drained()
+      expect(f.replies).toHaveLength(1)
+      expect(f.replies[0]).toEqual(
+        sshFrame(29, Buffer.concat([sshString('query'), sshString('session-bind@openssh.com')])),
+      )
     } finally {
       f.dispose()
     }
