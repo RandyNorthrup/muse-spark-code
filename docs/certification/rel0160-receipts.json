@@ -1,0 +1,146 @@
+{
+  "source": "c1cc0a5e9",
+  "m107Head": "e8b6d24ae",
+  "m107Merge": "06904a410",
+  "manifestVersion": "0.14.3",
+  "rig": "Kubuntu",
+  "testTimeoutOverride": false,
+  "gates": [
+    {
+      "name": "lint",
+      "command": ["npm", "run", "lint"],
+      "exit": 0,
+      "seconds": 277.96
+    },
+    {
+      "name": "format",
+      "command": ["npm", "run", "format:check"],
+      "exit": 0,
+      "seconds": 75.49
+    },
+    {
+      "name": "knip",
+      "command": ["npm", "run", "deadcode"],
+      "exit": 0,
+      "seconds": 6.42
+    },
+    {
+      "name": "cycles",
+      "command": ["npm", "run", "cycles"],
+      "exit": 0,
+      "seconds": 7.23
+    },
+    {
+      "name": "duplication",
+      "command": ["npm", "run", "duplication"],
+      "exit": 0,
+      "seconds": 1.13
+    },
+    {
+      "name": "l10n",
+      "command": ["npm", "run", "check:l10n"],
+      "exit": 0,
+      "seconds": 2.5
+    },
+    {
+      "name": "reference",
+      "command": ["npm", "run", "check:reference"],
+      "exit": 0,
+      "seconds": 2.31
+    },
+    {
+      "name": "host-api",
+      "command": ["npm", "run", "check:host-api"],
+      "exit": 0,
+      "seconds": 17.88
+    },
+    {
+      "name": "badges",
+      "command": ["npm", "run", "check:badges"],
+      "exit": 0,
+      "seconds": 10.0
+    },
+    {
+      "name": "schemas",
+      "command": ["npm", "run", "schema:exec", "--", "--check"],
+      "exit": 0,
+      "seconds": 0.64
+    },
+    {
+      "name": "build-draft",
+      "command": ["npm", "run", "build"],
+      "exit": 0,
+      "seconds": 4.13
+    },
+    {
+      "name": "package",
+      "command": ["npm", "run", "package"],
+      "exit": 0,
+      "seconds": 26.87
+    },
+    {
+      "name": "vsix-size",
+      "command": ["node", "scripts/check-vsix-size.mjs", "muse-spark-code-0.14.3.vsix"],
+      "exit": 0,
+      "seconds": 0.05
+    },
+    {
+      "name": "package-acp",
+      "command": ["npm", "run", "package:acp"],
+      "exit": 0,
+      "seconds": 10.25
+    }
+  ],
+  "artifacts": [
+    {
+      "file": "muse-spark-code-0.14.3.vsix",
+      "bytes": 2425175,
+      "sha256": "2588f9b83dcc7ca96e4907a217240610d40b3a381d8af3ae2d44ad79a1f3a278",
+      "version": "0.14.3",
+      "native": [
+        {
+          "arch": "x64",
+          "bytes": 43128,
+          "sha256": "1c9ed83321b4880bce4fb59cfc87ea327b6a90a413b4390f49aaa5d1d195810b",
+          "mode": "0o775"
+        },
+        {
+          "arch": "arm64",
+          "bytes": 67600,
+          "sha256": "969121ccdcd4f14b4b1bbb6171574707c539be32e1bfb8bf2c725b1e7d4513d1",
+          "mode": "0o775"
+        }
+      ],
+      "hasMacHelper": false
+    },
+    {
+      "file": "dist/muse-spark-code-acp-0.14.3.tgz",
+      "bytes": 1551607,
+      "sha256": "5256a53699b7e2cbf95285b8fba0058f070f73abbfcf2c3397a169b4e6abbbc2",
+      "version": "0.14.3",
+      "native": [
+        {
+          "arch": "x64",
+          "bytes": 43128,
+          "sha256": "1c9ed83321b4880bce4fb59cfc87ea327b6a90a413b4390f49aaa5d1d195810b",
+          "mode": "0o755"
+        },
+        {
+          "arch": "arm64",
+          "bytes": 67600,
+          "sha256": "969121ccdcd4f14b4b1bbb6171574707c539be32e1bfb8bf2c725b1e7d4513d1",
+          "mode": "0o755"
+        }
+      ],
+      "hasMacHelper": false
+    }
+  ],
+  "armSmoke": {
+    "architecture": "arm64",
+    "create": 0,
+    "wrongMarkerRefused": 1,
+    "remove": 0,
+    "foreignTargetPreserved": true,
+    "sha256": "969121ccdcd4f14b4b1bbb6171574707c539be32e1bfb8bf2c725b1e7d4513d1"
+  }
+}
