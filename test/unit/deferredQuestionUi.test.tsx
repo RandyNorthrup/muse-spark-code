@@ -77,7 +77,7 @@ describe('the first lazy question', () => {
       await loading.loaded.promise
     })
     const explanations = await screen.findAllByLabelText('Your explanation')
-    expect(explanations).toHaveLength(2)
+    expect(explanations).toHaveLength(1)
     for (const explanation of explanations) expect(explanation).toHaveValue('Kept while loading')
     rerender(scene(false))
     rerender(scene())

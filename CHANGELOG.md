@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Keep each waiting or deferred question's interactive card pinned above the
+  composer. Its transcript marker's Answer button reopens and focuses that
+  card, including after deferral; MCP forms use the same compact marker.
+  Refresh Help & Reference and the README question screenshots.
+
 - Search usage-journal newlines in native byte arrays so cold scans retain their
   validation and finish within CI's existing deadline under coverage. Companion
   browser security fixtures advance credential time explicitly, keeping session

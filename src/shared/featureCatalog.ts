@@ -374,7 +374,7 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'questions',
       { ui: 'questionSubmit' },
-      { ui: 'referenceQuestions' },
+      { ui: 'referenceQuestionsDeferral' },
       ['nextOpenQuestion', 'previousOpenQuestion'],
       ['questions.deferAfterSeconds'],
       'questions',
@@ -851,7 +851,7 @@ const REFERENCE_DETAILS: Readonly<
   cache: ['referenceCache'],
   'custom-agents': ['referencePaidContexts'],
   'conversation-actions': ['referenceWindowsSessions'],
-  questions: ['referenceQuestionsDeferral'],
+  questions: ['referenceQuestions'],
 }
 
 import { PROMPT_COMMAND_IDS, UI_TEXT } from './constants'

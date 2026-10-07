@@ -15527,8 +15527,8 @@ The owner, 2026-10-05:
      group is one line. The dock stays within
      `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION` (half the view) with its own
      scroll, so the composer and the newest reply stay in sight.
-   - **The dock and the row are two views of one question.** The transcript
-     row keeps its card (decision 7); answering either settles both.
+   - **One interactive view per question, pinned in the dock.** The
+     transcript keeps a compact marker whose Answer opens the dock (decision 7).
    - **MCP forms join the dock** (a lead addition: they are questions too,
      and get lost the same way). They keep their 300-second deadline and
      their cancel. MCP has no late answer, so an expired form says so and
@@ -15640,9 +15640,14 @@ The owner, 2026-10-05:
 
 7. **Easy to pick out in the transcript.**
    - **Waiting and open rows** carry a left accent, the `question` codicon
-     and the label **Open question** before the header. An open row is
-     folded to one line (the header, **Answer** and an expand chevron) and
-     opens in place.
+     and the label **Open question** before the header. Both stay compact:
+     **Answer** opens or expands the docked card, scrolls it into view and
+     focuses its first control, including after deferral. The full card
+     never renders in the transcript. MCP forms follow the same rule.
+   - **Amended 2026-10-07 (QPIN), owner ruling:** "If we fixed the questions
+     so they are pinned to the bottom why is there still a screenshot of it
+     floating in the middle of the chat?" This corrects the earlier decision
+     to keep a second full interactive card in the transcript.
    - **Settled rows** each have their own label and icon: Answered, Answered
      later, Answered when asked again, Explained, Declined, Dismissed,
      Expired. None is told by colour alone; high-contrast themes use
@@ -17343,8 +17348,8 @@ The owner, 2026-10-05:
      group is one line. The dock stays within
      `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION` (half the view) with its own
      scroll, so the composer and the newest reply stay in sight.
-   - **The dock and the row are two views of one question.** The transcript
-     row keeps its card (decision 7); answering either settles both.
+   - **One interactive view per question, pinned in the dock.** The
+     transcript keeps a compact marker whose Answer opens the dock (decision 7).
    - **MCP forms join the dock** (a lead addition: they are questions too,
      and get lost the same way). They keep their 300-second deadline and
      their cancel. MCP has no late answer, so an expired form says so and
@@ -17456,9 +17461,14 @@ The owner, 2026-10-05:
 
 7. **Easy to pick out in the transcript.**
    - **Waiting and open rows** carry a left accent, the `question` codicon
-     and the label **Open question** before the header. An open row is
-     folded to one line (the header, **Answer** and an expand chevron) and
-     opens in place.
+     and the label **Open question** before the header. Both stay compact:
+     **Answer** opens or expands the docked card, scrolls it into view and
+     focuses its first control, including after deferral. The full card
+     never renders in the transcript. MCP forms follow the same rule.
+   - **Amended 2026-10-07 (QPIN), owner ruling:** "If we fixed the questions
+     so they are pinned to the bottom why is there still a screenshot of it
+     floating in the middle of the chat?" This corrects the earlier decision
+     to keep a second full interactive card in the transcript.
    - **Settled rows** each have their own label and icon: Answered, Answered
      later, Answered when asked again, Explained, Declined, Dismissed,
      Expired. None is told by colour alone; high-contrast themes use
@@ -18833,6 +18843,29 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### QPIN — One question card, pinned above the composer (2026-10-07)
+
+The owner: "If we fixed the questions so they are pinned to the bottom why
+is there still a screenshot of it floating in the middle of the chat?"
+Amend D92.1 and D92.7: waiting and deferred questions keep only a compact
+transcript marker (icon, Open question, title and Answer). Answer selects,
+expands, scrolls and focuses the dock's first control. MCP forms follow the
+same rule. Preserve late delivery, drafts, approval priority and settled
+summaries. Update Help & Reference in all 14 languages and README images.
+
+- [ ] Implement the marker and explicit dock navigation; owning tests and
+      a deliberate duplicate-card regression drill with byte-exact restore.
+- [ ] Restore question.png beside approval; regenerate question-related
+      README shots and question accessibility scenes in all four themes.
+- [ ] Commit with hooks; verify a fresh clone with npm ci and CI=true:
+      complete owning suites three times at default timeouts, five
+      typechecks, lint, format, plain knip, duplication, build, reference
+      and localization, keeping all thresholds unchanged.
+
+Record receipts in docs/certification/question-pinned.md. Shared common.md
+and review-common.md were absent from both C:/lanes/_ctx and the rig note's
+~/lanes/_ctx; the rig brief and repository rules govern this repair.
 
 ### CI0150M — Round 3 macOS CI repairs (2026-10-07, macmini)
 

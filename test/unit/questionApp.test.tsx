@@ -46,7 +46,7 @@ async function app(isRunning = false) {
       questions: record.questions,
     },
   })
-  await row().findByRole('radio', { name: 'Blue' })
+  await dock().findByRole('radio', { name: 'Blue' })
 
   return { store, post, host, record }
 }
@@ -56,13 +56,91 @@ function row() {
 function dock() {
   return within(screen.getByRole('region', { name: 'Open question' }))
 }
+async function submitTwice() {
+  await act(async () => {
+    await import('../../src/webview/components/QuestionUi')
+    fireEvent.click(dock().getByRole('button', { name: 'Submit' }))
+    fireEvent.click(dock().getByRole('button', { name: 'Submit' }))
+  })
+}
 function beginLateAnswer(h: Awaited<ReturnType<typeof app>>) {
   h.host({ type: 'openQuestions', snapshot: { sessionId: 'session-1', questions: [h.record] } })
-  fireEvent.change(row().getByLabelText('Other: Colour'), { target: { value: 'Teal' } })
-  fireEvent.click(row().getByRole('button', { name: 'Submit' }))
+  fireEvent.change(dock().getByLabelText('Other: Colour'), { target: { value: 'Teal' } })
+  fireEvent.click(dock().getByRole('button', { name: 'Submit' }))
 }
 
 describe('M112 App commands and shared question delivery', () => {
+  it('renders one interactive waiting question in the dock and a compact transcript marker', async () => {
+    await app()
+    expect(screen.getAllByRole('radio', { name: 'Blue' })).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: 'Submit' })).toHaveLength(1)
+    const marker = row().getByRole('button', { name: 'Answer Open question Colour' })
+    expect(marker).toBeEnabled()
+    expect(marker.closest('li')).toHaveClass('tool-question-open')
+    expect(screen.getByRole('main').querySelector('input, textarea, [role="tab"]')).toBeNull()
+    fireEvent.click(marker)
+    expect(dock().getByRole('radio', { name: 'Blue' })).toHaveFocus()
+  })
+  it('reopens a deferred card from the labelled marker and sends its late answer once', async () => {
+    const { host, record, post } = await app()
+    const composer = screen.getByRole('textbox', { name: UI_TEXT.composerLabel })
+    fireEvent.change(composer, { target: { value: 'Continue independent work' } })
+    act(() => {
+      composer.focus()
+    })
+    host({ type: 'openQuestions', snapshot: { sessionId: 'session-1', questions: [record] } })
+    expect(dock().queryByRole('radio')).toBeNull()
+    const marker = row().getByRole('button', { name: 'Answer Open question Colour' })
+    act(() => {
+      marker.focus()
+    })
+    expect(marker).toHaveFocus()
+    fireEvent.click(marker)
+    expect(dock().getByRole('radio', { name: 'Blue' })).toHaveFocus()
+    expect(row().queryByRole('radio')).toBeNull()
+    fireEvent.click(dock().getByRole('button', { name: 'Collapse question' }))
+    fireEvent.click(marker)
+    expect(dock().getByRole('radio', { name: 'Blue' })).toHaveFocus()
+    fireEvent.click(dock().getByRole('radio', { name: 'Blue' }))
+    await submitTwice()
+    expect(post.mock.calls.filter(([message]) => message.type === 'answerOpenQuestion')).toEqual([
+      [
+        {
+          type: 'answerOpenQuestion',
+          sessionId: 'session-1',
+          userInputId: 'q-1',
+          reply: { answers: [{ questionId: 'colour', selectedLabel: 'Blue' }] },
+        },
+      ],
+    ])
+  })
+
+  it('pins the only MCP form and focuses its first control from a compact marker', async () => {
+    const { host } = await app()
+    host({
+      type: 'agentEvent',
+      event: {
+        type: 'elicitationRequested',
+        itemId: 'form-row',
+        elicitationId: 'form-1',
+        server: 'Profile',
+        message: 'Your nickname?',
+        fields: [{ name: 'nickname', type: 'string', required: true }],
+      },
+    })
+    const marker = await row().findByRole('button', { name: 'Answer Open question Profile' })
+    expect(row().queryByRole('form')).toBeNull()
+    expect(screen.getByRole('main').querySelector('input, textarea')).toBeNull()
+    fireEvent.click(marker)
+    expect(dock().getByLabelText('nickname')).toHaveFocus()
+    expect(screen.getAllByRole('form')).toHaveLength(1)
+    host({
+      type: 'agentEvent',
+      event: { type: 'elicitationSettled', elicitationId: 'form-1', action: 'cancel' },
+    })
+    expect(row().getByText('The request from Profile is no longer waiting.')).toBeVisible()
+    expect(screen.queryByRole('form')).toBeNull()
+  })
   it('drops an action after the same session is reattached to a new surface generation', async () => {
     const h = await app()
     const { host, record, post } = h
@@ -174,16 +252,12 @@ describe('M112 App commands and shared question delivery', () => {
   })
 
   it.each([false, true])(
-    'routes one late answer from either view in an idle/running session (%s)',
+    'routes one late answer from the pinned card in an idle/running session (%s)',
     async (isRunning) => {
       const { host, record, post } = await app(isRunning)
-      fireEvent.change(row().getByLabelText('Other: Colour'), { target: { value: 'Teal' } })
+      fireEvent.change(dock().getByLabelText('Other: Colour'), { target: { value: 'Teal' } })
       host({ type: 'openQuestions', snapshot: { sessionId: 'session-1', questions: [record] } })
-      await act(async () => {
-        await import('../../src/webview/components/QuestionUi')
-        fireEvent.click(row().getByRole('button', { name: 'Submit' }))
-        fireEvent.click(dock().getByRole('button', { name: 'Submit' }))
-      })
+      await submitTwice()
       const answers = post.mock.calls.filter(([message]) => message.type === 'answerOpenQuestion')
       expect(answers).toEqual([
         [
@@ -209,14 +283,14 @@ describe('M112 App commands and shared question delivery', () => {
 
   it('delivers an explanation after deferral and retains uncertainty without offering another send', async () => {
     const { host, record, post } = await app()
-    fireEvent.click(row().getByRole('button', { name: 'Explain instead' }))
-    fireEvent.change(row().getByLabelText('Your explanation'), {
+    fireEvent.click(dock().getByRole('button', { name: 'Explain instead' }))
+    fireEvent.change(dock().getByLabelText('Your explanation'), {
       target: { value: ' Neither choice ' },
     })
     host({ type: 'openQuestions', snapshot: { sessionId: 'session-1', questions: [record] } })
     await act(async () => {
       await import('../../src/webview/components/QuestionUi')
-      fireEvent.click(row().getByRole('button', { name: 'Send explanation' }))
+      fireEvent.click(dock().getByRole('button', { name: 'Send explanation' }))
     })
     expect(post).toHaveBeenCalledWith({
       type: 'answerOpenQuestion',
@@ -225,31 +299,31 @@ describe('M112 App commands and shared question delivery', () => {
       reply: { explanation: 'Neither choice' },
     })
     host({ type: 'notice', level: 'error', text: UI_TEXT.questionAnswerUncertain })
-    expect(row().getByRole('button', { name: 'Send explanation' })).toBeDisabled()
+    expect(dock().getByRole('button', { name: 'Send explanation' })).toBeDisabled()
     host({ type: 'notice', level: 'error', text: UI_TEXT.questionAnswerFailed })
-    expect(row().getByRole('button', { name: 'Send explanation' })).toBeEnabled()
+    expect(dock().getByRole('button', { name: 'Send explanation' })).toBeEnabled()
     await act(async () => {
       await import('../../src/webview/components/QuestionUi')
-      fireEvent.click(row().getByRole('button', { name: 'Send explanation' }))
+      fireEvent.click(dock().getByRole('button', { name: 'Send explanation' }))
     })
     expect(
       post.mock.calls.filter(([message]) => message.type === 'answerOpenQuestion'),
     ).toHaveLength(2)
   })
 
-  it('handles host navigation without echo, expands/focuses the row and updates document title', async () => {
+  it('handles host navigation without echo, expands/focuses the dock and updates document title', async () => {
     const { host, record, post } = await app()
     host({ type: 'openQuestions', snapshot: { sessionId: 'session-1', questions: [record] } })
     expect(document.title).toBe('Choices · 1 open')
     post.mockClear()
     host({ type: 'jumpToOpenQuestion', sessionId: 'session-1', direction: 'next' })
-    expect(row().getByRole('group', { name: 'Colour' })).toHaveFocus()
-    expect(row().getByRole('button', { name: 'Submit' })).toBeVisible()
+    expect(dock().getByRole('radio', { name: 'Blue' })).toHaveFocus()
+    expect(dock().getByRole('button', { name: 'Submit' })).toBeVisible()
     expect(post.mock.calls.some(([message]) => message.type === 'jumpToOpenQuestion')).toBe(false)
-    fireEvent.click(row().getByRole('button', { name: 'Collapse question' }))
+    fireEvent.click(dock().getByRole('button', { name: 'Collapse question' }))
     expect(row().queryByRole('button', { name: 'Submit' })).toBeNull()
     host({ type: 'jumpToOpenQuestion', sessionId: 'session-1', direction: 'next' })
-    expect(row().getByRole('button', { name: 'Submit' })).toBeVisible()
+    expect(dock().getByRole('button', { name: 'Submit' })).toBeVisible()
   })
 
   it('expands an automatic reminder in the dock without stealing a typing composer or jumping the row', async () => {
@@ -273,7 +347,8 @@ describe('M112 App commands and shared question delivery', () => {
     const { host, record, post } = await app()
     expect(row().queryByRole('button', { name: 'More actions' })).toBeNull()
     host({ type: 'openQuestions', snapshot: { sessionId: 'session-1', questions: [record] } })
-    fireEvent.click(row().getByRole('button', { name: 'More actions' }))
+    fireEvent.click(row().getByRole('button', { name: 'Answer Open question Colour' }))
+    fireEvent.click(dock().getByRole('button', { name: 'More actions' }))
     const dismissItem = await screen.findByRole('menuitem', { name: 'Dismiss' })
     fireEvent.click(dismissItem)
     // App dispatches through a lazy command module; wait for its observable
@@ -327,6 +402,6 @@ describe('M112 App commands and shared question delivery', () => {
     expect(dock().getByRole('button', { name: 'Submit' })).toBeVisible()
     expect(row().queryByRole('group', { name: 'Colour' })).toBeNull()
     host({ type: 'jumpToOpenQuestion', sessionId: 'session-1', direction: 'next' })
-    expect(dock().getByRole('group', { name: 'Colour' })).toHaveFocus()
+    expect(dock().getByRole('radio', { name: 'Blue' })).toHaveFocus()
   })
 })
