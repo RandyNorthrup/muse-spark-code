@@ -60,6 +60,12 @@ function fixture() {
     'subscriptions',
     'configuredProviders',
     'reviewer',
+    'judgeP2',
+    'judgeSources',
+    'judgeLint',
+    'judgeHook',
+    'judgeLocal',
+    'judgeUses',
     'foreignHooks',
     'hookRuntime',
     'recorder',
@@ -70,6 +76,7 @@ function fixture() {
     'uiTextSurfaces',
     'extensionHooks',
     'validation',
+    'validationSchema',
     'wire',
     'searchWorker',
     'pageWorker',
@@ -77,8 +84,10 @@ function fixture() {
     'usageCompanion',
   ])
     put(`dist/${bundle}.js`, 'exports.EN = {}')
-  for (const file of ['MuseSparkJob', 'MuseSparkMcpJob'])
+  for (const file of ['MuseSparkJob', 'MuseSparkMcpJob', 'MuseSparkLocalJudgePeer'])
     put(`native/windows/${file}.cs`, '// test source')
+  put('native/linux/MuseSparkLocalJudgePeer.c', '/* test source */')
+  put('native/darwin/muse-local-judge-peer', 'test peer artifact')
   put('LICENSE', 'MIT')
   put('dist/providerCatalog.json', '{"providers":{}}')
   put('dist/providerCatalog.js', 'module.exports={providers:{}};')
