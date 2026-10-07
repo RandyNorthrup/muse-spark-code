@@ -79,6 +79,8 @@ beforeAll(async () => {
   } as const
   const builds = await Promise.all([
     ...Object.entries({
+      schedules: 'src/runtime/schedules/schedulesBundle.ts',
+      scheduleBackground: 'src/runtime/schedules/backgroundEntry.ts',
       questionNotes: 'src/core/questions/deferralEntry.ts',
       reference: 'src/shared/reference/referenceEntry.ts',
       runtimeEngine: 'src/runtime/runtimeEngineEntry.ts',
@@ -226,7 +228,6 @@ beforeAll(async () => {
     }
   }
   parsers.push(parserSchema.parse(loadSupportBundle('validation')))
-  expect(checkDeferredBundles(bundleInputs)).toEqual([])
 })
 
 beforeAll(async () => {
@@ -405,6 +406,10 @@ describe('deferred cohort bundles', () => {
       )
     }
   })
+  it('every production bundle passes the deferred-boundary gate', () => {
+    expect(checkDeferredBundles(bundleInputs)).toEqual([])
+  })
+
   it('decodes the complete production English fallback without changing any value', () => {
     expect(bundleText('uiText')).toContain('brotliDecompressSync')
     expect(loadSupportBundle('uiText')).toHaveProperty('EN', EN)
@@ -554,6 +559,42 @@ describe('deferred cohort bundles', () => {
     expect(bundle).toHaveProperty('runChatGptProviderCommand', expect.any(Function))
     expect(bundle).toHaveProperty('chatGptAuthenticationMethods', expect.any(Function))
   })
+  it('RVM115U5 diet: Model API frees ten KiB and records context loaders in the lazy schedules chunk', () => {
+    // M115W re-measurement (Kubuntu, deterministic across trees): the merged
+    // milestone carries 1,161 more bytes than U's pin (the validated v2
+    // protocol, schedules settings and their strings). The diet's mechanism
+    // below is unchanged: the loaders stay out of Model API.
+    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(474_100)
+    const schedules = new Set(inputs('schedules'))
+    for (const file of [
+      'src/core/backends/modelapi/schedulesEntry.ts',
+      'src/core/backends/modelapi/schedules.ts',
+      'src/core/context/catalogFiles.ts',
+    ]) {
+      expect(schedules.has(file)).toBe(true)
+      expect(inputs('modelApi')).not.toContain(file)
+    }
+    expect(bundleText('modelApi')).toContain('./schedules.js')
+  })
+
+  it('M115W: the lazy schedules chunk carries the v2 runtime binding beside v1', () => {
+    const schedules = new Set(inputs('schedules'))
+    for (const file of [
+      'src/runtime/schedules/schedulesBundle.ts',
+      'src/runtime/schedules/runtimeEntry.ts',
+      'src/runtime/schedules/engine.ts',
+      'src/runtime/schedules/control.ts',
+      'src/core/schedules/store.ts',
+      'src/core/schedules/scheduler.ts',
+      'src/core/schedules/delivery.ts',
+    ]) {
+      expect(schedules.has(file)).toBe(true)
+      for (const parent of ['extension', 'modelApi', 'acp'])
+        expect(inputs(parent)).not.toContain(file)
+    }
+    expect(bundleText('schedules')).toContain('createRuntimeSchedules')
+  })
+
   it('loads the activation entry without requiring either action bundle', () => {
     const entry = bundleFile('extension')
     expect(bundleText('extension')).toContain('conversation.js')
@@ -857,6 +898,16 @@ describe('deferred cohort bundles', () => {
       'modelApi',
       'src/acp/questionDeferralEntry.ts',
       'on the first ACP question, elicitation or question command',
+    ],
+    [
+      'modelApi',
+      'src/runtime/schedules/nodeBackgroundIo.ts',
+      'on the first native schedule wake or maintenance',
+    ],
+    [
+      'modelApi',
+      'src/runtime/schedules/effectiveDefinition.ts',
+      'on the first native schedule wake or maintenance',
     ],
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
     ['extension', 'src/host/conversation/conversationController.ts', 'on the first chat surface'],

@@ -55,6 +55,9 @@ import {
 import { paidFeatureName, paidFeaturePrice, usablePaidFeatures } from '../shared/paid'
 import type * as PaletteRegistryModule from '../shared/paletteRegistry'
 import type { PaletteAction } from '../shared/palette'
+import { scheduleChannel } from './schedules/channel'
+import type { ScheduleRequest } from '../shared/scheduleV2'
+import { schedulePromptAction } from './schedules/prompt'
 import { type SlashCommand, slashCommandsOf } from '../shared/slashCommands'
 import type { GitAction, GitDraftKind } from '../shared/git'
 import type {
@@ -286,6 +289,14 @@ function restoreNoteOf(state: UiState): string | undefined {
 const GitPanel = deferred(async () => {
   const { GitPanel } = await import('./components/GitPanel')
   return { default: GitPanel }
+})
+
+// Scheduled prompts v2 (M115): the surface loads as its own chunk on first
+// use, beside the v1 panel, over the host's versioned schedule channel.
+// The wrapper builds W's port, so the time math stays in this chunk.
+const ScheduleSurfaceView = deferred(async () => {
+  const { ScheduleSurfaceView } = await import('./schedules/ScheduleSurfaceView')
+  return { default: ScheduleSurfaceView }
 })
 
 /** What floats above the composer: a palette view, a menu, the History dialog or a modal. */
@@ -562,6 +573,61 @@ export function App({
       stop?.()
     }
   }, [store, isOwnStore, postMessage, now])
+
+  // Scheduled prompts v2 (M115): the panel's versioned channel over the
+  // host bridge. It owns its window listener beside the store's; the store
+  // ignores its answers, and it ignores everything else.
+  const scheduleChannelRef = useRef<ReturnType<typeof scheduleChannel> | undefined>(undefined)
+  useEffect(() => {
+    const channel = scheduleChannel(window, (message) => {
+      postMessage({ type: 'schedulesRequest', message })
+    })
+    scheduleChannelRef.current = channel
+    return () => {
+      channel.dispose()
+      if (scheduleChannelRef.current === channel) scheduleChannelRef.current = undefined
+    }
+  }, [postMessage])
+  // `/schedule add <prompt>` (M115): the prompt waits for the host's props,
+  // and the opening editor mounts over it. `surface` is the props seen at
+  // submit; the stash clears once newer props arrive (the override applied)
+  // or the surface closes — the editor snapshots its draft on mount.
+  const [pendingSchedulePrompt, setPendingSchedulePrompt] = useState<
+    { prompt: string; surface: UiState['schedulesSurface'] } | undefined
+  >(undefined)
+  useEffect(() => {
+    if (
+      pendingSchedulePrompt !== undefined &&
+      state.schedulesSurface !== pendingSchedulePrompt.surface
+    )
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- the stash clears after the mounting render applies it; no event fires then.
+      setPendingSchedulePrompt(undefined)
+  }, [pendingSchedulePrompt, state.schedulesSurface])
+  // The deferred surface's port (M115): stable callbacks over the channel
+  // ref, so the surface mounts once per workspace and view.
+  const schedulePortRequest = useCallback((request: ScheduleRequest): Promise<unknown> => {
+    const channel = scheduleChannelRef.current
+    return channel === undefined
+      ? Promise.reject(new Error(UI_TEXT.scheduleV2.editor.loadFailed))
+      : channel.request(request)
+  }, [])
+  const schedulePortSubscribe = useCallback(
+    (listener: (message: unknown) => void): (() => void) => {
+      const channel = scheduleChannelRef.current
+      if (channel === undefined) {
+        // Defensive: the channel mounts before any host props arrive.
+        return () => {
+          /* unreachable while mounted */
+        }
+      }
+      return channel.subscribeChanges(listener)
+    },
+    [],
+  )
+  const onCloseSchedulesSurface = useCallback(() => {
+    setPendingSchedulePrompt(undefined)
+    dispatch({ type: 'schedulesSurfaceClosed' })
+  }, [dispatch])
 
   // A refused message's images the host may still hold go back to it to be
   // dropped (M25): the reducer lists them, the app posts and acknowledges.
@@ -888,6 +954,70 @@ export function App({
       }
       onHandoff(handoff.goal)
       setIsPinnedToEnd(true)
+      return
+    }
+    // Scheduled prompts v2 (M115): `/schedule …` opens the surface or, with
+    // its props already here, dispatches the mapped draft or request.
+    // `/loop` below stays on the v1 store until its migration ships.
+    if (/^\/schedule(?:\s|$)/i.test(text.trim())) {
+      dispatch({ type: 'draftChanged', draft: '' })
+      setIsPinnedToEnd(true)
+      const props = current.schedulesSurface
+      if (props === undefined) {
+        const add = /^\/schedule\s+add(?:\s+([\s\S]*))?$/i.exec(text.trim())
+        const prompt = (add?.[1] ?? '').trim()
+        if (prompt !== '') setPendingSchedulePrompt({ prompt, surface: current.schedulesSurface })
+        postMessage({
+          type: 'openSchedules',
+          view: add === null ? 'list' : 'editor',
+        })
+        return
+      }
+      const action = schedulePromptAction(
+        text,
+        props.workspaceKey,
+        props.defaultDraft,
+        now(),
+        parseLoopPrompt,
+      )
+      if (action === undefined) {
+        postMessage({ type: 'openSchedules', view: 'list' })
+        return
+      }
+      if (action.kind === 'open') {
+        // Only a prompt draft carries text for the editor; a report draft
+        // (M115 RA) opens the editor over its own args, with nothing stashed.
+        const draftAction = action.draft?.action
+        if (draftAction?.kind === 'prompt' && draftAction.prompt !== '')
+          setPendingSchedulePrompt({
+            prompt: draftAction.prompt,
+            surface: current.schedulesSurface,
+          })
+        postMessage({ type: 'openSchedules', view: action.view })
+        return
+      }
+      if (action.kind === 'request') {
+        const channel = scheduleChannelRef.current
+        if (channel === undefined) {
+          postMessage({ type: 'openSchedules', view: 'list' })
+          return
+        }
+        void channel
+          .request(action.request)
+          .then((response) => {
+            if (response.kind === 'refused')
+              dispatch({ type: 'noticeRaised', level: 'warning', text: response.reason })
+          })
+          .catch((error: unknown) => {
+            dispatch({
+              type: 'noticeRaised',
+              level: 'warning',
+              text: error instanceof Error ? error.message : UI_TEXT.scheduleCommandFailed,
+            })
+          })
+        return
+      }
+      dispatch({ type: 'noticeRaised', level: 'warning', text: action.reason })
       return
     }
     // Model API schedules are extension-owned. Muse Code's cron remains a
@@ -2053,6 +2183,21 @@ export function App({
           openReviewPane()
           break
         }
+        case 'openScheduleList': {
+          postMessage({ type: 'openSchedules', view: 'list' })
+          closeOverlay()
+          break
+        }
+        case 'openScheduleTimeline': {
+          postMessage({ type: 'openSchedules', view: 'timeline' })
+          closeOverlay()
+          break
+        }
+        case 'openScheduleEditor': {
+          postMessage({ type: 'openSchedules', view: 'editor' })
+          closeOverlay()
+          break
+        }
         case 'none': {
           break
         }
@@ -2093,6 +2238,13 @@ export function App({
   const paletteContext = useMemo(
     () => ({
       arePromptCommandsBound: true,
+      ...((state.settings?.schedules ?? SETTING_DEFAULTS.schedules) && {
+        schedules: {
+          create: { type: 'openScheduleEditor' as const },
+          list: { type: 'openScheduleList' as const },
+          timeline: { type: 'openScheduleTimeline' as const },
+        },
+      }),
       currentModel: state.model,
       models: state.models,
       effort: state.effort,
@@ -2862,6 +3014,31 @@ export function App({
             onRun={onScheduleRun}
             onCancel={onScheduleCancel}
             onEnable={onScheduleEnable}
+          />
+        )}
+        {/* Scheduled prompts v2 (M115): the deferred surface over this
+            workspace. A new view remounts it; `/schedule add` pre-fills the
+            opening editor once, then the stash clears. */}
+        {state.schedulesSurface === undefined ? null : (
+          <ScheduleSurfaceView
+            key={`${state.schedulesSurface.workspaceKey}:${state.schedulesSurface.initialView}`}
+            surface={{
+              workspaceKey: state.schedulesSurface.workspaceKey,
+              targets: state.schedulesSurface.targets,
+              defaultDraft:
+                pendingSchedulePrompt === undefined
+                  ? state.schedulesSurface.defaultDraft
+                  : {
+                      ...state.schedulesSurface.defaultDraft,
+                      action: { kind: 'prompt', prompt: pendingSchedulePrompt.prompt },
+                    },
+              nowMs: state.schedulesSurface.nowMs,
+              initialView: state.schedulesSurface.initialView,
+            }}
+            request={schedulePortRequest}
+            subscribeChanges={schedulePortSubscribe}
+            nowMs={now}
+            onClose={onCloseSchedulesSurface}
           />
         )}
         <TodoPanel items={state.todos} isInert={isModalOpen} onOpenInTab={onOpenTasksTab} />

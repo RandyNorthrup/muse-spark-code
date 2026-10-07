@@ -18,6 +18,11 @@
       "hooksManagedKey",
       "worktreeBranchPlaceholder",
       "memoryNamePlaceholder",
+      "scheduleV2.editor.defaultName",
+      "scheduleV2.editor.defaultPrompt",
+      "paletteTips.schedule",
+      "paletteTips.schedulePrompt",
+      "paletteTips.scheduleTimeline",
       "unreadMark",
       "linePrefix",
       "backendDetail",
@@ -259,7 +264,17 @@
     "ru": ["gitChangeCounts", "teamCapabilityWarning"]
   },
   "manifest": {
-    "*": ["viewsContainers.museSpark.title", "command.category", "config.title"],
+    "*": [
+      "viewsContainers.museSpark.title",
+      "command.category",
+      "config.title",
+      "command.schedulePrompt.title",
+      "command.showSchedules.title",
+      "command.showScheduleTimeline.title",
+      "config.schedules.description",
+      "config.schedules.defaultDelivery.description",
+      "config.schedules.agentCreation.description"
+    ],
     "cs": ["views.chatView.name"],
     "de": ["views.chatView.name", "command.hooks.title"],
     "es": ["views.chatView.name", "command.hooks.title"],

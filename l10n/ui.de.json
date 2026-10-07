@@ -124,7 +124,8 @@
     "out": "--out <file>         Den Bericht in eine Datei statt auf stdout schreiben",
     "description": "--description <text>  Was gerade geschah, in eigenen Worten",
     "no-facts": "--no-facts           Die Support-Fakten weglassen",
-    "no-events": "--no-events          Die letzten Ereignisse weglassen"
+    "no-events": "--no-events          Die letzten Ereignisse weglassen",
+    "scheduled-prompts": "--scheduled-prompts              Kostenpflichtige geplante Eingabeaufforderungen anbieten (Model-API-Backend; der Preis wird zuerst erfragt)"
   },
   "referenceScanSecrets": "Prüft eine UTF-8-Patchdatei auf Geheimnisse und schlägt bei einem Fund fehl. --key-stdin prüft auch auf den exakten Model-API-Schlüssel im Speicher; kein Schlüssel wird gespeichert.",
   "referenceAuthClear": "Den gespeicherten Model API-Schlüssel entfernen.",
@@ -534,7 +535,10 @@
     "reviewBranch": "Muse prüft diesen Branch gegen einen Basis-Branch Ihrer Wahl.",
     "reviewCommit": "Muse prüft einen kürzlichen Commit Ihrer Wahl.",
     "reviewSecurity": "Muse prüft Ihre nicht committeten Änderungen auf Sicherheitsprobleme.",
-    "reviewChanges": "Jede Bearbeitung dieser Unterhaltung annehmen oder zurücksetzen."
+    "reviewChanges": "Jede Bearbeitung dieser Unterhaltung annehmen oder zurücksetzen.",
+    "schedule": "Review schedules and their standing grants in this workspace.",
+    "schedulePrompt": "Pick the time, target and permissions for this prompt.",
+    "scheduleTimeline": "See upcoming fires and collisions on the same target."
   },
   "paletteSkillTip": "Den Skill {name} ausführen.",
   "groupContext": "Kontext",
@@ -4346,5 +4350,233 @@
     "bundleShape": "{file} hat eine unerwartete Struktur",
     "invalidResult": "die Prüfung lieferte ein ungültiges Ergebnis"
   },
-  "legalScanAgain": "Erneut scannen"
+  "legalScanAgain": "Erneut scannen",
+  "scheduleV2": {
+    "labels": {
+      "title": "Zeitpläne",
+      "name": "Name des Zeitplans",
+      "action": "Auszuführende Aktion",
+      "prompt": "Eingabeaufforderung",
+      "report": "Bericht",
+      "trigger": "Auslöser",
+      "timeZone": "Zeitzone",
+      "preview": "Nächste fünf Ausführungen",
+      "end": "Endbedingung",
+      "target": "Ziel",
+      "delivery": "Zustellung",
+      "mode": "Berechtigungsmodus",
+      "grant": "Dauerhafte Freigabe",
+      "paidCap": "Tägliches Zeitplanbudget",
+      "parallel": "Parallel ausführen",
+      "paused": "Pausiert",
+      "pause": "Zeitplan pausieren",
+      "resume": "Zeitplan fortsetzen",
+      "remove": "Zeitplan entfernen",
+      "revoke": "Freigabe widerrufen",
+      "pin": "Zeitplan anheften",
+      "timeline": "Zeitplanübersicht",
+      "schedulePrompt": "Diese Eingabe planen…",
+      "runNow": "Jetzt ausführen",
+      "save": "Zeitplan speichern",
+      "tools": "Erlaubte Werkzeuge",
+      "commands": "Befehlspräfixe",
+      "paths": "Pfade im Arbeitsbereich",
+      "creator": "Ersteller",
+      "depth": "Planungstiefe",
+      "background": "Hintergrundeintrag",
+      "whenClosed": "Geschlossenes Ziel",
+      "catchUp": "Verpasste Ausführungen",
+      "unavailable": "Nicht verfügbar"
+    },
+    "delivery": {
+      "steer": "Laufenden Durchgang lenken",
+      "interrupt": "Unterbrechen und ausführen",
+      "queue": "Nach diesem Durchgang einreihen",
+      "whenIdle": "Neuer Durchgang bei Leerlauf",
+      "newConversation": "Neue Unterhaltung"
+    },
+    "triggers": {
+      "once": "Einmal zu Datum und Uhrzeit",
+      "interval": "Alle N Minuten oder Stunden",
+      "daily": "Alle N Tage",
+      "weekdays": "An Werktagen",
+      "weekly": "Wöchentliche Tage und Zeiten",
+      "cron": "Eigener Cron-Ausdruck",
+      "event": "Bei einem Ereignis",
+      "afterEvent": "Nach einem Ereignis zu einer Uhrzeit"
+    },
+    "targets": {
+      "conversation": "Diese Unterhaltung",
+      "namedConversation": "Benannte Unterhaltung",
+      "newConversation": "Neue Unterhaltung je Ausführung",
+      "worker": "Arbeitsagent",
+      "role": "Teamrolle",
+      "team": "Agententeam",
+      "node": "Muse-Knoten"
+    },
+    "destinations": {
+      "save": "In einem Ordner speichern",
+      "browser": "Im Browser öffnen",
+      "email": "Dem Benutzer per E-Mail senden",
+      "post": "Im Repository veröffentlichen",
+      "cloud": "Cloud-Speicherung (geplant)",
+      "sms": "Textnachricht (geplant)"
+    },
+    "policies": {
+      "open": "Im Hintergrund öffnen",
+      "skip": "Ausführung überspringen",
+      "runOnce": "Einmal nachholen"
+    },
+    "outcomes": {
+      "ran": "Ausgeführt",
+      "refused": "Abgelehnt",
+      "missed": "Verpasst",
+      "skipped": "Übersprungen",
+      "failed": "Fehlgeschlagen"
+    },
+    "events": {
+      "pullRequestOpened": "Pull Request geöffnet",
+      "pullRequestClosed": "Pull Request geschlossen",
+      "pullRequestMerged": "Pull Request zusammengeführt",
+      "reviewRequested": "Review angefordert",
+      "ciFinished": "CI-Lauf beendet",
+      "releasePublished": "Release veröffentlicht",
+      "issueLabelled": "Issue mit Label versehen",
+      "issueOpened": "Issue geöffnet",
+      "issueReplied": "Antwort auf Issue empfangen",
+      "branchUpdated": "Branch aktualisiert",
+      "tagCreated": "Tag erstellt",
+      "milestoneStatusChanged": "Meilensteinstatus geändert",
+      "milestoneCertified": "Meilenstein zertifiziert",
+      "turnFinished": "Durchgang beendet",
+      "laneFinished": "Arbeitsstrang beendet",
+      "taskFinished": "Aufgabe beendet",
+      "teamFinished": "Teamarbeit beendet",
+      "questionAnswered": "Frage beantwortet",
+      "usageThresholdCrossed": "Nutzungsschwelle überschritten",
+      "resourceLevelChanged": "Ressourcenstufe geändert",
+      "filesChanged": "Überwachte Dateien geändert",
+      "versionPublished": "Store-Version veröffentlicht",
+      "manual": "Manueller Auslöser"
+    },
+    "messages": {
+      "interruptWarning": "Unterbrechen kann Ihren eigenen laufenden Durchgang stoppen.",
+      "unattendedRefusal": "Im Zeitplan abgelehnt: {action} benötigt eine Genehmigung und gehört nicht zur Freigabe dieses Zeitplans.",
+      "deferredQuestions": "Fragen werden sofort zurückgestellt und bleiben für Ihre Antwort offen.",
+      "paidConsent": "{prompt} mit {model} planen: {price}. Rhythmus: {cadence}. Zeitplanbudget: {cap} pro lokalem Tag; gemeinsames Tagesbudget: {budget}. Die Zustimmung gilt nur für die ausgewählten kostenpflichtigen Extras.",
+      "changedConsent": "Modell, Schlüssel oder Preisstufe haben sich geändert. Erneuern Sie die Zustimmung vor der nächsten kostenpflichtigen Ausführung.",
+      "setBy": "Von {agent} in {session} eingerichtet",
+      "migrationConsent": "Migrierter Zeitplan pausiert. Prüfen Sie Modus, Freigabe und Kostenzustimmung vor dem Fortsetzen.",
+      "collision": "Ausführungen für dieses Ziel überschneiden sich; sie laufen in Erstellungsreihenfolge.",
+      "historyUnavailable": "Kein Verlauf für die Vorschau.",
+      "eventUntrusted": "Ereignisinhalte sind nicht vertrauenswürdige Daten und können Freigaben, Werkzeuge oder Ziele nicht ändern.",
+      "backgroundQuestion": "Zeitpläne ausführen, wenn Editoren geschlossen sind?",
+      "backgroundYes": "Ja",
+      "backgroundNotNow": "Jetzt nicht",
+      "backgroundNever": "Nie",
+      "backgroundRemove": "Hintergrundeintrag entfernen",
+      "backgroundRemoved": "Hintergrundeintrag entfernt.",
+      "agentConsent": "Darf {agent} diesen Zeitplan innerhalb seiner eigenen Berechtigungen und seines Budgets erstellen?",
+      "agentAlways": "Immer für diesen Orchestrator",
+      "agentNever": "Nie für diesen Orchestrator",
+      "grantRevoked": "Die Freigabe dieses Zeitplans wurde widerrufen.",
+      "waitingBusy": "Warten: Rechner ausgelastet",
+      "saveRoot": "Nur innerhalb des genehmigten Stammordners dieses Zeitplans speichern.",
+      "openWhenBack": "Öffnen, wenn ich zurück bin",
+      "plannedDestination": "Dieses Ziel ist geplant und nicht verfügbar.",
+      "expiredOwner": "Dieser Zeitplan endete mit der Sitzung oder dem Team seines Erstellers.",
+      "targetUnavailable": "Das Ziel dieses Zeitplans ist auf diesem Host nicht verfügbar.",
+      "targetClosed": "Das Ziel wurde geschlossen oder diese wartende Ausführung wurde übersprungen.",
+      "catchUpSkipped": "Die verpasste Ausführung wurde gemäß der Nachholregel dieses Zeitplans übersprungen.",
+      "backgroundNotice": "Der Zeitplan {name} hat eine Unterhaltung im Hintergrund geöffnet.",
+      "conversationTitle": "Zeitplan {name} · {date}"
+    },
+    "endAfterRuns": {
+      "one": "Nach {count} Ausführung beenden",
+      "other": "Nach {count} Ausführungen beenden"
+    },
+    "historyPreview": {
+      "one": "Wäre {count} Mal in {days} Tagen gelaufen",
+      "other": "Wäre {count} Mal in {days} Tagen gelaufen"
+    },
+    "settings": {
+      "enabled": "Zeitpläne auf verfügbaren Backends aktivieren. Standardmäßig an; jede Ausführung läuft unbeaufsichtigt innerhalb ihrer dauerhaften Freigabe.",
+      "defaultDelivery": "Standardzustellung für neue Zeitpläne. Standardmäßig einen neuen Durchgang bei Leerlauf starten.",
+      "agentCreation": "Standardberechtigung für Agenten zum Erstellen von Zeitplänen: fragen, immer innerhalb der Grenzen oder nie. Standardmäßig fragen."
+    },
+    "editor": {
+      "edit": "Zeitplan bearbeiten",
+      "audit": "Berechtigungsprotokoll",
+      "invalid": "Prüfen Sie vor dem Speichern die Zeitplanfelder, die Verfügbarkeit des Ziels und die dauerhafte Berechtigung.",
+      "loadFailed": "Zeitpläne konnten nicht geladen werden. Versuchen Sie es erneut.",
+      "empty": "Keine Zeitpläne in diesem Arbeitsbereich.",
+      "defaultName": "Scheduled prompt",
+      "defaultPrompt": "Describe what the schedule should do.",
+      "dateTimeUtc": "Datum und Uhrzeit (UTC)",
+      "minutes": "Intervall in Minuten",
+      "everyDays": "Alle N Tage",
+      "times": "Uhrzeiten (HH:MM, durch Kommas getrennt)",
+      "cronExpression": "Cron-Ausdruck mit fünf Feldern",
+      "source": "Ereignisquelle",
+      "conditions": "Bedingungen (Feld=Wert, eine pro Zeile)",
+      "endDate": "Enddatum und Uhrzeit (UTC)",
+      "afterRuns": "Nach N Ausführungen beenden",
+      "sent": "Nach Zeitplan gesendet",
+      "cost": "Kosten",
+      "grantHelp": "Ein Eintrag pro Zeile. Pfade bleiben in diesem Arbeitsbereich; geschützte Pfade und Werkzeuge, die eine Person benötigen, werden immer abgelehnt.",
+      "auditKinds": {
+        "created": "Erstellt",
+        "changed": "Geändert",
+        "revoked": "Widerrufen",
+        "used": "Verwendet"
+      },
+      "user": "Sie",
+      "liability": "Verbleibende Zahlungsverpflichtung",
+      "certainty": {
+        "exact": "Genau",
+        "estimated": "Geschätzt",
+        "unknown": "Unbekannt"
+      },
+      "tips": {
+        "list": "Prüfe Zeitpläne und ihre dauerhaften Berechtigungen in diesem Arbeitsbereich.",
+        "create": "Wähle, wann, wohin und mit welchen Berechtigungen dieser Prompt gesendet wird.",
+        "timeline": "Sieh bevorstehende Ausführungen und Überschneidungen am selben Ziel."
+      },
+      "anchorDate": "Bezugsdatum (in der Zeitzone des Zeitplans)",
+      "stateUnknown": "Status unbekannt — Erneut versuchen",
+      "retry": "Erneut versuchen"
+    },
+    "runtime": {
+      "usage": "Verwendung: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Exitcodes: 0 Erfolg, 1 Ablehnung, 2 Aufruffehler, 3 Bereinigungswarnung.",
+      "accepted": "Zeitplananfrage angenommen",
+      "empty": "Keine Zeitpläne oder bevorstehenden Ausführungen.",
+      "unavailable": "Zeitpläne sind auf diesem Host nicht verfügbar. Die Anbindung an den Laufzeitplaner ist erforderlich.",
+      "invalidRequest": "Ungültige Zeitplananfrage. Prüfen Sie Entwurf, Kennung und Optionen.",
+      "invalidResponse": "Der Planer hat eine ungültige Antwort zurückgegeben.",
+      "consentRequired": "Die Hintergrundplanung erfordert Ihr ausdrückliches Ja.",
+      "backgroundUnavailable": "Hintergrundplanung ist auf diesem Host nicht verfügbar.",
+      "backgroundRearmUnavailable": "Die Hintergrundplanung wartet auf das Ende eines Aufrufs oder auf die Stilllegungsfrist. Versuchen Sie es in Kürze erneut.",
+      "unsafeLauncher": "Unsicherer Pfad zum Zeitplanstarter: {path}",
+      "paidAuthorizationRequired": "Kostenpflichtige Zeitpläne erfordern --scheduled-prompts und ein ausdrückliches --max-budget-usd, das beide Kostenlimits abdeckt.",
+      "cleanupFailed": "Die Zeitplananfrage wurde abgeschlossen, aber die Bereinigung ist fehlgeschlagen. Behalten Sie die bestätigte ID; Exitcode 3 bedeutet, dass die Bereinigung Aufmerksamkeit erfordert.",
+      "hostUnavailable": "Der Zeitplanhost konnte für diesen Arbeitsbereich nicht starten. Die Zeitplansteuerung ist nicht verfügbar; der normale Chat bleibt verfügbar.",
+      "wakeBarrierTimeout": "Der geplante Start hat beim Warten auf den Hintergrundabgleich das Zeitlimit überschritten. Es wurde keine geplante Arbeit gestartet."
+    },
+    "reportAction": {
+      "unavailable": "Berichtszustellung ist auf diesem Host nicht verfügbar. Der deterministische Berichtsausführer ist erforderlich.",
+      "grantRequired": "Dieses Berichtsziel liegt außerhalb der aktuellen Freigabe des Zeitplans.",
+      "failed": "Die Berichtszustellung ist fehlgeschlagen oder ihr Ergebnis ist ungewiss.",
+      "invalidResult": "Der Berichtsausführer hat einen ungültigen Zustellbeleg zurückgegeben.",
+      "kind": "Berichtsart",
+      "format": "Berichtsformat",
+      "args": "Argumente",
+      "destinations": "Ziele",
+      "formats": {
+        "markdown": "Markdown-Dokument",
+        "html": "HTML-Dokument",
+        "json": "JSON-Dokument",
+        "text": "Einfacher Text"
+      }
+    }
+  }
 }

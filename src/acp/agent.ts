@@ -13,6 +13,7 @@
 import { randomUUID } from 'node:crypto'
 import type { UsageAdapter } from '../runtime/usage/usageAdapter'
 import { compactReference } from '../shared/cliCommands'
+import type { AcpSchedulePort } from './schedules'
 import path from 'node:path'
 import { acpPlaybook } from './playbook'
 import type { PlaybookSurfacePort } from '../runtime/playbook/command'
@@ -65,6 +66,7 @@ import {
   DEFAULT_EFFORT,
   type EffortLevel,
   MSP_REQUESTED_CAPABILITIES,
+  SCHEDULE_ACP_RELEASE_TIMEOUT_MS,
   type PermissionMode,
   QUESTION_DEFER_DEFAULT_SECONDS,
   UI_TEXT,
@@ -130,6 +132,10 @@ export interface AcpAgentOptions {
   readonly allowsContributorModels: boolean
   readonly initialMode: PermissionMode
   readonly questionsDeferAfterSeconds?: number
+  readonly scheduleAuthorization?: {
+    readonly scheduledPrompts: boolean
+    readonly maxBudgetUsd?: number
+  }
 }
 
 /** How the user signs in to the chosen backend (D61, D62). */
@@ -160,6 +166,7 @@ export interface AcpAgentDeps {
   readonly usage?: Pick<UsageAdapter, 'access' | 'openPage'>
   /** I binds P's durable, authorized workspace/team adapter. */
   readonly playbookFor?: (cwd: string, sessionId: string) => PlaybookSurfacePort
+  readonly schedules?: AcpSchedulePort
   readonly backend: AcpBackend
   readonly version: string
   readonly options: AcpAgentOptions
@@ -281,6 +288,8 @@ class AcpSession {
   private preparing: PreparingPrompt | undefined
   private skills: readonly SkillSummary[] = []
   private areCommandsAnnounced = false
+  private releaseSchedules: (() => Promise<void>) | undefined
+  private isScheduleHostAvailable = true
   private effort: EffortLevel = DEFAULT_EFFORT
   /** Let go (closed, loaded again, or never set up): the editor's late answers decide nothing. */
   private isDisposed = false
@@ -455,6 +464,15 @@ class AcpSession {
                 input: { hint: 'status|record|settings' },
               },
             ]),
+        ...(this.deps.schedules === undefined
+          ? []
+          : [
+              {
+                name: 'schedule',
+                description: UI_TEXT.scheduleV2.labels.title,
+                input: { hint: UI_TEXT.scheduleV2.runtime.usage },
+              },
+            ]),
         ...this.skills
           .filter(
             (skill) =>
@@ -465,7 +483,8 @@ class AcpSession {
                 skill.selector,
               ) &&
               (this.deps.usage === undefined || skill.selector !== 'usage') &&
-              (this.deps.playbookFor === undefined || skill.selector !== 'playbook'),
+              (this.deps.playbookFor === undefined || skill.selector !== 'playbook') &&
+              (this.deps.schedules === undefined || skill.selector !== 'schedule'),
           )
           .map((skill) => ({
             name: skill.selector,
@@ -1170,6 +1189,22 @@ class AcpSession {
     try {
       local = await acpPlaybook(blocks, () => this.deps.playbookFor?.(this.cwd, this.sessionId))
       await this.announceCommands()
+      if (/^\/schedule(?:\s|$)/.test(parsed.displayText)) {
+        const result =
+          this.deps.schedules === undefined || !this.isScheduleHostAvailable
+            ? UI_TEXT.scheduleV2.runtime.unavailable
+            : await this.deps.schedules.run(parsed.displayText, {
+                cwd: this.cwd,
+                sessionId: this.sessionId,
+                backend: this.deps.backend.kind,
+                ...this.deps.options.scheduleAuthorization,
+              })
+        if (preparing.isCancelled) return 'cancelled'
+        if ('error' in preparing) throw preparing.error
+        this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: result } })
+        await this.outbox
+        return 'end_turn'
+      }
       // Reserved local commands never become a skill or a model turn, even when
       // their runtime bridge has not been bound yet or their syntax is invalid.
       const sharingLocal = parseSkillInvocation(parsed.displayText, new Set(['share', 'prompt']))
@@ -1348,6 +1383,22 @@ class AcpSession {
     return this.isDisposed
   }
 
+  public async holdSchedules(): Promise<void> {
+    try {
+      const release = await this.deps.schedules?.holdWorkspace?.(this.cwd)
+      if (this.isDisposed) await release?.()
+      else this.releaseSchedules = release
+    } catch {
+      this.isScheduleHostAvailable = false
+      this.deps.log.warn('ACP schedule workspace startup failed')
+      observeError(this.deps, 'scheduleHostStartFailed')
+      this.send({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: UI_TEXT.scheduleV2.runtime.hostUnavailable },
+      })
+    }
+  }
+
   /**
    * Let go (closed, loaded again, or never set up). At once it stops
    * following the backend, the editor's late answers decide nothing, and a
@@ -1376,17 +1427,43 @@ class AcpSession {
     this.pending?.resolve('cancelled')
     this.pending = undefined
     this.unsubscribe?.()
-    if (wasRunning) {
+    const releaseSchedules = this.releaseSchedules
+    this.releaseSchedules = undefined
+    // Start Stop first, independently of the optional workspace watcher.
+    const stop = (async () => {
       // Stopped once its start is answered, even a start that failed: one
       // past its deadline (Muse Code's `turn/start`) may still start.
-      try {
-        await this.starting
-      } catch {
-        // The prompt that started it has already ended cancelled.
+      if (wasRunning) {
+        try {
+          await this.starting
+        } catch {
+          // The prompt that started it has already ended cancelled.
+        }
+        await this.cancelTurn()
       }
-      await this.cancelTurn()
-    }
-    this.session.dispose()
+      this.session.dispose()
+    })()
+    let deadline: ReturnType<typeof setTimeout> | undefined
+    const cleanup = (async () => {
+      try {
+        await Promise.race([
+          (async () => {
+            await releaseSchedules?.()
+          })(),
+          new Promise<never>((_resolve, reject) => {
+            deadline = setTimeout(() => {
+              reject(new Error(UI_TEXT.scheduleV2.runtime.unavailable))
+            }, SCHEDULE_ACP_RELEASE_TIMEOUT_MS)
+          }),
+        ])
+      } catch {
+        this.deps.log.warn('ACP schedule workspace release failed')
+        observeError(this.deps, 'scheduleReleaseFailed')
+      } finally {
+        clearTimeout(deadline)
+      }
+    })()
+    await Promise.all([stop, cleanup])
   }
 }
 
@@ -1494,6 +1571,7 @@ class AgentState {
       )
       this.adopting.set(sessionId, acp)
       await acp.loadQuestions()
+      await acp.holdSchedules()
       await prepare(acp)
       this.ensureClaim(claim, host)
       if (acp.isReleased) {

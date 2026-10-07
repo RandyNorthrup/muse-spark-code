@@ -124,7 +124,8 @@
     "out": "--out <file>         Gravar o relatório em um arquivo em vez de stdout",
     "description": "--description <text>  O que estava acontecendo, com suas palavras",
     "no-facts": "--no-facts           Omitir os dados de suporte",
-    "no-events": "--no-events          Omitir os eventos recentes"
+    "no-events": "--no-events          Omitir os eventos recentes",
+    "scheduled-prompts": "--scheduled-prompts              Oferecer as instruções agendadas pagas (back-end da Model API; o preço é perguntado antes)"
   },
   "referenceScanSecrets": "Verifica um arquivo de patch UTF-8 em busca de segredos e falha ao detectá-los. --key-stdin também procura a chave exata da Model API mantida em memória; nenhuma chave é armazenada.",
   "referenceAuthClear": "Remover a chave Model API salva.",
@@ -535,7 +536,10 @@
     "reviewBranch": "O Muse revisa este branch em relação ao branch base que você escolher.",
     "reviewCommit": "O Muse revisa um commit recente que você escolher.",
     "reviewSecurity": "O Muse procura problemas de segurança nas alterações não confirmadas.",
-    "reviewChanges": "Aceite ou reverta cada edição desta conversa."
+    "reviewChanges": "Aceite ou reverta cada edição desta conversa.",
+    "schedule": "Review schedules and their standing grants in this workspace.",
+    "schedulePrompt": "Pick the time, target and permissions for this prompt.",
+    "scheduleTimeline": "See upcoming fires and collisions on the same target."
   },
   "paletteSkillTip": "Executa a habilidade {name}.",
   "groupContext": "Contexto",
@@ -4492,5 +4496,235 @@
     "bundleShape": "{file} tem estrutura inesperada",
     "invalidResult": "a análise retornou um resultado inválido"
   },
-  "legalScanAgain": "Verificar novamente"
+  "legalScanAgain": "Verificar novamente",
+  "scheduleV2": {
+    "labels": {
+      "title": "Agendamentos",
+      "name": "Nome",
+      "action": "Ação",
+      "prompt": "Instrução",
+      "report": "Relatório",
+      "trigger": "Gatilho",
+      "timeZone": "Fuso horário",
+      "preview": "Próximas cinco execuções",
+      "end": "Condição de término",
+      "target": "Destino",
+      "delivery": "Entrega",
+      "mode": "Modo de permissões",
+      "grant": "Permissão permanente",
+      "paidCap": "Limite diário do agendamento",
+      "parallel": "Executar em paralelo",
+      "paused": "Pausado",
+      "pause": "Pausar agendamento",
+      "resume": "Retomar agendamento",
+      "remove": "Remover agendamento",
+      "revoke": "Revogar permissão",
+      "pin": "Fixar agendamento",
+      "timeline": "Linha do tempo dos agendamentos",
+      "schedulePrompt": "Agendar esta instrução…",
+      "runNow": "Executar agora",
+      "save": "Salvar agendamento",
+      "tools": "Ferramentas permitidas",
+      "commands": "Prefixos de comandos",
+      "paths": "Caminhos do espaço de trabalho",
+      "creator": "Criador",
+      "depth": "Profundidade de agendamento",
+      "background": "Entrada em segundo plano",
+      "whenClosed": "Destino fechado",
+      "catchUp": "Execuções perdidas",
+      "unavailable": "Indisponível"
+    },
+    "delivery": {
+      "steer": "Orientar o turno em andamento",
+      "interrupt": "Interromper e executar",
+      "queue": "Enfileirar após este turno",
+      "whenIdle": "Novo turno quando ocioso",
+      "newConversation": "Nova conversa"
+    },
+    "triggers": {
+      "once": "Uma vez em uma data e hora",
+      "interval": "A cada N minutos ou horas",
+      "daily": "A cada N dias",
+      "weekdays": "Nos dias úteis",
+      "weekly": "Dias e horários semanais",
+      "cron": "Expressão cron personalizada",
+      "event": "Quando ocorrer um evento",
+      "afterEvent": "Após um evento, em um horário"
+    },
+    "targets": {
+      "conversation": "Esta conversa",
+      "namedConversation": "Conversa com nome",
+      "newConversation": "Nova conversa a cada execução",
+      "worker": "Agente executor",
+      "role": "Função da equipe",
+      "team": "Equipe",
+      "node": "Nó Muse"
+    },
+    "destinations": {
+      "save": "Salvar em uma pasta",
+      "browser": "Abrir no navegador",
+      "email": "Enviar email ao usuário",
+      "post": "Publicar em um repositório",
+      "cloud": "Salvar na nuvem (planejado)",
+      "sms": "Mensagem de texto (planejada)"
+    },
+    "policies": {
+      "open": "Abrir em segundo plano",
+      "skip": "Ignorar a execução",
+      "runOnce": "Recuperar uma vez"
+    },
+    "outcomes": {
+      "ran": "Executado",
+      "refused": "Recusado",
+      "missed": "Perdido",
+      "skipped": "Ignorado",
+      "failed": "Falhou"
+    },
+    "events": {
+      "pullRequestOpened": "Solicitação de integração aberta",
+      "pullRequestClosed": "Solicitação de integração fechada",
+      "pullRequestMerged": "Solicitação de integração mesclada",
+      "reviewRequested": "Revisão solicitada",
+      "ciFinished": "Execução de CI concluída",
+      "releasePublished": "Versão publicada",
+      "issueLabelled": "Problema rotulado",
+      "issueOpened": "Problema aberto",
+      "issueReplied": "Resposta ao problema recebida",
+      "branchUpdated": "Branch atualizado",
+      "tagCreated": "Tag criada",
+      "milestoneStatusChanged": "Estado do marco alterado",
+      "milestoneCertified": "Marco certificado",
+      "turnFinished": "Turno concluído",
+      "laneFinished": "Linha de trabalho concluída",
+      "taskFinished": "Tarefa concluída",
+      "teamFinished": "Trabalho da equipe concluído",
+      "questionAnswered": "Pergunta respondida",
+      "usageThresholdCrossed": "Limite de uso ultrapassado",
+      "resourceLevelChanged": "Nível de recursos alterado",
+      "filesChanged": "Arquivos monitorados alterados",
+      "versionPublished": "Versão publicada na loja",
+      "manual": "Gatilho manual"
+    },
+    "messages": {
+      "interruptWarning": "Interromper pode parar seu próprio turno em andamento.",
+      "unattendedRefusal": "Recusado no agendamento: {action} exige aprovação e não está na permissão deste agendamento.",
+      "deferredQuestions": "As perguntas são adiadas imediatamente e continuam abertas para sua resposta.",
+      "paidConsent": "Agendar {prompt} com {model}: {price}. Frequência: {cadence}. Limite: {cap} por dia local; orçamento diário compartilhado: {budget}. O consentimento cobre apenas os extras pagos selecionados.",
+      "changedConsent": "O modelo, a chave ou a faixa de preço mudou. Renove o consentimento antes da próxima execução paga.",
+      "setBy": "Definido por {agent} em {session}",
+      "migrationConsent": "Agendamento migrado pausado. Revise o modo, a permissão e o consentimento de pagamento antes de retomar.",
+      "collision": "As execuções neste destino coincidem; seguem a ordem de criação.",
+      "historyUnavailable": "Sem histórico para visualizar.",
+      "eventUntrusted": "O conteúdo do evento é dado não confiável e não pode alterar permissões, ferramentas ou destinos.",
+      "backgroundQuestion": "Executar agendamentos com os editores fechados?",
+      "backgroundYes": "Sim",
+      "backgroundNotNow": "Agora não",
+      "backgroundNever": "Nunca",
+      "backgroundRemove": "Remover a entrada em segundo plano",
+      "backgroundRemoved": "Entrada em segundo plano removida.",
+      "agentConsent": "Permitir que {agent} crie este agendamento dentro de suas próprias permissões e orçamento?",
+      "agentAlways": "Sempre para este orquestrador",
+      "agentNever": "Nunca para este orquestrador",
+      "grantRevoked": "A permissão deste agendamento foi revogada.",
+      "waitingBusy": "Aguardando: máquina ocupada",
+      "saveRoot": "Salvar apenas dentro da raiz aprovada deste agendamento.",
+      "openWhenBack": "Abrir quando eu voltar",
+      "plannedDestination": "Este destino está planejado e indisponível.",
+      "expiredOwner": "Este agendamento terminou com a sessão ou equipe de seu criador.",
+      "targetUnavailable": "O destino deste agendamento não está disponível neste host.",
+      "targetClosed": "O destino foi fechado ou esta execução pendente foi ignorada.",
+      "catchUpSkipped": "A execução perdida foi ignorada conforme a política de recuperação deste agendamento.",
+      "backgroundNotice": "O agendamento {name} abriu uma conversa em segundo plano.",
+      "conversationTitle": "Agendamento {name} · {date}"
+    },
+    "endAfterRuns": {
+      "one": "Encerrar após {count} execução",
+      "many": "Encerrar após {count} execuções",
+      "other": "Encerrar após {count} execuções"
+    },
+    "historyPreview": {
+      "one": "Teria executado {count} vez em {days} dias",
+      "many": "Teria executado {count} vezes em {days} dias",
+      "other": "Teria executado {count} vezes em {days} dias"
+    },
+    "settings": {
+      "enabled": "Ativar agendamentos nos backends disponíveis. Ativos por padrão; cada execução funciona sem supervisão dentro de sua permissão permanente.",
+      "defaultDelivery": "Entrega padrão para novos agendamentos. Por padrão, iniciar um novo turno quando ocioso.",
+      "agentCreation": "Permissão padrão para agentes criarem agendamentos: perguntar, sempre dentro dos limites ou nunca. Perguntar por padrão."
+    },
+    "editor": {
+      "edit": "Editar agendamento",
+      "audit": "Auditoria de permissões",
+      "invalid": "Antes de salvar, confira os campos, a disponibilidade do destino e a permissão permanente.",
+      "loadFailed": "Não foi possível carregar os agendamentos. Tente novamente.",
+      "empty": "Nenhum agendamento neste espaço de trabalho.",
+      "defaultName": "Scheduled prompt",
+      "defaultPrompt": "Describe what the schedule should do.",
+      "dateTimeUtc": "Data e hora (UTC)",
+      "minutes": "Intervalo em minutos",
+      "everyDays": "A cada N dias",
+      "times": "Horários (HH:MM, separados por vírgulas)",
+      "cronExpression": "Expressão cron de cinco campos",
+      "source": "Fonte de eventos",
+      "conditions": "Condições (campo=valor, uma por linha)",
+      "endDate": "Data e hora de término (UTC)",
+      "afterRuns": "Encerrar após N execuções",
+      "sent": "Enviado conforme o agendamento",
+      "cost": "Custo",
+      "grantHelp": "Uma entrada por linha. Os caminhos ficam neste espaço de trabalho; caminhos protegidos e ferramentas que exigem uma pessoa são sempre recusados.",
+      "auditKinds": {
+        "created": "Criado",
+        "changed": "Alterado",
+        "revoked": "Revogado",
+        "used": "Usado"
+      },
+      "user": "Você",
+      "liability": "Obrigação de pagamento retida",
+      "certainty": {
+        "exact": "Exato",
+        "estimated": "Estimado",
+        "unknown": "Desconhecido"
+      },
+      "tips": {
+        "list": "Revise os agendamentos e suas permissões permanentes neste espaço de trabalho.",
+        "create": "Escolha quando, para onde e com quais permissões enviar este prompt.",
+        "timeline": "Veja as próximas execuções e os conflitos no mesmo destino."
+      },
+      "anchorDate": "Data de referência (no fuso horário do agendamento)",
+      "stateUnknown": "Estado desconhecido — Tentar novamente",
+      "retry": "Tentar novamente"
+    },
+    "runtime": {
+      "usage": "Uso: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Códigos de saída: 0 sucesso, 1 recusa, 2 uso incorreto, 3 aviso de limpeza.",
+      "accepted": "Solicitação de agendamento aceita",
+      "empty": "Nenhum agendamento ou execução próxima.",
+      "unavailable": "Os agendamentos não estão disponíveis neste host. É necessária a conexão com o agendador do ambiente de execução.",
+      "invalidRequest": "Solicitação de agendamento inválida. Verifique o rascunho, o identificador e as opções.",
+      "invalidResponse": "O agendador retornou uma resposta inválida.",
+      "consentRequired": "O agendamento em segundo plano exige seu Sim explícito.",
+      "backgroundUnavailable": "O agendamento em segundo plano não está disponível neste host.",
+      "backgroundRearmUnavailable": "O agendamento em segundo plano está aguardando o fim de uma execução ou o intervalo de remoção. Tente novamente em breve.",
+      "unsafeLauncher": "Caminho inseguro do inicializador de agendamentos: {path}",
+      "paidAuthorizationRequired": "Agendamentos pagos exigem --scheduled-prompts e um --max-budget-usd explícito que cubra ambos os limites de gasto.",
+      "cleanupFailed": "A solicitação de agendamento terminou, mas a limpeza falhou. Guarde o ID aceito; o código de saída 3 indica que a limpeza requer atenção.",
+      "hostUnavailable": "Não foi possível iniciar o serviço de agendamento neste espaço de trabalho. Os controles estão indisponíveis; o chat comum continua disponível.",
+      "wakeBarrierTimeout": "A execução agendada excedeu o tempo de espera da sincronização em segundo plano. Nenhuma tarefa agendada foi iniciada."
+    },
+    "reportAction": {
+      "unavailable": "A entrega de relatórios não está disponível neste host. É necessário o executor determinístico de relatórios.",
+      "grantRequired": "Este destino do relatório está fora da permissão atual do agendamento.",
+      "failed": "A entrega do relatório falhou ou seu resultado é incerto.",
+      "invalidResult": "O executor de relatórios retornou um comprovante de destino inválido.",
+      "kind": "Tipo de relatório",
+      "format": "Formato",
+      "args": "Argumentos",
+      "destinations": "Destinos",
+      "formats": {
+        "markdown": "Documento Markdown",
+        "html": "Documento HTML",
+        "json": "Documento JSON",
+        "text": "Texto simples"
+      }
+    }
+  }
 }

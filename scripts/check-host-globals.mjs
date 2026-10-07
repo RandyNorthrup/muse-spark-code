@@ -41,6 +41,7 @@ const HOST_BUNDLES = [
   'dist/team.js',
   'dist/teamRunners.js',
   'dist/teamScheduler.js',
+  'dist/schedules.js',
   // M91: the imported hooks' adapters, the hook and MCP-form runtime, and
   // the window's extension hook runner.
   'dist/foreignHooks.js',
@@ -66,6 +67,7 @@ const HOST_BUNDLES = [
   'dist/searchWorker.js',
   'dist/pageWorker.js',
   'dist/imageResizeWorker.js',
+  'dist/scheduleBackground.js',
 ]
 const NAVIGATOR = /\bnavigator\b/g
 

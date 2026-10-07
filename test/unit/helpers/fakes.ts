@@ -231,6 +231,7 @@ export const testSettings: SettingsSnapshot = {
   allowDangerouslySkipPermissions: false,
   archiveInactiveSessions: 14,
   modelApiReplyUsage: false,
+  schedules: true,
   museCodeAutoReviewer: true,
 }
 

@@ -47,6 +47,13 @@ const COMMON_OPTIONS = {
   version: { type: 'boolean', short: 'v' },
 } as const satisfies CliParserOptions
 
+// Serve accepts X's paid-schedule admission flags; no other route does.
+const SERVE_OPTIONS = {
+  ...COMMON_OPTIONS,
+  'scheduled-prompts': { type: 'boolean' },
+  'max-budget-usd': { type: 'string' },
+} as const satisfies CliParserOptions
+
 const EXEC_OPTIONS = {
   provider: { type: 'string' },
   'no-auto-compaction': { type: 'boolean' },
@@ -117,7 +124,7 @@ export const CLI_OPTION_REGISTRY = {
       help: { type: 'boolean', short: 'h' },
     },
   },
-  serve: { options: COMMON_OPTIONS },
+  serve: { options: SERVE_OPTIONS },
   login: { options: COMMON_OPTIONS },
   setup: { options: COMMON_OPTIONS },
   authSet: { options: COMMON_OPTIONS },
@@ -158,6 +165,7 @@ export const CLI_OPTION_TEXT = {
   'allow-contributor-models': 'allow-contributor-models',
   'web-search': 'web-search',
   'image-generation': 'image-generation',
+  'scheduled-prompts': 'scheduled-prompts',
   verbose: 'verbose',
   'questions-defer-after': 'questions-defer-after',
   help: 'help',
@@ -182,6 +190,7 @@ export const CLI_OPTION_TEXT = {
 } as const satisfies Readonly<
   Record<
     | keyof typeof COMMON_OPTIONS
+    | keyof typeof SERVE_OPTIONS
     | keyof typeof EXEC_OPTIONS
     | keyof typeof SCAN_OPTIONS
     | keyof typeof REPORT_OPTIONS

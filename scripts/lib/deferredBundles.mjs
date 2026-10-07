@@ -20,6 +20,51 @@ export const SUBSCRIPTION_ONLY = [
 export const CONFIGURED_TRANSPORT_ONLY = ['authSource.ts', 'providerClient.ts']
 export const SHARED_TRANSPORT_ONLY = ['transport.ts', 'sse.ts', 'ndjson.ts']
 const MODEL_API_DIR = 'src/core/backends/modelapi'
+export const SCHEDULES_ONLY = ['schedulesEntry.ts', 'schedules.ts']
+const RUNTIME_SCHEDULES_DIR = 'src/runtime/schedules'
+const CORE_SCHEDULES_DIR = 'src/core/schedules'
+// M115 W: the v2 runtime binding beside v1 in dist/schedules.js. Only files
+// owned by the schedules feature are pinned here; shared utilities the
+// bundle also carries (export text, the wire schemas) stay unlisted.
+export const SCHEDULES_RUNTIME = [
+  'schedulesBundle.ts',
+  'runtimeEntry.ts',
+  'engine.ts',
+  'control.ts',
+  'authorityStore.ts',
+  'consent.ts',
+  'registry.ts',
+  'timePlan.ts',
+  'wake.ts',
+  'runtime.ts',
+  'surface.ts',
+  'host.ts',
+  'command.ts',
+  'background.ts',
+  'nativeBackground.ts',
+  'nodeBackgroundIo.ts',
+  'nodeScheduleFs.ts',
+  'effectiveDefinition.ts',
+  'registration.ts',
+  'reportCli.ts',
+]
+export const SCHEDULES_CORE = [
+  'store.ts',
+  'scheduler.ts',
+  'fireRecord.ts',
+  'journal.ts',
+  'migrate.ts',
+  'delivery.ts',
+  'grantAudit.ts',
+  'time/cron.ts',
+  'time/scheduleTime.ts',
+  'time/zonedCalendar.ts',
+  'events/conditions.ts',
+  'events/ports.ts',
+  'events/privacy.ts',
+  'events/registry.ts',
+  'events/signals.ts',
+]
 export const DEFERRED_ONLY = ['reviewerEntry.ts', 'hookModelEntry.ts']
 
 export const FOREIGN_HOOKS_ONLY = [
@@ -156,6 +201,27 @@ export const DEFERRED = [
       'src/shared/reference/referenceEntry.ts',
       'src/runtime/reference.node.generated.ts',
       'src/shared/reference/text.ts',
+    ],
+  },
+  {
+    output: 'dist/schedules.js',
+    metafile: 'dist/meta/schedules.json',
+    files: [
+      ...SCHEDULES_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+      ...SCHEDULES_RUNTIME.map((name) => `${RUNTIME_SCHEDULES_DIR}/${name}`),
+      ...SCHEDULES_CORE.map((name) => `${CORE_SCHEDULES_DIR}/${name}`),
+    ],
+  },
+  {
+    output: 'dist/scheduleBackground.js',
+    metafile: 'dist/meta/scheduleBackground.json',
+    use: 'the first native schedule wake or maintenance',
+    files: [
+      'src/runtime/schedules/backgroundEntry.ts',
+      'src/runtime/schedules/nativeBackground.ts',
+      'src/runtime/schedules/nodeBackgroundIo.ts',
+      'src/runtime/schedules/effectiveDefinition.ts',
+      'src/runtime/windowsTrustedPath.ts',
     ],
   },
   {
@@ -543,7 +609,11 @@ export function checkDeferredBundles(inputsOf) {
     }
   }
   const wire = { output: 'dist/wire.js', metafile: 'dist/meta/wire.json' }
-  for (const file of ['src/shared/protocol.ts', 'src/shared/agentEvents.ts']) {
+  for (const file of [
+    'src/shared/protocol.ts',
+    'src/shared/agentEvents.ts',
+    'src/shared/scheduleProtocol.ts',
+  ]) {
     if (!inputsOf(wire).has(file)) problems.push(`${wire.output} no longer carries ${file}`)
     for (const bundle of [...Object.values(BUNDLES), ...DEFERRED, ...ON_FIRST_USE]) {
       if (inputsOf(bundle).has(file))
@@ -644,12 +714,14 @@ const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/host/backend/configuredProvidersEntry.ts'), 'dist/configuredProviders.js'],
   [path.resolve('src/runtime/chatGptProviderCommands.ts'), 'dist/subscriptions.js'],
   [path.resolve('src/core/questions/deferralEntry.ts'), 'dist/questionNotes.js'],
+  [path.resolve('src/runtime/schedules/backgroundEntry.ts'), 'dist/scheduleBackground.js'],
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
   [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],
   [path.resolve('src/core/team/teamEntry.ts'), 'dist/team.js'],
   [path.resolve('src/core/team/teamSchedulerEntry.ts'), 'dist/teamScheduler.js'],
   [path.resolve('src/host/runners/teamRunnersEntry.ts'), 'dist/teamRunners.js'],
+  [path.resolve('src/core/backends/modelapi/schedulesEntry.ts'), 'dist/schedules.js'],
   [path.resolve('src/core/backends/modelapi/reviewerEntry.ts'), 'dist/reviewer.js'],
   [path.resolve('src/core/backends/modelapi/foreignHooksEntry.ts'), 'dist/foreignHooks.js'],
   [path.resolve('src/core/backends/modelapi/hookRuntimeEntry.ts'), 'dist/hookRuntime.js'],
@@ -678,7 +750,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry)(?:\.[jt]s)?$/,
+          /\/(?:schedulesEntry|backgroundEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (
@@ -697,16 +769,21 @@ export const deferredCohort = {
 }
 
 const WIRE_SOURCES = new Set(
-  ['src/shared/protocol.ts', 'src/shared/agentEvents.ts'].map((file) => path.resolve(file)),
+  ['src/shared/protocol.ts', 'src/shared/agentEvents.ts', 'src/shared/scheduleProtocol.ts'].map(
+    (file) => path.resolve(file),
+  ),
 )
 /** @type {import('esbuild').Plugin} */
 export const sharedWire = {
   name: 'shared-wire',
   setup(build) {
-    build.onResolve({ filter: /(?:^|\/)(?:protocol|agentEvents)(?:\.ts)?$/ }, (args) => {
-      const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
-      return WIRE_SOURCES.has(source) ? { path: './wire.js', external: true } : undefined
-    })
+    build.onResolve(
+      { filter: /(?:^|\/)(?:protocol|agentEvents|scheduleProtocol)(?:\.ts)?$/ },
+      (args) => {
+        const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
+        return WIRE_SOURCES.has(source) ? { path: './wire.js', external: true } : undefined
+      },
+    )
   },
 }
 

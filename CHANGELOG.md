@@ -6,6 +6,32 @@ All notable changes to this project are documented here. The format follows
 happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
+- Limit context recording to fixed reader-only builders, reject unbranded and
+  copied content at the type boundary, and forbid direct or dynamic native
+  filesystem, Git and skill-store imports in builder modules. Sealed scopes
+  cannot produce new content or rerun their adapters.
+
+- Discard late native acknowledgements for turns already observed idle, and
+  refuse automatic verification as soon as a scheduled steer claims the
+  session, before its input is adopted.
+
+- Record cached scheduled-context inputs in closed reader scopes, including
+  Git facts and directory indexes. Undelivered Git subjects refuse replay;
+  automatic verification refuses before reading unconfined editor dependencies.
+  Load schedule authorization and context builders on first use to free more
+  than 10 KiB in the Model API bundle.
+
+- Preserve pending native starts across idle snapshots so scheduled work
+  cannot claim an ordinary turn acknowledged after that observation.
+
+- Keep complete source inventories for cached scheduled context, refuse
+  incomplete derivations, and use one canonical workspace boundary for live
+  and cached reads. Reviewer omissions and truncated context no longer gain
+  delivery evidence.
+
+- Release stale scheduled mode effects and stopped or withdrawn admissions,
+  settle refused queued fires, and validate steer media before claiming the
+  session so later work can proceed.
 
 - Keep every long-reply accessibility delta while yielding through a task port,
   avoiding nested timer throttling within the existing readiness deadline.
@@ -435,6 +461,128 @@ happened, not what was planned; superseded entries are kept.
   what went wrong while a fleet of agents built this project. For each one it
   gives the rule that prevents it and the milestone that will enforce that
   rule in the app's own orchestrator (D100).
+
+### Added
+
+- Add M115's internal agent scheduling tools and function/MCP adapters,
+  with creator attribution, conservative grant intersection, revisioned
+  orchestrator consent, active/frequency/paid caps, depth limits and owner
+  expiry with user pinning. Production registration and the shared admission,
+  grant, time and paid-ledger bindings await their M115 integration lanes.
+
+- Wire M115's scheduled prompts end to end: the `schedule` runtime command
+  (add, list, remove, run-now, pause, resume, fire, timeline, run-due,
+  background) and the ACP `/schedule` command, unattended runs behind
+  `--scheduled-prompts` with a hard `--max-budget-usd` cap, the delivery
+  admission ledgers both schedulers consult before dispatch, and restart
+  recovery that replays a lost acknowledgement without a second run and
+  records exactly one settlement per run.
+
+### Fixed
+
+- Repair internal M115 delivery races: when-idle fires own withdrawable queue
+  entries through admission waits, child turns leave parent steering intact,
+  compaction remains busy, and retired background leases cannot evict their
+  replacements. Preserve each fire's validated event snapshot and accept
+  equivalent settlements regardless of event dictionary key order.
+  Scheduled-prompts v2 remains unshipped on this base.
+- M115's internal event engine now coalesces bursts in shared atomic claim
+  transactions, permits one survivor to take over an abandoned burst after
+  its lease, and uses one domain-separated event-key namespace while honoring
+  imported legacy replay receipts. These internal repairs add no shipping
+  schedule command or setting.
+- M115's internal Git event identities now use repository/ref content
+  transitions, so packing refs cannot replay an observed branch update.
+  This repair does not enable scheduled-prompts v2 in the shipped extension.
+
+- Correct M115's internal Always daily allowance: read today's settled spend
+  and uncertain liability from the admission ledger, reserving full caps only
+  for schedules that remain active or paused. Ended historical schedules no
+  longer reserve their configured cap indefinitely; same-day spend and
+  liability still count even after a schedule is removed.
+- Repair the unshipped M115 schedule surface: authority actions queue per
+  schedule and remain available during reads; uncertain writes show unknown
+  state with Retry and Revoke. Source failures preserve loaded schedules,
+  store-change notifications refresh mounted cards, and mutations refresh
+  open audits. Refused previews clear old results, invalid conditions cannot
+  save, target titles stay accurate, refusal rows preserve their actual reason,
+  and background consent choices use equal columns at narrow widths.
+  Final host wiring and shipping registration remain with M115 integration.
+- Close the fourth M115 native adapter review: verify all systemd search and
+  applicable drop-in directories at registration and fire, disarm the timer
+  after refused reconciliation, check the Windows task object's own ACL,
+  and disable launchd before publishing its disabled record and retiring it.
+  Native macOS and ordinary-user Windows receipts remain integration work.
+
+- Redesign the internal native schedule trust checks: use the shared path
+  verifier, inspect systemd's effective file set, hash Task Scheduler's
+  exported XML and check its folder ACL, and disable launchd records before
+  deferred retirement. Native background IO now loads in its own runtime
+  chunk. POSIX verifier integration and Linux/macOS native receipts remain
+  required before these adapters ship.
+
+- Close the second M115 adapter review: trust-check and hash native definition
+  files and their directory chains at registration and every fire, recover paid
+  authorization from the verified registration record, break the macOS wake
+  reconciliation lock cycle with immediate busy refusals and a bounded startup
+  barrier, and show ACP cleanup warnings alongside accepted IDs. Production
+  scheduler integration and native platform receipts remain with M115 W.
+
+- Harden the internal M115 schedule adapters after review: verify canonical
+  launcher permissions at registration and wake, reject privileged identities,
+  require explicit paid authorization and budget, start ACP Stop independently
+  of bounded schedule teardown, preserve accepted IDs through cleanup failures,
+  stop disabled Linux units, protect macOS wakes with after-exit maintenance,
+  and report unavailable ACP schedule hosts. Production wiring remains M115 W's
+  integration work; these adapters are not yet a shipped scheduler.
+
+- Correct M115's internal schedule contracts before implementation: stale
+  whole-record updates cannot restore revoked grants, crash-receipt migration
+  accepts fractional filesystem times, repeated fake approval requests remain
+  observable, delivery returns a complete final fire settlement, the versioned
+  editor channel carries audits/history/background controls, and event identity
+  validation rejects malformed Unicode.
+  These contracts do not enable scheduled-prompts v2 in the shipped extension.
+
+- Repair M115's internal schedule takeover fencing, target fairness, isolated
+  recovery, interrupted migration copies and atomic removal. The owning
+  regression cases use default deadlines, with a named deadline only for
+  the deliberate 10,000-fire storage workload.
+
+- Redesign M115's internal schedule storage with bounded generation journals,
+  retained identity fences, recoverable leases and a durable delivery outbox.
+  Reconciliation preserves unsent work and uncertain paid settlements, orders
+  target queues across batches, rejects superseded time candidates and
+  preserves legitimate edits during retryable migration. A bounded outcome
+  summary preserves failure pausing after audit expiry and late settlement.
+  Bounded completion work survives failed marker publication, and retirement
+  retries partially deleted generations after locked children release.
+  Lease reads retry transient Windows access errors within the existing bound.
+  Scheduled-prompts v2
+  still requires its editor and delivery bindings before shipping.
+
+- Replace M115's unshipped scheduled-fire authority with one generation-bound
+  session owner and a SHA-256 content ledger. Stale mode waiters cannot change
+  a later fire, and unrelated completions cannot erase a live ordinary turn.
+  Cached skills retain their original read source; opaque output requires its
+  own decided tool call. Verification notes, fitted media, compaction and date
+  refreshes retain the proof of every input instead of losing it on replay.
+
+- Close M115's native admission race after attachment validation: competing
+  fires cannot replace a running grant or change an ordinary turn's mode.
+  A scheduled steer during checkpoint finalization refuses before acceptance,
+  so delivery can retry it as a separate turn. Child follow-ups and queued
+  messages refuse before escaping fire authority, memory and skill access uses the guarded
+  workspace port, and request replay checks the provenance of content added
+  during the fire while permitting already delivered pre-fire history.
+
+- Repair M115's unshipped unattended authority: every paid response and image
+  uses its fire's reservation, zero consent cannot enable unlimited spending,
+  and overlapping scheduled steers get separate turns and audits. Canonical
+  workspace reads, image sources/destinations and attachments pass fire safety.
+  Late native cancellation retains its owner, Stop settles during question
+  persistence, Accept edits permits safe writes, and confined literal filenames
+  such as Next.js `[slug]` routes match simple path grants.
 
 ## [0.14.3] - 2026-10-06
 

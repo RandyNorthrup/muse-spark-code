@@ -181,7 +181,9 @@ them, the milestone plan, and the certification checklist.
 src/extension.ts      activation: the view, the panel, the commands, the openers
 src/host/**           VS Code adapters (views, conversation, backend managers,
                       the Model API bundle's entry (dist/modelApi.js, loaded
-                      when that backend first starts), the plan reader's
+                      when that backend first starts), its schedule entry
+                      (dist/schedules.js, loaded on the first schedule use),
+                      the plan reader's
                       (dist/planMarkdown.js, loaded on the first plan action),
                       the review's (dist/review.js: git's material, the turn
                       text, the Plan-mode hold and edit review, loaded the
@@ -267,7 +269,9 @@ src/runtime/exec/**   headless arguments/protocol/egress, stdin key/scanner,
 src/runtime/**        the agent's process: arguments, backends outside VS Code,
                       the OS credential store (D61), `auth`, `login`,
                       `report` (M93) and the journal-backed `playbook` command
-                      with its ACP `/playbook` surface (M116)
+                      with its ACP `/playbook` surface (M116); the schedule command and settle path
+                      (schedules/), and the native background scheduler entry
+                      (dist/scheduleBackground.js, run by the OS launcher)
 src/shared/**         constants + zod protocol shared by host and webview
 src/shared/l10n/**    the English table (en.ts), fill/plural/Intl helpers, the
                       table checks and the list of translated languages

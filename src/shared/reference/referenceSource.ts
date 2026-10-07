@@ -209,6 +209,8 @@ export const REFERENCE_ACTION_FEATURES = {
   scheduleList: 'schedules',
   scheduleCancel: 'schedules',
   scheduleRun: 'schedules',
+  schedulesRequest: 'schedules',
+  openSchedules: 'schedules',
   exportConversation: 'conversation-actions',
   importSession: 'conversation-actions',
   openShareFile: 'exports',

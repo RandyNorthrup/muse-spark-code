@@ -114,6 +114,10 @@ export const COMMAND_IDS = {
   tabTurnOn: 'museSpark.tabTurnOn',
   tabTurnOff: 'museSpark.tabTurnOff',
   tabSnooze: 'museSpark.tabSnooze',
+  // M115 (PLAN.md D95): the v2 schedules surface.
+  schedulePrompt: 'museSpark.schedulePrompt',
+  showSchedules: 'museSpark.showSchedules',
+  showScheduleTimeline: 'museSpark.showScheduleTimeline',
   tabMenu: 'museSpark.tabMenu',
   tabLanguages: 'museSpark.tabLanguages',
   legalScan: 'museSpark.legalScan',
@@ -431,6 +435,10 @@ export const SETTING_DEFAULTS = {
   sandboxNetwork: 'default' as SandboxNetworkMode,
   modelApiPromptCacheRetention: 'in_memory' as PromptCacheRetention,
   modelApiScheduledPrompts: true,
+  // M115 (PLAN.md D95): the v2 schedules surface and its defaults.
+  schedules: true,
+  'schedules.defaultDelivery': 'whenIdle' as (typeof SCHEDULE_DELIVERIES)[number],
+  'schedules.agentCreation': 'ask' as (typeof SCHEDULE_AGENT_CREATIONS)[number],
   modelApiSubagents: true,
   // Best-of-N parallel attempts (M77, PLAN.md D49): N worktree-rooted
   // conversations per run, each billed to the key.
@@ -625,6 +633,11 @@ export const MACHINE_SCOPED_SETTINGS = [
   'tabWithCopilot',
   'judge.engine',
   'legalExplanation',
+  // M115's schedules surface and its unattended-run defaults choose what runs
+  // and what is billed (PLAN.md D95): a repository must not set them.
+  'schedules',
+  'schedules.defaultDelivery',
+  'schedules.agentCreation',
 ] as const
 
 // Muse Code SDK 1.3.0 hook process limits (PLAN.md M51).
@@ -3709,6 +3722,7 @@ export const ATOMIC_RENAME_DELAY_MS = 25
 export const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000
 // M96 lane A (PLAN.md D75): a task past its minutes per task is stopped.
 export const MILLISECONDS_PER_MINUTE = 60 * 1000
+export const MILLISECONDS_PER_HOUR = 60 * 60 * 1000
 // Model API schedules (M52): local jobs expire as Muse Code's do, and no
 // occurrence may run without a fresh paid-run confirmation.
 export const SCHEDULE_MIN_INTERVAL_MS = 60 * 1000
@@ -3719,6 +3733,94 @@ export const SCHEDULE_MAX_PROMPT_CHARS = 4000
 export const SCHEDULE_POLL_INTERVAL_MS = 60 * 1000
 export const SCHEDULE_CLAIM_RETENTION_MS = 8 * MILLISECONDS_PER_DAY
 export const SCHEDULE_MAX_JOBS_PER_SESSION = 100
+// M115's editor-independent schedule contracts. M52's limits above remain
+// intact for reading and migrating its v1 jobs.
+export const SCHEDULE_MAX_PER_WORKSPACE = 200
+export const SCHEDULE_JOURNAL_MAX_OPS = 64
+export const SCHEDULE_JOURNAL_MAX_BYTES = 256 * 1024
+export const SCHEDULE_JOURNAL_SEAL_MAX_BYTES = 256
+export const SCHEDULE_OUTBOX_MAX_PENDING = 1024
+export const SCHEDULE_RECONCILE_MAX_RUNS = 32
+export const SCHEDULE_FENCE_GRACE_MS = 8 * MILLISECONDS_PER_DAY
+export const SCHEDULE_AUDIT_MAX_PER_SCHEDULE = 100
+export const SCHEDULE_AUDIT_MAX_AGE_MS = 30 * MILLISECONDS_PER_DAY
+export const SCHEDULE_FENCE_SEGMENT_CHARS = 2
+export const SCHEDULE_FS_RETRY_ATTEMPTS = 5
+export const SCHEDULE_FS_RETRY_BACKOFF_MS = 20
+export const SCHEDULE_LEASE_HEARTBEAT_MS = 2000
+export const SCHEDULE_LEASE_EXPIRES_MS = 10_000
+export const SCHEDULE_LEASE_POLL_MS = 40
+export const SCHEDULE_QUEUE_COALESCE_MS = 100
+export const SCHEDULE_PROTOCOL_VERSION = 1
+export const SCHEDULE_ACP_RELEASE_TIMEOUT_MS = 1000
+export const SCHEDULE_CLEANUP_EXIT_CODE = 3
+export const SCHEDULE_WAKE_WAIT_MS = 5 * SCHEDULE_POLL_INTERVAL_MS
+export const SCHEDULE_WAKE_BARRIER_TIMEOUT_MS = 5000
+export const SCHEDULE_WAKE_RETRY_MS = 250
+// Task Scheduler's exported XML and systemd's full path properties, bounded.
+export const SCHEDULE_NATIVE_MAX_OUTPUT_BYTES = 64 * 1024
+export const SCHEDULE_COLLISION_WINDOW_MS = SCHEDULE_MIN_INTERVAL_MS
+export const SCHEDULE_PAUSE_AFTER_FAILURES = 3
+export const SCHEDULE_PAID_CAP_DEFAULT_USD = 1
+export const SCHEDULE_EVENT_DEBOUNCE_MS = 30_000
+export const SCHEDULE_EVENT_FIELD_MAX_CHARS = 500
+export const SCHEDULE_EVENT_MAX_FIELDS = 20
+export const SCHEDULE_NAME_MAX_CHARS = 200
+export const SCHEDULE_ID_MAX_CHARS = 200
+// Percent-encoded event ids may expand each input code unit; do not truncate
+// the occurrence identity or collapse different events into one claim.
+export const SCHEDULE_RUN_ID_MAX_CHARS =
+  12 * (2 * SCHEDULE_ID_MAX_CHARS + SCHEDULE_EVENT_FIELD_MAX_CHARS) + 2
+export const SCHEDULE_RULE_MAX_CHARS = 1000
+export const SCHEDULE_MAX_GRANT_RULES = 100
+export const SCHEDULE_MAX_DESTINATIONS = 20
+export const SCHEDULE_STORE_SUBFOLDER = 'schedules'
+// Lane T's recovery-window bound, owned here since W wiring.
+export const SCHEDULE_MISSED_COUNT_MAX = 100
+// W's engine keeps only recent failures for its onError log.
+export const SCHEDULE_ENGINE_ERROR_MAX = 32
+export const SCHEDULE_REPORT_FORMATS = ['markdown', 'html', 'json', 'text'] as const
+export const SCHEDULE_MAX_WEEKLY_TIMES = 24
+export const SCHEDULE_PREVIEW_COUNT = 5
+export const SCHEDULE_TIMELINE_HOURS = [24, 168] as const
+export const AGENT_SCHEDULES_MAX_ACTIVE = 10
+export const AGENT_SCHEDULE_MIN_INTERVAL_MS = 15 * SCHEDULE_MIN_INTERVAL_MS
+export const AGENT_SCHEDULE_MAX_DEPTH = 1
+export const SCHEDULE_MODES = ['manual', 'plan', 'acceptEdits', 'auto'] as const
+export const SCHEDULE_DELIVERIES = [
+  'steer',
+  'interrupt',
+  'queue',
+  'whenIdle',
+  'newConversation',
+] as const
+export const SCHEDULE_FIRE_OUTCOMES = ['ran', 'refused', 'missed', 'skipped', 'failed'] as const
+export const SCHEDULE_ACTION_CLASSES = [
+  'shell',
+  'edit',
+  'mcp',
+  'webFetch',
+  'paidExtra',
+  'physical',
+  'protectedPath',
+  'requiresAsking',
+] as const
+export const SCHEDULE_BACKGROUND_CHOICES = ['yes', 'notNow', 'never'] as const
+export const SCHEDULE_SETTINGS_DEFAULTS = {
+  enabled: true,
+  defaultDelivery: 'whenIdle',
+  agentCreation: 'ask',
+} as const
+export const SCHEDULE_AGENT_CREATIONS = ['ask', 'always', 'never'] as const
+export const SCHEDULE_DEFAULT_POLICY = {
+  whenClosed: 'open',
+  catchUp: 'runOnce',
+  mode: 'manual',
+  parallel: false,
+  depth: 0,
+  allowAgentReschedule: false,
+  pinned: false,
+} as const
 export const MODEL_API_SCHEDULES_DIR = 'modelapi-schedules'
 export const CRON_FIELD_COUNT = 5
 export const CRON_FIELD_SEGMENT_LIMIT = 3
@@ -5254,6 +5356,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/team.js',
   'dist/teamRunners.js',
   'dist/teamScheduler.js',
+  'dist/schedules.js',
   'dist/planMarkdown.js',
   'dist/review.js',
   'dist/agentImport.js',

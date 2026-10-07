@@ -131,6 +131,9 @@ const TEAM_SCHEDULER_ENTRY = 'src/core/team/teamSchedulerEntry.ts'
 const TEAM_SCHEDULER_OUTFILE = 'dist/teamScheduler.js'
 const TEAM_RUNNERS_ENTRY = 'src/host/runners/teamRunnersEntry.ts'
 const TEAM_RUNNERS_OUTFILE = 'dist/teamRunners.js'
+// M115 W: v1's Model API schedules re-exported beside the v2 runtime binding.
+const SCHEDULES_ENTRY = 'src/runtime/schedules/schedulesBundle.ts'
+const SCHEDULES_OUTFILE = 'dist/schedules.js'
 const REVIEWER_ENTRY = 'src/core/backends/modelapi/reviewerEntry.ts'
 const REVIEWER_OUTFILE = 'dist/reviewer.js'
 // M91 lane W: the adapters for hooks imported in another agent's format,
@@ -206,6 +209,8 @@ const FONT_INSTALL_ENTRY = 'src/runtime/fonts/fontsEntry.ts'
 const FONT_INSTALL_OUTFILE = 'dist/fontsInstall.js'
 const ACP_ENTRY = 'src/runtime/main.ts'
 const ACP_OUTFILE = 'dist/acp.js'
+const SCHEDULE_BACKGROUND_ENTRY = 'src/runtime/schedules/backgroundEntry.ts'
+const SCHEDULE_BACKGROUND_OUTFILE = 'dist/scheduleBackground.js'
 const ACP_QUESTIONS_ENTRY = 'src/acp/questionDeferralEntry.ts'
 const ACP_QUESTIONS_OUTFILE = 'dist/acpQuestions.js'
 const RUNTIME_QUESTIONS_ENTRY = 'src/runtime/questions/questionRegistryEntry.ts'
@@ -379,6 +384,13 @@ const teamRunnersOptions = {
   ...teamOptions,
   entryPoints: [TEAM_RUNNERS_ENTRY],
   outfile: TEAM_RUNNERS_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const schedulesOptions = {
+  ...modelApiOptions,
+  entryPoints: [SCHEDULES_ENTRY],
+  outfile: SCHEDULES_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -692,6 +704,12 @@ const fontInstallOptions = {
   format: 'cjs',
   target: AGENT_NODE_TARGET,
 }
+const scheduleBackgroundOptions = {
+  ...modelApiOptions,
+  entryPoints: [SCHEDULE_BACKGROUND_ENTRY],
+  outfile: SCHEDULE_BACKGROUND_OUTFILE,
+  target: AGENT_NODE_TARGET,
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -899,6 +917,7 @@ if (isWatch) {
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
     esbuild.context(referenceOptions),
+    esbuild.context(schedulesOptions),
     esbuild.context(reviewerOptions),
     esbuild.context(teamOptions),
     esbuild.context(teamRunnersOptions),
@@ -951,6 +970,7 @@ if (isWatch) {
     esbuild.context(recorderOptions),
     esbuild.context(whatsNewOptions),
     esbuild.context(judgeOptions),
+    esbuild.context(scheduleBackgroundOptions),
     esbuild.context(uiTextOptions),
     ...uiTextRegionOptions.map((options) => esbuild.context(options)),
     esbuild.context(validationOptions),
@@ -996,6 +1016,7 @@ if (isWatch) {
     reportingDestinations: esbuild.build(reportingDestinationsOptions),
     reportingPanel: esbuild.build(reportingPanelOptions),
     reference: esbuild.build(referenceOptions),
+    schedules: esbuild.build(schedulesOptions),
     reviewer: esbuild.build(reviewerOptions),
     team: esbuild.build(teamOptions),
     teamRunners: esbuild.build(teamRunnersOptions),
@@ -1047,6 +1068,7 @@ if (isWatch) {
     recorder: esbuild.build(recorderOptions),
     whatsNew: esbuild.build(whatsNewOptions),
     judge: esbuild.build(judgeOptions),
+    scheduleBackground: esbuild.build(scheduleBackgroundOptions),
     uiText: esbuild.build(uiTextOptions),
     ...Object.fromEntries(
       UI_TEXT_REGIONS.map((region, index) => [
@@ -1170,4 +1192,5 @@ if (isWatch) {
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.css`))
   reportSize(ACP_OUTFILE)
   reportSize('dist/headless.js')
+  reportSize(SCHEDULE_BACKGROUND_OUTFILE)
 }

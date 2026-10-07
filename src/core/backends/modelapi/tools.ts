@@ -5,6 +5,7 @@
 // leave a patch document shaped like Muse Code's so the transcript rows,
 // Open diff and Revert (M5) work unchanged.
 
+import type { ContentSource } from '../../schedules/provenance'
 import { Buffer } from 'node:buffer'
 import path from 'node:path'
 import { setImmediate as yieldToHost } from 'node:timers/promises'
@@ -165,7 +166,11 @@ export interface ToolIo {
    * decoding it lossily and writing it back would corrupt it (PLAN.md D27).
    */
   /** A canonical proof comes only from trusted workspace confinement, not tool arguments. */
-  readFile(absolutePath: string, expectedCanonicalPath?: string): Promise<string | undefined>
+  readFile(
+    absolutePath: string,
+    expectedCanonicalPath?: string,
+    observeSource?: (source: Extract<ContentSource, { kind: 'file' }>) => void,
+  ): Promise<string | undefined>
   /**
    * The file's bytes (M44: an image to edit); undefined when it does not
    * exist. Rejects, before reading, a file larger than `maxBytes`.
@@ -174,6 +179,7 @@ export interface ToolIo {
     absolutePath: string,
     maxBytes: number,
     expectedCanonicalPath?: string,
+    observeSource?: (source: Extract<ContentSource, { kind: 'file' }>) => void,
   ): Promise<Uint8Array | undefined>
   /** Replaces the file whole (a temporary file renamed into place), folders created. */
   writeFile(
@@ -579,6 +585,9 @@ const PATH_PROPERTY = { type: 'string', description: 'Workspace-relative path' }
 const SHELL_STOPPED_BY_USER = 'stopped by the user'
 
 export interface ToolDefinitionOptions {
+  /** M115 G: validated lazy schedule declarations, supplied only when the
+   * host's charter/capability admission offers them. No engine import here. */
+  readonly scheduleTools?: readonly FunctionToolDefinition[]
   /** False in Restricted Mode: no shell tool is offered (PLAN.md D13). */
   readonly hasShell: boolean
   /**
@@ -849,6 +858,7 @@ export function toolDefinitions(
     ...(options.hasLegalScan === true
       ? [define(MODEL_API_TOOLS.legalScan, LEGAL_SCAN_DESCRIPTION, LEGAL_SCAN_PARAMETERS, [])]
       : []),
+    ...(options.scheduleTools ?? []),
   ]
 }
 

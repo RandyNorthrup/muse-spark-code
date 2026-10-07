@@ -54,6 +54,35 @@ describe('/loop parser (M52)', () => {
     })
     expect(parseLoopPrompt('/loop cancel ../other')).toEqual({ ok: false, reason: 'badId' })
   })
+
+  it('keeps lists, ranges, steps and Sunday aliases in the extracted cron grammar', () => {
+    for (const expression of ['*/15 8-17 * * 1-5', '0,30 9 * * 0,7', '5/10 * * * *']) {
+      expect(parseLoopPrompt(`/loop "${expression}" inspect`)).toMatchObject({ ok: true })
+    }
+    for (const expression of [
+      '* * * *',
+      '* * * * * *',
+      '1,,2 * * * *',
+      '*/0 * * * *',
+      '*/1/2 * * * *',
+      '2-1 * * * *',
+      '0 0 0 * *',
+      '0 0 * 13 *',
+      '0 0 * * 8',
+      '0 0 * * MON',
+    ]) {
+      expect(parseLoopPrompt(`/loop "${expression}" inspect`)).toEqual({
+        ok: false,
+        reason: 'badCadence',
+      })
+    }
+    expect(parseLoopPrompt('/loop 2h inspect')).toMatchObject({
+      command: { cadence: { kind: 'interval', everyMs: 7_200_000 } },
+    })
+    expect(parseLoopPrompt('/loop 2d inspect')).toMatchObject({
+      command: { cadence: { kind: 'interval', everyMs: 2 * MILLISECONDS_PER_DAY } },
+    })
+  })
 })
 
 describe('next local cron fire (M52)', () => {
@@ -135,6 +164,24 @@ describe('next local cron fire (M52)', () => {
         { kind: 'cron', expression: '0 9 * * *' },
         beforeCron,
         beforeCron + 60 * 1000,
+      ),
+    ).toBeUndefined()
+  })
+
+  it('matches numeric Sunday 7 and minute steps without replaying the current minute', () => {
+    const sunday = new Date(2026, 8, 20, 9, 5).getTime()
+    expect(
+      nextScheduleFire(
+        { kind: 'cron', expression: '5/10 9 * * 7' },
+        sunday,
+        sunday + MILLISECONDS_PER_DAY,
+      ),
+    ).toBe(new Date(2026, 8, 20, 9, 15).getTime())
+    expect(
+      nextScheduleFire(
+        { kind: 'cron', expression: 'invalid' },
+        sunday,
+        sunday + MILLISECONDS_PER_DAY,
       ),
     ).toBeUndefined()
   })

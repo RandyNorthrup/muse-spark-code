@@ -55,6 +55,10 @@
     "src/host/teamViewBundle.ts",
     "src/host/sessionBoardEntry.ts",
     "src/core/backends/modelapi/reviewerEntry.ts",
+    "src/core/backends/modelapi/schedulesEntry.ts",
+    // M115W: the lazy schedules bundle entry (v1 beside the v2 binding),
+    // required by path on the first schedule use.
+    "src/runtime/schedules/schedulesBundle.ts",
     "src/core/backends/modelapi/foreignHooksEntry.ts",
     // M91: the hook and MCP-form runtime, imported by path on first use.
     "src/core/backends/modelapi/hookRuntimeEntry.ts",
@@ -104,6 +108,7 @@
     "src/runtime/questions/questionRegistryEntry.ts",
     "src/core/questions/deferralEntry.ts",
     "src/runtime/fonts/fontsEntry.ts",
+    "src/runtime/schedules/backgroundEntry.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
     // Standalone browser checks invoked by path; usageHost is bundled by them.
     "test/harness/usage-check.mjs",

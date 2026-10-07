@@ -53,6 +53,12 @@ import {
   pullRequestFormSchema,
 } from './git'
 import { judgeStatusSchema } from './judge'
+import { scheduleHostMessageSchema, scheduleWebviewMessageSchema } from './scheduleProtocol'
+import {
+  scheduleDraftSchema,
+  scheduleSourceCapabilitySchema,
+  scheduleTargetSchema,
+} from './scheduleV2'
 import { paidStateSchema } from './paid'
 import { patchHunkSchema } from './patchDocument'
 import { reviewRequestSchema } from './reviewCommand'
@@ -86,6 +92,7 @@ import { teamTreeSchema, teamUsageSchema } from './teamView'
 const stringSchema = z.string()
 const numberSchema = z.number()
 const booleanSchema = z.boolean()
+import { parseWith, type ParseResult } from './parseResult'
 
 // Settings the webview needs to render. Host-only settings (binary path,
 // environment variables) are deliberately absent. The shape is exported so the
@@ -105,6 +112,8 @@ export const settingsSnapshotShape = {
   archiveInactiveSessions: numberSchema,
   /** Tokens and the dollar estimate under each Model API reply (M82); off by default. */
   modelApiReplyUsage: booleanSchema,
+  /** The v2 schedules surface (M115); bound while its setting is on. */
+  schedules: booleanSchema,
   /** The Auto reviewer on Muse Code (M90): the Modes menu words Auto with it. */
   museCodeAutoReviewer: booleanSchema,
 } as const
@@ -527,6 +536,14 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('scheduleList') }),
   z.object({ type: z.literal('scheduleCancel'), id: stringSchema }),
   z.object({ type: z.literal('scheduleRun'), id: stringSchema, occurrenceMs: numberSchema }),
+  // Scheduled prompts v2 (M115): the versioned channel envelope; the
+  // runtime surface parses the request, the panel parses the answer.
+  z.object({ type: z.literal('schedulesRequest'), message: scheduleWebviewMessageSchema }),
+  // Scheduled prompts v2 (M115): open the surface over this workspace.
+  z.object({
+    type: z.literal('openSchedules'),
+    view: z.enum(['list', 'timeline', 'editor']),
+  }),
   // "/export" and "Export session log…" (M30): Markdown, or Muse Code's JSON log.
   z.object({ type: z.literal('exportConversation'), format: z.enum(EXPORT_FORMATS) }),
   // "Import session…" and "Open share file…" (M84): a portable JSON file
@@ -1158,6 +1175,26 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   }),
   // The host's model catalogue (for the picker and context-limit lookups).
   z.object({ type: z.literal('modelList'), models: z.array(modelOptionSchema) }),
+  // Scheduled prompts v2 (M115): the runtime surface's answer or change
+  // notice for the panel's versioned channel.
+  z.object({ type: z.literal('schedulesMessage'), message: scheduleHostMessageSchema }),
+  // The v2 surface's props: the host posts them when a schedule command
+  // opens the panel, and again when targets or defaults change.
+  z.object({
+    type: z.literal('schedulesSurface'),
+    workspaceKey: z.string(),
+    targets: z.array(
+      z.strictObject({
+        id: z.string(),
+        label: z.string(),
+        target: scheduleTargetSchema,
+        capability: scheduleSourceCapabilitySchema,
+      }),
+    ),
+    defaultDraft: scheduleDraftSchema,
+    nowMs: z.number(),
+    initialView: z.enum(['list', 'timeline', 'editor']),
+  }),
   // The session's user-invocable skills (palette "Skills" group).
   z.object({ type: z.literal('skillList'), skills: z.array(skillOptionSchema) }),
   // The host-owned composer settings for this conversation.
@@ -1329,16 +1366,6 @@ function hasMessageType(input: unknown, type: string): boolean {
   return typeof input === 'object' && input !== null && 'type' in input && input.type === type
 }
 
-export type ParseResult<T> =
-  { readonly ok: true; readonly message: T } | { readonly ok: false; readonly error: string }
-
-function parseWith<T>(schema: z.ZodMiniType<T>, input: unknown): ParseResult<T> {
-  const result = schema.safeParse(input)
-  return result.success
-    ? { ok: true, message: result.data }
-    : { ok: false, error: z.prettifyError(result.error) }
-}
-
 export function parseWebviewToHostMessage(input: unknown): ParseResult<WebviewToHostMessage> {
   return parseWith<WebviewToHostMessage>(
     teamSchemas.action !== undefined && hasMessageType(input, 'teamTreeAction')
@@ -1356,3 +1383,8 @@ export function parseHostToWebviewMessage(input: unknown): ParseResult<HostToWeb
     input,
   )
 }
+
+// M115's lazy schedule surface owns its validated channel beside Tasks.
+export type { ScheduleHostMessage, ScheduleWebviewMessage } from './scheduleProtocol'
+
+export { parseWith, type ParseResult } from './parseResult'

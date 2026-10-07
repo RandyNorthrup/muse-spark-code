@@ -124,7 +124,8 @@
     "out": "--out <file>         将报告写入文件而不是 stdout",
     "description": "--description <text>  用自己的话描述当时发生了什么",
     "no-facts": "--no-facts           不包含支持信息",
-    "no-events": "--no-events          不包含最近事件"
+    "no-events": "--no-events          不包含最近事件",
+    "scheduled-prompts": "--scheduled-prompts              提供付费定时提示词（Model API 后端；会先询问价格）"
   },
   "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。",
   "referenceAuthClear": "删除已存储的 Model API 密钥。",
@@ -533,7 +534,10 @@
     "reviewBranch": "Muse 将此分支与你选择的基础分支对比审查。",
     "reviewCommit": "Muse 审查你选择的一个近期提交。",
     "reviewSecurity": "Muse 检查未提交的更改中是否有安全问题。",
-    "reviewChanges": "接受或还原此对话中的每处编辑。"
+    "reviewChanges": "接受或还原此对话中的每处编辑。",
+    "schedule": "Review schedules and their standing grants in this workspace.",
+    "schedulePrompt": "Pick the time, target and permissions for this prompt.",
+    "scheduleTimeline": "See upcoming fires and collisions on the same target."
   },
   "paletteSkillTip": "运行 {name} 技能。",
   "groupContext": "上下文",
@@ -4200,5 +4204,231 @@
     "bundleShape": "{file} 结构不符合预期",
     "invalidResult": "扫描返回无效结果"
   },
-  "legalScanAgain": "重新扫描"
+  "legalScanAgain": "重新扫描",
+  "scheduleV2": {
+    "labels": {
+      "title": "日程",
+      "name": "名称",
+      "action": "操作",
+      "prompt": "提示词",
+      "report": "报告",
+      "trigger": "触发条件",
+      "timeZone": "时区",
+      "preview": "接下来五次执行",
+      "end": "结束条件",
+      "target": "目标",
+      "delivery": "投递方式",
+      "mode": "权限模式",
+      "grant": "长期授权",
+      "paidCap": "日程每日上限",
+      "parallel": "并行运行",
+      "paused": "已暂停",
+      "pause": "暂停日程",
+      "resume": "恢复日程",
+      "remove": "删除日程",
+      "revoke": "撤销授权",
+      "pin": "固定日程",
+      "timeline": "日程时间线",
+      "schedulePrompt": "安排此提示词…",
+      "runNow": "立即运行",
+      "save": "保存日程",
+      "tools": "允许的工具",
+      "commands": "命令前缀",
+      "paths": "工作区路径",
+      "creator": "创建者",
+      "depth": "日程创建深度",
+      "background": "后台条目",
+      "whenClosed": "已关闭的目标",
+      "catchUp": "错过的执行",
+      "unavailable": "不可用"
+    },
+    "delivery": {
+      "steer": "引导正在运行的轮次",
+      "interrupt": "中断后运行",
+      "queue": "在此轮之后排队",
+      "whenIdle": "空闲时开始新轮次",
+      "newConversation": "新建对话"
+    },
+    "triggers": {
+      "once": "在指定日期和时间执行一次",
+      "interval": "每隔N分钟或小时",
+      "daily": "每隔N天",
+      "weekdays": "在工作日",
+      "weekly": "每周指定日期和时间",
+      "cron": "自定义cron表达式",
+      "event": "事件发生时",
+      "afterEvent": "事件发生后的指定时间"
+    },
+    "targets": {
+      "conversation": "此对话",
+      "namedConversation": "具名对话",
+      "newConversation": "每次执行新建对话",
+      "worker": "工作代理",
+      "role": "团队角色",
+      "team": "团队",
+      "node": "Muse节点"
+    },
+    "destinations": {
+      "save": "保存到文件夹",
+      "browser": "在浏览器中打开",
+      "email": "通过邮件发送给用户",
+      "post": "发布到代码仓库",
+      "cloud": "云端保存（计划中）",
+      "sms": "短信（计划中）"
+    },
+    "policies": {
+      "open": "在后台打开",
+      "skip": "跳过执行",
+      "runOnce": "补执行一次"
+    },
+    "outcomes": {
+      "ran": "已运行",
+      "refused": "已拒绝",
+      "missed": "已错过",
+      "skipped": "已跳过",
+      "failed": "失败"
+    },
+    "events": {
+      "pullRequestOpened": "拉取请求已打开",
+      "pullRequestClosed": "拉取请求已关闭",
+      "pullRequestMerged": "拉取请求已合并",
+      "reviewRequested": "已请求审查",
+      "ciFinished": "CI运行已完成",
+      "releasePublished": "发行版已发布",
+      "issueLabelled": "议题已添加标签",
+      "issueOpened": "议题已打开",
+      "issueReplied": "已收到议题回复",
+      "branchUpdated": "分支已更新",
+      "tagCreated": "标签已创建",
+      "milestoneStatusChanged": "里程碑状态已更改",
+      "milestoneCertified": "里程碑已认证",
+      "turnFinished": "轮次已完成",
+      "laneFinished": "工作通道已完成",
+      "taskFinished": "任务已完成",
+      "teamFinished": "团队工作已完成",
+      "questionAnswered": "问题已回答",
+      "usageThresholdCrossed": "已超过使用量阈值",
+      "resourceLevelChanged": "资源级别已更改",
+      "filesChanged": "监视的文件已更改",
+      "versionPublished": "商店版本已发布",
+      "manual": "手动触发"
+    },
+    "messages": {
+      "interruptWarning": "中断可能会停止您自己正在运行的轮次。",
+      "unattendedRefusal": "日程执行被拒绝：{action}需要批准，且不在此日程的授权范围内。",
+      "deferredQuestions": "问题会立即推迟，并保持开放以便您稍后回答。",
+      "paidConsent": "使用{model}安排{prompt}：{price}。频率：{cadence}。每个本地日期的日程上限：{cap}；共享每日预算：{budget}。同意仅涵盖选中的付费附加功能。",
+      "changedConsent": "模型、密钥或价格档位已更改。请在下次付费执行前重新同意。",
+      "setBy": "由{agent}在{session}中设置",
+      "migrationConsent": "迁移的日程已暂停。恢复前请检查模式、授权和付费同意。",
+      "collision": "此目标的执行时间冲突，将按创建顺序运行。",
+      "historyUnavailable": "没有可预览的历史。",
+      "eventUntrusted": "事件内容是不可信数据，不能更改授权、工具或目标。",
+      "backgroundQuestion": "编辑器关闭时仍运行日程吗？",
+      "backgroundYes": "是",
+      "backgroundNotNow": "暂时不要",
+      "backgroundNever": "从不",
+      "backgroundRemove": "删除后台条目",
+      "backgroundRemoved": "后台条目已删除。",
+      "agentConsent": "允许{agent}在自身权限和预算范围内创建此日程吗？",
+      "agentAlways": "始终允许此编排代理",
+      "agentNever": "永不允许此编排代理",
+      "grantRevoked": "此日程的授权已撤销。",
+      "waitingBusy": "等待中：计算机忙碌",
+      "saveRoot": "仅保存到此日程批准的根目录内。",
+      "openWhenBack": "我回来时打开",
+      "plannedDestination": "此目标处于计划阶段，目前不可用。",
+      "expiredOwner": "此日程随创建者的会话或团队结束而终止。",
+      "targetUnavailable": "此计划的目标在当前主机上不可用。",
+      "targetClosed": "目标已关闭，或此等待中的执行已跳过。",
+      "catchUpSkipped": "根据此计划的补执行策略，已跳过错过的执行。",
+      "backgroundNotice": "计划 {name} 已在后台打开对话。",
+      "conversationTitle": "计划 {name} · {date}"
+    },
+    "endAfterRuns": {
+      "other": "执行{count}次后结束"
+    },
+    "historyPreview": {
+      "other": "在{days}天内本应执行{count}次"
+    },
+    "settings": {
+      "enabled": "在可用后端上启用日程。默认开启，每次执行均在长期授权范围内无人值守运行。",
+      "defaultDelivery": "新日程的默认投递方式。默认在空闲时开始新轮次。",
+      "agentCreation": "代理创建日程的默认权限：询问、在上限内始终允许或永不允许。默认询问。"
+    },
+    "editor": {
+      "edit": "编辑计划",
+      "audit": "授权审计",
+      "invalid": "保存前请检查计划字段、目标可用性和长期授权。",
+      "loadFailed": "无法加载计划。请重试。",
+      "empty": "此工作区没有计划。",
+      "defaultName": "Scheduled prompt",
+      "defaultPrompt": "Describe what the schedule should do.",
+      "dateTimeUtc": "日期和时间 (UTC)",
+      "minutes": "间隔（分钟）",
+      "everyDays": "每 N 天",
+      "times": "时间（HH:MM，以逗号分隔）",
+      "cronExpression": "五字段 cron 表达式",
+      "source": "事件来源",
+      "conditions": "条件（字段=值，每行一项）",
+      "endDate": "结束日期和时间 (UTC)",
+      "afterRuns": "运行 N 次后结束",
+      "sent": "按计划发送",
+      "cost": "费用",
+      "grantHelp": "每行一项。路径必须位于此工作区内；受保护的路径和需要人工操作的工具始终会被拒绝。",
+      "auditKinds": {
+        "created": "已创建",
+        "changed": "已更改",
+        "revoked": "已撤销",
+        "used": "已使用"
+      },
+      "user": "你",
+      "liability": "保留的付款责任",
+      "certainty": {
+        "exact": "准确",
+        "estimated": "估算",
+        "unknown": "未知"
+      },
+      "tips": {
+        "list": "查看此工作区中的计划及其长期授权。",
+        "create": "选择何时、向何处以及使用哪些权限发送此提示词。",
+        "timeline": "查看同一目标即将发生的执行及冲突。"
+      },
+      "anchorDate": "基准日期（计划的时区）",
+      "stateUnknown": "状态未知 — 重试",
+      "retry": "重试"
+    },
+    "runtime": {
+      "usage": "用法: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] 退出代码：0 成功，1 拒绝，2 用法错误，3 清理警告。",
+      "accepted": "已接受计划请求",
+      "empty": "没有计划或即将运行的任务。",
+      "unavailable": "此主机无法使用计划任务。需要连接运行时调度器。",
+      "invalidRequest": "计划请求无效。请检查草稿、标识符和选项。",
+      "invalidResponse": "调度器返回了无效响应。",
+      "consentRequired": "后台计划需要您明确选择“是”。",
+      "backgroundUnavailable": "此主机无法使用后台计划。",
+      "backgroundRearmUnavailable": "后台调度正在等待运行结束或停用等待期届满。请稍后重试。",
+      "unsafeLauncher": "不安全的计划启动程序路径：{path}",
+      "paidAuthorizationRequired": "付费计划需要 --scheduled-prompts 和明确指定的 --max-budget-usd，预算必须涵盖两项费用上限。",
+      "cleanupFailed": "计划请求已完成，但清理失败。请保留已接受的 ID；退出代码 3 表示清理需要处理。",
+      "hostUnavailable": "无法为此工作区启动计划服务。计划控制不可用；普通聊天仍可使用。",
+      "wakeBarrierTimeout": "计划执行在等待后台同步时超时。未启动任何计划任务。"
+    },
+    "reportAction": {
+      "unavailable": "此主机不支持报告交付，需要确定性报告运行器。",
+      "grantRequired": "此报告目标不在计划当前的授权范围内。",
+      "failed": "报告交付失败或结果不确定。",
+      "invalidResult": "报告运行器返回了无效的目标回执。",
+      "kind": "报告类型",
+      "format": "格式",
+      "args": "参数",
+      "destinations": "目标",
+      "formats": {
+        "markdown": "Markdown 文档",
+        "html": "HTML 文档",
+        "json": "JSON 文档",
+        "text": "纯文本"
+      }
+    }
+  }
 }

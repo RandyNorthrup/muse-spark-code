@@ -180,8 +180,37 @@ function exportItems(backend: BackendKind | undefined): readonly PaletteItem[] {
 }
 
 /** Model API schedules are extension-owned; Muse Code's native cron has no MSP controls. */
-function scheduleItems(backend: BackendKind | undefined): readonly PaletteItem[] {
-  return backend === 'modelApi'
+function scheduleItems(context: PaletteContext): readonly PaletteItem[] {
+  if (context.schedules !== undefined) {
+    return [
+      {
+        id: 'schedule',
+        label: UI_TEXT.scheduleV2.labels.title,
+        tip: UI_TEXT.scheduleV2.editor.tips.list,
+        slashName: 'schedule',
+        action: context.schedules.list,
+      },
+      {
+        id: 'schedulePrompt',
+        label: UI_TEXT.scheduleV2.labels.schedulePrompt,
+        tip: UI_TEXT.scheduleV2.editor.tips.create,
+        action: context.schedules.create,
+      },
+      {
+        id: 'scheduleTimeline',
+        label: UI_TEXT.scheduleV2.labels.timeline,
+        tip: UI_TEXT.scheduleV2.editor.tips.timeline,
+        action: context.schedules.timeline,
+      },
+      {
+        id: 'loop',
+        label: UI_TEXT.loopItem,
+        detail: UI_TEXT.loopItemDetail,
+        action: { type: 'startLoop' },
+      },
+    ]
+  }
+  return context.backend === 'modelApi'
     ? [
         {
           id: 'loop',
@@ -553,7 +582,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           tip: UI_TEXT.legalScanItemDetail,
           action: { type: 'startLegalScan' },
         },
-        ...scheduleItems(context.backend),
+        ...scheduleItems(context),
         ...exportItems(context.backend),
         {
           id: 'clearCommand',

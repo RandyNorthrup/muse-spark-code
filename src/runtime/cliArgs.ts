@@ -46,6 +46,11 @@ import { parsePlaybookCommand } from './playbook/command'
 export function parsePlaybookCommandLine(argv: readonly string[]) {
   return argv[0] === 'playbook' ? parsePlaybookCommand(argv.slice(1)) : undefined
 }
+import {
+  parseScheduleCommand,
+  scheduleBudgetUsd,
+  type ScheduleCommandOptions,
+} from './schedules/args'
 
 export interface ServeOptions {
   readonly usageHistory?: boolean
@@ -65,6 +70,8 @@ export interface ServeOptions {
   readonly autoCompaction?: boolean | undefined
   /** Interactive ACP questions; no forms still defer at once. */
   readonly questionsDeferAfterSeconds?: number
+  readonly scheduledPrompts?: boolean
+  readonly maxBudgetUsd?: number
 }
 
 /** What `report` prints: the scrubbed draft as text, or its exact bytes in a file. */
@@ -100,6 +107,7 @@ export interface ProvidersAddOptions {
 
 export type RuntimeCommand =
   | { readonly command: 'usage'; readonly options: UsageCommand }
+  | { readonly command: 'schedule'; readonly options: ScheduleCommandOptions }
   | { readonly command: 'setup'; readonly options: ServeOptions; readonly maintenance: boolean }
   | { readonly command: 'chatGptProvider'; readonly action: ChatGptProviderAction }
   | { readonly command: 'exec'; readonly options: ExecOptions }
@@ -242,6 +250,12 @@ export function parseCommandLine<T>(
       ? { command: 'help', all: argv[1] === '--all' }
       : invalid(argv.join(' '))
   }
+  if (argv[0] === 'schedule') {
+    const parsed = parseScheduleCommand(argv.slice(1))
+    return parsed.ok
+      ? { command: 'schedule', options: parsed.options }
+      : { command: 'invalid', reason: parsed.reason, exitCode: 2 }
+  }
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
   if (argv[0] === 'report')
     return parseReport(argv.slice(argv[1] === 'problem' ? 2 : 1), argv[1] !== 'problem')
@@ -287,6 +301,10 @@ export function parseCommandLine<T>(
       reason: fill(UI_TEXT.acpPaidNeedsModelApi, { argument: `--${ACP_PAID_FLAGS[firstPaid]}` }),
     }
   }
+  const budget =
+    values['max-budget-usd'] === undefined ? undefined : scheduleBudgetUsd(values['max-budget-usd'])
+  if (budget === undefined && values['max-budget-usd'] !== undefined)
+    return { command: 'invalid', reason: UI_TEXT.scheduleV2.runtime.usage }
   const options: ServeOptions = {
     ...(values['usage-history'] !== undefined && {
       usageHistory: values['usage-history'] === 'on',
@@ -301,6 +319,10 @@ export function parseCommandLine<T>(
     isVerbose: values.verbose === true,
     autoCompaction: values['no-auto-compaction'] !== true,
     questionsDeferAfterSeconds,
+    ...(values['scheduled-prompts'] !== undefined && {
+      scheduledPrompts: values['scheduled-prompts'],
+    }),
+    ...(budget !== undefined && { maxBudgetUsd: budget }),
   }
   const [first, second, ...rest] = positionals
   if (first === 'setup' && second === undefined) {

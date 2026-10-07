@@ -1088,6 +1088,7 @@ async function activateWindow(
   const dailyPaid: ReturnType<typeof createPaidDailyBudget> = {
     capUsd: () => loadDailyPaid().capUsd(),
     reserve: (...args) => loadDailyPaid().reserve(...args),
+    reserveSchedule: (...args) => loadDailyPaid().reserveSchedule(...args),
     readToday: () => loadDailyPaid().readToday(),
     judgeLedger: {
       remainingUsd: () => loadDailyPaid().judgeLedger.remainingUsd(),

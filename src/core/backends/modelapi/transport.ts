@@ -26,6 +26,8 @@ import { redactSecrets } from '../../redact'
 export { redactSecrets } from '../../redact'
 import { errorBodySchema } from './schemas'
 import type { StreamEvent } from './schemas'
+import type { UnattendedRun } from '../../schedules/unattended'
+import type { ModelApiClientDeps } from './client'
 import {
   USAGE_HEADER_ALLOW_LIST,
   usageHeadersSchema,
@@ -35,6 +37,7 @@ import type { AuthHeaders, AuthSource } from './authSource'
 import { DeadlineError, withDeadline } from '../../timeouts'
 
 export interface TransportDeps {
+  readonly scheduledRun?: () => UnattendedRun | undefined
   readonly fetch: typeof fetch
   readonly baseUrl: string
   readonly apiKey?: () => Promise<string | undefined>
@@ -342,6 +345,7 @@ export function rateLimitHeaders(headers: Headers): UsageHeaders {
 export interface ResponseAttemptGuard {
   /** Durable admission before the synchronous credential/gate fence. */
   readonly prepare?: () => Promise<void>
+  readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
   readonly paidFeature?: PaidFeature
   readonly paidEstimatedInputTokens?: number
   (keyDigest: string | undefined): void
@@ -444,7 +448,11 @@ export class RequestTransport {
       readonly body: unknown
       readonly headers?: Readonly<Record<string, string>>
       readonly accept: string
-      readonly paid?: { readonly claim: SessionBudgetClaim; isSent: boolean }
+      readonly paid?: {
+        readonly claim: SessionBudgetClaim
+        readonly run?: UnattendedRun | undefined
+        isSent: boolean
+      }
     },
     signal: AbortSignal,
     onRetry?: (notice: RetryNotice) => void,
@@ -595,7 +603,11 @@ export class RequestTransport {
        */
       readonly headers?: Readonly<Record<string, string>>
       readonly retries?: 'all' | 'rateLimitOnly'
-      readonly paid?: { readonly claim: SessionBudgetClaim; isSent: boolean }
+      readonly paid?: {
+        readonly claim: SessionBudgetClaim
+        readonly run?: UnattendedRun | undefined
+        isSent: boolean
+      }
     },
     signal: AbortSignal | undefined,
     onRetry?: (notice: RetryNotice) => void,
@@ -655,6 +667,14 @@ export class RequestTransport {
           !confirmed.isStillAllowed())
       ) {
         throw new Error(UI_TEXT.scheduleConfirmationExpired)
+      }
+      if (init.method === 'POST' && (path === '/responses' || path.startsWith('/images/'))) {
+        const run = this.deps.scheduledRun?.()
+        if (
+          (run !== init.paid?.run && (run !== undefined || init.paid?.run !== undefined)) ||
+          (run !== undefined && (!run.isActive() || credentials.keyDigest !== run.paid?.accountId))
+        )
+          throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
       }
       // Local consent refusal is outside the transport retry catch: it never
       // becomes another billable attempt.

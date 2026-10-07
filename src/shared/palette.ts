@@ -47,6 +47,10 @@ export type PaletteAction =
   /** `/goal ` in the prompt, for the objective (M45). */
   | { readonly type: 'startGoal' }
   | { readonly type: 'startLoop' }
+  /** Scheduled prompts v2 (M115): the surface's list, editor and timeline. */
+  | { readonly type: 'openScheduleList' }
+  | { readonly type: 'openScheduleEditor' }
+  | { readonly type: 'openScheduleTimeline' }
   | { readonly type: 'startHook' }
   | { readonly type: 'compact' }
   /** `/handoff …` in the prompt, for the new conversation's goal (M74). */
@@ -124,6 +128,12 @@ export interface UsageTotals {
 
 export interface PaletteContext {
   readonly arePromptCommandsBound?: boolean
+  /** W injects bound schedule actions; absent until the surface is available. */
+  readonly schedules?: {
+    readonly create: PaletteAction
+    readonly list: PaletteAction
+    readonly timeline: PaletteAction
+  }
   readonly currentModel:
     { readonly modelId: string; readonly contextLimit: number | undefined } | undefined
   readonly models: readonly ModelOption[]

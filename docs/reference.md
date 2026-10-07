@@ -1074,7 +1074,7 @@ Schedule a prompt in this Model API conversation.
 
 Surfaces: vscode:modelApi. Paid: yes; consent required; admission depends on the surface.
 
-Commands: —. Settings: `museSpark.modelApiScheduledPrompts`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#scheduled-prompts-model-api)
+Commands: `museSpark.schedulePrompt`, `museSpark.showSchedules`, `museSpark.showScheduleTimeline`. Settings: `museSpark.modelApiScheduledPrompts`, `museSpark.schedules`, `museSpark.schedules.defaultDelivery`, `museSpark.schedules.agentCreation`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#scheduled-prompts-model-api)
 
 ### /agents
 
@@ -1666,6 +1666,18 @@ Available when: `isWindows`.
 
 `museSpark.tabMenu` — copilotYield: Turn Tab off; Snooze for 15 minutes; Snooze for an hour; Snooze until restart; Tab languages…; Multi-line mode…; Account & usage. When Copilot causes Tab to yield, the menu also offers disabling Copilot for the current language or running both.
 
+### Muse Spark: Schedule this prompt…
+
+`museSpark.schedulePrompt` — Pick the time, target and permissions for this prompt.
+
+### Muse Spark: Show schedules
+
+`museSpark.showSchedules` — Review schedules and their standing grants in this workspace.
+
+### Muse Spark: Show schedule timeline
+
+`museSpark.showScheduleTimeline` — See upcoming fires and collisions on the same target.
+
 ### Muse Spark: Tab Languages
 
 `museSpark.tabLanguages` — Choose a language to switch Tab suggestions on or off for it.
@@ -2083,7 +2095,7 @@ Type: `"string"`. Default: `"in_memory"`. Scope: `machine`.
 
 ### museSpark.modelApiScheduledPrompts
 
-Explicit scheduled Model API runs at the selected model’s token prices. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.
+Explicit scheduled Model API runs at the selected model’s token prices. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it. Shared daily budget setting: museSpark.paidDailyBudgetUsd.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
@@ -2093,6 +2105,57 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
   "default": true
 }
 ```
+
+### museSpark.schedules
+
+Enable schedules on available backends. On by default; each fire runs unattended within its standing grant.
+
+Type: `"boolean"`. Default: `true`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": true
+}
+```
+
+### museSpark.schedules.defaultDelivery
+
+Default delivery for new schedules: a new turn starts on idle by default.
+
+Type: `"string"`. Default: `"whenIdle"`. Scope: `machine`.
+
+```json
+{
+  "type": "string",
+  "enum": ["steer", "interrupt", "queue", "whenIdle", "newConversation"],
+  "default": "whenIdle"
+}
+```
+
+- `"steer"`:
+- `"interrupt"`:
+- `"queue"`:
+- `"whenIdle"`:
+- `"newConversation"`:
+
+### museSpark.schedules.agentCreation
+
+Default permission for agents to create schedules: ask, always within caps, or never. Ask by default.
+
+Type: `"string"`. Default: `"ask"`. Scope: `machine`.
+
+```json
+{
+  "type": "string",
+  "enum": ["ask", "always", "never"],
+  "default": "ask"
+}
+```
+
+- `"ask"`:
+- `"always"`:
+- `"never"`:
 
 ### museSpark.modelApiSubagents
 
@@ -3038,6 +3101,7 @@ These are defaults; editor customizations take precedence.
 - `setup`: Run Setup hooks for init from spark-hooks.json in a trusted workspace.
 - `exec`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.
 - `scan-secrets`: Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.
+- `schedule`: Usage: schedule add --draft &lt;JSON&gt; [--scheduled-prompts --max-budget-usd &lt;USD&gt;] [--report &lt;kind&gt; --to save:&lt;path&gt;|browser|email:&lt;address&gt; ... --format md|html|json|text] [-- &lt;report args&gt;] | list | remove|run-now|pause|resume|fire &lt;id&gt; | timeline [--hours 24|168] [--cwd &lt;path&gt;] [--json]; schedule run-due [--json]; schedule background off|status [--json]. Exit codes: 0 success, 1 refusal, 2 usage, 3 cleanup warning.
 - `report`: Usage:
   muse-spark-code-acp report [--out &lt;file&gt;] [--description &lt;text&gt;] [--no-facts] [--no-events]
   Prints the scrubbed problem report to stdout, or writes it to &lt;file&gt; with --out.
@@ -3120,6 +3184,8 @@ These are defaults; editor customizations take precedence.
 - `serve: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false}`
 - `serve: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
+- `serve: --scheduled-prompts`: --scheduled-prompts Offer paid scheduled prompts (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
+- `serve: --max-budget-usd <value>`: Set the hard spending limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"maximum":20,"decimals":6,"required":"modelApi","unit":"USD"}`
 - `login: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
 - `login: --as <value>`: --as: Provider `{"type":"string","repeatable":false,"refused":true}`
 - `login: --address <value>`: --address: Address `{"type":"string","repeatable":false,"refused":true}`

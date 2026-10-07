@@ -324,6 +324,8 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 | `--image-generation`                   | Offer paid image generation (Model API backend only); each image asks in the editor first, naming the price                       |
 | `--no-auto-compaction`                 | Disable automatic compaction in the shared Model API core (also accepted by exec); production is awaiting evaluation and inactive |
 | `--verbose`                            | Log every detail to stderr (the editor's agent log)                                                                               |
+| `--scheduled-prompts`                  | Offer the `/schedule` command with unattended runs (Model API backend only); needs `--max-budget-usd`                             |
+| `--max-budget-usd <USD>`               | Hard spending cap for unattended scheduled runs; without a positive cap paid authorization is refused                             |
 
 ## What the editor sees
 
@@ -342,6 +344,9 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   `/questions` and `/answer <n> <text>` (reserved ahead of skills), and
   M116's `/playbook <status|record|settings ...>`, answered locally with no
   model turn.
+  M115's `/schedule` (list, add, remove, run-now, pause, resume, fire and
+  timeline; `run-due` and background maintenance are refused here), offered
+  only with `--scheduled-prompts`.
 - **Permission prompts**: the backend's own choices (allow once, allow for
   the session, reject). A prompt the editor cancels, or answers with a
   choice it was not offered, is rejected; nothing runs by default.
@@ -458,9 +463,15 @@ publish a generation keeps the explicit use as Allow once and asks next time.
 The grant lapses in every folder when a Model API agent (`--backend
 modelApi`, not `exec`) starts without that feature's flag, so turning the
 flag on again asks again. Every paid row names its
-price, and the agent log counts each billed use. Subagents, scheduled
-prompts, best-of-N, the Auto reviewer and Muse Voice are not offered: the agent has no flag for them
+price, and the agent log counts each billed use. Subagents,
+best-of-N, the Auto reviewer and Muse Voice are not offered: the agent has no flag for them
 (Muse Voice needs the VS Code panel's microphone).
+
+Scheduled prompts are offered with `--scheduled-prompts` (Model API
+backend only) together with `--max-budget-usd`. Each billed run asks in
+the editor's permission prompt, naming its price and the shared daily
+budget, unless allowed always in this workspace; a run without a positive
+budget is refused before dispatch.
 
 ## Networks and proxies
 

@@ -39,6 +39,7 @@ const ACP_METAFILES = [
   path.join(METAFILE_DIR, 'modelApiHooks.json'),
   path.join(METAFILE_DIR, 'modelApiMcp.json'),
   path.join(ACP_METAFILE_DIR, 'acp.json'),
+  path.join(METAFILE_DIR, 'scheduleBackground.json'),
   path.join('dist', 'meta-acp', 'acpQuestions.json'),
   path.join('dist', 'meta-acp', 'runtimeQuestions.json'),
   path.join(METAFILE_DIR, 'questionNotes.json'),

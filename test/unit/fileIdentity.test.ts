@@ -4,6 +4,7 @@ import path from 'node:path'
 import { expect, it } from 'vitest'
 import {
   fileIdentityKey,
+  fileReadIdentity,
   handleIdentity,
   lstatIdentity,
   sameFile,
@@ -48,4 +49,20 @@ it('samples pathname, link pathname and held handle as BigInts', async () => {
 it('refuses missing or invalid native identity keys', () => {
   expect(fileIdentityKey({ dev: 1n, ino: 0n })).toBeUndefined()
   expect(fileIdentityKey({ dev: -1n, ino: 1n })).toBeUndefined()
+})
+
+it('retains exact source IDs and nanosecond timestamps above the Number precision boundary', () => {
+  expect(
+    fileReadIdentity({
+      dev: 9_007_199_254_740_993n,
+      ino: 9_007_199_254_740_995n,
+      size: 12n,
+      mtimeNs: 1_791_305_700_123_456_789n,
+    }),
+  ).toEqual({
+    dev: '9007199254740993',
+    ino: '9007199254740995',
+    size: 12,
+    mtime: '1791305700123456789',
+  })
 })

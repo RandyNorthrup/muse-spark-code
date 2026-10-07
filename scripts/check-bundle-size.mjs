@@ -69,6 +69,10 @@ const BUDGETS = [
   { path: 'dist/webview/usage.css', budgetKiB: 25 },
   // TRAIN15E: Models page and its shared static imports: 424.9 KiB +15%.
   { path: 'dist/webview/models.js', budgetKiB: 500 },
+  // M115W: v1's Model API schedules beside the v2 runtime binding (store,
+  // scheduler, delivery, time, events, registry, control and engine), loaded
+  // on first schedule use: 167.8 KiB measured, plus 15%, rounded up to 25 KiB.
+  { path: 'dist/schedules.js', budgetKiB: 200 },
   // The review (M70): git's material, the review turn's text, the Plan-mode
   // hold and edit review, loaded the first time one is used: 40.6 KiB when
   // split out, plus room (PLAN.md D6).
@@ -181,8 +185,10 @@ const BUDGETS = [
   { path: 'dist/uiTextSurfaces.js', budgetKiB: 25 },
   // TRAIN13B: used Node mini-parser API, 39.5 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/validation.js', budgetKiB: 50 },
-  // Shared existing Node boundary schemas: 41.3 KB plus 15%, rounded to 25 KiB.
-  { path: 'dist/wire.js', budgetKiB: 50 },
+  // Shared existing Node boundary schemas: 41.3 KB plus 15%, rounded to 25
+  // KiB. M115W: the main protocol carries the v2 surface's validated draft
+  // and targets, 55.5 KiB measured, plus 15%, rounded up to 25 KiB.
+  { path: 'dist/wire.js', budgetKiB: 75 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },
   // M101: pure raster worker, 58.7 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/imageResizeWorker.js', budgetKiB: 75 },
@@ -195,7 +201,9 @@ const BUDGETS = [
   { path: 'dist/webview/whatsNew.js', budgetKiB: 25 },
   // HELPREF: an independent lazy page, sharing the caller's React and text.
   { path: 'dist/webview/referencePage.js', budgetKiB: 50 },
-  { path: 'dist/reference.js', budgetKiB: 100 },
+  // M115W: M115's schedule CLI row and report-action rows: 100.5 KiB
+  // measured, plus 15%, rounded up to 25 KiB. Lead to confirm.
+  { path: 'dist/reference.js', budgetKiB: 125 },
   // The ACP agent (M63, PLAN.md D62), a process of its own installed once,
   // never loaded by VS Code: the engine without the webview or the Model API
   // backend (dist/modelApi.js, M57), plus the ACP SDK and the classic zod it
@@ -206,6 +214,7 @@ const BUDGETS = [
   { path: 'dist/headless.js', budgetKiB: 100 },
   // M114 F: runtime-only installer, measured with the shared validation API.
   { path: 'dist/fontsInstall.js', budgetKiB: 25 },
+  { path: 'dist/scheduleBackground.js', budgetKiB: 50 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus

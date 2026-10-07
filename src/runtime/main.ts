@@ -113,6 +113,8 @@ import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { reportsLoader } from './reporting/reportsLoader'
 import type { createRuntimeReports } from './reporting/reportsEntry'
+import { runtimeSchedulesBinding } from './schedules/binding'
+import { settleScheduleCommand } from './schedules/settle'
 
 const EXIT_FAILED = 1
 // Keep only presence for reports, before credential variables leave the process.
@@ -606,6 +608,8 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
     const runtime = await runtimeFor(options, log, {
       remove: (id) => loadQuestions().removeRuntimeQuestions(directory, id, UI_TEXT, uiLocale()),
     })
+    const loadSchedules = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
+    let loadedSchedules: Awaited<ReturnType<typeof loadSchedules>> | undefined
     const usage = usageFor(log, recording, runtime, options.usageHistory ?? true)
     const journal = await reportJournal(log)
     await journal.startup()
@@ -630,6 +634,20 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
     })
     const reports = runtimeReports(log)
     const agent = engine.createAcpAgent({
+      schedules: {
+        async holdWorkspace(cwd) {
+          loadedSchedules ??= await loadSchedules()
+          return await loadedSchedules.holdWorkspace(cwd)
+        },
+        async run(text, context) {
+          try {
+            loadedSchedules ??= await loadSchedules()
+            return await loadedSchedules.run(text, context)
+          } catch {
+            return UI_TEXT.scheduleV2.runtime.unavailable
+          }
+        },
+      },
       playbookFor: (cwd) =>
         createPlaybookSurface({
           agentDataFolder: agentDataFolder({
@@ -675,6 +693,10 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
         canBypass: options.canBypass,
         allowsContributorModels: options.allowsContributorModels,
         initialMode: SETTING_DEFAULTS.initialPermissionMode,
+        scheduleAuthorization: {
+          scheduledPrompts: options.scheduledPrompts === true,
+          ...(options.maxBudgetUsd !== undefined && { maxBudgetUsd: options.maxBudgetUsd }),
+        },
         ...(options.questionsDeferAfterSeconds !== undefined && {
           questionsDeferAfterSeconds: options.questionsDeferAfterSeconds,
         }),
@@ -723,9 +745,19 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
           return registry.flush()
         }),
       )
-      await usage.dispose()
-      await runtime.close()
-      await journal.shutdown()
+      try {
+        await loadedSchedules?.close()
+      } finally {
+        try {
+          await usage.dispose()
+        } finally {
+          try {
+            await runtime.close()
+          } finally {
+            await journal.shutdown()
+          }
+        }
+      }
     }
     return 0
   } finally {
@@ -1022,6 +1054,72 @@ async function main(): Promise<number> {
         log,
       )().runRuntimeSharing(command, sharingPorts(log), UI_TEXT, uiLocale())
     }
+    case 'schedule': {
+      const load = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
+      let afterWake: (() => Promise<void>) | undefined
+      try {
+        if (
+          command.options.operation === 'run-due' ||
+          command.options.operation === 'background-maintain'
+        ) {
+          try {
+            const { createRuntimeScheduleBackground } = await import('./schedules/backgroundEntry')
+            const { verifyScheduleWake, beginScheduleWake, waitForScheduleWake } =
+              createRuntimeScheduleBackground(UI_TEXT, uiLocale())
+            await verifyScheduleWake(
+              process.execPath,
+              __filename,
+              undefined,
+              command.options.registrationId,
+            )
+            if (process.platform === 'darwin') {
+              const dataDir = agentDataFolder({
+                platform: process.platform,
+                env: process.env,
+                homeDir: homedir(),
+              })
+              if (command.options.operation === 'run-due')
+                afterWake = await beginScheduleWake(dataDir, process.execPath, __filename)
+              else await waitForScheduleWake(dataDir)
+            }
+          } catch (error: unknown) {
+            const reason =
+              error instanceof Error ? error.message : UI_TEXT.scheduleV2.runtime.invalidRequest
+            writeLine(
+              command.options.isJson ? process.stdout : process.stderr,
+              command.options.isJson ? JSON.stringify({ kind: 'refused', reason }) : reason,
+            )
+            return EXIT_FAILED
+          }
+        }
+        const binding = await load()
+        const result = await settleScheduleCommand(
+          () =>
+            binding.command(
+              command.options,
+              path.resolve(command.options.cwd ?? process.cwd()),
+              process.stdin.isTTY,
+            ),
+          async () => {
+            try {
+              await binding.close()
+            } finally {
+              await afterWake?.()
+            }
+          },
+        )
+        writeLine(process.stdout, result.output)
+        if (result.warning !== undefined) writeLine(process.stderr, result.warning)
+        return result.exitCode
+      } catch {
+        const reason = UI_TEXT.scheduleV2.runtime.unavailable
+        writeLine(
+          command.options.isJson ? process.stdout : process.stderr,
+          command.options.isJson ? JSON.stringify({ kind: 'refused', reason }) : reason,
+        )
+        return EXIT_FAILED
+      }
+    }
     case 'setup': {
       return await setupHooks(command.options, command.maintenance, log)
     }
@@ -1193,6 +1291,7 @@ async function main(): Promise<number> {
         writeLine(process.stdout, reference.all(nls))
       } else {
         writeLine(process.stdout, formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
+        writeLine(process.stdout, UI_TEXT.scheduleV2.runtime.usage)
       }
       return 0
     }

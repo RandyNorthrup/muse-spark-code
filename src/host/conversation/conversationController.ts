@@ -159,18 +159,27 @@ import {
   LEGAL_MARKDOWN_EXPORT_FILE,
   UI_TEXT,
   QUESTION_DEFER_DEFAULT_SECONDS,
+  SCHEDULE_PROTOCOL_VERSION,
   USER_SHELL_ITEM_KIND,
   USER_SHELL_SANDBOX_FAILURE_MARKER,
 } from '../../shared/constants'
 // M96 lane T (LANE-T-SEAM, lane 0): from shared constants at integration.
 import { TEAM_MCP_SERVER_NAME } from '../../shared/constants'
 import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
-import type { AgentEvent, ApprovalChoice, ItemSnapshot, TodoItem } from '../../shared/agentEvents'
+import {
+  isChildTurn,
+  type AgentEvent,
+  type ApprovalChoice,
+  type ItemSnapshot,
+  type TodoItem,
+} from '../../shared/agentEvents'
 import { fill, plural } from '../../shared/l10n/text'
 import type { GitAction, GitDraftKind } from '../../shared/git'
 import { backendLabel } from '../../shared/paletteFormatting'
 import type { PaidUseRequest } from '../../shared/paid'
 import type { ScheduleCadence, ScheduledPrompt } from '../../shared/schedule'
+import type { SchedulesBridge } from '../schedules/schedulesBridge'
+import { parseScheduleHostMessage } from '../../shared/scheduleProtocol'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
 import { approvalModeFor, untrustedStartMode } from '../../shared/permissionModes'
 import type { MuseCodeReviewerPort } from '../review/museCodeReviewerBundle'
@@ -555,12 +564,13 @@ export interface ConversationDeps {
    * running here (M46): the keybinding's context key follows.
    */
   readonly onForegroundTasksChanged: () => void
-  /**
-   * A separate yes for each due Model API turn, naming prompt and token price
-   * (M52): the paid-use popup (M58).
-   */
+  /** W binds the v2 scheduler: consent is collected at creation, never per fire. */
+  readonly runScheduledOccurrence?: (id: string, occurrenceMs: number) => Promise<void>
+  /** M52 compatibility, removed when W binds all entry points to v2. */
   readonly confirmScheduledRun?: (job: ScheduledPrompt, modelId: string) => Promise<boolean>
   readonly isScheduledPaidOn?: () => boolean
+  /** The v2 schedules panel bridge (M115, PLAN.md D95); absent while disabled. */
+  readonly schedulesBridge?: SchedulesBridge
   /** The paid-use popup (M58, PLAN.md D48): before each Muse Voice recording. */
   readonly allowsPaidUse: (request: PaidUseRequest) => Promise<boolean>
   /** Turn checkpoints (M72): captured around each turn, restored from a user card. */
@@ -1381,6 +1391,8 @@ export class ConversationController {
    * open for this surface's conversation.
    */
   private tasksTabFor: { readonly sessionId: string | undefined } | undefined
+  /** One v2 channel request from the panel over the workspace control. */
+  private schedulesRevision = 0
 
   /**
    * M96 lane T: whether this conversation's sessions carry the `team`
@@ -2472,12 +2484,7 @@ export class ConversationController {
    * a Model API child's turn ids prefix it, as the panel already reads them.
    */
   private isChildTurn(turnId: string): boolean {
-    for (const childSessionId of this.childSessionIds) {
-      if (turnId === childSessionId || turnId.startsWith(`${childSessionId}:`)) {
-        return true
-      }
-    }
-    return false
+    return isChildTurn(turnId, this.childSessionIds)
   }
 
   /** Remember a subagent row's child session, live or from a loaded history. */
@@ -7849,6 +7856,68 @@ export class ConversationController {
     }
   }
 
+  private async answerSchedules(input: unknown): Promise<void> {
+    const bridge = this.deps.schedulesBridge
+    const workspaceRoot = this.deps.workspaceRoot
+    if (bridge === undefined || workspaceRoot === undefined) return
+    try {
+      const answer = await bridge.message(input, workspaceRoot)
+      const parsed = parseScheduleHostMessage(answer)
+      if (!parsed.ok) return
+      this.post({ type: 'schedulesMessage', message: parsed.message })
+      if (
+        parsed.message.type === 'schedulesResponse' &&
+        parsed.message.response.kind === 'accepted'
+      ) {
+        this.schedulesRevision += 1
+        this.post({
+          type: 'schedulesMessage',
+          message: {
+            type: 'scheduleChanged',
+            version: SCHEDULE_PROTOCOL_VERSION,
+            workspaceKey: bridge.keyFor(workspaceRoot),
+            revision: this.schedulesRevision,
+          },
+        })
+      }
+    } catch (error: unknown) {
+      this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`, undefined, error)
+    }
+  }
+
+  /** A schedule command's panel: the v2 surface over this workspace. */
+  private openSchedules(initialView: 'list' | 'timeline' | 'editor'): void {
+    const bridge = this.deps.schedulesBridge
+    const workspaceRoot = this.deps.workspaceRoot
+    if (bridge === undefined || workspaceRoot === undefined) {
+      this.notice('warning', UI_TEXT.noWorkspaceReason)
+      return
+    }
+    const session =
+      this.session === undefined || this.sessionKind === undefined
+        ? undefined
+        : {
+            sessionId: this.session.sessionId,
+            backend: this.sessionKind,
+            label: UI_TEXT.scheduleV2.targets.conversation,
+          }
+    const nowMs = this.deps.now()
+    this.post({
+      type: 'schedulesSurface',
+      workspaceKey: bridge.keyFor(workspaceRoot),
+      targets: [...bridge.targets(session)],
+      // The session's backend first; 'modelApi' only before any session, for
+      // the fallback target the draft needs when no conversation is open.
+      defaultDraft: bridge.defaultDraft(
+        nowMs,
+        session,
+        this.sessionKind ?? this.deps.auth.current.backend ?? 'modelApi',
+      ),
+      nowMs,
+      initialView,
+    })
+  }
+
   private scheduleRunChanged(): void {
     this.notice(
       'warning',
@@ -7861,6 +7930,10 @@ export class ConversationController {
   private async runSchedule(id: string, occurrenceMs: number): Promise<void> {
     const generation = this.sendInvalidationEpoch
     try {
+      if (this.deps.runScheduledOccurrence !== undefined) {
+        await this.deps.runScheduledOccurrence(id, occurrenceMs)
+        return
+      }
       const session = await this.scheduleSession()
       if (!this.isCurrentSessionAction(session, generation) || session.schedules === undefined) {
         return
@@ -9647,6 +9720,14 @@ export class ConversationController {
       }
       case 'scheduleRun': {
         await this.runSchedule(message.id, message.occurrenceMs)
+        break
+      }
+      case 'schedulesRequest': {
+        await this.answerSchedules(message.message)
+        break
+      }
+      case 'openSchedules': {
+        this.openSchedules(message.view)
         break
       }
       case 'exportConversation': {

@@ -72,6 +72,24 @@ describe('bundled What’s New content budget', () => {
       `OVER dist/webview ${name} body: ${budget.toFixed(1)} KiB (budget ${budget} KiB)`,
     )
   })
+  it('bounds the native schedules runtime chunk at 50 KiB', async () => {
+    statSync.mockImplementation((file) => ({
+      size: file === 'dist/scheduleBackground.js' ? 50 * 1024 + 1 : 0,
+    }))
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+  })
+  it('counts eager chunks against the unchanged startup cap', async () => {
+    readFileSync.mockReturnValue(
+      JSON.stringify({
+        outputs: {
+          'dist/webview/main.js': {
+            imports: [{ path: 'dist/webview/chunks/eager.js', kind: 'import-statement' }],
+          },
+          'dist/webview/chunks/eager.js': { imports: [] },
+        },
+      }),
+    )
+  })
   it('bounds reachable deferred chat chunks while allowing the separately budgeted usage page', async () => {
     mockWebviewMeta({
       outputs: {

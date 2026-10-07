@@ -464,6 +464,9 @@ export interface UiState {
   readonly goal: SessionGoal | undefined
   /** Extension-owned Model API schedules for this session (M52). */
   readonly schedules: readonly ScheduleView[]
+  /** The v2 schedules surface (M115); posted when a schedule command opens it. */
+  readonly schedulesSurface:
+    Extract<HostToWebviewMessage, { readonly type: 'schedulesSurface' }> | undefined
   /** Git and pull requests (M71): the host's cards and the open form. */
   readonly git: GitUiState
   /** Fetched output pages keyed by `${itemId}:${outputRef}`. */
@@ -544,6 +547,8 @@ export type UiAction =
   | { readonly type: 'handoffChanged'; readonly draft: string }
   | { readonly type: 'handoffConfirming' }
   | { readonly type: 'handoffDismissed' }
+  /** The v2 schedules surface's Close (M115). */
+  | { readonly type: 'schedulesSurfaceClosed' }
   | { readonly type: 'insertRequested'; readonly text: string }
   | { readonly type: 'insertApplied' }
   | { readonly type: 'focusRequested' }
@@ -716,6 +721,7 @@ export const initialUiState: UiState = {
   todos: [],
   goal: undefined,
   schedules: [],
+  schedulesSurface: undefined,
   git: initialGitUiState,
   outputPages: {},
   toolImages: {},
@@ -3377,6 +3383,14 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     case 'skillList': {
       return { ...state, skills: message.skills }
     }
+    case 'schedulesMessage': {
+      // The panel's versioned channel owns these; the store only keeps the
+      // surface's props below.
+      return state
+    }
+    case 'schedulesSurface': {
+      return { ...state, schedulesSurface: message }
+    }
     case 'composerState': {
       return {
         ...state,
@@ -3666,6 +3680,11 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
       return pending === undefined || pending.isConfirming
         ? state
         : { ...state, handoff: { ...pending, isConfirming: true } }
+    }
+    case 'schedulesSurfaceClosed': {
+      return state.schedulesSurface === undefined
+        ? state
+        : { ...state, schedulesSurface: undefined }
     }
     case 'handoffDismissed': {
       // Closed, the dialog hands the focus back to the prompt, as Usage
