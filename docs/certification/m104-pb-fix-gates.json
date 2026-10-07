@@ -448,7 +448,33 @@
     },
     {
       "check": "finish-prettier",
-      "command": ["npx", "prettier", "--check", "all 22 changed files (exact command in log)"],
+      "command": [
+        "npx",
+        "prettier",
+        "--check",
+        "CHANGELOG.md",
+        "PLAN.md",
+        "docs/certification/m104-pb.md",
+        "docs/certification/m104-pb-requests.md",
+        "docs/certification/m104-pb-continuation-gates.json",
+        "docs/certification/m104-pb-fix-drills.json",
+        "docs/certification/m104-pb-fix-gates.json",
+        "src/core/paid/paidFeatures.ts",
+        "src/core/tab/tabEngine.ts",
+        "src/host/backend/sessionBudgetJournal.ts",
+        "src/runtime/features/paidUse.ts",
+        "src/runtime/features/paidBudget.ts",
+        "src/runtime/features/tab.ts",
+        "src/shared/constants.ts",
+        "src/shared/usd.ts",
+        "test/m104/engines/paidHarness.ts",
+        "test/m104/engines/paidUse.test.ts",
+        "test/m104/engines/paidComposition.test.ts",
+        "test/m104/engines/paidBudget.test.ts",
+        "test/m104/engines/tab.test.ts",
+        "test/m104/engines/certification.test.ts",
+        "test/unit/tabEngine.test.ts"
+      ],
       "exitCode": 0,
       "log": "temp/m104-pb/fix/finish-prettier.log"
     }
@@ -491,5 +517,11 @@
     "Actual Knip awaits A-owned discovery/lazy wiring: 44 files and one checkpoint factory export.",
     "Actual host API rejects F-owned generated Node import inventory; portable value/type graph passes.",
     "No aggregate quality/coverage or native/provider/editor/live qualification: lead-owned integration step."
-  ]
+  ],
+  "fixCommit": "57cf28d93a706908e17fb4a64171778adf3240e7",
+  "commitHooks": {
+    "lintStaged": "passed: ESLint/Prettier on 15 TypeScript files and Prettier on seven documentation/JSON files",
+    "gitleaks": "passed: staged scan, no leaks",
+    "sourceSha256AfterHooks": "all matched"
+  }
 }
