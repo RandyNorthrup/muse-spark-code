@@ -681,7 +681,11 @@ body {
 
 .chip-remove {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
+  justify-content: center;
+  min-width: var(--ms-space-24);
+  min-height: var(--ms-space-24);
   padding: 0;
   border: 0;
   color: var(--ms-muted);
@@ -1141,6 +1145,8 @@ body {
   display: flex;
   gap: var(--ms-gap);
   align-items: center;
+  min-width: var(--ms-space-24);
+  min-height: var(--ms-space-24);
   padding: 0;
   border: 0;
   color: inherit;
@@ -1154,7 +1160,7 @@ body {
    a long summary in a narrow panel never pushes the chevron under the row's
    ⋯ (lane W's full a11y run, where wider fonts did). */
 .tool-toggle {
-  min-width: 0;
+  min-width: var(--ms-space-24);
 }
 
 .tool-toggle:disabled {
@@ -1226,7 +1232,7 @@ body {
 /* The path of an edit or read row opens the file at its change (M16). */
 .tool-path {
   display: block;
-  min-width: 0;
+  min-width: var(--ms-space-24);
 }
 
 .tool-path:hover {
@@ -3831,24 +3837,56 @@ li:focus-within > .row-actions .row-actions-button,
   outline-offset: var(--ms-focus-offset);
 }
 
-.chat-control:not(.pill, .send-button, .jump-latest, .goal-edit-input, .code-block-body):hover:not(
-    :disabled,
-    [aria-disabled='true']
-  ) {
+:is(.vscode-high-contrast, .vscode-high-contrast-light) .chat-control:focus-visible {
+  outline: var(--ms-focus-width) solid var(--vscode-contrastActiveBorder, var(--ms-focus));
+}
+
+.chat-control:not(
+    .pill,
+    .send-button,
+    .jump-latest,
+    .goal-edit-input,
+    .code-block-body,
+    .todo-title,
+    .context-meter
+  ):hover:not(:disabled, [aria-disabled='true']) {
   background-color: var(--ms-toolbar-hover);
   color: var(--ms-text);
 }
 
-.chat-control:not(.pill, .send-button, .jump-latest, .goal-edit-input, .code-block-body):active:not(
-    :disabled,
-    [aria-disabled='true']
-  ) {
+.chat-control:not(
+    .pill,
+    .send-button,
+    .jump-latest,
+    .goal-edit-input,
+    .code-block-body,
+    .todo-title,
+    .context-meter
+  ):active:not(:disabled, [aria-disabled='true']) {
   background-color: var(--ms-selection);
   color: var(--ms-on-selection);
 }
 
-:is(.jump-latest, .send-button):active:enabled {
-  background: var(--ms-pressed);
+/* These compound controls keep their nested task/SVG roles on their own
+   surfaces. An inset edge supplies feedback without recolouring their content. */
+:is(.todo-title, .context-meter):hover:enabled {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--ms-text);
+}
+
+.chat-control:not(.goal-edit-input, .code-block-body):active:not(
+    :disabled,
+    [aria-disabled='true']
+  ) {
+  box-shadow: inset 0 0 0 var(--ms-focus-width) currentcolor;
+}
+
+/* VS Code uses contrastActiveBorder for interactive edges in HC themes.
+   Keep the focus ring wider than hover, and the pressed edge inside it. */
+:is(.vscode-high-contrast, .vscode-high-contrast-light)
+  .chat-control:hover:not(:disabled, [aria-disabled='true'], :focus-visible) {
+  outline: 1px solid var(--vscode-contrastActiveBorder, var(--ms-focus));
+  outline-offset: var(--ms-focus-offset);
 }
 
 .pill:active:enabled {
@@ -3944,6 +3982,32 @@ li:focus-within > .row-actions .row-actions-button,
 }
 
 @media (forced-colors: active) {
+  /* Forced colours remove inset shadows. System-colour outlines keep hover,
+     keyboard focus and pressed feedback visible without moving the content. */
+  .chat-control:not(.goal-edit-input, .code-block-body):hover:not(
+      :disabled,
+      [aria-disabled='true'],
+      :focus-visible
+    ) {
+    outline: 1px solid Highlight;
+    outline-offset: var(--ms-focus-offset);
+  }
+
+  .chat-control:not(.goal-edit-input, .code-block-body):is(:focus-visible, :active):not(
+      :disabled,
+      [aria-disabled='true']
+    ) {
+    outline: var(--ms-focus-width) solid Highlight;
+    outline-offset: var(--ms-focus-offset);
+  }
+
+  .chat-control:not(.goal-edit-input, .code-block-body):active:not(
+      :disabled,
+      [aria-disabled='true']
+    ) {
+    outline-offset: 0;
+  }
+
   :is(
     .jump-latest,
     .tool-expand,

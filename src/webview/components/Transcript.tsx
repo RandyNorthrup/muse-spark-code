@@ -573,7 +573,7 @@ function HookEditedMarker({
   return (
     <div className="hook-edited" role="note">
       <span>{UI_TEXT.hookMessageEdited}</span>
-      <button type="button" className="button-secondary" onClick={onToggle}>
+      <button type="button" className="button-secondary chat-control" onClick={onToggle}>
         {isOriginalShown ? UI_TEXT.hookMessageShowEdited : UI_TEXT.hookMessageShowOriginal}
       </button>
     </div>
