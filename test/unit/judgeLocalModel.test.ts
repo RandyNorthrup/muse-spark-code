@@ -1,13 +1,22 @@
 import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile, chmod } from 'node:fs/promises'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as fileIdentity from '../../src/core/fs/fileIdentity'
 import * as linuxVolume from '../../src/core/judge/local/linuxVolume'
 import { verifyDiskModel } from '../../src/core/judge/local/model'
 import capture from './fixtures/localJudgeCapture.json'
 
 const roots: string[] = []
+// Volume decoding/refusal is covered by judgeLocalLinuxVolume.test.ts. These
+// real inode, permission and hash checks use a qualified-volume fake so they
+// work on CI temp filesystems while still rejecting each nonlocal scope below.
+beforeEach(() => {
+  vi.spyOn(linuxVolume, 'verifyLinuxLocalVolume').mockImplementation((_file, signal) => {
+    signal.throwIfAborted()
+    return Promise.resolve()
+  })
+})
 afterEach(async () => {
   vi.restoreAllMocks()
   for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true })
@@ -64,18 +73,16 @@ describe('M98-2j captured model provenance', () => {
     'refuses a nonlocal Linux %s scope through the disk verifier',
     async (scope) => {
       const fixture = await diskModel()
-      const actual = linuxVolume.verifyLinuxLocalVolume
       let blobChecks = 0
-      vi.spyOn(linuxVolume, 'verifyLinuxLocalVolume').mockImplementation(async (file, signal) => {
+      vi.spyOn(linuxVolume, 'verifyLinuxLocalVolume').mockImplementation((file, signal) => {
+        signal.throwIfAborted()
         if (file === fixture.blobPath) blobChecks++
-        if (
-          (scope === 'root' && file === fixture.root) ||
+        return (scope === 'root' && file === fixture.root) ||
           (scope === 'manifest' && file === fixture.manifestPath) ||
           (scope === 'blob' && file === fixture.blobPath) ||
           (scope === 'snapshot' && file === fixture.blobPath && blobChecks > 2)
-        )
-          throw new Error('unverified-model-volume')
-        await actual(file, signal)
+          ? Promise.reject(new Error('unverified-model-volume'))
+          : Promise.resolve()
       })
       await expect(verifyDiskModel(fixture.tags, 'test:latest', fixture.root)).rejects.toThrow(
         'unverified-model-volume',
