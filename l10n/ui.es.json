@@ -4048,5 +4048,11 @@
   "referenceElicitation": "Los formularios MCP solicitan información para el servidor MCP que la pide. Los valores enviados van a ese servidor, fuera de la conversación del modelo y de la transcripción. El servidor puede incluirlos en una salida posterior de una herramienta. Nunca introduzcas una contraseña ni una clave.",
   "referenceNativeAgentsConditions": "Cuando run.subagent_delegation_mode=\"auto\", Muse Code puede delegar en agentes. Con \"off\", las herramientas de delegación no están disponibles. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "Busca secretos en un archivo de parche UTF-8 y falla si los detecta. --key-stdin también busca la clave exacta de Model API mantenida en memoria; no se almacena ninguna clave.",
-  "referenceProviders": "Listar, añadir, probar o eliminar proveedores de modelos. Las claves usan el almacén de credenciales. Las pruebas de tokens de pago requieren el editor; la CLI las rechaza."
+  "referenceProviders": "Listar, añadir, probar o eliminar proveedores de modelos. Las claves usan el almacén de credenciales. Las pruebas de tokens de pago requieren el editor; la CLI las rechaza.",
+  "judgeSourceSame": "Modelo de chat propio",
+  "judgeSourceSeparate": "Evaluador separado",
+  "judgeSourceBoth": "Modelo propio y evaluador separado",
+  "judgeLocalUnverified": "Punto de conexión local no verificado",
+  "judgeSourceUntested": "Experimental, sin probar; requiere aceptación explícita",
+  "judgeNoAnswer": "El evaluador no respondió ({reason}). Siguen vigentes las comprobaciones y aprobaciones existentes."
 }

@@ -4190,5 +4190,11 @@
   "referenceElicitation": "Formuláře MCP žádají o informace pro příslušný server MCP. Odeslané hodnoty formuláře jdou tomuto serveru mimo konverzaci modelu a přepis. Server je může zahrnout do pozdějšího výstupu nástroje. Nikdy nezadávejte heslo ani klíč.",
   "referenceNativeAgentsConditions": "Když je run.subagent_delegation_mode=\"auto\", Muse Code může delegovat agentům. Při \"off\" nejsou nástroje delegování dostupné. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "Prohledejte soubor opravy v UTF-8 na tajné údaje; při nálezu skončí příkaz chybou. --key-stdin také hledá přesný klíč Model API držený v paměti; klíč se neukládá.",
-  "referenceProviders": "Vypisujte, přidávejte, testujte nebo odebírejte poskytovatele modelů. Klíče využívají úložiště přihlašovacích údajů. Placené testy tokenů vyžadují editor; CLI je odmítá."
+  "referenceProviders": "Vypisujte, přidávejte, testujte nebo odebírejte poskytovatele modelů. Klíče využívají úložiště přihlašovacích údajů. Placené testy tokenů vyžadují editor; CLI je odmítá.",
+  "judgeSourceSame": "Vlastní model chatu",
+  "judgeSourceSeparate": "Samostatný hodnotitel",
+  "judgeSourceBoth": "Vlastní model a samostatný hodnotitel",
+  "judgeLocalUnverified": "Neověřený místní koncový bod",
+  "judgeSourceUntested": "Experimentální, neotestováno; nutný výslovný souhlas",
+  "judgeNoAnswer": "Hodnotitel neodpověděl ({reason}). Stávající kontroly a schvalování nadále platí."
 }

@@ -3764,5 +3764,11 @@
   "referenceElicitation": "MCP 양식은 요청한 MCP 서버에 필요한 정보를 묻습니다. 제출한 양식 값은 해당 서버로 전달되며 모델 대화와 대화 기록에는 들어가지 않습니다. 서버는 이후 도구 출력에 이 값을 포함할 수 있습니다. 비밀번호나 키를 입력하지 마세요.",
   "referenceNativeAgentsConditions": "run.subagent_delegation_mode=\"auto\"이면 Muse Code가 에이전트에 위임할 수 있습니다. \"off\"이면 위임 도구를 사용할 수 없습니다. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "UTF-8 패치 파일에서 비밀 정보를 검색하고 발견하면 실패로 종료합니다. --key-stdin은 메모리에 있는 정확한 Model API 키도 검색하며 키를 저장하지 않습니다.",
-  "referenceProviders": "모델 공급자를 나열, 추가, 테스트 또는 제거합니다. 키는 자격 증명 저장소를 사용합니다. 유료 토큰 검사는 편집기가 필요하며 CLI는 이를 거부합니다."
+  "referenceProviders": "모델 공급자를 나열, 추가, 테스트 또는 제거합니다. 키는 자격 증명 저장소를 사용합니다. 유료 토큰 검사는 편집기가 필요하며 CLI는 이를 거부합니다.",
+  "judgeSourceSame": "자신의 채팅 모델",
+  "judgeSourceSeparate": "별도 평가 모델",
+  "judgeSourceBoth": "자신의 모델과 별도 평가 모델",
+  "judgeLocalUnverified": "검증되지 않은 로컬 엔드포인트",
+  "judgeSourceUntested": "실험적이며 테스트되지 않음; 명시적 동의 필요",
+  "judgeNoAnswer": "평가 모델의 응답 없음({reason}). 기존 검사와 승인은 계속 적용됩니다."
 }

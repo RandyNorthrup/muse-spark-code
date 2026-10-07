@@ -515,6 +515,12 @@ properties, and retain all existing caps. No new artifact or dependency.
 | `dist/whatsNew.json`                  | ≤ 40 KiB on-disk JSON, independent of ZIP compression; bounded lossless envelope with 75 KiB decoded maximum (M99, D79: newest two releases' full notes and the newest earlier Highlights when needed; hard content cap independent of VSIX compression)                                                                                                                                               |
 | `dist/webview/whatsNew.js`            | ≤ 25 KiB (M99: What's New's page script, which only passes clicks back; 0.7 KiB when made, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
 | `dist/tab.js`                         | ≤ 75 KiB (M94: provider, completion engine and daily ledger, loaded on first request or menu; status item stays in activation)                                                                                                                                                                                                                                                                         |
+| `dist/judgeLint.js`                   | ≤ 50 KiB (unchanged phase-2 lint child).                                                                                                                                                                                                                                                                                                                                                               |
+| `dist/judgeHook.js`                   | ≤ 100 KiB (unchanged phase-2 hook child).                                                                                                                                                                                                                                                                                                                                                              |
+| `dist/judgeLocal.js`                  | ≤ 75 KiB (unchanged phase-2 local child).                                                                                                                                                                                                                                                                                                                                                              |
+| `dist/judgeUses.js`                   | ≤ 25 KiB (unchanged phase-2 use child).                                                                                                                                                                                                                                                                                                                                                                |
+| `dist/validationSchema.js`            | ≤ 50 KiB (unchanged lazy JSON Schema writer).                                                                                                                                                                                                                                                                                                                                                          |
+| `dist/judgeP2.js`                     | ≤ 75 KiB (M98 phase-2 B/D/CS: offline calibration, injected sampling/contrastive and authenticated serve factory; explicit-action loading only; 61,039 bytes plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                           |
 
 **TRAIN13B (2026-10-05):** `dist/validation.js` shares only the used
 Node zod/mini runtime exports (40,416 bytes measured; new 50 KiB cap by
@@ -40009,6 +40015,924 @@ violations, zero undecided rules, zero exemptions and zero missing results.
 No timeout, exemption, worker policy or accessibility rule changed. The lead
 still owns integrated aggregate quality and actual host/release certification.
 
+### M98 — Muse Judge: a calibrated judge for any agent (D77, phase 1 integration)
+
+Lane D integration (2026-10-05, Kubuntu): merge A's review fixes and G's
+M91-G goldens into U, activate the same-model sources through a lazy window
+bundle, retain A's live binding and dispatch guards, and connect dispatch
+receipts to U's separate usage rows. Repair the recorded 320 px tool-row
+overflow. Document and certify only the behaviour exercised on this tree.
+D78's `paidDailyBudget.ts` and setting are absent from this checkout; its
+historical `3db0ef37` factory exposes `capUsd`/`reserve`, not A's complete
+daily-ledger interface. Metered Judge stays unavailable until that real
+adapter and D77's entry-criteria receipts land; no competing store is added.
+The exact handoff is recorded in `docs/certification/m98.md`. Prefixes with
+hosted billable tools use a standalone body with no tools: Judge token
+consent cannot authorize a separate hosted-search charge.
+The full rig gate also exposes Chrome CLI `--dump-dom` stalls on ordinary
+pages. Use the existing Playwright page driver for every accessibility
+scenario, preserving the four themes, real 690/320 px viewports, 120-second
+page timeout and every axe finding rule; prove the ordinary-page failure
+and the restored driver before rerunning the complete quality command.
+Lane D's final Kubuntu `npm run quality` exits 0 (7,317 passing tests;
+464 accessibility pages). Package and raw size check exit 0 at 2,113,751
+bytes against the unchanged 2,252,800 cap. The universal macOS helper is
+absent; CI's exact presence check fails only for that helper. The combined
+final-tree checkbox stays open. Receipts and the D78 handoff are in the
+aggregate certification record.
+
+- **Goal.** Small, calibrated, advisory decisions, on out of the box (D78),
+  from the user's own chat model first, with separate judges later. The Muse
+  model, or a deterministic rule, still decides.
+  - Redesigned after the third review round (RVM98C): **phase 1 is the
+    same-model judge only.**
+  - Every other part is a named phase-2 section that stays planned.
+- **Phase 1 scope.**
+  - **The same-model judge** on the Model API and on Muse Code:
+    - stated confidence on every model, batched;
+    - logprobs where a model offers them, with binary-from-top-1 under its
+      floor;
+    - results labelled "uncalibrated" or "approximate (top-1)".
+  - **Speed:**
+    - Model API side requests that share the main cached prefix exactly
+      (redaction first);
+    - Muse Code redacted standalone prompts in a fresh hidden session per
+      batch;
+    - background calls with stale results dropped, and a memory-only result
+      cache.
+  - **One use:** the Auto risk advisory, through the synchronous caution
+    latch at the reviewer-held and card-held fences only (D77, "Where
+    phase 1 intervenes"). Not started on immediate allows.
+  - **Admission** through D78's daily ledger; the ask-once consent;
+    confidential rules; privacy.
+  - **Modes:** `auto` (= `same`), `same`, `off`.
+  - **Per-backend invariance goldens:** M91-G's raw-body harness for the
+    Model API, MSP frames for Muse Code.
+- **Phase 2 sections**, each with its own lanes, acceptance, drills and
+  certification when it starts:
+  - 2a cascade and `both`;
+  - 2b calibration fitting;
+  - 2c SystemOne adapters and `judge serve` (M85);
+  - 2d sampling and contrastive framing;
+  - 2e BYO providers;
+  - 2f the other uses, the Judge panel section, and pre-execution fences;
+  - 2g the CLI and MCP;
+  - 2h lint;
+  - 2i the embedding fast path;
+  - 2j the local judge, after its design spike.
+- **Depends on.**
+  - **Phase 1:**
+    - M78 and M90 (the reviewer-held approval paths, `reviewedApprovals.ts`,
+      and the CLI settings reader);
+    - D78's daily ledger and M82's claim journal (FIXDEF);
+    - M91-G's raw-body harness (`6cfb19e4`, not yet on main);
+    - D48 and D78 (consent).
+  - **Phase 2:**
+    - M95 (2c keys, 2e, the 2f panel);
+    - M91 (2f pre-execution hooks, 2g `judge hook`);
+    - M96 (2f hints);
+    - M75 (2a, 2b, 2d, 2f, 2i);
+    - D68 (2h).
+- **Phase 1 lanes and file ownership.** Muse codes each lane. Codex
+  independently reviews each lane's finished diff and gate-fire evidence. The
+  lead serializes shared files, integration and the aggregate gates; no lane
+  rewrites another's region.
+  - **Start now on the rigs:** lanes 0, J and A. They are pure or
+    interface-level, and need no host integration.
+  - **After them:** S needs J. U needs S and A. G needs S and M91-G's
+    merge. D runs alongside, closing last.
+
+| Lane                  | Starts                        | Muse implementation ownership                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Codex review / acceptance focus                                                                                                                                                                |
+| --------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 Contract / strings  | now                           | new `src/core/judge/schema.ts` (zod request/answer/`muse` schemas, bounds, labels); named limits in `src/shared/constants.ts` (`JUDGE_TOP1_MIN_PROB`, `JUDGE_MIN_READY_RATE`, the advisory threshold, deadlines, caps); the `judge` paid feature in `PAID_FEATURES`; `museSpark.judge.engine` (`auto`, `same`, `off`) in `package.json` and `package.nls*.json`; English and the 14 `l10n/ui.*.json`                                                                                                           | Byte-compatible `answers`; option letters `A`–`Z`; no content in log fields; complete real translations                                                                                        |
+| J Judge core          | now                           | new `src/core/judge/{judge,math,techniques,prompt,resolve,entries}.ts`: the entropy confidence, logprob renormalization over distinct alternatives, `partial`, binary-from-top-1 with its floor and stated fallback, the stated-confidence parser, the state-first prompt builder, batching (questions split, never the state), the over-context refusal, the phase-1 mode resolver, and the exact-action entry store (key, states, discard rules, the synchronous latch read); new `test/unit/judge*.test.ts` | The RVM98 top-1 counterexample; variants counted once; top-1 never a distribution; a missing field read as failure; no state split; a late result never readable after its fence               |
+| A Admission           | now (against D78's interface) | new `src/core/judge/admission.ts`: worst-case uncached reservation per call, refusal of unpriced and over-budget calls, settlement, refunds of known non-sends, liability for uncertain outcomes, re-binding after waits; the adapter onto `src/host/paid/paidDailyBudget.ts` (D78), with no store of its own; integration tests against the real ledger once FIXDEF merges                                                                                                                                    | Entry criteria 1–7 of D77 verified, or a gap filed against FIXDEF; kill after dispatch, corrupt store, lock contention, network-home refusal, two windows, held modal; M80 and D78 regressions |
+| S Same-model source   | after J                       | new `src/core/judge/same/**` and host adapters: the Model API side request built from `ModelApiHost`'s own request builder (prefix copied only when redaction leaves it unchanged; standalone otherwise); Muse Code's fresh hidden session per batch (`session/start`, an empty temporary folder deleted after, Plan, no MCP servers, the user-settings allow-rule check, the M90 item guard); background scheduling and the memory-only result cache                                                          | No model switch; main request or session untouched; redaction first; no reuse of M90's session; judge off on standing allow rules; Muse Spark never awaited                                    |
+| U Use / UI            | after S and A                 | the latch reads at M78's reviewer fence (Model API) and in `src/host/review/reviewedApprovals.ts` (Muse Code, extension-owned held approvals); the caution note on cards; no start on immediate allows; the ready-rate and precision recorder for M75 replays; the Judge status line; the ask-once modal hook-up; usage rows; harness and accessibility cases                                                                                                                                                  | A ready caution turns ALLOW into ask; a pending one leaves it; the card never waits; never an allow; results kept out of the ALLOW parsers; themes, narrow panel, keyboard and screen reader   |
+| G Golden / invariants | after S, and M91-G's merge    | the Model API: an extension of M91-G's raw-body harness (`test/unit/modelApiGoldenRequests.test.ts` at `6cfb19e4`), with the full body byte-identical when `off` or with no hint, the side prefix equal to the main cached prefix, and the redaction case standalone; Muse Code: main-session MSP frames unchanged through the real adapter and fake CLI, and the judge session carrying only the standalone prompt; the SoL-Pi regression files rerun                                                         | Red on any main-body byte change, a side-prefix divergence, a prefix reused despite redaction, or a changed main-session frame; no independent baseline; no claim about the CLI's HTTP bytes   |
+| D Docs / integration  | alongside; closes last        | README, `docs/judge.md` (phase 1), `docs/PRIVACY.md`, SECURITY, CHANGELOG, PLAN, `docs/certification/m98.md`, the bundle and package scripts, knip and dpdm entries                                                                                                                                                                                                                                                                                                                                            | Documented behaviour only after real runs; costs from receipts; Muse Code's narrowed claim stated                                                                                              |
+
+- **Phase 1 acceptance.**
+  - **FIXM98J review repairs (RVM98J, 2026-10-04).** Findings 1–10
+    corrected within lanes J/0: finite JSON booleans; generation-bound entry handles;
+    complete-request context admission and splitting; single-character
+    answer tokens; no judge in the legacy activation paid review; explicit
+    `same` below the automatic ready-rate floor; singular `logprob` metadata;
+    ask-once wording with the shared daily budget in every language; a
+    schema-free engine predicate; and honest top-1 `partial` metadata.
+    Each fix has a regression and a byte-exact red drill in
+    `docs/certification/m98-j.md` (16 drills, full hashes beside it).
+    Lane U retains first-charge consent;
+    no judge call runs in this repair lane.
+  1. **Invariance, per backend.**
+     - When `off`: no request, no file, no log line, no bundle load.
+     - Model API with no hint: the main body is byte-identical (the M91-G
+       harness), and side prefixes are exact or standalone under redaction.
+     - Muse Code: main-session MSP frames unchanged, and the judge frames
+       carry only the standalone prompt.
+  2. **The contract.**
+     - Jev shapes for noul, choice and score.
+     - `muse` carries the source, technique, model, label, our confidence,
+       `vendorConfidence`, `partial`, and the reserved and settled cost.
+     - The bounds refuse 65 questions, 27 options, 11 levels and an oversized
+       body.
+  3. **Techniques.**
+     - **Stated:** batched and labelled "uncalibrated".
+     - **Logprobs:** renormalized over distinct variants.
+     - **Top-1:** only for a noul with a yes/no token at or above the floor,
+       labelled "approximate (top-1)"; the RVM98 counterexample falls back.
+     - **A missing field** is a failure.
+  4. **Fences** (C3).
+     - A ready caution at the reviewer's verdict turns ALLOW into ask.
+     - A fast reviewer with a delayed judge: ALLOW stands, and the late
+       result is dropped.
+     - An immediate native or Auto allow: no judge started, nothing charged.
+     - A card with a caution ready before the answer gets a note; after the
+       answer, nothing.
+     - A replaced session, turn or action discards the entry.
+     - The card never waits.
+     - Ready rate and precision recorded per backend; under
+       `JUDGE_MIN_READY_RATE`, the backend's default is off, with the reason.
+  5. **Muse Code isolation** (C4).
+     - A fresh session per batch, never M90's or the main one.
+     - An empty temporary folder, removed after.
+     - Plan mode with no MCP servers.
+     - The judge is off when user-level always-allow rules exist.
+     - The tool-item guard cancels.
+     - The residual and the narrowed claim appear in §9, in PRIVACY and in
+       the first-use note.
+  6. **Admission** (C5). Through D78's ledger only:
+     - worst-case reservation before dispatch;
+     - kill after dispatch, then restart: the liability is kept;
+     - a corrupt store or a lock failure: refused;
+     - a network home: refused;
+     - two windows: one admitted;
+     - a held modal: re-checked;
+     - unpriced: refused;
+     - re-binding after every wait.
+  7. **State size.** An over-context state gets an explicit no-answer, and
+     questions split across requests each carry the full state.
+  8. **Consent and billing.** Model API asks once (D78) with the price and
+     daily budget; Muse Code shows the subscription note.
+  9. **Confidential.** Same-model calls run exactly when the chat model may.
+  10. **Advisory only.** A "safe" answer leaves every verdict unchanged
+      (D50's test); results never reach the ALLOW parsers.
+  11. **Privacy.** Redaction before any remote call wins over prefix reuse.
+      Logs carry ids, source, technique, model, timing and cost only.
+- **Phase 1 tests and red drills.** Fakes only under `test/**`:
+  - a fake provider with stated-JSON, top-5, top-1, silent-drop,
+    reasoning-forced and cache modes;
+  - a fake Muse CLI with a hidden-session recorder, an always-allow settings
+    fixture and a tool-item emitter;
+  - fake reviewers with controllable delays.
+
+  Each new assertion and guard is broken once on purpose, observed failing,
+  restored byte-exact (SHA-256), and its whole test file rerun. The record
+  goes in `docs/certification/m98.md`. The required drills:
+  - **Invariance:** a main-body byte change; a side-prefix divergence; a
+    prefix reused despite redaction; a changed main-session MSP frame.
+  - **Math:** the top-1 complement under the floor; variants counted twice;
+    top-1 used for a choice; a dropped field read as certainty; a state
+    split.
+  - **Fences:**
+    - the latch awaiting the judge;
+    - a late result applied after its fence;
+    - a judge started on an immediate allow;
+    - a judge result parsed as ALLOW;
+    - an entry surviving a turn replacement.
+  - **Isolation:** reuse of M90's session; judging in the workspace folder;
+    running despite a user-level always-allow rule.
+  - **Admission:** a dispatch before the durable reservation; a liability
+    dropped on restart; two windows admitted for the last claim; dispatch
+    after a held modal without re-checking.
+  - **Behaviour:** a "safe" score that allows; a user path awaiting Muse
+    Spark; the judge doing anything while `off`; contributor tier in a
+    confidential workspace.
+
+  Never drill against a user's repository.
+
+- **Phase 2 sections.** Planned, not dropped. Each starts after its
+  dependency and the evidence it names.
+  - **2a — Cascade, `both`, and `auto` → `both`.**
+    - **Design:** the separate judge first; the same model under the entropy
+      `JUDGE_CASCADE_CONFIDENCE` or for a high-stakes family;
+      profile-weighted combination; disagreement only adds caution.
+    - **Needs:** 2b, a verified separate judge (2c or 2j), and M75's
+      families. The round-2 numbers are offline prototypes.
+  - **2b — Calibration fitting and the report.**
+    - Platt first, isotonic at 200 or more labels.
+    - Per-family targets with independent labels; outcome signals kept
+      apart.
+    - Disjoint grouped splits; metrics from the evaluation set only.
+  - **2c — SystemOne adapters and `judge serve`** (M85).
+    - **Adapters:** OpenRouter Jev (tested), TypeSafe (untested), Clef
+      (after a key), over M95's keys.
+    - **`serve`:** an IP-literal bind, a per-start token in a user-only file
+      deleted on exit, Host and `Origin` refusal (an absent `Origin` never
+      skips the token), 64 KiB, per-request admission.
+  - **2d — Sampling and contrastive framing,** under the cost gate,
+    measured first.
+  - **2e — BYO providers** after M95, with per-model capability blocks from
+    captures.
+  - **2f — The other uses, the Judge panel section and pre-execution
+    fences.**
+    - **Uses:** skill suggestion, relevance and grading, M96's hints, M90's
+      signal, and the three testing uses, each measured first.
+    - **Fences:** a deadline-bounded or hook-based fence for immediate
+      allows, only with a captured pre-execution hook (M91) and a measured
+      ready rate.
+    - **The panel section** sits in M95's panel.
+  - **2g — The CLI and MCP.** `judge ask`, `calibrate`, `report` and `mcp`,
+    plus `judge hook` after M91; exit codes 0, 2 and 4; `--budget-usd`
+    defaults to 0; hooks emit caution only.
+  - **2h — Lint,** within D77's declared limits: a strict, pinned
+    `jevlint.json`; a separate Muse config; Tree-sitter for the kinds
+    symbols cannot cover; a "not checked" coverage report; the first-party
+    pack.
+  - **2i — The embedding fast path,** after a measurement with hundreds of
+    labels.
+  - **2j — The local judge.** First, a design spike answering C1 and C2
+    (D77): verified local inference checked per connection, against the
+    named fixtures, or else only a user-configured, unverified endpoint
+    that is never confidential and never auto-selected. The build follows
+    the spike's verdict, starting from D77's carried design: the pinned
+    `node:net` transport, provenance, consented pulls and `tev1:4b`.
+    **Windows spike lane (2026-10-05).** `docs/certification/m98-2j-spike.md`
+    records the verdict and free-call ledger. Prototype modules in
+    `src/core/judge/local/` are reachable only through owning tests, with the
+    reviewed Windows TCP-table helper in `test/unit/helpers/`. They ship no
+    runtime entry, settings or automatic selection. Test the connection's
+    reversed four-tuple before writing HTTP, process creation identity,
+    installed executable and on-disk manifest/blob digests, then the named
+    reconnect, replacement, PID-reuse, address-family and forwarding cases.
+    Linux and macOS designs remain unverified on this Windows rig. No model
+    pulls, credential reads or paid calls; at most 59 free inference attempts.
+    **Spike result:** outcome (a) is feasible on the recorded native Windows
+    installation: each content socket's exact peer, binary fingerprint and
+    local manifest/blob bytes were verified before HTTP. 27 free inference
+    attempts completed (26 with the complete transport proof); at most 56
+    Ollama HTTP requests including metadata. The runtime install and model
+    mutation assumptions are explicit in the certification. The authenticated
+    self-SSH fixture could not run without existing authentication; Linux,
+    macOS and installed-extension execution remain unverified. This is a
+    test-only design result, not a shipped local engine or automatic selection.
+- **Gates.**
+  - The lead runs the full `npm run quality` and the required CI checks on
+    the final integrated tree. Lane tests and builds run on the rigs; local
+    work is limited to changed-file formatting and lint.
+  - All existing budgets are preserved.
+  - New external shapes need counted captures before their parsers: for
+    phase 1, Muse Code's hidden-session frames and the CLI's user-settings
+    allow-rule format.
+  - This planning lane authorizes no paid or live call beyond its recorded
+    probes.
+- **Security.**
+  - Inputs are bounded by named constants.
+  - State is data, and the judge can only add caution.
+  - Keys stay in SecretStorage or the OS store.
+  - Muse Code's judge session carries M90's recorded residual (§9), with
+    the narrowed claim.
+  - No local endpoint is contacted in phase 1.
+- **Docs and owner steps.** None for phase 1. The owner-only keys (TypeSafe,
+  Cloudflare) are needed only for 2c. Each surface is documented only after
+  a real successful run.
+- **Certification checklist.**
+  - [x] Owner requests and rulings; D77's policy of record; research and
+        probes (41 live attempts, ≈ $0.015; local CPU and GPU runs; round-2
+        prototypes labelled).
+  - [x] RVM98 (12 findings) answered in `96d7b669`; RVM98C (C1–C6) answered
+        by this redesign. C1 and C2 move with the local judge to the 2j
+        spike; C3–C6 are fixed for phase 1.
+  - [x] RVM98J findings 1–10 repaired in FIXM98J with owning regressions
+        and byte-exact red drills; no finding remains as an accepted residual.
+  - [ ] Phase 1 acceptance 1–11, each with its failing drill and passing
+        receipt.
+  - [x] M91-G's harness merged with `--no-ff` in `e64ced28`; lane G's
+        golden and MSP receipts are linked in `docs/certification/m98.md`.
+  - [ ] D78's ledger meets entry criteria 1–7, or FIXDEF gaps are closed.
+  - [ ] Phase-1 final tree: full quality, a11y, package and bundle caps,
+        installed-host receipts.
+  - [ ] Each phase-2 section certified on its own when it ships.
+- **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
+
+#### M98 phase 2 — buildable lanes (2026-10-05, planned)
+
+**Goal.** Deliver both the user's own model and a separate judge as
+first-class advisory sources, including the requested local-model opt-in,
+without changing the single-model user's current behaviour. These are
+subsections of M98, not new milestones. The phase-1 scope, lanes,
+acceptance and outstanding certification above are unchanged. Planning
+receipt and review trace: `docs/certification/m98p2-plan.md`.
+
+**Policy for phase 2.** The owner's M98P2PLAN brief is authoritative where
+older drafts differ. Enhancements stay on by default for the user's chosen
+setup; `auto` stays `same` until a separate source passes its verification
+and measurement gates. Paid extras are enabled but cannot dispatch until
+the first-charge, three-choice consent shows their price and the shared
+`museSpark.paidDailyBudgetUsd`. A free-to-paid move asks again. There is no
+activation-time paid prompt, automatic download or automatic provider
+switch. An explicit mode bypasses an automatic readiness default only,
+never consent, confidentiality, provenance or admission.
+
+TypeSafe/Jev remains **experimental, untested and opt-in** under this
+brief, with the direct TypeSafe route blocked on the sales-call/key step.
+The OpenRouter Jev captures in `m98-research.md` remain historical wire and
+smoke evidence; they do not certify the integrated phase-2 product or
+remove this shipping label. An untested route is not auto-selected. Jev or
+TypeSafe only assists: it never replaces the Muse model, skips a rule or
+question, grants an action, or supplies the sole gate, including in lint.
+A missing or unsure signal leaves the existing behaviour unchanged.
+
+**Dependencies and entry conditions.** All build lanes branch from the
+merged, certified phase-1 tree, including A/S/U/G/D, FIXM98J's repairs,
+M91-G's corrected raw-body baseline and D78/FIXDEF's durable ledger entry
+criteria 1–7. `0433091f` alone is not that completed tree. Additional waits:
+
+- **M95:** its `ProviderClient`, model capability/price records, presets,
+  SecretStorage/OS-store keys and endpoint policy for 2e and 2c's service
+  adapters; its models panel for 2f. No second provider transport or key
+  store. A fake-only `serve` boundary does not require M95.
+- **M91:** captured pre-execution semantics and each agent's output schema
+  for 2f's fences and 2g's hook CLI. No guessed hook output or ALLOW field.
+- **M75:** independent family labels, harder replays and grouped splits
+  for 2a/2b/2d/2f/2i; **M96** for orchestrator hints; **D68** for the
+  bundled-skill lint entry.
+- **2j spike:** the parallel Windows lane's reviewed commit and
+  `docs/certification/m98-2j-spike.md`, its outcome (a) or (b), exact
+  captures, call ledger and platform limits. No result is available on
+  this planning base. Absence blocks the local build, not the other lanes.
+  A Windows receipt never certifies Linux or macOS.
+
+**Lane ownership and ordering.** “Start” means implementation and owning
+fake tests may begin; release still requires the surface's acceptance and
+measurements. New paths below are planned ownership, not claims that files
+exist. Each lane owns its uniquely named `test/unit/judge<Surface>*.test.ts`
+files and `docs/certification/m98p2-<lane>.md`. Shared-file requests go to P0
+or Z; lanes do not edit each other's files. Required injected dependencies
+may be tested with fakes under `test/**`; no fake production seam or unused
+scaffold is merged.
+
+| Lane / surface           | Start / wait                                                                               | File ownership                                                                                                                                                                                                                                                                            | Merge or enable condition                                                                                                                             |
+| ------------------------ | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P0 Contract / settings   | Phase 1 merge; first small commit                                                          | `src/core/judge/{schema,engine}.ts`; judge constants and lazy model-text blocks in `src/shared/constants.ts`; judge regions of `src/host/settings.ts`, `package.json`, `package.nls*.json`, `src/shared/l10n/en.ts`, all 14 `l10n/ui.*.json`; `judgeContract*` / `judgeActivation*` tests | Cross-lane request/result, capability, profile and reason-code seams agreed; off stays lazy; no new runtime by itself                                 |
+| B / 2b Calibration       | Phase 1 merge; alongside P0                                                                | New `src/core/judge/calibration/**`; `judgeCalibration*` tests; labelled/grouped fixtures under `test/fixtures/judge/calibration/`                                                                                                                                                        | Fits/report work offline; activating a profile needs independent evaluation                                                                           |
+| CS / 2c Serve boundary   | Phase 1 merge; alongside B and G, using P0 seams                                           | New `src/runtime/judge/{serve,tokenFile}.ts`; `judgeServe*` tests and token/ACL fixtures                                                                                                                                                                                                  | Fake service tests first; G owns command dispatch; real source and cross-OS ACL/installed-host receipts before shipping                               |
+| D / 2d Techniques        | Phase 1 merge; pure work alongside B/CS/G                                                  | New `src/core/judge/{sampling,contrastive}.ts`; `judgeSampling*` / `judgeContrastive*` tests                                                                                                                                                                                              | Runtime use waits for a captured eligible model and its M75 measurement; calibration labels wait for B                                                |
+| G / 2g CLI and MCP       | Phase 1 merge; alongside B/CS/D                                                            | New `src/runtime/judge/{args,commands,mcp}.ts`; judge dispatch regions of `src/runtime/{main,cliArgs}.ts`; `judgeCli*` / `judgeMcp*` tests                                                                                                                                                | `ask`/`mcp` on a real available source; `calibrate`/`report` after B; dispatch for `serve` after CS and `lint` after H                                |
+| H / 2h Lint              | Phase 1 merge; config/pack fixtures alongside B/CS/D/G                                     | New `src/core/judge/lint/**`, `src/runtime/judge/lint.ts`, `src/host/judge/lint.ts`; first-party pack under `skills/judge-lint/`; `judgeLint*` tests and fixtures                                                                                                                         | Extraction/package integration follows G and D68; strict upstream parity and supported coverage proved; grammar dependencies reviewed before addition |
+| J / 2j Local source      | Reviewed spike result; P0 seams                                                            | New `src/core/judge/local/**`; `src/host/judge/local.ts`; `judgeLocal*` tests; OS helper source only if the spike establishes it                                                                                                                                                          | Outcome (a) enabled only on individually certified platforms; outcome (b) explicit unverified endpoint only                                           |
+| C / 2c Service adapters  | M95 merge; P0 seams                                                                        | New `src/core/judge/systemone/**`; only SystemOne preset/capability regions of M95's `src/core/providers/{presets,capabilities}.ts`; `judgeSystemOne*` tests                                                                                                                              | Captured common wire; TypeSafe/Jev labelled untested and opt-in; Clef unavailable until captured                                                      |
+| E / 2e BYO               | M95 merge; P0 seams; parallel with C/J                                                     | New `src/core/judge/providers/**`; `judgeProviders*` tests                                                                                                                                                                                                                                | Reuses M95 transport/keys/prices; each model's captured capability decides technique                                                                  |
+| A / 2a Cascade / modes   | B plus a verified C, E or J source                                                         | New `src/core/judge/cascade.ts`; `src/core/judge/resolve.ts`; `judgeCascade*` / `judgeResolve*` tests                                                                                                                                                                                     | Actual entropy cascade, profile weights and ready-rate/precision measurements pass; then `auto` may become `both`                                     |
+| FU / 2f Uses / fences    | Pure fixtures after phase 1; source/B/M75 before adoption; M91 for fences, M96 for hints   | New `src/core/judge/uses/**`, `src/host/judge/uses.ts`; judge-use regions of `src/host/conversation/conversationController.ts` and `src/host/review/reviewedApprovals.ts`; `judgeUses*` / `judgeFences*` tests                                                                            | Each use ships separately after its paired evidence and borrowed goldens; phase-1 fences still never await                                            |
+| FP / 2f Panel            | M95 models-panel merge; P0 and source status seams                                         | Judge regions of `src/host/models/modelsPanel.ts`, `src/webview/models/**` and `src/shared/modelsPanel.ts`; `src/shared/protocol.ts` judge usage messages; judge rows in `src/webview/components/{UsageDialog,PaidBadge}.tsx`; `judgePanel*` tests / harness cases                        | Validated bridge, real translations, four themes, keyboard/screen-reader and truthful status/cost labels                                              |
+| GH / 2g Hook CLI         | G plus M91 merge/captures                                                                  | New `src/runtime/judge/hook.ts`; `judgeHookCli*` tests; G alone changes the dispatcher                                                                                                                                                                                                    | Native caution-only format per agent; absent answer emits no opinion                                                                                  |
+| I / 2i Embeddings        | B; same-provider embedding capability from E or opted-in J; hundreds of independent labels | New `src/core/judge/embedding/**`; `judgeEmbedding*` tests and labelled fixtures                                                                                                                                                                                                          | Family-specific paired evidence; opt-in local training; no VSIX weights                                                                               |
+| Z Integration / delivery | Alongside; serializes and closes each delivered surface                                    | `src/core/judge/judge.ts` assembly; host/runtime wiring outside lane-owned regions; borrowed `judgeP2Golden*` tests; build/split/package scripts, knip/dpdm entries; README, `docs/judge.md`, PRIVACY, SECURITY, CHANGELOG, PLAN and aggregate receipt                                    | No cap/rule weakened; full exact-tree quality and installed/package receipts; preserve single-model/no-hint goldens                                   |
+
+P0 owns manifest/settings/text edits even when requested by FP or G. Z
+owns build/package dependency edits, admission adapters onto the existing
+D78 ledger and wiring into existing backend/context/evaluation code; it
+does not modify ledger internals. G owns every CLI parser/dispatch change,
+including CS/H/GH registrations. C alone extends SystemOne presets; E
+consumes provider records without rewriting M95. Z serializes shared
+regions with M95/M91/M96 before integration. No lane creates a parallel
+ledger, scheduler, provider registry, hook format or golden baseline.
+
+##### 2a — Cascade, `both`, and `auto` → `both`
+
+- **Scope.** Separate first; same-model follow-up below entropy
+  `JUDGE_CASCADE_CONFIDENCE` or always for a high-stakes family. Combine
+  using B's fitted profile weights; disagreement can only add caution.
+  `auto` resolves at the first decision, never activation. It becomes
+  `both` only with a verified, available separate source and suitable
+  profiles; otherwise it retains phase-1 `same` and its readiness default.
+- **Fake acceptance.** A resolver matrix covers `auto|same|separate|both|off`,
+  missing profiles, source failures and explicit modes below the default
+  ready-rate floor. The same model remains the conversation's model.
+  Compare the actual entropy gate with the recorded 17-versus-28 prototype
+  counterexample; every high-stakes question invokes same. A partial/top-1
+  result cannot enter a calibrated combiner. Failed/late separate output
+  leaves phase-1 behaviour and honestly reports the source that answered.
+  Invalidate selection/results on source/model/endpoint/profile, consent,
+  owner, mode, turn or confidential changes; cached selection is no trust
+  proof. Each source, retry and fan-out has admission before dispatch.
+- **Red drills.** Replace entropy with `|2p−1|`; omit the high-stakes
+  follow-up; use equal raw weights; reuse a stale profile; turn disagreement
+  into ALLOW; dispatch both sources against one budget claim.
+- **Evidence to enable.** B, verified C/E/J and M75 held-out paired runs of
+  same-only, separate-only and the implemented cascade, with ready rate,
+  caution precision, Brier/ECE where applicable, latency and actual costs.
+  Prototype numbers remain prototypes; live attempts follow the ledger below.
+
+##### 2b — Calibration fitting and report
+
+- **FIXM98B / RVM98P2A finding 1 (2026-10-05).** Merge P0's shared
+  contract (`3e192331`) before the repair. Calibration must retain all ten
+  profile identity fields, including `providerId`, and refuse another
+  provider even when model/version and endpoint are unchanged. Prove shared
+  contract interoperability, provider validation and exact-provider refusal
+  with owning regressions and byte-exact red drills in
+  `docs/certification/m98-b.md`; no runtime assembly or model calls.
+- **Scope.** Binary Platt scaling first; isotonic only with at least 200
+  independent labels in that family. Profiles identify provider, model/version,
+  endpoint/source, technique, question family, prompt/criteria and fit
+  version, so another engine's probabilities or vendor confidence never
+  inherit a profile. Unsupported family/technique gives an explicit reason
+  and uncalibrated output, never a manufactured calibrated label.
+- **Fake acceptance.** Known synthetic distributions exercise numerical
+  bounds, degenerate datasets and profile mismatch. Fit, tuning and
+  evaluation groups are disjoint by task/repository; report ECE/Brier only
+  on evaluation groups, alongside sample counts and the uncalibrated arm.
+  `risk.destructive` uses independent hand/M75 labels and `skill.fit` uses
+  M75 routing labels. Approvals, successful tests, reviewer answers and
+  model logprobs are excluded as factual labels. Optional outcome signals
+  stay in their separate local, content-free drift/preference store.
+- **Red drills.** Fit an evaluation group; allow 199 labels into isotonic;
+  treat an approved destructive command or model belief as truth; apply
+  one model's profile to another; include training metrics in the report.
+- **Evidence.** Offline fitting/reports cost nothing. Fakes prove mechanics,
+  not calibration. Collecting missing real model predictions requires a
+  separately authorized, counted run on independently labelled families.
+
+##### 2c — SystemOne adapters and `judge serve` (M85)
+
+**FIXM98CS review repair (2026-10-05, macmini).** RVM98CS findings 1–3
+are in this bounded lane: macOS extended-ACL refusal before and after the
+bearer write (real `chmod +a` controls), exit cleanup registered before
+that write, and shutdown promise publication before synchronous abort
+callbacks. Owning regressions and byte-exact red drills are recorded in
+`docs/certification/m98-cs.md`. The existing translated `judgeNoAnswer`
+template carries the technical `EJUDGE_TOKEN_ACL` refusal code; no shared
+text key, dependency or dispatcher change is needed. Linux and Windows
+receipts remain individually labelled; this Mac receipt cannot certify
+another OS.
+
+- **Scope.** C consumes M95's SystemOne presets/keys for OpenRouter Jev,
+  direct TypeSafe and later Clef; CS exposes the existing captured Jev
+  contract at `/v1/systemone`. There is no second client/key store. Native
+  `answers` stay compatible; additions are siblings in `muse`.
+- **Fake acceptance: adapters.** Replayed named captures cover noul,
+  choice and score, malformed/missing usage, unexpected additions, question
+  alignment and model-specific bounds. Compute entropy confidence locally;
+  retain `vendorConfidence` separately. Redaction precedes a remote send.
+  TypeSafe/Jev cannot auto-select, suppress a deterministic check or solely
+  fail a gate; its opt-in and untested labels survive errors and resume.
+  Remote SystemOne is unavailable in confidential workspaces. Clef has no
+  parser/availability promise before its own counted capture.
+- **Fake acceptance: server security.** Bind only the IP literal
+  `127.0.0.1` or `::1`, on a chosen/random port; reject hostnames, wildcards
+  and non-loopback addresses. Generate a new bearer token per start, write
+  it once to a user-only file in a private directory, and enforce/verify
+  its effective ACL before listening. POSIX mode and Windows DACL receipts
+  must prove other users cannot read it; inability refuses startup. Never
+  print the token or place it in arguments, environment, logs or a child.
+  Refuse a Host other than the bound literal and actual port (bracketed
+  `::1`); refuse every request carrying an Origin, including `null`.
+  A missing Origin never bypasses bearer authentication. Bound the entire
+  streamed body to 64 KiB even without Content-Length; reject malformed
+  input/path/method before invoking the judge. Each inference request has
+  its own admission/reservation, including concurrent clients and retries.
+  Close listeners/connections and delete the token file on exit; after a
+  crash, old tokens never authenticate a restart and uncertain paid claims
+  remain liabilities. Clients may set `TYPESAFE_ENDPOINT` to the URL but
+  must support the required bearer header; no unauthenticated workaround
+  for a client that cannot do so.
+- **Red drills.** Accept a foreign Host, an Origin, or missing/wrong token;
+  authenticate only when Origin is present; reuse a restart token; permit
+  broad inherited ACLs; cap declared length instead of streamed bytes;
+  admit two paid requests for the last balance; dispatch before reservation.
+- **Evidence.** CS security uses fake providers and real local sockets,
+  plus per-OS ACL and installed-Node/VS Code receipts, with no model cost.
+  Real service captures and smoke calls are the named optional paid rows
+  below; the sales-call block does not block the common adapter/server.
+
+##### 2d — Sampling and one-call contrastive framing
+
+- **Scope.** k independent parallel samples share the state/prefix; contrastive
+  sends the question and inverse in one call, combines mean(p, 1−p′), and
+  is not the two-call prototype. Neither conditions one answer on another.
+- **Fake acceptance.** Sampling is refused on reasoning-forced models,
+  Muse Spark included. Otherwise require captured cache/non-reasoning
+  capability and the worst-case-per-question cost gate, or the high-stakes
+  exception; the exception never bypasses consent or budget admission.
+  Test provider minimum output, a cold write then reads, cache misses,
+  k concurrent reservations, retries, cancellation and uncertain charges.
+  Full state and complete system/user request overhead fit on every call.
+  Contrastive uses one POST, matching pairs and bounded distributions.
+  Labels remain uncalibrated until B validates this specific technique.
+- **Red drills.** Sample Muse Spark; use cached price for admission; dispatch
+  k attempts with one claim; send two contrastive POSTs; split state or
+  ignore prompt overhead; condition the second frame on the first answer.
+- **Evidence.** Actual default algorithms need their own paired M75 run;
+  no accuracy, cache savings or speed claim comes from the round-2 prototype.
+
+##### 2e — BYO providers after M95
+
+- **Scope.** Consume `ProviderClient`, existing endpoints, price cards,
+  keys and captured per-model capabilities. Same remains exactly the
+  chosen chat model; a separately selected model is honestly separate.
+- **Fake acceptance.** Captured top-k, top-1, stated and silently dropped
+  fields decide technique per model, not provider. An uncaptured capability
+  permits only a captured supported stated path; otherwise no answer.
+  Preserve RVM98J's single-character tokens, singular `logprob` metadata,
+  top-1 floor/partial flag and complete-request admission. A provider/model
+  switch invalidates old results and rebinds price/consent after waits.
+  Unknown price, unavailable keys and confidential-policy refusal dispatch
+  nothing; a request-only judge does not start another agent/backend.
+- **Red drills.** Infer capability from provider name; read a dropped field
+  as certainty; switch the same model; send a stored key to a subprocess;
+  send against an unpriced card or an expired consent binding.
+- **Evidence.** Prefer M95's scrubbed capture receipts. A missing shape
+  needs a named bounded live capture before its parser, not a guessed fixture.
+
+##### 2f — Other uses, M95 Judge section and pre-execution fences
+
+- **FIXM98FU review repair (RVM98FU P2, 2026-10-05).** The injected
+  reviewer-use entry owns one runtime dispatch per live exact-action key.
+  Identical approvals join that entry with independently consuming,
+  reference-counted latches; resolving, aborting or reading one holder
+  cannot discard another holder's ready caution. Only the last holder
+  leaving cancels the shared call. Owner/source/policy invalidation still
+  discards the whole stale generation, and old holders/callbacks cannot
+  affect its replacement. Keep the synchronous reviewer fence and all
+  evidence/admission gates. Add the review's independent-lifetime and
+  two-reviewable-approval hold/resolved probes, and byte-exact red drills,
+  to `docs/certification/m98-fu.md`. No source activation or new dependency.
+- **Scope.** Separate, measured deliveries: skill/custom-agent suggestions
+  (at most one hint line), context relevance, semantic grading beside
+  deterministic checks, M96 orchestrator hints, M90 review signals, and
+  CI-log flake triage, lane-diff pre-screen and review-class ordering.
+  A judge does not make tests faster or decide to retry, merge or skip one.
+- **Fake acceptance: uses.** Safe/failed/unsure output never permits an
+  action or changes a rule. No-hint main bodies retain M91-G raw goldens;
+  an allowed hint changes only the documented tail, leaving earlier bytes
+  and the complete skill index intact. Redaction wins over prefix reuse.
+  Context adoption requires M75 evidence of no loss; grading cannot replace
+  verifiers. Missing M96 produces no orchestration override. M90 retains
+  its independent reviewer and its ALLOW parser never reads judge output.
+- **Fake acceptance: fences/panel.** Immediate/native allows remain
+  unjudged and uncharged until a captured M91 pre-execution or separately
+  measured deadline fence exists. Fake-clock tests prove the new fence's
+  hard deadline, exact-action/generation binding, cancellation and late
+  discard; missing output is no opinion. Existing phase-1 fences never
+  await. M95's panel displays effective source/model, technique, partial/
+  calibration status, unavailable/unverified/untested reasons, price,
+  reserved/settled/uncertain cost and daily budget. Model API first charge
+  asks once; Muse Code has only its subscription note unless a paid source
+  is selected. Every new UI key has all translations and zod bridge tests.
+- **Red drills.** Insert a hint into history; trim context on an unsure
+  score; let grading replace a test; feed a judge result to ALLOW; judge an
+  immediate allow without a fence; resurrect an old generation; await past
+  the deadline; show a paid modal on subscription-only activation.
+- **Evidence.** Each use needs its own paired M75 adoption receipt; the
+  panel needs four-theme/narrow/pseudo-locale/a11y receipts. No claim that
+  a fake tool-item cancellation proves Muse Code had no tool side effect;
+  the isolated fresh-session residual from phase 1 remains disclosed.
+
+##### 2g — `judge` CLI and MCP, hook after M91
+
+**FIXM98GH review repair (2026-10-05).** Repair RVM98GH within the hook
+adapter and its owning tests: bind Claude to its six captured event names
+and native answer contract, strictly validate the known tool-field slice
+before initialization/admission while retaining unknown envelope additions,
+and preflight both caution and abstention against each host's own contract.
+The hook surface uses host-neutral exit 0 for no opinion; generic `judge ask`
+retains exit 4. Rows that cannot consume a neutral answer without a grant
+remain unavailable before source resolution. This includes Cursor permission
+rows; their required decision cannot be manufactured from an absent answer.
+The named delivery limitation is in §9 and `docs/certification/m98p2-gh.md`.
+G/Z retain dispatcher, strings, README/CHANGELOG and shipping certification.
+No dependency, host contract, paid guard or bundle cap changes.
+
+- **Scope.** Reserve `judge` before ordinary prompt parsing, as M97's
+  `exec legal-scan` does. `ask`, `calibrate`, `report`, `mcp`, and later
+  `hook` use the pure engine; `serve` and `lint` dispatch their owning
+  surfaces. No ACP frames, `createRuntimeBackend` or `muse serve` startup.
+  Flags: `--engine auto|same|separate|both`, `--model`, `--separate`,
+  `--budget-usd` (default 0), `--timeout-ms`. Explicit `off` remains the
+  extension setting; the CLI's engine flag retains D77's declared set.
+- **Fake acceptance.** Dispatch tests feed malformed arguments/stdin,
+  command-looking prompts, bounded input and closed/stalled output pipes.
+  Exit 0 answered, 2 input/config error, 4 no answer; timeout/failure never
+  becomes empty success. `same` needs an explicit available model/provider
+  context; absent context gives no answer, never a silent model switch or
+  spawned chat session. A paid request must pass both the run's explicit
+  USD cap and D78's shared durable daily ledger/consent; a tiny positive
+  cap is not authorization for a larger batch. Offline `calibrate`/`report`
+  use B without inference. MCP validates request/result and exposes only
+  the bounded advisory judge tool. Hook output uses M91's captured format
+  per agent, caution only; no answer means no opinion, never ALLOW.
+- **Red drills.** Fall through into a chat prompt/backend; emit an ACP
+  frame; answer from a guessed model; charge at budget 0; ignore the daily
+  ledger; return 0 for no answer; emit a hook grant or guessed output field.
+- **Evidence.** Built npm package/stdio/command success with fake sources
+  and real local sockets first; a real model smoke is separately counted.
+  No README support claim until each documented command has run successfully.
+
+##### 2h — Lint within the declared jevlint limits
+
+- **FIXM98H execution (2026-10-05).** Run the pinned native parser and
+  offline doctor/eval on win11 with a portable, worktree-local Go/C
+  toolchain. Compare real query captures against H's dependency-injected
+  syntax adapter for declarations, documentation, related types, localized
+  regions and depth-one callees across the seven supported grammars.
+  Parser/package loading remains Z/G's responsibility; H consumes validated
+  raw tree/query captures and adds no production dependency. Deterministic
+  loopback responses certify mechanics only, with zero model attempts.
+- **Scope.** Strict `jevlint.json`, packs and evals at upstream
+  `73a7a94ab08a4e314709d68c2863687a4646f29b`; Muse options only in
+  `.muse/judge-lint.json` or flags. Symbols cover function/type/field where
+  available; Tree-sitter covers comment/docComment/statement/localize and
+  files without providers. Grammars/runtime ship in npm ACP, not the VSIX;
+  the panel delegates to that installed package, or says not checked.
+- **Fake acceptance.** Run the pinned upstream `doctor`/`eval` on identical
+  offline fixtures; unknown keys are rejected by both readers. Each unit
+  batches applicable rules; pass/fail are always options, skip/abstain only
+  under their flags and upstream criteria. Fixture parity covers context
+  callees and localized regions, not just symbol extraction. Report every
+  checked language/kind and every unsupported pair as “not checked”. First
+  supported set: TS, TSX, JS, Python, Go, Rust, Java; c/cpp/csharp/kotlin/
+  php/ruby remain unsupported. A missing provider/grammar is never a clean
+  no-findings run. Cache keys include exact request/model/source/profile
+  identity but cache stores no source or keys. Flags `--changed`,
+  `--fail-on error|warning`, `--budget-usd`, `--format text|json|sarif`;
+  exits 0 no findings, 1 findings, 2 error; coverage omissions remain visible.
+  The first-party high-quality-projects pack has fixture/eval pairs for
+  silent fallback, placeholders, production mock data, actionable errors,
+  unexplained magic values and honest names. Advisory by default; an
+  explicit user gate cannot rely solely on Jev/TypeSafe or replace existing
+  checks. A Jev-only finding is advisory until independently corroborated.
+- **Red drills.** Put Muse keys in upstream config; always offer skip;
+  hide an unsupported comment/language; declare an empty extraction clean;
+  cache source; package grammars in VSIX; fail a gate solely on Jev.
+- **Evidence.** Offline compatibility and extraction need no live call;
+  actual judge accuracy needs independent pack evals and a counted source
+  run. Z checks dependency peers/pins/audit/notices before adding grammars.
+
+##### 2i — Embedding fast path after family measurement
+
+- **Scope.** Logistic head per recurring family, using embeddings from the
+  same provider or an explicitly opted-in local judge. Training stays local
+  and opt-in; weights live in global storage and never in VSIX.
+- **Fake acceptance.** Profile/dimension/model/family mismatch, corrupt
+  weights and confidence below `JUDGE_EMBED_FALLBACK_CONFIDENCE` fall back
+  to the full judge, under its normal admission. A missing allowed full
+  source returns no answer. Embedding and fallback each reserve their own
+  worst-case cost. No remote embedding in a confidential workspace unless
+  its existing provider policy explicitly permits it; unverified local
+  endpoints are never permitted there. Synthetic fixtures prove prediction,
+  grouped splits, fallback and storage boundaries, not usefulness.
+- **Red drills.** Enable on the 40-label prototype; reuse another model's
+  head; omit low-confidence fallback; bill two calls with one reservation;
+  train without opt-in; include weights in the VSIX.
+- **Evidence.** Hundreds of independent labels per family, B's disjoint
+  groups and a paired held-out report before enabling that family's head.
+  Real embedding acquisition is separately counted; local fitting is free.
+
+##### 2j — Local judge after the parallel spike
+
+- **FIXM98J2 review repair (2026-10-05).** Reject SystemOne score legends
+  that change the ordered request criteria and expected scores inconsistent
+  with their probability distribution, allowing only floating-point error.
+  Repair the spike's promoted Windows-helper evidence link. Prove both
+  findings with regressions and byte-exact red drills. On win11, rerun
+  native IPv4/IPv6 ownership and attempt real process-generation/PID-reuse
+  and CPU-only latency receipts, with at most four free local inference
+  attempts and no pull/removal. Record any uncertified item by name in the
+  lane receipt and section 9; other platform sources remain with their lanes.
+- **Linux native lane delivered (2026-10-05, M98J3L).** A held pidfd lease
+  with exact UID/start-time/executable evidence, local mountinfo + statfs
+  allowlist, and canonical owner/permission installation anchors is implemented.
+  Real IPv4/IPv6, lifecycle and source refusal receipts are recorded on Kubuntu.
+  The rig brief authorizes an official private Ollama installation, one
+  model of approximately 1 GB or less, loopback only, and at most six free
+  local inference attempts; no cloud or paid calls. Windows/macOS helpers
+  and `local/wire.ts` belong to parallel lanes. Packaging/installed extension
+  assembly remains Z's responsibility. Four local inference calls returned,
+  with one pull, zero cloud/paid calls and 20 byte-exact red/restored drills.
+  The private installation uses ext4 OS scratch and an ordinary isolated UID:
+  the desktop UID correctly refuses hidden process descriptors. Linux receipts
+  and the immediate-restart inode visibility limitation are recorded in
+  `docs/certification/m98p2-j.md`.
+  The small decision model `tev1:0.8b` has a measured 811,856,202-byte
+  manifest and is explicit-only, uncalibrated and never recommended/auto;
+  D77's 0.750 smoke accuracy remains its limit. Its exact installed capture
+  supplies these bounded Linux receipts, not a production quality claim.
+  **macOS native lane (2026-10-05, M98J3M).** Implemented a universal,
+  ad-hoc-signed libproc/kqueue helper following M28's build approach: exact
+  effective/real UID, seconds/microseconds start identity and a kernel-held
+  exit/exec watch; local APFS/HFS `statfs` evidence only; canonical, owned,
+  non-group/world-writable app/model anchors and Apple's signed Ollama team
+  requirement. Certified real IPv4/IPv6 tuple/refusal and installed source
+  receipts on the Intel macmini: six free inference attempts/responses, a real
+  PID reuse capture, and no paid/cloud calls. Authenticated self-SSH timed out;
+  arm64 execution and installed-extension/packaging remain uncertified. The rig
+  brief authorizes one <=1 GB decision model, at most six
+  free inference attempts and no cloud calls. A small decision model used
+  for this native smoke proof is explicit-only pending calibration, never
+  a recommendation or an automatic choice. Windows, Linux and wire.ts stay
+  with their owning lanes. Assembly/packaging and installed-extension proof
+  remain Z's gates. See `docs/certification/m98p2-j.md`.
+
+- **Scope.** Adopt the spike's reviewed result, not a cached listener probe
+  or this lane's guess. CPU-only is the product assumption; `tev1:4b` is
+  recommended, or a captured local general model of at least 3B with
+  logprobs. Pulls/downloads require explicit consent and model-size notice.
+- **Fake acceptance: outcome (a).** On each actual content-bearing socket,
+  before any body byte, prove its peer's four-tuple, OS owner, PID/start
+  identity, supported Ollama executable at its install path, and local
+  weights matching the served digest. Certify the Linux inode/process,
+  Windows owning-PID and macOS tuple designs separately. Replacement
+  within old TTL, clean reconnect, PID reuse, distinct IPv4/IPv6 owners,
+  SSH forward, same-user relay, cloud models, containers/namespaces/WSL,
+  remote-host ambiguity, permissions and missing probes all refuse content
+  when locality cannot be proved. Verify transport in extension-host and
+  headless Node: pinned `node:net`, IP literal, one loopback-only lookup if
+  resolving an explicit address, no proxy machinery and no redirects.
+  Proxy traps, changed/mixed lookup, `0.0.0.0`, `::1`, cancel and deadline
+  tests count actual written body bytes, not merely a returned status.
+- **Fake acceptance: outcome (b).** Only an explicitly entered endpoint;
+  show “unverified local endpoint” everywhere. Never auto-selected or used
+  confidentially, regardless of consent or a prior successful response.
+  Platforms without outcome-(a) proof retain this limitation; no inherited
+  Windows verification. A free-to-paid fallback asks again and is never
+  used in a confidential workspace. No auto pull or relay exception.
+- **Red drills.** Reuse TTL proof on a new socket; verify the listener
+  instead of the connected tuple; accept a relay's Ollama metadata; accept
+  foreign/PID-reused/IPv6-mismatched ownership; write before proof; let a
+  proxy receive state; auto-select or confidentially use outcome (b).
+- **Evidence.** Spike ledger plus real per-OS peer/runtime/model/transport
+  receipts, counted free local inference and CPU latency. Fake OS tables
+  establish refusal logic only. Outcome (a) is unavailable on a platform
+  until its real installed-host receipt exists; outcome (b) stays labelled.
+
+##### Cross-surface gates, security and counted live work
+
+Every new assertion/guard gets a deliberate red mutation, named failing
+assertion, byte-exact SHA-256 restore and whole owning-file green rerun in
+that lane's receipt. The drills above are the minimum inventory, not a
+replacement for proving new guards. Use test workspaces/fake providers
+only for mutations, never a user's repository or live inference. Preserve
+all FIXM98J regressions, especially boolean argument keys, generation-bound
+handles, complete-request context, exact tokens, first-charge consent,
+explicit `same`, singular `logprob`, translated budget text, off-mode lazy
+loading and truthful top-1 `partial`.
+
+All sources use D78's canonical durable ledger: uncached worst-case
+reservation committed before dispatch, new retry claims, idempotent known
+settlement, refunds only for known non-sends, crash/timeout liability kept,
+fail-closed corrupt store/lock/network-home refusal and re-binding after
+every wait. VS Code windows, CLI, MCP and `serve` share its namespace. No
+new M98 store/lock/journal. Multi-client and held-modal tests rerun M80 and
+D78 regressions. Same-model confidential rules remain those of the chat
+model; remote SystemOne and unverified local inference remain unavailable.
+`redact.ts` runs before remote content/cache reuse. Logs have ids, source,
+model, technique, timing and cost, never state, answers or keys; PRIVACY
+names each recipient. Model keys stay in SecretStorage/OS store and never
+reach children, including `muse serve`; the per-start server bearer file
+is only the explicitly required local service credential.
+
+Lane gates run directly on rigs: changed-file Prettier/ESLint, appropriate
+typechecks, owning Vitest files (at most three per run on this Kubuntu rig,
+`--maxWorkers=3 --testTimeout=120000`), localization, host API, plain knip,
+dpdm, duplication and production build when affected. UI deliveries add
+the existing accessibility gate. Z/lead retains `npm run quality`, coverage,
+required hosted checks, exact installed-host and VSIX/npm package receipts
+on each integrated delivery. Caps, thresholds, ignores and timeouts are
+not weakened. New bundles are lazy, have measured budgets and split/package
+guards before merge; grammar/weight exclusion has a missing-member/red
+control. New dependencies follow D3/AGENTS peer-range, exact pin, audit and
+notice rules. User docs/CHANGELOG move only with implemented, successfully
+run surfaces. This documentation-only lane changes no product support claim.
+
+**Live/paid ledger.** This planning lane authorizes and performs **0 live,
+0 paid and 0 local model calls**. The rows below name future evidence, not
+permission to spend. Before a later run, record the exact model/endpoint,
+workspace/synthetic manifest, integer attempt ceiling and hard USD cap;
+count every inference POST, refusal and retry, completed/uncertain usage
+and free metadata separately. Use only the Muse contributor model for Meta
+calls (`muse-spark-1.3-contributor` in the current captures), never Standard
+or a paid subscription tier. External services retain their own named
+model/key/pricing and need separate authorization. No unrestricted retries.
+
+| Receipt          | Surface / purpose                                                                                        | Count or bound before the run                                                                                                                                                          | Paid / blocker                                                                                                                                 |
+| ---------------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| L98P2-SAME       | 2e/2g: built request-only contributor source, stated output and no model switch                          | At most 2 inference attempts per newly delivered route; reuse phase-1/M95 captures where sufficient                                                                                    | Model API paid; contributor only; explicit later consent/budget                                                                                |
+| L98P2-SYSTEMONE  | 2c: noul/choice/score integrated source capture/smoke                                                    | At most 3 attempts per named route: OpenRouter `typesafe/jev-1.13`, direct TypeSafe `jev-1.13.0`, or captured Clef model                                                               | External paid; direct TypeSafe sales-call/key block; Clef key/capture block; Jev remains labelled untested/opt-in                              |
+| L98P2-CAPABILITY | 2e: a missing per-model wire/effort/cache capability                                                     | At most 2 attempts per explicitly named M95 model variant; no general provider sweep                                                                                                   | External paid or local free; must precede the new parser                                                                                       |
+| L98P2-M75        | 2a/2b/2d/2f: actual cascade, fitting predictions, contrastive/sampling and each adopted use              | Exact integer per arm from the preregistered grouped manifest and complete-request batching; sampling ceiling includes every k sample and retry; no run while count/cap is unspecified | Paid same-model contributor arm and separately authorized external arms, or counted free local; fakes/40-item prototypes cannot close adoption |
+| L98P2-EMBED      | 2i: embedding acquisition and full-judge fallbacks on hundreds of independent labels                     | Exact integer embedding + fallback attempt ceiling from the grouped family manifest before dispatch                                                                                    | Paid same-provider embeddings or free opted-in verified local; training itself offline                                                         |
+| L98P2-LOCAL      | 2j: spike, then platform-specific peer/local-model and latency proof                                     | Spike has its own at-most-60-free-call brief/ledger; later per-OS run gets its own exact manifest/count before execution                                                               | Free local only; spike outcome and installed platform proof required; no pulls authorized here                                                 |
+| L98P2-HOST       | 2c/2g/2h/2f: ACLs, proxy traps, installed commands/packages, upstream offline compatibility, themes/a11y | 0 real model attempts; local sockets/fake providers and recorded OS/client versions                                                                                                    | No paid key needed; not a calibration or inference-quality receipt                                                                             |
+
+**Recommended order today.** Finish phase-1 merge/certification first; make
+P0's small seam/settings commit, then run B, CS, G and D independently, with
+H's offline fixtures alongside if capacity permits. Incorporate the reviewed
+2j spike as J only after its outcome is delivered. After M95 lands, start
+C and E in parallel and FP on the existing panel; after B plus a verified
+separate source, build A and measure the real cascade. GH and FU's new
+fences wait for M91, orchestrator hints wait for M96, and I stays last until
+its hundreds-label evidence exists. Z closes each small delivery separately;
+do not wait for all ten surfaces to ship a certified one.
+
+**Z first integration slice (M98P2INT, 2026-10-05).** Merge B/provider-bound
+calibration repairs, CS/authenticated serve and macOS ACL repairs, then D's
+sampling/contrastive techniques with separate `--no-ff` merge commits. Ship
+their implemented functions in one separately built `dist/judge.js` factory,
+installing the caller's display language before use. It is an assembly seam
+for G and later admitted sources, with no activation import, source selection,
+backend construction or inference fallback. G retains ownership of CLI dispatch
+and will be merged later by the lead, together with GH/H/J/G repairs; no new
+CLI support is claimed in this slice. Calibration limits and technique/source
+admission remain required injected arguments rather than guessed defaults.
+Add split/size/shared-table/host-global and VSIX/npm membership guards, knip
+and dpdm entry coverage, notices/SBOM inventories and a measured new bundle
+budget without changing existing caps. Compare every pre-existing production
+artifact with the pre-wiring P0 build, exercise the built factory with offline
+fixtures/local fake sockets, and refresh the generated host API record by
+script. Independent calibration/adoption, durable-runtime and installed
+Windows/source receipts remain the owning lanes' delivery prerequisites.
+
+**Z round-3 integration (M98P2INT, 2026-10-05).** Merge reviewed H
+`4fb42e0e` and GH `c98a0d14` as separate merge commits, retaining GH's
+M91 contract/runtime ancestry and all translations. The existing lazy
+factory exposes the injected lint library and hook adapter; no real source,
+grammar acquisition or paid admission is fabricated. Cursor's five blocking
+rows (`preToolUse`, `beforeShellExecution`, `beforeMCPExecution`,
+`beforeReadFile`, `beforeSubmitPrompt`) are never registered: no neutral
+host answer exists and the judge grants no permission. Observation rows
+remain available. J/FU and C/E/A/I/FP are future rounds.
+
+Keep all existing caps, including the integration tree's 125 KiB English
+fallback and 50 KiB shared validation caps. Repair missing used validation
+exports at their shared entry. If required merged strings exceed the English
+cap, compact only the generated Node table with a lossless encoding and
+prove exact decoded equality; browser/source tables and all translations
+remain complete. Save the resolved merge's artifact hashes before H/GH
+factory wiring and compare startup bytes afterwards; required M91 ancestry
+changes are measured separately from wiring. The eight inherited judge
+activation tests pass on the resolved round-3 tree; GH's historical six
+failures do not reproduce and no fixture or production gate is changed. Regenerate host API/notices
+with their scripts. Owning whole-file tests, typecheck, lint, formatting,
+deadcode, duplication, localization, cycles, host API, every build cap and
+a universal 0.13.0-helper VSIX are required here. Aggregate quality,
+coverage/a11y and installed/live receipts remain lead-owned under the brief.
+
+**Round-3 size boundaries.** H's lint library and GH's contract adapter load
+as `judgeLint.js` and `judgeHook.js` children of the existing judge factory.
+The child logger is created inside the standalone factory (or supplied by a
+future host caller), preserving the parent loader and ACP startup bytes.
+They receive installed language at each call; GH receives the parent's
+existing ask runner instead of duplicating its dispatcher. Existing caps and
+split prohibitions stay unchanged. New child caps follow D6's measured-size
+rule (50 KiB lint, 100 KiB hook); both must appear in all package/watch,
+notice/SBOM, globals, knip, cycle and split inventories. No grammar/runtime
+is fabricated or newly acquired: syntax/host extraction and admission remain
+required injected dependencies. Cursor's registration list excludes all five
+blocking events, even if a future neutral-output parser were to accept them.
+
+**Z round-4 J/FU assembly (2026-10-05).** Package both libraries as
+separate children of the explicit-action judge factory. Local assembly supplies
+the platform helper from packaged sources (Windows C#, Linux pidfd C) or the
+universal macOS libproc binary, compiled/verified only on explicit preparation,
+with credential-free compiler environments. The caller must still provide vetted
+installation records, certified platform identity, actual full-request token
+measurement and captured model wording; none is fabricated. FU exposes its
+independent evidence admission and caution holders, with no policy/source
+injection into ordinary conversations until paired M75 and borrowed-golden
+receipts exist. No new setting or public CLI action, no installed-source support
+claim, and no future C/E/A/I/FP implementation. All startup artifacts must remain
+unchanged from the resolved four-merge baseline. Register production/watch,
+VSIX/ACP/test-package, notices/SBOM, globals, knip/cycles and exclusive split
+guards together; measure separate child budgets by D6 without raising an
+existing cap. Native/source/factory controls receive byte-exact red/green proofs.
+
+**M98P2INT2 joins shipped phase 1 (2026-10-05).** Merge main
+`81a5ccfa` with `--no-ff` into the phase-2 integration. Preserve the
+released changelog byte-for-byte, additive planning history and every real
+translation. The two factory entries previously collide at `dist/judge.js`:
+retain shipped phase 1 there and deliver phase 2 as `dist/judgeP2.js` under
+its unchanged 75 KiB cap. Adapt phase-2 callers to shipped interfaces, keep
+FU's optional caution holder independent from the phase-1 fence, and retain
+both owning fence suites. No source or use becomes enabled by integration.
+Regenerate inventories/notices by script and check all M98 suites in batches
+of at most three, typechecks, lint/format, localization, host API, cycles,
+plain knip, build/caps and PowerShell lint. No full quality, push, paid/live
+calls or cap increase is authorized. Release-train gates and outstanding
+calibration/source/adoption receipts remain lead-owned.
+
+## 7. Gates
+
+**M98P2INT2 scoped integration (2026-10-05, Windows 11).** The explicit lane
+brief reserves full `npm run quality` for the 0.16.0 train. This lane runs
+every M98 phase-one/phase-two unit suite in whole-file batches of at most
+three, the non-inference native checks available on Windows, all five
+typecheck projects, scoped lint/format, localization, regenerated/reviewed
+host inventory, cycles, plain knip, duplication, build/caps and PowerShell
+lint. No threshold or ignore is weakened. Receipts and platform/release
+limits are recorded in `docs/certification/m98-p2int-main.md`.
+
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
 test files, deliberate failures, typecheck, scoped lint/format, deadcode,
@@ -43631,201 +44555,80 @@ gate, threshold, timeout, hook or skip is changed. The existing Windows
 8.3 fixture also needs a genuine short-name TEMP for its native proof.
 See `docs/certification/m71.md`, M71m main join.
 
-### M98 — Muse Judge: a calibrated judge for any agent (D77, phase 1 integration)
+**M98P2INT round-4 bounded integration (2026-10-05).** The explicit rig
+brief authorizes four ordered no-ff merges (J2fix, J3-linux, J3-macos, FUfix),
+lazy J/FU assembly and native packaging, owning unit/native files in batches
+of at most three, and the scoped gates named in the brief. No main merge,
+push, aggregate quality/full suite or local/live/paid model call is authorized.
+The local source remains opt-in; each use remains inactive without its own
+paired and borrowed-golden evidence. Existing bundle and VSIX caps remain
+unchanged; record the known package overage for the lead/VSIXDIET2. Full
+quality, coverage, installed-source and release receipts remain lead gates.
 
-Lane D integration (2026-10-05, Kubuntu): merge A's review fixes and G's
-M91-G goldens into U, activate the same-model sources through a lazy window
-bundle, retain A's live binding and dispatch guards, and connect dispatch
-receipts to U's separate usage rows. Repair the recorded 320 px tool-row
-overflow. Document and certify only the behaviour exercised on this tree.
-D78's `paidDailyBudget.ts` and setting are absent from this checkout; its
-historical `3db0ef37` factory exposes `capUsd`/`reserve`, not A's complete
-daily-ledger interface. Metered Judge stays unavailable until that real
-adapter and D77's entry-criteria receipts land; no competing store is added.
-The exact handoff is recorded in `docs/certification/m98.md`. Prefixes with
-hosted billable tools use a standalone body with no tools: Judge token
-consent cannot authorize a separate hosted-search charge.
-The full rig gate also exposes Chrome CLI `--dump-dom` stalls on ordinary
-pages. Use the existing Playwright page driver for every accessibility
-scenario, preserving the four themes, real 690/320 px viewports, 120-second
-page timeout and every axe finding rule; prove the ordinary-page failure
-and the restored driver before rerunning the complete quality command.
-Lane D's final Kubuntu `npm run quality` exits 0 (7,317 passing tests;
-464 accessibility pages). Package and raw size check exit 0 at 2,113,751
-bytes against the unchanged 2,252,800 cap. The universal macOS helper is
-absent; CI's exact presence check fails only for that helper. The combined
-final-tree checkbox stays open. Receipts and the D78 handoff are in the
-aggregate certification record.
+**M98P2INT round-4 package-budget receipt (2026-10-05).** Four ordered
+J/FU merges and their lazy libraries pass the named bounded source/unit/native
+gates and every JavaScript/shared/CSS cap. The real universal VSIX is
+2,418,240 bytes, 165,440 over the unchanged 2,252,800-byte cap (36,219
+above the final round-3 archive); its real size gate exits 1 after packaging.
+Both actual archive inventories, all ten new missing-entry controls,
+extracted factories and signed universal Mac helpers pass. Production ACP is
+1,280,879 bytes. No cap is raised, package optimization is not widened into
+this lane, and the lead/VSIXDIET2 owns recovery. Source controls, platform
+limitations, the two discarded command overlaps and their serial green reruns,
+all final hashes/bytes and $0 / zero new inference attempts are recorded in
+`docs/certification/m98-p2int-round4.md` and its adjacent JSON receipts.
 
-- **Goal.** Small, calibrated, advisory decisions, on out of the box (D78),
-  from the user's own chat model first, with separate judges later. The Muse
-  model, or a deterministic rule, still decides.
-  - Redesigned after the third review round (RVM98C): **phase 1 is the
-    same-model judge only.**
-  - Every other part is a named phase-2 section that stays planned.
-- **Phase 1 scope.**
-  - **The same-model judge** on the Model API and on Muse Code:
-    - stated confidence on every model, batched;
-    - logprobs where a model offers them, with binary-from-top-1 under its
-      floor;
-    - results labelled "uncalibrated" or "approximate (top-1)".
-  - **Speed:**
-    - Model API side requests that share the main cached prefix exactly
-      (redaction first);
-    - Muse Code redacted standalone prompts in a fresh hidden session per
-      batch;
-    - background calls with stale results dropped, and a memory-only result
-      cache.
-  - **One use:** the Auto risk advisory, through the synchronous caution
-    latch at the reviewer-held and card-held fences only (D77, "Where
-    phase 1 intervenes"). Not started on immediate allows.
-  - **Admission** through D78's daily ledger; the ask-once consent;
-    confidential rules; privacy.
-  - **Modes:** `auto` (= `same`), `same`, `off`.
-  - **Per-backend invariance goldens:** M91-G's raw-body harness for the
-    Model API, MSP frames for Muse Code.
-- **Phase 2 sections**, each with its own lanes, acceptance, drills and
-  certification when it starts:
-  - 2a cascade and `both`;
-  - 2b calibration fitting;
-  - 2c SystemOne adapters and `judge serve` (M85);
-  - 2d sampling and contrastive framing;
-  - 2e BYO providers;
-  - 2f the other uses, the Judge panel section, and pre-execution fences;
-  - 2g the CLI and MCP;
-  - 2h lint;
-  - 2i the embedding fast path;
-  - 2j the local judge, after its design spike.
-- **Depends on.**
-  - **Phase 1:**
-    - M78 and M90 (the reviewer-held approval paths, `reviewedApprovals.ts`,
-      and the CLI settings reader);
-    - D78's daily ledger and M82's claim journal (FIXDEF);
-    - M91-G's raw-body harness (`6cfb19e4`, not yet on main);
-    - D48 and D78 (consent).
-  - **Phase 2:**
-    - M95 (2c keys, 2e, the 2f panel);
-    - M91 (2f pre-execution hooks, 2g `judge hook`);
-    - M96 (2f hints);
-    - M75 (2a, 2b, 2d, 2f, 2i);
-    - D68 (2h).
-- **Phase 1 lanes and file ownership.** Muse codes each lane. Codex
-  independently reviews each lane's finished diff and gate-fire evidence. The
-  lead serializes shared files, integration and the aggregate gates; no lane
-  rewrites another's region.
-  - **Start now on the rigs:** lanes 0, J and A. They are pure or
-    interface-level, and need no host integration.
-  - **After them:** S needs J. U needs S and A. G needs S and M91-G's
-    merge. D runs alongside, closing last.
+**M98P2INT round-3 package-budget deferral (2026-10-05).** The required
+H/GH merges and their M91 ancestry fit all existing JavaScript bundle caps
+with H/GH in separate lazy children. The actual universal VSIX, using the
+exact signed universal helper from the prior 0.13.0 archive, exceeds the
+unchanged 2,252,800-byte cap. The first measurement is 2,379,314 bytes;
+a lossless level-9 ZIP experiment preserves every decompressed entry but
+still measures 2,367,882 bytes. The final default package is 2,382,021 bytes,
+129,221 over the unchanged cap. No member, translation or behavior is removed
+and no cap is raised. Stop package optimization at this hard boundary under
+the shared lane rule; the final exact bytes and inventories are recorded in
+`docs/certification/m98-p2int-round3.md`. This private integration is not
+release-certified; the lead owns the cumulative package reduction/decision,
+full quality, coverage, a11y and installed/live receipts. No supported H/GH
+installed CLI command or inference source is claimed by the factory wiring.
 
-| Lane                  | Starts                        | Muse implementation ownership                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Codex review / acceptance focus                                                                                                                                                                |
-| --------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0 Contract / strings  | now                           | new `src/core/judge/schema.ts` (zod request/answer/`muse` schemas, bounds, labels); named limits in `src/shared/constants.ts` (`JUDGE_TOP1_MIN_PROB`, `JUDGE_MIN_READY_RATE`, the advisory threshold, deadlines, caps); the `judge` paid feature in `PAID_FEATURES`; `museSpark.judge.engine` (`auto`, `same`, `off`) in `package.json` and `package.nls*.json`; English and the 14 `l10n/ui.*.json`                                                                                                           | Byte-compatible `answers`; option letters `A`–`Z`; no content in log fields; complete real translations                                                                                        |
-| J Judge core          | now                           | new `src/core/judge/{judge,math,techniques,prompt,resolve,entries}.ts`: the entropy confidence, logprob renormalization over distinct alternatives, `partial`, binary-from-top-1 with its floor and stated fallback, the stated-confidence parser, the state-first prompt builder, batching (questions split, never the state), the over-context refusal, the phase-1 mode resolver, and the exact-action entry store (key, states, discard rules, the synchronous latch read); new `test/unit/judge*.test.ts` | The RVM98 top-1 counterexample; variants counted once; top-1 never a distribution; a missing field read as failure; no state split; a late result never readable after its fence               |
-| A Admission           | now (against D78's interface) | new `src/core/judge/admission.ts`: worst-case uncached reservation per call, refusal of unpriced and over-budget calls, settlement, refunds of known non-sends, liability for uncertain outcomes, re-binding after waits; the adapter onto `src/host/paid/paidDailyBudget.ts` (D78), with no store of its own; integration tests against the real ledger once FIXDEF merges                                                                                                                                    | Entry criteria 1–7 of D77 verified, or a gap filed against FIXDEF; kill after dispatch, corrupt store, lock contention, network-home refusal, two windows, held modal; M80 and D78 regressions |
-| S Same-model source   | after J                       | new `src/core/judge/same/**` and host adapters: the Model API side request built from `ModelApiHost`'s own request builder (prefix copied only when redaction leaves it unchanged; standalone otherwise); Muse Code's fresh hidden session per batch (`session/start`, an empty temporary folder deleted after, Plan, no MCP servers, the user-settings allow-rule check, the M90 item guard); background scheduling and the memory-only result cache                                                          | No model switch; main request or session untouched; redaction first; no reuse of M90's session; judge off on standing allow rules; Muse Spark never awaited                                    |
-| U Use / UI            | after S and A                 | the latch reads at M78's reviewer fence (Model API) and in `src/host/review/reviewedApprovals.ts` (Muse Code, extension-owned held approvals); the caution note on cards; no start on immediate allows; the ready-rate and precision recorder for M75 replays; the Judge status line; the ask-once modal hook-up; usage rows; harness and accessibility cases                                                                                                                                                  | A ready caution turns ALLOW into ask; a pending one leaves it; the card never waits; never an allow; results kept out of the ALLOW parsers; themes, narrow panel, keyboard and screen reader   |
-| G Golden / invariants | after S, and M91-G's merge    | the Model API: an extension of M91-G's raw-body harness (`test/unit/modelApiGoldenRequests.test.ts` at `6cfb19e4`), with the full body byte-identical when `off` or with no hint, the side prefix equal to the main cached prefix, and the redaction case standalone; Muse Code: main-session MSP frames unchanged through the real adapter and fake CLI, and the judge session carrying only the standalone prompt; the SoL-Pi regression files rerun                                                         | Red on any main-body byte change, a side-prefix divergence, a prefix reused despite redaction, or a changed main-session frame; no independent baseline; no claim about the CLI's HTTP bytes   |
-| D Docs / integration  | alongside; closes last        | README, `docs/judge.md` (phase 1), `docs/PRIVACY.md`, SECURITY, CHANGELOG, PLAN, `docs/certification/m98.md`, the bundle and package scripts, knip and dpdm entries                                                                                                                                                                                                                                                                                                                                            | Documented behaviour only after real runs; costs from receipts; Muse Code's narrowed claim stated                                                                                              |
+**M98P2INT bounded integration gates (2026-10-05).** The explicit rig brief
+authorizes only the three named branch merges, local hook-on commits and
+direct macmini lane checks: every merged owning unit file (at most three per
+run), typecheck, lint/format, dead-code, duplication, localization, cycles,
+host inventory, production build and caps. No aggregate quality/full suite,
+push, main merge, rebase or model call is authorized. Full quality/coverage,
+hosted and installed-product certification remains with the lead after the
+remaining phase-2 lanes merge. New integration guards require named red
+controls, byte-exact restoration and whole-file green reruns.
 
-- **Phase 1 acceptance.**
-  - **FIXM98J review repairs (RVM98J, 2026-10-04).** Findings 1–10
-    corrected within lanes J/0: finite JSON booleans; generation-bound entry handles;
-    complete-request context admission and splitting; single-character
-    answer tokens; no judge in the legacy activation paid review; explicit
-    `same` below the automatic ready-rate floor; singular `logprob` metadata;
-    ask-once wording with the shared daily budget in every language; a
-    schema-free engine predicate; and honest top-1 `partial` metadata.
-    Each fix has a regression and a byte-exact red drill in
-    `docs/certification/m98-j.md` (16 drills, full hashes beside it).
-    Lane U retains first-charge consent;
-    no judge call runs in this repair lane.
-  1. **Invariance, per backend.**
-     - When `off`: no request, no file, no log line, no bundle load.
-     - Model API with no hint: the main body is byte-identical (the M91-G
-       harness), and side prefixes are exact or standalone under redaction.
-     - Muse Code: main-session MSP frames unchanged, and the judge frames
-       carry only the standalone prompt.
-  2. **The contract.**
-     - Jev shapes for noul, choice and score.
-     - `muse` carries the source, technique, model, label, our confidence,
-       `vendorConfidence`, `partial`, and the reserved and settled cost.
-     - The bounds refuse 65 questions, 27 options, 11 levels and an oversized
-       body.
-  3. **Techniques.**
-     - **Stated:** batched and labelled "uncalibrated".
-     - **Logprobs:** renormalized over distinct variants.
-     - **Top-1:** only for a noul with a yes/no token at or above the floor,
-       labelled "approximate (top-1)"; the RVM98 counterexample falls back.
-     - **A missing field** is a failure.
-  4. **Fences** (C3).
-     - A ready caution at the reviewer's verdict turns ALLOW into ask.
-     - A fast reviewer with a delayed judge: ALLOW stands, and the late
-       result is dropped.
-     - An immediate native or Auto allow: no judge started, nothing charged.
-     - A card with a caution ready before the answer gets a note; after the
-       answer, nothing.
-     - A replaced session, turn or action discards the entry.
-     - The card never waits.
-     - Ready rate and precision recorded per backend; under
-       `JUDGE_MIN_READY_RATE`, the backend's default is off, with the reason.
-  5. **Muse Code isolation** (C4).
-     - A fresh session per batch, never M90's or the main one.
-     - An empty temporary folder, removed after.
-     - Plan mode with no MCP servers.
-     - The judge is off when user-level always-allow rules exist.
-     - The tool-item guard cancels.
-     - The residual and the narrowed claim appear in §9, in PRIVACY and in
-       the first-use note.
-  6. **Admission** (C5). Through D78's ledger only:
-     - worst-case reservation before dispatch;
-     - kill after dispatch, then restart: the liability is kept;
-     - a corrupt store or a lock failure: refused;
-     - a network home: refused;
-     - two windows: one admitted;
-     - a held modal: re-checked;
-     - unpriced: refused;
-     - re-binding after every wait.
-  7. **State size.** An over-context state gets an explicit no-answer, and
-     questions split across requests each carry the full state.
-  8. **Consent and billing.** Model API asks once (D78) with the price and
-     daily budget; Muse Code shows the subscription note.
-  9. **Confidential.** Same-model calls run exactly when the chat model may.
-  10. **Advisory only.** A "safe" answer leaves every verdict unchanged
-      (D50's test); results never reach the ALLOW parsers.
-  11. **Privacy.** Redaction before any remote call wins over prefix reuse.
-      Logs carry ids, source, technique, model, timing and cost only.
-- **Phase 1 tests and red drills.** Fakes only under `test/**`:
-  - a fake provider with stated-JSON, top-5, top-1, silent-drop,
-    reasoning-forced and cache modes;
-  - a fake Muse CLI with a hidden-session recorder, an always-allow settings
-    fixture and a tool-item emitter;
-  - fake reviewers with controllable delays.
+**M98P2INT host-inventory refresh (2026-10-05).** Regenerated by
+`node scripts/check-host-api.mjs --write`, closing the inherited FIXM98J,
+P0/B/D and CS snapshot deferrals on this integrated tree. Reviewed changes:
+paidHost 11 → 12 and its `WorkspaceConfiguration.get` row; Node buffer
+27 → 29, crypto 32 → 35 (including inherited J), fs 24 → 25,
+fs/promises 34 → 35, http 2 → 3 and path 65 → 66. The 271 VS Code API
+identifiers and 18 direct adapter files are unchanged. The historical lane
+failure receipts below remain intact; the exact-tree regenerated gate is
+required green here.
 
-  Each new assertion and guard is broken once on purpose, observed failing,
-  restored byte-exact (SHA-256), and its whole test file rerun. The record
-  goes in `docs/certification/m98.md`. The required drills:
-  - **Invariance:** a main-body byte change; a side-prefix divergence; a
-    prefix reused despite redaction; a changed main-session MSP frame.
-  - **Math:** the top-1 complement under the floor; variants counted twice;
-    top-1 used for a choice; a dropped field read as certainty; a state
-    split.
-  - **Fences:**
-    - the latch awaiting the judge;
-    - a late result applied after its fence;
-    - a judge started on an immediate allow;
-    - a judge result parsed as ALLOW;
-    - an entry surviving a turn replacement.
-  - **Isolation:** reuse of M90's session; judging in the workspace folder;
-    running despite a user-level always-allow rule.
-  - **Admission:** a dispatch before the durable reservation; a liability
-    dropped on restart; two windows admitted for the last claim; dispatch
-    after a held modal without re-checking.
-  - **Behaviour:** a "safe" score that allows; a user path awaiting Muse
-    Spark; the judge doing anything while `off`; contributor tier in a
-    confidential workspace.
+**FIXM98B bounded-lane gate delegation (2026-10-05).** The rig brief and
+shared rules prohibit aggregate quality/full tests and reserve them for the
+lead. Run owning regression files (at most three per run), red drills,
+typecheck, scoped lint/format, dead-code, duplication, localization, host API
+and production build directly on win11, with hooks enabled. The brief
+authorizes only the P0 merge; do not merge main or the common release
+candidate. Full quality, coverage, a11y and installed/package certification
+remain lead gates on the integrated tree. Existing host-API snapshot
+deferrals remain visible; no gate or threshold is weakened.
 
-  Never drill against a user's repository.
+**FIXM98CS bounded repair delegation (2026-10-05).** The rig brief
+prohibits aggregate quality/full-suite runs, merges, rebases and pushes.
+Run owning files directly on macmini, at most three per invocation, plus
+scoped lint/format, typechecks and the named lane gates; commit locally
+with hooks on. The lead retains aggregate quality and generated/shared
+document refreshes. No gate, threshold, ignore or timeout is weakened.
 
 - **Phase 2 sections.** Planned, not dropped. Each starts after its
   dependency and the evidence it names.
@@ -43915,8 +44718,215 @@ aggregate certification record.
         installed-host receipts.
   - [ ] Each phase-2 section certified on its own when it ships.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
+  **FIXM98G2 merged-lane checks (2026-10-05).** The bounded repair brief
+  delegates full quality/coverage/installed-host certification to Z/lead.
+  Owning CLI/MCP regressions and red drills run on Mac mini; scoped lint,
+  format, five-project typecheck, dead-code, duplication, localization,
+  host API and production build remain required lane checks. The merge of
+  origin/main retains both branches' translated keys and paid startup rules.
+  The shared Node validation runtime deliberately excludes its large
+  JSON-schema converter: MCP carries the canonical generated request schema
+  in its existing file, with exact generated-schema parity enforced by the
+  owning test. Runtime request validation remains the original zod parser.
+  No budget, rule, boundary or dependency is weakened or added. Receipts:
+  `docs/certification/m98-g2.md`.
 
-## 7. Gates
+**FIXM98G2 host-API snapshot deferral.** The merged source produces the
+already delegated judge additions: paidHost 11 → 12 configuration calls,
+that file added to WorkspaceConfiguration.get, node:crypto 36 → 37,
+node:stream 12 → 13 and node:util 4 → 5. The gate exits 1 until Z regenerates
+and reviews its owned `docs/ide-compatibility/host-api.md`. No new VS Code
+API is introduced by these repairs; this stale documentation gate is
+explicitly deferred, not claimed green. Follow-up: run
+`npm run check:host-api -- --write`, review these rows, rerun the check.
+
+**Closed by M98P2INT round 2 (2026-10-05).** The generated record now
+includes both G's delegated rows and B/CS/D's imports. Compared with G's
+snapshot: paidHost 11 → 12 and its WorkspaceConfiguration.get reader;
+Node buffer 30 → 32, crypto 36 → 39, fs 28 → 29, fs/promises 38 → 39,
+http 4 → 5, path 70 → 71, stream 12 → 13 and util 4 → 5. The merged
+release's 296 VS Code APIs, 24 adapters, 25 built-ins and 61 theme variables
+are unchanged by CLI factory wiring. Regeneration and the final check both
+exit 0; `docs/certification/m98-p2int-round2.md` holds the bounded receipts.
+The first duplication run caught copied display-language loading in the
+runtime entry; one local function shares the existing operation among its
+judge, exec/scanner and ACP callers, without changing its inputs or policy.
+**FIXM98GH bounded-lane gate delegation (2026-10-05).** The rig/shared
+brief forbids aggregate quality and edits outside GH. Owning whole-file
+regressions, 15 byte-exact red/restore drills, typechecks, scoped lint/format,
+localization, knip, duplication and dpdm pass; `docs/certification/m98p2-gh.md`
+holds the results. `check:host-api` still fails on the inherited generated
+snapshot mismatch (paid-host 11→12; crypto 37→38, stream 12→14, util 5→6).
+`npm run build` emits the bundles and passes every unchanged size cap, then
+fails on the inherited `src/runtime/judge/mcp.ts` use of `zod/mini.toJSONSchema`,
+which `src/shared/validationEntry.ts` does not export. These are the same
+failures recorded before the repair in `m98-gh.md` and RVM98GH, in G/Z-owned
+files. **GH-host-api-baseline** and **GH-validation-export-baseline** remain
+integration follow-ups: regenerate/review the snapshot, repair/review the
+shared schema export or G's schema assembly, then rerun the unchanged gates
+and full quality. No gate, threshold, ignore or cap is altered or claimed green.
+
+**FIXM91P4 lane-scope deferrals (2026-10-04, not gate exceptions).** The required
+commands ran directly on the Mac mini. `check:host-api` fails on the review base
+as well as this correction: its generated record says 65 `node:path` importers,
+the scanner finds 66. **P-host-api-baseline:** W/lead must regenerate and review
+`docs/ide-compatibility/host-api.md` with `npm run check:host-api -- --write`.
+`npm run build` compiles and passes all size caps, then the unchanged split gate
+rejects all eleven unwired adapter modules as on neither list. The same original
+sources reproduce those eleven errors. **P-bundle-map-baseline:** W must register
+the files' actual bundle/type membership while wiring them, then rerun the build.
+Both target files are outside lane P's permitted edits. Neither gate, ignore nor
+cap was changed; neither failing command is claimed green. Certification and
+PLAN §9 name the residuals. Full quality remains the lead's integration gate,
+as the shared lane rules expressly forbid running it in the lane.
+
+**Resolved in integration (lane W, 2026-10-05).** The bundle map is registered: lane P's modules ship in `dist/foreignHooks.js` (`FOREIGN_HOOKS_ONLY`) and its type-only `contract.ts` is listed as such. The host-API record is regenerated with the integration's full gate.
+
+**M91-I-Bundle-budget deferral (FIXM91I3, 2026-10-04).** The required
+production build was run and the import bundle alone exceeds its unchanged
+125 KiB cap: 148.5 KiB after removing the new heavy name-builder import and
+all six duplication-gate clones. An in-memory build of the starting commit
+`d1eeaadbb791c93a9440e36d358b9cfdc7f2c9f1`, with the production options and
+shared English fallback, is already 147.7 KiB. This is a blocking packaging
+deferral, not a gate waiver or support claim. Splitting a bundle needs build,
+bundle-split and host entry changes outside lane I's owned files; the lane
+brief forbids widening there and common.md says to stop and report when a
+bundle cannot fit. Follow-up: W/lead splits the importer under the existing
+budgets and reruns the production build and full quality gate before landing.
+No cap, threshold, ignore or rule level changed.
+
+**Resolved in integration (lane W, 2026-10-04, accepted by the lead).** The import bundle's cap is 175 KiB under the D6 rule (147.7 KiB measured, plus 15%, rounded up to 25 KiB); see the D6 table.
+**TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
+failures and running the complete quality gate directly on Kubuntu within
+120 minutes. No cap, threshold, skip or user-facing feature may be weakened.
+The earlier TRAIN13 budget stop is historical; current receipts go in the
+same train certification record.
+
+**TRAIN13 release train (2026-10-04, Kubuntu).** Merge the six reviewed
+branches in the owner's order with two-parent commits, preserving all PR
+heads. Resolve only integration breakage; retain D78, D79 and D71 with all
+existing decisions and milestones. Consolidate Unreleased into one Highlights
+list of at most five bullets and the Added/Changed/Fixed/Security sections;
+released sections remain byte-identical to `main-sync`. Regenerate notices,
+the host API inventory and exec schemas. Verify the shared M92 detection table
+still feeds #116's host-to-webview diagnostics and confidential admission,
+then run full `npm run quality` once and the unchanged 2200 KiB VSIX gate.
+A size-budget failure stops this lane and is reported without changing a cap.
+The first combined gate exposed the missing M99 palette tip and stale eager-recall/request-order assertions after D78. Add the tip in every language; bind the concurrency test to parent/child identity and assert recall is absent until packing. Match the monitor probe to the existing MCP Linux zombie check and retain proof that it recognizes a live process. The corrected full run passes static gates and 7,758 tests, but two unchanged checkpoint tests fail under the shared `/tmp` quota (`EDQUOT`); coverage and downstream gates are unverified. The separate build gate fails on webview main (928,507 bytes against 921,600); a private Linux VSIX measurement also fails (2,330,538 against 2,252,800 bytes), without the universal macOS helper. Stop implementation at those budget failures as the brief requires. No cap, timeout, test skip or gate is changed. Quota recovery, full certification and package reduction remain deferred to the lead. Hooks stay on; no push, rebase, live model or paid call. Current evidence and any outstanding gate are in `docs/certification/train-0.13.0.md`.
+
+**MRG116 bounded merge lane (2026-10-04).** The rig brief requires merging
+`main-sync` (M87) into PR #116 with scoped owning tests and static/build
+checks. Its shared rules prohibit this lane from running full quality or
+the full test suite, assigning those checks to the lead. Full quality,
+coverage, accessibility and installed-editor/platform acceptance therefore
+remain required after integration; no gate or threshold is changed.
+Conflict resolutions, generated material, redaction drills and the observed
+Kubuntu results are recorded in `docs/certification/docs-truth-audit-0120.md`.
+
+**MG87c merge (2026-10-04): main's activation diet into M81.** The browser
+check's model text sits by reader under D6's 2026-10-03 rule: `MODEL_TEXT`
+for what activation reads, `MODEL_API_MODEL_TEXT` for the three words only
+the Model API backend says; the refusal table reads them by name. Activation
+is 572.6 of 600 KiB. The shipped-bundle text test allows words a bundle's own
+blocks share with `MODEL_TEXT`, with four red drills. See
+`docs/certification/mg87c.md`.
+
+**MG87b merge (2026-10-04), source proof and explicit deferrals.** Merge `origin/main`
+into M81 while retaining all main bundles, budgets, translations and
+permission behavior. Browser results join M78's live policy fence; best-of-N
+attempts receive no window browser check. The lane runs targeted static
+gates and Kubuntu tests, with hooks on and no origin push; full quality
+remains the lead's gate. Kubuntu passes 7,105 tests; final integration and
+fixture runs pass 672 and 19 tests. Activation is 610.2 KiB against 600: the
+brief assigns its correction to the activation-diet lane. Focused accessibility
+has two missing Chrome results, so no complete browser pass is claimed.
+See `docs/certification/mg87b.md` for resolutions, drills and gate evidence.
+
+**DEFLAKE2 bounded-lane result (2026-10-04).** Direct Win11 owning tests
+and the required static/build gates passed; two deliberate regressions
+failed and were restored byte-exact. The rig brief prohibits integration
+merges/pushes, and `common.md` forbids aggregate quality/full-unit runs in
+this shared lane. Full quality, aggregate coverage, accessibility and the
+hosted Windows recheck remain the lead's gates. No gate or deadline was
+weakened. Evidence: `docs/certification/mcp-job-flake.md`.
+**FIXM98J2 bounded repair delegation (2026-10-05).** The rig brief
+authorizes hook-on local commits after owning tests and red/restored drills,
+scoped lint/format and typechecks. Run the common final scoped checks
+directly on win11, never full quality/full tests, merge, rebase or push.
+The lead retains integrated quality, packaging and installed-host gates;
+the stale host-API generated record remains Z's existing handoff.
+
+**FIXM98J2 native certification deferral.** The completed review repairs
+have four full red/restore/green receipts and 144 passing Windows unit
+tests. Qwen's three free CPU calls returned below the unchanged request
+deadline. The native PID opt-in test passed a real exit/near-PID fixture
+and fired its liveness mutation, but restored reruns failed the allocation
+precondition twice. Its strict bound remains and the path stops under the
+common retry rule: `WIN-PID-REPEATABILITY` in section 9 is an incomplete
+certification drill, not a waived native support gate. The opt-in test and
+positive/failed receipts remain for a reviewed repeatable fixture; no
+product/native guard or portable quality configuration is changed.
+**M98J3L Linux gate delegation and snapshot deferral (2026-10-05).** The
+rig brief requires direct, at-most-three-file tests, scoped lint/format,
+all typechecks, localization, dead-code, duplication, cycles, build and
+every existing cap, with hook-on local commits. It prohibits aggregate
+quality, merges/rebases and pushes. The existing J2 host-API snapshot is
+stale; Linux additionally introduces `node:readline` (25 built-ins total).
+The check ran and failed only the generated Node import rows: 271 VS Code
+APIs, 18 vscode importers and 59 theme variables are unchanged. Z retains
+the integrated `check:host-api -- --write` refresh and full quality/host
+certification. The gate is not weakened or claimed green.
+
+**M98-2j bounded spike delegation (2026-10-05).** The rig brief authorizes
+hook-on local commits after owning tests and deliberate failing drills,
+scoped lint/format and typecheck, with the final dead-code, duplication,
+localization, host API and production-build receipt. It prohibits a full
+quality or full test run here; the lead runs full quality on the integrated
+tree. No gate, threshold or ignore changes for this test-only spike.
+
+**M98-2j lane receipt.** The owning 47 tests, free probe, 17 failing/restored
+drills, all five typechecks, scoped ESLint/Prettier, plain knip, duplication,
+localization, host API and production build pass on win11. The host API
+snapshot is refreshed for the prototypes' Node imports (including
+`node:events`); it also resolves the pre-existing FIXM98J snapshot deferral
+below, recording paidHost's twelfth API call and judge's crypto import.
+This is a generated source record, not a new VS Code API or host policy.
+Full integrated quality/coverage/a11y and installed-host checks remain the
+lead's delegated gates. See `docs/certification/m98-2j-spike.md`.
+**FIXM98FU bounded-lane delegation (2026-10-05).** The rig/common brief
+prohibits aggregate quality/full-suite runs, merges, rebases and pushes.
+Hook-on repair commits use the whole owning test files with the rig's
+flags, byte-exact red drills, scoped lint/format and serial typechecks;
+the final receipt also runs dead-code, duplication, localization, host API
+and production build. Full quality/coverage/installed-host certification
+stays with Z/lead. The inherited FIXM98J host-API snapshot deferral below
+is neither widened nor claimed green. No gate or threshold is weakened.
+
+**M98P2PLAN documentation-only lane (2026-10-05).** The explicit rig brief
+limits changes to PLAN and the phase-2 planning receipt and requires only
+changed-file Prettier and whitespace checks, with hooks enabled. No source,
+dependency, runtime test or new gate changes, and no aggregate quality run,
+live/paid call, merge, rebase or push is authorized here. Full product
+certification remains with the future surface lanes and the lead above;
+this is a bounded planning receipt, not aggregate-green evidence. README
+and CHANGELOG delivery is assigned to Z because this lane ships no feature.
+
+**FIXM98CS inherited host-inventory deferral.** `npm run check:host-api`
+again exits 1 for the same existing generated-document mismatch recorded
+in the original CS receipt: paidHost configuration reads 11 → 12, its
+`WorkspaceConfiguration.get` importer, and Node importer totals buffer
+29, crypto 35, fs 25, fs/promises 35, http 3, path 66. This repair adds no
+Node/VS Code importer. Z owns `docs/ide-compatibility/host-api.md`; refresh
+it with `npm run check:host-api -- --write`, review and rerun on the
+integrated tree. No inventory gate is weakened or claimed green.
+
+**FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
+shared lane rules prohibit a full `npm run quality` or full test suite in
+this worktree. Hook-on repair commits require the owning regression files,
+red drills, scoped lint/format and typecheck here; the final lane receipt
+also runs dead-code, duplication, localization, host API and production
+build. The lead retains full quality, coverage, accessibility and installed
+host certification on the integrated tree. No threshold or rule is changed.
 
 **CIFIX14T verified local result (2026-10-05).** The five owning suites
 pass 113 tests (six existing Windows-only skips); the exact restored monitor
@@ -43953,6 +44963,70 @@ refresh: run `npm run check:host-api -- --write`, review those three rows,
 then rerun the check. API policy is unchanged; the snapshot gate is neither
 weakened nor claimed green. This is a documentation gate deferral, not an
 unfixed RVM98J finding.
+
+**TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
+failures and running the complete quality gate directly on Kubuntu within
+120 minutes. No cap, threshold, skip or user-facing feature may be weakened.
+The earlier TRAIN13 budget stop is historical; current receipts go in the
+same train certification record.
+
+**TRAIN13 release train (2026-10-04, Kubuntu).** Merge the six reviewed
+branches in the owner's order with two-parent commits, preserving all PR
+heads. Resolve only integration breakage; retain D78, D79 and D71 with all
+existing decisions and milestones. Consolidate Unreleased into one Highlights
+list of at most five bullets and the Added/Changed/Fixed/Security sections;
+released sections remain byte-identical to `main-sync`. Regenerate notices,
+the host API inventory and exec schemas. Verify the shared M92 detection table
+still feeds #116's host-to-webview diagnostics and confidential admission,
+then run full `npm run quality` once and the unchanged 2200 KiB VSIX gate.
+A size-budget failure stops this lane and is reported without changing a cap.
+The first combined gate exposed the missing M99 palette tip and stale eager-recall/request-order assertions after D78. Add the tip in every language; bind the concurrency test to parent/child identity and assert recall is absent until packing. Match the monitor probe to the existing MCP Linux zombie check and retain proof that it recognizes a live process. The corrected full run passes static gates and 7,758 tests, but two unchanged checkpoint tests fail under the shared `/tmp` quota (`EDQUOT`); coverage and downstream gates are unverified. The separate build gate fails on webview main (928,507 bytes against 921,600); a private Linux VSIX measurement also fails (2,330,538 against 2,252,800 bytes), without the universal macOS helper. Stop implementation at those budget failures as the brief requires. No cap, timeout, test skip or gate is changed. Quota recovery, full certification and package reduction remain deferred to the lead. Hooks stay on; no push, rebase, live model or paid call. Current evidence and any outstanding gate are in `docs/certification/train-0.13.0.md`.
+
+**MRG116 bounded merge lane (2026-10-04).** The rig brief requires merging
+`main-sync` (M87) into PR #116 with scoped owning tests and static/build
+checks. Its shared rules prohibit this lane from running full quality or
+the full test suite, assigning those checks to the lead. Full quality,
+coverage, accessibility and installed-editor/platform acceptance therefore
+remain required after integration; no gate or threshold is changed.
+Conflict resolutions, generated material, redaction drills and the observed
+Kubuntu results are recorded in `docs/certification/docs-truth-audit-0120.md`.
+
+**MG87c merge (2026-10-04): main's activation diet into M81.** The browser
+check's model text sits by reader under D6's 2026-10-03 rule: `MODEL_TEXT`
+for what activation reads, `MODEL_API_MODEL_TEXT` for the three words only
+the Model API backend says; the refusal table reads them by name. Activation
+is 572.6 of 600 KiB. The shipped-bundle text test allows words a bundle's own
+blocks share with `MODEL_TEXT`, with four red drills. See
+`docs/certification/mg87c.md`.
+
+**MG87b merge (2026-10-04), source proof and explicit deferrals.** Merge `origin/main`
+into M81 while retaining all main bundles, budgets, translations and
+permission behavior. Browser results join M78's live policy fence; best-of-N
+attempts receive no window browser check. The lane runs targeted static
+gates and Kubuntu tests, with hooks on and no origin push; full quality
+remains the lead's gate. Kubuntu passes 7,105 tests; final integration and
+fixture runs pass 672 and 19 tests. Activation is 610.2 KiB against 600: the
+brief assigns its correction to the activation-diet lane. Focused accessibility
+has two missing Chrome results, so no complete browser pass is claimed.
+See `docs/certification/mg87b.md` for resolutions, drills and gate evidence.
+
+**DEFLAKE2 bounded-lane result (2026-10-04).** Direct Win11 owning tests
+and the required static/build gates passed; two deliberate regressions
+failed and were restored byte-exact. The rig brief prohibits integration
+merges/pushes, and `common.md` forbids aggregate quality/full-unit runs in
+this shared lane. Full quality, aggregate coverage, accessibility and the
+hosted Windows recheck remain the lead's gates. No gate or deadline was
+weakened. Evidence: `docs/certification/mcp-job-flake.md`.
+**M98J3M macOS gate record (2026-10-05).** Scoped suites, five-project
+typecheck, lint/format, localization, deadcode, duplication, cycles and the
+production build/caps pass on macmini. The shared host-API snapshot still
+fails: Darwin adds `node:readline` (25 distinct Node built-ins), with the
+271 VS Code APIs, 18 VS Code importers and 59 theme variables unchanged.
+J2 already assigned this generated snapshot to Z's integrated refresh;
+this lane records the failure without changing an ignore, policy or cap.
+Full quality and installed-host/package certification stay with the lead,
+as the rig brief prohibits aggregate quality in this bounded worktree.
+See `docs/certification/m98p2-j.md#macos-native`.
 
 **RELFAST3 bounded-lane result (2026-10-04).** Fresh Windows compilers,
 dead-code, duplication, localization, host API, production build, actionlint
@@ -44718,287 +45792,6 @@ actual receipts in `docs/certification/m101-p2.md`. The lead must run the
 aggregate quality/coverage/platform matrix before integration/release. No
 threshold, ignore or rule is changed.
 
-### M98 — Muse Judge: a calibrated judge for any agent (D77, phase 1 integration)
-
-Lane D integration (2026-10-05, Kubuntu): merge A's review fixes and G's
-M91-G goldens into U, activate the same-model sources through a lazy window
-bundle, retain A's live binding and dispatch guards, and connect dispatch
-receipts to U's separate usage rows. Repair the recorded 320 px tool-row
-overflow. Document and certify only the behaviour exercised on this tree.
-D78's `paidDailyBudget.ts` and setting are absent from this checkout; its
-historical `3db0ef37` factory exposes `capUsd`/`reserve`, not A's complete
-daily-ledger interface. Metered Judge stays unavailable until that real
-adapter and D77's entry-criteria receipts land; no competing store is added.
-The exact handoff is recorded in `docs/certification/m98.md`. Prefixes with
-hosted billable tools use a standalone body with no tools: Judge token
-consent cannot authorize a separate hosted-search charge.
-The full rig gate also exposes Chrome CLI `--dump-dom` stalls on ordinary
-pages. Use the existing Playwright page driver for every accessibility
-scenario, preserving the four themes, real 690/320 px viewports, 120-second
-page timeout and every axe finding rule; prove the ordinary-page failure
-and the restored driver before rerunning the complete quality command.
-Lane D's final Kubuntu `npm run quality` exits 0 (7,317 passing tests;
-464 accessibility pages). Package and raw size check exit 0 at 2,113,751
-bytes against the unchanged 2,252,800 cap. The universal macOS helper is
-absent; CI's exact presence check fails only for that helper. The combined
-final-tree checkbox stays open. Receipts and the D78 handoff are in the
-aggregate certification record.
-
-- **Goal.** Small, calibrated, advisory decisions, on out of the box (D78),
-  from the user's own chat model first, with separate judges later. The Muse
-  model, or a deterministic rule, still decides.
-  - Redesigned after the third review round (RVM98C): **phase 1 is the
-    same-model judge only.**
-  - Every other part is a named phase-2 section that stays planned.
-- **Phase 1 scope.**
-  - **The same-model judge** on the Model API and on Muse Code:
-    - stated confidence on every model, batched;
-    - logprobs where a model offers them, with binary-from-top-1 under its
-      floor;
-    - results labelled "uncalibrated" or "approximate (top-1)".
-  - **Speed:**
-    - Model API side requests that share the main cached prefix exactly
-      (redaction first);
-    - Muse Code redacted standalone prompts in a fresh hidden session per
-      batch;
-    - background calls with stale results dropped, and a memory-only result
-      cache.
-  - **One use:** the Auto risk advisory, through the synchronous caution
-    latch at the reviewer-held and card-held fences only (D77, "Where
-    phase 1 intervenes"). Not started on immediate allows.
-  - **Admission** through D78's daily ledger; the ask-once consent;
-    confidential rules; privacy.
-  - **Modes:** `auto` (= `same`), `same`, `off`.
-  - **Per-backend invariance goldens:** M91-G's raw-body harness for the
-    Model API, MSP frames for Muse Code.
-- **Phase 2 sections**, each with its own lanes, acceptance, drills and
-  certification when it starts:
-  - 2a cascade and `both`;
-  - 2b calibration fitting;
-  - 2c SystemOne adapters and `judge serve` (M85);
-  - 2d sampling and contrastive framing;
-  - 2e BYO providers;
-  - 2f the other uses, the Judge panel section, and pre-execution fences;
-  - 2g the CLI and MCP;
-  - 2h lint;
-  - 2i the embedding fast path;
-  - 2j the local judge, after its design spike.
-- **Depends on.**
-  - **Phase 1:**
-    - M78 and M90 (the reviewer-held approval paths, `reviewedApprovals.ts`,
-      and the CLI settings reader);
-    - D78's daily ledger and M82's claim journal (FIXDEF);
-    - M91-G's raw-body harness (`6cfb19e4`, not yet on main);
-    - D48 and D78 (consent).
-  - **Phase 2:**
-    - M95 (2c keys, 2e, the 2f panel);
-    - M91 (2f pre-execution hooks, 2g `judge hook`);
-    - M96 (2f hints);
-    - M75 (2a, 2b, 2d, 2f, 2i);
-    - D68 (2h).
-- **Phase 1 lanes and file ownership.** Muse codes each lane. Codex
-  independently reviews each lane's finished diff and gate-fire evidence. The
-  lead serializes shared files, integration and the aggregate gates; no lane
-  rewrites another's region.
-  - **Start now on the rigs:** lanes 0, J and A. They are pure or
-    interface-level, and need no host integration.
-  - **After them:** S needs J. U needs S and A. G needs S and M91-G's
-    merge. D runs alongside, closing last.
-
-| Lane                  | Starts                        | Muse implementation ownership                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Codex review / acceptance focus                                                                                                                                                                |
-| --------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0 Contract / strings  | now                           | new `src/core/judge/schema.ts` (zod request/answer/`muse` schemas, bounds, labels); named limits in `src/shared/constants.ts` (`JUDGE_TOP1_MIN_PROB`, `JUDGE_MIN_READY_RATE`, the advisory threshold, deadlines, caps); the `judge` paid feature in `PAID_FEATURES`; `museSpark.judge.engine` (`auto`, `same`, `off`) in `package.json` and `package.nls*.json`; English and the 14 `l10n/ui.*.json`                                                                                                           | Byte-compatible `answers`; option letters `A`–`Z`; no content in log fields; complete real translations                                                                                        |
-| J Judge core          | now                           | new `src/core/judge/{judge,math,techniques,prompt,resolve,entries}.ts`: the entropy confidence, logprob renormalization over distinct alternatives, `partial`, binary-from-top-1 with its floor and stated fallback, the stated-confidence parser, the state-first prompt builder, batching (questions split, never the state), the over-context refusal, the phase-1 mode resolver, and the exact-action entry store (key, states, discard rules, the synchronous latch read); new `test/unit/judge*.test.ts` | The RVM98 top-1 counterexample; variants counted once; top-1 never a distribution; a missing field read as failure; no state split; a late result never readable after its fence               |
-| A Admission           | now (against D78's interface) | new `src/core/judge/admission.ts`: worst-case uncached reservation per call, refusal of unpriced and over-budget calls, settlement, refunds of known non-sends, liability for uncertain outcomes, re-binding after waits; the adapter onto `src/host/paid/paidDailyBudget.ts` (D78), with no store of its own; integration tests against the real ledger once FIXDEF merges                                                                                                                                    | Entry criteria 1–7 of D77 verified, or a gap filed against FIXDEF; kill after dispatch, corrupt store, lock contention, network-home refusal, two windows, held modal; M80 and D78 regressions |
-| S Same-model source   | after J                       | new `src/core/judge/same/**` and host adapters: the Model API side request built from `ModelApiHost`'s own request builder (prefix copied only when redaction leaves it unchanged; standalone otherwise); Muse Code's fresh hidden session per batch (`session/start`, an empty temporary folder deleted after, Plan, no MCP servers, the user-settings allow-rule check, the M90 item guard); background scheduling and the memory-only result cache                                                          | No model switch; main request or session untouched; redaction first; no reuse of M90's session; judge off on standing allow rules; Muse Spark never awaited                                    |
-| U Use / UI            | after S and A                 | the latch reads at M78's reviewer fence (Model API) and in `src/host/review/reviewedApprovals.ts` (Muse Code, extension-owned held approvals); the caution note on cards; no start on immediate allows; the ready-rate and precision recorder for M75 replays; the Judge status line; the ask-once modal hook-up; usage rows; harness and accessibility cases                                                                                                                                                  | A ready caution turns ALLOW into ask; a pending one leaves it; the card never waits; never an allow; results kept out of the ALLOW parsers; themes, narrow panel, keyboard and screen reader   |
-| G Golden / invariants | after S, and M91-G's merge    | the Model API: an extension of M91-G's raw-body harness (`test/unit/modelApiGoldenRequests.test.ts` at `6cfb19e4`), with the full body byte-identical when `off` or with no hint, the side prefix equal to the main cached prefix, and the redaction case standalone; Muse Code: main-session MSP frames unchanged through the real adapter and fake CLI, and the judge session carrying only the standalone prompt; the SoL-Pi regression files rerun                                                         | Red on any main-body byte change, a side-prefix divergence, a prefix reused despite redaction, or a changed main-session frame; no independent baseline; no claim about the CLI's HTTP bytes   |
-| D Docs / integration  | alongside; closes last        | README, `docs/judge.md` (phase 1), `docs/PRIVACY.md`, SECURITY, CHANGELOG, PLAN, `docs/certification/m98.md`, the bundle and package scripts, knip and dpdm entries                                                                                                                                                                                                                                                                                                                                            | Documented behaviour only after real runs; costs from receipts; Muse Code's narrowed claim stated                                                                                              |
-
-- **Phase 1 acceptance.**
-  - **FIXM98J review repairs (RVM98J, 2026-10-04).** Findings 1–10
-    corrected within lanes J/0: finite JSON booleans; generation-bound entry handles;
-    complete-request context admission and splitting; single-character
-    answer tokens; no judge in the legacy activation paid review; explicit
-    `same` below the automatic ready-rate floor; singular `logprob` metadata;
-    ask-once wording with the shared daily budget in every language; a
-    schema-free engine predicate; and honest top-1 `partial` metadata.
-    Each fix has a regression and a byte-exact red drill in
-    `docs/certification/m98-j.md` (16 drills, full hashes beside it).
-    Lane U retains first-charge consent;
-    no judge call runs in this repair lane.
-  1. **Invariance, per backend.**
-     - When `off`: no request, no file, no log line, no bundle load.
-     - Model API with no hint: the main body is byte-identical (the M91-G
-       harness), and side prefixes are exact or standalone under redaction.
-     - Muse Code: main-session MSP frames unchanged, and the judge frames
-       carry only the standalone prompt.
-  2. **The contract.**
-     - Jev shapes for noul, choice and score.
-     - `muse` carries the source, technique, model, label, our confidence,
-       `vendorConfidence`, `partial`, and the reserved and settled cost.
-     - The bounds refuse 65 questions, 27 options, 11 levels and an oversized
-       body.
-  3. **Techniques.**
-     - **Stated:** batched and labelled "uncalibrated".
-     - **Logprobs:** renormalized over distinct variants.
-     - **Top-1:** only for a noul with a yes/no token at or above the floor,
-       labelled "approximate (top-1)"; the RVM98 counterexample falls back.
-     - **A missing field** is a failure.
-  4. **Fences** (C3).
-     - A ready caution at the reviewer's verdict turns ALLOW into ask.
-     - A fast reviewer with a delayed judge: ALLOW stands, and the late
-       result is dropped.
-     - An immediate native or Auto allow: no judge started, nothing charged.
-     - A card with a caution ready before the answer gets a note; after the
-       answer, nothing.
-     - A replaced session, turn or action discards the entry.
-     - The card never waits.
-     - Ready rate and precision recorded per backend; under
-       `JUDGE_MIN_READY_RATE`, the backend's default is off, with the reason.
-  5. **Muse Code isolation** (C4).
-     - A fresh session per batch, never M90's or the main one.
-     - An empty temporary folder, removed after.
-     - Plan mode with no MCP servers.
-     - The judge is off when user-level always-allow rules exist.
-     - The tool-item guard cancels.
-     - The residual and the narrowed claim appear in §9, in PRIVACY and in
-       the first-use note.
-  6. **Admission** (C5). Through D78's ledger only:
-     - worst-case reservation before dispatch;
-     - kill after dispatch, then restart: the liability is kept;
-     - a corrupt store or a lock failure: refused;
-     - a network home: refused;
-     - two windows: one admitted;
-     - a held modal: re-checked;
-     - unpriced: refused;
-     - re-binding after every wait.
-  7. **State size.** An over-context state gets an explicit no-answer, and
-     questions split across requests each carry the full state.
-  8. **Consent and billing.** Model API asks once (D78) with the price and
-     daily budget; Muse Code shows the subscription note.
-  9. **Confidential.** Same-model calls run exactly when the chat model may.
-  10. **Advisory only.** A "safe" answer leaves every verdict unchanged
-      (D50's test); results never reach the ALLOW parsers.
-  11. **Privacy.** Redaction before any remote call wins over prefix reuse.
-      Logs carry ids, source, technique, model, timing and cost only.
-- **Phase 1 tests and red drills.** Fakes only under `test/**`:
-  - a fake provider with stated-JSON, top-5, top-1, silent-drop,
-    reasoning-forced and cache modes;
-  - a fake Muse CLI with a hidden-session recorder, an always-allow settings
-    fixture and a tool-item emitter;
-  - fake reviewers with controllable delays.
-
-  Each new assertion and guard is broken once on purpose, observed failing,
-  restored byte-exact (SHA-256), and its whole test file rerun. The record
-  goes in `docs/certification/m98.md`. The required drills:
-  - **Invariance:** a main-body byte change; a side-prefix divergence; a
-    prefix reused despite redaction; a changed main-session MSP frame.
-  - **Math:** the top-1 complement under the floor; variants counted twice;
-    top-1 used for a choice; a dropped field read as certainty; a state
-    split.
-  - **Fences:**
-    - the latch awaiting the judge;
-    - a late result applied after its fence;
-    - a judge started on an immediate allow;
-    - a judge result parsed as ALLOW;
-    - an entry surviving a turn replacement.
-  - **Isolation:** reuse of M90's session; judging in the workspace folder;
-    running despite a user-level always-allow rule.
-  - **Admission:** a dispatch before the durable reservation; a liability
-    dropped on restart; two windows admitted for the last claim; dispatch
-    after a held modal without re-checking.
-  - **Behaviour:** a "safe" score that allows; a user path awaiting Muse
-    Spark; the judge doing anything while `off`; contributor tier in a
-    confidential workspace.
-
-  Never drill against a user's repository.
-
-- **Phase 2 sections.** Planned, not dropped. Each starts after its
-  dependency and the evidence it names.
-  - **2a — Cascade, `both`, and `auto` → `both`.**
-    - **Design:** the separate judge first; the same model under the entropy
-      `JUDGE_CASCADE_CONFIDENCE` or for a high-stakes family;
-      profile-weighted combination; disagreement only adds caution.
-    - **Needs:** 2b, a verified separate judge (2c or 2j), and M75's
-      families. The round-2 numbers are offline prototypes.
-  - **2b — Calibration fitting and the report.**
-    - Platt first, isotonic at 200 or more labels.
-    - Per-family targets with independent labels; outcome signals kept
-      apart.
-    - Disjoint grouped splits; metrics from the evaluation set only.
-  - **2c — SystemOne adapters and `judge serve`** (M85).
-    - **Adapters:** OpenRouter Jev (tested), TypeSafe (untested), Clef
-      (after a key), over M95's keys.
-    - **`serve`:** an IP-literal bind, a per-start token in a user-only file
-      deleted on exit, Host and `Origin` refusal (an absent `Origin` never
-      skips the token), 64 KiB, per-request admission.
-  - **2d — Sampling and contrastive framing,** under the cost gate,
-    measured first.
-  - **2e — BYO providers** after M95, with per-model capability blocks from
-    captures.
-  - **2f — The other uses, the Judge panel section and pre-execution
-    fences.**
-    - **Uses:** skill suggestion, relevance and grading, M96's hints, M90's
-      signal, and the three testing uses, each measured first.
-    - **Fences:** a deadline-bounded or hook-based fence for immediate
-      allows, only with a captured pre-execution hook (M91) and a measured
-      ready rate.
-    - **The panel section** sits in M95's panel.
-  - **2g — The CLI and MCP.** `judge ask`, `calibrate`, `report` and `mcp`,
-    plus `judge hook` after M91; exit codes 0, 2 and 4; `--budget-usd`
-    defaults to 0; hooks emit caution only.
-  - **2h — Lint,** within D77's declared limits: a strict, pinned
-    `jevlint.json`; a separate Muse config; Tree-sitter for the kinds
-    symbols cannot cover; a "not checked" coverage report; the first-party
-    pack.
-  - **2i — The embedding fast path,** after a measurement with hundreds of
-    labels.
-  - **2j — The local judge.** First, a design spike answering C1 and C2
-    (D77): verified local inference checked per connection, against the
-    named fixtures, or else only a user-configured, unverified endpoint
-    that is never confidential and never auto-selected. The build follows
-    the spike's verdict, starting from D77's carried design: the pinned
-    `node:net` transport, provenance, consented pulls and `tev1:4b`.
-- **Gates.**
-  - The lead runs the full `npm run quality` and the required CI checks on
-    the final integrated tree. Lane tests and builds run on the rigs; local
-    work is limited to changed-file formatting and lint.
-  - All existing budgets are preserved.
-  - New external shapes need counted captures before their parsers: for
-    phase 1, Muse Code's hidden-session frames and the CLI's user-settings
-    allow-rule format.
-  - This planning lane authorizes no paid or live call beyond its recorded
-    probes.
-- **Security.**
-  - Inputs are bounded by named constants.
-  - State is data, and the judge can only add caution.
-  - Keys stay in SecretStorage or the OS store.
-  - Muse Code's judge session carries M90's recorded residual (§9), with
-    the narrowed claim.
-  - No local endpoint is contacted in phase 1.
-- **Docs and owner steps.** None for phase 1. The owner-only keys (TypeSafe,
-  Cloudflare) are needed only for 2c. Each surface is documented only after
-  a real successful run.
-- **Certification checklist.**
-  - [x] Owner requests and rulings; D77's policy of record; research and
-        probes (41 live attempts, ≈ $0.015; local CPU and GPU runs; round-2
-        prototypes labelled).
-  - [x] RVM98 (12 findings) answered in `96d7b669`; RVM98C (C1–C6) answered
-        by this redesign. C1 and C2 move with the local judge to the 2j
-        spike; C3–C6 are fixed for phase 1.
-  - [x] RVM98J findings 1–10 repaired in FIXM98J with owning regressions
-        and byte-exact red drills; no finding remains as an accepted residual.
-  - [ ] Phase 1 acceptance 1–11, each with its failing drill and passing
-        receipt.
-  - [x] M91-G's harness merged with `--no-ff` in `e64ced28`; lane G's
-        golden and MSP receipts are linked in `docs/certification/m98.md`.
-  - [ ] D78's ledger meets entry criteria 1–7, or FIXDEF gaps are closed.
-  - [ ] Phase-1 final tree: full quality, a11y, package and bundle caps,
-        installed-host receipts.
-  - [ ] Each phase-2 section certified on its own when it ships.
-- **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
-
 **M96INT3C full-profile timing deferral (2026-10-05).** The one requested
 `VITEST_MAX_WORKERS=3 npm run quality` finishes red at coverage tests:
 12,514 pass, 69 fail, 151 existing/platform/setup skips. Besides the
@@ -45038,9 +45831,22 @@ proof remains WINPUB on win11 for the lead's release batch.
 
 ## 8. Escape hatches register
 
-| Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
-| ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
+| Location                                     | Escape hatch                                 | Reason                                                                                                                                                                                                      | Date       |
+| -------------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/runtime/judge/judgeEntry.ts:hasFactory` | Same-build callable child factory predicates | Check the four shipped child factories before using their compiler-checked signatures; the established lazy loader rejects malformed modules and retries repaired files. No service/wire shape is inferred. | 2026-10-05 |
+
+| Location                                      | Escape hatch                         | Reason                                                                                                                                                                         | Date       |
+| --------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| `src/host/validationSchema.ts:isSchemaWriter` | Same-build callable export predicate | Node supplies an unknown module from the shipped sibling bundle; check the callable before using the compiler-checked conversion signature. No service/wire shape is inferred. | 2026-10-05 |
+
+Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
+
+| M98 phase-2 Z location              | Escape hatch                             | Reason                                                                                                                                                                                                                                             | Date       |
+| ----------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/runtime/judge/judgeBundle.ts`  | `value is JudgeBundle` (`isJudgeBundle`) | Checks the callable factory export; its parameter/result signatures are trusted because entry, loader and package share one typed source tree/build. Built-factory tests exercise it.                                                              | 2026-10-05 |
+| Location                            | Escape hatch                             | Reason                                                                                                                                                                                                                                             |
+| ----------------------------------- | -----------------------------------      | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone      | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
 
 ## 8. Escape hatches register
 
@@ -45227,6 +46033,64 @@ before a repaired one loads (2026-09-30).
 | `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM98CS / RVM98CS (2026-10-05).** All three review findings are
+  repaired: macOS inherited/late ACL grants refuse startup, fatal/ordinary
+  exit cleanup is armed before the bearer is written, and close publishes
+  one promise before synchronous abort reentry. No reviewed P1/P2/P3 is
+  accepted as a residual. **CS-OS-INTEGRATION receipt gap:** this repair
+  adds installed macOS/Node receipts only; Linux's earlier UID/mode receipt
+  and synthetic Windows DACL controls are labelled in
+  `docs/certification/m98-cs.md`. Windows installed ACL and per-platform
+  integrated CLI/VS Code/source receipts remain with G/Z before release.
+  Safe for this bounded delivery because the boundary remains unwired and
+  unavailable as a supported command; follow up with the installed OS
+  matrix, generated host inventory, shared CHANGELOG and aggregate gates.
+- **G2-HOST-API-RECORD (FIXM98G2, 2026-10-05).** The generated host API
+  record is stale for the five already delegated judge rows listed in §7.
+  This is safe for the bounded repair review because the runtime parser,
+  API policy and gates stay unchanged; the check still fails visibly.
+  Z owns regenerating/reviewing the record and rerunning it on the final
+  integrated tree. No RVM98G2 P1/P2/P3 finding remains unresolved. Evidence:
+  `docs/certification/m98-g2.md`.
+  **Closed on this integration tree:** M98P2INT round 2 regenerated/reviewed
+  the record and the check exits 0. The original failure remains historical.
+
+- **GH-host-api-baseline / GH-validation-export-baseline (FIXM98GH).** The
+  inherited generated host record and shared `toJSONSchema` export failures
+  remain outside GH ownership (§7). Safe for a private, unwired repair lane
+  only; no installed-command or full-quality claim is made. G/Z must repair
+  the owned assembly/snapshot, review the generated diff, and run the unchanged
+  integration gates before shipping. Dispatcher/source/consent wiring and the
+  six inherited activation-fixture failures remain integration work already
+  recorded in `docs/certification/m98-gh.md`.
+  **Closed on round-3 integration:** the host record is regenerated by its
+  script and the shared Node validation module lazily exports canonical
+  `toJSONSchema` conversion; their gates pass. H/GH libraries are available
+  through the judge factory, with source/admission still injected. Installed
+  command/source certification and aggregate gates remain lead-owned. The
+  eight judge activation tests also pass on this resolved tree; the six
+  failures in GH's historical receipt do not reproduce.
+
+- **GH-Cursor-permission-abstention (FIXM98GH, RVM98GH P2).** Cursor's
+  `preToolUse`, `beforeShellExecution` and `beforeMCPExecution` require a
+  `permission` decision even on exit 0; empty output blocks, and `failClosed`
+  also blocks nonzero exits. No advisory-only abstention exists in the pinned
+  contract. These rows are unavailable before source initialization or paid
+  admission, so no safe judge result is emitted into the invalid-empty path.
+  Direct invocation of an unavailable row still reports failure and can veto
+  under a foreign `failClosed` configuration. `beforeReadFile` and
+  `beforeSubmitPrompt` likewise require a control decision and stay unavailable.
+  Safe for this unwired lane only: G/Z must not register these rows. Follow-up: settle a host-specific policy
+  with the owner and capture/prove native neutral delivery before enabling
+  them; never substitute an ALLOW grant for a missing answer. Cursor
+  observation rows preflight an empty JSON object against their own schema;
+  M91 applies `failClosed` only on the contract's blocking rows.
+
+  **Round-3 owner decision enforced:** all five named Cursor blocking rows
+  are permanently excluded from this registration list. Observation rows
+  remain available; the production-factory regression is proved red when
+  that exclusion is removed, then byte-exact restored and green.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting
@@ -46161,6 +47025,48 @@ collision tests do not certify these host-owned seams or the assembled team.
   before any automatic reclamation; use a fresh user-selected runner root
   after manually retiring a lost supervisor. This retains exclusion and
   never silently permits concurrent setup.
+- **FIXM98J2 / WIN-PID-REPEATABILITY (2026-10-05).** A real process exit
+  and new PID eight away passed the held-handle refusal; ignoring the native
+  exit signal made the intended assertion fail. Source restoration matched
+  SHA-256, but two restored runs reached only PID distances 44 and 28 against
+  the unchanged at-most-16 fixture precondition. This is an incomplete drill,
+  not repeatable platform certification; the bounded allocator path stops
+  under the common retry rule. No native generation/liveness guard changes
+  and no local source is product-wired. Follow-up: a reviewed repeatable
+  native fixture and complete red/green installed-source receipt.
+
+- **FIXM98J2 / CPU-TEV (2026-10-05).** The three returned free CPU calls
+  certify one-token qwen transport/provenance latency on win11, all below
+  the unchanged 60-second request deadline and all with reported GPU
+  residence zero. They do not certify `tev1:4b` CPU SystemOne latency or a
+  population percentile. Automatic qwen selection still requires calibration;
+  no CPU speed recommendation for tev is added. Follow-up: a separately
+  bounded/consented tev CPU receipt and installed-source latency under Z.
+
+- **FIXM98J2 / WIN-INSTALLED (RVM98J2, 2026-10-05).** The repaired
+  source and headless native receipts do not certify transport inside an
+  installed extension or complete runtime assembly. The product exposes no
+  local-judge runtime yet; an unregistered factory is not a support claim.
+  Z must register/package the native helper and vetted install/update anchors,
+  supply the complete model token counter and model wording, install language
+  state, run exact installed-host execution and borrowed request goldens,
+  refresh the host-API snapshot and close aggregate quality/package gates.
+- **FIXM98J2 / WIN-SSH (RVM98J2, 2026-10-05).** Authenticated self-SSH
+  forwarding remains uncaptured. Real same-user relay refusal and exact
+  per-socket tuple/executable/generation checks passed; no relay exception
+  or confidential/unverified bypass is added. Follow-up: an authenticated
+  loopback SSH fixture through the assembled installed source on win11.
+- **FIXM98J2 / COMMON-MODEL-LIFETIME (RVM98J2, 2026-10-05).** Retained
+  blob handles and snapshot revalidation prove the bytes checked before
+  dispatch, not immutable weights during inference. Arbitrary same-user
+  code injection is outside that proof. The narrow advisory claim stays;
+  no peer/hash TTL is permitted. A stronger claim needs a separately reviewed
+  immutable-file/runtime-lifetime design and real replacement drills.
+- **FIXM98J2 / POSIX-NATIVE (RVM98J2, 2026-10-05).** This Windows lane
+  neither implements nor certifies Linux/macOS native lifetime, volume,
+  installation and transport. Missing native evidence fails closed and
+  Windows receipts are not inherited. M98J3L/M98J3M own their platform files
+  and installed native receipts; Z incorporates those before support.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

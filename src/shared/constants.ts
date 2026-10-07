@@ -528,6 +528,9 @@ export const SETTING_DEFAULTS = {
   legalHeaderPolicy: 'optional' as LegalHeaderPolicy,
   legalRegistryLookups: true,
   legalExplanation: true,
+  // Phase-2 source selection is inert until the source and cascade lanes
+  // certify it. Empty preserves the single-model setup; no discovery here.
+  'judge.separate': '',
 } as const
 export const PAID_DAILY_BUDGET = {
   minimumUsd: 0.5,
@@ -598,6 +601,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'tabWithCopilot',
   'judge.engine',
   'legalExplanation',
+  'judge.separate',
 ] as const
 
 // Muse Code SDK 1.3.0 hook process limits (PLAN.md M51).
@@ -858,10 +862,10 @@ export const SECONDS_PER_HOUR = 3600
 
 // --- The Muse Judge (M98, PLAN.md D77) ---
 //
-// The engines `museSpark.judge.engine` takes in phase 1. `auto` is `same`
-// (the user's own chat model judges); `separate` and `both` arrive with the
-// phase-2 sections that build them. Machine-scoped, on (`auto`) by default.
-export const JUDGE_ENGINES = ['auto', 'same', 'off'] as const
+// Phase-2 selections are accepted here; resolving/dispatching them belongs
+// to the source/cascade lanes. `auto` keeps phase-1 `same` until those lanes
+// certify a separate source and its profiles. Reading settings loads no judge.
+export const JUDGE_ENGINES = ['auto', 'same', 'separate', 'both', 'off'] as const
 export type JudgeEngine = (typeof JUDGE_ENGINES)[number]
 // The request bounds, at the intersection of the SystemOne services (TypeSafe,
 // OpenRouter, Ollama, Cloudflare): 1–64 questions; a choice of 2–26 options
@@ -891,6 +895,12 @@ export const JUDGE_MIN_READY_RATE = 0.5
 // One judge call never runs longer than this. Calls run in the background and
 // are never awaited on a user path; a late result is dropped at its fence.
 export const JUDGE_REQUEST_TIMEOUT_MS = 60_000
+// Phase-2 eligibility limits, not authorization to dispatch or spend.
+export const JUDGE_CASCADE_CONFIDENCE = 0.8
+export const JUDGE_SAMPLING_MAX_USD_PER_QUESTION = 0.001
+export const JUDGE_ISOTONIC_MIN_LABELS = 200
+export const JUDGE_EMBED_FALLBACK_CONFIDENCE = 0.8
+export const JUDGE_CLI_DEFAULT_BUDGET_USD = 0
 // The same-model side request (M98 lane S, PLAN.md D77): a side request whose
 // cached prefix (the main body's model, instructions and tools, promptCacheKey)
 // measures below this shares nothing worth caching, so a minimal standalone
@@ -4908,6 +4918,12 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/pluginHooks.js',
   'dist/conversationGit.js',
   'dist/judge.js',
+  'dist/judgeP2.js',
+  'dist/judgeLint.js',
+  'dist/judgeHook.js',
+  'dist/judgeLocal.js',
+  'dist/judgeUses.js',
+  'dist/validationSchema.js',
   'dist/uiTextRuntime.js',
   'dist/uiTextHooks.js',
   'dist/uiTextSurfaces.js',
@@ -6138,6 +6154,19 @@ export const WEBVIEW_L10N_ELEMENT_ID = 'muse-l10n'
 export const WINDOWS_POWERSHELL_TERMINAL_PATH = String.raw`\System32\WindowsPowerShell\v1.0\powershell.exe`
 // The login / TUI terminal's shell off Windows (PLAN.md D25): POSIX syntax, always there.
 export const POSIX_TERMINAL_SHELL = '/bin/sh'
+// M98-2j: test-only local transport/provenance spike; no shipped reader.
+export const LOCAL_JUDGE_HELPER_MODE = 0o700
+export const LOCAL_JUDGE_TIMEOUT_MS = 30_000
+export const LOCAL_JUDGE_MAX_RESPONSE_BYTES = 65_536
+export const LOCAL_JUDGE_MAX_MODELS = 100
+export const LOCAL_JUDGE_MAX_LAYERS = 32
+export const LOCAL_JUDGE_DIGEST_HEX_LENGTH = 64
+export const LOCAL_JUDGE_MIN_PORT = 1
+export const LOCAL_JUDGE_MAX_PORT = 65_535
+export const LOCAL_JUDGE_IPV4_FAMILY = 4
+export const LOCAL_JUDGE_DEFAULT_PORT = 80
+export const LOCAL_JUDGE_HTTP_OK = 200
+export const LOCAL_JUDGE_HASH_CHUNK_BYTES = 1_048_576
 
 // M95: provider-controlled Anthropic decoding is bounded before JSON parsing
 // and before retaining each block, even when the provider ignores token caps.

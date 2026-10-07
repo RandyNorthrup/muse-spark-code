@@ -1,0 +1,1613 @@
+[
+  {
+    "drill": "unsupported language dispatched",
+    "source": "src/core/judge/lint/units.ts",
+    "test": "test/unit/judgeLintUnits.test.ts",
+    "before": "f8bc4c705bb67ede203ed7569c1ed5495e146ae44c7a5e50032c3935b35aff42",
+    "after": "f8bc4c705bb67ede203ed7569c1ed5495e146ae44c7a5e50032c3935b35aff42",
+    "mutation": {
+      "needle": "if (languages.has(file.language)) {",
+      "replacement": "if (true) {"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintUnits.test.ts:60 > lint extraction and coverage > reports unsupported c without invoking an extractor",
+      "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times",
+      " FAIL  test/unit/judgeLintUnits.test.ts:60 > lint extraction and coverage > reports unsupported cpp without invoking an extractor",
+      "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times",
+      " FAIL  test/unit/judgeLintUnits.test.ts:60 > lint extraction and coverage > reports unsupported csharp without invoking an extractor",
+      "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times",
+      " FAIL  test/unit/judgeLintUnits.test.ts:60 > lint extraction and coverage > reports unsupported kotlin without invoking an extractor",
+      "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times",
+      " FAIL  test/unit/judgeLintUnits.test.ts:60 > lint extraction and coverage > reports unsupported php without invoking an extractor",
+      "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times",
+      " FAIL  test/unit/judgeLintUnits.test.ts:60 > lint extraction and coverage > reports unsupported ruby without invoking an extractor",
+      "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times",
+      " FAIL  test/unit/judgeLintUnits.test.ts:60 > lint extraction and coverage > reports unsupported unknown without invoking an extractor",
+      "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times"
+    ]
+  },
+  {
+    "drill": "comments omitted from syntax",
+    "source": "src/core/judge/lint/units.ts",
+    "test": "test/unit/judgeLintUnits.test.ts",
+    "before": "f8bc4c705bb67ede203ed7569c1ed5495e146ae44c7a5e50032c3935b35aff42",
+    "after": "f8bc4c705bb67ede203ed7569c1ed5495e146ae44c7a5e50032c3935b35aff42",
+    "mutation": {
+      "needle": "requested.filter((kind) => !covered.has(kind))",
+      "replacement": "[]"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintUnits.test.ts:12 > lint extraction and coverage > uses symbols for declarations and syntax for comments and statements",
+      "AssertionError: expected \"vi.fn()\" to be called with arguments: [ …(2) ]",
+      " FAIL  test/unit/judgeLintUnits.test.ts:39 > lint extraction and coverage > falls back to a grammar for files without a symbol provider",
+      "AssertionError: expected \"vi.fn()\" to be called with arguments: [ …(2) ]",
+      " FAIL  test/unit/judgeLintUnits.test.ts:76 > lint extraction and coverage > permits an injected grammar for typescript",
+      " FAIL  test/unit/judgeLintUnits.test.ts:76 > lint extraction and coverage > permits an injected grammar for tsx",
+      " FAIL  test/unit/judgeLintUnits.test.ts:76 > lint extraction and coverage > permits an injected grammar for javascript",
+      " FAIL  test/unit/judgeLintUnits.test.ts:76 > lint extraction and coverage > permits an injected grammar for python",
+      " FAIL  test/unit/judgeLintUnits.test.ts:76 > lint extraction and coverage > permits an injected grammar for go",
+      " FAIL  test/unit/judgeLintUnits.test.ts:76 > lint extraction and coverage > permits an injected grammar for rust",
+      " FAIL  test/unit/judgeLintUnits.test.ts:76 > lint extraction and coverage > permits an injected grammar for java",
+      "AssertionError: expected [] to have a length of 1 but got +0"
+    ]
+  },
+  {
+    "drill": "empty extraction called checked",
+    "source": "src/core/judge/lint/units.ts",
+    "test": "test/unit/judgeLintUnits.test.ts",
+    "before": "f8bc4c705bb67ede203ed7569c1ed5495e146ae44c7a5e50032c3935b35aff42",
+    "after": "f8bc4c705bb67ede203ed7569c1ed5495e146ae44c7a5e50032c3935b35aff42",
+    "mutation": {
+      "needle": "status: count > 0 ? 'checked' : 'not-checked'",
+      "replacement": "status: 'checked'"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintUnits.test.ts:12 > lint extraction and coverage > uses symbols for declarations and syntax for comments and statements",
+      "AssertionError: expected [ …(3) ] to deeply equal [ …(3) ]",
+      " FAIL  test/unit/judgeLintUnits.test.ts:49 > lint extraction and coverage > reports a missing grammar and an empty extraction as not checked",
+      "AssertionError: expected [ Array(2) ] to deeply equal [ …(2) ]"
+    ]
+  },
+  {
+    "drill": "negative extraction offset",
+    "source": "src/core/judge/lint/units.ts",
+    "test": "test/unit/judgeLintUnits.test.ts",
+    "before": "f8bc4c705bb67ede203ed7569c1ed5495e146ae44c7a5e50032c3935b35aff42",
+    "after": "f8bc4c705bb67ede203ed7569c1ed5495e146ae44c7a5e50032c3935b35aff42",
+    "mutation": {
+      "needle": "z.int().check(z.nonnegative())",
+      "replacement": "z.int()"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintUnits.test.ts:95 > lint extraction and coverage > rejects invalid adapter data 0",
+      "AssertionError: promise resolved \"{ units: [ { …(4) } ], …(1) }\" instead of rejecting"
+    ]
+  },
+  {
+    "drill": "empty range accepted",
+    "source": "src/core/judge/lint/units.ts",
+    "test": "test/unit/judgeLintUnits.test.ts",
+    "before": "f8bc4c705bb67ede203ed7569c1ed5495e146ae44c7a5e50032c3935b35aff42",
+    "after": "f8bc4c705bb67ede203ed7569c1ed5495e146ae44c7a5e50032c3935b35aff42",
+    "mutation": {
+      "needle": "unit.end <= unit.start",
+      "replacement": "false"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintUnits.test.ts:95 > lint extraction and coverage > rejects invalid adapter data 2",
+      "AssertionError: promise resolved \"{ units: [ { …(4) } ], …(1) }\" instead of rejecting"
+    ]
+  },
+  {
+    "drill": "out of source range accepted",
+    "source": "src/core/judge/lint/units.ts",
+    "test": "test/unit/judgeLintUnits.test.ts",
+    "before": "f8bc4c705bb67ede203ed7569c1ed5495e146ae44c7a5e50032c3935b35aff42",
+    "after": "f8bc4c705bb67ede203ed7569c1ed5495e146ae44c7a5e50032c3935b35aff42",
+    "mutation": {
+      "needle": "unit.end > file.source.length",
+      "replacement": "false"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintUnits.test.ts:95 > lint extraction and coverage > rejects invalid adapter data 1",
+      "AssertionError: promise resolved \"{ units: [ { …(4) } ], …(1) }\" instead of rejecting"
+    ]
+  },
+  {
+    "drill": "unrequested kind accepted",
+    "source": "src/core/judge/lint/units.ts",
+    "test": "test/unit/judgeLintUnits.test.ts",
+    "before": "f8bc4c705bb67ede203ed7569c1ed5495e146ae44c7a5e50032c3935b35aff42",
+    "after": "f8bc4c705bb67ede203ed7569c1ed5495e146ae44c7a5e50032c3935b35aff42",
+    "mutation": {
+      "needle": "!requested.includes(kind)",
+      "replacement": "false"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintUnits.test.ts:95 > lint extraction and coverage > rejects invalid adapter data 5",
+      "AssertionError: promise resolved \"{ units: [], coverage: [ { …(6) } ] }\" instead of rejecting"
+    ]
+  },
+  {
+    "drill": "unit not covered accepted",
+    "source": "src/core/judge/lint/units.ts",
+    "test": "test/unit/judgeLintUnits.test.ts",
+    "before": "f8bc4c705bb67ede203ed7569c1ed5495e146ae44c7a5e50032c3935b35aff42",
+    "after": "f8bc4c705bb67ede203ed7569c1ed5495e146ae44c7a5e50032c3935b35aff42",
+    "mutation": {
+      "needle": "!extraction.coveredKinds.includes(unit.kind)",
+      "replacement": "false"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintUnits.test.ts:95 > lint extraction and coverage > rejects invalid adapter data 3",
+      "AssertionError: promise resolved \"{ units: [ { …(4) } ], …(1) }\" instead of rejecting"
+    ]
+  },
+  {
+    "drill": "adapter extras accepted",
+    "source": "src/core/judge/lint/units.ts",
+    "test": "test/unit/judgeLintUnits.test.ts",
+    "before": "f8bc4c705bb67ede203ed7569c1ed5495e146ae44c7a5e50032c3935b35aff42",
+    "after": "f8bc4c705bb67ede203ed7569c1ed5495e146ae44c7a5e50032c3935b35aff42",
+    "mutation": {
+      "needle": "const extractionSchema = z.strictObject(",
+      "replacement": "const extractionSchema = z.object("
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintUnits.test.ts:95 > lint extraction and coverage > rejects invalid adapter data 6",
+      "AssertionError: promise resolved \"{ units: [], coverage: [ { …(6) } ] }\" instead of rejecting"
+    ]
+  },
+  {
+    "drill": "duplicate kinds repeated",
+    "source": "src/core/judge/lint/units.ts",
+    "test": "test/unit/judgeLintUnits.test.ts",
+    "before": "f8bc4c705bb67ede203ed7569c1ed5495e146ae44c7a5e50032c3935b35aff42",
+    "after": "f8bc4c705bb67ede203ed7569c1ed5495e146ae44c7a5e50032c3935b35aff42",
+    "mutation": {
+      "needle": "[...new Set(kinds)]",
+      "replacement": "[...kinds]"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintUnits.test.ts:104 > lint extraction and coverage > does not request the same kind twice",
+      "AssertionError: expected [ …(2) ] to have a length of 1 but got 2"
+    ]
+  },
+  {
+    "drill": "source stored in cache key",
+    "source": "src/core/judge/lint/cache.ts",
+    "test": "test/unit/judgeLintCache.test.ts",
+    "before": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "after": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "mutation": {
+      "needle": ".digest('hex')",
+      "replacement": ".digest('hex') + JSON.stringify(request)"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintCache.test.ts:23 > source-free lint cache > stores only hashed identity and bounded outcome primitives",
+      "AssertionError: expected '[{\"digest\":\"efec9495f2bbf29a96267ce27…' not to contain 'source-content-sentinel'"
+    ]
+  },
+  {
+    "drill": "cache ignores endpoint",
+    "source": "src/core/judge/lint/cache.ts",
+    "test": "test/unit/judgeLintCache.test.ts",
+    "before": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "after": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "mutation": {
+      "needle": "identity.endpoint,",
+      "replacement": ""
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintCache.test.ts:42 > source-free lint cache > invalidates a changed identity 0",
+      "AssertionError: expected [ Array(1) ] to be undefined"
+    ]
+  },
+  {
+    "drill": "cache ignores model",
+    "source": "src/core/judge/lint/cache.ts",
+    "test": "test/unit/judgeLintCache.test.ts",
+    "before": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "after": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "mutation": {
+      "needle": "identity.model,",
+      "replacement": ""
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintCache.test.ts:42 > source-free lint cache > invalidates a changed identity 1",
+      "AssertionError: expected [ Array(1) ] to be undefined"
+    ]
+  },
+  {
+    "drill": "cache ignores source",
+    "source": "src/core/judge/lint/cache.ts",
+    "test": "test/unit/judgeLintCache.test.ts",
+    "before": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "after": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "mutation": {
+      "needle": "identity.source,",
+      "replacement": ""
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintCache.test.ts:42 > source-free lint cache > invalidates a changed identity 2",
+      "AssertionError: expected [ Array(1) ] to be undefined"
+    ]
+  },
+  {
+    "drill": "cache ignores profile",
+    "source": "src/core/judge/lint/cache.ts",
+    "test": "test/unit/judgeLintCache.test.ts",
+    "before": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "after": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "mutation": {
+      "needle": "identity.profile,",
+      "replacement": ""
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintCache.test.ts:42 > source-free lint cache > invalidates a changed identity 3",
+      "AssertionError: expected [ Array(1) ] to be undefined"
+    ]
+  },
+  {
+    "drill": "cache ignores criteriaVersion",
+    "source": "src/core/judge/lint/cache.ts",
+    "test": "test/unit/judgeLintCache.test.ts",
+    "before": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "after": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "mutation": {
+      "needle": "identity.criteriaVersion,",
+      "replacement": ""
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintCache.test.ts:42 > source-free lint cache > invalidates a changed identity 4",
+      "AssertionError: expected [ Array(1) ] to be undefined"
+    ]
+  },
+  {
+    "drill": "cache ignores credentialFingerprint",
+    "source": "src/core/judge/lint/cache.ts",
+    "test": "test/unit/judgeLintCache.test.ts",
+    "before": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "after": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "mutation": {
+      "needle": "identity.credentialFingerprint,",
+      "replacement": ""
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintCache.test.ts:42 > source-free lint cache > invalidates a changed identity 5",
+      "AssertionError: expected [ Array(1) ] to be undefined"
+    ]
+  },
+  {
+    "drill": "cache ignores provenance",
+    "source": "src/core/judge/lint/cache.ts",
+    "test": "test/unit/judgeLintCache.test.ts",
+    "before": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "after": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "mutation": {
+      "needle": "identity.provenance,",
+      "replacement": ""
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintCache.test.ts:42 > source-free lint cache > invalidates a changed identity 6",
+      "AssertionError: expected [ Array(1) ] to be undefined"
+    ]
+  },
+  {
+    "drill": "cache ignores exact request",
+    "source": "src/core/judge/lint/cache.ts",
+    "test": "test/unit/judgeLintCache.test.ts",
+    "before": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "after": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "mutation": {
+      "needle": "        request,",
+      "replacement": ""
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintCache.test.ts:48 > source-free lint cache > invalidates source, options and question ordering byte changes",
+      "AssertionError: expected [ Array(1) ] to be undefined",
+      " FAIL  test/unit/judgeLintCache.test.ts:77 > source-free lint cache > evicts the oldest entry at its injected capacity",
+      "AssertionError: expected [ Array(1) ] to be undefined"
+    ]
+  },
+  {
+    "drill": "cache retains supplied array",
+    "source": "src/core/judge/lint/cache.ts",
+    "test": "test/unit/judgeLintCache.test.ts",
+    "before": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "after": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "mutation": {
+      "needle": "bounded.map((decision) => ({ ...decision }))",
+      "replacement": "decisions"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintCache.test.ts:65 > source-free lint cache > does not retain mutable references supplied or returned by the caller",
+      "AssertionError: expected [ Array(1) ] to deeply equal [ Array(1) ]"
+    ]
+  },
+  {
+    "drill": "cache returns live decisions",
+    "source": "src/core/judge/lint/cache.ts",
+    "test": "test/unit/judgeLintCache.test.ts",
+    "before": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "after": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "mutation": {
+      "needle": "return decisions?.map((decision) => ({ ...decision }))",
+      "replacement": "return decisions"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintCache.test.ts:65 > source-free lint cache > does not retain mutable references supplied or returned by the caller",
+      "AssertionError: expected [ Array(1) ] to deeply equal [ Array(1) ]"
+    ]
+  },
+  {
+    "drill": "cache export returns live decisions",
+    "source": "src/core/judge/lint/cache.ts",
+    "test": "test/unit/judgeLintCache.test.ts",
+    "before": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "after": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "mutation": {
+      "needle": "decisions: decisions.map((decision) => ({ ...decision }))",
+      "replacement": "decisions"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintCache.test.ts:65 > source-free lint cache > does not retain mutable references supplied or returned by the caller",
+      "AssertionError: expected [ Array(1) ] to deeply equal [ Array(1) ]"
+    ]
+  },
+  {
+    "drill": "cache unbounded",
+    "source": "src/core/judge/lint/cache.ts",
+    "test": "test/unit/judgeLintCache.test.ts",
+    "before": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "after": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "mutation": {
+      "needle": "if (this.#entries.size <= this.maxEntries) return",
+      "replacement": "return"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintCache.test.ts:77 > source-free lint cache > evicts the oldest entry at its injected capacity",
+      "AssertionError: expected [ Array(1) ] to be undefined"
+    ]
+  },
+  {
+    "drill": "invalid cache capacity accepted",
+    "source": "src/core/judge/lint/cache.ts",
+    "test": "test/unit/judgeLintCache.test.ts",
+    "before": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "after": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "mutation": {
+      "needle": "!Number.isSafeInteger(maxEntries) || maxEntries < 1",
+      "replacement": "false"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintCache.test.ts:85 > source-free lint cache > rejects capacity 0",
+      " FAIL  test/unit/judgeLintCache.test.ts:85 > source-free lint cache > rejects capacity -1",
+      " FAIL  test/unit/judgeLintCache.test.ts:85 > source-free lint cache > rejects capacity 1.5",
+      " FAIL  test/unit/judgeLintCache.test.ts:85 > source-free lint cache > rejects capacity NaN",
+      " FAIL  test/unit/judgeLintCache.test.ts:85 > source-free lint cache > rejects capacity Infinity",
+      "AssertionError: expected [Function] to throw an error"
+    ]
+  },
+  {
+    "drill": "cache stores wire extras",
+    "source": "src/core/judge/lint/cache.ts",
+    "test": "test/unit/judgeLintCache.test.ts",
+    "before": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "after": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "mutation": {
+      "needle": "z.strictObject({",
+      "replacement": "z.looseObject({"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintCache.test.ts:89 > source-free lint cache > rejects wire extras and a mismatched answer count instead of caching content",
+      "AssertionError: expected [Function] to throw an error"
+    ]
+  },
+  {
+    "drill": "cache answer count ignored",
+    "source": "src/core/judge/lint/cache.ts",
+    "test": "test/unit/judgeLintCache.test.ts",
+    "before": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "after": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "mutation": {
+      "needle": "bounded.length !== Object.keys(request.questions).length",
+      "replacement": "false"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintCache.test.ts:89 > source-free lint cache > rejects wire extras and a mismatched answer count instead of caching content",
+      "AssertionError: expected [Function] to throw an error"
+    ]
+  },
+  {
+    "drill": "cache accepts invalid confidence",
+    "source": "src/core/judge/lint/cache.ts",
+    "test": "test/unit/judgeLintCache.test.ts",
+    "before": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "after": "0d13408a8f94f0d4eaa4375799f833ec2c9436caf1ffa9e1ed43c0dbb212ac7e",
+    "mutation": {
+      "needle": "z.number().check(z.gte(0), z.lte(1))",
+      "replacement": "z.number()"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintCache.test.ts:101 > source-free lint cache > rejects invalid cached confidence -1",
+      " FAIL  test/unit/judgeLintCache.test.ts:101 > source-free lint cache > rejects invalid cached confidence 1.1",
+      "AssertionError: expected [Function] to throw an error"
+    ]
+  },
+  {
+    "drill": "host includes foreign symbols",
+    "source": "src/host/judge/lint.ts",
+    "test": "test/unit/judgeLintHost.test.ts",
+    "before": "944ccf3987a3c70e2caa51191aad612ef4d04c45fe59a4952ae49da44411e069",
+    "after": "944ccf3987a3c70e2caa51191aad612ef4d04c45fe59a4952ae49da44411e069",
+    "mutation": {
+      "needle": "if (symbol.location.path !== file.path) continue",
+      "replacement": ""
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintHost.test.ts:52 > host lint symbol adapter > walks nested symbols while excluding external and virtual locations",
+      "AssertionError: expected [ 'type', 'field', 'field', 'field' ] to deeply equal [ 'type', 'field' ]"
+    ]
+  },
+  {
+    "drill": "host ignores nested symbols",
+    "source": "src/host/judge/lint.ts",
+    "test": "test/unit/judgeLintHost.test.ts",
+    "before": "944ccf3987a3c70e2caa51191aad612ef4d04c45fe59a4952ae49da44411e069",
+    "after": "944ccf3987a3c70e2caa51191aad612ef4d04c45fe59a4952ae49da44411e069",
+    "mutation": {
+      "needle": "units.push(...symbolUnits(file, symbol.children, kinds, mapping))",
+      "replacement": ""
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintHost.test.ts:52 > host lint symbol adapter > walks nested symbols while excluding external and virtual locations",
+      "AssertionError: expected [ 'type' ] to deeply equal [ 'type', 'field' ]"
+    ]
+  },
+  {
+    "drill": "host corrupts CRLF UTF16 offsets",
+    "source": "src/host/judge/lint.ts",
+    "test": "test/unit/judgeLintHost.test.ts",
+    "before": "944ccf3987a3c70e2caa51191aad612ef4d04c45fe59a4952ae49da44411e069",
+    "after": "944ccf3987a3c70e2caa51191aad612ef4d04c45fe59a4952ae49da44411e069",
+    "mutation": {
+      "needle": "before.length + 1",
+      "replacement": "before.length"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintHost.test.ts:22 > host lint symbol adapter > uses UTF-16 and CRLF offsets and delegates non-symbol kinds to the package",
+      "AssertionError: expected { kind: 'function', name: 'f', …(2) } to deeply equal { kind: 'function', name: 'f', …(2) }"
+    ]
+  },
+  {
+    "drill": "host outline hides missing kind",
+    "source": "src/host/judge/lint.ts",
+    "test": "test/unit/judgeLintHost.test.ts",
+    "before": "944ccf3987a3c70e2caa51191aad612ef4d04c45fe59a4952ae49da44411e069",
+    "after": "944ccf3987a3c70e2caa51191aad612ef4d04c45fe59a4952ae49da44411e069",
+    "mutation": {
+      "needle": "coveredKinds: [...new Set(units.map((unit) => unit.kind))]",
+      "replacement": "coveredKinds: kinds"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintHost.test.ts:41 > host lint symbol adapter > falls back when the outline is empty or lacks a requested declaration kind",
+      "AssertionError: expected last \"vi.fn()\" call to have been called with [ { path: 'src/unit.ts', …(2) }, …(1) ]"
+    ]
+  },
+  {
+    "drill": "host accepts invalid positions",
+    "source": "src/host/judge/lint.ts",
+    "test": "test/unit/judgeLintHost.test.ts",
+    "before": "944ccf3987a3c70e2caa51191aad612ef4d04c45fe59a4952ae49da44411e069",
+    "after": "944ccf3987a3c70e2caa51191aad612ef4d04c45fe59a4952ae49da44411e069",
+    "mutation": {
+      "needle": "throw new RangeError('lint-symbol-range-invalid')",
+      "replacement": "return 0"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintHost.test.ts:73 > host lint symbol adapter > rejects invalid symbol positions 0",
+      " FAIL  test/unit/judgeLintHost.test.ts:73 > host lint symbol adapter > rejects invalid symbol positions 3",
+      " FAIL  test/unit/judgeLintHost.test.ts:73 > host lint symbol adapter > rejects invalid symbol positions 4",
+      " FAIL  test/unit/judgeLintHost.test.ts:73 > host lint symbol adapter > rejects invalid symbol positions 5",
+      "AssertionError: promise resolved \"{ units: [ { …(4) } ], …(1) }\" instead of rejecting"
+    ]
+  },
+  {
+    "drill": "skip always offered",
+    "source": "src/core/judge/lint/rules.ts",
+    "test": "test/unit/judgeLintRules.test.ts",
+    "before": "67f6a6b24f9b34cb27a985c846965fb9d1f2d7dbee375d2863afacae4f10703f",
+    "after": "67f6a6b24f9b34cb27a985c846965fb9d1f2d7dbee375d2863afacae4f10703f",
+    "mutation": {
+      "needle": "if (rule.allowSkip)",
+      "replacement": "if (true)"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRules.test.ts:11 > lint rule routing and choices > offers only enabled skip and abstain (false, false)",
+      "AssertionError: expected [ 'pass', 'fail', 'skip' ] to deeply equal [ 'pass', 'fail' ]",
+      " FAIL  test/unit/judgeLintRules.test.ts:11 > lint rule routing and choices > offers only enabled skip and abstain (false, true)",
+      "AssertionError: expected [ 'pass', 'fail', 'skip', 'abstain' ] to deeply equal [ 'pass', 'fail', 'abstain' ]"
+    ]
+  },
+  {
+    "drill": "abstain always offered",
+    "source": "src/core/judge/lint/rules.ts",
+    "test": "test/unit/judgeLintRules.test.ts",
+    "before": "67f6a6b24f9b34cb27a985c846965fb9d1f2d7dbee375d2863afacae4f10703f",
+    "after": "67f6a6b24f9b34cb27a985c846965fb9d1f2d7dbee375d2863afacae4f10703f",
+    "mutation": {
+      "needle": "if (rule.allowAbstain)",
+      "replacement": "if (true)"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRules.test.ts:11 > lint rule routing and choices > offers only enabled skip and abstain (false, false)",
+      "AssertionError: expected [ 'pass', 'fail', 'abstain' ] to deeply equal [ 'pass', 'fail' ]",
+      " FAIL  test/unit/judgeLintRules.test.ts:11 > lint rule routing and choices > offers only enabled skip and abstain (true, false)",
+      "AssertionError: expected [ 'pass', 'fail', 'skip', 'abstain' ] to deeply equal [ 'pass', 'fail', 'skip' ]"
+    ]
+  },
+  {
+    "drill": "exceptions not passed to criteria",
+    "source": "src/core/judge/lint/rules.ts",
+    "test": "test/unit/judgeLintRules.test.ts",
+    "before": "67f6a6b24f9b34cb27a985c846965fb9d1f2d7dbee375d2863afacae4f10703f",
+    "after": "67f6a6b24f9b34cb27a985c846965fb9d1f2d7dbee375d2863afacae4f10703f",
+    "mutation": {
+      "needle": "wording.instructions(rule)",
+      "replacement": "rule.description"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRules.test.ts:30 > lint rule routing and choices > passes exceptions and the full rule to the injected pinned wording",
+      "AssertionError: expected 'Fixture rule' to be 'Fixture rule: fixture exception' // Object.is equality"
+    ]
+  },
+  {
+    "drill": "rule kind ignored",
+    "source": "src/core/judge/lint/rules.ts",
+    "test": "test/unit/judgeLintRules.test.ts",
+    "before": "67f6a6b24f9b34cb27a985c846965fb9d1f2d7dbee375d2863afacae4f10703f",
+    "after": "67f6a6b24f9b34cb27a985c846965fb9d1f2d7dbee375d2863afacae4f10703f",
+    "mutation": {
+      "needle": "rule.kinds.includes(kind)",
+      "replacement": "true"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRules.test.ts:46 > lint rule routing and choices > routes src/main.ts comment to false",
+      "AssertionError: expected true to be false // Object.is equality"
+    ]
+  },
+  {
+    "drill": "include ignored",
+    "source": "src/core/judge/lint/rules.ts",
+    "test": "test/unit/judgeLintRules.test.ts",
+    "before": "67f6a6b24f9b34cb27a985c846965fb9d1f2d7dbee375d2863afacae4f10703f",
+    "after": "67f6a6b24f9b34cb27a985c846965fb9d1f2d7dbee375d2863afacae4f10703f",
+    "mutation": {
+      "needle": "(rule.include.length === 0 || rule.include.some((pattern) => isMatch(pattern)))",
+      "replacement": "true"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRules.test.ts:46 > lint rule routing and choices > routes src/main.js function to false",
+      "AssertionError: expected true to be false // Object.is equality",
+      " FAIL  test/unit/judgeLintRules.test.ts:53 > lint rule routing and choices > allows any file when include is empty but preserves excludes and glob bounds",
+      "AssertionError: expected [Function] to throw an error"
+    ]
+  },
+  {
+    "drill": "exclude ignored",
+    "source": "src/core/judge/lint/rules.ts",
+    "test": "test/unit/judgeLintRules.test.ts",
+    "before": "67f6a6b24f9b34cb27a985c846965fb9d1f2d7dbee375d2863afacae4f10703f",
+    "after": "67f6a6b24f9b34cb27a985c846965fb9d1f2d7dbee375d2863afacae4f10703f",
+    "mutation": {
+      "needle": "rule.exclude.every((pattern) => !isMatch(pattern))",
+      "replacement": "true"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRules.test.ts:46 > lint rule routing and choices > routes src/test/main.ts function to false",
+      "AssertionError: expected true to be false // Object.is equality"
+    ]
+  },
+  {
+    "drill": "rules not batched by context",
+    "source": "src/core/judge/lint/evaluate.ts",
+    "test": "test/unit/judgeLintEvaluate.test.ts",
+    "before": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "after": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "mutation": {
+      "needle": "rule.callees === isNeedsCallees",
+      "replacement": "true"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:15 > batched lint evaluation > batches applicable rules per unit and context group with the complete state",
+      "AssertionError: expected [ { …(4) }, { …(4) }, { …(4) }, …(3) ] to have a length of 3 but got 6",
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:190 > batched lint evaluation > refuses oversized or unvalidated callee context 0",
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:190 > batched lint evaluation > refuses oversized or unvalidated callee context 1",
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:190 > batched lint evaluation > refuses oversized or unvalidated callee context 2",
+      "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times",
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:205 > batched lint evaluation > rebinds identity and cancellation after the callee await, before dispatch",
+      "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times"
+    ]
+  },
+  {
+    "drill": "source split into a fragment",
+    "source": "src/core/judge/lint/evaluate.ts",
+    "test": "test/unit/judgeLintEvaluate.test.ts",
+    "before": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "after": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "mutation": {
+      "needle": "file.source.slice(unit.start, unit.end)",
+      "replacement": "file.source.slice(unit.start, unit.start + 1)"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:15 > batched lint evaluation > batches applicable rules per unit and context group with the complete state",
+      "AssertionError: expected { unit: { …(4) }, callees: [] } to deeply equal { unit: { …(4) }, callees: [] }",
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:170 > batched lint evaluation > refuses an oversized complete state without splitting or sending it",
+      "AssertionError: promise resolved \"[ { …(4) } ]\" instead of rejecting"
+    ]
+  },
+  {
+    "drill": "source sent without redaction",
+    "source": "src/core/judge/lint/evaluate.ts",
+    "test": "test/unit/judgeLintEvaluate.test.ts",
+    "before": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "after": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "mutation": {
+      "needle": "redactSecrets(JSON.stringify(rawRequest))",
+      "replacement": "JSON.stringify(rawRequest)"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:49 > batched lint evaluation > redacts source and rule text before dispatch and source-free caching",
+      "AssertionError: expected '{\"state\":{\"unit\":{\"language\":\"typescr…' not to contain 'synthetic-password-sentinel'"
+    ]
+  },
+  {
+    "drill": "duplicate rule ids accepted",
+    "source": "src/core/judge/lint/evaluate.ts",
+    "test": "test/unit/judgeLintEvaluate.test.ts",
+    "before": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "after": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "mutation": {
+      "needle": "new Set(rules.map((rule) => rule.id)).size !== rules.length",
+      "replacement": "false"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:270 > batched lint evaluation > does not invoke any source for empty rules and rejects duplicate ids and invalid thresholds",
+      "AssertionError: expected [Function] to throw error including 'lint-rule-id-duplicate' but got 'lint-answer-alignment'"
+    ]
+  },
+  {
+    "drill": "invalid threshold accepted",
+    "source": "src/core/judge/lint/evaluate.ts",
+    "test": "test/unit/judgeLintEvaluate.test.ts",
+    "before": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "after": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "mutation": {
+      "needle": "!Number.isFinite(rule.minConfidence) || rule.minConfidence < 0 || rule.minConfidence > 1",
+      "replacement": "false"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:270 > batched lint evaluation > does not invoke any source for empty rules and rejects duplicate ids and invalid thresholds",
+      "AssertionError: promise resolved \"[ { …(4) } ]\" instead of rejecting"
+    ]
+  },
+  {
+    "drill": "callees count unbounded",
+    "source": "src/core/judge/lint/evaluate.ts",
+    "test": "test/unit/judgeLintEvaluate.test.ts",
+    "before": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "after": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "mutation": {
+      "needle": "callees.length > evaluator.limits.maxCallees",
+      "replacement": "false"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:190 > batched lint evaluation > refuses oversized or unvalidated callee context 1",
+      "AssertionError: promise resolved \"[ { …(4) } ]\" instead of rejecting"
+    ]
+  },
+  {
+    "drill": "callees bytes unbounded",
+    "source": "src/core/judge/lint/evaluate.ts",
+    "test": "test/unit/judgeLintEvaluate.test.ts",
+    "before": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "after": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "mutation": {
+      "needle": "Buffer.byteLength(JSON.stringify(callees), 'utf8') > evaluator.limits.maxCalleeBytes",
+      "replacement": "false"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:190 > batched lint evaluation > refuses oversized or unvalidated callee context 0",
+      "AssertionError: promise resolved \"[ { …(4) } ]\" instead of rejecting"
+    ]
+  },
+  {
+    "drill": "callee extras accepted",
+    "source": "src/core/judge/lint/evaluate.ts",
+    "test": "test/unit/judgeLintEvaluate.test.ts",
+    "before": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "after": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "mutation": {
+      "needle": "const calleeSchema = z.strictObject(",
+      "replacement": "const calleeSchema = z.object("
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:190 > batched lint evaluation > refuses oversized or unvalidated callee context 2",
+      "AssertionError: promise resolved \"[ { …(4) } ]\" instead of rejecting"
+    ]
+  },
+  {
+    "drill": "invalid request sent",
+    "source": "src/core/judge/lint/evaluate.ts",
+    "test": "test/unit/judgeLintEvaluate.test.ts",
+    "before": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "after": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "mutation": {
+      "needle": "judgeRequestSchema.parse(JSON.parse(redactSecrets(JSON.stringify(rawRequest))))",
+      "replacement": "JSON.parse(redactSecrets(JSON.stringify(rawRequest)))"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:170 > batched lint evaluation > refuses an oversized complete state without splitting or sending it",
+      "AssertionError: promise resolved \"[ { …(4) } ]\" instead of rejecting"
+    ]
+  },
+  {
+    "drill": "partial output treated complete",
+    "source": "src/core/judge/lint/evaluate.ts",
+    "test": "test/unit/judgeLintEvaluate.test.ts",
+    "before": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "after": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "mutation": {
+      "needle": "meta.partial || confidence < rule.minConfidence",
+      "replacement": "confidence < rule.minConfidence"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:111 > batched lint evaluation > does not treat a partial answer as a complete verdict",
+      "AssertionError: expected 'pass' to be 'inconclusive' // Object.is equality"
+    ]
+  },
+  {
+    "drill": "vendor confidence used as ours",
+    "source": "src/core/judge/lint/evaluate.ts",
+    "test": "test/unit/judgeLintEvaluate.test.ts",
+    "before": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "after": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "mutation": {
+      "needle": "entropyConfidence(probabilities.map((probability) => probability ?? 0))",
+      "replacement": "answer.confidence"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:92 > batched lint evaluation > keeps uncertain output inconclusive despite high vendor confidence",
+      "AssertionError: expected 'fail' to be 'inconclusive' // Object.is equality"
+    ]
+  },
+  {
+    "drill": "response model ignored",
+    "source": "src/core/judge/lint/evaluate.ts",
+    "test": "test/unit/judgeLintEvaluate.test.ts",
+    "before": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "after": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "mutation": {
+      "needle": "result.model !== evaluator.identity.model",
+      "replacement": "false"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:150 > batched lint evaluation > refuses malformed or misaligned responses 0",
+      "AssertionError: promise resolved \"[ { …(4) } ]\" instead of rejecting"
+    ]
+  },
+  {
+    "drill": "distribution sum ignored",
+    "source": "src/core/judge/lint/evaluate.ts",
+    "test": "test/unit/judgeLintEvaluate.test.ts",
+    "before": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "after": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "mutation": {
+      "needle": "> evaluator.limits.distributionTolerance",
+      "replacement": "> Infinity"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:150 > batched lint evaluation > refuses malformed or misaligned responses 3",
+      "AssertionError: promise resolved \"[ { …(4) } ]\" instead of rejecting"
+    ]
+  },
+  {
+    "drill": "source identity binding ignored",
+    "source": "src/core/judge/lint/evaluate.ts",
+    "test": "test/unit/judgeLintEvaluate.test.ts",
+    "before": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "after": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "mutation": {
+      "needle": "Reflect.get(evaluator.identity, key) !== value",
+      "replacement": "false"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:205 > batched lint evaluation > rebinds identity and cancellation after the callee await, before dispatch",
+      "AssertionError: promise resolved \"[ { …(4) } ]\" instead of rejecting",
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:234 > batched lint evaluation > discards cancelled or rebound results before caching",
+      "AssertionError: promise resolved \"[ { …(4) } ]\" instead of rejecting"
+    ]
+  },
+  {
+    "drill": "cached threshold not reapplied",
+    "source": "src/core/judge/lint/evaluate.ts",
+    "test": "test/unit/judgeLintEvaluate.test.ts",
+    "before": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "after": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "mutation": {
+      "needle": "outcome: decision.confidence < rule.minConfidence ? 'inconclusive' : decision.outcome",
+      "replacement": "outcome: decision.outcome"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:70 > batched lint evaluation > reuses only validated complete results and reapplies a stricter threshold",
+      "AssertionError: expected 'fail' to be 'inconclusive' // Object.is equality"
+    ]
+  },
+  {
+    "drill": "inconclusive result cached",
+    "source": "src/core/judge/lint/evaluate.ts",
+    "test": "test/unit/judgeLintEvaluate.test.ts",
+    "before": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "after": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "mutation": {
+      "needle": "decisions.every((decision) => decision.outcome !== 'inconclusive')",
+      "replacement": "true"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:92 > batched lint evaluation > keeps uncertain output inconclusive despite high vendor confidence",
+      "AssertionError: expected [ { …(2) } ] to deeply equal []"
+    ]
+  },
+  {
+    "drill": "Jev-only finding fails gate",
+    "source": "src/runtime/judge/lint.ts",
+    "test": "test/unit/judgeLintRuntime.test.ts",
+    "before": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "after": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "mutation": {
+      "needle": "!isGate || (isExperimental && !(await deps.corroborate(file, result)))",
+      "replacement": "false"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRuntime.test.ts:18 > judge lint runtime entry > keeps findings advisory by default and forwards changed and zero budget",
+      "AssertionError: expected false to be true // Object.is equality",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:50 > judge lint runtime entry > does not fail a gate solely on Jev or TypeSafe",
+      "AssertionError: expected 1 to be +0 // Object.is equality",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:69 > judge lint runtime entry > preserves findings and coverage in sarif",
+      "AssertionError: expected { version: '2.1.0', …(2) } to match object { Object (version, runs) }",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:307 > judge lint runtime entry > honors cancellation before configuration and after a held corroboration",
+      "AssertionError: expected { report: { …(3) }, exitCode: 1, …(1) } to match object { exitCode: 2 }"
+    ]
+  },
+  {
+    "drill": "no explicit gate still fails",
+    "source": "src/core/judge/lint/report.ts",
+    "test": "test/unit/judgeLintRuntime.test.ts",
+    "before": "0c41cda86bcd9990203327d9fbb0cc4ab6805904809f862b3b4f298b76dd7977",
+    "after": "0c41cda86bcd9990203327d9fbb0cc4ab6805904809f862b3b4f298b76dd7977",
+    "mutation": {
+      "needle": "return failOn !== undefined && isFailure ? 1 : 0",
+      "replacement": "return report.findings.length > 0 ? 1 : 0"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRuntime.test.ts:18 > judge lint runtime entry > keeps findings advisory by default and forwards changed and zero budget",
+      "AssertionError: expected 1 to be +0 // Object.is equality",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:33 > judge lint runtime entry > fails only the explicitly selected independently supported severity gate",
+      "AssertionError: expected { report: { …(3) }, exitCode: 1, …(1) } to match object { exitCode: +0 }",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:50 > judge lint runtime entry > does not fail a gate solely on Jev or TypeSafe",
+      "AssertionError: expected 1 to be +0 // Object.is equality",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:192 > judge lint runtime entry > evaluates bounded localized regions only after a failed rule",
+      "AssertionError: expected 1 to be +0 // Object.is equality"
+    ]
+  },
+  {
+    "drill": "warning ignored by explicit gate",
+    "source": "src/core/judge/lint/report.ts",
+    "test": "test/unit/judgeLintRuntime.test.ts",
+    "before": "0c41cda86bcd9990203327d9fbb0cc4ab6805904809f862b3b4f298b76dd7977",
+    "after": "0c41cda86bcd9990203327d9fbb0cc4ab6805904809f862b3b4f298b76dd7977",
+    "mutation": {
+      "needle": "(failOn === 'warning' && finding.severity === 'warning')",
+      "replacement": "false"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRuntime.test.ts:33 > judge lint runtime entry > fails only the explicitly selected independently supported severity gate",
+      "AssertionError: expected { Object (report, exitCode, ...) } to match object { exitCode: 1 }"
+    ]
+  },
+  {
+    "drill": "incomplete result succeeds",
+    "source": "src/core/judge/lint/report.ts",
+    "test": "test/unit/judgeLintRuntime.test.ts",
+    "before": "0c41cda86bcd9990203327d9fbb0cc4ab6805904809f862b3b4f298b76dd7977",
+    "after": "0c41cda86bcd9990203327d9fbb0cc4ab6805904809f862b3b4f298b76dd7977",
+    "mutation": {
+      "needle": "if (report.error !== undefined || report.incomplete) return 2",
+      "replacement": ""
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRuntime.test.ts:100 > judge lint runtime entry > reports unsupported languages, missing grammars and empty extraction without clean success",
+      "AssertionError: expected +0 to be 2 // Object.is equality",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:133 > judge lint runtime entry > reports inconclusive and abstained judgments as incomplete",
+      "AssertionError: expected { Object (report, exitCode, ...) } to match object { exitCode: 2 }",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:158 > judge lint runtime entry > keeps a partially checked file incomplete when a comment grammar is missing",
+      "AssertionError: expected +0 to be 2 // Object.is equality",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:219 > judge lint runtime entry > does not localize passing rules and shows unavailable localization",
+      "AssertionError: expected +0 to be 2 // Object.is equality",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:249 > judge lint runtime entry > rejects invalid or unbounded localization 0",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:249 > judge lint runtime entry > rejects invalid or unbounded localization 1",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:249 > judge lint runtime entry > rejects invalid or unbounded localization 2",
+      "AssertionError: expected +0 to be 2 // Object.is equality",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:261 > judge lint runtime entry > keeps provider failures explicit without echoing their source or credential surroundings",
+      "AssertionError: expected +0 to be 2 // Object.is equality",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:285 > judge lint runtime entry > rejects invalid run options 0 before reading files",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:285 > judge lint runtime entry > rejects invalid run options 1 before reading files",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:285 > judge lint runtime entry > rejects invalid run options 2 before reading files",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:285 > judge lint runtime entry > rejects invalid run options 3 before reading files",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:285 > judge lint runtime entry > rejects invalid run options 4 before reading files",
+      "AssertionError: expected +0 to be 2 // Object.is equality",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:293 > judge lint runtime entry > returns an error for empty or excluded input, rather than an empty successful run",
+      "AssertionError: expected { Object (report, exitCode, ...) } to match object { exitCode: 2 }",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:307 > judge lint runtime entry > honors cancellation before configuration and after a held corroboration",
+      "AssertionError: expected { Object (report, exitCode, ...) } to match object { exitCode: 2 }"
+    ]
+  },
+  {
+    "drill": "coverage omitted from text report",
+    "source": "src/core/judge/lint/report.ts",
+    "test": "test/unit/judgeLintRuntime.test.ts",
+    "before": "0c41cda86bcd9990203327d9fbb0cc4ab6805904809f862b3b4f298b76dd7977",
+    "after": "0c41cda86bcd9990203327d9fbb0cc4ab6805904809f862b3b4f298b76dd7977",
+    "mutation": {
+      "needle": "...report.coverage.map((row) => wording.coverage(row)),",
+      "replacement": ""
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRuntime.test.ts:100 > judge lint runtime entry > reports unsupported languages, missing grammars and empty extraction without clean success",
+      "AssertionError: expected '' to contain 'csharp function: not-checked'"
+    ]
+  },
+  {
+    "drill": "invalid options accepted",
+    "source": "src/runtime/judge/lint.ts",
+    "test": "test/unit/judgeLintRuntime.test.ts",
+    "before": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "after": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "mutation": {
+      "needle": "if (!parsed.success) throw new Error('lint-options-invalid')",
+      "replacement": ""
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRuntime.test.ts:285 > judge lint runtime entry > rejects invalid run options 0 before reading files",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:285 > judge lint runtime entry > rejects invalid run options 1 before reading files",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:285 > judge lint runtime entry > rejects invalid run options 2 before reading files",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:285 > judge lint runtime entry > rejects invalid run options 3 before reading files",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:285 > judge lint runtime entry > rejects invalid run options 4 before reading files",
+      "AssertionError: expected +0 to be 2 // Object.is equality"
+    ]
+  },
+  {
+    "drill": "empty input accepted",
+    "source": "src/runtime/judge/lint.ts",
+    "test": "test/unit/judgeLintRuntime.test.ts",
+    "before": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "after": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "mutation": {
+      "needle": "if (files.length === 0 || rules.length === 0) throw new Error('lint-no-input')",
+      "replacement": ""
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRuntime.test.ts:293 > judge lint runtime entry > returns an error for empty or excluded input, rather than an empty successful run",
+      "AssertionError: expected { Object (report, exitCode, ...) } to match object { exitCode: 2, …(1) }"
+    ]
+  },
+  {
+    "drill": "changed flag ignored",
+    "source": "src/runtime/judge/lint.ts",
+    "test": "test/unit/judgeLintRuntime.test.ts",
+    "before": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "after": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "mutation": {
+      "needle": "deps.files(options.changed ?? false)",
+      "replacement": "deps.files(false)"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRuntime.test.ts:18 > judge lint runtime entry > keeps findings advisory by default and forwards changed and zero budget",
+      "AssertionError: expected \"vi.fn()\" to be called with arguments: [ true ]"
+    ]
+  },
+  {
+    "drill": "localization always runs",
+    "source": "src/runtime/judge/lint.ts",
+    "test": "test/unit/judgeLintRuntime.test.ts",
+    "before": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "after": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "mutation": {
+      "needle": "if (result.decision.outcome !== 'fail') continue",
+      "replacement": "if (false) continue"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRuntime.test.ts:219 > judge lint runtime entry > does not localize passing rules and shows unavailable localization",
+      "AssertionError: expected { report: { …(3) }, exitCode: 2, …(1) } to match object { exitCode: +0 }"
+    ]
+  },
+  {
+    "drill": "localization bounds ignored",
+    "source": "src/runtime/judge/lint.ts",
+    "test": "test/unit/judgeLintRuntime.test.ts",
+    "before": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "after": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "mutation": {
+      "needle": "regions.length > deps.maxLocalizedRegions",
+      "replacement": "false"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRuntime.test.ts:249 > judge lint runtime entry > rejects invalid or unbounded localization 2",
+      "AssertionError: expected +0 to be 2 // Object.is equality"
+    ]
+  },
+  {
+    "drill": "localization outside unit accepted",
+    "source": "src/runtime/judge/lint.ts",
+    "test": "test/unit/judgeLintRuntime.test.ts",
+    "before": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "after": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "mutation": {
+      "needle": "region.start < unit.start || region.end > unit.end || region.end <= region.start",
+      "replacement": "false"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRuntime.test.ts:249 > judge lint runtime entry > rejects invalid or unbounded localization 0",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:249 > judge lint runtime entry > rejects invalid or unbounded localization 1",
+      "AssertionError: expected +0 to be 2 // Object.is equality"
+    ]
+  },
+  {
+    "drill": "provider failure leaks contents",
+    "source": "src/runtime/judge/lint.ts",
+    "test": "test/unit/judgeLintRuntime.test.ts",
+    "before": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "after": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "mutation": {
+      "needle": "errorCodes.has(error_.message)",
+      "replacement": "true"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRuntime.test.ts:175 > judge lint runtime entry > never echoes a provider message that merely looks like an internal reason code",
+      "AssertionError: expected 'lint-private-source-sentinel' to be 'lint-run-failed' // Object.is equality",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:261 > judge lint runtime entry > keeps provider failures explicit without echoing their source or credential surroundings",
+      "AssertionError: expected 'private source sentinel' to be 'lint-run-failed' // Object.is equality"
+    ]
+  },
+  {
+    "drill": "no judged units called complete",
+    "source": "src/runtime/judge/lint.ts",
+    "test": "test/unit/judgeLintRuntime.test.ts",
+    "before": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "after": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "mutation": {
+      "needle": "if (judgedUnits === 0) isIncomplete = true",
+      "replacement": ""
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRuntime.test.ts:293 > judge lint runtime entry > returns an error for empty or excluded input, rather than an empty successful run",
+      "AssertionError: expected { Object (report, exitCode, ...) } to match object { exitCode: 2 }"
+    ]
+  },
+  {
+    "drill": "unchecked coverage called complete",
+    "source": "src/runtime/judge/lint.ts",
+    "test": "test/unit/judgeLintRuntime.test.ts",
+    "before": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "after": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "mutation": {
+      "needle": "if (coverage.some((row) => row.status === 'not-checked')) isIncomplete = true",
+      "replacement": ""
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRuntime.test.ts:158 > judge lint runtime entry > keeps a partially checked file incomplete when a comment grammar is missing",
+      "AssertionError: expected +0 to be 2 // Object.is equality"
+    ]
+  },
+  {
+    "drill": "host report path sent to absolute-path service",
+    "source": "src/host/judge/lint.ts",
+    "test": "test/unit/judgeLintHost.test.ts",
+    "before": "d149954a0f3f8774df52213872097e2a6da4badbcc9f0839d72a467a53c3bb44",
+    "after": "d149954a0f3f8774df52213872097e2a6da4badbcc9f0839d72a467a53c3bb44",
+    "mutation": {
+      "needle": "path: absolutePath(file.path)",
+      "replacement": "path: file.path"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintHost.test.ts:92 > host lint symbol adapter > maps relative report paths to the absolute paths expected by language services",
+      "AssertionError: expected \"vi.fn()\" to be called with arguments: [ 'C:/fixture-workspace/src/unit.ts' ]"
+    ]
+  },
+  {
+    "drill": "missing probability accepted",
+    "source": "src/core/judge/lint/evaluate.ts",
+    "test": "test/unit/judgeLintEvaluate.test.ts",
+    "before": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "after": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "mutation": {
+      "needle": "probabilities.includes(undefined)",
+      "replacement": "false"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:162 > batched lint evaluation > refuses malformed or misaligned responses 5",
+      "AssertionError: promise resolved \"[ { …(4) } ]\" instead of rejecting"
+    ]
+  },
+  {
+    "drill": "extra probability accepted",
+    "source": "src/core/judge/lint/evaluate.ts",
+    "test": "test/unit/judgeLintEvaluate.test.ts",
+    "before": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "after": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "mutation": {
+      "needle": "Object.keys(answer.probabilities).length !== letters.length",
+      "replacement": "false"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:162 > batched lint evaluation > refuses malformed or misaligned responses 6",
+      "AssertionError: promise resolved \"[ { …(4) } ]\" instead of rejecting"
+    ]
+  },
+  {
+    "drill": "response source metadata ignored",
+    "source": "src/core/judge/lint/evaluate.ts",
+    "test": "test/unit/judgeLintEvaluate.test.ts",
+    "before": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "after": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "mutation": {
+      "needle": "meta.source !== evaluator.identity.source",
+      "replacement": "false"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:182 > batched lint evaluation > refuses mismatched source metadata",
+      "AssertionError: promise resolved \"[ { …(4) } ]\" instead of rejecting"
+    ]
+  },
+  {
+    "drill": "response model metadata ignored",
+    "source": "src/core/judge/lint/evaluate.ts",
+    "test": "test/unit/judgeLintEvaluate.test.ts",
+    "before": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "after": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "mutation": {
+      "needle": "meta.model !== evaluator.identity.model",
+      "replacement": "false"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:182 > batched lint evaluation > refuses mismatched model metadata",
+      "AssertionError: promise resolved \"[ { …(4) } ]\" instead of rejecting"
+    ]
+  },
+  {
+    "drill": "extra answer ignored",
+    "source": "src/core/judge/lint/evaluate.ts",
+    "test": "test/unit/judgeLintEvaluate.test.ts",
+    "before": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "after": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "mutation": {
+      "needle": "Object.keys(result.answers).length !== rules.length",
+      "replacement": "false"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:182 > batched lint evaluation > refuses mismatched extra-answer metadata",
+      "AssertionError: promise resolved \"[ { …(4) } ]\" instead of rejecting"
+    ]
+  },
+  {
+    "drill": "raw response used without schema",
+    "source": "src/core/judge/lint/evaluate.ts",
+    "test": "test/unit/judgeLintEvaluate.test.ts",
+    "before": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "after": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "mutation": {
+      "needle": "judgeResultSchema.parse(raw)",
+      "replacement": "raw"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:162 > batched lint evaluation > refuses malformed or misaligned responses 7",
+      "AssertionError: promise resolved \"[ { …(4) } ]\" instead of rejecting"
+    ]
+  },
+  {
+    "drill": "evaluation cancellation ignored",
+    "source": "src/core/judge/lint/evaluate.ts",
+    "test": "test/unit/judgeLintEvaluate.test.ts",
+    "before": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "after": "38def2aaa2625d4dc2d620d51b0ea2584a630ebc54df825165759fe9a7200e16",
+    "mutation": {
+      "needle": "signal.throwIfAborted()",
+      "replacement": ""
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:243 > batched lint evaluation > rebinds identity and cancellation after the callee await, before dispatch",
+      "AssertionError: promise resolved \"[ { …(4) } ]\" instead of rejecting",
+      " FAIL  test/unit/judgeLintEvaluate.test.ts:272 > batched lint evaluation > discards cancelled or rebound results before caching",
+      "AssertionError: promise resolved \"[ { …(4) } ]\" instead of rejecting"
+    ]
+  },
+  {
+    "drill": "runtime cancellation ignored",
+    "source": "src/runtime/judge/lint.ts",
+    "test": "test/unit/judgeLintRuntime.test.ts",
+    "before": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "after": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "mutation": {
+      "needle": "signal.throwIfAborted()",
+      "replacement": ""
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRuntime.test.ts:307 > judge lint runtime entry > honors cancellation before configuration and after a held corroboration",
+      "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times"
+    ]
+  },
+  {
+    "drill": "localization flag ignored",
+    "source": "src/runtime/judge/lint.ts",
+    "test": "test/unit/judgeLintRuntime.test.ts",
+    "before": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "after": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "mutation": {
+      "needle": "if (!result.rule.localize) continue",
+      "replacement": ""
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRuntime.test.ts:18 > judge lint runtime entry > keeps findings advisory by default and forwards changed and zero budget",
+      "AssertionError: expected 2 to be +0 // Object.is equality",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:33 > judge lint runtime entry > fails only the explicitly selected independently supported severity gate",
+      "AssertionError: expected { report: { …(3) }, exitCode: 2, …(1) } to match object { exitCode: 1 }",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:50 > judge lint runtime entry > does not fail a gate solely on Jev or TypeSafe",
+      "AssertionError: expected 2 to be +0 // Object.is equality",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:69 > judge lint runtime entry > preserves findings and coverage in sarif",
+      "AssertionError: expected { version: '2.1.0', …(2) } to match object { Object (version, runs) }"
+    ]
+  },
+  {
+    "drill": "missing localization hidden",
+    "source": "src/runtime/judge/lint.ts",
+    "test": "test/unit/judgeLintRuntime.test.ts",
+    "before": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "after": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "mutation": {
+      "needle": "if (rawRegions === undefined)",
+      "replacement": "if (false)"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRuntime.test.ts:219 > judge lint runtime entry > does not localize passing rules and shows unavailable localization",
+      "AssertionError: expected undefined to be 'missing-localizer' // Object.is equality"
+    ]
+  },
+  {
+    "drill": "empty localization declared checked",
+    "source": "src/runtime/judge/lint.ts",
+    "test": "test/unit/judgeLintRuntime.test.ts",
+    "before": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "after": "ef3c9b9bb3e4d3cb6873188dce1b6f46f7871d1a166ab4b0460610a731078ce2",
+    "mutation": {
+      "needle": "if (regions.length === 0)",
+      "replacement": "if (false)"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRuntime.test.ts:220 > judge lint runtime entry > does not localize passing rules and shows unavailable localization",
+      "AssertionError: expected +0 to be 2 // Object.is equality"
+    ]
+  },
+  {
+    "drill": "first-party criterion omitted",
+    "source": "skills/judge-lint/standards.md",
+    "test": "test/unit/judgeLintPack.test.ts",
+    "before": "fea18e66ec915f04e41d8e8c7a57d1b4964ecbd6ce63ab05ae00134529e7fa39",
+    "after": "fea18e66ec915f04e41d8e8c7a57d1b4964ecbd6ce63ab05ae00134529e7fa39",
+    "mutation": {
+      "needle": "## no-silent-fallback",
+      "replacement": "## omitted-standard"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintPack.test.ts:27 > first-party lint criterion inventory > has all six standards and independently labelled pass/fail pairs",
+      "AssertionError: expected '# Muse Spark Code (Unofficial): first…' to contain '## no-silent-fallback'"
+    ]
+  },
+  {
+    "drill": "first-party fail label lost",
+    "source": "test/fixtures/judge/lint/standard-evals.json",
+    "test": "test/unit/judgeLintPack.test.ts",
+    "before": "91fc3adf1d0ca99d5b7248a71142b9b5157558fcb675e92030ecbe19ad1593cd",
+    "after": "91fc3adf1d0ca99d5b7248a71142b9b5157558fcb675e92030ecbe19ad1593cd",
+    "mutation": {
+      "needle": "\"expect\": \"fail\"",
+      "replacement": "\"expect\": \"pass\""
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintPack.test.ts:27 > first-party lint criterion inventory > has all six standards and independently labelled pass/fail pairs",
+      "AssertionError: expected [ 'pass', 'pass' ] to deeply equal [ 'pass', 'fail' ]"
+    ]
+  },
+  {
+    "drill": "empty first-party fixture accepted",
+    "source": "test/fixtures/judge/lint/standards/no-silent-fallback-pass.txt",
+    "test": "test/unit/judgeLintPack.test.ts",
+    "before": "9fb8d26da8983cd150821022638735748b12da97d59fe052275ef6a078bf8e6a",
+    "after": "9fb8d26da8983cd150821022638735748b12da97d59fe052275ef6a078bf8e6a",
+    "mutation": {
+      "needle": "async function readReport(readText, path) {\n  return await readText(path)\n}\n",
+      "replacement": ""
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintPack.test.ts:48 > first-party lint criterion inventory > preserves the no-silent-fallback pass fixture through the offline evaluator",
+      "AssertionError: expected 0 to be greater than 0"
+    ]
+  },
+  {
+    "drill": "extracted units falsely reported judged",
+    "source": "src/runtime/judge/lint.ts",
+    "test": "test/unit/judgeLintRuntime.test.ts",
+    "before": "5a7d4ca964d0573569e23261d6a7176e6083979dae1a2314970d4970f0ecce12",
+    "after": "5a7d4ca964d0573569e23261d6a7176e6083979dae1a2314970d4970f0ecce12",
+    "mutation": {
+      "needle": "coverage: actualCoverage,",
+      "replacement": "coverage,"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRuntime.test.ts:138 > judge lint runtime entry > reports inconclusive and abstained judgments as incomplete",
+      "AssertionError: expected { Object (report, exitCode, ...) } to match object { exitCode: 2, report: { …(1) } }",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:183 > judge lint runtime entry > counts only completely judged localized regions",
+      "AssertionError: expected { path: 'src/unit.ts', …(4) } to match object { kind: 'localize', units: +0, …(2) }",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:208 > judge lint runtime entry > never echoes a provider message that merely looks like an internal reason code",
+      "AssertionError: expected { path: 'src/unit.ts', …(4) } to match object { units: +0, …(2) }"
+    ]
+  },
+  {
+    "drill": "uncertain unit falsely counted checked",
+    "source": "src/runtime/judge/lint.ts",
+    "test": "test/unit/judgeLintRuntime.test.ts",
+    "before": "5a7d4ca964d0573569e23261d6a7176e6083979dae1a2314970d4970f0ecce12",
+    "after": "5a7d4ca964d0573569e23261d6a7176e6083979dae1a2314970d4970f0ecce12",
+    "mutation": {
+      "needle": "results.every(",
+      "replacement": "[].every("
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRuntime.test.ts:138 > judge lint runtime entry > reports inconclusive and abstained judgments as incomplete",
+      "AssertionError: expected { Object (report, exitCode, ...) } to match object { exitCode: 2, report: { …(1) } }"
+    ]
+  },
+  {
+    "drill": "uncertain localized region counted checked",
+    "source": "src/runtime/judge/lint.ts",
+    "test": "test/unit/judgeLintRuntime.test.ts",
+    "before": "5a7d4ca964d0573569e23261d6a7176e6083979dae1a2314970d4970f0ecce12",
+    "after": "5a7d4ca964d0573569e23261d6a7176e6083979dae1a2314970d4970f0ecce12",
+    "mutation": {
+      "needle": "localized.every(",
+      "replacement": "[].every("
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRuntime.test.ts:183 > judge lint runtime entry > counts only completely judged localized regions",
+      "AssertionError: expected { path: 'src/unit.ts', …(4) } to match object { kind: 'localize', units: +0, …(2) }"
+    ]
+  },
+  {
+    "drill": "successful unit count omitted",
+    "source": "src/runtime/judge/lint.ts",
+    "test": "test/unit/judgeLintRuntime.test.ts",
+    "before": "5a7d4ca964d0573569e23261d6a7176e6083979dae1a2314970d4970f0ecce12",
+    "after": "5a7d4ca964d0573569e23261d6a7176e6083979dae1a2314970d4970f0ecce12",
+    "mutation": {
+      "needle": "checkedUnits.set(index,",
+      "replacement": "checkedUnits.set(-1,"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRuntime.test.ts:22 > judge lint runtime entry > keeps findings advisory by default and forwards changed and zero budget",
+      "AssertionError: expected 2 to be +0 // Object.is equality",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:38 > judge lint runtime entry > fails only the explicitly selected independently supported severity gate",
+      "AssertionError: expected { report: { …(3) }, exitCode: 2, …(1) } to match object { exitCode: 1 }",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:55 > judge lint runtime entry > does not fail a gate solely on Jev or TypeSafe",
+      "AssertionError: expected 2 to be +0 // Object.is equality",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:74 > judge lint runtime entry > preserves findings and coverage in sarif",
+      "AssertionError: expected { version: '2.1.0', …(2) } to match object { Object (version, runs) }",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:166 > judge lint runtime entry > keeps a partially checked file incomplete when a comment grammar is missing",
+      "AssertionError: expected [ 'not-checked', 'not-checked' ] to deeply equal [ 'checked', 'not-checked' ]",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:230 > judge lint runtime entry > evaluates bounded localized regions only after a failed rule",
+      "AssertionError: expected 2 to be +0 // Object.is equality",
+      " FAIL  test/unit/judgeLintRuntime.test.ts:257 > judge lint runtime entry > does not localize passing rules and shows unavailable localization",
+      "AssertionError: expected { Object (report, exitCode, ...) } to match object { exitCode: +0 }"
+    ]
+  },
+  {
+    "drill": "successful localized count omitted",
+    "source": "src/runtime/judge/lint.ts",
+    "test": "test/unit/judgeLintRuntime.test.ts",
+    "before": "5a7d4ca964d0573569e23261d6a7176e6083979dae1a2314970d4970f0ecce12",
+    "after": "5a7d4ca964d0573569e23261d6a7176e6083979dae1a2314970d4970f0ecce12",
+    "mutation": {
+      "needle": "checkedUnits.set(localizedIndex,",
+      "replacement": "checkedUnits.set(-1,"
+    },
+    "redExit": 1,
+    "greenExit": 0,
+    "assertion": [
+      " FAIL  test/unit/judgeLintRuntime.test.ts:230 > judge lint runtime entry > evaluates bounded localized regions only after a failed rule",
+      "AssertionError: expected 2 to be +0 // Object.is equality"
+    ]
+  }
+]

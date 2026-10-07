@@ -1,0 +1,4 @@
+const REQUEST_TIMEOUT_MS = 3000 // Maximum duration admitted for one request.
+function requestTimedOut(elapsedMs) {
+  return elapsedMs > REQUEST_TIMEOUT_MS
+}

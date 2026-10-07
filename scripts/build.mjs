@@ -108,7 +108,7 @@ const TAB_ENTRY = 'src/host/tab/tabEntry.ts'
 const TAB_OUTFILE = 'dist/tab.js'
 const UI_TEXT_ENTRY = 'src/shared/l10n/en.ts'
 const UI_TEXT_OUTFILE = 'dist/uiText.js'
-const VALIDATION_ENTRY = 'src/shared/validationEntry.ts'
+const VALIDATION_ENTRY = 'src/host/validationEntry.ts'
 const VALIDATION_OUTFILE = 'dist/validation.js'
 const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
@@ -195,6 +195,16 @@ const WEBVIEW_ENTRY = 'src/webview/main.tsx'
 const MODELS_WEBVIEW_ENTRY = 'src/webview/models/models.tsx'
 const USAGE_WEBVIEW_ENTRY = 'src/webview/usage/usage.tsx'
 const WEBVIEW_OUTDIR = 'dist/webview'
+const JUDGE_P2_ENTRY = 'src/runtime/judge/judgeEntry.ts'
+const JUDGE_P2_OUTFILE = 'dist/judgeP2.js'
+const JUDGE_LINT_ENTRY = 'src/runtime/judge/judgeLintEntry.ts'
+const JUDGE_LINT_OUTFILE = 'dist/judgeLint.js'
+const JUDGE_HOOK_ENTRY = 'src/runtime/judge/judgeHookEntry.ts'
+const JUDGE_HOOK_OUTFILE = 'dist/judgeHook.js'
+const JUDGE_LOCAL_ENTRY = 'src/runtime/judge/judgeLocalEntry.ts'
+const JUDGE_LOCAL_OUTFILE = 'dist/judgeLocal.js'
+const JUDGE_USES_ENTRY = 'src/runtime/judge/judgeUsesEntry.ts'
+const JUDGE_USES_OUTFILE = 'dist/judgeUses.js'
 const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
 const WHATS_NEW_PAGE_NAME = 'whatsNew'
 const ACP_ENTRY = 'src/runtime/main.ts'
@@ -484,6 +494,33 @@ const extensionHooksOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const judgeP2Options = {
+  ...planMarkdownOptions,
+  entryPoints: [JUDGE_P2_ENTRY],
+  outfile: JUDGE_P2_OUTFILE,
+}
+
+const judgeLintOptions = {
+  ...judgeP2Options,
+  entryPoints: [JUDGE_LINT_ENTRY],
+  outfile: JUDGE_LINT_OUTFILE,
+}
+const judgeLocalOptions = {
+  ...judgeP2Options,
+  entryPoints: [JUDGE_LOCAL_ENTRY],
+  outfile: JUDGE_LOCAL_OUTFILE,
+}
+const judgeUsesOptions = {
+  ...judgeP2Options,
+  entryPoints: [JUDGE_USES_ENTRY],
+  outfile: JUDGE_USES_OUTFILE,
+}
+const judgeHookOptions = {
+  ...judgeP2Options,
+  entryPoints: [JUDGE_HOOK_ENTRY],
+  outfile: JUDGE_HOOK_OUTFILE,
+}
+
 const judgeOptions = {
   ...planMarkdownOptions,
   entryPoints: [JUDGE_ENTRY],
@@ -654,6 +691,12 @@ const validationOptions = {
   plugins: [],
   entryPoints: [VALIDATION_ENTRY],
   outfile: VALIDATION_OUTFILE,
+}
+
+const validationSchemaOptions = {
+  ...validationOptions,
+  entryPoints: ['src/host/validationSchemaEntry.ts'],
+  outfile: 'dist/validationSchema.js',
 }
 
 const wireOptions = {
@@ -837,6 +880,12 @@ if (isWatch) {
     esbuild.context(recorderOptions),
     esbuild.context(whatsNewOptions),
     esbuild.context(judgeOptions),
+    esbuild.context(judgeP2Options),
+    esbuild.context(judgeLintOptions),
+    esbuild.context(judgeHookOptions),
+    esbuild.context(judgeLocalOptions),
+    esbuild.context(judgeUsesOptions),
+    esbuild.context(validationSchemaOptions),
     esbuild.context(uiTextOptions),
     ...uiTextRegionOptions.map((options) => esbuild.context(options)),
     esbuild.context(validationOptions),
@@ -914,6 +963,12 @@ if (isWatch) {
     recorder: esbuild.build(recorderOptions),
     whatsNew: esbuild.build(whatsNewOptions),
     judge: esbuild.build(judgeOptions),
+    judgeP2: esbuild.build(judgeP2Options),
+    judgeLint: esbuild.build(judgeLintOptions),
+    judgeHook: esbuild.build(judgeHookOptions),
+    judgeLocal: esbuild.build(judgeLocalOptions),
+    judgeUses: esbuild.build(judgeUsesOptions),
+    validationSchema: esbuild.build(validationSchemaOptions),
     uiText: esbuild.build(uiTextOptions),
     ...Object.fromEntries(
       UI_TEXT_REGIONS.map((region, index) => [
@@ -1001,6 +1056,12 @@ if (isWatch) {
   reportSize(WHATS_NEW_OUTFILE)
   reportSize(WHATS_NEW_CONTENT_OUTFILE)
   reportSize(JUDGE_OUTFILE)
+  reportSize(JUDGE_P2_OUTFILE)
+  reportSize(JUDGE_LINT_OUTFILE)
+  reportSize(JUDGE_HOOK_OUTFILE)
+  reportSize(JUDGE_LOCAL_OUTFILE)
+  reportSize(JUDGE_USES_OUTFILE)
+  reportSize('dist/validationSchema.js')
   reportSize(UI_TEXT_OUTFILE)
   for (const region of UI_TEXT_REGIONS) reportSize(region.output)
   reportSize(VALIDATION_OUTFILE)

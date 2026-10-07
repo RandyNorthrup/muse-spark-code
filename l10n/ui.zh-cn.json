@@ -3764,5 +3764,11 @@
   "referenceElicitation": "MCP 表单为提出请求的 MCP 服务器收集信息。提交的表单值传给该服务器，不进入模型对话或记录。服务器可能将这些值包含在后续工具输出中。切勿输入密码或密钥。",
   "referenceNativeAgentsConditions": "当 run.subagent_delegation_mode=\"auto\" 时，Muse Code可以委派给代理。设为 \"off\" 时，委派工具不可用。 run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。",
-  "referenceProviders": "列出、添加、测试或移除模型提供商。密钥保存在凭据存储中。付费令牌探测需要编辑器；CLI 会拒绝这些探测。"
+  "referenceProviders": "列出、添加、测试或移除模型提供商。密钥保存在凭据存储中。付费令牌探测需要编辑器；CLI 会拒绝这些探测。",
+  "judgeSourceSame": "自己的聊天模型",
+  "judgeSourceSeparate": "单独的评判模型",
+  "judgeSourceBoth": "自己的模型和单独的评判模型",
+  "judgeLocalUnverified": "未经验证的本地端点",
+  "judgeSourceUntested": "实验性，未经测试；需要明确选择加入",
+  "judgeNoAnswer": "评判模型未回答（{reason}）。现有检查和审批仍然适用。"
 }

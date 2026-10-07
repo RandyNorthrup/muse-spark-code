@@ -3906,5 +3906,11 @@
   "referenceElicitation": "MCP-Formulare erfragen Informationen für den anfragenden MCP-Server. Gesendete Formularwerte gehen an diesen Server, außerhalb des Modellgesprächs und des Transkripts. Ein Server kann sie in späteren Werkzeugausgaben zurückgeben. Geben Sie niemals ein Passwort oder einen Schlüssel ein.",
   "referenceNativeAgentsConditions": "Bei run.subagent_delegation_mode=\"auto\" kann Muse Code an Agenten delegieren. Bei \"off\" sind Delegationswerkzeuge nicht verfügbar. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "Prüft eine UTF-8-Patchdatei auf Geheimnisse und schlägt bei einem Fund fehl. --key-stdin prüft auch auf den exakten Model-API-Schlüssel im Speicher; kein Schlüssel wird gespeichert.",
-  "referenceProviders": "Modellanbieter auflisten, hinzufügen, testen oder entfernen. Schlüssel liegen im Anmeldedatenspeicher. Kostenpflichtige Tokenprüfungen benötigen den Editor; die CLI verweigert sie."
+  "referenceProviders": "Modellanbieter auflisten, hinzufügen, testen oder entfernen. Schlüssel liegen im Anmeldedatenspeicher. Kostenpflichtige Tokenprüfungen benötigen den Editor; die CLI verweigert sie.",
+  "judgeSourceSame": "Eigenes Chatmodell",
+  "judgeSourceSeparate": "Separater Beurteiler",
+  "judgeSourceBoth": "Eigenes Modell und separater Beurteiler",
+  "judgeLocalUnverified": "Unverifizierter lokaler Endpunkt",
+  "judgeSourceUntested": "Experimentell, ungetestet; ausdrückliche Zustimmung erforderlich",
+  "judgeNoAnswer": "Keine Antwort des Beurteilers ({reason}). Bestehende Prüfungen und Genehmigungen gelten weiterhin."
 }

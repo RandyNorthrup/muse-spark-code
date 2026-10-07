@@ -733,7 +733,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'paidJudgeName' },
       { tip: 'paid:judge' },
       [],
-      ['judge.engine'],
+      ['judge.engine', 'judge.separate'],
       'muse-judge',
       ['modelApi'],
       true,

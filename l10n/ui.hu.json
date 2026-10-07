@@ -3906,5 +3906,11 @@
   "referenceElicitation": "Az MCP-űrlapok a kérést küldő MCP-kiszolgáló számára kérnek adatokat. Az elküldött értékek ehhez a kiszolgálóhoz kerülnek, a modell beszélgetésén és az átiraton kívül. A kiszolgáló későbbi eszközkimenetben visszaadhatja őket. Soha ne adjon meg jelszót vagy kulcsot.",
   "referenceNativeAgentsConditions": "Ha run.subagent_delegation_mode=\"auto\", a Muse Code ügynökökre delegálhat. \"off\" esetén a delegálási eszközök nem érhetők el. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "Titkokat keres egy UTF-8 javításfájlban, és találat esetén hibával kilép. A --key-stdin a memóriában lévő pontos Model API-kulcsot is keresi; nem tárol kulcsot.",
-  "referenceProviders": "Modellszolgáltatók listázása, hozzáadása, tesztelése vagy eltávolítása. A kulcsok a hitelesítőadat-tárolóba kerülnek. A fizetős tokentesztekhez szerkesztő kell; a CLI elutasítja őket."
+  "referenceProviders": "Modellszolgáltatók listázása, hozzáadása, tesztelése vagy eltávolítása. A kulcsok a hitelesítőadat-tárolóba kerülnek. A fizetős tokentesztekhez szerkesztő kell; a CLI elutasítja őket.",
+  "judgeSourceSame": "Saját csevegőmodell",
+  "judgeSourceSeparate": "Külön értékelő",
+  "judgeSourceBoth": "Saját modell és külön értékelő",
+  "judgeLocalUnverified": "Nem ellenőrzött helyi végpont",
+  "judgeSourceUntested": "Kísérleti, nem tesztelt; kifejezett beleegyezés szükséges",
+  "judgeNoAnswer": "Az értékelő nem válaszolt ({reason}). A meglévő ellenőrzések és jóváhagyások továbbra is érvényesek."
 }

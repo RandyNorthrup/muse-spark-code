@@ -1,0 +1,139 @@
+{
+  "revision": "73a7a94ab08a4e314709d68c2863687a4646f29b",
+  "license": "MIT; copyright 2026 codegirl-007",
+  "platform": "win11 windows/amd64",
+  "toolchain": {
+    "go": "go1.26.0",
+    "compiler": "llvm-mingw 20250910; clang 21.1.1",
+    "goArchiveSha256": "9bbe0fc64236b2b51f6255c05c4232532b8ecc0e6d2e00950bd3021d8a4d07d4",
+    "compilerArchiveSha256": "bd88084d7a3b95906fa295453399015a1fdd7b90a38baa8f78244bd234303737"
+  },
+  "modelAttempts": 0,
+  "paidCalls": 0,
+  "hostedCalls": 0,
+  "loopbackRequests": 1329,
+  "doctor": {
+    "upstream": {
+      "exit": 0,
+      "config": true,
+      "service": "skipped (--offline)"
+    },
+    "firstParty": {
+      "exit": 0,
+      "config": true,
+      "service": "skipped (--offline)"
+    },
+    "unknownKey": {
+      "exit": 2,
+      "config": false,
+      "ourDecoder": "rejected"
+    }
+  },
+  "eval": {
+    "upstream": {
+      "exit": 0,
+      "total": 674,
+      "matched": 674,
+      "mismatched": 0,
+      "inconclusive": 0
+    },
+    "firstParty": {
+      "exit": 0,
+      "total": 12,
+      "matched": 12,
+      "mismatched": 0,
+      "inconclusive": 0
+    },
+    "ourSupported": {
+      "exit": 0,
+      "cases": 362,
+      "mismatches": 0,
+      "requests": 510
+    },
+    "ourFirstParty": {
+      "exit": 0,
+      "cases": 12,
+      "mismatches": 0,
+      "requests": 12
+    }
+  },
+  "grammar": {
+    "java": {
+      "files": 53,
+      "declarations": 123,
+      "regions": 269,
+      "callees": 11,
+      "types": 68,
+      "mismatches": []
+    },
+    "go": {
+      "files": 55,
+      "declarations": 85,
+      "regions": 160,
+      "callees": 9,
+      "types": 16,
+      "mismatches": []
+    },
+    "javascript": {
+      "files": 54,
+      "declarations": 81,
+      "regions": 175,
+      "callees": 12,
+      "types": 13,
+      "mismatches": []
+    },
+    "python": {
+      "files": 52,
+      "declarations": 83,
+      "regions": 278,
+      "callees": 10,
+      "types": 18,
+      "mismatches": []
+    },
+    "rust": {
+      "files": 53,
+      "declarations": 79,
+      "regions": 115,
+      "callees": 9,
+      "types": 16,
+      "mismatches": []
+    },
+    "typescript": {
+      "files": 53,
+      "declarations": 78,
+      "regions": 161,
+      "callees": 9,
+      "types": 14,
+      "mismatches": []
+    },
+    "tsx": {
+      "files": 53,
+      "declarations": 78,
+      "regions": 161,
+      "callees": 9,
+      "types": 14,
+      "mismatches": []
+    }
+  },
+  "reference": {
+    "originalFiles": 364,
+    "supplementalFiles": 9,
+    "totalFiles": 373,
+    "fullCaptureSha256": "b308eb8a89d90d1d0a7e96ef469db322049c307d6153d4a8111e2cfc867301ab",
+    "probeSha256": "9b3d16d3771b212515a97519e6dd31fb4bbc7bd4b5ada5ef6f6c0efccba22903"
+  },
+  "fixtures": [
+    {
+      "name": "syntax-capture.json",
+      "sha256": "ff6519930d8f975b86347aa7cd44d7ab2dd2c3f8a4ce29ba09873dea9103bb2c"
+    },
+    {
+      "name": "first-party-syntax-capture.json",
+      "sha256": "23c954c800285865b3fef470b1817ffbc28c53ab11a8ae24728a1da8cc6219fb"
+    },
+    {
+      "name": "eval-replay.json",
+      "sha256": "81de6f942d61c6cd44c2799653e928a112829362fdd6097b248a2a22b4a4ddad"
+    }
+  ]
+}

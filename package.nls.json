@@ -161,7 +161,7 @@
   "command.tabLanguages.title": "Tab Languages",
   "command.openPullRequestInConversation.title": "Open a Pull Request in a Conversation…",
   "config.judge.engine.description": "`auto` (your own chat model; `same` in phase 1) and `same` can only add caution to a risky Auto action no rule settles: a ready caution turns an allow into a question, or into a note on the approval card. `off` runs no judge. On the Model API backend each judgment bills your key and asks once first; on Muse Code it runs on your subscription.",
-  "config.judge.engine.enumDescriptions.auto": "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured.",
+  "config.judge.engine.enumDescriptions.auto": "Use your own chat model until a separate judge passes verification, calibration and measurement; then use both. No automatic model switch or download.",
   "config.judge.engine.enumDescriptions.same": "Only your own chat model judges; it never switches models.",
   "config.judge.engine.enumDescriptions.off": "No judge: approvals behave exactly as without one.",
   "config.shell.passEnvironmentVariables.description": "Names of environment variables to pass to interactive top-level shell commands, including credential variables normally withheld. Names only, never values. Default: none. A command can expose these values in the conversation and to the model provider. Verification/then_run, schedules, child/team workers and hooks never receive credential variables, even when named here. An interactive command moved to the background retains its starting environment. Does not change Muse Code or explicitly configured MCP server environments.",
@@ -185,5 +185,8 @@
   "setting.usageHistoryDays.description": "Days to keep daily usage summaries (30–1825). Per-call detail is kept for 30 days.",
   "command.connectChatGpt": "Continue with ChatGPT",
   "command.connectCopilot": "Use my Copilot models",
-  "command.openHelp.title": "Open Help & Reference"
+  "command.openHelp.title": "Open Help & Reference",
+  "config.judge.engine.enumDescriptions.separate": "Use only the configured separate judge after that source passes verification and permission. This selection alone does not enable a source.",
+  "config.judge.engine.enumDescriptions.both": "Use the separate judge and your own chat model through the measured cascade. Requires a verified source and suitable calibration profiles.",
+  "config.judge.separate.description": "Separate judge source/model identifier. Empty keeps your current single-model setup. Sources require their own verification and consent; paid calls ask once before the first charge, showing the price and shared museSpark.paidDailyBudgetUsd."
 }

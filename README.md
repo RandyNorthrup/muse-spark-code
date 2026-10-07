@@ -2151,7 +2151,10 @@ verified with the real local journal and fake transport; no paid/live Judge
 call or production calibration is claimed.
 
 `museSpark.judge.engine` is machine-scoped: `auto` (default) uses the same
-model, `same` keeps that selection explicit, and `off` disables Judge. Set
+model, `same` keeps that selection explicit, and `off` disables Judge.
+`separate` and `both` are passive phase-2 configuration and do not dispatch
+an unverified source. `museSpark.judge.separate` holds its source/model
+identifier, without a credential; its default is empty. Set
 it to `off` in Settings to stop future judgments. A measured ready rate below
 the floor disables `auto` on that backend; no production ready-rate or
 precision measurement is claimed here. Status and separate dispatch rows
@@ -4402,6 +4405,36 @@ Press **F5** to launch the Extension Development Host with a fresh build.
 [CONTRIBUTING.md](CONTRIBUTING.md) has the rules for a pull request;
 [SECURITY.md](SECURITY.md) the way to report a vulnerability.
 
+**Muse Judge phase-2 assembly (M98).** Offline calibration, sampling and
+one-call contrastive techniques, and the authenticated loopback boundary
+join the bounded CLI/MCP implementation in the separate `dist/judgeP2.js`
+bundle. An explicit judge command loads it through the shared lazy loader;
+ordinary ACP commands load no phase-2 judge schema; phase 1 loads only at an eligible approval.
+Source selection, paid admission and offline/surface adapters remain required
+before those commands can succeed. The production MCP initialization and
+tool-list smoke runs without inference; available-source support is pending.
+The factory now loads the reviewed lint library and advisory hook adapter as
+separate children. Lint keeps strict pinned config, stable rule/cache binding,
+complete-state batching and visible extraction omissions; real grammar and
+source/admission adapters remain required. Cursor observation rows work
+through this adapter. Its blocking rows **preToolUse, beforeShellExecution,
+beforeMCPExecution, beforeReadFile and beforeSubmitPrompt are never
+registered**: Cursor has no neutral answer for them, and the judge never
+grants a permission. This library delivery adds no installed hook/lint command
+support claim or automatic hook registration.
+The factory also exposes local-source and independently measured use libraries
+in `dist/judgeLocal.js` and `dist/judgeUses.js`. The VSIX and ACP archives carry
+Windows C# and Linux pidfd helper sources and the universal macOS libproc/kqueue
+helper. Explicit helper preparation uses a fixed system compiler with no API
+credentials; local inference still requires opt-in, vetted installation/platform
+proof, a real token counter and captured wording. Every use stays inactive
+without its own paired M75 and borrowed-golden evidence. Identical held review
+actions share one dispatch while retaining each approval's caution lifetime.
+This adds no local setting, automatic source choice or installed-source support
+claim. On macOS, `bash native/darwin/build-local-judge.sh` builds and verifies
+both helper architectures for packaging, as recorded in the macOS receipt.
+See [the integration contract and outstanding evidence](docs/judge.md).
+
 **Bundled workflow package (M89).** `vendor/high-quality-projects-skill/`
 contains the pinned v0.7.0 workflow assets and their MIT licence. To refresh
 the pin, run `node scripts/sync-bundled-skills.mjs --tag v0.7.0` (substitute
@@ -4531,6 +4564,16 @@ with the arguments its header gives.
 **Quality gates.** Every gate fails the build rather than printing, and each
 was seen to fail on a deliberate break before being trusted; the records are
 in [`docs/certification/`](docs/certification/), one file per milestone.
+The [M98-2j local judge spike](docs/certification/m98-2j-spike.md) contains
+test-only transport/provenance prototypes and free-loopback measurements.
+It adds no local judge setting or runtime selection to the product.
+The [macOS native receipt](docs/certification/m98p2-j.md#macos-native)
+adds libproc/kqueue process binding, APFS/HFS volume checks and signed Ollama
+installation anchors. On a Mac, `bash native/darwin/build-local-judge.sh`
+builds and checks the universal helper; assembly must include that artifact
+before enabling this source in a shipped package. Its captured 812 MB
+`tev1:0.8b-q8_0` smoke model requires explicit selection and calibration
+before automatic use. `tev1:4b` remains the recommendation.
 Accessibility is a gate too: every screen the harness shows passes axe-core's
 WCAG 2.2 AA rules in Light Modern, Dark Modern and both High Contrast themes
 (PLAN.md D32); CI's full tier runs it once, on Linux. So is localization

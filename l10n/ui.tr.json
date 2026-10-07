@@ -3906,5 +3906,11 @@
   "referenceElicitation": "MCP formları istekte bulunan MCP sunucusu için bilgi ister. Gönderilen form değerleri model konuşması ve dökümünün dışında bu sunucuya gider. Sunucu bunları sonraki araç çıktısına ekleyebilir. Asla parola veya anahtar girmeyin.",
   "referenceNativeAgentsConditions": "run.subagent_delegation_mode=\"auto\" olduğunda Muse Code aracılara devredebilir. \"off\" olduğunda devir araçları kullanılamaz. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "UTF-8 yama dosyasında gizli bilgileri arar ve bulursa başarısız olur. --key-stdin bellekteki Model API anahtarının tam değerini de arar; anahtar saklanmaz.",
-  "referenceProviders": "Model sağlayıcılarını listeleyin, ekleyin, test edin veya kaldırın. Anahtarlar kimlik bilgisi deposunu kullanır. Ücretli token testleri editör gerektirir; CLI bunları reddeder."
+  "referenceProviders": "Model sağlayıcılarını listeleyin, ekleyin, test edin veya kaldırın. Anahtarlar kimlik bilgisi deposunu kullanır. Ücretli token testleri editör gerektirir; CLI bunları reddeder.",
+  "judgeSourceSame": "Kendi sohbet modeliniz",
+  "judgeSourceSeparate": "Ayrı değerlendirici",
+  "judgeSourceBoth": "Kendi modeliniz ve ayrı değerlendirici",
+  "judgeLocalUnverified": "Doğrulanmamış yerel uç nokta",
+  "judgeSourceUntested": "Deneysel, test edilmemiş; açık onay gerekli",
+  "judgeNoAnswer": "Değerlendirici yanıt vermedi ({reason}). Mevcut kontroller ve onaylar geçerliliğini korur."
 }

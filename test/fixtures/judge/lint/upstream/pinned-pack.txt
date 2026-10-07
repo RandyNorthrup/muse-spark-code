@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "id": "codegirl-007/database-joins",
+  "languages": ["go"],
+  "rules": "rules.json"
+}

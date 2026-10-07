@@ -4048,5 +4048,11 @@
   "referenceElicitation": "I moduli MCP chiedono informazioni per il server MCP richiedente. I valori inviati vanno a quel server, fuori dalla conversazione del modello e dalla trascrizione. Il server può includerli in un successivo risultato di uno strumento. Non inserire mai una password o una chiave.",
   "referenceNativeAgentsConditions": "Quando run.subagent_delegation_mode=\"auto\", Muse Code può delegare agli agenti. Con \"off\", gli strumenti di delega non sono disponibili. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "Analizza un file patch UTF-8 alla ricerca di segreti e termina con errore se li rileva. --key-stdin cerca anche la chiave Model API esatta in memoria; nessuna chiave viene salvata.",
-  "referenceProviders": "Elencare, aggiungere, testare o rimuovere fornitori di modelli. Le chiavi usano l’archivio credenziali. Le prove a pagamento richiedono l’editor; la CLI le rifiuta."
+  "referenceProviders": "Elencare, aggiungere, testare o rimuovere fornitori di modelli. Le chiavi usano l’archivio credenziali. Le prove a pagamento richiedono l’editor; la CLI le rifiuta.",
+  "judgeSourceSame": "Modello di chat personale",
+  "judgeSourceSeparate": "Valutatore separato",
+  "judgeSourceBoth": "Modello personale e valutatore separato",
+  "judgeLocalUnverified": "Endpoint locale non verificato",
+  "judgeSourceUntested": "Sperimentale, non testato; consenso esplicito richiesto",
+  "judgeNoAnswer": "Nessuna risposta del valutatore ({reason}). Restano valide le verifiche e approvazioni esistenti."
 }

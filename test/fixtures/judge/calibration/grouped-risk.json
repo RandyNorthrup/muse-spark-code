@@ -1,0 +1,137 @@
+{
+  "identity": {
+    "providerId": "synthetic-provider",
+    "model": "synthetic-binary",
+    "modelVersion": "fixture-v1",
+    "endpoint": "fixture://offline",
+    "source": "same",
+    "technique": "stated",
+    "family": "risk.destructive",
+    "promptVersion": "risk-prompt-v1",
+    "criteriaVersion": "irreversibility-v1",
+    "fitVersion": "binary-v1"
+  },
+  "evidence": "synthetic",
+  "samples": [
+    {
+      "id": "fit-0",
+      "labelId": "hand-fit-0",
+      "taskGroup": "fit-task-0",
+      "repositoryGroup": "fit-repository",
+      "split": "fit",
+      "probability": 0.1,
+      "label": 0,
+      "labelSource": "independent-hand"
+    },
+    {
+      "id": "fit-1",
+      "labelId": "hand-fit-1",
+      "taskGroup": "fit-task-1",
+      "repositoryGroup": "fit-repository",
+      "split": "fit",
+      "probability": 0.1,
+      "label": 0,
+      "labelSource": "independent-hand"
+    },
+    {
+      "id": "fit-2",
+      "labelId": "hand-fit-2",
+      "taskGroup": "fit-task-2",
+      "repositoryGroup": "fit-repository",
+      "split": "fit",
+      "probability": 0.1,
+      "label": 0,
+      "labelSource": "independent-hand"
+    },
+    {
+      "id": "fit-3",
+      "labelId": "hand-fit-3",
+      "taskGroup": "fit-task-3",
+      "repositoryGroup": "fit-repository",
+      "split": "fit",
+      "probability": 0.1,
+      "label": 1,
+      "labelSource": "independent-hand"
+    },
+    {
+      "id": "fit-4",
+      "labelId": "hand-fit-4",
+      "taskGroup": "fit-task-4",
+      "repositoryGroup": "fit-repository",
+      "split": "fit",
+      "probability": 0.9,
+      "label": 1,
+      "labelSource": "independent-hand"
+    },
+    {
+      "id": "fit-5",
+      "labelId": "hand-fit-5",
+      "taskGroup": "fit-task-5",
+      "repositoryGroup": "fit-repository",
+      "split": "fit",
+      "probability": 0.9,
+      "label": 1,
+      "labelSource": "independent-hand"
+    },
+    {
+      "id": "fit-6",
+      "labelId": "hand-fit-6",
+      "taskGroup": "fit-task-6",
+      "repositoryGroup": "fit-repository",
+      "split": "fit",
+      "probability": 0.9,
+      "label": 1,
+      "labelSource": "independent-hand"
+    },
+    {
+      "id": "fit-7",
+      "labelId": "hand-fit-7",
+      "taskGroup": "fit-task-7",
+      "repositoryGroup": "fit-repository",
+      "split": "fit",
+      "probability": 0.9,
+      "label": 0,
+      "labelSource": "independent-hand"
+    },
+    {
+      "id": "tuning-0",
+      "labelId": "hand-tuning-0",
+      "taskGroup": "tuning-task-0",
+      "repositoryGroup": "tuning-repository",
+      "split": "tuning",
+      "probability": 0.1,
+      "label": 0,
+      "labelSource": "independent-hand"
+    },
+    {
+      "id": "tuning-1",
+      "labelId": "hand-tuning-1",
+      "taskGroup": "tuning-task-1",
+      "repositoryGroup": "tuning-repository",
+      "split": "tuning",
+      "probability": 0.9,
+      "label": 1,
+      "labelSource": "independent-hand"
+    },
+    {
+      "id": "evaluation-0",
+      "labelId": "hand-evaluation-0",
+      "taskGroup": "evaluation-task-0",
+      "repositoryGroup": "evaluation-repository",
+      "split": "evaluation",
+      "probability": 0.2,
+      "label": 0,
+      "labelSource": "independent-hand"
+    },
+    {
+      "id": "evaluation-1",
+      "labelId": "hand-evaluation-1",
+      "taskGroup": "evaluation-task-1",
+      "repositoryGroup": "evaluation-repository",
+      "split": "evaluation",
+      "probability": 0.8,
+      "label": 1,
+      "labelSource": "independent-hand"
+    }
+  ]
+}

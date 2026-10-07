@@ -24,8 +24,10 @@ import type { OpenRouterPrivacy } from '../core/providers/presets'
 import { fill } from '../shared/l10n/text'
 import { parseExec, type ExecOptions } from './exec/execArgs'
 import { parseLegalArgs, type LegalOptions } from './legal/legalArgs'
+import { parseJudgeArgs, type JudgeCliCommand } from './judge/args'
 import type { UsageQuery } from '../shared/usagePage'
 import type { UsageSection } from './usage/usageAdapter'
+import type { ChatGptProviderAction } from './chatGptProviderCommands'
 
 export type UsageCommand =
   | { readonly action: 'open' }
@@ -36,7 +38,6 @@ export type UsageCommand =
       readonly format: 'text' | 'json' | 'csv'
       readonly out?: string
     }
-import type { ChatGptProviderAction } from './chatGptProviderCommands'
 
 export interface ServeOptions {
   readonly usageHistory?: boolean
@@ -89,6 +90,12 @@ export interface ProvidersAddOptions {
 
 export type RuntimeCommand =
   | { readonly command: 'usage'; readonly options: UsageCommand }
+  | {
+      readonly command: 'judge'
+      readonly action: JudgeCliCommand['action']
+      readonly options: JudgeCliCommand['options']
+      readonly surfaceArgs: JudgeCliCommand['surfaceArgs']
+    }
   | { readonly command: 'setup'; readonly options: ServeOptions; readonly maintenance: boolean }
   | { readonly command: 'chatGptProvider'; readonly action: ChatGptProviderAction }
   | { readonly command: 'exec'; readonly options: ExecOptions }
@@ -191,6 +198,8 @@ function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeatu
 }
 
 export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
+  // Reserve judge before ordinary prompt parsing, as legal-scan and usage are.
+  if (argv[0] === 'judge') return parseJudgeArgs(argv)
   if (argv[0] === 'exec' && argv[1] === 'legal-scan')
     return parseLegalCommand(['legal', ...argv.slice(2)])
   if (argv[0] === '--usage') return parseUsage(['--json', ...argv.slice(1)])

@@ -76,7 +76,6 @@ import { createExecLogger, redactWhole } from './exec/execOutput'
 import { runSecretScan } from './exec/scanSecrets'
 import { loadLegalScanner } from './legal/legalScanner'
 import { runLegalCommand } from './legal/runLegal'
-
 import { runProgram } from '../host/processTree'
 import { lazyUsageAdapter, usageCompanionUrl } from './usage/usageAdapter'
 import type { UsageAdapter } from './usage/usageAdapter'
@@ -86,6 +85,7 @@ import {
   type UsageRecording,
 } from '../core/usage/recording'
 import { requireFile } from '../host/lazyBundle'
+import { judgeFeaturesLoader } from './judge/judgeBundle'
 import { extensionHooksBundle } from '../host/extensionHooksBundle'
 import { fileContextIo } from '../host/backend/contextIo'
 import { createToolIo } from '../host/backend/toolIo'
@@ -114,6 +114,14 @@ takeCredentials(process.env)
 // The package root holds `package.json` and `l10n/`; this file runs from `dist/`.
 const distDir = __dirname
 const packageRoot = path.dirname(distDir)
+
+function loadDisplayLanguage(log: Logger) {
+  return loadUiTable({
+    language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
+    readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+    log,
+  })
+}
 
 /** Standalone headless commands own their process, including wedged late setup. */
 function exitHeadless(code: number, shouldForce = false): never {
@@ -592,6 +600,45 @@ function logLevel(command: ReturnType<typeof parseCommandLine>): LogLevel {
 
 async function main(): Promise<number> {
   const command = parseCommandLine(process.argv.slice(2))
+  if (command.command === 'judge') {
+    const controller = new AbortController()
+    const stop = () => {
+      controller.abort()
+    }
+    const stdout = createFdWriter(process.stdout.fd, stop)
+    const stderr = createFdWriter(process.stderr.fd, stop)
+    const log = stderrLogger((line) => {
+      stderr.write(`${redactWhole(line, [])}\n`)
+    }, 'warn')
+    const loadJudge = judgeFeaturesLoader({
+      bundlePath: path.join(distDir, 'judgeP2.js'),
+      log,
+    })
+    process.on('SIGINT', stop)
+    process.on('SIGTERM', stop)
+    try {
+      // Available source/offline/surface adapters are required before those
+      // commands can succeed; missing dependencies retain explicit refusals.
+      const code = await loadJudge().runJudgeCommand(
+        command,
+        { stdin: process.stdin, stdout, stderr },
+        {
+          initialize: async (signal) => {
+            await loadDisplayLanguage(log)
+            signal.throwIfAborted()
+            // Node bundles have separate language state; install the table
+            // read above before the lazy command renders its first response.
+            loadJudge()
+          },
+        },
+        controller.signal,
+      )
+      exitHeadless(code, stdout.queuedBytes > 0 || stderr.queuedBytes > 0)
+    } finally {
+      process.off('SIGINT', stop)
+      process.off('SIGTERM', stop)
+    }
+  }
   if (command.command === 'invalid' && command.exitCode === EXEC_EXIT.usage) {
     const stderr = createFdWriter(process.stderr.fd, () => {
       /* A usage error already owns exit 2; a closed pipe cannot turn it into success. */
@@ -640,16 +687,7 @@ async function main(): Promise<number> {
     let headlessCode: number = EXEC_EXIT.internal
     try {
       try {
-        await lifecycle.race(
-          loadUiTable({
-            language: displayLanguage(
-              process.env,
-              new Intl.DateTimeFormat().resolvedOptions().locale,
-            ),
-            readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
-            log,
-          }),
-        )
+        await lifecycle.race(loadDisplayLanguage(log))
       } catch {
         /* The bundled English table is already installed; stop still owns the deadline. */
       }
@@ -756,11 +794,7 @@ async function main(): Promise<number> {
     writeLine(process.stderr, line)
   }, logLevel(command))
   // The language's table goes in before anything reads the text (D33).
-  await loadUiTable({
-    language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
-    readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
-    log,
-  })
+  await loadDisplayLanguage(log)
   setProviderPolicyText(UI_TEXT, uiLocale())
   switch (command.command) {
     case 'usage': {

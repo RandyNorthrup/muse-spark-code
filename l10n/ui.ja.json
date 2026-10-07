@@ -3764,5 +3764,11 @@
   "referenceElicitation": "MCP フォームは、要求元の MCP サーバーのために情報を尋ねます。送信したフォームの値は、そのサーバーに渡され、モデルの会話や履歴には入りません。ただしサーバーは、後のツール出力に値を含めることができます。パスワードやキーは入力しないでください。",
   "referenceNativeAgentsConditions": "run.subagent_delegation_mode=\"auto\" の場合、Muse Codeはエージェントに委任できます。\"off\" の場合、委任ツールは使用できません。 run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "UTF-8 のパッチファイルから秘密情報を検出し、見つかった場合は失敗終了します。--key-stdin はメモリ内の Model API キーそのものも検索します。キーは保存されません。",
-  "referenceProviders": "モデルプロバイダーを一覧表示、追加、テスト、削除します。キーは資格情報ストアを使用します。有料トークンの検査にはエディターが必要で、CLI は拒否します。"
+  "referenceProviders": "モデルプロバイダーを一覧表示、追加、テスト、削除します。キーは資格情報ストアを使用します。有料トークンの検査にはエディターが必要で、CLI は拒否します。",
+  "judgeSourceSame": "自分のチャットモデル",
+  "judgeSourceSeparate": "別の評価モデル",
+  "judgeSourceBoth": "自分のモデルと別の評価モデル",
+  "judgeLocalUnverified": "未検証のローカルエンドポイント",
+  "judgeSourceUntested": "実験的・未テスト。明示的な同意が必要",
+  "judgeNoAnswer": "評価モデルからの回答なし（{reason}）。既存のチェックと承認は引き続き適用されます。"
 }

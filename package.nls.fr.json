@@ -161,7 +161,7 @@
   "command.tabLanguages.title": "Langues de Tab",
   "command.openPullRequestInConversation.title": "Ouvrir une demande de tirage dans une conversation…",
   "config.judge.engine.description": "`auto` (votre propre modèle de conversation ; `same` en phase 1) et `same` ne peuvent qu’ajouter de la prudence à une action Auto risquée qu’aucune règle ne tranche : un avertissement prêt transforme une autorisation en question, ou en note sur la carte d’approbation. `off` n’exécute aucun évaluateur. Sur le backend Model API, chaque jugement est facturé sur votre clé et demande d’abord votre accord une fois ; sur Muse Code, il passe par votre abonnement.",
-  "config.judge.engine.enumDescriptions.auto": "Votre propre modèle de conversation évalue (`same` en phase 1) ; un évaluateur distinct le rejoint dès qu’un est configuré.",
+  "config.judge.engine.enumDescriptions.auto": "Utiliser votre propre modèle de conversation jusqu’à ce qu’un évaluateur distinct réussisse la vérification, l’étalonnage et les mesures ; puis utiliser les deux. Aucun changement de modèle ni téléchargement automatique.",
   "config.judge.engine.enumDescriptions.same": "Seul votre propre modèle de conversation évalue ; il ne change jamais de modèle.",
   "config.judge.engine.enumDescriptions.off": "Aucun évaluateur : les approbations se comportent exactement comme sans lui.",
   "config.shell.passEnvironmentVariables.description": "Noms des variables d’environnement transmises aux commandes shell interactives de la session principale, y compris les identifiants normalement exclus. Uniquement des noms, jamais des valeurs. Par défaut : aucune. Une commande peut révéler ces valeurs dans la conversation et au fournisseur du modèle. Les vérifications/then_run, tâches planifiées, agents secondaires/d’équipe et hooks ne reçoivent jamais de variables d’identifiants, même si elles sont nommées ici. Une commande interactive passée en arrière-plan conserve son environnement initial. Ne modifie pas les environnements de Muse Code ni des serveurs MCP configurés explicitement.",
@@ -185,5 +185,8 @@
   "setting.usageHistoryDays.description": "Nombre de jours de conservation des résumés quotidiens d’utilisation (30–1825). Les détails par appel sont conservés pendant 30 jours.",
   "command.connectChatGpt": "Continuer avec ChatGPT",
   "command.connectCopilot": "Utiliser mes modèles Copilot",
-  "command.openHelp.title": "Aide et référence"
+  "command.openHelp.title": "Aide et référence",
+  "config.judge.engine.enumDescriptions.separate": "Utiliser uniquement l’évaluateur distinct configuré lorsque sa source est disponible et autorisée. Ce choix seul n’active aucune source.",
+  "config.judge.engine.enumDescriptions.both": "Utiliser l’évaluateur distinct et votre propre modèle de conversation via la cascade mesurée. Nécessite une source vérifiée et des profils d’étalonnage adaptés.",
+  "config.judge.separate.description": "Identifiant de la source/du modèle de l’évaluateur distinct. Une valeur vide conserve votre configuration actuelle à un seul modèle. Les sources exigent leur propre vérification et consentement ; les appels payants demandent l’accord une fois avant la première facturation, avec le prix et le museSpark.paidDailyBudgetUsd partagé."
 }
