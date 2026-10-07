@@ -15,6 +15,16 @@ Muse Code observations remain tainted for that session. Restricted Mode marks
 both backends. Reason lists are bounded and deduplicated without clearing the
 tainted bit. Callers cannot mutate the owner by changing a returned snapshot.
 
+The Model API adapter publishes the producing request's context to B through
+an injected callback, tags replies and tool results, preserves tags through
+session storage and compaction, and keeps the metadata off the provider wire.
+Search taints calls in that same reply. Configured MCP routing is untrusted
+even when the server calls itself `ide`; only the host's own IDE adapter is
+trusted. Old history with no provenance is conservatively tainted. Trusted
+issue/PR/agent/device adapters supply their context through an explicit port.
+All 637 Model API host, session-store and request-provenance tests passed with
+the default timeout; the final taint/request/report batch passed 23 tests.
+
 `test/unit/vault/taint.test.ts` passed 12 assertions/tests with the repository's
 default timeout. Every listed source forces B's real policy to ask despite an
 Always grant; unattended use is denied. The core is independent of VS Code.

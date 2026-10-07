@@ -1,40 +1,45 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, onTestFinished } from 'vitest'
 import {
   VaultTaintSession,
   combineVaultTaint,
   vaultProvenance,
 } from '../../../src/core/vault/taint'
-import { evaluateVaultPolicy, vaultCommandDigest } from '../../../src/core/vault/broker/policy'
+import { brokerFixture } from './brokerFixture'
 import { VAULT_LIMITS } from '../../../src/shared/constants'
-import { grant, metadata, requester, use } from '../helpers/vault/fixtures'
+import { use } from '../helpers/vault/fixtures'
 
 describe('vault taint', () => {
   it.each(['web', 'search', 'browser', 'mcp', 'issue', 'pullRequest', 'agent', 'device'] as const)(
     'forces an ask after %s despite an Always grant and denies unattended use',
-    (source) => {
-      const item = metadata(),
-        who = requester(),
-        actual = use(),
-        standing = grant()
-      standing.target = {
-        kind: 'environment',
-        commandDigest: vaultCommandDigest(actual.command),
-        names: actual.names,
-      }
-      item.bindings = [standing.target]
-      item.policy.mode = 'alwaysAllow'
-      item.policy.unattendedAllowed = true
-      standing.unattendedAllowed = true
+    async (source) => {
+      const fixture = await brokerFixture()
+      onTestFinished(() => fixture.broker.dispose())
+      await fixture.change({
+        policy: { ...fixture.stored.metadata.policy, mode: 'alwaysAllow', unattendedAllowed: true },
+      })
+      fixture.standing().unattendedAllowed = true
       const session = new VaultTaintSession('modelApi')
       const taint = session.beginRequest([vaultProvenance(source, 'outside.example')], true)
+      const allowed = await fixture.broker.request(
+        fixture.identity,
+        fixture.stored.metadata.handle,
+        use(),
+        taint,
+      )
+      expect(allowed.kind).toBe('approval')
+      if (allowed.kind !== 'approval') throw new Error('expected forced approval')
+      expect(allowed.request.taint.reasons).toEqual([{ source, label: 'outside.example' }])
+      await fixture.broker.endRequester(fixture.identity.id)
+      fixture.identity.unattended = true
+      fixture.identity.source = 'headless'
+      await fixture.broker.register(fixture.peer, fixture.identity, 'ask')
       expect(
-        evaluateVaultPolicy(item, who, actual, taint, [standing], 'ask', 1, new Set()),
-      ).toEqual({ kind: 'ask' })
-      expect(taint.reasons).toEqual([{ source, label: 'outside.example' }])
-      who.unattended = true
-      who.source = 'headless'
-      expect(
-        evaluateVaultPolicy(item, who, actual, taint, [standing], 'ask', 1, new Set()),
+        await fixture.broker.request(
+          fixture.identity,
+          fixture.stored.metadata.handle,
+          use(),
+          taint,
+        ),
       ).toEqual({ kind: 'denied', reason: 'tainted' })
     },
   )
