@@ -23,6 +23,7 @@ function harness(estimate?: AcpEstimatePort) {
     version: 'test',
     options: { canBypass: false, allowsContributorModels: false, initialMode: 'manual' },
     signIn: { id: 'test', name: 'Test', description: '', args: [], command: 'test' },
+    questions: 'decline',
     defaultCwd: CWD,
     paid: new AcpPaidUse({
       flagged: [],
