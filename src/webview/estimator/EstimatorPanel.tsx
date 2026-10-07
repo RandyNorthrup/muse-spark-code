@@ -62,7 +62,7 @@ export default function EstimatorPanel({
 }) {
   const id = useId()
   const [goal, setGoal] = useState(initial === undefined ? '' : goalText(initial))
-  const [deadline, setDeadline] = useState(initial?.deadline?.slice(0, 'YYYY-MM-DD'.length) ?? '')
+  const [deadline, setDeadline] = useState(initial?.deadline ?? '')
   const [fleet, setFleet] = useState<EstimateRequest['fleet']>(initial?.fleet ?? 'current')
   const [optimize, setOptimize] = useState<EstimateRequest['optimize']>(
     () => initial?.optimize ?? port.context().optimize,
@@ -109,7 +109,8 @@ export default function EstimatorPanel({
   async function run() {
     pending.current?.abort()
     const parsedGoal = parseEstimateGoal(goal)
-    const date = deadline === '' ? undefined : `${deadline}T00:00:00.000Z`
+    let date: string | undefined
+    if (deadline !== '') date = deadline.includes('T') ? deadline : `${deadline}T00:00:00.000Z`
     const parsed = estimateRequestSchema.safeParse({
       ...port.context(),
       goal: parsedGoal,
@@ -120,6 +121,8 @@ export default function EstimatorPanel({
     })
     if (!parsed.success) {
       setError(UI_TEXT.estimateInvalidGoal)
+      active.current = undefined
+      setSection(undefined)
       setBusy(false)
       return
     }
@@ -199,7 +202,6 @@ export default function EstimatorPanel({
         <label htmlFor={`${id}-deadline`}>{UI_TEXT.estimateDeadline}</label>
         <input
           id={`${id}-deadline`}
-          type="date"
           value={deadline}
           onChange={(event) => {
             setDeadline(event.target.value)

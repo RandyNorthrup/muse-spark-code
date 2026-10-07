@@ -119,8 +119,8 @@ Restoration hashes for this second piece:
 
 - **M117-W-panel-binding:** lazy-import `EstimatorPanel` only when opening
   the Estimator, supply `initial` from the composer, and bind
-  `EstimatorPanelPort`. The component and its stylesheet form a separate
-  lazy closure in the harness. Build, budget and split registration for the
+  `EstimatorPanelPort`. The component forms a separate lazy JavaScript closure in the harness;
+  its emitted stylesheet is linked by the harness page. Build, budget and split registration for the
   shipping panel and `dist/estimator.js` belong to W. No startup/deferred cap
   is changed and no shipping estimator bundle is claimed on this base.
 - **M117-W-composer-binding:** call `wasEstimateComposerHandled` before
@@ -233,7 +233,7 @@ inputs and disclosures but dropped the numeric calibration model, and the
 panel's honesty details likewise omitted its model parameters. All CLI
 formats now retain the entire validated section in the evidence block; the
 panel includes the full calibration rows alongside their disclosures. The
-new assertions check the prior's wire value and actual review-round-rate
+new assertions check the prior's contract value and actual review-round-rate
 field rather than only a human summary or disclosure pointer.
 
 Final owning runs before the panel commit: 27 command/ACP/panel tests and
@@ -265,3 +265,76 @@ After the multipart fix: the complete command/ACP/panel run passes 28 tests
 74 owning tests pass. Scoped ACP ESLint, host typecheck and unit typecheck pass
 on the final fix. All five projects passed together on the panel commit; the
 webview/e2e/integration and harness code is unchanged by this final ACP fix.
+
+## Deadline fidelity regression
+
+The panel's previous date picker silently changed an initial explicit
+`2026-10-08T04:00:00.000Z` to midnight. The new complete-panel regression
+failed on that exact before/after mismatch. The deadline field now preserves
+the UTC instant as entered, and accepts a strict ISO calendar date as UTC
+midnight. The existing request schema rejects rollover dates before dispatch.
+An invalid submission clears the old result and active view correlation so a
+subsequent old-view refresh cannot restore that result or its action.
+
+| Drill                          | Owning regression                                                                     | Exit |
+| ------------------------------ | ------------------------------------------------------------------------------------- | ---: |
+| `U35-deadline-precision`       | preserves an explicit UTC deadline and accepts strict calendar dates without rollover |    1 |
+| `U36-deadline-calendar`        | preserves an explicit UTC deadline and accepts strict calendar dates without rollover |    1 |
+| `U37-invalid-view-correlation` | preserves an explicit UTC deadline and accepts strict calendar dates without rollover |    1 |
+
+Each restores `src/webview/estimator/EstimatorPanel.tsx` byte-exact to `8dc480180d7f08e98a97f2a94dd5e083e03b68821af04d6c3544ae16c87a4ad3`. Accepted mutation receipts now total 37.
+
+The final production build exits 0, including size, split, host-global and
+third-party-notices checks. Measured shipping sizes: extension 439.5/600 KiB;
+Model API 446.9/475; ACP 822.7/850; webview startup including static imports
+797.3/900; deferred JavaScript 50.0/50; reference 98.2/100. No cap changes.
+These are the existing shipped surfaces plus U's ACP interception/palette
+flag, **not** certification of the absent shipping estimator registration.
+W must measure and guard the estimator's real lazy entries when binding them.
+All five typecheck projects passed on the committed panel; host and unit were
+checked again after the multipart ACP fix. Final panel checks follow below.
+
+## Browser gate-fire receipts
+
+Both new browser gates are seen to fail independently of keyboard setup.
+U38 breaks only the goal label association; the completed scene still loads,
+and axe returns a label violation in all eight theme/width cases. U39 forces
+the container to 900 px; the scroll-width assertion fires at 320 px (and the
+wide cases). Each run uses the entire nine-test e2e file with default timeout.
+
+| Drill              | Named browser case                                           | Exit | Restoration SHA-256                                                |
+| ------------------ | ------------------------------------------------------------ | ---: | ------------------------------------------------------------------ |
+| `U38-axe-label`    | passes axe and keyboard Gantt/setup flows in light at 690 px |    1 | `8dc480180d7f08e98a97f2a94dd5e083e03b68821af04d6c3544ae16c87a4ad3` |
+| `U39-narrow-width` | passes axe and keyboard Gantt/setup flows in light at 320 px |    1 | `cc0e1d0f67d2a161af27e86187b3d7972020544fd9f6fdb6fcbeceeab3bb44b7` |
+
+Accepted mutation receipts total 39. The final owning unit run passes 29
+tests (14 command, 6 ACP, 9 panel); the palette/browser run passes 46
+(37 palette, 9 browser). Total 75, default Vitest timeout, at most three
+files/workers per run. After the final panel change, scoped ESLint and the
+webview and unit typechecks pass. The entire nine-test browser file passes
+again after U38/U39 restoration (11.52 s, default timeout). Final plain
+`npx jscpd` exits 0 with zero clones. Full quality, aggregate unit coverage
+and shipping estimator entry registration remain W/the lead's integration
+work under this scoped brief.
+
+Final localization check exits 0: 14 tables, 166 manifest strings, 624
+source files, zero problems. Final scoped Prettier and commit-hook checks
+cover the deadline fix and this record. No threshold, ignore, timeout,
+dependency or localization key was added.
+
+## Final lane receipt and resume action
+
+Implementation pieces are committed as `85af46b32` (portable command/ACP/
+refresh surfaces), `63e766c86` (panel, harness, palette and certification)
+and `4b689cba4` (multipart ACP local interception); the final deadline fix
+and receipts follow those commits. Every commit retains hooks, scoped lint/
+format checks and secret scanning. No live or paid call was made. All 39
+accepted drill receipts were checked before deleting their 48 owned scratch
+files; their named failures and byte-restoration hashes are retained here.
+
+The first integration action is **M117-W-engine-and-money**: after merging
+FIXM117R, bind the exported engine contracts and exact-money formatter to
+the injected runner and update the pre-repair numeric test fixture. Then
+W can register and budget the real lazy panel/CLI/ACP entries, regenerate
+its host API record and run the aggregate gates. M113/M115/TUI/P bindings
+remain the explicit handoffs above; no production fake stands in for them.

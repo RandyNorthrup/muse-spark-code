@@ -49,6 +49,39 @@ async function refuseForecast() {
 }
 
 describe('M117 Estimator panel', () => {
+  it('preserves an explicit UTC deadline and accepts strict calendar dates without rollover', async () => {
+    const h = harness()
+    const initial = { ...fakeEstimate().inputs.request, deadline: '2026-10-08T04:00:00.000Z' }
+    render(<EstimatorPanel port={h.port} initial={initial} />)
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateRun }))
+    await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
+    expect(h.estimate.mock.calls[0]?.[0].deadline).toBe(initial.deadline)
+    fireEvent.change(screen.getByLabelText(UI_TEXT.estimateDeadline), {
+      target: { value: '2026-02-30' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateRefresh }))
+    expect(await screen.findByRole('alert')).toHaveProperty(
+      'textContent',
+      UI_TEXT.estimateInvalidGoal,
+    )
+    expect(h.estimate).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('heading', { name: UI_TEXT.estimateSchedule })).toBeNull()
+    const oldView = fakeEstimate()
+    oldView.asOf = '2026-10-06T12:30:00.000Z'
+    oldView.inputs.request = { ...initial, asOf: oldView.asOf }
+    oldView.inputs.fleet.asOf = oldView.asOf
+    act(() => {
+      h.emit(oldView)
+    })
+    expect(screen.queryByRole('heading', { name: UI_TEXT.estimateSchedule })).toBeNull()
+    fireEvent.change(screen.getByLabelText(UI_TEXT.estimateDeadline), {
+      target: { value: '2026-10-09' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateRun }))
+    await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
+    expect(h.estimate.mock.calls[1]?.[0].deadline).toBe('2026-10-09T00:00:00.000Z')
+  })
+
   it('shows forecasts, calibration and all inputs, with an honestly disabled Spin it up', async () => {
     const h = harness()
     await start(h.port)
