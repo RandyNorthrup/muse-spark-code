@@ -1,12 +1,16 @@
 # M114-S integrated after capture index
 
-**Status: complete replacement capture evidence; visual certification is
-blocked by a late page-mount timeout.** See [the continuation record](../m114-s-screenshots,-visual-regression-and-docs.md).
+**Status: both required complete local comparisons pass.** See
+[the current receipt](c3-comparison.json) and
+[the continuation record](../m114-s-screenshots,-visual-regression-and-docs.md).
 
-The [comparison receipt](continuation-comparison.json) records zero complete
-passes of the required two. The [108-image source replay](continuation-source-smoke.json)
-passes; it is scoped and does not replace the full comparisons. This archive
-is an unaccepted candidate until both complete runs pass.
+Each comparison verifies all 4,824 images through six independently failing
+batches and the real merge gate. One batch is retried in each run; the failed
+attempts remain recorded. Historical timeout provenance, lazy report/history
+and code-highlighting readiness, full hosted source reconstruction and
+aggregate quality remain named handoffs. The older
+[failed receipt](continuation-comparison.json) is preserved. The
+[108-image source replay](continuation-source-smoke.json) is scoped evidence.
 
 The tracked [manifest](../../../test/harness/goldens/manifest.json) records all
 67 scenes, 65 audited renderers, six themes, two widths and six states.

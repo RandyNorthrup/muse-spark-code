@@ -12647,6 +12647,56 @@ Minimal completion design, pending that choice:
    pair permits an off-by-default production setting. Record paid attempts,
    known/unknown usage, source hashes and the incomplete inventory honestly.
 
+### Q-M114S — Historical page-mount timeout provenance (2026-10-06)
+
+The prior 4,752-capture log has no scene key, trace or resource measurements.
+Its recorded loop order bounds the failure to Dracula/690 px/English in the
+last 72-capture batch; the exact scene within that batch is not known.
+Continuation 3's complete diagnostic passes 4,824 captures, and 500 repeated
+late Tasks mounts do not reproduce a two-second stall. The capture driver now
+names scene/theme/width/English and page errors on a failed mount. The exact
+historical scenario and cause remain unconfirmed; a trace/resource log from
+that run is requested. Do not infer a scene from the last progress batch or
+describe the timeout as fixed merely because a later run passes. New CI shards
+bound each source/candidate replay to 804 captures; repeated full receipts
+certify their own rendering results, not an unknown historical root cause.
+
+**H-M114S-report-readiness → harness scenario owner.** A separate source
+reconstruction compares 216 captures before `report-narrow/light/320/en`
+throws `never rendered: .report-check input`. Delaying only the report lazy
+chunk reproduces that exact error while one deferred-loading fallback is
+present and no checkbox has mounted: the harness's 3,000 ms virtual deadline
+expires in 261 ms of real time. The controlled probe demonstrates a readiness
+race; it does not identify the older root timeout. Two attempted owned
+barriers (400 ms start followed by checkbox readiness, then network-idle
+readiness) both fail the default 10-second setup deadline. Stop that path
+under the shared rule; remove the experimental test and restore the capture
+driver SHA-256-exact. The proposed exact harness fix is a report-scenario
+completion marker after DOM readiness and the existing spacing assertion,
+awaited under the real page deadline before advancing its virtual deadline.
+Preserve missing-control failure and compatibility with the recorded source
+harness. This foreign contract change remains unimplemented and unverified.
+See `docs/certification/m114-s-after/c3-report-readiness.json`.
+
+The second complete replay also records `history-archived/dracula/690/en`
+failing `whenFound('.history-toggle input')` inside `clock.runFor`, with no
+page errors. Include this lazy history scenario in the same harness
+readiness-contract handoff; its uncaptured resource timing is unconfirmed.
+The complete receipt retains that failed batch attempt and its retry.
+
+**H-M114S-code-highlight-readiness → webview/harness owner.** Batch 6's
+first attempt fails at `markdown/dracula/690/en`: 475 changed pixels, all
+within the code text at x=38–432, y=260–290. The candidate is plain text
+where the reviewed image is highlighted. `CodeBlock.tsx`'s asynchronous
+`HighlightedCode` Suspense fallback has no pending marker, so the owned
+driver's `[data-deferred-loading]` check cannot distinguish it. Mark only
+that asynchronous fallback, include it in a bounded capture settlement
+contract with clock coordination, and retain intentionally plain open or
+unknown-language blocks. Support or re-review the recorded source harness.
+No production webview file is edited here. The next attempt passes under
+the unchanged policy; the failed attempt remains evidence, not a red drill.
+See `docs/certification/m114-s-after/c3-highlight-readiness.json`.
+
 ## 4. Architecture
 
 ```
@@ -29144,6 +29194,20 @@ actual UI red drills on the final driver. Foreign harness scenario fixes
 remain named handoffs, unless the cause is in S's owned files. Full quality,
 hosted execution and startup compaction stay integration-owned.
 
+For the timeboxed second replay, at most two independent browser capture
+jobs may overlap using a byte-identical local Git snapshot inside ignored
+scratch. Serialize their builds; merge only real CLI receipts with matching
+candidate/manifest/environment identities. No capture, policy or UI input
+changes, and no subagents or shared installation writes.
+
+The isolated browser suites also exceed their default setup deadlines when
+three or six real scenes share a hook. Their existing complete coverage now
+uses one scene per setup hook: all 36 representative captures and both
+18-capture stability sets remain, with unchanged test/hook deadlines.
+Both complete suites pass (6 assertions, 20.76 s). The new cross-scene
+rasterization binding is deliberately made red and restored SHA-256-exact;
+see `docs/certification/m114-s-after/c3-raster-drill.json`.
+
 **M114 S continuation final boundary (2026-10-06).** The reviewed tolerance,
 four real UI red drills, missing theme capture and required CI binding are
 implemented. All 25 owning tests pass at default deadlines and scoped
@@ -29156,6 +29220,20 @@ complete comparisons pass, so the candidate remains unaccepted. The
 the lead must resolve the mount failure and collect both full receipts.
 No capture, threshold, deadline or CI gate is waived. Startup compaction and
 aggregate/hosted certification retain their named integration owners.
+
+**M114 S continuation 3 local result (2026-10-06).** Both complete local
+comparisons now pass: 4,824 images each, 1,850.478 s resumed and 1,488.964 s
+fresh, 12/20 pixels total, maximum 1/2 per image. Every merge requires all
+six 804-image receipts and the unchanged policy and 512 MiB budgets. One
+final-batch retry per run is retained with its actual failure. The four final
+UI drills and five shard guards fire; 27 scoped assertions pass at default
+deadlines, including an isolated stability retry after a setup timeout.
+Compiler/static/build checks retain their original caps; aggregate quality
+remains explicitly deferred to the lead by the rig/shared brief. Historical
+timeout provenance, report/history readiness, unmarked code-highlighting
+fallbacks and hosted source reconstruction remain named handoffs, not
+claimed fixes. See S's final certification and C3 receipts. No baseline
+update or foreign production edit is made.
 
 **M114 P1 forced-colors repair scoped gates (RVM114P12, 2026-10-06).**
 The rig/shared brief forbids full quality/full unit runs and other lanes'

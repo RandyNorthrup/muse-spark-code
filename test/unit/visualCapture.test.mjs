@@ -6,49 +6,55 @@ import { captureMatrix } from '../harness/goldens/capture.mjs'
 import { decodePng } from '../../scripts/lib/visualImages.mjs'
 
 const captured = { result: undefined, busyRows: [], rootWidths: [] }
-// Share fixture compilation/browser setup; each assertion stays under the
-// repository's default timeout. This is the actual formerly closing palette.
-beforeAll(async () => {
-  const audit = JSON.parse(await readFile('docs/certification/m114-audit.json', 'utf8'))
-  const matrix = JSON.parse(await readFile('test/harness/visual-matrix.json', 'utf8'))
-  captured.result = await captureMatrix(
-    process.cwd(),
-    {
-      ...audit,
-      scenes: [
-        'board',
-        'deferred-modal',
-        'whats-new',
-        'whats-new-highlights',
-        'approval-several',
-        'approval-narrow',
-      ],
-    },
-    { ...matrix, themes: ['light'], widths: [320] },
-    async (capture, bytes, page) => {
-      decodePng(bytes, capture.width, capture.height)
-      if (capture.scene === 'board')
-        expect(
-          await page.locator('[role="dialog"]').count(),
-          `${capture.state}: dialog remains open`,
-        ).toBe(1)
-      else if (capture.scene.startsWith('approval-'))
-        captured.busyRows.push(
-          await page.locator('.composer-input').evaluate((element) => element.rows),
+// Each real scene has its own bounded setup hook; retain every state without
+// combining six browser captures under one default ten-second deadline.
+for (const scene of [
+  'board',
+  'deferred-modal',
+  'whats-new',
+  'whats-new-highlights',
+  'approval-several',
+  'approval-narrow',
+])
+  beforeAll(async () => {
+    const audit = JSON.parse(await readFile('docs/certification/m114-audit.json', 'utf8'))
+    const matrix = JSON.parse(await readFile('test/harness/visual-matrix.json', 'utf8'))
+    const result = await captureMatrix(
+      process.cwd(),
+      {
+        ...audit,
+        scenes: [scene],
+      },
+      { ...matrix, themes: ['light'], widths: [320] },
+      async (capture, bytes, page) => {
+        decodePng(bytes, capture.width, capture.height)
+        if (capture.scene === 'board')
+          expect(
+            await page.locator('[role="dialog"]').count(),
+            `${capture.state}: dialog remains open`,
+          ).toBe(1)
+        else if (capture.scene.startsWith('approval-'))
+          captured.busyRows.push(
+            await page.locator('.composer-input').evaluate((element) => element.rows),
+          )
+        captured.rootWidths.push(
+          await page.evaluate(
+            () => globalThis.document.documentElement.getBoundingClientRect().width,
+          ),
         )
-      captured.rootWidths.push(
-        await page.evaluate(
-          () => globalThis.document.documentElement.getBoundingClientRect().width,
-        ),
-      )
-      expect(
-        await page.evaluate(
-          () => globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches,
-        ),
-      ).toBe(true)
-    },
-  )
-})
+        expect(
+          await page.evaluate(
+            () => globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches,
+          ),
+        ).toBe(true)
+      },
+    )
+    if (captured.result === undefined) captured.result = result
+    else {
+      expect(result.rasterization).toBe(captured.result.rasterization)
+      captured.result.captures.push(...result.captures)
+    }
+  })
 
 describe('M114 real visual capture driver', () => {
   it('keeps the autofocus palette open through every representative control state', () => {

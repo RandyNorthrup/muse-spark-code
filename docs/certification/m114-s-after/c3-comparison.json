@@ -1,0 +1,548 @@
+{
+  "candidateCommit": "f3ee8572abc7bf0c554eb4a1639bd321b2e76aee",
+  "restoredManifestSha256": "1f33b677df78738c328925802451c5b386d779129b153cee07b1fc3801c5fba6",
+  "temporarySourcesAndPngsCleaned": true,
+  "directoriesBefore": [
+    "m114-s-fixtures-37629",
+    "m114-s-fixtures-39973",
+    "m114-visual-profile-EC57DF",
+    "m114-visual-profile-yy7nRc"
+  ],
+  "directoriesAfter": [
+    "m114-s-fixtures-37629",
+    "m114-s-fixtures-39973",
+    "m114-visual-profile-EC57DF",
+    "m114-visual-profile-yy7nRc"
+  ],
+  "completeComparisonPasses": 2,
+  "requiredConsecutivePasses": 2,
+  "modelAttempts": 0,
+  "earlierCompleteArchiveRuns": [
+    {
+      "name": "complete-archive",
+      "exit": 0,
+      "startedUtc": "2026-10-06T23:40:40.339593+00:00",
+      "durationSeconds": 1430.987,
+      "revision": "c4f37c6f748f2ea009271cb5cf8dbd462a6a88b0",
+      "manifestSha256": "1f33b677df78738c328925802451c5b386d779129b153cee07b1fc3801c5fba6",
+      "candidateSha256": "f38919930a87f1ba2b8c91a444b2758c2a0627d68b43a1589170ebd521c15873",
+      "selectionSha256": "a439464f72c3259d05398705cdff8c5e297825b7166b539dc3f6ad8f3bb4c49f",
+      "checked": 4824,
+      "changedPixels": 10,
+      "maxImageChangedPixels": 1,
+      "regenerated": false,
+      "baselineBytes": 246807746,
+      "candidateBytes": 246808777,
+      "browser": "150.0.7871.186",
+      "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+      "platform": "linux",
+      "policy": {
+        "threshold": 0.1,
+        "includeAA": false,
+        "maxChangedPixelRatio": 0.0001,
+        "maxChangedPixels": 12
+      },
+      "manifestUnchanged": true
+    }
+  ],
+  "runs": [
+    {
+      "name": "complete-batched-archive-1",
+      "exit": 0,
+      "startedUtc": "2026-10-07T00:13:35.966300+00:00",
+      "durationSeconds": 1850.478,
+      "resumedShards": [1, 2],
+      "shardRuns": [
+        {
+          "name": "resumed-shard-1",
+          "revision": "c4f37c6f748f2ea009271cb5cf8dbd462a6a88b0",
+          "manifestSha256": "1f33b677df78738c328925802451c5b386d779129b153cee07b1fc3801c5fba6",
+          "candidateSha256": "f38919930a87f1ba2b8c91a444b2758c2a0627d68b43a1589170ebd521c15873",
+          "shard": {
+            "index": 1,
+            "count": 6
+          },
+          "selectionSha256": "fbea255a9e475855b405c20eb17bb39df065ea5bae3e963bee0c225d306890b8",
+          "checked": 804,
+          "changedPixels": 0,
+          "maxImageChangedPixels": 0,
+          "regenerated": false,
+          "baselineBytes": 40493609,
+          "candidateBytes": 40493446,
+          "browser": "150.0.7871.186",
+          "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+          "platform": "linux",
+          "policy": {
+            "threshold": 0.1,
+            "includeAA": false,
+            "maxChangedPixelRatio": 0.0001,
+            "maxChangedPixels": 12
+          }
+        },
+        {
+          "name": "resumed-shard-2",
+          "revision": "c4f37c6f748f2ea009271cb5cf8dbd462a6a88b0",
+          "manifestSha256": "1f33b677df78738c328925802451c5b386d779129b153cee07b1fc3801c5fba6",
+          "candidateSha256": "f38919930a87f1ba2b8c91a444b2758c2a0627d68b43a1589170ebd521c15873",
+          "shard": {
+            "index": 2,
+            "count": 6
+          },
+          "selectionSha256": "5cb4b4f07bd91f676c46eea9e6af74f5f10bcd32bb727ef771dc2a1aaaee922c",
+          "checked": 804,
+          "changedPixels": 0,
+          "maxImageChangedPixels": 0,
+          "regenerated": false,
+          "baselineBytes": 41584030,
+          "candidateBytes": 41584017,
+          "browser": "150.0.7871.186",
+          "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+          "platform": "linux",
+          "policy": {
+            "threshold": 0.1,
+            "includeAA": false,
+            "maxChangedPixelRatio": 0.0001,
+            "maxChangedPixels": 12
+          }
+        },
+        {
+          "name": "batch-1-shard-3-attempt-1",
+          "exit": 0,
+          "startedUtc": "2026-10-07T00:25:19.831549+00:00",
+          "durationSeconds": 239.354,
+          "revision": "c4f37c6f748f2ea009271cb5cf8dbd462a6a88b0",
+          "manifestSha256": "1f33b677df78738c328925802451c5b386d779129b153cee07b1fc3801c5fba6",
+          "candidateSha256": "f38919930a87f1ba2b8c91a444b2758c2a0627d68b43a1589170ebd521c15873",
+          "shard": {
+            "index": 3,
+            "count": 6
+          },
+          "selectionSha256": "2b139fb9e05089f97b344f2c22332089ba4be67fccdc7b32baf5a335b37a370b",
+          "checked": 804,
+          "changedPixels": 4,
+          "maxImageChangedPixels": 1,
+          "regenerated": false,
+          "baselineBytes": 38083428,
+          "candidateBytes": 38083855,
+          "browser": "150.0.7871.186",
+          "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+          "platform": "linux",
+          "policy": {
+            "threshold": 0.1,
+            "includeAA": false,
+            "maxChangedPixelRatio": 0.0001,
+            "maxChangedPixels": 12
+          }
+        },
+        {
+          "name": "batch-1-shard-4-attempt-1",
+          "exit": 0,
+          "startedUtc": "2026-10-07T00:29:19.221536+00:00",
+          "durationSeconds": 272.561,
+          "revision": "c4f37c6f748f2ea009271cb5cf8dbd462a6a88b0",
+          "manifestSha256": "1f33b677df78738c328925802451c5b386d779129b153cee07b1fc3801c5fba6",
+          "candidateSha256": "f38919930a87f1ba2b8c91a444b2758c2a0627d68b43a1589170ebd521c15873",
+          "shard": {
+            "index": 4,
+            "count": 6
+          },
+          "selectionSha256": "cb4a6bfdfb24387469dfa1fc39715b9515d8d343218d806022e4e8e93ae014de",
+          "checked": 804,
+          "changedPixels": 1,
+          "maxImageChangedPixels": 1,
+          "regenerated": false,
+          "baselineBytes": 37819260,
+          "candidateBytes": 37819548,
+          "browser": "150.0.7871.186",
+          "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+          "platform": "linux",
+          "policy": {
+            "threshold": 0.1,
+            "includeAA": false,
+            "maxChangedPixelRatio": 0.0001,
+            "maxChangedPixels": 12
+          }
+        },
+        {
+          "name": "batch-1-shard-5-attempt-1",
+          "exit": 0,
+          "startedUtc": "2026-10-07T00:33:51.784668+00:00",
+          "durationSeconds": 231.046,
+          "revision": "c4f37c6f748f2ea009271cb5cf8dbd462a6a88b0",
+          "manifestSha256": "1f33b677df78738c328925802451c5b386d779129b153cee07b1fc3801c5fba6",
+          "candidateSha256": "f38919930a87f1ba2b8c91a444b2758c2a0627d68b43a1589170ebd521c15873",
+          "shard": {
+            "index": 5,
+            "count": 6
+          },
+          "selectionSha256": "342011a3ffbe9ec52aa1ee52e86909f84311edb5e66cb6725d0020cae4e50901",
+          "checked": 804,
+          "changedPixels": 0,
+          "maxImageChangedPixels": 0,
+          "regenerated": false,
+          "baselineBytes": 44681966,
+          "candidateBytes": 44682504,
+          "browser": "150.0.7871.186",
+          "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+          "platform": "linux",
+          "policy": {
+            "threshold": 0.1,
+            "includeAA": false,
+            "maxChangedPixelRatio": 0.0001,
+            "maxChangedPixels": 12
+          }
+        },
+        {
+          "name": "batch-1-shard-6-attempt-2",
+          "exit": 0,
+          "startedUtc": "2026-10-07T00:39:35.477458+00:00",
+          "durationSeconds": 289.799,
+          "revision": "c4f37c6f748f2ea009271cb5cf8dbd462a6a88b0",
+          "manifestSha256": "1f33b677df78738c328925802451c5b386d779129b153cee07b1fc3801c5fba6",
+          "candidateSha256": "f38919930a87f1ba2b8c91a444b2758c2a0627d68b43a1589170ebd521c15873",
+          "shard": {
+            "index": 6,
+            "count": 6
+          },
+          "selectionSha256": "a3d1280da947997663f89f65ae60f80ad501a47e2494fca11e33fdc833002ff5",
+          "checked": 804,
+          "changedPixels": 7,
+          "maxImageChangedPixels": 1,
+          "regenerated": false,
+          "baselineBytes": 44145453,
+          "candidateBytes": 44145460,
+          "browser": "150.0.7871.186",
+          "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+          "platform": "linux",
+          "policy": {
+            "threshold": 0.1,
+            "includeAA": false,
+            "maxChangedPixelRatio": 0.0001,
+            "maxChangedPixels": 12
+          }
+        }
+      ],
+      "merge": {
+        "name": "batch-1-merge",
+        "exit": 0,
+        "startedUtc": "2026-10-07T00:44:25.340755+00:00",
+        "durationSeconds": 1.104
+      },
+      "checked": 4824,
+      "baselineBytes": 246807746,
+      "candidateBytes": 246808830,
+      "changedPixels": 12,
+      "maxImageChangedPixels": 1,
+      "shards": 6,
+      "manifestUnchanged": true,
+      "resumePhaseSeconds": 1146.656,
+      "finishedUtc": "2026-10-07T00:44:26.444755+00:00"
+    },
+    {
+      "name": "complete-batched-archive-2",
+      "exit": 0,
+      "startedUtc": "2026-10-07T00:44:26.536802+00:00",
+      "durationSeconds": 1488.964,
+      "resumedShards": [3],
+      "shardRuns": [
+        {
+          "name": "batch-2-shard-1-attempt-1",
+          "exit": 0,
+          "startedUtc": "2026-10-07T00:44:26.536964+00:00",
+          "durationSeconds": 264.683,
+          "revision": "c4f37c6f748f2ea009271cb5cf8dbd462a6a88b0",
+          "manifestSha256": "1f33b677df78738c328925802451c5b386d779129b153cee07b1fc3801c5fba6",
+          "candidateSha256": "f38919930a87f1ba2b8c91a444b2758c2a0627d68b43a1589170ebd521c15873",
+          "shard": {
+            "index": 1,
+            "count": 6
+          },
+          "selectionSha256": "fbea255a9e475855b405c20eb17bb39df065ea5bae3e963bee0c225d306890b8",
+          "checked": 804,
+          "changedPixels": 0,
+          "maxImageChangedPixels": 0,
+          "regenerated": false,
+          "baselineBytes": 40493609,
+          "candidateBytes": 40493447,
+          "browser": "150.0.7871.186",
+          "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+          "platform": "linux",
+          "policy": {
+            "threshold": 0.1,
+            "includeAA": false,
+            "maxChangedPixelRatio": 0.0001,
+            "maxChangedPixels": 12
+          }
+        },
+        {
+          "name": "batch-2-shard-2-attempt-1",
+          "exit": 0,
+          "startedUtc": "2026-10-07T00:48:51.221857+00:00",
+          "durationSeconds": 347.905,
+          "revision": "c4f37c6f748f2ea009271cb5cf8dbd462a6a88b0",
+          "manifestSha256": "1f33b677df78738c328925802451c5b386d779129b153cee07b1fc3801c5fba6",
+          "candidateSha256": "f38919930a87f1ba2b8c91a444b2758c2a0627d68b43a1589170ebd521c15873",
+          "shard": {
+            "index": 2,
+            "count": 6
+          },
+          "selectionSha256": "5cb4b4f07bd91f676c46eea9e6af74f5f10bcd32bb727ef771dc2a1aaaee922c",
+          "checked": 804,
+          "changedPixels": 0,
+          "maxImageChangedPixels": 0,
+          "regenerated": false,
+          "baselineBytes": 41584030,
+          "candidateBytes": 41584049,
+          "browser": "150.0.7871.186",
+          "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+          "platform": "linux",
+          "policy": {
+            "threshold": 0.1,
+            "includeAA": false,
+            "maxChangedPixelRatio": 0.0001,
+            "maxChangedPixels": 12
+          }
+        },
+        {
+          "name": "resumed-shard-3",
+          "revision": "c4f37c6f748f2ea009271cb5cf8dbd462a6a88b0",
+          "manifestSha256": "1f33b677df78738c328925802451c5b386d779129b153cee07b1fc3801c5fba6",
+          "candidateSha256": "f38919930a87f1ba2b8c91a444b2758c2a0627d68b43a1589170ebd521c15873",
+          "shard": {
+            "index": 3,
+            "count": 6
+          },
+          "selectionSha256": "2b139fb9e05089f97b344f2c22332089ba4be67fccdc7b32baf5a335b37a370b",
+          "checked": 804,
+          "changedPixels": 11,
+          "maxImageChangedPixels": 2,
+          "regenerated": false,
+          "baselineBytes": 38083428,
+          "candidateBytes": 38083854,
+          "browser": "150.0.7871.186",
+          "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+          "platform": "linux",
+          "policy": {
+            "threshold": 0.1,
+            "includeAA": false,
+            "maxChangedPixelRatio": 0.0001,
+            "maxChangedPixels": 12
+          }
+        },
+        {
+          "name": "batch-2-shard-4-attempt-1",
+          "exit": 0,
+          "startedUtc": "2026-10-07T00:54:39.128169+00:00",
+          "durationSeconds": 196.083,
+          "revision": "c4f37c6f748f2ea009271cb5cf8dbd462a6a88b0",
+          "manifestSha256": "1f33b677df78738c328925802451c5b386d779129b153cee07b1fc3801c5fba6",
+          "candidateSha256": "f38919930a87f1ba2b8c91a444b2758c2a0627d68b43a1589170ebd521c15873",
+          "shard": {
+            "index": 4,
+            "count": 6
+          },
+          "selectionSha256": "cb4a6bfdfb24387469dfa1fc39715b9515d8d343218d806022e4e8e93ae014de",
+          "checked": 804,
+          "changedPixels": 1,
+          "maxImageChangedPixels": 1,
+          "regenerated": false,
+          "baselineBytes": 37819260,
+          "candidateBytes": 37819670,
+          "browser": "150.0.7871.186",
+          "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+          "platform": "linux",
+          "policy": {
+            "threshold": 0.1,
+            "includeAA": false,
+            "maxChangedPixelRatio": 0.0001,
+            "maxChangedPixels": 12
+          }
+        },
+        {
+          "name": "batch-2-shard-5-attempt-1",
+          "exit": 0,
+          "startedUtc": "2026-10-07T00:57:55.213199+00:00",
+          "durationSeconds": 383.121,
+          "revision": "c4f37c6f748f2ea009271cb5cf8dbd462a6a88b0",
+          "manifestSha256": "1f33b677df78738c328925802451c5b386d779129b153cee07b1fc3801c5fba6",
+          "candidateSha256": "f38919930a87f1ba2b8c91a444b2758c2a0627d68b43a1589170ebd521c15873",
+          "shard": {
+            "index": 5,
+            "count": 6
+          },
+          "selectionSha256": "342011a3ffbe9ec52aa1ee52e86909f84311edb5e66cb6725d0020cae4e50901",
+          "checked": 804,
+          "changedPixels": 0,
+          "maxImageChangedPixels": 0,
+          "regenerated": false,
+          "baselineBytes": 44681966,
+          "candidateBytes": 44682513,
+          "browser": "150.0.7871.186",
+          "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+          "platform": "linux",
+          "policy": {
+            "threshold": 0.1,
+            "includeAA": false,
+            "maxChangedPixelRatio": 0.0001,
+            "maxChangedPixels": 12
+          }
+        },
+        {
+          "name": "batch-2-shard-6-attempt-2",
+          "exit": 0,
+          "startedUtc": "2026-10-07T01:06:03.973716+00:00",
+          "durationSeconds": 190.784,
+          "revision": "c4f37c6f748f2ea009271cb5cf8dbd462a6a88b0",
+          "manifestSha256": "1f33b677df78738c328925802451c5b386d779129b153cee07b1fc3801c5fba6",
+          "candidateSha256": "f38919930a87f1ba2b8c91a444b2758c2a0627d68b43a1589170ebd521c15873",
+          "shard": {
+            "index": 6,
+            "count": 6
+          },
+          "selectionSha256": "a3d1280da947997663f89f65ae60f80ad501a47e2494fca11e33fdc833002ff5",
+          "checked": 804,
+          "changedPixels": 8,
+          "maxImageChangedPixels": 2,
+          "regenerated": false,
+          "baselineBytes": 44145453,
+          "candidateBytes": 44145421,
+          "browser": "150.0.7871.186",
+          "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+          "platform": "linux",
+          "policy": {
+            "threshold": 0.1,
+            "includeAA": false,
+            "maxChangedPixelRatio": 0.0001,
+            "maxChangedPixels": 12
+          }
+        }
+      ],
+      "merge": {
+        "name": "batch-2-merge",
+        "exit": 0,
+        "startedUtc": "2026-10-07T01:09:14.759790+00:00",
+        "durationSeconds": 0.741
+      },
+      "checked": 4824,
+      "baselineBytes": 246807746,
+      "candidateBytes": 246808954,
+      "changedPixels": 20,
+      "maxImageChangedPixels": 2,
+      "shards": 6,
+      "manifestUnchanged": true,
+      "resumePhaseSeconds": 1488.965,
+      "finishedUtc": "2026-10-07T01:09:15.500790+00:00"
+    }
+  ],
+  "sourceReconstructionFailure": {
+    "phase": "candidate comparison after all 804 baseline captures were reconstructed",
+    "lastProgressCaptures": 216,
+    "scene": "report-narrow",
+    "theme": "light",
+    "width": 320,
+    "language": "en",
+    "error": "clock.runFor: never rendered: .report-check input",
+    "pageErrors": [],
+    "log": "temp/m114-s-c3-source-shard-1.log",
+    "manifestRestoredSha256": "1f33b677df78738c328925802451c5b386d779129b153cee07b1fc3801c5fba6"
+  },
+  "attempts": [
+    {
+      "name": "batch-1-shard-1-attempt-1",
+      "exit": 0,
+      "startedUtc": "2026-10-07T00:13:35.966300+00:00",
+      "durationSeconds": 209.584
+    },
+    {
+      "name": "batch-1-shard-2-attempt-1",
+      "exit": 0,
+      "startedUtc": "2026-10-07T00:17:05.552781+00:00",
+      "durationSeconds": 198.04
+    },
+    {
+      "name": "batch-1-shard-3-attempt-1",
+      "exit": 0,
+      "startedUtc": "2026-10-07T00:25:19.831549+00:00",
+      "durationSeconds": 239.354
+    },
+    {
+      "name": "batch-1-shard-4-attempt-1",
+      "exit": 0,
+      "startedUtc": "2026-10-07T00:29:19.221536+00:00",
+      "durationSeconds": 272.561
+    },
+    {
+      "name": "batch-1-shard-5-attempt-1",
+      "exit": 0,
+      "startedUtc": "2026-10-07T00:33:51.784668+00:00",
+      "durationSeconds": 231.046
+    },
+    {
+      "name": "batch-1-shard-6-attempt-1",
+      "exit": 1,
+      "startedUtc": "2026-10-07T00:37:42.832208+00:00",
+      "durationSeconds": 112.061,
+      "errorTail": "visual: 72 captures\nvisual: 144 captures\nvisual: 216 captures\nvisual: 288 captures\nvisual: 360 captures\nvisual: 432 captures\nvisual: 504 captures\nfile:///home/randy/lanes/M114S/scripts/check-visual.mjs:290\n          throw new Error(`${captureKey(capture)}: ${error.message}`, { cause: error })\n                ^\n\nError: panel/markdown/default/dracula/690: Visual regression: 475 changed pixel(s), allowance 12\n    at file:///home/randy/lanes/M114S/scripts/check-visual.mjs:290:17\n    at async captureMatrix (file:///home/randy/lanes/M114S/test/harness/goldens/capture.mjs:291:13)\n    at async main (file:///home/randy/lanes/M114S/scripts/check-visual.mjs:267:23)\n    at async file:///home/randy/lanes/M114S/scripts/check-visual.mjs:338:3 {\n  [cause]: Error: Visual regression: 475 changed pixel(s), allowance 12\n      at comparePixels (file:///home/randy/lanes/M114S/scripts/lib/visualImages.mjs:99:11)\n      at file:///home/randy/lanes/M114S/scripts/check-visual.mjs:280:27\n      at async captureMatrix (file:///home/randy/lanes/M114S/test/harness/goldens/capture.mjs:291:13)\n      at async main (file:///home/randy/lanes/M114S/scripts/check-visual.mjs:267:23)\n      at async file:///home/randy/lanes/M114S/scripts/check-visual.mjs:338:3\n}\n\nNode.js v24.18.0\n"
+    },
+    {
+      "name": "batch-1-shard-6-attempt-2",
+      "exit": 0,
+      "startedUtc": "2026-10-07T00:39:35.477458+00:00",
+      "durationSeconds": 289.799
+    },
+    {
+      "name": "batch-1-merge",
+      "exit": 0,
+      "startedUtc": "2026-10-07T00:44:25.340755+00:00",
+      "durationSeconds": 1.104
+    },
+    {
+      "name": "batch-2-shard-1-attempt-1",
+      "exit": 0,
+      "startedUtc": "2026-10-07T00:44:26.536964+00:00",
+      "durationSeconds": 264.683
+    },
+    {
+      "name": "batch-2-shard-2-attempt-1",
+      "exit": 0,
+      "startedUtc": "2026-10-07T00:48:51.221857+00:00",
+      "durationSeconds": 347.905
+    },
+    {
+      "name": "batch-2-shard-4-attempt-1",
+      "exit": 0,
+      "startedUtc": "2026-10-07T00:54:39.128169+00:00",
+      "durationSeconds": 196.083
+    },
+    {
+      "name": "batch-2-shard-5-attempt-1",
+      "exit": 0,
+      "startedUtc": "2026-10-07T00:57:55.213199+00:00",
+      "durationSeconds": 383.121
+    },
+    {
+      "name": "batch-2-shard-6-attempt-1",
+      "exit": 1,
+      "startedUtc": "2026-10-07T01:04:18.336269+00:00",
+      "durationSeconds": 105.131,
+      "errorTail": "visual: 72 captures\nvisual: 144 captures\nvisual: 216 captures\nvisual: 288 captures\nvisual: 360 captures\nvisual: 432 captures\nvisual: 504 captures\nfile:///home/randy/lanes/M114S/test/harness/goldens/capture.mjs:250\n            throw new Error(\n                  ^\n\nError: Visual scene failed: history-archived/dracula/690/en: clock.runFor: Error: never rendered: .history-toggle input\n    at look (http://127.0.0.1:39683/test/harness/index.html?scenario=history-archived&theme=dracula:122:19)\n    at http://127.0.0.1:39683/test/harness/index.html?scenario=history-archived&theme=dracula:124:43\n    at ClockController._callFirstTimer (<anonymous>:285:20)\n    at ClockController._runTo (<anonymous>:120:33)\n    at async <anonymous>:111:7\n    at async ClockController._runWithDisabledRealTimeSync (<anonymous>:184:7)\n    at async ClockController.runFor (<anonymous>:110:5)\n    at async <anonymous>:337:30; page errors: none\n    at captureMatrix (file:///home/randy/lanes/M114S/test/harness/goldens/capture.mjs:250:19)\n    at async main (file:///home/randy/lanes/M114S/scripts/check-visual.mjs:267:23)\n    at async file:///home/randy/lanes/M114S/scripts/check-visual.mjs:338:3 {\n  [cause]: clock.runFor: Error: never rendered: .history-toggle input\n      at look (http://127.0.0.1:39683/test/harness/index.html?scenario=history-archived&theme=dracula:122:19)\n      at http://127.0.0.1:39683/test/harness/index.html?scenario=history-archived&theme=dracula:124:43\n      at ClockController._callFirstTimer (<anonymous>:285:20)\n      at ClockController._runTo (<anonymous>:120:33)\n      at async <anonymous>:111:7\n      at async ClockController._runWithDisabledRealTimeSync (<anonymous>:184:7)\n      at async ClockController.runFor (<anonymous>:110:5)\n      at async <anonymous>:337:30\n      at openScene (/home/randy/lanes/M114S/test/harness/goldens/capture.mjs:70:20)\n      at async captureMatrix (/home/randy/lanes/M114S/test/harness/goldens/capture.mjs:248:13)\n      at async main (/home/randy/lanes/M114S/scripts/check-visual.mjs:267:23)\n      at async file:///home/randy/lanes/M114S/scripts/check-visual.mjs:338:3 {\n    log: []\n  }\n}\n\nNode.js v24.18.0\n"
+    },
+    {
+      "name": "batch-2-shard-6-attempt-2",
+      "exit": 0,
+      "startedUtc": "2026-10-07T01:06:03.973716+00:00",
+      "durationSeconds": 190.784
+    },
+    {
+      "name": "batch-2-merge",
+      "exit": 0,
+      "startedUtc": "2026-10-07T01:09:14.759790+00:00",
+      "durationSeconds": 0.741
+    }
+  ],
+  "resumedAfterReadinessExperiments": true,
+  "captureDriverRestoredSha256": "fe3913f6a6622fc9f67936cdcaaa07c95480f4b19b2cc7fc5422e3f51fa0f9a0",
+  "captureInputsUnchangedFromCandidateCommit": true,
+  "baselineManifestUnchanged": true,
+  "sourceSnapshotCleanupReceipt": "c3-paired-capture.json"
+}

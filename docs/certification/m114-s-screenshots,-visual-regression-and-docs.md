@@ -579,3 +579,163 @@ each source is restored SHA-256-exact. The durable receipt is
 
 The page-mount diagnostic, consecutive complete comparisons and four final
 UI drills follow below; this intermediate piece does not claim certification.
+
+## Continuation 3: mount investigation and final UI drills
+
+The previous log cannot identify the exact historical scene: progress prints
+only every 72 captures. The retained full error has no trace, page errors or
+resource measurements.
+The recorded order (six themes, two widths, 67 scenes, six states) bounds that
+last batch to **Dracula / 690 px / English**. It does not identify its scene.
+Only the nine root-waiting scenes from Tasks through Verify remain candidates;
+the three What's New entries bypass the root barrier. Question scenarios are
+earlier in the loop, and their paused timers have not advanced when this
+barrier waits, so their old fixed delays cannot explain this specific timeout.
+The new owned diagnostic wrapper names the scene,
+theme, width, English language and page errors without changing the 30-second
+page deadline. A complete diagnostic on the unchanged product passes
+**4,824/4,824**, **12 changed pixels total**, at most **2 in one image**.
+Its recorded UTC bounds are 23:15:21–23:38:08 (about **22m47s**).
+The manifest remains SHA-256-exact. This process began before the shard
+implementation; it is diagnostic evidence rather than either final pass.
+
+The late 13-scene Dracula/690 probe also completes. A separate Tasks probe
+repeats 500 actual mounts on Dracula/690/English with a two-second exploratory
+wait; no mount exceeds it. The shorter earlier 500 ms probe catches a loading
+fallback after its deadline, not a missing root. `/tmp` stays below 70%
+(39–46% in observations so far). The complete driver owns one persistent
+context and a reusable scene page, closes its font-probe page and cleans its
+browser/profile/fixtures in finally. No increasing process count or resource
+exhaustion is observed. These facts do not prove the old failure's cause.
+
+An artificial attempt removes MessageChannel only in a test Tasks document
+to exercise React's timer scheduler. Its capture and cleanup do not finish. Two
+different attempted repairs (advance before waiting, then resume until Tasks
+rows appear) still fail at unchanged repository deadlines. The shared rule
+requires stopping that path after two failed fixes. Both changes and the
+experimental test are removed; the owned driver restores SHA-256-exact to
+`fe3913f6a6622fc9f67936cdcaaa07c95480f4b19b2cc7fc5422e3f51fa0f9a0`.
+No forced-scheduler result is claimed as the original root cause or a passing
+guard. This turn's scratch profiles are deleted after their browsers end;
+older inactive scratch directories are retained. Ignored logs name every
+attempt. Q-M114S in PLAN §3 records the requested historical trace/resource
+handoff; the original mount cause remains unconfirmed.
+
+All four actual UI drills run again on committed `f3ee8572a` against the exact
+reviewed archive and fail: **2,252 border / 1,659 token-colour / 434 layout /
+54 missing-icon pixels**, each against allowance **12**. Every product file
+restores SHA-256-exact. [The final receipt](m114-s-after/c3-ui-drills.json)
+records their UTC bounds and sources. No baseline, paint or tolerance changes.
+
+The owning browser suites exceed their unchanged 10-second setup deadlines
+both in the loaded attempt and in separate isolated runs. Those failures are
+retained, not counted as guard drills. The actual cause in the owned tests is
+too much capture work in one hook: six representative scenes or three repeat
+scenes. Each existing scene now has its own setup hook, retaining all 36
+representative images, both 18-image stability sets and every assertion.
+The two complete suites pass **6/6 assertions in 20.76 s**, with default
+deadlines and at most three workers. No test is skipped or filtered.
+The new cross-scene rasterization binding deliberately rejects a changed
+fingerprint without timing out; its test file restores SHA-256-exact.
+[The raster drill receipt](m114-s-after/c3-raster-drill.json) records it.
+
+The first final unsharded archive comparison also passes **4,824/4,824**,
+**10 changed pixels total**, at most **1 per image**, in **1,430.987 s**
+(23m51s). A subsequent source reconstruction renders every **804 baseline
+image** in shard 1 from the recorded Git source, then its candidate replay
+fails after progress 216 at **report-narrow/light/320/en**, with no page
+errors and `never rendered: .report-check input` inside `clock.runFor`.
+It restores the manifest and cleans source, PNG, browser and fixture scratch.
+This source attempt is a failed comparison, not either final batched pass.
+
+A controlled diagnostic delays only the report lazy JavaScript chunk by
+3,500 ms. The same harness error fires **261 ms** after its request, with
+one `[data-deferred-loading]` fallback and zero checkboxes: a simulated
+3,000 ms polling deadline races real lazy loading. The initial probe's
+instrumentation accidentally inspected the already closed font-probe page;
+that instrumentation is corrected, and only the corrected observation is
+claimed. [The diagnostic receipt](m114-s-after/c3-report-readiness.json)
+records the exact frame and pending loading state. This proves a readiness
+race can produce the new report error; it does not establish the cause of the
+older root timeout or prove the uncaptured report failure's resource timing.
+
+An experimental `visualReadiness.test.mjs` delays only the real report chunk
+by **1,000 ms**. Before a repair its complete owning suite exits **1** with
+the exact `never rendered: .report-check input` error (4.78 s, default
+deadlines). Two owned repair attempts advance the 400 ms scenario start,
+then wait for checkbox readiness or network-idle readiness before the other
+6,100 ms. Both exceed the unchanged 10-second setup deadline. The shared
+stop rule applies again: both repairs and the experimental test are removed.
+The driver restores SHA-256-exact to the committed value above. No failing
+new test, placeholder repair or timeout increase ships.
+
+**H-M114S-report-readiness → harness scenario owner:** expose an explicit
+report-scenario completion marker after actual DOM readiness and the
+existing spacing assertion, and coordinate it with the capture clock under
+the real page deadline before the simulated deadline expires. Preserve
+missing-control failure and compatibility with the recorded source harness.
+This proposed foreign contract repair is unimplemented and unverified.
+Full hosted source comparison remains a handoff; a passing archive replay
+does not certify cold source reconstruction.
+
+Two 804-image archive batches pass with zero pixels before the orchestrator
+is stopped at that boundary for the experiment. On restoring the exact
+driver and CHANGELOG inputs, their verified receipts can be resumed: they
+have the same candidate and manifest hashes as every remaining shard. The
+real merge command must accept all six before counting a complete pass.
+
+## Continuation 3: final local comparison receipts
+
+[The final receipt](m114-s-after/c3-comparison.json) verifies two consecutive
+complete local matrix passes on the unchanged committed capture inputs:
+
+| Run                    | Images | Wall time            | Total changed pixels | Maximum per image |
+| ---------------------- | ------ | -------------------- | -------------------- | ----------------- |
+| First, resumed         | 4,824  | 1,850.478 s (30m50s) | 12                   | 1                 |
+| Second, fresh captures | 4,824  | 1,488.964 s (24m49s) | 20                   | 2                 |
+
+Every successful shard has 804 images, the exact reviewed manifest and
+candidate hashes, Chrome 150.0.7871.186, Linux and the recorded font
+fingerprint. Both real merges exit 0 and enforce complete unique coverage
+and both combined 512 MiB budgets. The manifest remains byte-identical.
+The first run resumes verified batches 1 and 2 after the reverted experiment.
+The second uses a byte-identical ignored Git snapshot for independent work;
+[its receipt](m114-s-after/c3-paired-capture.json) verifies 636 capture-input
+files, records the real CLI results and confirms snapshot cleanup. Paused
+orchestration time is included in wall times; all images are actual captures.
+
+Each run needs one final-batch retry. First, `markdown/dracula/690/en`
+rejects 475 code-text pixels where the reviewed code is highlighted and the
+candidate is plain. [The visual diagnosis](m114-s-after/c3-highlight-readiness.json)
+records the bounds and exact PNG hashes. The lazy HighlightedCode Suspense
+fallback lacks the pending marker the capture driver waits for.
+**H-M114S-code-highlight-readiness → webview/harness owner:** mark only that
+asynchronous fallback and coordinate its bounded settlement with the clock;
+keep open/unknown-language plain blocks eligible and preserve recorded-source
+compatibility. No production component is edited or tolerance relaxed.
+Second, `history-archived/dracula/690/en` fails its simulated
+`.history-toggle input` deadline with no page errors. Include that exact
+scenario in H-M114S-report-readiness. Its resource timing was not captured.
+Both retry attempts pass the original policy; neither failed attempt is
+classified as a deliberate red drill or erased from the receipt.
+
+Final default-deadline verification: **21 pure assertions** (three complete
+files, 3.73 s), **5 capture assertions** (12.90 s) and **1 stability assertion**
+(40.49 s). The first final stability attempt exceeds a 10-second setup hook;
+the unchanged isolated retry passes. The capture assertion run and an automatically resumed capture build
+accidentally overlap the compiler's tail; all pass, and later checks run serially.
+[The check receipt](m114-s-after/c3-final-checks.json) retains that limitation
+and the failed attempt. Five-project typecheck, scoped ESLint, plain knip,
+jscpd, localization, tokens and host-API checks pass. All four final real UI
+drills and all five shard guard drills remain red with byte-exact restores.
+
+These receipts satisfy the two local complete comparisons and final drills.
+They do not resolve the historical uncaptured root timeout or certify cold
+hosted reconstruction. Q-M114S and both readiness handoffs remain open.
+Full quality, hosted jobs and the unchanged 12,741-byte startup compaction
+remain integration-owned. No merge, push, live/paid call or gate waiver occurs.
+
+The final `npm run build` exits 0 with all budgets unchanged: extension
+438.4/600 KiB, Model API 446.9/475 KiB, ACP 819.3/850 KiB, eager webview
+793.2/900 KiB and its deferred chunk 49.7/50 KiB. Bundle splits, globals
+and notices pass. Full quality is not run on this lane.
