@@ -2651,7 +2651,7 @@
   "referenceAuthStatus": "Comprobar si hay una clave Model API guardada.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "Gestiona las cuentas de un proveedor: listar, añadir, eliminar, ordenar y umbrales. Las credenciales solo provienen de la entrada estándar.",
-  "referenceDeveloper": "Muestra las opciones de desarrollador, las desbloquea o gestiona perfiles locales aislados de prueba en esta máquina.",
+  "referenceDeveloper": "Muestra o desbloquea las opciones de desarrollador de esta máquina. Las operaciones de perfiles requieren un gestor de recursos conectado.",
   "referenceAuthClear": "Eliminar la clave Model API guardada.",
   "referenceCliOptions": {
     "backend": "--backend museCode|modelApi      Quién paga: Muse Code (predeterminado) o la clave de Model API",
@@ -2674,7 +2674,7 @@
     "model": "Elegir el modelo de esta ejecución.",
     "provider": "--provider <id>                   El proveedor al que pertenece la cuenta (auth set, serve).",
     "account": "--account <id>                    La cuenta que se utilizará (auth set, serve, exec).",
-    "account-pool": "--account-pool                  Permite que exec cambie de cuenta al alcanzar tus propios límites, nunca con key-stdin en CI.",
+    "account-pool": "--account-pool                  Solicita un conjunto de cuentas; no está disponible hasta conectar su gestor de recursos. Nunca con key-stdin en CI.",
     "effort": "Elige cuánto esfuerzo dedica Muse a cada respuesta.",
     "output": "Elegir el formato del resultado: text, json o jsonl.",
     "max-budget-usd": "Fijar el límite estricto de gasto en USD para esta ejecución.",

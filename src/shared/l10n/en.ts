@@ -67,7 +67,7 @@ export const EN = {
       '--provider <id>                   The provider the account belongs to (auth set, serve).',
     account: '--account <id>                    The account to use (auth set, serve, exec).',
     'account-pool':
-      '--account-pool                  Let exec swap accounts at your own caps, never with key-stdin in CI.',
+      '--account-pool                  Request account pooling. Requires a bound resource owner; excludes key-stdin in CI.',
     effort: 'Choose how much effort Muse puts into each reply.',
     output: 'Choose the result format: text, json or jsonl.',
     'max-budget-usd': 'Set the hard spending limit in USD for this run.',
@@ -90,7 +90,7 @@ export const EN = {
   referenceAccounts:
     'Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input.',
   referenceDeveloper:
-    'Show developer options, unlock them, or manage isolated local testing profiles on this machine.',
+    'Show or unlock machine-local developer options. Profile operations require a connected resource owner.',
   referenceTabLanguages: 'Choose a language to switch Tab suggestions on or off for it.',
   referenceTabMenu:
     'Turn Tab off; Snooze for 15 minutes; Snooze for an hour; Snooze until restart; Tab languages…; Multi-line mode…; Account & usage. When Copilot causes Tab to yield, the menu also offers disabling Copilot for the current language or running both.',

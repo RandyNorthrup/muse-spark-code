@@ -319,16 +319,19 @@ their existing behavior and never enter the question clock.
 
 ## Several accounts per provider (M108)
 
-`/accounts list` shows the session's accounts, `/accounts current` the one
-in use, `/accounts use <id>` moves the session to the named account, and
-`/accounts thresholds [id]` shows the configured use thresholds. The same
-surface answers with no model turn. A session may also start on one account
-through the `account` session option. Adding, removing and ordering accounts
-happens in the panel or through `providers accounts` in a terminal; keys are
-taken only from standard input, never an argument or a file. Swap and stop
-notices arrive as session text naming the account now in use or the reset
-time. See [the milestone certification](certification/m108.md) for what is
-bound and what waits for a capture or an installed editor.
+`/accounts list`, `/accounts current` and `/accounts thresholds [id]`
+read local metadata without a model turn. The command parser and event adapter
+also support `/accounts use <id>` and the `account` session option through an
+injected profile-owned pool. The installed runtime currently refuses changing
+the backend credential; that pool awaits M95/M109. It never reports a swap
+while retaining another account's key.
+
+The terminal's `providers accounts` commands manage metadata, ordering,
+thresholds and stored API keys. Keys are read only from standard input,
+never an argument or file. The panel's account section and automatic swap/stop
+notices await the installed M95/M102/M104/M109 bindings in every editor.
+See [the milestone certification](certification/m108.md) for those blockers
+and the injected-port tests.
 
 ## Paid features
 

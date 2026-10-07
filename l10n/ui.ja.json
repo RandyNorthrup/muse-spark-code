@@ -2459,7 +2459,7 @@
   "referenceAuthStatus": "Model API キーが保存されているか確認します。",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "1 つのプロバイダーのアカウントを管理します。一覧表示、追加、削除、順序、しきい値。認証情報は標準入力からのみ受け取ります。",
-  "referenceDeveloper": "開発者向けオプションの表示、ロック解除、またはこのコンピューター上の分離されたローカルテストプロファイルの管理。",
+  "referenceDeveloper": "このコンピューターの開発者向けオプションを表示またはロック解除します。プロファイル操作には接続済みのリソース管理機構が必要です。",
   "referenceAuthClear": "保存済みの Model API キーを削除します。",
   "referenceCliOptions": {
     "backend": "--backend museCode|modelApi      支払い元: Muse Code (既定) または Model API キー",
@@ -2482,7 +2482,7 @@
     "model": "この実行に使用するモデルを選択します。",
     "provider": "--provider <id>                   アカウントが属するプロバイダー (auth set, serve)。",
     "account": "--account <id>                    使用するアカウント (auth set, serve, exec)。",
-    "account-pool": "--account-pool                  exec が自分の上限でアカウントを切り替えられるようにする (CI の key-stdin では不可)。",
+    "account-pool": "--account-pool                  アカウントプールを要求します。リソース管理機構の接続まで利用できません。CI の key-stdin では使用できません。",
     "effort": "各回答に Muse がかける手間を選びます。",
     "output": "結果形式をtext、json、jsonlから選びます。",
     "max-budget-usd": "この実行の厳格な支出上限をUSDで設定します。",

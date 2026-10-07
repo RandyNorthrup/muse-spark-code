@@ -5394,6 +5394,8 @@ export const DEVELOPER_UNLOCK_MS = DEVELOPER_OPTIONS_EXPIRY_DAYS * 24 * 60 * 60 
 export const DEVELOPER_VERSION_CLICKS = 7
 export const DEVELOPER_CLICK_WINDOW_MS = 10_000
 export const DEVELOPER_MAX_PROFILES = 8
+// A leading letter plus 120 random bits fits the shared 32-character id.
+export const DEVELOPER_PROFILE_ID_BYTES = 15
 export const DEVELOPER_AUDIT_MAX_BYTES = 256 * 1024
 export const DEVELOPER_STATE_MAX_BYTES = 16 * 1024
 export const DEVELOPER_UI_BUDGET_BYTES = 25 * 1024

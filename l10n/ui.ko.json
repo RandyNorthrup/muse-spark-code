@@ -2459,7 +2459,7 @@
   "referenceAuthStatus": "Model API 키가 저장되어 있는지 확인합니다.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "한 제공자의 계정을 관리합니다. 목록, 추가, 삭제, 순서 및 임계값. 자격 증명은 표준 입력에서만 받습니다.",
-  "referenceDeveloper": "개발자 옵션을 표시하거나 잠금을 해제하고, 이 컴퓨터의 격리된 로컬 테스트 프로필을 관리합니다.",
+  "referenceDeveloper": "이 컴퓨터의 개발자 옵션을 표시하거나 잠금을 해제합니다. 프로필 작업에는 연결된 리소스 관리자가 필요합니다.",
   "referenceAuthClear": "저장된 Model API 키를 제거합니다.",
   "referenceCliOptions": {
     "backend": "--backend museCode|modelApi      결제 주체: Muse Code(기본값) 또는 Model API 키",
@@ -2482,7 +2482,7 @@
     "model": "이 실행에 사용할 모델을 선택합니다.",
     "provider": "--provider <id>                   계정이 속한 제공자 (auth set, serve).",
     "account": "--account <id>                    사용할 계정 (auth set, serve, exec).",
-    "account-pool": "--account-pool                  exec가 자신의 상한에서 계정을 전환하도록 허용 (CI의 key-stdin에서는 불가).",
+    "account-pool": "--account-pool                  계정 풀을 요청합니다. 리소스 관리자가 연결될 때까지 사용할 수 없습니다. CI에서 key-stdin과 함께 사용할 수 없습니다.",
     "effort": "각 답변에 Muse가 들이는 노력을 선택합니다.",
     "output": "결과 형식을 text, json 또는 jsonl로 선택합니다.",
     "max-budget-usd": "이 실행의 엄격한 지출 한도를 USD로 설정합니다.",

@@ -555,16 +555,16 @@ question open, even when interactive deferral is disabled.
 
 ## Several accounts per provider
 
-One provider can hold several accounts, each with its own key, label, order,
-limit group and thresholds. The main conversation stays on its account; when
-an account reaches a threshold the next request can move to the next account
-with room (`museSpark.accountSwap`, on by default), and background work
-spreads across accounts by headroom (`museSpark.accountParallel`, on by
-default). Each request carries only its own account's credential, and a
-removed account's secret is gone.
+Accounts keep separate credentials, labels, order, limit groups and thresholds.
+The terminal can manage their metadata and choose a fixed account for a
+headless run. Automatic swapping, parallel admission, device placement and
+the editor panel/usage mounts await the provider, journal and shared-owner
+integration listed in [M108's certification](docs/certification/m108.md).
+`museSpark.accountSwap` and `museSpark.accountParallel` are machine-scoped
+and default on; they do not enable those missing integrations by themselves.
 
-Manage them through the agent on the command line (credentials only from
-standard input, never an argument or a file):
+Manage metadata through the agent (credentials only from standard input,
+never an argument or a file):
 
 - `muse-spark-code-acp providers accounts list --provider <id>`
 - `muse-spark-code-acp providers accounts add --provider <id> --account <id> --label <label>`
@@ -572,11 +572,38 @@ standard input, never an argument or a file):
 - `muse-spark-code-acp auth set --provider <id> --account <id>` (then paste the key)
 - `muse-spark-code-acp exec --account <id> <prompt>` pins one run to one account
 
-`exec --account-pool` and in-session swaps need the pooled runtime and report
-unavailable; second Muse Code accounts, ChatGPT-plan recovery and the usage
-page arrive with their captures. The paid gate, daily budgets and approvals
-apply per account. [The policy record](docs/certification/m108-policy.md)
-lists each provider's account terms with dated quotes.
+`exec --account-pool` and in-session credential swaps report unavailable
+until the pooled owner is connected. ACP's `/accounts` and `account` picker
+read live metadata; choosing another account also reports unavailable.
+Second Muse Code accounts and cross-account native replay/cache evidence
+wait for the Q-M108 captures. The usage-page mount awaits M102's journal;
+it must keep outstanding reservations and uncertain charges across resets.
+The shared paid gate, daily budget and conversation cap never reset on a
+swap, and a different account needs its own first-charge consent.
+
+Placement defaults to one account per provider per device. Another account
+needs another paired device, or the machine-scoped, default-off
+`museSpark.accounts.severalOnThisDevice` option. That option requires the
+provider's terms confirmation and isolated local profiles, labelled “on this
+PC”. The installed profile/placement owner is still pending, so the setting
+does not currently start another account process.
+
+`muse-spark-code-acp developer` opens the terminal's machine-local Developer
+options after typed confirmation; `developer status` shows its state. The
+shared editor unlocks use seven clicks on the version within ten seconds or
+**Muse Spark: Developer options**, once their palette/About mounts land.
+Testing mode is badged and audited, expires, and Reset stops and removes only
+its recorded profiles. The visible several-account option has no developer
+badge or expiry. Profile start and cleanup report unavailable until their
+resource owner is bound; no successful cleanup is claimed in its absence.
+
+The [policy record](docs/certification/m108-policy.md), checked 2026-10-05,
+lists every provider's pooling decision with its clause, source and date.
+“Confirmation required” quotes the restriction and offers Confirm, Only at
+my own caps, or Cancel; one-account-per-person rules also apply at user caps.
+Accounts sharing a vendor limit group add no capacity against that limit.
+These rules hold on every device and in developer mode. Nothing creates
+accounts, changes request identity or moves a credential to another device.
 
 ## Permission modes
 

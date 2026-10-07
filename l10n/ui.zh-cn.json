@@ -2459,7 +2459,7 @@
   "referenceAuthStatus": "检查是否存储了 Model API 密钥。",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "管理同一提供商的账号：列出、添加、删除、排序和阈值。凭据仅来自标准输入。",
-  "referenceDeveloper": "显示开发者选项、将其解锁，或管理本机上隔离的本地测试配置文件。",
+  "referenceDeveloper": "显示或解锁本机开发者选项。配置文件操作需要连接资源管理组件。",
   "referenceAuthClear": "删除已存储的 Model API 密钥。",
   "referenceCliOptions": {
     "backend": "--backend museCode|modelApi      由谁付费：Muse Code（默认）或 Model API 密钥",
@@ -2482,7 +2482,7 @@
     "model": "选择本次运行的模型。",
     "provider": "--provider <id>                   该账号所属的提供商（auth set、serve）。",
     "account": "--account <id>                    要使用的账号（auth set、serve、exec）。",
-    "account-pool": "--account-pool                  允许 exec 在达到自己的上限时切换账号（在 CI 中使用 key-stdin 时不可）。",
+    "account-pool": "--account-pool                  请求账户池；连接其资源管理组件之前不可用。CI 中不可与 key-stdin 一起使用。",
     "effort": "选择 Muse 在每条回答上投入的工作量。",
     "output": "选择结果格式：text、json或jsonl。",
     "max-budget-usd": "以USD设置本次运行的硬性支出上限。",

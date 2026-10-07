@@ -2555,7 +2555,7 @@
   "referenceAuthStatus": "Ellenőrzi, hogy van-e tárolt Model API-kulcs.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "Egy szolgáltató fiókjainak kezelése: listázás, hozzáadás, eltávolítás, sorrend és küszöbértékek. A hitelesítő adatok csak a standard bemenetről érkeznek.",
-  "referenceDeveloper": "Megjeleníti a fejlesztői beállításokat, feloldja azokat, vagy elkülönített helyi tesztprofilokat kezel ezen a gépen.",
+  "referenceDeveloper": "Megjeleníti vagy feloldja a gép helyi fejlesztői beállításait. A profilműveletekhez csatlakoztatott erőforrás-kezelő szükséges.",
   "referenceAuthClear": "Eltávolítja a tárolt Model API-kulcsot.",
   "referenceCliOptions": {
     "backend": "--backend museCode|modelApi      Ki fizet: a Muse Code (alapértelmezett) vagy a Model API-kulcs",
@@ -2578,7 +2578,7 @@
     "model": "A futtatás modelljének kiválasztása.",
     "provider": "--provider <id>                   A szolgáltató, amelyhez a fiók tartozik (auth set, serve).",
     "account": "--account <id>                    A használandó fiók (auth set, serve, exec).",
-    "account-pool": "--account-pool                  Engedi, hogy az exec saját limiteknél fiókot váltson, key-stdin-nel CI-ben soha.",
+    "account-pool": "--account-pool                  Fiókcsoportot kér; az erőforrás-kezelő csatlakoztatásáig nem érhető el. CI-ben soha nem használható key-stdin mellett.",
     "effort": "Válassza ki, mennyi erőfeszítést tegyen a Muse az egyes válaszokba.",
     "output": "Az eredmény formátumának kiválasztása: text, json vagy jsonl.",
     "max-budget-usd": "A futtatás szigorú kiadási korlátjának megadása USD-ben.",

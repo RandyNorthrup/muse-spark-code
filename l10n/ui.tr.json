@@ -2555,7 +2555,7 @@
   "referenceAuthStatus": "Model API anahtarının kayıtlı olup olmadığını denetleyin.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "Bir sağlayıcının hesaplarını yönetir: listeleme, ekleme, kaldırma, sıralama ve eşikler. Kimlik bilgileri yalnızca standart girdiden gelir.",
-  "referenceDeveloper": "Geliştirici seçeneklerini gösterir, kilitlerini açar veya bu bilgisayardaki yalıtılmış yerel test profillerini yönetir.",
+  "referenceDeveloper": "Bu bilgisayardaki geliştirici seçeneklerini gösterir veya kilidini açar. Profil işlemleri bağlı bir kaynak yöneticisi gerektirir.",
   "referenceAuthClear": "Kayıtlı Model API anahtarını kaldırın.",
   "referenceCliOptions": {
     "backend": "--backend museCode|modelApi      Kim öder: Muse Code (varsayılan) veya Model API anahtarı",
@@ -2578,7 +2578,7 @@
     "model": "Bu çalıştırmanın modelini seçin.",
     "provider": "--provider <id>                   Hesabın ait olduğu sağlayıcı (auth set, serve).",
     "account": "--account <id>                    Kullanılacak hesap (auth set, serve, exec).",
-    "account-pool": "--account-pool                  exec uygulamasının kendi sınırlarında hesap değiştirmesine izin verir, CI içinde key-stdin ile asla.",
+    "account-pool": "--account-pool                  Hesap havuzu ister; kaynak yöneticisi bağlanana kadar kullanılamaz. CI içinde key-stdin ile asla kullanılamaz.",
     "effort": "Muse'un her yanıta ayırdığı çabayı seçin.",
     "output": "Sonuç biçimini seçin: text, json veya jsonl.",
     "max-budget-usd": "Bu çalıştırma için USD cinsinden kesin harcama sınırı belirleyin.",

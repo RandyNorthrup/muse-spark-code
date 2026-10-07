@@ -2555,7 +2555,7 @@
   "referenceAuthStatus": "Prüfen, ob ein Model API-Schlüssel gespeichert ist.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "Verwaltet die Konten eines Anbieters: Auflisten, Hinzufügen, Entfernen, Reihenfolge und Schwellenwerte. Zugangsdaten kommen nur aus der Standardeingabe.",
-  "referenceDeveloper": "Entwickleroptionen anzeigen, entsperren oder isolierte lokale Testprofile auf diesem Computer verwalten.",
+  "referenceDeveloper": "Maschinenlokale Entwickleroptionen anzeigen oder entsperren. Profilaktionen erfordern einen angebundenen Ressourcenverwalter.",
   "referenceAuthClear": "Den gespeicherten Model API-Schlüssel entfernen.",
   "referenceCliOptions": {
     "backend": "--backend museCode|modelApi      Wer bezahlt: Muse Code (Standard) oder der Model API-Schlüssel",
@@ -2578,7 +2578,7 @@
     "model": "Das Modell für diesen Lauf wählen.",
     "provider": "--provider <id>                   Der Anbieter, zu dem das Konto gehört (auth set, serve).",
     "account": "--account <id>                    Das zu verwendende Konto (auth set, serve, exec).",
-    "account-pool": "--account-pool                  Lässt exec Konten bei eigenen Obergrenzen wechseln, nie mit key-stdin in CI.",
+    "account-pool": "--account-pool                  Kontenpool anfordern; erst verfügbar, wenn sein Ressourcenverwalter angebunden ist. Nie mit key-stdin in CI.",
     "effort": "Wählen, wie viel Mühe Muse in jede Antwort steckt.",
     "output": "Das Ergebnisformat wählen: text, json oder jsonl.",
     "max-budget-usd": "Das feste Ausgabenlimit in USD für diesen Lauf festlegen.",

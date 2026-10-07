@@ -2747,7 +2747,7 @@
   "referenceAuthStatus": "Zjistit, zda je uložen klíč Model API.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "Spravuje účty jednoho poskytovatele: výpis, přidání, odebrání, pořadí a prahové hodnoty. Přihlašovací údaje pocházejí pouze ze standardního vstupu.",
-  "referenceDeveloper": "Zobrazí možnosti pro vývojáře, odemkne je nebo spravuje izolované místní testovací profily na tomto počítači.",
+  "referenceDeveloper": "Zobrazí nebo odemkne možnosti pro vývojáře na tomto počítači. Operace s profily vyžadují připojeného vlastníka prostředků.",
   "referenceAuthClear": "Odstranit uložený klíč Model API.",
   "referenceCliOptions": {
     "backend": "--backend museCode|modelApi      Kdo platí: Muse Code (výchozí) nebo klíč Model API",
@@ -2770,7 +2770,7 @@
     "model": "Vybrat model pro tento běh.",
     "provider": "--provider <id>                   Poskytovatel, ke kterému účet patří (auth set, serve).",
     "account": "--account <id>                    Účet k použití (auth set, serve, exec).",
-    "account-pool": "--account-pool                  Umožní exec přepínat účty při vlastních limitech, nikdy s key-stdin v CI.",
+    "account-pool": "--account-pool                  Požádá o sdílení účtů; nedostupné, dokud není připojen vlastník prostředků. Nikdy s key-stdin v CI.",
     "effort": "Zvolte, kolik úsilí Muse věnuje každé odpovědi.",
     "output": "Vybrat formát výsledku: text, json nebo jsonl.",
     "max-budget-usd": "Nastavit pevný limit výdajů v USD pro tento běh.",

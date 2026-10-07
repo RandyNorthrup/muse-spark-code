@@ -3315,7 +3315,7 @@
     {
       "route": "developer",
       "name": "developer",
-      "description": "Show developer options, unlock them, or manage isolated local testing profiles on this machine.",
+      "description": "Show or unlock machine-local developer options. Profile operations require a connected resource owner.",
       "text": { "ui": "referenceDeveloper" }
     },
     {
@@ -4212,7 +4212,7 @@
     {
       "route": "exec",
       "name": "exec: --account-pool",
-      "description": "--account-pool                  Let exec swap accounts at your own caps, never with key-stdin in CI.",
+      "description": "--account-pool                  Request account pooling. Requires a bound resource owner; excludes key-stdin in CI.",
       "text": { "cli": "account-pool" },
       "contract": {
         "type": "boolean",

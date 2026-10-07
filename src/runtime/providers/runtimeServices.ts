@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 // M108/W: the runtime's parent-owned account service (K/P/H follow-ups).
 // One AccountStore per process over the runtime's providers file and the OS
 // credential store (PLAN.md D61). It serves the CLI commands, ACP sessions
@@ -25,7 +26,12 @@ import type { AccountsCommandDeps } from './accountsCommand'
 import type { ExecAccountsPort } from '../exec/execAccounts'
 import { createRuntimeBackend } from '../backends'
 import { fileAccountsMetadata } from './providersFileStore'
-import { SECRET_KEYS, SETTING_DEFAULTS, UI_TEXT } from '../../shared/constants'
+import {
+  DEVELOPER_PROFILE_ID_BYTES,
+  SECRET_KEYS,
+  SETTING_DEFAULTS,
+  UI_TEXT,
+} from '../../shared/constants'
 
 /** No M95b revoker exists outside VS Code: removing a sign-in refuses loudly
  * rather than orphan it. API keys delete normally; revoke is never called
@@ -277,18 +283,20 @@ export function createRuntimeAccountServices(
         if (entry.product === 'muse-code' || policy?.pooling === 'notOffered')
           throw new Error(UI_TEXT.developer.unavailable)
       }
+      const unavailableProfile = (): Promise<void> =>
+        Promise.reject(new Error(UI_TEXT.developer.unavailable))
       return await DeveloperOptions.open({
         machineId: hostname(),
         now,
-        newProfileId: () => now().toString(),
+        newProfileId: () => `p${randomBytes(DEVELOPER_PROFILE_ID_BYTES).toString('hex')}`,
         store: files,
         resources: {
           // Profile processes, credential slots and pool registration need
           // M109's broker binding. Nothing starts here; the failure names
           // the missing binding instead of running half a profile.
-          start: () => Promise.reject(new Error(UI_TEXT.developer.unavailable)),
-          stop: () => Promise.resolve(),
-          remove: () => Promise.resolve(),
+          start: unavailableProfile,
+          stop: unavailableProfile,
+          remove: unavailableProfile,
         },
         checkAccount,
         confirm: async (question) => {

@@ -108,23 +108,24 @@ worktrees and the evaluation retain their distinct immediate policies.
 
 ## M108 account surfaces — integration status
 
-2026-10-07: integration binds the panel Accounts section, the usage page's
-account meters, ACP's `/accounts` and the `account` session option, the
-`providers accounts` CLI and exec's `--account`/`--account-pool`, over the
-shared core and the lazy `dist/runtimeAccounts.js` bundle. Second Muse Code
-accounts and cross-account replay/cache facts wait for the Q-M108 captures;
-installed-editor rows above retain their existing status. Recorded in
-[M108's record](../certification/m108.md).
+2026-10-07: shared account components and injected pool/placement ports are
+merged and tested, and terminal metadata/fixed-account services load through
+`dist/runtimeAccounts.js`. Panel/usage mounts, credential-changing session
+selection, automatic pooling and profile/device owners are pending on every
+editor, including VS Code. Second Muse Code accounts and cross-account
+replay/cache facts wait for Q-M108. Existing installed-host rows above do not
+certify these new account bindings. [M108's record](../certification/m108.md)
+records every named prerequisite.
 
-| Surface                                                                                                 | Accounts path                                                                                                            | Swap, usage and notices                              | Binding / evidence                                                                   |
-| ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| VS Code family, Remote SSH, WSL, containers, Codespaces                                                 | Accounts section in Models & Agents; picker, pill and threshold editors                                                  | Swap/stop rows, per-account meters on the usage page | Integrated panel/usage bindings; harness scenes and axe; installed-host checks: lead |
-| JetBrains native/JCEF, Visual Studio/WebView2, Eclipse/SWT                                              | Same shared panel through M104                                                                                           | Same rows through their mounting                     | M104; waiting for their integration                                                  |
-| Companion page                                                                                          | Same panel through the companion                                                                                         | Same rows                                            | Companion adapter (H); installed check: lead                                         |
-| ACP with forms, ACP without forms (Zed, Xcode, JetBrains, Neovim, Emacs, Sublime and other ACP clients) | `/accounts list\|current\|use <id>\|thresholds [id]>`, `account` session option                                          | Swap/stop session text                               | H's session owner and router; fake ACP suites green; installed-client checks: lead   |
-| Standalone CLI                                                                                          | `providers accounts list\|add\|remove\|order\|thresholds`, `auth set --provider <id> --account <id>` from standard input | Threshold editors take JSON                          | H's command module; unit suites green                                                |
-| Headless exec                                                                                           | `--account <id>` pins one run; `--account-pool` swaps at the run's own caps                                              | Pool refused with `--key-stdin` in CI                | runExec admission; `execAccounts` suites green                                       |
-| TUI, Muse Desktop, Muse Code second accounts                                                            | Their mounting / own config home                                                                                         | Their rows                                           | Waiting for their integration (Muse Code: Q-M108 capture)                            |
+| Surface                                                                                 | Accounts path                                                         | Current binding / evidence                                                                                                                |
+| --------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| VS Code family, Remote SSH, WSL, containers, Codespaces                                 | Shared Accounts section, picker, pill, policy prompt and usage meters | U/J injected ports and harness; M95/M102/M104 mounts and profile owner pending                                                            |
+| JetBrains native/JCEF, Visual Studio/WebView2, Eclipse/SWT                              | Same shared panel and notices                                         | Same prerequisites; native mounts and installed checks pending                                                                            |
+| Companion page                                                                          | Same shared panel through H's validated adapter                       | Authenticated M104 transport/mount and installed checks pending                                                                           |
+| ACP with/without forms: Zed, Xcode, JetBrains, Neovim, Emacs, Sublime and other clients | `/accounts` and `account` session option                              | Live metadata reads wired; selecting another credential refuses until pool/profile adoption is bound; fake router suites certify the port |
+| Standalone terminal                                                                     | `providers accounts`, account-targeted stdin `auth set`, `developer`  | Metadata/key slots and developer owner wired; profile process/credential/pool lifecycle pending                                           |
+| Headless exec                                                                           | `--account <id>` pins one run                                         | Fixed-account adapter wired; `--account-pool` refuses without the profile pool, and CI stdin never pools                                  |
+| TUI, Muse Desktop, Muse Code second accounts                                            | Same core owners / own config home                                    | Their mounts pending; Muse Code additionally requires Q-M108                                                                              |
 
 ## Native and scientific
 

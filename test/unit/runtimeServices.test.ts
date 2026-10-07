@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { SECRET_KEYS } from '../../src/shared/constants'
+import { SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 import { runtimeProvidersFile } from '../../src/runtime/providers/providersFileStore'
 import { createRuntimeAccountServices } from '../../src/runtime/providers/runtimeServices'
 import type { KeyringEntryFactory } from '../../src/runtime/keyStore'
@@ -46,7 +46,11 @@ function rig() {
   dirs.push(folder)
   seed(folder)
   const { openEntry } = keyring()
-  return createRuntimeAccountServices({ dataDir: folder, openEntry })
+  return createRuntimeAccountServices({
+    dataDir: folder,
+    openEntry,
+    now: () => Date.parse('2026-10-07T12:00:00Z'),
+  })
 }
 
 const ROW = { id: 'work', label: 'Work', order: 0, thresholds: {} } as const
@@ -134,6 +138,40 @@ describe('createRuntimeAccountServices', () => {
       const secrets = services.secretsFor('vendor', 'work', fallback)
       await expect(secrets.get(SECRET_KEYS.modelApiKey)).resolves.toBe('vendor-secret')
       await expect(secrets.get('something-else')).resolves.toBe('fallback')
+    } finally {
+      services.dispose()
+    }
+  })
+
+  it('refuses unbound profile cleanup and retains ownership after a failed launch', async () => {
+    const services = rig()
+    try {
+      await services.store.add('vendor', { ...ROW, order: 1 })
+      const owner = await services.developer({
+        readLine: () => Promise.resolve(UI_TEXT.accounts.confirm),
+        print: vi.fn(),
+      })
+      await owner.unlock('terminal')
+      await owner.setMultiple(true)
+      await expect(owner.addProfile('vendor', 'work')).rejects.toThrow(
+        UI_TEXT.developer.unavailable,
+      )
+      await expect(owner.addProfile('vendor', 'default')).rejects.toThrow(
+        UI_TEXT.developer.unavailable,
+      )
+      const profiles = owner.snapshot().profiles
+      expect(profiles).toHaveLength(2)
+      expect(new Set(profiles.map((row) => row.id)).size).toBe(2)
+      const [profile] = profiles
+      if (profile === undefined) throw new Error('failed launch lost its ownership ledger')
+      for (const cleanup of [
+        () => owner.setMultiple(false),
+        () => owner.removeProfile(profile.id),
+        () => owner.reset(),
+      ]) {
+        await expect(cleanup()).rejects.toThrow(UI_TEXT.developer.unavailable)
+        expect(owner.snapshot().profiles).toEqual(profiles)
+      }
     } finally {
       services.dispose()
     }

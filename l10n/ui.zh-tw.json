@@ -2459,7 +2459,7 @@
   "referenceAuthStatus": "檢查是否儲存了 Model API 金鑰。",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "管理同一提供者的帳號：列出、新增、刪除、排序和閾值。憑證僅來自標準輸入。",
-  "referenceDeveloper": "顯示開發者選項、將其解鎖，或管理本機上隔離的本機測試設定檔。",
+  "referenceDeveloper": "顯示或解鎖本機開發者選項。設定檔操作需要連接資源管理元件。",
   "referenceAuthClear": "刪除已儲存的 Model API 金鑰。",
   "referenceCliOptions": {
     "backend": "--backend museCode|modelApi      由誰付費：Muse Code（預設）或 Model API 金鑰",
@@ -2482,7 +2482,7 @@
     "model": "選擇本次執行的模型。",
     "provider": "--provider <id>                   該帳號所屬的提供者（auth set、serve）。",
     "account": "--account <id>                    要使用的帳號（auth set、serve、exec）。",
-    "account-pool": "--account-pool                  允許 exec 在達到自己的上限時切換帳號（在 CI 中使用 key-stdin 時不可）。",
+    "account-pool": "--account-pool                  要求帳戶集區；連接其資源管理元件之前無法使用。CI 中不可與 key-stdin 一起使用。",
     "effort": "選擇 Muse 在每則回答上投入的心力。",
     "output": "選擇結果格式：text、json或jsonl。",
     "max-budget-usd": "以USD設定本次執行的硬性支出上限。",

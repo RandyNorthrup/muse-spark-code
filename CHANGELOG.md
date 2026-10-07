@@ -9,20 +9,19 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- Several accounts per provider: each account keeps its own key, label,
-  order, limit group and use thresholds. The conversation swaps to the next
-  account with room at the next request boundary (`museSpark.accountSwap`,
-  on), background work spreads across accounts by headroom
-  (`museSpark.accountParallel`, on), and each account stays pinned to one
-  device or node. Several accounts on one PC are for testing behind
-  `museSpark.accounts.severalOnThisDevice` (off) with developer options.
-  Manage them in the panel's Accounts section, through
-  `providers accounts` and `auth set` (standard input only), ACP's
-  `/accounts` and the `account` session option, or exec's `--account` and
-  `--account-pool`. Per-account meters and swap/stop events join Account &
-  usage. The paid gate, daily budgets and approvals apply per account. The
-  [policy record](docs/certification/m108-policy.md) lists each provider's
-  account terms with dated quotes; see `docs/certification/m108.md`.
+- Several-account contracts, account storage, threshold admission, policy
+  confirmations and shared panel/usage/developer components, with fake
+  certification across editor ports. Terminal `providers accounts` manages
+  metadata and `auth set` accepts each credential only on standard input;
+  headless `--account` pins a run. ACP account membership refreshes live.
+  Machine-scoped `accountSwap`/`accountParallel` default on, and
+  `accounts.severalOnThisDevice` defaults off. Installed panel/usage mounts,
+  automatic pooling, credential-changing session selection and profile/device
+  owners remain unavailable until their named integrations land; second Muse
+  Code accounts additionally await Q-M108 captures. The paid gate and shared
+  budgets do not reset on an account change. See
+  [the policy record](docs/certification/m108-policy.md) and
+  [integration certification](docs/certification/m108.md).
 
 ### Fixed
 
@@ -31,6 +30,8 @@ happened, not what was planned; superseded entries are kept.
   existing size baselines. Translated tables still validate every key,
   plural form and template slot before installation. Generated help data
   is packed losslessly under its unchanged bundle cap.
+- Unbound runtime developer-profile cleanup reports unavailable and retains
+  its ownership ledger after a failed launch.
 
 ### Documentation
 

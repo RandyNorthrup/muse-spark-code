@@ -159,12 +159,13 @@ const [keys,values]=await new Response(new Blob([bytes]).stream().pipeThrough(ne
 export const EN=Object.fromEntries(keys.split('|').map((key,index)=>[key,values[index]]));`
 }
 
-// The five reference-card labels belong to chat; all other help text is lazy.
+// Reference cards and the palette help introduction belong to chat; other help is lazy.
 const deferredKey = (key) =>
   key === 'accounts' ||
   key === 'developer' ||
   UI_TEXT_REGIONS[0].keys.test(key) ||
-  (key.startsWith('reference') && !/^reference(?:Reply|Question|Comment|Remove|Title)$/.test(key))
+  (key.startsWith('reference') &&
+    !/^reference(?:Reply|Question|Comment|Remove|Title|Intro)$/.test(key))
 
 // Non-strict installed-table validation needs exactly keys, forms and slots.
 // These templates are validation data, never fallback text shown to a user.

@@ -223,6 +223,9 @@ src/core/**           backend-agnostic logic; must not import `vscode`
                       context (rules, skills, custom agents), Muse Code's
                       questions' portable registry (questions/: states, clock,
                       owner-only store port and exactly-once late delivery; M112),
+                      provider accounts and thresholds, backend pools, developer profile
+                      ownership and account usage projections (M108; installed bindings
+                      wait for M95/M102/M104/M109),
                       memory, export, worktrees, git and GitHub (push plans,
                       REST client, draft prompts), usage,
                       dictation, Muse Voice, the paid gate, network failures,
@@ -267,7 +270,9 @@ src/webview/**        React 19 app (browser project, own tsconfig);
                       useRowMenu, each row's ⋯ opener) over gooeyLayout.ts's
                       pure geometry for its fanned column of labelled
                       pills; diffTally.ts and
-                      components/DiffTally.tsx add up the conversation's edits
+                      components/DiffTally.tsx add up the conversation's edits;
+                      models/sections/accounts, usage/AccountsSection and developer/
+                      are optional M108 surfaces, mounted only through their lazy owners
 native/windows/**     dictate.ps1, the Windows dictation helper; capture.ps1,
                       Muse Voice's recorder; the job helpers' C#
                       (MuseSparkJob.cs, MuseSparkMcpLauncher.cs and the

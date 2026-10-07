@@ -89,7 +89,7 @@ export function webviewDeferredBudgetGroups(meta, questionBudgetKiB) {
     Object.entries(meta.outputs)
       .filter(
         ([, output]) =>
-          sources.some((source) => Object.hasOwn(output.inputs ?? {}, source)) ||
+          Object.keys(output.inputs ?? {}).some((source) => sources.includes(normalPath(source))) ||
           sources.includes(
             output.entryPoint === undefined ? undefined : normalPath(output.entryPoint),
           ),

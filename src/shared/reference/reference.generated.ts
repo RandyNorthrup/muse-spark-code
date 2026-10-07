@@ -3476,7 +3476,7 @@ export function referenceModel(): ReferenceModel {
         {
           '~1': 'developer',
           name: 'developer',
-          '~0': 'Show developer options, unlock them, or manage isolated local testing profiles on this machine.',
+          '~0': 'Show or unlock machine-local developer options. Profile operations require a connected resource owner.',
           text: { ui: textKeys[118] },
         },
         {
@@ -3740,7 +3740,7 @@ export function referenceModel(): ReferenceModel {
         {
           '~1': 'exec',
           name: '~s9:account-pool',
-          '~0': '--account-pool                  Let exec swap accounts at your own caps, never with key-stdin in CI.',
+          '~0': '--account-pool                  Request account pooling. Requires a bound resource owner; excludes key-stdin in CI.',
           text: { cli: textKeys[217] },
           '~3': { type: '~d', '~v': false, '~2': false, '~w': textKeys[217] },
         },

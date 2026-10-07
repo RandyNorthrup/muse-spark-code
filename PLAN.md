@@ -264,15 +264,15 @@ remains complete. Production chat carries core English inline and defers
 account/developer/help/ACP-headless fallback to its first optional surface.
 A generated compact validation table retains every deferred key, plural form
 and template slot before the installed table is accepted. The fallback chunk
-has a new **25 KiB** closure cap (14,325 B measured, plus 15%, rounded to
+has a new **25 KiB** closure cap (14,350 B measured, plus 15%, rounded to
 25 KiB). Help awaits it inside the existing accessible loading/error/retry
 boundary; account/usage/developer mount owners use the same
 `loadDeferredEnglish` handshake before their first render. Independent
 pages and integration builds retain their full inline fallback. Node help's
 generated model is losslessly Brotli packed; its zod model validation and
-reference rows remain unchanged. Startup measures 750,617 B and original
+reference rows remain unchanged. Startup measures 750,625 B and original
 deferred JS 32,867 B, within the unchanged 733.8/32.1 KiB review baselines;
-Node help measures 45,682 B against 100 KiB. No existing cap rises.
+Node help measures 45,734 B against 100 KiB. No existing cap rises.
 Certification and deliberate failure/restoration receipts: `docs/certification/m108.md`.
 
 **REL0143M (2026-10-06).** Questions retain their eager arrival and draft
@@ -26030,9 +26030,13 @@ and retain their existing loading/error/retry path. Pack Node help's generated
 data losslessly without changing its schema or rows. Prove complete fallback
 and translation equality, malformed-slot refusal, lazy placement and both
 unchanged size regressions with default-timeout tests and byte-exact drills.
-Record stale `media/usage.png` and `media/languages.png`, unavailable browser
+Record stale `media/readme/usage.png` and `media/readme/languages.png`, unavailable browser
 gates and their exact commands as release-lead handoffs. No captures or paid
-calls belong to this continuation.
+calls belong to this continuation. The runtime's still-unbound profile
+lifecycle must refuse stop/removal as explicitly as start; a failed profile
+launch retains its ownership ledger until the real resource owner can clean
+it up. Profile ids must satisfy the shared account-id schema and remain
+distinct even when two launches share a clock tick. Regress that refusal through the runtime owner, with a red drill.
 
 **FIXM108P2 (2026-10-06):** close RVM108P2's remaining P2 stop-recovery
 finding. Evaluate every model-eligible fallback candidate's complete blocking
@@ -30484,6 +30488,16 @@ aggregate certification record.
 
 ## 7. Gates
 
+**M108W final rig certification (2026-10-07).** The W brief authorizes the
+complete configured test suite in sequential batches of at most three files
+and workers, using repository-default timeouts, all listed individual static/
+build/package gates, full axe harness and README previews. Shared rules still
+prohibit the aggregate `npm run quality` and public network; aggregate coverage,
+network audit/SAST, hosted/native/editor/live receipts remain lead-owned.
+Run local hook-on commits only after their scoped proofs, then certify the
+final joined tree without loosening any gate. Every named integration handoff
+and unavailable check is explicitly disposed in `docs/certification/m108.md`.
+
 **FIXM112Q bounded-lane certification (2026-10-06).** The rig/shared brief
 forbids aggregate quality and full-suite runs; full integrated quality remains
 with the lead. Run the complete owning test files, red drills, scoped lint and
@@ -31114,6 +31128,19 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+**M108W final integration disposition (2026-10-07).** All ten reviewed lanes
+are merged and their P1/P2 repairs preserved. Runtime metadata/stdin-key and
+fixed-account bounded headless selection, settings, docs/help/reference and
+size fixes are wired. Full automatic pooling, account usage/journal, models/
+developer/native/companion mounts, isolated resource cleanup and paired-device
+routing are blocked on absent M95/M102/M104/M109/M100/M107 owners and captured
+M106/Q-M108 inputs. `docs/certification/m108.md` lists every named handoff,
+including J's mandatory `includeOutstanding: true` production-source contract;
+no real M102 adapter or installed panel is claimed. Unbound runtime profile
+start/stop/remove refuse and preserve the ownership ledger. Release lane owns
+`media/readme/usage.png` and `media/readme/languages.png` after the actual mount.
+No cap, test timeout, coverage gate or paid/capture policy is waived.
 
 - **M112 integration (2026-10-06, Windows rig).** Bind the real question store and registry to the extension and ACP launcher, with an owner-only bounded durable late-answer queue and session removal. ACP owns its deadline timer; the registry accepts its frozen arrival timing without another timer. History carries per-session counts from authenticated listed sessions. Move question UI and runtime implementation to guarded lazy closures; preserve every existing cap. Reconcile model-text readers with actual lazy ownership, prove changed guards with red controls, and record all acceptance evidence in docs/certification/m112.md. Round 2 integrates U's authoritative open set, retained history and newest-waiting dock priority while preserving session-generation delivery guards and settled outcomes. HELPREF and M104 sources are absent on this base: their named handoffs stay explicit; no substitute protocol or full catalog is invented. Live checks and hosted full quality remain with the lead; the startup growth waiver follows below.
 

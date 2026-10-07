@@ -2651,7 +2651,7 @@
   "referenceAuthStatus": "Verifica se è salvata una chiave Model API.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "Gestisce gli account di un provider: elenco, aggiunta, rimozione, ordine e soglie. Le credenziali provengono solo dallo standard input.",
-  "referenceDeveloper": "Mostra le opzioni sviluppatore, le sblocca o gestisce profili locali isolati di test su questa macchina.",
+  "referenceDeveloper": "Mostra o sblocca le opzioni sviluppatore di questa macchina. Le operazioni sui profili richiedono un gestore delle risorse collegato.",
   "referenceAuthClear": "Rimuovi la chiave Model API salvata.",
   "referenceCliOptions": {
     "backend": "--backend museCode|modelApi      Chi paga: Muse Code (predefinito) o la chiave Model API",
@@ -2674,7 +2674,7 @@
     "model": "Scegliere il modello per questa esecuzione.",
     "provider": "--provider <id>                   Il provider a cui appartiene l’account (auth set, serve).",
     "account": "--account <id>                    L’account da usare (auth set, serve, exec).",
-    "account-pool": "--account-pool                  Consente a exec di cambiare account ai propri limiti, mai con key-stdin in CI.",
+    "account-pool": "--account-pool                  Richiede un pool di account; non disponibile finché il gestore delle risorse non è collegato. Mai con key-stdin in CI.",
     "effort": "Scegli quanto impegno Muse dedica a ogni risposta.",
     "output": "Scegliere il formato del risultato: text, json o jsonl.",
     "max-budget-usd": "Impostare il limite rigido di spesa in USD per questa esecuzione.",
