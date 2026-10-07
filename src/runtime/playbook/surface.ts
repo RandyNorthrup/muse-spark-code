@@ -37,11 +37,18 @@ export function createPlaybookSurface(deps: PlaybookSurfaceDeps): PlaybookSurfac
   })
   return {
     read: () => Promise.resolve({ settings: policy.getSettings(), records: policy.getRecord() }),
-    change: (change: PlaybookChange) => {
-      const next = changedPlaybookSettings(policy.getSettings(), change, 'owner', Date.now())
-      const decision = policy.updateSettings(next)
-      if (decision.kind !== 'allow') throw new Error(UI_TEXT.playbookUnavailable)
-      return Promise.resolve({ settings: policy.getSettings(), records: policy.getRecord() })
+    // The port contract is rejection, never a synchronous throw: a hostile
+    // change rejects (nothing is persisted before the schema parse), so the
+    // synchronous validation is caught and carried as the rejection reason.
+    change: (change: PlaybookChange): Promise<unknown> => {
+      try {
+        const next = changedPlaybookSettings(policy.getSettings(), change, 'owner', Date.now())
+        const decision = policy.updateSettings(next)
+        if (decision.kind !== 'allow') throw new Error(UI_TEXT.playbookUnavailable)
+        return Promise.resolve({ settings: policy.getSettings(), records: policy.getRecord() })
+      } catch (error) {
+        return Promise.reject(error instanceof Error ? error : new Error(String(error)))
+      }
     },
   }
 }
