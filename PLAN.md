@@ -18820,6 +18820,33 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### CI0150M — Round 3 macOS CI repairs (2026-10-07, macmini)
+
+- [x] Reproduce the journal coverage timeout and companion authentication race;
+      replace per-byte JavaScript newline scanning with typed-array searches,
+      retaining every line, size, UTF-8, version and schema check. Prepare the
+      full benchmark in `beforeAll` at the default hook deadline. Control the
+      browser fixture's server clock so valid sessions do not expire under load;
+      expiry remains an explicit clock advance, with real browser/socket timers.
+- [x] Reproduce static gates and the native dictation build/disclaim job. Fix
+      causes without changing gates, budgets, test deadlines or assertions.
+- [x] Repair the full-shard `checkSlots` fixture cost: create its immutable Git
+      baseline once in `beforeAll`, copy it per isolated case, and certify each
+      descendant/transport-failure scenario as its own test at the default
+      deadline. Preserve real snapshot, install, credential and cache checks.
+- [x] Start the forced browser-restart discovery phase after bounded runtime
+      preparation completes (or the check ends). A first verified download must
+      not spend the unchanged discovery poll budget before the browser exists.
+      Preserve every restart, resolver, proxy, challenge and cleanup assertion.
+- [x] Commit locally with normal hooks and explicit paths, then reproduce all four
+      coverage shards, merged coverage and each locally runnable macOS workflow
+      job from fresh clones with Node 22 and `CI=true`, including installed
+      packages. Report shared failures and the installed E5 timeout; record
+      hosted W as unverified. These receipts do not claim all macOS CI jobs pass.
+- [x] Record macOS round 3 results and byte-exact regression drills in
+      `docs/certification/train-0.15.0.md`. No merge, rebase, push, credential
+      disclosure, live or paid model call is authorized.
+
 ### FIX0150R — Release review repairs for runners and usage (2026-10-07, macmini)
 
 Repair PR #136 threads PRRT_kwDOUkzj5M6p1xVd, PRRT_kwDOUkzj5M6p1xVm
@@ -40803,6 +40830,17 @@ is relaxed. No live or paid calls, push, rebase or merge.
       bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
 
 ## 7. Gates
+
+**CI0150M round 3 aggregate status (2026-10-07).** The attempted unmodified
+`npm run quality` passes static gates, then fails whole-repository tests in
+unowned clean-artifact/localization suites and load-sensitive cases. The common
+OS brief assigns cross-platform failures to the Linux lane. Certify this lane
+with every exact macOS workflow command in fresh committed clones; record all
+remaining failures rather than weaken gates or edit another lane's suites.
+Aggregate release quality remains deferred to joined integration. Standalone
+secret scanning passes; the inherited SAST wrapper supplies duplicate `--jobs`
+options and is a shared failure, also deferred without changing its invocation.
+See this lane's round 3 section in `docs/certification/train-0.15.0.md`.
 
 **FIX0150R scoped certification.** The rig brief requires complete owning test
 files in batches of at most three, with three clean `CI=true` repetitions and

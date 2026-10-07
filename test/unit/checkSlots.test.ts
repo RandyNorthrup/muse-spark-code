@@ -1,6 +1,6 @@
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import { cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   captureCheckSnapshot,
   CheckSlots,
@@ -11,22 +11,17 @@ import { runnerTestProcess as processRun, runnerTestGit as git } from './helpers
 import type { CheckJob } from '../../src/core/runners/routing'
 
 const folders: string[] = []
-async function fixture(
-  count = 1,
-): Promise<{ deps: CheckSlotDeps; job: CheckJob; folder: string; worker: string }> {
+const template: { folder?: string } = {}
+beforeAll(async () => {
   const base = path.join(process.cwd(), 'temp')
   await mkdir(base, { recursive: true })
-  const folder = await mkdtemp(path.join(base, 'm96-slot-'))
-  folders.push(folder)
-  const user = path.join(folder, 'user')
-  const worker = path.join(folder, 'worker')
-  await mkdir(user)
-  await git(user, 'init')
-  await writeFile(path.join(user, 'package-lock.json'), 'lock-1\n')
-  await writeFile(path.join(user, 'tracked.txt'), 'base')
-  await git(user, 'add', '.')
+  template.folder = await mkdtemp(path.join(base, 'm96-slot-template-'))
+  await git(template.folder, 'init')
+  await writeFile(path.join(template.folder, 'package-lock.json'), 'lock-1\n')
+  await writeFile(path.join(template.folder, 'tracked.txt'), 'base')
+  await git(template.folder, 'add', '.')
   await git(
-    user,
+    template.folder,
     '-c',
     'user.name=Fixture',
     '-c',
@@ -35,6 +30,23 @@ async function fixture(
     '-m',
     'base',
   )
+})
+afterAll(async () => {
+  if (template.folder !== undefined) await rm(template.folder, { recursive: true, force: true })
+})
+async function fixture(
+  count = 1,
+): Promise<{ deps: CheckSlotDeps; job: CheckJob; folder: string; worker: string }> {
+  if (template.folder === undefined) throw new Error('Missing slot template')
+  const base = path.join(process.cwd(), 'temp')
+  await mkdir(base, { recursive: true })
+  const folder = await mkdtemp(path.join(base, 'm96-slot-'))
+  folders.push(folder)
+  const user = path.join(folder, 'user')
+  const worker = path.join(folder, 'worker')
+  // Independent repositories retain their own index, refs and object files;
+  // only invariant Git initialization moves out of the assertion deadline.
+  await cp(template.folder, user, { recursive: true })
   await git(folder, 'clone', '--shared', user, worker)
   await writeFile(path.join(worker, 'tracked.txt'), 'working-edit')
   await writeFile(path.join(worker, 'untracked.txt'), 'untracked')
@@ -197,30 +209,34 @@ describe('persistent check slots', () => {
     expect(result.output).toBe('seed\n')
     expect(await readFile(path.join(worker, 'node_modules', 'value'), 'utf8')).toBe('copy-edit')
   })
-  it('keeps slots occupied when descendants are uncertain or a transport fails', async () => {
-    for (const phase of ['command', 'snapshot', 'copyGit'])
-      for (const shouldReject of [false, true]) {
-        const { deps, job } = await fixture()
-        const slots = new CheckSlots({
-          ...deps,
-          run: async (request) => {
-            if (
-              (phase === 'command' && request.file === process.execPath) ||
-              (phase === 'snapshot' && request.args.includes('config')) ||
-              (phase === 'copyGit' && request.args.includes('clone'))
-            ) {
-              if (shouldReject) throw new Error('connection lost')
-              const result = await processRun(request)
-              return { ...result, descendantsEnded: false }
-            }
-            return await processRun(request)
-          },
-        })
-        await expect(slots.run(job)).rejects.toThrow()
-        expect(slots.states()).toEqual([{ id: 0, busy: true, uncertain: true }])
-        await expect(slots.run(job)).rejects.toThrow()
-      }
-  })
+  it.each(
+    ['command', 'snapshot', 'copyGit'].flatMap((phase) =>
+      [false, true].map((shouldReject) => ({ phase, shouldReject })),
+    ),
+  )(
+    'keeps slots occupied when descendants are uncertain or a transport fails ($phase, rejection $shouldReject)',
+    async ({ phase, shouldReject }) => {
+      const { deps, job } = await fixture()
+      const slots = new CheckSlots({
+        ...deps,
+        run: async (request) => {
+          if (
+            (phase === 'command' && request.file === process.execPath) ||
+            (phase === 'snapshot' && request.args.includes('config')) ||
+            (phase === 'copyGit' && request.args.includes('clone'))
+          ) {
+            if (shouldReject) throw new Error('connection lost')
+            const result = await processRun(request)
+            return { ...result, descendantsEnded: false }
+          }
+          return await processRun(request)
+        },
+      })
+      await expect(slots.run(job)).rejects.toThrow()
+      expect(slots.states()).toEqual([{ id: 0, busy: true, uncertain: true }])
+      await expect(slots.run(job)).rejects.toThrow()
+    },
+  )
   it('refuses the user checkout, host pressure, untrusted work, escaped installs and missing lockfiles', async () => {
     const { deps, job } = await fixture()
     const run = vi.fn(processRun)

@@ -1863,3 +1863,218 @@ VSIX gate. **The existing 2,841,600-byte cap and every bundle cap remain unchang
 No projection from helperless bytes certifies that calculation. Aggregate
 quality, hosted/platform/native screen-reader checks and public-network checks
 remain lead-owned; no push, tag, publication, live or paid model call occurred.
+
+## CI round 3 — macOS (CI0150M, 2026-10-07)
+
+Source starts at `f033583e2` on `fix/0150-ci-m`, macmini (Intel). Hosted run
+`37606030298` reports the actual native compile successful; the failed
+“dictation helper (macos)” is the aggregate requiring every selected-tier job.
+The static job was cancelled, rather than a recorded compiler/linter failure.
+GitHub permits job metadata but refuses log download (403, admin rights).
+
+### Repairs and initial evidence
+
+With `CI=true`, both owning files reproduce the journal benchmark's 5,000 ms
+timeout under V8 coverage (5,108 ms). Trusted-root canonicalization is already
+cached; no linked-path guard is removed. Native typed-array newline search
+replaces the JavaScript per-byte loop. Full 30 × 2,000 on-disk record creation
+and the validated cold read move into `beforeAll` at the unchanged default hook
+deadline. The test still requires both reads to contain 60,000 records, zero
+warm byte reads and at most 300 ms. Final initial warm read is 86 ms.
+
+Companion browser fixtures control only `Date.now`, leaving real navigation,
+sockets and request timers. Valid credentials survive runner delays without a
+longer TTL; the expired-code case advances credential time explicitly. Existing
+fragment secrecy, independent sessions, no storage/cookies, cross-runtime bearer
+refusal and inaccessible foreign origins remain asserted. Node 22.23.3 matches
+CI's major version; its official x64 archive matches the published SHA-256
+`8a677b0219178efd6eb0e475457c4afb452b521a92f6e67845a73bd85727f2a8`.
+
+Initial complete owning files pass **28/28** with `CI=true`, `--maxWorkers=3`,
+V8 coverage and repository defaults (no `--testTimeout`). Scoped ESLint exits
+zero. Both native commands pass: universal arm64/x86_64 build, embedded version
+0.15.0, and SIGTERM relayed to the disclaimed copy with parent exit 143.
+
+Drills run against complete owning files and restore exact source bytes:
+
+- Advance the newline offset by two: **5 journal assertions fail / 14 pass**,
+  including multi-line counts, UTF-8 tails and the benchmark. Restored store
+  SHA-256 `b8d3177011f616c7db2f08723d98277fda72c69071419827b009a55f36d117e5`.
+- Prune every newly issued bearer: **3 browser cases fail / 6 pass**, including
+  independent tabs and runtimes. Restored sessions SHA-256
+  `a43de97173bdfef1ca5da3ccc4427725aacf0fdbf6efed98e13b85a119922ab5`.
+
+Full fresh-clone job results follow after the local repair commit; initial
+scoped results alone do not certify CI, merged coverage or aggregate quality.
+
+### Full-shard slot fixture repair
+
+The first complete fresh-clone shard 2 also times out two slot cases at 5,030
+and 5,195 ms. The fixture repeats Git init/add/commit for every case, and the
+uncertain-descendant test packs six independent scenarios into one deadline.
+Create the identical immutable Git baseline once in `beforeAll`, copy its
+independent index/refs/objects for each fixture, and enumerate all six scenarios
+as individual tests. Every real clone, snapshot, install, changed-lockfile,
+credential, isolation and retirement assertion is preserved. No timer, retry,
+skip or assertion is relaxed.
+
+The complete file passes **17/17** under coverage at repository defaults, then
+**17/17** after restoration. Scoped ESLint and all five TypeScript projects
+pass. Deliberately releasing an uncertain slot makes **all six** enumerated
+scenarios fail (11 other cases pass). Production source is restored byte-exact,
+SHA-256 `118dccd72117832bca41c8e0ebe81f579593a8fec5b38e27e069edc057dea75c`.
+An initial scoped coverage submission was refused before collection because
+the worktree quality run held its report directory; the actual scoped coverage
+run uses its own OS-scratch report directory.
+
+On repair commit `ce0d6f432`, the complete journal file passes 19/19 in shard 3
+and the browser file passes 9/9 in the green shard 4. All static-gate components
+exit zero from their fresh clone, including real network badge checks, all five
+typechecks, build/sizes/splits/notices and audit. Native universal compilation
+and disclaimed SIGTERM both pass. Remaining full-shard failures and the final
+post-slot-repair matrix are reported below rather than treated as green CI.
+
+### Cold browser restart preparation
+
+The complete fresh-clone browser restart job fails on first runtime acquisition:
+its 400 discovery polls start during the verified Chromium download. The check
+later completes normally, but discovery has ended before the browser appears.
+The warm diagnostic finds the browser and passes every assertion in 7,253 ms.
+Wait for bounded runtime preparation to settle (or for an early check refusal)
+before counting the unchanged discovery polls. Proxy, resolver rules, service
+restart, same browser, challenge removal, no Authorization, and cleanup
+assertions remain unchanged.
+
+Two tests execute the actual harness startup region with controlled preparation
+and early-admission completion. Both pass at defaults, both fail when the wait
+is deliberately removed, then both pass after byte-exact restoration. Harness
+SHA-256 `0d61e3885bed0770ee181b30f1b158338a272f93e64861ffc6a3cd45391bf5d2`.
+Scoped ESLint exits zero. A new empty runtime store exercises the real pinned
+download: **restartObserved**, 49,934 ms, all expectations satisfied, 5 initial
+and 28 resumed requests through the proxy, zero Authorization/challenges, no
+browser or check folder left. Model attempts: **0**. Final committed fresh-clone
+job results follow below.
+
+### Final committed fresh-clone matrix
+
+Code head **`b2328858971bedde693ec306b6f6b6aa5eb2c670`** includes repairs
+`ce0d6f432` (journal/companion), `c731960ba` (slots) and `b23288589`
+(browser acquisition/discovery). Every local job starts in a fresh clone of
+that commit with successful `npm ci`, Node **22.23.3**, and `CI=true`.
+Each shard sets `FAST=false`, `SHARD=1..4` and runs the workflow command:
+
+```sh
+npx vitest run --coverage --shard="$SHARD/4" --reporter=default --reporter=blob --outputFile="blob-reports/shard-$SHARD.json"
+```
+
+The four nonempty blobs are checked before the exact merge command. Sequential
+shard clones reuse the same absolute checkout path for blob source remapping;
+each previous clone is deleted first. Tests keep repository test/hook deadlines,
+worker configuration and all existing skips. No new skip, retry, raised timeout,
+weakened assertion or gate is added. Final code/test inventory stays fixed
+throughout. The previous diagnostic matrix overlapped an extra full worktree
+quality run and is not substituted for this final result.
+
+| macOS job / step                                      | Exit | Final result                                                                                                              | Seconds |
+| ----------------------------------------------------- | ---: | ------------------------------------------------------------------------------------------------------------------------- | ------: |
+| Static gates, complete workflow `npx run-s` chain     |    0 | Formatting, all lint, five typechecks, badges, l10n, reference, host API, knip, cycles, duplication, build and audit pass | 599.238 |
+| Unit/covered shard 1                                  |    1 | 204 files pass, 1 fails, 1 existing skip; 4,294 tests pass, 13 skip; runtimeChatGptPackage missing clean artifacts        | 154.724 |
+| Unit/covered shard 2                                  |    1 | 203 files pass, 1 fails, 2 existing skips; 3,640 tests pass, 53 skip; execStdio package fixture failures                  | 190.118 |
+| Unit/covered shard 3                                  |    0 | 201 files pass, 4 existing skips; 4,239 tests pass, 36 skip; journal 19/19 and readiness 2/2                              | 172.063 |
+| Unit/covered shard 4                                  |    0 | 204 files pass, 1 existing skip; 4,392 tests pass, 23 skip; companion browser 9/9                                         | 226.732 |
+| Required four blobs and merged coverage               |    1 | Four blobs present; thresholds pass, but failed suites remain in merged result                                            |  16.869 |
+| Native universal dictation build                      |    0 | x86_64 and arm64, embedded version 0.15.0                                                                                 |   8.544 |
+| Native disclaimed SIGTERM check                       |    0 | Both processes end, parent exit 143                                                                                       |  61.088 |
+| Supporting product ACP package                        |    0 | Actual product tarball, imports and schemas checked                                                                       |  50.027 |
+| Supporting fake-only package                          |    0 | Separate unsigned test-only tarball, different product hash                                                               |   0.981 |
+| Action gate drill suite                               |    0 | 17/17                                                                                                                     |   3.296 |
+| Action apply and Git suites                           |    0 | 56/56                                                                                                                     |  18.600 |
+| Packed launcher/local W rehearsal                     |    0 | 6/6; local rehearsal only                                                                                                 |  19.442 |
+| Browser production build                              |    0 | Existing budgets/splits/globals/notices                                                                                   |  14.061 |
+| Browser forced restart, initially empty runtime store |    0 | restartObserved, every proxy/restart/cleanup expectation passes                                                           |  64.155 |
+| Browser live suite and R51                            |    0 | 8/8                                                                                                                       |  72.975 |
+| Browser mandatory zero-skips admission                |    0 | 8 passed, 0 skipped, 0 todo, 0 failed                                                                                     |   0.062 |
+| Installed product ACP stdio                           |    1 | 12 pass, 1 fails: raw German locale file absent from shipped compressed package                                           |  19.683 |
+| Installed product headless stdio                      |    1 | 11 pass, 1 fails, 32 skip after failed package guard; additional E5 unread-output timeout                                 |  59.830 |
+| Installed headless help/refusal/schema                |    0 | Exact `test/hosts/exec.sh`                                                                                                |   1.681 |
+| Installed Keychain credential round trip              |    0 | Exact `test/hosts/keystore.sh`; fabricated credential only                                                                |   1.840 |
+| Installed headless through Keychain                   |    0 | Exact `test/hosts/exec.sh ... --store`                                                                                    |   3.125 |
+| Hosted W (macos-latest) composite Action              |    — | Unverified locally; requires hosted Actions/PR context and the candidate at its remote commit                             |       — |
+
+The static command finishes within its 15-minute job budget, including clone
+and install. Network badges verify 36 images. Localization reports zero problems;
+audit retains its existing one high-severity exception and one low advisory.
+No exception, ignore or pin changes. Merged totals: **812 passed files, 2 failed,
+8 skipped; 16,565 passed tests, 125 skipped**. Coverage is **92.54% statements,
+87.58% branches, 93.63% functions, 93.16% lines**, exceeding unchanged
+90/85/90/90 thresholds. Merge is deliberately reported failed, not green.
+
+Final restart capture: 62,255 ms inside the script, same browser, new network
+service with resolver rules before and after; 5 initial and 28 resumed challenges
+all through the proxy, zero Authorization, zero page-visible challenges, no
+browser or check folder left. Model attempts **0**. Browser runtime on this rig
+is mac-x64; these receipts do not certify an actual hosted mac-arm64 execution.
+The native output contains both architectures, with x64 exercised locally.
+
+The product tarball is 1,931,474 bytes, SHA-256
+`c5be712c1b5ccdf09a9ba37456ff1944dfb7ef51ed608415d00e6513d0e00a22`;
+the private unsigned fake-only tarball is 2,045,202 bytes, SHA-256
+`a3387c17a43496c0784220eaa75f37f1a0b907b95eef08c1ee5b50285efa6167`.
+The built native artifact is 290,368 bytes, mode 0755, SHA-256
+`d0bb6e531e8ed89572feb60d2f656ffc1f9c597378024b83761f3e2ea96c7a1e`.
+Artifacts are retained outside deleted clones in the evidence roots below,
+never published. The global-install command uses a disposable npm prefix;
+the user's global install is unchanged. Keychain default and search list are
+restored in `finally`; the owned chain and npm prefix are deleted, all cleanup
+commands exit zero. No real credential is opened by the fake stdio suites.
+
+### Remaining failures and integration ownership
+
+**All macOS CI jobs do not pass.** These exact failures remain:
+
+- Shard 1: runtimeChatGptPackage `beforeAll` copies nonexistent `dist/acp.js`
+  from a fresh unbuilt checkout.
+- Shard 2: execStdio's D package guard copies nonexistent `dist/acp.js`;
+  its E fixture omits `media/readme/banner.png`, which the packaged badge gate
+  correctly requires. No test assertion times out in either final shard.
+- Merged coverage: exit 1 carries those same three failed suites across two
+  files, even though every coverage threshold passes. Hosted coverage would
+  be skipped after failed unit dependencies; this lane runs it for evidence.
+- Installed agent job: ACP locale assertion opens nonexistent `l10n/ui.de.json`
+  rather than the shipped form; execStdio's D guard still assumes repository
+  `dist/acp.js` while running an installed package. Its E5 unread-output case
+  additionally reaches the existing 30,000 ms deadline in the final installed
+  run. The earlier installed run passed E5; retain the final failure, do not
+  retry or claim a diagnosis from that difference. E5 needs integration follow-up.
+- Hosted W composite job is **unverified**, not covered by the successful local
+  packed-launcher rehearsal. Local clones cannot recreate GitHub's Actions
+  runtime and remote PR candidate without publishing this branch; no push is
+  authorized. CI0150L explicitly owns W and the shared package suites.
+- The “quality (macos-latest)” and “dictation helper (macos)” required aggregates
+  cannot be green while selected-tier jobs fail. Native compile/disclaim itself
+  passes; changing native code would not repair those aggregate dependencies.
+
+The common OS rules and CI0150L brief assign runtimeChatGptPackage, execStdio's
+package setup and installed locale/agent package failures to Linux. Their
+assertions and guards remain untouched here. The new installed E5 observation
+is handed to integration with its failure receipt; it is not silently retried.
+An earlier worktree `npm run quality` fails after static gates at whole-suite
+artifact and load-sensitive tests; it does not certify aggregate release
+quality. The first full matrix's additional load timeouts disappear in this
+final matrix. Standalone secret scan passes all 2,104 commits (~104.55 MB),
+with no leaks. Standalone SAST fails because inherited `scripts/sast.mjs`
+supplies `--jobs` twice; its shared wrapper is left for Linux/integration,
+without disabling or altering the gate. PLAN §7 records this justified aggregate
+deferral. Hosted all-OS certification remains with the lead.
+
+Final logs, exact command arrays, exit codes and durations remain at these
+owned OS-scratch evidence roots (each contains `results.json`, `source-sha.txt`
+and per-step logs):
+
+- `/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/CI0150M-ci-zl53_8wm`
+- `/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/CI0150M-jobs-1rbqth9r`
+- `/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/CI0150M-hosts-0_npug36`
+
+Every fresh clone, including earlier diagnostic clones, is deleted. No merge,
+rebase, push, live/paid model call, credential disclosure, test deadline change,
+retry, new skip or gate weakening occurs. Normal hooks run on every local commit.

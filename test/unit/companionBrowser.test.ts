@@ -1,6 +1,6 @@
 import { createServer } from 'node:http'
 import { chromium, type Browser, type Page } from 'playwright-core'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import { call, headers, startPanel, trackedPanels } from './helpers/companion'
 
@@ -8,6 +8,7 @@ const tracked = trackedPanels()
 // Warm the real browser during file loading, before the assertion hooks. Chrome
 // startup contends with hosted-runner transforms; it is shared by all nine cases.
 const browser: Browser = await chromium.launch({ channel: 'chrome', headless: true })
+const SESSION_CLOCK_MS = Date.UTC(2026, 9, 7)
 
 /** Runs in the browser; both fetch overloads must retain the private bearer. */
 async function postFromPage(isRequest: boolean): Promise<number> {
@@ -35,6 +36,14 @@ async function openPage(page: Page, launch: string): Promise<void> {
 }
 
 describe('companion browser security', () => {
+  // Only the server's credential clock is controlled. Browser navigation and
+  // socket deadlines stay real, while runner load cannot expire a valid bearer.
+  beforeEach(() => {
+    vi.spyOn(Date, 'now').mockReturnValue(SESSION_CLOCK_MS)
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
   afterAll(async () => {
     await browser.close()
   })
@@ -315,7 +324,7 @@ describe('companion browser security', () => {
         let launch = panel.url
         if (failure === 'invalid') launch = `${panel.url}#k=invalid`
         else if (failure !== 'missing') launch = panel.launchUrl()
-        if (failure === 'expired') await new Promise((resolve) => setTimeout(resolve, 2))
+        if (failure === 'expired') vi.mocked(Date.now).mockReturnValue(SESSION_CLOCK_MS + 2)
         await page.goto(launch)
         const alert = page.getByRole('alert')
         await page.locator('html[data-launch]').waitFor()
