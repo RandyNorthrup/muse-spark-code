@@ -167,5 +167,12 @@
   "config.shell.passEnvironmentVariables.description": "傳遞給主工作階段互動式 shell 命令的環境變數名稱，包括通常被排除的憑證變數。僅填寫名稱，不填寫值。預設不傳遞。命令可能在對話中以及向模型供應商揭露這些值。驗證/then_run、排程、子代理/團隊工作者和掛鉤永遠不會接收憑證變數，即使在此列出名稱。移至背景的互動式命令保留啟動時的環境。不會變更 Muse Code 或明確設定的 MCP 伺服器環境。",
   "command.nextOpenQuestion.title": "下一個待回答的問題",
   "command.previousOpenQuestion.title": "上一個待回答的問題",
-  "config.questions.deferAfterSeconds.description": "在多少秒後暫緩未回答的問題，讓 Muse 繼續工作。預設值為 60；0 表示永不；1–9 按 10 處理；最大值為 3,600。問題會維持待回答狀態，可稍後回答。僅使用此電腦的設定。"
+  "config.questions.deferAfterSeconds.description": "在多少秒後暫緩未回答的問題，讓 Muse 繼續工作。預設值為 60；0 表示永不；1–9 按 10 處理；最大值為 3,600。問題會維持待回答狀態，可稍後回答。僅使用此電腦的設定。",
+  "command.attachScreenRecording.title": "附加螢幕錄製…",
+  "command.attachLatestScreenRecording.title": "附加最新的螢幕錄製",
+  "command.deleteUploadedFiles.title": "刪除已上傳的檔案…",
+  "config.mediaMaxUploadMiB.description": "擴充功能開啟的最大媒體檔案，單位 MiB。預設為 200；最大 1,024。更大的檔案將在讀取前被拒絕。僅使用本機的設定。",
+  "config.mediaUploadExpiryDays.description": "提供者上傳在清單中保留、直到提供清理的天數。預設為 7；1–30。過期由提供者決定；仍被其他工作階段引用的上傳永遠不會被刪除。僅使用本機的設定。",
+  "config.screenRecordingMaxSeconds.description": "擴充功能擷取的最長螢幕錄製，以秒為單位。預設為 120；10–600。錄製在達到上限時停止並保留已擷取的內容。僅使用本機的設定。",
+  "config.mediaAudioAction.description": "`transcribe` 在傳送前將附加的音訊轉成文字；`sendAudio` 在模型接受時傳送音訊。預設為轉錄。轉錄按付費語音費率計費，且必先徵得同意。僅使用本機的設定。"
 }

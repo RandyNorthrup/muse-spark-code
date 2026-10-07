@@ -312,6 +312,21 @@
         "command": "museSpark.previousOpenQuestion",
         "title": "%command.previousOpenQuestion.title%",
         "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.attachScreenRecording",
+        "title": "%command.attachScreenRecording.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.attachLatestScreenRecording",
+        "title": "%command.attachLatestScreenRecording.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.deleteUploadedFiles",
+        "title": "%command.deleteUploadedFiles.title%",
+        "category": "%command.category%"
       }
     ],
     "keybindings": [
@@ -428,6 +443,18 @@
         },
         {
           "command": "museSpark.stopBackgroundTasks",
+          "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
+        },
+        {
+          "command": "museSpark.attachScreenRecording",
+          "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
+        },
+        {
+          "command": "museSpark.attachLatestScreenRecording",
+          "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
+        },
+        {
+          "command": "museSpark.deleteUploadedFiles",
           "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
         }
       ],
@@ -1153,6 +1180,40 @@
           "minimum": 0,
           "maximum": 3600,
           "description": "%config.questions.deferAfterSeconds.description%",
+          "scope": "machine"
+        },
+        "museSpark.mediaMaxUploadMiB": {
+          "type": "integer",
+          "default": 200,
+          "minimum": 1,
+          "maximum": 1024,
+          "description": "%config.mediaMaxUploadMiB.description%",
+          "scope": "machine"
+        },
+        "museSpark.mediaUploadExpiryDays": {
+          "type": "integer",
+          "default": 7,
+          "minimum": 1,
+          "maximum": 30,
+          "description": "%config.mediaUploadExpiryDays.description%",
+          "scope": "machine"
+        },
+        "museSpark.screenRecordingMaxSeconds": {
+          "type": "integer",
+          "default": 120,
+          "minimum": 10,
+          "maximum": 600,
+          "description": "%config.screenRecordingMaxSeconds.description%",
+          "scope": "machine"
+        },
+        "museSpark.mediaAudioAction": {
+          "type": "string",
+          "enum": [
+            "transcribe",
+            "sendAudio"
+          ],
+          "default": "transcribe",
+          "description": "%config.mediaAudioAction.description%",
           "scope": "machine"
         }
       }

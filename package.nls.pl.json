@@ -167,5 +167,12 @@
   "config.shell.passEnvironmentVariables.description": "Nazwy zmiennych środowiskowych przekazywanych do interaktywnych poleceń powłoki głównej sesji, w tym zwykle wykluczanych danych uwierzytelniających. Tylko nazwy, nigdy wartości. Domyślnie: brak. Polecenie może ujawnić te wartości w rozmowie i dostawcy modelu. Weryfikacja/then_run, harmonogramy, pracownicy podrzędni/zespołowi i hooki nigdy nie otrzymują zmiennych uwierzytelniających, nawet jeśli są tu wymienione. Interaktywne polecenie przeniesione do tła zachowuje początkowe środowisko. Nie zmienia środowisk Muse Code ani jawnie skonfigurowanych serwerów MCP.",
   "command.nextOpenQuestion.title": "Następne otwarte pytanie",
   "command.previousOpenQuestion.title": "Poprzednie otwarte pytanie",
-  "config.questions.deferAfterSeconds.description": "Liczba sekund, po których pytanie bez odpowiedzi zostaje odroczone, aby Muse mógł kontynuować pracę. Domyślnie 60; 0 oznacza nigdy; 1–9 są odczytywane jako 10; maksimum 3600. Pytanie pozostaje otwarte i można odpowiedzieć później. Używane jest tylko ustawienie tego komputera."
+  "config.questions.deferAfterSeconds.description": "Liczba sekund, po których pytanie bez odpowiedzi zostaje odroczone, aby Muse mógł kontynuować pracę. Domyślnie 60; 0 oznacza nigdy; 1–9 są odczytywane jako 10; maksimum 3600. Pytanie pozostaje otwarte i można odpowiedzieć później. Używane jest tylko ustawienie tego komputera.",
+  "command.attachScreenRecording.title": "Załącz nagranie ekranu…",
+  "command.attachLatestScreenRecording.title": "Załącz najnowsze nagranie ekranu",
+  "command.deleteUploadedFiles.title": "Usuń przekazane pliki…",
+  "config.mediaMaxUploadMiB.description": "Największy plik multimedialny otwierany przez rozszerzenie, w MiB. Domyślnie 200; maksimum 1 024. Większe pliki są odrzucane przed odczytem. Obowiązuje tylko ustawienie tego komputera.",
+  "config.mediaUploadExpiryDays.description": "Liczba dni, przez które przekazany plik pozostaje na liście przed zaproponowaniem czyszczenia. Domyślnie 7; 1–30. O wygaśnięciu decyduje dostawca; plik, do którego odwołuje się inna sesja, nigdy nie jest usuwany. Obowiązuje tylko ustawienie tego komputera.",
+  "config.screenRecordingMaxSeconds.description": "Najdłuższe nagranie ekranu rozszerzenia, w sekundach. Domyślnie 120; 10–600. Nagrywanie zatrzymuje się na limicie i zachowuje to, co utrwalono. Obowiązuje tylko ustawienie tego komputera.",
+  "config.mediaAudioAction.description": "`transcribe` zamienia załączony dźwięk na tekst przed wysłaniem; `sendAudio` wysyła dźwięk tam, gdzie model go przyjmuje. Domyślnie transkrypcja. Transkrypcja nalicza płatną stawkę głosową, zawsze po uprzedniej zgodzie. Obowiązuje tylko ustawienie tego komputera."
 }

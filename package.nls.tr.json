@@ -167,5 +167,12 @@
   "config.shell.passEnvironmentVariables.description": "Ana oturumdaki etkileşimli kabuk komutlarına aktarılacak ortam değişkenlerinin adları; normalde dışarıda tutulan kimlik bilgileri de dahil. Yalnızca adlar, asla değerler. Varsayılan: hiçbiri. Bir komut bu değerleri konuşmada ve model sağlayıcısına açığa çıkarabilir. Doğrulama/then_run, zamanlanmış işler, alt/ekip çalışanları ve kancalar, burada adları yazılsa bile kimlik bilgisi değişkenlerini asla almaz. Arka plana taşınan etkileşimli bir komut başlangıç ortamını korur. Muse Code veya açıkça yapılandırılmış MCP sunucusu ortamlarını değiştirmez.",
   "command.nextOpenQuestion.title": "Sonraki açık soru",
   "command.previousOpenQuestion.title": "Önceki açık soru",
-  "config.questions.deferAfterSeconds.description": "Muse’un çalışmaya devam edebilmesi için yanıtsız bir sorunun ertelenmesine kadar geçen saniye. Varsayılan 60; 0 hiçbir zaman demektir; 1–9, 10 olarak okunur; en fazla 3.600. Soru açık kalır ve daha sonra yanıtlanabilir. Yalnızca bu bilgisayarın ayarı kullanılır."
+  "config.questions.deferAfterSeconds.description": "Muse’un çalışmaya devam edebilmesi için yanıtsız bir sorunun ertelenmesine kadar geçen saniye. Varsayılan 60; 0 hiçbir zaman demektir; 1–9, 10 olarak okunur; en fazla 3.600. Soru açık kalır ve daha sonra yanıtlanabilir. Yalnızca bu bilgisayarın ayarı kullanılır.",
+  "command.attachScreenRecording.title": "Ekran kaydını ekle…",
+  "command.attachLatestScreenRecording.title": "En son ekran kaydını ekle",
+  "command.deleteUploadedFiles.title": "Yüklenen dosyaları sil…",
+  "config.mediaMaxUploadMiB.description": "Uzantının açtığı en büyük medya dosyası, MiB cinsinden. Varsayılan 200; en fazla 1.024. Daha büyük dosyalar okunmadan reddedilir. Yalnızca bu bilgisayarın ayarı kullanılır.",
+  "config.mediaUploadExpiryDays.description": "Sağlayıcı yüklemesinin listede kalıp temizlik önerilmeden geçireceği gün sayısı. Varsayılan 7; 1–30. Süre bitimine sağlayıcı karar verir; başka bir oturumun başvurduğu yükleme asla silinmez. Yalnızca bu bilgisayarın ayarı kullanılır.",
+  "config.screenRecordingMaxSeconds.description": "Uzantının yakalayacağı en uzun ekran kaydı, saniye cinsinden. Varsayılan 120; 10–600. Kayıt sınırda durur ve yakaladığını korur. Yalnızca bu bilgisayarın ayarı kullanılır.",
+  "config.mediaAudioAction.description": "`transcribe` ekli sesi göndermeden önce metne dönüştürür; `sendAudio` sesi modelin kabul ettiği yere gönderir. Varsayılan, metne dönüştürmedir. Dönüştürme, ücretli ses tarifesini faturalandırır ve her zaman önce onay alınır. Yalnızca bu bilgisayarın ayarı kullanılır."
 }

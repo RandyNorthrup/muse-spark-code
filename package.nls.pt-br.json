@@ -167,5 +167,12 @@
   "config.shell.passEnvironmentVariables.description": "Nomes de variáveis de ambiente a passar para comandos de shell interativos da sessão principal, incluindo credenciais normalmente excluídas. Apenas nomes, nunca valores. Padrão: nenhuma. Um comando pode expor esses valores na conversa e ao provedor do modelo. Verificações/then_run, agendamentos, trabalhadores secundários/de equipe e hooks nunca recebem variáveis de credenciais, mesmo quando nomeadas aqui. Um comando interativo movido para segundo plano mantém seu ambiente inicial. Não altera os ambientes do Muse Code nem de servidores MCP configurados explicitamente.",
   "command.nextOpenQuestion.title": "Próxima pergunta em aberto",
   "command.previousOpenQuestion.title": "Pergunta em aberto anterior",
-  "config.questions.deferAfterSeconds.description": "Segundos antes de adiar uma pergunta sem resposta para que o Muse possa continuar trabalhando. 60 por padrão; 0 significa nunca; 1–9 são interpretados como 10; máximo de 3.600. A pergunta permanece em aberto e pode ser respondida depois. Apenas a configuração deste computador é usada."
+  "config.questions.deferAfterSeconds.description": "Segundos antes de adiar uma pergunta sem resposta para que o Muse possa continuar trabalhando. 60 por padrão; 0 significa nunca; 1–9 são interpretados como 10; máximo de 3.600. A pergunta permanece em aberto e pode ser respondida depois. Apenas a configuração deste computador é usada.",
+  "command.attachScreenRecording.title": "Anexar gravação de tela…",
+  "command.attachLatestScreenRecording.title": "Anexar a gravação de tela mais recente",
+  "command.deleteUploadedFiles.title": "Excluir arquivos enviados…",
+  "config.mediaMaxUploadMiB.description": "Maior arquivo de mídia que a extensão abre, em MiB. 200 por padrão; máximo 1.024. Arquivos maiores são recusados antes da leitura. Só vale a configuração desta máquina.",
+  "config.mediaUploadExpiryDays.description": "Dias que um envio permanece listado antes que a limpeza seja oferecida. 7 por padrão; 1–30. A expiração é decidida pelo provedor; um envio que outra sessão ainda referencia nunca é excluído. Só vale a configuração desta máquina.",
+  "config.screenRecordingMaxSeconds.description": "Gravação de tela mais longa da extensão, em segundos. 120 por padrão; 10–600. A gravação para no limite e mantém o capturado. Só vale a configuração desta máquina.",
+  "config.mediaAudioAction.description": "`transcribe` converte o áudio anexado em texto antes de enviar; `sendAudio` envia o áudio onde o modelo o aceita. Transcrever por padrão. A transcrição cobra a tarifa de voz paga, sempre com consentimento prévio. Só vale a configuração desta máquina."
 }

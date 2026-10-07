@@ -167,5 +167,12 @@
   "config.shell.passEnvironmentVariables.description": "기본 세션의 대화형 셸 명령에 전달할 환경 변수 이름입니다. 일반적으로 제외되는 자격 증명 변수도 포함됩니다. 값이 아닌 이름만 지정하세요. 기본값: 없음. 명령이 이 값을 대화 및 모델 제공자에게 노출할 수 있습니다. 검증/then_run, 예약 작업, 하위/팀 작업자 및 훅에는 여기 이름을 지정해도 자격 증명 변수가 전달되지 않습니다. 백그라운드로 이동한 대화형 명령은 시작 시 환경을 유지합니다. Muse Code나 명시적으로 구성한 MCP 서버 환경은 변경하지 않습니다.",
   "command.nextOpenQuestion.title": "다음 미답변 질문",
   "command.previousOpenQuestion.title": "이전 미답변 질문",
-  "config.questions.deferAfterSeconds.description": "Muse가 작업을 계속할 수 있도록 미답변 질문을 보류하기까지의 초 단위 시간입니다. 기본값은 60이며, 0은 보류하지 않음, 1–9는 10으로 처리됩니다. 최댓값은 3,600입니다. 질문은 열린 상태로 유지되며 나중에 답변할 수 있습니다. 이 컴퓨터의 설정만 사용합니다."
+  "config.questions.deferAfterSeconds.description": "Muse가 작업을 계속할 수 있도록 미답변 질문을 보류하기까지의 초 단위 시간입니다. 기본값은 60이며, 0은 보류하지 않음, 1–9는 10으로 처리됩니다. 최댓값은 3,600입니다. 질문은 열린 상태로 유지되며 나중에 답변할 수 있습니다. 이 컴퓨터의 설정만 사용합니다.",
+  "command.attachScreenRecording.title": "화면 녹화 첨부…",
+  "command.attachLatestScreenRecording.title": "최신 화면 녹화 첨부",
+  "command.deleteUploadedFiles.title": "업로드한 파일 삭제…",
+  "config.mediaMaxUploadMiB.description": "확장이 여는 가장 큰 미디어 파일(MiB). 기본값 200, 최대 1,024. 더 큰 파일은 읽기 전에 거부됩니다. 이 컴퓨터의 설정만 사용됩니다.",
+  "config.mediaUploadExpiryDays.description": "정리를 제안하기 전에 제공업체 업로드가 목록에 남아 있는 일수. 기본값 7, 1–30. 만료는 제공업체가 결정하며, 다른 세션이 참조 중인 업로드는 삭제되지 않습니다. 이 컴퓨터의 설정만 사용됩니다.",
+  "config.screenRecordingMaxSeconds.description": "확장이 캡처하는 가장 긴 화면 녹화(초). 기본값 120, 10–600. 녹화는 제한에서 중지되고 캡처한 내용을 유지합니다. 이 컴퓨터의 설정만 사용됩니다.",
+  "config.mediaAudioAction.description": "`transcribe`는 첨부된 오디오를 보내기 전에 텍스트로 변환하고, `sendAudio`는 모델이 받는 경우 오디오를 보냅니다. 기본값은 전사입니다. 전사에는 유료 음성 요금이 청구되며, 항상 사전 동의 후에만 진행됩니다. 이 컴퓨터의 설정만 사용됩니다."
 }

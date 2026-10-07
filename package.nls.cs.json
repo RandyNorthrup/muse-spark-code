@@ -167,5 +167,12 @@
   "config.shell.passEnvironmentVariables.description": "Názvy proměnných prostředí předávaných interaktivním příkazům shellu hlavní relace, včetně proměnných s přihlašovacími údaji, které jsou běžně skryté. Pouze názvy, nikdy hodnoty. Výchozí: žádné. Příkaz může tyto hodnoty odhalit v konverzaci a poskytovateli modelu. Ověřování/then_run, plány, podřízení/týmoví pracovníci a hooky nikdy nedostávají proměnné s přihlašovacími údaji, ani když jsou zde uvedené. Interaktivní příkaz přesunutý na pozadí si ponechá počáteční prostředí. Nemění prostředí Muse Code ani explicitně nakonfigurovaných serverů MCP.",
   "command.nextOpenQuestion.title": "Další otevřená otázka",
   "command.previousOpenQuestion.title": "Předchozí otevřená otázka",
-  "config.questions.deferAfterSeconds.description": "Počet sekund, po kterých se nezodpovězená otázka odloží, aby Muse mohl pokračovat v práci. Výchozí hodnota je 60; 0 znamená nikdy; 1–9 se čtou jako 10; maximum je 3 600. Otázka zůstává otevřená a můžete na ni odpovědět později. Použije se pouze nastavení tohoto počítače."
+  "config.questions.deferAfterSeconds.description": "Počet sekund, po kterých se nezodpovězená otázka odloží, aby Muse mohl pokračovat v práci. Výchozí hodnota je 60; 0 znamená nikdy; 1–9 se čtou jako 10; maximum je 3 600. Otázka zůstává otevřená a můžete na ni odpovědět později. Použije se pouze nastavení tohoto počítače.",
+  "command.attachScreenRecording.title": "Přiložit záznam obrazovky…",
+  "command.attachLatestScreenRecording.title": "Přiložit nejnovější záznam obrazovky",
+  "command.deleteUploadedFiles.title": "Odstranit nahrané soubory…",
+  "config.mediaMaxUploadMiB.description": "Největší mediální soubor, který rozšíření otevře, v MiB. Výchozí 200; maximum 1 024. Větší soubory jsou odmítnuty před čtením. Použije se jen nastavení tohoto počítače.",
+  "config.mediaUploadExpiryDays.description": "Počet dní, po které zůstane nahrání u poskytovatele v seznamu, než se nabídne úklid. Výchozí 7; 1–30. O expiraci rozhoduje poskytovatel; nahrání, na které odkazuje jiná relace, se nikdy neodstraní. Použije se jen nastavení tohoto počítače.",
+  "config.screenRecordingMaxSeconds.description": "Nejdelší záznam obrazovky, který rozšíření pořídí, v sekundách. Výchozí 120; 10–600. Záznam se na limitu zastaví a zachová, co pořídil. Použije se jen nastavení tohoto počítače.",
+  "config.mediaAudioAction.description": "`transcribe` převede připojený zvuk na text před odesláním; `sendAudio` odešle zvuk tam, kde ho model přijímá. Výchozí je přepis. Přepis účtuje placenou hlasovou sazbu, vždy až po souhlasu. Použije se jen nastavení tohoto počítače."
 }
