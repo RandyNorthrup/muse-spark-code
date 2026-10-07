@@ -307,6 +307,9 @@ docs/orchestration-gotchas.md
                       what went wrong orchestrating the agent fleet, the rule
                       that prevents it, and the milestone that enforces it in
                       the app (D100); add a row when you find a new one
+docs/orchestration/   SSH connection limits (ssh-limits.md) and the playbook
+                      chapter on placement, load balancing and moving work
+                      (playbook-placement.md, adopted by the M116 skill)
 media/                icons, banner, social preview, README screenshots
 ```
 
