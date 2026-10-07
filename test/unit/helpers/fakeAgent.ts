@@ -41,6 +41,8 @@ function goalAdmitted(): ReturnType<AgentSession['controlGoal']> {
   return Promise.resolve({ turnId: undefined })
 }
 
+const noSessionOutput: AgentHost['readSessionOutput'] = (_sessionId, request) => noOutput(request)
+
 export class FakeAgentSession implements AgentSession {
   private readonly listeners = new Set<SessionEventListener>()
   private turns = 0
@@ -164,7 +166,7 @@ export class FakeAgentHost implements AgentHost {
   public readonly listSessions = vi.fn<AgentHost['listSessions']>(() => Promise.resolve(this.page))
   public readonly listModels = vi.fn<AgentHost['listModels']>(() => Promise.resolve(this.models))
 
-  public readonly readSessionOutput = vi.fn<AgentHost['readSessionOutput']>(noOutput)
+  public readonly readSessionOutput = vi.fn<AgentHost['readSessionOutput']>(noSessionOutput)
 
   public constructor(public models: readonly ModelSummary[] = FAKE_MODELS) {}
 
