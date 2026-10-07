@@ -146,6 +146,7 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   showLogs: { description: { tip: 'log' }, canRun: true },
   diagnostics: { description: { ui: 'referenceDiagnostics' }, canRun: true },
   reportProblem: { description: { ui: 'referenceReport' }, canRun: true },
+  estimate: { description: { ui: 'referenceEstimate' }, canRun: true },
   newConversation: { description: { tip: 'clear' }, canRun: false },
   signOut: { description: { tip: 'signOut' }, canRun: false },
   openInTerminal: { description: { ui: 'referenceTerminal' }, canRun: false },
@@ -813,6 +814,14 @@ export function featureCatalog(): readonly Feature[] {
       ['vscode'],
     ),
     feature(
+      'estimator',
+      { ui: 'estimateTitle' },
+      { ui: 'referenceEstimate' },
+      ['estimate'],
+      ['estimator.optimize', 'estimator.priceLookup'],
+      'estimates',
+    ),
+    feature(
       'support',
       { ui: 'groupSupport' },
       { tip: 'issue' },
@@ -864,6 +873,7 @@ export function featureCatalog(): readonly Feature[] {
 }
 
 export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
+  estimator: ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi'],
   'web-fetch': ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
   search: ['vscode:modelApi', 'acp:modelApi'],
   images: ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],

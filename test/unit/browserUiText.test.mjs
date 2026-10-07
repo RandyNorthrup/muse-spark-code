@@ -112,6 +112,18 @@ describe('the production browser English and full-table contract', () => {
     ).toContain('execBudgetRequired: missing')
   })
 
+  it('does not eagerly load an English group for a technical command word', () => {
+    const source = path.join(fixture.folder, 'technical-group.ts')
+    writeFileSync(source, "export const command = 'vault'")
+    expect(
+      browserTextKeys([source], fixture.canonical.EN, new Set([source])).eagerKeys.has('vault'),
+    ).toBe(false)
+    writeFileSync(source, 'export function label(){ return UI_TEXT.vault.title }')
+    expect(
+      browserTextKeys([source], fixture.canonical.EN, new Set([source])).eagerKeys.has('vault'),
+    ).toBe(true)
+  })
+
   it('refuses an unregistered computed text reader before emitting a fallback', () => {
     const source = path.join(fixture.folder, 'computed.ts')
     writeFileSync(source, 'const key="composerLabel"; const value=UI_TEXT[key]')

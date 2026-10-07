@@ -1403,6 +1403,14 @@ Surfaces: vscode:museCode. Paid: no extra feature charge; model usage still appl
 
 Commands: —. Settings: `museSpark.judge.engine`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#muse-judge)
 
+### Estimator
+
+Ship-date forecast for a goal from the current fleet, or the setup a target date needs.
+
+Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: `museSpark.estimate`. Settings: `museSpark.estimator.optimize`, `museSpark.estimator.priceLookup`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#estimates)
+
 ### Support
 
 Report an issue.
@@ -1745,6 +1753,10 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 ### Muse Spark: Lock vault now
 
 `museSpark.lockVault` — Lock the per-user credential vault now, ending every use in every window.
+
+### Muse Spark: Open Estimator
+
+`museSpark.estimate` — Ship-date forecast for a goal from the current fleet, or the setup a target date needs.
 
 ## Settings
 
@@ -3117,6 +3129,36 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 {
   "type": "boolean",
   "default": true
+}
+```
+
+### museSpark.estimator.optimize
+
+Choose the cheapest setup meeting the deadline at P90, or the fastest setup with worthwhile marginal savings.
+
+Type: `"string"`. Default: `"cost"`. Scope: `machine`.
+
+```json
+{
+  "type": "string",
+  "enum": ["cost", "speed"],
+  "default": "cost"
+}
+```
+
+- `"cost"`: Cheapest setup meeting the deadline at P90.
+- `"speed"`: Fastest setup while another machine still saves enough time.
+
+### museSpark.estimator.priceLookup
+
+Public catalog price lookup under the Reports network policy; each price shows its date.
+
+Type: `"boolean"`. Default: `false`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": false
 }
 ```
 

@@ -120,6 +120,8 @@ export const COMMAND_IDS = {
   // M109 (PLAN.md D89): the per-user credential vault panel and its lock.
   vault: 'museSpark.vault',
   lockVault: 'museSpark.lockVault',
+  // M117 (PLAN.md D97): open the capacity estimator for a goal.
+  estimate: 'museSpark.estimate',
   // M112 (PLAN.md D92): cycle the focused chat's open question cards.
   nextOpenQuestion: 'museSpark.nextOpenQuestion',
   previousOpenQuestion: 'museSpark.previousOpenQuestion',
@@ -589,6 +591,13 @@ export const SETTING_DEFAULTS = {
   'vault.agentFence': true,
   'vault.lockAfterIdleMinutes': 240,
   'vault.lockOnScreenLock': true,
+  // M117 (PLAN.md D97): cheapest P90 setup or fastest finish with worthwhile
+  // marginal savings. Machine scoped: a repository must not choose spending.
+  'estimator.optimize': 'cost' as EstimateOptimizeMode,
+  // M117 (PLAN.md D97): public catalog price lookup for rented servers, each
+  // price shown with its date, never a quote. Machine scoped, off by default:
+  // it follows M113's Reports network policy once that milestone merges.
+  'estimator.priceLookup': false,
 } as const
 export const PAID_DAILY_BUDGET = {
   minimumUsd: 0.5,
@@ -684,6 +693,10 @@ export const MACHINE_SCOPED_SETTINGS = [
   'vault.agentFence',
   'vault.lockAfterIdleMinutes',
   'vault.lockOnScreenLock',
+  // What the estimator optimizes and whether it may read public prices
+  // (M117, PLAN.md D97): a repository must not choose spending or network.
+  'estimator.optimize',
+  'estimator.priceLookup',
 ] as const
 
 // Muse Code SDK 1.3.0 hook process limits (PLAN.md M51).
@@ -952,6 +965,13 @@ export const SECONDS_PER_HOUR = 3600
 // phase-2 sections that build them. Machine-scoped, on (`auto`) by default.
 export const JUDGE_ENGINES = ['auto', 'same', 'off'] as const
 export type JudgeEngine = (typeof JUDGE_ENGINES)[number]
+// M117 (PLAN.md D97): what `museSpark.estimator.optimize` takes.
+export const ESTIMATE_OPTIMIZE_MODES = ['cost', 'speed'] as const
+export type EstimateOptimizeMode = (typeof ESTIMATE_OPTIMIZE_MODES)[number]
+// M117 W (PLAN.md D97 §4, playbook §4): the engines whose durations and
+// first-pass finding rates calibration fits per lane kind and machine class.
+export const ESTIMATE_ENGINES = ['codex', 'claude', 'grok'] as const
+export type EstimateEngine = (typeof ESTIMATE_ENGINES)[number]
 // The request bounds, at the intersection of the SystemOne services (TypeSafe,
 // OpenRouter, Ollama, Cloudflare): 1–64 questions; a choice of 2–26 options
 // lettered A–Z; a score of 2–10 levels; a 64 KiB body. A state past its
@@ -3499,6 +3519,9 @@ export const PLAN_MARKDOWN_BUNDLE_FILE = 'planMarkdown.js'
 // The review's bundle (M70, PLAN.md D6): git's material, the review turn's text
 // and the Plan-mode hold, loaded the first time a review starts.
 export const REVIEW_BUNDLE_FILE = 'review.js'
+// The capacity estimator's engine (M117, PLAN.md D6, D97), loaded the first
+// time an estimate runs.
+export const ESTIMATOR_BUNDLE_FILE = 'estimator.js'
 // Checkpoint implementation, synchronously loaded at activation's store construction (M72, D6).
 export const CHECKPOINT_STORE_BUNDLE_FILE = 'checkpointStore.js'
 // Code intelligence's answers for Muse Code's `ide` server (M67, D6), loaded
@@ -4705,6 +4728,7 @@ export type SkillImportSource = (typeof SKILL_IMPORT_SOURCES)[number]
 // commands, not prose, so they read the same in every language.
 export const SLASH_COMMAND_NAMES = {
   help: 'help',
+  estimate: 'estimate',
   model: 'model',
   resume: 'resume',
   permissions: 'permissions',
@@ -6353,6 +6377,26 @@ export const WORKER_MODEL_TEXT = {
   // M96 worker scaffolding stays out of shipped bundles until lane X wires it.
   boundedExcerpt: 'bounded excerpt; may be truncated',
 } as const
+// M117 / D97: deterministic capacity estimation; no model or paid request.
+// M117 W: the local fleet reads RAM to one decimal with this floor (a smaller
+// reading is noise) and converts bytes with this divisor.
+export const ESTIMATE_RAM_ROUND_GIB = 0.1
+export const ESTIMATE_BYTES_PER_GIB = 1024 ** 3
+export const ESTIMATE_RUNS = 2000
+export const ESTIMATE_CALIBRATION_MIN_SAMPLES = 20
+export const ESTIMATE_PRIOR_SIGMA = 0.5
+export const ESTIMATE_MARGINAL_FLOOR_HOURS = 4
+export const ESTIMATE_IDLE_TEARDOWN_MINUTES = 30
+export const ESTIMATE_LOCAL_BUDGET_MS = 2000
+export const ESTIMATE_LOCAL_BUDGET_LANES = 40
+// Bounds on our own documents, not provider wire shapes.
+export const ESTIMATE_MAX_ITEMS = 512
+export const ESTIMATE_ID_MAX_CHARS = 128
+export const ESTIMATE_LABEL_MAX_CHARS = 256
+// M117 W (PLAN.md D100, gotcha G4): a lane whose base is this many days old
+// or older is a schedule risk: merging current main has broken such lanes'
+// releases before, so the estimate names it instead of pricing it.
+export const ESTIMATE_STALE_BASE_DAYS = 7
 
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'

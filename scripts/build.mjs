@@ -205,6 +205,8 @@ const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const REPORT_ENTRY = 'src/host/support/reportEntry.ts'
 const REPORT_OUTFILE = 'dist/report.js'
+const ESTIMATOR_ENTRY = 'src/host/estimator/estimatorEntry.ts'
+const ESTIMATOR_OUTFILE = 'dist/estimator.js'
 const RECORDER_ENTRY = 'src/host/support/recorderEntry.ts'
 const RECORDER_OUTFILE = 'dist/recorder.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
@@ -420,6 +422,20 @@ const reportOptions = {
   plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
   entryPoints: [REPORT_ENTRY],
   outfile: REPORT_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+// The capacity estimator's engine (M117, PLAN.md D97), loaded the first
+// time an estimate runs; it reads no `vscode` and no backend, so a stray
+// import fails this build.
+/** @type {import('esbuild').BuildOptions} */
+const estimatorOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [ESTIMATOR_ENTRY],
+  outfile: ESTIMATOR_OUTFILE,
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
@@ -756,6 +772,13 @@ const vaultBoundariesOptions = {
   outfile: 'dist/vaultBoundaries.js',
 }
 
+const estimateContractsOptions = {
+  ...modelApiOptions,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: ['src/shared/estimate.ts'],
+  outfile: 'dist/estimateContracts.js',
+}
+
 const wireOptions = {
   ...modelApiOptions,
   plugins: [sharedUiText, sharedValidation, deferredTeamView, sharedModelApiBoundaries],
@@ -965,6 +988,7 @@ if (isWatch) {
     esbuild.context(extensionHooksOptions),
     esbuild.context(vaultOptions),
     esbuild.context(reportOptions),
+    esbuild.context(estimatorOptions),
     esbuild.context(recorderOptions),
     esbuild.context(whatsNewOptions),
     esbuild.context(judgeOptions),
@@ -972,6 +996,7 @@ if (isWatch) {
     ...uiTextRegionOptions.map((options) => esbuild.context(options)),
     esbuild.context(validationOptions),
     esbuild.context(wireOptions),
+    esbuild.context(estimateContractsOptions),
     esbuild.context(vaultBoundariesOptions),
     esbuild.context(modelApiBoundariesOptions),
     esbuild.context(acpQuestionsOptions),
@@ -1060,6 +1085,7 @@ if (isWatch) {
     extensionHooks: esbuild.build(extensionHooksOptions),
     vault: esbuild.build(vaultOptions),
     report: esbuild.build(reportOptions),
+    estimator: esbuild.build(estimatorOptions),
     recorder: esbuild.build(recorderOptions),
     whatsNew: esbuild.build(whatsNewOptions),
     judge: esbuild.build(judgeOptions),
@@ -1072,6 +1098,7 @@ if (isWatch) {
     ),
     validation: esbuild.build(validationOptions),
     wire: esbuild.build(wireOptions),
+    estimateContracts: esbuild.build(estimateContractsOptions),
     vaultBoundaries: esbuild.build(vaultBoundariesOptions),
     modelApiBoundaries: esbuild.build(modelApiBoundariesOptions),
     browserCheck: esbuild.build(browserCheckOptions),
@@ -1167,6 +1194,7 @@ if (isWatch) {
   reportSize(EXTENSION_HOOKS_OUTFILE)
   reportSize(VAULT_OUTFILE)
   reportSize(REPORT_OUTFILE)
+  reportSize(ESTIMATOR_OUTFILE)
   reportSize(RECORDER_OUTFILE)
   reportSize(WHATS_NEW_OUTFILE)
   reportSize(WHATS_NEW_CONTENT_OUTFILE)

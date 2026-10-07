@@ -216,5 +216,10 @@
   "config.vault.protection.enumDescriptions.auto": "Automatischer Schutz",
   "config.vault.protection.enumDescriptions.osStore": "Anmeldedatenspeicher des Betriebssystems",
   "config.vault.protection.enumDescriptions.passphrase": "Schutz durch Passphrase",
-  "config.vault.protection.enumDescriptions.hardware": "Hardwareschutz"
+  "config.vault.protection.enumDescriptions.hardware": "Hardwareschutz",
+  "command.estimate.title": "Schätzer öffnen",
+  "config.estimator.optimize.description": "Wählt das günstigste Setup, das die Frist zu P90 einhält, oder das schnellste Setup mit lohnender Zeitersparnis.",
+  "config.estimator.optimize.enumDescriptions.cost": "Günstigstes Setup, das die Frist zu P90 einhält.",
+  "config.estimator.optimize.enumDescriptions.speed": "Schnellstes Setup, solange eine weitere Maschine noch genug Zeit spart.",
+  "config.estimator.priceLookup.description": "Ruft öffentliche Katalogpreise ab, wenn die Netzwerkrichtlinie für Berichte es erlaubt; jeder Preis zeigt sein Datum."
 }

@@ -92,6 +92,14 @@ Releases and npm.
   failures) redacts known credential shapes. Ordinary conversation/tool
   content remains intact; credential shapes outside the known patterns
   remain unrecognised.
+- **Capacity estimator provisioning (M117).** The provider adapter pins the
+  connected provider's HTTPS origin and the exact paths of its five
+  operations (`sizes`, `images`, `create`, `status`, `delete`) before every
+  brokered call; redirects and billing, payment, sign-up and account paths
+  are refused. Provider credentials stay with the vault broker and never
+  reach a tool, check or log. Every spend needs its own confirmation inside
+  one explicit run budget, and rented setups stay advice-only until the
+  provider binding lands.
 - **Workspace trust.** In VS Code's Restricted Mode the agent loads no
   workspace rules, skills, custom agents or memory, runs no shell commands, and the
   extension runs no `git` (a repository's `.git/config` can name programs

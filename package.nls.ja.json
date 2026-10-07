@@ -216,5 +216,10 @@
   "config.vault.protection.enumDescriptions.auto": "自動保護",
   "config.vault.protection.enumDescriptions.osStore": "OS の認証情報ストア",
   "config.vault.protection.enumDescriptions.passphrase": "パスフレーズによる保護",
-  "config.vault.protection.enumDescriptions.hardware": "ハードウェアによる保護"
+  "config.vault.protection.enumDescriptions.hardware": "ハードウェアによる保護",
+  "command.estimate.title": "見積もりを開く",
+  "config.estimator.optimize.description": "P90で期限を満たす最も安い構成、または十分な短縮効果がある最速の構成を選びます。",
+  "config.estimator.optimize.enumDescriptions.cost": "P90で期限を満たす最も安い構成。",
+  "config.estimator.optimize.enumDescriptions.speed": "追加のマシンがまだ十分に時間を短縮できる間の最速構成。",
+  "config.estimator.priceLookup.description": "レポートのネットワークポリシーが許可する場合に公開カタログ価格を調べます。各価格に日付が表示されます。"
 }

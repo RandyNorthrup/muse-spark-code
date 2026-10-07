@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within, waitFor } from '@testing-library/react'
 import { beforeAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TodoItem } from '../../src/shared/agentEvents'
 import { UI_TEXT } from '../../src/shared/constants'
@@ -8,9 +8,11 @@ import { App } from '../../src/webview/App'
 import { ErrorBoundary } from '../../src/webview/components/ErrorBoundary'
 import type { ErrorReporter } from '../../src/webview/errorReport'
 import { restoredUiState, type WebviewState } from '../../src/webview/state/snapshot'
+import { ensureEstimateContracts } from '../../src/webview/estimator/lazyContracts'
 import { createUiStore, listenToHost, persistStore } from '../../src/webview/state/store'
 import { initialUiState } from '../../src/webview/state/uiState'
 import { installSurfaceRetry, retrySurface } from '../../src/webview/surfaceRetry'
+import { fakeEstimate } from './helpers/estimator/fixtures'
 import { testSettings } from './helpers/fakes'
 import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
 
@@ -303,4 +305,42 @@ describe('the crash screen and its Reload (M25)', () => {
     expect(screen.queryByText(UI_TEXT.crashTitle)).toBeNull()
     third.close()
   })
+})
+
+it('validates a first-use estimator frame before updating the store', async () => {
+  const store = createUiStore(initialUiState)
+  const report = vi.fn()
+  const stop = listenToHost(store, window, () => 0, report)
+  try {
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { type: 'estimatorSection', section: { ...fakeEstimate(), disclosures: [] } },
+      }),
+    )
+    await waitFor(() => {
+      expect(report).toHaveBeenCalled()
+    })
+    expect(store.getState().estimator).toBeUndefined()
+    const section = fakeEstimate()
+    window.dispatchEvent(
+      new MessageEvent('message', { data: { type: 'estimatorSection', section } }),
+    )
+    await waitFor(() => {
+      expect(store.getState().estimator).toEqual(section)
+    })
+  } finally {
+    stop()
+  }
+})
+
+it('discards an estimator frame whose listener closes during first-use loading', async () => {
+  const store = createUiStore(initialUiState)
+  const stop = listenToHost(store, window, () => 0, vi.fn())
+  window.dispatchEvent(
+    new MessageEvent('message', { data: { type: 'estimatorSection', section: fakeEstimate() } }),
+  )
+  stop()
+  await ensureEstimateContracts()
+  await Promise.resolve()
+  expect(store.getState().estimator).toBeUndefined()
 })

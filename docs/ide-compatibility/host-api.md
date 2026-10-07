@@ -17,7 +17,7 @@ differs from the source. Do not edit it by hand.
 | `capabilities.untrustedWorkspaces` | `limited`                                                                                                                     |
 | `enabledApiProposals`              | none                                                                                                                          |
 | `activationEvents`                 | `onWebviewPanel:museSpark.chatPanel`, `onStartupFinished`                                                                     |
-| `contributes`                      | `commands` (64), `configuration` (2), `keybindings` (11), `menus` (4), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
+| `contributes`                      | `commands` (65), `configuration` (2), `keybindings` (11), `menus` (4), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
 
 ## Build targets
 
@@ -476,21 +476,21 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 | Module                   | Files |
 | ------------------------ | ----- |
-| `node:buffer`            | 60    |
+| `node:buffer`            | 61    |
 | `node:child_process`     | 23    |
-| `node:crypto`            | 123   |
+| `node:crypto`            | 124   |
 | `node:dgram`             | 1     |
 | `node:dns`               | 1     |
 | `node:dns/promises`      | 6     |
 | `node:events`            | 1     |
-| `node:fs`                | 56    |
-| `node:fs/promises`       | 88    |
+| `node:fs`                | 57    |
+| `node:fs/promises`       | 89    |
 | `node:http`              | 15    |
 | `node:https`             | 2     |
 | `node:module`            | 2     |
 | `node:net`               | 20    |
-| `node:os`                | 23    |
-| `node:path`              | 149   |
+| `node:os`                | 24    |
+| `node:path`              | 150   |
 | `node:process`           | 3     |
 | `node:readline`          | 1     |
 | `node:readline/promises` | 1     |
@@ -511,6 +511,6 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | ------------------ | ----------------------------------------------------------------------------------- |
 | `acquireVsCodeApi` | `src/webview/hostBridge.ts`, `src/webview/main.tsx`, `src/webview/whatsNew/main.ts` |
 
-Theme variables the styles read (70), from `src/webview/components/HeartbeatTrace.tsx`, `src/webview/components/reference.css`, `src/webview/components/traffic/traffic.css`, `src/webview/developer/developerOptions.css`, `src/webview/media/media.css`, `src/webview/models/models.css`, `src/webview/models/sections/accounts/accounts.css`, `src/webview/models/sections/vault/vault.css`, `src/webview/page.css`, `src/webview/prompts/PromptLibrary.css`, `src/webview/sharing/sharing.css`, `src/webview/styles.css`, `src/webview/usage/AccountsSection.css`, `src/webview/usage/usage.css`, `src/webview/whatsNew/whatsNew.css`:
+Theme variables the styles read (70), from `src/webview/components/HeartbeatTrace.tsx`, `src/webview/components/reference.css`, `src/webview/components/traffic/traffic.css`, `src/webview/developer/developerOptions.css`, `src/webview/estimator/estimator.css`, `src/webview/media/media.css`, `src/webview/models/models.css`, `src/webview/models/sections/accounts/accounts.css`, `src/webview/models/sections/vault/vault.css`, `src/webview/page.css`, `src/webview/prompts/PromptLibrary.css`, `src/webview/sharing/sharing.css`, `src/webview/styles.css`, `src/webview/usage/AccountsSection.css`, `src/webview/usage/usage.css`, `src/webview/whatsNew/whatsNew.css`:
 
 `--vscode-badge-background`, `--vscode-badge-foreground`, `--vscode-button-background`, `--vscode-button-border`, `--vscode-button-foreground`, `--vscode-button-hoverBackground`, `--vscode-button-secondaryBackground`, `--vscode-button-secondaryForeground`, `--vscode-button-secondaryHoverBackground`, `--vscode-charts-blue`, `--vscode-charts-green`, `--vscode-charts-orange`, `--vscode-charts-purple`, `--vscode-charts-red`, `--vscode-charts-yellow`, `--vscode-checkbox-border`, `--vscode-contrastBorder`, `--vscode-debugTokenExpression-number`, `--vscode-debugTokenExpression-string`, `--vscode-descriptionForeground`, `--vscode-diffEditor-insertedLineBackground`, `--vscode-diffEditor-removedLineBackground`, `--vscode-disabledForeground`, `--vscode-dropdown-background`, `--vscode-dropdown-foreground`, `--vscode-editor-background`, `--vscode-editor-findMatchHighlightBackground`, `--vscode-editor-font-family`, `--vscode-editor-font-size`, `--vscode-editor-foreground`, `--vscode-editorCursor-foreground`, `--vscode-editorWarning-foreground`, `--vscode-editorWidget-background`, `--vscode-editorWidget-border`, `--vscode-editorWidget-foreground`, `--vscode-errorForeground`, `--vscode-focusBorder`, `--vscode-font-family`, `--vscode-font-size`, `--vscode-foreground`, `--vscode-gitDecoration-addedResourceForeground`, `--vscode-gitDecoration-deletedResourceForeground`, `--vscode-input-background`, `--vscode-input-border`, `--vscode-input-foreground`, `--vscode-input-placeholderForeground`, `--vscode-inputValidation-errorBackground`, `--vscode-inputValidation-errorBorder`, `--vscode-inputValidation-errorForeground`, `--vscode-inputValidation-warningBackground`, `--vscode-inputValidation-warningForeground`, `--vscode-list-activeSelectionBackground`, `--vscode-list-activeSelectionForeground`, `--vscode-list-hoverBackground`, `--vscode-list-warningForeground`, `--vscode-panel-border`, `--vscode-progressBar-background`, `--vscode-sideBar-background`, `--vscode-symbolIcon-functionForeground`, `--vscode-symbolIcon-keywordForeground`, `--vscode-testing-iconFailed`, `--vscode-testing-iconPassed`, `--vscode-textBlockQuote-border`, `--vscode-textCodeBlock-background`, `--vscode-textLink-activeForeground`, `--vscode-textLink-foreground`, `--vscode-textPreformat-foreground`, `--vscode-toolbar-hoverBackground`, `--vscode-widget-border`, `--vscode-widget-shadow`

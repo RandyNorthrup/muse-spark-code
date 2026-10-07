@@ -216,5 +216,10 @@
   "config.vault.protection.enumDescriptions.auto": "Automatikus védelem",
   "config.vault.protection.enumDescriptions.osStore": "Az operációs rendszer hitelesítőadat-tárolója",
   "config.vault.protection.enumDescriptions.passphrase": "Jelmondatos védelem",
-  "config.vault.protection.enumDescriptions.hardware": "Hardveres védelem"
+  "config.vault.protection.enumDescriptions.hardware": "Hardveres védelem",
+  "command.estimate.title": "Becslő megnyitása",
+  "config.estimator.optimize.description": "A P90-es határidőt teljesítő legolcsóbb összeállítást vagy a kellően megtérülő leggyorsabbat választja.",
+  "config.estimator.optimize.enumDescriptions.cost": "A P90-es határidőt teljesítő legolcsóbb összeállítás.",
+  "config.estimator.optimize.enumDescriptions.speed": "A leggyorsabb összeállítás, amíg egy további gép még elég időt takarít meg.",
+  "config.estimator.priceLookup.description": "Nyilvános katalógusárakat keres, ha a jelentések hálózati házirendje engedi; minden ár mutatja a dátumát."
 }

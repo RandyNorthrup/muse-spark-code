@@ -1905,6 +1905,33 @@ both backends, as Muse Code's `/goal` does.
   its own, so your key pays for nothing you did not ask for. A token budget
   the agent gives a goal stops it once spent.
 
+## Estimates
+
+Ask when a goal will ship with the fleet already linked, or what setup a
+target date needs. `/estimate <goal> [--by <date>] [--fleet
+current|minimum|optimum]` works in the composer, in the ACP agent, and from
+the **Open Estimator** command; every surface runs the same engine, loaded
+lazily the first time an estimate runs.
+
+- **The answer.** P50 and P90 dates, the lane schedule with its critical
+  path, the limiting resource, and the setups: the current fleet, the
+  minimum at P50 and at P90, and the optimum by lowest cost or fastest
+  finish. A finished lane re-estimates the remainder and shows the drift.
+- **Honest numbers.** Every figure carries its calibration disclosure with
+  the sample size; below 20 samples a kind says Uncalibrated prior. Jobs
+  started from a base older than seven days are flagged as a schedule risk
+  until they rebase.
+- **Spin it up** starts the first contract-first wave once contracts are
+  reviewed and prerequisites merged. Rented servers stay advice-only until
+  the provider binding lands: each server's price and the total will show
+  before each spend is confirmed separately, a server past the explicit run
+  budget is refused before any request, billing, payment, sign-up and
+  account endpoints are refused outright, and an idle server is torn down
+  after its notice unless kept.
+- **Settings** (this machine): `museSpark.estimator.optimize` (`cost` or
+  `speed`) and `museSpark.estimator.priceLookup`, which follows the Reports
+  network policy; each catalog price shows its date.
+
 ## Review
 
 Review what the agent did before it lands, on both backends.

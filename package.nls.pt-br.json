@@ -216,5 +216,10 @@
   "config.vault.protection.enumDescriptions.auto": "Proteção automática",
   "config.vault.protection.enumDescriptions.osStore": "Armazenamento de credenciais do sistema",
   "config.vault.protection.enumDescriptions.passphrase": "Proteção por frase secreta",
-  "config.vault.protection.enumDescriptions.hardware": "Proteção por hardware"
+  "config.vault.protection.enumDescriptions.hardware": "Proteção por hardware",
+  "command.estimate.title": "Abrir o estimador",
+  "config.estimator.optimize.description": "Escolhe a configuração mais barata que cumpre o prazo em P90, ou a mais rápida com economia marginal suficiente.",
+  "config.estimator.optimize.enumDescriptions.cost": "Configuração mais barata que cumpre o prazo em P90.",
+  "config.estimator.optimize.enumDescriptions.speed": "Configuração mais rápida enquanto outra máquina ainda economizar tempo suficiente.",
+  "config.estimator.priceLookup.description": "Consulta preços de catálogos públicos quando a política de rede de relatórios permite; cada preço mostra sua data."
 }

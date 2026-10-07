@@ -216,5 +216,10 @@
   "config.vault.protection.enumDescriptions.auto": "Automatická ochrana",
   "config.vault.protection.enumDescriptions.osStore": "Úložiště přihlašovacích údajů OS",
   "config.vault.protection.enumDescriptions.passphrase": "Ochrana heslovou frází",
-  "config.vault.protection.enumDescriptions.hardware": "Hardwarová ochrana"
+  "config.vault.protection.enumDescriptions.hardware": "Hardwarová ochrana",
+  "command.estimate.title": "Otevřít odhadovač",
+  "config.estimator.optimize.description": "Vybere nejlevnější sestavu, která splní termín v P90, nebo nejrychlejší s dostatečnou mezní úsporou.",
+  "config.estimator.optimize.enumDescriptions.cost": "Nejlevnější sestava splňující termín v P90.",
+  "config.estimator.optimize.enumDescriptions.speed": "Nejrychlejší sestava, dokud další stroj ještě ušetří dost času.",
+  "config.estimator.priceLookup.description": "Vyhledává veřejné katalogové ceny, pokud to dovoluje síťová politika sestav; každá cena uvádí své datum."
 }

@@ -47,6 +47,8 @@ const BUNDLES = [
   'runtimeEngine.js',
   'modelApiBoundaries.js',
   'vaultBoundaries.js',
+  'estimator.js',
+  'estimateContracts.js',
   'legalScan.js',
   'providers.js',
   'subscriptions.js',

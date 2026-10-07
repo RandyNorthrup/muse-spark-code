@@ -216,5 +216,10 @@
   "config.vault.protection.enumDescriptions.auto": "Automatic protection",
   "config.vault.protection.enumDescriptions.osStore": "OS credential store",
   "config.vault.protection.enumDescriptions.passphrase": "Passphrase protection",
-  "config.vault.protection.enumDescriptions.hardware": "Hardware protection"
+  "config.vault.protection.enumDescriptions.hardware": "Hardware protection",
+  "command.estimate.title": "Open Estimator",
+  "config.estimator.optimize.description": "Choose the cheapest setup meeting the deadline at P90, or the fastest setup with worthwhile marginal savings.",
+  "config.estimator.optimize.enumDescriptions.cost": "Cheapest setup meeting the deadline at P90.",
+  "config.estimator.optimize.enumDescriptions.speed": "Fastest setup while another machine still saves enough time.",
+  "config.estimator.priceLookup.description": "Public catalog price lookup under the Reports network policy; each price shows its date."
 }

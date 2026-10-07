@@ -29,6 +29,7 @@ import {
   MAX_ATTACHMENT_BASE64_CHARS,
   MODEL_PRICINGS,
   PAID_FEATURES,
+  ESTIMATE_OPTIMIZE_MODES,
   PERMISSION_MODES,
   PREFERRED_LOCATIONS,
   REPORT_DESCRIPTION_MAX_CHARS,
@@ -78,6 +79,7 @@ import {
   requestLegalFixMessageSchema,
 } from './legalFix'
 import { boardRowSchema } from './sessionBoard'
+import { estimateRequestSchema, estimateSectionSchema } from './estimate'
 import { sessionRowSchema } from './sessions'
 import {
   accountFactsSchema,
@@ -113,6 +115,8 @@ export const settingsSnapshotShape = {
   modelApiReplyUsage: booleanSchema,
   /** The Auto reviewer on Muse Code (M90): the Modes menu words Auto with it. */
   museCodeAutoReviewer: booleanSchema,
+  /** The capacity estimator's setup search (M117, PLAN.md D97). */
+  'estimator.optimize': z.enum(ESTIMATE_OPTIMIZE_MODES),
 } as const
 
 const settingsSnapshotSchema = z.object(settingsSnapshotShape)
@@ -873,6 +877,13 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('reportWebviewError'),
     ...reportWebviewErrorSchema.shape,
   }),
+  // The capacity estimator (M117, PLAN.md D97): run an estimate from the
+  // parsed request; the host answers with `estimatorSection`. Strict: the
+  // request is validated before anything runs.
+  z.strictObject({ type: z.literal('estimateRun'), request: estimateRequestSchema }),
+  // Start the audited first contract wave from the last estimate's inputs;
+  // the host answers with a notice naming what started or the refusal.
+  z.strictObject({ type: z.literal('estimateSpinUp') }),
 ])
 
 export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema> | TeamTreeAction
@@ -1305,6 +1316,12 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     issueFallback: z.optional(z.boolean()),
     reason: z.optional(z.enum(REPORT_EXPORT_REASONS)),
   }),
+  // The capacity estimator's latest section (M117, PLAN.md D97): the panel
+  // renders it, and a new section reveals the panel.
+  z.object({ type: z.literal('estimatorSection'), section: estimateSectionSchema }),
+  // The extension's `museSpark.estimate` command: focus the composer with
+  // `/estimate ` ready for the goal.
+  z.object({ type: z.literal('openEstimator') }),
 ])
 
 export type HostToWebviewMessage = z.infer<typeof hostToWebviewMessageSchema> | TeamTreeUpdate

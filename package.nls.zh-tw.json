@@ -216,5 +216,10 @@
   "config.vault.protection.enumDescriptions.auto": "自動保護",
   "config.vault.protection.enumDescriptions.osStore": "作業系統憑證儲存",
   "config.vault.protection.enumDescriptions.passphrase": "通關片語保護",
-  "config.vault.protection.enumDescriptions.hardware": "硬體保護"
+  "config.vault.protection.enumDescriptions.hardware": "硬體保護",
+  "command.estimate.title": "開啟估算器",
+  "config.estimator.optimize.description": "選擇在 P90 滿足期限的最便宜配置，或邊際節省足夠的最快配置。",
+  "config.estimator.optimize.enumDescriptions.cost": "在 P90 滿足期限的最便宜配置。",
+  "config.estimator.optimize.enumDescriptions.speed": "在增加機器仍能節省足夠時間的前提下最快的配置。",
+  "config.estimator.priceLookup.description": "在報告網路原則允許時查詢公開目錄價格；每個價格都會顯示日期。"
 }

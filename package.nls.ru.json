@@ -216,5 +216,10 @@
   "config.vault.protection.enumDescriptions.auto": "Автоматическая защита",
   "config.vault.protection.enumDescriptions.osStore": "Хранилище учётных данных ОС",
   "config.vault.protection.enumDescriptions.passphrase": "Защита парольной фразой",
-  "config.vault.protection.enumDescriptions.hardware": "Аппаратная защита"
+  "config.vault.protection.enumDescriptions.hardware": "Аппаратная защита",
+  "command.estimate.title": "Открыть оценщик",
+  "config.estimator.optimize.description": "Выбирает самую дешёвую конфигурацию, укладывающуюся в срок при P90, или самую быструю с достаточной предельной экономией.",
+  "config.estimator.optimize.enumDescriptions.cost": "Самая дешёвая конфигурация, укладывающаяся в срок при P90.",
+  "config.estimator.optimize.enumDescriptions.speed": "Самая быстрая конфигурация, пока ещё одна машина экономит достаточно времени.",
+  "config.estimator.priceLookup.description": "Ищет цены в публичных каталогах, когда это разрешает сетевая политика отчётов; у каждой цены показана дата."
 }

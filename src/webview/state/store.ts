@@ -5,6 +5,8 @@
 // app reads it through `useSyncExternalStore`, and the persister saves it to
 // VS Code's webview state so the crash screen's Reload comes back with it.
 
+import * as z from 'zod/mini'
+import { ensureEstimateContracts } from '../estimator/lazyContracts'
 import { WEBVIEW_STATE_SAVE_MS } from '../../shared/constants'
 import { parseHostToWebviewMessage } from '../../shared/protocol'
 import type { ErrorReporter } from '../errorReport'
@@ -65,7 +67,7 @@ export function listenToHost(
   now: () => number,
   report: ErrorReporter,
 ): () => void {
-  const onMessage = (event: MessageEvent<unknown>) => {
+  const acceptMessage = (event: MessageEvent<unknown>) => {
     const parsed = parseHostToWebviewMessage(event.data)
     if (!parsed.ok) {
       const reason = `Dropped malformed host message: ${parsed.error}`
@@ -82,8 +84,31 @@ export function listenToHost(
       report('hostMessage', error)
     }
   }
+  let isListening = true
+  let estimates = Promise.resolve()
+  const estimateEnvelope = z.object({ type: z.literal('estimatorSection') })
+  async function acceptEstimate(
+    previous: Promise<void>,
+    event: MessageEvent<unknown>,
+  ): Promise<void> {
+    await previous
+    try {
+      await ensureEstimateContracts()
+      if (isListening) acceptMessage(event)
+    } catch (error: unknown) {
+      if (isListening) report('hostMessage', error)
+    }
+  }
+  const onMessage = (event: MessageEvent<unknown>) => {
+    if (estimateEnvelope.safeParse(event.data).success) {
+      estimates = acceptEstimate(estimates, event)
+      return
+    }
+    acceptMessage(event)
+  }
   target.addEventListener('message', onMessage)
   return () => {
+    isListening = false
     target.removeEventListener('message', onMessage)
   }
 }

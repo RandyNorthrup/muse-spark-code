@@ -342,6 +342,9 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   `/questions` and `/answer <n> <text>` (reserved ahead of skills), and
   M108's `/accounts <list|current|use <id>|thresholds [id]>`, answered
   locally with no model turn.
+  M117's `/estimate <goal> [--by <date>] [--fleet current|minimum|optimum]`
+  when the estimator binding is present; it runs the same engine as the
+  panel with no model call.
 - **Permission prompts**: the backend's own choices (allow once, allow for
   the session, reject). A prompt the editor cancels, or answers with a
   choice it was not offered, is rejected; nothing runs by default.

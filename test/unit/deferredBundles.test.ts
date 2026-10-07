@@ -84,6 +84,8 @@ beforeAll(async () => {
   const builds = await Promise.all([
     ...Object.entries({
       vaultBoundaries: 'src/shared/vaultBoundariesEntry.ts',
+      estimator: 'src/host/estimator/estimatorEntry.ts',
+      estimateContracts: 'src/shared/estimate.ts',
       media: 'src/host/media/mediaEntry.ts',
       runtimeAccounts: 'src/runtime/providers/accountsEntry.ts',
       questionNotes: 'src/core/questions/deferralEntry.ts',
@@ -911,6 +913,8 @@ describe('deferred cohort bundles', () => {
   })
 
   it.each([
+    ['estimateContracts', 'src/shared/estimate.ts', 'missing'],
+    ['modelApi', 'src/shared/estimate.ts', 'on its first action'],
     ['vaultBoundaries', 'src/shared/vault.ts', 'missing'],
     ['modelApi', 'src/shared/vault.ts', 'on its first action'],
     ['providerPolicy', 'src/host/backend/providerPolicyEntry.ts', 'missing'],

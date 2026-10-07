@@ -108,6 +108,7 @@ import {
 import type { AcpSharingPort } from './sharing'
 import { type AcpVault, vaultPermissionAnswer, vaultPermissionOptions, vaultSlash } from './vault'
 import { type VaultApprovalRequest, type VaultApprovalAnswer } from '../shared/vault'
+import type { AcpEstimatePort } from './estimate'
 
 // Muse Code runs a session's MCP servers only with this grant (M63c).
 const [SESSION_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
@@ -197,6 +198,8 @@ export interface AcpAgentDeps {
    * session. Absent, the agent behaves exactly as before.
    */
   readonly reportError?: (fact: AcpErrorFact) => void
+  /** M117: supplied by the lazy estimator loader; absence is reported locally. */
+  readonly estimate?: AcpEstimatePort
 }
 
 /** One observed failure as facts: a fixed kind and a fixed short code, nothing else. */
@@ -400,6 +403,11 @@ class AcpSession {
     await (this.questions?.turnEnded(isCancelled) ?? this.questionRegistry?.turnEnded(isCancelled))
   }
 
+  /** Cancellation/release callbacks can change the prompt across await. */
+  private wasEstimateCancelled(preparing: PreparingPrompt): boolean {
+    return preparing.isCancelled || this.isDisposed
+  }
+
   /** Queues an update behind the ones before it: the client sees them in order. */
   private send(update: SessionUpdate): void {
     this.outbox = this.deliver(this.outbox, update)
@@ -500,10 +508,20 @@ class AcpSession {
               },
               { name: 'record', description: UI_TEXT.media.attachRecording, input: null },
             ]),
+        ...(this.deps.estimate === undefined
+          ? []
+          : [
+              {
+                name: SLASH_COMMAND_NAMES.estimate,
+                description: UI_TEXT.estimateCliHelp,
+                input: { hint: UI_TEXT.estimateUsage },
+              },
+            ]),
         ...this.skills
           .filter(
             (skill) =>
               skill.selector !== SLASH_COMMAND_NAMES.help &&
+              skill.selector !== SLASH_COMMAND_NAMES.estimate &&
               skill.selector !== ACP_COMPACT_COMMAND &&
               skill.selector !== 'legal' &&
               ![
@@ -1373,6 +1391,41 @@ class AcpSession {
         preparing.abort.signal,
       )
       if (!parsed.ok) throw RequestError.invalidParams(undefined, parsed.reason)
+      const estimatePart = blocks.find((block) => block.type === 'text')
+      if (estimatePart !== undefined && /^\/estimate(?:\s|$)/.test(estimatePart.text.trim())) {
+        const controller = preparing.abort
+        try {
+          await this.announceCommands()
+          if ('error' in preparing) throw preparing.error
+          if (this.wasEstimateCancelled(preparing)) return 'cancelled'
+          let text = UI_TEXT.estimateUsage
+          if (parsed.parts.length === 1)
+            text =
+              this.deps.estimate === undefined
+                ? fill(UI_TEXT.estimateWaiting, { dependency: 'M117-W-estimator-binding' })
+                : await this.deps.estimate.run(estimatePart.text, this.cwd, controller.signal)
+          if ('error' in preparing) throw preparing.error
+          if (this.wasEstimateCancelled(preparing)) return 'cancelled'
+          this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+          await this.outbox
+          return 'end_turn'
+        } catch {
+          if (this.wasEstimateCancelled(preparing)) return 'cancelled'
+          if ('error' in preparing) throw preparing.error
+          this.send({
+            sessionUpdate: 'agent_message_chunk',
+            content: {
+              type: 'text',
+              text: fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' }),
+            },
+          })
+          await this.outbox
+          return 'end_turn'
+        } finally {
+          this.preparing = undefined
+        }
+      }
+
       if (
         ['/legal', '/legal --offline'].includes(parsed.displayText.trim()) &&
         this.deps.legalScan !== undefined &&

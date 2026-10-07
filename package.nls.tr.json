@@ -216,5 +216,10 @@
   "config.vault.protection.enumDescriptions.auto": "Otomatik koruma",
   "config.vault.protection.enumDescriptions.osStore": "İşletim sistemi kimlik bilgisi deposu",
   "config.vault.protection.enumDescriptions.passphrase": "Parola koruması",
-  "config.vault.protection.enumDescriptions.hardware": "Donanım koruması"
+  "config.vault.protection.enumDescriptions.hardware": "Donanım koruması",
+  "command.estimate.title": "Tahmin Aracını Aç",
+  "config.estimator.optimize.description": "Son tarihi P90’da karşılayan en ucuz kurulumu ya da marjinal kazancı yeterli en hızlı kurulumu seçer.",
+  "config.estimator.optimize.enumDescriptions.cost": "Son tarihi P90’da karşılayan en ucuz kurulum.",
+  "config.estimator.optimize.enumDescriptions.speed": "Başka bir makine hâlâ yeterince zaman kazandırırken en hızlı kurulum.",
+  "config.estimator.priceLookup.description": "Raporlar ağ ilkesi izin verdiğinde herkese açık katalog fiyatlarını arar; her fiyat tarihini gösterir."
 }

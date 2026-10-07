@@ -216,5 +216,10 @@
   "config.vault.protection.enumDescriptions.auto": "Protection automatique",
   "config.vault.protection.enumDescriptions.osStore": "Stockage des identifiants du système",
   "config.vault.protection.enumDescriptions.passphrase": "Protection par phrase secrète",
-  "config.vault.protection.enumDescriptions.hardware": "Protection matérielle"
+  "config.vault.protection.enumDescriptions.hardware": "Protection matérielle",
+  "command.estimate.title": "Ouvrir l’estimateur",
+  "config.estimator.optimize.description": "Choisit la configuration la moins chère qui respecte l’échéance à P90, ou la plus rapide avec un gain marginal suffisant.",
+  "config.estimator.optimize.enumDescriptions.cost": "Configuration la moins chère qui respecte l’échéance à P90.",
+  "config.estimator.optimize.enumDescriptions.speed": "Configuration la plus rapide tant qu’une machine de plus fait encore gagner assez de temps.",
+  "config.estimator.priceLookup.description": "Recherche les prix des catalogues publics quand la politique réseau des rapports l’autorise ; chaque prix affiche sa date."
 }

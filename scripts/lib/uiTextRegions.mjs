@@ -225,7 +225,9 @@ export function browserTextKeys(entries, english, eagerSources = new Set()) {
         keys.add(node.name.text)
         if (eagerSources.has(file)) eagerKeys.add(node.name.text)
       }
-      if (ts.isStringLiteral(node) && Object.hasOwn(english, node.text)) {
+      // Group names also occur as protocol/command words. Only an actual
+      // UI_TEXT access makes an object-valued group a reader.
+      if (ts.isStringLiteral(node) && typeof english[node.text] === 'string') {
         keys.add(node.text)
         if (eagerSources.has(file)) eagerKeys.add(node.text)
       }
@@ -319,6 +321,17 @@ export const compactBrowserUiText = {
         level: L10N_BROWSER_COMPRESSION_LEVEL,
       }
     })
+    // Only browser protocol validators use the first-use adapter. Node readers
+    // keep the complete schemas through their shared contract bundle.
+    build.onLoad({ filter: /[/\\]shared[/\\]protocol\.ts$/ }, (args) => ({
+      contents: readFileSync(args.path, 'utf8').replace(
+        "from './estimate'",
+        "from '../webview/estimator/lazyContracts'",
+      ),
+      loader: 'ts',
+      resolveDir: path.dirname(args.path),
+      watchFiles: [args.path],
+    }))
     build.onLoad({ filter: /[/\\]l10n[/\\]vaultEnglish\.ts$/ }, (args) => {
       const property = uiTextProperties().find((property) => property.key === 'vault')
       if (property === undefined) throw new Error('Missing canonical vault English')

@@ -403,6 +403,11 @@
         "command": "museSpark.lockVault",
         "title": "%command.lockVault.title%",
         "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.estimate",
+        "title": "%command.estimate.title%",
+        "category": "%command.category%"
       }
     ],
     "keybindings": [
@@ -1464,6 +1469,26 @@
           "type": "boolean",
           "default": true,
           "description": "%config.vault.lockOnScreenLock.description%",
+          "scope": "machine"
+        },
+        "museSpark.estimator.optimize": {
+          "type": "string",
+          "enum": [
+            "cost",
+            "speed"
+          ],
+          "enumDescriptions": [
+            "%config.estimator.optimize.enumDescriptions.cost%",
+            "%config.estimator.optimize.enumDescriptions.speed%"
+          ],
+          "default": "cost",
+          "description": "%config.estimator.optimize.description%",
+          "scope": "machine"
+        },
+        "museSpark.estimator.priceLookup": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.estimator.priceLookup.description%",
           "scope": "machine"
         }
       }

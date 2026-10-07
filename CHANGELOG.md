@@ -240,6 +240,22 @@ happened, not what was planned; superseded entries are kept.
   Prompt library menu at the pointer when right-clicking the composer input.
   Save, Share and Use saved keep the toolbar's conditions and exact draft;
   Escape returns focus. Shift-right-click preserves the host's clipboard menu.
+### Added
+
+- Capacity estimator (M117): `/estimate <goal> [--by <date>] [--fleet
+  current|minimum|optimum]` in the composer, the ACP agent and the Open
+  Estimator command forecasts P50/P90 dates, the lane schedule with its
+  critical path, the limiting resource and current/minimum/optimum setups
+  from one lazily loaded engine. Every figure carries its calibration
+  disclosure with the sample size (Uncalibrated prior below 20 samples);
+  durations and first-pass finding rates fit per engine (Codex, Muse, Grok)
+  × lane kind × machine class, and bases older than seven days are flagged
+  as a schedule risk. Spin it up starts the contract-first first wave;
+  rented servers stay advice-only until the provider binding lands, and
+  every later spend needs its own confirmation inside one explicit run
+  budget. Settings (this machine): `museSpark.estimator.optimize` and
+  `museSpark.estimator.priceLookup`. The generated-help bundle budget moves
+  100 → 125 KiB by the measured-plus-15% rule (100.7 KiB with the new rows).
 
 ### Documentation
 
@@ -573,6 +589,10 @@ happened, not what was planned; superseded entries are kept.
   The original deferred group drops from 50.0 to 32.1 KiB; existing size caps
   stay unchanged.
 
+- Estimator simulation reuses prepared resource data and indexed reservations;
+  forty-lane chain, independent and fan-out regressions enforce the existing
+  two-second budget for 2,000 trials and paired bottleneck comparisons.
+
 - MCP form controls and workflow details also load on first use, preserving
   the diet's startup and deferred regression limits with the question dock.
   Questions keep their visible arrival card and use the shared local retry
@@ -596,6 +616,25 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Estimator surfaces keep a lane completion received during the first
+  estimate: it refreshes at the completion's timestamp instead of being
+  discarded, and replacing the Estimator panel's adapter drops the previous
+  request, forecast and activity so no late update lands on the new adapter.
+
+- Estimator history preparation refuses conflicting lane identities across
+  duration bases, including concurrent appends. Versioned basis tags and
+  reported skips keep unknown or mixed-basis records from blocking valid history;
+  estimator surfaces remain pending integration.
+
+- Estimator scheduling considers feasible multi-account allocations, ignores
+  unused disk measurements and quota accounts, and qualifies selected lanes
+  when required disk headroom is unknown. Commands and surfaces await integration.
+
+- Estimator preparation rejects malformed goals and validates quota renewal,
+  per-volume disk capacity, numeric calibration disclosures and module-level
+  review history. The revised contracts and labels are covered in all fourteen
+  languages; estimator commands and surfaces remain pending integration.
+
 - The release-artifact check validates complete ACP help, including its reference
   hint, in English and every installed language using the CLI's shared formatter.
 
@@ -607,6 +646,7 @@ happened, not what was planned; superseded entries are kept.
 
 - Activation paid-setting checks are directly importable in tests, and ACP
   stdio checks include the localized Help reference hint.
+
 
 - Hungarian Help translations now package correctly alongside the other languages.
 

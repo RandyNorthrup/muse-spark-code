@@ -216,5 +216,10 @@
   "config.vault.protection.enumDescriptions.auto": "자동 보호",
   "config.vault.protection.enumDescriptions.osStore": "운영체제 자격 증명 저장소",
   "config.vault.protection.enumDescriptions.passphrase": "암호문 보호",
-  "config.vault.protection.enumDescriptions.hardware": "하드웨어 보호"
+  "config.vault.protection.enumDescriptions.hardware": "하드웨어 보호",
+  "command.estimate.title": "추정 열기",
+  "config.estimator.optimize.description": "P90 마감일을 맞추는 가장 저렴한 구성, 또는 한계 절감 효과가 충분한 가장 빠른 구성을 선택합니다.",
+  "config.estimator.optimize.enumDescriptions.cost": "P90 마감일을 맞추는 가장 저렴한 구성.",
+  "config.estimator.optimize.enumDescriptions.speed": "추가 머신이 아직 충분한 시간을 절약하는 동안의 가장 빠른 구성.",
+  "config.estimator.priceLookup.description": "보고서 네트워크 정책이 허용할 때 공개 카탈로그 가격을 조회합니다. 각 가격에 날짜가 표시됩니다."
 }

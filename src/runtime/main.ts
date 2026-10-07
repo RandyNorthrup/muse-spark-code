@@ -20,6 +20,7 @@ import { processGitRunner } from '../host/git'
 import { loadUiTable, readUiTableFile } from '../host/l10n'
 import {
   ACP_AGENT_NAME,
+  ESTIMATOR_BUNDLE_FILE,
   RUNTIME_QUESTIONS_BUNDLE_FILE,
   RUNTIME_ACCOUNTS_BUNDLE_FILE,
   ACP_AUTH_METHODS,
@@ -65,6 +66,7 @@ import { acpSharingCommands } from '../acp/sharing'
 import type { RuntimeSharingPorts } from './sharing/sharingEntry'
 import { formatAcpUsage } from './cliOptions'
 import { referenceLoader } from '../host/referenceLoader'
+import { createRuntimeEstimate } from './estimator/ports'
 import { REFERENCE_BUNDLE_FILE } from '../shared/constants'
 import { UI_TEXT as referenceTable } from '../shared/l10n/text'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
@@ -671,6 +673,10 @@ async function serve(
             .execute(text, context),
       },
       paid: runtime.paid,
+      estimate: createRuntimeEstimate({
+        bundlePath: path.join(distDir, ESTIMATOR_BUNDLE_FILE),
+        log,
+      }),
       questions: (input) => {
         const registry = loadQuestions().createRuntimeQuestionRegistry(
           input,

@@ -216,5 +216,10 @@
   "config.vault.protection.enumDescriptions.auto": "Ochrona automatyczna",
   "config.vault.protection.enumDescriptions.osStore": "Magazyn poświadczeń systemu",
   "config.vault.protection.enumDescriptions.passphrase": "Ochrona hasłem",
-  "config.vault.protection.enumDescriptions.hardware": "Ochrona sprzętowa"
+  "config.vault.protection.enumDescriptions.hardware": "Ochrona sprzętowa",
+  "command.estimate.title": "Otwórz estymator",
+  "config.estimator.optimize.description": "Wybiera najtańszą konfigurację spełniającą termin w P90 albo najszybszą z wystarczającą oszczędnością krańcową.",
+  "config.estimator.optimize.enumDescriptions.cost": "Najtańsza konfiguracja spełniająca termin w P90.",
+  "config.estimator.optimize.enumDescriptions.speed": "Najszybsza konfiguracja, dopóki kolejna maszyna oszczędza wystarczająco dużo czasu.",
+  "config.estimator.priceLookup.description": "Wyszukuje publiczne ceny katalogowe, gdy zezwala na to polityka sieciowa raportów; każda cena pokazuje swoją datę."
 }

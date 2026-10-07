@@ -216,5 +216,10 @@
   "config.vault.protection.enumDescriptions.auto": "自动保护",
   "config.vault.protection.enumDescriptions.osStore": "操作系统凭据存储",
   "config.vault.protection.enumDescriptions.passphrase": "口令保护",
-  "config.vault.protection.enumDescriptions.hardware": "硬件保护"
+  "config.vault.protection.enumDescriptions.hardware": "硬件保护",
+  "command.estimate.title": "打开估算器",
+  "config.estimator.optimize.description": "选择在 P90 满足期限的最便宜配置，或边际节省足够的最快配置。",
+  "config.estimator.optimize.enumDescriptions.cost": "在 P90 满足期限的最便宜配置。",
+  "config.estimator.optimize.enumDescriptions.speed": "在增加机器仍能节省足够时间的前提下最快的配置。",
+  "config.estimator.priceLookup.description": "在报告网络策略允许时查找公开目录价格；每个价格都显示日期。"
 }

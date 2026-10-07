@@ -48,6 +48,8 @@ import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
 import { parseHandoffPrompt } from '../shared/handoff'
 import { parseLoopPrompt } from '../core/backends/modelapi/schedules'
 import { fill, formatNumber, plural, templateParts } from '../shared/l10n/text'
+import type { EstimateRequest } from '../shared/estimate'
+import { isEstimateCommandText } from './estimator/commandPrefix'
 import {
   availablePermissionModes,
   nextPermissionMode,
@@ -133,6 +135,10 @@ const GoalPanel = deferred(async () => {
 const SchedulePanel = deferred(async () => {
   const module = await import('./components/SchedulePanel')
   return { default: module.SchedulePanel }
+})
+const EstimatorPanel = deferred(async () => {
+  const module = await import('./estimator/EstimatorPanel')
+  return { default: module.EstimatorConversation }
 })
 const Palette = deferred(async () => {
   const module = await import('./components/Palette')
@@ -783,6 +789,28 @@ export function App({
   const onScheduleEnable = useCallback(() => {
     postMessage({ type: 'setPaidFeature', feature: 'scheduledPrompts', isOn: true })
   }, [postMessage])
+  // `/estimate …` (M117, PLAN.md D97): the estimator panel, not a message.
+  // Runs post `estimateRun`; the host answers with `estimatorSection`, which
+  // reveals the panel and settles every pending run. Re-estimates are
+  // legitimate (the panel's Refresh), so runs are never deduplicated here.
+  const postEstimateRun = useCallback(
+    (request: EstimateRequest) => {
+      postMessage({ type: 'estimateRun', request })
+    },
+    [postMessage],
+  )
+  const estimatorOptimize = state.settings?.['estimator.optimize'] ?? 'cost'
+  // The extension's `museSpark.estimate` command (M117).
+  const estimatorRequests = state.estimatorRequests
+  const seenEstimatorRequests = useRef(estimatorRequests)
+  useEffect(() => {
+    if (estimatorRequests === seenEstimatorRequests.current) return
+    seenEstimatorRequests.current = estimatorRequests
+    if (store.getState().draft.trim() === '') {
+      dispatch({ type: 'draftChanged', draft: '/estimate ' })
+    }
+    dispatch({ type: 'focusRequested' })
+  }, [store, dispatch, estimatorRequests])
   // `/review …` and the palette's review rows (M70): the card first, then the
   // host's word on it, as for a message. False when the request is refused here.
   const onReview = useCallback(
@@ -879,6 +907,29 @@ export function App({
       setIsPinnedToEnd(true)
       return
     }
+    // `/estimate …` opens the estimator panel, not a message (M117): the
+    // draft clears and the host's `estimatorSection` reveals it. The full
+    // parse loads with the composer so startup carries only the prefix check.
+    if (isEstimateCommandText(text)) {
+      dispatch({ type: 'draftChanged', draft: '' })
+      setIsPinnedToEnd(true)
+      void import('./estimator/composer')
+        .then(({ wasEstimateComposerHandled }) => {
+          wasEstimateComposerHandled(text, {
+            context: () => ({ asOf: new Date().toISOString(), optimize: estimatorOptimize }),
+            open: (request) => {
+              postEstimateRun(request)
+            },
+            notice: (noticeText) => {
+              dispatch({ type: 'noticeRaised', level: 'warning', text: noticeText })
+            },
+          })
+        })
+        .catch(() => {
+          dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.estimateUnavailable })
+        })
+      return
+    }
     // `/handoff …` distils the conversation for a fresh one (M74), on
     // either backend (the host says where it cannot run).
     const handoff = parseHandoffPrompt(text)
@@ -954,6 +1005,8 @@ export function App({
     onReview,
     onLegalScan,
     onHandoff,
+    postEstimateRun,
+    estimatorOptimize,
   ])
   // Send exactly the payload the dialog previewed. The composer may now
   // hold a newer draft, different chips or a different reference.
@@ -2083,6 +2136,9 @@ export function App({
         backend: state.auth.backend,
         paidFeatures: state.paid.features,
         isKeyStored: state.paid.isKeyStored,
+        // The estimator is bound in this surface (M117): its row inserts
+        // `/estimate`, which the submit path handles below.
+        estimateAvailable: true,
       }),
     [
       state.paid.isKeyStored,
@@ -2818,6 +2874,14 @@ export function App({
             onRun={onScheduleRun}
             onCancel={onScheduleCancel}
             onEnable={onScheduleEnable}
+          />
+        )}
+        {state.estimator === undefined ? null : (
+          <EstimatorPanel
+            key={state.sessionId}
+            section={state.estimator}
+            optimize={estimatorOptimize}
+            onRun={postEstimateRun}
           />
         )}
         <TodoPanel items={state.todos} isInert={isModalOpen} onOpenInTab={onOpenTasksTab} />

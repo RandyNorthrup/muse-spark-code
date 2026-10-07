@@ -216,6 +216,8 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       vault command; only the command shim stays at
                       activation, and both commands refuse closed until the
                       broker-backed service lands),
+                      the estimator's engine and history honesty
+                      (dist/estimator.js, loaded on the first estimate; M117),
                       commands, auth, settings, mentions,
                       editor tracking, usage trace logs, voice, the IDE tool
                       MCP server (diagnostics, code intelligence, images, web
