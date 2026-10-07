@@ -13465,6 +13465,14 @@ all configured Vitest files in batches of at most three at default timeouts,
 the production build, both packages, reference and universal-artifact checks,
 and CI's pinned Semgrep 1.178.0. No paid/live calls, push or extra merge.
 
+Rig repair certified on `b881f932f`: 557 files, 11,815 passed tests, zero
+failures and 72 existing skips at repository default timeouts; both packages,
+all named static checks, zero Semgrep findings and installed ACP help in all
+15 languages pass. The universal job's installed-package fake guards pass
+38/38. Receipts and scanner warnings are in
+`docs/certification/m118.md#hosted-ci-repair-for-0144`; hosted CI remains with
+the lead.
+
 Merge only `sync/main-0144` into the reviewed M118 integration, preserving
 M112 questions, Help and STARTDIET deferred surfaces. Give M118 optional
 surfaces the diet's accessible loading/retry pattern and independent measured
