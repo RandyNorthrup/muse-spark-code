@@ -70,6 +70,7 @@ const audit = {
   components: [{ scene: 'composer', file: 'src/webview/components/Composer.tsx' }],
 }
 const matrix = {
+  componentAuditInputs: ['src/webview/components/Composer.tsx'],
   states: ['default', 'hover'],
   themes: ['light', 'dark'],
   widths: [320, 690],
@@ -206,6 +207,19 @@ describe('M114 bounded pixelmatch visual gate', () => {
     const state = manifest()
     state.captures[4].applied = false
     expect(() => validateManifest(state, audit, matrix)).toThrow('Unapplied')
+  })
+
+  it('rejects an inventory that can certify a manifest while omitting a current renderer', () => {
+    const current = {
+      ...matrix,
+      componentAuditInputs: [
+        ...matrix.componentAuditInputs,
+        'src/webview/components/OpenQuestionsChip.tsx',
+      ],
+    }
+    expect(() => validateManifest(manifest(), audit, current)).toThrow(
+      'Renderer inventory coverage',
+    )
   })
 
   it('partitions the reviewed matrix exactly once without splitting scene states', () => {
@@ -382,9 +396,13 @@ describe('M114 bounded pixelmatch visual gate', () => {
     expect(visual).toContain('test "$SHARDS" = success')
     expect(visual).toContain('--merge-shards=temp/visual-shards')
     expect(visual).not.toContain('inputs.fast')
-    // The static checks step runs quality:gates' static gates, so the visual
-    // gate (M114 S) sits between check:tokens and check:l10n there.
-    expect(workflow).toContain('check:badges check:tokens check:visual check:l10n')
+    // Pixel replay has required shards; the 15-minute static job cannot replay it.
+    const checks = workflow.slice(
+      workflow.indexOf('  checks:'),
+      workflow.indexOf('  visual-shards:'),
+    )
+    expect(checks).toContain('check:badges check:tokens check:l10n')
+    expect(checks).not.toContain('check:visual')
     const required = workflow.slice(
       workflow.indexOf('  required:'),
       workflow.indexOf('  native-build:'),

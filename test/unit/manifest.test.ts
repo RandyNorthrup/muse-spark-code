@@ -541,7 +541,7 @@ describe('tiered CI (CIFLOW)', () => {
       expect(job(id)).toContain('inputs.fast && \'["ubuntu-latest"]\'')
       expect(job(id)).toContain('["ubuntu-latest","windows-latest","macos-latest"]')
     }
-    // Exactly quality:gates without the tests, which run in their own jobs: a
+    // Exactly quality:gates without tests and pixels, which have required jobs: a
     // gate added to quality:gates and not to CI fails here.
     const gates = manifest.scripts['quality:gates'].split(' ')
     expect(gates.slice(0, 1)).toEqual(['run-s'])
@@ -549,7 +549,7 @@ describe('tiered CI (CIFLOW)', () => {
     expect(job('checks')).toContain(
       `      - run: npx run-s ${gates
         .slice(1)
-        .filter((gate) => gate !== 'test:unit')
+        .filter((gate) => gate !== 'test:unit' && gate !== 'check:visual')
         .join(' ')}\n`,
     )
     expect(job('unit')).toContain('npx vitest run\n')
@@ -564,6 +564,14 @@ describe('tiered CI (CIFLOW)', () => {
     expect(job('packages')).toContain('name: muse-spark-code-vsix')
     expect(job('packages')).toContain('name: muse-spark-code-acp')
     expect(job('packages')).toContain('name: muse-spark-code-sboms')
+  })
+
+  it('replays visual pixels only in required shards with the recorded Git source available', () => {
+    expect(job('checks')).not.toContain('check:visual')
+    expect(job('visual-shards')).toContain('fetch-depth: 0')
+    expect(job('visual-shards')).toContain('git fetch --no-tags origin "$revision"')
+    expect(job('visual-shards')).toContain('npm run check:visual -- --shard=${{ matrix.shard }}/6')
+    expect(job('visual')).toContain('needs: visual-shards')
   })
 
   it('collects all four shards per OS and gates merged coverage with unchanged thresholds', () => {

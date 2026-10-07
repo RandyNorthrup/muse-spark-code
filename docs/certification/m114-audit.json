@@ -2,7 +2,7 @@
   "version": 1,
   "base": "6c048ed33",
   "rig": "Kubuntu",
-  "scope": "M114 lane A: before-state audit; no implementation polish or visual-golden approval",
+  "scope": "Integrated renderer coverage after RVM114W; retained grades/evidence name their immutable historical audit revision. New rows identify current painted descendants and capture scenes.",
   "dimensions": [
     "colour",
     "radius",
@@ -24,7 +24,7 @@
     "scale": {
       "dimensions": ["radius", "typographySpacing"],
       "grade": "partial",
-      "fix": "Replace literal radii/spacing/type/alpha with source scales; radius xs/sm/md/lg/xl/pill/circle and spacing-1\u20268; use typography and state alpha roles. Preserve geometry constants until owning layout lane approves changes.",
+      "fix": "Replace literal radii/spacing/type/alpha with source scales; radius xs/sm/md/lg/xl/pill/circle and spacing-1…8; use typography and state alpha roles. Preserve geometry constants until owning layout lane approves changes.",
       "evidence": "styles.css literal 999px/50%/3px/20px radii, em sizes, font-weight 600, and pixel gaps; generated layout aliases are already present."
     },
     "states": {
@@ -73,7 +73,7 @@
       "dimensions": ["typographySpacing", "focus"],
       "grade": "fail",
       "fix": "Keep the page root on editor-surface; replace h1/h2/h3/code em sizes and 1.5/1.25 line heights with token roles, use code/link/quote roles and 2 px focus around links/buttons/input/pre.",
-      "evidence": "whatsNew.css body, h1\u2013h4, pre/code, button and a:focus-visible; no pressed/disabled styles."
+      "evidence": "whatsNew.css body, h1–h4, pre/code, button and a:focus-visible; no pressed/disabled styles."
     },
     "inherited": {
       "dimensions": [],
@@ -408,7 +408,8 @@
         "--vscode-font-size",
         "--vscode-foreground",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/TasksApp.tsx",
@@ -491,7 +492,8 @@
         "--vscode-font-size",
         "--vscode-foreground",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/AgentMap.tsx",
@@ -573,7 +575,91 @@
         "--vscode-panel-border",
         "--vscode-progressBar-background",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
+    },
+    {
+      "file": "src/webview/components/AgentMapContent.tsx",
+      "owner": "P2",
+      "selectors": [".agent-node", ".agent-result", ".agent-dot-running", ".agent-controls"],
+      "scene": "agents-details",
+      "grades": {
+        "colour": "inherited",
+        "radius": "inherited",
+        "elevation": "inherited",
+        "motion": "inherited",
+        "focus": "inherited",
+        "states": "inherited",
+        "highContrast": "inherited",
+        "accessibility": "inherited",
+        "typographySpacing": "inherited"
+      },
+      "roles": [
+        "colour.accent",
+        "colour.border",
+        "colour.disabled",
+        "colour.editor-surface",
+        "colour.focus",
+        "colour.pressed",
+        "colour.progress",
+        "colour.surface",
+        "colour.text",
+        "colour.toolbar-hover",
+        "typography.font-size",
+        "typography.font-ui"
+      ],
+      "findings": ["roles", "scale", "states", "focus", "motion", "overlay"],
+      "fix": "Verify AgentMapContent's actual painted descendants through .agent-details in all six themes and both widths; shared controls must retain token states, AA focus and reduced motion.",
+      "evidence": [
+        {
+          "file": "src/webview/styles.css",
+          "line": 2627,
+          "selector": ".agent-controls",
+          "declarations": "display: flex;\n  flex-direction: column;\n  gap: 6px;\n  margin: 6px 0;"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 3125,
+          "selector": ".agent-node",
+          "declarations": "display: flex;\n  flex-direction: column;\n  gap: 2px;\n  min-width: 180px;\n  padding: 6px 10px;\n  border: 1px solid var(--vscode-panel-border);\n  border-radius: var(--ms-radius);\n  color: inherit;\n  font: inherit;\n  text-align: left;\n  background: var(--vscode-editor-background);"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 3175,
+          "selector": ".agent-dot-running",
+          "declarations": "background: var(--vscode-progressBar-background, var(--vscode-button-background));\n  animation: agent-pulse 1.2s ease-in-out infinite;"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 3228,
+          "selector": ".agent-result",
+          "declarations": "margin: 0;\n  padding: 6px 10px;\n  border-left: 2px solid var(--vscode-panel-border);"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 3291,
+          "selector": ".agent-node.workflow",
+          "declarations": "padding: 6px 10px;"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 3847,
+          "selector": ".cursor,\n  .tool-dot-running,\n  .mic-button.mic-starting,\n  .mic-button.mic-listening,\n  .agent-dot-running,\n  .status-mark-circle,\n  .gooey-menu-pill",
+          "declarations": "animation: none;"
+        }
+      ],
+      "captureSelector": ".agent-details",
+      "vscodeVariables": [
+        "--vscode-button-background",
+        "--vscode-editor-background",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-progressBar-background",
+        "--vscode-sideBar-background"
+      ],
+      "gradeSourceRevision": "current shared control treatment; integrated capture required"
     },
     {
       "file": "src/webview/components/ApprovalCard.tsx",
@@ -680,55 +766,8 @@
         "--vscode-inputValidation-warningForeground",
         "--vscode-panel-border",
         "--vscode-sideBar-background"
-      ]
-    },
-    {
-      "file": "src/webview/components/ApprovalDock.tsx",
-      "owner": "P1",
-      "selectors": [".approval-dock", ".approval-dock-count"],
-      "scene": "approval-several",
-      "grades": {
-        "colour": "partial",
-        "radius": "partial",
-        "elevation": "not-applicable",
-        "motion": "not-applicable",
-        "focus": "fail",
-        "states": "not-applicable",
-        "highContrast": "partial",
-        "accessibility": "fail",
-        "typographySpacing": "partial"
-      },
-      "roles": [
-        "colour.muted",
-        "colour.surface",
-        "colour.text",
-        "typography.font-size",
-        "typography.font-ui"
       ],
-      "findings": ["roles", "scale", "focus"],
-      "fix": "Tokenize dock spacing/count text; reserve enough scroll padding for a 2 px ring around the last decision; bind any future M112 fold to base motion.",
-      "evidence": [
-        {
-          "file": "src/webview/styles.css",
-          "line": 1597,
-          "selector": ".approval-dock",
-          "declarations": "display: flex;\n  flex-direction: column;\n  gap: 4px;\n  max-height: 45vh;\n  margin-block: 0;\n  margin-inline: var(--ms-column-inset);\n  padding-inline: var(--ms-gap);\n  overflow-y: auto;"
-        },
-        {
-          "file": "src/webview/styles.css",
-          "line": 1608,
-          "selector": ".approval-dock-count",
-          "declarations": "margin: 0;\n  color: var(--vscode-descriptionForeground);\n  font-size: 0.85em;"
-        }
-      ],
-      "captureSelector": ".approval-dock, .approval-dock-count",
-      "vscodeVariables": [
-        "--vscode-descriptionForeground",
-        "--vscode-font-family",
-        "--vscode-font-size",
-        "--vscode-foreground",
-        "--vscode-sideBar-background"
-      ]
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/AttachmentChips.tsx",
@@ -809,7 +848,51 @@
         "--vscode-foreground",
         "--vscode-panel-border",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
+    },
+    {
+      "file": "src/webview/components/AttentionDock.tsx",
+      "owner": "P1",
+      "selectors": [".approval-dock"],
+      "scene": "approval-several",
+      "grades": {
+        "colour": "inherited",
+        "radius": "inherited",
+        "elevation": "inherited",
+        "motion": "inherited",
+        "focus": "inherited",
+        "states": "inherited",
+        "highContrast": "inherited",
+        "accessibility": "inherited",
+        "typographySpacing": "inherited"
+      },
+      "roles": [
+        "colour.muted",
+        "colour.surface",
+        "colour.text",
+        "typography.font-size",
+        "typography.font-ui"
+      ],
+      "findings": ["roles", "scale", "focus"],
+      "fix": "Verify AttentionDock's actual painted descendants through .attention-dock in all six themes and both widths; shared controls must retain token states, AA focus and reduced motion.",
+      "evidence": [
+        {
+          "file": "src/webview/styles.css",
+          "line": 1574,
+          "selector": ".approval-dock",
+          "declarations": "display: flex;\n  flex-direction: column;\n  gap: var(--ms-space-4);\n  max-height: 45vh;\n  margin-block: 0;\n  margin-inline: var(--ms-column-inset);\n  padding: var(--ms-space-4) var(--ms-gap);\n  scroll-padding-block: var(--ms-space-4);\n  overflow-y: auto;"
+        }
+      ],
+      "captureSelector": ".attention-dock",
+      "vscodeVariables": [
+        "--vscode-descriptionForeground",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-sideBar-background"
+      ],
+      "gradeSourceRevision": "current shared control treatment; integrated capture required"
     },
     {
       "file": "src/webview/components/BestOfNDialog.tsx",
@@ -905,7 +988,8 @@
         "--vscode-panel-border",
         "--vscode-sideBar-background",
         "--vscode-widget-shadow"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/CodeBlock.tsx",
@@ -984,7 +1068,8 @@
         "--vscode-panel-border",
         "--vscode-sideBar-background",
         "--vscode-textCodeBlock-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/Composer.tsx",
@@ -1193,7 +1278,8 @@
         "--vscode-panel-border",
         "--vscode-sideBar-background",
         "--vscode-toolbar-hoverBackground"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/ContextMeter.tsx",
@@ -1285,7 +1371,66 @@
         "--vscode-progressBar-background",
         "--vscode-sideBar-background",
         "--vscode-toolbar-hoverBackground"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
+    },
+    {
+      "file": "src/webview/components/DeferredQuestionUi.tsx",
+      "owner": "P2",
+      "selectors": [".attention-questions"],
+      "scene": "questions-open",
+      "grades": {
+        "colour": "inherited",
+        "radius": "inherited",
+        "elevation": "inherited",
+        "motion": "inherited",
+        "focus": "inherited",
+        "states": "inherited",
+        "highContrast": "inherited",
+        "accessibility": "inherited",
+        "typographySpacing": "inherited"
+      },
+      "roles": [
+        "colour.border",
+        "colour.disabled",
+        "colour.focus",
+        "colour.input-border",
+        "colour.input-surface",
+        "colour.input-text",
+        "colour.muted",
+        "colour.overlay",
+        "colour.pressed",
+        "colour.surface",
+        "colour.text",
+        "colour.toolbar-hover",
+        "typography.font-size",
+        "typography.font-ui"
+      ],
+      "findings": ["roles", "scale", "states", "focus", "placeholder"],
+      "fix": "Verify DeferredQuestionUi's actual painted descendants through .attention-questions in all six themes and both widths; shared controls must retain token states, AA focus and reduced motion.",
+      "evidence": [
+        {
+          "file": "src/webview/styles.css",
+          "line": 4194,
+          "selector": ".attention-questions",
+          "declarations": "min-width: 0;"
+        }
+      ],
+      "captureSelector": ".attention-questions",
+      "vscodeVariables": [
+        "--vscode-descriptionForeground",
+        "--vscode-editorWidget-background",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-input-background",
+        "--vscode-input-border",
+        "--vscode-input-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background"
+      ],
+      "gradeSourceRevision": "current shared control treatment; integrated capture required"
     },
     {
       "file": "src/webview/components/DeferredReportDialog.tsx",
@@ -1343,7 +1488,8 @@
         "--vscode-sideBar-background",
         "--vscode-widget-border",
         "--vscode-widget-shadow"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/DeferredSurface.tsx",
@@ -1397,7 +1543,8 @@
         "--vscode-sideBar-background",
         "--vscode-widget-border",
         "--vscode-widget-shadow"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/DiffTally.tsx",
@@ -1455,7 +1602,8 @@
         "--vscode-foreground",
         "--vscode-panel-border",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/EffortSlider.tsx",
@@ -1533,7 +1681,8 @@
         "--vscode-foreground",
         "--vscode-panel-border",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/ElicitationCard.tsx",
@@ -1598,7 +1747,8 @@
         "--vscode-font-size",
         "--vscode-foreground",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/EmptyState.tsx",
@@ -1664,7 +1814,8 @@
         "--vscode-font-size",
         "--vscode-foreground",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/ErrorBoundary.tsx",
@@ -1726,7 +1877,8 @@
         "--vscode-inputValidation-warningBackground",
         "--vscode-inputValidation-warningForeground",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/ExternalLink.tsx",
@@ -1897,7 +2049,8 @@
         "--vscode-panel-border",
         "--vscode-sideBar-background",
         "--vscode-textLink-foreground"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/GitPanel.tsx",
@@ -1978,7 +2131,8 @@
         "--vscode-foreground",
         "--vscode-panel-border",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/GoalPanel.tsx",
@@ -2056,7 +2210,8 @@
         "--vscode-foreground",
         "--vscode-panel-border",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/GoalParts.tsx",
@@ -2136,7 +2291,8 @@
         "--vscode-panel-border",
         "--vscode-progressBar-background",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/GooeyMenu.tsx",
@@ -2259,7 +2415,132 @@
         "--vscode-panel-border",
         "--vscode-sideBar-background",
         "--vscode-toolbar-hoverBackground"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
+    },
+    {
+      "file": "src/webview/components/GooeyMenuContent.tsx",
+      "owner": "P2",
+      "selectors": [".gooey-menu-pill", ".row-actions-button"],
+      "scene": "chat-tool-menu-narrow",
+      "grades": {
+        "colour": "inherited",
+        "radius": "inherited",
+        "elevation": "inherited",
+        "motion": "inherited",
+        "focus": "inherited",
+        "states": "inherited",
+        "highContrast": "inherited",
+        "accessibility": "inherited",
+        "typographySpacing": "inherited"
+      },
+      "roles": [
+        "colour.accent",
+        "colour.border",
+        "colour.control-border",
+        "colour.disabled",
+        "colour.editor-surface",
+        "colour.focus",
+        "colour.on-accent",
+        "colour.pressed",
+        "colour.surface",
+        "colour.text",
+        "colour.toolbar-hover",
+        "typography.font-size",
+        "typography.font-ui"
+      ],
+      "findings": ["roles", "scale", "states", "focus", "motion"],
+      "fix": "Verify GooeyMenuContent's actual painted descendants through .gooey-menu-pill, .row-actions-button in all six themes and both widths; shared controls must retain token states, AA focus and reduced motion.",
+      "evidence": [
+        {
+          "file": "src/webview/styles.css",
+          "line": 2681,
+          "selector": ".row-actions-button",
+          "declarations": "display: grid;\n  width: 24px;\n  height: 24px;\n  padding: 0;\n  place-items: center;\n  color: var(--vscode-foreground);\n  background: var(--vscode-editor-background);\n  border: 1px solid var(--vscode-panel-border);\n  border-radius: 50%;\n  cursor: pointer;\n  opacity: 0%;"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 2695,
+          "selector": ".row-actions-button:hover",
+          "declarations": "background: var(--vscode-toolbar-hoverBackground);"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 2699,
+          "selector": ".row-actions-button:focus-visible",
+          "declarations": "outline: 2px solid var(--vscode-focusBorder);\n  outline-offset: 2px;"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 2706,
+          "selector": "li:hover > .row-actions .row-actions-button,\nli:focus-within > .row-actions .row-actions-button,\n.row-actions-button[aria-expanded='true']",
+          "declarations": "opacity: 100%;"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 2711,
+          "selector": ".row-actions-button",
+          "declarations": "opacity: 100%;"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 2742,
+          "selector": ".gooey-menu-pill",
+          "declarations": "position: absolute;\n  display: flex;\n  gap: 8px;\n  align-items: center;\n  justify-content: flex-start;\n  box-sizing: border-box;\n  padding: 0 16px 0 12px;\n  overflow: hidden;\n  font: inherit;\n  color: var(--vscode-button-foreground);\n  white-space: nowrap;\n  cursor: pointer;\n  background: var(--vscode-button-background);\n  border: 1px solid var(--vscode-button-border, transparent);\n  border-radius: 20px;\n  pointer-events: auto;\n  animation: menu-pill-burst 180ms ease-out backwards;"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 2766,
+          "selector": ".gooey-menu-pill[aria-disabled='true']",
+          "declarations": "cursor: default;"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 2771,
+          "selector": ".gooey-menu-pill:not([aria-disabled='true']):hover,\n.gooey-menu-pill:not([aria-disabled='true']):focus-visible",
+          "declarations": "background: var(--vscode-button-hoverBackground);\n  outline: 2px solid var(--vscode-focusBorder);\n  outline-offset: 2px;"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 2783,
+          "selector": ".gooey-menu-pill[aria-disabled='true'] .gooey-menu-pill-icon",
+          "declarations": "opacity: 50%;"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 2808,
+          "selector": ".gooey-menu-colors-safe .gooey-menu-pill",
+          "declarations": "color: ButtonText;\n    background: ButtonFace;\n    border-color: ButtonText;"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 2814,
+          "selector": ".gooey-menu-colors-safe .gooey-menu-pill[aria-disabled='true']",
+          "declarations": "color: GrayText;\n    border-color: GrayText;"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 3847,
+          "selector": ".cursor,\n  .tool-dot-running,\n  .mic-button.mic-starting,\n  .mic-button.mic-listening,\n  .agent-dot-running,\n  .status-mark-circle,\n  .gooey-menu-pill",
+          "declarations": "animation: none;"
+        }
+      ],
+      "captureSelector": ".gooey-menu-pill, .row-actions-button",
+      "vscodeVariables": [
+        "--vscode-button-background",
+        "--vscode-button-border",
+        "--vscode-button-foreground",
+        "--vscode-button-hoverBackground",
+        "--vscode-editor-background",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-toolbar-hoverBackground"
+      ],
+      "gradeSourceRevision": "current shared control treatment; integrated capture required"
     },
     {
       "file": "src/webview/components/HandoffDialog.tsx",
@@ -2325,7 +2606,8 @@
         "--vscode-sideBar-background",
         "--vscode-widget-border",
         "--vscode-widget-shadow"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/Header.tsx",
@@ -2417,7 +2699,8 @@
         "--vscode-panel-border",
         "--vscode-sideBar-background",
         "--vscode-toolbar-hoverBackground"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/HeartbeatTrace.tsx",
@@ -2458,7 +2741,8 @@
         "--vscode-font-size",
         "--vscode-foreground",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/HighlightedCode.tsx",
@@ -2518,7 +2802,8 @@
         "--vscode-sideBar-background",
         "--vscode-symbolIcon-keywordForeground",
         "--vscode-textLink-foreground"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/HistoryDialog.tsx",
@@ -2595,7 +2880,8 @@
         "--vscode-font-size",
         "--vscode-foreground",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/JudgeStatusLine.tsx",
@@ -2630,7 +2916,8 @@
         "--vscode-font-size",
         "--vscode-foreground",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/ListBody.tsx",
@@ -2665,7 +2952,8 @@
         "--vscode-font-size",
         "--vscode-foreground",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/MarkdownView.tsx",
@@ -2782,7 +3070,8 @@
         "--vscode-sideBar-background",
         "--vscode-textCodeBlock-background",
         "--vscode-textLink-foreground"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/MentionMenu.tsx",
@@ -2870,7 +3159,8 @@
         "--vscode-panel-border",
         "--vscode-sideBar-background",
         "--vscode-widget-shadow"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/MenuOption.tsx",
@@ -2930,7 +3220,8 @@
         "--vscode-list-activeSelectionBackground",
         "--vscode-list-activeSelectionForeground",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/Modal.tsx",
@@ -3002,7 +3293,8 @@
         "--vscode-sideBar-background",
         "--vscode-widget-border",
         "--vscode-widget-shadow"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/Onboarding.tsx",
@@ -3089,7 +3381,66 @@
         "--vscode-panel-border",
         "--vscode-sideBar-background",
         "--vscode-textLink-foreground"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
+    },
+    {
+      "file": "src/webview/components/OpenQuestionsChip.tsx",
+      "owner": "P2",
+      "selectors": [".open-questions-chip"],
+      "scene": "questions-chip",
+      "grades": {
+        "colour": "inherited",
+        "radius": "inherited",
+        "elevation": "inherited",
+        "motion": "inherited",
+        "focus": "inherited",
+        "states": "inherited",
+        "highContrast": "inherited",
+        "accessibility": "inherited",
+        "typographySpacing": "inherited"
+      },
+      "roles": [
+        "colour.border",
+        "colour.disabled",
+        "colour.focus",
+        "colour.input-border",
+        "colour.input-surface",
+        "colour.input-text",
+        "colour.muted",
+        "colour.overlay",
+        "colour.pressed",
+        "colour.surface",
+        "colour.text",
+        "colour.toolbar-hover",
+        "typography.font-size",
+        "typography.font-ui"
+      ],
+      "findings": ["roles", "scale", "states", "focus", "placeholder"],
+      "fix": "Verify OpenQuestionsChip's actual painted descendants through .open-questions-chip in all six themes and both widths; shared controls must retain token states, AA focus and reduced motion.",
+      "evidence": [
+        {
+          "file": "src/webview/styles.css",
+          "line": 4213,
+          "selector": ".open-questions-chip",
+          "declarations": "display: flex;\n  align-items: center;\n  gap: 6px;"
+        }
+      ],
+      "captureSelector": ".open-questions-chip",
+      "vscodeVariables": [
+        "--vscode-descriptionForeground",
+        "--vscode-editorWidget-background",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-input-background",
+        "--vscode-input-border",
+        "--vscode-input-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background"
+      ],
+      "gradeSourceRevision": "current shared control treatment; integrated capture required"
     },
     {
       "file": "src/webview/components/PaidBadge.tsx",
@@ -3143,7 +3494,8 @@
         "--vscode-foreground",
         "--vscode-panel-border",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/Palette.tsx",
@@ -3256,7 +3608,8 @@
         "--vscode-panel-border",
         "--vscode-sideBar-background",
         "--vscode-widget-shadow"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/PopoverMenu.tsx",
@@ -3335,7 +3688,8 @@
         "--vscode-panel-border",
         "--vscode-sideBar-background",
         "--vscode-widget-shadow"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/QuestionCard.tsx",
@@ -3434,7 +3788,124 @@
         "--vscode-input-foreground",
         "--vscode-panel-border",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
+    },
+    {
+      "file": "src/webview/components/QuestionSurface.tsx",
+      "owner": "P2",
+      "selectors": [".approval-dock"],
+      "scene": "questions-open",
+      "grades": {
+        "colour": "inherited",
+        "radius": "inherited",
+        "elevation": "inherited",
+        "motion": "inherited",
+        "focus": "inherited",
+        "states": "inherited",
+        "highContrast": "inherited",
+        "accessibility": "inherited",
+        "typographySpacing": "inherited"
+      },
+      "roles": [
+        "colour.border",
+        "colour.disabled",
+        "colour.focus",
+        "colour.input-border",
+        "colour.input-surface",
+        "colour.input-text",
+        "colour.muted",
+        "colour.overlay",
+        "colour.pressed",
+        "colour.surface",
+        "colour.text",
+        "colour.toolbar-hover",
+        "typography.font-size",
+        "typography.font-ui"
+      ],
+      "findings": ["roles", "scale", "states", "focus", "placeholder"],
+      "fix": "Verify QuestionSurface's actual painted descendants through .attention-dock in all six themes and both widths; shared controls must retain token states, AA focus and reduced motion.",
+      "evidence": [
+        {
+          "file": "src/webview/styles.css",
+          "line": 1574,
+          "selector": ".approval-dock",
+          "declarations": "display: flex;\n  flex-direction: column;\n  gap: var(--ms-space-4);\n  max-height: 45vh;\n  margin-block: 0;\n  margin-inline: var(--ms-column-inset);\n  padding: var(--ms-space-4) var(--ms-gap);\n  scroll-padding-block: var(--ms-space-4);\n  overflow-y: auto;"
+        }
+      ],
+      "captureSelector": ".attention-dock",
+      "vscodeVariables": [
+        "--vscode-descriptionForeground",
+        "--vscode-editorWidget-background",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-input-background",
+        "--vscode-input-border",
+        "--vscode-input-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background"
+      ],
+      "gradeSourceRevision": "current shared control treatment; integrated capture required"
+    },
+    {
+      "file": "src/webview/components/QuestionUi.tsx",
+      "owner": "P2",
+      "selectors": [".attention-questions"],
+      "scene": "questions-open",
+      "grades": {
+        "colour": "inherited",
+        "radius": "inherited",
+        "elevation": "inherited",
+        "motion": "inherited",
+        "focus": "inherited",
+        "states": "inherited",
+        "highContrast": "inherited",
+        "accessibility": "inherited",
+        "typographySpacing": "inherited"
+      },
+      "roles": [
+        "colour.border",
+        "colour.disabled",
+        "colour.focus",
+        "colour.input-border",
+        "colour.input-surface",
+        "colour.input-text",
+        "colour.muted",
+        "colour.overlay",
+        "colour.pressed",
+        "colour.surface",
+        "colour.text",
+        "colour.toolbar-hover",
+        "typography.font-size",
+        "typography.font-ui"
+      ],
+      "findings": ["roles", "scale", "states", "focus", "placeholder"],
+      "fix": "Verify QuestionUi's actual painted descendants through .attention-questions in all six themes and both widths; shared controls must retain token states, AA focus and reduced motion.",
+      "evidence": [
+        {
+          "file": "src/webview/styles.css",
+          "line": 4194,
+          "selector": ".attention-questions",
+          "declarations": "min-width: 0;"
+        }
+      ],
+      "captureSelector": ".attention-questions",
+      "vscodeVariables": [
+        "--vscode-descriptionForeground",
+        "--vscode-editorWidget-background",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-input-background",
+        "--vscode-input-border",
+        "--vscode-input-foreground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background"
+      ],
+      "gradeSourceRevision": "current shared control treatment; integrated capture required"
     },
     {
       "file": "src/webview/components/QuoteMenu.tsx",
@@ -3528,7 +3999,8 @@
         "--vscode-font-size",
         "--vscode-foreground",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/ReasoningRow.tsx",
@@ -3604,7 +4076,74 @@
         "--vscode-font-size",
         "--vscode-foreground",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
+    },
+    {
+      "file": "src/webview/components/ReferencePage.tsx",
+      "owner": "P2",
+      "selectors": [".reference-page"],
+      "scene": "help-narrow",
+      "grades": {
+        "colour": "inherited",
+        "radius": "inherited",
+        "elevation": "inherited",
+        "motion": "inherited",
+        "focus": "inherited",
+        "states": "inherited",
+        "highContrast": "inherited",
+        "accessibility": "inherited",
+        "typographySpacing": "inherited"
+      },
+      "roles": [
+        "colour.border",
+        "colour.disabled",
+        "colour.focus",
+        "colour.input-border",
+        "colour.input-placeholder",
+        "colour.input-surface",
+        "colour.input-text",
+        "colour.on-accent",
+        "colour.overlay",
+        "colour.pressed",
+        "colour.raised-border",
+        "colour.raised-text",
+        "colour.shadow",
+        "colour.surface",
+        "colour.text",
+        "colour.toolbar-hover",
+        "typography.font-size",
+        "typography.font-ui"
+      ],
+      "findings": ["roles", "scale", "states", "focus", "motion", "popover", "placeholder"],
+      "fix": "Verify ReferencePage's actual painted descendants through .reference-page in all six themes and both widths; shared controls must retain token states, AA focus and reduced motion.",
+      "evidence": [
+        {
+          "file": "src/webview/components/reference.css",
+          "line": 1,
+          "selector": ".reference-page",
+          "declarations": "--ms-reference-border: var(--vscode-widget-border, var(--vscode-panel-border));\n  --ms-reference-muted: var(--vscode-descriptionForeground);\n  --ms-reference-link: var(--vscode-textLink-foreground);\n\n  display: grid;\n  gap: var(--ms-gap);"
+        }
+      ],
+      "captureSelector": ".reference-page",
+      "vscodeVariables": [
+        "--vscode-button-foreground",
+        "--vscode-editorWidget-background",
+        "--vscode-editorWidget-border",
+        "--vscode-editorWidget-foreground",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-input-background",
+        "--vscode-input-border",
+        "--vscode-input-foreground",
+        "--vscode-input-placeholderForeground",
+        "--vscode-panel-border",
+        "--vscode-sideBar-background",
+        "--vscode-widget-shadow"
+      ],
+      "gradeSourceRevision": "current shared control treatment; integrated capture required"
     },
     {
       "file": "src/webview/components/ReportDialog.tsx",
@@ -3678,7 +4217,8 @@
         "--vscode-sideBar-background",
         "--vscode-widget-border",
         "--vscode-widget-shadow"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/ReviewFindings.tsx",
@@ -3760,7 +4300,8 @@
         "--vscode-foreground",
         "--vscode-panel-border",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/ReviewPane.tsx",
@@ -3852,7 +4393,8 @@
         "--vscode-sideBar-background",
         "--vscode-widget-border",
         "--vscode-widget-shadow"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/SchedulePanel.tsx",
@@ -3930,7 +4472,8 @@
         "--vscode-foreground",
         "--vscode-panel-border",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/SecretPromptDialog.tsx",
@@ -3996,7 +4539,8 @@
         "--vscode-sideBar-background",
         "--vscode-widget-border",
         "--vscode-widget-shadow"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/SessionBoardDialog.tsx",
@@ -4068,7 +4612,8 @@
         "--vscode-foreground",
         "--vscode-panel-border",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/ShareView.tsx",
@@ -4130,7 +4675,8 @@
         "--vscode-panel-border",
         "--vscode-sideBar-background",
         "--vscode-widget-border"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/SignIn.tsx",
@@ -4193,7 +4739,8 @@
         "--vscode-font-size",
         "--vscode-foreground",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/SlashMenu.tsx",
@@ -4267,7 +4814,8 @@
         "--vscode-list-activeSelectionBackground",
         "--vscode-list-activeSelectionForeground",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/StatusLine.tsx",
@@ -4327,7 +4875,8 @@
         "--vscode-font-size",
         "--vscode-foreground",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/StatusMark.tsx",
@@ -4347,7 +4896,7 @@
       },
       "roles": ["colour.surface", "colour.text", "typography.font-size", "typography.font-ui"],
       "findings": ["roles", "scale", "motion"],
-      "fix": "Token-bind decorative gradient/size/radius/alpha; classify the 4.01 s breathing loop explicitly as an activity exception requiring owner resolution, since D94 specifies 120\u2013240 ms motion.",
+      "fix": "Token-bind decorative gradient/size/radius/alpha; classify the 4.01 s breathing loop explicitly as an activity exception requiring owner resolution, since D94 specifies 120–240 ms motion.",
       "evidence": [
         {
           "file": "src/webview/styles.css",
@@ -4422,7 +4971,8 @@
         "--vscode-font-size",
         "--vscode-foreground",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/TodoPanel.tsx",
@@ -4517,7 +5067,8 @@
         "--vscode-foreground",
         "--vscode-panel-border",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/ToolBlocks.tsx",
@@ -4599,7 +5150,8 @@
         "--vscode-panel-border",
         "--vscode-sideBar-background",
         "--vscode-widget-shadow"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/ToolBodies.tsx",
@@ -4691,7 +5243,8 @@
         "--vscode-panel-border",
         "--vscode-sideBar-background",
         "--vscode-textLink-foreground"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/ToolRow.tsx",
@@ -4808,7 +5361,8 @@
         "--vscode-panel-border",
         "--vscode-progressBar-background",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/Transcript.tsx",
@@ -4952,7 +5506,8 @@
         "--vscode-sideBar-background",
         "--vscode-textLink-foreground",
         "--vscode-toolbar-hoverBackground"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/UsageDialog.tsx",
@@ -5077,7 +5632,134 @@
         "--vscode-textLink-foreground",
         "--vscode-widget-border",
         "--vscode-widget-shadow"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
+    },
+    {
+      "file": "src/webview/components/UsageDialogContent.tsx",
+      "owner": "P2",
+      "selectors": [".usage-toggle", ".usage-link", ".usage-bar", ".usage-paid-always", ".modal"],
+      "scene": "paid-usage",
+      "grades": {
+        "colour": "inherited",
+        "radius": "inherited",
+        "elevation": "inherited",
+        "motion": "inherited",
+        "focus": "inherited",
+        "states": "inherited",
+        "highContrast": "inherited",
+        "accessibility": "inherited",
+        "typographySpacing": "inherited"
+      },
+      "roles": [
+        "colour.accent",
+        "colour.border",
+        "colour.disabled",
+        "colour.editor-surface",
+        "colour.focus",
+        "colour.info",
+        "colour.input-surface",
+        "colour.on-accent",
+        "colour.overlay",
+        "colour.pressed",
+        "colour.progress",
+        "colour.shadow",
+        "colour.surface",
+        "colour.text",
+        "colour.toolbar-hover",
+        "colour.widget-border",
+        "typography.font-size",
+        "typography.font-ui"
+      ],
+      "findings": ["roles", "scale", "states", "focus", "overlay"],
+      "fix": "Verify UsageDialogContent's actual painted descendants through .usage-toggle, .usage-link, .usage-bar, .usage-paid-always, .modal in all six themes and both widths; shared controls must retain token states, AA focus and reduced motion.",
+      "evidence": [
+        {
+          "file": "src/webview/styles.css",
+          "line": 2862,
+          "selector": ".usage-paid-always",
+          "declarations": "display: flex;\n  flex-wrap: wrap;\n  align-items: center;\n  gap: var(--ms-gap);\n  min-width: 0;"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 2917,
+          "selector": ".usage-bar",
+          "declarations": "width: 100%;\n  height: 6px;\n  border: none;\n  border-radius: 3px;\n  background: var(--vscode-progressBar-background, var(--vscode-panel-border));\n  accent-color: var(--vscode-progressBar-background, var(--vscode-focusBorder));\n  overflow: hidden;"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 2927,
+          "selector": ".usage-bar::-webkit-progress-bar",
+          "declarations": "background: var(--vscode-input-background);"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 2931,
+          "selector": ".usage-bar::-webkit-progress-value",
+          "declarations": "border-radius: 3px;\n  background: var(--vscode-progressBar-background, var(--vscode-focusBorder));"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 2936,
+          "selector": ".usage-link",
+          "declarations": "align-self: flex-start;\n  padding: 0;\n  border: none;\n  color: var(--vscode-textLink-foreground);\n  font: inherit;\n  background: transparent;\n  cursor: pointer;"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 2946,
+          "selector": ".usage-link:hover",
+          "declarations": "text-decoration: underline;"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 2950,
+          "selector": ".usage-link:focus-visible",
+          "declarations": "outline: 1px solid var(--vscode-focusBorder);\n  outline-offset: 1px;"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 3053,
+          "selector": ".modal",
+          "declarations": "display: flex;\n  flex-direction: column;\n  width: min(100%, 440px);\n  max-height: 90vh;\n  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));\n  border-radius: var(--ms-radius);\n  color: var(--vscode-foreground);\n  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));\n  box-shadow: 0 4px 16px var(--vscode-widget-shadow);"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 3075,
+          "selector": ".usage-toggle",
+          "declarations": "display: inline-flex;\n  width: max-content;\n  border: 1px solid var(--vscode-panel-border);\n  border-radius: var(--ms-radius);\n  overflow: hidden;"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 3083,
+          "selector": ".usage-toggle button",
+          "declarations": "padding: 2px 10px;\n  border: 0;\n  color: var(--vscode-foreground);\n  font: inherit;\n  background: transparent;\n  cursor: pointer;"
+        },
+        {
+          "file": "src/webview/styles.css",
+          "line": 3092,
+          "selector": ".usage-toggle .usage-toggle-on",
+          "declarations": "color: var(--vscode-button-foreground);\n  background: var(--vscode-button-background);"
+        }
+      ],
+      "captureSelector": ".usage-toggle, .usage-link, .usage-bar, .usage-paid-always, .modal",
+      "vscodeVariables": [
+        "--vscode-button-background",
+        "--vscode-button-foreground",
+        "--vscode-editor-background",
+        "--vscode-editorWidget-background",
+        "--vscode-focusBorder",
+        "--vscode-font-family",
+        "--vscode-font-size",
+        "--vscode-foreground",
+        "--vscode-input-background",
+        "--vscode-panel-border",
+        "--vscode-progressBar-background",
+        "--vscode-sideBar-background",
+        "--vscode-textLink-foreground",
+        "--vscode-widget-border",
+        "--vscode-widget-shadow"
+      ],
+      "gradeSourceRevision": "current shared control treatment; integrated capture required"
     },
     {
       "file": "src/webview/components/UserShellRow.tsx",
@@ -5143,7 +5825,8 @@
         "--vscode-foreground",
         "--vscode-panel-border",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/VerifyParts.tsx",
@@ -5211,7 +5894,8 @@
         "--vscode-foreground",
         "--vscode-panel-border",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/WorkflowRun.tsx",
@@ -5273,7 +5957,8 @@
         "--vscode-font-size",
         "--vscode-foreground",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/icons.tsx",
@@ -5320,7 +6005,8 @@
         "--vscode-font-size",
         "--vscode-foreground",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/modeIcons.tsx",
@@ -5361,7 +6047,8 @@
         "--vscode-font-size",
         "--vscode-foreground",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/components/paletteDialog.tsx",
@@ -5450,7 +6137,8 @@
         "--vscode-input-foreground",
         "--vscode-input-placeholderForeground",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/main.tsx",
@@ -5497,7 +6185,8 @@
         "--vscode-font-size",
         "--vscode-foreground",
         "--vscode-sideBar-background"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     },
     {
       "file": "src/webview/whatsNew/whatsNewPage.ts",
@@ -5721,7 +6410,8 @@
         "--vscode-textLink-foreground",
         "--vscode-textPreformat-foreground",
         "--vscode-widget-border"
-      ]
+      ],
+      "gradeSourceRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
     }
   ],
   "otherWebviewFiles": [
@@ -5734,6 +6424,36 @@
       "file": "src/webview/base64.ts",
       "classification": "logic-only",
       "audit": "No independent painted DOM; inspect token reads through its callers. See the component inventory for those rendered surfaces."
+    },
+    {
+      "file": "src/webview/bridges/theme/README.md",
+      "classification": "logic-only",
+      "audit": "Supporting source: inspect theme/token/lazy lifecycle behavior through its actual rendered consumers in the current component inventory."
+    },
+    {
+      "file": "src/webview/bridges/theme/loadThemeBridge.ts",
+      "classification": "logic-only",
+      "audit": "Supporting source: inspect theme/token/lazy lifecycle behavior through its actual rendered consumers in the current component inventory."
+    },
+    {
+      "file": "src/webview/bridges/theme/themeBridge.ts",
+      "classification": "logic-only",
+      "audit": "Supporting source: inspect theme/token/lazy lifecycle behavior through its actual rendered consumers in the current component inventory."
+    },
+    {
+      "file": "src/webview/bridges/theme/themeEntry.ts",
+      "classification": "logic-only",
+      "audit": "Supporting source: inspect theme/token/lazy lifecycle behavior through its actual rendered consumers in the current component inventory."
+    },
+    {
+      "file": "src/webview/bridges/theme/themeSurface.css",
+      "classification": "shared-styles",
+      "audit": "Supporting source: inspect theme/token/lazy lifecycle behavior through its actual rendered consumers in the current component inventory."
+    },
+    {
+      "file": "src/webview/components/reference.css",
+      "classification": "shared-styles",
+      "audit": "Supporting source: inspect theme/token/lazy lifecycle behavior through its actual rendered consumers in the current component inventory."
     },
     {
       "file": "src/webview/dictationGesture.ts",
@@ -5834,6 +6554,11 @@
       "file": "src/webview/styles.css",
       "classification": "stylesheet",
       "audit": "No independent painted DOM; inspect token reads through its callers. See the component inventory for those rendered surfaces."
+    },
+    {
+      "file": "src/webview/surfaceRetry.ts",
+      "classification": "logic-only",
+      "audit": "Supporting source: inspect theme/token/lazy lifecycle behavior through its actual rendered consumers in the current component inventory."
     },
     {
       "file": "src/webview/tokens.css",
@@ -5909,6 +6634,7 @@
     "goal",
     "goal-edit",
     "handoff",
+    "help-narrow",
     "history-archived",
     "icons",
     "judge-narrow",
@@ -5928,6 +6654,8 @@
     "palette",
     "question",
     "question-filled",
+    "questions-chip",
+    "questions-open",
     "quote-menu",
     "report",
     "report-narrow",
@@ -6002,7 +6730,7 @@
   "sources": [
     {
       "file": "src/webview/App.tsx",
-      "sha256": "8331d54d47e12cc20dff79a9f1e11508f19d08479dfb60c9fe275cb06b77b0aa"
+      "sha256": "26f867f6e2f810401d6d66eb8108b7bcf12939eeff829aea63e0831c3ed37e9e"
     },
     {
       "file": "src/webview/TasksApp.tsx",
@@ -6017,48 +6745,76 @@
       "sha256": "6a21439e1561563a2776dbbd72114f06b9e7c1140091d92e69061a8773654afc"
     },
     {
+      "file": "src/webview/bridges/theme/README.md",
+      "sha256": "5a1cf105cd9b2deaceaa5d146fde19432cfdb2ef13cd431abe303db0cb34c910"
+    },
+    {
+      "file": "src/webview/bridges/theme/loadThemeBridge.ts",
+      "sha256": "59ad0103d46a88ed69ac71b92c58dea8d5ee764e8f6e4deb8280d276fbd43360"
+    },
+    {
+      "file": "src/webview/bridges/theme/themeBridge.ts",
+      "sha256": "93ef6841c7fbd394cda849422b9c5611d4cb516ff4cd615158c303234986b2a4"
+    },
+    {
+      "file": "src/webview/bridges/theme/themeEntry.ts",
+      "sha256": "abae172c0465eeeaecce98df0f23f543a77d5bb80a9c3d336d10cdba4eb0cbd9"
+    },
+    {
+      "file": "src/webview/bridges/theme/themeSurface.css",
+      "sha256": "3a3ca341752d97ce9adcf8d8a4bf6c5a1672f6d1e625037917573240432a39fe"
+    },
+    {
       "file": "src/webview/components/AgentMap.tsx",
-      "sha256": "85e93d807a2b9c32fab594e0d4770382e76fc15b9920abe1d0c76b8f3999908b"
+      "sha256": "43d4bcd98f75d7fe24a7aa1c1f227fc8a4c98b5dab27077f1ce893d1c6f50776"
+    },
+    {
+      "file": "src/webview/components/AgentMapContent.tsx",
+      "sha256": "2671f7986927fecc8af9d4fb9917466b35b104bede08e4b666bf3d91d86a8d48"
     },
     {
       "file": "src/webview/components/ApprovalCard.tsx",
       "sha256": "a1319330770b08b0f7464b24b980d1b4da54020e278698c5d30e4dfaa101a4ee"
     },
     {
-      "file": "src/webview/components/ApprovalDock.tsx",
-      "sha256": "51c29408be70d86ccb02c56f8306c45ccc38577451e3986e65865e5b50609d35"
+      "file": "src/webview/components/AttachmentChips.tsx",
+      "sha256": "4c27e830997414136574f2b45b24d1df2acb5885bd40c6f7657226c561d82e8d"
     },
     {
-      "file": "src/webview/components/AttachmentChips.tsx",
-      "sha256": "dc89a044f67bee0796483e5e07c8d69e5ce0e8ad915a63dd114d9897c632fa43"
+      "file": "src/webview/components/AttentionDock.tsx",
+      "sha256": "6de60c39d5e90bc413572983584ebba864328624ecee6f390f6108d6c660f0ec"
     },
     {
       "file": "src/webview/components/BestOfNDialog.tsx",
-      "sha256": "db24bd8466f07004a59081a1c466e8e8d2258d39705fc1a7261f609ccf3f1e8f"
+      "sha256": "4eaf6a7632f1cbc2b0be3b0b32d3b89b2f814012b578cf09667cc79922cfdc03"
     },
     {
       "file": "src/webview/components/CodeBlock.tsx",
-      "sha256": "74c1a53625569b62a4756bad3ce5a79fe787d33a040dcfa97252d3f3375194fc"
+      "sha256": "0a7750cf33ef6532db83ed70708587a8f2efcc843229a5bf7a7d3b748177ead9"
     },
     {
       "file": "src/webview/components/Composer.tsx",
-      "sha256": "b80e8a881bf49e6dc6b9504c23b404e8a48d50b4bfde6fded5533c0376d6f082"
+      "sha256": "d745e88bc394f5b292266baad8a0c9bec203c67dd93affc0f2208b0e2b36d653"
     },
     {
       "file": "src/webview/components/ContextMeter.tsx",
-      "sha256": "8e0677648bc8e52a6526372a7212c7f410a9965afce50c39c3776f0db5bcae56"
+      "sha256": "09597e3dfbf63572f71b76749ed470e21b5b75141aa738e792d73278b68e1b34"
+    },
+    {
+      "file": "src/webview/components/DeferredQuestionUi.tsx",
+      "sha256": "7e10bf661adcfc748fe8343af915222b4d9907365aeb91eb9f568da170283397"
     },
     {
       "file": "src/webview/components/DeferredReportDialog.tsx",
-      "sha256": "d2c8c8bd09cf8f491ddf04f0e4d0fc39b753940aa707c4bd8cf69b41932cce12"
+      "sha256": "83b2cd0ca60f626409dfcfc333268dba3f41d4dcbe6cb2dfcb6d07665a2ea81b"
     },
     {
       "file": "src/webview/components/DeferredSurface.tsx",
-      "sha256": "17e893ac2b9d4e93f554b9f21b3df5db70271b43a529db66ec71c8ee55bc81fa"
+      "sha256": "97ba9c750e58fbf6990a6cb7bcd7538ee2c0236616a322d086bcf39b28042a03"
     },
     {
       "file": "src/webview/components/DiffTally.tsx",
-      "sha256": "72007aaa1607670e4148fbee3d17fd53a1222b252c52200443f848242b222eba"
+      "sha256": "cbc05f907ae1fc0b6f472163856bb88e83949455548eb4a80ce39eec60adab15"
     },
     {
       "file": "src/webview/components/EffortSlider.tsx",
@@ -6066,7 +6822,7 @@
     },
     {
       "file": "src/webview/components/ElicitationCard.tsx",
-      "sha256": "8b7e8d43ecffffe96ef3916c14f4f89f011efea71f7118cdaf365c9e2cb0b4ce"
+      "sha256": "cc35cf3a2ed3abe32a2b71d6b7df34861d627edd6d5cf26dfb721f9d4139fdf1"
     },
     {
       "file": "src/webview/components/EmptyState.tsx",
@@ -6086,7 +6842,7 @@
     },
     {
       "file": "src/webview/components/GoalPanel.tsx",
-      "sha256": "652d1d8509db2bcbdc8bb36ad6937acaf10a54790289cf03f259ff5a1cec308e"
+      "sha256": "fe3a3bc1a9026350418032a5051ba3f88b277d83f04b63a7353ebfa7f4d8ce43"
     },
     {
       "file": "src/webview/components/GoalParts.tsx",
@@ -6094,7 +6850,11 @@
     },
     {
       "file": "src/webview/components/GooeyMenu.tsx",
-      "sha256": "623c03a426087cb5697871c4036a0da5d5a2c6227df817f88c0d36d4cc1b18e2"
+      "sha256": "acc79a3b0b99ce5f57eaf6aac3ae789c7cdf1c3f8906267d0ea22cc1e9f873ae"
+    },
+    {
+      "file": "src/webview/components/GooeyMenuContent.tsx",
+      "sha256": "9423319330d95c00f99355b276e43f852edaa8aed09020ee2c4497157eb6723b"
     },
     {
       "file": "src/webview/components/HandoffDialog.tsx",
@@ -6102,11 +6862,11 @@
     },
     {
       "file": "src/webview/components/Header.tsx",
-      "sha256": "c5f3d3c02a3dff3749dd0bacd31591505629f1face83da8dcdfe86097abd99c5"
+      "sha256": "287b1b6a999234e1bd8a66ae77d8c21238dd40d96c251e77b0b4aea68dca71cd"
     },
     {
       "file": "src/webview/components/HeartbeatTrace.tsx",
-      "sha256": "730995c9d9d76707da588a6a12ee637040563f84ccc2e0b36d659ddc54d3dff7"
+      "sha256": "c56b433bcca386ef26dceff4bd2398384503869fccb883987da45540e9c899a3"
     },
     {
       "file": "src/webview/components/HighlightedCode.tsx",
@@ -6114,7 +6874,7 @@
     },
     {
       "file": "src/webview/components/HistoryDialog.tsx",
-      "sha256": "7fcb1f763531774f8e9050b59ba62a7b7ea68a64bdf05c35636738a356e6e7f3"
+      "sha256": "f18101ab9a9e8a6d6063ce27e1ca2d9a4360bcc87bbd80685124942a4c6be6ef"
     },
     {
       "file": "src/webview/components/JudgeStatusLine.tsx",
@@ -6138,11 +6898,15 @@
     },
     {
       "file": "src/webview/components/Modal.tsx",
-      "sha256": "a607c82174957c99ac7bc7e6eab4b123dadb40fb1a70e69dd69ceab06382c0f9"
+      "sha256": "a7084868a269c46d0871bfa99c61c87c2e751ab716c658ff626cc892464b0934"
     },
     {
       "file": "src/webview/components/Onboarding.tsx",
       "sha256": "fd09e8fa4a4e455b65d04267f825e967719df87f275c98563c36366b9e80ce4e"
+    },
+    {
+      "file": "src/webview/components/OpenQuestionsChip.tsx",
+      "sha256": "85f1e99e8b500ce4bef0e428c931892be800f44c49a06f837762ae432eeccea1"
     },
     {
       "file": "src/webview/components/PaidBadge.tsx",
@@ -6150,23 +6914,35 @@
     },
     {
       "file": "src/webview/components/Palette.tsx",
-      "sha256": "afd62838bccbf00ccd863ec6cfe829343f14f62b79e30da24aec8eff61a912c7"
+      "sha256": "d62e60c8365338908608f57e7a76f178c0ed564df46f61f28e5bbec0df3bf7f6"
     },
     {
       "file": "src/webview/components/PopoverMenu.tsx",
-      "sha256": "85f2d780f6d614bcb8fb197be7c7aa945658b4c969a79841fe8067c7076cf150"
+      "sha256": "817f784778f03cb8c95a4970120837564627be8943ada6b4d8b0a2ee06008c00"
     },
     {
       "file": "src/webview/components/QuestionCard.tsx",
-      "sha256": "6377e100bd747f89d1745531bb647a3ce63129927ec1d3c4443118ec2638be18"
+      "sha256": "da503f21eaf634452ccccc367da5697992cf32e9549c2d1398fcdb1253cdbe19"
+    },
+    {
+      "file": "src/webview/components/QuestionSurface.tsx",
+      "sha256": "6a64f5c3ac6c3ea03a36ac7eb1fcd21a417efda98a264c1d19ede18591738b83"
+    },
+    {
+      "file": "src/webview/components/QuestionUi.tsx",
+      "sha256": "eb78ee88078dd79be85553da84183fdaf8989cf22a74c630a43ed7cc68590068"
     },
     {
       "file": "src/webview/components/QuoteMenu.tsx",
-      "sha256": "902aa2bdbc06939300ad6f921f10a0ea4efc8c20b493880c73a28bf8cd23454a"
+      "sha256": "c2d2e8cd6920e5a5488a0a1b8aee27653d7a8f0154ba3a6340af05a4750ad003"
     },
     {
       "file": "src/webview/components/ReasoningRow.tsx",
       "sha256": "98b6e92da841d20a69be7f69d6a0e89ebe6d53c1107ff8f2229e7345fd471122"
+    },
+    {
+      "file": "src/webview/components/ReferencePage.tsx",
+      "sha256": "a9cff2f94ebc067b1fa74ca7f53ef653ec68021c050fdca43a4a671e31f763d6"
     },
     {
       "file": "src/webview/components/ReportDialog.tsx",
@@ -6174,7 +6950,7 @@
     },
     {
       "file": "src/webview/components/ReviewFindings.tsx",
-      "sha256": "f1b368555bcaa32870c81c2c4c253b308e1ba07297d50674599f844ba15a351b"
+      "sha256": "7ffd4f83d382bc3f1c1e6ccc79d57fd160de18883599998f12a7de117770a3d6"
     },
     {
       "file": "src/webview/components/ReviewPane.tsx",
@@ -6182,7 +6958,7 @@
     },
     {
       "file": "src/webview/components/SchedulePanel.tsx",
-      "sha256": "5caa701c665e23d9a02111a1e4a4957fe81d961a9e9ad0ddf73574847130599f"
+      "sha256": "434cc55831ac740dd04b7f36610e2b6c8e120f8b89cfc2b434a7e3f8e60d5324"
     },
     {
       "file": "src/webview/components/SecretPromptDialog.tsx",
@@ -6214,31 +6990,35 @@
     },
     {
       "file": "src/webview/components/TodoPanel.tsx",
-      "sha256": "e40a0b132d31a8051cc413531d9ad8499eb57e4ad6a1f04d29b2bc72f820bedf"
+      "sha256": "7bb5fe81cc59f02f94ff87bd0085ad91d1a426432d71636b28b808331d437f29"
     },
     {
       "file": "src/webview/components/ToolBlocks.tsx",
-      "sha256": "5667ca7564e7ae905e0fb08b1dacb9c5333e42865b0a762f3fa8ebe3125aea0e"
+      "sha256": "db62d8d07f0669d43f1148974ef7170a9dbb6a9ae17205e3bccbf5e225abb77b"
     },
     {
       "file": "src/webview/components/ToolBodies.tsx",
-      "sha256": "ba9fe2889f11ee423a29ca91c3cd110a0a44b4d508e0a569925bb1411e7d03cc"
+      "sha256": "f5328cee64767bc9d7056d2b6a8f57ec4efa58fe7d5b5884713feda2a657b498"
     },
     {
       "file": "src/webview/components/ToolRow.tsx",
-      "sha256": "36674b509c4e5961a91dde6a079884609e41b5e39b696ff4881dd28db4bb3610"
+      "sha256": "dc3b8fb2704e7b2866bd8309c19abeccba8ba5f74d1acc61621c07be51067f99"
     },
     {
       "file": "src/webview/components/Transcript.tsx",
-      "sha256": "1a3260aa4dc3db3d2406b397d8c5c6e692d7423be0d2c6376f361a406a90289e"
+      "sha256": "f178871121b526c3cb4574445d074486210a4407676a0c53bb88805351af5ce1"
     },
     {
       "file": "src/webview/components/UsageDialog.tsx",
-      "sha256": "a23c4a207b0c0ff38015f9285c7e387e56d7579f8e479eef66b29b04e7baaf0f"
+      "sha256": "4a0ade69590a4d6e29a738eb15f3241a2ca6dd0835dd7f80c09c0f82dc54487c"
+    },
+    {
+      "file": "src/webview/components/UsageDialogContent.tsx",
+      "sha256": "6635c3360fcc8c1420021feaf66c74345185efb9ce7cc172c4f82055a28de2b1"
     },
     {
       "file": "src/webview/components/UserShellRow.tsx",
-      "sha256": "831a5c634aa452bae10961460ecf8cf3f611fbdc57dfd847443a88f519166a1d"
+      "sha256": "1e59a47780983893029bf51b852c41fb17ee3ba6352758d4755793c22c2c8d97"
     },
     {
       "file": "src/webview/components/VerifyParts.tsx",
@@ -6258,7 +7038,11 @@
     },
     {
       "file": "src/webview/components/paletteDialog.tsx",
-      "sha256": "8c45d96ba069232cfe11e9c148cc20202e63aaac1763ec3d9108dae90a5b3134"
+      "sha256": "955e29903bcc1361ca1f1f88cf81566c4ecf0977f79fff045a26858c16c571ea"
+    },
+    {
+      "file": "src/webview/components/reference.css",
+      "sha256": "7544927f305446ae39eca549529465f54f1e1c1a9ac40175e3af8b0c395bd793"
     },
     {
       "file": "src/webview/dictationGesture.ts",
@@ -6310,7 +7094,7 @@
     },
     {
       "file": "src/webview/main.tsx",
-      "sha256": "a35b6fdde7e9fb64aac5854e099fb785d2546cfe3b4be31e809f9745ad303054"
+      "sha256": "5653fc41f44814b2541909d2dcb8d2ccd2e6788a1018b25b0593806a3f5d4941"
     },
     {
       "file": "src/webview/state/gitState.ts",
@@ -6326,11 +7110,11 @@
     },
     {
       "file": "src/webview/state/transcriptEntries.ts",
-      "sha256": "d4cec4db50c7d0c93ba025d24a5567cb6ab70782ac5d33c6ce8799312a9b14e1"
+      "sha256": "3cf30d182b9f693f21fbb6b52e8d950d52d5ee13d509000c0c6a11e3b5bbc1e1"
     },
     {
       "file": "src/webview/state/uiState.ts",
-      "sha256": "cecd13f1b64ca683617ddda08b6d2e404c41035b713ede53198d5ee1826ca078"
+      "sha256": "abdf63ee88073b39fd18291fc54fc550b016c9b0562723a8c1a1adcffcbb3920"
     },
     {
       "file": "src/webview/stepSummary.ts",
@@ -6342,7 +7126,11 @@
     },
     {
       "file": "src/webview/styles.css",
-      "sha256": "00dcecf3517e46467342100b3435b7861f47f59f14610c0bafef1ef5e35a71bd"
+      "sha256": "049cab4401f29ec86459552659ecc75d1323d6216dee7f66e93a94e66ab0ff9d"
+    },
+    {
+      "file": "src/webview/surfaceRetry.ts",
+      "sha256": "d351c719125c15c5e5e6252090d6018086b4503b0f28570b1606870fec72488c"
     },
     {
       "file": "src/webview/tokens.css",
@@ -6378,7 +7166,7 @@
     },
     {
       "file": "src/webview/whatsNew/whatsNew.css",
-      "sha256": "14230a287ecdbc4111b0c5b153879a08d0641cbaeed3d6d04af5dd35cdf06b31"
+      "sha256": "45da4b08950e8f231bc40579338ae6be4e57a97ab2729309261c933b00e2ae8f"
     },
     {
       "file": "src/webview/whatsNew/whatsNewPage.ts",
@@ -6395,5 +7183,6 @@
       "fix": "Add a distinct host-error foreground mapping in the token source, with its name agreed by lane 0 and captured host AA uses, before migrating this read. Keep input-validation error text, testing failure and chart danger distinct; retain existing fallback order. C must bind the resulting role after the token contract is extended.",
       "evidence": "styles.css .message-error, .context-meter-high, .mic-button.mic-listening, .tool-dot-failed, .tool-failure and other failed-state fallbacks read this variable; no consumers.json.hostRoles entry maps it."
     }
-  }
+  },
+  "historicalAuditRevision": "58ed2fc1d232d89491c441f44cfbd12539e8b4a1"
 }

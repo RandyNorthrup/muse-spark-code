@@ -1,5 +1,12 @@
 # M114 P2 after observations
 
+Historical observations of source revision
+`871597b49afaa7f92d3ffd9c4a33203e4d5849e7`, with the lane-A inventory at
+`58ed2fc1d232d89491c441f44cfbd12539e8b4a1`. FIXM114I restores the original
+styles.css hash: c5258d2fd changed only that hash without recapturing pixels.
+The owning test verifies the immutable capture sources; these observations do
+not certify today's integrated pixels or inventory.
+
 PNGs: /home/randy/lanes/M114P2/temp/m114-p2-after. Before: /home/randy/archive/m114-a-before-17d7.
 
 S owns reviewed goldens; the manifest retains hashes, actual renders and all scoped axe findings.

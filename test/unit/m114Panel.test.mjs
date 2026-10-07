@@ -20,7 +20,7 @@ const fixture = [
   "const approval = {approvalId:'test',requirementId:{approvalId:'test',sourceIndex:0},",
   " subject:{kind:'shell',command:'npm run build'},rawArgs:'{}',isProtectedWrite:false,isJudgeEscalated:false,",
   " availableChoices:labels.map((label,i)=>({choiceId:String(i),label,decision:i===2?'abort':'approved',scope:'once',acceptsFeedback:i===2}))};",
-  'createRoot(globalThis.document.getElementById(\'actual\')).render(<><ApprovalCard approval={approval} toolName="shell" onDecide={()=>{}}/><SecretPromptDialog redactedText="[redacted]" onEdit={()=>{}} onSendAnyway={()=>{}}/><GooeyMenu label="Actions" origin={{x:160,y:400}} items={[{id:"copy",label:"Copy",icon:"C",onSelect:()=>{}}]} onClose={()=>{}}/></>);',
+  'createRoot(globalThis.document.getElementById(\'actual\')).render(globalThis.panelScenario === "secret" ? <SecretPromptDialog redactedText="[redacted]" onEdit={()=>{}} onSendAnyway={()=>{}}/> : <><ApprovalCard approval={approval} toolName="shell" onDecide={()=>{}}/><GooeyMenu label="Actions" origin={{x:160,y:400}} items={[{id:"copy",label:"Copy",icon:"C",onSelect:()=>{}}]} onClose={()=>{}}/></>);',
 ].join('\n')
 const markup = `<main>
 <div id="actual"></div>
@@ -112,7 +112,7 @@ async function openHarness(theme, scene) {
   return page
 }
 
-async function open(theme, width = 320, isWhatsNew = false, motion = 'reduce') {
+async function open(theme, width = 320, isWhatsNew = false, motion = 'reduce', scene = 'panel') {
   const page = await runtime.browser.newPage({
     viewport: { width, height: 760 },
     reducedMotion: motion,
@@ -133,8 +133,14 @@ async function open(theme, width = 320, isWhatsNew = false, motion = 'reduce') {
     globalThis.document.body.className = host.bodyClass
   }, host)
   if (!isWhatsNew) {
+    await page.evaluate((scene) => {
+      Object.defineProperty(globalThis, 'panelScenario', { value: scene, configurable: true })
+    }, scene)
     await page.addScriptTag({ content: runtime.js })
-    await page.waitForSelector('.approval', { state: 'attached' })
+    // Wait for the real lazy menu before another control can take its focus.
+    await page.waitForSelector(scene === 'secret' ? '#actual .modal' : '.gooey-menu-pill', {
+      state: 'attached',
+    })
   }
   return page
 }
@@ -193,6 +199,19 @@ async function force(page, selector, states) {
 }
 
 describe('M114 P2 panel contract', () => {
+  it('loads the real lazy menu independently of the secret modal focus owner', async () => {
+    const panel = await open('dark')
+    const secret = await open('dark', 320, false, 'reduce', 'secret')
+    try {
+      expect(await panel.locator('.gooey-menu-pill').count()).toBe(1)
+      expect(await panel.locator('#actual .modal').count()).toBe(0)
+      expect(await secret.locator('#actual .modal').count()).toBe(1)
+      expect(await secret.locator('.gooey-menu-pill').count()).toBe(0)
+    } finally {
+      await panel.close()
+      await secret.close()
+    }
+  })
   it('certifies History archive marks outside Tab order with Arrow/Delete keyboard access', async () => {
     const certification = readFileSync(
       'docs/certification/m114-p2-panel-polish-menus-dialogs-and-the-rest.md',
@@ -222,7 +241,8 @@ describe('M114 P2 panel contract', () => {
       const action = await row.getAttribute('aria-description')
       await search.press('Delete')
       await page.clock.runFor(100)
-      expect(await row.getAttribute('aria-description')).not.toBe(action)
+      // postMessage delivery and React commit follow the fake host's reply.
+      await expect.poll(() => row.getAttribute('aria-description')).not.toBe(action)
     } finally {
       await page.close()
     }
@@ -370,7 +390,7 @@ describe('M114 P2 panel contract', () => {
   it.each(themes)(
     '%s: secret-prompt decisions keep equal size and emphasis at 320 px',
     async (theme) => {
-      const page = await open(theme)
+      const page = await open(theme, 320, false, 'reduce', 'secret')
       try {
         const decisions = await page
           .locator('#actual .modal .question-actions > button')

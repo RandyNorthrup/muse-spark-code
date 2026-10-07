@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import { describe, expect, it } from 'vitest'
-import { auditRoot, digest } from './helpers/m114AuditCapture.mjs'
+import { digest, readAudit, sourcesAtRevision } from './helpers/m114AuditCapture.mjs'
 import { panelReceipt } from './helpers/m114PanelCapture.mjs'
 
 const normalize = (file) => file.replaceAll('\\', '/')
@@ -11,14 +11,15 @@ const compareFiles = new Intl.Collator('en').compare
 const themes = ['light', 'dark', 'hc-dark', 'hc-light', 'one-dark-pro', 'dracula']
 
 describe('M114 P2 captured evidence', () => {
-  it('covers every P2 component at both widths in six themes with current sources and honest axe receipts', () => {
-    const audit = readJson(path.join(auditRoot, 'docs/certification/m114-audit.json'))
+  it('covers every historical P2 render with immutable capture sources and honest axe receipts', async () => {
+    const audit = await readAudit('58ed2fc1d232d89491c441f44cfbd12539e8b4a1')
     const owned = audit.components.filter((row) => row.owner === 'P2')
     const scenes = [...new Set(owned.map((row) => row.scene))]
     const receipt = readJson(panelReceipt)
     expect(receipt).toMatchObject({
       kind: 'after-observation-not-golden',
       base: '28ffc2def',
+      sourceRevision: '871597b49afaa7f92d3ffd9c4a33203e4d5849e7',
       imageDirectory: 'temp/m114-p2-after',
       locale: 'en',
       timezone: 'UTC',
@@ -38,10 +39,12 @@ describe('M114 P2 captured evidence', () => {
       'src/webview/whatsNew/whatsNew.css',
       ...owned.map((row) => row.file),
     ])
+    const sources = sourcesAtRevision(
+      receipt.sourceRevision,
+      receipt.sources.map((row) => row.file),
+    )
     for (const row of receipt.sources)
-      expect(digest(readFileSync(path.join(auditRoot, ...normalize(row.file).split('/'))))).toBe(
-        row.sha256,
-      )
+      expect(digest(sources.get(row.file)), row.file).toBe(row.sha256)
     for (const row of receipt.captures) {
       expect(normalize(row.file)).toBe(`${row.scene}/${row.theme}/${row.width}.png`)
       expect(row.height).toBe(760)
