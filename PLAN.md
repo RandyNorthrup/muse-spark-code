@@ -28451,6 +28451,13 @@ W owns product docs/reference, lazy wiring/budgets, the full quality gate
 and browser/all-editor certification. P records each new guard's named red
 drill and byte-exact restoration; final tests use repository timeouts.
 
+**P status:** portable provisioning and first-wave core implemented and
+certified on deterministic fakes with 100 named guard-fire drills. Live
+M96/M116 board/playbook, M109 captured broker/provider, M110f install/wipe/
+funded-deadline and M110d pairing bindings remain named as waiting in the
+P certificate. W owns their integration, product docs/reference, lazy budgets
+and aggregate/editor gates; real rented setups remain advice-only until bound.
+
 **Lane-R review repair (FIXM117R, 2026-10-06).** Fix all three RVM117R
 P2 findings within the recommendation lane: exact nano-USD cost arithmetic
 through the explicitly requested `src/shared/usd.ts`, zero incremental rental
@@ -28647,9 +28654,9 @@ cloudInit)`, `status(id)`, `delete(id)`, and nothing else; each adapter's
   - [ ] The goldens, including this repository's M103 and M104 history
   - [ ] Determinism across processes, time zones and languages
   - [ ] The bottleneck, calibration and recommendation drills
-  - [ ] The fake provider's flow, the cap, and the never-pays and
+  - [x] The fake provider's flow, the cap, and the never-pays and
         never-creates-accounts drills
-  - [ ] P's parts with M96, M109, M110d and M110f, or each named as waiting
+  - [x] P's parts with M96, M109, M110d and M110f, or each named as waiting
   - [ ] Editor rows recorded; strings in all 14 tables; the `/help` rows;
         budgets measured; the full gate green
 
@@ -28782,6 +28789,16 @@ Every new guard has a named deliberate failure and SHA-256 restoration in
 `docs/certification/m117-p-spin-it-up.md`. Only the two expressly listed
 S/C no-fast-forward merges are authorized; hooks stay on. No UI is changed;
 W owns browser/all-editor and lazy-estimator bundle certification.
+
+P final scoped checks pass except the inherited C-lane host-API record drift:
+`node:buffer` 39→40, `node:crypto` 46→47, `node:fs` 33→34,
+`node:fs/promises` 47→48 and `node:path` 84→85. No P core file imports a
+Node built-in or VS Code. The generated compatibility record belongs to W;
+`M117-P-W-gates`/`M117-W-host-api-record` explicitly defer its refresh to
+integration. No gate is weakened or ignored. Receipts: 106 owning tests,
+100 named red drills, all five typechecks, scoped lint/format, deadcode,
+zero duplication, localization/reference and production build pass on this
+rig with repository test timeouts. Aggregate quality stays with W/lead.
 
 **FIXM117R scoped rig certification (2026-10-06).** The lane/shared brief
 prohibits aggregate `npm run quality`; the lead owns that gate. Run owning

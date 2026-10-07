@@ -1,12 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { brokeredEstimateProvider } from '../../src/core/estimator/provision/provider'
 import { compareEstimateIds } from '../../src/core/estimator/goal'
 import { provisionProvider } from './helpers/estimatorProvisionFixtures'
+import { ESTIMATE_MAX_ITEMS } from '../../src/shared/constants'
 
 function insecureOrigin(): string {
   const origin = new URL('https://provider.invalid')
   origin.protocol = 'http:'
   return origin.origin
+}
+
+function rejectedCreatePath(path: string): void {
+  const fixture = provisionProvider()
+  const endpoints = fixture.fake.endpoints.map((entry) =>
+    entry.operation === 'create' ? { ...entry, path } : entry,
+  )
+  expect(() => fixture.providerFor(endpoints)).toThrow()
+  expect(fixture.requests).toEqual([])
 }
 
 describe('M117 connected vault-brokered provider operations', () => {
@@ -59,18 +68,7 @@ describe('M117 connected vault-brokered provider operations', () => {
     '/v1/account',
     '/SIGN_UP',
   ])('refuses forbidden allow-list path %s before any request', (path) => {
-    const fixture = provisionProvider()
-    const endpoints = fixture.fake.endpoints.map((entry) =>
-      entry.operation === 'create' ? { ...entry, path } : entry,
-    )
-    expect(() =>
-      brokeredEstimateProvider(
-        { id: fixture.fake.id, apiOrigin: fixture.fake.apiOrigin, endpoints },
-        fixture.broker,
-        fixture.codec,
-      ),
-    ).toThrow()
-    expect(fixture.requests).toEqual([])
+    rejectedCreatePath(path)
   })
 
   it.each([
@@ -83,18 +81,7 @@ describe('M117 connected vault-brokered provider operations', () => {
     'https://other.invalid/servers',
     '/servers/{id}/extra',
   ])('refuses noncanonical endpoint %s', (path) => {
-    const fixture = provisionProvider()
-    const endpoints = fixture.fake.endpoints.map((entry) =>
-      entry.operation === 'create' ? { ...entry, path } : entry,
-    )
-    expect(() =>
-      brokeredEstimateProvider(
-        { id: fixture.fake.id, apiOrigin: fixture.fake.apiOrigin, endpoints },
-        fixture.broker,
-        fixture.codec,
-      ),
-    ).toThrow()
-    expect(fixture.requests).toEqual([])
+    rejectedCreatePath(path)
   })
 
   it.each([
@@ -105,26 +92,17 @@ describe('M117 connected vault-brokered provider operations', () => {
     'https://provider.invalid#fragment',
   ])('refuses unpinned origin %s', (apiOrigin) => {
     const fixture = provisionProvider()
-    expect(() =>
-      brokeredEstimateProvider(
-        { id: fixture.fake.id, apiOrigin, endpoints: fixture.fake.endpoints },
-        fixture.broker,
-        fixture.codec,
-      ),
-    ).toThrow()
+    expect(() => fixture.providerFor(fixture.fake.endpoints, apiOrigin)).toThrow()
   })
 
   it('requires every operation exactly once with its prescribed method', () => {
     const fixture = provisionProvider()
-    const binding = { id: fixture.fake.id, apiOrigin: fixture.fake.apiOrigin }
     for (const endpoints of [
       fixture.fake.endpoints.slice(1),
       [...fixture.fake.endpoints, ...fixture.fake.endpoints],
       fixture.fake.endpoints.map((entry) => ({ ...entry, method: 'GET' as const })),
     ]) {
-      expect(() =>
-        brokeredEstimateProvider({ ...binding, endpoints }, fixture.broker, fixture.codec),
-      ).toThrow()
+      expect(() => fixture.providerFor(endpoints)).toThrow()
     }
   })
 
@@ -133,13 +111,7 @@ describe('M117 connected vault-brokered provider operations', () => {
     const endpoints = fixture.fake.endpoints.map((entry) =>
       entry.operation === 'images' ? { ...entry, operation: 'sizes' as const } : entry,
     )
-    expect(() =>
-      brokeredEstimateProvider(
-        { id: fixture.fake.id, apiOrigin: fixture.fake.apiOrigin, endpoints },
-        fixture.broker,
-        fixture.codec,
-      ),
-    ).toThrow('allow-list')
+    expect(() => fixture.providerFor(endpoints)).toThrow('allow-list')
   })
 
   it('requires the server ID as exactly one final status/delete segment', () => {
@@ -148,13 +120,7 @@ describe('M117 connected vault-brokered provider operations', () => {
       const endpoints = fixture.fake.endpoints.map((entry) =>
         entry.operation === 'status' ? { ...entry, path } : entry,
       )
-      expect(() =>
-        brokeredEstimateProvider(
-          { id: fixture.fake.id, apiOrigin: fixture.fake.apiOrigin, endpoints },
-          fixture.broker,
-          fixture.codec,
-        ),
-      ).toThrow('allow-list')
+      expect(() => fixture.providerFor(endpoints)).toThrow('allow-list')
     }
   })
 
@@ -311,4 +277,38 @@ describe('M117 connected vault-brokered provider operations', () => {
       expect(fixture.broker.request).not.toHaveBeenCalled()
     },
   )
+  it('bounds provider selection arrays before use', async () => {
+    const fixture = provisionProvider()
+    const sizes = Array.from({ length: ESTIMATE_MAX_ITEMS + 1 }, (_, index) => ({
+      ...fixture.fake.size,
+      id: `size-${String(index)}`,
+    }))
+    const images = Array.from({ length: ESTIMATE_MAX_ITEMS + 1 }, (_, index) => ({
+      ...fixture.fake.image,
+      id: `image-${String(index)}`,
+    }))
+    fixture.broker.request.mockResolvedValueOnce({
+      url: `${fixture.fake.apiOrigin}/sizes`,
+      status: 200,
+      body: sizes,
+    })
+    await expect(fixture.provider.sizes()).rejects.toThrow('sizes')
+    fixture.broker.request.mockResolvedValueOnce({
+      url: `${fixture.fake.apiOrigin}/images`,
+      status: 200,
+      body: images,
+    })
+    await expect(fixture.provider.images()).rejects.toThrow('images')
+  })
+
+  it('requires a complete integer-status broker receipt before decoding its body', async () => {
+    const fixture = provisionProvider()
+    for (const receipt of [
+      { url: `${fixture.fake.apiOrigin}/sizes`, body: [] },
+      { url: `${fixture.fake.apiOrigin}/sizes`, status: 200.5, body: [] },
+    ]) {
+      fixture.broker.request.mockResolvedValueOnce(receipt)
+      await expect(fixture.provider.sizes()).rejects.toThrow('sizes')
+    }
+  })
 })

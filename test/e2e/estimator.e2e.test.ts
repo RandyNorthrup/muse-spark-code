@@ -32,21 +32,25 @@ function fixturePlan(): EstimateGoalSnapshot {
   }
 }
 
+async function fixtureInputs() {
+  const plan = fixturePlan()
+  const lanes = await resolveEstimateGoal(parseEstimateGoal('M117'), plan.asOf, {
+    snapshot: () => Promise.resolve(plan),
+  })
+  const fleet = scheduleFleet(1)
+  for (const machine of fleet.machines) machine.capacityByKind.push({ kind: 'contracts', slots: 1 })
+  return simulationInputs(lanes, fleet)
+}
+
 describe('M117 fixture plan to schedule to audited first-wave submission', () => {
   it('resolves the milestone, schedules the chain and submits contracts before later waves', async () => {
-    const plan = fixturePlan()
-    const lanes = await resolveEstimateGoal(parseEstimateGoal('M117'), plan.asOf, {
-      snapshot: () => Promise.resolve(plan),
-    })
-    const fleet = scheduleFleet(1)
-    for (const machine of fleet.machines)
-      machine.capacityByKind.push({ kind: 'contracts', slots: 1 })
+    const input = await fixtureInputs()
+    const { lanes, fleet } = input
     const forecast = prepareEstimateSchedule(lanes, fleet).run()
     expect(forecast.schedule.map((entry) => entry.laneId)).toEqual(['M117:A', 'M117:B', 'M117:C'])
     expect(forecast.criticalPath).toEqual(['M117:A', 'M117:B', 'M117:C'])
     const board = new FakeEstimateStart()
     const starter = new EstimateWaveStarter(board)
-    const input = simulationInputs(lanes, fleet)
     expect(await starter.start(input)).toEqual(['M117:A'])
     expect(board.audits).toEqual([['M117:A']])
     for (const lane of input.lanes) if (lane.id === 'M117:A') lane.state = 'merged'
@@ -55,17 +59,11 @@ describe('M117 fixture plan to schedule to audited first-wave submission', () =>
   })
 
   it('does not submit a fixture lane when the prerequisite audit has no merge receipt', async () => {
-    const plan = fixturePlan()
-    const lanes = await resolveEstimateGoal(parseEstimateGoal('M117'), plan.asOf, {
-      snapshot: () => Promise.resolve(plan),
-    })
-    const fleet = scheduleFleet(1)
-    for (const machine of fleet.machines)
-      machine.capacityByKind.push({ kind: 'contracts', slots: 1 })
+    const input = await fixtureInputs()
     const board = new FakeEstimateStart(['M113:0'])
-    await expect(
-      new EstimateWaveStarter(board).start(simulationInputs(lanes, fleet)),
-    ).rejects.toThrow('Contracts must be reviewed')
+    await expect(new EstimateWaveStarter(board).start(input)).rejects.toThrow(
+      'Contracts must be reviewed',
+    )
     expect(board.starts).toEqual([])
   })
 })

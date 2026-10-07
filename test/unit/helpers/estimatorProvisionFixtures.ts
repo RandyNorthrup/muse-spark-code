@@ -5,6 +5,7 @@ import {
   type EstimateProviderCodec,
 } from '../../../src/core/estimator/provision/provider'
 import { FakeEstimateProvider, FakeEstimateNode } from './estimator/fakes'
+import { type EstimateProviderEndpoint } from '../../../src/shared/estimate'
 
 /** Fictional provider bodies only; not a captured service protocol. */
 export function provisionProvider() {
@@ -36,6 +37,9 @@ export function provisionProvider() {
       isConnected = false
     },
     node: new FakeEstimateNode(),
+    providerFor(endpoints: readonly EstimateProviderEndpoint[], apiOrigin = fake.apiOrigin) {
+      return brokeredEstimateProvider({ id: fake.id, apiOrigin, endpoints }, broker, codec)
+    },
   }
 }
 
