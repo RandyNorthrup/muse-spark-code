@@ -244,7 +244,7 @@ describe('M96 K advisory hints', () => {
       expect(disabled).not.toHaveBeenCalled()
       if (process.platform === 'win32') {
         const ps = windowsPowerShell(process.env['SystemRoot'] ?? '', {})
-        const script = `$d = New-Object IO.DirectoryInfo(${powerShellQuoted(f.directory)}); $acl = $d.GetAccessControl(); $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User; $r = @($acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])); $acl.AreAccessRulesProtected -and $r.Count -eq 1 -and $r[0].IdentityReference.Value -eq $sid.Value`
+        const script = `$d = [IO.DirectoryInfo]::new(${powerShellQuoted(f.directory)}); $acl = $d.GetAccessControl(); $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User; $r = @($acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])); $acl.AreAccessRulesProtected -and $r.Count -eq 1 -and $r[0].IdentityReference.Value -eq $sid.Value`
         const result = await runProgram(
           ps.file,
           [...WINDOWS_POWERSHELL_COMMAND_ARGS, script],
@@ -406,7 +406,7 @@ describe('M96 K advisory hints', () => {
       it('native Windows rejects an opened hint with another principal granted write access', async () => {
         if (f === undefined) throw new Error('native hints not prepared')
         const powershell = windowsPowerShell(process.env['SystemRoot'] ?? '', {})
-        const script = `$f = New-Object IO.FileInfo(${powerShellQuoted(f.file)}); $acl = $f.GetAccessControl(); $everyone = New-Object Security.Principal.SecurityIdentifier('S-1-1-0'); $rule = New-Object Security.AccessControl.FileSystemAccessRule($everyone,'Modify','Allow'); $acl.AddAccessRule($rule); $f.SetAccessControl($acl)`
+        const script = `$f = [IO.FileInfo]::new(${powerShellQuoted(f.file)}); $acl = $f.GetAccessControl(); $everyone = [Security.Principal.SecurityIdentifier]::new('S-1-1-0'); $rule = [Security.AccessControl.FileSystemAccessRule]::new($everyone,'Modify','Allow'); $acl.AddAccessRule($rule); $f.SetAccessControl($acl)`
         await runProgram(
           powershell.file,
           [...WINDOWS_POWERSHELL_COMMAND_ARGS, script],
