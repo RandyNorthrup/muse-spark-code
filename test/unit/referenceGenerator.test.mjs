@@ -2,6 +2,12 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { fromMarkdown } from 'mdast-util-from-markdown'
+import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
+import * as modelApiEntry from '../../src/host/backend/modelApiEntry'
+import { fakeManagerDeps } from './helpers/modelApiManager'
+import { fakeModelApi } from './helpers/fakeModelApi'
+import { FakeLogOutputChannel } from './helpers/fakes'
+import { memorySessionStore } from './helpers/fakeSessionStore'
 import {
   buildReference,
   generateReference,
@@ -176,33 +182,7 @@ const commandText = (key) => {
 }
 
 describe('RVHELPREF truth regressions', () => {
-  let admission
-  beforeAll(async () => {
-    // Share cold module setup; each production-admission assertion keeps 5 s.
-    const { ModelApiBackendManager } = await import('../../src/host/backend/modelApiBackendManager')
-    const modelApiEntry = await import('../../src/host/backend/modelApiEntry')
-    const { fakeManagerDeps } = await import('./helpers/modelApiManager')
-    const { fakeModelApi } = await import('./helpers/fakeModelApi')
-    const { FakeLogOutputChannel } = await import('./helpers/fakes')
-    const { memorySessionStore } = await import('./helpers/fakeSessionStore')
-    admission = {
-      ModelApiBackendManager,
-      modelApiEntry,
-      fakeManagerDeps,
-      fakeModelApi,
-      FakeLogOutputChannel,
-      memorySessionStore,
-    }
-  })
   it('RVHELPREF4 P1 derives the Best-of-N budget prerequisite from production admission', async () => {
-    const {
-      ModelApiBackendManager,
-      modelApiEntry,
-      fakeManagerDeps,
-      fakeModelApi,
-      FakeLogOutputChannel,
-      memorySessionStore,
-    } = admission
     const manager = new ModelApiBackendManager(
       fakeManagerDeps(fakeModelApi(), new FakeLogOutputChannel(), {
         workspaceRoot: '/reference-budget',
@@ -689,7 +669,7 @@ describe('RVHELPREF truth regressions', () => {
 })
 
 describe('RVHELPREF2 runtime truth regressions', () => {
-  it('RVHELPREF4 P2-1 rejects the closed state vocabulary at the generator boundary', () => {
+  const stateClaims = (() => {
     const predicates = ['is', 'are', 'was', 'becomes']
     const states = [
       'available',
@@ -707,7 +687,7 @@ describe('RVHELPREF2 runtime truth regressions', () => {
       'installed',
       'configured',
     ]
-    const claims = [
+    return [
       'Delegation is available in this conversation.',
       'A future feature is on.',
       'It works right now.',
@@ -715,13 +695,18 @@ describe('RVHELPREF2 runtime truth regressions', () => {
         states.map((state) => `A future feature ${predicate} ${state}.`),
       ),
     ]
-    for (const claim of claims) {
+  })()
+  it.each(stateClaims)(
+    'RVHELPREF4 P2-1 rejects the closed state vocabulary at the generator boundary: %s',
+    (claim) => {
       const changed = { ...source, EN: { ...source.EN, referenceNativeAgents: claim } }
       expect(
         () => referenceMarkdown(build(manifest, changed), changed, nls, manifest),
         claim,
       ).toThrow('Catalogue asserts conditional state: native-agents')
-    }
+    },
+  )
+  it('RVHELPREF4 P2-1 renders a neutral description', () => {
     const neutral = {
       ...source,
       EN: { ...source.EN, referenceNativeAgents: 'Use agent controls to delegate work.' },

@@ -1,8 +1,8 @@
-import { execFileSync } from 'node:child_process'
 import { mkdtemp, mkdir } from 'node:fs/promises'
 import path from 'node:path'
+import { build } from 'esbuild'
 import { chromium, type Browser } from 'playwright-core'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 import { openUsageCompanion } from '../../src/runtime/usage/usageCompanionEntry'
 import { createUsageAccess } from '../../src/runtime/usage/usageServiceEntry'
 import { EN } from '../../src/shared/l10n/en'
@@ -10,26 +10,41 @@ import { USAGE_EN } from '../../src/shared/l10n/usageEn'
 import { WEBVIEW_L10N_ELEMENT_ID } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
+import { compactBrowserUiText } from '../../scripts/lib/uiTextRegions.mjs'
 
-// Real cold production bundling and browser launch are shared outside 5-second assertions.
-const COLD_SETUP_TIMEOUT_MS = 120_000
+await mkdir('temp', { recursive: true })
+const dataFolder = await mkdtemp(path.resolve('temp/train15g-usage-chunks-'))
+const assetsFolder = path.join(dataFolder, 'dist/webview')
+// Only the two page entries sharing vendor code are needed for this CSP test.
+// Keep production's browser table transform, module splitting and lazy body.
+await build({
+  entryPoints: {
+    models: 'src/webview/models/models.tsx',
+    usage: 'src/webview/usage/usage.tsx',
+  },
+  outdir: assetsFolder,
+  bundle: true,
+  minify: true,
+  format: 'esm',
+  platform: 'browser',
+  splitting: true,
+  chunkNames: 'chunks/[hash]',
+  target: 'chrome128',
+  jsx: 'automatic',
+  charset: 'utf8',
+  define: { 'process.env.NODE_ENV': '"production"' },
+  plugins: [compactBrowserUiText],
+  logLevel: 'silent',
+})
+const browser: Browser = await chromium.launch({ channel: 'chrome', headless: true })
 
 describe('shared usage companion chunks', () => {
-  let browser: Browser | undefined
-  let dataFolder = ''
-  beforeAll(async () => {
-    execFileSync(process.execPath, ['scripts/build.mjs', '--production'], { stdio: 'pipe' })
-    browser = await chromium.launch({ channel: 'chrome', headless: true })
-    await mkdir('temp', { recursive: true })
-    dataFolder = await mkdtemp(path.resolve('temp/train15g-usage-chunks-'))
-  }, COLD_SETUP_TIMEOUT_MS)
   afterAll(async () => {
-    await browser?.close()
-    if (dataFolder !== '') await removeFolder(dataFolder)
+    await browser.close()
+    await removeFolder(dataFolder)
   })
 
   it('loads the real shared vendor and lazy Usage body under its authenticated nonce CSP', async () => {
-    if (browser === undefined) throw new Error('browser startup failed')
     const log = new FakeLogOutputChannel()
     const usage = createUsageAccess({
       dataFolder,
@@ -41,7 +56,7 @@ describe('shared usage companion chunks', () => {
     })
     const panel = await openUsageCompanion({
       usage,
-      assetsFolder: path.resolve('dist/webview'),
+      assetsFolder,
       locale: 'en',
       uiText: EN,
       log,

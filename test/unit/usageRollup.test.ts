@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile, utimes } from 'node:fs/promises'
+import { mkdtemp, readFile, realpath, rm, writeFile, utimes } from 'node:fs/promises'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { onTestFinished, describe, expect, it, vi } from 'vitest'
@@ -33,7 +33,8 @@ function record(day: string, id = day) {
   )
 }
 async function rig() {
-  const root = await mkdtemp(path.join(tmpdir(), 'm102-rollup-'))
+  // Hosted Windows TEMP can use an 8.3 alias; atomic writes compare canonical paths.
+  const root = await realpath(await mkdtemp(path.join(tmpdir(), 'm102-rollup-')))
   onTestFinished(async () => {
     await rm(root, { recursive: true, force: true })
   })

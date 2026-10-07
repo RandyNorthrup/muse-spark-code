@@ -174,6 +174,7 @@ async function exerciseHost(
       }),
     )
     server.overflow()
+    // The real stream receives more than its byte cap in bounded comment frames.
     await observedTurn(session, watch, 'Refuse an oversized SSE transport.')
     expect(watch.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
       terminal: 'failed',

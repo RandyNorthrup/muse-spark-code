@@ -21,6 +21,9 @@ happened, not what was planned; superseded entries are kept.
   Windows worker checks retain alias refusals on volumes without 8.3 names.
 - Validate newly added README screenshots from the checkout while continuing
   public image checks for files already on main; missing local images fail.
+- Make usage, reference, provider and companion tests independent of stale build
+  output and repeated cold setup on hosted runners, preserving default deadlines,
+  all randomized cases, offline replays and native Windows security checks.
 
 ### Pending
 

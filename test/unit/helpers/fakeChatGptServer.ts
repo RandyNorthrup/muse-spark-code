@@ -8,9 +8,10 @@ import { SUBSCRIPTION_STREAM_MAX_BYTES } from '../../../src/shared/constants'
 const ISSUER = 'https://auth.openai.com'
 const CLIENT = 'synthetic-issued-client'
 const SCOPE = 'openid chatgpt.tokens.use.direct'
+// One synthetic signing identity; each server still owns fresh OAuth/turn state.
+const pair = generateKeyPairSync('rsa', { modulusLength: 2048 })
 
 export async function fakeChatGptServer() {
-  const pair = generateKeyPairSync('rsa', { modulusLength: 2048 })
   let nonce = ''
   let subject = 'synthetic-account-A'
   let responseCount = 0
@@ -105,7 +106,14 @@ export async function fakeChatGptServer() {
             response.write(`data: ${JSON.stringify(value)}\n\n`)
           }
           responseCount += 1
-          if (isOverflow) response.write(`:${'x'.repeat(SUBSCRIPTION_STREAM_MAX_BYTES)}\n\n`)
+          if (isOverflow) {
+            // Keep each comment small so this exercises the total transport cap,
+            // rather than quadratic buffering of one unterminated 16 MiB line.
+            const comment = `:${'x'.repeat(1024)}\n\n`
+            response.write(
+              comment.repeat(Math.ceil(SUBSCRIPTION_STREAM_MAX_BYTES / comment.length)),
+            )
+          }
           event({
             type: 'response.created',
             response: {

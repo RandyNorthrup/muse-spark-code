@@ -1,10 +1,13 @@
 import { createServer } from 'node:http'
 import { chromium, type Browser, type Page } from 'playwright-core'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import { call, headers, startPanel, trackedPanels } from './helpers/companion'
 
 const tracked = trackedPanels()
+// Warm the real browser during file loading, before the assertion hooks. Chrome
+// startup contends with hosted-runner transforms; it is shared by all nine cases.
+const browser: Browser = await chromium.launch({ channel: 'chrome', headless: true })
 
 /** Runs in the browser; both fetch overloads must retain the private bearer. */
 async function postFromPage(isRequest: boolean): Promise<number> {
@@ -22,7 +25,7 @@ async function postFromPage(isRequest: boolean): Promise<number> {
 
 async function openPage(page: Page, launch: string): Promise<void> {
   await page.goto(launch)
-  await page.waitForLoadState('networkidle')
+  await page.waitForFunction(() => Reflect.get(globalThis.window, 'panelLoaded') === true)
   expect(await page.evaluate(() => Reflect.get(globalThis.window, 'panelLoaded') === true)).toBe(
     true,
   )
@@ -32,15 +35,10 @@ async function openPage(page: Page, launch: string): Promise<void> {
 }
 
 describe('companion browser security', () => {
-  let browser: Browser | undefined
-  beforeAll(async () => {
-    browser = await chromium.launch({ channel: 'chrome', headless: true })
-  })
   afterAll(async () => {
-    await browser?.close()
+    await browser.close()
   })
   it('exchanges the fragment without leaking it, then refuses a foreign form, fetch, EventSource and WebSocket', async () => {
-    if (browser === undefined) throw new Error('browser startup failed')
     const panel = await startPanel()
     let capturedCookie: string | undefined
     let capturedAuthorization: string | undefined
@@ -211,7 +209,6 @@ describe('companion browser security', () => {
     }
   })
   it('exchanges fresh codes in two tabs and opens independent authenticated streams', async () => {
-    if (browser === undefined) throw new Error('browser startup failed')
     const panel = await tracked()
     const context = await browser.newContext()
     try {
@@ -247,7 +244,6 @@ describe('companion browser security', () => {
     }
   })
   it('keeps two runtimes authenticated in one browser context without cross-runtime bearer replay', async () => {
-    if (browser === undefined) throw new Error('browser startup failed')
     const first = await tracked()
     const second = await tracked()
     const context = await browser.newContext()
@@ -287,7 +283,6 @@ describe('companion browser security', () => {
   it.each(['missing', 'invalid', 'expired', 'exchange failure', 'invalid bearer', 'asset failure'])(
     'shows focused accessible reopen guidance on %s launch without an unhandled error',
     async (failure) => {
-      if (browser === undefined) throw new Error('browser startup failed')
       const panel = await tracked(failure === 'expired' ? { launchCodeTtlMs: 1 } : {})
       const context = await browser.newContext({ viewport: { width: 320, height: 480 } })
       const page = await context.newPage()
