@@ -347,3 +347,26 @@ explicitly written in D97 and this lane brief.
 
 Source/test commit and hook receipts follow; documentation-only receipts do
 not invalidate the final code hashes or require repeating unchanged tests.
+
+## Hooked commit receipt and ownership
+
+Implementation commits: **`0b68c159`** (provider, first wave and fake e2e)
+and **`4081c6ea`** (exact run-budget, node lifecycle and final scoped proof).
+Required merge commits: **`8d35fcca`** (S), **`f9fee626`** (C).
+All commits used explicit paths, enabled unchanged hooks and the required
+co-author footer. The second implementation hook ran ESLint/Prettier on nine
+TypeScript files, Prettier on PLAN/certification and Gitleaks over approximately
+81,787 staged bytes: no leaks. All thirteen source/test/helper hashes match
+the final verification snapshot after the hook. The worktree was clean.
+
+P's fifteen paths: `src/core/estimator/provision/{clock,lifecycle,owner,
+provider,run,start}.ts`; the four owning unit suites, their two fixture helpers,
+`test/e2e/estimator.e2e.test.ts`; PLAN and this certificate. Other implementation
+files are unchanged by P. S/C's required merges preserve their code and both
+sides' PLAN/CHANGELOG records. No other merge, push, rebase, stash, dependency,
+hook/config change, credential access, model call or paid/cloud request.
+
+The certificate's final commit records receipts only. Tests/builds are not
+repeated after that prose update: no verified source or test changed.
+The inherited host-record refresh and named live bindings remain open for W;
+there is no deferred P guard, fake-flow failure or raised budget/threshold.
