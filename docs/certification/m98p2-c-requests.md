@@ -4,6 +4,35 @@ Lane C did not edit files owned by other lanes. The adapter is
 implemented and tested behind injected `readKey`, `reserve`, and `post`.
 Nothing here enables it.
 
+## FIXM98P2C integration requests (2026-10-06)
+
+All four RVM98P2C findings are repaired in the owned adapter and fake tests.
+These assembly requirements accompany the repair:
+
+- Supply `SystemOneSelection.generation` as a nonnegative safe integer.
+  Increment it on every source/model, enablement, selection mode,
+  confidentiality or consent change, including revocation then restoration.
+  Return one coherent decision. Never supply a permanently constant generation.
+  The adapter snapshots the selection and generation, checks after admission
+  and key lookup, and refuses a replaced allowed binding with `consent-needed`.
+- Honor the cancellation/accounting split: Stop and the request deadline
+  settle the caller's outcome immediately. Late admission refunds once; known
+  dispatched usage settles once; failures retain liability. Do not add a
+  second release/settlement callback around this adapter. The existing durable
+  ledger remains responsible for completion or recovery of pending accounting.
+- Z: record this security repair in PLAN §2c and CHANGELOG `[Unreleased]`,
+  even while the adapter remains unwired. Suggested change description:
+  "Fix the unshipped SystemOne adapter's structured-field redaction, policy
+  generation checks and cancellation-safe accounting."
+  This lane's current plan, regressions and 12 negative drills are in
+  `docs/certification/m98p2-c.md`.
+- Z: resolve or record a justified PLAN §7 deferral for the inherited full
+  duplication failure before delivery. Exact original source/test replay and
+  the repair both produce the same 30 clone file/range pairs, none in lane C.
+
+No new public command, setting, user-facing text, feature-catalogue entry,
+dependency, wire shape or UI surface is introduced by the repair.
+
 ## Z — wiring, ledger, docs, package
 
 - Load `src/core/judge/systemone/**` lazily on the first explicit use,
