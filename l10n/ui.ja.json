@@ -2400,7 +2400,7 @@
     "internal": "内部レコード",
     "labelWarning": "エージェントには名前とラベルが表示されます。秘密の値を含めないでください。",
     "processWarning": "このプログラムと子プロセスは認証情報を見ることができ、外部に送信できます。",
-    "disclosureWarning": "開示すると値がモデルと提供元に送られます。取り消せないため、その後に認証情報を更新してください。",
+    "disclosureWarning": "本人確認後、この値はあなただけに表示されます。公開済みの値は取り消せません。使用後に更新してください。",
     "taintWarning": "この要求は信頼できないコンテンツに続いています: {content}。既存の許可があっても承認が必要です。",
     "presenceWarning": "OS がこの具体的な使用について確認を求めます。",
     "noDestination": "接続先が証明されていません。任意のホストへの許可が必要です。",
@@ -2433,7 +2433,7 @@
     "mcpUse": "MCP サーバーを起動",
     "headerUse": "HTTP ヘッダーを送信",
     "fillUse": "ログイン欄に入力",
-    "disclosureUse": "モデルに開示",
+    "disclosureUse": "自分に表示",
     "forwarding": "転送を許可",
     "anyHost": "任意のホスト",
     "noAccess": "アクセスなし",
@@ -2462,6 +2462,26 @@
     },
     "grantsCount": {
       "other": "{count} 件の許可"
-    }
+    },
+    "operationFailed": "保管庫の操作に失敗しました。ロックを解除して再試行してください。",
+    "invalidFields": "許可の各項目と対象を確認してください。",
+    "grantHelp": "以下の各範囲で許可を制限します。回数、有効期限、時間帯が空の場合は無制限です。",
+    "metadataOnly": "設定のみ編集",
+    "replaceValue": "認証情報を置換",
+    "presenceAdvice": "sudo、SSH キー、ウェブログインには本人確認を推奨します。",
+    "passwordEntry": "エディターのパスワード欄で認証情報を入力してください。既存の値は表示されません。",
+    "auditInvalid": "監査を検証できませんでした。最新のバックアップを復元してください。",
+    "slotUnavailable": "使用可能な保護スロットがありません。",
+    "any": "任意",
+    "unlimited": "無制限",
+    "localTime": "現地時間",
+    "created": "作成日時",
+    "lastUsed": "最終使用",
+    "policy": "エージェントのポリシー",
+    "item": "項目",
+    "sessionScope": "セッション",
+    "taskScope": "タスク",
+    "ceiling": "アクセス上限",
+    "passphraseWarning": "ロック解除にはパスフレーズが必要です。コピーされたディスクを保護し、あなたの権限で動くプログラムによる無確認の解除を防ぎます。"
   }
 }

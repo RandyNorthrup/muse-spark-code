@@ -5335,3 +5335,9 @@ export const VAULT_DEFAULTS = {
 
 export const VAULT_TOTP_DIGITS = { standard: 6, extended: 8 } as const
 export const VAULT_BASE64_GROUP_CHARS = 4
+// U's independent lazy surfaces; W registers these new caps without changing existing caps.
+export const VAULT_PANEL_BUDGET_KIB = 75
+export const VAULT_HOST_BUDGET_KIB = 50
+export const VAULT_UI_TICK_MS = 1000
+export const VAULT_ID_BYTES = 16
+export const VAULT_TOTP_PERIOD_SECONDS = 30

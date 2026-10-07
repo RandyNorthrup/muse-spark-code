@@ -3117,7 +3117,7 @@ export const EN = {
     processWarning:
       'This program and its children will see the credential and can send it elsewhere.',
     disclosureWarning:
-      'Disclosure sends the value to the model and its provider. It cannot be recalled; rotate it afterwards.',
+      'Only you will see this value, after confirming your presence. A released value cannot be recalled; rotate it afterwards.',
     taintWarning:
       'This request follows untrusted content: {content}. Approval is required despite existing grants.',
     presenceWarning: 'Your operating system will ask you to confirm this exact use.',
@@ -3161,7 +3161,7 @@ export const EN = {
     mcpUse: 'Start an MCP server',
     headerUse: 'Send an HTTP header',
     fillUse: 'Fill a login field',
-    disclosureUse: 'Disclose to the model',
+    disclosureUse: 'Show to you',
     forwarding: 'Allow forwarding',
     anyHost: 'Any host',
     noAccess: 'No access',
@@ -3181,6 +3181,29 @@ export const EN = {
     windowsElevation: 'Windows elevation uses UAC and cannot be brokered.',
     seUnavailable:
       'Secure Enclave protection is unavailable until this helper is certified on a capable Mac. Use a passphrase for presence.',
+    passphraseWarning:
+      'A passphrase is required to unlock. It protects a copied disk and prevents silent unlock by programs running as you.',
+    operationFailed: 'The vault operation failed. Unlock the vault and try again.',
+    invalidFields: 'Check the grant fields and its target.',
+    grantHelp:
+      'Every scope below limits this grant. Empty count, expiry or time window means no limit.',
+    metadataOnly: 'Edit settings only',
+    replaceValue: 'Replace credential',
+    presenceAdvice: 'Presence is recommended for sudo, SSH keys and web logins.',
+    passwordEntry:
+      'Enter credentials in the editor’s password box. Existing values are never shown.',
+    auditInvalid: 'The audit could not be verified. Restore a current backup.',
+    slotUnavailable: 'No usable protection slot is available.',
+    any: 'Any',
+    unlimited: 'Unlimited',
+    localTime: 'Local time',
+    created: 'Created',
+    lastUsed: 'Last used',
+    policy: 'Agent policy',
+    item: 'Item',
+    sessionScope: 'Session',
+    taskScope: 'Task',
+    ceiling: 'Access ceiling',
     enabledDescription: 'Enable the per-user credential vault shared by editors.',
     protectionDescription:
       'Choose vault key protection. Automatic uses available hardware plus the operating system store.',

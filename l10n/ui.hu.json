@@ -2494,7 +2494,7 @@
     "internal": "Belső rekord",
     "labelWarning": "Az ügynökök látják a neveket és címkéket. Ne írjon beléjük titkokat.",
     "processWarning": "Ez a program és gyermekfolyamatai látni fogják a hitelesítő adatot, és máshová küldhetik.",
-    "disclosureWarning": "A felfedés elküldi az értéket a modellnek és szolgáltatójának. Ez nem vonható vissza; utána cserélje le.",
+    "disclosureWarning": "Csak Ön láthatja ezt az értéket jelenlétének igazolása után. A kiadott érték nem vonható vissza; utána cserélje le.",
     "taintWarning": "A kérést nem megbízható tartalom előzte meg: {content}. A meglévő engedélyek ellenére jóváhagyás szükséges.",
     "presenceWarning": "Az operációs rendszer ennek a pontos használatnak a megerősítését kéri.",
     "noDestination": "A cél nincs igazolva. Bármely gépre érvényes engedély szükséges.",
@@ -2528,7 +2528,7 @@
     "mcpUse": "MCP-kiszolgáló indítása",
     "headerUse": "HTTP-fejléc küldése",
     "fillUse": "Bejelentkezési mező kitöltése",
-    "disclosureUse": "Felfedés a modellnek",
+    "disclosureUse": "Megjelenítés Önnek",
     "forwarding": "Továbbítás engedélyezése",
     "anyHost": "Bármely gép",
     "noAccess": "Nincs hozzáférés",
@@ -2559,6 +2559,26 @@
     "grantsCount": {
       "one": "{count} engedély",
       "other": "{count} engedély"
-    }
+    },
+    "operationFailed": "A tárolóművelet sikertelen. Oldja fel a tárolót, és próbálja újra.",
+    "invalidFields": "Ellenőrizze az engedély mezőit és célját.",
+    "grantHelp": "Az alábbi hatókörök korlátozzák az engedélyt. Az üres darabszám, lejárat vagy időablak korlátlan hozzáférést jelent.",
+    "metadataOnly": "Csak a beállítások szerkesztése",
+    "replaceValue": "Hitelesítő adat cseréje",
+    "presenceAdvice": "sudo, SSH-kulcsok és webes bejelentkezések esetén jelenlét-ellenőrzés ajánlott.",
+    "passwordEntry": "Adja meg az adatokat a szerkesztő jelszómezőjében. A meglévő értékek soha nem jelennek meg.",
+    "auditInvalid": "Az audit nem ellenőrizhető. Állítson vissza egy aktuális biztonsági másolatot.",
+    "slotUnavailable": "Nincs használható védelmi kulcshely.",
+    "any": "Bármely",
+    "unlimited": "Korlátlan",
+    "localTime": "Helyi idő",
+    "created": "Létrehozva",
+    "lastUsed": "Utoljára használva",
+    "policy": "Ügynökszabályzat",
+    "item": "Elem",
+    "sessionScope": "Munkamenet",
+    "taskScope": "Feladat",
+    "ceiling": "Hozzáférési plafon",
+    "passphraseWarning": "A feloldáshoz jelszókifejezés szükséges. Védi a lemásolt lemezt, és megakadályozza az Ön nevében futó programok csendes feloldását."
   }
 }

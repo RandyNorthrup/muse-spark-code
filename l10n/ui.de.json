@@ -2494,7 +2494,7 @@
     "internal": "Interner Eintrag",
     "labelWarning": "Agenten sehen Namen und Bezeichnungen. Tragen Sie dort keine Geheimnisse ein.",
     "processWarning": "Dieses Programm und seine Unterprozesse sehen die Zugangsdaten und können sie weitergeben.",
-    "disclosureWarning": "Die Offenlegung sendet den Wert an das Modell und seinen Anbieter. Sie lässt sich nicht zurücknehmen; erneuern Sie ihn danach.",
+    "disclosureWarning": "Nur Sie sehen diesen Wert nach Bestätigung Ihrer Anwesenheit. Ein freigegebener Wert kann nicht zurückgerufen werden; ersetzen Sie ihn danach.",
     "taintWarning": "Diese Anfrage folgt auf nicht vertrauenswürdige Inhalte: {content}. Trotz bestehender Berechtigungen ist eine Zustimmung nötig.",
     "presenceWarning": "Ihr Betriebssystem fordert Sie auf, genau diese Nutzung zu bestätigen.",
     "noDestination": "Ziel nicht nachgewiesen. Eine Berechtigung für beliebige Hosts ist erforderlich.",
@@ -2528,7 +2528,7 @@
     "mcpUse": "MCP-Server starten",
     "headerUse": "HTTP-Header senden",
     "fillUse": "Anmeldefeld ausfüllen",
-    "disclosureUse": "Dem Modell offenlegen",
+    "disclosureUse": "Ihnen anzeigen",
     "forwarding": "Weiterleitung erlauben",
     "anyHost": "Beliebiger Host",
     "noAccess": "Kein Zugriff",
@@ -2559,6 +2559,26 @@
     "grantsCount": {
       "one": "{count} Freigabe",
       "other": "{count} Freigaben"
-    }
+    },
+    "operationFailed": "Der Tresorvorgang ist fehlgeschlagen. Entsperren Sie den Tresor und versuchen Sie es erneut.",
+    "invalidFields": "Prüfen Sie die Berechtigungsfelder und das Ziel.",
+    "grantHelp": "Jeder Bereich unten begrenzt diese Berechtigung. Leere Anzahl, Ablaufzeit oder Zeitfenster bedeutet keine Begrenzung.",
+    "metadataOnly": "Nur Einstellungen bearbeiten",
+    "replaceValue": "Zugangsdaten ersetzen",
+    "presenceAdvice": "Für sudo, SSH-Schlüssel und Webanmeldungen wird Anwesenheitsbestätigung empfohlen.",
+    "passwordEntry": "Geben Sie Zugangsdaten im Passwortfeld des Editors ein. Vorhandene Werte werden nie angezeigt.",
+    "auditInvalid": "Das Audit konnte nicht geprüft werden. Stellen Sie eine aktuelle Sicherung wieder her.",
+    "slotUnavailable": "Kein nutzbarer Schutzslot verfügbar.",
+    "any": "Beliebig",
+    "unlimited": "Unbegrenzt",
+    "localTime": "Ortszeit",
+    "created": "Erstellt",
+    "lastUsed": "Zuletzt verwendet",
+    "policy": "Agentenrichtlinie",
+    "item": "Eintrag",
+    "sessionScope": "Sitzung",
+    "taskScope": "Aufgabe",
+    "ceiling": "Zugriffsobergrenze",
+    "passphraseWarning": "Zum Entsperren ist eine Passphrase nötig. Sie schützt eine kopierte Festplatte und verhindert stilles Entsperren durch Programme unter Ihrem Konto."
   }
 }

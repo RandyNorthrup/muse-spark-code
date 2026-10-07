@@ -2400,7 +2400,7 @@
     "internal": "內部記錄",
     "labelWarning": "代理可以看到名稱和標籤。請勿在其中包含機密。",
     "processWarning": "此程式及其子處理程序將看到憑證，並可將其傳送至其他地方。",
-    "disclosureWarning": "揭露會將值傳送給模型及其供應商，無法撤回；之後請更換憑證。",
+    "disclosureWarning": "確認本人在場後，只有您能看到此值。已公開的值無法收回；請隨後更換。",
     "taintWarning": "此要求發生在不可信內容之後：{content}。即使已有授權，也需要核准。",
     "presenceWarning": "作業系統將要求您確認這項具體使用。",
     "noDestination": "目標尚未證實。需要允許任意主機的授權。",
@@ -2433,7 +2433,7 @@
     "mcpUse": "啟動 MCP 伺服器",
     "headerUse": "傳送 HTTP 標頭",
     "fillUse": "填寫登入欄位",
-    "disclosureUse": "向模型揭露",
+    "disclosureUse": "向您顯示",
     "forwarding": "允許轉送",
     "anyHost": "任意主機",
     "noAccess": "無存取權限",
@@ -2462,6 +2462,26 @@
     },
     "grantsCount": {
       "other": "{count} 個授權"
-    }
+    },
+    "operationFailed": "保險庫操作失敗。請解鎖後重試。",
+    "invalidFields": "請檢查授權欄位及其目標。",
+    "grantHelp": "下方每項範圍都會限制此授權。次數、到期時間或時間範圍留空表示不設限制。",
+    "metadataOnly": "僅編輯設定",
+    "replaceValue": "替換憑證",
+    "presenceAdvice": "建議對 sudo、SSH 金鑰和網站登入要求本人確認。",
+    "passwordEntry": "請在編輯器的密碼框中輸入憑證。現有值不會顯示。",
+    "auditInvalid": "無法驗證稽核記錄。請還原最新備份。",
+    "slotUnavailable": "沒有可用的保護槽。",
+    "any": "任意",
+    "unlimited": "無限制",
+    "localTime": "本地時間",
+    "created": "建立時間",
+    "lastUsed": "最後使用",
+    "policy": "代理程式原則",
+    "item": "項目",
+    "sessionScope": "工作階段",
+    "taskScope": "工作",
+    "ceiling": "存取上限",
+    "passphraseWarning": "解鎖需要通關密語。它能保護複製的磁碟，並阻止以您身分執行的程式靜默解鎖。"
   }
 }

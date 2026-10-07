@@ -20691,6 +20691,16 @@ only, no dependencies or live calls. Certification: `docs/certification/m109-b.m
 `docs/research/credential-vault-2026-10-05.md`.
 
 - **Lanes 0, C, P, B and U** need nothing unmerged.
+- **U implementation contract (2026-10-06).** The shared Vault section and
+  approval cards consume the lane-0 value-free state/messages. Native password
+  entry is private to the host. `VaultPanelService` binds C/B/P/M management
+  and snapshots through an injected port; its mutation callback must run at
+  the physical commit. Lock/revoke/dispose and broker lock/revoke notifications invalidate queued
+  and in-flight effects.
+  M95's Models & Agents host, M104's authenticated bridge, and W's build,
+  manifest and budget registrations are named integration handoffs, since
+  those files are absent or owned by those lanes. U never supplies a fake
+  production service. See `docs/certification/m109-u-panel-and-vs-code.md`.
 - **S, X, T, O and M** follow B; **L** also needs M81's lane A1.
 - **H** follows B and U.
 - **R** waits for M96; its device part for M100's lanes S and E and M107's
@@ -21001,6 +21011,20 @@ only, no dependencies or live calls. Certification: `docs/certification/m109-b.m
         14 tables; budgets measured; full gate green
 
 ## 7. Gates
+
+**M109 U bounded-lane receipt (2026-10-06, Mac mini).** The rig brief
+prohibits aggregate quality/full-suite runs and gives W the joined build,
+manifest, help/docs and generated record registrations. U's owning
+panel/native/controller tests, contracts and lazy graph/budgets pass at the
+repository default timeout; typecheck, localization, duplication and the
+existing production build pass. Forty-six guards were deliberately broken,
+observed red and restored byte-exact; 152 accessibility scenes pass across
+four themes and two widths. `npm run deadcode` exits 1 for the two genuine
+standalone harness entrypoints that W must register; `check:host-api` exits 1
+for the generated record that W must refresh. These are named integration
+deferrals, not ignored files, rule changes or raised caps. Full quality,
+installed-host matrix and real C/B/P/M/S plus M95/M104 binding remain with
+the lead/owning lanes. See `docs/certification/m109-u-panel-and-vs-code.md`.
 
 **FIXM109B6 / RVM109B5 (2026-10-06, Mac mini).** Both findings are fixed;
 no review residual is accepted. Final restored-source verification passes all

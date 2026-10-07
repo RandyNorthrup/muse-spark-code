@@ -2400,7 +2400,7 @@
     "internal": "내부 기록",
     "labelWarning": "에이전트는 이름과 레이블을 볼 수 있습니다. 비밀 값을 넣지 마세요.",
     "processWarning": "이 프로그램과 하위 프로세스는 인증 정보를 볼 수 있으며 다른 곳으로 보낼 수 있습니다.",
-    "disclosureWarning": "공개하면 값이 모델과 제공업체에 전송됩니다. 되돌릴 수 없으므로 이후 인증 정보를 갱신하세요.",
+    "disclosureWarning": "사용자 확인 후 본인만 이 값을 볼 수 있습니다. 공개된 값은 회수할 수 없으므로 이후 교체하세요.",
     "taintWarning": "이 요청은 신뢰할 수 없는 콘텐츠 다음에 발생했습니다: {content}. 기존 권한이 있어도 승인이 필요합니다.",
     "presenceWarning": "운영체제가 이 정확한 사용을 확인하도록 요청합니다.",
     "noDestination": "대상이 입증되지 않았습니다. 모든 호스트에 대한 권한이 필요합니다.",
@@ -2433,7 +2433,7 @@
     "mcpUse": "MCP 서버 시작",
     "headerUse": "HTTP 헤더 보내기",
     "fillUse": "로그인 필드 채우기",
-    "disclosureUse": "모델에 공개",
+    "disclosureUse": "본인에게 표시",
     "forwarding": "전달 허용",
     "anyHost": "모든 호스트",
     "noAccess": "접근 없음",
@@ -2462,6 +2462,26 @@
     },
     "grantsCount": {
       "other": "{count} 개 권한"
-    }
+    },
+    "operationFailed": "보관함 작업이 실패했습니다. 잠금을 해제하고 다시 시도하세요.",
+    "invalidFields": "권한 필드와 대상을 확인하세요.",
+    "grantHelp": "아래의 각 범위는 이 권한을 제한합니다. 횟수, 만료 또는 시간대가 비어 있으면 제한이 없습니다.",
+    "metadataOnly": "설정만 편집",
+    "replaceValue": "자격 증명 교체",
+    "presenceAdvice": "sudo, SSH 키 및 웹 로그인에는 사용자 확인을 권장합니다.",
+    "passwordEntry": "편집기의 암호 입력란에 자격 증명을 입력하세요. 기존 값은 표시되지 않습니다.",
+    "auditInvalid": "감사를 검증하지 못했습니다. 최신 백업을 복원하세요.",
+    "slotUnavailable": "사용할 수 있는 보호 슬롯이 없습니다.",
+    "any": "모두",
+    "unlimited": "무제한",
+    "localTime": "현지 시간",
+    "created": "생성됨",
+    "lastUsed": "마지막 사용",
+    "policy": "에이전트 정책",
+    "item": "항목",
+    "sessionScope": "세션",
+    "taskScope": "작업",
+    "ceiling": "접근 상한",
+    "passphraseWarning": "잠금 해제에는 암호문이 필요합니다. 복사된 디스크를 보호하고 사용자 권한으로 실행되는 프로그램의 자동 잠금 해제를 막습니다."
   }
 }

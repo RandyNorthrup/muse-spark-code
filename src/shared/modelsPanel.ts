@@ -7,10 +7,22 @@ import {
   vaultGrantSchema,
   vaultItemMetadataSchema,
 } from './vault'
-import { vaultStatusSchema } from './vaultProtocol'
+import { vaultStatusSchema, vaultBrokerEventSchema } from './vaultProtocol'
+
+/** B supplies its validated events; C/M metadata changes use the project-owned notification. */
+export const vaultPanelChangeSchema = z.union([
+  vaultBrokerEventSchema,
+  z.strictObject({ kind: z.literal('changed') }),
+])
 
 export const vaultPanelStateSchema = z.strictObject({
   status: vaultStatusSchema,
+  // P/X supply observed platform/fence facts, never values or diagnostic exception text.
+  notices: z.optional(
+    z
+      .array(z.enum(['nopasswd', 'fenceOff', 'seUnavailable']))
+      .check(z.maxLength(VAULT_LIMITS.reasons)),
+  ),
   items: z.array(vaultItemMetadataSchema).check(z.maxLength(VAULT_LIMITS.items)),
   grants: z.array(vaultGrantSchema).check(z.maxLength(VAULT_LIMITS.grants)),
   audit: z.array(vaultAuditRecordSchema).check(z.maxLength(VAULT_LIMITS.items)),

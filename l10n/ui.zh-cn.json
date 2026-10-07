@@ -2400,7 +2400,7 @@
     "internal": "内部记录",
     "labelWarning": "代理可以看到名称和标签。请勿在其中包含机密。",
     "processWarning": "此程序及其子进程将看到凭据，并可将其发送到其他地方。",
-    "disclosureWarning": "披露会将值发送给模型及其提供商，无法撤回；之后请更换凭据。",
+    "disclosureWarning": "确认本人在场后，只有您能看到此值。已公开的值无法收回；请随后更换。",
     "taintWarning": "此请求发生在不可信内容之后：{content}。即使已有授权，也需要批准。",
     "presenceWarning": "操作系统将要求您确认这项具体使用。",
     "noDestination": "目标尚未证实。需要允许任意主机的授权。",
@@ -2433,7 +2433,7 @@
     "mcpUse": "启动 MCP 服务器",
     "headerUse": "发送 HTTP 标头",
     "fillUse": "填写登录字段",
-    "disclosureUse": "向模型披露",
+    "disclosureUse": "向您显示",
     "forwarding": "允许转发",
     "anyHost": "任意主机",
     "noAccess": "无访问权限",
@@ -2462,6 +2462,26 @@
     },
     "grantsCount": {
       "other": "{count} 个授权"
-    }
+    },
+    "operationFailed": "保险库操作失败。请解锁后重试。",
+    "invalidFields": "请检查授权字段及其目标。",
+    "grantHelp": "下方每项范围都会限制此授权。次数、到期时间或时间窗口留空表示不设限制。",
+    "metadataOnly": "仅编辑设置",
+    "replaceValue": "替换凭据",
+    "presenceAdvice": "建议对 sudo、SSH 密钥和网页登录要求本人确认。",
+    "passwordEntry": "请在编辑器的密码框中输入凭据。现有值不会显示。",
+    "auditInvalid": "无法验证审计记录。请恢复最新备份。",
+    "slotUnavailable": "没有可用的保护槽。",
+    "any": "任意",
+    "unlimited": "无限制",
+    "localTime": "本地时间",
+    "created": "创建时间",
+    "lastUsed": "最后使用",
+    "policy": "代理策略",
+    "item": "条目",
+    "sessionScope": "会话",
+    "taskScope": "任务",
+    "ceiling": "访问上限",
+    "passphraseWarning": "解锁需要口令。它能保护复制的磁盘，并阻止以您身份运行的程序静默解锁。"
   }
 }

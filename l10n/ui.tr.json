@@ -2494,7 +2494,7 @@
     "internal": "Dahili kayıt",
     "labelWarning": "Ajanlar adları ve etiketleri görür. Bunlara gizli değerler koymayın.",
     "processWarning": "Bu program ve alt süreçleri kimlik bilgisini görecek ve başka yere gönderebilecektir.",
-    "disclosureWarning": "İfşa, değeri modele ve sağlayıcısına gönderir. Geri alınamaz; ardından kimlik bilgisini yenileyin.",
+    "disclosureWarning": "Varlığınızı doğruladıktan sonra bu değeri yalnızca siz göreceksiniz. Açıklanan değer geri alınamaz; daha sonra değiştirin.",
     "taintWarning": "Bu istek güvenilmeyen içerikten sonra geldi: {content}. Mevcut izinlere rağmen onay gerekir.",
     "presenceWarning": "İşletim sisteminiz bu belirli kullanımı onaylamanızı isteyecektir.",
     "noDestination": "Hedef doğrulanmadı. Herhangi bir sunucuya yönelik izin gerekir.",
@@ -2528,7 +2528,7 @@
     "mcpUse": "MCP sunucusu başlat",
     "headerUse": "HTTP üstbilgisi gönder",
     "fillUse": "Oturum açma alanını doldur",
-    "disclosureUse": "Modele ifşa et",
+    "disclosureUse": "Size göster",
     "forwarding": "Yönlendirmeye izin ver",
     "anyHost": "Herhangi bir sunucu",
     "noAccess": "Erişim yok",
@@ -2559,6 +2559,26 @@
     "grantsCount": {
       "one": "{count} izin",
       "other": "{count} izin"
-    }
+    },
+    "operationFailed": "Kasa işlemi başarısız oldu. Kilidi açıp yeniden deneyin.",
+    "invalidFields": "İzin alanlarını ve hedefini kontrol edin.",
+    "grantHelp": "Aşağıdaki her kapsam bu izni sınırlar. Boş sayı, süre sonu veya zaman aralığı sınırsız demektir.",
+    "metadataOnly": "Yalnızca ayarları düzenle",
+    "replaceValue": "Kimlik bilgisini değiştir",
+    "presenceAdvice": "sudo, SSH anahtarları ve web girişleri için varlık doğrulaması önerilir.",
+    "passwordEntry": "Kimlik bilgilerini editörün parola kutusuna girin. Mevcut değerler asla gösterilmez.",
+    "auditInvalid": "Denetim doğrulanamadı. Güncel bir yedeği geri yükleyin.",
+    "slotUnavailable": "Kullanılabilir koruma yuvası yok.",
+    "any": "Herhangi biri",
+    "unlimited": "Sınırsız",
+    "localTime": "Yerel saat",
+    "created": "Oluşturuldu",
+    "lastUsed": "Son kullanım",
+    "policy": "Ajan ilkesi",
+    "item": "Öğe",
+    "sessionScope": "Oturum",
+    "taskScope": "Görev",
+    "ceiling": "Erişim sınırı",
+    "passphraseWarning": "Kilidi açmak için parola ifadesi gerekir. Kopyalanmış diski korur ve sizin adınıza çalışan programların sessizce kilidi açmasını önler."
   }
 }

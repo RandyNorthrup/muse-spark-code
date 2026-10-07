@@ -1,0 +1,1066 @@
+[
+  {
+    "theme": "light",
+    "width": 690,
+    "scenario": "panel",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 690,
+    "scenario": "empty",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 690,
+    "scenario": "locked",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 690,
+    "scenario": "grant",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 690,
+    "scenario": "ssh",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 690,
+    "scenario": "sshSign",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 690,
+    "scenario": "sudo",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 690,
+    "scenario": "askpass",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 690,
+    "scenario": "git",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 690,
+    "scenario": "environment",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 690,
+    "scenario": "stdin",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 690,
+    "scenario": "totp",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 690,
+    "scenario": "mcp",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 690,
+    "scenario": "header",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 690,
+    "scenario": "oauth",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 690,
+    "scenario": "fill",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 690,
+    "scenario": "session",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 690,
+    "scenario": "disclosure",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 690,
+    "scenario": "allow-session",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "scenario": "panel",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "scenario": "empty",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "scenario": "locked",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "scenario": "grant",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "scenario": "ssh",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "scenario": "sshSign",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "scenario": "sudo",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "scenario": "askpass",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "scenario": "git",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "scenario": "environment",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "scenario": "stdin",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "scenario": "totp",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "scenario": "mcp",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "scenario": "header",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "scenario": "oauth",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "scenario": "fill",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "scenario": "session",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "scenario": "disclosure",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "scenario": "allow-session",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 690,
+    "scenario": "panel",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 690,
+    "scenario": "empty",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 690,
+    "scenario": "locked",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 690,
+    "scenario": "grant",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 690,
+    "scenario": "ssh",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 690,
+    "scenario": "sshSign",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 690,
+    "scenario": "sudo",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 690,
+    "scenario": "askpass",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 690,
+    "scenario": "git",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 690,
+    "scenario": "environment",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 690,
+    "scenario": "stdin",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 690,
+    "scenario": "totp",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 690,
+    "scenario": "mcp",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 690,
+    "scenario": "header",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 690,
+    "scenario": "oauth",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 690,
+    "scenario": "fill",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 690,
+    "scenario": "session",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 690,
+    "scenario": "disclosure",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 690,
+    "scenario": "allow-session",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "scenario": "panel",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "scenario": "empty",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "scenario": "locked",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "scenario": "grant",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "scenario": "ssh",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "scenario": "sshSign",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "scenario": "sudo",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "scenario": "askpass",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "scenario": "git",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "scenario": "environment",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "scenario": "stdin",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "scenario": "totp",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "scenario": "mcp",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "scenario": "header",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "scenario": "oauth",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "scenario": "fill",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "scenario": "session",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "scenario": "disclosure",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "scenario": "allow-session",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 690,
+    "scenario": "panel",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 690,
+    "scenario": "empty",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 690,
+    "scenario": "locked",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 690,
+    "scenario": "grant",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 690,
+    "scenario": "ssh",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 690,
+    "scenario": "sshSign",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 690,
+    "scenario": "sudo",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 690,
+    "scenario": "askpass",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 690,
+    "scenario": "git",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 690,
+    "scenario": "environment",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 690,
+    "scenario": "stdin",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 690,
+    "scenario": "totp",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 690,
+    "scenario": "mcp",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 690,
+    "scenario": "header",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 690,
+    "scenario": "oauth",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 690,
+    "scenario": "fill",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 690,
+    "scenario": "session",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 690,
+    "scenario": "disclosure",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 690,
+    "scenario": "allow-session",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 320,
+    "scenario": "panel",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 320,
+    "scenario": "empty",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 320,
+    "scenario": "locked",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 320,
+    "scenario": "grant",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 320,
+    "scenario": "ssh",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 320,
+    "scenario": "sshSign",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 320,
+    "scenario": "sudo",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 320,
+    "scenario": "askpass",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 320,
+    "scenario": "git",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 320,
+    "scenario": "environment",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 320,
+    "scenario": "stdin",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 320,
+    "scenario": "totp",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 320,
+    "scenario": "mcp",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 320,
+    "scenario": "header",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 320,
+    "scenario": "oauth",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 320,
+    "scenario": "fill",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 320,
+    "scenario": "session",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 320,
+    "scenario": "disclosure",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-light",
+    "width": 320,
+    "scenario": "allow-session",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 690,
+    "scenario": "panel",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 690,
+    "scenario": "empty",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 690,
+    "scenario": "locked",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 690,
+    "scenario": "grant",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 690,
+    "scenario": "ssh",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 690,
+    "scenario": "sshSign",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 690,
+    "scenario": "sudo",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 690,
+    "scenario": "askpass",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 690,
+    "scenario": "git",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 690,
+    "scenario": "environment",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 690,
+    "scenario": "stdin",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 690,
+    "scenario": "totp",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 690,
+    "scenario": "mcp",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 690,
+    "scenario": "header",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 690,
+    "scenario": "oauth",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 690,
+    "scenario": "fill",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 690,
+    "scenario": "session",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 690,
+    "scenario": "disclosure",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 690,
+    "scenario": "allow-session",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 320,
+    "scenario": "panel",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 320,
+    "scenario": "empty",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 320,
+    "scenario": "locked",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 320,
+    "scenario": "grant",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 320,
+    "scenario": "ssh",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 320,
+    "scenario": "sshSign",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 320,
+    "scenario": "sudo",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 320,
+    "scenario": "askpass",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 320,
+    "scenario": "git",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 320,
+    "scenario": "environment",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 320,
+    "scenario": "stdin",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 320,
+    "scenario": "totp",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 320,
+    "scenario": "mcp",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 320,
+    "scenario": "header",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 320,
+    "scenario": "oauth",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 320,
+    "scenario": "fill",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 320,
+    "scenario": "session",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 320,
+    "scenario": "disclosure",
+    "overflow": false,
+    "violations": []
+  },
+  {
+    "theme": "hc-dark",
+    "width": 320,
+    "scenario": "allow-session",
+    "overflow": false,
+    "violations": []
+  }
+]
