@@ -41,6 +41,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Documentation
 
+- Refreshed README action-palette, slash-command, open-question and remembered
+  paid-consent screenshots from the current harness. Multi-account usage
+  screenshots await their installed usage-page integration.
 - A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists
   what went wrong while a fleet of agents built this project. For each one it
   gives the rule that prevents it and the milestone that will enforce that

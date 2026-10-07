@@ -26040,7 +26040,14 @@ distinct even when two launches share a clock tick. Runtime account surfaces
 must report the backend's fixed account, independent of display order or
 removal; headless ports bind their requested account and publish the same
 identity. Legacy credential fallback applies only to Meta's default account,
-and malformed configured provider metadata must refuse before that fallback. Regress that refusal through the runtime owner, with a red drill.
+and malformed configured provider metadata must refuse before that fallback.
+Regress that refusal through the runtime owner, with a red drill. Review all
+fifteen README scenario previews; refresh changed palette, slash-command,
+question and remembered-consent assets. If the installed Chrome CLI cannot
+settle the harness, record its exact failed command and use a reviewed
+Playwright preview without claiming the CLI passed. The remembered-consent
+capture scrolls to its existing Ask again control. Usage and German usage
+assets remain release-lead owned as directed above.
 
 **FIXM108P2 (2026-10-06):** close RVM108P2's remaining P2 stop-recovery
 finding. Evaluate every model-eligible fallback candidate's complete blocking
@@ -31144,6 +31151,12 @@ including J's mandatory `includeOutstanding: true` production-source contract;
 no real M102 adapter or installed panel is claimed. Unbound runtime profile
 start/stop/remove refuse and preserve the ownership ledger. Release lane owns
 `media/readme/usage.png` and `media/readme/languages.png` after the actual mount.
+The installed Chrome CLI hangs on harness capture; its exact README preview
+command remains lead-owned, while reviewed Playwright previews refresh four
+changed assets. Final badge/package invocation uses the existing named local
+network deferral because shared rules prohibit public requests; the earlier
+default-fetch mistake is recorded in the certification. No hook changes or
+remote badge certification are claimed.
 No cap, test timeout, coverage gate or paid/capture policy is waived.
 
 - **M112 integration (2026-10-06, Windows rig).** Bind the real question store and registry to the extension and ACP launcher, with an owner-only bounded durable late-answer queue and session removal. ACP owns its deadline timer; the registry accepts its frozen arrival timing without another timer. History carries per-session counts from authenticated listed sessions. Move question UI and runtime implementation to guarded lazy closures; preserve every existing cap. Reconcile model-text readers with actual lazy ownership, prove changed guards with red controls, and record all acceptance evidence in docs/certification/m112.md. Round 2 integrates U's authoritative open set, retained history and newest-waiting dock priority while preserving session-generation delivery guards and settled outcomes. HELPREF and M104 sources are absent on this base: their named handoffs stay explicit; no substitute protocol or full catalog is invented. Live checks and hosted full quality remain with the lead; the startup growth waiver follows below.
