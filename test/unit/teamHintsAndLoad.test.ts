@@ -14,7 +14,7 @@ import {
 import type * as fsPromises from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { createWindowIdentity } from '../../src/host/team/windowIdentity'
 import { createLoadGuard } from '../../src/host/team/loadGuard'
 import {
@@ -29,6 +29,7 @@ import { WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../src/shared/constants'
 import { createOrphanRecovery, type OrphanObservation } from '../../src/host/team/orphanRecovery'
 
 const directories: string[] = []
+const nativeDirectories: string[] = []
 const permissionState = vi.hoisted(() => ({ ignoresChmod: false, foreignUid: false }))
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof fsPromises>()
@@ -57,6 +58,9 @@ afterEach(async () => {
   for (const directory of directories.splice(0))
     await rm(directory, { recursive: true, force: true })
 })
+afterAll(async () => {
+  for (const directory of nativeDirectories) await rm(directory, { recursive: true, force: true })
+})
 
 async function hintFixture(isNative = false) {
   if (!isNative && process.platform === 'win32') {
@@ -75,7 +79,10 @@ async function hintFixture(isNative = false) {
     })
   }
   const directory = await realpath(await mkdtemp(path.join(os.tmpdir(), 'm96-k-hints-')))
-  directories.push(directory)
+  // Native ACL fixtures are shared across their security cases. Keep them
+  // through the suite; ordinary state fixtures remain isolated per test.
+  const retained = isNative ? nativeDirectories : directories
+  retained.push(directory)
   let now = 100_000
   const disabled = vi.fn()
   const question = vi.fn((): Promise<'continue' | 'wait' | 'openWindow'> =>
@@ -136,9 +143,9 @@ async function publishedHintFixture() {
 describe('M96 K advisory hints', () => {
   describe('native owner-only folder', () => {
     let f: Awaited<ReturnType<typeof hintFixture>>
-    let hints: ReturnType<typeof createWindowHints>
+    let hints: ReturnType<typeof createWindowHints> | undefined
     let disabled: ReturnType<typeof vi.fn<() => void>>
-    beforeEach(async () => {
+    beforeAll(async () => {
       f = await hintFixture(true)
       disabled = vi.fn()
       hints = createWindowHints({
@@ -154,6 +161,9 @@ describe('M96 K advisory hints', () => {
         overlap: () => [],
       })
       await hints.publish(hintState)
+    })
+    afterAll(async () => {
+      await hints?.dispose()
     })
     it('uses state home and secures a real native owner-only hints folder', async () => {
       const stateHome = windowHintsDirectory(
@@ -179,7 +189,6 @@ describe('M96 K advisory hints', () => {
         const information = await stat(f.directory)
         expect(information.mode & 0o777).toBe(0o700)
       }
-      await hints.dispose()
     })
   })
   it('publishes only the strict projection, sums all windows and removes its own hint', async () => {
@@ -297,15 +306,17 @@ describe('M96 K advisory hints', () => {
 
   if (process.platform === 'win32') {
     describe('native Windows hint permissions', () => {
-      let f: Awaited<ReturnType<typeof publishedHintFixture>>
-      beforeEach(async () => {
+      let f: Awaited<ReturnType<typeof publishedHintFixture>> | undefined
+      beforeAll(async () => {
         f = await publishedHintFixture()
       })
-      afterEach(async () => {
+      afterAll(async () => {
+        if (f === undefined) return
         await f.writer.hints.dispose()
         await f.reader.hints.dispose()
       })
       it('native Windows holds the consumed hint against replacement through ACL verification', async () => {
+        if (f === undefined) throw new Error('native hints not prepared')
         const original = processTree.runProgram
         const helper = vi
           .spyOn(processTree, 'runProgram')
@@ -327,6 +338,7 @@ describe('M96 K advisory hints', () => {
       })
 
       it('native Windows rejects an opened hint with another principal granted write access', async () => {
+        if (f === undefined) throw new Error('native hints not prepared')
         const powershell = windowsPowerShell(process.env['SystemRoot'] ?? '', {})
         const script = `$f = New-Object IO.FileInfo(${powerShellQuoted(f.file)}); $acl = $f.GetAccessControl(); $everyone = New-Object Security.Principal.SecurityIdentifier('S-1-1-0'); $rule = New-Object Security.AccessControl.FileSystemAccessRule($everyone,'Modify','Allow'); $acl.AddAccessRule($rule); $f.SetAccessControl($acl)`
         await runProgram(

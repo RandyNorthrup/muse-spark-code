@@ -1863,3 +1863,54 @@ VSIX gate. **The existing 2,841,600-byte cap and every bundle cap remain unchang
 No projection from helperless bytes certifies that calculation. Aggregate
 quality, hosted/platform/native screen-reader checks and public-network checks
 remain lead-owned; no push, tag, publication, live or paid model call occurred.
+
+## Round 3 — Windows CI (CI0150W, 2026-10-07, win11)
+
+### Scope and setup
+
+Read the rig brief, `CI0150-os-common.md`, both round-2 failure reports,
+AGENTS.md and the applicable PLAN decisions/milestones. This lane starts at
+`f033583e2` on `fix/0150-ci-w`. No merge, rebase, push or paid/live model call.
+CI reproduction uses a checksum-verified portable Node **22.23.3**, Git Bash
+and `CI=true`; targeted runs use at most three files and the repository's
+unchanged test/hook deadlines. Full CI shards are explicitly required by the
+round-3 brief. Each final job starts in a newly cloned committed tree with
+`npm ci`, rather than pre-existing build outputs.
+
+### Windows fixture repairs and guard drills
+
+The round-2 priority edit (`577b6a56`) affects POSIX only. Windows' native job
+helper was unchanged. General lifetime/crash fixtures nevertheless requested
+below-normal scheduling for every helper/command. They now request normal
+priority; the dedicated native priority case explicitly requests below-normal
+and retains the OS-observed priority, journal identity and retirement asserts.
+Production launch priority is unchanged.
+
+Owner-only hint publication and the native Windows hint-security pair share
+suite preparation, retaining the same real ACL reads, replacement refusal and
+foreign-writer refusal. Native folders remain until suite cleanup; cleanup is
+safe if preparation fails. Worker rename attacks start with a real opened and
+identified handle and an admitted native root prepared once in `beforeAll`;
+the production confinement checks, real rename/junction attack and exact held/
+checkout-byte assertions remain. The finite-cap reviewer starts its real
+session journal in `beforeAll`; the tested turn still performs actual ordinary
+admission, reviewer admission and settlement before asserting its journal total.
+
+Initial Node 24 and CI-pinned Node 22 targeted baselines passed (74 native/team
+cases and 661 Model API host cases). These rig results do not reproduce the
+hosted resource contention or erase the supplied hosted failures. The fixes
+remove unnecessary contention and cold setup from the named failing cases.
+The first Node 22 repaired runs passed **74/74** and **661/661**, with no timeout
+flag; restored native/team verification passed **74/74**. Changed-source ESLint
+passed. Full fresh-clone job receipts follow after the scoped commit.
+
+Two intentional regressions fired at default deadlines and were restored:
+
+- Reopen the write target by name after the real junction swap instead of
+  writing through the checked handle: the held-file assertion failed,
+  `before` versus `checked handle` (exit 1).
+- Request normal priority in the dedicated below-normal case: the actual
+  priority assertion failed, **0 versus 10** (exit 1).
+
+Final Windows job results are pending the fresh-clone run; this interim record
+makes no aggregate quality or release certification claim.

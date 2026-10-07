@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Prepare native Windows ACL, worker-handle and reviewer-journal fixtures before
+  their assertions, and reserve background process priority for its dedicated
+  lifetime test. Native security checks and repository deadlines stay unchanged.
 - Make provider, headless, deferred-bundle and VSIX tests independent of stale
   build outputs in clean CI shards. Reuse VSCE collection and reject oversized
   runtime members before parsing; existing budgets and test deadlines stay fixed.

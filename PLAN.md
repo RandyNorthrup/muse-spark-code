@@ -18808,6 +18808,25 @@ with `CI=true`, at repository timeouts and at most three files per invocation.
 Run all five typecheck projects and the scoped static/build gates. No dependency,
 new feature, provider-wire shape, paid/live call, merge or push is authorized.
 
+### CI0150W — Round 3 Windows CI verification (2026-10-07, win11)
+
+Scope: reproduce every Windows pull-request job from committed fresh clones,
+using CI's Node 22, `CI=true`, four coverage shards and repository deadlines.
+The explicit round-3 whole-shard requirement applies to CI reproductions;
+targeted development runs retain the rig's three-file limit. Own the native
+team lifetime, hints/load, worker fence and Model API host timeouts. Remove
+repeated cold setup and launch-priority delays structurally, retaining native
+security checks, all assertions, deadlines and budgets. Record any failures
+owned by another OS lane without merging or editing its work. No paid/live
+model calls, global dependency installs, push, merge or rebase.
+
+- [ ] Reproduce owned failures and inspect round-2 Windows process priority.
+- [ ] Fix causes, prove regression guards fire, and commit with hooks.
+- [ ] Run every Windows job/matrix command in fresh committed clones, including
+      installed-package, pinned-browser and integration checks; remove clones.
+- [ ] Record each job's result under round 3 Windows in
+      `docs/certification/train-0.15.0.md` and report exact remaining failures.
+
 ### CI0150C — Clean-checkout platform and logic CI repairs (2026-10-07, macmini)
 
 - [x] Repair the lane's journal canonical-root checks, Windows short-name fixture,
@@ -40772,6 +40791,15 @@ is relaxed. No live or paid calls, push, rebase or merge.
       bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
 
 ## 7. Gates
+
+**CI0150W round 3 certification.** Whole-shard and whole-job reproductions
+are explicitly required by `CI0150-os-common.md`; they run with unchanged
+default deadlines in fresh clones of local hooked commits. Targeted runs
+retain the three-file cap. Early scoped commits can precede aggregate
+`npm run quality` while the cross-platform failures assigned to the Linux
+lane remain; every failure and final Windows job result is recorded without
+weakening gates, assertions or deadlines. A complete quality claim requires
+the actual aggregate to exit zero.
 
 **FIX0150R scoped certification.** The rig brief requires complete owning test
 files in batches of at most three, with three clean `CI=true` repetitions and
