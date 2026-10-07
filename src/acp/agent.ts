@@ -1129,7 +1129,13 @@ class AgentState {
    */
   private authMethod(): AuthMethod {
     const { id, name, description, args, command } = this.deps.signIn
-    return this.clientCapabilities.auth?.terminal === true
+    // Registry clients may announce terminal support with the older `_meta`
+    // `terminal-auth` flag instead of `auth.terminal`. Only a literal `true`
+    // counts on either form; any other value is no announcement.
+    const hasTerminal =
+      this.clientCapabilities.auth?.terminal === true ||
+      this.clientCapabilities._meta?.['terminal-auth'] === true
+    return hasTerminal
       ? { type: 'terminal', id, name, description, args: [...args] }
       : { id, name, description: fill(UI_TEXT.acpSignInByHand, { command }) }
   }
