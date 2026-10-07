@@ -2477,6 +2477,9 @@
     "untrusted-file": "将此文件作为不可信数据附加；多个文件可重复此选项。",
     "permission-mode": "选择 Muse 行动前如何征求确认。",
     "model": "选择本次运行的模型。",
+    "provider": "--provider <id>                   该账号所属的提供商（auth set、serve）。",
+    "account": "--account <id>                    要使用的账号（auth set、serve、exec）。",
+    "account-pool": "--account-pool                  允许 exec 在达到自己的上限时切换账号（在 CI 中使用 key-stdin 时不可）。",
     "effort": "选择 Muse 在每条回答上投入的工作量。",
     "output": "选择结果格式：text、json或jsonl。",
     "max-budget-usd": "以USD设置本次运行的硬性支出上限。",
@@ -2576,6 +2579,11 @@
     "id": "账户 ID",
     "use": "使用账户",
     "earlier": "向前移动",
-    "later": "向后移动"
+    "later": "向后移动",
+    "unavailable": "此运行时连接到共享账户服务后，账户才可用。",
+    "cliUsage": "账户：{command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [按顺序排列的ID]。凭据：{command} auth set --provider <id> --account <id>（仅限标准输入）。",
+    "slashDescription": "列出账户、查看阈值或选择账户。",
+    "execHelp": "非交互账户：{command} exec --account <id> [--account-pool]。使用 --key-stdin 的CI仅使用默认账户，永不切换账户。",
+    "keyPrompt": "{provider} · {account} API密钥（输入时隐藏）："
   }
 }

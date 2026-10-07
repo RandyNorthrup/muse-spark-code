@@ -8,6 +8,7 @@ import type { Logger } from '../../host/logger'
 import type { AgentEvent } from '../../shared/agentEvents'
 import {
   ACP_AGENT_NAME,
+  ACCOUNT_DEFAULT_ID,
   ACP_CONFIG_IDS,
   EXEC_EXIT,
   EXEC_ENDPOINTS,
@@ -30,8 +31,11 @@ import {
 } from '../../shared/constants'
 import { effortLevelsFor } from '../../shared/effort'
 import { fill, formatUsd, plural } from '../../shared/l10n/text'
+import { formatUsd as exactUsd, parseUsd } from '../../shared/usd'
 import { modelApiPaidTier } from '../../shared/paid'
-import { createRuntimeBackend, type RuntimeBackend } from '../backends'
+import { createRuntimeBackend, type RuntimeBackend, type RuntimeBackendDeps } from '../backends'
+import { execAccountSelection, type ExecAccountsPort } from './execAccounts'
+import { accountStopText, accountUsageUrl, type AccountsSessionPort } from '../../acp/accounts'
 import { type ExecOptions, serveOptionsFor } from './execArgs'
 import { createExecClient } from './execClient'
 import { execFetch, type ExecTransport } from './execFetch'
@@ -52,6 +56,7 @@ import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
 
 export interface ExecDeps {
+  readonly accounts?: ExecAccountsPort
   options: ExecOptions
   version: string
   distDir: string
@@ -296,6 +301,13 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     }
   }
   try {
+    const selection = execAccountSelection(options)
+    const requiresAccounts =
+      options.accountPool === true || selection.account !== ACCOUNT_DEFAULT_ID
+    if (requiresAccounts && options.backend === 'museCode')
+      throw new Error(UI_TEXT.accounts.museCodeUnavailable)
+    if (requiresAccounts && deps.accounts === undefined)
+      throw new Error(UI_TEXT.accounts.unavailable)
     const folder = await lifecycle.race(stat(cwd))
     if (!folder.isDirectory()) throw new Error(UI_TEXT.execFileUnreadable)
     let prompt: string
@@ -391,7 +403,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             if (!isFinishing) drain(sink)
           },
         })
-      runtime = createRuntimeBackend({
+      const runtimeDeps: RuntimeBackendDeps = {
         options: serveOptionsFor(options),
         version: deps.version,
         distDir: deps.distDir,
@@ -429,7 +441,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             return Promise.resolve(isAllowed)
           },
         },
-      })
+      }
+      let accounts: AccountsSessionPort | undefined
+      if (requiresAccounts) {
+        const configured = deps.accounts?.create(runtimeDeps, selection)
+        if (configured === undefined) throw new Error(UI_TEXT.accounts.unavailable)
+        runtime = configured.runtime
+        accounts = configured.accounts
+      } else runtime = createRuntimeBackend(runtimeDeps)
       setup.isUsageError = false
       const readiness = await lifecycle.race(runtime.backend.readiness(false))
       if (readiness.state !== 'ready') {
@@ -440,6 +459,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       tap = observeBackend(runtime.backend)
       const agent = createAcpAgent({
         questions: 'decline',
+        ...(accounts !== undefined && { accounts }),
         backend: tap.backend,
         version: deps.version,
         options: {
@@ -459,6 +479,24 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         log,
       })
       const client = createExecClient({
+        onAccountNotice: (event) => {
+          if (event.type === 'swap')
+            log.info(
+              `${UI_TEXT.accounts.swapEvent}: ${event.provider} · ${event.account}. ${fill(UI_TEXT.accounts.coldCache, { cost: exactUsd(parseUsd(event.coldCacheUsd)) })}`,
+            )
+          else if (event.type === 'spread')
+            log.info(`${UI_TEXT.accounts.spreadEvent}: ${event.provider} · ${event.account}`)
+          else {
+            const text = accountStopText(event)
+            let url = ''
+            try {
+              if (accounts !== undefined) url = accountUsageUrl(accounts, event.provider)
+            } catch {
+              /* The notice remains visible without reflecting an invalid URL. */
+            }
+            log.info(`${text} ${url}`)
+          }
+        },
         sink,
         lifecycle,
         onDenial: (denial) => {
@@ -494,6 +532,15 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 .catch(() => {
                   /* Session already stopped or closed; cancellation is best effort. */
                 })
+            }
+            if (
+              requiresAccounts &&
+              created.configOptions?.find((option) => option.id === ACP_CONFIG_IDS.account)
+                ?.currentValue !== selection.account
+            ) {
+              setup.isUsageError = true
+              error = UI_TEXT.accounts.invalidAccount
+              return
             }
             const modelConfig = created.configOptions?.find(
               (option) => option.id === ACP_CONFIG_IDS.model,

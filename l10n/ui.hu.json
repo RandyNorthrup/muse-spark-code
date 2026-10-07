@@ -2573,6 +2573,9 @@
     "untrusted-file": "A fájl csatolása nem megbízható adatként; további fájlokhoz ismételje meg az opciót.",
     "permission-mode": "Válassza ki, hogyan kérdezzen a Muse, mielőtt cselekszik.",
     "model": "A futtatás modelljének kiválasztása.",
+    "provider": "--provider <id>                   A szolgáltató, amelyhez a fiók tartozik (auth set, serve).",
+    "account": "--account <id>                    A használandó fiók (auth set, serve, exec).",
+    "account-pool": "--account-pool                  Engedi, hogy az exec saját limiteknél fiókot váltson, key-stdin-nel CI-ben soha.",
     "effort": "Válassza ki, mennyi erőfeszítést tegyen a Muse az egyes válaszokba.",
     "output": "Az eredmény formátumának kiválasztása: text, json vagy jsonl.",
     "max-budget-usd": "A futtatás szigorú kiadási korlátjának megadása USD-ben.",
@@ -2673,6 +2676,11 @@
     "id": "Fiókazonosító",
     "use": "Fiók használata",
     "earlier": "Előrébb helyezés",
-    "later": "Hátrébb helyezés"
+    "later": "Hátrébb helyezés",
+    "unavailable": "A fiókok akkor érhetők el, ha ez a futtatókörnyezet csatlakozik a közös fiókszolgáltatáshoz.",
+    "cliUsage": "Fiókok: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [rendezett azonosítók]. Hitelesítő adatok: {command} auth set --provider <id> --account <id> (csak szabványos bemenetről).",
+    "slashDescription": "Fiókok listázása, küszöbértékek megtekintése vagy fiók kiválasztása.",
+    "execHelp": "Fiókok interakció nélkül: {command} exec --account <id> [--account-pool]. A --key-stdin kapcsolót használó CI csak az alapértelmezett fiókot használja, és soha nem vált fiókot.",
+    "keyPrompt": "{provider} · {account} API-kulcs (gépelés közben rejtve): "
   }
 }

@@ -26037,6 +26037,21 @@ Add interleaved regression tests and byte-exact red drills for each finding.
 No dependencies, guard relaxations or gate/budget changes. W retains the
 installed M95/M104 bindings and joined-tree certification.
 
+**FIXM108H (2026-10-06):** fix all three RVM108H findings within H's
+ACP session owner and router. A committed swap advances the selection
+revision and invalidates any pending backend-adoption fence. The profile
+service's subscription publishes validated account-state snapshots on store
+changes; local commands and selection read live membership and thresholds
+through that same owner. Serialize refreshes with selection and keep newer
+notifications authoritative over held reads/results, including disposal.
+Report valid selections refused by unavailable services with the fixed
+unavailable reason, while retaining invalid-account errors for invalid input
+and suppressing raw service text. ACP service failures use the SDK internal-error
+code; only locally invalid input uses invalid-params. Add backend-adoption, live-store and real
+ACP-router regressions and byte-exact red/restoration drills for every
+finding. No dependency, timeout, threshold, credential, budget or gate changes;
+H-P-SESSION still requires the shared profile owner before installed support.
+
 **FIXM108P (2026-10-06):** fix all five RVM108P P2 findings inside P's
 owned core/paid ports. Serialize confirmation read/question/write ownership
 before starting I/O, discard stale reads/results by generation, and refresh
@@ -29763,6 +29778,15 @@ build gates pass. `check:host-api` still requires
 W's generated record update: `node:crypto` imports 46 → 48 and Accounts CSS
 in the theme-source list. The API/theme totals are unchanged. Keep that
 named integration handoff rather than editing W's owned file in this lane.
+
+**FIXM108H bounded-lane certification (2026-10-06).** The explicit rig
+brief and shared lane rules prohibit the full quality run and merges here;
+W/the lead runs the full gate before integration. H runs the named complete
+owned test files with repository-default timeouts, typecheck, changed-file
+lint/format, deadcode, duplication, l10n, host-API and build checks directly
+on Kubuntu. Per-finding regressions and deliberate mutations are recorded in
+`docs/certification/m108-h-runtime,-acp,-headless,-companion.md`.
+
 **FIXM108P / FIXM108P2 bounded-lane certification (2026-10-06).** The rig brief and
 shared rules prohibit aggregate quality/full unit runs, merges and network
 calls. Run complete owning test files with repository timeouts and at most
@@ -31144,6 +31168,21 @@ before a repaired one loads (2026-09-30).
   installed VS Code/native/companion transports before enabling them; H owns
   equivalent ACP/terminal/headless bindings. Full quality and generated host
   API/README/CHANGELOG/help updates remain W's joined-tree work.
+- **FIXM108H-INTEGRATION (H-P-SESSION / H-W-PROFILE / W / M109).**
+  No RVM108H finding remains in the injected ACP account owner/router.
+  Installed composition still requires one profile-owned account service:
+  its `AccountsSessionPort.read` reads live store membership and thresholds,
+  its subscription publishes validated `accounts/state` snapshots whenever
+  metadata changes, and its synchronous selection transaction checks
+  `canCommit` immediately before adoption/publication. A metadata notification
+  or committed swap advances the pending adoption fence; an older read/result
+  cannot replace that authority. Safe for now: additional-account installed
+  surfaces remain unavailable without the named bindings; only fake
+  compositions are certified here. Follow-up: P/W/M109 certify the same
+  store notifications and backend/display agreement across installed clients.
+  W also publishes the H-W-DOCS-HELP README/reference/changelog handoff and
+  regenerates the pre-existing H-W-HOSTAPI inventory difference at integration;
+  no W-owned output is edited in H's bounded repair.
 
 - **FIXM108P-PROFILE-OWNER (P-W-POLICY-STORE / M109 / W).** Compose one
   profile-owned pool and confirmation authority, and one account/tariff paid

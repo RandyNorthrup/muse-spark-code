@@ -63,6 +63,11 @@ export const EN = {
     'untrusted-file': 'Attach this file as untrusted data; repeat the option for more files.',
     'permission-mode': 'Choose how Muse asks before it acts.',
     model: 'Choose the model for this run.',
+    provider:
+      '--provider <id>                   The provider the account belongs to (auth set, serve).',
+    account: '--account <id>                    The account to use (auth set, serve, exec).',
+    'account-pool':
+      '--account-pool                  Let exec swap accounts at your own caps, never with key-stdin in CI.',
     effort: 'Choose how much effort Muse puts into each reply.',
     output: 'Choose the result format: text, json or jsonl.',
     'max-budget-usd': 'Set the hard spending limit in USD for this run.',
@@ -3290,6 +3295,14 @@ export const EN = {
     use: 'Use account',
     earlier: 'Move earlier',
     later: 'Move later',
+    keyPrompt: '{provider} · {account} API key (not shown as you type): ',
+    execHelp:
+      'Headless accounts: {command} exec --account <id> [--account-pool]. CI with --key-stdin uses only the default account and never swaps.',
+    unavailable:
+      'Accounts are unavailable until this runtime is connected to the shared account service.',
+    cliUsage:
+      'Accounts: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [ordered ids]. Credentials: {command} auth set --provider <id> --account <id> (standard input only).',
+    slashDescription: 'List accounts, view thresholds, or choose an account.',
     title: 'Accounts',
     defaultLabel: 'Default account',
     add: 'Add account',

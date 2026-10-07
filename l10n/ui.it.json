@@ -2669,6 +2669,9 @@
     "untrusted-file": "Allegare questo file come dati non attendibili; ripetere l’opzione per altri file.",
     "permission-mode": "Scegli come Muse chiede prima di agire.",
     "model": "Scegliere il modello per questa esecuzione.",
+    "provider": "--provider <id>                   Il provider a cui appartiene l’account (auth set, serve).",
+    "account": "--account <id>                    L’account da usare (auth set, serve, exec).",
+    "account-pool": "--account-pool                  Consente a exec di cambiare account ai propri limiti, mai con key-stdin in CI.",
     "effort": "Scegli quanto impegno Muse dedica a ogni risposta.",
     "output": "Scegliere il formato del risultato: text, json o jsonl.",
     "max-budget-usd": "Impostare il limite rigido di spesa in USD per questa esecuzione.",
@@ -2770,6 +2773,11 @@
     "id": "ID account",
     "use": "Usa account",
     "earlier": "Sposta prima",
-    "later": "Sposta dopo"
+    "later": "Sposta dopo",
+    "unavailable": "Gli account saranno disponibili quando questo ambiente sarà collegato al servizio condiviso degli account.",
+    "cliUsage": "Account: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [id ordinati]. Credenziali: {command} auth set --provider <id> --account <id> (solo input standard).",
+    "slashDescription": "Elenca gli account, visualizza le soglie o scegli un account.",
+    "execHelp": "Account senza interazione: {command} exec --account <id> [--account-pool]. CI con --key-stdin usa solo l’account predefinito e non cambia mai account.",
+    "keyPrompt": "Chiave API per {provider} · {account} (nascosta durante la digitazione): "
   }
 }

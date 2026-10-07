@@ -2573,6 +2573,9 @@
     "untrusted-file": "Bu dosyayı güvenilmeyen veri olarak ekleyin; diğer dosyalar için seçeneği tekrarlayın.",
     "permission-mode": "Muse'un harekete geçmeden önce nasıl soracağını seçin.",
     "model": "Bu çalıştırmanın modelini seçin.",
+    "provider": "--provider <id>                   Hesabın ait olduğu sağlayıcı (auth set, serve).",
+    "account": "--account <id>                    Kullanılacak hesap (auth set, serve, exec).",
+    "account-pool": "--account-pool                  exec uygulamasının kendi sınırlarında hesap değiştirmesine izin verir, CI içinde key-stdin ile asla.",
     "effort": "Muse'un her yanıta ayırdığı çabayı seçin.",
     "output": "Sonuç biçimini seçin: text, json veya jsonl.",
     "max-budget-usd": "Bu çalıştırma için USD cinsinden kesin harcama sınırı belirleyin.",
@@ -2673,6 +2676,11 @@
     "id": "Hesap kimliği",
     "use": "Hesabı kullan",
     "earlier": "Öne taşı",
-    "later": "Arkaya taşı"
+    "later": "Arkaya taşı",
+    "unavailable": "Bu çalışma ortamı paylaşılan hesap hizmetine bağlanana kadar hesaplar kullanılamaz.",
+    "cliUsage": "Hesaplar: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [sıralı kimlikler]. Kimlik bilgileri: {command} auth set --provider <id> --account <id> (yalnızca standart girdi).",
+    "slashDescription": "Hesapları listeleyin, eşikleri görüntüleyin veya bir hesap seçin.",
+    "execHelp": "Etkileşimsiz hesaplar: {command} exec --account <id> [--account-pool]. --key-stdin kullanan CI yalnızca varsayılan hesabı kullanır ve asla hesap değiştirmez.",
+    "keyPrompt": "{provider} · {account} API anahtarı (yazarken gizlenir): "
   }
 }

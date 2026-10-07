@@ -2765,6 +2765,9 @@
     "untrusted-file": "Připojit soubor jako nedůvěryhodná data; pro další soubory volbu opakujte.",
     "permission-mode": "Zvolte, jak se Muse ptá, než začne jednat.",
     "model": "Vybrat model pro tento běh.",
+    "provider": "--provider <id>                   Poskytovatel, ke kterému účet patří (auth set, serve).",
+    "account": "--account <id>                    Účet k použití (auth set, serve, exec).",
+    "account-pool": "--account-pool                  Umožní exec přepínat účty při vlastních limitech, nikdy s key-stdin v CI.",
     "effort": "Zvolte, kolik úsilí Muse věnuje každé odpovědi.",
     "output": "Vybrat formát výsledku: text, json nebo jsonl.",
     "max-budget-usd": "Nastavit pevný limit výdajů v USD pro tento běh.",
@@ -2867,6 +2870,11 @@
     "id": "ID účtu",
     "use": "Použít účet",
     "earlier": "Posunout dříve",
-    "later": "Posunout později"
+    "later": "Posunout později",
+    "unavailable": "Účty budou dostupné po připojení tohoto prostředí ke sdílené službě účtů.",
+    "cliUsage": "Účty: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [seřazená ID]. Přihlašovací údaje: {command} auth set --provider <id> --account <id> (pouze standardní vstup).",
+    "slashDescription": "Vypsat účty, zobrazit prahové hodnoty nebo vybrat účet.",
+    "execHelp": "Účty bez interakce: {command} exec --account <id> [--account-pool]. CI s --key-stdin používá pouze výchozí účet a nikdy účty nestřídá.",
+    "keyPrompt": "API klíč pro {provider} · {account} (při psaní se nezobrazuje): "
   }
 }

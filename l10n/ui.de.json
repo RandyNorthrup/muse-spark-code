@@ -2573,6 +2573,9 @@
     "untrusted-file": "Diese Datei als nicht vertrauenswürdige Daten anhängen; für weitere Dateien die Option wiederholen.",
     "permission-mode": "Wählen, wie Muse fragt, bevor es handelt.",
     "model": "Das Modell für diesen Lauf wählen.",
+    "provider": "--provider <id>                   Der Anbieter, zu dem das Konto gehört (auth set, serve).",
+    "account": "--account <id>                    Das zu verwendende Konto (auth set, serve, exec).",
+    "account-pool": "--account-pool                  Lässt exec Konten bei eigenen Obergrenzen wechseln, nie mit key-stdin in CI.",
     "effort": "Wählen, wie viel Mühe Muse in jede Antwort steckt.",
     "output": "Das Ergebnisformat wählen: text, json oder jsonl.",
     "max-budget-usd": "Das feste Ausgabenlimit in USD für diesen Lauf festlegen.",
@@ -2673,6 +2676,11 @@
     "id": "Konto-ID",
     "use": "Konto verwenden",
     "earlier": "Nach vorne verschieben",
-    "later": "Nach hinten verschieben"
+    "later": "Nach hinten verschieben",
+    "unavailable": "Konten sind erst verfügbar, wenn diese Laufzeit mit dem gemeinsamen Kontendienst verbunden ist.",
+    "cliUsage": "Konten: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [geordnete IDs]. Zugangsdaten: {command} auth set --provider <id> --account <id> (nur Standardeingabe).",
+    "slashDescription": "Konten auflisten, Schwellenwerte anzeigen oder ein Konto auswählen.",
+    "execHelp": "Konten ohne Interaktion: {command} exec --account <id> [--account-pool]. CI mit --key-stdin nutzt nur das Standardkonto und wechselt nie das Konto.",
+    "keyPrompt": "API-Schlüssel für {provider} · {account} (bei der Eingabe verborgen): "
   }
 }

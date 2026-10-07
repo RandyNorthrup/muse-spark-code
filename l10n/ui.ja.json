@@ -2477,6 +2477,9 @@
     "untrusted-file": "このファイルを信頼されないデータとして添付します。複数のファイルにはオプションを繰り返します。",
     "permission-mode": "行動前に Muse が確認する方法を選びます。",
     "model": "この実行に使用するモデルを選択します。",
+    "provider": "--provider <id>                   アカウントが属するプロバイダー (auth set, serve)。",
+    "account": "--account <id>                    使用するアカウント (auth set, serve, exec)。",
+    "account-pool": "--account-pool                  exec が自分の上限でアカウントを切り替えられるようにする (CI の key-stdin では不可)。",
     "effort": "各回答に Muse がかける手間を選びます。",
     "output": "結果形式をtext、json、jsonlから選びます。",
     "max-budget-usd": "この実行の厳格な支出上限をUSDで設定します。",
@@ -2576,6 +2579,11 @@
     "id": "アカウント ID",
     "use": "アカウントを使用",
     "earlier": "順序を前に移動",
-    "later": "順序を後ろに移動"
+    "later": "順序を後ろに移動",
+    "unavailable": "このランタイムが共有アカウントサービスに接続されるまで、アカウントは利用できません。",
+    "cliUsage": "アカウント: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [順序付きID]。認証情報: {command} auth set --provider <id> --account <id>（標準入力のみ）。",
+    "slashDescription": "アカウントを一覧表示し、しきい値を確認するか、アカウントを選択します。",
+    "execHelp": "非対話型のアカウント: {command} exec --account <id> [--account-pool]。--key-stdin を使うCIは既定のアカウントのみを使用し、アカウントを切り替えません。",
+    "keyPrompt": "{provider} · {account} のAPIキー（入力中は表示されません）: "
   }
 }

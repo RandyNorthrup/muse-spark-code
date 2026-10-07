@@ -2477,6 +2477,9 @@
     "untrusted-file": "이 파일을 신뢰할 수 없는 데이터로 첨부합니다. 파일을 추가하려면 옵션을 반복하세요.",
     "permission-mode": "행동하기 전 Muse가 확인하는 방식을 선택합니다.",
     "model": "이 실행에 사용할 모델을 선택합니다.",
+    "provider": "--provider <id>                   계정이 속한 제공자 (auth set, serve).",
+    "account": "--account <id>                    사용할 계정 (auth set, serve, exec).",
+    "account-pool": "--account-pool                  exec가 자신의 상한에서 계정을 전환하도록 허용 (CI의 key-stdin에서는 불가).",
     "effort": "각 답변에 Muse가 들이는 노력을 선택합니다.",
     "output": "결과 형식을 text, json 또는 jsonl로 선택합니다.",
     "max-budget-usd": "이 실행의 엄격한 지출 한도를 USD로 설정합니다.",
@@ -2576,6 +2579,11 @@
     "id": "계정 ID",
     "use": "계정 사용",
     "earlier": "앞으로 이동",
-    "later": "뒤로 이동"
+    "later": "뒤로 이동",
+    "unavailable": "이 런타임이 공유 계정 서비스에 연결될 때까지 계정을 사용할 수 없습니다.",
+    "cliUsage": "계정: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [정렬된 ID]. 인증 정보: {command} auth set --provider <id> --account <id> (표준 입력만).",
+    "slashDescription": "계정 목록을 표시하거나 임계값을 확인하거나 계정을 선택합니다.",
+    "execHelp": "비대화형 계정: {command} exec --account <id> [--account-pool]. --key-stdin을 사용하는 CI는 기본 계정만 사용하며 계정을 전환하지 않습니다.",
+    "keyPrompt": "{provider} · {account} API 키 (입력 시 표시되지 않음): "
   }
 }

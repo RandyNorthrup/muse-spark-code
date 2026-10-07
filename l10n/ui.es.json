@@ -2669,6 +2669,9 @@
     "untrusted-file": "Adjuntar este archivo como datos no confiables; repetir la opción para más archivos.",
     "permission-mode": "Elige cómo pregunta Muse antes de actuar.",
     "model": "Elegir el modelo de esta ejecución.",
+    "provider": "--provider <id>                   El proveedor al que pertenece la cuenta (auth set, serve).",
+    "account": "--account <id>                    La cuenta que se utilizará (auth set, serve, exec).",
+    "account-pool": "--account-pool                  Permite que exec cambie de cuenta al alcanzar tus propios límites, nunca con key-stdin en CI.",
     "effort": "Elige cuánto esfuerzo dedica Muse a cada respuesta.",
     "output": "Elegir el formato del resultado: text, json o jsonl.",
     "max-budget-usd": "Fijar el límite estricto de gasto en USD para esta ejecución.",
@@ -2770,6 +2773,11 @@
     "id": "ID de la cuenta",
     "use": "Usar cuenta",
     "earlier": "Mover antes",
-    "later": "Mover después"
+    "later": "Mover después",
+    "unavailable": "Las cuentas estarán disponibles cuando este entorno se conecte al servicio compartido de cuentas.",
+    "cliUsage": "Cuentas: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [ids ordenados]. Credenciales: {command} auth set --provider <id> --account <id> (solo entrada estándar).",
+    "slashDescription": "Mostrar cuentas, consultar umbrales o elegir una cuenta.",
+    "execHelp": "Cuentas sin interacción: {command} exec --account <id> [--account-pool]. CI con --key-stdin usa solo la cuenta predeterminada y nunca cambia de cuenta.",
+    "keyPrompt": "Clave API de {provider} · {account} (oculta al escribir): "
   }
 }

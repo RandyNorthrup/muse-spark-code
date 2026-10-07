@@ -20,6 +20,8 @@ import { ACP_PAID_FLAGS } from '../shared/constants'
 
 const COMMON_OPTIONS = {
   backend: { type: 'string' },
+  provider: { type: 'string' },
+  account: { type: 'string' },
   'trust-workspace': { type: 'boolean' },
   maintenance: { type: 'boolean' },
   'muse-binary': { type: 'string' },
@@ -41,6 +43,8 @@ const EXEC_OPTIONS = {
   'untrusted-file': { type: 'string', multiple: true },
   'permission-mode': { type: 'string' },
   model: { type: 'string' },
+  account: { type: 'string' },
+  'account-pool': { type: 'boolean' },
   effort: { type: 'string' },
   output: { type: 'string' },
   'max-budget-usd': { type: 'string' },
@@ -106,6 +110,9 @@ export const CLI_OPTION_TEXT = {
   'untrusted-file': 'untrusted-file',
   'permission-mode': 'permission-mode',
   model: 'model',
+  provider: 'provider',
+  account: 'account',
+  'account-pool': 'account-pool',
   effort: 'effort',
   output: 'output',
   'max-budget-usd': 'max-budget-usd',

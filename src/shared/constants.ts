@@ -3122,7 +3122,7 @@ export const ACP_AUTH_METHODS = {
   museCodeLogin: { id: 'muse-code-login', args: ['login'] },
   modelApiKey: { id: 'model-api-key', args: ['auth', 'set'] },
 } as const
-export const ACP_CONFIG_IDS = { model: 'model', effort: 'effort' } as const
+export const ACP_CONFIG_IDS = { model: 'model', effort: 'effort', account: 'account' } as const
 // The paid Model API features the agent can use (M63c, PLAN.md D30): each
 // only with its flag, and each use asked in the editor (M58, D48). Muse
 // Voice needs the panel's microphone, so the agent has none.
