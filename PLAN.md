@@ -28825,6 +28825,17 @@ Each fix has an owning regression and a byte-exact red drill in
 `docs/certification/m117-s-schedule-and-simulation.md`. No dependency,
 resource guard, bundle cap or CLI timeout is changed. The rig brief forbids
 aggregate quality and merges; W retains those integration checks.
+**Lane-R review repair (FIXM117R, 2026-10-06).** Fix all three RVM117R
+P2 findings within the recommendation lane: exact nano-USD cost arithmetic
+through the explicitly requested `src/shared/usd.ts`, zero incremental rental
+cost for every existing machine, and speed expansion through additional
+slots on existing machines within unchanged governor/user/account limits.
+Preserve missing-price refusal for new rentals, all existing resource and
+four-hour marginal guards, and the public result shape. Each finding gets a
+regression and a deliberate failure with byte-exact SHA-256 restoration in
+`docs/certification/m117-r-recommendations.md`. No dependency or product
+surface is added; W retains shipping, product documentation and reference
+bindings.
 
 **Lane-0 review repair (FIXM117L0, 2026-10-06).** RVM117L0's four P2 and
 two P3 findings are all in scope before freezing the contracts. Goals consume
@@ -29511,6 +29522,12 @@ unit files directly on Mac mini, one heavy command at a time. Each reviewed
 fix and new admission proof has a named byte-exact red drill, followed by
 green verification. All gate levels, caps and the 2,000 ms benchmark bound
 are unchanged. Receipts: `docs/certification/m117-s-schedule-and-simulation.md`.
+**FIXM117R scoped rig certification (2026-10-06).** The lane/shared brief
+prohibits aggregate `npm run quality`; the lead owns that gate. Run owning
+recommendation, price and exact-money tests with the default timeout, red
+drills, all five typechecks, scoped lint/format, deadcode, duplication,
+localization, reference, host API and production build directly on Mac mini.
+Keep hooks on; no merge, rebase, push or weakened gate is authorized.
 
 **FIXM117L0 scoped rig certification (2026-10-06).** The lane/shared brief
 prohibits aggregate `npm run quality` and assigns it to the lead. This repair
@@ -30989,6 +31006,13 @@ before a repaired one loads (2026-09-30).
   followed by a standalone pass and a complete unchanged 70/70 green run;
   the certificate retains all samples without claiming calibrated timing or
   its cause. The named handoff includes aggregate/cross-rig performance acceptance.
+- **FIXM117R review outcome.** All three RVM117R P2 findings are fixed with
+  exact-money and existing-fleet regressions and eleven deliberate failures
+  followed by byte-exact restoration; no finding is deferred. R's existing
+  S/C, real fleet/catalog, U disclosure
+  and W shipping/product-doc bindings remain explicit in
+  `docs/certification/m117-r-recommendations.md`. This lane makes no live,
+  paid or public-network call and introduces no reachable product surface.
 
 - **FIXM117L0 contract review.** All six RVM117L0 findings are fixed
   before the lane-0 freeze, with regression tests and byte-exact red drills;
