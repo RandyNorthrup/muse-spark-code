@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Xcode's native MHP file picker returns the selected file URI, and report
+  export writes only after an active Save decision. File/permission dialogs
+  reject overlaps, cancellation and callbacks from a replaced dialog; failed
+  writes return an explicit failure. Installed-editor qualification remains open.
+
 - Xcode's app and source editor extension ship the linked GitHub star sentence
   in their packaged descriptions. Xcode, ACP and native distribution READMEs
   include the same sentence; other native listing changes remain owner requests.

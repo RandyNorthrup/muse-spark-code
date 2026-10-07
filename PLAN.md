@@ -19223,6 +19223,18 @@ replace forbidden aggregate quality; integrated qualification stays with the
 lead. Checkpoints and concrete cross-lane requests are in
 `docs/certification/m104-pf.md` and `m104-pf-requests.md`.
 
+**M104PF continuation 2 native file services (before code).** Implement the
+reviewed 1.3 `ui/openFile` and `ui/saveText` services as cancellable AppKit
+sheets. Return the actual selected URI or cancellation, atomically write only
+after an active user's accepted save, and propagate failure explicitly. Share
+one native-dialog admission across file and permission sheets; stale callbacks
+cannot write or answer a replacement owner. Tests use a controlled AppKit panel
+with the production service handler, and red controls cover cancellation, dialog
+ownership and success/failure. This advances attachment/transfer/report component
+paths, not installed provider qualification. The new `ui/showSetting` service
+needs the shared settings surface/authority contract; request it without inventing
+a second settings store. Complete UI capability qualification remains open.
+
 **M104PF release attachment checkpoint (2026-10-06, before code).**
 Use the existing verified native asset staging helper in F's owned release
 workflow: await native signing/recovery, download each signed artifact without

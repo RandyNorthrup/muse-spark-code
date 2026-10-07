@@ -43,7 +43,7 @@ Two release/qualification requests also remain with the lead:
 | A     | Remove the raised `--testTimeout=120000` flags from the central `test:host-api` script. F's final runs and workflow use three-file batches at repository deadlines.                                                      | All conformance tests pass under the same five-second limit as hosted CI.                                                                                  |
 | A/B   | Supply `commands/execute` handling in the owning runtime composition before native status items with commands can act.                                                                                                   | Validated opaque command IDs reach the owning action exactly once; cancelled/stale generations cannot execute.                                             |
 | A     | Add Xcode's existing five Editor commands, the native Trust control and revised carrier behavior to the shared help catalog/reference when that absent source lands. No new localization keys are requested.             | Reference gate agrees with the executed native commands and qualification limits.                                                                          |
-| D/E   | Supply the eight non-Xcode hosts' production `distribution.json` with exact `mhp: "mhp/1.2.0"`, real build/conformance commands and artifacts. Xcode remains F-owned, blocked on the native/runtime prerequisites above. | Archive/runtime input hashes plus actual installed-editor/backend/provider observations.                                                                   |
+| D/E   | Supply the eight non-Xcode hosts' production `distribution.json` with exact `mhp: "mhp/1.3.0"`, real build/conformance commands and artifacts. Xcode remains F-owned, blocked on the native/runtime prerequisites above. | Archive/runtime input hashes plus actual installed-editor/backend/provider observations.                                                                   |
 
 ## Continuation 2 requests (2026-10-06)
 
@@ -101,3 +101,32 @@ Additional per-file listing requests:
 Xcode's description is now a real resource in both app and editor extension;
 its README and the owned global/distribution/ACP landing descriptions carry
 the sentence too. D/E's eight-editor listing coverage remains pending.
+
+## Native services after 1.3 adoption
+
+- **A/C — settings:** `ui/showSetting` is a new required UI-group method.
+  Supply the actual runtime-owned settings surface/index and native opening
+  contract, including core-validated get/update and final ownership checks.
+  F implements native file pick/save; the remaining setting service refuses
+  explicitly, so the whole UI group is not qualified. Creating an independent
+  native settings store is not an acceptable substitute. Include these native
+  services in the absent help catalog/reference when supplied.
+- **A/C — companion auxiliary ownership:** `companionSurface` in the adopted
+  `runPanel.ts` opens auxiliary views with `ui/openExternal({ uri })`, the
+  same opaque one-use launch shape as fresh chat bindings. Xcode currently
+  has one owning WKWebView and cannot distinguish replacement chat from a
+  separate Tasks/What's New/plan/diff surface by that URI. Supply reviewed
+  surface identity/kind/open/focus/close metadata, without exposing launch
+  credentials in native state or guessing URL contents. Verify a fresh chat
+  replacement and a concurrent auxiliary surface, immutable session binding,
+  reload, ready ordering, close retirement and no cross-view paid consent.
+- **A — discovery:** the integrated Vitest include covers runtime/engines/ui,
+  still excluding `test/m104/mac/**/*.test.mjs`. Include F's namespace and
+  retain its current five-second tests; no test-name filter or raised deadline.
+- The central `test:host-api` script still contains `--testTimeout=120000` at
+  this adopted head. F runs complete file batches directly at default deadlines.
+
+The per-command XcodeKit snapshot still lacks a disclosed physical file URL
+and background document version/freshness. Complete documents/editor/LSP,
+Tab and voice admission/drain remain the earlier B/E/A-owned prerequisites.
+No live/paid or owner security-setting action is authorized in this lane.

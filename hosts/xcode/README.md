@@ -54,11 +54,18 @@ of the panel or a permission dialog. Closing the app also stops the runtime.
 
 The native relay advertises lifecycle, UI and window services. Notifications,
 clipboard, external HTTPS/HTTP links, status/progress and attention are native;
-confirm/pick/input are cancellable AppKit sheets. Paid choices return the
+confirm/pick/input and file selection/export use cancellable AppKit sheets.
+The reviewed `ui/openFile` returns the user's actual selected file URI;
+`ui/saveText` exports the supplied report text atomically only after Save.
+Deny/cancellation, write failure and stale dialog callbacks never report a
+successful export. File and permission sheets share one admission slot. A
+write already admitted to the filesystem cannot be undone by a later Stop. Paid choices return the
 runtime's opaque ids once: the runtime owns price, consent persistence and the
 hard daily ledger. Cancellation or Stop dismisses the sheet and rejects late
 answers. A status item requiring an unimplemented command refuses explicitly.
-Other capability groups are omitted until their complete adapters qualify.
+The new `ui/showSetting` still refuses pending the shared settings-view
+contract; complete UI-group qualification remains open. Other capability
+groups are omitted until their complete adapters qualify.
 The companion's paid popup still uses the shared browser UI, without a second
 native consent prompt.
 

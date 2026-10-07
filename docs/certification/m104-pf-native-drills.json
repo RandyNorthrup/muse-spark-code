@@ -75,5 +75,47 @@
     "test": "testAppAndEditorExtensionPackageTheLinkedStarDescription",
     "exit": 65,
     "sha256": "2bacb26e6e08a16ab25e2bc4a0cf8b7f438e01a56deb99cf8cb1fd1d480456e4"
+  },
+  {
+    "label": "file response cancellation",
+    "file": "hosts/xcode/App/NativeUi.swift",
+    "test": "testCancelledFileDialogCannotWriteOrReplyFromALateChoice",
+    "exit": 65,
+    "sha256": "def8ec2092db8e6450d8c7a56f9dcf61a87d1a5acdc899615841679e5f130fb8"
+  },
+  {
+    "label": "file response ownership",
+    "file": "hosts/xcode/App/NativeUi.swift",
+    "test": "testClosedFileChoiceCannotWriteOverAReplacementDialog",
+    "exit": 65,
+    "sha256": "def8ec2092db8e6450d8c7a56f9dcf61a87d1a5acdc899615841679e5f130fb8"
+  },
+  {
+    "label": "file cancellation ownership",
+    "file": "hosts/xcode/App/NativeUi.swift",
+    "test": "testClosedFileChoiceCannotWriteOverAReplacementDialog",
+    "exit": 65,
+    "sha256": "def8ec2092db8e6450d8c7a56f9dcf61a87d1a5acdc899615841679e5f130fb8"
+  },
+  {
+    "label": "permission sheet file admission",
+    "file": "hosts/xcode/App/NativeUi.swift",
+    "test": "testFileDialogRejectsOverlappingFileAndPermissionSheets",
+    "exit": 65,
+    "sha256": "def8ec2092db8e6450d8c7a56f9dcf61a87d1a5acdc899615841679e5f130fb8"
+  },
+  {
+    "label": "file sheet admission",
+    "file": "hosts/xcode/App/NativeUi.swift",
+    "test": "testFileDialogRejectsOverlappingFileAndPermissionSheets",
+    "exit": 65,
+    "sha256": "def8ec2092db8e6450d8c7a56f9dcf61a87d1a5acdc899615841679e5f130fb8"
+  },
+  {
+    "label": "file export actually writes",
+    "file": "hosts/xcode/App/NativeUi.swift",
+    "test": "testFileServicesChooseOpaqueUrisAndWriteTheApprovedExport",
+    "exit": 65,
+    "sha256": "def8ec2092db8e6450d8c7a56f9dcf61a87d1a5acdc899615841679e5f130fb8"
   }
 ]

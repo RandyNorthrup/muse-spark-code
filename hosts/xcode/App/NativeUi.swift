@@ -9,8 +9,23 @@ final class NativeUi: ObservableObject {
   @Published var statuses: [String: String] = [:]
   @Published var progress: [String: String] = [:]
   private var alert: NSAlert?
+  private var filePanel: NSSavePanel?
+  private var fileInvocation = UUID()
+  private let filePanelFactory: @MainActor (Bool) -> NSSavePanel
+
+  init(
+    filePanelFactory: @escaping @MainActor (Bool) -> NSSavePanel = {
+      $0 ? NSOpenPanel() : NSSavePanel()
+    }
+  ) {
+    self.filePanelFactory = filePanelFactory
+  }
 
   func close() {
+    fileInvocation = UUID()
+    let panel = filePanel
+    filePanel = nil
+    panel?.cancel(nil)
     if let alert = alert, let parent = alert.window.sheetParent {
       parent.endSheet(alert.window, returnCode: .cancel)
     }
@@ -88,14 +103,78 @@ final class NativeUi: ObservableObject {
       reply(.success(NSNull()))
     case "ui/confirm", "ui/input", "ui/pick":
       present(method, params: params, token: token, window: window, reply: reply)
+    case "ui/openFile", "ui/saveText":
+      chooseFile(method, params: params, token: token, window: window, reply: reply)
     default: reply(.failure(NativeFailure.unavailable))
+    }
+  }
+  private func chooseFile(
+    _ method: String, params: [String: Any], token: MhpCancellation,
+    window: NSWindow?, reply: @escaping (Result<Any, Error>) -> Void
+  ) {
+    guard alert == nil, filePanel == nil, let window = window, token.isActive else {
+      reply(.failure(NativeFailure.unavailable))
+      return
+    }
+    let isOpen = method == "ui/openFile"
+    let panel = filePanelFactory(isOpen)
+    panel.title = params["title"] as? String ?? ""
+    if let open = panel as? NSOpenPanel {
+      open.canChooseDirectories = false
+      open.canChooseFiles = true
+      open.allowsMultipleSelection = false
+    }
+    if !isOpen {
+      guard let name = params["suggestedName"] as? String else {
+        reply(.failure(NativeFailure.invalid))
+        return
+      }
+      panel.nameFieldStringValue = (name as NSString).lastPathComponent
+    }
+    filePanel = panel
+    let invocation = UUID()
+    fileInvocation = invocation
+    token.whenCancelled { [weak self, weak panel] in
+      DispatchQueue.main.async {
+        guard let self = self, let panel = panel, self.filePanel === panel,
+          self.fileInvocation == invocation
+        else { return }
+        self.filePanel = nil
+        panel.cancel(nil)
+      }
+    }
+    panel.beginSheetModal(for: window) { [weak self] response in
+      guard let self = self, self.filePanel === panel, self.fileInvocation == invocation,
+        token.isActive
+      else { return }
+      self.filePanel = nil
+      guard response == .OK else {
+        reply(.success(isOpen ? NSNull() : false))
+        return
+      }
+      guard let url = panel.url, url.isFileURL else {
+        reply(.failure(NativeFailure.invalid))
+        return
+      }
+      if isOpen {
+        reply(.success(url.absoluteString))
+        return
+      }
+      guard let text = params["text"] as? String else {
+        reply(.failure(NativeFailure.invalid))
+        return
+      }
+      do {
+        try text.write(to: url, atomically: true, encoding: .utf8)
+        reply(.success(true))
+      } catch { reply(.failure(NativeFailure.unavailable)) }
     }
   }
   private func present(
     _ method: String, params: [String: Any], token: MhpCancellation,
     window: NSWindow?, reply: @escaping (Result<Any, Error>) -> Void
   ) {
-    guard alert == nil, let window = window, token.isActive else {
+    guard filePanel == nil, alert == nil, let window = window, token.isActive else {
       reply(.failure(NativeFailure.unavailable))
       return
     }

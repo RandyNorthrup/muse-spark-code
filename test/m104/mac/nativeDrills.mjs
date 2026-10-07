@@ -6,6 +6,48 @@ import { buildEnvironment } from '../../../scripts/package-hosts/manifest.mjs'
 
 const mutations = [
   [
+    'file response cancellation',
+    'hosts/xcode/App/NativeUi.swift',
+    '        token.isActive\n      else { return }',
+    '        true\n      else { return }',
+    'testCancelledFileDialogCannotWriteOrReplyFromALateChoice',
+  ],
+  [
+    'file response ownership',
+    'hosts/xcode/App/NativeUi.swift',
+    'self.filePanel === panel, self.fileInvocation == invocation,\n        token.isActive',
+    'self.filePanel === panel,\n        token.isActive',
+    'testClosedFileChoiceCannotWriteOverAReplacementDialog',
+  ],
+  [
+    'file cancellation ownership',
+    'hosts/xcode/App/NativeUi.swift',
+    'self.filePanel === panel,\n          self.fileInvocation == invocation',
+    'self.filePanel === panel',
+    'testClosedFileChoiceCannotWriteOverAReplacementDialog',
+  ],
+  [
+    'permission sheet file admission',
+    'hosts/xcode/App/NativeUi.swift',
+    'guard filePanel == nil, alert == nil, let window = window',
+    'guard alert == nil, let window = window',
+    'testFileDialogRejectsOverlappingFileAndPermissionSheets',
+  ],
+  [
+    'file sheet admission',
+    'hosts/xcode/App/NativeUi.swift',
+    'guard alert == nil, filePanel == nil, let window = window',
+    'guard alert == nil, let window = window',
+    'testFileDialogRejectsOverlappingFileAndPermissionSheets',
+  ],
+  [
+    'file export actually writes',
+    'hosts/xcode/App/NativeUi.swift',
+    'try text.write(to: url, atomically: true, encoding: .utf8)',
+    'try text.write(to: url.appendingPathExtension("wrong-output"), atomically: true, encoding: .utf8)',
+    'testFileServicesChooseOpaqueUrisAndWriteTheApprovedExport',
+  ],
+  [
     'native package star description',
     'hosts/xcode/description.html',
     'Enjoying Muse Spark Code? A star on GitHub helps other people find it.',

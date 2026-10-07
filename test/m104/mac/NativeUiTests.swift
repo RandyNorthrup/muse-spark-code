@@ -5,6 +5,164 @@ import XCTest
 @testable import MuseSpark
 
 final class NativeUiTests: XCTestCase {
+  @MainActor func testClosedFileChoiceCannotWriteOverAReplacementDialog() async throws {
+    let panel = FileServicePanel()
+    let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    panel.selected = file
+    defer { try? FileManager.default.removeItem(at: file) }
+    let ui = NativeUi(filePanelFactory: { _ in panel })
+    let window = NSWindow()
+    window.isReleasedWhenClosed = false
+    defer {
+      ui.close()
+      window.close()
+    }
+    var replies = 0
+    let oldToken = MhpCancellation()
+    ui.handle(
+      "ui/saveText", params: ["title": "Export", "suggestedName": "report.md", "text": "old"],
+      token: oldToken, window: window
+    ) { _ in replies += 1 }
+    let late = panel.complete
+    ui.close()
+    ui.handle(
+      "ui/saveText", params: ["title": "Export", "suggestedName": "report.md", "text": "new"],
+      token: MhpCancellation(), window: window
+    ) { _ in replies += 1 }
+    late?(.OK)
+    XCTAssertEqual(replies, 0)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+    oldToken.cancel()
+    let drained = expectation(description: "old dialog cancellation")
+    DispatchQueue.main.async { drained.fulfill() }
+    await fulfillment(of: [drained], timeout: 1)
+    XCTAssertEqual(panel.cancels, 1)
+    panel.respond(.OK)
+    XCTAssertEqual(replies, 1)
+    XCTAssertEqual(try String(contentsOf: file, encoding: .utf8), "new")
+  }
+  @MainActor func testFileDialogRejectsOverlappingFileAndPermissionSheets() throws {
+    let panel = FileServicePanel()
+    let ui = NativeUi(filePanelFactory: { _ in panel })
+    let window = NSWindow()
+    window.isReleasedWhenClosed = false
+    defer {
+      ui.close()
+      window.close()
+    }
+    ui.handle("ui/openFile", params: ["title": "Import"], token: MhpCancellation(), window: window)
+    { _ in }
+    var failures = 0
+    for method in ["ui/openFile", "ui/input"] {
+      ui.handle(
+        method, params: ["title": "Choose", "prompt": "Value"], token: MhpCancellation(),
+        window: window
+      ) {
+        if case .failure = $0 { failures += 1 }
+      }
+    }
+    XCTAssertEqual(failures, 2)
+    XCTAssertNil(window.attachedSheet)
+  }
+
+  @MainActor func testFileServicesChooseOpaqueUrisAndWriteTheApprovedExport() throws {
+    let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: folder) }
+    let selected = folder.appendingPathComponent("chosen.md")
+    let panel = FileServicePanel()
+    panel.selected = selected
+    let ui = NativeUi(filePanelFactory: { _ in panel })
+    let window = NSWindow()
+    window.isReleasedWhenClosed = false
+    defer {
+      ui.close()
+      window.close()
+    }
+    var replies: [Any] = []  // Foundation service results are checked at the owning MHP boundary (§8).
+    ui.handle("ui/openFile", params: ["title": "Import"], token: MhpCancellation(), window: window)
+    {
+      if case .success(let result) = $0 {
+        replies.append(result)
+      } else {
+        XCTFail("picker refused")
+      }
+    }
+    panel.respond(.OK)
+    XCTAssertEqual(replies.first as? String, selected.absoluteString)
+    ui.handle(
+      "ui/saveText",
+      params: ["title": "Export", "suggestedName": "report.md", "text": "scrubbed report"],
+      token: MhpCancellation(), window: window
+    ) {
+      if case .success(let result) = $0 {
+        replies.append(result)
+      } else {
+        XCTFail("export refused")
+      }
+    }
+    panel.respond(.OK)
+    XCTAssertEqual(replies.last as? Bool, true)
+    XCTAssertEqual(try String(contentsOf: selected, encoding: .utf8), "scrubbed report")
+    XCTAssertEqual(panel.nameFieldStringValue, "report.md")
+  }
+  @MainActor func testFileDialogDenialAndFailureNeverReportSuccess() throws {
+    let panel = FileServicePanel()
+    panel.selected = FileManager.default.temporaryDirectory.appendingPathComponent(
+      UUID().uuidString
+    )
+    .appendingPathComponent("absent-parent/report.md")
+    let ui = NativeUi(filePanelFactory: { _ in panel })
+    let window = NSWindow()
+    window.isReleasedWhenClosed = false
+    defer {
+      ui.close()
+      window.close()
+    }
+    var results: [Bool] = []
+    var failures = 0
+    for response in [NSApplication.ModalResponse.cancel, .OK] {
+      ui.handle(
+        "ui/saveText", params: ["title": "Export", "suggestedName": "report.md", "text": "report"],
+        token: MhpCancellation(), window: window
+      ) {
+        switch $0 {
+        case .success(let value): if let saved = value as? Bool { results.append(saved) }
+        case .failure: failures += 1
+        }
+      }
+      panel.respond(response)
+    }
+    XCTAssertEqual(results, [false])
+    XCTAssertEqual(failures, 1)
+  }
+  @MainActor func testCancelledFileDialogCannotWriteOrReplyFromALateChoice() async throws {
+    let panel = FileServicePanel()
+    let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    panel.selected = file
+    defer { try? FileManager.default.removeItem(at: file) }
+    let ui = NativeUi(filePanelFactory: { _ in panel })
+    let window = NSWindow()
+    window.isReleasedWhenClosed = false
+    defer {
+      ui.close()
+      window.close()
+    }
+    let token = MhpCancellation()
+    var replies = 0
+    ui.handle(
+      "ui/saveText", params: ["title": "Export", "suggestedName": "report.md", "text": "report"],
+      token: token, window: window
+    ) { _ in replies += 1 }
+    token.cancel()
+    panel.complete?(.OK)
+    let drained = expectation(description: "file cancellation")
+    DispatchQueue.main.async { drained.fulfill() }
+    await fulfillment(of: [drained], timeout: 1)
+    XCTAssertEqual(replies, 0)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+    XCTAssertEqual(panel.cancels, 1)
+  }
   func testAppAndEditorExtensionPackageTheLinkedStarDescription() throws {
     let sentence = "Enjoying Muse Spark Code? A star on GitHub helps other people find it."
     let link = "<a href=\"https://github.com/RandyNorthrup/muse-spark-code\">\(sentence)</a>"
@@ -192,5 +350,21 @@ final class NativeUiTests: XCTestCase {
     XCTAssertNil(coordinator.loadedOrigin?.fragment)
     model.stop()
     view.stopLoading()
+  }
+}
+
+@MainActor private final class FileServicePanel: NSSavePanel {
+  var selected: URL?
+  var complete: ((NSApplication.ModalResponse) -> Void)?
+  var cancels = 0
+  override var url: URL? { selected }
+  override func beginSheetModal(
+    for window: NSWindow, completionHandler handler: @escaping (NSApplication.ModalResponse) -> Void
+  ) { complete = handler }
+  override func cancel(_ sender: Any?) { cancels += 1 }
+  func respond(_ response: NSApplication.ModalResponse) {
+    let reply = complete
+    complete = nil
+    reply?(response)
   }
 }
