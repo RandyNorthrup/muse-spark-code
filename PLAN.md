@@ -13494,6 +13494,56 @@ SHA-256-exact source; dedicated lazy loading/failure tests remain cold and pass.
 Compiler projects, scoped lint/format, Knip, duplication, localization, host API,
 reference and production build pass. Evidence: `docs/certification/testwarm.md`.
 
+### HARNESSWAIT — Harness scenes wait for their controls (2026-10-06)
+
+Scope: replace every fixed-delay DOM interaction in `test/harness/index.html`
+with `whenFound`, nesting dependent steps. Retain only explained host-event,
+clock and readiness-polling timers. A source-parsing unit guard rejects delayed
+DOM interactions, including calls through helpers, without a kept-timing reason.
+Prove the guard with an old delayed click and SHA-256-exact restoration.
+Check all accessibility scenarios in four themes, compare ten converted scenes
+against shots from this lane's main base, and run harness unit tests at the
+repository default timeout, compiler projects and scoped static/build gates.
+Update CONTRIBUTING, Unreleased and `docs/certification/harness-waits.md`.
+No product feature, dependency, wire shape or budget changes. The rig brief
+prohibits aggregate quality, merges and pushes; the lead retains integrated
+quality and cross-platform certification. Commit locally with existing hooks.
+
+Verification found Chrome's command-line virtual-clock capture stalls before
+rendering; a capture deadline returns blank pages. Use the existing Playwright
+dependency for `scripts/lib/harnessCapture.mjs`, waiting on the harness's same
+timed-event settle and `whenReady` condition before capture. Keep browser
+lifecycle bounded and test that capture waits and closes on readiness failure.
+Historical main snapshots use the same harness helpers and capture driver.
+The full sweep also exposed a DOM wait starting before the module graph had
+loaded. Arm it at `DOMContentLoaded`, require that startup in `whenReady`, and
+prove the once-only startup regression without widening an existing deadline.
+Jump's completion/code-block prerequisites proved too expensive on the loaded
+rig. Stop using the streamed fixture for that scrolling check: preload the same
+completed long reply. Waiting solely for a native scroll also failed twice:
+a row can appear before its lazy content makes the panel scrollable. That path
+was stopped too. Highlighted content plus a synthetic scroll and settling wait
+still failed under full concurrency. A warmed-context trace captured a delayed
+native scroll after the new message, recording that message as already seen.
+Wait for highlighted content and guarantee one native scroll before publishing
+new content; from an already-zero position, move one pixel and back to queue it.
+A runtime regression delays that event at both starting positions. The next
+warmed trace caught one pending layout repinning the panel after that event.
+Requeue the native scroll while the panel has moved from zero, and exercise
+that repin in the regression. Require the actual New messages control before
+scanning. The separate `long` scene retains
+its streamed-delta check; record the failed paths and red controls in certification.
+
+Completed on Kubuntu: 38 readiness conversions, five ineffective callbacks
+removed and 34 individually explained timers. All 38 owning tests pass at
+repository default timeouts. The full accessibility sweep passes all 716 pages
+(179 scenes × four themes), with zero violations, undecided rules or missing
+results; the warmed-context jump check passes 36 pages. Ten visual states match
+main, with caret, clock, elapsed-label and glyph/border rendering differences
+listed in `docs/certification/harness-waits.md`. Six deliberate failure controls
+have SHA-256-exact restoration. Scoped compiler/static checks and production
+build pass without changing caps; aggregate quality remains lead-owned (§7).
+
 ### REL0143F — Repair release PR #129 CI failures (2026-10-06)
 
 Continue `release/0.14.3` at `4122e1155` without another merge or push.
@@ -29359,6 +29409,15 @@ Authority: the rig brief and lead decisions, refining D92/M112 from
       Q/A/editor integration handoffs. No merge, push, dependency or gate widening.
 
 ## 7. Gates
+
+**HARNESSWAIT scoped rig certification (2026-10-06).** The rig/shared brief
+prohibits aggregate `npm run quality` and full unit-suite runs. Run the complete
+harness-owning files at repository default timeouts, intentional red drills,
+all accessibility scenarios in four themes, ten visual comparisons, compiler
+projects and scoped static/build checks directly on Kubuntu. The lead retains
+aggregate quality, coverage and hosted cross-platform certification. No gate,
+timeout, hook or budget is weakened. Receipts:
+`docs/certification/harness-waits.md`.
 
 **REL0143F release CI repair (2026-10-06, Kubuntu).** The complete configured
 Vitest matrix passes at repository default timeouts (532 files, 11,430 passing

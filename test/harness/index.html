@@ -113,17 +113,26 @@
       const SETTLE_MS = 300
       const FIND_INTERVAL_MS = 50
       const FIND_TIMEOUT_MS = 3000
+      let pendingFinds = 0
       const whenFound = (selector, fn) => {
+        pendingFinds += 1
         const look = (waited) => {
           const element = document.querySelector(selector)
           if (element !== null) {
-            fn(element)
+            try {
+              fn(element)
+            } finally {
+              pendingFinds -= 1
+            }
           } else if (waited >= FIND_TIMEOUT_MS) {
+            pendingFinds -= 1
             throw new Error(`never rendered: ${selector}`)
           } else {
+            // kept-timing: bounded readiness polling retries until the requested control renders.
             later(FIND_INTERVAL_MS, () => look(waited + FIND_INTERVAL_MS))
           }
         }
+        // kept-timing: host-message delivery and React paints settle before the first readiness probe.
         later(SETTLE_MS, () => look(0))
       }
       const files = [
@@ -524,6 +533,7 @@
               break
             }
             case 'listSkills': {
+              // kept-timing: the fake host replies asynchronously to the skill-list request.
               later(50, () => send({ type: 'skillList', skills }))
               break
             }
@@ -532,10 +542,12 @@
               const items = files
                 .filter((file) => file.toLowerCase().includes(query))
                 .map((path) => ({ path, isFolder: false }))
+              // kept-timing: mention search results arrive asynchronously from the fake host.
               later(30, () => send({ type: 'mentionResults', requestId: message.requestId, items }))
               break
             }
             case 'attachImageData': {
+              // kept-timing: attachment decoding completes asynchronously after the paste request.
               later(20, () =>
                 send({
                   type: 'attachmentAdded',
@@ -545,6 +557,7 @@
               break
             }
             case 'pickFile': {
+              // kept-timing: the fake file picker returns its attachment asynchronously.
               later(20, () =>
                 send({ type: 'attachmentAdded', attachment: attachment('image.png', 'image/png') }),
               )
@@ -586,6 +599,7 @@
                   item: { itemId, kind: 'agentMessage', status: 'inProgress', turnId, text: '' },
                 },
               })
+              // kept-timing: streaming exposes the pending reply before its first text delta.
               later(300, () =>
                 send({
                   type: 'agentEvent',
@@ -597,6 +611,7 @@
                   },
                 }),
               )
+              // kept-timing: streaming keeps the reply in progress before its terminal events.
               later(4000, () => {
                 send({
                   type: 'agentEvent',
@@ -629,6 +644,7 @@
               pen.fillRect(150, 60, 20, 80)
               pen.fillStyle = '#e8b04a'
               pen.fillRect(146, 48, 28, 14)
+              // kept-timing: image output arrives asynchronously after the tool-image request.
               later(30, () =>
                 send({
                   type: 'toolImage',
@@ -645,6 +661,7 @@
                 const whole = window.harnessPagedPatch
                 const half = Math.floor(whole.length / 2)
                 const isFirst = message.offsetBytes === 0
+                // kept-timing: each requested patch page arrives as a separate asynchronous host reply.
                 later(30, () =>
                   send({
                     type: 'outputPage',
@@ -658,6 +675,7 @@
                 )
                 break
               }
+              // kept-timing: the fake host returns the requested patch asynchronously.
               later(30, () =>
                 send({
                   type: 'outputPage',
@@ -690,6 +708,7 @@
               break
             }
             case 'decideApproval': {
+              // kept-timing: approval resolution arrives after the submitted decision.
               later(30, () =>
                 send({
                   type: 'agentEvent',
@@ -706,6 +725,7 @@
             }
             // --- Session history (M6) ---
             case 'listSessions': {
+              // kept-timing: History receives its session list as an asynchronous host reply.
               later(40, () => send({ type: 'sessionList', sessions: storedSessions, archivedIds }))
               break
             }
@@ -720,6 +740,7 @@
             }
             case 'resumeSession': {
               const row = storedSessions.find((s) => s.sessionId === message.sessionId)
+              // kept-timing: resume delivers history and session state after its host request.
               later(60, () => {
                 send({ type: 'historyLoaded', ...storedHistory(message.sessionId, row) })
                 send({ type: 'notice', level: 'info', text: `Resumed ${row?.title ?? ''}` })
@@ -733,6 +754,7 @@
               break
             }
             case 'forkSession': {
+              // kept-timing: fork delivers history and session state after its host request.
               later(60, () => {
                 send({
                   type: 'historyLoaded',
@@ -753,6 +775,7 @@
               break
             }
             case 'renameSession': {
+              // kept-timing: renaming is confirmed by a later host notification.
               later(40, () =>
                 send({ type: 'agentEvent', event: { type: 'sessionNamed', name: message.name } }),
               )
@@ -763,10 +786,12 @@
             case 'dictation': {
               if (message.action === 'start') {
                 send({ type: 'dictationState', status: 'starting' })
+                // kept-timing: dictation passes through its listening state after recording starts.
                 later(40, () => send({ type: 'dictationState', status: 'listening' }))
                 break
               }
               send({ type: 'dictationState', status: 'idle' })
+              // kept-timing: dictation inserts the transcript after recording stops.
               later(40, () => send({ type: 'insertText', text: 'open the settings file ' }))
               break
             }
@@ -779,11 +804,13 @@
                 features.delete(message.feature)
               }
               window.harnessPaid = { ...window.harnessPaid, features: [...features] }
+              // kept-timing: paid settings are confirmed by a later host state update.
               later(40, () => send({ type: 'paidState', state: window.harnessPaid }))
               break
             }
             // --- Account & usage (M8) ---
             case 'readUsage': {
+              // kept-timing: Account and usage receives its report asynchronously.
               later(40, () =>
                 send(
                   window.harnessBackend === 'modelApi'
@@ -842,6 +869,7 @@
               break
             }
             case 'answerQuestion': {
+              // kept-timing: question settlement arrives after its answer is submitted.
               later(30, () =>
                 send({
                   type: 'agentEvent',
@@ -942,6 +970,7 @@
               }
               const goal = goals[message.verb]()
               window.harnessGoal = goal ?? undefined
+              // kept-timing: goal commands receive their result after the host request.
               later(30, () => {
                 send({ type: 'agentEvent', event: { type: 'goalChanged', goal } })
                 send({
@@ -985,6 +1014,7 @@
                   },
                 ],
               }
+              // kept-timing: a review stays running before its findings arrive.
               later(200, () => {
                 send({
                   type: 'agentEvent',
@@ -1007,6 +1037,7 @@
               break
             }
             case 'readReviewChanges': {
+              // kept-timing: review changes arrive asynchronously after the changes request.
               later(60, () =>
                 send({
                   type: 'reviewChanges',
@@ -1056,6 +1087,7 @@
               break
             }
             case 'revertReviewHunk': {
+              // kept-timing: a hunk revert completes after its host request.
               later(60, () =>
                 send({
                   type: 'reviewHunkResult',
@@ -1328,10 +1360,6 @@
         if (isDone) {
           event({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' })
         }
-        later(150, () => {
-          // Focus view hides the rows; nothing to expand then.
-          document.querySelectorAll('.tool-header')[1]?.click()
-        })
       }
       // M87 (the owner's requests of 2026-10-04): the chat column. A reply,
       // a queued steer, the working line, the docked approval card and the
@@ -1549,7 +1577,7 @@
           document.body.style.width = '100%'
         }
         columnFixture()
-        whenFound('.approval-choices > button', () => later(SETTLE_MS, columnGeometry))
+        whenFound('.approval-choices > button', columnGeometry)
       }
       const steps = {
         empty: () => {},
@@ -1589,6 +1617,7 @@
         'signin-history': () => {
           setDraft('Earlier answer stays visible')
           key({ key: 'Enter' })
+          // kept-timing: sign-in replaces the earlier conversation while authentication is pending.
           later(100, () =>
             send({
               type: 'authState',
@@ -1710,7 +1739,9 @@
         },
         'pill-toggle': () => {
           click('Model')
-          later(200, () => click('Model'))
+          whenFound('.palette', () =>
+            whenFound(`button[aria-label="${shown('Model')}"]`, (model) => model.click()),
+          )
         },
         mention: () => {
           textarea().focus()
@@ -1720,24 +1751,22 @@
         // pick with an image, whose chip joins the open file's.
         chips: () => {
           click('Attach')
-          later(100, () => {
-            whenFound('[role="menuitem"]:nth-child(1)', (control) => control.click())
+          whenFound('[role="menuitem"]:nth-child(1)', (control) => {
+            control.click()
+            whenFound('.chips .chip', () => whenFound('textarea', () => setDraft('what is this?')))
           })
-          later(200, () => setDraft('what is this?'))
         },
         transcript: () => {
           setDraft('hello muse')
           key({ key: 'Enter' })
-          later(600, () => {
+          whenFound('.message-assistant[aria-busy="true"]', () => {
             setDraft('and steer this')
             key({ key: 'Enter' })
           })
         },
         'chat-menu': () => {
           steps.rewind()
-          later(450, () =>
-            whenFound('[aria-haspopup="menu"][role="menuitem"]', (control) => control.click()),
-          )
+          whenFound('[aria-haspopup="menu"][role="menuitem"]', (control) => control.click())
         },
         'chat-menu-narrow': () => {
           if (window.innerWidth !== 320) {
@@ -1752,11 +1781,9 @@
         'chat-tool-menu': () => {
           send({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 'harness-tools' })
           transcriptFixture({ isDone: true })
-          later(300, () => {
-            document.querySelector('.steps-toggle').click()
-            later(100, () =>
-              whenFound('[data-entry-id="ed1"] .row-actions-button', (control) => control.click()),
-            )
+          whenFound('.steps-toggle', (summary) => {
+            summary.click()
+            whenFound('[data-entry-id="ed1"] .row-actions-button', (control) => control.click())
           })
         },
         'chat-tool-menu-narrow': () => {
@@ -1778,7 +1805,9 @@
             type: 'settingsChanged',
             settings: { ...settings, allowDangerouslySkipPermissions: true },
           })
-          later(50, () => click('Permission mode: Manual'))
+          whenFound(`button[aria-label="${shown('Permission mode: Manual')}"]`, (mode) =>
+            mode.click(),
+          )
         },
         attach: () => {
           click('Attach')
@@ -1794,7 +1823,9 @@
               isEmpty: false,
             },
           })
-          later(50, () => setDraft('what does this do?'))
+          whenFound('.editor-chip', () =>
+            whenFound('textarea', () => setDraft('what does this do?')),
+          )
         },
         // A sidebar-narrow panel with everything the toolbar can hold.
         narrow: () => {
@@ -2315,9 +2346,7 @@
         },
         'add-context': () => {
           click('Attach')
-          later(100, () => {
-            whenFound('[role="menuitem"]:nth-child(2)', (control) => control.click())
-          })
+          whenFound('[role="menuitem"]:nth-child(2)', (control) => control.click())
         },
         history: () => {
           click('Session history')
@@ -2334,10 +2363,8 @@
           })
           window.harnessOutbox.push({ type: 'resumeSession', sessionId: 'now' })
           window.acquireVsCodeApi().postMessage({ type: 'resumeSession', sessionId: 'now' })
-          later(400, () => {
-            const card = document.querySelectorAll('.message-user')[1]
-            card?.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))
-            card?.querySelector('.fork-button')?.focus()
+          whenFound('.message-user ~ .message-user', (card) => {
+            card.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))
           })
         },
         filter: () => {
@@ -2350,10 +2377,8 @@
         // Voice dictation (M9): a tap on the microphone, caught mid-listen.
         dictation: () => {
           textarea().focus()
-          later(300, () => {
-            document
-              .querySelector(`button[aria-label="${shown('Record voice')}"]`)
-              .dispatchEvent(new Event('pointerdown', { bubbles: true, cancelable: true }))
+          whenFound(`button[aria-label="${shown('Record voice')}"]`, (microphone) => {
+            microphone.dispatchEvent(new Event('pointerdown', { bubbles: true, cancelable: true }))
           })
         },
         // --- M13: the user card's fork / rewind menu (needs a session) ---
@@ -2365,9 +2390,7 @@
             sessionId: 's1',
           })
           transcriptFixture({ isDone: true })
-          later(300, () =>
-            whenFound('[data-role="user"] .row-actions-button', (control) => control.click()),
-          )
+          whenFound('[data-role="user"] .row-actions-button', (control) => control.click())
         },
         // --- M72: a turn with a checkpoint: Restore files, Both, and a
         // restore's notice with its Redo ---
@@ -2397,9 +2420,7 @@
             level: 'warning',
             text: 'Not restorable, changed by a command with no earlier copy: server.log',
           })
-          later(300, () =>
-            whenFound('[data-role="user"] .row-actions-button', (control) => control.click()),
-          )
+          whenFound('[data-role="user"] .row-actions-button', (control) => control.click())
         },
         // --- M72: Restricted Mode, and Muse Code on Windows: the menu says
         // why rows are missing ---
@@ -2419,9 +2440,7 @@
             sessionId: 's1',
             turnIds: [],
           })
-          later(300, () =>
-            whenFound('[data-role="user"] .row-actions-button', (control) => control.click()),
-          )
+          whenFound('[data-role="user"] .row-actions-button', (control) => control.click())
         },
         'checkpoint-read-only': () => {
           send({
@@ -2446,9 +2465,7 @@
             text: 'Saved restore remains readable.',
             redoRestoreId: 'old-redo',
           })
-          later(300, () =>
-            whenFound('[data-role="user"] .row-actions-button', (control) => control.click()),
-          )
+          whenFound('[data-role="user"] .row-actions-button', (control) => control.click())
         },
         'checkpoint-read-only-narrow': () => {
           document.documentElement.style.width = '100%'
@@ -2503,7 +2520,7 @@
               result: { summary: 'All 12 tests pass.' },
             },
           })
-          later(300, () => document.querySelector('.agents-pill').click())
+          whenFound('.agents-pill', (pill) => pill.click())
         },
         'agents-details': () => {
           steps.agents()
@@ -2521,6 +2538,7 @@
           window.harnessBackend = 'modelApi'
           send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
           steps.agents()
+          // kept-timing: a child closes after its result has become available.
           later(450, () =>
             event({
               type: 'itemUpdated',
@@ -3013,22 +3031,58 @@
         },
         // --- M15: New messages while scrolled up ---
         jump: () => {
-          steps.long()
-          later(1500, () => {
-            const main = document.querySelector('main')
-            main.scrollTop = 0
-            main.dispatchEvent(new Event('scroll'))
-            event({
-              type: 'itemStarted',
-              item: { itemId: 'more', kind: 'agentMessage', status: 'inProgress', text: '' },
-            })
-            event({
-              type: 'textDelta',
-              itemId: 'more',
-              field: 'text',
-              delta: 'One more thing: the folder also holds a hidden .git directory.',
-            })
+          // Scrolling is this scene's subject; `long` separately checks streamed deltas.
+          window.harnessSilent = true
+          setDraft('Explain the whole codebase')
+          key({ key: 'Enter' })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'long',
+              kind: 'agentMessage',
+              status: 'completed',
+              text: longReply(),
+            },
           })
+          whenFound('[data-entry-id="long"] .hljs-keyword', () =>
+            whenFound('main', (main) => {
+              const scrollUp = () => {
+                // A native scroll must record the old transcript before new content arrives.
+                main.addEventListener(
+                  'scroll',
+                  () => {
+                    whenFound('main', () => {
+                      if (main.scrollTop !== 0) {
+                        scrollUp()
+                        return
+                      }
+                      event({
+                        type: 'itemStarted',
+                        item: {
+                          itemId: 'more',
+                          kind: 'agentMessage',
+                          status: 'inProgress',
+                          text: '',
+                        },
+                      })
+                      event({
+                        type: 'textDelta',
+                        itemId: 'more',
+                        field: 'text',
+                        delta: 'One more thing: the folder also holds a hidden .git directory.',
+                      })
+                      whenFound('.jump-latest', () => {})
+                    })
+                  },
+                  { once: true },
+                )
+                // Queue the native event even if the lazy reply already left main at zero.
+                if (main.scrollTop === 0) main.scrollTop = 1
+                main.scrollTop = 0
+              }
+              scrollUp()
+            }),
+          )
         },
         // --- M16: a reasoning row streaming its summary ---
         thinking: () => {
@@ -3117,26 +3171,22 @@
         // --- M17: a reply's actions menu, and the reference chip it sets ---
         'reply-menu': () => {
           transcriptFixture({ isDone: true })
-          later(300, () =>
-            whenFound('[data-role="assistant"] .row-actions-button', (control) => control.click()),
-          )
+          whenFound('[data-role="assistant"] .row-actions-button', (control) => control.click())
         },
         'reply-chip': () => {
           transcriptFixture({ isDone: true })
-          later(300, () => {
-            whenFound('[data-role="assistant"] .row-actions-button', (control) => {
-              control.click()
-              whenFound('[data-role="assistant"] .gooey-menu-pill:nth-child(2)', (reply) => {
-                reply.click()
-                setDraft('Why two files and not three?')
-              })
+          whenFound('[data-role="assistant"] .row-actions-button', (control) => {
+            control.click()
+            whenFound('[data-role="assistant"] .gooey-menu-pill:nth-child(2)', (reply) => {
+              reply.click()
+              whenFound('textarea', () => setDraft('Why two files and not three?'))
             })
           })
         },
         // --- Issue #4: the box grows with wrapped lines, capped at ten rows ---
         'composer-grow': () => {
           transcriptFixture({ isDone: true })
-          later(300, () =>
+          whenFound('textarea', () =>
             setDraft(
               'Refactor the settings loader so the machine-scoped keys read from the user settings first, then the workspace, and say in the reply which file each value came from.',
             ),
@@ -3144,15 +3194,14 @@
         },
         'composer-max': () => {
           transcriptFixture({ isDone: true })
-          later(300, () =>
+          whenFound('textarea', () =>
             setDraft(Array.from({ length: 14 }, (_, index) => `line ${index + 1}`).join('\n')),
           )
         },
         // --- M17: highlight a passage, right-click, ask about it ---
         'quote-menu': () => {
           transcriptFixture({ isDone: true })
-          later(300, () => {
-            const passage = document.querySelector('.message-assistant .message-body p')
+          whenFound('.message-assistant .message-body p', (passage) => {
             const range = document.createRange()
             range.selectNodeContents(passage)
             const selection = window.getSelection()
@@ -3173,11 +3222,9 @@
         },
         'quote-chip': () => {
           steps['quote-menu']()
-          later(600, () => {
-            whenFound('.quote-menu .gooey-menu-pill:nth-child(2)', (quote) => {
-              quote.click()
-              setDraft('Are you sure about the count?')
-            })
+          whenFound('.quote-menu .gooey-menu-pill:nth-child(2)', (quote) => {
+            quote.click()
+            whenFound('textarea', () => setDraft('Are you sure about the count?'))
           })
         },
         // --- M14/M18: the CLI gates subagent_spawn behind an approval (live, 2026-09-23) ---
@@ -3240,6 +3287,7 @@
             field: 'text',
             delta: 'I will list the folder once the command is approved, then',
           })
+          // kept-timing: a stopped turn receives its cancellation terminal event later.
           later(200, () => event({ type: 'turnCompleted', turnId: 't1', terminal: 'cancelled' }))
         },
         // --- M25: the crash screen's Reload brought the saved conversation back ---
@@ -3265,10 +3313,12 @@
           whenFound('.history-toggle input', (toggle) => {
             toggle.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }))
             toggle.click()
-            later(100, () => {
-              document.activeElement.dispatchEvent(
-                new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
-              )
+            whenFound('.history-toggle input:checked', () => {
+              whenFound('.history .palette-filter:focus', (search) => {
+                search.dispatchEvent(
+                  new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
+                )
+              })
             })
           })
         },
@@ -3375,11 +3425,6 @@
             '{"title":"Parser precedence"}',
             '{"number":42}',
           )
-          later(150, () => {
-            for (const toggle of document.querySelectorAll('.tool-toggle[aria-expanded="false"]')) {
-              toggle.click()
-            }
-          })
         },
         // --- M67: code intelligence rows, and a rename's card across its files ---
         'code-intel': () => {
@@ -3478,11 +3523,6 @@
             isJudgeEscalated: false,
             isProtectedWrite: true,
           })
-          later(150, () => {
-            for (const toggle of document.querySelectorAll('.tool-toggle[aria-expanded="false"]')) {
-              toggle.click()
-            }
-          })
         },
         // --- M43: a search's results, background work, and a picture a tool read ---
         'muse-web': () => {
@@ -3540,9 +3580,6 @@
               visibleOutput:
                 'Read image file `media/logo.png` as model-visible image output.\nmedia_type: image/png',
             },
-          })
-          later(150, () => {
-            document.querySelector('[data-entry-id="web1"] .tool-toggle')?.click()
           })
         },
         // --- M69: a page fetched, one refused, and the per-host card for the next ---
@@ -3626,9 +3663,6 @@
             isJudgeEscalated: false,
             isProtectedWrite: false,
           })
-          later(150, () => {
-            document.querySelector('[data-entry-id="wf1"] .tool-toggle')?.click()
-          })
         },
         // --- M45: the session goal: set from the prompt, then the agent's progress ---
         // --- M79: a Plan-mode reply with Save plan and Implement under it,
@@ -3644,22 +3678,22 @@
             sessionId: 's1',
           })
           // Sent once the panel is in Plan mode: only such a message's reply is a plan.
-          later(50, () => {
+          whenFound('textarea', () => {
             setDraft('Plan how to add a dark mode toggle to the settings page')
             key({ key: 'Enter' })
-          })
-          later(150, () => {
-            event({
-              type: 'itemCompleted',
-              item: {
-                itemId: 'plan-reply',
-                kind: 'agentMessage',
-                status: 'completed',
-                turnId: 't1',
-                text: HARNESS_PLAN_REPLY,
-              },
+            whenFound('.message-user', () => {
+              event({
+                type: 'itemCompleted',
+                item: {
+                  itemId: 'plan-reply',
+                  kind: 'agentMessage',
+                  status: 'completed',
+                  turnId: 't1',
+                  text: HARNESS_PLAN_REPLY,
+                },
+              })
+              event({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' })
             })
-            event({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' })
           })
           whenFound('.plan-actions .button-secondary', (save) => {
             save.focus()
@@ -3720,6 +3754,7 @@
             token_budget: null,
             tokens_used: 48898,
           }
+          // kept-timing: goal progress and tasks advance after the initial goal event.
           later(120, () => {
             event({
               type: 'itemCompleted',
@@ -3832,7 +3867,7 @@
               args: '{"command":"npm test","description":"Run the test suite"}',
             },
           })
-          later(100, () => setDraft('!git diff --stat'))
+          whenFound('textarea', () => setDraft('!git diff --stat'))
         },
         // --- M46: the Agent map's background tasks, one running, one stopped ---
         'background-map': () => {
@@ -3851,7 +3886,7 @@
               backgroundInitiator: 'user',
             },
           })
-          later(200, () => document.querySelector('.agents-pill')?.click())
+          whenFound('.agents-pill', (pill) => pill.click())
         },
         // --- M46: a question answered with an explanation, and one being explained ---
         'question-explain': () => {
@@ -3976,14 +4011,12 @@
               { childId: 'c3', attempt: 1, status: 'scheduled', label: 'check the tests' },
             ]),
           })
-          later(150, () => {
-            document.querySelector('[data-entry-id="wft1"] .tool-toggle')?.click()
-          })
+          whenFound('[data-entry-id="wft1"] .tool-toggle', (toggle) => toggle.click())
         },
         // The same runs in the Agent map, with Muse Code's trigger setting noted.
         'muse-workflow-map': () => {
           steps['muse-workflow']()
-          later(600, () => document.querySelector('.agents-pill').click())
+          whenFound('.agents-pill', (pill) => pill.click())
         },
         // --- M52: due and upcoming Model API schedules, including narrow view ---
         schedules: () => {
@@ -4098,7 +4131,7 @@
               message: 'Parse ?? and || with the right precedence\n\nAdds the missing tests.',
             },
           })
-          later(60, () => document.querySelector('.git-files summary')?.click())
+          whenFound('.git-files summary', (summary) => summary.click())
         },
         // --- M71: the pull request form, a first push to a fork's parent ---
         'git-pr': () => {
@@ -4248,9 +4281,7 @@
               text: 'The parser lives in [parser.ts](src/parser.ts#L140); your key is at [id_rsa](../../.ssh/id_rsa).',
             },
           })
-          later(200, () => {
-            document.querySelectorAll('.message-assistant a')[1].click()
-          })
+          whenFound('.message-assistant a[href="../../.ssh/id_rsa"]', (link) => link.click())
         },
         // --- M70: a review's findings, and the review pane over the changes ---
         // `/review security` in the prompt; the fake host answers as a review turn.
@@ -4262,10 +4293,12 @@
         // The review pane: the edit rows of transcriptFixture, then `/changes`.
         'review-pane': () => {
           transcriptFixture({ isDone: true })
-          later(300, () => {
-            textarea().focus()
-            setDraft('/changes')
-            later(200, () => key({ key: 'Enter' }))
+          whenFound('.message-assistant[aria-busy="false"]', () => {
+            whenFound('textarea', (box) => {
+              box.focus()
+              setDraft('/changes')
+              whenFound('.slash-menu [role="option"]', () => key({ key: 'Enter' }))
+            })
           })
         },
         'review-pane-narrow': () => {
@@ -4279,8 +4312,8 @@
             const buttons = document.querySelectorAll('.review-hunk .review-actions button')
             buttons[0].click()
             buttons[4].click()
-            later(200, () => {
-              document.querySelectorAll('.review-hunk .review-actions button')[2].click()
+            whenFound('.review-hunk .review-actions button:nth-of-type(3)', (comment) => {
+              comment.click()
               whenFound('.review-comment textarea', (box) => {
                 setValue(box, HTMLTextAreaElement.prototype, 'Keep the old name here.')
               })
@@ -4383,6 +4416,7 @@
           steps['report']()
           // A refused clipboard, stated on the dialog: the preview stays, so
           // its text can still be copied by hand.
+          // kept-timing: report export failure follows the open report dialog.
           later(200, () =>
             send({
               type: 'reportExported',
@@ -4590,14 +4624,21 @@
         }
       }
       // A scenario starts once the panel has drawn its surface: the composer,
-      // a sign-in or install gate, or the crash screen; never sooner than the
-      // 400 ms it always waited. A fixed delay alone raced the first render
+      // a sign-in or install gate, or the crash screen. Start its bounded DOM
+      // wait after the module graph loads, so loading does not spend that budget.
+      // A fixed delay raced the first render
       // on a loaded machine (M40: `agents` and `dictation` found no composer).
-      if (scenario !== null && scenario in steps) {
-        later(100, () =>
-          whenFound('textarea, .gate, .todo-surface, [role="alert"]', () => steps[scenario]()),
-        )
-      }
+      let hasPageLoaded = false
+      window.addEventListener(
+        'DOMContentLoaded',
+        () => {
+          hasPageLoaded = true
+          if (scenario !== null && scenario in steps) {
+            whenFound('textarea, .gate, .todo-surface, [role="alert"]', () => steps[scenario]())
+          }
+        },
+        { once: true },
+      )
 
       // `?theme=<kind>` applies the colours VS Code gives a webview in one of
       // its default themes (test/harness/themes, captured from VS Code by
@@ -4787,6 +4828,7 @@
       // when this much time has passed.
       const FRAME_FALLBACK_MS = 50
       const SCENARIO_READY = {
+        jump: () => document.querySelector('.jump-latest') !== null,
         'reply-chip': () => document.querySelector('.reference-chip') !== null,
         'quote-chip': () => document.querySelector('.reference-chip') !== null,
         'add-context': () => document.querySelector('.mention-menu [role="option"]') !== null,
@@ -4804,6 +4846,7 @@
       const nextFrame = () =>
         new Promise((resolve) => {
           requestAnimationFrame(() => resolve())
+          // kept-timing: a background window needs a clock fallback when frames stop painting.
           later(FRAME_FALLBACK_MS, resolve)
         })
       // An infinite animation (the caret's blink, a spinner) is a steady
@@ -4822,12 +4865,16 @@
           Promise.race([
             promise,
             new Promise((resolve) => {
+              // kept-timing: readiness has a bounded deadline even if fonts or animations never settle.
               later(Math.max(0, deadline - performance.now()), resolve)
             }),
           ])
         const scenarioReady = SCENARIO_READY[name] ?? (() => true)
         const isReady = () =>
-          document.querySelector('[data-deferred-loading]') === null && scenarioReady()
+          hasPageLoaded &&
+          pendingFinds === 0 &&
+          document.querySelector('[data-deferred-loading]') === null &&
+          scenarioReady()
         for (;;) {
           if (isReady()) {
             await byDeadline(document.fonts.ready)
@@ -4848,6 +4895,7 @@
             )
           }
           await new Promise((resolve) => {
+            // kept-timing: readiness polling yields before checking paints and animations again.
             later(READY_POLL_MS, resolve)
           })
         }
@@ -4883,6 +4931,7 @@
           .then(
             () =>
               new Promise((resolve) => {
+                // kept-timing: streaming and heartbeat scenes run through their timed events before axe starts.
                 later(AXE_AFTER_MS, resolve)
               }),
           )

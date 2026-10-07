@@ -14,9 +14,17 @@ happened, not what was planned; superseded entries are kept.
   gives the rule that prevents it and the milestone that will enforce that
   rule in the app's own orchestrator (D100).
 
+### Fixed
+
 - Test infrastructure warms deferred panel and row modules before behavior
   suites, keeping cold transforms outside the default UI query deadlines.
   A source check catches new deferred imports missing from warm-up.
+
+- Test infrastructure: harness scenes wait for the controls they touch,
+  including lazy panels, and finish startup and control waits before
+  accessibility scans. The scrolling scene waits for its rendered reply and
+  New messages control. A source guard catches unexplained fixed-delay
+  interactions; screenshots use the same readiness checks.
 
 ## [0.14.3] - 2026-10-06
 
