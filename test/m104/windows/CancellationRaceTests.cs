@@ -56,7 +56,7 @@ namespace MuseSpark.VisualStudio.Test
           ["folders"] = new JArray(),
           ["trusted"] = false
         }, CancellationToken.None);
-        await peer.ReceiveAsync(new JObject { ["jsonrpc"] = "2.0", ["id"] = Last(output)["id"], ["result"] = new JObject { ["protocolVersion"] = "mhp/1.2.0", ["capabilities"] = new JArray("lifecycle", "tab") } }.ToString(Formatting.None));
+        await peer.ReceiveAsync(new JObject { ["jsonrpc"] = "2.0", ["id"] = Last(output)["id"], ["result"] = new JObject { ["protocolVersion"] = "mhp/1.3.0", ["capabilities"] = new JArray("lifecycle", "tab") } }.ToString(Formatting.None));
         await initialize;
         var parameters = new JObject { ["uri"] = "file:///C:/fixture/a.cs", ["position"] = new JObject { ["line"] = 0, ["character"] = 0 }, ["version"] = 0, ["context"] = new JObject { ["prefix"] = "", ["suffix"] = "", ["trigger"] = "invoke" } };
         var request = peer.RequestAsync("tab/complete", parameters, cancellation.Token);

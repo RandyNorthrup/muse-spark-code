@@ -48,6 +48,25 @@ Additional concrete requests:
 
 No new translation key or shared schema field is requested at this checkpoint.
 
+## Continuation after A integration (`82aaaae9a`)
+
+MHP 1.3 replaces 1.2 in the integrated contract. Windows native readers,
+fake-runtime compatibility fixtures and panel markers adopt it. Native
+presentation relay readiness/reload and payload-group isolation now pass;
+auxiliary containers/placements/HTML remain unimplemented, so `surfaces`
+remains undeclared. Historical 1.2 requests above describe prior checkpoints.
+
+A: central Windows namespace discovery and actual-entry Knip registration
+remain absent after integration. Include the Windows namespace in the owning
+graph and require the separately installed Windows suite, its test-only
+notebook contribution and its production bootstrap process fixture.
+
+F: record checkpoint 7 and the authorized A merge in aggregate documentation,
+including MHP 1.3 replacement, unchanged support status and lead-owned full
+quality. Regenerate the host API record after all Windows continuation
+checkpoints. The exact Node/runtime distribution still blocks installed
+Visual Studio assembly. Help catalog/reference machinery remains absent.
+
 Final plain `npm.cmd run deadcode` exits 1 with six real Windows execution
 entries missing from A's graph: `bootstrapFixture.mjs`, `callHierarchyPaths.test.ts`,
 `installedVscode.test.mjs`, `terminalHostServices.test.ts`, `vitest.config.mjs`

@@ -16,6 +16,37 @@ namespace MuseSpark.VisualStudio.Test
   public sealed class PanelChannelTests
   {
     [TestMethod]
+    public async Task PresentationRelayUsesItsOwnReadyReloadAndPayloadVocabulary()
+    {
+      using (var output = new StringWriter())
+      using (var peer = new MhpPeer(SchemaContract.Load(), new Host(), output))
+      {
+        await ReadyAsync(peer, output);
+        foreach (var kind in new[] { "plans", "manager", "roles", "traffic", "diff", "walkthrough" })
+          using (var channel = new PanelChannel(peer, SchemaContract.Load(), "surface", "session", kind))
+          {
+            Assert.ThrowsException<MhpException>(() => channel.ParseWebviewMessage("{\"type\":\"ready\"}"));
+            Assert.ThrowsException<MhpException>(() => channel.ParseRuntimeMessage(new JObject { ["type"] = "notice", ["level"] = "warning", ["text"] = "fixture" }));
+            await channel.OpenAsync();
+            await channel.PostAsync(channel.ParseWebviewMessage("{\"type\":\"presentationReady\"}"), CancellationToken.None);
+            Assert.AreEqual("1.3", Last(output).Value<string>("mhp"));
+            await channel.ReloadAsync();
+            Assert.AreEqual("presentationReady", Last(output)["stateRequest"]?.Value<string>("type"));
+            SchemaContract.Load().ValidatePanel(Last(output), "lifecycle");
+          }
+        using (var chat = new PanelChannel(peer, SchemaContract.Load(), "chat", "session", "chat"))
+          Assert.ThrowsException<MhpException>(() => chat.ParseWebviewMessage("{\"type\":\"presentationReady\"}"));
+      }
+    }
+
+    [TestMethod]
+    public void RefusesReplacedPanelWireVersionBeforeDelivery()
+    {
+      var frame = Envelope(1); frame["mhp"] = "1.2";
+      Assert.ThrowsException<MhpException>(() => SchemaContract.Load().ValidatePanel(frame, "envelope"));
+    }
+
+    [TestMethod]
     public void FrozenPanelDiscriminatorsRejectUnknownChatVariants()
     {
       var contract = SchemaContract.Load();
@@ -41,13 +72,13 @@ namespace MuseSpark.VisualStudio.Test
         ["folders"] = new JArray(new JObject { ["uri"] = "file:///C:/repo/", ["name"] = "repo" }),
         ["trusted"] = false
       }, CancellationToken.None);
-      var result = new JObject { ["jsonrpc"] = "2.0", ["id"] = Last(output)["id"], ["result"] = new JObject { ["protocolVersion"] = "mhp/1.2.0", ["capabilities"] = new JArray("lifecycle", "settings", "storage") } };
+      var result = new JObject { ["jsonrpc"] = "2.0", ["id"] = Last(output)["id"], ["result"] = new JObject { ["protocolVersion"] = "mhp/1.3.0", ["capabilities"] = new JArray("lifecycle", "settings", "storage") } };
       await peer.ReceiveAsync(result.ToString(Formatting.None));
       await initialization;
     }
     private static JObject Envelope(long sequence, string surface = "surface", string direction = "toPanel") => new JObject
     {
-      ["mhp"] = "1.2",
+      ["mhp"] = "1.3",
       ["kind"] = "panel",
       ["surface"] = surface,
       ["direction"] = direction,

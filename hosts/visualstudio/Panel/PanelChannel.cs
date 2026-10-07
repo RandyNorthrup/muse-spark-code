@@ -23,6 +23,7 @@ namespace MuseSpark.VisualStudio.Panel
     private bool disposed;
     public string SurfaceId => binding.Value<string>("surface") ?? throw Invalid();
     public string SurfaceKind => binding.Value<string>("surfaceKind") ?? throw Invalid();
+    private string ReadyType => SurfaceKind == "tasks" ? "tasksReady" : SchemaContract.IsPresentationSurface(SurfaceKind) ? "presentationReady" : SurfaceKind == "usage" ? "readUsage" : "ready";
     public event EventHandler<JToken>? MessageReceived;
 
     public const string Bootstrap = @"(() => {
@@ -81,7 +82,7 @@ namespace MuseSpark.VisualStudio.Panel
         if (disposed) throw new MhpException("cancelled", "MHP_SURFACE_CLOSED");
         ready = false;
         var frame = LifecycleFrame("reloaded");
-        frame["stateRequest"] = SurfaceKind == "whatsNew" ? JValue.CreateNull() : new JObject { ["type"] = SurfaceKind == "tasks" ? "tasksReady" : "ready" };
+        frame["stateRequest"] = SurfaceKind == "whatsNew" ? JValue.CreateNull() : new JObject { ["type"] = ReadyType };
         await peer.PostPanelAsync(frame).ConfigureAwait(false);
       }
       finally { sending.Release(); }
@@ -109,14 +110,14 @@ namespace MuseSpark.VisualStudio.Panel
         cancellation.ThrowIfCancellationRequested();
         if (!ready)
         {
-          if (message.Value<string>("type") != (SurfaceKind == "tasks" ? "tasksReady" : "ready")) throw Invalid();
+          if (message.Value<string>("type") != ReadyType) throw Invalid();
           await LifecycleAsync("ready").ConfigureAwait(false);
           ready = true;
           hasBeenReady = true;
         }
         var envelope = new JObject
         {
-          ["mhp"] = "1.2",
+          ["mhp"] = "1.3",
           ["kind"] = "panel",
           ["direction"] = "toHost",
           ["surface"] = SurfaceId,
@@ -145,7 +146,7 @@ namespace MuseSpark.VisualStudio.Panel
     private JObject LifecycleFrame(string value)
     {
       var frame = (JObject)binding.DeepClone();
-      frame["mhp"] = "1.2"; frame["kind"] = "surface"; frame["event"] = value;
+      frame["mhp"] = "1.3"; frame["kind"] = "surface"; frame["event"] = value;
       return frame;
     }
     private Task LifecycleAsync(string value) => peer.PostPanelAsync(LifecycleFrame(value));

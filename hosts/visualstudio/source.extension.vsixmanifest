@@ -3,7 +3,7 @@
   <Metadata>
     <Identity Id="MuseSparkCode.VisualStudio" Version="0.13.0" Language="en-US" Publisher="RandyNorthrup" />
     <DisplayName>Muse Spark Code (Unofficial)</DisplayName>
-    <Description xml:space="preserve">Muse Spark Code (Unofficial): Visual Studio / mhp/1.2.0</Description>
+    <Description xml:space="preserve">Muse Spark Code (Unofficial): Visual Studio / mhp/1.3.0</Description>
     <License>LICENSE</License>
   </Metadata>
   <Installation>

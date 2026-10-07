@@ -28,7 +28,7 @@ if (process.argv.includes('--child')) {
     const reply = JSON.parse(line)
     if (reply.method === 'initialize') {
       process.stdout.write(
-        `${JSON.stringify({ jsonrpc: '2.0', id: reply.id, result: { protocolVersion: 'mhp/1.2.0', capabilities: ['lifecycle'] } })}\n`,
+        `${JSON.stringify({ jsonrpc: '2.0', id: reply.id, result: { protocolVersion: 'mhp/1.3.0', capabilities: ['lifecycle'] } })}\n`,
       )
       send('documents/list', {})
     } else if (reply.id === 1) writeFileSync(marker, JSON.stringify(reply))

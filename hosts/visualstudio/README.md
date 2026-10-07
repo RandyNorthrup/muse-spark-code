@@ -4,7 +4,7 @@ This is the M104c in-process VSSDK host for Visual Studio 2022 and 2026.
 It targets .NET Framework 4.8 and embeds the shared React bundle in WPF
 WebView2. The status is **Prototype, qualification pending**.
 
-The reviewed MHP 1.2 contract is
+The reviewed MHP 1.3 contract is
 [`mhp-v1.1.schema.json`](../../src/shared/hostApi/mhp-v1.1.schema.json), consumed
 directly by the C# validator (the filename is retained from the replaced contract).
 The editor initiates initialization with its installed version, display language,

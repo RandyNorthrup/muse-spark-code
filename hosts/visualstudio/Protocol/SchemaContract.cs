@@ -11,7 +11,7 @@ namespace MuseSpark.VisualStudio.Protocol
   // Validate the committed export itself: no hand-maintained copy of wire types.
   public sealed class SchemaContract
   {
-    // MHP 1.2's panel envelopes carry attachments; the frozen byte cap is authoritative.
+    // MHP 1.3's panel envelopes carry attachments; the frozen byte cap is authoritative.
     public const int MaximumFrameChars = 16777216;
     public const int MaximumJsonDepth = 64;
     private static readonly TimeSpan PatternTimeout = TimeSpan.FromSeconds(1);
@@ -55,12 +55,19 @@ namespace MuseSpark.VisualStudio.Protocol
     {
       var envelope = Export["panel"]?["envelope"]?["oneOf"] as JArray ?? throw Invalid();
       var rules = envelope.Single(s => s["properties"]?["direction"]?.Value<string>("const") == direction)["properties"]?["payload"] ?? throw Invalid();
-      Validate(payload, rules);
-      var type = payload.Value<string>("type") ?? throw Invalid();
-      var tasks = type == "tasksReady" || type == "moveTasksToWindow" || type == "tasksState";
-      var news = type == "openLink" || type == "tryIt" || type == "hideOnUpdate";
-      if ((surfaceKind == "tasks") != tasks || (surfaceKind == "whatsNew") != news) throw Invalid();
+      var groups = rules["anyOf"] as JArray ?? throw Invalid();
+      // These group positions are the frozen export's shared chat/tasks/news/presentation unions.
+      var group = surfaceKind == "tasks" ? 1 : 0;
+      if (IsPresentationSurface(surfaceKind)) group = direction == "toHost" ? 3 : 2;
+      if (surfaceKind == "whatsNew")
+      {
+        if (direction != "toHost") throw Invalid();
+        group = 2;
+      }
+      Validate(payload, groups[group]);
     }
+
+    public static bool IsPresentationSurface(string kind) => kind == "plans" || kind == "manager" || kind == "roles" || kind == "traffic" || kind == "diff" || kind == "walkthrough";
 
     public static void Validate(JToken value, JToken schema) { Check(value, schema, schema); }
 
