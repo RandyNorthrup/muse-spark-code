@@ -2394,6 +2394,9 @@
     "removeConfirm": "{account}을(를) 제거할까요? 저장된 자격 증명이 삭제되고 로그인 권한이 철회됩니다.",
     "requestCount": {
       "other": "요청 {count}회"
-    }
+    },
+    "placementConflict": "{device}에 이미 {provider} 계정이 있습니다. 다른 기기를 선택하거나 onePerDevicePerProvider를 끄세요.",
+    "sendToDevice": "{device}(으)로 보내기",
+    "routeUnavailable": "선택한 기기에 사용 가능한 계정이 없거나 작업 전달 권한이 없습니다."
   }
 }

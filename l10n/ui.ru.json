@@ -2679,6 +2679,9 @@
       "few": "{count} запроса",
       "many": "{count} запросов",
       "other": "{count} запроса"
-    }
+    },
+    "placementConflict": "На устройстве {device} уже есть учётная запись {provider}. Выберите другое устройство или отключите onePerDevicePerProvider.",
+    "sendToDevice": "Отправить на {device}",
+    "routeUnavailable": "На выбранном устройстве нет доступной учётной записи или разрешения на перенаправление работы."
   }
 }

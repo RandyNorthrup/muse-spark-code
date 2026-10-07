@@ -2394,6 +2394,9 @@
     "removeConfirm": "移除 {account}？其已儲存的認證將被刪除，登入授權將被撤銷。",
     "requestCount": {
       "other": "{count} 次請求"
-    }
+    },
+    "placementConflict": "{device} 上已有 {provider} 的帳戶。請選擇其他裝置或關閉 onePerDevicePerProvider。",
+    "sendToDevice": "傳送至 {device}",
+    "routeUnavailable": "所選裝置沒有可用帳戶或沒有接收轉送工作的權限。"
   }
 }

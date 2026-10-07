@@ -2584,6 +2584,9 @@
       "one": "{count} requête",
       "many": "{count} requêtes",
       "other": "{count} requêtes"
-    }
+    },
+    "placementConflict": "{provider} dispose déjà d’un compte sur {device}. Choisissez un autre appareil ou désactivez onePerDevicePerProvider.",
+    "sendToDevice": "Envoyer à {device}",
+    "routeUnavailable": "L’appareil sélectionné n’a aucun compte disponible ou n’autorise pas l’acheminement du travail."
   }
 }

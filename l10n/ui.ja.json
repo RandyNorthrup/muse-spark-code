@@ -2394,6 +2394,9 @@
     "removeConfirm": "{account} を削除しますか？保存された認証情報が削除され、ログインが取り消されます。",
     "requestCount": {
       "other": "{count} 件のリクエスト"
-    }
+    },
+    "placementConflict": "{device} にはすでに {provider} のアカウントがあります。別のデバイスを選択するか、onePerDevicePerProvider をオフにしてください。",
+    "sendToDevice": "{device} に送信",
+    "routeUnavailable": "選択したデバイスには利用可能なアカウントがないか、作業の転送が許可されていません。"
   }
 }

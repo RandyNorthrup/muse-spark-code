@@ -2679,6 +2679,9 @@
       "few": "{count} żądania",
       "many": "{count} żądań",
       "other": "{count} żądania"
-    }
+    },
+    "placementConflict": "Na urządzeniu {device} jest już konto dostawcy {provider}. Wybierz inne urządzenie lub wyłącz onePerDevicePerProvider.",
+    "sendToDevice": "Wyślij do {device}",
+    "routeUnavailable": "Wybrane urządzenie nie ma dostępnego konta lub uprawnienia do przyjmowania pracy."
   }
 }

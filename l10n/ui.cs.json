@@ -2679,6 +2679,9 @@
       "few": "{count} požadavky",
       "many": "{count} požadavku",
       "other": "{count} požadavků"
-    }
+    },
+    "placementConflict": "{provider} už má na zařízení {device} účet. Vyberte jiné zařízení nebo vypněte onePerDevicePerProvider.",
+    "sendToDevice": "Odeslat na {device}",
+    "routeUnavailable": "Vybrané zařízení nemá dostupný účet nebo oprávnění ke směrování."
   }
 }

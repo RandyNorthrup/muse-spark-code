@@ -2584,6 +2584,9 @@
       "one": "{count} solicitação",
       "many": "{count} solicitações",
       "other": "{count} solicitações"
-    }
+    },
+    "placementConflict": "{provider} já tem uma conta em {device}. Escolha outro dispositivo ou desative onePerDevicePerProvider.",
+    "sendToDevice": "Enviar para {device}",
+    "routeUnavailable": "O dispositivo selecionado não tem uma conta disponível ou não permite o encaminhamento de trabalho."
   }
 }

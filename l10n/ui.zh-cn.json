@@ -2394,6 +2394,9 @@
     "removeConfirm": "移除 {account}？其已存储的凭据将被删除，登录授权将被撤销。",
     "requestCount": {
       "other": "{count} 次请求"
-    }
+    },
+    "placementConflict": "{device} 上已有 {provider} 的帐户。请选择其他设备或关闭 onePerDevicePerProvider。",
+    "sendToDevice": "发送到 {device}",
+    "routeUnavailable": "所选设备没有可用帐户或没有接收转发工作的权限。"
   }
 }
