@@ -79,6 +79,7 @@ function lintShell(isFixed: () => boolean = () => false): (command: string) => S
 }
 
 interface SetupOptions {
+  readonly checkRuns?: NonNullable<VerifyHooks['checkRuns']>
   readonly files?: Record<string, string>
   readonly checks?: readonly CheckCommandSetting[]
   readonly isDiagnosticsOn?: boolean
@@ -165,6 +166,7 @@ function setup(options: SetupOptions = {}) {
   const diagnosticsCalls: (readonly EditedFile[])[] = []
   const formatCalls: string[] = []
   const verify: VerifyHooks = {
+    ...(options.checkRuns !== undefined && { checkRuns: options.checkRuns }),
     isDiagnosticsOn: () => options.isDiagnosticsOn ?? true,
     checkCommands: () => options.checks ?? [],
     isFormatOnEdit: () => options.isFormatOnEdit ?? false,
@@ -1079,7 +1081,107 @@ describe('an automatic check takes the shell tool’s permission path, per mode'
   })
 })
 
+async function checkWithJournal(checkRuns: NonNullable<VerifyHooks['checkRuns']>) {
+  const t = setup({ checks: [TEST], isDiagnosticsOn: false, shell: () => passed(), checkRuns })
+  const { events, turn } = await start(t, 'allowAll')
+  t.api.script({ calls: [RUN_CHECKS] }, { text: 'ok' })
+  await turn()
+  return { ...t, events }
+}
+
 describe('run_checks (the model’s own call)', () => {
+  it('does not invent a commit or journal then_run when its commit source is unavailable', async () => {
+    const append = vi.fn<NonNullable<VerifyHooks['checkRuns']>['append']>(() => Promise.resolve())
+    const commit = vi.fn(() => Promise.reject(new Error('private-commit-canary')))
+    const t = await checkWithJournal({ commit, append })
+    expect(completedRows(t.events, 'run_checks')[0]?.verifySummary?.checks).toEqual([
+      { name: 'test', outcome: 'passed' },
+    ])
+    expect(append).not.toHaveBeenCalled()
+    expect(logLines(t.log).join('\n')).not.toContain('private-commit-canary')
+    await t.host.close()
+    commit.mockClear()
+    const thenRun = setup({
+      isDiagnosticsOn: false,
+      shell: () => passed(),
+      checkRuns: { commit, append },
+    })
+    const next = await start(thenRun, 'allowAll')
+    thenRun.api.script({ calls: [editCall('1', '2', 'npm test')] }, { text: 'ok' })
+    await next.turn()
+    expect(commit).not.toHaveBeenCalled()
+    expect(append).not.toHaveBeenCalled()
+    await thenRun.host.close()
+  })
+  it('journals each executed check with pre-run HEAD and timing, excluding command and output', async () => {
+    const append = vi.fn<NonNullable<VerifyHooks['checkRuns']>['append']>(() => Promise.resolve())
+    const commit = vi.fn(() => Promise.resolve('a'.repeat(40)))
+    const t = setup({
+      checks: [TEST],
+      isDiagnosticsOn: false,
+      shell: () => {
+        expect(commit).toHaveBeenCalledOnce()
+        return passed('private-output-canary')
+      },
+      checkRuns: { commit, append },
+    })
+    const { turn } = await start(t, 'allowAll')
+    t.api.script({ calls: [RUN_CHECKS] }, { text: 'ok' })
+    await turn()
+    expect(append).toHaveBeenCalledOnce()
+    expect(append.mock.calls[0]![0]).toEqual({
+      check: 'test',
+      outcome: 'passed',
+      durationMs: 1000,
+      commit: 'a'.repeat(40),
+      at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+    })
+    expect(JSON.stringify(append.mock.calls)).not.toContain(TEST.command)
+    expect(JSON.stringify(append.mock.calls)).not.toContain('private-output-canary')
+    await t.host.close()
+  })
+
+  it('maps timeout to failed evidence and never records a declined check', async () => {
+    const append = vi.fn<NonNullable<VerifyHooks['checkRuns']>['append']>(() => Promise.resolve())
+    const commit = vi.fn(() => Promise.resolve('a'.repeat(40)))
+    const timed = setup({
+      checks: [TEST],
+      isDiagnosticsOn: false,
+      shell: () => ({ ...passed(), isTimedOut: true }),
+      checkRuns: { commit, append },
+    })
+    const running = await start(timed, 'allowAll')
+    timed.api.script({ calls: [RUN_CHECKS] }, { text: 'ok' })
+    await running.turn()
+    expect(append).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'failed' }))
+    append.mockClear()
+    commit.mockClear()
+    const declined = setup({
+      checks: [TEST],
+      isDiagnosticsOn: false,
+      checkRuns: { commit, append },
+    })
+    const denied = await start(declined, 'onRequest', () => 'abort')
+    declined.api.script({ calls: [RUN_CHECKS] }, { text: 'ok' })
+    await denied.turn()
+    expect(append).not.toHaveBeenCalled()
+    expect(commit).not.toHaveBeenCalled()
+    await timed.host.close()
+    await declined.host.close()
+  })
+
+  it('keeps check results intact when journal persistence fails and logs no failure text', async () => {
+    const t = await checkWithJournal({
+      commit: () => Promise.resolve('a'.repeat(40)),
+      append: () => Promise.reject(new Error('private-journal-canary')),
+    })
+    expect(completedRows(t.events, 'run_checks')[0]?.verifySummary?.checks).toEqual([
+      { name: 'test', outcome: 'passed' },
+    ])
+    expect(logLines(t.log).join('\n')).not.toContain('private-journal-canary')
+    await t.host.close()
+  })
+
   it('is offered with the checks named, and runs the ones asked over the turn’s edits', async () => {
     const t = setup({
       files: { 'src/a.ts': 'const a = 1\n', 'src/b.ts': 'const b = 1\n' },
@@ -1956,6 +2058,30 @@ describe('acts on the file the edit wrote, as it left it', () => {
       ],
     ])
     expect(t.io.shellCalls.map((call) => call.command)).toEqual(["npm run lint -- 'real/a.ts'"])
+  })
+
+  it('refuses a folder swapped to an outside link during journal HEAD capture', async () => {
+    const links: Record<string, string> = {}
+    const io = memoryToolIo({ 'src/a.ts': 'const a = 1\n' }, ROOT, undefined, links)
+    const append = vi.fn(() => Promise.resolve())
+    const t = setup({
+      io,
+      checks: [LINT],
+      checkRuns: {
+        commit: () => {
+          links['src'] = '/elsewhere/src'
+          return Promise.resolve('a'.repeat(40))
+        },
+        append,
+      },
+    })
+    const { events } = await editOnce(t)
+    expect(t.io.shellCalls).toEqual([])
+    expect(append).not.toHaveBeenCalled()
+    expect(completedRows(events, 'verify_edits')[0]?.verifySummary?.checks).toEqual([
+      { name: 'lint', outcome: 'notRun', skip: 'changed' },
+    ])
+    await t.host.close()
   })
 
   it('skips a check when a checked file no longer is where confinement found it', async () => {

@@ -28137,6 +28137,24 @@ M110, and fake providers for every adapter.
   README, CHANGELOG and feature-reference wording remain W's documented
   handoff; the pure core fixes apply to every editor/runtime.
 
+- **Lane H review RVM113H2 corrections (2026-10-06).** Both P2s are
+  in scope. Replace stale unlink with a random-token compare-and-delete
+  lease: rename to a unique tombstone, validate its token, delete only the
+  proven dead identity, and restore a displaced live lease without replacing
+  another lock. Pending tombstones prevent admission. Unknown/incomplete
+  records provide no authority to recover. Retry own-process probing within
+  a bound, cache success only, and leave failures recoverable on the next
+  transaction. Add controlled races, journal evidence retention, an
+  interleaving model and byte-restored red drills before certification.
+
+- **Lane H review RVM113H corrections (2026-10-06).** Fix all six P2
+  findings within H's existing files: capture HEAD before the final confinement
+  guard, recover writer locks using PID and OS process start time, wait for
+  contention with a named bounded backoff, enforce retained history on reads
+  and retry failed pruning before subsequent writes, namespace diff row
+  identities, and retain checks by append sequence. Add failing regressions
+  and byte-exact red drills for each; no dependency or guard weakening.
+
 - **Lane 0's contracts,** frozen before the other lanes start:
   - **K review RVM113K corrections (2026-10-06).** Fix all seven P2
     findings within K's collectors and tests: unique repeated checklist keys;
@@ -29270,6 +29288,14 @@ localization, host API, reference/schema freshness and production build on
 Kubuntu. Certify every repaired guard with a named failing test and SHA-256
 restoration. Existing unused manifest keys, host API freshness and reporting
 bundle registration remain the named W handoffs; no gate is weakened.
+
+- **M113-H2 lane certification (2026-10-06).** The lane brief prohibits
+  the full quality run on this shared rig; the lead owns fleet quality.
+  H runs scoped suites, typecheck, lint, format, deadcode, duplication,
+  localization, reference, host inventory and production build directly on
+  Kubuntu. The previously recorded seven unused manifest keys and generated
+  host inventory remain W integration handoffs, never suppressed or claimed
+  green; final command outcomes are in H's certification.
 
 **M113-L0-RVM113L02 bounded rig certification (2026-10-06).** The brief
 reserves aggregate quality for the lead. Run complete owned unit files with
@@ -31015,6 +31041,44 @@ before a repaired one loads (2026-09-30).
   manifest/docs/reference/build integration remain named handoffs rather than
   claims of shipped functionality. Evidence and exact-restoration drills:
   `docs/certification/m113-x-the-runtime,-acp,-the-companion,-mhp.md`.
+
+- **M113-H-review-RVM113H2 (2026-10-06).** Both P2 findings are fixed:
+  O_EXCL leases hold PID, OS birth identity and a random token. Recovery
+  renames to a unique tombstone and deletes only the observed stale token;
+  a different token is restored. Pending tombstones block admission and
+  survive recoverer crashes. Native identity is checked again after the scan,
+  so restoring a live lease cannot admit a displaced creator. Release uses
+  the same compare-and-delete path.
+  Own-process probes retry within the existing bound, cache success only and
+  permit a later transaction after failure. Controlled races preserve both
+  real journal appends; the two-writer/two-recoverer interleaving model
+  includes crashes at every writer boundary and both recovery orders.
+  Named byte-restored red drills are in H's certification. No P1/P3 was
+  reported; no review finding is deferred.
+- **M113-H-unknown-owner-lease (2026-10-06).** A crash during initial
+  O_EXCL record creation can leave an empty or malformed lease. Its exact
+  process identity is unknowable, so it cannot safely be declared stale.
+  Writes fail explicitly within the unchanged contention bound, preserving
+  evidence and excluding a second writer. A paused creator is retained and
+  can finish. An actually abandoned unknown-owner file needs manual repair
+  after all relevant writers stop. Follow-up: W documents this recovery
+  limitation; any automatic repair needs a separately reviewed atomic
+  publication design. This is an availability residual, not deletion
+  authority inferred from elapsed time. No guard or threshold is widened.
+
+- **M113-H-review-RVM113H (2026-10-06).** All six P2 findings are fixed,
+  with no review residual. HEAD capture precedes the final path guard;
+  writer ownership records PID and OS process start time. The RVM113H2 entry
+  supersedes its stale/unfinished-owner recovery certification. Contention uses
+  a separate two-second monotonic wait with bounded backoff and an explicit
+  failure on exhaustion. History prunes before publishing, refuses an
+  over-cap read and retries pruning on the next write. Diff metadata and
+  ordinary cells have separate identities; check retention follows append
+  sequence across clock corrections. Tests and byte-exact red drills are in
+  `docs/certification/m113-h-history,-diff-and-the-check-run-journal-(b).md`.
+  Existing W-owned codec/surface/bundle/documentation bindings and aggregate
+  fleet gates remain integration handoffs; this lane changes no command,
+  setting, dependency, wire contract, credential policy or guard threshold.
 
 - **M113-L0-review-RVM113L02 (2026-10-06).** The P2 comparison-capacity
   finding is fixed with no review residuals. Capacity is derived from the

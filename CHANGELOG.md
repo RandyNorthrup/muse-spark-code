@@ -115,6 +115,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Report storage compares lease tokens during tombstone recovery to preserve
+  live writer leases and concurrent journal evidence. It retries transient
+  process-identity probes and permits later saves after a failed probe
+  without restarting the host.
+
+- Report checks validate file confinement after capturing HEAD. Report diffs
+  keep metadata identities separate from ordinary cells, and check journals
+  retain completed runs in append order through clock corrections. History
+  writers recover abandoned locks, wait through normal contention, and keep
+  pruning failures from adding artifacts beyond the retention cap.
+
 - The release-artifact check validates complete ACP help, including its reference
   hint, in English and every installed language using the CLI's shared formatter.
 
