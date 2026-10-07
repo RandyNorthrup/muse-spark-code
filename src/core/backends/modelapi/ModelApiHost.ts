@@ -5291,6 +5291,19 @@ export class ModelApiSession implements AgentSession {
    * user messages (image-understanding), and a message there between two
    * of a response's outputs would split them.
    */
+  /** Queues one user message after the round's outputs and tracks its media. */
+  private queueReadFileReplay(
+    turnId: string,
+    content: InputContentPart[],
+    pending: readonly PendingReadFile[],
+  ): void {
+    const replay: ReplayItem = { turnId, item: { type: 'message', role: 'user', content } }
+    this.replay.push(replay)
+    if (pending.length > 0) {
+      this.readFileMessages.set(replay, pending)
+    }
+  }
+
   private appendReadFiles(turnId: string, isRoundComplete: boolean): void {
     const files = this.readFiles.splice(0)
     if (files.length === 0) {
@@ -5315,11 +5328,7 @@ export class ModelApiSession implements AgentSession {
       })
       return [lead, sent]
     })
-    const replay: ReplayItem = { turnId, item: { type: 'message', role: 'user', content } }
-    this.replay.push(replay)
-    if (pending.length > 0) {
-      this.readFileMessages.set(replay, pending)
-    }
+    this.queueReadFileReplay(turnId, content, pending)
   }
 
   /**
@@ -5373,11 +5382,7 @@ export class ModelApiSession implements AgentSession {
       })
       return [lead, adopted]
     })
-    const replay: ReplayItem = { turnId, item: { type: 'message', role: 'user', content } }
-    this.replay.push(replay)
-    if (pending.length > 0) {
-      this.readFileMessages.set(replay, pending)
-    }
+    this.queueReadFileReplay(turnId, content, pending)
   }
 
   /** Only media present in a completed request has reached the model. */

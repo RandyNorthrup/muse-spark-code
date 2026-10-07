@@ -15856,6 +15856,16 @@ function mediaRig(bytes = videoFixture(), backendKind: 'museCode' | 'modelApi' =
   return { ...t, controller, files, port, load, read, close, bind }
 }
 
+function recordingPort() {
+  return {
+    l10n: fakeHostContext().l10n,
+    log: new FakeLogOutputChannel(),
+    isRemote: false,
+    maxSeconds: SCREEN_RECORDING_DEFAULT_MAX_SECONDS,
+    attach: vi.fn(() => Promise.resolve(false)),
+  }
+}
+
 describe('M105 E1 attachment handler', () => {
   it('adds a picked movie using host metadata and asks the picker for every media kind', async () => {
     const t = mediaRig(videoFixture({ brand: 'qt  ' }))
@@ -16060,13 +16070,7 @@ describe('M105 E1 attachment handler', () => {
   it('keeps recording command dependencies within the current live conversation', async () => {
     const t = mediaRig()
     expect(await t.controller.recordingCommandDeps()).toBeUndefined()
-    const recording = {
-      l10n: fakeHostContext().l10n,
-      log: new FakeLogOutputChannel(),
-      isRemote: false,
-      maxSeconds: SCREEN_RECORDING_DEFAULT_MAX_SECONDS,
-      attach: vi.fn(() => Promise.resolve(false)),
-    }
+    const recording = recordingPort()
     const { promise, resolve } = Promise.withResolvers<typeof recording>()
     const load = vi.fn(() => promise)
     const controller = new ConversationController({ ...t.deps, recordingCommandDeps: load })
@@ -16098,13 +16102,7 @@ describe('M105 E1 attachment handler', () => {
   it('cancels a tracked recording when its conversation clears or closes', async () => {
     for (const end of ['clear', 'dispose'] as const) {
       const t = mediaRig()
-      const recording = {
-        l10n: fakeHostContext().l10n,
-        log: new FakeLogOutputChannel(),
-        isRemote: false,
-        maxSeconds: SCREEN_RECORDING_DEFAULT_MAX_SECONDS,
-        attach: vi.fn(() => Promise.resolve(false)),
-      }
+      const recording = recordingPort()
       const controller = new ConversationController({
         ...t.deps,
         recordingCommandDeps: () => Promise.resolve(recording),
@@ -16125,13 +16123,7 @@ describe('M105 E1 attachment handler', () => {
 
   it('admits a recording preview as a flagged chip and drops its temp file with the chip', async () => {
     const t = mediaRig(videoFixture({ brand: 'qt  ' }))
-    const recording = {
-      l10n: fakeHostContext().l10n,
-      log: new FakeLogOutputChannel(),
-      isRemote: false,
-      maxSeconds: SCREEN_RECORDING_DEFAULT_MAX_SECONDS,
-      attach: vi.fn(() => Promise.resolve(false)),
-    }
+    const recording = recordingPort()
     const controller = new ConversationController({
       ...t.deps,
       files: t.files,
