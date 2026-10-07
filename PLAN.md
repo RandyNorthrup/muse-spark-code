@@ -18386,6 +18386,20 @@ numbers. Research: `docs/certification/m97-research.md`.
 
 ## 3. Open questions (need the owner)
 
+- **Q-CI0150W-RESIDUALS (2026-10-07):** the scoped Windows repairs pass
+  in full committed-clone shards, but the complete job set remains red.
+  Linux owns the clean-artifact and packaged-stdio fixture failures under
+  the round-3 common brief. Integration cannot resolve Microsoft's release
+  endpoint within the upstream 15-second deadline. Two dedicated browser
+  checks refuse startup as `unrecognized`; a focused deadline control
+  captures a valid startup and passes, so the failing startup's precise
+  contract difference is still unknown. The installed native keyring loads
+  but both the agent and a separate nonexistent-fixture lookup report an
+  unavailable store. Further capture and an OS-store diagnosis are needed
+  before changing either security boundary. Preserve all refusals and
+  deadlines; do not claim browser, credential-store, hosted W or release
+  certification. Exact failures are in the round-3 Windows train record.
+
 - **M97:** No owner step or design answer blocks this plan. Default header
   policy is optional; the report chooses no license or owner on the user's
   behalf. Delivery must prove Muse Code explanation confinement, each registry
@@ -18842,11 +18856,18 @@ disposal case is the regression guard; no assertion or timeout is relaxed.
 Record this native cancellation pitfall as G33 in the orchestration register,
 covered by M96's held-launch disposal guard and Windows cancellation write.
 
-- [ ] Reproduce owned failures and inspect round-2 Windows process priority.
-- [ ] Fix causes, prove regression guards fire, and commit with hooks.
-- [ ] Run every Windows job/matrix command in fresh committed clones, including
-      installed-package, pinned-browser and integration checks; remove clones.
-- [ ] Record each job's result under round 3 Windows in
+The dedicated pinned-browser job exposes two live startup-contract refusals
+and an unjoined observation rejection on Windows. Capture its actual pinned
+CDP startup frames to diagnose the refusals before any production change;
+preserve every version, command-line, blank-target, network-service, process,
+listener and cleanup assertion. No new retry, launch delay, timeout or skip.
+
+- [x] Attempt owned-failure reproductions and inspect round-2 Windows priority.
+- [x] Fix scoped causes, prove regression guards fire, and commit with hooks.
+- [x] Attempt every locally executable Windows job command in fresh committed
+      clones, including installed-package, pinned-browser and integration
+      checks; remove clones and record unavailable hosted W execution.
+- [x] Record each job's result under round 3 Windows in
       `docs/certification/train-0.15.0.md` and report exact remaining failures.
 
 ### CI0150C — Clean-checkout platform and logic CI repairs (2026-10-07, macmini)
@@ -40822,6 +40843,14 @@ retain the three-file cap. Early scoped commits can precede aggregate
 lane remain; every failure and final Windows job result is recorded without
 weakening gates, assertions or deadlines. A complete quality claim requires
 the actual aggregate to exit zero.
+
+The final implementation run at `2548f459` passes the static CI job and all
+scoped test files in four complete shards. Aggregate quality stays deferred:
+clean/package fixtures remain red, integration has an external release-lookup
+timeout, and dedicated browser/credential-store checks have the exact residuals
+listed in §3 and the train record. Original coverage thresholds are exceeded;
+the merge command still fails because it replays failed package suite setup.
+No gate, refusal, assertion, timeout, retry or skip is weakened to claim green.
 
 **FIX0150R scoped certification.** The rig brief requires complete owning test
 files in batches of at most three, with three clean `CI=true` repetitions and
