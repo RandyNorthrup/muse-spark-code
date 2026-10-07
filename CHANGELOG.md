@@ -9,7 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 - Redesign Eclipse session shutdown around display-owned native state and
   atomic cross-thread close admission. Cleanup failures are logged and isolated;
-  runtime-tree termination always runs. Window-menu opening scans all restored
+  runtime-tree termination always runs. Deferred view cleanup retains its logger
+  after plugin stop, and surface retirement survives a closed transport. Window-menu opening scans all restored
   views, replaces unbound and uncreated placeholders, and activates the owned chat.
   Descendant-cleanup tests distinguish startup, zombies and reaping. JetBrains
   native services use an options object and a separate UI collaborator; the

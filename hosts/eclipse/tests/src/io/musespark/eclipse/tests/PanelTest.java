@@ -53,6 +53,18 @@ public class PanelTest {
         assertThrows(IllegalStateException.class, () -> surface.receive(inbound(1), payload -> { throw new IllegalStateException("MHP_PANEL_BACKPRESSURE"); }));
         surface.receive(inbound(1));
     }
+    @Test public void transportFailureStillRetiresTheSurfaceAndRefusesReuse() throws Exception {
+        List<JsonObject> sent = new ArrayList<>(); boolean[] offline = {false};
+        PanelSurface surface = new PanelSurface(new Contract(), "surface", "session", "chat", frame -> {
+            if (offline[0]) throw new IllegalStateException("MHP_CLOSED"); sent.add(frame);
+        }, id -> 0, code -> fail(code));
+        surface.opened(); surface.ready(); surface.state(Json.object("draft", "x")); offline[0] = true;
+        assertEquals("MHP_CLOSED", assertThrows(IllegalStateException.class, () -> surface.close(0)).getMessage());
+        assertFalse("retirement cannot depend on a live transport", surface.isReady()); assertNull(surface.state());
+        surface.close(0);
+        assertThrows(IllegalStateException.class, () -> surface.post(Json.object("type", "ready")));
+        assertThrows(IllegalArgumentException.class, () -> surface.receive(inbound(1)));
+    }
     private static PanelSurface surface(String kind, List<JsonObject> sent) throws Exception { return new PanelSurface(new Contract(), "surface", "session", kind, sent::add, id -> 0, code -> fail(code)); }
     private static JsonObject inbound(long seq) { return Json.object("mhp", "1.3", "kind", "panel", "surface", "surface", "direction", "toPanel", "seq", seq, "payload", Json.object("type", "conversationCleared")); }
 }

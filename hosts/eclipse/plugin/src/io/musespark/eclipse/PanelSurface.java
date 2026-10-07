@@ -60,11 +60,12 @@ public final class PanelSurface {
     public synchronized void state(JsonElement value) { checkOpen(); contract.state(value); state = value.deepCopy(); }
     public synchronized void close(int browserDrops) {
         if (closed) return;
-        int count = browserDrops + purge.applyAsInt(id);
-        JsonObject frame = lifecycle("closed"); frame.addProperty("droppedMessages", count);
-        contract.panel("lifecycle", frame); send.accept(frame);
-        if (count != 0) log.accept("MHP_PANEL_DROPPED " + count);
-        closed = true; ready = false; state = null;
+        try {
+            int count = browserDrops + purge.applyAsInt(id);
+            JsonObject frame = lifecycle("closed"); frame.addProperty("droppedMessages", count);
+            contract.panel("lifecycle", frame); send.accept(frame);
+            if (count != 0) log.accept("MHP_PANEL_DROPPED " + count);
+        } finally { closed = true; ready = false; state = null; }
     }
     private void checkOpen() { if (closed) throw new IllegalStateException("MHP_PANEL_UNKNOWN_SURFACE"); }
     private JsonElement stateRequest() {

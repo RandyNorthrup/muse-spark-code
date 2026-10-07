@@ -205,6 +205,35 @@ public class SessionTest {
             session.close(); assertEquals("close is idempotent", 1, attempts.get());
         } finally { MusePlugin.get().getLog().removeLogListener(listener); uiField.set(session, original); original.close(); child.destroyForcibly(); }
     }
+    @Test public void nonUiCloseDisposesLiveViewsAfterThePluginStops() throws Exception {
+        session.uiRequest("surfaces/open", Json.object("kind", "chat", "placement", "side", "sessionId", "closing-owned"));
+        MuseView view = views().get(0); pump(view.binding()::isReady);
+        java.lang.reflect.Field browserField = MuseView.class.getDeclaredField("browser"); browserField.setAccessible(true);
+        org.eclipse.swt.browser.Browser browser = (org.eclipse.swt.browser.Browser) browserField.get(view);
+        java.util.concurrent.atomic.AtomicReference<Throwable> failure = new java.util.concurrent.atomic.AtomicReference<>();
+        Thread closer = new Thread(() -> { try { session.close(); } catch (Throwable ex) { failure.set(ex); } });
+        closer.start(); closer.join(TimeUnit.SECONDS.toMillis(5)); assertFalse("non-UI close must finish without the display", closer.isAlive());
+        assertNull(failure.get()); assertFalse(runtime.isAlive());
+        MusePlugin plugin = MusePlugin.get(); java.lang.reflect.Field singleton = MusePlugin.class.getDeclaredField("instance"); singleton.setAccessible(true);
+        List<String> logged = new CopyOnWriteArrayList<>(); org.eclipse.core.runtime.ILogListener listener = (status, source) -> logged.add(status.getMessage()); plugin.getLog().addLogListener(listener);
+        try {
+            singleton.set(null, null);
+            java.lang.reflect.Method reload = MuseView.class.getDeclaredMethod("loadPage"); reload.setAccessible(true); reload.invoke(view);
+            pump(() -> views().isEmpty());
+            assertTrue("deferred native cleanup must dispose the browser", browser.isDisposed());
+            assertFalse(view.binding().isReady());
+            assertTrue("transport cleanup failure must use the retained logger", logged.contains("MHP_SURFACE_FAILURE"));
+            assertFalse("view cleanup must finish after plugin stop", logged.contains("MHP_SURFACE_CLEANUP_FAILURE"));
+        } finally { singleton.set(null, plugin); plugin.getLog().removeLogListener(listener); }
+    }
+    @Test public void pluginStopAdmissionRefusesSessionAcquisition() throws Exception {
+        MusePlugin plugin = MusePlugin.get(); java.lang.reflect.Field stopping = MusePlugin.class.getDeclaredField("stopping"); stopping.setAccessible(true);
+        synchronized (plugin) {
+            stopping.setBoolean(plugin, true);
+            try { assertEquals("MHP_CLOSED", assertThrows(IllegalStateException.class, () -> plugin.session(session.window)).getMessage()); }
+            finally { stopping.setBoolean(plugin, false); }
+        }
+    }
     @Test public void nonUiNativeRequestsAreRefusedBeforeTouchingState() throws Exception {
         java.util.concurrent.atomic.AtomicReference<Throwable> failure = new java.util.concurrent.atomic.AtomicReference<>();
         Thread caller = new Thread(() -> { try { session.uiRequest("workspace/trust", new JsonObject()); } catch (Throwable ex) { failure.set(ex); } });

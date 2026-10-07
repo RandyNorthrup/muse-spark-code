@@ -19184,7 +19184,10 @@ the display owns analysis, command and native UI state; one documented lock
 owns cross-thread admission, surfaces and queued browser deliveries. Closing
 claims ownership once, dispatches native cleanup to its owner without waiting
 on the OSGi thread, isolates cleanup failures and always tears down the captured
-runtime tree in finally. Regressions inject an early cleanup failure and race
+runtime tree in finally. Surface retirement remains final when its transport
+has closed; native view logging retains its plugin logger through deferred cleanup.
+The locked plugin registry refuses new acquisitions once stop claims it.
+Regressions inject an early cleanup failure and race
 non-UI close with settled-request mutation. Replace every restored placeholder
 before activating the owned chat view. Repair the descendant receipt to distinguish
 startup, zombies and reaping, repeat it 20 times and remove descendant killing
