@@ -8,6 +8,7 @@ import { type AcpAgentDeps, type BackendReadiness, createAcpAgent } from '../../
 import * as questionFactories from '../../src/acp/questionDeferralEntry'
 import { AcpPaidUse } from '../../src/acp/paid'
 import type { AcpQuestionRegistryFactory } from '../../src/acp/questionDeferral'
+import { parsePlaybookCommand, runPlaybookCommand } from '../../src/runtime/playbook/command'
 import type { AgentHost, AgentSession, ModelSummary } from '../../src/core/agent/agentBackend'
 import type {
   AgentEvent,
@@ -97,7 +98,10 @@ function harness(options: HarnessOptions = {}): Harness {
     log,
   })
   const deps: AcpAgentDeps = {
-    ...(options.playbookFor !== undefined && { playbookFor: options.playbookFor }),
+    ...(options.playbookFor !== undefined && {
+      playbookFor: options.playbookFor,
+      playbookBundle: () => ({ parsePlaybookCommand, runPlaybookCommand }),
+    }),
     backend: {
       kind,
       readiness: (isRecheck) => {

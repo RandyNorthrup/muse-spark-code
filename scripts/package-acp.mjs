@@ -32,6 +32,7 @@ const STAGE = path.join('dist', 'acp-package')
 const BUNDLES = [
   'acp.js',
   'acpQuestions.js',
+  'acpPlaybook.js',
   'runtimeQuestions.js',
   'questionNotes.js',
   'modelApi.js',

@@ -13,7 +13,7 @@
 import { randomUUID } from 'node:crypto'
 import { compactReference } from '../shared/cliCommands'
 import path from 'node:path'
-import { acpPlaybook } from './playbook'
+import { type AcpPlaybookBundle, acpPlaybook } from './playbook'
 import type { PlaybookSurfacePort } from '../runtime/playbook/command'
 import {
   agent as acpAgent,
@@ -141,6 +141,8 @@ export interface SignInMethod {
 export interface AcpAgentDeps {
   /** I binds P's durable, authorized workspace/team adapter. */
   readonly playbookFor?: (cwd: string, sessionId: string) => PlaybookSurfacePort
+  /** I binds P's local /playbook parsing and rendering (the journal bundle). */
+  readonly playbookBundle?: () => AcpPlaybookBundle
   readonly backend: AcpBackend
   readonly version: string
   readonly options: AcpAgentOptions
@@ -979,7 +981,15 @@ class AcpSession {
     let queued: readonly TurnPart[]
     let local: Awaited<ReturnType<typeof acpPlaybook>>
     try {
-      local = await acpPlaybook(blocks, () => this.deps.playbookFor?.(this.cwd, this.sessionId))
+      local = await acpPlaybook(
+        blocks,
+        () => this.deps.playbookFor?.(this.cwd, this.sessionId),
+        () => {
+          const bundle = this.deps.playbookBundle?.()
+          if (bundle === undefined) throw new Error(UI_TEXT.playbookUnavailable)
+          return bundle
+        },
+      )
       if (local === undefined) await this.announceCommands()
       queued = (await this.questionRegistry?.queuedParts()) ?? []
     } finally {

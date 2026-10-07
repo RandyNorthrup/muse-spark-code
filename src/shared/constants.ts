@@ -3250,6 +3250,9 @@ export const QUESTION_OUTCOME_DEFERRED = 'deferred'
 export const QUESTION_DEFER_DEFAULT_SECONDS = 60
 export const ACP_QUESTIONS_BUNDLE_FILE = 'acpQuestions.js'
 export const RUNTIME_QUESTIONS_BUNDLE_FILE = 'runtimeQuestions.js'
+// /playbook's journal-backed surface (M116): the ACP agent and the CLI load
+// it on first use, so the engine bundle carries none of the policy.
+export const PLAYBOOK_BUNDLE_FILE = 'acpPlaybook.js'
 export const QUESTION_DEFER_MIN_SECONDS = 10
 export const QUESTION_DEFER_MAX_SECONDS = 3600
 export const QUESTION_DEFER_SETTING = 'questions.deferAfterSeconds'

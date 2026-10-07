@@ -18,6 +18,9 @@ const QUESTION_UI_BUDGET_KIB = 25
 const BUDGETS = [
   // M112 A: question forms, commands and late-answer admission, loaded on first use.
   { path: 'dist/acpQuestions.js', budgetKiB: 25 },
+  // FIXM116I: /playbook's journal-backed surface (70.9 KiB when split out;
+  // +15% rounded up to 100 KiB), loaded by the agent and the CLI on first use.
+  { path: 'dist/acpPlaybook.js', budgetKiB: 100 },
   { path: 'dist/runtimeQuestions.js', budgetKiB: 25 },
   { path: 'dist/questionNotes.js', budgetKiB: 25 },
   { path: 'dist/extension.js', budgetKiB: 600 },
@@ -149,8 +152,9 @@ const BUDGETS = [
   // backend (dist/modelApi.js, M57), plus the ACP SDK and the classic zod it
   // imports (445.2 of 713.2 KiB when set, 257.6 of them zod's locales). The
   // measured size plus about 15 %, rounded up to 50 KiB (D6 amendment).
-  // M116: /playbook's journal-backed surface joins the agent's command set.
-  { path: 'dist/acp.js', budgetKiB: 1050 },
+  // FIXM116I: /playbook's journal-backed surface loads from dist/acpPlaybook.js
+  // on first use, restoring the 850 KiB cap the milestone had raised to 1050.
+  { path: 'dist/acp.js', budgetKiB: 850 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus
