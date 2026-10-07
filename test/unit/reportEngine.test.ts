@@ -17,6 +17,18 @@ const roots: string[] = []
 afterEach(async () => {
   for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true })
 })
+async function diffServices() {
+  const root = await mkdtemp(path.join(tmpdir(), 'report-engine-diff-'))
+  roots.push(root)
+  return createReportingServices({
+    workspaceRoot: root,
+    storageRoot: path.join(root, 'data'),
+    l10n: { table: EN, locale: 'en' },
+    generatorVersion: '0.0.0-test',
+    keepHistory: false,
+    enabledAgents: [],
+  })
+}
 describe('the bound report engine', () => {
   it('generates, scrubs, renders and retrieves the same report through the real local pipeline', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'report-engine-'))
@@ -73,16 +85,7 @@ describe('the bound report engine', () => {
     expect(nodeReference()).toEqual(referenceModel())
   })
   it('renders a changed comparison in every format from verified reports', async () => {
-    const root = await mkdtemp(path.join(tmpdir(), 'report-engine-diff-'))
-    roots.push(root)
-    const services = createReportingServices({
-      workspaceRoot: root,
-      storageRoot: path.join(root, 'data'),
-      l10n: { table: EN, locale: 'en' },
-      generatorVersion: '0.0.0-test',
-      keepHistory: false,
-      enabledAgents: [],
-    })
+    const services = await diffServices()
     const before = finalizeReport(reportDocument())
     const changed = reportDocument()
     changed.sections[0]!.rows[0]!.cells['state'] = { type: 'label', value: 'merged' }
@@ -98,16 +101,7 @@ describe('the bound report engine', () => {
     expect(renderDiff(diff, after, 'json', 'en', REPORT_THEME)).toContain('"id": "diff"')
   })
   it('renders identical reports in HTML and JSON instead of failing the comparison', async () => {
-    const root = await mkdtemp(path.join(tmpdir(), 'report-engine-diff-'))
-    roots.push(root)
-    const services = createReportingServices({
-      workspaceRoot: root,
-      storageRoot: path.join(root, 'data'),
-      l10n: { table: EN, locale: 'en' },
-      generatorVersion: '0.0.0-test',
-      keepHistory: false,
-      enabledAgents: [],
-    })
+    const services = await diffServices()
     const document = finalizeReport(reportDocument())
     const diff = compareReports(document, document)
     const renderDiff = services.renderDiff
