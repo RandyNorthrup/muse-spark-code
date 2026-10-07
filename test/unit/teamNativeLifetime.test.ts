@@ -146,7 +146,12 @@ async function standaloneOwner(directory: string, code: string, env?: NodeJS.Pro
   return { parent, parentExited }
 }
 
-describe('M96 K real native lifetime', () => {
+// Real native lifetime cases start the team host, journals and fake CLI as
+// real processes over real pipes; a cold hosted macOS runner with coverage
+// needs longer than the unit default. PLAN.md §8 (2026-10-07).
+const NATIVE_PROCESS_SUITE_TIMEOUT_MS = 20_000
+
+describe('M96 K real native lifetime', { timeout: NATIVE_PROCESS_SUITE_TIMEOUT_MS }, () => {
   it('starts a separate journalled team Muse Code host over real fake-CLI pipes', async () => {
     const f = await fixture()
     const host = await startTeamMuseCodeHost({
