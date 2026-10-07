@@ -88,6 +88,13 @@ happened, not what was planned; superseded entries are kept.
   panel, effort control) recovers the startup regression with no cap raised;
   the ACP bundle budget is restored to 850 KiB with the playbook surface in
   its own lazily loaded bundle.
+- Fix the three M116 fix-round review findings (see
+  `docs/certification/m116.md`): a legacy name-only residual acceptance
+  binds to residuals answered before it in the journal and never authorizes
+  a later answer under a reused name (unbound records are reported, never
+  accepted); a failed outer playbook wrapper chunk stays local with retry
+  instead of unmounting the chat; the edit totals and task list mount only
+  when there is something to show, so their chunks load on first use.
 
 ## [0.14.3] - 2026-10-06
 ### Added
