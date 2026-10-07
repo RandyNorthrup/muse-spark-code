@@ -1,10 +1,5 @@
 import * as z from 'zod/mini'
-import {
-  UI_TEXT,
-  VAULT_FORMAT_VERSION,
-  VAULT_KEY_BYTES,
-  VAULT_LIMITS,
-} from '../../../shared/constants'
+import { UI_TEXT, VAULT_FORMAT_VERSION, VAULT_LIMITS } from '../../../shared/constants'
 import {
   vaultSlotRecordSchema,
   type VaultSlotPort,
@@ -17,6 +12,7 @@ import {
   type MacVaultIdentity,
   type MacVaultTransport,
 } from './macVaultProtocol'
+import { wrapSlotKey } from './slotWrap'
 
 /** C supplies authenticated slot identity and generation metadata; P owns wrapping only. */
 interface MacSlotContext {
@@ -90,26 +86,22 @@ export class MacVaultSlot implements VaultSlotPort {
   }
 
   async wrap(key: Uint8Array): Promise<VaultSlotRecord> {
-    if (key.length !== VAULT_KEY_BYTES) throw new Error(UI_TEXT.vault.useChanged)
-    const owned = Buffer.alloc(VAULT_KEY_BYTES)
-    owned.set(key)
-    try {
-      await this.requireCapability()
-      const { container } = await invokeMacVault(
-        this.transport,
-        {
-          v: VAULT_FORMAT_VERSION,
-          operation: 'wrap',
-          identity: this.identity,
-        },
-        owned,
-      )
-      if (container === undefined || !hasSameIdentity(container, this.identity))
-        throw new Error(UI_TEXT.vault.useChanged)
-      return this.record(Buffer.from(JSON.stringify(container)).toString('base64'))
-    } finally {
-      owned.fill(0)
-    }
+    return await wrapSlotKey({
+      key,
+      checkCapability: () => this.requireCapability(),
+      invoke: (owned) =>
+        invokeMacVault(
+          this.transport,
+          {
+            v: VAULT_FORMAT_VERSION,
+            operation: 'wrap',
+            identity: this.identity,
+          },
+          owned,
+        ),
+      accept: (container) => hasSameIdentity(container, this.identity),
+      record: (raw) => this.record(raw),
+    })
   }
 
   async unwrap(input: VaultSlotRecord, use: string): Promise<Uint8Array> {

@@ -11,6 +11,7 @@ import {
 } from '../../src/runtime/vault/slots/macVaultProtocol'
 import { MacVaultSlot, macVaultProtectionFacts } from '../../src/runtime/vault/slots/macVaultSlot'
 import { FakeVaultSlot } from './helpers/vault/core'
+import { slotContext } from './helpers/vault/fixtures'
 
 function frame(metadata: unknown, key: Uint8Array = new Uint8Array()): Buffer {
   const json = Buffer.from(JSON.stringify(metadata))
@@ -22,14 +23,7 @@ function frame(metadata: unknown, key: Uint8Array = new Uint8Array()): Buffer {
 }
 
 function context() {
-  return {
-    id: randomBytes(16).toString('hex'),
-    vaultId: randomBytes(16).toString('hex'),
-    lastGeneration: 0,
-    auditGeneration: 0,
-    auditHead: '0'.repeat(64),
-    createdAt: 0,
-  }
+  return slotContext()
 }
 
 function canFakeUnwrap(use: string): boolean {

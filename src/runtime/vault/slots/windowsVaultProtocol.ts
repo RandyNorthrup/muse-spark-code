@@ -7,13 +7,9 @@ import {
   VAULT_LIMITS,
 } from '../../../shared/constants'
 import { vaultEncodedSchema } from '../../../shared/vault'
+import { slotIdentitySchema, type SlotIdentity } from './slotIdentity'
 
-const id = z.string().check(z.regex(/^[a-f0-9]{32}$/u))
-const identity = z.strictObject({
-  slotId: id,
-  vaultId: id,
-  tier: z.enum(['osStore', 'hardware', 'presence']),
-})
+const identity = slotIdentitySchema
 const blob = vaultEncodedSchema.check(
   z.maxLength(VAULT_LIMITS.text),
   z.refine((v) => Buffer.from(v, 'base64').toString('base64') === v),
@@ -39,7 +35,7 @@ export const windowsVaultContainerSchema = z
         (v.identity.tier === 'osStore' || Buffer.from(v.sealed, 'base64').length === RSA_BYTES),
     ),
   )
-export type WindowsVaultIdentity = z.infer<typeof identity>
+export type WindowsVaultIdentity = SlotIdentity
 const base = { v: z.literal(VAULT_FORMAT_VERSION) }
 export const windowsVaultRequestSchema = z.discriminatedUnion('operation', [
   z.strictObject({ ...base, operation: z.literal('probe') }),

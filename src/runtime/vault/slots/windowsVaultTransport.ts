@@ -7,6 +7,7 @@ import {
   VAULT_LIMITS,
 } from '../../../shared/constants'
 import { windowsVaultRequestSchema, type WindowsVaultTransport } from './windowsVaultProtocol'
+import { collectSlotChunk, drainSlotStderr, watchSlotChildErrors } from './slotChild'
 
 const INTEGRITY_REFUSED_EXIT = 23
 
@@ -136,9 +137,7 @@ export function windowsVaultTransport(
           finish(false)
         }
         if (parsed.data.operation !== 'screenLock') timer = setTimeout(abort, VAULT_APPROVAL_TTL_MS)
-        signal?.addEventListener('abort', abort, { once: true })
-        child.on('error', abort)
-        child.stdin.on('error', abort)
+        watchSlotChildErrors(child, signal, abort)
         child.stdout.on('data', (chunk: Buffer) => {
           if (isSettled) {
             chunk.fill(0)
@@ -165,17 +164,11 @@ export function windowsVaultTransport(
             chunk[0] = 0
             chunk = chunk.subarray(1)
           }
-          size += chunk.length
-          if (size > VAULT_LIMITS.text + VAULT_KEY_BYTES + Uint32Array.BYTES_PER_ELEMENT) {
-            chunk.fill(0)
+          size = collectSlotChunk(chunks, size, chunk, () => {
             finish(false)
-            return
-          }
-          chunks.push(chunk)
+          })
         })
-        child.stderr.on('data', (chunk: Buffer) => {
-          chunk.fill(0)
-        })
+        drainSlotStderr(child)
         child.on('close', (code) => {
           if (code === INTEGRITY_REFUSED_EXIT && !isReady && !isSettled) {
             try {

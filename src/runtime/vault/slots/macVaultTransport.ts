@@ -1,12 +1,8 @@
 import { spawn } from 'node:child_process'
 import path from 'node:path'
-import {
-  UI_TEXT,
-  VAULT_APPROVAL_TTL_MS,
-  VAULT_KEY_BYTES,
-  VAULT_LIMITS,
-} from '../../../shared/constants'
+import { UI_TEXT, VAULT_APPROVAL_TTL_MS } from '../../../shared/constants'
 import { macVaultFailure, type MacVaultTransport } from './macVaultProtocol'
+import { collectSlotChunk, drainSlotStderr, watchSlotChildErrors } from './slotChild'
 
 /** One trusted helper process per use; callers may cancel when the broker locks. */
 export function macVaultTransport(helper: string, signal?: AbortSignal): MacVaultTransport {
@@ -48,26 +44,17 @@ export function macVaultTransport(helper: string, signal?: AbortSignal): MacVaul
           finish(false)
         }
         const timer = setTimeout(abort, VAULT_APPROVAL_TTL_MS)
-        signal?.addEventListener('abort', abort, { once: true })
-        child.on('error', abort)
-        child.stdin.on('error', abort)
+        watchSlotChildErrors(child, signal, abort)
         child.stdout.on('data', (chunk: Buffer) => {
           if (isSettled) {
             chunk.fill(0)
             return
           }
-          size += chunk.length
-          if (size > VAULT_LIMITS.text + VAULT_KEY_BYTES + Uint32Array.BYTES_PER_ELEMENT) {
-            chunk.fill(0)
+          size = collectSlotChunk(chunks, size, chunk, () => {
             finish(false)
-            return
-          }
-          chunks.push(chunk)
+          })
         })
-        // Even a failing helper cannot relay stderr (it may name an account/path).
-        child.stderr.on('data', (chunk: Buffer) => {
-          chunk.fill(0)
-        })
+        drainSlotStderr(child)
         child.on('close', (code) => {
           finish(code === 0, code === 1)
         })

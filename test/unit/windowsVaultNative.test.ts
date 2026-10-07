@@ -32,6 +32,7 @@ import {
 import { UI_TEXT } from '../../src/shared/constants'
 import * as z from 'zod/mini'
 import type { RunProgram } from '../../src/host/processTree'
+import { slotContext } from './helpers/vault/fixtures'
 
 const paths = { root: '', helper: '', guards: '', trap: '' }
 const owned = new Set<WindowsVaultSlot>()
@@ -57,14 +58,7 @@ const sources = [
   'MuseSparkVaultLock.cs',
 ]
 function context() {
-  return {
-    id: randomBytes(16).toString('hex'),
-    vaultId: randomBytes(16).toString('hex'),
-    lastGeneration: 0,
-    auditGeneration: 0,
-    auditHead: '0'.repeat(64),
-    createdAt: Date.now(),
-  }
+  return slotContext(Date.now())
 }
 
 async function nativeFrame(

@@ -17,6 +17,7 @@ import {
   type WindowsVaultIdentity,
   type WindowsVaultTransport,
 } from './windowsVaultProtocol'
+import { wrapSlotKey } from './slotWrap'
 
 /** C owns authenticated identity/generation metadata; no store dependency in P. */
 interface WindowsSlotContext {
@@ -66,42 +67,36 @@ export class WindowsVaultSlot implements VaultSlotPort {
       throw new Error(UI_TEXT.vault.noAccess)
   }
   async wrap(key: Uint8Array): Promise<VaultSlotRecord> {
-    if (key.length !== VAULT_KEY_BYTES) throw new Error(UI_TEXT.vault.useChanged)
-    const owned = Buffer.alloc(VAULT_KEY_BYTES)
-    owned.set(key)
-    try {
-      await this.requireCapability()
-      const { container } = await invokeWindowsVault(
-        this.transport,
-        {
+    return await wrapSlotKey({
+      key,
+      checkCapability: () => this.requireCapability(),
+      invoke: (owned) =>
+        invokeWindowsVault(
+          this.transport,
+          {
+            v: VAULT_FORMAT_VERSION,
+            operation: 'wrap',
+            identity: this.identity,
+            title: UI_TEXT.vault.title,
+            use: UI_TEXT.vault.presenceWarning,
+          },
+          owned,
+        ),
+      accept: (container) => JSON.stringify(container.identity) === JSON.stringify(this.identity),
+      record: (wrappedKey) =>
+        vaultSlotRecordSchema.parse({
+          ...this.context,
           v: VAULT_FORMAT_VERSION,
-          operation: 'wrap',
-          identity: this.identity,
-          title: UI_TEXT.vault.title,
-          use: UI_TEXT.vault.presenceWarning,
-        },
-        owned,
-      )
-      if (
-        container === undefined ||
-        JSON.stringify(container.identity) !== JSON.stringify(this.identity)
-      )
-        throw new Error(UI_TEXT.vault.useChanged)
-      return vaultSlotRecordSchema.parse({
-        ...this.context,
-        v: VAULT_FORMAT_VERSION,
-        tier: this.tier,
-        provider: this.provider,
-        keyReference: this.context.id,
-        wrappedKey: Buffer.from(JSON.stringify(container)).toString('base64'),
-        nonce: null,
-        tag: null,
-        kdf: null,
-        backend: this.tier === 'osStore' ? 'dpapi' : null,
-      })
-    } finally {
-      owned.fill(0)
-    }
+          tier: this.tier,
+          provider: this.provider,
+          keyReference: this.context.id,
+          wrappedKey,
+          nonce: null,
+          tag: null,
+          kdf: null,
+          backend: this.tier === 'osStore' ? 'dpapi' : null,
+        }),
+    })
   }
   async unwrap(input: VaultSlotRecord, use: string): Promise<Uint8Array> {
     try {

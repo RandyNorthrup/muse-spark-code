@@ -8,13 +8,9 @@ import {
   VAULT_TAG_BYTES,
 } from '../../../shared/constants'
 import { vaultEncodedSchema } from '../../../shared/vault'
+import { slotIdentitySchema, type SlotIdentity } from './slotIdentity'
 
-const id = z.string().check(z.regex(/^[a-f0-9]{32}$/u))
-const identity = z.strictObject({
-  slotId: id,
-  vaultId: id,
-  tier: z.enum(['osStore', 'hardware', 'presence']),
-})
+const identity = slotIdentitySchema
 const encodedBytes = (length: number) =>
   vaultEncodedSchema.check(
     z.refine((value) => {
@@ -43,7 +39,7 @@ export const macVaultContainerSchema = z
     ),
   )
 export type MacVaultContainer = z.infer<typeof macVaultContainerSchema>
-export type MacVaultIdentity = z.infer<typeof identity>
+export type MacVaultIdentity = SlotIdentity
 
 const requestBase = { v: z.literal(VAULT_FORMAT_VERSION) }
 const use = z
