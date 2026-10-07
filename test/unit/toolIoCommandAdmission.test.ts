@@ -88,7 +88,8 @@ describe('native command final owner admission', () => {
       isAllowed = false
       release.resolve(undefined)
       expect(await pending).toMatchObject({
-        isCancelled: true,
+        isCancelled: false,
+        stderr: 'Owned command admission expired',
         isWorkspaceShutdownProven: true,
         isEntryRefused: true,
       })

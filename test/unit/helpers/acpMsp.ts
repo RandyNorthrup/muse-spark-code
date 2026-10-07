@@ -47,7 +47,9 @@ export function answerMsp(
   )
 }
 
-export function acpMspHost(hardwareContext: () => HardwareContext = () => ({})) {
+export function acpMspHost(
+  hardwareContext: () => HardwareContext = () => ({ hardwareSessionLatched: false }),
+) {
   const handle = fakeMspHost()
   const host = new MuseCodeHost(
     handle.host,
@@ -56,7 +58,7 @@ export function acpMspHost(hardwareContext: () => HardwareContext = () => ({})) 
       normalMs: COMMAND_TIMEOUT_MS,
       longMs: COMMAND_TIMEOUT_MS,
     },
-    hardwareContext,
+    () => ({ hardwareSessionLatched: false, ...hardwareContext() }),
   )
   const { server } = handle
   server.handle('model/list', () => ({

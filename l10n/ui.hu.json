@@ -2055,5 +2055,7 @@
   "hardwareActuateWarning": "Úgy tűnik, ez a parancs egy portra ír vagy gépi parancsot küld.",
   "hardwareIrreversibleWarning": "Ez visszafordíthatatlan biztosíték-, eFuse- vagy zárolóbit-írásnak tűnik.",
   "hardwareTargetNote": "Célhoz kötés: {targets}",
-  "hardwareBindingUnavailable": "Ez az eszközadapter nem tudja ellenőrizni a jóváhagyott célt a folyamat indításakor. Semmi sem lett elküldve."
+  "hardwareBindingUnavailable": "Ez az eszközadapter nem tudja ellenőrizni a jóváhagyott célt a folyamat indításakor. Semmi sem lett elküldve. Hardverparancsokhoz használja a Model API háttérrendszert.",
+  "hardwarePresenceRequired": "Hardverparancs jóváhagyása előtt helyezze a fókuszt a látható beszélgetéspanelre.",
+  "hardwareStopUnconfirmed": "A Stop kézbesítését nem sikerült megerősíteni. Ellenőrizze a gépet, és használja a fizikai vészleállítót."
 }

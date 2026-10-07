@@ -209,6 +209,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   await runtime.forgetUnflaggedGrants()
   const agent = createAcpAgent({
     backend: runtime.backend,
+    isHardwareWorkspace: runtime.isHardwareWorkspace,
     version: packageVersion(),
     options: {
       canBypass: options.canBypass,

@@ -2131,5 +2131,7 @@
   "hardwareActuateWarning": "Cette commande semble écrire sur un port ou envoyer une commande à une machine.",
   "hardwareIrreversibleWarning": "Cela ressemble à une écriture irréversible de fusibles, d’eFuses ou de bits de verrouillage.",
   "hardwareTargetNote": "Liaison à la cible : {targets}",
-  "hardwareBindingUnavailable": "Cet adaptateur ne peut pas vérifier la cible approuvée au démarrage du processus. Rien n’a été envoyé."
+  "hardwareBindingUnavailable": "Cet adaptateur ne peut pas vérifier la cible approuvée au démarrage du processus. Rien n’a été envoyé. Utilisez le backend Model API pour les commandes matérielles.",
+  "hardwarePresenceRequired": "Activez le panneau de conversation visible avant d’approuver une commande matérielle.",
+  "hardwareStopUnconfirmed": "La réception de Stop n’a pas pu être confirmée. Vérifiez la machine et utilisez son arrêt d’urgence physique."
 }

@@ -7,7 +7,7 @@ import { isDeviceAction, isPhysicalTool } from '../../src/core/maker/guard/actio
 
 const stops = {
   targets: [
-    { address: '/dev/ttyUSB0', stop: 'M112' },
+    { address: '/dev/ttyUSB0', stop: 'M112\n' },
     { address: '/dev/ttyUSB0', stop: '!' },
     { address: '/dev/ttyUSB0', stop: String.raw`\x18` },
     { address: '/dev/ttyUSB0', stop: String.fromCodePoint(Number('0x18')) },

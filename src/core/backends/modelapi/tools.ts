@@ -1,3 +1,4 @@
+import type { HardwareStop } from '../../maker/guard/hardwareCommands'
 // The in-process tool harness of the Model API backend (PLAN.md M7): the
 // function tools the model sees, their argument validation, and their
 // execution over an injected `ToolIo` (the host supplies the file system
@@ -149,6 +150,7 @@ export type SearchWorkerMessage =
 
 /** What the host lends the tools: files, a matcher it can stop, and a shell. */
 export interface ToolIo {
+  runHardwareStop?(stop: HardwareStop): Promise<ShellResult>
   /**
    * The file's text, a UTF-8 BOM kept; undefined when it does not exist.
    * Rejects for a file that is not UTF-8 text (binary, UTF-16, Latin-1…):
@@ -1536,7 +1538,9 @@ export function shellOutcome(
   maxChars: number = TOOL_OUTPUT_MAX_CHARS,
 ): ToolOutcome {
   let exit = `exit code ${String(result.exitCode ?? 'unknown')}`
-  if (result.isCancelled) {
+  if (result.isEntryRefused) {
+    exit = result.stderr
+  } else if (result.isCancelled) {
     exit = SHELL_STOPPED_BY_USER
   } else if (result.isTimedOut) {
     exit = `stopped after ${String(timeoutMs)} ms`
@@ -1545,7 +1549,9 @@ export function shellOutcome(
   return {
     output: body,
     visibleOutput: body,
-    ...((result.isTimedOut || result.isCancelled) && { failureReason: exit }),
+    ...((result.isEntryRefused === true || result.isTimedOut || result.isCancelled) && {
+      failureReason: exit,
+    }),
   }
 }
 

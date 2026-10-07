@@ -1,3 +1,5 @@
+import type { HardwareContext } from '../core/maker/guard/httpCommands'
+import { createHardwareContexts } from '../core/maker/hardwareContext'
 // The ACP agent's backend (PLAN.md D62): the panel's backend managers,
 // given in this process what VS Code gives them in the extension, one per
 // workspace folder. Muse Code signs in on its own and the subscription
@@ -31,7 +33,7 @@ import { createMemoryIo, systemPath } from '../host/backend/memoryIo'
 import { ModelApiBackendManager } from '../host/backend/modelApiBackendManager'
 import { MuseCodeBackendManager, type ProxySettings } from '../host/backend/museCodeBackendManager'
 import { shellJobAssembly } from '../host/backend/shellJob'
-import { createToolIo } from '../host/backend/toolIo'
+import { createToolIo, createHardwareStopRunner } from '../host/backend/toolIo'
 import { AccountHosts, connectAccountSession } from '../host/auth/accountHost'
 import { CliAccount, isCliSignedIn } from '../host/auth/cliAccount'
 import { CredentialStore, type SecretStore } from '../host/auth/credentialStore'
@@ -70,6 +72,7 @@ export interface ExecRuntimeOptions {
 }
 
 export interface RuntimeBackendDeps {
+  readonly hardwareInventory?: () => HardwareContext
   readonly exec?: ExecRuntimeOptions
   readonly options: ServeOptions
   readonly version: string
@@ -94,6 +97,7 @@ export interface RuntimeBackendDeps {
 }
 
 export interface RuntimeBackend {
+  readonly isHardwareWorkspace: (cwd: string) => boolean
   readonly backend: AcpBackend
   /** Muse Code's launch and environment, for `login`. */
   readonly museCode: MuseCodeBackendManager
@@ -122,7 +126,11 @@ function independentEditorStartupPolicy(log: Logger): Promise<void> {
   return Promise.resolve()
 }
 
-function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undefined) {
+function museCodeManager(
+  deps: RuntimeBackendDeps,
+  workspaceRoot: string | undefined,
+  hardware: ReturnType<typeof createHardwareContexts>,
+) {
   const { options, log } = deps
   return new MuseCodeBackendManager({
     // This records the actual scope boundary; it does not certify a VS Code fence.
@@ -132,6 +140,18 @@ function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undef
     getConfiguredBinaryPath: () => options.museBinary,
     getEnvironmentVariables: () => deps.museCodeCredentials,
     workspaceRoot,
+    hardwareContext: (root) => hardware(root ?? workspaceRoot).current(),
+    runHardwareStop: async (stop) => {
+      const runStop = createHardwareStopRunner({
+        platform: deps.platform,
+        systemRoot: deps.env['SystemRoot'],
+        log: (message) => {
+          deps.log.trace(message)
+        },
+      })
+      const result = await runStop(stop)
+      if (result.exitCode !== 0) throw new Error(UI_TEXT.hardwareRefused)
+    },
     getShellSandbox: () => options.shellSandbox,
     // No `--sandbox-network` (M56): Muse Code's default, or a managed policy's.
     getSandboxNetwork: () => SETTING_DEFAULTS.sandboxNetwork,
@@ -156,6 +176,7 @@ function modelApiManager(
   paid: AcpPaidUse,
   workspaceEdits: WorkspaceEdits,
   assertWorkspaceCurrent: () => void,
+  hardware: ReturnType<typeof createHardwareContexts>,
 ): ModelApiBackendManager {
   const { options, log, platform } = deps
   const isWorkspaceTrusted = () => options.trustWorkspace
@@ -175,6 +196,7 @@ function modelApiManager(
     })
   const listFiles = filesIn(workspaceRoot)
   const io = createToolIo({
+    hardwareContext: () => hardware(workspaceRoot).current(),
     platform,
     listFiles,
     systemRoot,
@@ -245,6 +267,10 @@ function modelApiManager(
     getApiKey: () => credentials.getApiKey(),
     workspaceRoot,
     sessionWorkspaceRoot: storedWorkspaceRoot,
+    hardwareContext: (root) => ({
+      ...hardware(root ?? workspaceRoot).current(),
+      isUnattended: deps.exec !== undefined,
+    }),
     assertWorkspaceCurrent,
     workspaceEdits,
     io,
@@ -322,7 +348,8 @@ function modelApiManager(
 
 /** The backend `--backend` names, its managers created per folder on first use. */
 export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
-  const museCode = museCodeManager(deps, undefined)
+  const hardware = createHardwareContexts(deps.hardwareInventory)
+  const museCode = museCodeManager(deps, undefined, hardware)
   const museCodeHosts = new Map<string, MuseCodeBackendManager>()
   const modelApiHosts = new Map<
     string,
@@ -449,6 +476,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       paid,
       edits,
       assertWorkspaceCurrent,
+      hardware,
     )
     modelApiHosts.set(cwd, { manager, identity: key })
     return await manager.ensureHost()
@@ -458,12 +486,13 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     if (deps.options.backend === 'modelApi') {
       return modelApiHostFor(cwd)
     }
-    const manager = museCodeHosts.get(cwd) ?? museCodeManager(deps, cwd)
+    const manager = museCodeHosts.get(cwd) ?? museCodeManager(deps, cwd, hardware)
     museCodeHosts.set(cwd, manager)
     return manager.ensureHost()
   }
 
   return {
+    isHardwareWorkspace: (cwd) => hardware(cwd).current().isHardwareWorkspace === true,
     backend: {
       kind: deps.options.backend,
       readiness: (isRecheck) =>

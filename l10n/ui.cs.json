@@ -2207,5 +2207,7 @@
   "hardwareActuateWarning": "Zdá se, že tento příkaz zapisuje do portu nebo odesílá příkaz stroji.",
   "hardwareIrreversibleWarning": "Vypadá to jako nevratný zápis pojistky, eFuse nebo zámkového bitu.",
   "hardwareTargetNote": "Vazba cíle: {targets}",
-  "hardwareBindingUnavailable": "Tento adaptér zařízení nemůže při spuštění procesu ověřit schválený cíl. Nic nebylo odesláno."
+  "hardwareBindingUnavailable": "Tento adaptér zařízení nemůže při spuštění procesu ověřit schválený cíl. Nic nebylo odesláno. Pro hardwarové příkazy použijte backend Model API.",
+  "hardwarePresenceRequired": "Před schválením hardwarového příkazu aktivujte viditelný panel konverzace.",
+  "hardwareStopUnconfirmed": "Doručení příkazu Stop nelze potvrdit. Zkontrolujte stroj a použijte jeho fyzické nouzové zastavení."
 }

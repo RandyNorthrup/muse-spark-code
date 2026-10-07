@@ -4097,3 +4097,8 @@ export const WEBVIEW_L10N_ELEMENT_ID = 'muse-l10n'
 export const WINDOWS_POWERSHELL_TERMINAL_PATH = String.raw`\System32\WindowsPowerShell\v1.0\powershell.exe`
 // The login / TUI terminal's shell off Windows (PLAN.md D25): POSIX syntax, always there.
 export const POSIX_TERMINAL_SHELL = '/bin/sh'
+
+// Bounded hardware marker scan; exceeding the ceiling fails closed.
+export const MAKER_DETECT_MAX_FILES = 4096
+
+export const MAKER_DETECT_MAX_BYTES = 8192

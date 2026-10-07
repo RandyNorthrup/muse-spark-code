@@ -29,6 +29,12 @@ function card(command = 'pio run -t upload'): Card {
   return { ...mapped.event, turnId: 'parent-turn' }
 }
 
+function capturedSubject() {
+  const subject = raceRequested('old-1')['subject']
+  if (typeof subject !== 'object' || subject === null) throw new Error('Missing capture subject')
+  return subject
+}
+
 function answer(value: HardwareApproval) {
   return { id: value.request.id, digest: value.request.digest, decision: 'sendOnce' }
 }
@@ -41,7 +47,7 @@ async function observeHardware(h: ReturnType<typeof acpMspHost>, command: string
   })
   h.server.notify('approval/requested', {
     ...raceRequested('old-1'),
-    subject: { kind: 'shell', command },
+    subject: { ...capturedSubject(), command },
   })
   return { session, events }
 }
@@ -53,6 +59,14 @@ async function pendingHardwareCard(events: readonly AgentEvent[]): Promise<Card>
   const request = events.find((event): event is Card => event.type === 'approvalRequested')
   if (request === undefined) throw new Error('missing hardware approval')
   return request
+}
+
+async function expectCliRejected(h: ReturnType<typeof acpMspHost>, events: readonly AgentEvent[]) {
+  await vi.waitFor(() => {
+    expect(h.server.requestsFor('approval/decide')).toHaveLength(1)
+  })
+  expect(h.server.requestsFor('approval/decide')[0]?.params?.['choiceId']).toBe('abort')
+  expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
 }
 
 describe('Muse Code hardware approvals', () => {
@@ -191,7 +205,7 @@ describe('Muse Code guard over the real MSP transport', () => {
   })
 
   it.each([true, false])(
-    'R3F5: registered Stop sends allow once without any card, unattended=%s',
+    'R3F5: registered Stop rejects CLI copy without any card, unattended=%s',
     async (isUnattended) => {
       const h = acpMspHost(() => ({
         isUnattended,
@@ -206,11 +220,7 @@ describe('Muse Code guard over the real MSP transport', () => {
           h,
           'curl -X POST https://printer.local/printer/emergency_stop',
         )
-        await vi.waitFor(() => {
-          expect(h.server.requestsFor('approval/decide')).toHaveLength(1)
-        })
-        expect(h.server.requestsFor('approval/decide')[0]?.params?.['choiceId']).toBe('allow_once')
-        expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
+        await expectCliRejected(h, events)
       } finally {
         await h.host.close()
       }
@@ -265,9 +275,7 @@ describe('Muse Code guard over the real MSP transport', () => {
             requirementId: request.requirementId,
             choiceId: 'allow_once',
           }),
-        ).rejects.toThrow(
-          kind === 'typed tool' ? UI_TEXT.hardwareBindingUnavailable : UI_TEXT.hardwareExpired,
-        )
+        ).rejects.toThrow(UI_TEXT.hardwareBindingUnavailable)
         expect(h.server.requestsFor('approval/decide')).toHaveLength(0)
       } finally {
         await h.host.close()
@@ -289,11 +297,7 @@ describe('Muse Code guard over the real MSP transport', () => {
       }))
       try {
         const { events } = await observeHardware(h, command)
-        await vi.waitFor(() => {
-          expect(h.server.requestsFor('approval/decide')).toHaveLength(1)
-        })
-        expect(h.server.requestsFor('approval/decide')[0]?.params?.['choiceId']).toBe('abort')
-        expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
+        await expectCliRejected(h, events)
       } finally {
         await h.host.close()
       }
@@ -335,17 +339,21 @@ describe('Muse Code guard over the real MSP transport', () => {
         requirementId: request.requirementId,
         choiceId: 'allow_once',
       }
-      await expect(session.decideApproval(decision)).rejects.toMatchObject({
-        name: 'DecisionNotAppliedError',
-      })
-      await expect(session.decideApproval(decision)).rejects.toThrow(UI_TEXT.hardwareExpired)
+      await expect(session.decideApproval(decision)).rejects.toThrow(
+        UI_TEXT.hardwareBindingUnavailable,
+      )
+      await expect(session.decideApproval(decision)).rejects.toThrow(
+        UI_TEXT.hardwareBindingUnavailable,
+      )
       vi.setSystemTime(Date.now() + MACHINE_APPROVAL_TTL_MS + 1)
-      await expect(session.decideApproval(decision)).rejects.toThrow(UI_TEXT.hardwareExpired)
+      await expect(session.decideApproval(decision)).rejects.toThrow(
+        UI_TEXT.hardwareBindingUnavailable,
+      )
       expect(
         h.server
           .requestsFor('approval/decide')
           .filter((call) => call.params?.['choiceId'] === 'allow_once'),
-      ).toHaveLength(1)
+      ).toHaveLength(0)
     } finally {
       await h.host.close()
       vi.useRealTimers()
@@ -394,19 +402,16 @@ describe('Muse Code guard over the real MSP transport', () => {
       await expect(session.setApprovalMode('allowAll')).rejects.toThrow(
         UI_TEXT.hardwareBypassNotice,
       )
-      expect(h.server.requestsFor('session/setApprovalMode')).toHaveLength(0)
+      expect(h.server.requestsFor('session/setApprovalMode')).toHaveLength(1)
       const request = await pendingHardwareCard(events)
-      expect(request.availableChoices.map((choice) => choice.choiceId)).toEqual([
-        'allow_once',
-        'abort',
-      ])
+      expect(request.availableChoices.map((choice) => choice.choiceId)).toEqual(['abort'])
       await expect(
         session.decideApproval({
           approvalId: request.approvalId,
           requirementId: request.requirementId,
           choiceId: 'allow_local_prefix',
         }),
-      ).rejects.toThrow(UI_TEXT.hardwareRefused)
+      ).rejects.toThrow(UI_TEXT.hardwareBindingUnavailable)
       expect(h.server.requestsFor('approval/decide')).toHaveLength(0)
     } finally {
       await h.host.close()

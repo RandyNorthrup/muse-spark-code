@@ -219,12 +219,48 @@ function newAddress(address: string): string {
   }
 }
 
-/** Whole canonical stop, registered target and fixed out-of-band bytes only. */
-export function isHardwareStop(
+export type HardwareStop =
+  | { readonly kind: 'http'; readonly address: string }
+  | { readonly kind: 'serial'; readonly address: string; readonly payload: string }
+
+/** Decode only literal printf bytes: no formats, substitutions or extra effects. */
+function stopBytes(tool: string, payload: string): string | undefined {
+  if (tool === 'echo')
+    return /[\\]/.test(payload) || payload.startsWith('-')
+      ? undefined
+      : Buffer.from(`${payload}\n`, 'utf8').toString('latin1')
+  return tool !== 'printf' || /%|\\(?!x[\da-f]{2}|[\\nrt])/i.test(payload)
+    ? undefined
+    : Buffer.from(payload, 'utf8')
+        .toString('latin1')
+        .replaceAll(
+          /\\(?:x([\da-f]{2})|([\\nrt]))/gi,
+          (_match, hex: string | undefined, escape: string | undefined) => {
+            if (hex !== undefined) return String.fromCodePoint(Number(`0x${hex}`))
+            switch (escape) {
+              case 'n': {
+                return '\n'
+              }
+              case 'r': {
+                return '\r'
+              }
+              case 't': {
+                return '\t'
+              }
+              default: {
+                return '\\'
+              }
+            }
+          },
+        )
+}
+
+/** Normalize the registered operation; execution never reuses the ambient command. */
+export function hardwareStop(
   command: string,
   dialect: GuardDialect = 'bash',
   context: HardwareContext = {},
-): boolean {
+): HardwareStop | undefined {
   const parsed = parseShell(command, dialect)
   const item = parsed.commands[0]
   if (
@@ -233,22 +269,31 @@ export function isHardwareStop(
     parsed.commands.length !== 1 ||
     /[;|&\r\n]/.test(command)
   )
-    return false
+    return undefined
+  if (isHttpStop(item, context)) return { kind: 'http', address: item.argv[1 + 2] ?? '' }
   const redirect = item.redirects[0]
   const payload = item.argv[1]
-  return (
-    isHttpStop(item, context) ||
-    (payload !== undefined &&
-      !item.isPipeline &&
-      item.argv.length === 2 &&
-      item.redirects.length === 1 &&
-      redirect?.operator === '>' &&
-      /^(?:echo|printf)$/i.test(item.argv[0] ?? '') &&
-      isRegisteredTarget(redirect.target, context) &&
-      context.targets?.some(
-        (target) => target.address === redirect.target && target.stop === payload,
-      ) === true)
+  if (
+    payload === undefined ||
+    item.isPipeline ||
+    item.argv.length !== 2 ||
+    item.redirects.length !== 1 ||
+    redirect?.operator !== '>'
   )
+    return undefined
+  const bytes = stopBytes(item.argv[0] ?? '', payload)
+  return bytes === undefined ||
+    !context.targets?.some((target) => target.address === redirect.target && target.stop === bytes)
+    ? undefined
+    : { kind: 'serial', address: redirect.target, payload: bytes }
+}
+
+export function isHardwareStop(
+  command: string,
+  dialect: GuardDialect = 'bash',
+  context: HardwareContext = {},
+): boolean {
+  return hardwareStop(command, dialect, context) !== undefined
 }
 
 /** Strongest effect; unknown plus any device signal is never observe or stop. */

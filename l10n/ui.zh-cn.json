@@ -1979,5 +1979,7 @@
   "hardwareActuateWarning": "此命令似乎会向端口写入数据或发送机器命令。",
   "hardwareIrreversibleWarning": "这看起来像是不可逆的熔丝、eFuse 或锁定位写入。",
   "hardwareTargetNote": "目标绑定：{targets}",
-  "hardwareBindingUnavailable": "此设备适配器无法在进程启动时验证已批准的目标。未发送任何内容。"
+  "hardwareBindingUnavailable": "此设备适配器无法在进程启动时验证已批准的目标。未发送任何内容。 请使用 Model API 后端执行硬件命令。",
+  "hardwarePresenceRequired": "批准硬件命令前，请将焦点置于可见的对话面板。",
+  "hardwareStopUnconfirmed": "无法确认 Stop 已送达。请检查机器并使用其物理急停装置。"
 }

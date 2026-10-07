@@ -1,3 +1,6 @@
+import type { HardwareStop } from '../../core/maker/guard/hardwareCommands'
+import { createHardwareContexts } from '../../core/maker/hardwareContext'
+import type { HardwareContext } from '../../core/maker/guard/httpCommands'
 // Owns the Model API host for this extension host (M7): one in-process
 // `ModelApiHost` over the real `fetch`, the stored key and the workspace's
 // files, with the MCP servers of Muse Code's settings (M50), which it starts
@@ -56,6 +59,8 @@ import {
 } from './modelApiBundle'
 
 export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
+  readonly hardwareContext?: (workspaceRoot: string | undefined) => HardwareContext
+  readonly runHardwareStop?: (stop: HardwareStop) => Promise<void>
   readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
   readonly log: Logger
   readonly getApiKey: () => Promise<string | undefined>
@@ -182,6 +187,7 @@ function describe(error: unknown): string {
 }
 
 export class ModelApiBackendManager {
+  private readonly hardware = createHardwareContexts()
   private host: ModelApiHost | undefined
   /**
    * The host being built (PLAN.md D25): every caller waits for the stored
@@ -265,6 +271,9 @@ export class ModelApiBackendManager {
       },
       host: {
         workspaceRoot: variant.workspaceRoot,
+        hardwareContext: () =>
+          this.deps.hardwareContext?.(variant.workspaceRoot) ??
+          this.hardware(variant.workspaceRoot).current(),
         platform: process.platform,
         io: variant.io,
         contextIo: this.deps.contextIo,

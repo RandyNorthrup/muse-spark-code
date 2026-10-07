@@ -371,6 +371,8 @@ describe('createToolIo (real file system and shell)', () => {
       await expect(reservation.fill(Uint8Array.from([1, 2, 3]))).rejects.toThrow(
         FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval,
       )
+      // The caller owns failed reservations too; close before fixture teardown.
+      await expect(reservation.release()).rejects.toThrow()
       await expect(readFile(outsideFile, 'utf8')).resolves.toBe('sentinel-private')
     },
   )

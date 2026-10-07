@@ -271,24 +271,26 @@ board retains ordinary policy. Failed decisions cannot renew or replay an
 expired or consumed approval. Exact parsed command, original text and
 host-observed target are bound to its digest.
 
-Hardware mode is a session latch, initialized from maker project markers and
-set by host-observed devices. It never falls when a device or marker disappears.
-Every agent shell command in a hardware session asks the host UI for its exact
-text, with Allow once and Abort only. There is no shell read allowlist, hook
-grant or reviewer grant. Typed read/list/search tools keep their own policy.
-The classifier only annotates hardware shell cards, including suspected
-irreversible writes. Bypass and every unattended origin refuse shell commands;
-unattended status is checked again at the answer and Model API process entry.
-Registered canonical Stop bypasses the gate first, including unattended runs.
+The runtime composition root supplies one hardware-context owner to both
+backends, ACP and headless execution. Planned project markers, connected serial
+boards and host-observed registered targets latch the workspace. Missing or
+unreadable roots fail closed; disappearing markers/devices never clear the
+latch. Windows currently refuses agent shells until discovery is qualified; unknown
+inventory cannot be reset away.
 
-Model API shell dispatch carries a frozen single-use identity/payload/expiry
-binding to the adapter, which verifies it after preparation immediately before
-spawn. Physical MCP/IDE adapters without that contract are unavailable. Muse
-Code owns its process start: the captured MSP protocol has no binding handoff
-or spawn acknowledgement. Fresh cards and answer-time checks cannot certify
-the interval after an allow frame, CLI standing rules or silent commands.
-Device registry notifications, actual USB identity acquisition, host UI latch
-reset and editor/hardware qualification remain the named maker lanes' work.
+Model API hardware shells require exact, single-use approval, with frozen
+identity/payload/expiry checked immediately before native spawn. Bypass and
+unattended commands are refused. Muse Code hardware turns and approval grants
+are unavailable because the captured MSP has no synchronous process-start
+contract; use the Model API backend. No allow frame is sent blindly.
+
+Registered canonical Stop is normalized from the command, ignoring staged
+subject extras. The trusted host adapter directly executes absolute curl with
+startup config disabled and no inherited environment, or writes exact serial
+bytes. It needs no approval even unattended. The external CLI copy is rejected.
+USB identity acquisition, the full device registry/UI and editor/hardware
+qualification remain the other maker lanes' work. Webview focus/visibility is
+checked by the extension; ACP editor presence remains the editor's own boundary.
 These notes do not claim those tools or controls ship in the released ACP
 package. The guard does not sandbox an approved program.
 

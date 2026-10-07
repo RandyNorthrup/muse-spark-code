@@ -1,3 +1,6 @@
+import type { HardwareStop } from '../../core/maker/guard/hardwareCommands'
+import { createHardwareContexts } from '../../core/maker/hardwareContext'
+import type { HardwareContext } from '../../core/maker/guard/httpCommands'
 // Owns the single `muse serve` process for this extension host: locates the
 // CLI, shapes its environment, spawns it through the SDK, and hands out the
 // MuseCodeHost wrapper. Everything platform-specific is delegated to the pure
@@ -86,6 +89,8 @@ export interface UnresponsiveHostDeps {
 }
 
 export interface BackendManagerDeps {
+  readonly hardwareContext?: (workspaceRoot: string | undefined) => HardwareContext
+  readonly runHardwareStop?: (stop: HardwareStop) => Promise<void>
   /** Awaited before any agent host process can edit this workspace. */
   readonly beforeWorkspaceHostStart: () => Promise<void>
   /**
@@ -152,6 +157,7 @@ function listDirectoryOrEmpty(log: Logger, directory: string): readonly string[]
 }
 
 export class MuseCodeBackendManager {
+  private readonly hardware = createHardwareContexts()
   private hostPromise: Promise<MuseCodeHost> | undefined
   /** Bumped by every spawn and every dispose: an attempt only clears its own slot. */
   private generation = 0
@@ -313,7 +319,15 @@ export class MuseCodeBackendManager {
     }
     let host: MuseCodeHost
     try {
-      host = new MuseCodeHost(mspHost, this.deps.log, this.deps.commandTimeouts)
+      host = new MuseCodeHost(
+        mspHost,
+        this.deps.log,
+        this.deps.commandTimeouts,
+        () =>
+          this.deps.hardwareContext?.(this.deps.workspaceRoot) ??
+          this.hardware(this.deps.workspaceRoot).current(),
+        this.deps.runHardwareStop,
+      )
     } catch (error: unknown) {
       // An initialize result the wrapper cannot read: the process goes too.
       await spawned.close()

@@ -2055,5 +2055,7 @@
   "hardwareActuateWarning": "Dieser Befehl scheint in einen Port zu schreiben oder einen Maschinenbefehl zu senden.",
   "hardwareIrreversibleWarning": "Dies sieht nach einem irreversiblen Schreiben von Sicherungen, eFuses oder Sperrbits aus.",
   "hardwareTargetNote": "Zielbindung: {targets}",
-  "hardwareBindingUnavailable": "Dieser Geräteadapter kann das genehmigte Ziel beim Prozessstart nicht überprüfen. Es wurde nichts gesendet."
+  "hardwareBindingUnavailable": "Dieser Geräteadapter kann das genehmigte Ziel beim Prozessstart nicht überprüfen. Es wurde nichts gesendet. Verwenden Sie für Hardwarebefehle das Model API-Backend.",
+  "hardwarePresenceRequired": "Fokussieren Sie das sichtbare Gesprächsfenster, bevor Sie einen Hardwarebefehl genehmigen.",
+  "hardwareStopUnconfirmed": "Die Zustellung von Stop konnte nicht bestätigt werden. Prüfen Sie die Maschine und verwenden Sie ihren physischen Not-Aus."
 }

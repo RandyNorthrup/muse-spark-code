@@ -329,7 +329,8 @@ export function App({
     chosenOverlay === 'review' && state.reviewPane === undefined ? undefined : chosenOverlay
   const [isInstallConfirmOpen, setIsInstallConfirmOpen] = useState(false)
   const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>(undefined)
-  const canBypass = state.settings?.allowDangerouslySkipPermissions ?? false
+  const canBypass =
+    (state.settings?.allowDangerouslySkipPermissions ?? false) && !state.isHardwareWorkspace
   // The Auto reviewer on Muse Code (M90), as its setting says, and the paid
   // one on the Model API (M78), on with its price accepted.
   const hasMuseCodeReviewer =
@@ -405,11 +406,14 @@ export function App({
   // (M25): New Conversation clears the conversation the user was looking at.
   useEffect(() => {
     const onFocus = () => {
-      postMessage({ type: 'surfaceFocused' })
+      postMessage({ type: 'surfaceFocused', focused: document.hasFocus() })
     }
     window.addEventListener('focus', onFocus)
+    window.addEventListener('blur', onFocus)
+    onFocus()
     return () => {
       window.removeEventListener('focus', onFocus)
+      window.removeEventListener('blur', onFocus)
     }
   }, [postMessage])
 
@@ -955,7 +959,8 @@ export function App({
       type: 'setPermissionMode',
       mode: nextPermissionMode(
         current.permissionMode,
-        current.settings?.allowDangerouslySkipPermissions ?? false,
+        (current.settings?.allowDangerouslySkipPermissions ?? false) &&
+          !current.isHardwareWorkspace,
       ),
     })
   }, [store, postMessage])

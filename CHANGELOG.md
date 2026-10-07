@@ -9,6 +9,19 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **M103 hardware guard, fifth structural design (unreleased).** Share the
+  hardware context and latch across production entrypoints; detect the planned
+  machine/firmware markers and fail closed on missing scans. Reject Bypass at
+  session start and downgrade resume before pending requests. Refuse Muse Code
+  hardware turns/allow frames until MSP provides a spawn fence; direct users to
+  Model API. Normalize registered Stop despite captured staged metadata and
+  execute it through a trusted adapter without shell profiles or curl config.
+  Compare emitted serial bytes and preserve actual entry-refusal reasons.
+  Require visible, focused webview approval. Physical/USB/editor qualification
+  and OS lock presence remain open; unknown inventory refuses agent shells
+  until qualified. Uncertain Stop delivery is reported honestly. Unchanged
+  bundle caps apply.
+
 - **M103 hardware guard, fourth design (unreleased; external CLI and physical
   qualification remain open).** Every hardware shell command needs fresh exact
   host approval; the shell allowlist is deleted. Hardware mode latches for the

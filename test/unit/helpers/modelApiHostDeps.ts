@@ -27,6 +27,7 @@ export function fakeModelApiHostDeps(base: {
     client: base.client,
     workspaceRoot: base.workspaceRoot,
     platform: 'linux',
+    hardwareContext: () => ({ hardwareSessionLatched: false }),
     io: base.io,
     contextIo: memoryContextIo(base.io.files),
     newId: () => {

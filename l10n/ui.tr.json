@@ -2055,5 +2055,7 @@
   "hardwareActuateWarning": "Bu komut bir bağlantı noktasına yazıyor veya bir makine komutu gönderiyor gibi görünüyor.",
   "hardwareIrreversibleWarning": "Bu, geri alınamaz bir sigorta, eFuse veya kilit biti yazma işlemine benziyor.",
   "hardwareTargetNote": "Hedef bağlaması: {targets}",
-  "hardwareBindingUnavailable": "Bu cihaz bağdaştırıcısı, süreç başlangıcında onaylanan hedefi doğrulayamıyor. Hiçbir şey gönderilmedi."
+  "hardwareBindingUnavailable": "Bu cihaz bağdaştırıcısı, süreç başlangıcında onaylanan hedefi doğrulayamıyor. Hiçbir şey gönderilmedi. Donanım komutları için Model API arka ucunu kullanın.",
+  "hardwarePresenceRequired": "Bir donanım komutunu onaylamadan önce görünür konuşma paneline odaklanın.",
+  "hardwareStopUnconfirmed": "Stop komutunun iletildiği doğrulanamadı. Makineyi kontrol edin ve fiziksel acil durdurmasını kullanın."
 }

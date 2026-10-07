@@ -259,6 +259,7 @@ export type EditorContextSummary = z.infer<typeof editorContextSummarySchema>
 
 const composerStateSchema = z.object({
   type: z.literal('composerState'),
+  isHardwareWorkspace: z.optional(z.boolean()),
   effort: z.enum(EFFORT_LEVELS),
   isThinkingEnabled: z.boolean(),
   permissionMode: z.enum(PERMISSION_MODES),
@@ -278,7 +279,7 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('inputFocusChanged'), focused: z.boolean() }),
   // The panel's document gained focus (M25): it becomes the surface the
   // keybindings (New Conversation, Alt+T) act on.
-  z.object({ type: z.literal('surfaceFocused') }),
+  z.object({ type: z.literal('surfaceFocused'), focused: z.optional(z.boolean()) }),
   // Something threw in the webview (M39): the host logs it. Cut to these
   // lengths by the sender; nothing the user typed is sent.
   z.object({

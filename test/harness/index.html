@@ -1675,6 +1675,20 @@
         modes: () => {
           click('Permission mode: Manual')
         },
+        'modes-hardware': () => {
+          send({
+            type: 'settingsChanged',
+            settings: { ...settings, allowDangerouslySkipPermissions: true },
+          })
+          send({
+            type: 'composerState',
+            effort: 'high',
+            isThinkingEnabled: true,
+            permissionMode: 'manual',
+            isHardwareWorkspace: true,
+          })
+          later(50, () => click('Permission mode: Manual'))
+        },
         'modes-bypass': () => {
           send({
             type: 'settingsChanged',

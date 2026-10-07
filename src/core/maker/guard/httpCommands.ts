@@ -1,8 +1,12 @@
+import type { HardwareWorkspace } from '../hardwareContext'
 import type { ActionClass } from './actionClass'
 import { commandName, type ShellCommand } from './shellParse'
 import type { TargetIdentity } from '../ports'
 
 export interface HardwareContext {
+  readonly hardwareOwner?: HardwareWorkspace
+  /** Native discovery failed or is unqualified; it cannot support an actuation binding. */
+  readonly isInventoryKnown?: boolean
   readonly isHardwareWorkspace?: boolean
   readonly isMakerEnabled?: boolean
   readonly isHardwareProject?: boolean

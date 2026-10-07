@@ -428,35 +428,32 @@ asked (PLAN.md D69). The menu now says what each mode does on each backend.
 
 ### Makers safety (Unreleased)
 
-> In a hardware session, every agent shell command asks for fresh host UI
-> approval of its exact text. There is no shell allowlist, Always allow choice,
-> reviewer decision or hook grant. This includes shell reads and offline help;
-> typed read/list/search inspection keeps its own policy. Classification only
-> adds warnings, including suspected irreversible fuse writes. Typed physical
-> adapters that cannot verify an approved target at dispatch are unavailable.
+> The Model API backend asks once for every exact agent shell command in a
+> hardware workspace, with no standing, reviewer or hook grant. Approval binds
+> target identities and expiry, and is spent at native spawn after preparation.
+> The visible conversation panel must have focus when approving. Bypass and
+> unattended hardware commands are refused. OS session-lock presence is not
+> qualified; the focus check does not certify a person at the machine.
 >
-> Hardware mode latches on from project markers at session start or any
-> host-observed device. Removing a marker or disconnecting a device never turns
-> a running session off. An explicit host UI reset requires no command or
-> device session to be active; the guard provides that core operation, while
-> the maker UI and inventory adapters remain their own M103 lanes.
-> Bypass and unattended origins refuse shell commands, including verification,
-> then_run, workers and hooks. Registered canonical Stop is exempt first.
-> Ordinary workspaces retain their existing modes and grants.
+> One context owner supplies both backends, the modes menu, ACP and headless
+> execution. It latches from the planned board/firmware/machine markers,
+> connected serial devices and host-registered targets. Missing or unreadable
+> folders fail closed. Disconnecting a device or removing a marker cannot
+> unlatch a session. Windows inventory currently refuses agent shells
+> until its discovery is qualified; the full maker registry/UI remains
+> in the other M103 lanes.
 >
-> Model API shell approval binds frozen target identities, exact payload and
-> expiry. The adapter rechecks the live latch, unattended status and that
-> single-use binding immediately before native spawn, after preparation.
-> An identity change or expired approval starts nothing. A program you approve
-> can still reach a device; this is not an OS device sandbox.
+> Muse Code's captured MSP has no synchronous process-start binding contract.
+> Hardware turns and approval grants are therefore unavailable on that backend;
+> use the Model API backend. No blind allow frame is sent for hardware commands.
 >
-> Muse Code uses fresh host cards and rechecks unattended status at the answer.
-> Its external CLI owns process start: MSP supplies no captured dispatch-binding
-> acknowledgement, so CLI standing rules, silent execution and the interval
-> after an allow frame remain qualification gaps. Physical MCP/IDE adapters
-> without an immutable binding contract are refused. This guard alone does
-> not certify safe hardware operation or the editor/hardware matrix. Keep the
-> machine's physical E-stop available; a software stop is not an emergency stop.
+> Registered canonical Stop runs through a trusted host adapter without a card,
+> including unattended runs. HTTP Stop directly executes absolute curl with
+> startup config disabled and no inherited environment; serial Stop writes
+> the registered bytes directly. The CLI copy is rejected, preventing a second
+> ambient-shell execution. Extra staged approval fields cannot gate Stop.
+> Real hardware, USB identity acquisition and the editor matrix are still
+> unqualified. Keep the machine's physical E-stop available.
 
 ### The Auto reviewer on Muse Code
 

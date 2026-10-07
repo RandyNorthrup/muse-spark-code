@@ -38,6 +38,8 @@ export interface SurfaceOptions {
   /** The session id a deserialized panel stored; undefined for a new surface. */
   readonly restoredSessionId: string | undefined
   readonly reveal: () => void
+  readonly isVisible?: () => boolean
+  readonly isActive?: () => boolean
   readonly markUnread: () => void
   readonly setTitle: (title: string) => void
   /** The document gained focus (M25): the surface the keybindings act on. */
@@ -97,8 +99,11 @@ export function configureWebview(
   applyHtml()
 
   let restoredSessionId = options.restoredSessionId
+  let isFocused = false
   const surface: ChatSurface = {
     id: options.id,
+    isApprovalPresent: () =>
+      isFocused && options.isVisible?.() === true && (options.isActive?.() ?? true),
     isSideChat: options.isSideChat === true,
     post(message) {
       if (isRestoreEnding(message)) {
@@ -137,7 +142,8 @@ export function configureWebview(
         break
       }
       case 'surfaceFocused': {
-        options.onFocused(surface)
+        isFocused = message.focused ?? true
+        if (isFocused) options.onFocused(surface)
         break
       }
       case 'webviewError': {

@@ -43,6 +43,7 @@ export const SCENARIOS = [
   'filter',
   'modes',
   'modes-bypass',
+  'modes-hardware',
   'attach',
   'add-context',
   'markdown',

@@ -9,6 +9,8 @@ export interface TargetIdentity {
   readonly address: string
   readonly vidPid?: string
   readonly usbSerial?: string
+  /** Local device-node generation, not a claimed USB serial or a wire field. */
+  readonly connectionId?: string
 }
 
 export interface ApprovalRequest {
@@ -79,7 +81,8 @@ export class HardwareApproval {
         (identity, index) =>
           identity.address === this.request.targets[index]?.address &&
           identity.vidPid === this.request.targets[index].vidPid &&
-          identity.usbSerial === this.request.targets[index].usbSerial,
+          identity.usbSerial === this.request.targets[index].usbSerial &&
+          identity.connectionId === this.request.targets[index].connectionId,
       )
     )
   }
