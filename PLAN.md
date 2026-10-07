@@ -40784,6 +40784,12 @@ Static duplication shares the inert text encoder with the lazy code-fence
 renderer as well as exported chats and the companion page; the zero-clone
 threshold is retained.
 
+The first full rerun exposes the private ChatGPT fixture's combined build and
+pack crossing its unchanged 60-second cold archive bound. Native export
+certification's baseline and packaged observations are independent isolated
+workers; start that pair together, retain every export/call comparison, and
+measure the cold fixture again. No timer, retry or assertion is changed.
+
 ### CI0150A — Clean-shard artifacts and portable certification (2026-10-07)
 
 Scope: six owning suites in the CI0150A brief. Clean hosted shards have no

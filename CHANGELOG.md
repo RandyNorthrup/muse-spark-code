@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Keep cold package certification within its existing setup deadline by
+  observing the source and packaged native exports in isolated workers together.
+
 - Make clean CI shards own their ACP build and README image inputs, retain the
   historical activation baseline in the checkout, and verify installed help
   against its shipped translation archive.

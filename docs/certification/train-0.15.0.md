@@ -1923,6 +1923,16 @@ push, rebase, merge, credential output or disabled hook.
   active-editor condition through the existing five-second readiness helper,
   before making the unchanged assertion.
 
+- The first full rerun (`d9382117e`) exposes cold setup overruns in both
+  private package fixtures: their source build plus pack crosses 60 seconds.
+  Native-export certification observed baseline and packaged isolated workers
+  serially. Starting that independent pair together retains all comparisons
+  and cuts the measured ChatGPT fixture from 69.96 to 54.92 seconds. Removing
+  the packed CommonJS export annotations deliberately fails the package's
+  native-import comparison, then the suite's successful-pack assertion; one
+  test fails and the refusal case passes. The archive writer is restored
+  byte-exact. No timeout, assertion, retry or worker-isolation rule changes.
+
 ### Fresh-clone job verification
 
 The first committed repair (`02fd30fe9`) passes all four Linux shards, the
