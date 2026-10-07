@@ -156,6 +156,17 @@ describe('M116 K skill and charter', () => {
     expect(ordinaryRequests()).toEqual(original)
   })
 
+  it('locks rule 9: an obvious bypass refusal binds, with no off switch and no reroute', () => {
+    // Wrapping may move; the words may not. GROK-m116k P1 shipped
+    // "refusals are advisory" green because nothing asserted this text.
+    const words = skill.replaceAll(/\s+/gu, ' ')
+    expect(words).toContain('An obvious bypass command is refused: do not run it')
+    expect(words).toContain('The command-string guard is advisory only as a detector')
+    expect(words).toContain('This rule has no off switch')
+    expect(words).toContain('Never automatically retry or reroute a safety-classifier block')
+    expect(words).not.toContain('refusals are advisory')
+  })
+
   it('refuses a legacy bundle missing the charter instead of silently skipping the review contract', () => {
     const bundle = loadCharter(() => ({
       bundledSkillsStatus: () => undefined,

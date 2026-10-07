@@ -1514,6 +1514,7 @@
   "bundledSkillsNothingToRemove": "Aucune compétence incluse n’est installée pour Muse Code ; rien n’a donc été supprimé.",
   "bundledSkillsInstallFailed": "Les compétences incluses n’ont pas pu être installées dans {folder} : {reason}",
   "bundledSkillsRemoveFailed": "Les compétences incluses n’ont pas pu être supprimées de {folder} : {reason}",
+  "bundledSkillsOfferFailed": "Les compétences incluses n’ont pas pu être proposées : {reason}",
   "bundledSkillsNotOurs": "un dossier de ce nom existe déjà sans avoir été installé par Muse Spark, il a donc été laissé tel quel",
   "bundledSkillsUnavailable": "Le programme d’installation des compétences incluses n’a pas pu être chargé ; réinstallez l’extension et rechargez la fenêtre. Le journal contient les détails.",
   "whatsNewTitle": "Nouveautés de Muse Spark Code",

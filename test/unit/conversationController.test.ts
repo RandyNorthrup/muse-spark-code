@@ -3047,9 +3047,13 @@ describe('ConversationController: the bundled skills offer (M89)', () => {
     expect(offer).not.toHaveBeenCalled()
   })
 
-  it('shows nothing when there is nothing to offer, or the offer fails, and logs the failure', async () => {
+  it('shows nothing when there is nothing to offer', async () => {
     const none = setup({ bundledSkillsOffer: () => Promise.resolve(undefined) })
     await none.send('l1', 'hi')
+    expect(none.surface.posted.filter((m) => m.type === 'notice')).toEqual([])
+  })
+
+  it('says a warning when the offer fails instead of continuing silently (GROK-m116k P2)', async () => {
     const failing = setup({
       bundledSkillsOffer: () => Promise.reject(new Error('VENDOR.json is missing')),
     })
@@ -3059,9 +3063,14 @@ describe('ConversationController: the bundled skills offer (M89)', () => {
         'The bundled skills could not be offered: VENDOR.json is missing',
       )
     })
-    for (const t of [none, failing]) {
-      expect(t.surface.posted.filter((m) => m.type === 'notice')).toEqual([])
-    }
+    const expected = fill(UI_TEXT.bundledSkillsOfferFailed, {
+      reason: 'VENDOR.json is missing',
+    })
+    await vi.waitFor(() => {
+      expect(failing.surface.posted.filter((m) => m.type === 'notice')).toEqual([
+        { type: 'notice', level: 'warning', text: expected },
+      ])
+    })
   })
 })
 

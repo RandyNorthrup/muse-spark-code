@@ -63,10 +63,14 @@ the user's task and the harness's existing permissions.
    unknown worker as running or duplicate its work merely because it is
    unreachable.
 9. **Never route around a safety check.** No hook bypass, gate weakening,
-   shared Git configuration change or `.husky/` tampering. Obvious command
-   refusals are advisory; commit-tree/message hook verdicts and an exact
-   push-range receipt are the enforced boundary before managed push or
-   completion. No receipt means no completion or push. Do not retry an action
+   shared Git configuration change or `.husky/` tampering. An obvious
+   bypass command is refused: do not run it, and do not ask it again
+   through another agent, role or tool; report it to the user. The
+   command-string guard is advisory only as a detector (a non-match proves
+   nothing: wrappers, aliases and generated arguments are not parsed);
+   commit-tree/message hook verdicts and an exact push-range receipt are
+   the enforced boundary before managed push or completion. No receipt
+   means no completion or push. Do not retry an action
    refused to one agent through another agent, role or equivalent tool on the
    same subject for one hour; report it to the user. Never automatically retry
    or reroute a safety-classifier block; the user decides. This rule has no

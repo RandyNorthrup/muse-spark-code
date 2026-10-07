@@ -1420,6 +1420,7 @@
   "bundledSkillsNothingToRemove": "Muse Code용으로 설치된 번들 스킬이 없어 아무것도 제거하지 않았습니다.",
   "bundledSkillsInstallFailed": "{folder}에 번들 스킬을 설치할 수 없습니다: {reason}",
   "bundledSkillsRemoveFailed": "{folder}에서 번들 스킬을 제거할 수 없습니다: {reason}",
+  "bundledSkillsOfferFailed": "번들 스킬을 제공할 수 없습니다: {reason}",
   "bundledSkillsNotOurs": "같은 이름의 폴더가 있지만 Muse Spark가 설치한 것이 아니어서 그대로 두었습니다",
   "bundledSkillsUnavailable": "번들 스킬 설치 관리자를 불러오지 못했습니다. 확장을 다시 설치하고 창을 다시 로드하세요. 자세한 내용은 로그에 있습니다.",
   "whatsNewTitle": "Muse Spark Code의 새로운 기능",

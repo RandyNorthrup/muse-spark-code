@@ -2572,6 +2572,7 @@ export const EN = {
     'No bundled skills are installed for Muse Code, so nothing was removed.',
   bundledSkillsInstallFailed: 'The bundled skills could not be installed at {folder}: {reason}',
   bundledSkillsRemoveFailed: 'The bundled skills could not be removed at {folder}: {reason}',
+  bundledSkillsOfferFailed: 'The bundled skills could not be offered: {reason}',
   // The reason when the folder is there but holds no mark of the extension's install.
   bundledSkillsNotOurs:
     'a folder of that name exists that Muse Spark did not install, so it was left alone',

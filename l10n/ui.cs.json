@@ -1561,6 +1561,7 @@
   "bundledSkillsNothingToRemove": "Pro Muse Code nejsou nainstalovány žádné přibalené dovednosti, takže nebylo nic odebráno.",
   "bundledSkillsInstallFailed": "Přibalené dovednosti se nepodařilo nainstalovat do {folder}: {reason}",
   "bundledSkillsRemoveFailed": "Přibalené dovednosti se nepodařilo odebrat z {folder}: {reason}",
+  "bundledSkillsOfferFailed": "Přibalené dovednosti se nepodařilo nabídnout: {reason}",
   "bundledSkillsNotOurs": "složka s tímto názvem už existuje, ale nenainstaloval ji Muse Spark, proto zůstala beze změny",
   "bundledSkillsUnavailable": "Instalátor přibalených dovedností se nepodařilo načíst; přeinstalujte rozšíření a znovu načtěte okno. Podrobnosti jsou v protokolu.",
   "whatsNewTitle": "Novinky v Muse Spark Code",

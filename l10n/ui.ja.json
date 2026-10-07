@@ -1420,6 +1420,7 @@
   "bundledSkillsNothingToRemove": "Muse Code 用の付属スキルはインストールされていないため、何も削除しませんでした。",
   "bundledSkillsInstallFailed": "付属スキルを {folder} にインストールできませんでした: {reason}",
   "bundledSkillsRemoveFailed": "付属スキルを {folder} から削除できませんでした: {reason}",
+  "bundledSkillsOfferFailed": "付属スキルを提供できませんでした: {reason}",
   "bundledSkillsNotOurs": "同じ名前のフォルダーが既にあり、Muse Spark がインストールしたものではないため、そのままにしました",
   "bundledSkillsUnavailable": "付属スキルのインストーラーを読み込めませんでした。拡張機能を再インストールし、ウィンドウを再読み込みしてください。詳細はログにあります。",
   "whatsNewTitle": "Muse Spark Code の新機能",

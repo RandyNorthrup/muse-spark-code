@@ -1467,6 +1467,7 @@
   "bundledSkillsNothingToRemove": "Nincs a Muse Code számára telepített mellékelt képesség, így semmi sem lett eltávolítva.",
   "bundledSkillsInstallFailed": "A mellékelt képességeket nem sikerült telepíteni ebbe a mappába ({folder}): {reason}",
   "bundledSkillsRemoveFailed": "A mellékelt képességeket nem sikerült eltávolítani ebből a mappából ({folder}): {reason}",
+  "bundledSkillsOfferFailed": "A mellékelt képességeket nem sikerült felajánlani: {reason}",
   "bundledSkillsNotOurs": "már létezik ilyen nevű mappa, amelyet nem a Muse Spark telepített, ezért érintetlenül maradt",
   "bundledSkillsUnavailable": "A mellékelt képességek telepítőjét nem sikerült betölteni; telepítse újra a bővítményt, és töltse be újra az ablakot. A részletek a naplóban vannak.",
   "whatsNewTitle": "A Muse Spark Code újdonságai",

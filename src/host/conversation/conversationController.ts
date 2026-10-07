@@ -3803,8 +3803,11 @@ export class ConversationController {
       this.deps.log.info(`${NOTICE_PREFIX}${offer.text}`)
       this.post({ type: 'notice', level: 'info', text: offer.text, actions: [...offer.actions] })
     } catch (error: unknown) {
-      // Nothing to offer is better than a wrong offer; the log says why.
+      // A broken package is said, not swallowed: without the read there is
+      // no offer, and the conversation would otherwise continue silently on
+      // stale links (GROK-m116k P2).
       this.deps.log.warn(`The bundled skills could not be offered: ${describeForLog(error)}`)
+      this.say('warning', fill(UI_TEXT.bundledSkillsOfferFailed, { reason: describe(error) }))
     }
   }
 

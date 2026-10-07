@@ -1514,6 +1514,7 @@
   "bundledSkillsNothingToRemove": "Per Muse Code non è installata nessuna competenza in dotazione, quindi non è stato rimosso nulla.",
   "bundledSkillsInstallFailed": "Non è stato possibile installare le competenze in dotazione in {folder}: {reason}",
   "bundledSkillsRemoveFailed": "Non è stato possibile rimuovere le competenze in dotazione da {folder}: {reason}",
+  "bundledSkillsOfferFailed": "Non è stato possibile offrire le competenze in dotazione: {reason}",
   "bundledSkillsNotOurs": "esiste già una cartella con quel nome che non è stata installata da Muse Spark, quindi è stata lasciata com’è",
   "bundledSkillsUnavailable": "Non è stato possibile caricare il programma di installazione delle competenze in dotazione; reinstalla l’estensione e ricarica la finestra. I dettagli sono nel log.",
   "whatsNewTitle": "Novità di Muse Spark Code",

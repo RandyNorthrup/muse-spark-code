@@ -1467,6 +1467,7 @@
   "bundledSkillsNothingToRemove": "Für Muse Code sind keine mitgelieferten Skills installiert, daher wurde nichts entfernt.",
   "bundledSkillsInstallFailed": "Die mitgelieferten Skills konnten nicht unter {folder} installiert werden: {reason}",
   "bundledSkillsRemoveFailed": "Die mitgelieferten Skills konnten nicht unter {folder} entfernt werden: {reason}",
+  "bundledSkillsOfferFailed": "Die mitgelieferten Skills konnten nicht angeboten werden: {reason}",
   "bundledSkillsNotOurs": "dort gibt es einen gleichnamigen Ordner, den nicht Muse Spark installiert hat, daher blieb er unverändert",
   "bundledSkillsUnavailable": "Das Installationsmodul für die mitgelieferten Skills konnte nicht geladen werden; installieren Sie die Erweiterung neu und laden Sie das Fenster neu. Details stehen im Protokoll.",
   "whatsNewTitle": "Neuigkeiten in Muse Spark Code",

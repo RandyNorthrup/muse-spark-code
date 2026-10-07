@@ -1561,6 +1561,7 @@
   "bundledSkillsNothingToRemove": "Прилагаемые навыки для Muse Code не установлены, поэтому ничего не удалено.",
   "bundledSkillsInstallFailed": "Не удалось установить прилагаемые навыки в {folder}: {reason}",
   "bundledSkillsRemoveFailed": "Не удалось удалить прилагаемые навыки из {folder}: {reason}",
+  "bundledSkillsOfferFailed": "Не удалось предложить прилагаемые навыки: {reason}",
   "bundledSkillsNotOurs": "папка с таким именем уже существует, но её установил не Muse Spark, поэтому она оставлена без изменений",
   "bundledSkillsUnavailable": "Не удалось загрузить установщик прилагаемых навыков; переустановите расширение и перезагрузите окно. Подробности — в журнале.",
   "whatsNewTitle": "Что нового в Muse Spark Code",

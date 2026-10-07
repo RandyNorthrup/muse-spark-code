@@ -1561,6 +1561,7 @@
   "bundledSkillsNothingToRemove": "Dla Muse Code nie zainstalowano żadnych dołączonych umiejętności, więc nic nie usunięto.",
   "bundledSkillsInstallFailed": "Nie udało się zainstalować dołączonych umiejętności w {folder}: {reason}",
   "bundledSkillsRemoveFailed": "Nie udało się usunąć dołączonych umiejętności z {folder}: {reason}",
+  "bundledSkillsOfferFailed": "Nie udało się zaproponować dołączonych umiejętności: {reason}",
   "bundledSkillsNotOurs": "istnieje już folder o tej nazwie, którego nie zainstalował Muse Spark, więc pozostawiono go bez zmian",
   "bundledSkillsUnavailable": "Nie udało się wczytać instalatora dołączonych umiejętności; zainstaluj ponownie rozszerzenie i przeładuj okno. Szczegóły są w dzienniku.",
   "whatsNewTitle": "Nowości w Muse Spark Code",
