@@ -26,6 +26,7 @@ import {
   type SideCallAttempt,
   type SideCallFormats,
 } from '../backends/modelapi/structuredOutput'
+import type { TurnPart, TurnSubmission } from '../agent/agentBackend'
 import type { GitDraftKind } from '../../shared/git'
 
 export interface CommitPromptFacts {
@@ -51,9 +52,10 @@ export interface PullRequestText {
   readonly body: string
 }
 
-/** M95/host binding: prepare formats the existing user's turn; request continues
+/** M95/host binding: submit owns the prepared user's turn; request continues
  * that same held turn with its live admission, consent and budget guards. */
 export interface GitDraftOutputPort {
+  readonly submit?: (parts: readonly TurnPart[], displayText?: string) => Promise<TurnSubmission>
   readonly formats: () => SideCallFormats | undefined
   readonly prepare: (kind: GitDraftKind, attempt: SideCallAttempt, signal: AbortSignal) => void
   readonly request: (

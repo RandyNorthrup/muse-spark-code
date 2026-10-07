@@ -314,7 +314,8 @@ No install or hook override was needed. Every final test uses repository timeout
 
 Logs are `temp/fixm106w/red-<drill>.log`. Each mutation caused the named regression
 to fail; all twelve drills failed as intended and all files were restored to
-these SHA-256 values, matching the unmodified worktree:
+the first-commit SHA-256 values below (`77ab6244c`). The final follow-up
+restoration table below supersedes changed guard files:
 
 | Drill                               | Mutated file                                      | Restored SHA-256                                                   |
 | ----------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------ |
@@ -339,5 +340,82 @@ freshness, cycles and the production build are checked individually. The lane
 brief forbids aggregate `npm run quality`; the lead retains that release gate,
 coverage, accessibility, hosted matrices and live qualification.
 
-The complete M106 and repository batch receipts follow after the local fix
-commit; this focused record makes no aggregate test claim yet.
+The complete M106 and repository batch receipts appear below; the focused
+counts above are separate runs, not an aggregate release claim.
+
+### Own-submission and fallback follow-up
+
+A prepared Git contract now travels through its own port submission rather
+than a session-global pending slot. Another message may overtake autosave
+without acquiring that contract. The port refuses an unprepared or repeated
+submission; queued preparations also refuse a changed model or cancellation
+before HTTP. Repairs retain their existing session/model/turn and Stop fences.
+Judge removes a main turn's format before applying its own verdict contract,
+so its text fallback cannot inherit `commit_draft`. Both schema guides now
+state typed-array and validation-work limits accurately.
+
+The full controller/wiring/Judge focused group passed **615 tests**. The
+expanded wiring file then passed **14 tests**, including unprepared/repeated
+submission and queued cancellation. The final complete M106 run below includes
+all of those cases. All **18** distinct red drills fired named regressions;
+each mutation was restored byte-exact and the hashes below match the final
+unmodified guard files. Every drill ran a complete file with default timeouts,
+three workers and no test-name filter. Logs are `temp/fixm106w/red-<drill>.log`.
+
+| Drill                               | Restored file                                     | SHA-256                                                            |
+| ----------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------ |
+| `search-window-once`                | `src/core/paid/paidConsent.ts`                    | `2dbb6c5b20d93e1e23e3a22e08bdeaad15f8660a18b6c4f671210e20b39c4fa3` |
+| `search-popup-coalescing`           | `src/core/paid/paidConsent.ts`                    | `2dbb6c5b20d93e1e23e3a22e08bdeaad15f8660a18b6c4f671210e20b39c4fa3` |
+| `git-controller-port`               | `src/host/conversation/conversationController.ts` | `657c49315cf53fc5320be281a2b1759366cf56f36777b73855bda8ec353d445b` |
+| `git-original-event-before-display` | `src/host/conversation/conversationController.ts` | `657c49315cf53fc5320be281a2b1759366cf56f36777b73855bda8ec353d445b` |
+| `judge-own-fallback-schema`         | `src/host/judge/modelApiSameJudge.ts`             | `0107e37c020aafed233acb08da114dc305ffadcb74b718058e9c6caef612c93a` |
+| `judge-window-formats`              | `src/host/judge/judgeEntry.ts`                    | `24cef7f6cd7a3b747e6ebe1059b1487203fe3a27568eec412bc8822fed554876` |
+| `hosted-settlement-expectation`     | `test/unit/modelApiHostedSearch.test.ts`          | `f8e9493810dcf4d3afd5e3c46c0a510457b16df8e9575642d72723fb8b0e32e5` |
+| `hosted-atomic-fixture`             | `test/fixtures/m106/h-search-requests.json`       | `49c1f32a3a36d14741b5b38039f4910b372434269dc1738495596eb6e460abbd` |
+| `output-schema-reference-docs`      | `docs/acp.md`                                     | `ac4c271437d0ea16ac717018ee992836d58da11e4f4b3d48cc8ea12c37f76342` |
+| `output-schema-reference-docs`      | `docs/ci.md`                                      | `3a4ea6ed2ea8c5f5b913491e315b5f6548e636d4b976f3de99ab017df79083bd` |
+| `compaction-exec-format`            | `src/core/backends/modelapi/ModelApiHost.ts`      | `856f2a0f17d495cd0227212372f672cd4fc97a27867d4d45d3c2fcaa681fb18e` |
+| `git-model-fence`                   | `src/core/backends/modelapi/ModelApiHost.ts`      | `856f2a0f17d495cd0227212372f672cd4fc97a27867d4d45d3c2fcaa681fb18e` |
+| `git-cancelled-prepare`             | `src/core/backends/modelapi/ModelApiHost.ts`      | `856f2a0f17d495cd0227212372f672cd4fc97a27867d4d45d3c2fcaa681fb18e` |
+| `git-one-turn-contract`             | `src/core/backends/modelapi/ModelApiHost.ts`      | `856f2a0f17d495cd0227212372f672cd4fc97a27867d4d45d3c2fcaa681fb18e` |
+| `git-queued-model-fence`            | `src/core/backends/modelapi/ModelApiHost.ts`      | `856f2a0f17d495cd0227212372f672cd4fc97a27867d4d45d3c2fcaa681fb18e` |
+| `git-queued-abort`                  | `src/core/backends/modelapi/ModelApiHost.ts`      | `856f2a0f17d495cd0227212372f672cd4fc97a27867d4d45d3c2fcaa681fb18e` |
+| `git-preparation-required`          | `src/core/backends/modelapi/ModelApiHost.ts`      | `856f2a0f17d495cd0227212372f672cd4fc97a27867d4d45d3c2fcaa681fb18e` |
+| `git-single-submission`             | `src/core/backends/modelapi/ModelApiHost.ts`      | `856f2a0f17d495cd0227212372f672cd4fc97a27867d4d45d3c2fcaa681fb18e` |
+| `judge-connection-formats`          | `src/core/backends/modelapi/ModelApiHost.ts`      | `856f2a0f17d495cd0227212372f672cd4fc97a27867d4d45d3c2fcaa681fb18e` |
+
+### Full-suite findings outside RVM106W
+
+The first complete 590-file audit passed **12,987 tests**, failed **48 tests**,
+and naturally skipped **88 tests**; one package suite also failed its setup.
+Its original M106 priority set passed **2,951 tests** across **57 files**.
+That audit froze the first repair plus the guide wording; the final own-turn
+correction is verified separately in the final run below. Logs are
+`temp/fixm106w/full-001.log` through `full-197.log`, with the exact named failures
+in `full-results.json`. No timeout, skip, assertion or gate was weakened.
+
+One failure was environmental: the nested exact-lock snapshot made
+`git ls-tree ad916bbc src` return no baseline paths. The isolated complete
+`modelsActivationBudget` rerun gives only its read-only Git comparison the
+real `GIT_DIR` and snapshot `GIT_WORK_TREE`; no Git config, hook or source
+changes. It passes **605,188 baseline bytes / 576,652 current bytes**
+(**-28,536 bytes**, unchanged 3 KiB limit). The final batch run applies that
+context only to this one complete file; all other tests retain their environment.
+
+The remaining named findings are release blockers, not accepted release
+qualification. They are outside the six reviewed repairs and this lane's
+file scope. The evidence below limits the present safety claim; the lead must
+complete each follow-up before calling the full gate green.
+
+| Residual                           | Complete files                             | Observed failure and present safety                                                                                                                                                            | Follow-up                                                                                                                                      |
+| ---------------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FIXM106W-FULL-PACKAGE-FIXTURES`   | execStdio.e2e / execTestLauncher.e2e       | Fake package stages omit newly required mcpPool/modelApiCodeIntel/structuredSchema chunks. Packaging fails closed before producing an incomplete package.                                      | Update the fake artifact inventories and rerun both complete files; retain all package rejection assertions.                                   |
+| `FIXM106W-FULL-MUSE-NOTIFICATIONS` | MuseCodeHost / museCodeSdk142              | Observer assertions expect the old diagnostic or omit added lifecycle events. The observed remaining listeners and private completion paths still receive their events.                        | Assert the fixed safe notification labels and complete captured lifecycle sequence without reducing observer checks.                           |
+| `FIXM106W-FULL-PALETTE-FAVOURITES` | Palette                                    | The provider grouping case cannot find its expected pinned-favourites group. This is a presentation failure; the run makes no paid dispatch.                                                   | Resolve the pinned group/view contract in the models lane and rerun the whole file.                                                            |
+| `FIXM106W-FULL-LAZY-CARDS`         | WorkflowRun / store                        | Workflow body and crash-screen question assertions query before lazy bodies load. Shared App/Transcript/tool-row lazy tests pass; these additional files are not repaired in this scoped lane. | Await each actual first-use control, retain the existing content/reload assertions, and rerun both files.                                      |
+| `FIXM106W-FULL-ACP-CAPABILITIES`   | acpAgent / acpModelApi                     | The SDK compaction availability expectation and three hosted-search fixtures lack the integrated capability/bound evidence. Search refuses the unverified finite spend cap before dispatch.    | Bind captured capabilities in the fake runtime, confirm compact advertising, and rerun both full ACP files without enabling unknown providers. |
+| `FIXM106W-FULL-REPORT-FRAMES`      | flightRecorder                             | The production support frame vocabulary lacks the three new shipped chunk paths. Report diagnostics are incomplete; the scrubbers and shipped-package guard remain intact.                     | Add the exact packaged chunk paths to the existing frame table and prove its package-equality guard fires.                                     |
+| `FIXM106W-FULL-CUT-SHORT-CODECS`   | modelApiCutShort                           | Five codec cases observe completed where they expect failed. Their preceding assertions confirm zero file writes; W's explicitly continuation-off normal/attempt tests pass.                   | Resolve the fixtures' captured continuation setting and terminal contract across all five codecs; retain no-write and replay checks.           |
+| `FIXM106W-FULL-HOOK-SEARCH`        | modelApiExtensionHooks                     | The narrowed hosted-search case sends ordinary chat rather than refusing before HTTP. The observed request has no hosted search tool, so this case incurs no paid search.                      | Supply verified hosted capability/bound evidence in the fixture, then prove narrowing refuses before its hosted dispatch.                      |
+| `FIXM106W-FULL-PRICE-DISPLAY`      | paletteRegistry / scheduledRunConfirmation | Exact-money formatting shows the same cached price as $0.0020 rather than the fixtures' $0.002. Price, consent and billing gates are unchanged.                                                | Align the asserted Intl/exact-money rendering while preserving selected-model rates and paid labels.                                           |
+| `FIXM106W-FULL-RETRY-POLICY`       | providerRetry                              | Meta retry classification now admits a status that the older table expects to refuse. Existing request admission, retry limits and Stop still bound the transport.                             | Reconcile the documented/captured retry table and its complete status assertions in the pacing lane; do not broaden limits.                    |

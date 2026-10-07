@@ -142,7 +142,9 @@ export class ModelApiSameJudge {
     })
     const canReusePrefix =
       planned.mode === 'shared-prefix' && main.tools.every((tool) => tool.type === 'function')
-    const body = canReusePrefix ? planned.body : this.standaloneBody(main, tail)
+    const { text: _mainFormat, ...body } = canReusePrefix
+      ? planned.body
+      : this.standaloneBody(main, tail)
     let reservedCostUsd: UsdAmount | undefined
     let settledCostUsd: UsdAmount | undefined
     let replyText: string

@@ -920,8 +920,16 @@ interface ChildTaskGrant {
   readonly searchQuote?: PaidQuote
 }
 
+interface PreparedGitDraft {
+  readonly attempt: SideCallAttempt
+  readonly signal: AbortSignal
+  readonly model: string
+  readonly revision: number
+  turnId: string | undefined
+}
+
 interface QueuedTurn {
-  readonly draftAttempt?: SideCallAttempt
+  readonly draft?: PreparedGitDraft
   readonly turnId: string
   readonly parts: readonly TurnPart[]
   readonly displayText: string | undefined
@@ -950,7 +958,7 @@ const GOAL_REFUSAL_REASONS: Readonly<Record<GoalRefusal, string>> = {
 const GOAL_WAKING_VERBS: ReadonlySet<GoalCommandVerb> = new Set(['set', 'edit', 'resume'])
 
 interface ActiveTurn {
-  readonly draftAttempt?: SideCallAttempt
+  readonly draft?: PreparedGitDraft
   readonly turnId: string
   readonly abort: AbortController
   readonly confirmedRequest?: ConfirmedModelRequest
@@ -2302,15 +2310,6 @@ export class ModelApiSession implements AgentSession {
   private readonly strictTools: boolean
   private readonly parallelReads: boolean
   private readonly outputContinuation: boolean
-  private pendingGitDraft:
-    | {
-        readonly attempt: SideCallAttempt
-        readonly signal: AbortSignal
-        readonly model: string
-        readonly revision: number
-        turnId: string | undefined
-      }
-    | undefined
   private outputFormat: CreateResponseBody['text']
   private readonly outputCaps = new Map<string, number>()
   private readonly repeatGuard = new RepeatGuard()
@@ -3573,10 +3572,17 @@ export class ModelApiSession implements AgentSession {
       max_output_tokens: this.outputCap(),
       ...(this.outputFormat !== undefined && { text: this.outputFormat }),
     })
-    const draft = shouldFormatDraft ? this.active?.draftAttempt : undefined
+    const draft = shouldFormatDraft ? this.active?.draft : undefined
+    if (
+      draft !== undefined &&
+      (draft.signal.aborted ||
+        draft.model !== this.modelId ||
+        draft.revision !== this.modelRevision)
+    )
+      throw new AbortedError()
     return draft === undefined
       ? body
-      : this.keyed(sideCallBody(body, draft, this.deps.forceSideCallTool))
+      : this.keyed(sideCallBody(body, draft.attempt, this.deps.forceSideCallTool))
   }
 
   /** Retain only what a completed request carried; History keeps its file chips separately. */
@@ -11622,7 +11628,7 @@ export class ModelApiSession implements AgentSession {
       goalWakePending: false,
       isWebSearchAllowed: false,
       isReview: queued.isReview === true,
-      ...(queued.draftAttempt !== undefined && { draftAttempt: queued.draftAttempt }),
+      ...(queued.draft !== undefined && { draft: queued.draft }),
       ranProcesses: this.hasLiveCommands(),
       ...(queued.confirmedRequest !== undefined && {
         confirmedRequest: queued.confirmedRequest,
@@ -12886,6 +12892,7 @@ export class ModelApiSession implements AgentSession {
     isReview: boolean,
     requestFor?: (turnId: string) => ConfirmedModelRequest,
     isHookContinuation = false,
+    draft?: PreparedGitDraft,
   ): Promise<TurnSubmission> {
     if (this.isDisposed) {
       return Promise.reject(new Error(UI_TEXT.turnStoppedByRestart))
@@ -12897,10 +12904,13 @@ export class ModelApiSession implements AgentSession {
     const turnId = this.isSubagent ? `${this.sessionId}:${this.deps.newId()}` : this.deps.newId()
     const userMessageId = this.deps.newId()
     const confirmedRequest = requestFor?.(turnId)
-    const draft = this.pendingGitDraft
-    this.pendingGitDraft = undefined
-    if (draft !== undefined && !draft.signal.aborted) {
-      if (draft.model !== this.modelId || draft.revision !== this.modelRevision)
+    if (draft !== undefined) {
+      if (
+        draft.signal.aborted ||
+        draft.turnId !== undefined ||
+        draft.model !== this.modelId ||
+        draft.revision !== this.modelRevision
+      )
         return Promise.reject(new Error(UI_TEXT.gitDraftFailed))
       draft.turnId = turnId
     }
@@ -12910,7 +12920,7 @@ export class ModelApiSession implements AgentSession {
       displayText,
       userMessageId,
       isGoalWake: false,
-      ...(draft !== undefined && !draft.signal.aborted && { draftAttempt: draft.attempt }),
+      ...(draft !== undefined && { draft }),
       ...(isHookContinuation && { isHookContinuation: true }),
       ...(isReview && { isReview }),
       ...(confirmedRequest !== undefined && { confirmedRequest }),
@@ -13184,7 +13194,7 @@ export class ModelApiSession implements AgentSession {
 
   /** The draft uses the accepted user turn; repairs cannot race another turn or model. */
   public get gitDraftOutput(): GitDraftOutputPort {
-    let draft: typeof this.pendingGitDraft
+    let draft: PreparedGitDraft | undefined
     return {
       formats: () => this.deps.sideCallFormats?.(this.modelId),
       prepare: (_kind, attempt, signal) => {
@@ -13197,8 +13207,11 @@ export class ModelApiSession implements AgentSession {
           revision: this.modelRevision,
           turnId: undefined,
         }
-        this.pendingGitDraft = draft
       },
+      submit: (parts, displayText) =>
+        draft === undefined
+          ? Promise.reject(new Error(UI_TEXT.gitDraftFailed))
+          : this.submitTurn(parts, displayText, false, undefined, false, draft),
       request: async (_kind, attempt, signal) => {
         await unlessStopped(this.settled(), signal)
         const binding = draft

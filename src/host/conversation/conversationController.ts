@@ -1028,6 +1028,8 @@ export class ConversationController {
   private revertsInFlight = 0
   private turnSubmissionsInFlight = 0
   private turnStartEpoch = 0
+  private gitDraftSubmission:
+    { readonly session: AgentSession; readonly port: GitDraftOutputPort } | undefined
   private session: AgentSession | undefined
   private unsubscribe: (() => void) | undefined
   private models: readonly ModelOption[] | undefined
@@ -1345,7 +1347,13 @@ export class ConversationController {
         }
       },
       sessionId: () => this.session?.sessionId,
-      draftOutput: () => this.session?.gitDraftOutput,
+      draftOutput: () => {
+        this.gitDraftSubmission = undefined
+        const session = this.session
+        const port = session?.gitDraftOutput
+        if (session !== undefined && port !== undefined) this.gitDraftSubmission = { session, port }
+        return port
+      },
     })
   }
 
@@ -5770,6 +5778,7 @@ export class ConversationController {
     displayText: string | undefined,
     shouldQueueForDisplayText: boolean,
     isCurrent: () => boolean,
+    draft?: typeof this.gitDraftSubmission,
   ): Promise<TurnSubmission> {
     if (!isCurrent()) {
       throw new Error(UI_TEXT.turnStoppedByRestart)
@@ -5803,6 +5812,10 @@ export class ConversationController {
     this.requireNonConfidentialModel(session.modelId)
     if (this.revertsInFlight > 0) {
       throw new Error(UI_TEXT.restoreTurnRunning)
+    }
+    if (draft !== undefined) {
+      if (draft.session !== session) throw new Error(UI_TEXT.gitDraftFailed)
+      if (draft.port.submit !== undefined) return await draft.port.submit(parts, displayText)
     }
     return await session.sendTurn(parts, displayText)
   }
@@ -5905,6 +5918,7 @@ export class ConversationController {
     // The running mark this message's turn takes over (M72), dropped if it is not sent.
     let checkpoint: PendingMark | undefined
     let gitGeneration: number | undefined
+    let gitSubmission: typeof this.gitDraftSubmission
     let isGitSubmitted = false
     let hasSubmittedHandoff = false
     try {
@@ -5933,7 +5947,11 @@ export class ConversationController {
       if (session === undefined) {
         return { isAccepted: false, hasSetTodos: false, turnId: undefined }
       }
-      if (gitDraft !== undefined) gitGeneration = this.git.generationStarting(gitDraft)
+      if (gitDraft !== undefined) {
+        gitGeneration = this.git.generationStarting(gitDraft)
+        gitSubmission = this.gitDraftSubmission
+        this.gitDraftSubmission = undefined
+      }
       this.turnSubmissionsInFlight += 1
       isCountedSubmission = true
       let expectedGeneration = this.attachmentGeneration
@@ -6074,12 +6092,15 @@ export class ConversationController {
           current,
           parts,
           displayText,
-          handoff !== undefined || (host.info.kind === 'museCode' && textFileNames.length > 0),
+          gitDraft !== undefined ||
+            handoff !== undefined ||
+            (host.info.kind === 'museCode' && textFileNames.length > 0),
           () =>
             !this.isDisposed &&
             this.sendInvalidationEpoch === sendEpoch &&
             this.session === current &&
             this.attachmentGeneration === expectedGeneration,
+          gitSubmission,
         )
       })
       // A Git form may close while the submitted model call finishes. Its

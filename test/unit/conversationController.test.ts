@@ -10214,6 +10214,60 @@ describe('ConversationController: git and pull requests (M71)', () => {
     },
   )
 
+  it('keeps the prepared Git format on its own submission while another message overtakes autosave', async () => {
+    const t = setup({
+      isAutosaveEnabled: true,
+      git: { repository: fakeRepository({ indexChanges: [change('src/a.ts')] }) },
+    })
+    const held = Promise.withResolvers<undefined>()
+    t.saveAll.mockImplementationOnce(() => held.promise)
+    let nextId = 0
+    const { api, host, controller } = modelApiController(t, {
+      modelId: M106_CAPTURED_META_MODEL,
+      sideCallFormats: metaSideCallFormats,
+      newId: () => `git-race-${String(++nextId)}`,
+    })
+    api.script({ text: 'Ordinary reply' }, { text: '{"message":"Own draft"}' })
+    try {
+      const draft = controller.handle({
+        type: 'sendMessage',
+        localId: 'draft',
+        text: UI_TEXT.gitAskCommitMessage,
+        attachmentIds: [],
+        gitDraft: 'commitMessage',
+      })
+      await vi.waitFor(() => {
+        expect(t.saveAll).toHaveBeenCalledOnce()
+      })
+      await controller.handle({
+        type: 'sendMessage',
+        localId: 'ordinary-race',
+        text: 'ordinary',
+        attachmentIds: [],
+      })
+      await vi.waitFor(() => {
+        expect(api.responseBodies()).toHaveLength(1)
+      })
+      expect(api.responseBodies()[0]).not.toHaveProperty('text')
+      held.resolve(undefined)
+      await draft
+      await vi.waitFor(() => {
+        expect(t.surface.posted).toContainEqual({
+          type: 'gitDraft',
+          draft: { kind: 'commitMessage', message: 'Own draft' },
+        })
+      })
+      expect(api.responseBodies()[1]?.['text']).toMatchObject({
+        format: { name: 'commit_draft', strict: true },
+      })
+    } finally {
+      held.resolve(undefined)
+      controller.dispose()
+      t.controller.dispose()
+      await host.close()
+    }
+  })
+
   it('asks for a commit message as the user’s own turn and fills the form from the reply', async () => {
     const t = await askedForCommitMessage()
     const input = t.server.requestsFor('turn/start')[0]?.params?.['input']

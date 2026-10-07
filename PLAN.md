@@ -27527,7 +27527,9 @@ every Model API user in every editor.
 findings: strip the exec answer format before compaction's own structured or
 text request; bind search's window Once to its provider/model/tariff and live
 revocation generation; connect Git drafts to the conversation's guarded
-Model API turn; forward captured output formats and codecs through Judge's
+Model API turn, with the contract submitted through that port rather than a
+session-global pending format that another message could consume; forward
+captured output formats and codecs through Judge's
 connection; refresh hosted-search settlement and atomic-edit golden evidence;
 document bounded local schema references accurately. Each fix has a failing
 regression drill and exact restoration receipt in the W certification. Run
@@ -33473,15 +33475,34 @@ before a repaired one loads (2026-09-30).
   both P3 findings are fixed; none is deferred. Compaction owns its format even
   with an exec answer schema. Search window Once remains bound to live exact
   quote/price/revocation evidence. Git drafts bind to the user's portable core
-  session, with original-event ordering, one repair/text fallback and live
-  model/turn/Stop/account/budget guards; Judge receives that session's captured
-  formats and codec through its admitted connection. The hosted-search suite
+  session and its own submission, with original-event ordering, one repair/text
+  fallback and live model/turn/Stop/account/budget guards; an ordinary message
+  cannot take a prepared draft's contract. Judge receives that session's captured
+  formats and codec through its admitted connection and clears the main draft
+  format before its own text fallback. The hosted-search suite
   compares returned settlement and the merged atomic declaration, and both
   schema guides describe bounded local references correctly. Existing caps,
   dependencies, paid admission and native/provider capture deferrals stay in
-  force. Twelve red drills have byte-exact restoration receipts in
+  force. Eighteen red drills have byte-exact restoration receipts in
   `docs/certification/m106-w-wiring,-docs-and-gates-(last).md`; the lead retains
   aggregate quality and release/live qualification.
+
+- **FIXM106W full-suite audit residuals (2026-10-06).** These are outside
+  RVM106W's six fixed findings and this repair lane's file scope. The candidate
+  remains blocked on the full suite; none is accepted as a green release gate.
+  The immutable activation comparison passes with the snapshot's read-only Git
+  context corrected; no source, Git config or threshold changes.
+  **FIXM106W-FULL-PACKAGE-FIXTURES** (execStdio.e2e / execTestLauncher.e2e): Fake package stages omit newly required mcpPool/modelApiCodeIntel/structuredSchema chunks. Packaging fails closed before producing an incomplete package. Follow-up: Update the fake artifact inventories and rerun both complete files; retain all package rejection assertions.
+  **FIXM106W-FULL-MUSE-NOTIFICATIONS** (MuseCodeHost / museCodeSdk142): Observer assertions expect the old diagnostic or omit added lifecycle events. The observed remaining listeners and private completion paths still receive their events. Follow-up: Assert the fixed safe notification labels and complete captured lifecycle sequence without reducing observer checks.
+  **FIXM106W-FULL-PALETTE-FAVOURITES** (Palette): The provider grouping case cannot find its expected pinned-favourites group. This is a presentation failure; the run makes no paid dispatch. Follow-up: Resolve the pinned group/view contract in the models lane and rerun the whole file.
+  **FIXM106W-FULL-LAZY-CARDS** (WorkflowRun / store): Workflow body and crash-screen question assertions query before lazy bodies load. Shared App/Transcript/tool-row lazy tests pass; these additional files are not repaired in this scoped lane. Follow-up: Await each actual first-use control, retain the existing content/reload assertions, and rerun both files.
+  **FIXM106W-FULL-ACP-CAPABILITIES** (acpAgent / acpModelApi): The SDK compaction availability expectation and three hosted-search fixtures lack the integrated capability/bound evidence. Search refuses the unverified finite spend cap before dispatch. Follow-up: Bind captured capabilities in the fake runtime, confirm compact advertising, and rerun both full ACP files without enabling unknown providers.
+  **FIXM106W-FULL-REPORT-FRAMES** (flightRecorder): The production support frame vocabulary lacks the three new shipped chunk paths. Report diagnostics are incomplete; the scrubbers and shipped-package guard remain intact. Follow-up: Add the exact packaged chunk paths to the existing frame table and prove its package-equality guard fires.
+  **FIXM106W-FULL-CUT-SHORT-CODECS** (modelApiCutShort): Five codec cases observe completed where they expect failed. Their preceding assertions confirm zero file writes; W's explicitly continuation-off normal/attempt tests pass. Follow-up: Resolve the fixtures' captured continuation setting and terminal contract across all five codecs; retain no-write and replay checks.
+  **FIXM106W-FULL-HOOK-SEARCH** (modelApiExtensionHooks): The narrowed hosted-search case sends ordinary chat rather than refusing before HTTP. The observed request has no hosted search tool, so this case incurs no paid search. Follow-up: Supply verified hosted capability/bound evidence in the fixture, then prove narrowing refuses before its hosted dispatch.
+  **FIXM106W-FULL-PRICE-DISPLAY** (paletteRegistry / scheduledRunConfirmation): Exact-money formatting shows the same cached price as $0.0020 rather than the fixtures' $0.002. Price, consent and billing gates are unchanged. Follow-up: Align the asserted Intl/exact-money rendering while preserving selected-model rates and paid labels.
+  **FIXM106W-FULL-RETRY-POLICY** (providerRetry): Meta retry classification now admits a status that the older table expects to refuse. Existing request admission, retry limits and Stop still bound the transport. Follow-up: Reconcile the documented/captured retry table and its complete status assertions in the pacing lane; do not broaden limits.
+  Exact named failures and final batch results are in the W certification.
 
 - **FIXDIET1 audit outcome (2026-10-06).** RVMDIET1 P2-1, P2-2 and P3 are
   fixed; no review finding is deferred. Retry flushes the existing webview

@@ -241,16 +241,23 @@ describe('M106 integrated wiring', () => {
       new TextEncoder().encode(
         JSON.stringify({
           ...closedSchema,
-          properties: { ok: { $ref: '#/$defs/answer' } },
+          properties: {
+            ok: { $ref: '#/$defs/answer' },
+            values: { type: 'array', items: { type: 'boolean' } },
+          },
+          required: ['ok', 'values'],
           $defs: { answer: { type: 'boolean' } },
         }),
       ),
     )
-    expect(schema.parseAnswer('{"ok":true}').ok).toBe(true)
+    expect(schema.parseAnswer('{"ok":true,"values":[true,false]}').ok).toBe(true)
     for (const file of ['docs/acp.md', 'docs/ci.md']) {
       const guide = readFileSync(file, 'utf8')
       expect(guide).toContain('bounded local `$defs`/`$ref` references')
       expect(guide).toContain('reference-only cycles')
+      expect(guide).toContain('arrays declare their item type')
+      expect(guide).toContain('byte, depth, node and validation work limits')
+      expect(guide).not.toContain('unbounded containers')
       expect(guide).not.toContain('strict subset rejects references')
     }
   })
@@ -262,13 +269,71 @@ describe('M106 integrated wiring', () => {
       const attempt = gitDraftContract('commitMessage', port.formats())
       port.prepare('commitMessage', attempt, new AbortController().signal)
       h.api.script({ text: 'invalid' })
-      await session.sendTurn([{ type: 'text', text: 'draft a commit' }])
+      if (port.submit === undefined) throw new Error('Expected the bound draft submission')
+      await port.submit([{ type: 'text', text: 'draft a commit' }])
       await session.settled()
       await session.setModel('muse-spark-1.3')
       h.api.script({ text: '{"message":"Stale repair"}' })
       await expect(
         port.request('commitMessage', { ...attempt, repair: true }, new AbortController().signal),
       ).rejects.toThrow(UI_TEXT.gitDraftFailed)
+      expect(h.api.responseBodies()).toHaveLength(1)
+    } finally {
+      await h.m.dispose()
+    }
+  })
+
+  it.each(['model', 'abort'])(
+    'refuses a queued Git draft after %s invalidates its preparation',
+    async (invalidatedBy) => {
+      const { h, session } = await schemaSession()
+      const held = Promise.withResolvers<undefined>()
+      const abort = new AbortController()
+      try {
+        const port = session.gitDraftOutput
+        port.prepare(
+          'commitMessage',
+          gitDraftContract('commitMessage', port.formats()),
+          abort.signal,
+        )
+        if (port.submit === undefined) throw new Error('Expected the bound draft submission')
+        h.api.script(
+          { text: 'Ordinary reply', hold: held.promise },
+          { text: '{"message":"Wrong model draft"}' },
+        )
+        await session.sendTurn([{ type: 'text', text: 'ordinary' }])
+        await vi.waitFor(() => {
+          expect(h.api.responseBodies()).toHaveLength(1)
+        })
+        await port.submit([{ type: 'text', text: 'draft a commit' }])
+        if (invalidatedBy === 'model') await session.setModel('muse-spark-1.3')
+        else abort.abort()
+        held.resolve(undefined)
+        await session.settled()
+        expect(h.api.responseBodies()).toHaveLength(1)
+      } finally {
+        held.resolve(undefined)
+        await h.m.dispose()
+      }
+    },
+  )
+
+  it('requires preparation and refuses a second submission of the same Git draft', async () => {
+    const { h, session } = await schemaSession()
+    try {
+      const port = session.gitDraftOutput
+      if (port.submit === undefined) throw new Error('Expected the bound draft submission')
+      const parts = [{ type: 'text' as const, text: 'draft a commit' }]
+      await expect(port.submit(parts)).rejects.toThrow(UI_TEXT.gitDraftFailed)
+      port.prepare(
+        'commitMessage',
+        gitDraftContract('commitMessage', port.formats()),
+        new AbortController().signal,
+      )
+      h.api.script({ text: '{"message":"One draft"}' })
+      await port.submit(parts)
+      await session.settled()
+      await expect(port.submit(parts)).rejects.toThrow(UI_TEXT.gitDraftFailed)
       expect(h.api.responseBodies()).toHaveLength(1)
     } finally {
       await h.m.dispose()
@@ -282,6 +347,10 @@ describe('M106 integrated wiring', () => {
       const abort = new AbortController()
       port.prepare('commitMessage', gitDraftContract('commitMessage', port.formats()), abort.signal)
       abort.abort()
+      if (port.submit === undefined) throw new Error('Expected the bound draft submission')
+      await expect(port.submit([{ type: 'text', text: 'cancelled draft' }])).rejects.toThrow(
+        UI_TEXT.gitDraftFailed,
+      )
       h.api.script({ text: 'Ordinary reply' })
       await session.sendTurn([{ type: 'text', text: 'ordinary' }])
       await session.settled()

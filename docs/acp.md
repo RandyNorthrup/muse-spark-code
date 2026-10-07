@@ -502,8 +502,10 @@ Send `/help` in an ACP session for its local command list and the [generated ref
 file descriptor, verifies its identity and confines its real path to the
 workspace. `--output-schema-outside` explicitly permits an external path.
 The strict subset supports bounded local `$defs`/`$ref` references. It rejects
-external references, reference-only cycles, regular expressions and unbounded
-containers; recursive object definitions still have bounded answer depth. Its closed schema and digest are fixed before session dispatch;
+external references, reference-only cycles and unsupported constraints such as
+regular expressions. Objects are closed and require every declared property;
+arrays declare their item type. Recursive object definitions are permitted.
+Both schemas and answers have byte, depth, node and validation work limits. Its closed schema and digest are fixed before session dispatch;
 a changed model, active session or repeated configuration is refused.
 
 The captured `muse-spark-1.3-contributor` record selects provider strict JSON

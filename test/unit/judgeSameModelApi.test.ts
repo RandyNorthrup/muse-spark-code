@@ -145,8 +145,24 @@ describe('ModelApiSameJudge', () => {
     expect(rig.sent[0]?.prompt_cache_key).toBe(mainBody().prompt_cache_key)
   })
 
-  it('takes a fresh text path after one invalid repair without granting permission', async () => {
+  it('takes its own fresh text path after one invalid repair without inheriting the main draft schema or granting permission', async () => {
     const rig = setup({
+      main: {
+        ...mainBody(),
+        text: {
+          format: {
+            type: 'json_schema',
+            name: 'commit_draft',
+            strict: true,
+            schema: {
+              type: 'object',
+              properties: { message: { type: 'string' } },
+              required: ['message'],
+              additionalProperties: false,
+            },
+          },
+        },
+      },
       formats: () => ({ state: 'yes', value: ['json_schema'] }),
       send: (body) =>
         Promise.resolve({
