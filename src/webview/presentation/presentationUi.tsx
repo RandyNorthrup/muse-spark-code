@@ -63,11 +63,24 @@ export function createPresentationUi(element: Element, owner: PresentationOwner)
   const root = createRoot(element)
   let isDisposed = false
   let revision = 0
+  let hasCrashed = false
   function show(page: ReactNode): void {
     if (isDisposed) throw new Error('MHP_PRESENTATION_DISPOSED')
-    revision += 1
+    // A published state reconciles into the mounted page so a pending action
+    // keeps its local result. Only a crashed boundary takes a fresh key.
+    if (hasCrashed) {
+      hasCrashed = false
+      revision += 1
+    }
     root.render(
-      <PresentationBoundary key={revision} {...owner}>
+      <PresentationBoundary
+        key={revision}
+        onReload={owner.onReload}
+        onError={(code) => {
+          hasCrashed = true
+          owner.onError(code)
+        }}
+      >
         <Suspense fallback={<p role="status">{UI_TEXT.loadingOutput}</p>}>{page}</Suspense>
       </PresentationBoundary>,
     )

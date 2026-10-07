@@ -83,6 +83,44 @@ describe('portable saved-plan page', () => {
     expect(document.body.textContent).not.toContain('private path')
   })
 
+  it('keeps a pending plan read mounted across a state publication', async () => {
+    const element = document.createElement('div')
+    document.body.append(element)
+    const reading = Promise.withResolvers<string>()
+    const onRead = vi.fn(() => reading.promise)
+    const props = {
+      plans,
+      onRead,
+      onOpen: vi.fn(() => Promise.resolve()),
+      onImplement: vi.fn(() => Promise.resolve()),
+    }
+    const ui = createPresentationUi(element, { onReload: vi.fn(), onError: vi.fn() })
+    try {
+      await act(async () => {
+        ui.showPlans(props)
+        await Promise.resolve()
+      })
+      fireEvent.click(await screen.findByRole('button', { name: 'First plan' }))
+      expect(onRead).toHaveBeenCalledExactlyOnceWith('first.md')
+      // The post-action state publication arrives while the read is pending.
+      act(() => {
+        ui.showPlans({ ...props })
+      })
+      await act(async () => {
+        reading.resolve('Exact saved text')
+        await reading.promise
+      })
+      expect(await screen.findByText('Exact saved text')).toBeVisible()
+      expect(screen.getByRole('button', { name: EN.planOpen })).toBeEnabled()
+      expect(screen.getByRole('button', { name: EN.implementPlan })).toBeEnabled()
+    } finally {
+      act(() => {
+        ui.dispose()
+      })
+      element.remove()
+    }
+  })
+
   it('loads the real lazy view through the carrier factory and disposes it', async () => {
     const element = document.createElement('div')
     document.body.append(element)
@@ -178,6 +216,35 @@ describe('portable diff decisions', () => {
     expect(screen.getByRole('status')).toHaveFocus()
     expect(screen.getByRole('status')).toHaveTextContent(EN.reviewAccepted)
     expect(screen.queryByRole('button', { name: EN.reviewAccept })).toBeNull()
+  })
+
+  it('retains an accepted decision across a same-version state publication', async () => {
+    const element = document.createElement('div')
+    document.body.append(element)
+    const onDecide = vi.fn(() => Promise.resolve(undefined))
+    const props = { title: 'Review', hunks: [hunk], onDecide }
+    const ui = createPresentationUi(element, { onReload: vi.fn(), onError: vi.fn() })
+    try {
+      await act(async () => {
+        ui.showDiff(props)
+        await Promise.resolve()
+      })
+      fireEvent.click(await screen.findByRole('button', { name: EN.reviewAccept }))
+      await waitFor(() => {
+        expect(screen.getByRole('status')).toHaveTextContent(EN.reviewAccepted)
+      })
+      // The post-decision state publication retains the decided hunk.
+      act(() => {
+        ui.showDiff({ ...props, hunks: [{ ...hunk }] })
+      })
+      expect(screen.getByRole('status')).toHaveTextContent(EN.reviewAccepted)
+      expect(screen.queryByRole('button', { name: EN.reviewAccept })).toBeNull()
+    } finally {
+      act(() => {
+        ui.dispose()
+      })
+      element.remove()
+    }
   })
 
   it('permits retry on failure and resets decisions on a new document version', async () => {
