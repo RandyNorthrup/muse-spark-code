@@ -2674,7 +2674,7 @@
     "internal": "Dahili kayıt",
     "labelWarning": "Ajanlar adları ve etiketleri görür. Bunlara gizli değerler koymayın.",
     "processWarning": "Bu program ve alt süreçleri kimlik bilgisini görecek ve başka yere gönderebilecektir.",
-    "disclosureWarning": "İfşa, değeri modele ve sağlayıcısına gönderir. Geri alınamaz; ardından kimlik bilgisini yenileyin.",
+    "disclosureWarning": "Varlığınızı doğruladıktan sonra bu değeri yalnızca siz göreceksiniz. Açıklanan değer geri alınamaz; daha sonra değiştirin.",
     "taintWarning": "Bu istek güvenilmeyen içerikten sonra geldi: {content}. Mevcut izinlere rağmen onay gerekir.",
     "presenceWarning": "İşletim sisteminiz bu belirli kullanımı onaylamanızı isteyecektir.",
     "noDestination": "Hedef doğrulanmadı. Herhangi bir sunucuya yönelik izin gerekir.",
@@ -2692,6 +2692,7 @@
     "approvalExpired": "Bu onayın süresi doldu. Kullanımı yeniden isteyin.",
     "useChanged": "Onaydan sonra kullanım değişti. Yeni kullanım için onay isteyin.",
     "osStoreWarning": "İşletim sisteminin kimlik bilgisi deposuyla korunur. Sizin hesabınızla çalışan programlar da kilidi açabilir.",
+    "unknownTierWarning": "Kasa kilitli olduğundan koruma düzeyi bilinmiyor. Nasıl korunduğunu görmek için kilidi açın.",
     "hardwareWarning": "Bu cihazın donanımıyla korunur. Sessizce açıldığından sizin hesabınızla çalışan programlar da açabilir.",
     "presenceTierWarning": "Her kullanım dokunma, PIN veya parola gerektirir. Gözetimsiz kullanım reddedilir.",
     "legacyNotice": {
@@ -2699,7 +2700,7 @@
       "other": "Eski kayıtlar {count} ara sürüm boyunca yansıtılır. Silinene kadar geçiş geri alınabilir."
     },
     "sshUse": "SSH kimlik doğrulaması",
-    "sshSignUse": "Git kaydını imzala",
+    "sshSignUse": "SSH anahtarıyla imzala",
     "sudoUse": "sudo çalıştır",
     "askpassUse": "Betik askpass yöntemi",
     "gitUse": "Git için HTTPS",
@@ -2708,7 +2709,7 @@
     "mcpUse": "MCP sunucusu başlat",
     "headerUse": "HTTP üstbilgisi gönder",
     "fillUse": "Oturum açma alanını doldur",
-    "disclosureUse": "Modele ifşa et",
+    "disclosureUse": "Size göster",
     "forwarding": "Yönlendirmeye izin ver",
     "anyHost": "Herhangi bir sunucu",
     "noAccess": "Erişim yok",
@@ -2726,7 +2727,7 @@
     "approval": "{requester}, {target} için {item} ile {use} istiyor.",
     "paidWarning": "Kasa izinleri ücretli istekleri onaylamaz.",
     "windowsElevation": "Windows yetki yükseltmesi UAC kullanır ve aracılanamaz.",
-    "seUnavailable": "Bu yardımcı uygun bir Mac üzerinde sertifikalanana kadar Secure Enclave koruması kullanılamaz. Varlık doğrulaması için parola kullanın.",
+    "seUnavailable": "Secure Enclave koruması kullanılamıyor. Varlık doğrulaması için bir parola ifadesi kullanın.",
     "enabledDescription": "Düzenleyicilerin paylaştığı kullanıcıya ait kimlik bilgisi kasasını etkinleştirin.",
     "protectionDescription": "Kasa anahtarının korumasını seçin. Otomatik, kullanılabilir donanımı ve işletim sistemi deposunu kullanır.",
     "fenceDescription": "Ajan süreçlerini mevcut kimlik bilgisi yollarından yalıtın. Kapalıyken de çalışanlar yalıtılır.",
@@ -2739,6 +2740,26 @@
     "grantsCount": {
       "one": "{count} izin",
       "other": "{count} izin"
-    }
+    },
+    "operationFailed": "Kasa işlemi başarısız oldu. Kilidi açıp yeniden deneyin.",
+    "invalidFields": "İzin alanlarını ve hedefini kontrol edin.",
+    "grantHelp": "Aşağıdaki her kapsam bu izni sınırlar. Boş sayı, süre sonu veya zaman aralığı sınırsız demektir.",
+    "metadataOnly": "Yalnızca ayarları düzenle",
+    "replaceValue": "Kimlik bilgisini değiştir",
+    "presenceAdvice": "sudo, SSH anahtarları ve web girişleri için varlık doğrulaması önerilir.",
+    "passwordEntry": "Kimlik bilgilerini editörün parola kutusuna girin. Mevcut değerler asla gösterilmez.",
+    "auditInvalid": "Denetim doğrulanamadı. Güncel bir yedeği geri yükleyin.",
+    "slotUnavailable": "Kullanılabilir koruma yuvası yok.",
+    "any": "Herhangi biri",
+    "unlimited": "Sınırsız",
+    "localTime": "Yerel saat",
+    "created": "Oluşturuldu",
+    "lastUsed": "Son kullanım",
+    "policy": "Ajan ilkesi",
+    "item": "Öğe",
+    "sessionScope": "Oturum",
+    "taskScope": "Görev",
+    "ceiling": "Erişim sınırı",
+    "passphraseWarning": "Kilidi açmak için parola ifadesi gerekir. Kopyalanmış diski korur ve sizin adınıza çalışan programların sessizce kilidi açmasını önler."
   }
 }

@@ -26463,6 +26463,16 @@ mini's T2 reports `SecureEnclave.isAvailable=true`; that probe is not presence
 or helper-only-access certification.
 
 - **Lanes 0, C, P, B and U** need nothing unmerged.
+- **U implementation contract (2026-10-06).** The shared Vault section and
+  approval cards consume the lane-0 value-free state/messages. Native password
+  entry is private to the host. `VaultPanelService` binds C/B/P/M management
+  and snapshots through an injected port; its mutation callback must run at
+  the physical commit. Lock/revoke/dispose and broker lock/revoke notifications invalidate queued
+  and in-flight effects.
+  M95's Models & Agents host, M104's authenticated bridge, and W's build,
+  manifest and budget registrations are named integration handoffs, since
+  those files are absent or owned by those lanes. U never supplies a fake
+  production service. See `docs/certification/m109-u-panel-and-vs-code.md`.
 - **S, X, T, O and M** follow B; **L** also needs M81's lane A1.
 - **H** follows B and U.
 - **R** waits for M96; its device part for M100's lanes S and E and M107's
@@ -29969,6 +29979,19 @@ record; no production cancellation or existing gate is changed. Verify actual
 engine/command-tree stop through B/X's installed session/lifetime binding at
 integration, and run the existing exec lifecycle regressions. H does not claim
 that native process-stop proof from its injected session fake.
+**M109 U bounded-lane receipt (2026-10-06, Mac mini).** The rig brief
+prohibits aggregate quality/full-suite runs and gives W the joined build,
+manifest, help/docs and generated record registrations. U's owning
+panel/native/controller tests, contracts and lazy graph/budgets pass at the
+repository default timeout; typecheck, localization, duplication and the
+existing production build pass. Forty-six guards were deliberately broken,
+observed red and restored byte-exact; 160 accessibility scenes pass across
+four themes and two widths. `npm run deadcode` exits 1 for the two genuine
+standalone harness entrypoints that W must register; `check:host-api` exits 1
+for the generated record that W must refresh. These are named integration
+deferrals, not ignored files, rule changes or raised caps. Full quality,
+installed-host matrix and real C/B/P/M/S plus M95/M104 binding remain with
+the lead/owning lanes. See `docs/certification/m109-u-panel-and-vs-code.md`.
 
 **FIXM109B6 / RVM109B5 (2026-10-06, Mac mini).** Both findings are fixed;
 no review residual is accepted. Final restored-source verification passes all
@@ -31489,6 +31512,22 @@ before a repaired one loads (2026-09-30).
   Existing TPM/Hello, screen-lock and stable DPAPI live-capture handoffs
   remain the original integration requirements, not residual review findings.
   See `docs/certification/m109-pw.md` for regression and red-drill evidence.
+- **FIXM109U / RVM109U (2026-10-07).** All six findings (five P2, one P3)
+  are fixed; none is accepted as residual risk. `changed` notifications join
+  the host generation barrier so older native drafts cannot commit after
+  another window's metadata change; approval notifications publish promptly
+  outside the queue so a held password box cannot starve an expiring card;
+  the native mode picker leads with the edited item's current policy; an
+  unobserved (`null`) protection tier renders a new honest
+  `vault.unknownTierWarning` (English plus all 14 tables) instead of claiming
+  OS-store protection; session consent is hidden and refused for remote
+  (`deviceId !== null`) requesters while the card states its real scope with
+  the existing `remoteWarning`; late completions after disposal report no
+  window UI through one `shouldReport` predicate. No guard was widened, no
+  dependency was added, and the C/B/P/M/S service binding handoffs stand
+  unchanged. Evidence, regressions and byte-exact drills:
+  `docs/certification/m109-u-panel-and-vs-code.md`.
+
 - **FIXM109B6 / RVM109B5 (2026-10-06).** Both findings (one P1, one P2)
   are fixed; none is accepted as residual risk. Audit-session key erasure and
   reference clearing run in `finally` despite descriptor close failure; facade

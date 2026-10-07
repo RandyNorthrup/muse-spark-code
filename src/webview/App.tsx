@@ -183,6 +183,8 @@ const ShareView = deferred(async () => {
 
 export interface AppProps {
   readonly postMessage: (message: WebviewToHostMessage) => void
+  /** U/M95: already-validated, lazy Vault cards; values never enter this slot or UI state. */
+  readonly vaultApprovals?: ReactNode
   /**
    * The UI store. main.tsx owns one that outlives a crashed tree and keeps
    * reducing host messages under the crash screen (M25); without one the
@@ -390,6 +392,7 @@ function promptStartFor(action: PaletteAction): string | undefined {
 
 export function App({
   postMessage,
+  vaultApprovals,
   store: externalStore,
   newLocalId = defaultLocalId,
   now = defaultNow,
@@ -2450,6 +2453,7 @@ export function App({
           onContextMenu={onTranscriptContextMenu}
         >
           {body}
+          {vaultApprovals}
           {hasNewBelow ? (
             <button
               type="button"
