@@ -1,0 +1,827 @@
+{
+  "initialCandidate": {
+    "tests": {
+      "commit": "3e4862b7786af0bb344be645f55201182eeaf4db",
+      "ci": true,
+      "timeouts": "repository default",
+      "groups": [
+        ["execVault.test.ts", "acpVault.test.ts", "vaultCommand.test.ts"],
+        ["vault/fleet.test.ts", "vault/delegation.test.ts"],
+        ["vault/migrate.test.ts", "vault/loginCsv.test.ts", "vault/importFile.test.ts"],
+        ["vault/migrationLifecycle.test.ts", "vault/migrationAdapters.test.ts"],
+        ["vault/execFence.test.ts", "credentialEnvironment.test.ts", "toolIo.test.ts"],
+        ["shellEnvironmentOrigins.test.ts", "vault/feeder.test.ts"],
+        ["vault/mcpOAuthLifecycle.test.ts", "vault/mcpVaultPool.test.ts", "vault/mcpOAuth.test.ts"],
+        [
+          "vault/mcpSecrets.test.ts",
+          "vault/vaultPanelHost.test.ts",
+          "vault/vaultNativeEditor.test.ts"
+        ],
+        ["vault/webFill.test.ts", "vault/webSessions.test.ts", "vault/totp.test.ts"],
+        ["vault/vaultPanel.test.tsx", "uiTextRegions.test.mjs", "webviewBundle.test.mjs"],
+        ["vault/vaultPanelBuild.test.ts", "installTable.test.ts", "l10n.test.ts"],
+        ["App.test.tsx", "AppLazy.test.tsx", "referenceGenerator.test.mjs"],
+        ["bundleSize.test.mjs", "vault/vaultPanelBundle.test.ts"]
+      ],
+      "runs": [
+        {
+          "round": 1,
+          "group": 1,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/execVault.test.ts",
+            "test/unit/acpVault.test.ts",
+            "test/unit/vaultCommand.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  79 passed (79)",
+            "Duration  2.84s (transform 49%, tests 29%, import 14%, setup 8%)"
+          ]
+        },
+        {
+          "round": 1,
+          "group": 2,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/fleet.test.ts",
+            "test/unit/vault/delegation.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  2 passed (2)",
+            "Tests  39 passed (39)",
+            "Duration  1.22s (transform 53%, import 21%, setup 16%, tests 10%, worker 1%)"
+          ]
+        },
+        {
+          "round": 1,
+          "group": 3,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/migrate.test.ts",
+            "test/unit/vault/loginCsv.test.ts",
+            "test/unit/vault/importFile.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  47 passed (47)",
+            "Duration  1.23s (transform 47%, setup 22%, import 21%, tests 10%, worker 1%)"
+          ]
+        },
+        {
+          "round": 1,
+          "group": 4,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/migrationLifecycle.test.ts",
+            "test/unit/vault/migrationAdapters.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  2 passed (2)",
+            "Tests  11 passed (11)",
+            "Duration  1.14s (transform 57%, import 20%, setup 17%, tests 5%, worker 1%)"
+          ]
+        },
+        {
+          "round": 1,
+          "group": 5,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/execFence.test.ts",
+            "test/unit/credentialEnvironment.test.ts",
+            "test/unit/toolIo.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  139 passed | 2 skipped (141)",
+            "Duration  9.61s (tests 55%, transform 33%, import 7%, setup 5%)"
+          ]
+        },
+        {
+          "round": 1,
+          "group": 6,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/shellEnvironmentOrigins.test.ts",
+            "test/unit/vault/feeder.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  2 passed (2)",
+            "Tests  20 passed (20)",
+            "Duration  2.91s (transform 64%, import 16%, tests 13%, setup 8%)"
+          ]
+        },
+        {
+          "round": 1,
+          "group": 7,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/mcpOAuthLifecycle.test.ts",
+            "test/unit/vault/mcpVaultPool.test.ts",
+            "test/unit/vault/mcpOAuth.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  69 passed (69)",
+            "Duration  1.42s (transform 43%, setup 21%, import 20%, tests 14%, worker 1%)"
+          ]
+        },
+        {
+          "round": 1,
+          "group": 8,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/mcpSecrets.test.ts",
+            "test/unit/vault/vaultPanelHost.test.ts",
+            "test/unit/vault/vaultNativeEditor.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  69 passed (69)",
+            "Duration  1.46s (transform 36%, tests 25%, import 21%, setup 18%, worker 1%)"
+          ]
+        },
+        {
+          "round": 1,
+          "group": 9,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/webFill.test.ts",
+            "test/unit/vault/webSessions.test.ts",
+            "test/unit/vault/totp.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  65 passed (65)",
+            "Duration  1.10s (transform 50%, import 23%, setup 20%, tests 7%, worker 1%)"
+          ]
+        },
+        {
+          "round": 1,
+          "group": 10,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/vaultPanel.test.tsx",
+            "test/unit/uiTextRegions.test.mjs",
+            "test/unit/webviewBundle.test.mjs",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  55 passed (55)",
+            "Duration  5.66s (tests 57%, transform 22%, import 9%, environment 8%, setup 4%)"
+          ]
+        },
+        {
+          "round": 1,
+          "group": 11,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/vaultPanelBuild.test.ts",
+            "test/unit/installTable.test.ts",
+            "test/unit/l10n.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  34 passed (34)",
+            "Duration  2.37s (environment 29%, tests 22%, transform 21%, import 16%, setup 12%)"
+          ]
+        },
+        {
+          "round": 1,
+          "group": 12,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/App.test.tsx",
+            "test/unit/AppLazy.test.tsx",
+            "test/unit/referenceGenerator.test.mjs",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  207 passed (207)",
+            "Duration  19.37s (tests 75%, transform 12%, environment 7%, import 5%, setup 2%)"
+          ]
+        },
+        {
+          "round": 1,
+          "group": 13,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/bundleSize.test.mjs",
+            "test/unit/vault/vaultPanelBundle.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  2 passed (2)",
+            "Tests  27 passed (27)",
+            "Duration  856ms (transform 39%, setup 31%, tests 18%, import 11%, worker 1%)"
+          ]
+        },
+        {
+          "round": 2,
+          "group": 1,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/execVault.test.ts",
+            "test/unit/acpVault.test.ts",
+            "test/unit/vaultCommand.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  79 passed (79)",
+            "Duration  2.46s (transform 46%, tests 32%, import 14%, setup 7%)"
+          ]
+        },
+        {
+          "round": 2,
+          "group": 2,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/fleet.test.ts",
+            "test/unit/vault/delegation.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  2 passed (2)",
+            "Tests  39 passed (39)",
+            "Duration  1.13s (transform 55%, import 20%, setup 16%, tests 9%, worker 1%)"
+          ]
+        },
+        {
+          "round": 2,
+          "group": 3,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/migrate.test.ts",
+            "test/unit/vault/loginCsv.test.ts",
+            "test/unit/vault/importFile.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  47 passed (47)",
+            "Duration  1.15s (transform 47%, import 22%, setup 21%, tests 10%, worker 1%)"
+          ]
+        },
+        {
+          "round": 2,
+          "group": 4,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/migrationLifecycle.test.ts",
+            "test/unit/vault/migrationAdapters.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  2 passed (2)",
+            "Tests  11 passed (11)",
+            "Duration  1.54s (transform 56%, import 21%, setup 17%, tests 4%, worker 1%)"
+          ]
+        },
+        {
+          "round": 2,
+          "group": 5,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/execFence.test.ts",
+            "test/unit/credentialEnvironment.test.ts",
+            "test/unit/toolIo.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  139 passed | 2 skipped (141)",
+            "Duration  9.25s (tests 60%, transform 29%, import 8%, setup 4%)"
+          ]
+        },
+        {
+          "round": 2,
+          "group": 6,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/shellEnvironmentOrigins.test.ts",
+            "test/unit/vault/feeder.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  2 passed (2)",
+            "Tests  20 passed (20)",
+            "Duration  3.66s (transform 68%, import 15%, tests 10%, setup 6%)"
+          ]
+        },
+        {
+          "round": 2,
+          "group": 7,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/mcpOAuthLifecycle.test.ts",
+            "test/unit/vault/mcpVaultPool.test.ts",
+            "test/unit/vault/mcpOAuth.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  69 passed (69)",
+            "Duration  1.75s (transform 45%, import 22%, tests 19%, setup 13%)"
+          ]
+        },
+        {
+          "round": 2,
+          "group": 8,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/mcpSecrets.test.ts",
+            "test/unit/vault/vaultPanelHost.test.ts",
+            "test/unit/vault/vaultNativeEditor.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  69 passed (69)",
+            "Duration  1.74s (transform 38%, setup 23%, tests 19%, import 19%)"
+          ]
+        },
+        {
+          "round": 2,
+          "group": 9,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/webFill.test.ts",
+            "test/unit/vault/webSessions.test.ts",
+            "test/unit/vault/totp.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  65 passed (65)",
+            "Duration  1.34s (transform 48%, import 24%, setup 19%, tests 8%, worker 1%)"
+          ]
+        },
+        {
+          "round": 2,
+          "group": 10,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/vaultPanel.test.tsx",
+            "test/unit/uiTextRegions.test.mjs",
+            "test/unit/webviewBundle.test.mjs",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  55 passed (55)",
+            "Duration  6.86s (tests 52%, transform 24%, environment 10%, import 9%, setup 5%)"
+          ]
+        },
+        {
+          "round": 2,
+          "group": 11,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/vaultPanelBuild.test.ts",
+            "test/unit/installTable.test.ts",
+            "test/unit/l10n.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  34 passed (34)",
+            "Duration  2.05s (environment 25%, transform 23%, tests 19%, import 18%, setup 14%)"
+          ]
+        },
+        {
+          "round": 2,
+          "group": 12,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/App.test.tsx",
+            "test/unit/AppLazy.test.tsx",
+            "test/unit/referenceGenerator.test.mjs",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  207 passed (207)",
+            "Duration  20.34s (tests 74%, transform 12%, environment 8%, import 5%, setup 2%)"
+          ]
+        },
+        {
+          "round": 2,
+          "group": 13,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/bundleSize.test.mjs",
+            "test/unit/vault/vaultPanelBundle.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  2 passed (2)",
+            "Tests  27 passed (27)",
+            "Duration  975ms (transform 40%, setup 35%, import 12%, tests 11%, worker 1%)"
+          ]
+        },
+        {
+          "round": 3,
+          "group": 1,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/execVault.test.ts",
+            "test/unit/acpVault.test.ts",
+            "test/unit/vaultCommand.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  79 passed (79)",
+            "Duration  2.88s (transform 52%, tests 27%, import 13%, setup 8%)"
+          ]
+        },
+        {
+          "round": 3,
+          "group": 2,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/fleet.test.ts",
+            "test/unit/vault/delegation.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  2 passed (2)",
+            "Tests  39 passed (39)",
+            "Duration  1.31s (transform 50%, setup 20%, import 19%, tests 11%, worker 1%)"
+          ]
+        },
+        {
+          "round": 3,
+          "group": 3,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/migrate.test.ts",
+            "test/unit/vault/loginCsv.test.ts",
+            "test/unit/vault/importFile.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  47 passed (47)",
+            "Duration  1.39s (transform 46%, setup 21%, import 20%, tests 13%, worker 1%)"
+          ]
+        },
+        {
+          "round": 3,
+          "group": 4,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/migrationLifecycle.test.ts",
+            "test/unit/vault/migrationAdapters.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  2 passed (2)",
+            "Tests  11 passed (11)",
+            "Duration  1.19s (transform 52%, setup 24%, import 19%, tests 5%, worker 1%)"
+          ]
+        },
+        {
+          "round": 3,
+          "group": 5,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/execFence.test.ts",
+            "test/unit/credentialEnvironment.test.ts",
+            "test/unit/toolIo.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  139 passed | 2 skipped (141)",
+            "Duration  9.13s (tests 58%, transform 30%, import 7%, setup 5%)"
+          ]
+        },
+        {
+          "round": 3,
+          "group": 6,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/shellEnvironmentOrigins.test.ts",
+            "test/unit/vault/feeder.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  2 passed (2)",
+            "Tests  20 passed (20)",
+            "Duration  3.00s (transform 63%, import 14%, tests 12%, setup 10%)"
+          ]
+        },
+        {
+          "round": 3,
+          "group": 7,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/mcpOAuthLifecycle.test.ts",
+            "test/unit/vault/mcpVaultPool.test.ts",
+            "test/unit/vault/mcpOAuth.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  69 passed (69)",
+            "Duration  1.38s (transform 48%, setup 20%, import 18%, tests 13%, worker 1%)"
+          ]
+        },
+        {
+          "round": 3,
+          "group": 8,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/mcpSecrets.test.ts",
+            "test/unit/vault/vaultPanelHost.test.ts",
+            "test/unit/vault/vaultNativeEditor.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  69 passed (69)",
+            "Duration  1.65s (transform 42%, tests 22%, setup 19%, import 16%)"
+          ]
+        },
+        {
+          "round": 3,
+          "group": 9,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/webFill.test.ts",
+            "test/unit/vault/webSessions.test.ts",
+            "test/unit/vault/totp.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  65 passed (65)",
+            "Duration  1.26s (transform 50%, import 23%, setup 21%, tests 6%, worker 1%)"
+          ]
+        },
+        {
+          "round": 3,
+          "group": 10,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/vaultPanel.test.tsx",
+            "test/unit/uiTextRegions.test.mjs",
+            "test/unit/webviewBundle.test.mjs",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  55 passed (55)",
+            "Duration  6.91s (tests 50%, transform 21%, environment 12%, import 11%, setup 5%)"
+          ]
+        },
+        {
+          "round": 3,
+          "group": 11,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/vault/vaultPanelBuild.test.ts",
+            "test/unit/installTable.test.ts",
+            "test/unit/l10n.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  34 passed (34)",
+            "Duration  2.59s (environment 33%, tests 20%, transform 19%, import 16%, setup 12%)"
+          ]
+        },
+        {
+          "round": 3,
+          "group": 12,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/App.test.tsx",
+            "test/unit/AppLazy.test.tsx",
+            "test/unit/referenceGenerator.test.mjs",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  3 passed (3)",
+            "Tests  207 passed (207)",
+            "Duration  20.29s (tests 73%, transform 12%, environment 8%, import 5%, setup 2%)"
+          ]
+        },
+        {
+          "round": 3,
+          "group": 13,
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/bundleSize.test.mjs",
+            "test/unit/vault/vaultPanelBundle.test.ts",
+            "--maxWorkers=3"
+          ],
+          "exitCode": 0,
+          "summary": [
+            "Test Files  2 passed (2)",
+            "Tests  27 passed (27)",
+            "Duration  731ms (transform 40%, setup 36%, tests 12%, import 11%, worker 1%)"
+          ]
+        }
+      ],
+      "summary": [
+        {
+          "round": 1,
+          "files": 35,
+          "passed": 861,
+          "existingPlatformSkips": 2,
+          "failed": 0
+        },
+        {
+          "round": 2,
+          "files": 35,
+          "passed": 861,
+          "existingPlatformSkips": 2,
+          "failed": 0
+        },
+        {
+          "round": 3,
+          "files": 35,
+          "passed": 861,
+          "existingPlatformSkips": 2,
+          "failed": 0
+        }
+      ],
+      "machine": "macmini",
+      "node": "24.21.0",
+      "npm": "11.19.0",
+      "install": {
+        "command": "CI=true npm ci",
+        "exitCode": 0,
+        "hooksPresent": true,
+        "addedPackages": 899,
+        "npmReportedVulnerabilities": {
+          "low": 2,
+          "high": 10
+        }
+      }
+    },
+    "gates": {
+      "commit": "3e4862b7786af0bb344be645f55201182eeaf4db",
+      "ci": true,
+      "gates": [
+        {
+          "name": "typecheck",
+          "command": ["npm", "run", "typecheck"],
+          "exitCode": 0
+        },
+        {
+          "name": "lint",
+          "command": ["npm", "run", "lint"],
+          "exitCode": 0
+        },
+        {
+          "name": "format:check",
+          "command": ["npm", "run", "format:check"],
+          "exitCode": 0
+        },
+        {
+          "name": "deadcode",
+          "command": ["npm", "run", "deadcode"],
+          "exitCode": 0
+        },
+        {
+          "name": "duplication",
+          "command": ["npm", "run", "duplication"],
+          "exitCode": 1
+        }
+      ]
+    },
+    "duplicationFailure": "Two repeated setups in acpVault and importFile; factored into local fixtures without assertion changes."
+  }
+}

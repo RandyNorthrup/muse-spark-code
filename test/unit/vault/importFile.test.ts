@@ -95,12 +95,17 @@ async function cancelledPreparation(cancel: (f: ReturnType<typeof fixture>) => v
   return { f, path }
 }
 
+async function importedSource() {
+  const f = fixture()
+  const path = nodePath.join(await root(), '.npmrc')
+  await writeFile(path, randomBytes(32))
+  const result = await f.importer.import({ path, kind: 'npm' }, f.prepare, () => undefined)
+  return { f, path, result }
+}
+
 describe('D89.5 ambient discovery and explicit import', () => {
   it('W-M7 a reloaded importer can delete its verified source using the persisted receipt', async () => {
-    const f = fixture()
-    const path = nodePath.join(await root(), '.npmrc')
-    await writeFile(path, randomBytes(32))
-    const result = await f.importer.import({ path, kind: 'npm' }, f.prepare, () => undefined)
+    const { f, path, result } = await importedSource()
     f.importer.dispose()
     const reloaded = new VaultFileImporter(f.writer, f.deps.owner)
     await reloaded.deleteSource(result.receipt, () => undefined)
@@ -249,10 +254,7 @@ describe('D89.5 ambient discovery and explicit import', () => {
     }
   })
   it('refuses a source changed while the vault copy is rechecked for Delete', async () => {
-    const f = fixture()
-    const path = nodePath.join(await root(), '.npmrc')
-    await writeFile(path, randomBytes(32))
-    const result = await f.importer.import({ path, kind: 'npm' }, f.prepare, () => undefined)
+    const { f, path, result } = await importedSource()
     const read = f.writer.read
     f.writer.read = vi.fn<VaultFileImportPort['read']>(async (id) => {
       const item = await read(id)

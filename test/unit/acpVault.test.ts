@@ -21,6 +21,12 @@ function decisionOf(result: VaultApprovalAnswer): VaultApprovalAnswer['decision'
   return result.decision
 }
 
+function holdPermission(h: ReturnType<typeof harness>) {
+  const held = Promise.withResolvers<acp.RequestPermissionResponse>()
+  h.answer.mockImplementation(() => held.promise)
+  return held
+}
+
 const cwd = process.platform === 'win32' ? String.raw`C:\workspace` : '/workspace'
 const selected = (optionId: string): acp.RequestPermissionResponse => ({
   outcome: { outcome: 'selected', optionId },
@@ -182,8 +188,7 @@ describe('M109 H ACP vault', () => {
     'W-H2 %s withdraws a held permission and settles its card',
     async (boundary) => {
       const h = harness()
-      const held = Promise.withResolvers<acp.RequestPermissionResponse>()
-      h.answer.mockImplementation(() => held.promise)
+      const held = holdPermission(h)
       await h.run(async (client) => {
         const { sessionId, turn } = await activeTurn(h, client)
         if (boundary === 'expired') vi.useFakeTimers()
@@ -331,8 +336,7 @@ describe('M109 H ACP vault', () => {
     'H35 late permission after %s cannot approve',
     async (boundary) => {
       const h = harness()
-      const held = Promise.withResolvers<acp.RequestPermissionResponse>()
-      h.answer.mockImplementation(() => held.promise)
+      const held = holdPermission(h)
       await h.run(async (client) => {
         const { sessionId, turn } = await activeTurn(h, client)
         const request = requestFor(sessionId)
