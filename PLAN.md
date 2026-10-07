@@ -18792,7 +18792,7 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 - [ ] Measure production bundles and actual universal VSIX/ACP packages; apply
       only the brief-authorized measured universal size plus 5%, rounded up to
       25 KiB rule, and record each changed cap with its measured reason.
-- [ ] Run every accessibility scenario in four themes; regenerate and view every
+- [x] Run every accessibility scenario in four themes; regenerate and view every
       README screenshot with the compact bookmark composer menu.
 - [ ] Record all checks, fixes and byte-exact regression drills in
       `docs/certification/train-0.15.0.md`; commit locally with hooks, never push.
@@ -18805,9 +18805,10 @@ have final whole-file results: 16,435 passed, zero failed, 75 existing skips.
 Every listed final static gate and production build now passes on `d61493d3`,
 including the keyboard compiler repair. Full production accessibility now passes
 976 pages; the repaired legal driver passes 96 keyboard/zoom checks and 24
-English/pseudo WCAG pages. Repeat final script gates, all 17 screenshot captures
-and universal measurement remain pending. Eight successful deliberate regressions
-restore exact bytes.
+English/pseudo WCAG pages. All 17 screenshot pairs are regenerated and viewed;
+the paid frame includes all promised rows. Repeat final script gates and universal
+measurement remain pending. Eight successful deliberate regressions restore exact
+bytes.
 
 The merged ACP Registry and stdio suites duplicate their real packaged-agent
 build and cleanup. Consolidate only that test fixture setup to satisfy the
@@ -18850,6 +18851,11 @@ rejected readiness, prove the guard fails without the wait, and rerun the entire
 96-case native plus 24-page English/pseudo legal checks at unchanged deadlines.
 G32 records this readiness requirement for M107; its runtime enforcement remains
 future work, while the legal driver and owning guard are repaired here.
+
+Refresh every README image against the saved train/incoming baseline. The paid
+usage image needs a taller 690-by-1000 viewport so its caption's Tab, Model hooks
+and Judge rows are fully visible; the other sixteen retain their declared
+geometry. This changes capture data only, not the UI or bundle budgets.
 
 The rig brief authorizes the full suite and listed full-repository gates despite
 common.md's scoped-file rule. Aggregate `npm run quality` remains reserved for

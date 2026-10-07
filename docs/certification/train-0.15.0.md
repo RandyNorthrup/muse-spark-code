@@ -1739,6 +1739,33 @@ or 84 glyph-only elements; these existing visibility categories are printed,
 not represented as measured contrast. Native OS screen-reader sessions and
 other-platform host receipts remain external requirements.
 
+### README capture and comparison
+
+Fresh production build and the full README capture command both exit zero.
+All **17** declared images are regenerated, their dimensions checked, and each
+viewed beside the saved baseline (15 train images plus incoming Help and open
+question). All differ bytewise, consistent with Linux font metrics, capture
+time/heartbeat frames and merged sharing controls; no image is treated as
+verified by a hash alone. The four formerly conflicting binaries are replaced
+with these actual captures. Captions and reference coverage remain intact.
+
+- Composer images show one bookmark menu button beside the existing controls,
+  with no three full-width prompt actions or overlap.
+- History renders real rows with the new Save prompt action; the archive control
+  and groups remain visible. Its relative-day grouping follows the capture clock.
+- Palette and rewind preserve existing actions while showing sharing/library
+  additions. Approval and question dock/transcript controls remain readable.
+- German/English usage, voice, tools/diff, quote menu and two-agent map preserve
+  their advertised data/actions. Help and reopened question retain navigation.
+- Paid usage at 690 by 760 clipped the caption's Judge row. Its final declared
+  capture is **690 by 1000**, showing Tab's daily budget, Model hooks, Judge,
+  Explain findings, total and workspace consent. Other sixteen geometries stay
+  unchanged; this changes capture data only, not product layout or budgets.
+
+Complete readmeShots/capture/readiness owning files pass **40/40** at defaults.
+Final image and baseline hashes, viewports and comparison notes belong in the
+machine-readable receipt. No mock asset or edited bitmap replaces a real capture.
+
 ### Remaining acceptance work
 
 Recheck final script/static/build gates, the complete accessibility matrix,
