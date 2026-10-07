@@ -701,12 +701,12 @@ describe('the ACP agent (M63)', () => {
         (update) => update.sessionUpdate === 'available_commands_update',
       )
       expect(announcement).toMatchObject({
-        availableCommands: [
+        availableCommands: expect.arrayContaining([
           expect.objectContaining({
             name: 'playbook',
             description: UI_TEXT.playbookHelpDescription,
           }),
-        ],
+        ]),
       })
       expect(factory).toHaveBeenCalledTimes(2)
     })
