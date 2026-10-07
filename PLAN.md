@@ -18834,6 +18834,22 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### FLAKETH20 — Explain and repair the Windows team harness hang (2026-10-07)
+
+- [x] Measure the unchanged full file and case 20 with CI=true and V8 coverage.
+- [x] Keep bounded console, page-error and request-failure evidence on failed
+      harness readiness, with a wait shorter than the existing case deadline.
+- [x] Repair the evidenced cause without raising deadlines, adding retries or
+      skipping cases; prove the regression fails before the repair.
+- [ ] Certify 100 consecutive case-20 passes and 30 complete-file passes on
+      Windows, plus ten Linux file passes if a Linux machine is reachable.
+- [ ] Record counts, cause, fix and restored drills in
+      docs/certification/flake-team-harness-20.md; commit with normal hooks.
+
+Scope is browser harness readiness and its owning regressions. No model call,
+merge, rebase, push, dependency or gate change. The shared lane rules delegate
+aggregate quality to the lead; run the scoped gates directly on this rig.
+
 ### CI0150M — Round 3 macOS CI repairs (2026-10-07, macmini)
 
 - [x] Reproduce the journal coverage timeout and companion authentication race;
