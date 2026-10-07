@@ -211,7 +211,7 @@ describe('the crash screen and its Reload (M25)', () => {
     vi.restoreAllMocks()
   })
 
-  it('keeps reducing under the crash screen and comes back with the transcript, the turn and the card', () => {
+  it('keeps reducing under the crash screen and comes back with the transcript, the turn and the card', async () => {
     const first = openDocument(undefined)
     hostReady('s1', 't1')
     event({ type: 'turnStarted', turnId: 't1' })
@@ -249,7 +249,7 @@ describe('the crash screen and its Reload (M25)', () => {
     deliver({ type: 'surfaceState', sessionId: 's1', activeTurnId: 't1' })
     deliver({ type: 'authState', status: 'signedIn' })
     expect(screen.getByText('Before and after')).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: 'Red' })).toBeInTheDocument()
+    expect(await screen.findByRole('radio', { name: 'Red' })).toBeInTheDocument()
     expect(screen.getByLabelText('Stop')).toBeInTheDocument()
     second.close()
   })

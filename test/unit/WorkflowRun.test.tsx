@@ -154,7 +154,7 @@ describe('a workflow run’s card (M47)', () => {
     )
   })
 
-  it('shows the Workflow tool’s script and its launch in the row before the card', () => {
+  it('shows the Workflow tool’s script and its launch in the row before the card', async () => {
     renderTranscript([
       tool({
         id: WORKFLOW_TOOL_ITEM.itemId,
@@ -167,6 +167,9 @@ describe('a workflow run’s card (M47)', () => {
     fireEvent.click(toggle)
     const row = toggle.closest('li')
     expect(row).toHaveAttribute('data-entry-id', WORKFLOW_TOOL_ITEM.itemId)
+    expect(
+      await screen.findByText(/export default async function workflow\(host\)/),
+    ).toBeInTheDocument()
     expect(row).toHaveTextContent('export default async function workflow(host)')
     expect(row).toHaveTextContent(
       'Launched: it runs in the background and reports back to this conversation.',
@@ -174,7 +177,7 @@ describe('a workflow run’s card (M47)', () => {
     expect(row).toHaveTextContent(`Script saved at ${WORKFLOW_SCRIPT_PATH}`)
   })
 
-  it('does not label an unobserved argument as a resume source', () => {
+  it('does not label an unobserved argument as a resume source', async () => {
     renderTranscript([
       tool({
         id: 'resume',
@@ -184,6 +187,7 @@ describe('a workflow run’s card (M47)', () => {
       }),
     ])
     fireEvent.click(screen.getByRole('button', { name: /Workflow/ }))
+    expect(await screen.findByText(/workflows are disabled for this run/)).toBeInTheDocument()
     const row = document.querySelector('[data-entry-id="resume"]')
     expect(row).not.toHaveTextContent('run.js')
     expect(row).toHaveTextContent('workflows are disabled for this run')

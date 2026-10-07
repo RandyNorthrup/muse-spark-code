@@ -502,42 +502,40 @@ export function Palette(props: PaletteProps) {
         listboxId={PALETTE_LISTBOX_ID}
         label={view === 'models' ? UI_TEXT.modelListLabel : UI_TEXT.paletteLabel}
       >
-        {view === 'models'
-          ? rows.map((_, index) => renderRow(index))
-          : entries.map((entry) => {
-              switch (entry.kind) {
-                case 'title': {
-                  return (
-                    <li key={entry.key} role="presentation" className="palette-group-title">
-                      {entry.title}
-                    </li>
-                  )
-                }
-                case 'disabled': {
-                  return (
-                    // A note, not an option: its tip is the pointer's title only.
-                    // An ARIA attribute here would void the presentation role and
-                    // leave the listbox a child it may not hold (lane W's full a11y run).
-                    <li
-                      key={entry.key}
-                      role="presentation"
-                      className="palette-item palette-item-disabled"
-                      title={entry.item.tip}
-                    >
-                      <span className="palette-item-text">
-                        <span className="palette-item-label">{entry.item.label}</span>
-                      </span>
-                      {entry.item.widget === undefined ? null : (
-                        <Widget widget={entry.item.widget} onStep={undefined} />
-                      )}
-                    </li>
-                  )
-                }
-                case 'row': {
-                  return renderRow(entry.index)
-                }
-              }
-            })}
+        {entries.map((entry) => {
+          switch (entry.kind) {
+            case 'title': {
+              return (
+                <li key={entry.key} role="presentation" className="palette-group-title">
+                  {entry.title}
+                </li>
+              )
+            }
+            case 'disabled': {
+              return (
+                // A note, not an option: its tip is the pointer's title only.
+                // An ARIA attribute here would void the presentation role and
+                // leave the listbox a child it may not hold (lane W's full a11y run).
+                <li
+                  key={entry.key}
+                  role="presentation"
+                  className="palette-item palette-item-disabled"
+                  title={entry.item.tip}
+                >
+                  <span className="palette-item-text">
+                    <span className="palette-item-label">{entry.item.label}</span>
+                  </span>
+                  {entry.item.widget === undefined ? null : (
+                    <Widget widget={entry.item.widget} onStep={undefined} />
+                  )}
+                </li>
+              )
+            }
+            case 'row': {
+              return renderRow(entry.index)
+            }
+          }
+        })}
       </PaletteList>
     )
   }
