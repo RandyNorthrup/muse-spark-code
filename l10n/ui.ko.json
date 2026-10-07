@@ -2507,5 +2507,152 @@
   "referenceElicitationTitle": "MCP 양식",
   "referenceElicitation": "MCP 양식은 요청한 MCP 서버에 필요한 정보를 묻습니다. 제출한 양식 값은 해당 서버로 전달되며 모델 대화와 대화 기록에는 들어가지 않습니다. 서버는 이후 도구 출력에 이 값을 포함할 수 있습니다. 비밀번호나 키를 입력하지 마세요.",
   "referenceNativeAgentsConditions": "run.subagent_delegation_mode=\"auto\"이면 Muse Code가 에이전트에 위임할 수 있습니다. \"off\"이면 위임 도구를 사용할 수 없습니다. run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "UTF-8 패치 파일에서 비밀 정보를 검색하고 발견하면 실패로 종료합니다. --key-stdin은 메모리에 있는 정확한 Model API 키도 검색하며 키를 저장하지 않습니다."
+  "referenceScanSecrets": "UTF-8 패치 파일에서 비밀 정보를 검색하고 발견하면 실패로 종료합니다. --key-stdin은 메모리에 있는 정확한 Model API 키도 검색하며 키를 저장하지 않습니다.",
+  "scheduleV2": {
+    "labels": {
+      "title": "일정",
+      "name": "이름",
+      "action": "동작",
+      "prompt": "프롬프트",
+      "report": "보고서",
+      "trigger": "트리거",
+      "timeZone": "시간대",
+      "preview": "다음 다섯 번의 실행",
+      "end": "종료 조건",
+      "target": "대상",
+      "delivery": "전달 방식",
+      "mode": "권한 모드",
+      "grant": "상시 허용",
+      "paidCap": "일정의 일일 한도",
+      "parallel": "병렬 실행",
+      "paused": "일시 중지됨",
+      "pause": "일정 일시 중지",
+      "resume": "일정 재개",
+      "remove": "일정 제거",
+      "revoke": "허용 철회",
+      "pin": "일정 고정",
+      "timeline": "일정 타임라인",
+      "schedulePrompt": "이 프롬프트 예약…",
+      "runNow": "지금 실행",
+      "save": "일정 저장",
+      "tools": "허용된 도구",
+      "commands": "명령 접두사",
+      "paths": "작업 영역 경로",
+      "creator": "작성자",
+      "depth": "일정 생성 깊이",
+      "background": "백그라운드 항목",
+      "whenClosed": "닫힌 대상",
+      "catchUp": "놓친 실행",
+      "unavailable": "사용 불가"
+    },
+    "delivery": {
+      "steer": "실행 중인 턴 조정",
+      "interrupt": "중단 후 실행",
+      "queue": "이 턴 이후 대기열에 추가",
+      "whenIdle": "유휴 상태에서 새 턴",
+      "newConversation": "새 대화"
+    },
+    "triggers": {
+      "once": "지정된 날짜와 시간에 한 번",
+      "interval": "N분 또는 N시간마다",
+      "daily": "N일마다",
+      "weekdays": "평일에",
+      "weekly": "매주 요일과 시간",
+      "cron": "사용자 지정 cron 식",
+      "event": "이벤트 발생 시",
+      "afterEvent": "이벤트 후 지정 시간에"
+    },
+    "targets": {
+      "conversation": "이 대화",
+      "namedConversation": "이름이 지정된 대화",
+      "newConversation": "실행마다 새 대화",
+      "worker": "작업 에이전트",
+      "role": "팀 역할",
+      "team": "팀",
+      "node": "Muse 노드"
+    },
+    "destinations": {
+      "save": "폴더에 저장",
+      "browser": "브라우저에서 열기",
+      "email": "사용자에게 이메일 전송",
+      "post": "저장소에 게시",
+      "cloud": "클라우드 저장(예정)",
+      "sms": "문자 메시지(예정)"
+    },
+    "policies": {
+      "open": "백그라운드에서 열기",
+      "skip": "실행 건너뛰기",
+      "runOnce": "한 번만 따라잡기"
+    },
+    "outcomes": {
+      "ran": "실행됨",
+      "refused": "거부됨",
+      "missed": "놓침",
+      "skipped": "건너뜀",
+      "failed": "실패"
+    },
+    "events": {
+      "pullRequestOpened": "풀 리퀘스트 열림",
+      "pullRequestClosed": "풀 리퀘스트 닫힘",
+      "pullRequestMerged": "풀 리퀘스트 병합됨",
+      "reviewRequested": "검토 요청됨",
+      "ciFinished": "CI 실행 완료",
+      "releasePublished": "릴리스 게시됨",
+      "issueLabelled": "이슈에 레이블 지정됨",
+      "issueOpened": "이슈 열림",
+      "issueReplied": "이슈 답변 수신됨",
+      "branchUpdated": "브랜치 업데이트됨",
+      "tagCreated": "태그 생성됨",
+      "milestoneStatusChanged": "마일스톤 상태 변경됨",
+      "milestoneCertified": "마일스톤 인증됨",
+      "turnFinished": "턴 완료",
+      "laneFinished": "작업 레인 완료",
+      "taskFinished": "작업 완료",
+      "teamFinished": "팀 작업 완료",
+      "questionAnswered": "질문에 답변됨",
+      "usageThresholdCrossed": "사용량 임계값 초과",
+      "resourceLevelChanged": "리소스 수준 변경됨",
+      "filesChanged": "감시 파일 변경됨",
+      "versionPublished": "스토어 버전 게시됨",
+      "manual": "수동 트리거"
+    },
+    "messages": {
+      "interruptWarning": "중단하면 사용자가 실행 중인 턴도 멈출 수 있습니다.",
+      "unattendedRefusal": "일정에서 거부됨: {action}은 승인이 필요하며 이 일정의 허용 범위에 없습니다.",
+      "deferredQuestions": "질문은 즉시 보류되며 나중에 답할 수 있도록 열린 상태로 유지됩니다.",
+      "paidConsent": "{model}에서 {prompt} 예약: {price}. 주기: {cadence}. 현지 날짜별 한도: {cap}, 공유 일일 예산: {budget}. 동의는 선택한 유료 추가 기능에만 적용됩니다.",
+      "changedConsent": "모델, 키 또는 가격 등급이 변경되었습니다. 다음 유료 실행 전에 동의를 갱신하세요.",
+      "setBy": "{session}에서 {agent}이(가) 설정",
+      "migrationConsent": "이전된 일정이 일시 중지되었습니다. 재개 전에 모드, 허용 범위와 유료 동의를 확인하세요.",
+      "collision": "이 대상의 실행이 겹칩니다. 생성된 순서대로 실행됩니다.",
+      "historyUnavailable": "미리 볼 기록이 없습니다.",
+      "eventUntrusted": "이벤트 내용은 신뢰할 수 없는 데이터이며 허용 범위, 도구 또는 대상을 변경할 수 없습니다.",
+      "backgroundQuestion": "편집기가 닫혀 있을 때도 일정을 실행할까요?",
+      "backgroundYes": "예, 백그라운드 항목 추가",
+      "backgroundNotNow": "나중에",
+      "backgroundNever": "다시 묻지 않기",
+      "backgroundRemove": "백그라운드 항목 제거",
+      "backgroundRemoved": "백그라운드 항목이 제거되었습니다.",
+      "agentConsent": "{agent}이(가) 자신의 권한과 예산 내에서 이 일정을 만들도록 허용할까요?",
+      "agentAlways": "이 오케스트레이터는 항상 허용",
+      "agentNever": "이 오케스트레이터는 허용하지 않음",
+      "grantRevoked": "이 일정의 허용이 철회되었습니다.",
+      "waitingBusy": "대기 중: 컴퓨터가 사용 중",
+      "saveRoot": "이 일정에서 승인된 루트 안에만 저장합니다.",
+      "openWhenBack": "돌아왔을 때 열기",
+      "plannedDestination": "이 대상은 예정되어 있으며 아직 사용할 수 없습니다.",
+      "expiredOwner": "작성자의 세션 또는 팀이 끝나 이 일정도 종료되었습니다."
+    },
+    "endAfterRuns": {
+      "other": "{count}회 실행 후 종료"
+    },
+    "historyPreview": {
+      "other": "{days}일 동안 {count}회 실행되었을 것입니다"
+    },
+    "settings": {
+      "enabled": "사용 가능한 백엔드에서 일정을 활성화합니다. 기본적으로 켜져 있으며 각 실행은 상시 허용 범위 내에서 무인으로 진행됩니다.",
+      "defaultDelivery": "새 일정의 기본 전달 방식입니다. 기본적으로 유휴 상태에서 새 턴을 시작합니다.",
+      "agentCreation": "에이전트의 일정 생성 기본 권한: 묻기, 한도 내 항상 허용 또는 허용 안 함. 기본적으로 묻습니다."
+    }
+  }
 }

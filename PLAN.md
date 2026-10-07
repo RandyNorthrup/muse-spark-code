@@ -13691,6 +13691,21 @@ train, and those waiting on outside events, keep their own status lines.
     M114's lane 0; M104a and M110a0 for M111b's wiring; M110os for M111os and
     M111i.
 
+### FIXM115L0 — Freeze corrected schedule contracts (2026-10-06)
+
+Repair all six RVM115L0 P2 findings before M115's wave lanes bind the
+contracts: revision-based compare-and-swap updates; integer migration of
+fractional crash-receipt times without an earlier fire; unique fake approval
+request ids; run-scoped final delivery settlements with complete fire details;
+versioned cross-editor audit, source/history and background status/removal
+messages; and event-key Unicode validation before identity encoding.
+Keep M52 and shipped behavior unchanged, add no dependency, and prove each
+fix with a failing regression and byte-exact restored red drill in
+`docs/certification/m115-0.md`. The rig brief reserves aggregate quality
+for W/lead and forbids branch merges; run the owned suites and local static
+and build checks with hooks on. Integration bindings are recorded in
+`docs/certification/m115-contracts.md`.
+
 ### BADGEFIX — Exact package versions on store pages (2026-10-05)
 
 - [x] Generate static Marketplace/Open VSX and npm/GitHub release version
@@ -30871,6 +30886,16 @@ before a repaired one loads (2026-09-30).
   adapter is claimed as newly shipped. HELPREF's absent catalogue/reference,
   aggregate quality and the installed editor/backend matrix remain lead
   handoffs, with no live or paid call in this rig lane.
+- **FIXM115L0 contract scope.** All six RVM115L0 findings are repaired;
+  none is deferred. These are unshipped internal schedule contracts, not
+  certification of the production scheduler, approvals, settlements or OS
+  adapters. S must implement durable cross-process revision compare-and-swap
+  and never reuse removed ids; D/U must retain run-scoped refusal and cost
+  facts until final settlement; V/E/X/M104 must bind the versioned surface
+  routes. Those implementing lanes and W own their production/platform and
+  full-quality receipts, as recorded in `docs/certification/m115-contracts.md`
+  and `docs/certification/m115-0.md`. No new authority or shipping feature is
+  enabled by this repair.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

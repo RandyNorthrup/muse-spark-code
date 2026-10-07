@@ -2507,5 +2507,152 @@
   "referenceElicitationTitle": "MCP フォーム",
   "referenceElicitation": "MCP フォームは、要求元の MCP サーバーのために情報を尋ねます。送信したフォームの値は、そのサーバーに渡され、モデルの会話や履歴には入りません。ただしサーバーは、後のツール出力に値を含めることができます。パスワードやキーは入力しないでください。",
   "referenceNativeAgentsConditions": "run.subagent_delegation_mode=\"auto\" の場合、Muse Codeはエージェントに委任できます。\"off\" の場合、委任ツールは使用できません。 run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "UTF-8 のパッチファイルから秘密情報を検出し、見つかった場合は失敗終了します。--key-stdin はメモリ内の Model API キーそのものも検索します。キーは保存されません。"
+  "referenceScanSecrets": "UTF-8 のパッチファイルから秘密情報を検出し、見つかった場合は失敗終了します。--key-stdin はメモリ内の Model API キーそのものも検索します。キーは保存されません。",
+  "scheduleV2": {
+    "labels": {
+      "title": "スケジュール",
+      "name": "名前",
+      "action": "アクション",
+      "prompt": "プロンプト",
+      "report": "レポート",
+      "trigger": "トリガー",
+      "timeZone": "タイムゾーン",
+      "preview": "次の5回の実行",
+      "end": "終了条件",
+      "target": "対象",
+      "delivery": "配信方法",
+      "mode": "権限モード",
+      "grant": "継続的な許可",
+      "paidCap": "スケジュールの1日上限",
+      "parallel": "並列実行",
+      "paused": "一時停止中",
+      "pause": "スケジュールを一時停止",
+      "resume": "スケジュールを再開",
+      "remove": "スケジュールを削除",
+      "revoke": "許可を取り消す",
+      "pin": "スケジュールを固定",
+      "timeline": "スケジュールのタイムライン",
+      "schedulePrompt": "このプロンプトを予約…",
+      "runNow": "今すぐ実行",
+      "save": "スケジュールを保存",
+      "tools": "許可されたツール",
+      "commands": "コマンドの接頭辞",
+      "paths": "ワークスペースのパス",
+      "creator": "作成者",
+      "depth": "スケジュールの深さ",
+      "background": "バックグラウンド登録",
+      "whenClosed": "閉じた対象",
+      "catchUp": "逃した実行",
+      "unavailable": "利用不可"
+    },
+    "delivery": {
+      "steer": "実行中のターンを誘導",
+      "interrupt": "中断して実行",
+      "queue": "このターンの後にキューへ追加",
+      "whenIdle": "アイドル時に新しいターン",
+      "newConversation": "新しい会話"
+    },
+    "triggers": {
+      "once": "指定日時に1回",
+      "interval": "N分またはN時間ごと",
+      "daily": "N日ごと",
+      "weekdays": "平日",
+      "weekly": "毎週の曜日と時刻",
+      "cron": "カスタムcron式",
+      "event": "イベント発生時",
+      "afterEvent": "イベント後の指定時刻"
+    },
+    "targets": {
+      "conversation": "この会話",
+      "namedConversation": "名前付きの会話",
+      "newConversation": "実行ごとに新しい会話",
+      "worker": "作業エージェント",
+      "role": "チームの役割",
+      "team": "チーム",
+      "node": "Museノード"
+    },
+    "destinations": {
+      "save": "フォルダーに保存",
+      "browser": "ブラウザーで開く",
+      "email": "ユーザーにメール送信",
+      "post": "リポジトリに投稿",
+      "cloud": "クラウド保存（予定）",
+      "sms": "テキストメッセージ（予定）"
+    },
+    "policies": {
+      "open": "バックグラウンドで開く",
+      "skip": "実行をスキップ",
+      "runOnce": "1回だけ追いつく"
+    },
+    "outcomes": {
+      "ran": "実行済み",
+      "refused": "拒否",
+      "missed": "実行漏れ",
+      "skipped": "スキップ済み",
+      "failed": "失敗"
+    },
+    "events": {
+      "pullRequestOpened": "プルリクエストが開かれた",
+      "pullRequestClosed": "プルリクエストが閉じられた",
+      "pullRequestMerged": "プルリクエストがマージされた",
+      "reviewRequested": "レビューが依頼された",
+      "ciFinished": "CI実行が終了した",
+      "releasePublished": "リリースが公開された",
+      "issueLabelled": "Issueにラベルが付いた",
+      "issueOpened": "Issueが開かれた",
+      "issueReplied": "Issueへの返信を受信した",
+      "branchUpdated": "ブランチが更新された",
+      "tagCreated": "タグが作成された",
+      "milestoneStatusChanged": "マイルストーンの状態が変わった",
+      "milestoneCertified": "マイルストーンが認証された",
+      "turnFinished": "ターンが終了した",
+      "laneFinished": "作業レーンが終了した",
+      "taskFinished": "タスクが終了した",
+      "teamFinished": "チームの作業が終了した",
+      "questionAnswered": "質問に回答された",
+      "usageThresholdCrossed": "使用量のしきい値を超えた",
+      "resourceLevelChanged": "リソースレベルが変わった",
+      "filesChanged": "監視中のファイルが変わった",
+      "versionPublished": "ストアにバージョンが公開された",
+      "manual": "手動トリガー"
+    },
+    "messages": {
+      "interruptWarning": "中断すると、あなた自身の実行中のターンが停止する場合があります。",
+      "unattendedRefusal": "スケジュールで拒否：{action}には承認が必要で、このスケジュールの許可に含まれていません。",
+      "deferredQuestions": "質問はすぐに保留され、後で回答できるよう開いたままになります。",
+      "paidConsent": "{model}で{prompt}を予約：{price}。頻度：{cadence}。現地日ごとの上限：{cap}、共有の1日予算：{budget}。同意は選択した有料オプションのみ対象です。",
+      "changedConsent": "モデル、キー、または料金区分が変更されました。次の有料実行前に同意を更新してください。",
+      "setBy": "{session}で{agent}が設定",
+      "migrationConsent": "移行したスケジュールは一時停止中です。再開前にモード、許可、有料利用への同意を確認してください。",
+      "collision": "この対象の実行が重なっています。作成順に実行されます。",
+      "historyUnavailable": "プレビューできる履歴がありません。",
+      "eventUntrusted": "イベントの内容は信頼されていないデータで、許可、ツール、対象を変更できません。",
+      "backgroundQuestion": "エディターが閉じている間もスケジュールを実行しますか？",
+      "backgroundYes": "はい、バックグラウンド登録を追加",
+      "backgroundNotNow": "今はしない",
+      "backgroundNever": "今後確認しない",
+      "backgroundRemove": "バックグラウンド登録を削除",
+      "backgroundRemoved": "バックグラウンド登録を削除しました。",
+      "agentConsent": "{agent}が自身の権限と予算の範囲内でこのスケジュールを作成することを許可しますか？",
+      "agentAlways": "このオーケストレーターには常に許可",
+      "agentNever": "このオーケストレーターには許可しない",
+      "grantRevoked": "このスケジュールの許可は取り消されました。",
+      "waitingBusy": "待機中：マシンが使用中",
+      "saveRoot": "このスケジュールで承認されたルート内だけに保存します。",
+      "openWhenBack": "戻ったときに開く",
+      "plannedDestination": "この送信先は予定段階で利用できません。",
+      "expiredOwner": "このスケジュールは作成者のセッションまたはチームとともに終了しました。"
+    },
+    "endAfterRuns": {
+      "other": "{count}回の実行後に終了"
+    },
+    "historyPreview": {
+      "other": "{days}日間で{count}回実行される予定でした"
+    },
+    "settings": {
+      "enabled": "利用可能なバックエンドでスケジュールを有効にします。既定で有効で、各実行は継続的な許可の範囲内で無人実行されます。",
+      "defaultDelivery": "新しいスケジュールの既定の配信方法です。既定ではアイドル時に新しいターンを開始します。",
+      "agentCreation": "エージェントによるスケジュール作成の既定の権限：確認、上限内で常に許可、または許可しない。既定では確認します。"
+    }
+  }
 }

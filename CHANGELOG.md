@@ -186,6 +186,16 @@ happened, not what was planned; superseded entries are kept.
 
 - Shorter tokens in the lossless inline English dictionary keep chat startup smaller than 0.14.0 while adding Help & Reference; the complete fallback and existing size limits remain.
 
+### Fixed
+
+- Correct M115's internal schedule contracts before implementation: stale
+  whole-record updates cannot restore revoked grants, crash-receipt migration
+  accepts fractional filesystem times, repeated fake approval requests remain
+  observable, delivery returns a complete final fire settlement, the versioned
+  editor channel carries audits/history/background controls, and event identity
+  validation rejects malformed Unicode.
+  These contracts do not enable scheduled-prompts v2 in the shipped extension.
+
 ## [0.14.1] - 2026-10-05
 
 ### Security

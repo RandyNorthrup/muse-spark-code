@@ -1172,7 +1172,7 @@ export type HostToWebviewMessage = z.infer<typeof hostToWebviewMessageSchema>
 export type ParseResult<T> =
   { readonly ok: true; readonly message: T } | { readonly ok: false; readonly error: string }
 
-function parseWith<T>(schema: z.ZodMiniType<T>, input: unknown): ParseResult<T> {
+export function parseWith<T>(schema: z.ZodMiniType<T>, input: unknown): ParseResult<T> {
   const result = schema.safeParse(input)
   return result.success
     ? { ok: true, message: result.data }
@@ -1186,3 +1186,6 @@ export function parseWebviewToHostMessage(input: unknown): ParseResult<WebviewTo
 export function parseHostToWebviewMessage(input: unknown): ParseResult<HostToWebviewMessage> {
   return parseWith(hostToWebviewMessageSchema, input)
 }
+
+// M115's lazy schedule surface owns its validated channel beside Tasks.
+export type { ScheduleHostMessage, ScheduleWebviewMessage } from './scheduleProtocol'
