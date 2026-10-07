@@ -52,6 +52,12 @@ export function cliCommands() {
       text: { ui: 'referenceScanSecrets' },
     },
     {
+      route: 'estimate',
+      name: 'estimate <goal> [--by <date>] [--fleet current|minimum|optimum] [--format md|html|json|text] [--seed <seed>]',
+      description: UI_TEXT.estimateCliHelp,
+      text: { ui: 'estimateCliHelp' },
+    },
+    {
       route: 'report',
       name: 'report',
       description: UI_TEXT.reportUsage,

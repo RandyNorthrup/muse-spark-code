@@ -13,6 +13,7 @@ import { startApprovalJudge } from '../../core/judge/use'
 // source of truth for the composer settings that outlive a webview reload
 // (permission mode, effort, thinking) and for the images waiting to be sent.
 
+import type { EstimateSection } from '../../shared/estimate'
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import { AttachmentStore } from '../../core/attachments'
@@ -1065,6 +1066,8 @@ export class ConversationController {
   private webviewAttachmentEpoch = 0
   /** The last estimate's inputs on this surface: what Spin it up submits. */
   private lastEstimateInputs: EstimateInputs | undefined
+  private lastEstimateSection: EstimateSection | undefined
+  private estimatePending: AbortController | undefined
 
   /** User cards whose file bytes rewind cannot restore across every backend/history path. */
   private readonly fileMessageIds = new Set<string>()
@@ -1713,6 +1716,7 @@ export class ConversationController {
    * a dropped turn would otherwise run on, unwatched and billed.
    */
   private dropSession(isTurnCancelled = true, isOwnedRecovery = false): void {
+    this.invalidateEstimate()
     this.attachmentGeneration += 1
     this.sessionOpening = undefined
     // A review's Plan mode goes with its session (M70): the next session
@@ -8213,36 +8217,65 @@ export class ConversationController {
    * bundle and forward the section, or start the audited first wave. Every
    * refusal names its missing binding; nothing runs without the bundle.
    */
+  private invalidateEstimate(): void {
+    this.estimatePending?.abort()
+    this.estimatePending = undefined
+    this.lastEstimateInputs = undefined
+    this.lastEstimateSection = undefined
+  }
+
   private async handleEstimateMessage(
     message: Extract<WebviewToHostMessage, { type: 'estimateRun' | 'estimateSpinUp' }>,
   ): Promise<void> {
     const estimator = this.deps.estimator
-    if (estimator === undefined) {
-      this.notice('warning', UI_TEXT.estimateUnavailable)
-      return
-    }
+    const generation = this.sendInvalidationEpoch
+    const correlation = message.requestId === undefined ? {} : { requestId: message.requestId }
     if (message.type === 'estimateRun') {
+      this.invalidateEstimate()
+      const pending = new AbortController()
+      this.estimatePending = pending
       try {
-        const section = await estimator.estimate(message.request, new AbortController().signal)
+        if (estimator === undefined) throw new Error(UI_TEXT.estimateUnavailable)
+        const section = await estimator.estimate(message.request, pending.signal)
+        if (pending.signal.aborted || generation !== this.sendInvalidationEpoch || this.isDisposed)
+          return
         this.lastEstimateInputs = section.inputs
-        this.post({ type: 'estimatorSection', section })
+        this.lastEstimateSection = section
+        this.post({ type: 'estimatorSection', ...correlation, section })
       } catch (error: unknown) {
-        this.deps.log.error(`The estimate failed: ${describe(error)}`)
-        this.notice('warning', error instanceof Error ? error.message : String(error))
+        if (pending.signal.aborted || generation !== this.sendInvalidationEpoch || this.isDisposed)
+          return
+        const reason = describe(error)
+        this.deps.log.error(`The estimate failed: ${reason}`)
+        this.post({ type: 'estimatorFailure', ...correlation, reason })
+        this.notice('warning', reason)
+      } finally {
+        if (this.estimatePending === pending) this.estimatePending = undefined
       }
       return
     }
-    const inputs = this.lastEstimateInputs
-    if (inputs === undefined) {
-      this.notice('warning', UI_TEXT.estimateUsage)
-      return
-    }
     try {
+      if (estimator === undefined) throw new Error(UI_TEXT.estimateUnavailable)
+      const section = this.lastEstimateSection
+      const kind = message.setup ?? 'current'
+      const setup = section?.setups.find((setup) => setup.kind === kind)
+      const fleet = section?.setupFleets?.find((row) => row.kind === kind)?.fleet
+      const inputs = fleet
+        ? { ...section.inputs, fleet }
+        : kind === 'current'
+          ? this.lastEstimateInputs
+          : undefined
+      if (inputs === undefined || setup === undefined) throw new Error(UI_TEXT.estimateUsage)
+      if (setup.provisioning !== 'existing') throw new Error(UI_TEXT.estimateAdvice)
       const started = await estimator.startWave(inputs)
+      if (generation !== this.sendInvalidationEpoch || this.isDisposed) return
+      this.post({ type: 'estimatorStarted', ...correlation })
       this.notice('info', fill(UI_TEXT.estimateWaveStarted, { lanes: started.join(', ') }))
     } catch (error: unknown) {
+      if (generation !== this.sendInvalidationEpoch || this.isDisposed) return
       this.deps.log.error(`The first wave failed: ${describe(error)}`)
-      this.notice('warning', error instanceof Error ? error.message : String(error))
+      this.post({ type: 'estimatorStarted', ...correlation, error: describe(error) })
+      this.notice('warning', describe(error))
     }
   }
 
@@ -9577,6 +9610,7 @@ export class ConversationController {
     try {
       // Invalidate a pending send before a running turn's cancel can await.
       this.sendInvalidationEpoch += 1
+      this.invalidateEstimate()
       if (isConversationEnding) {
         this.accountStopEpoch = this.sendInvalidationEpoch
       }

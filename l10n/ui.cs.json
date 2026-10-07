@@ -2878,7 +2878,11 @@
     "out": "--out <file>         Zapsat zprávu do souboru místo na stdout",
     "description": "--description <text>  Co se dělo, vlastními slovy",
     "no-facts": "--no-facts           Vynechat podpůrná fakta",
-    "no-events": "--no-events          Vynechat nedávné události"
+    "no-events": "--no-events          Vynechat nedávné události",
+    "by": "--by <date>: Termín",
+    "fleet": "--fleet current|minimum|optimum: Aktuální flotila / Minimální sestava / Optimální sestava",
+    "format": "--format md|html|json|text: Výstupní formát",
+    "seed": "--seed <seed>: Počáteční hodnota simulace"
   },
   "referenceExecImages": "Obrázky bez rozhraní vyžadují --image-generation, acceptEdits a dostatečný pevný rozpočet. Cena se nepotvrzuje; požadavky vyžadující oprávnění jsou odmítnuty.",
   "referencePopoverKeys": "Procházet možnosti, upravit hodnotu, vybrat možnost nebo zavřít nabídku.",

@@ -1,3 +1,4 @@
+import { CLI_OPTION_REGISTRY } from '../cliOptions'
 import {
   estimateRequestSchema,
   estimateSectionSchema,
@@ -62,7 +63,11 @@ export function parseEstimateOptions(argv: readonly string[]): ParsedOptions {
     }
     const equals = token.indexOf('=')
     const flag = equals === -1 ? token : token.slice(0, equals)
-    if (!['--by', '--fleet', '--format', '--seed'].includes(flag) || values.has(flag))
+    if (
+      flag === '--help' ||
+      !Object.hasOwn(CLI_OPTION_REGISTRY.estimate.options, flag.slice(2)) ||
+      values.has(flag)
+    )
       return invalid()
     const value = equals === -1 ? argv[++index] : token.slice(equals + 1)
     if (value === undefined || value === '' || value.startsWith('--')) return invalid()

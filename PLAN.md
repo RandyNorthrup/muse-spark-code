@@ -28821,10 +28821,10 @@ Each finished piece commits with hooks; final verification uses a fresh clone,
 TypeScript projects and the scoped lane gates. Browser gates unavailable on
 this rig remain named lead-owned commands in `docs/certification/m117.md`.
 
-Repair plan: [x] packaging; [x] engine/evidence; [~] UI/session/CLI;
-[ ] size/portable tests; [ ] fresh-clone verification and certification.
+Repair plan: [x] packaging; [x] engine/evidence; [x] UI/session/CLI;
+[x] size/portable tests; [ ] fresh-clone verification and certification.
 
-**Lane P implementation (2026-10-06).** After the explicitly required
+**Lane P implementation plan (2026-10-06; partial, corrected 2026-10-07).** After the explicitly required
 `m117/s` and `m117/c` no-fast-forward merges, implement D97.7 only in
 `src/core/estimator/provision/**`, owning fake-only tests and
 `docs/certification/m117-p-spin-it-up.md`. A serialized first-wave owner
@@ -28835,6 +28835,12 @@ provider's HTTPS origin and exact operation paths before every broker call;
 redirects, billing, payment, sign-up and account paths are refused. Captured
 provider codecs and the credential-owning M109 transport are injected;
 no external wire shape or credential is invented.
+
+**Slice 1 is implemented:** provider adapter and serialized audited first-wave
+owner, certified with fakes. **Slice 2 is not implemented:** the portable
+provisioning lifecycle and its liability/teardown tests remain
+`M117-P-Slice2-lifecycle`, separate from external milestone bindings. The
+following paragraph describes the planned Slice 2 behavior.
 
 Provisioning requires all installer/pairing bindings and an explicit run
 budget, with no default. Quotes retain exact nano-USD fractions for each
@@ -31052,6 +31058,13 @@ before a repaired one loads (2026-09-30).
   remain lead-owned handoffs, not accepted review findings. Evidence:
   `docs/certification/m117-c-calibration.md`.
 
+- **FIXM117I retained P3 duration evidence (finding 17).** The DAG still
+  accepts numeric hours, without per-node duration-basis/uncertainty objects.
+  Section-level parameter disclosures do not fill this contract gap. Adding
+  and threading a new frozen lane/DAG/simulation evidence contract exceeds a
+  cheap integration repair; defer explicitly as `M117-G-node-duration-evidence`.
+  Bare node hours must not be described as calibrated evidence. No gate is waived.
+
 - **FIXM117S review outcome (2026-10-06).** All four RVM117S P2s are
   fixed; no review finding is deferred. Account-count search is exact up to
   the existing 512-allocation bound; larger products use a deterministic
@@ -31074,9 +31087,13 @@ before a repaired one loads (2026-09-30).
   followed by a standalone pass and a complete unchanged 70/70 green run;
   the certificate retains all samples without claiming calibrated timing or
   its cause. The named handoff includes aggregate/cross-rig performance acceptance.
-- **M117-P provisioning bindings.** The P core uses injected five-operation,
-  connected-provider broker/codec, board/playbook and cloud-init/install/pair/
-  wipe ports; none exposes a credential value. Actual M96/M109/M110d/M110f/
+- **M117-P provisioning bindings (partial).** Slice 1 implements the
+  five-operation connected-provider adapter and audited first-wave owner.
+  **M117-P-Slice2-lifecycle** is absent internally: liability reservations,
+  separate spend confirmations, lifetime/idle teardown, Keep, installation/
+  pairing and wipe/delete orchestration plus their fake tests are still
+  planned. The following requirements are prerequisites for that future
+  implementation, not certification of shipped behavior. Actual M96/M109/M110d/M110f/
   M116 bindings and captured service codecs remain the named handoffs in
   `docs/certification/m117-p-spin-it-up.md`. Until bound, rentals remain
   advice-only. The hard run cap applies to exact admitted hourly-tariff
@@ -32137,7 +32154,11 @@ quality and hosted CI, remote badges and universal-package/platform checks.
 Evidence: `docs/certification/rel0143.md`. Release run, tag commit and channel
 results: pending.
 
-- **M117W-STARTUP — LEAD DECISION REQUESTED 2026-10-07 (not waived).**
+- **M117W-STARTUP — resolved by FIXM117I 2026-10-07, caps unchanged.**
+  First-use estimator validation and palette data now remove the eager
+  regression; shared scrolling markup removes the original deferred excess.
+  Fresh-clone measurements are recorded in `docs/certification/m117.md`.
+  The following W receipt is historical, superseded by that repair.
   M117's measured webview startup closure is 766,692 bytes (748.7 KiB)
   against the FIXDIET1 regression baseline's 751,392 bytes (733.8 KiB):
   15,300 bytes over, while the D6 900 KiB hard cap passes with margin.

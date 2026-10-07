@@ -65,6 +65,14 @@ const SCAN_OPTIONS = {
   help: { type: 'boolean', short: 'h' },
 } as const satisfies CliParserOptions
 
+const ESTIMATE_OPTIONS = {
+  by: { type: 'string' },
+  fleet: { type: 'string' },
+  format: { type: 'string' },
+  seed: { type: 'string' },
+  help: { type: 'boolean', short: 'h' },
+} as const satisfies CliParserOptions
+
 const REPORT_OPTIONS = {
   out: { type: 'string' },
   description: { type: 'string' },
@@ -83,6 +91,7 @@ export const CLI_OPTION_REGISTRY = {
   exec: { options: EXEC_OPTIONS },
   'scan-secrets': { options: SCAN_OPTIONS },
   report: { options: REPORT_OPTIONS },
+  estimate: { options: ESTIMATE_OPTIONS },
 } as const
 
 // The description map is exhaustive over the parser's option names. It never
@@ -118,12 +127,17 @@ export const CLI_OPTION_TEXT = {
   description: 'description',
   'no-facts': 'no-facts',
   'no-events': 'no-events',
+  by: 'by',
+  fleet: 'fleet',
+  format: 'format',
+  seed: 'seed',
 } as const satisfies Readonly<
   Record<
     | keyof typeof COMMON_OPTIONS
     | keyof typeof EXEC_OPTIONS
     | keyof typeof SCAN_OPTIONS
-    | keyof typeof REPORT_OPTIONS,
+    | keyof typeof REPORT_OPTIONS
+    | keyof typeof ESTIMATE_OPTIONS,
     keyof UiText['referenceCliOptions']
   >
 >

@@ -145,6 +145,9 @@ describe('the production webview chunks (FIX78W)', () => {
   it('keeps FIXDIET1 startup and original deferred bytes within their review baseline', () => {
     const bytes = [...initialOutputs()].reduce((sum, output) => sum + statSync(output).size, 0)
     expect(bytes).toBeLessThanOrEqual(733.8 * 1024)
+  })
+
+  it('keeps original deferred bytes within the unchanged FIXDIET1 baseline', () => {
     const legacy = webviewDeferredBudgetGroups({ outputs: built.outputs }).find(
       (group) => group.name === 'deferred JS',
     )
@@ -152,6 +155,19 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(
       legacy.outputs.reduce((sum, output) => sum + statSync(output).size, 0),
     ).toBeLessThanOrEqual(32.1 * 1024)
+  })
+
+  it.each([
+    'src/shared/estimate.ts',
+    'src/shared/estimatorProtocol.ts',
+    'src/shared/palette.ts',
+    'src/shared/slashCommands.ts',
+  ])('keeps %s out of chat startup while retaining its validated lazy implementation', (source) => {
+    const owners = Object.entries(built.outputs).filter(([, output]) =>
+      Object.hasOwn(output.inputs, source),
+    )
+    expect(owners.length).toBeGreaterThan(0)
+    for (const [output] of owners) expect(initialOutputs().has(output)).toBe(false)
   })
 
   it.each([

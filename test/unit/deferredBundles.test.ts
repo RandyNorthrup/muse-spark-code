@@ -9,6 +9,7 @@ import vm from 'node:vm'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
+import { isEstimatorBundle } from '../../src/host/estimator/estimatorBundle'
 import { EN } from '../../src/shared/l10n/en'
 import { L10N_COMPRESSION_QUALITY } from '../../src/shared/constants'
 import {
@@ -277,6 +278,10 @@ describe('deferred cohort bundles', () => {
       )
       expect(bundleText(name)).toContain('./validation.js')
     }
+  })
+
+  it('loads the shipped estimator against the shared validation runtime', () => {
+    expect(isEstimatorBundle(loadSupportBundle('estimator'))).toBe(true)
   })
 
   it('loads the activation entry without requiring either action bundle', () => {

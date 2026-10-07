@@ -2686,7 +2686,11 @@
     "out": "--out <file>         A jelentés fájlba írása stdout helyett",
     "description": "--description <text>  Mi történt, saját szavakkal",
     "no-facts": "--no-facts           A támogató tények kihagyása",
-    "no-events": "--no-events          A legutóbbi események kihagyása"
+    "no-events": "--no-events          A legutóbbi események kihagyása",
+    "by": "--by <date>: Határidő",
+    "fleet": "--fleet current|minimum|optimum: Jelenlegi géppark / Minimális összeállítás / Optimális összeállítás",
+    "format": "--format md|html|json|text: Kimeneti formátum",
+    "seed": "--seed <seed>: Szimulációs kezdőérték"
   },
   "referenceExecImages": "A felület nélküli képekhez --image-generation, acceptEdits és elegendő szigorú keret szükséges. Nincs árjóváhagyási kérdés; az engedélyköteles kérések elutasításra kerülnek.",
   "referencePopoverKeys": "Opciók bejárása, érték módosítása, kiválasztás vagy a menü bezárása.",

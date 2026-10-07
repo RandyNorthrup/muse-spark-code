@@ -2686,7 +2686,11 @@
     "out": "--out <file>         Den Bericht in eine Datei statt auf stdout schreiben",
     "description": "--description <text>  Was gerade geschah, in eigenen Worten",
     "no-facts": "--no-facts           Die Support-Fakten weglassen",
-    "no-events": "--no-events          Die letzten Ereignisse weglassen"
+    "no-events": "--no-events          Die letzten Ereignisse weglassen",
+    "by": "--by <date>: Frist",
+    "fleet": "--fleet current|minimum|optimum: Aktueller Gerätebestand / Minimale Ausstattung / Optimale Ausstattung",
+    "format": "--format md|html|json|text: Ausgabeformat",
+    "seed": "--seed <seed>: Startwert der Simulation"
   },
   "referenceExecImages": "Bilder ohne Oberfläche erfordern --image-generation, acceptEdits und ein ausreichendes festes Budget. Es gibt keine Preisabfrage; Anfragen mit Genehmigungspflicht werden abgelehnt.",
   "referencePopoverKeys": "Optionen durchlaufen, einen Wert ändern, eine Option wählen oder das Menü schließen.",

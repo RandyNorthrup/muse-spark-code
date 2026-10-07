@@ -7,6 +7,7 @@
 import { createAcpEstimate, type AcpEstimatePort } from '../../acp/estimate'
 import { lazyEstimator, type EstimatorSourcePorts } from '../../host/estimator/estimatorBundle'
 import { estimatorSourcePorts } from '../../host/estimator/localFleet'
+import { runEstimateCommand } from './command'
 import type { Logger } from '../../host/logger'
 
 export interface RuntimeEstimatorDeps {
@@ -43,5 +44,25 @@ export function createRuntimeEstimate(deps: RuntimeEstimatorDeps): AcpEstimatePo
       estimate: (request, signal) => estimator.estimate(request, signal),
     }),
     money: { price: (price) => estimator.price(price) },
+  })
+}
+
+/** Standalone estimate uses the same lazy engine without starting an agent. */
+export async function runRuntimeEstimateCommand(
+  argv: readonly string[],
+  deps: RuntimeEstimatorDeps & { write(text: string): void; error(text: string): void },
+): Promise<number> {
+  const runner = lazyEstimator({ ...deps, ports: runtimeEstimatorPorts })
+  return await runEstimateCommand(argv, {
+    context: () => ({ asOf: new Date().toISOString(), optimize: 'cost' }),
+    runner,
+    money: runner,
+    write: (text) => {
+      deps.write(text)
+    },
+    error: (text) => {
+      deps.error(text)
+    },
+    signal: new AbortController().signal,
   })
 }

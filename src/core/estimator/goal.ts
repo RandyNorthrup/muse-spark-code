@@ -156,7 +156,16 @@ export async function resolveEstimateGoal(
 ): Promise<EstimateLane[]> {
   const goal = estimateGoalSchema.parse(goalInput)
   const instant = estimateRequestSchema.shape.asOf.parse(asOf)
-  const snapshot = snapshotSchema.parse(await sources.snapshot(goal, instant))
+  const raw: unknown = await sources.snapshot(goal, instant)
+  // Reject collection size before Zod reads any nested lane/source projection.
+  if (raw !== null && typeof raw === 'object') {
+    const collections: [string, unknown][] = Object.entries(raw)
+    if (
+      collections.some(([, values]) => Array.isArray(values) && values.length > ESTIMATE_MAX_ITEMS)
+    )
+      throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'lane-limit' }))
+  }
+  const snapshot = snapshotSchema.parse(raw)
   if (snapshot.asOf !== instant)
     throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'snapshot-asOf' }))
   const notFound = (): never => {
@@ -210,6 +219,8 @@ export async function resolveEstimateGoal(
   const pending = [...selected]
   for (let id = pending.pop(); id !== undefined; id = pending.pop()) {
     if (included.has(id)) continue
+    if (included.size >= ESTIMATE_MAX_ITEMS)
+      throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'lane-limit' }))
     const entry = lanes.get(id) ?? notFound()
     const lane = { ...entry.lane, state: merged.has(id) ? 'merged' : entry.lane.state }
     const resolved = estimateLaneSchema.parse({
@@ -218,7 +229,12 @@ export async function resolveEstimateGoal(
       files: lane.files.map((file) => relativeFile(file)).toSorted(compareEstimateIds),
       affinity:
         lane.state === 'merged'
-          ? entry.lane.affinity
+          ? {
+              ...entry.lane.affinity,
+              os: intersect(entry.lane.affinity.os, []),
+              architectures: intersect(entry.lane.affinity.architectures, []),
+              machineClassIds: intersect(entry.lane.affinity.machineClassIds, []),
+            }
           : affinityFor(entry.lane, snapshot.rigs.find((rig) => rig.id === entry.rigId)?.affinity),
     })
     included.set(id, resolved)

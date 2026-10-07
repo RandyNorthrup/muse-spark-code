@@ -666,6 +666,9 @@ export function featureCatalog(): readonly Feature[] {
       ['estimate'],
       ['estimator.optimize', 'estimator.priceLookup'],
       'estimates',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
     ),
     feature(
       'support',
@@ -712,6 +715,7 @@ export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
 const REFERENCE_DETAILS: Readonly<
   Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
 > = {
+  estimator: ['estimateCliHelp'],
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],
   account: ['signInBrowserDetail', 'signInApiKeyDetail', 'installDetail', 'referenceSecretPrompt'],

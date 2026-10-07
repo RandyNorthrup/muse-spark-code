@@ -151,6 +151,10 @@ export const EN = {
   referenceExecImages:
     'Headless images require --image-generation, acceptEdits and an affordable hard budget. No price question is shown; requests requiring permission are refused.',
   referenceCliOptions: {
+    by: '--by <date>: Deadline',
+    fleet: '--fleet current|minimum|optimum: Current / Minimum / Optimum',
+    format: '--format md|html|json|text: Output format',
+    seed: '--seed <seed>: Simulation seed',
     backend:
       '--backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key',
     'trust-workspace':

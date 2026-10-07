@@ -1,3 +1,5 @@
+import type { EstimateRequest } from '../../src/shared/estimate'
+import { fakeEstimate } from './helpers/estimator/fixtures'
 import { questionAnswerText } from './helpers/questions/registry'
 import { FakeQuestionClock } from './helpers/questions/clock'
 import { FakeQuestionStore } from './helpers/questions/store'
@@ -15744,4 +15746,70 @@ it('requires current sign-in for open answers and dismissals before marking or s
   const saved = await t.questionStore.load('s1')
   expect(saved[0]?.state).toBe('open')
   await t.host.close()
+})
+
+function fakeEstimatorBinding() {
+  return {
+    estimate: vi.fn((_request: EstimateRequest, _signal: AbortSignal) =>
+      Promise.resolve(fakeEstimate()),
+    ),
+    startWave: vi.fn(() => Promise.resolve(['A'])),
+    price: () => 'fake-price',
+    provisionWaiting: 'M117-P-M109-provider',
+  }
+}
+describe('M117 estimates belong to their conversation', () => {
+  it('returns a correlated failure when the source rejects', async () => {
+    const t = setup()
+    const run = fakeEstimatorBinding()
+    run.estimate.mockRejectedValue(new Error('source-unavailable'))
+    const controller = new ConversationController({ ...t.deps, estimator: run })
+    await controller.handle({
+      type: 'estimateRun',
+      requestId: 'estimate-1',
+      request: fakeEstimate().inputs.request,
+    })
+    expect(t.surface.posted).toContainEqual({
+      type: 'estimatorFailure',
+      requestId: 'estimate-1',
+      reason: 'source-unavailable',
+    })
+    controller.dispose()
+  })
+  it('cancels and drops a held estimate after New Conversation', async () => {
+    const t = setup()
+    const run = fakeEstimatorBinding()
+    const held = Promise.withResolvers<ReturnType<typeof fakeEstimate>>()
+    let signal: AbortSignal | undefined
+    run.estimate = vi.fn((_request, nextSignal) => {
+      signal = nextSignal
+      return held.promise
+    })
+    const controller = new ConversationController({ ...t.deps, estimator: run })
+    const pending = controller.handle({
+      type: 'estimateRun',
+      requestId: 'old',
+      request: fakeEstimate().inputs.request,
+    })
+    await controller.handle({ type: 'clearConversation' })
+    held.resolve(fakeEstimate())
+    await pending
+    expect(signal?.aborted).toBe(true)
+    expect(t.surface.posted.some((message) => message.type === 'estimatorSection')).toBe(false)
+    controller.dispose()
+  })
+  it('forgets first-wave inputs on New Conversation', async () => {
+    const t = setup()
+    const run = fakeEstimatorBinding()
+    const controller = new ConversationController({ ...t.deps, estimator: run })
+    await controller.handle({
+      type: 'estimateRun',
+      requestId: 'old',
+      request: fakeEstimate().inputs.request,
+    })
+    await controller.handle({ type: 'clearConversation' })
+    await controller.handle({ type: 'estimateSpinUp', requestId: 'start', setup: 'current' })
+    expect(run.startWave).not.toHaveBeenCalled()
+    controller.dispose()
+  })
 })

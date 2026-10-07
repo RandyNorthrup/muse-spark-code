@@ -142,6 +142,7 @@ export async function referenceSources(root) {
   )
   const files = [
     'src/shared/protocol.ts',
+    'src/shared/estimatorProtocol.ts',
     'src/runtime/backends.ts',
     'src/extension.ts',
     'src/acp/agent.ts',
@@ -390,6 +391,10 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     .split('export type WebviewToHostMessage', 1)[0]
   const operationNames = [
     ...source.HOST_ACTIONS,
+    ...source.evidence['src/shared/estimatorProtocol.ts']
+      .split('const hostToEstimatorSchema', 1)[0]
+      .matchAll(/type: z.literal\('([^']+)'\)/g)
+      .map((match) => match[1]),
     ...protocol.matchAll(/type: z.literal\('([^']+)'\)/g).map((match) => match[1]),
   ]
   for (const operation of operationNames) {

@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Replay the first estimator reply, settle correlated failures, cancel stale
+  session work, bind existing-fleet first-wave requests, and isolate the panel
+  behind modals without duplicating the main landmark.
+- Register standalone `estimate` help and routing without starting a model.
+- Load estimator boundary schemas and palette data on first use; retain the
+  unchanged startup and deferred size limits. Portable determinism tests feed
+  child scripts through stdin. Bound goal snapshots and normalize merged affinity.
 - Fit candidate fleets before setup search, preserve infeasible current-fleet results and
   unknown limits, and disclose calibration parameters using their own evidence.
 - Collect engine-tagged history and report first-pass finding profiles by engine, lane
@@ -17,23 +24,19 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- Capacity estimator (M117): `/estimate <goal> [--by <date>] [--fleet
-  current|minimum|optimum]` in the composer, the ACP agent and the Open
-  Estimator command forecasts P50/P90 dates, the lane schedule with its
-  critical path, the limiting resource and current/minimum/optimum setups
-  from one lazily loaded engine. Every figure carries its calibration
-  disclosure with the sample size (Uncalibrated prior below 20 samples);
-  durations and first-pass finding rates fit per engine (Codex, Muse, Grok)
-  × lane kind × machine class, and bases older than seven days are flagged
-  as a schedule risk. Spin it up starts the contract-first first wave;
-  rented servers stay advice-only until the provider binding lands, and
-  every later spend needs its own confirmation inside one explicit run
-  budget. Settings (this machine): `museSpark.estimator.optimize` and
-  `museSpark.estimator.priceLookup`. The generated-help bundle budget moves
-  100 → 125 KiB by the measured-plus-15% rule (100.7 KiB with the new rows).
+- Capacity estimator (M117) engine and lazy surfaces, verified with fakes:
+  P50/P90, critical path, bottlenecks, setup search, scoped duration and finding
+  profiles, and base-age risk. Production snapshots still require M113; board
+  dispatch requires M96 and finished-history refresh requires M115. Rentals
+  remain advice-only pending M109/M110 and the unimplemented P Slice 2 lifecycle.
+  Routes: composer/ACP `/estimate`, Open Estimator, and standalone `estimate`.
+  Machine settings: `museSpark.estimator.optimize` and `.priceLookup`.
+  The original generated-help budget increase remains measured separately.
 
 ### Documentation
 
+- Correct estimator availability and mark provisioning Slice 2 and per-node
+  duration evidence as open internal work, distinct from external bindings.
 - A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists
   what went wrong while a fleet of agents built this project. For each one it
   gives the rule that prevents it and the milestone that will enforce that

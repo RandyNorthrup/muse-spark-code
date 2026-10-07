@@ -20,7 +20,7 @@ import {
   isSameLocalDay,
   plural,
 } from '../../shared/l10n/text'
-import { formatTokenWindow } from '../../shared/palette'
+import { formatTokenWindow } from '../../shared/l10n/text'
 import { formatUsd } from '../../core/usage/insights'
 import { isFinishedStep, type StepEntry, stepSummary, stepSummaryText } from '../stepSummary'
 import { hasFileAttachment, STEERED_DISPOSITION } from '../state/transcriptEntries'

@@ -2590,7 +2590,11 @@
     "out": "--out <file>         stdout 대신 파일에 보고서 쓰기",
     "description": "--description <text>  무슨 일이 있었는지 자신의 말로",
     "no-facts": "--no-facts           지원 정보 제외",
-    "no-events": "--no-events          최근 이벤트 제외"
+    "no-events": "--no-events          최근 이벤트 제외",
+    "by": "--by <date>: 마감일",
+    "fleet": "--fleet current|minimum|optimum: 현재 장비 구성 / 최소 구성 / 최적 구성",
+    "format": "--format md|html|json|text: 출력 형식",
+    "seed": "--seed <seed>: 시뮬레이션 시드"
   },
   "referenceExecImages": "헤드리스 이미지에는 --image-generation, acceptEdits 및 충분한 엄격한 예산이 필요합니다. 가격 확인 질문은 표시되지 않으며 권한이 필요한 요청은 거부됩니다.",
   "referencePopoverKeys": "옵션을 탐색하고 값을 조정하고 선택하거나 메뉴를 닫습니다.",

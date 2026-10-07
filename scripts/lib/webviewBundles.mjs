@@ -39,7 +39,10 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     'AgentMapContent',
   ].map((name) => ({
     name,
-    entries: [`src/webview/components/${name}.tsx`],
+    entries: [
+      `src/webview/components/${name}.tsx`,
+      ...(name === 'Palette' ? ['src/shared/palette.ts'] : []),
+    ],
     budgetKiB: 25,
   })),
   {
@@ -81,7 +84,11 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     // when split out (2026-10-06); the composer loads on the first
     // `/estimate` ahead of the panel; plus 15%, rounded up to 25 KiB.
     name: 'estimator panel',
-    entries: ['src/webview/estimator/EstimatorPanel.tsx', 'src/webview/estimator/composer.ts'],
+    entries: [
+      'src/webview/estimator/EstimatorPanel.tsx',
+      'src/webview/estimator/composer.ts',
+      'src/shared/estimatorProtocol.ts',
+    ],
     budgetKiB: 25,
   },
 ]

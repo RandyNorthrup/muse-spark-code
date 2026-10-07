@@ -2686,7 +2686,11 @@
     "out": "--out <file>         Raporu stdout yerine dosyaya yaz",
     "description": "--description <text>  Neler olduğunu kendi sözlerinle anlat",
     "no-facts": "--no-facts           Destek bilgilerini çıkar",
-    "no-events": "--no-events          Son olayları çıkar"
+    "no-events": "--no-events          Son olayları çıkar",
+    "by": "--by <date>: Son tarih",
+    "fleet": "--fleet current|minimum|optimum: Mevcut makine grubu / Asgari kurulum / En uygun kurulum",
+    "format": "--format md|html|json|text: Çıktı biçimi",
+    "seed": "--seed <seed>: Simülasyon tohumu"
   },
   "referenceExecImages": "Arayüzsüz görüntüler --image-generation, acceptEdits ve yeterli kesin bütçe gerektirir. Fiyat sorusu gösterilmez; izin gerektiren istekler reddedilir.",
   "referencePopoverKeys": "Seçenekleri gezin, değeri ayarlayın, bir seçenek seçin veya menüyü kapatın.",

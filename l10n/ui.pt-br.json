@@ -2782,7 +2782,11 @@
     "out": "--out <file>         Gravar o relatório em um arquivo em vez de stdout",
     "description": "--description <text>  O que estava acontecendo, com suas palavras",
     "no-facts": "--no-facts           Omitir os dados de suporte",
-    "no-events": "--no-events          Omitir os eventos recentes"
+    "no-events": "--no-events          Omitir os eventos recentes",
+    "by": "--by <date>: Prazo",
+    "fleet": "--fleet current|minimum|optimum: Frota atual / Configuração mínima / Configuração ideal",
+    "format": "--format md|html|json|text: Formato de saída",
+    "seed": "--seed <seed>: Semente da simulação"
   },
   "referenceExecImages": "Imagens sem interface exigem --image-generation, acceptEdits e um orçamento rígido suficiente. Não há pergunta sobre o preço; solicitações que exigem permissão são recusadas.",
   "referencePopoverKeys": "Percorrer opções, ajustar um valor, escolher uma opção ou fechar o menu.",
