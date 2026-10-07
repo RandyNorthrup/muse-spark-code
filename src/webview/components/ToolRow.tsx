@@ -6,7 +6,7 @@
 // picture a tool read or made, plus the approval or question card when the
 // host is waiting.
 
-import { Suspense, lazy, memo, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import {
   IO_PREVIEW_LINES,
   PATCH_DOCUMENT_MAX_PAGES,
@@ -62,12 +62,22 @@ import { ThenRunBlock, VerifyBody } from './VerifyParts'
 import type { PlaybookWhyNote } from '../../shared/playbook'
 
 // The playbook's notes stay out of the startup closure: the row loads them
-// the first time a step carries notes. The shared deferred boundary inside
-// announces loading and retries a failed chunk without taking the chat down.
-const DeferredPlaybookNotes = lazy(async () => {
-  const { DeferredPlaybookNotes } = await import('../playbook/DeferredPlaybook')
-  return { default: DeferredPlaybookNotes }
-})
+// the first time a step carries notes. The shared deferred boundary outside
+// the import announces loading and retries a failed wrapper chunk without
+// taking the chat down (a boundary inside the loaded module could never
+// catch the load itself).
+const DeferredPlaybookNotes = deferred(
+  async () => {
+    const { DeferredPlaybookNotes } = await import('../playbook/DeferredPlaybook')
+    return { default: DeferredPlaybookNotes }
+  },
+  false,
+  () => (
+    <span role="status" data-deferred-loading="playbook">
+      {UI_TEXT.loadingOutput}
+    </span>
+  ),
+)
 
 const ElicitationCard = deferred(
   async () => {
@@ -733,15 +743,7 @@ function ToolRowView({
         <DeferredQuestionOutcome outcome={entry.questionOutcome} />
       )}
       {playbookNotes === undefined || playbookNotes.length === 0 ? null : (
-        <Suspense
-          fallback={
-            <span role="status" data-deferred-loading="playbook">
-              {UI_TEXT.loadingOutput}
-            </span>
-          }
-        >
-          <DeferredPlaybookNotes notes={playbookNotes} />
-        </Suspense>
+        <DeferredPlaybookNotes notes={playbookNotes} />
       )}
       {menu.menu}
       {quoteMenu}
